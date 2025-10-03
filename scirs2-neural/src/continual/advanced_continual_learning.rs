@@ -6,10 +6,10 @@
 use crate::continual::shared_backbone::{MultiTaskArchitecture, TaskType};
 use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Layer};
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 use std::sync::Arc;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// Progressive Neural Networks for continual learning
 pub struct ProgressiveNeuralNetwork {
     /// Columns (one per task)
@@ -152,7 +152,7 @@ impl LateralConnection {
         source_dim: usize,
         target_dim: usize,
         let weights = Array2::from_shape_fn((target_dim, source_dim), |_| {
-            use rand::Rng;
+            use scirs2_core::random::Rng;
             rng().random_range(-0.1..0.1)
         });
         let adapter = if source_dim != target_dim {

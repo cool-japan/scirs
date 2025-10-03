@@ -2,7 +2,7 @@
 mod tests {
     use crate::tests::homogeneity::{brown_forsythe, levene};
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     // Test data from SciPy documentation
     const A: [f64; 10] = [8.88, 9.12, 9.04, 8.98, 9.00, 9.08, 9.01, 8.85, 9.06, 8.99];

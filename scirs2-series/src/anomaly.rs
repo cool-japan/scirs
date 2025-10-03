@@ -4,14 +4,14 @@
 //! in time series data, including statistical process control, isolation forest,
 //! one-class SVM, distance-based, and prediction-based approaches.
 
-use ndarray::{s, Array1, Array2};
-use num_traits::{Float, FromPrimitive, NumCast};
-use rand::prelude::*;
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
+use scirs2_core::random::prelude::*;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
-use rand::seq::SliceRandom;
-use scirs2_core::Rng;
+use scirs2_core::random::rand_prelude::ThreadRng;
+use scirs2_core::random::SliceRandom;
 use statrs::statistics::Statistics;
 
 /// Method for anomaly detection
@@ -161,7 +161,7 @@ pub enum MethodInfo {
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::anomaly::{detect_anomalies, AnomalyOptions, AnomalyMethod};
 ///
 /// // Create a time series with some anomalies
@@ -373,7 +373,7 @@ where
     let n_windows = windowed_data.nrows();
 
     let mut path_lengths = Array1::<f64>::zeros(n_windows);
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Build isolation trees
     for _ in 0..n_trees {
@@ -476,7 +476,7 @@ where
     let mut sorted_values: Vec<f64> = ts.iter().map(|&x| x.to_f64().unwrap_or(0.0)).collect();
     sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let median = if n % 2 == 0 {
+    let median = if n.is_multiple_of(2) {
         (sorted_values[n / 2 - 1] + sorted_values[n / 2]) / 2.0
     } else {
         sorted_values[n / 2]
@@ -489,7 +489,7 @@ where
         .collect();
     abs_deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    let mad = if n % 2 == 0 {
+    let mad = if n.is_multiple_of(2) {
         (abs_deviations[n / 2 - 1] + abs_deviations[n / 2]) / 2.0
     } else {
         abs_deviations[n / 2]
@@ -873,7 +873,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_zscore_anomaly_detection() {

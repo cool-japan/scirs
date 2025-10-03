@@ -28,7 +28,7 @@
 //!
 //! ```rust
 //! use scirs2_signal::parametric_advanced_enhanced::{advanced_enhanced_arma, AdvancedEnhancedConfig};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! // Generate test signal (longer for robust estimation)
 //! let signal_vec: Vec<f64> = (0..512).map(|i| {
@@ -91,7 +91,7 @@
 //! ```
 
 // Common imports
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 // Declare all submodules
 pub mod adaptive;
@@ -280,7 +280,7 @@ mod tests {
 
     #[test]
     fn test_utility_functions_integration() {
-        use ndarray::Array1;
+        use scirs2_core::ndarray::Array1;
 
         // Test PSD computation
         let ar_coeffs = Array1::from_vec(vec![1.0, -0.5, 0.2]);

@@ -1,8 +1,8 @@
 //! Evaluation metrics for neural networks
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, Ix1, Ix2, IxDyn, Zip};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Ix1, Ix2, IxDyn, Zip};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Trait for metrics that evaluate model performance
@@ -133,7 +133,7 @@ impl<F: Float> Metric<F> for R2Score {
 /// # Examples
 /// ```
 /// use scirs2_neural::utils::mean_squared_error;
-/// use ndarray::arr1;
+/// use scirs2_core::ndarray::arr1;
 ///
 /// let predictions = arr1(&[1.0f64, 2.0, 3.0]).into_dyn();
 /// let targets = arr1(&[1.5f64, 1.8, 2.5]).into_dyn();
@@ -178,7 +178,7 @@ pub fn mean_squared_error<F: Float + Debug>(
 /// # Examples
 /// ```
 /// use scirs2_neural::utils::binary_accuracy;
-/// use ndarray::arr1;
+/// use scirs2_core::ndarray::arr1;
 ///
 /// let predictions = arr1(&[0.7f64, 0.3, 0.8, 0.2]);
 /// let targets = arr1(&[1.0f64, 0.0, 1.0, 0.0]);
@@ -226,7 +226,7 @@ pub fn binary_accuracy<F: Float + Debug>(
 /// # Examples
 /// ```
 /// use scirs2_neural::utils::categorical_accuracy;
-/// use ndarray::arr2;
+/// use scirs2_core::ndarray::arr2;
 ///
 /// let predictions = arr2(&[
 ///     [0.7f64, 0.2, 0.1],  // Predicted class: 0

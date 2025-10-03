@@ -3,7 +3,7 @@
 //! This module provides functionality for reading and writing WAV audio files.
 
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use ndarray::ArrayD;
+use scirs2_core::ndarray::ArrayD;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -198,8 +198,8 @@ pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(WavHeader, ArrayD<f32>)> {
     // We'll create the header at the end to return it
 
     // Read audio data
-    let shape = ndarray::IxDyn(&[channels as usize, samples_per_channel]);
-    let mut data: ndarray::ArrayD<f32> = ndarray::Array::zeros(shape);
+    let shape = scirs2_core::ndarray::IxDyn(&[channels as usize, samples_per_channel]);
+    let mut data: scirs2_core::ndarray::ArrayD<f32> = scirs2_core::ndarray::Array::zeros(shape);
 
     // Read samples based on bits per sample
     match bits_per_sample {
@@ -308,7 +308,7 @@ pub fn read_wav<P: AsRef<Path>>(path: P) -> Result<(WavHeader, ArrayD<f32>)> {
 /// # Example
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_io::wavfile::write_wav;
 /// use std::path::Path;
 ///

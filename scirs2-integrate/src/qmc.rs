@@ -12,9 +12,9 @@
 //! - **Halton sequences**: Based on van der Corput sequences with different prime bases
 //! - **Faure sequences**: Based on prime bases with matrix scrambling for improved uniformity
 
-use ndarray::{s, Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
-use rand::random;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::random;
 use std::fmt;
 
 use crate::error::{IntegrateError, IntegrateResult};
@@ -408,13 +408,13 @@ impl Faure {
         if n == 2 {
             return true;
         }
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             return false;
         }
 
         let sqrt_n = (n as f64).sqrt() as usize;
         for i in (3..=sqrt_n).step_by(2) {
-            if n % i == 0 {
+            if n.is_multiple_of(i) {
                 return false;
             }
         }
@@ -538,7 +538,7 @@ pub fn scale<T: Float + FromPrimitive>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array1, ArrayView1};
+/// use scirs2_core::ndarray::{Array1, ArrayView1};
 /// use scirs2_integrate::qmc::{qmc_quad, Halton};
 ///
 /// let f = |x: ArrayView1<f64>| x[0].powi(2) * x[1].exp();
@@ -749,7 +749,7 @@ where
 ///
 /// ```
 /// use scirs2_integrate::qmc::{qmc_quad_parallel, Halton};
-/// use ndarray::{Array1, ArrayView1};
+/// use scirs2_core::ndarray::{Array1, ArrayView1};
 ///
 /// let f = |x: ArrayView1<f64>| x[0].powi(2) * x[1].exp();
 /// let a = Array1::from_vec(vec![0.0, 0.0]);
@@ -910,7 +910,7 @@ where
         .into_par_iter()
         .map(|_| {
             // Each thread gets its own QRNG instance with different seed
-            let mut local_qrng = qrng.new_from_seed(rand::random());
+            let mut local_qrng = qrng.new_from_seed(scirs2_core::random::random());
 
             // Sample points
             let points = local_qrng.random(n_points);
@@ -1080,7 +1080,7 @@ mod tests {
     use super::*;
     use crate::{qmc_quad, qmc_quad_parallel, Faure};
     use approx::assert_abs_diff_eq;
-    use ndarray::{s, Array1, ArrayView1};
+    use scirs2_core::ndarray::{s, Array1, ArrayView1};
 
     #[test]
     fn test_qmc_integral_1d() {

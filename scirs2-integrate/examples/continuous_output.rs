@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_integrate::error::IntegrateResult;
 use scirs2_integrate::ode::utils::dense_output::{create_dense_solution, DenseSolution};
 use scirs2_integrate::ode::utils::interpolation::ContinuousOutputMethod;

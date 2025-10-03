@@ -2,8 +2,8 @@
 //!
 //! Implements structural time series models, dynamic linear models, and Kalman filtering
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -1142,7 +1142,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq; // Currently unused but needed for future tests
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_kalman_filter_prediction() {

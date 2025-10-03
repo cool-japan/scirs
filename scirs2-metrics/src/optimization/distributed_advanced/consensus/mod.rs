@@ -10,7 +10,7 @@ pub mod proof_of_stake;
 pub mod raft;
 
 use crate::error::{MetricsError, Result};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant, SystemTime};

@@ -3,7 +3,7 @@
 //! This module provides various export formats for dendrogram plots including
 //! SVG, HTML, and other formats for use in publications and web applications.
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::types::*;
@@ -332,7 +332,7 @@ fn generate_d3_script<F: Float + FromPrimitive + Debug + std::fmt::Display>(
             branch.distance
         ));
         if i < plot.branches.len() - 1 {
-            script.push_str(",");
+            script.push(',');
         }
         script.push('\n');
     }
@@ -346,7 +346,7 @@ fn generate_d3_script<F: Float + FromPrimitive + Debug + std::fmt::Display>(
             leaf.position.0, leaf.position.1, leaf.label, leaf.color
         ));
         if i < plot.leaves.len() - 1 {
-            script.push_str(",");
+            script.push(',');
         }
         script.push('\n');
     }
@@ -394,24 +394,24 @@ fn export_to_json<F: Float + FromPrimitive + Debug + std::fmt::Display>(
     // Branches
     json.push_str("  \"branches\": [\n");
     for (i, branch) in plot.branches.iter().enumerate() {
-        write!(&mut json, "    {{\n").unwrap();
-        write!(
+        writeln!(&mut json, "    {{").unwrap();
+        writeln!(
             &mut json,
-            "      \"start\": [{}, {}],\n",
+            "      \"start\": [{}, {}],",
             branch.start.0, branch.start.1
         )
         .unwrap();
-        write!(
+        writeln!(
             &mut json,
-            "      \"end\": [{}, {}],\n",
+            "      \"end\": [{}, {}],",
             branch.end.0, branch.end.1
         )
         .unwrap();
-        write!(&mut json, "      \"distance\": {},\n", branch.distance).unwrap();
-        write!(&mut json, "      \"color\": \"{}\"\n", branch.color).unwrap();
+        writeln!(&mut json, "      \"distance\": {},", branch.distance).unwrap();
+        writeln!(&mut json, "      \"color\": \"{}\"", branch.color).unwrap();
         json.push_str("    }");
         if i < plot.branches.len() - 1 {
-            json.push_str(",");
+            json.push(',');
         }
         json.push('\n');
     }
@@ -420,24 +420,24 @@ fn export_to_json<F: Float + FromPrimitive + Debug + std::fmt::Display>(
     // Leaves
     json.push_str("  \"leaves\": [\n");
     for (i, leaf) in plot.leaves.iter().enumerate() {
-        write!(&mut json, "    {{\n").unwrap();
-        write!(
+        writeln!(&mut json, "    {{").unwrap();
+        writeln!(
             &mut json,
-            "      \"position\": [{}, {}],\n",
+            "      \"position\": [{}, {}],",
             leaf.position.0, leaf.position.1
         )
         .unwrap();
-        write!(&mut json, "      \"label\": \"{}\",\n", leaf.label).unwrap();
-        write!(&mut json, "      \"color\": \"{}\",\n", leaf.color).unwrap();
-        write!(&mut json, "      \"data_index\": {}\n", leaf.data_index).unwrap();
+        writeln!(&mut json, "      \"label\": \"{}\",", leaf.label).unwrap();
+        writeln!(&mut json, "      \"color\": \"{}\",", leaf.color).unwrap();
+        writeln!(&mut json, "      \"data_index\": {}", leaf.data_index).unwrap();
         json.push_str("    }");
         if i < plot.leaves.len() - 1 {
-            json.push_str(",");
+            json.push(',');
         }
         json.push('\n');
     }
     json.push_str("  ]\n");
-    json.push_str("}");
+    json.push('}');
 
     Ok(json)
 }

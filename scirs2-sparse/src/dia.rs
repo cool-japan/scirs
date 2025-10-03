@@ -4,7 +4,7 @@
 //! efficient for matrices with values concentrated on a small number of diagonals.
 
 use crate::error::{SparseError, SparseResult};
-use num_traits::Zero;
+use scirs2_core::numeric::Zero;
 
 /// Diagonal (DIA) matrix
 ///

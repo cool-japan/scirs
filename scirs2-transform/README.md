@@ -5,9 +5,9 @@
 [![Documentation](https://img.shields.io/docsrs/scirs2-transform)](https://docs.rs/scirs2-transform)
 [![Tests](https://img.shields.io/badge/tests-100%20passing-brightgreen.svg)](#testing)
 
-**Production-ready data transformation library for machine learning in Rust (v0.1.0-beta.4)**
+**Production-ready data transformation library for machine learning in Rust (v0.1.0-rc.1)**
 
-This crate provides comprehensive data transformation utilities for the SciRS2 ecosystem (v0.1.0-beta.4). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module is designed to match and exceed the functionality of scikit-learn's preprocessing module while leveraging Rust's performance and safety guarantees with enhanced distributed processing capabilities.
+This crate provides comprehensive data transformation utilities for the SciRS2 ecosystem (v0.1.0-rc.1). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module is designed to match and exceed the functionality of scikit-learn's preprocessing module while leveraging Rust's performance and safety guarantees with enhanced distributed processing capabilities.
 
 ## 🚀 Features
 
@@ -53,14 +53,14 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-transform = "0.1.0-beta.4"
+scirs2-transform = "0.1.0-rc.1"
 ```
 
 For parallel processing and enhanced performance:
 
 ```toml
 [dependencies]
-scirs2-transform = { version = "0.1.0-beta.4", features = ["parallel"] }
+scirs2-transform = { version = "0.1.0-rc.1", features = ["parallel"] }
 ```
 
 ## 🎯 Quick Start
@@ -333,4 +333,4 @@ You may choose to use either license.
 
 ---
 
-**Ready for Production**: SciRS2 Transform v0.1.0-beta.4 provides production-ready data transformation capabilities with performance that meets or exceeds established Python libraries while offering Rust's safety and performance guarantees.
+**Ready for Production**: SciRS2 Transform v0.1.0-rc.1 provides production-ready data transformation capabilities with performance that meets or exceeds established Python libraries while offering Rust's safety and performance guarantees.

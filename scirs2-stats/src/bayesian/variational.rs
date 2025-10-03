@@ -4,7 +4,7 @@
 //! for approximate Bayesian inference.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::validation::*;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
@@ -781,7 +781,7 @@ fn normal_ppf(p: f64) -> Result<f64> {
         -3.969683028665376e+01,
         2.209460984245205e+02,
         -2.759285104469687e+02,
-        1.383577518672690e+02,
+        1.383_577_518_672_69e2,
         -3.066479806614716e+01,
         2.506628277459239e+00,
     ];

@@ -37,7 +37,7 @@ pub fn ricker(points: usize, a: f64) -> SignalResult<Vec<f64>> {
     }
 
     // Calculate amplitude factor
-    let amplitude = 2.0 / (std::f64::consts::PI.powf(0.25) * ((3.0 * a) as f64).sqrt());
+    let amplitude = 2.0 / (std::f64::consts::PI.powf(0.25) * (3.0 * a).sqrt());
     let wsq = a * a;
 
     // Generate position vector

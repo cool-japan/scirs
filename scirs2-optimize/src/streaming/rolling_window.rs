@@ -9,9 +9,9 @@ use super::{
     StreamingStats,
 };
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2}; // Unused import: ArrayView1
-                               // Unused import
-                               // use scirs2_core::error::CoreResult;
+use scirs2_core::ndarray::{Array1, Array2}; // Unused import: ArrayView1
+                                            // Unused import
+                                            // use scirs2_core::error::CoreResult;
 use std::collections::VecDeque;
 
 type Result<T> = std::result::Result<T, OptimizeError>;
@@ -333,7 +333,7 @@ impl<T: StreamingObjective + Clone> StreamingOptimizer for RollingWindowOptimize
 
         // Decide whether to reoptimize
         let should_reoptimize =
-            self.refit_every_update || (self.update_counter % self.refit_frequency == 0);
+            self.refit_every_update || self.update_counter.is_multiple_of(self.refit_frequency);
 
         if should_reoptimize {
             // Reoptimize based on current window

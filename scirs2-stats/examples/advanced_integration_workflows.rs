@@ -3,7 +3,7 @@
 //! This example demonstrates the high-level workflows that integrate multiple
 //! advanced statistical methods for comprehensive data analysis.
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_stats::{
     BayesianAnalysisWorkflow, DimensionalityAnalysisWorkflow, QMCSequenceType, QMCWorkflow,
     SurvivalAnalysisWorkflow,
@@ -78,7 +78,7 @@ fn bayesian_analysis_example() -> Result<(), Box<dyn std::error::Error>> {
         println!("  MCMC samples shape: {:?}", mcmc_samples.dim());
         println!(
             "  Posterior mean from MCMC: {:?}",
-            mcmc_samples.mean_axis(ndarray::Axis(0))
+            mcmc_samples.mean_axis(scirs2_core::ndarray::Axis(0))
         );
     }
 
@@ -132,11 +132,14 @@ fn dimensionality_analysis_example() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(ref pca) = result.pca {
         println!(
             "  PCA explained variance ratio: {:?}",
-            pca.explained_variance_ratio.slice(ndarray::s![..5])
+            pca.explained_variance_ratio
+                .slice(scirs2_core::ndarray::s![..5])
         );
         println!(
             "  Cumulative explained variance: {:.3}",
-            pca.explained_variance_ratio.slice(ndarray::s![..3]).sum()
+            pca.explained_variance_ratio
+                .slice(scirs2_core::ndarray::s![..3])
+                .sum()
         );
     }
 

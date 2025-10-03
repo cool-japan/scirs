@@ -153,7 +153,7 @@ pub struct ErrorInfo {
 }
 
 /// Memory usage statistics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MemoryUsageStats {
     /// Peak memory usage
     pub peak_usage: u64,
@@ -298,18 +298,6 @@ pub struct ScalabilityAssessment {
     pub max_scale_factor: f64,
     /// Limiting factors
     pub limiting_factors: Vec<String>,
-}
-
-impl Default for MemoryUsageStats {
-    fn default() -> Self {
-        Self {
-            peak_usage: 0,
-            average_usage: 0,
-            initial_usage: 0,
-            final_usage: 0,
-            memory_leaked: 0,
-        }
-    }
 }
 
 impl Default for StressPerformanceMetrics {

@@ -7,7 +7,7 @@ use crate::op;
 use crate::tensor::Tensor;
 use crate::tensor_ops::*;
 use crate::Float;
-use ndarray::SliceInfoElem;
+use scirs2_core::ndarray::SliceInfoElem;
 use std::iter::FromIterator;
 
 pub struct ExpandDims;
@@ -95,7 +95,7 @@ impl<T: Float> op::Op<T> for Assign {
     fn compute(&self, ctx: &mut op::ComputeContext<T>) -> Result<(), op::OpError> {
         let input1 = ctx.input(1).to_owned();
         ctx.input_mut(0).assign(&input1);
-        ctx.append_output(ndarray::Array::zeros(vec![]).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::Array::zeros(vec![]).into_dyn());
         Ok(())
     }
 
@@ -135,7 +135,9 @@ impl<T: Float> op::Op<T> for InferBinOpShape {
                 .zip(bshape)
                 .map(|(a, b)| T::from((*a).max(b)).unwrap())
                 .collect::<Vec<T>>();
-            ctx.append_output(NdArray::from_shape_vec(ndarray::IxDyn(&[a_rank]), max).unwrap())
+            ctx.append_output(
+                NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[a_rank]), max).unwrap(),
+            )
         } else if !a_is_scalar {
             ctx.append_output(ashape_float.to_owned());
         } else {
@@ -155,7 +157,8 @@ impl<T: Float> op::Op<T> for Shape {
         let x = &ctx.input(0);
         let shape_vec = ndarray_ext::shape_of_view(x);
         let shape_t: Vec<T> = shape_vec.iter().map(|&s| T::from(s).unwrap()).collect();
-        let ret = NdArray::from_shape_vec(ndarray::IxDyn(&[shape_vec.len()]), shape_t).unwrap();
+        let ret = NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[shape_vec.len()]), shape_t)
+            .unwrap();
         ctx.append_output(ret);
         Ok(())
     }
@@ -168,7 +171,7 @@ impl<T: Float> op::Op<T> for Shape {
 impl<T: Float> op::Op<T> for Rank {
     fn compute(&self, ctx: &mut op::ComputeContext<T>) -> Result<(), op::OpError> {
         let x = ctx.input(0);
-        let ret = NdArray::from_elem(ndarray::IxDyn(&[]), T::from(x.ndim()).unwrap());
+        let ret = NdArray::from_elem(scirs2_core::ndarray::IxDyn(&[]), T::from(x.ndim()).unwrap());
         ctx.append_output(ret);
         Ok(())
     }
@@ -181,7 +184,7 @@ impl<T: Float> op::Op<T> for Rank {
 impl<T: Float> op::Op<T> for Size {
     fn compute(&self, ctx: &mut op::ComputeContext<T>) -> Result<(), op::OpError> {
         let x = ctx.input(0);
-        let ret = NdArray::from_elem(ndarray::IxDyn(&[]), T::from(x.len()).unwrap());
+        let ret = NdArray::from_elem(scirs2_core::ndarray::IxDyn(&[]), T::from(x.len()).unwrap());
         ctx.append_output(ret);
         Ok(())
     }
@@ -211,12 +214,14 @@ impl<T: Float> op::Op<T> for Reshape {
         if x.is_standard_layout() {
             if let Ok(a) = x
                 .clone()
-                .into_shape_with_order(ndarray::IxDyn(target.as_slice()))
+                .into_shape_with_order(scirs2_core::ndarray::IxDyn(target.as_slice()))
             {
                 ctx.append_output(a.to_owned());
             } else {
                 let copy = ndarray_ext::deep_copy(x);
-                if let Ok(a) = copy.into_shape_with_order(ndarray::IxDyn(target.as_slice())) {
+                if let Ok(a) =
+                    copy.into_shape_with_order(scirs2_core::ndarray::IxDyn(target.as_slice()))
+                {
                     ctx.append_output(a);
                 } else {
                     return Err(op::OpError::IncompatibleShape(format!(
@@ -226,8 +231,8 @@ impl<T: Float> op::Op<T> for Reshape {
                     )));
                 }
             }
-        } else if let Ok(a) =
-            ndarray_ext::deep_copy(x).into_shape_with_order(ndarray::IxDyn(target.as_slice()))
+        } else if let Ok(a) = ndarray_ext::deep_copy(x)
+            .into_shape_with_order(scirs2_core::ndarray::IxDyn(target.as_slice()))
         {
             ctx.append_output(a)
         } else {
@@ -281,7 +286,7 @@ impl<T: Float> op::Op<T> for SetDiff1D {
             .collect::<Vec<T>>();
         let len = vec.len();
         // safe unwrap
-        let ret = NdArray::from_shape_vec(ndarray::IxDyn(&[len]), vec).unwrap();
+        let ret = NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[len]), vec).unwrap();
         ctx.append_output(ret);
         Ok(())
     }
@@ -303,7 +308,7 @@ impl<T: Float> op::Op<T> for IndexOp {
         // unwrap is safe
         let flat_x = x.view().into_shape_with_order(x.len()).unwrap();
         if let Some(ret) = flat_x.get(i) {
-            ctx.append_output(ndarray::arr0(*ret).into_dyn());
+            ctx.append_output(scirs2_core::ndarray::arr0(*ret).into_dyn());
             Ok(())
         } else {
             Err(op::OpError::OutOfBounds(format!(
@@ -346,7 +351,7 @@ impl<T: Float> op::Op<T> for IndexOpGrad {
             .unwrap() // safe unwrap
             .get_mut(i)
         {
-            *a = gy[ndarray::IxDyn(&[])];
+            *a = gy[scirs2_core::ndarray::IxDyn(&[])];
         } else {
             return Err(op::OpError::OutOfBounds(format!(
                 "access_elem: tried to access index {} in tensor of length {} (shape: {:?})",
@@ -393,7 +398,11 @@ impl<T: Float> op::Op<T> for Gather {
                 .cloned()
                 .collect::<Vec<_>>()
         };
-        let selected = ndarray_ext::select(param, ndarray::Axis(axis), flat_indices.as_slice());
+        let selected = ndarray_ext::select(
+            param,
+            scirs2_core::ndarray::Axis(axis),
+            flat_indices.as_slice(),
+        );
         let ret = selected
             .into_shape_with_order(outputshape.as_slice())
             .unwrap();
@@ -443,12 +452,16 @@ impl<T: Float> op::Op<T> for GatherGrad {
 
         let mut gx = NdArray::zeros(param.shape());
 
-        for (gy_sub, &i) in gy.axis_iter(ndarray::Axis(axis)).zip(indices) {
+        for (gy_sub, &i) in gy.axis_iter(scirs2_core::ndarray::Axis(axis)).zip(indices) {
             let i = i.to_isize().unwrap();
             // get gx's sub view
             let gx_sliced = unsafe {
                 gx.slice_mut(
-                    ndarray::SliceInfo::<_, ndarray::IxDyn, ndarray::IxDyn>::new(
+                    scirs2_core::ndarray::SliceInfo::<
+                        _,
+                        scirs2_core::ndarray::IxDyn,
+                        scirs2_core::ndarray::IxDyn,
+                    >::new(
                         (0..param.ndim())
                             .map(|dim| {
                                 if dim == axis {
@@ -473,7 +486,7 @@ impl<T: Float> op::Op<T> for GatherGrad {
             };
 
             // squeeze
-            let mut gx_sliced = gx_sliced.index_axis_move(ndarray::Axis(axis), 0);
+            let mut gx_sliced = gx_sliced.index_axis_move(scirs2_core::ndarray::Axis(axis), 0);
             // assign gy to sliced view
             gx_sliced.zip_mut_with(&gy_sub, |gx, &gy| {
                 *gx += gy;
@@ -578,7 +591,8 @@ impl<T: Float> op::Op<T> for Concat {
             self.axis as usize
         };
 
-        match ndarray::concatenate(ndarray::Axis(axis), views.as_slice()) {
+        match scirs2_core::ndarray::concatenate(scirs2_core::ndarray::Axis(axis), views.as_slice())
+        {
             Ok(y) => {
                 ctx.append_output(y);
                 Ok(())
@@ -653,7 +667,12 @@ impl<T: Float> op::Op<T> for ConcatGrad {
 
         // Clone the *view*
         unsafe {
-            match ndarray::SliceInfo::<_, ndarray::IxDyn, ndarray::IxDyn>::new(indices) {
+            match scirs2_core::ndarray::SliceInfo::<
+                _,
+                scirs2_core::ndarray::IxDyn,
+                scirs2_core::ndarray::IxDyn,
+            >::new(indices)
+            {
                 Ok(ok) => {
                     // do slice
                     let ret = gy.clone().slice_move(ok.as_ref());
@@ -678,7 +697,8 @@ impl<T: Float> op::Op<T> for Tile {
         let x = ctx.input(0);
         let axis = ndarray_ext::normalize_negative_axis(self.axis, x.ndim());
         let views = vec![x.clone(); self.num];
-        match ndarray::concatenate(ndarray::Axis(axis), views.as_slice()) {
+        match scirs2_core::ndarray::concatenate(scirs2_core::ndarray::Axis(axis), views.as_slice())
+        {
             Ok(ret) => {
                 ctx.append_output(ret);
                 Ok(())
@@ -730,9 +750,13 @@ impl<T: Float> op::Op<T> for SplitGrad {
 
         unsafe {
             gx.slice_mut(
-                ndarray::SliceInfo::<_, ndarray::IxDyn, ndarray::IxDyn>::new(indices)
-                    .unwrap()
-                    .as_ref(),
+                scirs2_core::ndarray::SliceInfo::<
+                    _,
+                    scirs2_core::ndarray::IxDyn,
+                    scirs2_core::ndarray::IxDyn,
+                >::new(indices)
+                .unwrap()
+                .as_ref(),
             )
             .zip_mut_with(&ctx.input(1), |a, &g| *a = g);
         }
@@ -805,9 +829,11 @@ impl<T: Float> op::Op<T> for SliceGrad {
         // sliced view
         unsafe {
             gx.slice_mut(
-                ndarray::SliceInfo::<&[SliceInfoElem], ndarray::IxDyn, ndarray::IxDyn>::new(
-                    &self.indices,
-                )
+                scirs2_core::ndarray::SliceInfo::<
+                    &[SliceInfoElem],
+                    scirs2_core::ndarray::IxDyn,
+                    scirs2_core::ndarray::IxDyn,
+                >::new(&self.indices)
                 .unwrap()
                 .as_ref(),
             )
@@ -841,7 +867,7 @@ impl<T: Float> op::Op<T> for Squeeze {
             let axis = axis - adjust;
             assert_eq!(1, x.shape()[axis], "Can't squeeze a dim whose size != 1");
             // axis making ok
-            x = x.index_axis_move(ndarray::Axis(axis), 0);
+            x = x.index_axis_move(scirs2_core::ndarray::Axis(axis), 0);
         }
         ctx.append_output(x.to_owned());
         Ok(())

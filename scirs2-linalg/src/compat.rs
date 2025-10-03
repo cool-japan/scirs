@@ -46,8 +46,8 @@
 //! ### Utilities
 //! - `block_diag()` - Block diagonal matrix construction
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -1143,7 +1143,7 @@ where
     for array in arrays {
         let (rows, cols) = array.dim();
         result
-            .slice_mut(ndarray::s![
+            .slice_mut(scirs2_core::ndarray::s![
                 row_offset..row_offset + rows,
                 col_offset..col_offset + cols
             ])

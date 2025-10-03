@@ -7,9 +7,9 @@
 use super::core::*;
 use crate::error::{ClusteringError, Result};
 use crate::metrics::{adjusted_rand_index, silhouette_score};
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::prelude::*;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
@@ -75,8 +75,8 @@ where
     fn generate_diverse_clusterings(&self, data: ArrayView2<F>) -> Result<Vec<ClusteringResult>> {
         let mut results = Vec::new();
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
         for i in 0..self.config.n_estimators {
@@ -123,7 +123,7 @@ where
     fn apply_sampling_strategy(
         &self,
         data: ArrayView2<F>,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<(Array2<F>, Vec<usize>)> {
         let n_samples = data.nrows();
         let n_features = data.ncols();
@@ -227,8 +227,10 @@ where
 
                 // Generate random projection matrix using Gaussian random values
                 let mut rng = match self.config.random_seed {
-                    Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-                    None => rand::rngs::StdRng::seed_from_u64(rand::random()),
+                    Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+                    None => scirs2_core::random::rngs::StdRng::seed_from_u64(
+                        scirs2_core::random::random(),
+                    ),
                 };
 
                 // Create random projection matrix (n_features x target_dimensions)
@@ -528,7 +530,7 @@ where
         data: ArrayView2<F>,
     ) -> Result<EnsembleResult> {
         // Use hierarchical clustering on the co-association matrix
-        self.hierarchical_consensus(results, data, &"ward".to_string())
+        self.hierarchical_consensus(results, data, "ward")
     }
 
     /// Hierarchical consensus method
@@ -742,7 +744,7 @@ where
     fn select_algorithm_and_parameters(
         &self,
         estimator_index: usize,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<(ClusteringAlgorithm, HashMap<String, String>)> {
         match &self.config.diversity_strategy {
             Some(DiversityStrategy::AlgorithmDiversity { algorithms }) => {
@@ -772,7 +774,7 @@ where
     fn generate_random_parameters(
         &self,
         algorithm: &ClusteringAlgorithm,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<HashMap<String, String>> {
         let mut parameters = HashMap::new();
 
@@ -815,7 +817,7 @@ where
     fn sample_parameter_ranges(
         &self,
         parameter_ranges: &HashMap<String, ParameterRange>,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<HashMap<String, String>> {
         let mut parameters = HashMap::new();
 

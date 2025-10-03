@@ -17,7 +17,7 @@
 
 use crate::constants;
 use crate::gamma::gamma;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Modified Bessel function of the first kind of order 0 with enhanced numerical stability.

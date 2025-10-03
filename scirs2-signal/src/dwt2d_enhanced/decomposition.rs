@@ -18,9 +18,9 @@ use super::types::{
 };
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{s, Array2, ArrayView1, ArrayView2};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array2, ArrayView1, ArrayView2};
 use scirs2_core::parallel_ops::*;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::validation::{check_positive, checkarray_finite};
 use statrs::statistics::Statistics;
@@ -156,7 +156,7 @@ fn parallel_dwt2d_decompose(
         .collect();
 
     // Reorganize into low and high frequency components
-    let half_cols = (cols + 1) / 2;
+    let half_cols = cols.div_ceil(2);
     let mut temp_lo = Array2::zeros((rows, half_cols));
     let mut temp_hi = Array2::zeros((rows, half_cols));
 
@@ -174,7 +174,7 @@ fn parallel_dwt2d_decompose(
     }
 
     // Apply 1D DWT to columns of low and high frequency components
-    let half_rows = (rows + 1) / 2;
+    let half_rows = rows.div_ceil(2);
 
     // Process low frequency columns
     let lo_col_results: Vec<(usize, Vec<f64>, Vec<f64>)> = (0..half_cols)
@@ -253,7 +253,7 @@ fn simd_dwt2d_decompose(
     let (rows, cols) = data.dim();
 
     // Process rows with SIMD
-    let half_cols = (cols + 1) / 2;
+    let half_cols = cols.div_ceil(2);
     let mut temp_lo = Array2::zeros((rows, half_cols));
     let mut temp_hi = Array2::zeros((rows, half_cols));
 
@@ -278,7 +278,7 @@ fn simd_dwt2d_decompose(
     }
 
     // Process columns with SIMD
-    let half_rows = (rows + 1) / 2;
+    let half_rows = rows.div_ceil(2);
     let mut approx = Array2::zeros((half_rows, half_cols));
     let mut detail_v = Array2::zeros((half_rows, half_cols));
     let mut detail_h = Array2::zeros((half_rows, half_cols));
@@ -401,8 +401,8 @@ fn memory_optimized_dwt2d_decompose(
     let block_size = config.block_size.min(rows.min(cols));
 
     // Calculate output dimensions
-    let half_rows = (rows + 1) / 2;
-    let half_cols = (cols + 1) / 2;
+    let half_rows = rows.div_ceil(2);
+    let half_cols = cols.div_ceil(2);
 
     // Initialize output arrays with better memory allocation
     let mut approx = Array2::zeros((half_rows, half_cols));
@@ -441,9 +441,9 @@ fn memory_optimized_dwt2d_decompose(
 
             // Copy valid region to output arrays with bounds checking
             let out_row_start = row_start / 2;
-            let out_row_end = ((row_start + effective_block_size).min(rows) + 1) / 2;
+            let out_row_end = (row_start + effective_block_size).min(rows).div_ceil(2);
             let out_col_start = col_start / 2;
-            let out_col_end = ((col_start + effective_block_size).min(cols) + 1) / 2;
+            let out_col_end = (col_start + effective_block_size).min(cols).div_ceil(2);
 
             // Ensure we don't exceed output array bounds
             let valid_row_end = out_row_end.min(half_rows);
@@ -977,8 +977,8 @@ fn validate_dwt2d_result(
     _config: &Dwt2dConfig,
 ) -> SignalResult<()> {
     let (orig_rows, orig_cols) = originalshape;
-    let expected_rows = (orig_rows + 1) / 2;
-    let expected_cols = (orig_cols + 1) / 2;
+    let expected_rows = orig_rows.div_ceil(2);
+    let expected_cols = orig_cols.div_ceil(2);
 
     // Check dimensions of all subbands
     if result.approx.dim() != (expected_rows, expected_cols) {

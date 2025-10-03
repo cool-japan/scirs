@@ -2,9 +2,9 @@ use plotly::{
     common::{Mode, Title},
     Layout, Plot, Scatter,
 };
-use rand::rngs::StdRng;
-use rand::SeedableRng;
-use rand_distr::{Distribution, Normal};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::SeedableRng;
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_fft::{
     sparse_fft::{SparseFFTAlgorithm, SparseFFTResult, WindowFunction},
     sparse_fft_gpu::GPUBackend,

@@ -6,8 +6,8 @@
 
 use super::core::{PerspectiveTransform, RansacParams, RansacResult};
 use crate::error::{Result, VisionError};
-use rand::{rngs::StdRng, seq::SliceRandom, RngCore, SeedableRng};
 use scirs2_core::random::Random;
+use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, RngCore, SeedableRng};
 
 /// Find a homography transformation using RANSAC
 ///
@@ -49,7 +49,7 @@ pub fn find_homography_ransac(
     let mut rng: Random<StdRng> = if let Some(seed) = params.seed {
         Random::seed(seed)
     } else {
-        Random::seed(rand::random::<u64>())
+        Random::seed(scirs2_core::random::random::<u64>())
     };
 
     // Track the best model found so far
@@ -168,7 +168,7 @@ pub fn evaluate_homography_quality(
     // Compute median error
     let mut sorted_errors = sqrt_errors.clone();
     sorted_errors.sort_by(|a, b| a.partial_cmp(b).unwrap());
-    let median_error = if sorted_errors.len() % 2 == 0 {
+    let median_error = if sorted_errors.len().is_multiple_of(2) {
         let mid = sorted_errors.len() / 2;
         (sorted_errors[mid - 1] + sorted_errors[mid]) / 2.0
     } else {
@@ -212,7 +212,7 @@ pub fn find_homography_adaptive_ransac(
     let mut rng: Random<StdRng> = if let Some(seed) = base_params.seed {
         Random::seed(seed)
     } else {
-        Random::seed(rand::random::<u64>())
+        Random::seed(scirs2_core::random::random::<u64>())
     };
 
     // Track the best model found so far

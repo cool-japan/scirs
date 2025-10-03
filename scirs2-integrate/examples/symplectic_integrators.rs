@@ -4,7 +4,7 @@
 //! for various Hamiltonian systems, highlighting energy conservation
 //! properties and comparing the accuracy of different methods.
 
-use ndarray::{array, Array1};
+use scirs2_core::ndarray::{array, Array1};
 use scirs2_integrate::symplectic::{
     position_verlet, velocity_verlet, CompositionMethod, GaussLegendre4, GaussLegendre6,
     HamiltonianFn, SeparableHamiltonian, StormerVerlet, SymplecticIntegrator,

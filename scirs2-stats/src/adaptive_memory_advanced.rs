@@ -11,8 +11,8 @@
 //! - Adaptive garbage collection with statistical workload awareness
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::{PlatformCapabilities, SimdUnifiedOps},

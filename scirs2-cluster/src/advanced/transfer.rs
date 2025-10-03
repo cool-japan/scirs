@@ -4,8 +4,8 @@
 //! previously learned clustering tasks to improve performance on new, related
 //! clustering problems.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -148,7 +148,7 @@ pub fn transfer_learning_clustering<F: Float + FromPrimitive + Debug + 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_transfer_learning_config_default() {

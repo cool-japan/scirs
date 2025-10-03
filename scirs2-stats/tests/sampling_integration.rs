@@ -1,6 +1,6 @@
 // Integration tests for sampling and random modules
 use approx::assert_relative_eq;
-use ndarray::{array, Array1};
+use scirs2_core::ndarray::{array, Array1};
 use scirs2_stats::{
     distributions::{norm, poisson},
     random, sampling,
@@ -17,7 +17,7 @@ fn test_sampling_distribution_consistency() {
     let samples2 = normal.rvs(100).unwrap();
 
     // Make sure samples are different (random)
-    assert!(samples1 != Array1::from(samples2.clone()));
+    assert!(samples1 != samples2.clone());
 
     // Test with explicit RNG seed for consistency
     let samples_seeded1 = random::randn(20, Some(42)).unwrap();
@@ -43,7 +43,7 @@ fn test_bootstrap_sample_properties() {
 
     // Each bootstrap sample should have the same length as original
     for i in 0..samples.shape()[0] {
-        let bootstrap_sample = samples.slice(ndarray::s![i, ..]);
+        let bootstrap_sample = samples.slice(scirs2_core::ndarray::s![i, ..]);
         assert_eq!(bootstrap_sample.len(), data.len());
 
         // Each value in bootstrap sample should be one of the values from the original data

@@ -5,7 +5,7 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Layer};
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 use statrs::statistics::Statistics;
 /// Shared backbone network for multi-task learning

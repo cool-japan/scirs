@@ -3,7 +3,7 @@
 //! The Adjusted Rand Index is a metric for measuring the similarity between two clusterings,
 //! adjusted for the chance of random agreements.
 
-use ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -29,7 +29,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::clustering::external_metrics::adjusted_rand_index;
 ///
 /// let labels_true = array![0, 0, 1, 1, 2, 2];
@@ -137,7 +137,7 @@ fn combinations(n: usize) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_adjusted_rand_index() {

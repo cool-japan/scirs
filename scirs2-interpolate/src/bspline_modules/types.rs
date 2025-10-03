@@ -3,8 +3,8 @@
 //! This module contains all the foundational data types used throughout
 //! the B-spline system.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::cell::RefCell;
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};

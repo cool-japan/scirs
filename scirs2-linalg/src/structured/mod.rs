@@ -18,7 +18,7 @@
 //! # Examples
 //!
 //! ```
-//! use ndarray::{Array1, array};
+//! use scirs2_core::ndarray::{Array1, array};
 //! use scirs2_linalg::structured::{ToeplitzMatrix, StructuredMatrix};
 //!
 //! // Create a Toeplitz matrix from its first row and column
@@ -39,9 +39,9 @@
 
 use crate::error::LinalgResult;
 use crate::matrixfree::LinearOperator;
-use ndarray::ScalarOperand;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::{fmt::Debug, iter::Sum};
 
 mod circulant;

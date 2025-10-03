@@ -5,9 +5,9 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::fft;
-use ndarray::{Array, Array2, ArrayView, ArrayView2, IxDyn};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array, Array2, ArrayView, ArrayView2, IxDyn};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
 
 // Importing the try_as_complex utility for type conversion
@@ -35,7 +35,7 @@ use super::utility::try_as_complex;
 /// # Examples
 ///
 /// ```
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 /// use scirs2_fft::hfft;
 ///
 /// // Create a simple Hermitian-symmetric array (DC component is real)
@@ -95,7 +95,7 @@ where
         }
 
         // For scalar types, try direct conversion to f64 and create a complex with zero imaginary part
-        if let Some(val_f64) = num_traits::cast::cast::<T, f64>(val) {
+        if let Some(val_f64) = NumCast::from(val) {
             complex_input.push(Complex64::new(val_f64, 0.0));
             continue;
         }
@@ -187,7 +187,7 @@ where
             }
 
             // For scalar types, try direct conversion to f64 and create a complex with zero imaginary part
-            if let Some(val_f64) = num_traits::cast::cast::<T, f64>(val) {
+            if let Some(val_f64) = NumCast::from(val) {
                 complex_input[[r, c]] = Complex64::new(val_f64, 0.0);
                 continue;
             }
@@ -325,7 +325,7 @@ where
         }
 
         // For scalar types, try direct conversion to f64 and create a complex with zero imaginary part
-        if let Some(val_f64) = num_traits::cast::cast::<T, f64>(val) {
+        if let Some(val_f64) = NumCast::from(val) {
             return Complex64::new(val_f64, 0.0);
         }
 

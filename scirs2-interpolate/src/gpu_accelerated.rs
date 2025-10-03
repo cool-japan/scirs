@@ -19,7 +19,7 @@
 //! ```rust
 //! # #[cfg(feature = "gpu")]
 //! # {
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_interpolate::gpu_accelerated::{
 //!     GpuRBFInterpolator, GpuConfig, GpuRBFKernel
 //! };
@@ -48,8 +48,8 @@
 
 use crate::advanced::rbf::{RBFInterpolator, RBFKernel};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive, ToPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive};
 use std::fmt::{Debug, Display, LowerExp};
 use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
 
@@ -740,7 +740,7 @@ impl GpuKernelConfig {
     pub fn optimal_for_size(_problemsize: usize) -> Self {
         // Basic heuristic for kernel configuration
         let block_size = 256.min(_problemsize);
-        let grid_size = (_problemsize + block_size - 1) / block_size;
+        let grid_size = _problemsize.div_ceil(block_size);
 
         Self {
             block_size,
@@ -833,7 +833,7 @@ pub mod gpu_utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_gpu_rbf_creation() {

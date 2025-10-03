@@ -3,8 +3,8 @@
 //! This module implements hierarchical processing inspired by the mammalian visual cortex.
 //! Features predictive coding, lateral inhibition, and multi-scale analysis.
 
-use ndarray::{Array3, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array3, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::f64::consts::PI;
 
 use super::config::{BiologicalVisionConfig, CorticalLayer};
@@ -33,7 +33,7 @@ where
             level,
             feature_maps: Array3::zeros((num_features, height / (level + 1), width / (level + 1))),
             receptive_field_size: *rf_size,
-            lateral_connections: ndarray::Array2::zeros((num_features, num_features)),
+            lateral_connections: scirs2_core::ndarray::Array2::zeros((num_features, num_features)),
             top_down_predictions: Array3::zeros((
                 num_features,
                 height / (level + 1),

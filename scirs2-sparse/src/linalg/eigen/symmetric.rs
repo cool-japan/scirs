@@ -6,8 +6,8 @@
 use super::lanczos::{lanczos, EigenResult, LanczosOptions};
 use crate::error::{SparseError, SparseResult};
 use crate::sym_csr::SymCsrMatrix;
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -301,14 +301,16 @@ where
             // Largest algebraic - already sorted in descending order
             result.eigenvalues = result
                 .eigenvalues
-                .slice(ndarray::s![..n_requested])
+                .slice(scirs2_core::ndarray::s![..n_requested])
                 .to_owned();
             if let Some(ref mut evecs) = result.eigenvectors {
-                *evecs = evecs.slice(ndarray::s![.., ..n_requested]).to_owned();
+                *evecs = evecs
+                    .slice(scirs2_core::ndarray::s![.., ..n_requested])
+                    .to_owned();
             }
             result.residuals = result
                 .residuals
-                .slice(ndarray::s![..n_requested])
+                .slice(scirs2_core::ndarray::s![..n_requested])
                 .to_owned();
         }
         "SA" => {
@@ -325,8 +327,11 @@ where
                         evecs_vec.push(evecs[[i, j]]);
                     }
                 }
-                *evecs = ndarray::Array2::from_shape_vec((evecs.nrows(), n_requested), evecs_vec)
-                    .map_err(|_| {
+                *evecs = scirs2_core::ndarray::Array2::from_shape_vec(
+                    (evecs.nrows(), n_requested),
+                    evecs_vec,
+                )
+                .map_err(|_| {
                     SparseError::ValueError("Failed to reshape eigenvectors".to_string())
                 })?;
             }
@@ -363,8 +368,11 @@ where
                         new_evecs.push(evecs[[i, idx]]);
                     }
                 }
-                *evecs = ndarray::Array2::from_shape_vec((evecs.nrows(), n_requested), new_evecs)
-                    .map_err(|_| {
+                *evecs = scirs2_core::ndarray::Array2::from_shape_vec(
+                    (evecs.nrows(), n_requested),
+                    new_evecs,
+                )
+                .map_err(|_| {
                     SparseError::ValueError("Failed to reshape eigenvectors".to_string())
                 })?;
             }
@@ -397,8 +405,11 @@ where
                         new_evecs.push(evecs[[i, idx]]);
                     }
                 }
-                *evecs = ndarray::Array2::from_shape_vec((evecs.nrows(), n_requested), new_evecs)
-                    .map_err(|_| {
+                *evecs = scirs2_core::ndarray::Array2::from_shape_vec(
+                    (evecs.nrows(), n_requested),
+                    new_evecs,
+                )
+                .map_err(|_| {
                     SparseError::ValueError("Failed to reshape eigenvectors".to_string())
                 })?;
             }

@@ -3,8 +3,8 @@
 //! This module provides differentiable implementations of tensor operations
 //! like contraction, outer product, and tensor-vector product.
 
-use ndarray::{Array, Array1, Array2, ArrayView1, ArrayView2, Axis, Dimension, IxDyn};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array, Array1, Array2, ArrayView1, ArrayView2, Axis, Dimension, IxDyn};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use scirs2_autograd::error::Result as AutogradResult;
@@ -109,7 +109,7 @@ pub fn contract<F: Float + Debug + Send + Sync + 'static>(
             // Backward function for the first tensor
             let backward_a = if a.requires_grad {
                 Some(
-                    Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                    Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                         // dA[i,j] = sum_k dC[i,k] * B[j,k]
                         let grad_2d = grad.clone().intoshape((m, p)).unwrap();
                         let b_2d = b_data.clone().intoshape((n, p)).unwrap();
@@ -128,7 +128,7 @@ pub fn contract<F: Float + Debug + Send + Sync + 'static>(
 
                         Ok(grad_a.into_dyn())
                     })
-                        as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                        as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
                 )
             } else {
                 None
@@ -137,7 +137,7 @@ pub fn contract<F: Float + Debug + Send + Sync + 'static>(
             // Backward function for the second tensor
             let backward_b = if b.requires_grad {
                 Some(
-                    Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                    Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                         // dB[j,k] = sum_i dC[i,k] * A[i,j]
                         let grad_2d = grad.clone().intoshape((m, p)).unwrap();
                         let a_2d = a_data.clone().intoshape((m, n)).unwrap();
@@ -156,7 +156,7 @@ pub fn contract<F: Float + Debug + Send + Sync + 'static>(
 
                         Ok(grad_b.into_dyn())
                     })
-                        as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                        as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
                 )
             } else {
                 None
@@ -194,7 +194,7 @@ pub fn contract<F: Float + Debug + Send + Sync + 'static>(
             // Backward function for the first tensor
             let backward_a = if a.requires_grad {
                 Some(
-                    Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                    Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                         // dA[i] = dC * B[i]
                         let grad_scalar = grad[[0]];
                         let mut grad_a = Array1::<F>::zeros(n);
@@ -205,7 +205,7 @@ pub fn contract<F: Float + Debug + Send + Sync + 'static>(
 
                         Ok(grad_a.into_dyn())
                     })
-                        as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                        as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
                 )
             } else {
                 None
@@ -214,7 +214,7 @@ pub fn contract<F: Float + Debug + Send + Sync + 'static>(
             // Backward function for the second tensor
             let backward_b = if b.requires_grad {
                 Some(
-                    Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                    Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                         // dB[i] = dC * A[i]
                         let grad_scalar = grad[[0]];
                         let mut grad_b = Array1::<F>::zeros(n);
@@ -225,7 +225,7 @@ pub fn contract<F: Float + Debug + Send + Sync + 'static>(
 
                         Ok(grad_b.into_dyn())
                     })
-                        as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                        as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
                 )
             } else {
                 None
@@ -305,7 +305,7 @@ pub fn outer<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for the first vector
         let backward_a = if a.requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Convert gradient to 2D shape
                     let grad_2d = grad.clone().intoshape((m, n)).unwrap();
 
@@ -322,7 +322,7 @@ pub fn outer<F: Float + Debug + Send + Sync + 'static>(
 
                     Ok(grad_a.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -331,7 +331,7 @@ pub fn outer<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for the second vector
         let backward_b = if b.requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Convert gradient to 2D shape
                     let grad_2d = grad.clone().intoshape((m, n)).unwrap();
 
@@ -348,7 +348,7 @@ pub fn outer<F: Float + Debug + Send + Sync + 'static>(
 
                     Ok(grad_b.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -448,7 +448,7 @@ pub fn tensor_vector_product<F: Float + Debug + Send + Sync + 'static>(
             // Backward function for the tensor
             let backward_a = if a.requires_grad {
                 Some(
-                    Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                    Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                         // dA[i,j] = dw[i] * v[j]
                         let grad_1d = grad.clone().intoshape(m).unwrap();
                         let mut grad_a = Array2::<F>::zeros((m, n));
@@ -461,7 +461,7 @@ pub fn tensor_vector_product<F: Float + Debug + Send + Sync + 'static>(
 
                         Ok(grad_a.into_dyn())
                     })
-                        as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                        as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
                 )
             } else {
                 None
@@ -470,7 +470,7 @@ pub fn tensor_vector_product<F: Float + Debug + Send + Sync + 'static>(
             // Backward function for the vector
             let backward_v = if v.requires_grad {
                 Some(
-                    Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                    Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                         // dv[j] = sum_i dw[i] * A[i,j]
                         let grad_1d = grad.clone().intoshape(m).unwrap();
                         let mut grad_v = Array1::<F>::zeros(n);
@@ -485,7 +485,7 @@ pub fn tensor_vector_product<F: Float + Debug + Send + Sync + 'static>(
 
                         Ok(grad_v.into_dyn())
                     })
-                        as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                        as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
                 )
             } else {
                 None

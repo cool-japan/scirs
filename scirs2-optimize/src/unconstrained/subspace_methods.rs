@@ -7,9 +7,9 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::{line_search::backtracking_line_search, OptimizeResult};
-use ndarray::{Array1, ArrayView1};
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Rng, SeedableRng};
 use std::collections::VecDeque;
 
 /// Options for subspace optimization methods
@@ -861,7 +861,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_random_coordinate_descent() {

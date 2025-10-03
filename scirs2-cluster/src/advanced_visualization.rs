@@ -6,7 +6,7 @@
 
 use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
 use crate::error::{ClusteringError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -451,7 +451,7 @@ impl AdvancedVisualizer {
 
     /// Apply quantum-enhanced PCA for dimensionality reduction
     fn apply_quantum_pca(&self, data: &ArrayView2<f64>, targetdims: usize) -> Result<Array2<f64>> {
-        use ndarray::Axis;
+        use scirs2_core::ndarray::Axis;
 
         let n_samples = data.nrows();
         let n_features = data.ncols();
@@ -1038,6 +1038,12 @@ pub struct PerformanceDashboard {
     pub ai_iterations: usize,
     /// Improvement factors over classical methods
     pub improvement_factors: Vec<(String, f64)>,
+}
+
+impl Default for AdvancedVisualizationOutput {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AdvancedVisualizationOutput {

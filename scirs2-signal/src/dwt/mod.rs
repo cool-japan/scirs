@@ -10,7 +10,7 @@
 // - `boundary`: Signal extension methods for handling boundary conditions
 // - `multiscale`: Multi-level transform functions for decomposition and reconstruction
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 #[allow(unused_imports)]
 // Declare submodules

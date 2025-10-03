@@ -11,7 +11,7 @@
 use crate::error::{Result, VisionError};
 use crate::feature::image_to_array;
 use image::{DynamicImage, GrayImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Shi-Tomasi corner detection (Good Features to Track)
 ///
@@ -54,7 +54,7 @@ pub fn shi_tomasi_corners(
     let (height, width) = array.dim();
 
     // Check if block_size is valid
-    if block_size % 2 == 0 || block_size < 3 {
+    if block_size.is_multiple_of(2) || block_size < 3 {
         return Err(VisionError::InvalidParameter(
             "block_size must be odd and at least 3".to_string(),
         ));
@@ -231,7 +231,7 @@ pub fn good_features_to_track(
     let (height, width) = array.dim();
 
     // Check if block_size is valid
-    if block_size % 2 == 0 || block_size < 3 {
+    if block_size.is_multiple_of(2) || block_size < 3 {
         return Err(VisionError::InvalidParameter(
             "block_size must be odd and at least 3".to_string(),
         ));

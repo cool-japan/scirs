@@ -7,8 +7,8 @@
 // - Numerical stability improvements
 
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use scirs2_core::validation::{check_finite, check_positive};
 use std::f64::consts::PI;
 use std::fmt::Debug;
@@ -401,7 +401,7 @@ fn bootstrap_confidence_intervals(
     let mut bootstrap_powers = vec![vec![0.0; n_freq]; n_iterations];
 
     // Random number generator
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for iter in 0..n_iterations {
         // Generate bootstrap sample

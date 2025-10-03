@@ -3,7 +3,7 @@
 //! This module provides differentiable matrix calculus operations like
 //! gradients, Jacobians, and Hessians that integrate with the autograd system.
 
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -11,8 +11,8 @@ use crate::error::{LinalgError, LinalgResult};
 /// Derivatives of specific matrix operations
 pub mod matrix_derivatives {
     use super::*;
-    use ndarray::{Array2, ArrayView2};
-    use num_traits::{Float, One, Zero};
+    use scirs2_core::ndarray::{Array2, ArrayView2};
+    use scirs2_core::numeric::{Float, One, Zero};
 
     /// Compute the derivative of the determinant of a matrix
     ///
@@ -25,7 +25,7 @@ pub mod matrix_derivatives {
     /// * Matrix containing the derivative of the determinant
     pub fn det_derivative<F>(x: &ArrayView2<F>) -> LinalgResult<Array2<F>>
     where
-        F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+        F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
     {
         if x.nrows() != x.ncols() {
             return Err(LinalgError::DimensionError(
@@ -57,7 +57,7 @@ pub mod matrix_derivatives {
     /// * Matrix containing the directional derivative of the inverse
     pub fn inv_derivative<F>(x: &ArrayView2<F>, dx: &ArrayView2<F>) -> LinalgResult<Array2<F>>
     where
-        F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+        F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
     {
         if x.nrows() != x.ncols() {
             return Err(LinalgError::DimensionError(
@@ -166,7 +166,7 @@ pub mod matrix_derivatives {
     /// * Matrix containing the derivative of the Frobenius norm
     pub fn frobenius_norm_derivative<F>(x: &ArrayView2<F>) -> LinalgResult<Array2<F>>
     where
-        F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+        F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
     {
         let norm_val = crate::norm::matrix_norm(x, "frobenius", None)?;
 
@@ -197,7 +197,7 @@ pub mod matrix_derivatives {
         dx: &ArrayView2<F>,
     ) -> LinalgResult<Array2<F>>
     where
-        F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+        F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
     {
         if x.nrows() != x.ncols() {
             return Err(LinalgError::DimensionError(
@@ -267,7 +267,7 @@ pub mod matrix_derivatives {
         dx: &ArrayView2<F>,
     ) -> LinalgResult<Array2<F>>
     where
-        F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+        F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
     {
         if x.nrows() != x.ncols() {
             return Err(LinalgError::DimensionError(
@@ -307,7 +307,7 @@ pub mod matrix_derivatives {
         dx: &ArrayView2<F>,
     ) -> LinalgResult<Array2<F>>
     where
-        F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+        F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
     {
         if x.nrows() != x.ncols() {
             return Err(LinalgError::DimensionError(
@@ -332,7 +332,7 @@ pub mod matrix_derivatives {
 /// Matrix differential operators for matrix-valued functions
 pub mod differential_operators {
     use super::*;
-    use ndarray::{Array2, Array3};
+    use scirs2_core::ndarray::{Array2, Array3};
 
     /// Compute the divergence of a matrix field
     ///
@@ -483,12 +483,15 @@ pub mod differential_operators {
     ///
     /// # Returns
     /// * 4D array containing the gradient (gradient[x][y][component][direction])
-    pub fn matrix_gradient<F>(field: &Array3<F>, spacing: F) -> LinalgResult<ndarray::Array4<F>>
+    pub fn matrix_gradient<F>(
+        field: &Array3<F>,
+        spacing: F,
+    ) -> LinalgResult<scirs2_core::ndarray::Array4<F>>
     where
         F: Float + Copy,
     {
         let (nx, ny, ncomp) = field.dim();
-        let mut result = ndarray::Array4::zeros((nx, ny, ncomp, 2)); // 2 for x and y directions
+        let mut result = scirs2_core::ndarray::Array4::zeros((nx, ny, ncomp, 2)); // 2 for x and y directions
 
         // Compute gradient using finite differences
         for comp in 0..ncomp {
@@ -514,7 +517,7 @@ pub mod differential_operators {
 /// Support for matrix-valued functions with enhanced derivative tracking
 pub mod matrix_functions {
     use super::*;
-    use ndarray::{Array2, ArrayView2};
+    use scirs2_core::ndarray::{Array2, ArrayView2};
 
     /// A trait for matrix-valued functions that support differentiation
     pub trait DifferentiableMatrixFunction<F: Float> {
@@ -539,8 +542,9 @@ pub mod matrix_functions {
     /// Matrix exponential function with derivatives
     pub struct MatrixExp;
 
-    impl<F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand>
-        DifferentiableMatrixFunction<F> for MatrixExp
+    impl<
+            F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
+        > DifferentiableMatrixFunction<F> for MatrixExp
     {
         fn evaluate(&self, x: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
             crate::matrix_functions::expm(x, None)
@@ -558,8 +562,9 @@ pub mod matrix_functions {
     /// Matrix logarithm function with derivatives  
     pub struct MatrixLog;
 
-    impl<F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand>
-        DifferentiableMatrixFunction<F> for MatrixLog
+    impl<
+            F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
+        > DifferentiableMatrixFunction<F> for MatrixLog
     {
         fn evaluate(&self, x: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
             crate::matrix_functions::logm(x)
@@ -579,8 +584,9 @@ pub mod matrix_functions {
         pub power: i32,
     }
 
-    impl<F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand>
-        DifferentiableMatrixFunction<F> for MatrixPower
+    impl<
+            F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
+        > DifferentiableMatrixFunction<F> for MatrixPower
     {
         fn evaluate(&self, x: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
             crate::basic::matrix_power(x, self.power, None)
@@ -597,7 +603,7 @@ pub mod matrix_functions {
 
     /// Compose matrix functions with proper derivative tracking
     pub fn compose_functions<
-        F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+        F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
     >(
         f: &dyn DifferentiableMatrixFunction<F>,
         g: &dyn DifferentiableMatrixFunction<F>,
@@ -615,7 +621,7 @@ pub mod matrix_functions {
 /// Finite difference utilities for gradient computation
 pub mod finite_difference {
     use super::*;
-    use ndarray::{Array2, ArrayView2};
+    use scirs2_core::ndarray::{Array2, ArrayView2};
 
     /// Compute gradient using finite differences
     ///
@@ -673,7 +679,7 @@ pub mod finite_difference {
         f: impl Fn(&ArrayView2<F>) -> LinalgResult<Array2<F>>,
         x: &ArrayView2<F>,
         epsilon: Option<F>,
-    ) -> LinalgResult<ndarray::Array4<F>>
+    ) -> LinalgResult<scirs2_core::ndarray::Array4<F>>
     where
         F: Float + Copy,
     {
@@ -684,7 +690,7 @@ pub mod finite_difference {
         let f_x = f(x)?;
         let (p, q) = f_x.dim();
 
-        let mut jac = ndarray::Array4::zeros((p, q, m, n));
+        let mut jac = scirs2_core::ndarray::Array4::zeros((p, q, m, n));
 
         // Compute Jacobian using finite differences
         for i in 0..m {

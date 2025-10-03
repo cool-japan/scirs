@@ -5,7 +5,7 @@
 
 use super::models::{TurbulenceConstants, TurbulenceModel, TurbulenceModelType};
 use crate::error::IntegrateResult;
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// Advanced turbulence model with SIMD acceleration

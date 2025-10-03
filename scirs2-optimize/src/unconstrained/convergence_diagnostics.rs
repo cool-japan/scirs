@@ -11,7 +11,7 @@
 //! - Visualization data export
 
 use crate::error::OptimizeError;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
@@ -1111,7 +1111,7 @@ impl ConvergenceDiagnostics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_diagnostic_collector() {

@@ -4,8 +4,8 @@
 //! and other components that need to adjust learning rates.
 
 use crate::error::Result;
-use ndarray::ScalarOperand;
-use num_traits::Float;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Trait for learning rate schedulers
 pub trait LearningRateScheduler<F: Float + Debug + ScalarOperand> {

@@ -2,8 +2,8 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops::convert_to_tensor;
 use crate::Float;
-use ndarray::{Array1, Array2, ArrayView2, Ix2};
-use num_traits::FromPrimitive;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Ix2};
+use scirs2_core::numeric::FromPrimitive;
 
 /// Eigendecomposition for symmetric/Hermitian matrices
 pub struct SymmetricEigenOp;
@@ -13,7 +13,7 @@ pub struct SymmetricEigenExtractOp {
     pub component: usize, // 0 for eigenvalues, 1 for eigenvectors
 }
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for SymmetricEigenOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for SymmetricEigenOp {
     fn name(&self) -> &'static str {
         "SymmetricEigen"
     }
@@ -87,20 +87,20 @@ impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for SymmetricEigen
         let values_size = n;
         let vectors_start = values_size;
 
-        let eigen_vals = y_array.slice(ndarray::s![0..values_size]);
-        let eigen_vecs = y_array.slice(ndarray::s![vectors_start..]);
+        let eigen_vals = y_array.slice(scirs2_core::ndarray::s![0..values_size]);
+        let eigen_vecs = y_array.slice(scirs2_core::ndarray::s![vectors_start..]);
 
         let eigen_vals_1d = eigen_vals.to_shape(n).unwrap().to_owned();
         let eigen_vecs_2d = eigen_vecs.to_shape((n, n)).unwrap().to_owned();
 
         // Get gradients
         let grad_vals = gy_array
-            .slice(ndarray::s![0..values_size])
+            .slice(scirs2_core::ndarray::s![0..values_size])
             .to_shape(n)
             .unwrap()
             .to_owned();
         let grad_vecs = gy_array
-            .slice(ndarray::s![vectors_start..])
+            .slice(scirs2_core::ndarray::s![vectors_start..])
             .to_shape((n, n))
             .unwrap()
             .to_owned();
@@ -119,7 +119,9 @@ impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for SymmetricEigen
     }
 }
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for SymmetricEigenExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F>
+    for SymmetricEigenExtractOp
+{
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let input = ctx.input(0);
         let shape = input.shape();
@@ -187,7 +189,7 @@ fn is_symmetric<F: Float>(matrix: &ArrayView2<F>) -> bool {
 
 /// Compute eigendecomposition for symmetric matrix using Jacobi method
 #[allow(dead_code)]
-fn compute_symmetric_eigen<F: Float + ndarray::ScalarOperand + FromPrimitive>(
+fn compute_symmetric_eigen<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &ArrayView2<F>,
 ) -> Result<(Array1<F>, Array2<F>), OpError> {
     let n = matrix.shape()[0];
@@ -375,10 +377,10 @@ fn compute_symmetric_eigen<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute gradient for symmetric eigendecomposition
 #[allow(dead_code)]
-fn symmetric_eigen_gradient<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    eigenvalues: &ndarray::ArrayView1<F>,
+fn symmetric_eigen_gradient<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    eigenvalues: &scirs2_core::ndarray::ArrayView1<F>,
     eigenvectors: &ArrayView2<F>,
-    grad_vals: &ndarray::ArrayView1<F>,
+    grad_vals: &scirs2_core::ndarray::ArrayView1<F>,
     grad_vecs: &ArrayView2<F>,
 ) -> Array2<F> {
     let n = eigenvalues.len();
@@ -386,7 +388,7 @@ fn symmetric_eigen_gradient<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
     // Gradient for eigenvalues part
     for i in 0..n {
-        let vi = eigenvectors.slice(ndarray::s![.., i]);
+        let vi = eigenvectors.slice(scirs2_core::ndarray::s![.., i]);
         for j in 0..n {
             for k in 0..n {
                 grad[[j, k]] += grad_vals[i] * vi[j] * vi[k];
@@ -436,7 +438,7 @@ fn symmetric_eigen_gradient<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute eigenvalues and eigenvectors of a symmetric matrix
 #[allow(dead_code)]
-pub fn eigh<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn eigh<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
 ) -> (Tensor<'g, F>, Tensor<'g, F>) {
     let g = matrix.graph();
@@ -456,7 +458,7 @@ pub fn eigh<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute only the eigenvalues of a symmetric matrix (more efficient)
 #[allow(dead_code)]
-pub fn eigvalsh<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn eigvalsh<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();

@@ -1,5 +1,5 @@
-use ndarray::array;
 use plotters::prelude::*;
+use scirs2_core::ndarray::array;
 use scirs2_stats::theilslopes;
 
 #[allow(dead_code)]
@@ -90,7 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &RED,
         ))?
         .label("Theil-Sen")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
 
     // Plot OLS regression line
     chart
@@ -103,7 +103,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &GREEN,
         ))?
         .label("OLS")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
 
     // Plot confidence interval lines for Theil-Sen
     chart.draw_series(LineSeries::new(
@@ -126,8 +126,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     println!("Plot saved as 'theilslopes_regression.png'");

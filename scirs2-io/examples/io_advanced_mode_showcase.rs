@@ -472,7 +472,7 @@ fn generate_structureddata(size: usize) -> Vec<u8> {
 
 #[allow(dead_code)]
 fn generate_compressed_pattern(size: usize) -> Vec<u8> {
-    let pattern = vec![1, 2, 3, 4];
+    let pattern = [1, 2, 3, 4];
     (0..size).map(|i| pattern[i % pattern.len()]).collect()
 }
 

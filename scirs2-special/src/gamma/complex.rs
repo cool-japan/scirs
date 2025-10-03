@@ -5,7 +5,7 @@ use super::beta::beta;
 use super::core::{gamma, gammaln};
 use super::digamma::digamma;
 
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 /// Complex gamma function using Lanczos approximation
@@ -25,7 +25,7 @@ use std::f64::consts::PI;
 ///
 /// ```
 /// use scirs2_special::gamma_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(1.0, 0.0);
 /// let result = gamma_complex(z);
@@ -80,7 +80,7 @@ pub fn gamma_complex(z: Complex64) -> Complex64 {
 ///
 /// ```
 /// use scirs2_special::loggamma_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(2.0, 0.0);
 /// let result = loggamma_complex(z);
@@ -135,7 +135,7 @@ pub fn loggamma_complex(z: Complex64) -> Complex64 {
 ///
 /// ```
 /// use scirs2_special::digamma_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(1.0, 0.0);
 /// let result = digamma_complex(z);
@@ -200,7 +200,7 @@ pub fn digamma_complex(mut z: Complex64) -> Complex64 {
 ///
 /// ```
 /// use scirs2_special::beta_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let a = Complex64::new(2.0, 0.0);
 /// let b = Complex64::new(3.0, 0.0);

@@ -4,7 +4,7 @@
 //! equilibrium constants, and thermodynamic properties of chemical systems.
 
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 /// Types of equilibrium calculations
@@ -1056,7 +1056,7 @@ impl EquilibriumCalculator {
 /// Factory functions for common equilibrium systems
 pub mod systems {
     use super::*;
-    use ndarray::{arr1, arr2};
+    use scirs2_core::ndarray::{arr1, arr2};
 
     /// Acid-base equilibrium for weak acid
     pub fn weak_acid_equilibrium(
@@ -1248,7 +1248,7 @@ pub mod systems {
 #[cfg(test)]
 mod tests {
     use crate::ode::chemical_equilibrium::systems;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_weak_acid_equilibrium() {

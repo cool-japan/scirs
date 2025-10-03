@@ -10,8 +10,8 @@
 
 use crate::error::SignalResult;
 use crate::lombscargle::lombscargle;
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::collections::HashMap;
 use std::time::Instant;

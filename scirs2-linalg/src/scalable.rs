@@ -35,9 +35,9 @@
 //! - Grigori, L., et al. (2011). "A class of communication-avoiding algorithms for solving general dense linear systems"
 //! - Martinsson, P. G. (2020). "Randomized methods for matrix computations"
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
-use rand;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
+use scirs2_core::random as rand;
 use std::iter::Sum;
 
 use crate::decomposition::{qr, svd};
@@ -161,7 +161,7 @@ pub fn classify_aspect_ratio<F>(matrix: &ArrayView2<F>, threshold: f64) -> Aspec
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::scalable::{tsqr, ScalableConfig};
 ///
 /// let tallmatrix = Array2::from_shape_fn((1000, 50), |(i, j)| {
@@ -176,7 +176,15 @@ pub fn tsqr<F>(
     config: &ScalableConfig,
 ) -> LinalgResult<(Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     let _m_n = matrix.dim();
 
@@ -213,7 +221,15 @@ pub fn randomized_svd<F>(
     config: &ScalableConfig,
 ) -> LinalgResult<(Array2<F>, Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     let (m, n) = matrix.dim();
     let effective_rank = rank.min(m.min(n));
@@ -226,7 +242,7 @@ where
     for i in 0..n {
         for j in 0..oversampled_rank {
             // Use simple random number generation for reproducibility
-            omega[[i, j]] = F::from(rand::random::<f64>() * 2.0 - 1.0).unwrap();
+            omega[[i, j]] = F::from(scirs2_core::random::random::<f64>() * 2.0 - 1.0).unwrap();
         }
     }
 
@@ -251,9 +267,15 @@ where
     let u = q.dot(&u_tilde);
 
     // Truncate to desired rank
-    let s_truncated = s.slice(ndarray::s![..effective_rank]).to_owned();
-    let u_truncated = u.slice(ndarray::s![.., ..effective_rank]).to_owned();
-    let vt_truncated = vt.slice(ndarray::s![..effective_rank, ..]).to_owned();
+    let s_truncated = s
+        .slice(scirs2_core::ndarray::s![..effective_rank])
+        .to_owned();
+    let u_truncated = u
+        .slice(scirs2_core::ndarray::s![.., ..effective_rank])
+        .to_owned();
+    let vt_truncated = vt
+        .slice(scirs2_core::ndarray::s![..effective_rank, ..])
+        .to_owned();
 
     Ok((u_truncated, s_truncated, vt_truncated))
 }
@@ -277,7 +299,15 @@ pub fn lq_decomposition<F>(
     config: &ScalableConfig,
 ) -> LinalgResult<(Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     let (m, n) = matrix.dim();
 
@@ -297,8 +327,8 @@ where
     let q = q_t.t().to_owned();
 
     // Ensure L is properly sized (m × m) and Q is (m × n)
-    let l_resized = l.slice(ndarray::s![..m, ..m]).to_owned();
-    let q_resized = q.slice(ndarray::s![..m, ..]).to_owned();
+    let l_resized = l.slice(scirs2_core::ndarray::s![..m, ..m]).to_owned();
+    let q_resized = q.slice(scirs2_core::ndarray::s![..m, ..]).to_owned();
 
     Ok((l_resized, q_resized))
 }
@@ -321,7 +351,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::scalable::{adaptive_decomposition, ScalableConfig, AspectRatio};
 ///
 /// // Tall matrix - should select TSQR
@@ -339,7 +369,15 @@ pub fn adaptive_decomposition<F>(
     config: &ScalableConfig,
 ) -> LinalgResult<AdaptiveResult<F>>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     let (m, n) = matrix.dim();
     let aspect = classify_aspect_ratio(matrix, config.aspect_threshold);
@@ -447,7 +485,15 @@ pub fn blocked_matmul<F>(
     config: &ScalableConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     let (m, k) = a.dim();
     let (k2, n) = b.dim();
@@ -474,11 +520,11 @@ where
                 let j_end = (bj + blocksize).min(n);
                 let k_end = (bk + blocksize).min(k);
 
-                let a_block = a.slice(ndarray::s![bi..i_end, bk..k_end]);
-                let b_block = b.slice(ndarray::s![bk..k_end, bj..j_end]);
+                let a_block = a.slice(scirs2_core::ndarray::s![bi..i_end, bk..k_end]);
+                let b_block = b.slice(scirs2_core::ndarray::s![bk..k_end, bj..j_end]);
                 let c_block = a_block.dot(&b_block);
 
-                let mut c_slice = c.slice_mut(ndarray::s![bi..i_end, bj..j_end]);
+                let mut c_slice = c.slice_mut(scirs2_core::ndarray::s![bi..i_end, bj..j_end]);
                 c_slice += &c_block;
             }
         }
@@ -561,7 +607,7 @@ fn calculate_performance_metrics(
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_aspect_ratio_classification() {
@@ -678,7 +724,7 @@ mod tests {
         // Add small perturbation to avoid exact zeros
         for i in 0..m {
             for j in 0..n {
-                matrix[[i, j]] += 0.01 * rand::random::<f64>();
+                matrix[[i, j]] += 0.01 * scirs2_core::random::random::<f64>();
             }
         }
 

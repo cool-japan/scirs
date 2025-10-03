@@ -35,8 +35,8 @@
 //! - For higher-dimensional arrays: Be aware of current limitations
 //!
 
-use ndarray::{Array, Array2, Dimension, Ix2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Array2, Dimension, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::MorphBorderMode;
@@ -135,7 +135,7 @@ fn nearest_index(pos: isize, size: isize) -> usize {
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array2, s};
+/// use scirs2_core::ndarray::{Array2, s};
 /// use scirs2_ndimage::morphology::grey_erosion;
 ///
 /// // Create a simple 5x5 grayscale array with varying values
@@ -334,7 +334,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array2, s};
+/// use scirs2_core::ndarray::{Array2, s};
 /// use scirs2_ndimage::morphology::grey_dilation;
 ///
 /// // Create a simple 5x5 grayscale array with varying values
@@ -536,7 +536,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array2, s};
+/// use scirs2_core::ndarray::{Array2, s};
 /// use scirs2_ndimage::morphology::grey_opening;
 ///
 /// // Create a 7x7 array with a small bright spot
@@ -592,7 +592,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::morphology::grey_closing;
 ///
 /// // Create a 7x7 array with a dark spot
@@ -647,7 +647,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array2, s};
+/// use scirs2_core::ndarray::{Array2, s};
 /// use scirs2_ndimage::morphology::morphological_gradient;
 ///
 /// // Create a test image with a step edge
@@ -738,7 +738,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::morphology::morphological_laplace;
 ///
 /// // Create a test image with a peak and a valley
@@ -842,7 +842,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::morphology::white_tophat;
 ///
 /// // Create an image with a background and small bright spots
@@ -933,7 +933,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::morphology::black_tophat;
 ///
 /// // Create an image with a background and small dark spots
@@ -1039,7 +1039,7 @@ where
     // For generic dimensional operations, convert to IxDyn and process
     let input_dyn = input
         .to_owned()
-        .into_shape_with_order(ndarray::IxDyn(input.shape()))
+        .into_shape_with_order(scirs2_core::ndarray::IxDyn(input.shape()))
         .map_err(|_| {
             NdimageError::DimensionError("Failed to convert to dynamic dimension".to_string())
         })?;
@@ -1047,7 +1047,7 @@ where
     // Get or create structure element
     let struct_elem = if let Some(s) = structure {
         s.to_owned()
-            .into_shape_with_order(ndarray::IxDyn(s.shape()))
+            .into_shape_with_order(scirs2_core::ndarray::IxDyn(s.shape()))
             .map_err(|_| {
                 NdimageError::DimensionError(
                     "Failed to convert structure to dynamic dimension".to_string(),
@@ -1055,7 +1055,7 @@ where
             })?
     } else if let Some(f) = footprint {
         f.to_owned()
-            .into_shape_with_order(ndarray::IxDyn(f.shape()))
+            .into_shape_with_order(scirs2_core::ndarray::IxDyn(f.shape()))
             .map_err(|_| {
                 NdimageError::DimensionError(
                     "Failed to convert footprint to dynamic dimension".to_string(),
@@ -1072,7 +1072,7 @@ where
 
         // Create a box structure of the specified size
         let shape: Vec<_> = (0..input.ndim()).map(|_| kernel_size).collect();
-        Array::from_elem(ndarray::IxDyn(&shape), true)
+        Array::from_elem(scirs2_core::ndarray::IxDyn(&shape), true)
     };
 
     // Get structure center
@@ -1086,7 +1086,7 @@ where
         let temp = result.clone();
 
         // Apply morphological operation to each pixel
-        for idx in ndarray::indices(input_dyn.shape().to_vec()) {
+        for idx in scirs2_core::ndarray::indices(input_dyn.shape().to_vec()) {
             let idx_vec: Vec<_> = idx.slice().to_vec();
 
             // Initialize with appropriate value based on operation
@@ -1098,7 +1098,7 @@ where
             let mut extrema = init_val;
 
             // Check neighborhood defined by structure element
-            for str_idx in ndarray::indices(struct_elem.shape()) {
+            for str_idx in scirs2_core::ndarray::indices(struct_elem.shape()) {
                 let str_idx_vec: Vec<_> = str_idx.slice().to_vec();
 
                 // Skip if structure element is false
@@ -1125,7 +1125,7 @@ where
                 // Get the value with proper border handling
                 let val = if within_bounds {
                     let input_idx: Vec<_> = input_pos.iter().map(|&x| x as usize).collect();
-                    temp[ndarray::IxDyn(&input_idx)]
+                    temp[scirs2_core::ndarray::IxDyn(&input_idx)]
                 } else {
                     match border_mode {
                         MorphBorderMode::Constant => constant_value,
@@ -1139,7 +1139,7 @@ where
                                     reflect_index(pos, size)
                                 })
                                 .collect();
-                            temp[ndarray::IxDyn(&reflected_idx)]
+                            temp[scirs2_core::ndarray::IxDyn(&reflected_idx)]
                         }
                         MorphBorderMode::Mirror => {
                             // Mirror: reflect without duplicating edge
@@ -1151,7 +1151,7 @@ where
                                     mirror_index(pos, size)
                                 })
                                 .collect();
-                            temp[ndarray::IxDyn(&mirrored_idx)]
+                            temp[scirs2_core::ndarray::IxDyn(&mirrored_idx)]
                         }
                         MorphBorderMode::Wrap => {
                             // Wrap: periodic boundary conditions
@@ -1163,7 +1163,7 @@ where
                                     wrap_index(pos, size)
                                 })
                                 .collect();
-                            temp[ndarray::IxDyn(&wrapped_idx)]
+                            temp[scirs2_core::ndarray::IxDyn(&wrapped_idx)]
                         }
                         MorphBorderMode::Nearest => {
                             // Nearest: clamp to edge values
@@ -1175,7 +1175,7 @@ where
                                     nearest_index(pos, size)
                                 })
                                 .collect();
-                            temp[ndarray::IxDyn(&clamped_idx)]
+                            temp[scirs2_core::ndarray::IxDyn(&clamped_idx)]
                         }
                     }
                 };
@@ -1196,7 +1196,7 @@ where
             }
 
             // Set result
-            result[ndarray::IxDyn(&idx_vec)] = extrema;
+            result[scirs2_core::ndarray::IxDyn(&idx_vec)] = extrema;
         }
     }
 
@@ -1212,7 +1212,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{s, Array2};
+    use scirs2_core::ndarray::{s, Array2};
 
     #[test]
     fn test_grey_erosion() {
@@ -1407,8 +1407,8 @@ mod tests {
     #[test]
     fn test_grey_erosion_3d() {
         // Create a 3D test array with a bright spot in the center
-        let mut input: ndarray::Array<f64, ndarray::Ix3> =
-            ndarray::Array::from_elem((3, 3, 3), 1.0);
+        let mut input: scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::Ix3> =
+            scirs2_core::ndarray::Array::from_elem((3, 3, 3), 1.0);
         input[[1, 1, 1]] = 2.0;
 
         // Apply erosion
@@ -1425,8 +1425,8 @@ mod tests {
     #[test]
     fn test_grey_dilation_3d() {
         // Create a 3D test array with a dark spot in the center
-        let mut input: ndarray::Array<f64, ndarray::Ix3> =
-            ndarray::Array::from_elem((3, 3, 3), 1.0);
+        let mut input: scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::Ix3> =
+            scirs2_core::ndarray::Array::from_elem((3, 3, 3), 1.0);
         input[[1, 1, 1]] = 0.0;
 
         // Apply dilation

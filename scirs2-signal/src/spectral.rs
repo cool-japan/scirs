@@ -3,10 +3,10 @@
 // This module provides functions for estimating power spectral densities and spectrograms.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, ArrayView1};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::{
     simd_add_f32_adaptive, simd_fma_f32_ultra, simd_mul_f32_hyperoptimized, PlatformCapabilities,
 };
@@ -384,16 +384,16 @@ fn modified_bessel_i0(x: f32) -> f32 {
                     + y * (1.2067492 + y * (0.2659732 + y * (0.360768e-1 + y * 0.45813e-2)))))
     } else {
         let y = 3.75 / ax;
-        let result = (ax.exp() / ax.sqrt())
-            * (0.39894228
+
+        (ax.exp() / ax.sqrt())
+            * (0.398_942_3
                 + y * (0.1328592e-1
                     + y * (0.225319e-2
                         + y * (-0.157565e-2
                             + y * (0.916281e-2
                                 + y * (-0.2057706e-1
                                     + y * (0.2635537e-1
-                                        + y * (-0.1647633e-1 + y * 0.392377e-2))))))));
-        result
+                                        + y * (-0.1647633e-1 + y * 0.392377e-2))))))))
     }
 }
 
@@ -482,7 +482,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -612,7 +612,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -826,7 +826,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1076,7 +1076,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use rand::Rng;
+    use scirs2_core::random::Rng;
     #[test]
     fn test_periodogram_sine_wave() {
         let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -1119,7 +1119,7 @@ mod tests {
         let mut x: Vec<f64> = t.iter().map(|&t| (2.0 * PI * f * t).sin()).collect();
 
         // Add noise
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         x.iter_mut().for_each(|val| {
             *val += rng.gen_range(-0.1..0.1);
         });

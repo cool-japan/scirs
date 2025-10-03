@@ -3,8 +3,8 @@
 //! This module contains functions for implementing various attention mechanisms
 //! used in transformer models and other sequence processing neural networks.
 
-use ndarray::{s, Array1, Array2, Array3, Array4, ArrayView1, ArrayView2, ArrayView3};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView1, ArrayView2, ArrayView3};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use crate::error::{NeuralError, Result};
 /// Type alias for feed forward return values
@@ -25,7 +25,7 @@ type FeedForwardReturn<F> = (Array3<F>, Array2<F>, Array1<F>, Array2<F>, Array1<
 ///   - attention_weights has shape [batch_size, seq_len_q, seq_len_k]
 /// # Examples
 /// ```
-/// use ndarray::{Array, Array3};
+/// use scirs2_core::ndarray::{Array, Array3};
 /// use scirs2_neural::linalg::scaled_dot_product_attention;
 /// // Create sample inputs
 /// let batch_size = 2;
@@ -143,7 +143,7 @@ where
 /// * `wo` - Output weight matrix with shape [d_model, d_model]
 /// * `num_heads` - Number of attention heads
 /// * Multi-head attention output with shape [batch_size, seq_len_q, d_model]
-/// use ndarray::{Array, Array2, Array3};
+/// use scirs2_core::ndarray::{Array, Array2, Array3};
 /// use scirs2_neural::linalg::multi_head_attention;
 /// let d_model = 8;
 /// let num_heads = 2;
@@ -305,7 +305,7 @@ pub fn positional_encoding<F: Float + Debug>(
 /// * `w2` - Second weight matrix with shape [d_ff, d_model]
 /// * `b2` - Second bias vector with shape [d_model]
 /// * Output tensor with shape [batch_size, seq_len, d_model]
-/// use ndarray::{Array, Array1, Array2, Array3};
+/// use scirs2_core::ndarray::{Array, Array1, Array2, Array3};
 /// use scirs2_neural::linalg::transformer_ffn;
 /// let seq_len = 3;
 /// let d_model = 4;

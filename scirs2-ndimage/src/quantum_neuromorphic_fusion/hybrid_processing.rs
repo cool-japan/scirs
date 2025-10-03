@@ -29,7 +29,7 @@
 //!
 //! ```rust,ignore
 //! use scirs2_ndimage::quantum_neuromorphic_fusion::hybrid_processing::*;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create hybrid configuration
 //! let hybrid_config = QuantumClassicalHybridConfig::default();
@@ -44,9 +44,9 @@
 //! );
 //! ```
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::{HashMap, VecDeque};
 
 use super::config::*;

@@ -3,9 +3,9 @@
 //! This example shows how to use the neural network-specific helper functions
 //! for quantizing different components of a neural network.
 
-use ndarray::{Array2, ArrayView2};
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_linalg::prelude::*;
 
 // Simple struct to represent a neural network layer

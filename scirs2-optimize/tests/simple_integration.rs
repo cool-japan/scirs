@@ -2,7 +2,7 @@
 //!
 //! These tests validate the basic optimization algorithms work correctly.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_optimize::stochastic::{
     minimize_adam, minimize_sgd, AdamOptions, DataProvider, InMemoryDataProvider, SGDOptions,
     StochasticGradientFunction,

@@ -5,8 +5,8 @@
 
 use crate::bspline::ExtrapolateMode;
 use crate::error::InterpolateResult;
-use ndarray::ArrayView1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 

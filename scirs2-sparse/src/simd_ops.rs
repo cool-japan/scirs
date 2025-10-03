@@ -7,8 +7,8 @@ use crate::csc_array::CscArray;
 use crate::csr_array::CsrArray;
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 // Import SIMD and parallel operations from scirs2-core
@@ -65,7 +65,7 @@ impl Default for SimdOptions {
 /// ```rust
 /// use scirs2_sparse::csr_array::CsrArray;
 /// use scirs2_sparse::simd_ops::{simd_csr_matvec, SimdOptions};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Create a sparse matrix
 /// let rows = vec![0, 0, 1, 2, 2];

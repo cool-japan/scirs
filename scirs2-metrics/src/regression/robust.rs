@@ -3,8 +3,8 @@
 //! This module provides functions for calculating robust metrics that are
 //! less sensitive to outliers and work for different distributions.
 
-use ndarray::{Array1, ArrayBase, Data, Dimension};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 
 use super::{check_non_negative, check_positive, check_sameshape};
 use crate::error::{MetricsError, Result};
@@ -29,7 +29,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::mean_poisson_deviance;
 ///
 /// let y_true = array![3.0, 5.0, 2.0, 7.0];
@@ -98,7 +98,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::mean_gamma_deviance;
 ///
 /// let y_true = array![3.0, 5.0, 2.0, 7.0];
@@ -159,7 +159,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::tweedie_deviance_score;
 ///
 /// let y_true = array![3.0, 5.0, 2.0, 7.0];
@@ -265,7 +265,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::quantile_loss;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -338,7 +338,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array1};
+/// use scirs2_core::ndarray::{array, Array1};
 /// use scirs2_metrics::regression::compute_robust_weights;
 ///
 /// // Create some residuals with outliers
@@ -378,7 +378,7 @@ where
     sorted_abs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let median_idx = n / 2;
-    let mad = if n % 2 == 0 {
+    let mad = if n.is_multiple_of(2) {
         (sorted_abs[median_idx - 1] + sorted_abs[median_idx]) / F::from(2.0).unwrap()
     } else {
         sorted_abs[median_idx]
@@ -458,7 +458,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::weighted_mean_squared_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -538,7 +538,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::weighted_median_absolute_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -640,7 +640,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::m_estimator;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0, 10.0]; // 10.0 is an outlier

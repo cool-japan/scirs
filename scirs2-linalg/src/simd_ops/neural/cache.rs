@@ -2,8 +2,8 @@
 
 use super::types::*;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, Array3};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 

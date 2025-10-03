@@ -4,8 +4,8 @@
 //! memory management strategies for optimal performance.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -26,6 +26,12 @@ pub struct AllocationStats {
     pub peak_bytes: usize,
     pub averagesize: f64,
     pub allocation_times: Vec<Duration>,
+}
+
+impl Default for MemoryProfiler {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemoryProfiler {
@@ -255,7 +261,7 @@ impl<F: Float + Clone + std::fmt::Display> StatisticsCache<F> {
     pub fn get(&mut self, key: &str) -> Option<F> {
         if let Some(entry) = self.cache.get_mut(key) {
             entry.access_count += 1;
-            Some(entry.value.clone())
+            Some(entry.value)
         } else {
             None
         }
@@ -452,7 +458,7 @@ where
         );
 
         // Cache result
-        self.cache.put(cache_key, result.clone());
+        self.cache.put(cache_key, result);
 
         Ok(result)
     }
@@ -492,7 +498,7 @@ where
 
         for chunk_start in (0..data.len()).step_by(chunksize) {
             let chunk_end = (chunk_start + chunksize).min(data.len());
-            let chunk = data.slice(ndarray::s![chunk_start..chunk_end]);
+            let chunk = data.slice(scirs2_core::ndarray::s![chunk_start..chunk_end]);
 
             let chunk_sum = chunk.iter().fold(F::zero(), |acc, &x| acc + x);
             total_sum = total_sum + chunk_sum;
@@ -540,7 +546,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_memory_profiler() {

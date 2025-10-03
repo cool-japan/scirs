@@ -3,7 +3,7 @@
 //! This example demonstrates solving population dynamics and disease spread models
 //! using ODE methods. It includes classic ecological and epidemiological models.
 
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 
 /// Exponential growth model: dN/dt = rN

@@ -355,7 +355,7 @@ async fn demonstrate_streaming_operations() -> Result<(), Box<dyn std::error::Er
     let output_file = temp_dir.path().join("chunked_output.dat");
     let mut chunked_writer = ChunkedWriter::new(&output_file, 32 * 1024)?;
 
-    let chunks = vec![vec![1u8; 10000], vec![2u8; 15000], vec![3u8; 20000]];
+    let chunks = [vec![1u8; 10000], vec![2u8; 15000], vec![3u8; 20000]];
 
     for (i, chunk) in chunks.iter().enumerate() {
         chunked_writer.write_chunk(chunk)?;

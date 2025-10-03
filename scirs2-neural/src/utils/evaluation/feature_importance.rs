@@ -8,8 +8,8 @@ use crate::error::{NeuralError, Result};
 use crate::utils::colors::{
     colored_metric_cell, colorize, gradient_color, stylize, ColorOptions, Style,
 };
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::{Debug, Display};
 
 /// Feature importance visualization for machine learning models
@@ -36,7 +36,7 @@ impl<F: Float + Debug + Display> FeatureImportance<F> {
     ///
     /// # Example
     /// ```
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     /// use scirs2_neural::utils::evaluation::FeatureImportance;
     ///
     /// // Create feature names and importance scores

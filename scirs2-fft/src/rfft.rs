@@ -5,9 +5,9 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::{fft, ifft};
-use ndarray::{s, Array, Array2, ArrayView, ArrayView2, IxDyn};
-use num_complex::Complex64;
-use num_traits::{NumCast, Zero};
+use scirs2_core::ndarray::{s, Array, Array2, ArrayView, ArrayView2, IxDyn};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{NumCast, Zero};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -26,7 +26,7 @@ use std::fmt::Debug;
 ///
 /// ```
 /// use scirs2_fft::rfft;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Generate a simple signal
 /// let signal = vec![1.0, 2.0, 3.0, 4.0];
@@ -75,7 +75,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{rfft, irfft};
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Generate a simple signal
 /// let signal = vec![1.0, 2.0, 3.0, 4.0];
@@ -128,7 +128,7 @@ where
             }
 
             // For real input
-            let val_f64 = num_traits::cast::cast::<T, f64>(val)
+            let val_f64 = NumCast::from(val)
                 .ok_or_else(|| FFTError::ValueError(format!("Could not convert {val:?} to f64")))?;
             Ok(Complex64::new(val_f64, 0.0))
         })
@@ -153,7 +153,7 @@ where
         // For rfft output, we have n//2 + 1 values
         // To reconstruct the full spectrum, we need to add the conjugate values
         // in reverse order (excluding DC and Nyquist if present)
-        let start_idx = if n_output % 2 == 0 {
+        let start_idx = if n_output.is_multiple_of(2) {
             input_len - 1
         } else {
             input_len
@@ -194,7 +194,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::rfft2;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create a 2x2 array
 /// let signal = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
@@ -249,7 +249,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{rfft2, irfft2};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create a 2x2 array
 /// let signal = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
@@ -318,7 +318,7 @@ where
                 c
             } else {
                 let element = x[[i, j]];
-                let val_f64 = num_traits::cast::cast::<T, f64>(element).ok_or_else(|| {
+                let val_f64 = NumCast::from(element).ok_or_else(|| {
                     FFTError::ValueError(format!("Could not convert {element:?} to f64"))
                 })?;
                 Complex64::new(val_f64, 0.0)
@@ -413,8 +413,8 @@ where
 ///
 /// ```no_run
 /// use scirs2_fft::rfftn;
-/// use ndarray::Array3;
-/// use ndarray::IxDyn;
+/// use scirs2_core::ndarray::Array3;
+/// use scirs2_core::ndarray::IxDyn;
 ///
 /// // Create a 3D array with real values
 /// let mut data = vec![0.0; 3*4*5];
@@ -524,9 +524,9 @@ where
     let result = full_result
         .slice_each_axis(|ax| {
             if ax.axis.index() == last_axis {
-                ndarray::Slice::new(0, Some(outshape[last_axis] as isize), 1)
+                scirs2_core::ndarray::Slice::new(0, Some(outshape[last_axis] as isize), 1)
             } else {
-                ndarray::Slice::new(0, None, 1)
+                scirs2_core::ndarray::Slice::new(0, None, 1)
             }
         })
         .to_owned();
@@ -566,8 +566,8 @@ where
 ///
 /// ```
 /// use scirs2_fft::{rfftn, irfftn};
-/// use ndarray::Array2;
-/// use ndarray::IxDyn;
+/// use scirs2_core::ndarray::Array2;
+/// use scirs2_core::ndarray::IxDyn;
 ///
 /// // Create a 2D array
 /// let arr = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
@@ -780,13 +780,12 @@ where
                 let val = if let Some(c) = try_as_complex(x[IxDyn(curr_idx)]) {
                     c
                 } else {
-                    let val_f64 =
-                        num_traits::cast::cast::<T, f64>(x[IxDyn(curr_idx)]).ok_or_else(|| {
-                            FFTError::ValueError(format!(
-                                "Could not convert {:?} to f64",
-                                x[IxDyn(curr_idx)]
-                            ))
-                        })?;
+                    let val_f64 = NumCast::from(x[IxDyn(curr_idx)]).ok_or_else(|| {
+                        FFTError::ValueError(format!(
+                            "Could not convert {:?} to f64",
+                            x[IxDyn(curr_idx)]
+                        ))
+                    })?;
                     Complex64::new(val_f64, 0.0)
                 };
 
@@ -860,7 +859,7 @@ where
 
         for &axis in axes {
             // Skip 0 frequency component and Nyquist frequency (if present)
-            if idx[axis] == 0 || (shape[axis] % 2 == 0 && idx[axis] == shape[axis] / 2) {
+            if idx[axis] == 0 || (shape[axis].is_multiple_of(2) && idx[axis] == shape[axis] / 2) {
                 continue;
             }
 
@@ -931,7 +930,7 @@ fn try_as_complex<T: Copy + Debug + 'static>(val: T) -> Option<Complex64> {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::arr2; // 2次元配列リテラル用
+    use scirs2_core::ndarray::arr2; // 2次元配列リテラル用
 
     #[test]
     fn test_rfft_and_irfft() {

@@ -8,7 +8,7 @@
 
 use super::core::{ConceptDriftDetector, DriftDetectionResult, DriftStatistics, DriftStatus};
 use crate::error::{MetricsError, Result};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::SystemTime;
 
@@ -75,7 +75,7 @@ impl<F: Float + std::fmt::Debug + Send + Sync> Bucket<F> {
             // Merge first two buckets
             self.sum[0] = self.sum[0] + self.sum[1];
             self.variance[0] = self.variance[0] + self.variance[1];
-            self.width[0] = self.width[0] + self.width[1];
+            self.width[0] += self.width[1];
 
             // Shift remaining buckets down
             for i in 1..(self.used_buckets - 1) {
@@ -146,7 +146,7 @@ impl<F: Float + std::iter::Sum + std::fmt::Debug + Send + Sync> AdwinDetector<F>
                     // Merge two oldest buckets
                     bucket.sum[0] = bucket.sum[0] + bucket.sum[1];
                     bucket.variance[0] = bucket.variance[0] + bucket.variance[1];
-                    bucket.width[0] = bucket.width[0] + bucket.width[1];
+                    bucket.width[0] += bucket.width[1];
 
                     // Shift remaining buckets
                     for i in 1..(bucket.used_buckets - 1) {
@@ -258,7 +258,7 @@ impl<F: Float + std::iter::Sum + std::fmt::Debug + Send + Sync> ConceptDriftDete
         self.width += 1;
 
         // Compress buckets if needed for memory efficiency
-        if self.width % 100 == 0 {
+        if self.width.is_multiple_of(100) {
             self.compress_buckets();
         }
 

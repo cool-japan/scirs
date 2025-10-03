@@ -3,6 +3,8 @@
 //! This benchmark suite measures the performance of various statistical tests
 //! in scirs2-stats across different sample sizes and data conditions.
 
+#![allow(unused_must_use)]
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
@@ -155,7 +157,7 @@ fn bench_nonparametric_tests(c: &mut Criterion) {
     }
 
     // Kruskal-Wallis test with multiple groups
-    let groups = vec![
+    let groups = [
         generate_normaldata(30, 5.0, 1.0),
         generate_normaldata(30, 5.5, 1.0),
         generate_normaldata(30, 6.0, 1.0),

@@ -7,9 +7,9 @@
 [![Tests](https://img.shields.io/badge/tests-160%20passing-brightgreen.svg)]
 [![Production Ready](https://img.shields.io/badge/status-production%20ready-green.svg)]
 
-**Production-ready text processing module** for SciRS2 (Scientific Computing in Rust - Next Generation) v0.1.0-beta.4. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this crate provides comprehensive, high-performance text processing, natural language processing, and machine learning text utilities optimized for scientific and industrial applications with ecosystem consistency.
+**Production-ready text processing module** for SciRS2 (Scientific Computing in Rust - Next Generation) v0.1.0-rc.1. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this crate provides comprehensive, high-performance text processing, natural language processing, and machine learning text utilities optimized for scientific and industrial applications with ecosystem consistency.
 
-> **🚀 Production Status**: Version 0.1.0-beta.4 (SciRS2 POLICY & Enhanced Performance) is **production-ready** with stable APIs, comprehensive test coverage, proven performance, and ecosystem consistency through scirs2-core abstractions.
+> **🚀 Production Status**: Version 0.1.0-rc.1 (SciRS2 POLICY & Enhanced Performance) is **production-ready** with stable APIs, comprehensive test coverage, proven performance, and ecosystem consistency through scirs2-core abstractions.
 
 ## Why Choose scirs2-text?
 
@@ -85,7 +85,7 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-text = "0.1.0-beta.4"
+scirs2-text = "0.1.0-rc.1"
 ```
 
 ## Quick Start

@@ -17,6 +17,7 @@
 //! ## Usage
 //!
 //! ```rust,no_run
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_linalg::gpu::advanced::*;
 //!
 //! // Create kernel fusion engine
@@ -27,6 +28,8 @@
 //!
 //! // Create tensor core scheduler
 //! let mut scheduler = AdvancedGpuTensorCoreScheduler::<f32>::new()?;
+//! # Ok(())
+//! # }
 //! ```
 
 // Declare submodules
@@ -69,9 +72,9 @@ use crate::error::{LinalgError, LinalgResult};
 /// Unified advanced GPU acceleration framework
 pub struct AdvancedGpuAccelerationFramework<T>
 where
-    T: num_traits::Float
-        + num_traits::NumAssign
-        + num_traits::Zero
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::Zero
         + Send
         + Sync
         + std::fmt::Debug
@@ -91,9 +94,9 @@ where
 
 impl<T> AdvancedGpuAccelerationFramework<T>
 where
-    T: num_traits::Float
-        + num_traits::NumAssign
-        + num_traits::Zero
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::Zero
         + Send
         + Sync
         + std::fmt::Debug
@@ -162,9 +165,9 @@ pub fn initialize_advanced_gpu_acceleration<T>(
     gpu_id: usize,
 ) -> LinalgResult<AdvancedGpuAccelerationFramework<T>>
 where
-    T: num_traits::Float
-        + num_traits::NumAssign
-        + num_traits::Zero
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::Zero
         + Send
         + Sync
         + std::fmt::Debug

@@ -13,10 +13,10 @@
 use super::windows::dpss;
 use crate::error::{SignalError, SignalResult};
 use crate::simd_advanced::{simd_apply_window, SimdConfig};
-use ndarray::{Array1, Array2, ArrayView1};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use rustfft::FftPlanner;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
@@ -112,8 +112,8 @@ impl Default for MultitaperConfig {
 /// let n = 1024;
 /// let fs = 100.0;
 /// let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
-/// use rand::prelude::*;
-/// let mut rng = rand::rng();
+/// use scirs2_core::random::prelude::*;
+/// let mut rng = scirs2_core::random::rng();
 /// let signal: Vec<f64> = t.iter()
 ///     .map(|&ti| (2.0 * PI * 10.0 * ti).sin() + 0.1 * rng.gen_range(0.0..1.0))
 ///     .collect();

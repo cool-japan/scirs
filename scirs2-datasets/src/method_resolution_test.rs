@@ -1,7 +1,7 @@
 //! Test to demonstrate the resolution of method conflicts between ndarray's std and our StatsExt::standard_deviation
 
 use crate::utils::scaling::StatsExt;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 #[allow(dead_code)]
 pub fn test_method_resolution() {

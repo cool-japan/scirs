@@ -1,5 +1,5 @@
 // Quick test to verify parametric module exports work correctly
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 fn main() {
     // Test data - create a longer, more realistic signal
@@ -28,7 +28,7 @@ fn main() {
         );
         println!(
             "  AR coefficients: {:?}",
-            ar_coeffs.slice(ndarray::s![0..3])
+            ar_coeffs.slice(scirs2_core::ndarray::s![0..3])
         ); // Print first 3 coefficients
 
         // Test that ar_spectrum is accessible

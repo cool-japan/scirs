@@ -4,8 +4,8 @@
 //! and then uses a technique to extract a flat clustering based on the stability of clusters.
 //! This allows HDBSCAN to find clusters of varying densities, unlike DBSCAN which uses a global density threshold.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::cmp::Ordering;
 use std::fmt::Debug;
 
@@ -188,7 +188,7 @@ impl<F: Float + FromPrimitive> Default for HDBSCANOptions<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, ArrayView2};
+/// use scirs2_core::ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::{hdbscan, HDBSCANOptions};
 ///
 /// // Example data with two clusters
@@ -440,7 +440,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, ArrayView2};
+/// use scirs2_core::ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::{hdbscan, dbscan_clustering};
 ///
 /// // Example data with two clusters
@@ -1476,7 +1476,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_hdbscan_placeholder() {

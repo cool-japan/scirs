@@ -7,8 +7,8 @@
 use crate::error::{StatsError, StatsResult};
 use crate::error_standardization::ErrorMessages;
 use crate::{mean, median};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{AutoOptimizer, SimdUnifiedOps};
 use std::cmp::Ordering;
 
@@ -30,7 +30,7 @@ use std::cmp::Ordering;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::mean_abs_deviation;
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -102,7 +102,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::median_abs_deviation;
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 100.0];  // Note the outlier
@@ -165,7 +165,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::iqr;
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
@@ -212,7 +212,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::data_range;
 ///
 /// let data = array![5.0, 2.0, 10.0, 3.0, 7.0];
@@ -274,7 +274,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::coef_variation;
 ///
 /// let data = array![10.0, 12.0, 8.0, 11.0, 9.0];
@@ -407,7 +407,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::gini_coefficient;
 ///
 /// // Perfect equality
@@ -481,7 +481,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mean_abs_deviation() {

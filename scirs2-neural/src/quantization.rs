@@ -7,7 +7,7 @@
 //! - Dynamic and static quantization schemes
 
 use crate::error::{Error, Result};
-use ndarray::{ArrayD, ArrayView, Zip};
+use scirs2_core::ndarray::{ArrayD, ArrayView, Zip};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use statrs::statistics::Statistics;
@@ -84,7 +84,7 @@ impl QuantizationParams {
             qmax,
     /// Calculate quantization parameters from tensor statistics
     pub fn from_tensor(
-        tensor: &ArrayView<f32, ndarray::IxDyn>,
+        tensor: &ArrayView<f32, scirs2_core::ndarray::IxDyn>,
         config: &QuantizationConfig,
     ) -> Result<Self> {
         let mut params = Self::new(config.bits, config.signed);
@@ -170,7 +170,7 @@ impl TensorStats {
             mean: 0.0,
             std: 0.0,
             histogram: vec![0; 256],
-    fn update(&mut self, tensor: &ArrayView<f32, ndarray::IxDyn>) {
+    fn update(&mut self, tensor: &ArrayView<f32, scirs2_core::ndarray::IxDyn>) {
         self.min = self.min.min(
             *tensor
                 .iter()
@@ -485,9 +485,9 @@ pub mod utils {
         QuantizedTensor::from_float(&float_tensor, &config)
 #[cfg(test)]
 mod tests {
-    use ndarray::{array, Array2};
-    use rand_distr::Standard;
-    use ndarray_rand::RandomExt;
+    use scirs2_core::ndarray::{array, Array2};
+    use scirs2_core::random::Standard;
+    use scirs2_core::random::RandomExt;
     #[test]
     fn test_quantization_config_default() {
         let config = QuantizationConfig::default();

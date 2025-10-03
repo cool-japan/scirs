@@ -1,7 +1,7 @@
 //! Median filtering functions for n-dimensional arrays
 
-use ndarray::{Array, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::{rank_filter, BorderMode};
@@ -31,7 +31,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Basic 1D noise removal
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_ndimage::filters::{median_filter, BorderMode};
 ///
 /// // Remove impulse noise from a 1D signal
@@ -42,7 +42,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## 2D image denoising
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::filters::{median_filter, BorderMode};
 ///
 /// // Create a noisy image with salt-and-pepper noise
@@ -64,7 +64,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Different window sizes for varying noise levels
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::filters::median_filter;
 ///
 /// let noisyimage = Array2::from_shape_fn((50, 50), |(i, j)| {
@@ -83,7 +83,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## 3D volume processing
 /// ```
-/// use ndarray::Array3;
+/// use scirs2_core::ndarray::Array3;
 /// use scirs2_ndimage::filters::median_filter;
 ///
 /// let volume = Array3::from_shape_fn((20, 20, 20), |(i, j, k)| {
@@ -303,7 +303,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_median_filter_1d() {
@@ -390,7 +390,7 @@ mod tests {
 
     #[test]
     fn test_median_filter_3d() {
-        use ndarray::Array3;
+        use scirs2_core::ndarray::Array3;
 
         // Create a 3D array with an outlier
         let mut cube = Array3::<f64>::zeros((3, 3, 3));

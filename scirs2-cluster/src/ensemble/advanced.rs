@@ -7,10 +7,10 @@ use super::algorithms::EnsembleClusterer;
 use super::core::*;
 use crate::error::{ClusteringError, Result};
 use crate::metrics::silhouette_score;
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
-use rand::prelude::*;
-use rand_distr::weighted::WeightedIndex;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution, WeightedIndex};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -694,7 +694,7 @@ where
     ) -> Result<Array1<f64>> {
         // Simplified MCMC update (Metropolis-Hastings)
         let mut new_weights = current_weights.clone();
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
 
         // Propose new weights with small random perturbations
         for weight in new_weights.iter_mut() {
@@ -727,7 +727,7 @@ where
 
     fn calculate_meta_quality(&self, data: ArrayView2<F>, result: &EnsembleResult) -> Result<f64> {
         let data_f64 = data.mapv(|x| x.to_f64().unwrap_or(0.0));
-        silhouette_score(data_f64.view(), result.consensus_labels.view()).map_err(|e| e.into())
+        silhouette_score(data_f64.view(), result.consensus_labels.view()).map_err(|e| e)
     }
 
     // Additional helper methods (simplified implementations)
@@ -747,7 +747,7 @@ where
             ClusteringError::InvalidInput(format!("Invalid weights for sampling: {}", e))
         })?;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut sampled_data = Array2::zeros((n_samples, n_features));
 
         // Sample with replacement based on weights
@@ -929,7 +929,10 @@ fn calculate_clustering_tendency(data: &Array2<f64>) -> f64 {
 
     // Compute variance ratio as a simple clustering tendency measure
     let total_variance = data.var(0.0);
-    let mean_variance = data.mean_axis(ndarray::Axis(0)).unwrap().var(0.0);
+    let mean_variance = data
+        .mean_axis(scirs2_core::ndarray::Axis(0))
+        .unwrap()
+        .var(0.0);
 
     if total_variance > 0.0 {
         (mean_variance / total_variance).min(1.0)
@@ -951,7 +954,7 @@ fn calculate_advanced_meta_feature(data: &Array2<f64>, feature_index: usize) -> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_advanced_ensemble_config() {

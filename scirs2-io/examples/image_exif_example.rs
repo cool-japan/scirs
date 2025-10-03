@@ -5,7 +5,7 @@
 //! - Understanding EXIF metadata structure
 //! - Working with GPS coordinates and camera settings
 
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 use scirs2_io::error::Result;
 use scirs2_io::image::{
     load_image, read_exif_metadata, save_image, ColorMode, ImageData, ImageFormat, ImageMetadata,

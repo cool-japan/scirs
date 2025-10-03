@@ -6,36 +6,43 @@
 
 use crate::base::{EdgeWeight, Graph, Node};
 use crate::error::Result;
-// Simplified performance monitoring
+/// Simplified performance monitoring for graph operations
 #[derive(Debug, Clone, Default)]
 pub struct SimplePerformanceMonitor {
     operations: HashMap<String, f64>,
 }
 
 impl SimplePerformanceMonitor {
+    /// Create a new performance monitor
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Start monitoring an operation
     pub fn start_operation(&mut self, _name: &str) {
         // Placeholder implementation
     }
 
+    /// Stop monitoring an operation
     pub fn stop_operation(&mut self, _name: &str) {
         // Placeholder implementation
     }
 
+    /// Get performance report
     pub fn get_report(&self) -> SimplePerformanceReport {
         SimplePerformanceReport::default()
     }
 }
 
+/// Performance report for monitored operations
 #[derive(Debug, Clone, Default)]
 pub struct SimplePerformanceReport {
+    /// Total number of operations executed
     pub total_operations: usize,
+    /// Total time spent in milliseconds
     pub total_time_ms: f64,
 }
-use rand::Rng;
+use scirs2_core::random::Rng;
 use std::collections::{HashMap, VecDeque};
 
 /// Advanced mode configuration for graph processing
@@ -294,21 +301,12 @@ impl Default for AlgorithmMetrics {
 }
 
 /// GPU acceleration context for advanced operations
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct GPUAccelerationContext {
     /// Whether GPU is available
     pub gpu_available: bool,
     /// GPU memory pool size
     pub memory_pool_size: usize,
-}
-
-impl Default for GPUAccelerationContext {
-    fn default() -> Self {
-        GPUAccelerationContext {
-            gpu_available: false,
-            memory_pool_size: 0,
-        }
-    }
 }
 
 /// Neural reinforcement learning agent

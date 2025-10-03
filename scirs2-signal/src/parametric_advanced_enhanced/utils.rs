@@ -6,8 +6,8 @@
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
 // Remove unused import - compute_eigendecomposition is used directly in high_resolution module
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 
@@ -381,7 +381,7 @@ pub fn create_autocorrelation_matrix(autocorr: &Array1<f64>, order: usize) -> Ar
 
     for i in 0..order {
         for j in 0..order {
-            let lag = if i >= j { i - j } else { j - i };
+            let lag = i.abs_diff(j);
             if lag < autocorr.len() {
                 matrix[(i, j)] = autocorr[lag];
             }

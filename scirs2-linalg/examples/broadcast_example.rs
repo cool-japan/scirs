@@ -1,6 +1,6 @@
 //! Example demonstrating NumPy-style broadcasting for higher-dimensional arrays
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::prelude::*;
 
 #[allow(dead_code)]
@@ -32,10 +32,10 @@ fn broadcast_3d_example() {
     let c = broadcast_matmul_3d(&a, &b).unwrap();
 
     println!("First batch (A * I):");
-    println!("{:?}", c.index_axis(ndarray::Axis(0), 0));
+    println!("{:?}", c.index_axis(scirs2_core::ndarray::Axis(0), 0));
 
     println!("\nSecond batch (A * 2I):");
-    println!("{:?}", c.index_axis(ndarray::Axis(0), 1));
+    println!("{:?}", c.index_axis(scirs2_core::ndarray::Axis(0), 1));
 
     // Batch matrix-vector multiplication (using dynamic arrays)
     let x = array![[1.0, 1.0], [2.0, 1.0]].into_dyn();
@@ -52,8 +52,8 @@ fn broadcast_dynamic_example() {
     println!("\n=== Dynamic Array Broadcasting ===");
 
     // Create 4D array: (2, 3, 2, 2) - 2 groups of 3 batches of 2x2 matrices
-    let a = ndarray::Array4::<f64>::ones((2, 3, 2, 2)).into_dyn();
-    let b = ndarray::Array4::<f64>::from_elem((2, 3, 2, 2), 2.0).into_dyn();
+    let a = scirs2_core::ndarray::Array4::<f64>::ones((2, 3, 2, 2)).into_dyn();
+    let b = scirs2_core::ndarray::Array4::<f64>::from_elem((2, 3, 2, 2), 2.0).into_dyn();
 
     // Multiply all matrices by 2
     let c = broadcast_matmul(&a, &b).unwrap();
@@ -76,10 +76,10 @@ fn broadcast_different_batch_example() {
     let c = broadcast_matmul_3d(&a, &b).unwrap();
 
     println!("First batch (multiplied by 2*I):");
-    println!("{:?}", c.index_axis(ndarray::Axis(0), 0));
+    println!("{:?}", c.index_axis(scirs2_core::ndarray::Axis(0), 0));
 
     println!("\nSecond batch (multiplied by 2*I):");
-    println!("{:?}", c.index_axis(ndarray::Axis(0), 1));
+    println!("{:?}", c.index_axis(scirs2_core::ndarray::Axis(0), 1));
 
     // Check broadcast compatibility
     let incompatible = array![[[1.0, 2.0, 3.0]]];

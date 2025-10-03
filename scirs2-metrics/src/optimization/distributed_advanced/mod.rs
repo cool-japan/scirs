@@ -18,8 +18,8 @@ pub mod scaling;
 pub mod sharding;
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::time::{Duration, Instant, SystemTime};
@@ -54,7 +54,7 @@ pub struct AdvancedDistributedOptimizer<T: Float> {
 }
 
 /// Advanced distributed system configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AdvancedDistributedConfig {
     /// Basic cluster settings
     pub basic_config: crate::optimization::distributed::DistributedConfig,
@@ -371,21 +371,6 @@ impl<T: Float + Default + std::fmt::Debug + Clone + Send + Sync> AdvancedDistrib
         // self.monitoring_system.shutdown().await?;
 
         Ok(())
-    }
-}
-
-impl Default for AdvancedDistributedConfig {
-    fn default() -> Self {
-        Self {
-            basic_config: crate::optimization::distributed::DistributedConfig::default(),
-            consensus_config: consensus::ConsensusConfig::default(),
-            sharding_config: Default::default(),
-            fault_tolerance_config: FaultToleranceConfig::default(),
-            auto_scaling_config: AutoScalingConfig::default(),
-            optimization_config: OptimizationConfig::default(),
-            orchestration_config: Default::default(),
-            monitoring_config: Default::default(),
-        }
     }
 }
 

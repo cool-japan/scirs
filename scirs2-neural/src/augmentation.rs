@@ -7,9 +7,9 @@
 //! - Mix-based augmentations (MixUp, CutMix, AugMix)
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, ArrayD, Axis};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, ArrayD, Axis};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use statrs::statistics::Statistics;
@@ -179,7 +179,7 @@ pub enum MixAugmentation {
         layer_mix_probability: f64,
 /// Comprehensive data augmentation manager
 pub struct AugmentationManager<
-    F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimitive,
+    F: Float + Debug + 'static + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive,
 > {
     /// Image augmentation pipeline
     image_transforms: Vec<ImageAugmentation>,
@@ -204,7 +204,7 @@ pub struct AugmentationStatistics<
     pub transform_counts: HashMap<String, usize>,
     /// Performance metrics
     pub processing_time_ms: f64,
-impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimitive>
+impl<F: Float + Debug + 'static + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive>
     AugmentationManager<F>
 {
     /// Create a new augmentation manager
@@ -311,12 +311,12 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
         let mut result = images.clone();
         let batch_size = images.shape()[0];
         for i in 0..batch_size {
-            if rand::random::<f64>() < probability {
+            if scirs2_core::random::random::<f64>() < probability {
                 // Flip horizontally by reversing the width dimension
                 if images.ndim() >= 4 {
                     // Assuming NCHW format: (batch, channels, height, width)
                     let width_dim = images.ndim() - 1;
-                    let mut sample = result.slice_mut(ndarray::s![i, .., .., ..]);
+                    let mut sample = result.slice_mut(scirs2_core::ndarray::s![i, .., .., ..]);
                     sample.invert_axis(Axis(width_dim - 1)); // width axis relative to sample
                 }
         Ok(result)
@@ -352,12 +352,12 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
         let mut result = Array::zeros((batch_size, channels, crop_height, crop_width));
             let start_h = rng().random_range(0..=(height - crop_height));
             let start_w = rng().random_range(0..=(width - crop_width));
-            let crop = images.slice(ndarray::s![
+            let crop = images.slice(scirs2_core::ndarray::s![
                 i....,
                 start_h..start_h + crop_height,
                 start_w..start_w + crop_width
             ]);
-            result.slice_mut(ndarray::s![i, .., .., ..]).assign(&crop);
+            result.slice_mut(scirs2_core::ndarray::s![i, .., .., ..]).assign(&crop);
         Ok(result.into_dyn())
     fn color_jitter(
         _saturation: Option<f64>, _hue: Option<f64>,
@@ -375,7 +375,7 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
         // Clamp values to valid range [0..1] (assuming normalized images)
         result = result.mapv(|x| x.max(F::zero()).min(F::one()));
     fn gaussian_noise(
-        if rand::random::<f64>() < probability {
+        if scirs2_core::random::random::<f64>() < probability {
             let noise = images.mapv(|_| {
                 let noise_val = rng().random_range(-3.0 * std..=3.0 * std) + mean;
                 F::from(noise_val).unwrap_or(F::zero())
@@ -393,7 +393,7 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
                     let start_h = rng().random_range(0..=(height - mask_height));
                     let start_w = rng().random_range(0..=(width - mask_width));
                     result
-                        .slice_mut(ndarray::s![
+                        .slice_mut(scirs2_core::ndarray::s![
                             i....,
                             start_h..start_h + mask_height,
                             start_w..start_w + mask_width
@@ -422,15 +422,15 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
         let mut mixed_labels = labels.clone();
         for (i, &j) in indices.iter().enumerate().take(batch_size) {
             // Mix images: x_mixed = lambda * x_i + (1 - lambda) * x_j
-            let x_i = images.index_axis(ndarray::Axis(0), i);
-            let x_j = images.index_axis(ndarray::Axis(0), j);
+            let x_i = images.index_axis(scirs2_core::ndarray::Axis(0), i);
+            let x_j = images.index_axis(scirs2_core::ndarray::Axis(0), j);
             let mixed = &x_i * lambda_f + &x_j * (F::one() - lambda_f);
             mixed_images
-                .index_axis_mut(ndarray::Axis(0), i)
+                .index_axis_mut(scirs2_core::ndarray::Axis(0), i)
                 .assign(&mixed);
             // Mix labels: y_mixed = lambda * y_i + (1 - lambda) * y_j
-            let y_i = labels.index_axis(ndarray::Axis(0), i);
-            let y_j = labels.index_axis(ndarray::Axis(0), j);
+            let y_i = labels.index_axis(scirs2_core::ndarray::Axis(0), i);
+            let y_j = labels.index_axis(scirs2_core::ndarray::Axis(0), j);
             let mixed_label = &y_i * lambda_f + &y_j * (F::one() - lambda_f);
             mixed_labels
                 .assign(&mixed_label);
@@ -454,10 +454,10 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
             let start_h = rng().random_range(0..=(height - cut_height));
             let start_w = rng().random_range(0..=(width - cut_width));
             // Cut and paste
-            let patch = images.slice(ndarray::s![
+            let patch = images.slice(scirs2_core::ndarray::s![
                 j..start_h..start_h + cut_height,
                 start_w..start_w + cut_width
-                .slice_mut(ndarray::s![
+                .slice_mut(scirs2_core::ndarray::s![
                     i,
                     ..,
                     start_h..start_h + cut_height,
@@ -467,9 +467,9 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
             // Mix labels based on cut area ratio
             let actual_lambda = (cut_height * cut_width) as f64 / (height * width) as f64;
             let lambda_f = F::from(1.0 - actual_lambda).unwrap_or(F::from(0.5).unwrap());
-            let y_i = labels.slice(ndarray::s![i, ..]);
-            let y_j = labels.slice(ndarray::s![j, ..]);
-                .slice_mut(ndarray::s![i, ..])
+            let y_i = labels.slice(scirs2_core::ndarray::s![i, ..]);
+            let y_j = labels.slice(scirs2_core::ndarray::s![j, ..]);
+                .slice_mut(scirs2_core::ndarray::s![i, ..])
             .entry("CutMix".to_string())
     fn sample_beta_distribution(&self, alpha: f64) -> Result<f64> {
         // Simplified beta distribution sampling
@@ -477,7 +477,7 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
         if alpha <= 0.0 {
             return Ok(0.5);
         // Approximate beta distribution with uniform sampling for simplicity
-        Ok(rand::random::<f64>())
+        Ok(scirs2_core::random::random::<f64>())
     /// Get augmentation statistics
     pub fn get_statistics(&self) -> &AugmentationStatistics<F> {
         &self.stats
@@ -523,7 +523,7 @@ impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimi
                 area_ratio_range: (0.02, 0.4),
                 alpha: 1.0,
                 sigma: 0.1,
-impl<F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimitive> Default
+impl<F: Float + Debug + 'static + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive> Default
     for AugmentationManager<F>
     fn default() -> Self {
         Self::new(None)
@@ -562,7 +562,7 @@ pub struct AugmentationPipelineBuilder<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array2, Array4};
+    use scirs2_core::ndarray::{Array2, Array4};
     #[test]
     fn test_augmentation_manager_creation() {
         let manager = AugmentationManager::<f64>::new(Some(42));
@@ -572,7 +572,7 @@ mod tests {
         let mut manager = AugmentationManager::<f64>::new(Some(42));
         manager.add_image_transform(ImageAugmentation::RandomHorizontalFlip { probability: 1.0 });
         let input =
-            Array4::<f64>::from_shape_fn((2, 3, 4, 4), |(____)| rand::random()).into_dyn();
+            Array4::<f64>::from_shape_fn((2, 3, 4, 4), |(____)| scirs2_core::random::random()).into_dyn();
         let result = manager.augment_images(&input).unwrap();
         assert_eq!(result.shape(), input.shape());
         assert!(manager.stats.samples_processed > 0);

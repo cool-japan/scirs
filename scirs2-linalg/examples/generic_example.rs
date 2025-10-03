@@ -1,6 +1,6 @@
 //! Example demonstrating type-generic linear algebra operations
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::generic::PrecisionSelector;
 use scirs2_linalg::prelude::*;
 

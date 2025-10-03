@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 use approx::assert_abs_diff_eq;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[cfg(test)]
 use crate::voronoi::extrapolation::Extrapolation;

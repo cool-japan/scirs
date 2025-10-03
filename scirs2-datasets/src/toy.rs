@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
 
 /// Generate the classic Iris dataset

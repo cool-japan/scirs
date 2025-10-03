@@ -3,7 +3,7 @@
 //! This module provides Normalized Mutual Information (NMI) and Adjusted Mutual Information (AMI)
 //! metrics for evaluating clustering results against ground truth.
 
-use ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -32,7 +32,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::clustering::normalized_mutual_info_score;
 ///
 /// let labels_true = array![0, 0, 1, 1, 2, 2];
@@ -202,7 +202,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::clustering::adjusted_mutual_info_score;
 ///
 /// let labels_true = array![0, 0, 1, 1, 2, 2];
@@ -390,7 +390,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_normalized_mutual_info_score() {

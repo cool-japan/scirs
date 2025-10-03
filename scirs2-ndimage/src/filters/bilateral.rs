@@ -3,8 +3,8 @@
 //! Bilateral filters smooth images while preserving edges by considering both
 //! spatial distance and intensity difference when computing weights.
 
-use ndarray::{Array, Array1, Array2, Dimension, Ix2, IxDyn};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Array1, Array2, Dimension, Ix2, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::validation::check_positive;
 use std::fmt::{Debug, Display};
 
@@ -106,7 +106,7 @@ where
     // Convert to 1D for processing
     let input_1d = input
         .to_owned()
-        .into_dimensionality::<ndarray::Ix1>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix1>()
         .map_err(|_| NdimageError::DimensionError("Failed to convert to 1D array".into()))?;
 
     // Calculate kernel radius based on _spatial sigma
@@ -445,7 +445,7 @@ where
 {
     let input_1d = input
         .to_owned()
-        .into_dimensionality::<ndarray::Ix1>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix1>()
         .map_err(|_| NdimageError::DimensionError("Failed to convert to 1D array".into()))?;
 
     let radius = ((sigma_spatial * 3.0).ceil() as usize).max(1);
@@ -536,7 +536,7 @@ where
 {
     let input_1d = input
         .to_owned()
-        .into_dimensionality::<ndarray::Ix1>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix1>()
         .map_err(|_| NdimageError::DimensionError("Failed to convert to 1D array".into()))?;
 
     let radius = ((sigma_spatial * 3.0).ceil() as usize).max(1);
@@ -623,7 +623,7 @@ where
 {
     let input_2d = input
         .to_owned()
-        .into_dimensionality::<ndarray::Ix2>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
     let (rows, cols) = input_2d.dim();
@@ -701,7 +701,7 @@ where
 {
     let input_2d = input
         .to_owned()
-        .into_dimensionality::<ndarray::Ix2>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
     let (rows, cols) = input_2d.dim();
@@ -767,7 +767,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_bilateral_filter_1d() {
@@ -965,7 +965,7 @@ impl Default for MultiScaleBilateralConfig {
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::filters::{multi_scale_bilateral_filter, MultiScaleBilateralConfig};
 ///
 /// let image = Array2::from_elem((64, 64), 1.0);
@@ -1066,7 +1066,7 @@ where
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::filters::{adaptive_bilateral_filter, BorderMode};
 ///
 /// let image = Array2::from_elem((32, 32), 1.0);
@@ -1148,7 +1148,7 @@ where
 {
     let input_2d = input
         .to_owned()
-        .into_dimensionality::<ndarray::Ix2>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
     let (rows, cols) = input_2d.dim();
@@ -1253,7 +1253,7 @@ where
 /// Apply bilateral filtering to a single pixel with given parameters
 #[allow(dead_code)]
 fn apply_bilateral_window<T>(
-    padded_input: &ndarray::ArrayView2<T>,
+    padded_input: &scirs2_core::ndarray::ArrayView2<T>,
     center_y: usize,
     center_x: usize,
     center_value: T,
@@ -1325,7 +1325,7 @@ where
     }
 
     // Simple nearest-neighbor downsampling
-    let output_dyn = ndarray::ArrayD::<T>::zeros(newshape.clone());
+    let output_dyn = scirs2_core::ndarray::ArrayD::<T>::zeros(newshape.clone());
     let output = output_dyn.into_dimensionality::<D>().map_err(|_| {
         NdimageError::DimensionError("Failed to convert output array to correct dimension".into())
     })?;
@@ -1334,7 +1334,7 @@ where
     if input.ndim() == 2 && newshape.len() == 2 {
         let input_2d = input
             .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D".into()))?;
         let mut output_2d = Array2::zeros((newshape[0], newshape[1]));
 
@@ -1375,7 +1375,7 @@ where
     if input.ndim() == 2 {
         let input_2d = input
             .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D".into()))?;
         let mut output = Array2::zeros((targetshape[0], targetshape[1]));
 

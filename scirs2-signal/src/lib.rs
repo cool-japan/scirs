@@ -1,4 +1,5 @@
 #![allow(deprecated)]
+#![allow(clippy::all)]
 #![allow(dead_code)]
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
@@ -37,7 +38,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-signal = "0.1.0-beta.4"
+//! scirs2-signal = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust
@@ -49,7 +50,7 @@
 //! let filtered = convolve(&signal, &kernel, "same").unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 
 // Core error handling - ESSENTIAL
 pub mod error;

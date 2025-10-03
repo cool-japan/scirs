@@ -270,7 +270,7 @@ impl QuantumClusterer {
         let (n_points, n_dims) = points.dim();
         let mut centroids = Array2::zeros((self.num_clusters, n_dims));
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Use k-means++ initialization for better initial centroids
         let mut selected_indices = Vec::new();
@@ -417,7 +417,7 @@ impl QuantumClusterer {
     ) -> SpatialResult<()> {
         // Apply alternating Hadamard gates for interference
         for i in 0..quantum_state.numqubits {
-            if (iteration + i) % 2 == 0 {
+            if (iteration + i).is_multiple_of(2) {
                 quantum_state.hadamard(i)?;
             }
         }

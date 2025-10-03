@@ -6,7 +6,7 @@
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GrayImage, RgbImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
 
@@ -446,7 +446,7 @@ pub fn compute_gradient_magnitude(img: &DynamicImage) -> Result<Array2<f32>> {
 mod tests {
     use super::*;
     use image::DynamicImage;
-    use ndarray::{s, Array2};
+    use scirs2_core::ndarray::{s, Array2};
 
     #[test]
     fn test_watershed_basic() {

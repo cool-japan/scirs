@@ -16,8 +16,8 @@
 //!
 //! ```
 //! use scirs2_metrics::domains::quantum_ml::QuantumMLSuite;
-//! use ndarray::array;
-//! use num_complex::Complex64;
+//! use scirs2_core::ndarray::array;
+//! use scirs2_core::numeric::Complex64;
 //!
 //! let mut qml_suite = QuantumMLSuite::new();
 //!
@@ -39,9 +39,9 @@
 
 use crate::domains::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_complex::Complex64;
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, One, Zero};
 use std::collections::HashMap;
 
 /// Quantum Machine Learning metrics suite
@@ -709,7 +709,7 @@ impl QuantumMLSuite {
 
     fn estimate_fault_tolerance_threshold(&self, circuit: &QuantumCircuit) -> Result<f64> {
         // Rough estimate based on circuit complexity
-        // Real threshold depends on specific error correction code
+        // Float threshold depends on specific error correction code
         let base_threshold = 1e-3; // 0.1% error rate
         let complexity_factor = circuit.depth as f64 * circuit.num_qubits as f64;
         Ok(base_threshold / complexity_factor.sqrt())
@@ -803,8 +803,8 @@ impl Default for QuantumMLSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
-    use num_complex::Complex64;
+    use scirs2_core::ndarray::array;
+    use scirs2_core::numeric::Complex64;
     use std::f64::consts::PI;
 
     #[test]

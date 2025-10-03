@@ -7,7 +7,7 @@
 use crate::api_standardization::{NullHandling, ResultMetadata, StandardizedConfig};
 use crate::error::StatsResult;
 // Array1 import removed - not used in this module
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -89,6 +89,15 @@ where
     result_cache: Arc<std::sync::RwLock<HashMap<String, CachedResult<F>>>>,
     performance_monitor: Option<PerformanceMonitor>,
     _phantom: PhantomData<F>,
+}
+
+impl<F> Default for FluentStats<F>
+where
+    F: Float + NumCast + Send + Sync + 'static + std::fmt::Display,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F> FluentStats<F>

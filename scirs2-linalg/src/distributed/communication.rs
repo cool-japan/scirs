@@ -5,7 +5,7 @@
 //! collective operations, and optimized data transfer protocols.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -294,7 +294,7 @@ impl DistributedCommunicator {
     /// All-reduce operation (sum matrices across all nodes)
     pub fn allreduce_sum<T>(&self, localmatrix: &ArrayView2<T>) -> LinalgResult<Array2<T>>
     where
-        T: Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + num_traits::Zero + std::ops::Add<Output = T>,
+        T: Clone + Send + Sync + Serialize + for<'de> Deserialize<'de> + scirs2_core::numeric::Zero + std::ops::Add<Output = T>,
     {
         // Gather all matrices to root
         if let Some(matrices) = self.gather_matrices(localmatrix)? {
@@ -333,7 +333,7 @@ impl DistributedCommunicator {
                 let chunk_rows = if dest <= remainder { rows_per_node + 1 } else { rows_per_node };
                 let end_row = start_row + chunk_rows;
                 
-                let chunk = matrix.slice(ndarray::s![start_row..end_row, ..]);
+                let chunk = matrix.slice(scirs2_core::ndarray::s![start_row..end_row, ..]);
                 self.sendmatrix(&chunk, dest, MessageTag::Data)?;
                 
                 start_row = end_row;
@@ -341,7 +341,7 @@ impl DistributedCommunicator {
             
             // Return root's portion
             let root_rows = if 0 < remainder { rows_per_node + 1 } else { rows_per_node };
-            Ok(matrix.slice(ndarray::s![..root_rows, ..]).to_owned())
+            Ok(matrix.slice(scirs2_core::ndarray::s![..root_rows, ..]).to_owned())
         } else {
             // Receive chunk from root
             self.recvmatrix(0, MessageTag::Data)
@@ -707,7 +707,7 @@ impl CommunicationStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     
     #[test]
     fn test_message_creation() {

@@ -11,8 +11,8 @@
 // - Distributed identification for large-scale networked systems
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Array3};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_finite;
@@ -755,7 +755,7 @@ impl Default for AdvancedEnhancedSysIdConfig {
 ///
 /// ```
 /// use scirs2_signal::sysid_advanced_enhanced::{advanced_enhanced_system_identification, AdvancedEnhancedSysIdConfig};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 ///
 /// // Generate system input/output data

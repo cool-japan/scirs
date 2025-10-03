@@ -27,7 +27,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_interpolate::simd_optimized::{
 //!     simd_rbf_evaluate, simd_distance_matrix, RBFKernel
 //! };
@@ -47,8 +47,8 @@
 //! ```
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
 use std::fmt::{Debug, Display};
 
@@ -285,7 +285,7 @@ fn simd_rbf_evaluate_scalar<F>(
     coefficients: &[F],
     kernel: RBFKernel,
     epsilon: F,
-    results: &mut ndarray::ArrayViewMut1<F>,
+    results: &mut scirs2_core::ndarray::ArrayViewMut1<F>,
 ) -> InterpolateResult<()>
 where
     F: Float + FromPrimitive + Debug + Display + Zero + Copy + 'static,
@@ -651,7 +651,7 @@ pub fn is_simd_available() -> bool {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Axis};
+    use scirs2_core::ndarray::{array, Axis};
 
     #[test]
     fn test_simd_config_detection() {

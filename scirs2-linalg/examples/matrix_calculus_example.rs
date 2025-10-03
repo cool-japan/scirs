@@ -3,7 +3,7 @@
 //! This example demonstrates the use of matrix calculus operations such as
 //! gradient, Jacobian, and Hessian computation.
 
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_linalg::error::LinalgResult;
 use scirs2_linalg::matrix_calculus::{gradient, hessian, jacobian};
 

@@ -7,7 +7,7 @@
 
 use crate::dwt::Wavelet;
 use crate::wpt_validation::{OrthogonalityMetrics, PerformanceMetrics, WptValidationResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 /// Advanced-comprehensive WPT validation result

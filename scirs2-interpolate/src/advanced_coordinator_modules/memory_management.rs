@@ -4,7 +4,7 @@
 //! memory tracking, adaptive caching, and performance monitoring to optimize
 //! interpolation operations for both memory usage and execution speed.
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
@@ -208,7 +208,8 @@ impl MemoryTracker {
 
     /// Check if allocation strategy should be adjusted
     pub fn should_adjust_strategy(&self) -> bool {
-        self.usage_history.len() >= 10 && self.usage_history.len() % 50 == 0 // Check every 50 records
+        self.usage_history.len() >= 10 && self.usage_history.len().is_multiple_of(50)
+        // Check every 50 records
     }
 }
 
@@ -456,7 +457,7 @@ impl InterpolationPerformanceTracker {
                     .partial_cmp(&score_b)
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .map(|(method, _)| method.clone())
+            .map(|(method, _)| *method)
     }
 
     /// Update performance trends

@@ -48,7 +48,7 @@
 
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 

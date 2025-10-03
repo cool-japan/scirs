@@ -4,8 +4,8 @@
 //! motif discovery, discord detection, SAX representation, and shapelet extraction
 //! for discriminative pattern analysis.
 
-use ndarray::{s, Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::utils::{calculate_entropy, euclidean_distance_subsequence, gaussian_breakpoints};
@@ -108,7 +108,7 @@ pub fn calculate_temporal_pattern_features<F>(
     detect_patterns: bool,
 ) -> Result<TemporalPatternFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + Debug + Clone + scirs2_core::ndarray::ScalarOperand,
 {
     if !detect_patterns {
         return Ok(TemporalPatternFeatures::default());

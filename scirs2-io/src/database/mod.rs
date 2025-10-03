@@ -9,7 +9,7 @@
 
 use crate::error::{IoError, Result};
 use crate::metadata::Metadata;
-use ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

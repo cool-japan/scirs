@@ -5,8 +5,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Dropout, Layer, LayerNorm, Sequential};
-use ndarray::{Array, Axis, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Axis, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 /// Fusion methods for multi-modal inputs
@@ -155,7 +155,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> CrossModalAttention<F> {
         let mut attention_weights = Array::<F>::zeros(scores_3d.raw_dim());
         for b in 0..batch_size {
             for q in 0..query_len {
-                let mut row = scores_3d.slice(ndarray::s![b, q, ..]).to_owned();
+                let mut row = scores_3d.slice(scirs2_core::ndarray::s![b, q, ..]).to_owned();
                 // Find max for numerical stability
                 let max_val = row.fold(F::neg_infinity(), |m, &v| m.max(v));
                 // Compute exp and sum
@@ -433,7 +433,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> FeatureFusion<F> {
                 for batch_idx in 0..batch_size {
                     for features in &aligned_features {
                         let batch_features = features
-                            .slice_axis(Axis(0), ndarray::Slice::from(batch_idx..batch_idx + 1));
+                            .slice_axis(Axis(0), scirs2_core::ndarray::Slice::from(batch_idx..batch_idx + 1));
                         concatenated.extend(batch_features.iter().cloned());
                 Array::from_shape_vec(
                     [batch_size, self.config.hidden_dim * aligned_features.len()],

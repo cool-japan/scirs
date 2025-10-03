@@ -122,7 +122,7 @@ impl DocumentationSite {
 scirs2-ndimage = "{}"
 ndarray = "0.16"</code></pre>
                 <pre><code class="language-rust">use scirs2_ndimage::filters::gaussian_filter;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let image = Array2::from_elem((100, 100), 1.0f64);
 let filtered = gaussian_filter(&image, 2.0);

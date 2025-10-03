@@ -5,7 +5,7 @@
 use crate::error::{Result, TextError};
 use crate::tokenize::Tokenizer;
 use crate::vectorize::{TfidfVectorizer, Vectorizer};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashSet;
 
 /// TextRank algorithm for extractive summarization
@@ -229,7 +229,7 @@ impl CentroidSummarizer {
     /// Calculate document centroid
     fn calculate_centroid(&self, vectors: &Array2<f64>) -> Array1<f64> {
         let _n_docs = vectors.nrows();
-        let mut centroid = vectors.mean_axis(ndarray::Axis(0)).unwrap();
+        let mut centroid = vectors.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
 
         // Apply topic threshold
         centroid.mapv_inplace(|x| if x > self.topic_threshold { x } else { 0.0 });
@@ -361,7 +361,9 @@ impl KeywordExtractor {
         let tfidf_matrix = vectorizer.transform_batch(&sentence_refs)?;
 
         // Calculate average TF-IDF scores across documents
-        let avg_tfidf = tfidf_matrix.mean_axis(ndarray::Axis(0)).unwrap();
+        let avg_tfidf = tfidf_matrix
+            .mean_axis(scirs2_core::ndarray::Axis(0))
+            .unwrap();
 
         // Get terms from the tokenizer directly
         let all_words: Vec<String> = text.split_whitespace().map(|w| w.to_string()).collect();

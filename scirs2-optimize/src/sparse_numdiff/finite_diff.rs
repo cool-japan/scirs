@@ -4,7 +4,7 @@
 //! methods used in sparse numerical differentiation.
 
 use crate::parallel::ParallelOptions;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 
 /// Options for sparse numerical differentiation
 #[derive(Debug, Clone)]

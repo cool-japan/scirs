@@ -4,8 +4,8 @@
 //! which can significantly improve performance for large datasets or when interpolating
 //! at many query points.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -26,7 +26,7 @@ pub struct ParallelNaturalNeighborInterpolator<
         + Debug
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
         + std::cmp::PartialOrd
         + ordered_float::FloatCore,
@@ -44,7 +44,7 @@ impl<
             + Debug
             + Send
             + Sync
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + 'static
             + std::cmp::PartialOrd
             + ordered_float::FloatCore,
@@ -176,7 +176,7 @@ pub fn make_parallel_natural_neighbor_interpolator<
         + Debug
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
         + std::cmp::Ord
         + ordered_float::FloatCore,
@@ -205,7 +205,7 @@ pub fn make_parallel_sibson_interpolator<
         + Debug
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
         + std::cmp::PartialOrd
         + ordered_float::FloatCore,
@@ -233,7 +233,7 @@ pub fn make_parallel_laplace_interpolator<
         + Debug
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
         + std::cmp::PartialOrd
         + ordered_float::FloatCore,

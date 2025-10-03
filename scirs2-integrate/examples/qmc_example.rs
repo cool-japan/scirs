@@ -1,4 +1,4 @@
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_integrate::qmc::{qmc_quad, Halton, Sobol};
 use std::f64::consts::PI;
 
@@ -25,7 +25,7 @@ fn main() {
     println!("\nExample 2: Integral of sin(x)*cos(y) from 0 to π × 0 to π");
     println!("Exact value: 0.0");
 
-    let f2 = |x: ArrayView1<f64>| (x[0].sin() * x[1].cos());
+    let f2 = |x: ArrayView1<f64>| x[0].sin() * x[1].cos();
     let a2 = Array1::from_vec(vec![0.0, 0.0]);
     let b2 = Array1::from_vec(vec![PI, PI]);
 

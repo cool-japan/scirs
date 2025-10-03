@@ -1,7 +1,7 @@
 //! Utility functions shared across matrix function modules
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -14,7 +14,7 @@ pub fn is_integer<F: Float>(x: F) -> bool {
 /// Check if a matrix is diagonal
 pub fn is_diagonal<F>(a: &ArrayView2<F>) -> bool
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
     for i in 0..n {
@@ -30,7 +30,7 @@ where
 /// Check if a matrix is symmetric
 pub fn is_symmetric<F>(a: &ArrayView2<F>) -> bool
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
     if n != a.ncols() {
@@ -50,7 +50,7 @@ where
 /// Check if a matrix is the zero matrix
 pub fn is_zero_matrix<F>(a: &ArrayView2<F>) -> bool
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = a.dim();
     for i in 0..m {
@@ -66,7 +66,7 @@ where
 /// Check if a matrix is the identity matrix
 pub fn is_identity<F>(a: &ArrayView2<F>) -> bool
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
     if n != a.ncols() {
@@ -87,7 +87,7 @@ where
 /// Compute matrix multiplication C = A * B
 pub fn matrix_multiply<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, k1) = a.dim();
     let (k2, n) = b.dim();
@@ -114,7 +114,7 @@ where
 /// Compute matrix power for small integer powers using repeated squaring
 pub fn integer_matrix_power<F>(a: &ArrayView2<F>, p: i32) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::solve::solve_multiple;
 
@@ -153,7 +153,7 @@ where
 /// Compute the Frobenius norm of a matrix
 pub fn frobenius_norm<F>(a: &ArrayView2<F>) -> F
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = a.dim();
     let mut sum = F::zero();
@@ -170,7 +170,7 @@ where
 /// Compute the maximum absolute difference between two matrices
 pub fn matrix_diff_norm<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     if a.dim() != b.dim() {
         return Err(LinalgError::ShapeError(
@@ -196,7 +196,7 @@ where
 /// Scale a matrix by a scalar: result = alpha * A
 pub fn scale_matrix<F>(a: &ArrayView2<F>, alpha: F) -> Array2<F>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = a.dim();
     let mut result = Array2::<F>::zeros((m, n));
@@ -213,7 +213,7 @@ where
 /// Add two matrices: result = A + B
 pub fn matrix_add<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     if a.dim() != b.dim() {
         return Err(LinalgError::ShapeError(
@@ -236,7 +236,7 @@ where
 /// Subtract two matrices: result = A - B
 pub fn matrix_subtract<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     if a.dim() != b.dim() {
         return Err(LinalgError::ShapeError(
@@ -259,7 +259,7 @@ where
 /// Compute the matrix transpose
 pub fn matrix_transpose<F>(a: &ArrayView2<F>) -> Array2<F>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = a.dim();
     let mut result = Array2::<F>::zeros((n, m));

@@ -9,9 +9,9 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_complex::Complex;
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::collections::HashMap;
 use std::f64::consts::PI;
@@ -773,8 +773,8 @@ impl<F: Float + SimdUnifiedOps + Send + Sync + std::iter::Sum> QuantumMetricsCom
     }
 
     fn initialize_vqe_parameters(&self, matrixsize: usize) -> Result<Vec<f64>> {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let num_parameters = self.config.vqe_parameters.ansatz_depth * matrixsize;
 
         let parameters = (0..num_parameters)
@@ -965,8 +965,8 @@ impl<F: Float + SimdUnifiedOps + Send + Sync + std::iter::Sum> QuantumMetricsCom
     }
 
     fn measure_qaoa_solution(&self, state: &[Complex<f64>], numvariables: usize) -> Result<Vec<F>> {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
 
         // Compute probability distribution
         let probabilities: Vec<f64> = state.iter().map(|amp| amp.norm_sqr()).collect();
@@ -1631,7 +1631,7 @@ impl<F: Float + SimdUnifiedOps + Send + Sync + std::iter::Sum> ClassicalFallback
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_quantum_config_creation() {

@@ -2,9 +2,9 @@ use plotly::{
     common::{Mode, Title},
     Layout, Plot, Scatter,
 };
-use rand::prelude::*;
-use rand::rngs::StdRng;
-use rand_distr::{Distribution, Normal};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_core::Complex64;
 use scirs2_fft::{
     sparse_fft::{reconstruct_time_domain, SparseFFTAlgorithm, SparseFFTResult},
@@ -28,10 +28,10 @@ fn create_sparse_signal(n: usize, frequencies: &[(usize, f64)], noise_level: f64
     let mut signal = vec![0.0; n];
 
     // Add sinusoidal components
-    for i in 0..n {
+    for (i, sig) in signal.iter_mut().enumerate().take(n) {
         let t = 2.0 * PI * (i as f64) / (n as f64);
         for &(freq, amp) in frequencies {
-            signal[i] += amp * (freq as f64 * t).sin();
+            *sig += amp * (freq as f64 * t).sin();
         }
     }
 

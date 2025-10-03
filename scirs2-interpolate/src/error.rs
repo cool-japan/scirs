@@ -118,8 +118,8 @@ pub enum InterpolateError {
     NumericalInstability { message: String },
 }
 
-impl From<ndarray::ShapeError> for InterpolateError {
-    fn from(err: ndarray::ShapeError) -> Self {
+impl From<scirs2_core::ndarray::ShapeError> for InterpolateError {
+    fn from(err: scirs2_core::ndarray::ShapeError) -> Self {
         InterpolateError::ShapeError(err.to_string())
     }
 }

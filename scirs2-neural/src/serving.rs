@@ -11,8 +11,8 @@ use crate::error::{NeuralError, Result};
 use crate::models::sequential::Sequential;
 use crate::models::Model;
 // use crate::serialization::{save_model, SerializationFormat};
-use ndarray::ArrayD;
-use num_traits::Float;
+use scirs2_core::ndarray::ArrayD;
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -238,7 +238,7 @@ pub struct FrameworkConfig {
     /// Thread pool size
     pub thread_pool_size: Option<usize>,
 /// Model package builder
-pub struct ModelPackager<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct ModelPackager<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Model to package
     model: Sequential<F>,
     /// Package metadata
@@ -248,7 +248,7 @@ pub struct ModelPackager<F: Float + Debug + ndarray::ScalarOperand> {
     /// Optimization level
     optimization: OptimizationLevel,
 impl<
-        F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOperand + Send + Sync,
+        F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_core::ndarray::ScalarOperand + Send + Sync,
     > ModelPackager<F>
 {
     /// Create a new model packager
@@ -733,7 +733,7 @@ pub struct PackageResult {
     pub output_paths: Vec<PathBuf>,
     pub metadata: PackageMetadata,
 /// Model serving runtime
-pub struct ModelServer<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct ModelServer<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Loaded model
     /// Server configuration
     config: ServerConfig,
@@ -812,7 +812,7 @@ mod tests {
     use super::*;
     use crate::layers::Dense;
     use crate::models::sequential::Sequential;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     use std::collections::HashMap;
     use tempfile::TempDir;
     #[test]
@@ -837,7 +837,7 @@ mod tests {
         assert_eq!(metadata.output_specs.len(), 1);
     fn test_model_packager_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let mut model: Sequential<f32> = Sequential::new();
         let dense = Dense::new(10, 1, Some("relu"), &mut rng).unwrap();
         model.add_layer(dense);

@@ -1,7 +1,7 @@
 #[cfg(feature = "types")]
 mod type_conversion_tests {
     use approx::assert_relative_eq;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use scirs2_core::types::{ComplexExt, ComplexOps, NumericConversion};
 
     #[test]

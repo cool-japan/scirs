@@ -7,8 +7,8 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle::lombscargle;
 use super::types::{RealWorldValidationResult, AdvancedStatisticalResult, ValidationResult, StatisticalValidationResult, PerformanceValidationResult, RobustnessValidationResult};
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 use std::time::Instant;
 
 /// Validate real-world scenarios
@@ -51,7 +51,7 @@ pub fn test_astronomical_scenarios(tolerance: f64) -> SignalResult<f64> {
     let mut score = 100.0;
 
     // Simulate variable star with irregular sampling
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let n_obs = 500;
     let period = 5.2; // days
@@ -118,7 +118,7 @@ pub fn test_physiological_scenarios(tolerance: f64) -> SignalResult<f64> {
     let mut score = 100.0;
 
     // Simulate heart rate variability data
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let n = 1000;
     let fs = 4.0; // 4 Hz sampling rate
@@ -192,7 +192,7 @@ pub fn test_environmental_scenarios(tolerance: f64) -> SignalResult<f64> {
     let mut score = 100.0;
 
     // Simulate temperature measurements with seasonal variation and gaps
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let days_per_year = 365.25;
     let n_years = 3;
@@ -309,7 +309,7 @@ pub fn test_nonparametric_properties(tolerance: f64) -> SignalResult<f64> {
     let mut score = 100.0;
 
     // Test Kolmogorov-Smirnov test for power distribution
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let n_trials = 100;
     let n_samples = 200;
@@ -380,7 +380,7 @@ pub fn test_bayesian_validation(tolerance: f64) -> SignalResult<f64> {
     let true_freq = 5.0;
     let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Signal with known frequency plus noise
     let signal: Vec<f64> = t
@@ -438,7 +438,7 @@ pub fn test_information_theory_metrics(tolerance: f64) -> SignalResult<f64> {
     let mut score = 100.0;
 
     // Test entropy and mutual information properties
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let n = 500;
     let fs = 100.0;

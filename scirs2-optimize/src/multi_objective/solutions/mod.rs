@@ -6,7 +6,7 @@
 //! - Pareto front analysis
 //! - Solution comparison and ranking
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
@@ -287,7 +287,7 @@ impl MultiObjectiveResult {
 }
 
 /// Optimization metrics for tracking performance
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OptimizationMetrics {
     /// Convergence history (hypervolume over generations)
     pub convergence_history: Vec<f64>,
@@ -299,18 +299,6 @@ pub struct OptimizationMetrics {
     pub best_objectives: Vec<Array1<f64>>,
     /// Population statistics
     pub population_stats: PopulationStatistics,
-}
-
-impl Default for OptimizationMetrics {
-    fn default() -> Self {
-        Self {
-            convergence_history: vec![],
-            diversity_history: vec![],
-            average_objectives: vec![],
-            best_objectives: vec![],
-            population_stats: PopulationStatistics::default(),
-        }
-    }
 }
 
 /// Population statistics
@@ -636,7 +624,7 @@ impl Default for Population {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_solution_creation() {

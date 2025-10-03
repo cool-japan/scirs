@@ -5,10 +5,10 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::random;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
-use rand::prelude::*;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::SeedableRng;
 
 /// Distribution trait for statistical distributions that can be sampled
 pub trait SampleableDistribution<T> {
@@ -30,7 +30,7 @@ pub trait SampleableDistribution<T> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::{sampling, distributions};
 ///
 /// // Create a normal distribution
@@ -71,7 +71,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::sampling;
 ///
 /// // Create an array
@@ -88,7 +88,7 @@ pub fn bootstrap<T>(
     seed: Option<u64>,
 ) -> StatsResult<Array2<T>>
 where
-    T: Copy + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::Zero,
 {
     random::bootstrap_sample(x, n_resamples, seed)
 }
@@ -107,7 +107,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::sampling;
 ///
 /// // Create an array
@@ -141,7 +141,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::sampling;
 ///
 /// // Create an array and group labels
@@ -191,12 +191,12 @@ where
 
     // Initialize RNG
     let mut rng = match seed {
-        Some(seed_value) => rand::rngs::StdRng::seed_from_u64(seed_value),
+        Some(seed_value) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed_value),
         None => {
             // Get a seed from the system RNG
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let seed = rng.random::<u64>();
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         }
     };
 
@@ -241,7 +241,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::sampling;
 ///
 /// // Create an array and group labels
@@ -260,7 +260,7 @@ pub fn stratified_bootstrap<T, G>(
     seed: Option<u64>,
 ) -> StatsResult<Array2<T>>
 where
-    T: Copy + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::Zero,
     G: Copy + Eq + std::hash::Hash,
 {
     if x.len() != groups.len() {
@@ -283,11 +283,11 @@ where
 
     // Initialize RNG
     let mut rng = match seed {
-        Some(seed_value) => rand::rngs::StdRng::seed_from_u64(seed_value),
+        Some(seed_value) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed_value),
         None => {
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let seed = rng.random::<u64>();
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         }
     };
 
@@ -328,7 +328,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::sampling;
 ///
 /// // Create a time series
@@ -347,9 +347,9 @@ pub fn block_bootstrap<T>(
     seed: Option<u64>,
 ) -> StatsResult<Array2<T>>
 where
-    T: Copy + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::Zero,
 {
-    if x.len() == 0 {
+    if x.is_empty() {
         return Err(StatsError::InvalidArgument(
             "Input array cannot be empty".to_string(),
         ));
@@ -375,11 +375,11 @@ where
 
     // Initialize RNG
     let mut rng = match seed {
-        Some(seed_value) => rand::rngs::StdRng::seed_from_u64(seed_value),
+        Some(seed_value) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed_value),
         None => {
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let seed = rng.random::<u64>();
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         }
     };
 
@@ -442,9 +442,9 @@ pub fn moving_block_bootstrap<T>(
     seed: Option<u64>,
 ) -> StatsResult<Array2<T>>
 where
-    T: Copy + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::Zero,
 {
-    if x.len() == 0 {
+    if x.is_empty() {
         return Err(StatsError::InvalidArgument(
             "Input array cannot be empty".to_string(),
         ));
@@ -468,16 +468,16 @@ where
 
     // Initialize RNG
     let mut rng = match seed {
-        Some(seed_value) => rand::rngs::StdRng::seed_from_u64(seed_value),
+        Some(seed_value) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed_value),
         None => {
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let seed = rng.random::<u64>();
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         }
     };
 
     let data_len = x.len();
-    let n_blocks_needed = (data_len + blocksize - 1) / blocksize; // Ceiling division
+    let n_blocks_needed = data_len.div_ceil(blocksize); // Ceiling division
     let mut samples = Array2::zeros((n_resamples, data_len));
 
     for resample_idx in 0..n_resamples {
@@ -528,9 +528,9 @@ pub fn stationary_bootstrap<T>(
     seed: Option<u64>,
 ) -> StatsResult<Array2<T>>
 where
-    T: Copy + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::Zero,
 {
-    if x.len() == 0 {
+    if x.is_empty() {
         return Err(StatsError::InvalidArgument(
             "Input array cannot be empty".to_string(),
         ));
@@ -550,11 +550,11 @@ where
 
     // Initialize RNG
     let mut rng = match seed {
-        Some(seed_value) => rand::rngs::StdRng::seed_from_u64(seed_value),
+        Some(seed_value) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed_value),
         None => {
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let seed = rng.random::<u64>();
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         }
     };
 
@@ -617,10 +617,10 @@ pub fn double_bootstrap<T, F>(
     seed: Option<u64>,
 ) -> StatsResult<(f64, Array1<f64>, f64)>
 where
-    T: Copy + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::Zero,
     F: Fn(&ArrayView1<T>) -> StatsResult<f64> + Copy,
 {
-    if x.len() == 0 {
+    if x.is_empty() {
         return Err(StatsError::InvalidArgument(
             "Input array cannot be empty".to_string(),
         ));
@@ -641,11 +641,11 @@ where
 
     // Prepare RNG for second level
     let mut rng = match seed {
-        Some(seed_value) => rand::rngs::StdRng::seed_from_u64(seed_value + 1),
+        Some(seed_value) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed_value + 1),
         None => {
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let seed = rng.random::<u64>();
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         }
     };
 
@@ -706,7 +706,7 @@ pub fn bootstrap_confidence_intervals<T, F>(
     seed: Option<u64>,
 ) -> StatsResult<((f64, f64), (f64, f64), (f64, f64))>
 where
-    T: Copy + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::Zero,
     F: Fn(&ArrayView1<T>) -> StatsResult<f64> + Copy,
 {
     if confidence_level <= 0.0 || confidence_level >= 1.0 {
@@ -748,12 +748,12 @@ where
         // Inverse normal CDF approximation
         let p = below_original / n;
         // Simple inverse normal approximation
-        let z = if p > 0.5 {
+
+        if p > 0.5 {
             (2.0 * std::f64::consts::PI * p).sqrt()
         } else {
             -(2.0 * std::f64::consts::PI * (1.0 - p)).sqrt()
-        };
-        z
+        }
     } else {
         0.0
     };

@@ -4,7 +4,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, Luma};
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 
 /// Configuration for Hough Circle detection
 #[derive(Clone, Debug)]

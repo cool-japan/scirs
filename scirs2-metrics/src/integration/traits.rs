@@ -5,8 +5,8 @@
 //! are implemented conditionally based on feature flags.
 
 use crate::error::MetricsError;
-use ndarray::{Array, IxDyn};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_core::numeric::Float;
 use std::fmt::{Debug, Display};
 
 /// Trait for metrics that can be computed on neural network predictions and targets

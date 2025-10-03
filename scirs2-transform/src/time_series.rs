@@ -3,9 +3,9 @@
 //! This module provides utilities for extracting features from time series data,
 //! including Fourier features, wavelet features, and lag features.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
-use num_complex::Complex;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_fft::fft;
 
 use crate::error::{Result, TransformError};
@@ -68,7 +68,7 @@ impl FourierFeatures {
         // Convert to f64 for FFT
         let real_data: Vec<f64> = x
             .iter()
-            .map(|&val| num_traits::cast::<S::Elem, f64>(val).unwrap_or(0.0))
+            .map(|&val| NumCast::from(val).unwrap_or(0.0))
             .collect();
 
         // Compute FFT
@@ -125,8 +125,8 @@ impl FourierFeatures {
             let features = self.extract_features_1d(&x.row(i))?;
             let feat_len = features.len().min(n_features);
             result
-                .slice_mut(ndarray::s![i, ..feat_len])
-                .assign(&features.slice(ndarray::s![..feat_len]));
+                .slice_mut(scirs2_core::ndarray::s![i, ..feat_len])
+                .assign(&features.slice(scirs2_core::ndarray::s![..feat_len]));
         }
 
         Ok(result)
@@ -201,7 +201,7 @@ impl LagFeatures {
 
         // Original series
         for i in 0..n_samples {
-            result[[i, 0]] = num_traits::cast::<S::Elem, f64>(x[start_idx + i]).unwrap_or(0.0);
+            result[[i, 0]] = NumCast::from(x[start_idx + i]).unwrap_or(0.0);
         }
 
         // Lagged features
@@ -209,8 +209,7 @@ impl LagFeatures {
             for i in 0..n_samples {
                 let idx = start_idx + i;
                 if idx >= lag {
-                    result[[i, lag_idx + 1]] =
-                        num_traits::cast::<S::Elem, f64>(x[idx - lag]).unwrap_or(0.0);
+                    result[[i, lag_idx + 1]] = NumCast::from(x[idx - lag]).unwrap_or(0.0);
                 } else if !self.drop_na {
                     result[[i, lag_idx + 1]] = f64::NAN;
                 }
@@ -476,10 +475,7 @@ impl WaveletFeatures {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_vec: Vec<f64> = x
-            .iter()
-            .map(|&v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0))
-            .collect();
+        let x_vec: Vec<f64> = x.iter().map(|&v| NumCast::from(v).unwrap_or(0.0)).collect();
 
         let coefficients = self.wavelet_decompose(&x_vec)?;
 
@@ -590,7 +586,7 @@ impl Default for TimeSeriesFeatures {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_fourier_features() {

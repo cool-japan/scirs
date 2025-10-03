@@ -5,7 +5,7 @@
 
 use crate::dwt::Wavelet;
 use crate::wpt_validation::WptValidationResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Comprehensive WPT validation result
 #[derive(Debug, Clone)]

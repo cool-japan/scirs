@@ -6,8 +6,8 @@
 use super::types::*;
 use crate::analysis::BifurcationPoint;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::Array1;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::Rng;
 
 /// Interactive parameter space explorer
 #[derive(Debug, Clone)]
@@ -123,8 +123,8 @@ impl InteractiveParameterExplorer {
     where
         F: Fn(&Array1<f64>) -> IntegrateResult<Array1<f64>>,
     {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
 
         let mut exploration_points = Vec::new();
         let mut response_values = Vec::new();
@@ -439,7 +439,7 @@ impl InteractiveParameterExplorer {
 
         // Generate points within the _region
         for _ in 0..resolution {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let mut point = region.center.clone();
 
             for i in 0..self.param_dimensions {

@@ -19,7 +19,7 @@
 //! Basic operations:
 //!
 //! ```
-//! use ndarray::{array, ArrayView2, ArrayView1};
+//! use scirs2_core::ndarray::{array, ArrayView2, ArrayView1};
 //! use scirs2_linalg::extended_precision::{extended_matmul, extended_matvec};
 //!
 //! // Create a matrix and vectors in f32 precision
@@ -37,7 +37,7 @@
 //! Matrix factorizations with extended precision:
 //!
 //! ```
-//! use ndarray::{array, ArrayView2};
+//! use scirs2_core::ndarray::{array, ArrayView2};
 //! use scirs2_linalg::extended_precision::factorizations::{extended_lu, extended_qr, extended_cholesky};
 //!
 //! let a = array![
@@ -69,8 +69,8 @@ pub mod factorizations;
 // pub use eigen::{extended_eig, extended_eigvals, extended_eigvalsh, extended_eigh, advanced_precision_eigh};
 pub use factorizations::{extended_cholesky, extended_lu, extended_qr, extended_svd};
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 
 use crate::error::LinalgResult;
 
@@ -211,7 +211,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::extended_precision::extended_det;
 ///
 /// let a = array![
@@ -403,7 +403,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_extended_matvec() {

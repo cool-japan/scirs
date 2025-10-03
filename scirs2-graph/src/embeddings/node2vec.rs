@@ -6,7 +6,7 @@ use super::random_walk::RandomWalkGenerator;
 use super::types::{Node2VecConfig, RandomWalk};
 use crate::base::{EdgeWeight, Graph, Node};
 use crate::error::Result;
-use rand::seq::SliceRandom;
+use scirs2_core::random::seq::SliceRandom;
 
 /// Basic Node2Vec implementation foundation
 pub struct Node2Vec<N: Node> {
@@ -58,7 +58,7 @@ impl<N: Node> Node2Vec<N> {
         Ix: petgraph::graph::IndexType,
     {
         // Initialize random embeddings
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         self.model.initialize_random(graph, &mut rng);
 
         // Create negative sampler

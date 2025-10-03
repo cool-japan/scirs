@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 /// Uncertainty quantification analyzer
@@ -162,8 +162,12 @@ pub struct OODScores<F: Float> {
     pub energy_scores: Array1<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOperand>
-    UncertaintyQuantifier<F>
+impl<
+        F: Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum
+            + scirs2_core::ndarray::ScalarOperand,
+    > UncertaintyQuantifier<F>
 {
     /// Create new uncertainty quantifier
     pub fn new() -> Self {
@@ -221,7 +225,9 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         let n_classes = predictions.ncols();
 
         // Compute mean prediction
-        let mean_prediction = predictions.mean_axis(ndarray::Axis(1)).unwrap();
+        let mean_prediction = predictions
+            .mean_axis(scirs2_core::ndarray::Axis(1))
+            .unwrap();
 
         // Compute prediction variance
         let prediction_variance = self.compute_prediction_variance(predictions)?;
@@ -264,7 +270,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
 
     /// Compute prediction variance
     fn compute_prediction_variance(&self, predictions: &ArrayView2<F>) -> Result<Array1<F>> {
-        let variance = predictions.var_axis(ndarray::Axis(1), F::from(1.0).unwrap());
+        let variance = predictions.var_axis(scirs2_core::ndarray::Axis(1), F::from(1.0).unwrap());
         Ok(variance)
     }
 
@@ -300,7 +306,8 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         let n_samples = predictions.nrows();
 
         // Simplified aleatoric uncertainty computation
-        let data_variance = predictions.var_axis(ndarray::Axis(1), F::from(1.0).unwrap());
+        let data_variance =
+            predictions.var_axis(scirs2_core::ndarray::Axis(1), F::from(1.0).unwrap());
         let observation_noise = F::from(0.1).unwrap(); // Default noise level
         let heteroscedastic_variance = Array1::zeros(n_samples);
 
@@ -371,7 +378,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         let n_samples = predictions.nrows();
 
         // Maximum probability
-        let max_probability = predictions.map_axis(ndarray::Axis(1), |row| {
+        let max_probability = predictions.map_axis(scirs2_core::ndarray::Axis(1), |row| {
             row.fold(F::neg_infinity(), |acc, &x| if x > acc { x } else { acc })
         });
 
@@ -397,7 +404,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         let n_samples = predictions.nrows();
 
         // Maximum softmax probability (MSP)
-        let msp_scores = predictions.map_axis(ndarray::Axis(1), |row| {
+        let msp_scores = predictions.map_axis(scirs2_core::ndarray::Axis(1), |row| {
             row.fold(F::neg_infinity(), |acc, &x| if x > acc { x } else { acc })
         });
 
@@ -417,7 +424,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
     /// Compute entropy of predictions
     fn compute_entropy(&self, predictions: &ArrayView2<F>) -> Result<Array1<F>> {
         let epsilon = F::from(1e-8).unwrap();
-        let entropy = predictions.map_axis(ndarray::Axis(1), |row| {
+        let entropy = predictions.map_axis(scirs2_core::ndarray::Axis(1), |row| {
             row.iter()
                 .map(|&p| {
                     let p_safe = if p < epsilon { epsilon } else { p };
@@ -430,8 +437,12 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOperand> Default
-    for UncertaintyQuantifier<F>
+impl<
+        F: Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum
+            + scirs2_core::ndarray::ScalarOperand,
+    > Default for UncertaintyQuantifier<F>
 {
     fn default() -> Self {
         Self::new()

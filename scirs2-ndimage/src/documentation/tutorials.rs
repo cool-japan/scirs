@@ -55,7 +55,7 @@ ndarray = "0.16"
 ### Creating Arrays
 
 ```rust
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 
 // Create a 2D array (image)
 let image = Array2::from_elem((100, 100), 0.5f64);
@@ -167,7 +167,7 @@ in images. It's particularly useful for binary images but can be extended to gra
 
 ```rust
 use scirs2_ndimage::morphology::{binary_erosion, binary_dilation};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let structure = Array2::from_elem((3, 3), true);
 let eroded = binary_erosion(&binary_image, &structure);
@@ -295,7 +295,7 @@ gaussian_filter_inplace(&mut image, 2.0);
 pub fn build_medical_imaging_example() -> Example {
     let code = r#"
 use scirs2_ndimage::domain_specific::medical::*;
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 
 // Load medical volume (e.g., CT scan)
 let ct_volume = Array3::from_elem((256, 256, 100), 1000.0f64);
@@ -325,7 +325,7 @@ println!("Detected {} potential nodules", nodules.len());
 pub fn build_satellite_analysis_example() -> Example {
     let code = r#"
 use scirs2_ndimage::domain_specific::satellite::*;
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 
 // Multi-spectral satellite image (bands: R, G, B, NIR)
 let satelliteimage = Array3::from_elem((1000, 1000, 4), 0.5f64);
@@ -362,7 +362,7 @@ pub fn build_realtime_video_example() -> Example {
     let code = r#"
 use scirs2_ndimage::streaming::*;
 use scirs2_ndimage::features::*;
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 
 // Setup streaming video processor
 let mut video_processor = StreamProcessor::new_video("input.mp4")?;
@@ -405,7 +405,7 @@ pub fn build_scientific_analysis_example() -> Example {
     let code = r#"
 use scirs2_ndimage::measurements::*;
 use scirs2_ndimage::segmentation::*;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Scientific image (e.g., microscopy, astronomy)
 let scientificimage = Array2::from_elem((2048, 2048), 0.0f64);

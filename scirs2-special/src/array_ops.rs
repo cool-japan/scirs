@@ -6,7 +6,7 @@
 #![allow(dead_code)]
 
 use crate::error::{SpecialError, SpecialResult};
-use ndarray::{Array, ArrayView1, Dimension};
+use scirs2_core::ndarray::{Array, ArrayView1, Dimension};
 
 /// Safe slice casting replacement for bytemuck::cast_slice
 #[allow(dead_code)]
@@ -418,18 +418,22 @@ pub mod gpu {
                 "GPU kernel execution not yet implemented".to_string(),
             ));
 
-            let elapsed = start_time.elapsed();
+            // TODO: Implement GPU kernel execution and re-enable performance tracking
+            #[allow(unreachable_code)]
+            {
+                let elapsed = start_time.elapsed();
 
-            // Update performance statistics
-            if let Ok(mut stats) = self.performance_stats.lock() {
-                let entry = stats
-                    .entry(kernel_name.to_string())
-                    .or_insert((0, std::time::Duration::ZERO));
-                entry.0 += 1;
-                entry.1 += elapsed;
+                // Update performance statistics
+                if let Ok(mut stats) = self.performance_stats.lock() {
+                    let entry = stats
+                        .entry(kernel_name.to_string())
+                        .or_insert((0, std::time::Duration::ZERO));
+                    entry.0 += 1;
+                    entry.1 += elapsed;
+                }
+
+                Ok(elapsed)
             }
-
-            Ok(elapsed)
         }
 
         /// Get performance statistics for a kernel
@@ -628,7 +632,7 @@ pub mod vectorized {
                         // Convert to appropriate array views for 1D operations
                         if input_owned.ndim() == 1 {
                             let input_1d = input_owned
-                                .into_dimensionality::<ndarray::Ix1>()
+                                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                                 .map_err(|e| {
                                     SpecialError::ComputationError(format!(
                                         "Dimension error: {}",
@@ -776,7 +780,7 @@ pub mod vectorized {
     pub fn softmax_1d(
         input: ArrayView1<f64>,
         _config: &ArrayConfig,
-    ) -> SpecialResult<Array<f64, ndarray::Ix1>> {
+    ) -> SpecialResult<Array<f64, scirs2_core::ndarray::Ix1>> {
         // Use existing optimized implementation from statistical module
         crate::statistical::softmax(input)
     }
@@ -1015,7 +1019,7 @@ pub mod vectorized {
 /// Complex number array operations
 pub mod complex {
     use super::*;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
 
     /// Apply Lambert W function to complex array
     pub fn lambert_w_array<D>(
@@ -1037,7 +1041,7 @@ pub mod complex {
 /// High-level convenience functions for common array operations
 pub mod convenience {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     /// Apply gamma function to 1D array with automatic backend selection
     pub async fn gamma_1d(input: &Array1<f64>) -> SpecialResult<Array1<f64>> {
@@ -1258,7 +1262,7 @@ pub mod convenience {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{arr1, arr2, Array};
+    use scirs2_core::ndarray::{arr1, arr2, Array};
 
     #[test]
     fn test_broadcasting() {
@@ -1519,7 +1523,7 @@ mod tests {
 
     #[test]
     fn test_complex_array_operations() {
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
 
         let input = Array::from_vec(vec![
             Complex64::new(1.0, 0.0),

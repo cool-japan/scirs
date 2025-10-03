@@ -2,8 +2,8 @@
 //!
 //! This module contains helper functions for the Hermitian Fast Fourier Transform operations.
 
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
 
 /// Try to convert a value to Complex64
@@ -32,9 +32,9 @@ pub(crate) fn try_as_complex<T: Copy + Debug + 'static + NumCast>(val: T) -> Opt
     }
 
     // Check for complex32
-    if std::any::TypeId::of::<T>() == std::any::TypeId::of::<num_complex::Complex32>() {
+    if std::any::TypeId::of::<T>() == std::any::TypeId::of::<scirs2_core::numeric::Complex32>() {
         unsafe {
-            let ptr = &val as *const T as *const num_complex::Complex32;
+            let ptr = &val as *const T as *const scirs2_core::numeric::Complex32;
             let complex32 = *ptr;
             return Some(Complex64::new(complex32.re as f64, complex32.im as f64));
         }
@@ -125,5 +125,5 @@ pub(crate) fn try_as_complex<T: Copy + Debug + 'static + NumCast>(val: T) -> Opt
     }
 
     // As a last resort, try generic NumCast conversion
-    num_traits::cast::cast::<T, f64>(val).map(|v| Complex64::new(v, 0.0))
+    NumCast::from(val).map(|v| Complex64::new(v, 0.0))
 }

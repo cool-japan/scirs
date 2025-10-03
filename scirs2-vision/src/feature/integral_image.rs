@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Compute integral image from a grayscale image
 ///

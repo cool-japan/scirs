@@ -7,8 +7,8 @@ use super::types::*;
 use super::utils::*;
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle::{lombscargle, AutoFreqMethod};
-use ndarray::Array1;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::Rng;
 use std::f64::consts::PI;
 
 /// Validate basic accuracy against SciPy implementation
@@ -84,7 +84,7 @@ pub fn validate_single_case(
     config: &ScipyValidationConfig,
 ) -> SignalResult<(f64, f64, f64, f64)> {
     // Generate irregular time samples
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let duration = n as f64 / fs;
     let mut t: Vec<f64> = Vec::new();
     let mut signal: Vec<f64> = Vec::new();
@@ -104,7 +104,7 @@ pub fn validate_single_case(
     }
 
     // Sort by time
-    let mut time_signal: Vec<(f64, f64)> = t.into_iter().zip(signal.into_iter()).collect();
+    let mut time_signal: Vec<(f64, f64)> = t.into_iter().zip(signal).collect();
     time_signal.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
     let (t, signal): (Vec<f64>, Vec<f64>) = time_signal.into_iter().unzip();
 

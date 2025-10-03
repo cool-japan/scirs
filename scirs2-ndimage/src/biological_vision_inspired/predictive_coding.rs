@@ -3,8 +3,8 @@
 //! This module implements predictive coding mechanisms inspired by hierarchical
 //! processing in the brain for efficient visual representation.
 
-use ndarray::{Array3, Array4, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array3, Array4, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use super::config::{BiologicalVisionConfig, PredictiveCodingSystem};
 use crate::error::{NdimageError, NdimageResult};

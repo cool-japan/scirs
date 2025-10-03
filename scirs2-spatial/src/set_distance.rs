@@ -25,8 +25,8 @@
 
 use crate::distance::euclidean;
 use crate::error::SpatialResult;
-use num_traits::Float;
 use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::Float;
 use scirs2_core::random::{rngs::StdRng, SeedableRng};
 use scirs2_core::SliceRandomExt;
 

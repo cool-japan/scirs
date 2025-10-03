@@ -5,8 +5,8 @@ use crate::utils::colors::{
     colored_metric_cell, colorize, colorize_and_style, gradient_color, heatmap_cell,
     heatmap_color_legend, stylize, Color, ColorOptions, Style,
 };
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
@@ -36,7 +36,7 @@ impl<F: Float + Debug + Display> ConfusionMatrix<F> {
     /// # Example
     /// ```
     /// use scirs2_neural::utils::evaluation::ConfusionMatrix;
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     /// let y_true = Array1::from_vec(vec![0, 1, 2, 0, 1, 2, 0]);
     /// let y_pred = Array1::from_vec(vec![0, 1, 1, 0, 1, 2, 0]);
     /// let cm = ConfusionMatrix::<f32>::new(&y_true.view(), &y_pred.view(), None, None).unwrap();
@@ -499,7 +499,7 @@ impl<F: Float + Debug + Display> ConfusionMatrix<F> {
     ///
     /// # Example
     /// ```
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     /// use scirs2_neural::utils::ConfusionMatrix;
     /// // Create some example data
     /// let y_true = Array1::from_vec(vec![0, 1, 2, 0, 1, 2, 0, 1, 2, 0]);

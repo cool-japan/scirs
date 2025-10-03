@@ -4,8 +4,8 @@
 //! that leverages scirs2-core's memory-efficient infrastructure for better
 //! performance and lower memory usage.
 
-use ndarray::{Array, ArrayView, Dimension, IxDyn};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use std::fmt::Debug;
 
 use scirs2_core::error::CoreResult;
@@ -417,7 +417,7 @@ impl ChunkConfigBuilder {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_uniform_filter_chunked_v2() {

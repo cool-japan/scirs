@@ -4,10 +4,10 @@
 //! sparse matrices, including Arnoldi and Lanczos methods for finding a subset
 //! of eigenvalues and eigenvectors.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_complex::Complex;
-use num_traits::{Float, NumAssign, Zero, One};
-use rand;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, NumAssign, Zero, One};
+use scirs2_core::random as rand;
 use std::fmt::Debug;
 use std::ops::{Add, Sub, Mul};
 
@@ -41,7 +41,7 @@ pub fn sparse_arnoldi_eigen<T>(
     tolerance: T,
 ) -> SparseEigenResult<T>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + ndarray::ScalarOperand,
+    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + scirs2_core::ndarray::ScalarOperand,
 {
     let n = matrix.nrows();
     if matrix.ncols() != n {
@@ -64,7 +64,7 @@ where
     let mut h = Array2::zeros((krylov_dim + 1, krylov_dim));
     
     // Start with random initial vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for i in 0..n {
         v[[i, 0]] = T::from(rng.random_range(-0.5..0.5)).unwrap();
     }
@@ -123,7 +123,7 @@ where
     let krylovsize = j;
     
     // Extract Hessenberg matrix for eigenvalue computation
-    let h_active = h.slice(ndarray::s![0..krylovsize, 0..krylovsize]).to_owned();
+    let h_active = h.slice(scirs2_core::ndarray::s![0..krylovsize, 0..krylovsize]).to_owned();
     
     // Compute eigenvalues of the Hessenberg matrix
     let (h_eigenvals, h_eigenvecs) = compute_hessenberg_eigenvalues(&h_active)?;
@@ -184,7 +184,7 @@ pub fn sparse_lanczos_eigen<T>(
     tolerance: T,
 ) -> LinalgResult<(Array1<T>, Array2<T>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + ndarray::ScalarOperand,
+    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + scirs2_core::ndarray::ScalarOperand,
 {
     let n = matrix.nrows();
     if matrix.ncols() != n {
@@ -208,7 +208,7 @@ where
     let mut beta = Array1::zeros(lanczos_dim + 1);
     
     // Start with random initial vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for i in 0..n {
         v[[i, 0]] = T::from(rng.random_range(-0.5..0.5)).unwrap();
     }
@@ -379,7 +379,7 @@ where
 #[allow(dead_code)]
 fn compute_hessenberg_eigenvalues<T>(h: &Array2<T>) -> LinalgResult<(Array1<Complex<T>>, Array2<Complex<T>>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + ndarray::ScalarOperand,
+    T: Float + NumAssign + Clone + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
 {
     let n = h.nrows();
     
@@ -399,7 +399,7 @@ where
 #[allow(dead_code)]
 fn solve_tridiagonal_eigen<T>(t: &Array2<T>) -> LinalgResult<(Array1<T>, Array2<T>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + ndarray::ScalarOperand,
+    T: Float + NumAssign + Clone + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
 {
     // For small tridiagonal matrices, use our symmetric eigenvalue solver
     crate::eigen::eigh(&t.view(), None)
@@ -409,7 +409,7 @@ where
 #[allow(dead_code)]
 fn qr_algorithm_complex<T>(a: &mut Array2<Complex<T>>) -> LinalgResult<(Array1<Complex<T>>, Array2<Complex<T>>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + ndarray::ScalarOperand,
+    T: Float + NumAssign + Clone + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
     let mut eigenvalues = Array1::zeros(n);
@@ -444,7 +444,7 @@ pub fn sparse_eirandom_range<T>(
     tolerance: T,
 ) -> LinalgResult<(Array1<T>, Array2<T>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + ndarray::ScalarOperand,
+    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + scirs2_core::ndarray::ScalarOperand,
 {
     let (min_val, max_val) = range;
     let n = matrix.nrows();
@@ -489,7 +489,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use approx::assert_abs_diff_eq;
     use crate::sparse_dense::sparse_from_ndarray;
 

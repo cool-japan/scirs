@@ -4,7 +4,7 @@
 //! used across different scirs2 modules for consistent thread management
 //! and resource control.
 
-// use rayon::prelude::*; // FORBIDDEN: Use scirs2-core::parallel_ops instead
+// use scirs2_core::parallel_ops::prelude::*; // FORBIDDEN: Use scirs2-core::parallel_ops instead
 use scirs2_core::parallel_ops::*;
 use std::sync::{Arc, Mutex, OnceLock};
 

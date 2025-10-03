@@ -3,7 +3,7 @@
 //! This example demonstrates the comprehensive statistical functionality available
 //! in scirs2-stats, including distributions, descriptive statistics, tests, and correlations.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::distributions::{ChiSquare, Normal, Poisson};
 use scirs2_stats::tests::ttest::Alternative;
 use scirs2_stats::traits::{ContinuousDistribution, DiscreteDistribution, Distribution};

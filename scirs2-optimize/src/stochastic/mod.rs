@@ -19,7 +19,7 @@ pub use sgd::{minimize_sgd, SGDOptions};
 
 use crate::error::OptimizeError;
 use crate::unconstrained::result::OptimizeResult;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::random::prelude::*;
 
 /// Stochastic optimization method selection
@@ -220,7 +220,7 @@ pub fn generate_batch_indices(_num_samples: usize, batchsize: usize, shuffle: bo
     let mut indices: Vec<usize> = (0.._num_samples).collect();
 
     if shuffle {
-        use rand::seq::SliceRandom;
+        use scirs2_core::random::seq::SliceRandom;
         indices.shuffle(&mut thread_rng());
     }
 

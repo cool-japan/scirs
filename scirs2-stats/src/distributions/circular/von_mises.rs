@@ -6,11 +6,11 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::traits::{CircularDistribution, Distribution};
-use ndarray::Array1;
-use num_traits::Float;
-use rand_distr::uniform::SampleUniform;
-use rand_distr::Distribution as RandDistribution;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::uniform::SampleUniform;
+use scirs2_core::random::Distribution as RandDistribution;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 // Use simple approximations for bessel functions
@@ -185,8 +185,13 @@ impl<F: Float + SampleUniform + Debug + 'static + std::fmt::Display> VonMises<F>
     }
 
     /// Sample from von Mises distribution using rejection sampling
-    fn sample_von_mises<R: rand::Rng>(&self, mu: f64, kappa: f64, rng: &mut R) -> f64 {
-        use rand_distr::{Distribution, Uniform};
+    fn sample_von_mises<R: scirs2_core::random::Rng>(
+        &self,
+        mu: f64,
+        kappa: f64,
+        rng: &mut R,
+    ) -> f64 {
+        use scirs2_core::random::{Distribution, Uniform};
 
         if kappa < 1e-6 {
             // For very small kappa, distribution is nearly uniform

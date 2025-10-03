@@ -3,10 +3,10 @@
 use super::utils::compute_fft;
 use super::windows::dpss;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -45,8 +45,8 @@ pub type MultitaperResult = (Vec<f64>, Vec<f64>, Option<Array2<f64>>, Option<Arr
 /// let n = 1024;
 /// let fs = 100.0;
 /// let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
-/// use rand::Rng;
-/// let mut rng = rand::rng();
+/// use scirs2_core::random::Rng;
+/// let mut rng = scirs2_core::random::rng();
 /// let signal: Vec<f64> = t.iter()
 ///     .map(|&ti| (2.0 * PI * 10.0 * ti).sin() + 0.1 * rng.gen_range(0.0..1.0))
 ///     .collect();
@@ -249,8 +249,8 @@ where
 /// let n = 2000;
 /// let fs = 1000.0;
 /// let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
-/// use rand::Rng;
-/// let mut rng = rand::rng();
+/// use scirs2_core::random::Rng;
+/// let mut rng = scirs2_core::random::rng();
 /// let signal: Vec<f64> = t.iter()
 ///     .map(|&ti| {
 ///         let freq = 50.0 + 200.0 * ti; // Linear chirp from 50Hz to 250Hz

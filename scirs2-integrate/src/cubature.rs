@@ -6,7 +6,7 @@
 
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -152,7 +152,7 @@ fn transform_for_infinite_bounds<F: IntegrateFloat>(x: F, a: &Bound<F>, b: &Boun
 ///
 /// ```
 /// use scirs2_integrate::cubature::{cubature, Bound};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Define a 2D integrand: f(x,y) = x * y
 /// let f = |x: &Array1<f64>| x[0] * x[1];

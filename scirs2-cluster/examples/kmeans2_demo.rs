@@ -31,7 +31,7 @@ fn generate_blobs(
         for idx in start_idx..end_idx {
             for j in 0..n_features {
                 let center = centers[[i, j]];
-                data[[idx, j]] = center + cluster_std * (rng.gen::<f64>() - 0.5) * 2.0;
+                data[[idx, j]] = center + cluster_std * (rng.random::<f64>() - 0.5) * 2.0;
             }
             labels[idx] = i as i32;
         }

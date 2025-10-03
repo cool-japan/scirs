@@ -16,8 +16,8 @@
 
 use super::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -153,11 +153,11 @@ pub struct RoboticsEvaluationConfig {
     pub enable_safety: bool,
     /// Enable perception evaluation
     pub enable_perception: bool,
-    /// Real-time performance requirements
+    /// Float-time performance requirements
     pub real_time_requirements: RealTimeRequirements,
 }
 
-/// Real-time performance requirements
+/// Float-time performance requirements
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RealTimeRequirements {
     /// Maximum allowed latency

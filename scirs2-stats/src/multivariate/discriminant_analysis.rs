@@ -6,7 +6,7 @@
 use crate::error::{StatsError, StatsResult as Result};
 use crate::error_handling_v2::ErrorCode;
 use crate::{unified_error_handling::global_error_handler, validate_or_error};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 
 /// Linear Discriminant Analysis (LDA)
 ///
@@ -188,9 +188,11 @@ impl LinearDiscriminantAnalysis {
             .min(n_classes - 1)
             .min(n_features);
 
-        let final_scalings = scalings.slice(ndarray::s![.., ..n_components]).to_owned();
+        let final_scalings = scalings
+            .slice(scirs2_core::ndarray::s![.., ..n_components])
+            .to_owned();
         let final_explained_variance = explained_variance_ratio
-            .slice(ndarray::s![..n_components])
+            .slice(scirs2_core::ndarray::s![..n_components])
             .to_owned();
 
         // Compute intercept
@@ -359,7 +361,7 @@ impl LinearDiscriminantAnalysis {
 
     /// SVD-based solver (more numerically stable)
     fn solve_svd(&self, sw: &Array2<f64>, sb: &Array2<f64>) -> Result<(Array2<f64>, Array1<f64>)> {
-        use ndarray_linalg::SVD;
+        use scirs2_core::ndarray::ndarray_linalg::SVD;
 
         // Cholesky decomposition of Sw = L * L^T
         let l = scirs2_linalg::cholesky(&sw.view(), None).map_err(|e| {
@@ -425,7 +427,7 @@ impl LinearDiscriminantAnalysis {
         sw: &Array2<f64>,
         sb: &Array2<f64>,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use ndarray_linalg::Eigh;
+        use scirs2_core::ndarray::ndarray_linalg::Eigh;
 
         // Compute Sw^{-1} * Sb
         let sw_inv = scirs2_linalg::inv(&sw.view(), None).map_err(|e| {
@@ -438,9 +440,11 @@ impl LinearDiscriminantAnalysis {
         let a = sw_inv.dot(sb);
 
         // Eigenvalue decomposition
-        let (eigenvalues, eigenvectors) = a.eigh(ndarray_linalg::UPLO::Upper).map_err(|e| {
-            StatsError::ComputationError(format!("Eigenvalue decomposition failed: {}", e))
-        })?;
+        let (eigenvalues, eigenvectors) = a
+            .eigh(scirs2_core::ndarray::ndarray_linalg::UPLO::Upper)
+            .map_err(|e| {
+                StatsError::ComputationError(format!("Eigenvalue decomposition failed: {}", e))
+            })?;
 
         // Sort in descending order
         let mut eigen_pairs: Vec<_> = eigenvalues
@@ -895,7 +899,7 @@ impl QuadraticDiscriminantAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_lda_basic() {

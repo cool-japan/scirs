@@ -17,7 +17,7 @@ fn par_iter_with_setup<I, IT, S, F, R, RF, E>(
 where
     I: IntoIterator<Item = IT>,
     IT: Copy,
-    S: Fn() -> (),
+    S: Fn(),
     F: Fn((), IT) -> Result<R, E>,
     RF: Fn(&mut Vec<R>, Result<R, E>) -> Result<(), E>,
     E: std::fmt::Debug,
@@ -59,7 +59,7 @@ pub fn parallel_morphological_filter(
 
     // Process signal in overlapping chunks (safe arithmetic to prevent overflow)
     let effective_chunk = chunk.saturating_sub(overlap).max(1); // Ensure at least size 1
-    let n_chunks = (n + effective_chunk - 1) / effective_chunk;
+    let n_chunks = n.div_ceil(effective_chunk);
 
     let results = par_iter_with_setup(
         0..n_chunks,

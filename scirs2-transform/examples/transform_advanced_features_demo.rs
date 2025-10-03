@@ -6,7 +6,7 @@
 //! - Automated feature engineering
 //! - Production monitoring
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_transform::{auto_feature_engineering::AutoFeatureEngineer, Result};
 
 #[cfg(feature = "gpu")]
@@ -173,7 +173,7 @@ fn demo_production_monitoring(data: &Array2<f64>) -> Result<()> {
     let mut monitor = TransformationMonitor::new()?;
 
     // Set reference _data for drift detection
-    let reference_data = data.slice(ndarray::s![..500, ..]).to_owned();
+    let reference_data = data.slice(scirs2_core::ndarray::s![..500, ..]).to_owned();
     monitor.set_reference_data(reference_data, None)?;
     println!("✅ Reference _data set for drift detection");
 
@@ -183,7 +183,7 @@ fn demo_production_monitoring(data: &Array2<f64>) -> Result<()> {
     println!("⚙️  Drift detection methods configured");
 
     // Simulate new _data for drift detection
-    let new_data = data.slice(ndarray::s![500.., ..]);
+    let new_data = data.slice(scirs2_core::ndarray::s![500.., ..]);
     let drift_results = monitor.detect_drift(&new_data)?;
 
     println!("📈 Drift detection results:");
@@ -221,10 +221,11 @@ fn demo_production_monitoring(data: &Array2<f64>) -> Result<()> {
 
 #[allow(dead_code)]
 fn generate_sample_data(_n_samples: usize, nfeatures: usize) -> Result<Array2<f64>> {
-    use ndarray_rand::rand_distr::Normal;
-    use ndarray_rand::RandomExt;
+    use scirs2_core::random::{thread_rng, Distribution, Normal};
 
-    let data = Array2::random((_n_samples, nfeatures), Normal::new(0.0, 1.0).unwrap());
+    let dist = Normal::new(0.0, 1.0).unwrap();
+    let mut rng = thread_rng();
+    let data = Array2::from_shape_fn((_n_samples, nfeatures), |_| dist.sample(&mut rng));
     Ok(data)
 }
 

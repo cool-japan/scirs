@@ -7,7 +7,7 @@
 use crate::error::OptimizeError;
 use crate::unconstrained::utils::clip_step;
 use crate::unconstrained::Bounds;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Type alias for zoom search result to reduce type complexity
 type ZoomSearchResult = ((f64, f64, Array1<f64>), usize, usize);

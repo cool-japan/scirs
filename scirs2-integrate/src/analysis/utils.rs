@@ -4,8 +4,8 @@
 //! the analysis modules.
 
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 
 /// Compute determinant of a square matrix using LU decomposition
 pub fn compute_determinant(matrix: &Array2<f64>) -> f64 {
@@ -207,7 +207,7 @@ pub fn is_bifurcation_point(eigenvalues: &[Complex64]) -> bool {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_compute_determinant() {
@@ -262,7 +262,7 @@ mod tests {
 
     #[test]
     fn test_is_bifurcation_point() {
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
 
         // Eigenvalue on imaginary axis (bifurcation)
         let eigenvalues = vec![Complex64::new(0.0, 1.0), Complex64::new(-1.0, 0.0)];

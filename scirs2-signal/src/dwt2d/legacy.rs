@@ -53,7 +53,7 @@ use super::simd::{simd_calculate_energy, simd_threshold_coefficients};
 // Basic decomposition and reconstruction:
 //
 // ```
-// use ndarray::Array2;
+// use scirs2_core::ndarray::Array2;
 // use scirs2_signal::dwt::Wavelet;
 // use scirs2_signal::dwt2d::{dwt2d_decompose, dwt2d_reconstruct};
 //
@@ -75,7 +75,7 @@ use super::simd::{simd_calculate_energy, simd_threshold_coefficients};
 // Multi-level decomposition:
 //
 // ```
-// use ndarray::Array2;
+// use scirs2_core::ndarray::Array2;
 // use scirs2_signal::dwt::Wavelet;
 // use scirs2_signal::dwt2d::{wavedec2, waverec2};
 //
@@ -97,9 +97,9 @@ use super::simd::{simd_calculate_energy, simd_threshold_coefficients};
 
 use crate::dwt::{self, Wavelet};
 use crate::error::{SignalError, SignalResult};
-use ndarray::s;
-use ndarray::Array2;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_positive;
@@ -354,7 +354,7 @@ type ColumnResult = (usize, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>);
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, Dwt2dResult};
 ///
@@ -446,7 +446,7 @@ pub struct Dwt2dResult {
 /// Basic usage with a simple 4×4 image:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::dwt2d_decompose;
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -471,7 +471,7 @@ pub struct Dwt2dResult {
 /// Using a different wavelet and boundary extension mode:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::dwt2d_decompose;
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -530,7 +530,7 @@ where
     let mut extreme_count = 0;
 
     for ((i, j), &val) in data.indexed_iter() {
-        match num_traits::cast::cast::<T, f64>(val) {
+        match NumCast::from(val) {
             Some(converted) => {
                 // Check for NaN, infinity, and extreme values
                 if converted.is_nan() {
@@ -627,7 +627,7 @@ where
         let row_results: Result<Vec<(usize, Vec<f64>, Vec<f64>)>, SignalError> = (0..rows)
             .into_par_iter()
             .map(|i| {
-                let row = data_f64.slice(ndarray::s![i, ..]).to_vec();
+                let row = data_f64.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
                 let (approx, detail) = dwt::dwt_decompose(&row, wavelet, mode).map_err(|e| {
                     SignalError::ComputationError(format!("Row transform failed: {}", e))
                 })?;
@@ -652,7 +652,7 @@ where
     #[cfg(not(feature = "parallel"))]
     {
         for i in 0..rows {
-            let row = data_f64.slice(ndarray::s![i, ..]).to_vec();
+            let row = data_f64.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
             let (approx, detail) = dwt::dwt_decompose(&row, wavelet, mode)?;
 
             for j in 0..approx.len() {
@@ -673,7 +673,7 @@ where
             .into_par_iter()
             .map(|j| {
                 // Process low-pass filtered rows
-                let col_lo = rows_lo.slice(ndarray::s![.., j]).to_vec();
+                let col_lo = rows_lo.slice(scirs2_core::ndarray::s![.., j]).to_vec();
                 let (approx_lo, detail_lo) =
                     dwt::dwt_decompose(&col_lo, wavelet, mode).map_err(|e| {
                         SignalError::ComputationError(format!(
@@ -683,7 +683,7 @@ where
                     })?;
 
                 // Process high-pass filtered rows
-                let col_hi = rows_hi.slice(ndarray::s![.., j]).to_vec();
+                let col_hi = rows_hi.slice(scirs2_core::ndarray::s![.., j]).to_vec();
                 let (approx_hi, detail_hi) =
                     dwt::dwt_decompose(&col_hi, wavelet, mode).map_err(|e| {
                         SignalError::ComputationError(format!(
@@ -721,7 +721,7 @@ where
     {
         for j in 0..output_cols {
             // Process low-pass filtered rows
-            let col_lo = rows_lo.slice(ndarray::s![.., j]).to_vec();
+            let col_lo = rows_lo.slice(scirs2_core::ndarray::s![.., j]).to_vec();
             let (approx, detail) = dwt::dwt_decompose(&col_lo, wavelet, mode)?;
 
             for i in 0..approx.len() {
@@ -733,7 +733,7 @@ where
             }
 
             // Process high-pass filtered rows
-            let col_hi = rows_hi.slice(ndarray::s![.., j]).to_vec();
+            let col_hi = rows_hi.slice(scirs2_core::ndarray::s![.., j]).to_vec();
             let (approx, detail) = dwt::dwt_decompose(&col_hi, wavelet, mode)?;
 
             for i in 0..approx.len() {
@@ -774,7 +774,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose_optimized, Dwt2dConfig};
 ///
@@ -827,7 +827,7 @@ where
 
     // Copy and convert data efficiently
     for ((i, j), &val) in data.indexed_iter() {
-        match num_traits::cast::cast::<T, f64>(val) {
+        match NumCast::from(val) {
             Some(converted) => data_buffer[i * cols + j] = converted,
             None => {
                 return Err(SignalError::ValueError(
@@ -1045,7 +1045,7 @@ where
 /// Basic decomposition and reconstruction:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, dwt2d_reconstruct};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -1070,7 +1070,7 @@ where
 /// Modifying coefficients before reconstruction (simple denoising):
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, dwt2d_reconstruct, Dwt2dResult};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -1145,8 +1145,8 @@ pub fn dwt2d_reconstruct(
             .into_par_iter()
             .map(|j| {
                 // Reconstruct low-pass columns
-                let ll_col = ll.slice(ndarray::s![.., j]).to_vec();
-                let hl_col = hl.slice(ndarray::s![.., j]).to_vec();
+                let ll_col = ll.slice(scirs2_core::ndarray::s![.., j]).to_vec();
+                let hl_col = hl.slice(scirs2_core::ndarray::s![.., j]).to_vec();
                 let col_lo = dwt::dwt_reconstruct(&ll_col, &hl_col, wavelet).map_err(|e| {
                     SignalError::ComputationError(format!(
                         "Low-pass column reconstruction failed: {}",
@@ -1155,8 +1155,8 @@ pub fn dwt2d_reconstruct(
                 })?;
 
                 // Reconstruct high-pass columns
-                let lh_col = lh.slice(ndarray::s![.., j]).to_vec();
-                let hh_col = hh.slice(ndarray::s![.., j]).to_vec();
+                let lh_col = lh.slice(scirs2_core::ndarray::s![.., j]).to_vec();
+                let hh_col = hh.slice(scirs2_core::ndarray::s![.., j]).to_vec();
                 let col_hi = dwt::dwt_reconstruct(&lh_col, &hh_col, wavelet).map_err(|e| {
                     SignalError::ComputationError(format!(
                         "High-pass column reconstruction failed: {}",
@@ -1185,13 +1185,13 @@ pub fn dwt2d_reconstruct(
     {
         for j in 0..cols {
             // Reconstruct low-pass columns
-            let ll_col = ll.slice(ndarray::s![.., j]).to_vec();
-            let hl_col = hl.slice(ndarray::s![.., j]).to_vec();
+            let ll_col = ll.slice(scirs2_core::ndarray::s![.., j]).to_vec();
+            let hl_col = hl.slice(scirs2_core::ndarray::s![.., j]).to_vec();
             let col_lo = dwt::dwt_reconstruct(&ll_col, &hl_col, wavelet)?;
 
             // Reconstruct high-pass columns
-            let lh_col = lh.slice(ndarray::s![.., j]).to_vec();
-            let hh_col = hh.slice(ndarray::s![.., j]).to_vec();
+            let lh_col = lh.slice(scirs2_core::ndarray::s![.., j]).to_vec();
+            let hh_col = hh.slice(scirs2_core::ndarray::s![.., j]).to_vec();
             let col_hi = dwt::dwt_reconstruct(&lh_col, &hh_col, wavelet)?;
 
             // Store reconstructed columns
@@ -1215,8 +1215,8 @@ pub fn dwt2d_reconstruct(
             .into_par_iter()
             .map(|i| {
                 // Get rows from low and high frequency parts
-                let lo_row = row_lo.slice(ndarray::s![i, ..]).to_vec();
-                let hi_row = row_hi.slice(ndarray::s![i, ..]).to_vec();
+                let lo_row = row_lo.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
+                let hi_row = row_hi.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
 
                 // Reconstruct row
                 let full_row = dwt::dwt_reconstruct(&lo_row, &hi_row, wavelet).map_err(|e| {
@@ -1243,8 +1243,8 @@ pub fn dwt2d_reconstruct(
     {
         for i in 0..out_rows {
             // Get rows from low and high frequency parts
-            let lo_row = row_lo.slice(ndarray::s![i, ..]).to_vec();
-            let hi_row = row_hi.slice(ndarray::s![i, ..]).to_vec();
+            let lo_row = row_lo.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
+            let hi_row = row_hi.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
 
             // Reconstruct row
             let full_row = dwt::dwt_reconstruct(&lo_row, &hi_row, wavelet)?;
@@ -1316,7 +1316,7 @@ pub fn dwt2d_reconstruct(
 /// Basic multi-level decomposition:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::wavedec2;
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -1343,7 +1343,7 @@ pub fn dwt2d_reconstruct(
 /// Using a different wavelet family:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::wavedec2;
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -1452,7 +1452,7 @@ where
 /// Basic multi-level decomposition and reconstruction:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::{wavedec2, waverec2};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -1477,7 +1477,7 @@ where
 /// Simple image compression by coefficient thresholding:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::{wavedec2, waverec2, Dwt2dResult};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -1569,7 +1569,7 @@ pub enum ThresholdMethod {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, dwt2d_reconstruct, threshold_dwt2d, ThresholdMethod};
 ///
@@ -1639,7 +1639,7 @@ pub fn threshold_dwt2d(decomposition: &mut Dwt2dResult, threshold: f64, method: 
 /// Using a different threshold for each level:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{wavedec2, waverec2, threshold_wavedec2, ThresholdMethod};
 ///
@@ -1723,7 +1723,7 @@ fn apply_threshold(x: f64, threshold: f64, method: ThresholdMethod) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, calculate_energy};
 ///
@@ -1824,7 +1824,7 @@ pub struct WaveletEnergy {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, threshold_dwt2d, count_nonzeros, ThresholdMethod};
 ///

@@ -3,8 +3,8 @@
 //! This module provides high-performance implementations of morphological operations
 //! using SIMD instructions and parallel processing for improved performance.
 
-use ndarray::{Array2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::{self};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
@@ -742,7 +742,7 @@ fn binary_dilation_iteration_parallel(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_grey_erosion_optimized() {
@@ -775,7 +775,7 @@ mod tests {
         let result = binary_erosion_2d_optimized(&input, None, None, None, None).unwrap();
 
         // Erosion should shrink the true region
-        assert_eq!(result[[1, 1]], false);
+        assert!(!result[[1, 1]]);
     }
 
     #[test]
@@ -789,8 +789,8 @@ mod tests {
         let result = binary_dilation_2d_optimized(&input, None, None, None, None).unwrap();
 
         // Dilation should expand the true region
-        assert_eq!(result[[0, 0]], true);
-        assert_eq!(result[[1, 0]], true);
+        assert!(result[[0, 0]]);
+        assert!(result[[1, 0]]);
     }
 }
 

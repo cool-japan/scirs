@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Advanced filter design algorithms
 //
 // This module implements sophisticated filter design methods including Parks-McClellan
@@ -6,8 +6,8 @@ use ndarray::s;
 // filter optimization techniques.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use scirs2_linalg::solve;
 
 #[allow(unused_imports)]

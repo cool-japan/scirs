@@ -5,9 +5,9 @@
 //! and consistency across different computational approaches.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
-use rand::{rngs::StdRng, rng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
+use scirs2_core::random::{rngs::StdRng, rng, Rng, SeedableRng};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::SimdUnifiedOps,
@@ -145,7 +145,7 @@ where
     pub fn new(config: PropertyTestConfig) -> Self {
         let rng = match config.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_rng(rand::thread_rng()),
+            None => StdRng::from_rng(scirs2_core::random::thread_rng()),
         };
 
         Self {

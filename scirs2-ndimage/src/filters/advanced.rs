@@ -4,8 +4,8 @@
 //! steerable filters, and other specialized convolution operations that are
 //! commonly used in computer vision and signal processing.
 
-use ndarray::{Array2, ArrayView2, Dimension, Zip};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView2, Dimension, Zip};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 
@@ -101,7 +101,7 @@ where
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::filters::advanced::{gabor_filter, GaborParams};
 /// use scirs2_ndimage::filters::BorderMode;
 ///
@@ -1364,7 +1364,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_gabor_filter() {
@@ -1403,7 +1403,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_steerable_filter() {
         let input = array![[0.0, 1.0, 0.0], [1.0, 2.0, 1.0], [0.0, 1.0, 0.0]];
 

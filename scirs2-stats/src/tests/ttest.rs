@@ -7,8 +7,8 @@
 use crate::distributions;
 use crate::error::{StatsError, StatsResult};
 use crate::{mean, std};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast};
 
 /// Alternative hypothesis options for t-tests
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,7 +52,7 @@ pub struct TTestResult<F: Float + std::fmt::Display> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::ttest::{ttest_1samp, Alternative};
 ///
 /// let data = array![5.1, 4.9, 6.2, 5.7, 5.5, 5.1, 5.2, 5.0];
@@ -176,7 +176,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::ttest::{ttest_ind, Alternative};
 ///
 /// let group1 = array![5.1, 4.9, 6.2, 5.7, 5.5];
@@ -346,7 +346,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::ttest::{ttest_rel, Alternative};
 ///
 /// // Data from paired measurements (e.g., before and after treatment)
@@ -629,7 +629,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     // Helper function to generate an array with NaN values
     fn array_with_nan<F: Float + Copy>() -> Array1<F> {

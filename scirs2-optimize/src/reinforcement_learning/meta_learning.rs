@@ -4,7 +4,7 @@
 
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 // Unused import
 // use scirs2_core::error::CoreResult;
 use std::collections::HashMap;

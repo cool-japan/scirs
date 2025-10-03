@@ -40,9 +40,9 @@ impl<F: Float> crate::op::Op<F> for AdamOp<F> {
         let gradshape = grad.shape().to_vec();
 
         // Get the current timestep value and increment it
-        let t_val = t_array[ndarray::IxDyn(&[])];
+        let t_val = t_array[scirs2_core::ndarray::IxDyn(&[])];
         let new_t = t_val + F::one();
-        let new_t_array = NdArray::from_elem(ndarray::IxDyn(&[]), new_t);
+        let new_t_array = NdArray::from_elem(scirs2_core::ndarray::IxDyn(&[]), new_t);
 
         // Create new momentum and velocity arrays with the same shape as grad
         // If original arrays are scalar and grad is not, we need to broadcast
@@ -52,16 +52,16 @@ impl<F: Float> crate::op::Op<F> for AdamOp<F> {
         // Check if we need to broadcast scalar arrays to match grad shape
         if m.shape().is_empty() && !gradshape.is_empty() {
             // If m is scalar but grad is not, create a new array with m's value broadcast to grad's shape
-            let m_val = m[ndarray::IxDyn(&[])];
-            new_m = NdArray::from_elem(ndarray::IxDyn(&gradshape), m_val);
+            let m_val = m[scirs2_core::ndarray::IxDyn(&[])];
+            new_m = NdArray::from_elem(scirs2_core::ndarray::IxDyn(&gradshape), m_val);
         } else {
             new_m = m.to_owned();
         }
 
         if v.shape().is_empty() && !gradshape.is_empty() {
             // If v is scalar but grad is not, create a new array with v's value broadcast to grad's shape
-            let v_val = v[ndarray::IxDyn(&[])];
-            new_v = NdArray::from_elem(ndarray::IxDyn(&gradshape), v_val);
+            let v_val = v[scirs2_core::ndarray::IxDyn(&[])];
+            new_v = NdArray::from_elem(scirs2_core::ndarray::IxDyn(&gradshape), v_val);
         } else {
             new_v = v.to_owned();
         }
@@ -69,8 +69,8 @@ impl<F: Float> crate::op::Op<F> for AdamOp<F> {
         // Also handle param broadcasting if needed
         let mut new_param: NdArray<F>;
         if param.shape().is_empty() && !gradshape.is_empty() {
-            let param_val = param[ndarray::IxDyn(&[])];
-            new_param = NdArray::from_elem(ndarray::IxDyn(&gradshape), param_val);
+            let param_val = param[scirs2_core::ndarray::IxDyn(&[])];
+            new_param = NdArray::from_elem(scirs2_core::ndarray::IxDyn(&gradshape), param_val);
         } else {
             new_param = param.to_owned();
         }

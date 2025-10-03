@@ -3,8 +3,8 @@
 //! This module provides methods for estimating piecewise trends in time series data,
 //! including automatic and manual breakpoint detection, and various segment models.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::{
@@ -30,7 +30,7 @@ use crate::error::{Result, TimeSeriesError};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::trends::{estimate_piecewise_trend, PiecewiseTrendOptions, BreakpointMethod, SegmentModelType};
 ///
 /// // Create a sample time series with a piecewise trend and noise
@@ -173,15 +173,15 @@ where
                 continue;
             }
 
-            let segment_ts = ts.slice(ndarray::s![start..=end]);
+            let segment_ts = ts.slice(scirs2_core::ndarray::s![start..=end]);
 
             // Try splitting at each possible breakpoint
             let mut max_improvement_in_segment = F::zero();
             let mut best_point_in_segment = 0;
 
             for bp in (start + min_segment)..(end + 1 - min_segment) {
-                let left_ts = ts.slice(ndarray::s![start..=bp]);
-                let right_ts = ts.slice(ndarray::s![(bp + 1)..=end]);
+                let left_ts = ts.slice(scirs2_core::ndarray::s![start..=bp]);
+                let right_ts = ts.slice(scirs2_core::ndarray::s![(bp + 1)..=end]);
 
                 // Calculate improvement in criterion by splitting here
                 let improvement = calculate_split_improvement(
@@ -267,7 +267,7 @@ where
                 continue;
             }
 
-            let segment_ts = ts.slice(ndarray::s![s..t]);
+            let segment_ts = ts.slice(scirs2_core::ndarray::s![s..t]);
             let segment_cost =
                 calculate_segment_cost(&segment_ts, options.segment_model, options.criterion)?;
 
@@ -361,9 +361,9 @@ where
             let mid = segments[i + 1];
             let end = segments[i + 2];
 
-            let left_ts = ts.slice(ndarray::s![start..=mid]);
-            let right_ts = ts.slice(ndarray::s![(mid + 1)..=end]);
-            let merged_ts = ts.slice(ndarray::s![start..=end]);
+            let left_ts = ts.slice(scirs2_core::ndarray::s![start..=mid]);
+            let right_ts = ts.slice(scirs2_core::ndarray::s![(mid + 1)..=end]);
+            let merged_ts = ts.slice(scirs2_core::ndarray::s![start..=end]);
 
             let left_cost =
                 calculate_segment_cost(&left_ts, options.segment_model, options.criterion)?;
@@ -789,10 +789,10 @@ where
 
         // Extract segment data
         let segment_data = if start == 0 || allow_discontinuities {
-            ts.slice(ndarray::s![start..=end])
+            ts.slice(scirs2_core::ndarray::s![start..=end])
         } else {
             // Include one point before start for continuity
-            ts.slice(ndarray::s![(start - 1)..=end])
+            ts.slice(scirs2_core::ndarray::s![(start - 1)..=end])
         };
 
         // Fit model to segment

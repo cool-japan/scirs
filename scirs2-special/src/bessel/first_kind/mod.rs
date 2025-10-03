@@ -16,7 +16,7 @@
 
 use crate::constants;
 use crate::gamma::gamma;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Bessel function of the first kind of order 0 with enhanced numerical stability.
@@ -57,7 +57,7 @@ pub fn j0<F: Float + FromPrimitive + Debug>(x: F) -> F {
 
     // Use known reference values for specific test points
     if abs_x == F::from(0.5).unwrap() {
-        return F::from(0.9384698072408130).unwrap();
+        return F::from(0.938_469_807_240_813).unwrap();
     }
     if abs_x == F::from(1.0).unwrap() {
         return F::from(constants::lookup::j0::AT_1).unwrap();
@@ -336,7 +336,7 @@ pub fn jn<F: Float + FromPrimitive + Debug + std::ops::AddAssign>(n: i32, x: F) 
 
             for k in 1..=50 {
                 term = term * x2 / (F::from(k).unwrap() * F::from(n + k).unwrap());
-                sum = sum + term;
+                sum += term;
 
                 if term.abs() < F::from(1e-15).unwrap() * sum.abs() {
                     break;

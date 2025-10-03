@@ -13,7 +13,7 @@
 #![allow(dead_code)]
 
 use crate::error::{SpecialError, SpecialResult};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
@@ -365,7 +365,7 @@ mod tests {
     
     #[test]
     fn test_performance_metrics() {
-        let input = ndarray::Array1::linspace(0.1, 10.0, 1000);
+        let input = scirs2_core::ndarray::Array1::linspace(0.1, 10.0, 1000);
         let config = PerformanceConfig::default();
         
         let metrics = benchmark_function(

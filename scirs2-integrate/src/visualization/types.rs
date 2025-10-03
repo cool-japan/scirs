@@ -3,7 +3,7 @@
 //! This module contains the fundamental data structures used across the visualization system.
 
 use crate::analysis::BifurcationPoint;
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use std::collections::HashMap;
 
 /// Data structure for plotting 2D phase space

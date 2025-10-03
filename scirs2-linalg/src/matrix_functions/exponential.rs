@@ -1,7 +1,7 @@
 //! Matrix exponential, logarithm, square root, and power functions
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::eigen::eig;
@@ -30,7 +30,7 @@ use crate::validation::validate_decomposition;
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::expm;
 ///
 /// let a = array![[0.0_f64, 1.0], [-1.0, 0.0]]; // Rotation matrix
@@ -43,7 +43,7 @@ use crate::validation::validate_decomposition;
 #[allow(dead_code)]
 pub fn expm<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + One + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     use crate::parallel;
 
@@ -267,7 +267,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::logm;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
@@ -281,7 +281,7 @@ where
 #[allow(dead_code)]
 pub fn logm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     logm_impl(a)
 }
@@ -290,7 +290,7 @@ where
 #[allow(dead_code)]
 fn logm_impl<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     if a.nrows() != a.ncols() {
         return Err(LinalgError::ShapeError(format!(
@@ -627,7 +627,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::logm_parallel;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
@@ -638,7 +638,7 @@ where
 #[allow(dead_code)]
 pub fn logm_parallel<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -661,7 +661,7 @@ where
 #[allow(dead_code)]
 fn logm_impl_parallel<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // For now, use the sequential implementation
     // TODO: Implement parallel version using scirs2_core::parallel_ops
@@ -687,7 +687,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::sqrtm;
 ///
 /// let a = array![[4.0_f64, 0.0], [0.0, 9.0]];
@@ -701,7 +701,7 @@ where
 #[allow(dead_code)]
 pub fn sqrtm<F>(a: &ArrayView2<F>, maxiter: usize, tol: F) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     sqrtm_impl(a, maxiter, tol)
 }
@@ -710,7 +710,7 @@ where
 #[allow(dead_code)]
 fn sqrtm_impl<F>(a: &ArrayView2<F>, maxiter: usize, tol: F) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     validate_decomposition(a, "Matrix square root computation", true)?;
 
@@ -826,7 +826,7 @@ pub fn sqrtm_parallel<F>(
     workers: Option<usize>,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -858,7 +858,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::matrix_power;
 ///
 /// let a = array![[4.0_f64, 0.0], [0.0, 9.0]];
@@ -868,7 +868,7 @@ where
 #[allow(dead_code)]
 pub fn matrix_power<F>(a: &ArrayView2<F>, p: F) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + 'static + Send + Sync + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + One + 'static + Send + Sync + scirs2_core::ndarray::ScalarOperand,
 {
     validate_decomposition(a, "Matrix power computation", true)?;
 

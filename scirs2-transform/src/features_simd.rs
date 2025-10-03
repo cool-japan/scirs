@@ -3,8 +3,8 @@
 //! This module provides SIMD-optimized implementations of feature engineering operations
 //! using the unified SIMD operations from scirs2-core.
 
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::validation::{check_not_empty, check_positive};
 
@@ -126,10 +126,10 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
         if self.degree > 1 {
             if self.interaction_only {
                 // Only interaction terms (no powers of single features)
-                output_idx = self.add_interaction_terms(sample, &mut output, output_idx, 2)?;
+                let _ = self.add_interaction_terms(sample, &mut output, output_idx, 2)?;
             } else {
                 // All polynomial combinations
-                output_idx = self.add_polynomial_terms(sample, &mut output, output_idx)?;
+                let _ = self.add_polynomial_terms(sample, &mut output, output_idx)?;
             }
         }
 
@@ -160,7 +160,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
                 if remaining_features > 0 {
                     // Use SIMD for remaining cross products
                     let sample_j = sample[j];
-                    let remaining_slice = sample.slice(ndarray::s![j + 1..]);
+                    let remaining_slice = sample.slice(scirs2_core::ndarray::s![j + 1..]);
 
                     // Create a vector filled with sample[j]
                     let sample_j_vec = Array1::from_elem(remaining_features, sample_j);
@@ -199,7 +199,7 @@ impl<F: Float + NumCast + SimdUnifiedOps> SimdPolynomialFeatures<F> {
                 let remaining_features = nfeatures - j - 1;
                 if remaining_features > 0 {
                     let sample_j = sample[j];
-                    let remaining_slice = sample.slice(ndarray::s![j + 1..]);
+                    let remaining_slice = sample.slice(scirs2_core::ndarray::s![j + 1..]);
 
                     // Use SIMD for batch processing of interactions
                     let sample_j_vec = Array1::from_elem(remaining_features, sample_j);
@@ -547,7 +547,7 @@ where
             let chunk_end = (chunk_start + chunk_size).min(shape[1]);
             let chunk_size = chunk_end - chunk_start;
 
-            let chunk_slice = row_array.slice(ndarray::s![chunk_start..chunk_end]);
+            let chunk_slice = row_array.slice(scirs2_core::ndarray::s![chunk_start..chunk_end]);
             let threshold_array = Array1::from_elem(chunk_size, threshold);
 
             // Use SIMD comparison where available
@@ -655,7 +655,7 @@ where
 
     // Process first chunk to determine output dimensions
     let first_chunk_size = max_rows_per_chunk.min(shape[0]);
-    let first_chunk = data.slice(ndarray::s![0..first_chunk_size, ..]);
+    let first_chunk = data.slice(scirs2_core::ndarray::s![0..first_chunk_size, ..]);
     let first_result = poly_features.transform(&first_chunk)?;
     let n_outputfeatures = first_result.shape()[1];
 
@@ -672,7 +672,7 @@ where
     // Process remaining chunks
     for chunk_start in (first_chunk_size..shape[0]).step_by(max_rows_per_chunk) {
         let chunk_end = (chunk_start + max_rows_per_chunk).min(shape[0]);
-        let chunk = data.slice(ndarray::s![chunk_start..chunk_end, ..]);
+        let chunk = data.slice(scirs2_core::ndarray::s![chunk_start..chunk_end, ..]);
         let chunk_result = poly_features.transform(&chunk)?;
 
         for (i_local, i_global) in (chunk_start..chunk_end).enumerate() {

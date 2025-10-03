@@ -28,8 +28,8 @@
 //! assert!(!outside);
 //! ```
 
-use num_traits::Float;
 use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::Float;
 
 /// Tests if a point is inside a polygon using the ray casting algorithm.
 ///

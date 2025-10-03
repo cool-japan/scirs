@@ -4,8 +4,8 @@
 //! before performing sparse FFT operations to reduce spectral leakage.
 
 use crate::error::{FFTError, FFTResult};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 

@@ -214,7 +214,7 @@ impl SpikingNeuralClusterer {
         }
 
         // Create output neurons (cluster centers)
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         for _i in 0..self.num_clusters {
             let position = (0..input_dims).map(|_| rng.gen_range(0.0..1.0)).collect();
             let mut neuron = SpikingNeuron::new(position);
@@ -566,7 +566,7 @@ mod tests {
         // Should have input-to-output connections
         let expected_connections = 3 * 2; // input_dims * num_clusters
                                           // Plus lateral inhibition connections: num_clusters * (num_clusters - 1)
-        let lateral_connections = 2 * 1;
+        let lateral_connections = 2;
         assert_eq!(
             stats.num_synapses,
             expected_connections + lateral_connections

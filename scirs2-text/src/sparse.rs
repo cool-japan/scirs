@@ -4,7 +4,7 @@
 //! where most values are zero (common in TF-IDF and count vectorization).
 
 use crate::error::{Result, TextError};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 /// Compressed Sparse Row (CSR) matrix representation
@@ -1310,7 +1310,7 @@ impl QuantizedSparseVector {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, arr2};
+    use scirs2_core::ndarray::{arr1, arr2};
 
     #[test]
     fn test_csr_from_dense() {

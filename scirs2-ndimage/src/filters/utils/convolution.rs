@@ -3,8 +3,8 @@
 //! This module provides memory-efficient convolution implementations
 //! with support for various border handling modes.
 
-use ndarray::{Array, ArrayView2, Ix2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array, ArrayView2, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::Debug;
 
 use super::super::BorderMode;

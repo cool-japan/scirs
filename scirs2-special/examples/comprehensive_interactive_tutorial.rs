@@ -1141,8 +1141,8 @@ impl TutorialSystem {
             let answer = self.get_user_input("Your choice (1-6): ")?;
             if let Ok(choice) = answer.parse::<usize>() {
                 if choice > 0 && choice <= options.len() {
-                    let style = &styles[choice - 1];
-                    *style_scores.get_mut(&style.to_string()).unwrap() += 1;
+                    let style = styles[choice - 1].to_string();
+                    *style_scores.get_mut(&style).unwrap() += 1;
                 }
             }
             println!();
@@ -1401,10 +1401,8 @@ impl TutorialSystem {
             println!("🔗 Connections to Other Concepts:");
             for connection in &concept.connections {
                 println!(
-                    "  • {} ({}): {}",
-                    connection.target_concept,
-                    format!("{:?}", connection.relationship_type),
-                    connection.explanation
+                    "  • {} ({:?}): {}",
+                    connection.target_concept, connection.relationship_type, connection.explanation
                 );
             }
             println!();
@@ -1889,11 +1887,11 @@ impl TutorialSystem {
             println!("\n📊 Plot of {}(x) from {} to {}:", func_name, xmin, xmax);
 
             match func_name.as_str() {
-                "gamma" => self.ascii_plot_function_2d(xmin, xmax, 60, |x| gamma(x)),
-                "j0" => self.ascii_plot_function_2d(xmin, xmax, 60, |x| j0(x)),
-                "j1" => self.ascii_plot_function_2d(xmin, xmax, 60, |x| j1(x)),
-                "erf" => self.ascii_plot_function_2d(xmin, xmax, 60, |x| erf(x)),
-                "erfc" => self.ascii_plot_function_2d(xmin, xmax, 60, |x| erfc(x)),
+                "gamma" => self.ascii_plot_function_2d(xmin, xmax, 60, gamma),
+                "j0" => self.ascii_plot_function_2d(xmin, xmax, 60, j0),
+                "j1" => self.ascii_plot_function_2d(xmin, xmax, 60, j1),
+                "erf" => self.ascii_plot_function_2d(xmin, xmax, 60, erf),
+                "erfc" => self.ascii_plot_function_2d(xmin, xmax, 60, erfc),
                 _ => {}
             }
             println!();
@@ -2294,7 +2292,7 @@ impl TutorialSystem {
         let input = self.get_user_input("Difficulty tolerance (0.0-1.0): ")?;
 
         if let Ok(tolerance) = input.parse::<f64>() {
-            if tolerance >= 0.0 && tolerance <= 1.0 {
+            if (0.0..=1.0).contains(&tolerance) {
                 // Update user preferences
                 println!("✅ Difficulty tolerance set to {:.1}", tolerance);
             } else {

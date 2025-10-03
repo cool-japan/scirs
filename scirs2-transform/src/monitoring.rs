@@ -5,7 +5,7 @@
 //! performance monitoring, and automated alerting.
 
 use crate::error::{Result, TransformError};
-use ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use scirs2_core::validation::check_not_empty;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
@@ -94,11 +94,35 @@ impl Default for AlertConfig {
 /// Alert types
 #[derive(Debug, Clone)]
 pub enum AlertType {
-    DataDrift { feature: String, severity: f64 },
-    PerformanceDegradation { metric: String, value: f64 },
-    HighErrorRate { rate: f64 },
-    MemoryExhaustion { usage_mb: f64 },
-    DataQualityIssue { score: f64 },
+    /// Statistical drift detected in feature distribution
+    DataDrift {
+        /// Name of the drifting feature
+        feature: String,
+        /// Severity score of the drift (0.0 to 1.0)
+        severity: f64,
+    },
+    /// Performance degradation detected in metrics
+    PerformanceDegradation {
+        /// Name of the degraded metric
+        metric: String,
+        /// Current degraded value
+        value: f64,
+    },
+    /// Error rate exceeds acceptable threshold
+    HighErrorRate {
+        /// Current error rate (0.0 to 1.0)
+        rate: f64,
+    },
+    /// Memory usage approaching limits
+    MemoryExhaustion {
+        /// Current memory usage in megabytes
+        usage_mb: f64,
+    },
+    /// Data quality below acceptable standards
+    DataQualityIssue {
+        /// Quality score (0.0 to 1.0, lower is worse)
+        score: f64,
+    },
 }
 
 /// Production monitoring system
@@ -1145,9 +1169,13 @@ pub struct AnomalyRecord {
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone, PartialEq)]
 pub enum AnomalySeverity {
+    /// Low severity - informational anomaly
     Low,
+    /// Medium severity - notable deviation
     Medium,
+    /// High severity - significant anomaly requiring attention
     High,
+    /// Critical severity - severe anomaly requiring immediate action
     Critical,
 }
 
@@ -1180,8 +1208,11 @@ impl Default for AnomalyThresholds {
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct TimeSeriesPoint {
+    /// Unix timestamp in milliseconds
     pub timestamp: u64,
+    /// Numeric value at this timestamp
     pub value: f64,
+    /// Additional metadata key-value pairs
     pub metadata: HashMap<String, String>,
 }
 
@@ -1189,54 +1220,79 @@ pub struct TimeSeriesPoint {
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct IsolationForestConfig {
+    /// Number of isolation trees in the forest
     pub n_trees: usize,
+    /// Expected proportion of outliers (0.0 to 0.5)
     pub contamination: f64,
+    /// Maximum number of samples to use per tree
     pub max_samples: usize,
 }
 
+/// Configuration for One-Class SVM anomaly detection
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct OneClassSVMConfig {
+    /// Upper bound on the fraction of training errors (0 < nu <= 1)
     pub nu: f64,
+    /// Kernel coefficient for RBF kernel
     pub gamma: f64,
+    /// Kernel type (e.g., "rbf", "linear", "poly")
     pub kernel: String,
 }
 
+/// Configuration for Local Outlier Factor (LOF) detection
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct LOFConfig {
+    /// Number of neighbors to use for LOF computation
     pub n_neighbors: usize,
+    /// Expected proportion of outliers in the dataset
     pub contamination: f64,
 }
 
+/// Configuration for ARIMA (AutoRegressive Integrated Moving Average) model
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct ARIMAConfig {
-    pub p: usize, // AR order
-    pub d: usize, // Differencing order
-    pub q: usize, // MA order
+    /// Order of the autoregressive (AR) component
+    pub p: usize,
+    /// Degree of differencing (integration order)
+    pub d: usize,
+    /// Order of the moving average (MA) component
+    pub q: usize,
 }
 
+/// Configuration for seasonal time series decomposition
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct SeasonalConfig {
+    /// Length of the seasonal cycle (e.g., 12 for monthly data with yearly seasonality)
     pub seasonal_period: usize,
+    /// Whether to include trend component in decomposition
     pub trend_component: bool,
+    /// Whether to include seasonal component in decomposition
     pub seasonal_component: bool,
 }
 
+/// Configuration for change point detection
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct ChangePointConfig {
+    /// Size of the sliding window for detection
     pub window_size: usize,
+    /// Statistical significance level threshold
     pub significance_level: f64,
 }
 
+/// Time series forecasting model configuration
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct ForecastModel {
+    /// Model coefficients for prediction
     pub coefficients: Vec<f64>,
+    /// Number of time steps to forecast ahead
     pub forecast_horizon: usize,
+    /// Confidence interval for predictions (e.g., 0.95 for 95%)
     pub confidence_interval: f64,
 }
 
@@ -1807,12 +1863,19 @@ impl TimeSeriesAnomalyDetector {
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct AnomalyInsights {
+    /// Total number of detected anomalies
     pub total_anomalies: usize,
+    /// Number of critical severity anomalies
     pub critical_anomalies: usize,
+    /// Rate of anomalies relative to total data points
     pub anomaly_rate: f64,
+    /// Frequency count of anomalies per metric name
     pub metric_frequencies: HashMap<String, usize>,
+    /// Frequency count of anomalies per detection method
     pub method_frequencies: HashMap<String, usize>,
+    /// Metrics with increasing anomaly trends
     pub trending_metrics: Vec<String>,
+    /// Metric with the highest anomaly count
     pub most_anomalous_metric: Option<String>,
 }
 
@@ -1820,18 +1883,27 @@ pub struct AnomalyInsights {
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub struct AnomalyFeedback {
+    /// Unique identifier for the anomaly
     pub anomaly_id: String,
+    /// Type of feedback (false positive, false negative, confirmed)
     pub feedback_type: FeedbackType,
+    /// Detection method that identified this anomaly
     pub detection_method: String,
+    /// Name of the metric that triggered detection
     pub metric_name: String,
+    /// Unix timestamp when feedback was provided
     pub timestamp: u64,
 }
 
+/// Type of feedback for anomaly detection accuracy
 #[cfg(feature = "monitoring")]
 #[derive(Debug, Clone)]
 pub enum FeedbackType {
+    /// Detection was incorrect (false alarm)
     FalsePositive,
+    /// Anomaly was missed by detection
     FalseNegative,
+    /// Detection correctly identified an anomaly
     ConfirmedAnomaly,
 }
 

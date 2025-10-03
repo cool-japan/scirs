@@ -4,9 +4,9 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::{fft, ifft};
-use num_complex::Complex64;
-use num_traits::NumCast;
-use rand::{Rng, SeedableRng};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
+use scirs2_core::random::{Rng, SeedableRng};
 use std::fmt::Debug;
 use std::time::Instant;
 
@@ -34,14 +34,14 @@ pub struct SparseFFT {
     /// Configuration
     config: SparseFFTConfig,
     /// Random number generator
-    rng: rand::rngs::StdRng,
+    rng: scirs2_core::random::rngs::StdRng,
 }
 
 impl SparseFFT {
     /// Create a new sparse FFT processor with the given configuration
     pub fn new(config: SparseFFTConfig) -> Self {
-        let seed = config.seed.unwrap_or_else(rand::random);
-        let rng = rand::rngs::StdRng::seed_from_u64(seed);
+        let seed = config.seed.unwrap_or_else(scirs2_core::random::random);
+        let rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
 
         Self { config, rng }
     }

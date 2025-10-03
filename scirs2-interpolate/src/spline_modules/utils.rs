@@ -15,8 +15,8 @@
 //! and root-finding routines, but may also be useful for custom spline operations.
 
 use crate::traits::InterpolationFloat;
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 
 /// Integrate a cubic polynomial segment from a to b
 ///

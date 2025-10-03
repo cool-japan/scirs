@@ -1,8 +1,8 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array1, Array2, Ix1, Ix2};
-use num_traits::FromPrimitive;
+use scirs2_core::ndarray::{Array1, Array2, Ix1, Ix2};
+use scirs2_core::numeric::FromPrimitive;
 
 /// Conjugate Gradient solver for symmetric positive definite systems
 pub struct ConjugateGradientOp {
@@ -10,7 +10,7 @@ pub struct ConjugateGradientOp {
     tolerance: Option<f64>,
 }
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for ConjugateGradientOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for ConjugateGradientOp {
     fn name(&self) -> &'static str {
         "ConjugateGradient"
     }
@@ -136,7 +136,7 @@ pub struct GMRESOp {
     tolerance: Option<f64>,
 }
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for GMRESOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for GMRESOp {
     fn name(&self) -> &'static str {
         "GMRES"
     }
@@ -190,7 +190,7 @@ pub struct BiCGSTABOp {
     tolerance: Option<f64>,
 }
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for BiCGSTABOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for BiCGSTABOp {
     fn name(&self) -> &'static str {
         "BiCGSTAB"
     }
@@ -251,7 +251,7 @@ pub enum PreconditionerType {
     IncompleteCholesky,
 }
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for PCGOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for PCGOp {
     fn name(&self) -> &'static str {
         "PCG"
     }
@@ -290,9 +290,9 @@ impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for PCGOp {
 
 /// Conjugate Gradient implementation
 #[allow(dead_code)]
-fn conjugate_gradient<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
+fn conjugate_gradient<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView1<F>,
     max_iter: usize,
     tolerance: Option<f64>,
 ) -> Result<Array1<F>, OpError> {
@@ -333,9 +333,9 @@ fn conjugate_gradient<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// GMRES implementation
 #[allow(dead_code)]
-fn gmres<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
+fn gmres<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView1<F>,
     max_iter: usize,
     restart: usize,
     tolerance: Option<f64>,
@@ -387,7 +387,10 @@ fn gmres<F: Float + ndarray::ScalarOperand + FromPrimitive>(
         let mut e1 = Array1::<F>::zeros(j + 1);
         e1[0] = beta;
 
-        let y = solve_least_squares(&h.slice(ndarray::s![..j + 1, ..j]).to_owned(), &e1)?;
+        let y = solve_least_squares(
+            &h.slice(scirs2_core::ndarray::s![..j + 1, ..j]).to_owned(),
+            &e1,
+        )?;
 
         // Update solution
         for i in 0..j {
@@ -400,9 +403,9 @@ fn gmres<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// BiCGSTAB implementation
 #[allow(dead_code)]
-fn bicgstab<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
+fn bicgstab<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView1<F>,
     max_iter: usize,
     tolerance: Option<f64>,
 ) -> Result<Array1<F>, OpError> {
@@ -460,9 +463,9 @@ fn bicgstab<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Preconditioned Conjugate Gradient
 #[allow(dead_code)]
-fn pcg<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
+fn pcg<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView1<F>,
     m_inv: &Array2<F>,
     max_iter: usize,
     tolerance: Option<f64>,
@@ -502,8 +505,8 @@ fn pcg<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Build preconditioner
 #[allow(dead_code)]
-fn build_preconditioner<F: Float + ndarray::ScalarOperand>(
-    a: &ndarray::ArrayView2<F>,
+fn build_preconditioner<F: Float + scirs2_core::ndarray::ScalarOperand>(
+    a: &scirs2_core::ndarray::ArrayView2<F>,
     preconditioner_type: PreconditionerType,
 ) -> Result<Array2<F>, OpError> {
     let n = a.shape()[0];
@@ -577,8 +580,8 @@ fn solve_least_squares<F: Float>(a: &Array2<F>, b: &Array1<F>) -> Result<Array1<
 /// Solve using Cholesky decomposition
 #[allow(dead_code)]
 fn solve_cholesky<F: Float>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView1<F>,
 ) -> Result<Array1<F>, OpError> {
     let n = a.shape()[0];
     let mut l = Array2::<F>::zeros((n, n));
@@ -629,7 +632,10 @@ fn solve_cholesky<F: Float>(
 
 /// Outer product of two vectors
 #[allow(dead_code)]
-fn outer_product<F: Float>(u: &ndarray::ArrayView1<F>, v: &ndarray::ArrayView1<F>) -> Array2<F> {
+fn outer_product<F: Float>(
+    u: &scirs2_core::ndarray::ArrayView1<F>,
+    v: &scirs2_core::ndarray::ArrayView1<F>,
+) -> Array2<F> {
     let m = u.len();
     let n = v.len();
     let mut result = Array2::<F>::zeros((m, n));
@@ -647,7 +653,10 @@ fn outer_product<F: Float>(u: &ndarray::ArrayView1<F>, v: &ndarray::ArrayView1<F
 
 /// Solve Ax = b using Conjugate Gradient (for symmetric positive definite A)
 #[allow(dead_code)]
-pub fn conjugate_gradient_solve<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn conjugate_gradient_solve<
+    'g,
+    F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive,
+>(
     a: &Tensor<'g, F>,
     b: &Tensor<'g, F>,
     max_iter: usize,
@@ -666,7 +675,7 @@ pub fn conjugate_gradient_solve<'g, F: Float + ndarray::ScalarOperand + FromPrim
 
 /// Solve Ax = b using GMRES (for general matrices)
 #[allow(dead_code)]
-pub fn gmres_solve<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn gmres_solve<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     a: &Tensor<'g, F>,
     b: &Tensor<'g, F>,
     max_iter: usize,
@@ -687,7 +696,7 @@ pub fn gmres_solve<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Solve Ax = b using BiCGSTAB (for general matrices)
 #[allow(dead_code)]
-pub fn bicgstab_solve<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn bicgstab_solve<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     a: &Tensor<'g, F>,
     b: &Tensor<'g, F>,
     max_iter: usize,
@@ -706,7 +715,7 @@ pub fn bicgstab_solve<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Solve Ax = b using Preconditioned Conjugate Gradient
 #[allow(dead_code)]
-pub fn pcg_solve<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn pcg_solve<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     a: &Tensor<'g, F>,
     b: &Tensor<'g, F>,
     max_iter: usize,

@@ -3,7 +3,7 @@
 //! This module provides advanced vectorized string operations using intrinsics
 //! and high-performance algorithms.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Advanced SIMD vectorized string operations using intrinsics
 pub struct VectorizedStringOps;
@@ -212,6 +212,6 @@ impl SimdParallelProcessor {
     /// Parallel text analysis
     pub fn parallel_text_analysis(texts: &[&str]) -> Vec<super::text_analysis::TextAnalysisResult> {
         use super::text_analysis::SimdTextAnalyzer;
-        Self::parallel_process(texts, |text| SimdTextAnalyzer::analyze_text(text))
+        Self::parallel_process(texts, SimdTextAnalyzer::analyze_text)
     }
 }

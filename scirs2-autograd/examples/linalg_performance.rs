@@ -1,6 +1,6 @@
 use ag::tensor_ops::*;
-use ndarray::Array2;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::Array2;
 use std::time::Instant;
 
 macro_rules! benchmark {
@@ -25,7 +25,9 @@ fn main() {
             println!("\n--- Matrix size: {}x{} ---", n, n);
 
             // Generate random positive definite matrix
-            let random_data: Vec<f64> = (0..n * n).map(|_| rand::random::<f64>()).collect();
+            let random_data: Vec<f64> = (0..n * n)
+                .map(|_| scirs2_core::random::random::<f64>())
+                .collect();
             let a_raw = Array2::from_shape_vec((n, n), random_data).unwrap();
             let a_sym = &a_raw + &a_raw.t();
             let a_pd = &a_sym + Array2::eye(n) * (n as f64);

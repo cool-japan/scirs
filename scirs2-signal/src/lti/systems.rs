@@ -8,8 +8,8 @@
 // All system representations implement the `LtiSystem` trait for common operations.
 
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
-use num_traits::Zero;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Zero;
 
 #[allow(unused_imports)]
 /// A trait for all LTI system representations
@@ -432,7 +432,7 @@ impl LtiSystem for TransferFunction {
 ///
 /// ```rust
 /// use scirs2_signal::lti::systems::ZerosPoleGain;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Create H(s) = 2 * (s + 1) / (s + 2)
 /// let zpk = ZerosPoleGain::new(
@@ -475,7 +475,7 @@ impl ZerosPoleGain {
     ///
     /// ```rust
     /// use scirs2_signal::lti::systems::ZerosPoleGain;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// // Create a simple first-order continuous-time system: H(s) = 1 / (s + 1)
     /// let zpk = ZerosPoleGain::new(

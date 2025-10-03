@@ -184,14 +184,14 @@ impl NASController {
                 impl crate::layers::Layer<f32> for FlattenLayer {
                     fn forward(
                         &self,
-                        input: &ndarray::ArrayD<f32>,
-                    ) -> Result<ndarray::ArrayD<f32>> {
+                        input: &scirs2_core::ndarray::ArrayD<f32>,
+                    ) -> Result<scirs2_core::ndarray::ArrayD<f32>> {
                         let batch_size = input.shape()[0];
                         let flattened_size: usize = input.shape()[1..].iter().product();
                         Ok(input.clone().into_shape(vec![batch_size, flattened_size])?)
                     fn backward(
-                        _input: &ndarray::ArrayD<f32>,
-                        grad_output: &ndarray::ArrayD<f32>,
+                        _input: &scirs2_core::ndarray::ArrayD<f32>,
+                        grad_output: &scirs2_core::ndarray::ArrayD<f32>,
                         Ok(grad_output.clone())
                     fn update(&mut self, learningrate: f32) -> Result<()> {
                         Ok(())
@@ -259,10 +259,10 @@ impl NASController {
                 struct ReshapeLayer {
                     targetshape: Vec<i32>,
                 impl<
-                        F: num_traits:: Float + std::fmt::Debug + ndarray::ScalarOperand + Send + Sync,
+                        F: num_traits:: Float + std::fmt::Debug + scirs2_core::ndarray::ScalarOperand + Send + Sync,
                     > crate::layers::Layer<F> for ReshapeLayer
                 {
-                    fn forward(&self, input: &ndarray::ArrayD<F>) -> Result<ndarray::ArrayD<F>> {
+                    fn forward(&self, input: &scirs2_core::ndarray::ArrayD<F>) -> Result<scirs2_core::ndarray::ArrayD<F>> {
                         let mut newshape = vec![batch_size];
                         for &dim in &self.targetshape {
                             if dim < 0 {
@@ -282,9 +282,9 @@ impl NASController {
                             }
                         }
                         Ok(input.clone().into_shape(newshape)?)
-                        _input: &ndarray::ArrayD<F>,
-                        grad_output: &ndarray::ArrayD<F>,
-                    ) -> Result<ndarray::ArrayD<F>> {
+                        _input: &scirs2_core::ndarray::ArrayD<F>,
+                        grad_output: &scirs2_core::ndarray::ArrayD<F>,
+                    ) -> Result<scirs2_core::ndarray::ArrayD<F>> {
                     fn update(&mut self, learningrate: F) -> Result<()> {
                         "Reshape"
                 Ok(Box::new(ReshapeLayer {

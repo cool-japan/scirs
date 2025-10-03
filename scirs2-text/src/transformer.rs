@@ -51,7 +51,7 @@
 //!
 //! ```rust
 //! use scirs2_text::transformer::MultiHeadAttention;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let d_model = 512;
 //! let nheads = 8;
@@ -66,7 +66,7 @@
 //!
 //! ```rust
 //! use scirs2_text::transformer::PositionalEncoding;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let d_model = 512;
 //! let max_len = 1000;
@@ -84,7 +84,7 @@
 //!
 //! ```rust
 //! use scirs2_text::transformer::{TransformerEncoder, TransformerConfig};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let config = TransformerConfig {
 //!     d_model: 256,
@@ -106,7 +106,7 @@
 //!
 //! ```rust
 //! use scirs2_text::transformer::MultiHeadAttention;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let mut attention = MultiHeadAttention::new(512, 8).unwrap();
 //!
@@ -196,8 +196,8 @@
 //! 5. **Weight Initialization**: Use Xavier/Glorot initialization for stability
 
 use crate::error::{Result, TextError};
-use ndarray::{s, Array1, Array2, Array3, ArrayView2};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2};
+use scirs2_core::random::Rng;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -293,7 +293,7 @@ pub struct MultiHeadAttention {
 impl MultiHeadAttention {
     /// Create new multi-head attention layer
     pub fn new(d_model: usize, nheads: usize) -> Result<Self> {
-        if d_model % nheads != 0 {
+        if !d_model.is_multiple_of(nheads) {
             return Err(TextError::InvalidInput(
                 "d_model must be divisible by nheads".to_string(),
             ));
@@ -305,16 +305,16 @@ impl MultiHeadAttention {
         let scale = (2.0 / d_model as f64).sqrt();
 
         let w_q = Array2::from_shape_fn((d_model, d_model), |_| {
-            rand::rng().random_range(-scale..scale)
+            scirs2_core::random::rng().random_range(-scale..scale)
         });
         let w_k = Array2::from_shape_fn((d_model, d_model), |_| {
-            rand::rng().random_range(-scale..scale)
+            scirs2_core::random::rng().random_range(-scale..scale)
         });
         let w_v = Array2::from_shape_fn((d_model, d_model), |_| {
-            rand::rng().random_range(-scale..scale)
+            scirs2_core::random::rng().random_range(-scale..scale)
         });
         let w_o = Array2::from_shape_fn((d_model, d_model), |_| {
-            rand::rng().random_range(-scale..scale)
+            scirs2_core::random::rng().random_range(-scale..scale)
         });
 
         Ok(Self {
@@ -489,8 +489,12 @@ impl FeedForward {
     pub fn new(_dmodel: usize, dff: usize) -> Self {
         let scale = (2.0 / _dmodel as f64).sqrt();
 
-        let w1 = Array2::from_shape_fn((_dmodel, dff), |_| rand::rng().random_range(-scale..scale));
-        let w2 = Array2::from_shape_fn((dff, _dmodel), |_| rand::rng().random_range(-scale..scale));
+        let w1 = Array2::from_shape_fn((_dmodel, dff), |_| {
+            scirs2_core::random::rng().random_range(-scale..scale)
+        });
+        let w2 = Array2::from_shape_fn((dff, _dmodel), |_| {
+            scirs2_core::random::rng().random_range(-scale..scale)
+        });
         let b1 = Array1::zeros(dff);
         let b2 = Array1::zeros(_dmodel);
 
@@ -849,7 +853,7 @@ impl TokenEmbedding {
     pub fn new(_vocab_size: usize, dmodel: usize) -> Self {
         let scale = (1.0 / dmodel as f64).sqrt();
         let embeddings = Array2::from_shape_fn((_vocab_size, dmodel), |_| {
-            rand::rng().random_range(-scale..scale)
+            scirs2_core::random::rng().random_range(-scale..scale)
         });
 
         Self {

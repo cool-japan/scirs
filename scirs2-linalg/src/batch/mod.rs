@@ -4,8 +4,10 @@
 //! which is especially useful for machine learning applications such as mini-batch
 //! gradient descent, convolutional neural networks, and transformer models.
 
-use ndarray::{Array, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{
+    Array, Array2, Array3, ArrayView1, ArrayView2, ArrayView3, Axis, ScalarOperand,
+};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -33,7 +35,7 @@ pub use attention::{
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array3};
+/// use scirs2_core::ndarray::{array, Array3};
 /// use scirs2_linalg::batch::batch_matmul;
 ///
 /// // Create a batch of 2 matrices, each 2x2
@@ -110,7 +112,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array3};
+/// use scirs2_core::ndarray::{array, Array3};
 /// use scirs2_linalg::batch::batch_matvec;
 ///
 /// // Create a batch of 2 matrices, each 2x2
@@ -187,7 +189,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array3, Axis};
+/// use scirs2_core::ndarray::{array, Array3, Axis};
 /// use scirs2_linalg::batch::batch_add;
 ///
 /// // Create a batch of 2 matrices, each 2x2
@@ -302,7 +304,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array3};
+/// use scirs2_core::ndarray::{array, Array3};
 /// use scirs2_linalg::batch::batch_sum;
 ///
 /// // Create a batch of 2 matrices, each 2x2
@@ -335,7 +337,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Array3};
+    use scirs2_core::ndarray::{array, Array3};
 
     #[test]
     fn test_batch_matmul() {

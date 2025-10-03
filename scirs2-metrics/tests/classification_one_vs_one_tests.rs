@@ -1,5 +1,5 @@
 use approx::assert_abs_diff_eq;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_metrics::classification::one_vs_one::{
     one_vs_one_accuracy, one_vs_one_f1_score, one_vs_one_precision_recall,
     weighted_one_vs_one_f1_score,
@@ -34,8 +34,8 @@ fn test_one_vs_one_accuracy() {
     assert!(one_vs_one_accuracy(&y_true_4, &y_pred_4).is_err());
 
     // Test case 5: Empty arrays
-    let y_true_5: ndarray::Array1<i32> = array![];
-    let y_pred_5: ndarray::Array1<i32> = array![];
+    let y_true_5: scirs2_core::ndarray::Array1<i32> = array![];
+    let y_pred_5: scirs2_core::ndarray::Array1<i32> = array![];
     assert!(one_vs_one_accuracy(&y_true_5, &y_pred_5).is_err());
 }
 
@@ -151,8 +151,8 @@ fn test_edge_cases() {
     assert!(weighted_one_vs_one_f1_score(&y_true_1, &y_pred_1).is_err());
 
     // Empty arrays
-    let y_true_2: ndarray::Array1<i32> = array![];
-    let y_pred_2: ndarray::Array1<i32> = array![];
+    let y_true_2: scirs2_core::ndarray::Array1<i32> = array![];
+    let y_pred_2: scirs2_core::ndarray::Array1<i32> = array![];
 
     assert!(one_vs_one_accuracy(&y_true_2, &y_pred_2).is_err());
     assert!(one_vs_one_precision_recall(&y_true_2, &y_pred_2).is_err());

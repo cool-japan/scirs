@@ -118,7 +118,7 @@ impl<F: Float> StepLR<F> {
     /// # Returns
     /// `true` if learning rate should decay at this step
     pub fn should_decay_at_step(&self, step: usize) -> bool {
-        step > 0 && step % self.step_size == 0
+        step > 0 && step.is_multiple_of(self.step_size)
     }
 }
 

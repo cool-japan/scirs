@@ -5,7 +5,7 @@
 
 use super::models::SGSModel as SGSModelTrait;
 use crate::error::IntegrateResult;
-use ndarray::{Array2, Array3, Array4};
+use scirs2_core::ndarray::{Array2, Array3, Array4};
 
 /// Subgrid-scale models for LES
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -370,8 +370,9 @@ impl LESolver {
     fn compute_strain_rate_tensor_3d(
         &self,
         state: &FluidState3D,
-    ) -> IntegrateResult<ndarray::Array5<f64>> {
-        let mut strain_rate = ndarray::Array5::zeros((3, 3, self.nx, self.ny, self.nz));
+    ) -> IntegrateResult<scirs2_core::ndarray::Array5<f64>> {
+        let mut strain_rate =
+            scirs2_core::ndarray::Array5::zeros((3, 3, self.nx, self.ny, self.nz));
 
         // Compute derivatives using central differences
         for i in 1..(self.nx - 1) {
@@ -432,8 +433,8 @@ impl LESolver {
     fn compute_velocity_gradient_3d(
         &self,
         state: &FluidState3D,
-    ) -> IntegrateResult<ndarray::Array5<f64>> {
-        let mut grad_u = ndarray::Array5::zeros((3, 3, self.nx, self.ny, self.nz));
+    ) -> IntegrateResult<scirs2_core::ndarray::Array5<f64>> {
+        let mut grad_u = scirs2_core::ndarray::Array5::zeros((3, 3, self.nx, self.ny, self.nz));
 
         // Compute derivatives using central differences
         for i in 1..(self.nx - 1) {
@@ -541,8 +542,8 @@ impl LESolver {
     fn compute_dynamic_coefficient(
         &self,
         leonard: &Array4<f64>,
-        strain_rate: &ndarray::Array5<f64>,
-        filtered_strain: &ndarray::Array5<f64>,
+        strain_rate: &scirs2_core::ndarray::Array5<f64>,
+        filtered_strain: &scirs2_core::ndarray::Array5<f64>,
         i: usize,
         j: usize,
         k: usize,

@@ -28,8 +28,8 @@
 #![allow(dead_code)]
 
 use crate::{SpecialError, SpecialResult};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::validation::{check_finite, check_positive};
 use std::fmt::{Debug, Display};
 
@@ -242,7 +242,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_special::boxcox_array;
 ///
 /// let x = array![1.0, 2.0, 4.0, 8.0];
@@ -312,7 +312,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_boxcox_basic() {

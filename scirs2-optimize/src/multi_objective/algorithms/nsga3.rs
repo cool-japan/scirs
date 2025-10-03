@@ -5,7 +5,7 @@
 use super::{MultiObjectiveOptimizer, MultiObjectiveResult};
 use crate::error::OptimizeError;
 use crate::multi_objective::solutions::{Population, Solution};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// NSGA-III optimizer for many-objective optimization
 #[derive(Debug, Clone)]

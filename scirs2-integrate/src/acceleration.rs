@@ -15,7 +15,7 @@
 //!
 //! ```
 //! use scirs2_integrate::acceleration::{AndersonAccelerator, AcceleratorOptions};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! // Create accelerator for 3D problem with memory depth 5
 //! let mut accelerator = AndersonAccelerator::new(3, AcceleratorOptions::default());
@@ -32,7 +32,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::collections::VecDeque;
 
 /// Options for acceleration methods
@@ -140,7 +140,7 @@ impl<F: IntegrateFloat> AndersonAccelerator<F> {
 
         // Check if we should restart
         if let Some(restart_period) = self.options.restart_period {
-            if self.iteration_count % restart_period == 0 {
+            if self.iteration_count.is_multiple_of(restart_period) {
                 self.restart();
                 return Some(g_x_current.to_owned());
             }

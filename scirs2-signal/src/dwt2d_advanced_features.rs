@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Advanced features for 2D Discrete Wavelet Transform
 //
 // This module provides additional advanced features for 2D DWT including:
@@ -12,8 +12,8 @@ use ndarray::s;
 use crate::dwt::Wavelet;
 use crate::dwt2d_enhanced::{enhanced_dwt2d_decompose, BoundaryMode, Dwt2dConfig};
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
-use rand::Rng;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::Rng;
 use scirs2_core::validation::checkarray_finite;
 use statrs::statistics::Statistics;
 
@@ -925,7 +925,7 @@ mod tests {
         });
 
         // Add noise
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let noisy_image = clean_image.mapv(|x| x + 0.1 * rng.gen_range(-1.0..1.0));
 
         let config = AdvancedWaveletConfig::default();

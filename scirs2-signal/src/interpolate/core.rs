@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Core configuration and dispatch logic for interpolation algorithms
 //
 // This module provides the common types, configuration structures, and dispatch
@@ -8,7 +8,7 @@ use super::basic::{linear_interpolate, nearest_neighbor_interpolate};
 use super::spectral::{sinc_interpolate, spectral_interpolate};
 use super::spline::{cubic_hermite_interpolate, cubic_spline_interpolate};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[allow(unused_imports)]
 // Import the specific interpolation functions from their respective modules

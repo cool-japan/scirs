@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Advanced Enhanced SIMD Operations for Signal Processing
 //
 // This module provides the most impactful SIMD optimizations that were missing
@@ -8,9 +8,9 @@ use ndarray::s;
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use crate::simd_advanced::SimdConfig;
-use ndarray::{Array1, Array2, Axis};
-use num_complex::Complex64;
-use num_traits::{Float, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, Zero};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 

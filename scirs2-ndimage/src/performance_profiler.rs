@@ -9,8 +9,8 @@ use std::sync::{Arc, Mutex, RwLock};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use ndarray::{Array, ArrayView, Dimension, IxDyn};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::error::NdimageResult;
 
@@ -782,7 +782,7 @@ fn calculate_throughput(array_size: &[usize], executiontime: Duration) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_profiler_creation() {

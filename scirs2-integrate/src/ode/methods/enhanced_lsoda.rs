@@ -14,7 +14,7 @@ use crate::ode::utils::common::{
 use crate::ode::utils::stiffness::integration::{AdaptiveMethodState, AdaptiveMethodType};
 use crate::ode::utils::stiffness::StiffnessDetectionConfig;
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Enhanced LSODA method state information
 struct EnhancedLsodaState<F: IntegrateFloat> {

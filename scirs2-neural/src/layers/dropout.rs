@@ -6,9 +6,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::{Rng, RngCore, SeedableRng};
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::{Rng, RngCore, SeedableRng};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
@@ -46,7 +46,7 @@ impl<F: Float + Debug + Send + Sync> std::fmt::Debug for Dropout<F> {
 // Manual implementation of Clone
 impl<F: Float + Debug + Send + Sync> Clone for Dropout<F> {
     fn clone(&self) -> Self {
-        let rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         Self {
             p: self.p,
             rng: Arc::new(RwLock::new(Box::new(rng))),

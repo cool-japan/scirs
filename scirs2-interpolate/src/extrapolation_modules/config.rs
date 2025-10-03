@@ -3,7 +3,7 @@
 //! This module contains all configuration-related types used to customize
 //! extrapolation behavior across different methods and scenarios.
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 
 use super::types::{ARFittingMethod, AdaptiveSelectionCriterion, EnsembleCombinationStrategy};

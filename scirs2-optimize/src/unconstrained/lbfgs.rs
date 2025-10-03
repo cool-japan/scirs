@@ -3,7 +3,7 @@
 use crate::error::OptimizeError;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::{Bounds, Options};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Implements the L-BFGS-B algorithm for bound-constrained optimization
 #[allow(dead_code)]

@@ -13,7 +13,7 @@ impl DistributedLinalgOps {
         b: &DistributedMatrix<T>,
     ) -> LinalgResult<DistributedMatrix<T>>
     where
-        T: num_traits::Float + Send + Sync + 'static,
+        T: scirs2_core::numeric::Float + Send + Sync + 'static,
     {
         // Check matrix dimensions
         let (m, k) = a.global_shape();
@@ -36,7 +36,7 @@ impl DistributedLinalgOps {
         b: &DistributedMatrix<T>,
     ) -> LinalgResult<DistributedMatrix<T>>
     where
-        T: num_traits::Float + Send + Sync + 'static,
+        T: scirs2_core::numeric::Float + Send + Sync + 'static,
     {
         // Check matrix dimensions
         if a.global_shape() != b.global_shape() {
@@ -56,7 +56,7 @@ impl DistributedLinalgOps {
         matrix: &DistributedMatrix<T>,
     ) -> LinalgResult<DistributedMatrix<T>>
     where
-        T: num_traits::Float + Send + Sync + 'static,
+        T: scirs2_core::numeric::Float + Send + Sync + 'static,
     {
         matrix.transpose()
     }
@@ -67,7 +67,7 @@ impl DistributedLinalgOps {
         b: &DistributedVector<T>,
     ) -> LinalgResult<DistributedVector<T>>
     where
-        T: num_traits::Float + Send + Sync + 'static,
+        T: scirs2_core::numeric::Float + Send + Sync + 'static,
     {
         solvers::solve_linear_system(a, b)
     }
@@ -77,7 +77,7 @@ impl DistributedLinalgOps {
         matrix: &DistributedMatrix<T>,
     ) -> LinalgResult<(DistributedMatrix<T>, DistributedMatrix<T>)>
     where
-        T: num_traits::Float + Send + Sync + 'static,
+        T: scirs2_core::numeric::Float + Send + Sync + 'static,
     {
         decomposition::lu_decomposition(matrix)
     }
@@ -87,7 +87,7 @@ impl DistributedLinalgOps {
         matrix: &DistributedMatrix<T>,
     ) -> LinalgResult<(DistributedMatrix<T>, DistributedMatrix<T>)>
     where
-        T: num_traits::Float + Send + Sync + 'static,
+        T: scirs2_core::numeric::Float + Send + Sync + 'static,
     {
         decomposition::qr_decomposition(matrix)
     }

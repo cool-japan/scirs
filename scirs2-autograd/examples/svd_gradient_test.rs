@@ -1,6 +1,6 @@
 use ag::tensor_ops::*;
-use ndarray::{array, Array2, Ix2};
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::{array, Array2, Ix2};
 
 #[allow(dead_code)]
 fn main() {

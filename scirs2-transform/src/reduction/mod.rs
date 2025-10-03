@@ -16,8 +16,8 @@ pub use crate::reduction::spectral_embedding::{AffinityMethod, SpectralEmbedding
 pub use crate::reduction::tsne::{trustworthiness, TSNE};
 pub use crate::reduction::umap::UMAP;
 
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_linalg::svd;
 
 use crate::error::{Result, TransformError};
@@ -84,7 +84,7 @@ impl PCA {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -174,7 +174,7 @@ impl PCA {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -311,7 +311,7 @@ impl TruncatedSVD {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -369,7 +369,7 @@ impl TruncatedSVD {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -504,7 +504,7 @@ impl LDA {
         S1::Elem: Float + NumCast,
         S2::Elem: Copy + NumCast + Eq + std::hash::Hash,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S1::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -527,7 +527,7 @@ impl LDA {
         let mut next_class_idx = 0;
 
         for &label in y.iter() {
-            let label_u64 = num_traits::cast::<S2::Elem, u64>(label).unwrap_or(0);
+            let label_u64 = NumCast::from(label).unwrap_or(0);
 
             if let std::collections::hash_map::Entry::Vacant(e) = class_map.entry(label_u64) {
                 e.insert(next_class_idx);
@@ -785,7 +785,7 @@ impl LDA {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -866,7 +866,7 @@ impl LDA {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_pca_transform() {

@@ -10,7 +10,7 @@
 //!
 //! # Example
 //! ```
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_signal::parametric::{ar_spectrum, burg_method};
 //!
 //! // Create a signal with spectral peaks
@@ -72,8 +72,8 @@ pub use robust_estimation::{
 };
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::validation::{check_finite, check_positive};
 use statrs::statistics::Statistics;
 use std::collections::HashMap;

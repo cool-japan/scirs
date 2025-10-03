@@ -1,7 +1,7 @@
 //! Tests for scirs2-neural integration
 
 use approx::assert_abs_diff_eq;
-use ndarray::{array, Ix1};
+use scirs2_core::ndarray::{array, Ix1};
 use scirs2_metrics::classification::{accuracy_score, f1_score, precision_score, recall_score};
 use scirs2_metrics::integration::neural::{
     neural_confusion_matrix_visualization, neural_precision_recall_curve_visualization,

@@ -3,9 +3,9 @@
 //! This module provides optimized implementations of common transformation algorithms
 //! with memory efficiency, SIMD acceleration, and adaptive processing strategies.
 
-use ndarray::{par_azip, Array1, Array2, ArrayView2, Axis};
-use rand::Rng;
+use scirs2_core::ndarray::{par_azip, Array1, Array2, ArrayView2, Axis};
 use scirs2_core::parallel_ops::*;
+use scirs2_core::random::Rng;
 use scirs2_core::validation::{check_not_empty, check_positive};
 
 use crate::error::{Result, TransformError};
@@ -81,7 +81,7 @@ impl EnhancedStandardScaler {
         let mut count = 0;
 
         for (start_idx, end_idx) in chunker.chunk_indices(n_samples, n_features) {
-            let chunk = x.slice(ndarray::s![start_idx..end_idx, ..]);
+            let chunk = x.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
 
             for row in chunk.rows().into_iter() {
                 count += 1;
@@ -214,7 +214,7 @@ impl EnhancedStandardScaler {
 
             // Collect column data in chunks
             for (start_idx, end_idx) in chunker.chunk_indices(x.nrows(), 1) {
-                let chunk = x.slice(ndarray::s![start_idx..end_idx, j..j + 1]);
+                let chunk = x.slice(scirs2_core::ndarray::s![start_idx..end_idx, j..j + 1]);
                 column_data.extend(chunk.iter().copied());
             }
 
@@ -287,12 +287,12 @@ impl EnhancedStandardScaler {
         let chunker = DataChunker::new(self.memory_limitmb);
 
         for (start_idx, end_idx) in chunker.chunk_indices(n_samples, n_features) {
-            let chunk = x.slice(ndarray::s![start_idx..end_idx, ..]);
+            let chunk = x.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
             let transformed_chunk =
                 (&chunk - &means.view().insert_axis(Axis(0))) / stds.view().insert_axis(Axis(0));
 
             result
-                .slice_mut(ndarray::s![start_idx..end_idx, ..])
+                .slice_mut(scirs2_core::ndarray::s![start_idx..end_idx, ..])
                 .assign(&transformed_chunk);
         }
 
@@ -472,7 +472,7 @@ impl EnhancedPCA {
 
         // First pass: compute mean
         for (start_idx, end_idx) in chunker.chunk_indices(n_samples, n_features) {
-            let chunk = x.slice(ndarray::s![start_idx..end_idx, ..]);
+            let chunk = x.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
             let chunk_mean = chunk.mean_axis(Axis(0)).unwrap();
             let chunksize = end_idx - start_idx;
 
@@ -517,7 +517,7 @@ impl EnhancedPCA {
 
         // Process data in chunks using incremental SVD algorithm
         for (start_idx, end_idx) in chunker.chunk_indices(n_samples, n_features) {
-            let chunk = x.slice(ndarray::s![start_idx..end_idx, ..]);
+            let chunk = x.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
             let chunk_size_actual = end_idx - start_idx;
 
             // Center the chunk
@@ -550,7 +550,7 @@ impl EnhancedPCA {
         self.components = Some(
             vt.t()
                 .to_owned()
-                .slice(ndarray::s![.., ..self.n_components])
+                .slice(scirs2_core::ndarray::s![.., ..self.n_components])
                 .to_owned(),
         );
 
@@ -605,12 +605,12 @@ impl EnhancedPCA {
             // Stack existing U with identity for new samples
             let mut new_u = Array2::zeros((u.nrows() + chunk_rows, u.ncols() + q_residual.ncols()));
             new_u
-                .slice_mut(ndarray::s![..u.nrows(), ..u.ncols()])
+                .slice_mut(scirs2_core::ndarray::s![..u.nrows(), ..u.ncols()])
                 .assign(u);
             // Add new orthogonal directions
             if q_residual.ncols() > 0 {
                 new_u
-                    .slice_mut(ndarray::s![u.nrows().., u.ncols()..])
+                    .slice_mut(scirs2_core::ndarray::s![u.nrows().., u.ncols()..])
                     .assign(&q_residual);
             }
             new_u
@@ -638,8 +638,11 @@ impl EnhancedPCA {
 
             if end_row > start_row && end_col > start_col {
                 augmented_sigma
-                    .slice_mut(ndarray::s![start_row..end_row, start_col..end_col])
-                    .assign(&r_residual.slice(ndarray::s![
+                    .slice_mut(scirs2_core::ndarray::s![
+                        start_row..end_row,
+                        start_col..end_col
+                    ])
+                    .assign(&r_residual.slice(scirs2_core::ndarray::s![
                         ..(end_row - start_row),
                         ..(end_col - start_col)
                     ]));
@@ -653,18 +656,18 @@ impl EnhancedPCA {
         // Keep only the top n_components
         let k = self.n_components.min(sigma_new.len());
 
-        *sigma = sigma_new.slice(ndarray::s![..k]).to_owned();
+        *sigma = sigma_new.slice(scirs2_core::ndarray::s![..k]).to_owned();
 
         // Update U = extended_U * U_aug[:, :k]
         if extended_u.ncols() >= u_aug.nrows() && u_aug.ncols() >= k {
             *u = extended_u
-                .slice(ndarray::s![.., ..u_aug.nrows()])
-                .dot(&u_aug.slice(ndarray::s![.., ..k]));
+                .slice(scirs2_core::ndarray::s![.., ..u_aug.nrows()])
+                .dot(&u_aug.slice(scirs2_core::ndarray::s![.., ..k]));
         }
 
         // Update VT
         if vt_aug.nrows() >= k && vt.ncols() == vt_aug.ncols() {
-            *vt = vt_aug.slice(ndarray::s![..k, ..]).to_owned();
+            *vt = vt_aug.slice(scirs2_core::ndarray::s![..k, ..]).to_owned();
         }
 
         Ok(())
@@ -682,9 +685,9 @@ impl EnhancedPCA {
 
         let k = self.n_components.min(chunk_sigma.len());
 
-        *u = chunk_u.slice(ndarray::s![.., ..k]).to_owned();
-        *sigma = chunk_sigma.slice(ndarray::s![..k]).to_owned();
-        *vt = chunk_vt.slice(ndarray::s![..k, ..]).to_owned();
+        *u = chunk_u.slice(scirs2_core::ndarray::s![.., ..k]).to_owned();
+        *sigma = chunk_sigma.slice(scirs2_core::ndarray::s![..k]).to_owned();
+        *vt = chunk_vt.slice(scirs2_core::ndarray::s![..k, ..]).to_owned();
 
         Ok(())
     }
@@ -949,13 +952,13 @@ impl EnhancedPCA {
         let k = self.n_components.min(sigma.len());
 
         // Store components (V^T transposed to get V, then take first k columns)
-        let components = vt.slice(ndarray::s![..k, ..]).t().to_owned();
+        let components = vt.slice(scirs2_core::ndarray::s![..k, ..]).t().to_owned();
         self.components = Some(components.t().to_owned());
 
         // Calculate explained variance ratios
         let total_variance = sigma.iter().take(k).map(|&s| s * s).sum::<f64>();
         if total_variance > 0.0 {
-            let explained_variance = sigma.slice(ndarray::s![..k]).mapv(|s| s * s);
+            let explained_variance = sigma.slice(scirs2_core::ndarray::s![..k]).mapv(|s| s * s);
             let variance_ratios = &explained_variance / total_variance;
             self.explained_variance_ratio = Some(variance_ratios);
             self.explained_variance = Some(explained_variance);
@@ -970,7 +973,7 @@ impl EnhancedPCA {
 
     /// ✅ Advanced MODE: Generate random Gaussian matrix for projections
     fn generate_random_gaussian_matrix(&self, rows: usize, cols: usize) -> Result<Array2<f64>> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut random_matrix = Array2::zeros((rows, cols));
 
         // Generate random numbers using Box-Muller transform for approximate Gaussian distribution
@@ -1176,8 +1179,8 @@ impl EnhancedPCA {
         let tolerance = 1e-10;
 
         // Start with a random vector
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let mut vector: Array1<f64> = Array1::from_shape_fn(n, |_| rng.gen_range(0.0..1.0) - 0.5);
 
         // Normalize the initial vector
@@ -1219,7 +1222,7 @@ impl EnhancedPCA {
             }
 
             // Check for convergence
-            if iteration > 0 && ((eigenvalue - prev_eigenvalue) as f64).abs() < tolerance {
+            if iteration > 0 && (eigenvalue - prev_eigenvalue).abs() < tolerance {
                 break;
             }
 
@@ -1347,10 +1350,12 @@ impl EnhancedPCA {
         let (q_reduced, r_reduced) = self.qr_decomposition(matrix)?;
 
         // Copy the reduced Q into the left part of the full Q
-        q.slice_mut(ndarray::s![.., ..n]).assign(&q_reduced);
+        q.slice_mut(scirs2_core::ndarray::s![.., ..n])
+            .assign(&q_reduced);
 
         // Copy the reduced R into the top part of the full R
-        r.slice_mut(ndarray::s![..n, ..]).assign(&r_reduced);
+        r.slice_mut(scirs2_core::ndarray::s![..n, ..])
+            .assign(&r_reduced);
 
         // Complete the orthogonal basis for Q using Gram-Schmidt on remaining columns
         for j in n..m {
@@ -1378,7 +1383,7 @@ impl EnhancedPCA {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_enhanced_standard_scaler() {
@@ -1481,7 +1486,7 @@ mod tests {
         let data = Array2::from_shape_vec(
             (20, 8),
             (0..160)
-                .map(|x| x as f64 + rand::random::<f64>() * 0.1)
+                .map(|x| x as f64 + scirs2_core::random::random::<f64>() * 0.1)
                 .collect(),
         )
         .unwrap();
@@ -1535,7 +1540,7 @@ mod tests {
             (0..72000000)
                 .map(|x| {
                     let t = x as f64 / 1000000.0;
-                    t.sin() + 0.1 * (10.0 * t).sin() + 0.01 * rand::random::<f64>()
+                    t.sin() + 0.1 * (10.0 * t).sin() + 0.01 * scirs2_core::random::random::<f64>()
                 })
                 .collect(),
         )
@@ -1546,7 +1551,7 @@ mod tests {
         assert!(result.is_ok());
 
         // Test transform
-        let small_test_data = data.slice(ndarray::s![..100, ..]).to_owned();
+        let small_test_data = data.slice(scirs2_core::ndarray::s![..100, ..]).to_owned();
         let transformed = pca.transform(&small_test_data.view());
         assert!(transformed.is_ok());
         assert_eq!(transformed.unwrap().shape(), &[100, 20]);
@@ -1705,7 +1710,7 @@ mod tests {
         let data = Array2::from_shape_vec(
             (200, 15),
             (0..3000)
-                .map(|x| x as f64 + rand::random::<f64>() * 10.0)
+                .map(|x| x as f64 + scirs2_core::random::random::<f64>() * 10.0)
                 .collect(),
         )
         .unwrap();
@@ -1809,7 +1814,7 @@ impl AdvancedMemoryPool {
 
                 // Resize if needed (keeping the existing allocation when possible)
                 if buffershape != (rows, cols) {
-                    buffer = buffer.slice(ndarray::s![..rows, ..cols]).to_owned();
+                    buffer = buffer.slice(scirs2_core::ndarray::s![..rows, ..cols]).to_owned();
                 }
 
                 // Update cache hit rate
@@ -1848,7 +1853,7 @@ impl AdvancedMemoryPool {
             if temp_array.len() >= size {
                 let mut result = std::mem::replace(temp_array, Array1::zeros(0));
                 if result.len() > size {
-                    result = result.slice(ndarray::s![..size]).to_owned();
+                    result = result.slice(scirs2_core::ndarray::s![..size]).to_owned();
                 }
                 return result;
             }
@@ -2076,8 +2081,8 @@ impl AdvancedPCA {
         let n_random = self.n_components + oversampling;
 
         // Generate random matrix with optimized random number generation
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let mut omega = Array2::zeros((n_features, n_random));
 
         // Use SIMD-friendly initialization
@@ -2103,9 +2108,9 @@ impl AdvancedPCA {
         let u = q.dot(&u_b);
 
         // Extract top n_components - store as (n_features, n_components) for correct matrix multiplication
-        let components = vt.slice(ndarray::s![..self.n_components, ..]).t().to_owned();
+        let components = vt.slice(scirs2_core::ndarray::s![..self.n_components, ..]).t().to_owned();
         let explained_variance = s
-            .slice(ndarray::s![..self.n_components])
+            .slice(scirs2_core::ndarray::s![..self.n_components])
             .mapv(|x| x * x / (n_samples - 1) as f64);
 
         self.components = Some(components.t().to_owned());
@@ -2130,7 +2135,7 @@ impl AdvancedPCA {
         // Process data in blocks
         for start_idx in (0..n_samples).step_by(block_size) {
             let end_idx = (start_idx + block_size).min(n_samples);
-            let block = x.slice(ndarray::s![start_idx..end_idx, ..]);
+            let block = x.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
             let block_centered = &block - &mean.view().insert_axis(Axis(0));
 
             // Accumulate covariance contribution from this block
@@ -2482,8 +2487,8 @@ impl AdvancedPCA {
         let tolerance = 1e-12;
 
         // Initialize with normalized random vector
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let mut vector: Array1<f64> = Array1::from_shape_fn(n, |_| rng.gen_range(0.0..1.0) - 0.5);
 
         // Initial normalization
@@ -2741,9 +2746,9 @@ impl CacheOptimizedAlgorithms {
                     let k_end = (k_block + block_size).min(k);
 
                     // Extract blocks
-                    let a_block = a.slice(ndarray::s![i_block..i_end, k_block..k_end]);
-                    let b_block = b.slice(ndarray::s![k_block..k_end, j_block..j_end]);
-                    let mut c_block = result.slice_mut(ndarray::s![i_block..i_end, j_block..j_end]);
+                    let a_block = a.slice(scirs2_core::ndarray::s![i_block..i_end, k_block..k_end]);
+                    let b_block = b.slice(scirs2_core::ndarray::s![k_block..k_end, j_block..j_end]);
+                    let mut c_block = result.slice_mut(scirs2_core::ndarray::s![i_block..i_end, j_block..j_end]);
 
                     // Perform block multiplication with SIMD
                     let mut partial_result = Array2::zeros((i_end - i_block, j_end - j_block));
@@ -2792,18 +2797,18 @@ impl CacheOptimizedAlgorithms {
                 let i_end = (i_block + block_size).min(n_features);
                 let j_end = (j_block + block_size).min(n_features);
 
-                let x_i = x_centered.slice(ndarray::s![.., i_block..i_end]);
-                let x_j = x_centered.slice(ndarray::s![.., j_block..j_end]);
+                let x_i = x_centered.slice(scirs2_core::ndarray::s![.., i_block..i_end]);
+                let x_j = x_centered.slice(scirs2_core::ndarray::s![.., j_block..j_end]);
 
                 // Compute block covariance using SIMD
                 let mut block_cov = Array2::zeros((i_end - i_block, j_end - j_block));
                 f64::simd_gemm(1.0, &x_i.t(), &x_j, 0.0, &mut block_cov);
-                cov.slice_mut(ndarray::s![i_block..i_end, j_block..j_end])
+                cov.slice_mut(scirs2_core::ndarray::s![i_block..i_end, j_block..j_end])
                     .assign(&block_cov);
 
                 // Fill symmetric part
                 if i_block != j_block {
-                    cov.slice_mut(ndarray::s![j_block..j_end, i_block..i_end])
+                    cov.slice_mut(scirs2_core::ndarray::s![j_block..j_end, i_block..i_end])
                         .assign(&block_cov.t());
                 }
             }
@@ -2851,8 +2856,8 @@ impl CacheOptimizedAlgorithms {
         let tolerance = 1e-12;
 
         // Initialize random vector
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let mut vector: Array1<f64> = Array1::from_shape_fn(n, |_| rng.gen_range(0.0..1.0) - 0.5);
 
         // Normalize
@@ -2898,10 +2903,10 @@ impl CacheOptimizedAlgorithms {
 
         for i_block in (0..n).step_by(block_size) {
             let i_end = (i_block + block_size).min(n);
-            let matrix_block = matrix.slice(ndarray::s![i_block..i_end, ..]);
+            let matrix_block = matrix.slice(scirs2_core::ndarray::s![i_block..i_end, ..]);
             let partial_result = SimdMatrixOps::simd_matvec(&matrix_block, &vector.view())?;
             result
-                .slice_mut(ndarray::s![i_block..i_end])
+                .slice_mut(scirs2_core::ndarray::s![i_block..i_end])
                 .assign(&partial_result);
         }
 
@@ -2915,7 +2920,7 @@ impl CacheOptimizedAlgorithms {
 
         for i_block in (0..n).step_by(block_size) {
             let i_end = (i_block + block_size).min(n);
-            let block = vector.slice(ndarray::s![i_block..i_end]);
+            let block = vector.slice(scirs2_core::ndarray::s![i_block..i_end]);
             let block_norm_squared = SimdMatrixOps::simd_dot_product(&block, &block)?;
             norm_squared += block_norm_squared;
         }
@@ -2937,8 +2942,8 @@ impl CacheOptimizedAlgorithms {
                 let i_end = (i_block + block_size).min(n);
                 let j_end = (j_block + block_size).min(n);
 
-                let v_i = eigenvec.slice(ndarray::s![i_block..i_end]);
-                let v_j = eigenvec.slice(ndarray::s![j_block..j_end]);
+                let v_i = eigenvec.slice(scirs2_core::ndarray::s![i_block..i_end]);
+                let v_j = eigenvec.slice(scirs2_core::ndarray::s![j_block..j_end]);
 
                 // Compute outer product block
                 let outer_block = &v_i
@@ -2948,7 +2953,7 @@ impl CacheOptimizedAlgorithms {
 
                 // Update matrix block
                 let mut matrix_block =
-                    matrix.slice_mut(ndarray::s![i_block..i_end, j_block..j_end]);
+                    matrix.slice_mut(scirs2_core::ndarray::s![i_block..i_end, j_block..j_end]);
                 matrix_block -= &(eigenval * outer_block);
             }
         }

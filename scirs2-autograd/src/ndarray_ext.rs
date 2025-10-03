@@ -1,24 +1,26 @@
 //! A small extension of [ndarray](https://github.com/rust-ndarray/ndarray)
 //!
 //! Mainly provides `array_gen`, which is a collection of array generator functions.
-use ndarray;
+use crate::ndarray;
 
 use crate::Float;
 
-/// alias for `ndarray::Array<T, IxDyn>`
-pub type NdArray<T> = ndarray::Array<T, ndarray::IxDyn>;
+/// alias for `scirs2_core::ndarray::Array<T, IxDyn>`
+pub type NdArray<T> = scirs2_core::ndarray::Array<T, scirs2_core::ndarray::IxDyn>;
 
-/// alias for `ndarray::ArrayView<T, IxDyn>`
-pub type NdArrayView<'a, T> = ndarray::ArrayView<'a, T, ndarray::IxDyn>;
+/// alias for `scirs2_core::ndarray::ArrayView<T, IxDyn>`
+pub type NdArrayView<'a, T> = scirs2_core::ndarray::ArrayView<'a, T, scirs2_core::ndarray::IxDyn>;
 
-/// alias for `ndarray::RawArrayView<T, IxDyn>`
-pub type RawNdArrayView<T> = ndarray::RawArrayView<T, ndarray::IxDyn>;
+/// alias for `scirs2_core::ndarray::RawArrayView<T, IxDyn>`
+pub type RawNdArrayView<T> = scirs2_core::ndarray::RawArrayView<T, scirs2_core::ndarray::IxDyn>;
 
-/// alias for `ndarray::RawArrayViewMut<T, IxDyn>`
-pub type RawNdArrayViewMut<T> = ndarray::RawArrayViewMut<T, ndarray::IxDyn>;
+/// alias for `scirs2_core::ndarray::RawArrayViewMut<T, IxDyn>`
+pub type RawNdArrayViewMut<T> =
+    scirs2_core::ndarray::RawArrayViewMut<T, scirs2_core::ndarray::IxDyn>;
 
-/// alias for `ndarray::ArrayViewMut<T, IxDyn>`
-pub type NdArrayViewMut<'a, T> = ndarray::ArrayViewMut<'a, T, ndarray::IxDyn>;
+/// alias for `scirs2_core::ndarray::ArrayViewMut<T, IxDyn>`
+pub type NdArrayViewMut<'a, T> =
+    scirs2_core::ndarray::ArrayViewMut<'a, T, scirs2_core::ndarray::IxDyn>;
 
 #[inline]
 /// This works well only for small arrays
@@ -34,7 +36,11 @@ pub(crate) fn expand_dims<T: Float>(x: NdArray<T>, axis: usize) -> NdArray<T> {
 }
 
 #[inline]
-pub(crate) fn roll_axis<T: Float>(arg: &mut NdArray<T>, to: ndarray::Axis, from: ndarray::Axis) {
+pub(crate) fn roll_axis<T: Float>(
+    arg: &mut NdArray<T>,
+    to: scirs2_core::ndarray::Axis,
+    from: scirs2_core::ndarray::Axis,
+) {
     let i = to.index();
     let mut j = from.index();
     if j > i {
@@ -88,7 +94,7 @@ pub(crate) fn sparse_to_dense<T: Float>(arr: &NdArrayView<T>) -> Vec<usize> {
 
 #[allow(unused)]
 #[inline]
-pub(crate) fn is_fully_transposed(strides: &[ndarray::Ixs]) -> bool {
+pub(crate) fn is_fully_transposed(strides: &[scirs2_core::ndarray::Ixs]) -> bool {
     let mut ret = true;
     for w in strides.windows(2) {
         if w[0] > w[1] {
@@ -120,13 +126,13 @@ pub fn constant<T: Float>(value: T, shape: &[usize]) -> NdArray<T> {
     NdArray::<T>::from_elem(shape, value)
 }
 
-use rand::{Rng, RngCore, SeedableRng};
+use scirs2_core::random::{Rng, RngCore, SeedableRng};
 // In rand 0.9.0, RngCore doesn't need rand_core imported directly
 
 /// Random number generator for ndarray
 #[derive(Clone)]
 pub struct ArrayRng<A> {
-    rng: rand::rngs::StdRng,
+    rng: scirs2_core::random::rngs::StdRng,
     _phantom: std::marker::PhantomData<A>,
 }
 
@@ -157,7 +163,7 @@ impl<A: Float> ArrayRng<A> {
 
     /// Creates a new random number generator with the specified seed.
     pub fn from_seed(seed: u64) -> Self {
-        let rng = rand::rngs::StdRng::seed_from_u64(seed);
+        let rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
         Self {
             rng,
             _phantom: std::marker::PhantomData,
@@ -165,12 +171,12 @@ impl<A: Float> ArrayRng<A> {
     }
 
     /// Returns a reference to the internal RNG
-    pub fn as_rng(&self) -> &rand::rngs::StdRng {
+    pub fn as_rng(&self) -> &scirs2_core::random::rngs::StdRng {
         &self.rng
     }
 
     /// Returns a mutable reference to the internal RNG
-    pub fn as_rng_mut(&mut self) -> &mut rand::rngs::StdRng {
+    pub fn as_rng_mut(&mut self) -> &mut scirs2_core::random::rngs::StdRng {
         &mut self.rng
     }
 
@@ -188,27 +194,27 @@ impl<A: Float> ArrayRng<A> {
     /// Creates a normal random array in the specified shape.
     /// Values are drawn from a normal distribution with the specified mean and standard deviation.
     pub fn normal(&mut self, shape: &[usize], mean: f64, std: f64) -> NdArray<A> {
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
         let normal = Normal::new(mean, std).unwrap();
         let len = shape.iter().product();
         let mut data = Vec::with_capacity(len);
         for _ in 0..len {
             data.push(A::from(normal.sample(&mut self.rng)).unwrap());
         }
-        NdArray::from_shape_vec(ndarray::IxDyn(shape), data).unwrap()
+        NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(shape), data).unwrap()
     }
 
     /// Creates a uniform random array in the specified shape.
     /// Values are in the range [low, high).
     pub fn uniform(&mut self, shape: &[usize], low: f64, high: f64) -> NdArray<A> {
-        use rand_distr::{Distribution, Uniform};
+        use scirs2_core::random::{Distribution, Uniform};
         let uniform = Uniform::new(low, high).unwrap();
         let len = shape.iter().product();
         let mut data = Vec::with_capacity(len);
         for _ in 0..len {
             data.push(A::from(uniform.sample(&mut self.rng)).unwrap());
         }
-        NdArray::from_shape_vec(ndarray::IxDyn(shape), data).unwrap()
+        NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(shape), data).unwrap()
     }
 
     /// Creates a random array with Glorot/Xavier uniform initialization.
@@ -265,7 +271,7 @@ impl<A: Float> ArrayRng<A> {
 
     /// Creates a random array from the bernoulli distribution.
     pub fn bernoulli(&mut self, shape: &[usize], p: f64) -> NdArray<A> {
-        use rand_distr::{Bernoulli, Distribution};
+        use scirs2_core::random::{Bernoulli, Distribution};
         let bernoulli = Bernoulli::new(p).unwrap();
         let len = shape.iter().product();
         let mut data = Vec::with_capacity(len);
@@ -277,43 +283,43 @@ impl<A: Float> ArrayRng<A> {
             };
             data.push(val);
         }
-        NdArray::from_shape_vec(ndarray::IxDyn(shape), data).unwrap()
+        NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(shape), data).unwrap()
     }
 
     /// Creates a random array from the exponential distribution.
     pub fn exponential(&mut self, shape: &[usize], lambda: f64) -> NdArray<A> {
-        use rand_distr::{Distribution, Exp};
+        use scirs2_core::random::{Distribution, Exp};
         let exp = Exp::new(lambda).unwrap();
         let len = shape.iter().product();
         let mut data = Vec::with_capacity(len);
         for _ in 0..len {
             data.push(A::from(exp.sample(&mut self.rng)).unwrap());
         }
-        NdArray::from_shape_vec(ndarray::IxDyn(shape), data).unwrap()
+        NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(shape), data).unwrap()
     }
 
     /// Creates a random array from the log-normal distribution.
     pub fn log_normal(&mut self, shape: &[usize], mean: f64, stddev: f64) -> NdArray<A> {
-        use rand_distr::{Distribution, LogNormal};
+        use scirs2_core::random::{Distribution, LogNormal};
         let log_normal = LogNormal::new(mean, stddev).unwrap();
         let len = shape.iter().product();
         let mut data = Vec::with_capacity(len);
         for _ in 0..len {
             data.push(A::from(log_normal.sample(&mut self.rng)).unwrap());
         }
-        NdArray::from_shape_vec(ndarray::IxDyn(shape), data).unwrap()
+        NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(shape), data).unwrap()
     }
 
     /// Creates a random array from the gamma distribution.
     pub fn gamma(&mut self, shape: &[usize], shape_param: f64, scale: f64) -> NdArray<A> {
-        use rand_distr::{Distribution, Gamma};
+        use scirs2_core::random::{Distribution, Gamma};
         let gamma = Gamma::new(shape_param, scale).unwrap();
         let len = shape.iter().product();
         let mut data = Vec::with_capacity(len);
         for _ in 0..len {
             data.push(A::from(gamma.sample(&mut self.rng)).unwrap());
         }
-        NdArray::from_shape_vec(ndarray::IxDyn(shape), data).unwrap()
+        NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(shape), data).unwrap()
     }
 }
 
@@ -341,7 +347,7 @@ pub fn scalarshape() -> Vec<usize> {
 #[inline]
 #[allow(dead_code)]
 pub fn from_scalar<T: Float>(value: T) -> NdArray<T> {
-    NdArray::<T>::from_elem(ndarray::IxDyn(&[1]), value)
+    NdArray::<T>::from_elem(scirs2_core::ndarray::IxDyn(&[1]), value)
 }
 
 /// Get shape of an ndarray view
@@ -377,13 +383,13 @@ pub fn deep_copy<T: Float + Clone>(array: &NdArrayView<'_, T>) -> NdArray<T> {
 #[allow(dead_code)]
 pub fn select<T: Float + Clone>(
     array: &NdArrayView<'_, T>,
-    axis: ndarray::Axis,
+    axis: scirs2_core::ndarray::Axis,
     indices: &[usize],
 ) -> NdArray<T> {
     let mut shape = array.shape().to_vec();
     shape[axis.index()] = indices.len();
 
-    let mut result = NdArray::<T>::zeros(ndarray::IxDyn(&shape));
+    let mut result = NdArray::<T>::zeros(scirs2_core::ndarray::IxDyn(&shape));
 
     for (i, &idx) in indices.iter().enumerate() {
         let slice = array.index_axis(axis, idx);
@@ -453,7 +459,7 @@ pub mod array_gen {
     /// Creates a 2D identity matrix of the specified size.
     #[inline]
     pub fn eye<T: Float>(n: usize) -> NdArray<T> {
-        let mut result = NdArray::<T>::zeros(ndarray::IxDyn(&[n, n]));
+        let mut result = NdArray::<T>::zeros(scirs2_core::ndarray::IxDyn(&[n, n]));
         for i in 0..n {
             result[[i, i]] = T::one();
         }
@@ -506,9 +512,9 @@ pub mod array_gen {
     pub fn linspace<T: Float>(start: T, end: T, num: usize) -> NdArray<T> {
         if num <= 1 {
             return if num == 0 {
-                NdArray::<T>::zeros(ndarray::IxDyn(&[0]))
+                NdArray::<T>::zeros(scirs2_core::ndarray::IxDyn(&[0]))
             } else {
-                NdArray::<T>::from_elem(ndarray::IxDyn(&[1]), start)
+                NdArray::<T>::from_elem(scirs2_core::ndarray::IxDyn(&[1]), start)
             };
         }
 
@@ -519,7 +525,7 @@ pub mod array_gen {
             data.push(start + step * T::from(i).unwrap());
         }
 
-        NdArray::<T>::from_shape_vec(ndarray::IxDyn(&[num]), data).unwrap()
+        NdArray::<T>::from_shape_vec(scirs2_core::ndarray::IxDyn(&[num]), data).unwrap()
     }
 
     /// Creates an array of evenly spaced values within a given interval.
@@ -533,6 +539,6 @@ pub mod array_gen {
             current += step;
         }
 
-        NdArray::<T>::from_shape_vec(ndarray::IxDyn(&[data.len()]), data).unwrap()
+        NdArray::<T>::from_shape_vec(scirs2_core::ndarray::IxDyn(&[data.len()]), data).unwrap()
     }
 }

@@ -6,8 +6,8 @@
 use crate::error::MetricsError;
 use crate::integration::neural::NeuralMetricAdapter;
 use crate::integration::traits::MetricComputation;
-use ndarray::{Array, IxDyn};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 

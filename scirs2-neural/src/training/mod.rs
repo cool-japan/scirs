@@ -4,8 +4,8 @@
 //! including advanced features like gradient accumulation, mixed precision training,
 //! distributed training, and sophisticated training loop management.
 
-use ndarray::ScalarOperand;
-use num_traits::Float;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 

@@ -1,7 +1,7 @@
 //! Time series database operations
 
 use crate::error::Result;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -8,8 +8,8 @@ use super::{num_vertices, validate_graph};
 use crate::csr_array::CsrArray;
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Laplacian matrix types

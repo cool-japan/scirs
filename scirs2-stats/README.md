@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-stats)](https://docs.rs/scirs2-stats)
 
-**Production-ready statistical functions module for the SciRS2 ecosystem (v0.1.0-beta.4)**, providing comprehensive statistical computing capabilities modeled after SciPy's stats module but optimized for Rust's performance and safety guarantees. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module ensures ecosystem consistency through scirs2-core abstractions.
+**Production-ready statistical functions module for the SciRS2 ecosystem (v0.1.0-rc.1)**, providing comprehensive statistical computing capabilities modeled after SciPy's stats module but optimized for Rust's performance and safety guarantees. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module ensures ecosystem consistency through scirs2-core abstractions.
 
 ## Overview
 
@@ -46,7 +46,7 @@ Add scirs2-stats to your Cargo.toml:
 
 ```toml
 [dependencies]
-scirs2-stats = "0.1.0-beta.4"
+scirs2-stats = "0.1.0-rc.1"
 ndarray = "0.16.1"
 ```
 
@@ -255,7 +255,7 @@ let permutation = sampling::permutation(&data.view(), Some(123)).unwrap();
 
 ## Production Readiness
 
-This release (0.1.0-beta.4) represents a **production-ready** state with:
+This release (0.1.0-rc.1) represents a **production-ready** state with:
 
 - ✅ **Comprehensive functionality**: All core statistical operations implemented
 - ✅ **Extensive testing**: 280+ tests with 99.6% pass rate

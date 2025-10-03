@@ -5,7 +5,7 @@
 
 use super::neural_quantum_hybrid::NeuralQuantumHybridProcessor;
 use crate::error::Result;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::time::Instant;
 

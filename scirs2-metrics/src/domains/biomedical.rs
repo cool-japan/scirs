@@ -14,8 +14,8 @@
 
 use super::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 /// Comprehensive biomedical metrics suite
@@ -239,7 +239,7 @@ impl ClinicalTrialMetrics {
         outcome_type: EfficacyOutcome,
     ) -> Result<ClinicalEfficacyResult<F>>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let treatment_mean = treatment_outcomes.iter().cloned().sum::<F>()
             / F::from(treatment_outcomes.len()).unwrap();
@@ -288,7 +288,7 @@ impl ClinicalTrialMetrics {
         control_success_rate: F,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let absolute_risk_reduction = treatment_success_rate - control_success_rate;
         if absolute_risk_reduction > F::zero() {
@@ -307,7 +307,7 @@ impl ClinicalTrialMetrics {
         control_adverse_rate: F,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let absolute_risk_increase = treatment_adverse_rate - control_adverse_rate;
         if absolute_risk_increase > F::zero() {
@@ -322,7 +322,7 @@ impl ClinicalTrialMetrics {
     /// Helper method to compute pooled standard deviation
     fn compute_pooled_std<F>(&self, group1: &Array1<F>, group2: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let n1 = F::from(group1.len()).unwrap();
         let n2 = F::from(group2.len()).unwrap();
@@ -341,7 +341,7 @@ impl ClinicalTrialMetrics {
     /// Helper method to compute standard error
     fn compute_standard_error<F>(&self, group1: &Array1<F>, group2: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let n1 = F::from(group1.len()).unwrap();
         let n2 = F::from(group2.len()).unwrap();
@@ -353,7 +353,7 @@ impl ClinicalTrialMetrics {
     /// Helper method to compute p-value (simplified t-test)
     fn compute_p_value<F>(&self, group1: &Array1<F>, group2: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         // Simplified p-value calculation
         // In a real implementation, would use proper statistical test
@@ -401,7 +401,7 @@ impl DrugDiscoveryMetrics {
         experimental_affinities: &Array1<F>,
     ) -> Result<DrugTargetMetrics<F>>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if predicted_affinities.len() != experimental_affinities.len() {
             return Err(MetricsError::InvalidInput(
@@ -494,7 +494,7 @@ impl DrugDiscoveryMetrics {
     /// Helper method to compute correlation
     fn compute_correlation<F>(&self, x: &Array1<F>, y: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let n = F::from(x.len()).unwrap();
         let mean_x = x.iter().cloned().sum::<F>() / n;
@@ -521,7 +521,7 @@ impl DrugDiscoveryMetrics {
     /// Helper method to compute concordance index
     fn compute_concordance_index<F>(&self, predicted: &Array1<F>, actual: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let mut concordant = 0;
         let mut total = 0;
@@ -581,7 +581,7 @@ impl MedicalImagingMetrics {
         ground_truth_mask: &Array2<F>,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if predicted_mask.shape() != ground_truth_mask.shape() {
             return Err(MetricsError::InvalidInput(
@@ -627,7 +627,7 @@ impl MedicalImagingMetrics {
         ground_truth_mask: &Array2<F>,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if predicted_mask.shape() != ground_truth_mask.shape() {
             return Err(MetricsError::InvalidInput(
@@ -673,7 +673,7 @@ impl MedicalImagingMetrics {
         ground_truth_mask: &Array2<F>,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if predicted_mask.shape() != ground_truth_mask.shape() {
             return Err(MetricsError::InvalidInput(
@@ -699,7 +699,7 @@ impl MedicalImagingMetrics {
     /// Helper method to extract boundary points from a mask
     fn extract_boundary_points<F>(&self, mask: &Array2<F>) -> Vec<(usize, usize)>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let mut boundary_points = Vec::new();
         let (rows, cols) = mask.dim();
@@ -744,7 +744,7 @@ impl MedicalImagingMetrics {
         points2: &[(usize, usize)],
     ) -> F
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let mut max_min_dist = F::zero();
 
@@ -934,7 +934,7 @@ impl SurvivalAnalysisMetrics {
         event_indicators: &Array1<bool>,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if risk_scores.len() != survival_times.len()
             || survival_times.len() != event_indicators.len()
@@ -1007,7 +1007,7 @@ impl BiomarkerMetrics {
         disease_status: &Array1<bool>,
     ) -> Result<BiomarkerDiscriminationMetrics<F>>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd,
     {
         if biomarker_values.len() != disease_status.len() {
             return Err(MetricsError::InvalidInput(
@@ -1040,7 +1040,7 @@ impl BiomarkerMetrics {
     /// Helper method to compute AUC
     fn compute_auc<F>(&self, values: &Array1<F>, labels: &Array1<bool>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd,
     {
         // Create (value, label) pairs and sort by value
         let mut pairs: Vec<(F, bool)> = values
@@ -1076,7 +1076,7 @@ impl BiomarkerMetrics {
     /// Helper method to find optimal threshold
     fn find_optimal_threshold<F>(&self, values: &Array1<F>, labels: &Array1<bool>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd,
     {
         let mut unique_values: Vec<F> = values.iter().cloned().collect();
         unique_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -1107,7 +1107,7 @@ impl BiomarkerMetrics {
         threshold: F,
     ) -> Result<(F, F)>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd,
     {
         let mut tp = 0;
         let mut tn = 0;
@@ -1203,7 +1203,7 @@ pub enum EfficacyOutcome {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_biomedical_suite_creation() {

@@ -21,7 +21,7 @@
 //! ## Basic Usage
 //! ```rust
 //! use scirs2_neural::activations::{Activation, ReLU, Sigmoid, Softmax};
-//! use ndarray::Array;
+//! use scirs2_core::ndarray::Array;
 //! # fn example() -> scirs2_neural::error::Result<()> {
 //! // Create activation functions
 //! let relu = ReLU::new();
@@ -73,8 +73,8 @@
 //! - **GELU** and **Swish**: More expensive than ReLU but can provide better results
 
 use crate::error::Result;
-use ndarray::Array;
-use num_traits::Float;
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::Float;
 /// Trait for activation functions
 ///
 /// This trait defines the interface for all activation functions in the neural network.
@@ -83,7 +83,7 @@ use num_traits::Float;
 /// # Examples
 /// ```rust
 /// use scirs2_neural::activations::{Activation, ReLU};
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// # fn example() -> scirs2_neural::error::Result<()> {
 /// let activation = ReLU::new();
 /// let input = Array::from_vec(vec![-1.0, 0.0, 1.0]).into_dyn();
@@ -107,17 +107,17 @@ pub trait Activation<F: Float> {
     /// # Examples
     /// ```rust
     /// use scirs2_neural::activations::{Activation, Sigmoid};
-    /// use ndarray::Array;
+    /// use scirs2_core::ndarray::Array;
     /// # fn example() -> scirs2_neural::error::Result<()> {
     /// let sigmoid = Sigmoid::new();
     /// let input = Array::from_vec(vec![0.0]).into_dyn();
     /// let output = sigmoid.forward(&input)?;
     /// // Sigmoid(0) = 0.5
-    /// assert!((output[ndarray::IxDyn(&[0])] - 0.5f64).abs() < 1e-6);
+    /// assert!((output[scirs2_core::ndarray::IxDyn(&[0])] - 0.5f64).abs() < 1e-6);
     /// # Ok(())
     /// # }
     /// ```
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>>;
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
     /// Compute the derivative of the activation function with respect to the input
     /// This method computes the gradient of the activation function, which is needed
     /// for backpropagation during training.
@@ -134,9 +134,9 @@ pub trait Activation<F: Float> {
     /// assert_eq!(grad_input.as_slice().unwrap(), &[0.0, 1.0]);
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>>;
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
 }
 mod gelu;
 mod mish;

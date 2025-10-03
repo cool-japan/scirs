@@ -8,7 +8,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::dense_output::DenseSolution;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Direction of zero-crossing for event detection
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

@@ -10,8 +10,8 @@
 //! * `LSQBivariateSpline` - Weighted least-squares bivariate spline approximation
 //! * `RectBivariateSpline` - Bivariate spline approximation over a rectangular mesh
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{InterpolateError, InterpolateResult};
@@ -588,11 +588,11 @@ impl<
                         if let Some(w) = self.w {
                             // Apply weights if provided
                             let adjusted_weight = weight * w[i];
-                            c[idx] = c[idx] + adjusted_weight * val;
-                            weight_sum[idx] = weight_sum[idx] + adjusted_weight;
+                            c[idx] += adjusted_weight * val;
+                            weight_sum[idx] += adjusted_weight;
                         } else {
-                            c[idx] = c[idx] + weight * val;
-                            weight_sum[idx] = weight_sum[idx] + weight;
+                            c[idx] += weight * val;
+                            weight_sum[idx] += weight;
                         }
                     }
                 }
@@ -602,7 +602,7 @@ impl<
         // Normalize coefficients by weight sum
         for i in 0..num_coeffs {
             if weight_sum[i] > F::epsilon() {
-                c[i] = c[i] / weight_sum[i];
+                c[i] /= weight_sum[i];
             }
         }
 
@@ -946,7 +946,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display + crate::traits::Inter
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_rect_bivariate_spline_constants() {

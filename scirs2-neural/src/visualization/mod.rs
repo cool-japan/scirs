@@ -17,9 +17,9 @@
 //! use scirs2_neural::visualization::{VisualizationConfig, NetworkVisualizer};
 //! use scirs2_neural::models::Sequential;
 //! use scirs2_neural::layers::Dense;
-//! use rand::SeedableRng;
+//! use scirs2_core::random::SeedableRng;
 //! // Create a simple model
-//! let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+//! let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
 //! let mut model = Sequential::<f32>::new();
 //! model.add_layer(Dense::new(784, 128, Some("relu"), &mut rng).unwrap());
 //! model.add_layer(Dense::new(128, 10, Some("softmax"), &mut rng).unwrap());
@@ -81,9 +81,9 @@ pub struct VisualizationSuite<F>
 where
     F: num_traits:: Float
         + std::fmt::Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
-        + num_traits::FromPrimitive
+        + scirs2_core::numeric::FromPrimitive
         + Send
         + Sync
         + serde::Serialize,
@@ -204,10 +204,10 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use crate::layers::Dense;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_visualization_suite_creation() {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let mut model = crate::models::sequential::Sequential::<f32>::new();
         model.add_layer(Dense::new(10, 5, Some("relu"), &mut rng).unwrap());
         let config = VisualizationConfig::default();

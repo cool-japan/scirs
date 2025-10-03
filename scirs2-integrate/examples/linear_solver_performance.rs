@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_integrate::error::IntegrateResult;
 #[allow(unused_imports)]
 use scirs2_integrate::ode::utils::linear_solvers::{solve_linear_system, LinearSolverType};

@@ -5,9 +5,9 @@
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use crate::traits::{ContinuousDistribution, Distribution};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand_distr::{Distribution as RandDistribution, Uniform as RandUniform};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::{Distribution as RandDistribution, Uniform as RandUniform};
 
 /// Uniform distribution structure
 pub struct Uniform<F: Float> {
@@ -168,7 +168,7 @@ impl<F: Float + NumCast + std::fmt::Display> Uniform<F> {
     /// assert_eq!(samples.len(), 1000);
     /// ```
     pub fn rvs(&self, size: usize) -> StatsResult<Array1<F>> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut samples = Vec::with_capacity(size);
 
         for _ in 0..size {

@@ -3,8 +3,8 @@
 //! This module defines standard trait bounds used throughout the interpolation library
 //! to ensure API consistency and reduce repetition.
 
-use ndarray::{ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display, LowerExp};
 use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
 
@@ -81,7 +81,7 @@ pub trait Interpolator<T: InterpolationFloat> {
 
     /// Evaluate the interpolator at a single point
     fn evaluate_single(&self, point: &ArrayView1<T>) -> crate::InterpolateResult<T> {
-        let query = point.view().insert_axis(ndarray::Axis(0));
+        let query = point.view().insert_axis(scirs2_core::ndarray::Axis(0));
         self.evaluate(&query).map(|v| v[0])
     }
 

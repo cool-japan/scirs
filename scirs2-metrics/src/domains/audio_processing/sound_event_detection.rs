@@ -153,7 +153,6 @@ impl EventBasedMetrics {
     ) -> Result<()> {
         let mut true_positives = 0;
         let mut false_positives = 0;
-        let mut false_negatives = 0;
 
         // Match predicted events to reference events
         let mut matched_references = vec![false; reference_events.len()];
@@ -176,7 +175,7 @@ impl EventBasedMetrics {
         }
 
         // Count unmatched reference events as false negatives
-        false_negatives = matched_references
+        let false_negatives = matched_references
             .iter()
             .filter(|&&matched| !matched)
             .count();

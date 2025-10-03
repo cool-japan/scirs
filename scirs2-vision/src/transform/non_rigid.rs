@@ -7,10 +7,10 @@
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GenericImageView, ImageBuffer, Rgba};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
+use scirs2_linalg::solve;
 use std::f64::consts::PI;
-// use scirs2_linalg::solve;
 
 /// Non-rigid transformation interface
 pub trait NonRigidTransform {
@@ -133,16 +133,13 @@ impl ThinPlateSpline {
         }
 
         // Solve the linear system for x and y mappings using scirs2-linalg
-        // TODO: Re-enable when scirs2-linalg is available
-        let coef_x = Array1::zeros(n + 3);
-        // let coef_x = solve(&l.view(), &target_x.view(), None).map_err(|e| {
-        //     VisionError::LinAlgError(format!("Failed to solve for x coefficients: {}", e))
-        // })?;
+        let coef_x = solve(&l.view(), &target_x.view(), None).map_err(|e| {
+            VisionError::LinAlgError(format!("Failed to solve for x coefficients: {}", e))
+        })?;
 
-        let coef_y = Array1::zeros(n + 3);
-        // let coef_y = solve(&l.view(), &target_y.view(), None).map_err(|e| {
-        //     VisionError::LinAlgError(format!("Failed to solve for y coefficients: {}", e))
-        // })?;
+        let coef_y = solve(&l.view(), &target_y.view(), None).map_err(|e| {
+            VisionError::LinAlgError(format!("Failed to solve for y coefficients: {}", e))
+        })?;
 
         Ok(Self {
             source_points: source_points.to_vec(),
@@ -625,7 +622,6 @@ mod tests {
     // Imports for potential future color image support
 
     #[test]
-    #[ignore] // TODO: Enable when linear solver is implemented (currently returns zeros)
     fn test_thin_plate_spline_identity() {
         // Create control points in a grid (identity mapping)
         let source_points = vec![
@@ -655,7 +651,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // TODO: Enable when linear solver is implemented (currently returns zeros)
     fn test_thin_plate_spline_interpolation() {
         // Create control points
         let source_points = vec![

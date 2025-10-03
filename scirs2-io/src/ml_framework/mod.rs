@@ -34,7 +34,7 @@ pub use validation::{BatchValidator, ModelValidator, ValidationConfig, Validatio
 
 // Import required dependencies for the remaining modules
 use crate::error::{IoError, Result};
-use ndarray::{Array2, ArrayD, ArrayView2, IxDyn};
+use scirs2_core::ndarray::{Array2, ArrayD, ArrayView2, IxDyn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;

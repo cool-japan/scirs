@@ -15,8 +15,8 @@ pub use self::residual::*;
 pub use self::robust::*;
 
 // Common utility functions that might be used across multiple submodules
-use ndarray::{ArrayBase, Data, Dimension};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 
 /// Check if two arrays have the same shape
 pub(crate) fn check_sameshape<F, S1, S2, D1, D2>(
@@ -24,11 +24,11 @@ pub(crate) fn check_sameshape<F, S1, S2, D1, D2>(
     y_pred: &ArrayBase<S2, D2>,
 ) -> crate::error::Result<()>
 where
-    F: num_traits::Float,
-    S1: ndarray::Data<Elem = F>,
-    S2: ndarray::Data<Elem = F>,
-    D1: ndarray::Dimension,
-    D2: ndarray::Dimension,
+    F: scirs2_core::numeric::Float,
+    S1: scirs2_core::ndarray::Data<Elem = F>,
+    S2: scirs2_core::ndarray::Data<Elem = F>,
+    D1: scirs2_core::ndarray::Dimension,
+    D2: scirs2_core::ndarray::Dimension,
 {
     if y_true.shape() != y_pred.shape() {
         return Err(crate::error::MetricsError::InvalidInput(format!(
@@ -54,11 +54,11 @@ pub(crate) fn check_non_negative<F, S1, S2, D1, D2>(
     y_pred: &ArrayBase<S2, D2>,
 ) -> crate::error::Result<()>
 where
-    F: num_traits::Float + std::fmt::Debug,
-    S1: ndarray::Data<Elem = F>,
-    S2: ndarray::Data<Elem = F>,
-    D1: ndarray::Dimension,
-    D2: ndarray::Dimension,
+    F: scirs2_core::numeric::Float + std::fmt::Debug,
+    S1: scirs2_core::ndarray::Data<Elem = F>,
+    S2: scirs2_core::ndarray::Data<Elem = F>,
+    D1: scirs2_core::ndarray::Dimension,
+    D2: scirs2_core::ndarray::Dimension,
 {
     for val in y_true.iter() {
         if *val < F::zero() {
@@ -85,11 +85,11 @@ pub(crate) fn check_positive<F, S1, S2, D1, D2>(
     y_pred: &ArrayBase<S2, D2>,
 ) -> crate::error::Result<()>
 where
-    F: num_traits::Float + std::fmt::Debug,
-    S1: ndarray::Data<Elem = F>,
-    S2: ndarray::Data<Elem = F>,
-    D1: ndarray::Dimension,
-    D2: ndarray::Dimension,
+    F: scirs2_core::numeric::Float + std::fmt::Debug,
+    S1: scirs2_core::ndarray::Data<Elem = F>,
+    S2: scirs2_core::ndarray::Data<Elem = F>,
+    D1: scirs2_core::ndarray::Dimension,
+    D2: scirs2_core::ndarray::Dimension,
 {
     for val in y_true.iter() {
         if *val <= F::zero() {
@@ -113,10 +113,10 @@ where
 /// Calculate the mean of an array
 pub(crate) fn mean<F, S, D>(arr: &ArrayBase<S, D>) -> F
 where
-    F: num_traits::Float,
-    S: ndarray::Data<Elem = F>,
-    D: ndarray::Dimension,
+    F: scirs2_core::numeric::Float,
+    S: scirs2_core::ndarray::Data<Elem = F>,
+    D: scirs2_core::ndarray::Dimension,
 {
     let sum = arr.iter().fold(F::zero(), |acc, &x| acc + x);
-    sum / num_traits::NumCast::from(arr.len()).unwrap()
+    sum / scirs2_core::numeric::NumCast::from(arr.len()).unwrap()
 }

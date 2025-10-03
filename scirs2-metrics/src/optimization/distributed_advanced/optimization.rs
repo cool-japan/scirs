@@ -240,14 +240,15 @@ impl AdvancedDistributedOptimizer {
             // Generate neighbor solution
             let mut new_variables = variables.clone();
             for var in new_variables.iter_mut() {
-                *var += rand::random::<f64>() * 0.1 - 0.05; // Small random perturbation
+                *var += scirs2_core::random::random::<f64>() * 0.1 - 0.05; // Small random perturbation
             }
 
             let new_objective =
                 self.evaluate_objective(&problem.objective_function, &new_variables)?;
 
             if new_objective < objective_value
-                || rand::random::<f64>() < (-(new_objective - objective_value) / temperature).exp()
+                || scirs2_core::random::random::<f64>()
+                    < (-(new_objective - objective_value) / temperature).exp()
             {
                 variables = new_variables;
                 objective_value = new_objective;

@@ -20,7 +20,7 @@ pub mod opencl_impl {
 
     // Thread-safe wrapper for OpenCL raw pointers
     #[derive(Debug, Clone, Copy)]
-    struct SafeClPtr(*mut std::ffi::c_void);
+    pub struct SafeClPtr(pub *mut std::ffi::c_void);
 
     // SAFETY: In a real implementation, OpenCL handles are thread-safe
     // These are mock implementations for testing purposes
@@ -129,7 +129,7 @@ pub mod opencl_impl {
     }
 
     #[derive(Debug, Clone)]
-    struct OpenClPlatform {
+    pub struct OpenClPlatform {
         platform_id: ClPlatformId,
         name: String,
         vendor: String,
@@ -509,6 +509,7 @@ pub mod opencl_impl {
     }
 
     impl GpuContext for OpenClContext {
+        #[allow(static_mut_refs)]
         fn device_info(&self) -> &GpuDeviceInfo {
             // Convert OpenClDeviceInfo to GpuDeviceInfo
             static mut CACHED_INFO: Option<GpuDeviceInfo> = None;

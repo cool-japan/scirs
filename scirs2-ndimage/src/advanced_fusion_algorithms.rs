@@ -27,7 +27,7 @@
 //!
 //! ```rust,ignore
 //! use scirs2_ndimage::advanced_fusion_algorithms::*;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create configuration

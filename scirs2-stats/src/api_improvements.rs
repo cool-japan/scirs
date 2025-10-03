@@ -6,8 +6,8 @@
 
 use crate::error::StatsResult;
 use crate::tests::ttest::Alternative;
-use ndarray::{ArrayBase, Data, Ix1};
-use num_traits::Float;
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::numeric::Float;
 
 /// Standard correlation result that includes both coefficient and p-value
 #[derive(Debug, Clone, Copy)]
@@ -153,6 +153,12 @@ where
 pub struct StatsBuilder<F> {
     data: Option<Vec<F>>,
     config: StatsConfig,
+}
+
+impl<F: Float + std::fmt::Display + std::iter::Sum + Send + Sync> Default for StatsBuilder<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float + std::fmt::Display + std::iter::Sum + Send + Sync> StatsBuilder<F> {

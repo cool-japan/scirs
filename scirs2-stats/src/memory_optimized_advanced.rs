@@ -4,8 +4,8 @@
 //! to available memory constraints and optimize data layout for cache efficiency.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::cmp::Ordering;
 use std::collections::VecDeque;
@@ -236,17 +236,17 @@ where
         // This is a simplified version - full implementation would handle
         // all matrix subdivisions recursively
         if m > threshold {
-            let a_top = a.slice(ndarray::s![..mid_m, ..]);
-            let a_bottom = a.slice(ndarray::s![mid_m.., ..]);
+            let a_top = a.slice(scirs2_core::ndarray::s![..mid_m, ..]);
+            let a_bottom = a.slice(scirs2_core::ndarray::s![mid_m.., ..]);
 
             let result_top = cache_oblivious_matrix_mult(&a_top, b, threshold)?;
             let result_bottom = cache_oblivious_matrix_mult(&a_bottom, b, threshold)?;
 
             result
-                .slice_mut(ndarray::s![..mid_m, ..])
+                .slice_mut(scirs2_core::ndarray::s![..mid_m, ..])
                 .assign(&result_top);
             result
-                .slice_mut(ndarray::s![mid_m.., ..])
+                .slice_mut(scirs2_core::ndarray::s![mid_m.., ..])
                 .assign(&result_bottom);
         }
     }
@@ -533,8 +533,8 @@ where
                 values.push(value);
             } else {
                 let j = {
-                    use rand::Rng;
-                    let mut rng = rand::thread_rng();
+                    use scirs2_core::random::Rng;
+                    let mut rng = scirs2_core::random::thread_rng();
                     rng.gen_range(0..total_count)
                 };
                 if j < values.len() {
@@ -1212,7 +1212,7 @@ where
     // Process data in batches
     for batch_start in (0..n_obs).step_by(batchsize) {
         let batch_end = (batch_start + batchsize).min(n_obs);
-        let batch = data.slice(ndarray::s![batch_start..batch_end, ..]);
+        let batch = data.slice(scirs2_core::ndarray::s![batch_start..batch_end, ..]);
 
         // Center the batch
         let mut centered_batch = Array2::<F>::zeros(batch.dim());
@@ -1311,7 +1311,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_adaptive_memory_manager() {

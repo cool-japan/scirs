@@ -3,8 +3,8 @@
 //! This module provides highly optimized distance calculations using the unified
 //! SIMD operations from scirs2-core, with fallbacks to standard implementations.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
 use std::fmt::Debug;
@@ -438,7 +438,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_pairwise_euclidean_simd() {

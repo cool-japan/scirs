@@ -17,7 +17,7 @@ use crate::error::{Result, TextError};
 use crate::multilingual::{Language, LanguageDetectionResult};
 use crate::sentiment::SentimentResult;
 use crate::transformer::*;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};

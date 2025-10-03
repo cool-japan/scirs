@@ -16,7 +16,7 @@ pub use reverse_mode::{reverse_gradient, reverse_hessian, ReverseADOptions};
 pub use tape::{ComputationTape, TapeNode, Variable};
 
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Automatic differentiation mode selection
 #[derive(Debug, Clone, Copy)]

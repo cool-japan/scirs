@@ -3,8 +3,8 @@
 //! This module contains optimized functions for batch matrix multiplication operations
 //! that are commonly used in neural network computations.
 
-use ndarray::{s, Array2, Array3, ArrayView2, ArrayView3};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array2, Array3, ArrayView2, ArrayView3};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use crate::error::{NeuralError, Result};
 /// Perform batch matrix multiplication for neural network operations.
@@ -18,7 +18,7 @@ use crate::error::{NeuralError, Result};
 /// * Result matrix with shape [batch_size, m, n]
 /// # Examples
 /// ```
-/// use ndarray::{array, Array, Ix3};
+/// use scirs2_core::ndarray::{array, Array, Ix3};
 /// use scirs2_neural::linalg::batch_matmul;
 /// // Create batch of 2x2x3 matrices (batch_size=2, m=2, k=3)
 /// let a = Array::from_shape_vec(
@@ -74,7 +74,7 @@ where
 /// * `v` - Batch of vectors with shape [batch_size, k]
 /// * `m` - Batch of matrices with shape [batch_size, k, n]
 /// * Result batch of vectors with shape [batch_size, n]
-/// use ndarray::{array, Array, Ix2, Ix3};
+/// use scirs2_core::ndarray::{array, Array, Ix2, Ix3};
 /// use scirs2_neural::linalg::batch_vecmat;
 /// // Create batch of 2x3 vectors (batch_size=2, k=3)
 /// let v = Array::from_shape_vec(

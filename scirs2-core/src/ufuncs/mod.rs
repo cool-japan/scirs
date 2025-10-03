@@ -658,15 +658,13 @@ pub mod reduction2d {
 
                         Ok(result)
                     }
-                    _ => {
-                        return Err(CoreError::ValueError(
-                            ErrorContext::new(format!(
-                                "Invalid axis {} for 2D array: must be 0 or 1",
-                                ax
-                            ))
-                            .with_location(ErrorLocation::here()),
+                    _ => Err(CoreError::ValueError(
+                        ErrorContext::new(format!(
+                            "Invalid axis {} for 2D array: must be 0 or 1",
+                            ax
                         ))
-                    }
+                        .with_location(ErrorLocation::here()),
+                    )),
                 }
             }
             None => {

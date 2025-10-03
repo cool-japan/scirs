@@ -3,8 +3,8 @@
 //! This module defines the core configuration structures and data types
 //! used throughout the advanced training framework.
 
-use ndarray::Array2;
-use num_traits::Float;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Task data structure for meta-learning

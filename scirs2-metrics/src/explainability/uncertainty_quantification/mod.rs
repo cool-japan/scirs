@@ -8,8 +8,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 // Module declarations
@@ -63,8 +63,12 @@ pub struct UncertaintyQuantificationSuite<F: Float> {
     pub advanced_analysis: Option<AdvancedUncertaintyAnalysis<F>>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOperand>
-    UncertaintyQuantificationSuite<F>
+impl<
+        F: Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum
+            + scirs2_core::ndarray::ScalarOperand,
+    > UncertaintyQuantificationSuite<F>
 {
     /// Create new uncertainty quantification suite
     pub fn new(quantifier: UncertaintyQuantifier<F>) -> Self {
@@ -238,8 +242,12 @@ pub struct UncertaintyMetricsComputer<F: Float> {
     suite: UncertaintyQuantificationSuite<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOperand>
-    UncertaintyMetricsComputer<F>
+impl<
+        F: Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum
+            + scirs2_core::ndarray::ScalarOperand,
+    > UncertaintyMetricsComputer<F>
 {
     /// Create new uncertainty metrics computer
     pub fn new(suite: UncertaintyQuantificationSuite<F>) -> Self {
@@ -300,8 +308,12 @@ pub struct UncertaintySummaryStats<F: Float> {
     pub coverage: F,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOperand> Default
-    for UncertaintyQuantificationSuite<F>
+impl<
+        F: Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum
+            + scirs2_core::ndarray::ScalarOperand,
+    > Default for UncertaintyQuantificationSuite<F>
 {
     fn default() -> Self {
         Self::new(UncertaintyQuantifier::new())

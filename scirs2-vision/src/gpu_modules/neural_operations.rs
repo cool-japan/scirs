@@ -5,8 +5,8 @@
 
 use super::context::GpuVisionContext;
 use crate::error::{Result, VisionError};
-use ndarray::{Array2, ArrayView2};
 use scirs2_core::gpu::GpuBackend;
+use scirs2_core::ndarray::{Array2, ArrayView2};
 
 /// GPU-accelerated multi-head attention for Vision Transformers
 ///
@@ -651,9 +651,9 @@ fn fallback_multi_head_attention(
         let head_end = head_start + head_dim;
 
         // Extract head slices
-        let q_head = queries.slice(ndarray::s![.., head_start..head_end]);
-        let k_head = keys.slice(ndarray::s![.., head_start..head_end]);
-        let v_head = values.slice(ndarray::s![.., head_start..head_end]);
+        let q_head = queries.slice(scirs2_core::ndarray::s![.., head_start..head_end]);
+        let k_head = keys.slice(scirs2_core::ndarray::s![.., head_start..head_end]);
+        let v_head = values.slice(scirs2_core::ndarray::s![.., head_start..head_end]);
 
         // Compute attention scores: Q @ K^T
         let scores = crate::simd_ops::simd_matmul_attention_advanced(&q_head, &k_head.t())?;
@@ -663,7 +663,7 @@ fn fallback_multi_head_attention(
 
         // Softmax
         let mut attention_weights = Array2::zeros(scaled_scores.dim());
-        ndarray::Zip::from(attention_weights.rows_mut())
+        scirs2_core::ndarray::Zip::from(attention_weights.rows_mut())
             .and(scaled_scores.rows())
             .for_each(|mut row, score_row| {
                 let max_val = score_row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
@@ -683,7 +683,7 @@ fn fallback_multi_head_attention(
 
         // Copy head output to final output
         output
-            .slice_mut(ndarray::s![.., head_start..head_end])
+            .slice_mut(scirs2_core::ndarray::s![.., head_start..head_end])
             .assign(&head_output);
     }
 

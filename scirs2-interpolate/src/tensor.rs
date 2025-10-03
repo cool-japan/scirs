@@ -5,8 +5,8 @@
 
 use crate::error::InterpolateResult;
 use crate::interp1d::InterpolationMethod;
-use ndarray::{Array1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Tensor product interpolator for multi-dimensional data on structured grids
@@ -37,7 +37,7 @@ impl<F: Float + FromPrimitive + Debug> TensorProductInterpolator<F> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     /// use scirs2_interpolate::tensor::TensorProductInterpolator;
     /// use scirs2_interpolate::interp1d::InterpolationMethod;
     ///
@@ -68,7 +68,7 @@ impl<F: Float + FromPrimitive + Debug> TensorProductInterpolator<F> {
     pub fn evaluate(
         &self,
         points: &ArrayView2<F>,
-        _values: &ndarray::ArrayD<F>,
+        _values: &scirs2_core::ndarray::ArrayD<F>,
     ) -> InterpolateResult<Array1<F>> {
         // This is a placeholder implementation
         // In a full implementation, we would:
@@ -100,7 +100,7 @@ impl<F: Float + FromPrimitive + Debug> TensorProductInterpolator<F> {
 #[allow(dead_code)]
 pub fn tensor_product_interpolate<F>(
     _coords: &[Array1<F>],
-    _values: &ndarray::ArrayD<F>,
+    _values: &scirs2_core::ndarray::ArrayD<F>,
     points: &ArrayView2<F>,
     _method: InterpolationMethod,
 ) -> InterpolateResult<Array1<F>>
@@ -160,7 +160,7 @@ impl<F: Float + FromPrimitive + Debug> LagrangeTensorInterpolator<F> {
     pub fn evaluate(
         &self,
         points: &ArrayView2<F>,
-        _values: &ndarray::ArrayD<F>,
+        _values: &scirs2_core::ndarray::ArrayD<F>,
     ) -> InterpolateResult<Array1<F>> {
         // This is a placeholder implementation
         // In a full implementation, we would:
@@ -191,7 +191,7 @@ impl<F: Float + FromPrimitive + Debug> LagrangeTensorInterpolator<F> {
 #[allow(dead_code)]
 pub fn lagrange_tensor_interpolate<F>(
     _coords: &[Array1<F>],
-    _values: &ndarray::ArrayD<F>,
+    _values: &scirs2_core::ndarray::ArrayD<F>,
     points: &ArrayView2<F>,
 ) -> InterpolateResult<Array1<F>>
 where
@@ -215,7 +215,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_tensor_product_interpolator() {

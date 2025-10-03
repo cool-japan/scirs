@@ -17,7 +17,7 @@
 //! ## Basic Plotting
 //!
 //! ```rust
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_ndimage::visualization::{PlotConfig, ColorMap, ReportFormat, plot_histogram};
 //!
 //! let data = Array2::from_shape_fn((100, 100), |(i, j)| {
@@ -36,7 +36,7 @@
 //! ## Report Generation
 //!
 //! ```rust
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_ndimage::visualization::{ReportConfig, ReportFormat, generate_report};
 //!
 //! let image = Array2::from_shape_fn((50, 50), |(i, j)| {
@@ -55,7 +55,7 @@
 //! ## Statistical Comparison
 //!
 //! ```rust
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_ndimage::visualization::{PlotConfig, ReportFormat, plot_statistical_comparison};
 //!
 //! let control = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
@@ -128,8 +128,8 @@ pub mod export {
     use super::types::{ReportConfig, ReportFormat};
     use crate::analysis::{ImageQualityMetrics, TextureMetrics};
     use crate::error::{NdimageError, NdimageResult};
-    use ndarray::ArrayView2;
-    use num_traits::{Float, FromPrimitive, ToPrimitive};
+    use scirs2_core::ndarray::ArrayView2;
+    use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive};
     use std::fmt::Debug;
     use std::fs;
     use std::path::Path;
@@ -241,8 +241,8 @@ pub mod advanced {
     use super::plotting::plot_heatmap;
     use super::types::{ColorMap, PlotConfig, ReportFormat};
     use crate::error::{NdimageError, NdimageResult};
-    use ndarray::ArrayView2;
-    use num_traits::{Float, FromPrimitive, ToPrimitive, Zero};
+    use scirs2_core::ndarray::ArrayView2;
+    use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive, Zero};
     use std::fmt::{Debug, Write};
 
     /// Create an interactive HTML visualization with multiple views
@@ -495,7 +495,7 @@ pub mod advanced {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_module_exports() {

@@ -3,7 +3,7 @@
 //! This example shows how to use the GPU-accelerated and memory-efficient
 //! implementations of special functions for large arrays.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::error::SpecialResult;
 
 #[cfg(feature = "gpu")]

@@ -198,10 +198,10 @@ pub fn calculate_coefficient_energy(tree: &crate::wpt::WaveletPacketTree) -> Sig
 /// Calculate subband energy distribution
 pub fn calculate_subband_energy_distribution(
     tree: &crate::wpt::WaveletPacketTree,
-) -> SignalResult<ndarray::Array1<f64>> {
+) -> SignalResult<scirs2_core::ndarray::Array1<f64>> {
     // Placeholder - would calculate energy in each subband
     let num_subbands = 10;
-    let distribution = ndarray::Array1::ones(num_subbands) / num_subbands as f64;
+    let distribution = scirs2_core::ndarray::Array1::ones(num_subbands) / num_subbands as f64;
     Ok(distribution)
 }
 

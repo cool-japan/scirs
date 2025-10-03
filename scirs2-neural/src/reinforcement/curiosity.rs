@@ -6,10 +6,10 @@
 use crate::activations::Activation;
 use crate::error::Result;
 use crate::layers::{Dense, Layer};
-use ndarray::concatenate;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::concatenate;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::VecDeque;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// Intrinsic Curiosity Module (ICM)
 ///
 /// ICM consists of two models:

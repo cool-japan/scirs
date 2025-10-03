@@ -16,7 +16,7 @@ pub mod enhanced;
 
 use chrono::{DateTime, Utc};
 use image::AnimationDecoder;
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 use std::fs;
 use std::io::BufReader;
 use std::path::Path;

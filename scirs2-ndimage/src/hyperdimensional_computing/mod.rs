@@ -31,7 +31,7 @@
 //!
 //! ```rust,ignore
 //! use scirs2_ndimage::hyperdimensional_computing::*;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let config = HDCConfig::default();
 //! let train_images = vec![Array2::zeros((8, 8)).view()];
@@ -50,7 +50,7 @@
 //!
 //! ```rust,ignore
 //! use scirs2_ndimage::hyperdimensional_computing::*;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let config = HDCConfig::default();
 //! let image = Array2::from_elem((64, 64), 0.5);
@@ -78,13 +78,16 @@ pub use types::*;
 // Re-export vector operations
 pub use vector_ops::*;
 
-// Re-export memory systems
+// Re-export memory systems - may have name conflicts with reasoning module
+#[allow(ambiguous_glob_reexports)]
 pub use memory::*;
 
-// Re-export image processing functions
+// Re-export image processing functions - may have name conflicts with reasoning module
+#[allow(ambiguous_glob_reexports)]
 pub use image_processing::*;
 
-// Re-export advanced reasoning functions
+// Re-export advanced reasoning functions - may have name conflicts with memory/image_processing modules
+#[allow(ambiguous_glob_reexports)]
 pub use reasoning::*;
 
 // Re-export utility functions
@@ -150,7 +153,7 @@ pub use utils::analyze_patch_for_feature;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_module_integration() {

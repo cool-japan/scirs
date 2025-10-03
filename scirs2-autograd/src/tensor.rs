@@ -17,7 +17,7 @@ use std::ops::{Add, Div, Mul, Sub};
 /// Similar to numpy array, but is designed a bit differently:
 /// - `Tensor` itself doesn't have its content
 ///   - cheap to `Copy`
-///   - Lazily evaluated to [ndarray::Array], i.e. the value is obtained only after call `Tensor::eval`, `Evaluator::run`, or `Optimizer::update`.
+///   - Lazily evaluated to [scirs2_core::ndarray::Array], i.e. the value is obtained only after call `Tensor::eval`, `Evaluator::run`, or `Optimizer::update`.
 /// - `Tensor` belongs to a particular [Graph] and is shorter lived than the graph
 ///   - Note the lifetime parameter: `Tensor<'graph_>`
 ///   - The graph is always wrapped in [Context]
@@ -37,11 +37,11 @@ use std::ops::{Add, Div, Mul, Sub};
 ///     // Binary operators are implemented
 ///     let mul = random * 3.;
 ///
-///     // Tensor is evaluated as an ndarray::Array<T, IxDyn>.
+///     // Tensor is evaluated as an scirs2_core::ndarray::Array<T, IxDyn>.
 ///     type NdArray = ag::NdArray<f64>;
 ///     let mul_val: Result<NdArray, ag::EvalError> = mul.eval(ctx);
 ///
-///     // Internally used ndarray::ArrayView allows reshaping tensors without copying
+///     // Internally used scirs2_core::ndarray::ArrayView allows reshaping tensors without copying
 ///     let reshaped = T::reshape(random, &[6]);
 ///
 ///     // Evaluating multiple tensors at once.
@@ -99,10 +99,10 @@ impl<'graph, F: Float> Tensor<'graph, F> {
         self.graph
     }
 
-    /// Evaluates this tensor as an `ndarray::Array<F, ndarray::IxDyn>`.
+    /// Evaluates this tensor as an `scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>`.
     ///
     ///    ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops as T;
     ///
@@ -126,7 +126,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     /// Panics if `self` is a source node, such as a variable or placeholder.
     ///
     ///    ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops as T;
     /// use ag::prelude::*;
@@ -444,9 +444,9 @@ impl<'graph, F: Float> Tensor<'graph, F> {
         shape: Vec<usize>,
         graph: &'graph Graph<F>,
     ) -> Tensor<'graph, F> {
-        let array = match NdArray::from_shape_vec(ndarray::IxDyn(&shape), _data) {
+        let array = match NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&shape), _data) {
             Ok(arr) => arr,
-            Err(_) => NdArray::zeros(ndarray::IxDyn(&shape)),
+            Err(_) => NdArray::zeros(scirs2_core::ndarray::IxDyn(&shape)),
         };
         crate::tensor_ops::convert_to_tensor(array, graph)
     }
@@ -1022,7 +1022,8 @@ macro_rules! impl_as_tensor_for_array {
                     .collect::<Vec<F>>();
 
                 // unwrap is safe
-                let arr = NdArray::from_shape_vec(ndarray::IxDyn(&[self.len()]), vec).unwrap();
+                let arr = NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[self.len()]), vec)
+                    .unwrap();
                 T::convert_to_tensor(arr, graph.as_graph())
             }
         }

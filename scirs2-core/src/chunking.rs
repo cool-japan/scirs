@@ -690,7 +690,7 @@ impl ChunkingUtils {
         }
         #[cfg(not(feature = "parallel"))]
         {
-            data.iter().map(|x| map_fn(x)).collect()
+            data.iter().map(map_fn).collect()
         }
     }
 

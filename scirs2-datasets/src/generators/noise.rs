@@ -3,11 +3,9 @@
 use super::config::{MissingPattern, OutlierType};
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2};
-use rand::prelude::*;
-use rand::rngs::StdRng;
-use rand_distr::Uniform;
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{rngs::StdRng, Distribution, Uniform};
 use std::f64::consts::PI;
 
 /// Inject missing data into a dataset with realistic patterns
@@ -249,7 +247,7 @@ pub fn add_time_series_noise(
     };
 
     let (n_samples, n_features) = data.dim();
-    let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
+    let normal = scirs2_core::random::Normal::new(0.0, 1.0).unwrap();
 
     for &(noise_type, strength) in noise_types {
         match noise_type {

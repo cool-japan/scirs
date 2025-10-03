@@ -4,8 +4,8 @@
 //! for complex statistical operations that can benefit from vectorization.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{ArrayBase, ArrayView1, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, ArrayView1, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// SIMD-optimized distance matrix computation
@@ -16,7 +16,7 @@ use scirs2_core::simd_ops::SimdUnifiedOps;
 pub fn distance_matrix_simd<F, D>(
     data: &ArrayBase<D, Ix2>,
     metric: &str,
-) -> StatsResult<ndarray::Array2<F>>
+) -> StatsResult<scirs2_core::ndarray::Array2<F>>
 where
     F: Float + NumCast + SimdUnifiedOps + std::fmt::Display + std::iter::Sum + Send + Sync,
     D: Data<Elem = F>,
@@ -29,7 +29,7 @@ where
         ));
     }
 
-    let mut distances = ndarray::Array2::zeros((n_samples_, n_samples_));
+    let mut distances = scirs2_core::ndarray::Array2::zeros((n_samples_, n_samples_));
 
     // Only compute upper triangle (distance matrix is symmetric)
     for i in 0..n_samples_ {
@@ -195,7 +195,10 @@ where
     }
 
     /// Compute moving mean using SIMD operations
-    pub fn moving_mean<D>(&self, data: &ArrayBase<D, Ix1>) -> StatsResult<ndarray::Array1<F>>
+    pub fn moving_mean<D>(
+        &self,
+        data: &ArrayBase<D, Ix1>,
+    ) -> StatsResult<scirs2_core::ndarray::Array1<F>>
     where
         D: Data<Elem = F>,
     {
@@ -206,19 +209,19 @@ where
         }
 
         let n_windows = data.len() - self.windowsize + 1;
-        let mut result = ndarray::Array1::zeros(n_windows);
+        let mut result = scirs2_core::ndarray::Array1::zeros(n_windows);
 
         if self.windowsize > 16 {
             // SIMD path: compute each window mean
             for i in 0..n_windows {
-                let window = data.slice(ndarray::s![i..i + self.windowsize]);
+                let window = data.slice(scirs2_core::ndarray::s![i..i + self.windowsize]);
                 let sum = F::simd_sum(&window);
                 result[i] = sum / F::from(self.windowsize).unwrap();
             }
         } else {
             // Optimized scalar path using sliding window sum
             let mut window_sum = data
-                .slice(ndarray::s![0..self.windowsize])
+                .slice(scirs2_core::ndarray::s![0..self.windowsize])
                 .iter()
                 .fold(F::zero(), |acc, &x| acc + x);
 
@@ -238,7 +241,7 @@ where
         &self,
         data: &ArrayBase<D, Ix1>,
         ddof: usize,
-    ) -> StatsResult<ndarray::Array1<F>>
+    ) -> StatsResult<scirs2_core::ndarray::Array1<F>>
     where
         D: Data<Elem = F>,
     {
@@ -255,15 +258,15 @@ where
         }
 
         let n_windows = data.len() - self.windowsize + 1;
-        let mut result = ndarray::Array1::zeros(n_windows);
+        let mut result = scirs2_core::ndarray::Array1::zeros(n_windows);
 
         for i in 0..n_windows {
-            let window = data.slice(ndarray::s![i..i + self.windowsize]);
+            let window = data.slice(scirs2_core::ndarray::s![i..i + self.windowsize]);
 
             if self.windowsize > 16 {
                 // SIMD path: compute mean, then variance
                 let mean = F::simd_sum(&window.view()) / F::from(self.windowsize).unwrap();
-                let mean_array = ndarray::Array1::from_elem(self.windowsize, mean);
+                let mean_array = scirs2_core::ndarray::Array1::from_elem(self.windowsize, mean);
                 let diff = F::simd_sub(&window, &mean_array.view());
                 let sq_diff = F::simd_mul(&diff.view(), &diff.view());
                 let sum_sq_diff = F::simd_sum(&sq_diff.view());
@@ -291,7 +294,10 @@ where
     }
 
     /// Compute moving minimum using SIMD operations where applicable
-    pub fn moving_min<D>(&self, data: &ArrayBase<D, Ix1>) -> StatsResult<ndarray::Array1<F>>
+    pub fn moving_min<D>(
+        &self,
+        data: &ArrayBase<D, Ix1>,
+    ) -> StatsResult<scirs2_core::ndarray::Array1<F>>
     where
         D: Data<Elem = F>,
     {
@@ -302,10 +308,10 @@ where
         }
 
         let n_windows = data.len() - self.windowsize + 1;
-        let mut result = ndarray::Array1::zeros(n_windows);
+        let mut result = scirs2_core::ndarray::Array1::zeros(n_windows);
 
         for i in 0..n_windows {
-            let window = data.slice(ndarray::s![i..i + self.windowsize]);
+            let window = data.slice(scirs2_core::ndarray::s![i..i + self.windowsize]);
 
             // Use scalar path for now (SIMD min/max need different implementation)
             result[i] = window.iter().fold(
@@ -318,7 +324,10 @@ where
     }
 
     /// Compute moving maximum using SIMD operations where applicable
-    pub fn moving_max<D>(&self, data: &ArrayBase<D, Ix1>) -> StatsResult<ndarray::Array1<F>>
+    pub fn moving_max<D>(
+        &self,
+        data: &ArrayBase<D, Ix1>,
+    ) -> StatsResult<scirs2_core::ndarray::Array1<F>>
     where
         D: Data<Elem = F>,
     {
@@ -329,10 +338,10 @@ where
         }
 
         let n_windows = data.len() - self.windowsize + 1;
-        let mut result = ndarray::Array1::zeros(n_windows);
+        let mut result = scirs2_core::ndarray::Array1::zeros(n_windows);
 
         for i in 0..n_windows {
-            let window = data.slice(ndarray::s![i..i + self.windowsize]);
+            let window = data.slice(scirs2_core::ndarray::s![i..i + self.windowsize]);
 
             // Use scalar path for now (SIMD min/max need different implementation)
             result[i] = window.iter().fold(
@@ -353,7 +362,10 @@ pub fn histogram_simd<F, D>(
     data: &ArrayBase<D, Ix1>,
     bins: usize,
     range: Option<(F, F)>,
-) -> StatsResult<(ndarray::Array1<usize>, ndarray::Array1<F>)>
+) -> StatsResult<(
+    scirs2_core::ndarray::Array1<usize>,
+    scirs2_core::ndarray::Array1<F>,
+)>
 where
     F: Float + NumCast + SimdUnifiedOps + std::fmt::Display + std::iter::Sum + Send + Sync,
     D: Data<Elem = F>,
@@ -393,7 +405,7 @@ where
     }
 
     // Create bin edges
-    let mut bin_edges = ndarray::Array1::zeros(bins + 1);
+    let mut bin_edges = scirs2_core::ndarray::Array1::zeros(bins + 1);
     let range_width = max_val - min_val;
     let bin_width = range_width / F::from(bins).unwrap();
 
@@ -402,7 +414,7 @@ where
     }
 
     // Initialize histogram counts
-    let mut counts = ndarray::Array1::zeros(bins);
+    let mut counts = scirs2_core::ndarray::Array1::zeros(bins);
 
     // Bin the data
     for &value in data.iter() {
@@ -427,7 +439,7 @@ where
 pub fn detect_outliers_zscore_simd<F, D>(
     data: &ArrayBase<D, Ix1>,
     threshold: F,
-) -> StatsResult<ndarray::Array1<bool>>
+) -> StatsResult<scirs2_core::ndarray::Array1<bool>>
 where
     F: Float + NumCast + SimdUnifiedOps + std::fmt::Display + std::iter::Sum + Send + Sync,
     D: Data<Elem = F>,
@@ -460,11 +472,11 @@ where
 
     if std_dev <= F::epsilon() {
         // All values are the same
-        return Ok(ndarray::Array1::from_elem(n, false));
+        return Ok(scirs2_core::ndarray::Array1::from_elem(n, false));
     }
 
     // Compute z-scores and identify outliers
-    let mut outliers = ndarray::Array1::from_elem(n, false);
+    let mut outliers = scirs2_core::ndarray::Array1::from_elem(n, false);
 
     // Scalar path
     for (i, &value) in data.iter().enumerate() {
@@ -479,7 +491,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_euclidean_distance_simd() {

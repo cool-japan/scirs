@@ -4,8 +4,8 @@
 //! the NURBS (Non-Uniform Rational B-Splines) implementation.
 
 use crate::bspline::{BSpline, ExtrapolateMode};
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -27,7 +27,7 @@ pub trait NurbsFloat:
     + std::ops::MulAssign
     + std::ops::DivAssign
     + std::ops::RemAssign
-    + ndarray::ScalarOperand
+    + scirs2_core::ndarray::ScalarOperand
     + Copy
 {
 }
@@ -47,7 +47,7 @@ impl<T> NurbsFloat for T where
         + std::ops::MulAssign
         + std::ops::DivAssign
         + std::ops::RemAssign
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Copy
 {
 }
@@ -71,7 +71,7 @@ impl<T> NurbsFloat for T where
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::{array, Array1, Array2};
+/// use scirs2_core::ndarray::{array, Array1, Array2};
 /// use scirs2_interpolate::nurbs::{NurbsCurve};
 /// use scirs2_interpolate::bspline::ExtrapolateMode;
 ///
@@ -125,7 +125,7 @@ pub struct NurbsCurve<T: NurbsFloat> {
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::{array, Array1, Array2};
+/// use scirs2_core::ndarray::{array, Array1, Array2};
 /// use scirs2_interpolate::nurbs::NurbsSurface;
 /// use scirs2_interpolate::bspline::ExtrapolateMode;
 ///

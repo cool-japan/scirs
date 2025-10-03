@@ -15,8 +15,8 @@
 use crate::error::{FFTError, FFTResult};
 use crate::spectrogram::{spectrogram, spectrogram_normalized};
 use crate::window::Window;
-use ndarray::{Array1, Array2, Array3};
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::NumCast;
 use std::f64::consts::PI;
 
 /// Generate data for a 3D waterfall plot from a time-domain signal.
@@ -558,7 +558,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::waterfall::apply_colormap;
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Create some test amplitudes
 /// let amplitudes = Array1::from_vec(vec![0.0, 0.25, 0.5, 0.75, 1.0]);

@@ -6,7 +6,7 @@
 
 use crate::error::{LinalgError, LinalgResult};
 use crate::quantization::QuantizationMethod;
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use std::fmt::Debug;
 
 /// Numerical stability report for quantization operations
@@ -94,8 +94,11 @@ pub fn analyze_quantization_stability<F>(
     method: QuantizationMethod,
 ) -> LinalgResult<QuantizationStabilityReport>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Convert matrix to f32 for analysis
     let matrix_f32 = matrix.mapv(|x| x.as_());
@@ -296,8 +299,11 @@ pub fn validate_quantization_config<F>(
     threshold: Option<f32>,
 ) -> LinalgResult<()>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let error_threshold = threshold.unwrap_or(0.01);
 
@@ -350,8 +356,11 @@ pub fn recommend_quantization_params<F>(
     target_sqnr_db: Option<f32>,
 ) -> LinalgResult<(u8, QuantizationMethod)>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let sqnr_target = target_sqnr_db.unwrap_or(30.0);
 
@@ -454,7 +463,7 @@ fn estimate_column_variability(matrix: &Array2<f32>) -> f32 {
     let mut max_range = 0.0f32;
 
     for col_idx in 0..cols {
-        let column = matrix.slice(ndarray::s![.., col_idx]);
+        let column = matrix.slice(scirs2_core::ndarray::s![.., col_idx]);
 
         let min_val = column.fold(f32::INFINITY, |acc, &x| acc.min(x));
         let max_val = column.fold(f32::NEG_INFINITY, |acc, &x| acc.max(x));
@@ -488,7 +497,7 @@ fn count_near_zero_values(matrix: &Array2<f32>, threshold: f32) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_stability_analysis_symmetric() {

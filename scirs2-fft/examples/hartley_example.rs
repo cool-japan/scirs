@@ -1,6 +1,6 @@
 //! Example demonstrating the Hartley transform
 
-use ndarray::{array, Array1};
+use scirs2_core::ndarray::{array, Array1};
 use scirs2_fft::hartley::{dht, dht2, fht, idht};
 use std::f64::consts::PI;
 

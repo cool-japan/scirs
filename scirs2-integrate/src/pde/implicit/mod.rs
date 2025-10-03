@@ -12,7 +12,7 @@
 //! * Alternating Direction Implicit (ADI) method: An efficient operator splitting method for
 //!   multi-dimensional problems
 
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::time::Instant;
 
 use crate::pde::finite_difference::FiniteDifferenceScheme;

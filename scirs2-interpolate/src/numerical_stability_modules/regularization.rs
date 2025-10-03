@@ -3,8 +3,8 @@
 //! This module provides various regularization techniques and safe arithmetic
 //! operations to improve numerical stability in interpolation algorithms.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
@@ -466,7 +466,7 @@ where
 /// Transpose a matrix
 fn transpose_matrix<F>(matrix: &ArrayView2<F>) -> Array2<F>
 where
-    F: Clone + num_traits::Zero,
+    F: Clone + scirs2_core::numeric::Zero,
 {
     let (rows, cols) = matrix.dim();
     let mut result = Array2::zeros((cols, rows));
@@ -483,7 +483,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_safe_division() {

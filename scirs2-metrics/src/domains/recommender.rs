@@ -7,7 +7,7 @@ use crate::domains::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
 use crate::ranking::{mean_average_precision, ndcg_score, precision_at_k, recall_at_k};
 use crate::regression::{mean_absolute_error, mean_squared_error};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::{HashMap, HashSet};
 
 /// Ranking evaluation results for recommender systems

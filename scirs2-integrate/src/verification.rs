@@ -10,7 +10,7 @@
 //! ## ODE Verification
 //! ```
 //! use scirs2_integrate::verification::{MMSODEProblem, polynomial_solution};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! // Create a manufactured ODE problem with polynomial solution
 //! let exact_solution = polynomial_solution(vec![1.0, 2.0, 3.0]); // 1 + 2t + 3t²
@@ -31,7 +31,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 use std::f64::consts::PI;
 use std::fmt;
 
@@ -1128,7 +1128,7 @@ pub fn combined_solution<F: IntegrateFloat>(dimension: usize) -> CombinedSolutio
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_polynomial_solution() {

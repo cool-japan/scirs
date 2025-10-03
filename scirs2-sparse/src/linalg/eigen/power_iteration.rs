@@ -6,8 +6,8 @@
 use crate::error::{SparseError, SparseResult};
 use crate::sym_csr::SymCsrMatrix;
 use crate::sym_ops::sym_csr_matvec;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -66,7 +66,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_sparse::{
 ///     sym_csr::SymCsrMatrix,
 ///     linalg::{power_iteration, PowerIterationOptions},
@@ -235,7 +235,7 @@ where
 mod tests {
     use super::*;
     use crate::sym_csr::SymCsrMatrix;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_power_iteration_simple() {

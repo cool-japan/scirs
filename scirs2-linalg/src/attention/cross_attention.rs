@@ -4,8 +4,8 @@
 //! the standard scaled dot-product attention, including flash attention,
 //! sparse attention, rotary embeddings, and more.
 
-use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3};
-use num_traits::{Float, NumAssignOps, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3};
+use scirs2_core::numeric::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
 use super::utils::{attention, AttentionMask};
@@ -75,7 +75,7 @@ where
         // Process query blocks
         for q_start in (0..seq_len_q).step_by(blocksize_q) {
             let q_end = (q_start + blocksize_q).min(seq_len_q);
-            let q_block = query.slice(ndarray::s![b, q_start..q_end, ..]);
+            let q_block = query.slice(scirs2_core::ndarray::s![b, q_start..q_end, ..]);
 
             // For each query block, process all key/value blocks
             let mut m_block = Array1::<F>::from_elem(q_end - q_start, F::neg_infinity());
@@ -83,8 +83,8 @@ where
 
             for k_start in (0..seq_len_k).step_by(blocksize_k) {
                 let k_end = (k_start + blocksize_k).min(seq_len_k);
-                let k_block = key.slice(ndarray::s![b, k_start..k_end, ..]);
-                let v_block = value.slice(ndarray::s![b, k_start..k_end, ..]);
+                let k_block = key.slice(scirs2_core::ndarray::s![b, k_start..k_end, ..]);
+                let v_block = value.slice(scirs2_core::ndarray::s![b, k_start..k_end, ..]);
 
                 // Compute block of attention scores
                 let mut scores_block = Array2::<F>::zeros((q_end - q_start, k_end - k_start));
@@ -125,7 +125,7 @@ where
 
                 // Update max values and compute exponentials
                 for i in 0..(q_end - q_start) {
-                    let row = scores_block.slice(ndarray::s![i, ..]);
+                    let row = scores_block.slice(scirs2_core::ndarray::s![i, ..]);
                     let max_val =
                         row.fold(F::neg_infinity(), |max, &x| if x > max { x } else { max });
 
@@ -238,13 +238,13 @@ where
 
     // Process batch by batch
     for b in 0..batchsize {
-        let q_b = query.slice(ndarray::s![b, .., ..]);
-        let k_b = key.slice(ndarray::s![b, .., ..]);
-        let v_b = value.slice(ndarray::s![b, .., ..]);
+        let q_b = query.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let k_b = key.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let v_b = value.slice(scirs2_core::ndarray::s![b, .., ..]);
 
         // For each query position
         for i in 0..seq_len_q {
-            let q_i = q_b.slice(ndarray::s![i, ..]);
+            let q_i = q_b.slice(scirs2_core::ndarray::s![i, ..]);
 
             // Calculate sparse attention scores
             let mut scores = Vec::new();
@@ -253,7 +253,7 @@ where
             // Only compute scores for positions allowed by the pattern mask
             for j in 0..seq_len_k {
                 if pattern_mask[[i, j]] {
-                    let k_j = k_b.slice(ndarray::s![j, ..]);
+                    let k_j = k_b.slice(scirs2_core::ndarray::s![j, ..]);
 
                     // Compute dot product
                     let mut dot_product = F::zero();
@@ -348,9 +348,9 @@ where
 
     for b in 0..batchsize {
         // Calculate QK^T
-        let q_b = query.slice(ndarray::s![b, .., ..]);
-        let k_b = key.slice(ndarray::s![b, .., ..]);
-        let v_b = value.slice(ndarray::s![b, .., ..]);
+        let q_b = query.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let k_b = key.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let v_b = value.slice(scirs2_core::ndarray::s![b, .., ..]);
 
         let mut scores = Array2::<F>::zeros((seq_len_q, seq_len_k));
 
@@ -394,7 +394,7 @@ where
 
         // Apply softmax to each row
         for i in 0..seq_len_q {
-            let mut row = scores.slice_mut(ndarray::s![i, ..]);
+            let mut row = scores.slice_mut(scirs2_core::ndarray::s![i, ..]);
 
             // Find max for numerical stability
             let max_val = row.fold(F::neg_infinity(), |max, &x| if x > max { x } else { max });
@@ -429,7 +429,9 @@ where
         }
 
         // Store result
-        result.slice_mut(ndarray::s![b, .., ..]).assign(&output);
+        result
+            .slice_mut(scirs2_core::ndarray::s![b, .., ..])
+            .assign(&output);
     }
 
     Ok(result)
@@ -706,7 +708,7 @@ where
             }
 
             // Apply softmax
-            let mut row = combined_scores.slice_mut(ndarray::s![i, ..]);
+            let mut row = combined_scores.slice_mut(scirs2_core::ndarray::s![i, ..]);
             let max_val = row.fold(F::neg_infinity(), |max, &x| if x > max { x } else { max });
 
             let mut sum = F::zero();
@@ -738,7 +740,9 @@ where
         }
 
         // Store the result for this batch
-        result.slice_mut(ndarray::s![b, .., ..]).assign(&output);
+        result
+            .slice_mut(scirs2_core::ndarray::s![b, .., ..])
+            .assign(&output);
     }
 
     Ok(result)

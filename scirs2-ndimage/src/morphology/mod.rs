@@ -22,7 +22,7 @@
 //! # Example
 //!
 //! ```
-//! use ndarray::{Array2, array};
+//! use scirs2_core::ndarray::{Array2, array};
 //! use scirs2_ndimage::morphology::simple_morph::binary_erosion_2d;
 //!
 //! // Create a binary image

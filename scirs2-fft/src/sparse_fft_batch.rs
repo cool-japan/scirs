@@ -11,8 +11,8 @@ use crate::sparse_fft::{
 use crate::sparse_fft_gpu::{GPUBackend, GPUSparseFFTConfig};
 use crate::sparse_fft_gpu_memory::{init_global_memory_manager, AllocationStrategy};
 
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 use std::time::Instant;
@@ -449,8 +449,8 @@ mod tests {
 
     // Helper to add noise to signals
     fn add_noise(_signal: &[f64], noise_level: f64) -> Vec<f64> {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         _signal
             .iter()
             .map(|&x| x + rng.gen_range(-noise_level..noise_level))
@@ -493,7 +493,7 @@ mod tests {
         // Each result should identify at least some of the key frequencies
         for (i, result) in results.iter().enumerate() {
             assert!(
-                result.indices.len() > 0,
+                !result.indices.is_empty(),
                 "No frequencies detected for signal {}",
                 i
             );
@@ -542,7 +542,7 @@ mod tests {
         // Each result should identify at least some of the key frequencies
         for (i, result) in results.iter().enumerate() {
             assert!(
-                result.indices.len() > 0,
+                !result.indices.is_empty(),
                 "No frequencies detected for signal {}",
                 i
             );

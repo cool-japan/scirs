@@ -12,11 +12,11 @@
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::spatial::{BallTree, KdTree};
-use ndarray::{ArrayView2, Axis};
+use scirs2_core::ndarray::{ArrayView2, Axis};
 
 #[cfg(feature = "simd")]
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 #[cfg(feature = "simd")]
@@ -434,7 +434,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_simd_distance_ops() {

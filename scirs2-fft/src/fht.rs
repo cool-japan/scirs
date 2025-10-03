@@ -174,62 +174,6 @@ pub fn fht_sample_points(n: usize, dln: f64, offset: f64) -> Vec<f64> {
         .collect()
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_relative_eq;
-
-    #[test]
-    fn test_fht_basic() {
-        let n = 64;
-        let dln = 0.1;
-        let mu = 0.0;
-
-        // Create a simple test signal
-        let x: Vec<f64> = (0..n)
-            .map(|i| ((i as f64 - n as f64 / 2.0) * dln).exp())
-            .collect();
-
-        // Test forward transform
-        let y = fht(&x, dln, mu, None, None).unwrap();
-        assert_eq!(y.len(), n);
-
-        // Test inverse transform
-        let x_recovered = ifht(&y, dln, mu, None, None).unwrap();
-        assert_eq!(x_recovered.len(), n);
-    }
-
-    #[test]
-    fn test_fhtoffset() {
-        let dln = 0.1;
-        let mu = 0.5;
-
-        // Test with zero bias
-        let offset1 = fhtoffset(dln, mu, None, Some(0.0)).unwrap();
-        assert_relative_eq!(offset1, 0.0, epsilon = 1e-10);
-
-        // Test with non-zero bias and initial guess
-        let offset2 = fhtoffset(dln, mu, Some(0.5), Some(1.0)).unwrap();
-        assert_relative_eq!(offset2, 0.5, epsilon = 1e-10);
-    }
-
-    #[test]
-    fn test_sample_points() {
-        let n = 8;
-        let dln = 0.5;
-        let offset = 1.0;
-
-        let points = fht_sample_points(n, dln, offset);
-        assert_eq!(points.len(), n);
-
-        // Check that points are logarithmically spaced
-        for i in 1..n {
-            let ratio = points[i] / points[i - 1];
-            assert_relative_eq!(ratio.ln(), dln, epsilon = 1e-10);
-        }
-    }
-}
-
 /// Bandwidth-saturated SIMD implementation of Fast Hankel Transform
 ///
 /// This ultra-optimized implementation targets 80-90% memory bandwidth utilization
@@ -489,7 +433,7 @@ fn fht_multiply_bandwidth_saturated_simd(a: &[f64], coeffs: &[f64]) -> FFTResult
 /// Bandwidth-saturated SIMD extraction of real parts from complex spectrum
 #[allow(dead_code)]
 fn fht_extract_real_bandwidth_saturated_simd(
-    spectrum: &[num_complex::Complex64],
+    spectrum: &[scirs2_core::numeric::Complex64],
     n: usize,
 ) -> FFTResult<Vec<f64>> {
     use scirs2_core::simd_ops::SimdUnifiedOps;
@@ -654,5 +598,61 @@ pub fn fft_log_bandwidth_saturated_simd(
         let k_points = fht_sample_points(n, 2.0 * PI / (n as f64 * dln), -offset);
 
         Ok((output, k_points))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+
+    #[test]
+    fn test_fht_basic() {
+        let n = 64;
+        let dln = 0.1;
+        let mu = 0.0;
+
+        // Create a simple test signal
+        let x: Vec<f64> = (0..n)
+            .map(|i| ((i as f64 - n as f64 / 2.0) * dln).exp())
+            .collect();
+
+        // Test forward transform
+        let y = fht(&x, dln, mu, None, None).unwrap();
+        assert_eq!(y.len(), n);
+
+        // Test inverse transform
+        let x_recovered = ifht(&y, dln, mu, None, None).unwrap();
+        assert_eq!(x_recovered.len(), n);
+    }
+
+    #[test]
+    fn test_fhtoffset() {
+        let dln = 0.1;
+        let mu = 0.5;
+
+        // Test with zero bias
+        let offset1 = fhtoffset(dln, mu, None, Some(0.0)).unwrap();
+        assert_relative_eq!(offset1, 0.0, epsilon = 1e-10);
+
+        // Test with non-zero bias and initial guess
+        let offset2 = fhtoffset(dln, mu, Some(0.5), Some(1.0)).unwrap();
+        assert_relative_eq!(offset2, 0.5, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_sample_points() {
+        let n = 8;
+        let dln = 0.5;
+        let offset = 1.0;
+
+        let points = fht_sample_points(n, dln, offset);
+        assert_eq!(points.len(), n);
+
+        // Check that points are logarithmically spaced
+        for i in 1..n {
+            let ratio = points[i] / points[i - 1];
+            assert_relative_eq!(ratio.ln(), dln, epsilon = 1e-10);
+        }
     }
 }

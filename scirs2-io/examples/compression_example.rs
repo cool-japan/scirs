@@ -1,11 +1,11 @@
-use ndarray::{Array, ArrayBase, IxDyn, OwnedRepr};
-use rand::Rng;
+use scirs2_core::ndarray::{Array, ArrayBase, IxDyn, OwnedRepr};
+use scirs2_core::random::Rng;
+use scirs2_io::compression::ndarray::{
+    compare_compression_algorithms, compress_array, compress_array_chunked, decompress_array,
+    decompress_array_chunked,
+};
 use scirs2_io::compression::{
     algorithm_info, compress_data, compress_file, decompress_data, decompress_file,
-    ndarray::{
-        compare_compression_algorithms, compress_array, compress_array_chunked, decompress_array,
-        decompress_array_chunked,
-    },
     CompressionAlgorithm,
 };
 use std::fs::File;
@@ -352,7 +352,7 @@ fn create_random_array(shape: &[usize]) -> Array<f64, IxDyn> {
     let mut data = Vec::with_capacity(shape.iter().product());
 
     // Use a proper RNG for randomness
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..shape[0] {
         for _ in 0..shape[1] {
@@ -367,7 +367,7 @@ fn create_random_array(shape: &[usize]) -> Array<f64, IxDyn> {
 #[allow(dead_code)]
 fn create_mixed_array(shape: &[usize]) -> Array<f64, IxDyn> {
     let mut data = Vec::with_capacity(shape.iter().product());
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for i in 0..shape[0] {
         for j in 0..shape[1] {

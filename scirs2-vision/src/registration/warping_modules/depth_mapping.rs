@@ -5,7 +5,7 @@
 
 use crate::error::{Result, VisionError};
 use image::GrayImage;
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use std::time::{Duration, Instant};
 
 /// Advanced stereo vision algorithms for depth map generation

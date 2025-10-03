@@ -4,8 +4,8 @@
 //! including Value at Risk calculations, stress testing, and scenario analysis.
 //! These complement the general risk metrics in the parent risk module.
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -102,7 +102,7 @@ pub fn portfolio_var_parametric<F: Float + Clone>(
 /// * `Result<Array1<F>>` - Component VaR for each asset
 pub fn calculate_component_var<F: Float + Clone + std::iter::Sum>(
     weights: &Array1<F>,
-    asset_returns: &ndarray::Array2<F>,
+    asset_returns: &scirs2_core::ndarray::Array2<F>,
     confidence_level: f64,
 ) -> Result<Array1<F>> {
     if asset_returns.ncols() != weights.len() {
@@ -166,7 +166,7 @@ pub fn calculate_component_var<F: Float + Clone + std::iter::Sum>(
 /// * `Result<Array1<F>>` - Portfolio returns under stress scenarios
 pub fn stress_test_portfolio<F: Float + Clone>(
     weights: &Array1<F>,
-    asset_returns: &ndarray::Array2<F>,
+    asset_returns: &scirs2_core::ndarray::Array2<F>,
     stress_factors: &Array1<F>,
 ) -> Result<Array1<F>> {
     if asset_returns.ncols() != weights.len() {
@@ -217,7 +217,7 @@ pub fn stress_test_portfolio<F: Float + Clone>(
 /// * `Result<Array1<F>>` - Component Expected Shortfall for each asset
 pub fn calculate_component_es<F: Float + Clone + std::iter::Sum>(
     weights: &Array1<F>,
-    asset_returns: &ndarray::Array2<F>,
+    asset_returns: &scirs2_core::ndarray::Array2<F>,
     confidence_level: f64,
 ) -> Result<Array1<F>> {
     if asset_returns.ncols() != weights.len() {
@@ -281,7 +281,7 @@ pub fn calculate_component_es<F: Float + Clone + std::iter::Sum>(
 /// * `Result<(F, F, F)>` - (portfolio_volatility, diversification_ratio, concentration_risk)
 pub fn analyze_correlation_risk<F: Float + Clone>(
     weights: &Array1<F>,
-    correlation_matrix: &ndarray::Array2<F>,
+    correlation_matrix: &scirs2_core::ndarray::Array2<F>,
     individual_volatilities: &Array1<F>,
 ) -> Result<(F, F, F)> {
     let n = weights.len();
@@ -358,7 +358,7 @@ pub fn analyze_correlation_risk<F: Float + Clone>(
 pub fn monte_carlo_portfolio_var<F: Float + Clone>(
     weights: &Array1<F>,
     expected_returns: &Array1<F>,
-    covariance_matrix: &ndarray::Array2<F>,
+    covariance_matrix: &scirs2_core::ndarray::Array2<F>,
     confidence_level: f64,
     num_simulations: usize,
 ) -> Result<F> {
@@ -446,7 +446,7 @@ fn normal_inverse_cdf(p: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, Array2};
+    use scirs2_core::ndarray::{arr1, Array2};
 
     #[test]
     fn test_portfolio_var_parametric() {

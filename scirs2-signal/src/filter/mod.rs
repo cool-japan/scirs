@@ -59,7 +59,7 @@
 
 use crate::lti::design::tf as design_tf;
 use crate::lti::TransferFunction;
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 
 // Re-export all public modules
 #[allow(unused_imports)]
@@ -136,7 +136,7 @@ pub use parallel_advanced_enhanced::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
 
     #[test]
     fn test_butter_filter_basic() {

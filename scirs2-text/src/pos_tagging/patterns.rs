@@ -3,6 +3,8 @@
 //! This module contains regex patterns and morphological rules
 //! used for POS tag disambiguation.
 
+#![allow(missing_docs)]
+
 use lazy_static::lazy_static;
 use regex::Regex;
 

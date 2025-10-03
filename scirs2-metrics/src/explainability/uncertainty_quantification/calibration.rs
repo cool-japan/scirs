@@ -6,8 +6,8 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 
 /// Temperature scaling for calibration
 #[derive(Debug, Clone)]
@@ -65,7 +65,7 @@ impl<F: Float> Default for TemperatureScaling<F> {
     }
 }
 
-impl<F: Float + ndarray::ScalarOperand> DeepEnsembleUncertainty<F> {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> DeepEnsembleUncertainty<F> {
     /// Create new deep ensemble uncertainty
     pub fn new(ensemble_size: usize) -> Self {
         Self {

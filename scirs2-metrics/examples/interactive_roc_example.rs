@@ -4,7 +4,7 @@
 //! which allows exploring different classification thresholds and their corresponding
 //! performance metrics.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_metrics::{
     classification::curves::roc_curve,
     visualization::{

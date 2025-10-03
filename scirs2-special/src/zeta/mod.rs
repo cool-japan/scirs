@@ -15,7 +15,7 @@
 use crate::combinatorial::bernoulli_number;
 use crate::error::SpecialResult;
 use crate::gamma::gamma;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::f64;
 use std::fmt::Debug;
 use std::ops::AddAssign;

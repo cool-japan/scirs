@@ -7,9 +7,9 @@
 //! Mini-Batch K-means is much faster than standard K-means for large datasets
 //! and provides results that are generally close to those of the standard algorithm.
 
-use ndarray::{s, Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::{Rng, SeedableRng};
 use std::fmt::Debug;
 
 use super::{euclidean_distance, kmeans_plus_plus};
@@ -65,7 +65,7 @@ impl<F: Float + FromPrimitive> Default for MiniBatchKMeansOptions<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, ArrayView2};
+/// use scirs2_core::ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::vq::minibatch_kmeans;
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -115,8 +115,10 @@ where
 
     // Setup RNG
     let mut rng = match opts.random_seed {
-        Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-        None => rand::rngs::StdRng::seed_from_u64(rand::rng().random()),
+        Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+        None => {
+            scirs2_core::random::rngs::StdRng::seed_from_u64(scirs2_core::random::rng().random())
+        }
     };
 
     // Determine initialization size
@@ -400,7 +402,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_minibatch_kmeans_simple() {

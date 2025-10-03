@@ -7,7 +7,7 @@
 use super::{finite_differences::*, StabilityError};
 use crate::tensor::Tensor;
 use crate::{Float, Graph};
-use ndarray::{Array, IxDyn};
+use scirs2_core::ndarray::{Array, IxDyn};
 use std::collections::HashMap;
 
 /// Configuration for gradient checking

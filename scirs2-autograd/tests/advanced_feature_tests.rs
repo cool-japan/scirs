@@ -8,9 +8,9 @@
 //! - Memory optimization improvements
 //! - Advanced tensor operations
 
-use ndarray::{Array, IxDyn};
 use scirs2_autograd as ag;
 use scirs2_autograd::tensor_ops as T;
+use scirs2_core::ndarray::{Array, IxDyn};
 
 /// Test suite for custom activation functions
 #[cfg(test)]

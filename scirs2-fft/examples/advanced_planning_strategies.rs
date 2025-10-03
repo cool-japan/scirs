@@ -1,4 +1,4 @@
-use ndarray::{Array2, ShapeBuilder};
+use scirs2_core::ndarray::{Array2, ShapeBuilder};
 use scirs2_core::Complex64;
 use scirs2_fft::{
     auto_tuning::{AutoTuneConfig, FftVariant, SizeRange, SizeStep},

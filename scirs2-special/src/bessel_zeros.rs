@@ -7,7 +7,7 @@ use crate::bessel::derivatives::{j1_prime, jn_prime};
 use crate::bessel::{j0, j1, jn, y0, y1, yn};
 use crate::error::{SpecialError, SpecialResult};
 use crate::validation::check_positive;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::convert::TryFrom;
 use std::f64::consts::PI;
 use std::fmt::{Debug, Display};

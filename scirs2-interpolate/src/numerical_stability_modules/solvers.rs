@@ -3,8 +3,8 @@
 //! This module provides robust linear system solvers with comprehensive
 //! stability monitoring, iterative refinement, and adaptive solver selection.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
@@ -658,7 +658,7 @@ where
 mod tests {
     use super::*;
     use crate::numerical_stability_modules::{EdgeCaseReport, StabilityDiagnostics};
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_solve_well_conditioned_system() {

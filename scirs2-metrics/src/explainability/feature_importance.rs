@@ -11,8 +11,8 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -33,7 +33,7 @@ pub struct FeatureImportanceCalculator<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> Default
+impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> Default
     for FeatureImportanceCalculator<F>
 {
     fn default() -> Self {
@@ -41,7 +41,9 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> Default
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> FeatureImportanceCalculator<F> {
+impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
+    FeatureImportanceCalculator<F>
+{
     /// Create new feature importance calculator
     pub fn new() -> Self {
         Self {
@@ -197,7 +199,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> FeatureImportanceCal
         let mut sorted_values = values.clone();
         sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let median = if sorted_values.len() % 2 == 0 {
+        let median = if sorted_values.len().is_multiple_of(2) {
             let mid = sorted_values.len() / 2;
             (sorted_values[mid - 1] + sorted_values[mid]) / F::from(2).unwrap()
         } else {
@@ -469,7 +471,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> FeatureImportanceCal
         for i in 0..n_features {
             if i != targetfeature {
                 rng_state = rng_state.wrapping_mul(1103515245).wrapping_add(12345);
-                coalition[i] = (rng_state % 2) == 0;
+                coalition[i] = rng_state.is_multiple_of(2);
             }
         }
 
@@ -556,7 +558,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> FeatureImportanceCal
             for j in 0..n_features {
                 rng_state = rng_state.wrapping_mul(1103515245).wrapping_add(12345);
 
-                if (rng_state % 2) == 0 {
+                if rng_state.is_multiple_of(2) {
                     // Use original feature value
                     samples[[i, j]] = x_instance[j];
                 } else {
@@ -774,7 +776,7 @@ pub fn comprehensive_feature_importance<F, M, S>(
     tree_splits: Option<&[TreeSplit<F>]>,
 ) -> Result<AdvancedImportanceResults<F>>
 where
-    F: Float + num_traits::FromPrimitive + std::iter::Sum,
+    F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     M: Fn(&ArrayView2<F>) -> Array1<F>,
     S: Fn(&Array1<F>, &Array1<F>) -> F + Copy,
 {
@@ -846,7 +848,9 @@ where
 
 /// Compute mutual information based feature importance with improved estimation
 #[allow(dead_code)]
-pub fn mutual_information_importance<F: Float + num_traits::FromPrimitive + std::iter::Sum>(
+pub fn mutual_information_importance<
+    F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
+>(
     x: &Array2<F>,
     y: &Array1<F>,
     feature_names: &[String],
@@ -868,8 +872,10 @@ pub fn mutual_information_importance<F: Float + num_traits::FromPrimitive + std:
 
 /// Compute mutual information between two variables (improved with binning)
 #[allow(dead_code)]
-fn compute_mutual_information_improved<F: Float + num_traits::FromPrimitive + std::iter::Sum>(
-    x: &ndarray::ArrayView1<F>,
+fn compute_mutual_information_improved<
+    F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
+>(
+    x: &scirs2_core::ndarray::ArrayView1<F>,
     y: &Array1<F>,
 ) -> Result<F> {
     if x.len() != y.len() {
@@ -912,8 +918,8 @@ fn compute_mutual_information_improved<F: Float + num_traits::FromPrimitive + st
 
 /// Create bins for a variable
 #[allow(dead_code)]
-fn create_bins<F: Float + num_traits::FromPrimitive>(
-    values: &ndarray::ArrayView1<F>,
+fn create_bins<F: Float + scirs2_core::numeric::FromPrimitive>(
+    values: &scirs2_core::ndarray::ArrayView1<F>,
     n_bins: usize,
 ) -> Result<Vec<usize>> {
     let min_val = values.iter().cloned().fold(F::infinity(), F::min);
@@ -938,12 +944,12 @@ fn create_bins<F: Float + num_traits::FromPrimitive>(
 
 /// Compute joint histogram
 #[allow(dead_code)]
-fn compute_joint_histogram<F: Float + num_traits::FromPrimitive>(
+fn compute_joint_histogram<F: Float + scirs2_core::numeric::FromPrimitive>(
     x_bins: &[usize],
     y_bins: &[usize],
     n_bins: usize,
-) -> Result<ndarray::Array2<F>> {
-    let mut hist = ndarray::Array2::zeros((n_bins, n_bins));
+) -> Result<scirs2_core::ndarray::Array2<F>> {
+    let mut hist = scirs2_core::ndarray::Array2::zeros((n_bins, n_bins));
 
     for (&x_bin, &y_bin) in x_bins.iter().zip(y_bins.iter()) {
         hist[(x_bin, y_bin)] = hist[(x_bin, y_bin)] + F::one();
@@ -954,7 +960,7 @@ fn compute_joint_histogram<F: Float + num_traits::FromPrimitive>(
 
 /// Compute marginal histogram
 #[allow(dead_code)]
-fn compute_marginal_histogram<F: Float + num_traits::FromPrimitive>(
+fn compute_marginal_histogram<F: Float + scirs2_core::numeric::FromPrimitive>(
     bins: &[usize],
     n_bins: usize,
 ) -> Result<Vec<F>> {
@@ -970,7 +976,7 @@ fn compute_marginal_histogram<F: Float + num_traits::FromPrimitive>(
 /// Compute correlation coefficient
 #[allow(dead_code)]
 fn compute_correlation<F: Float + std::iter::Sum>(
-    x: &ndarray::ArrayView1<F>,
+    x: &scirs2_core::ndarray::ArrayView1<F>,
     y: &Array1<F>,
 ) -> Result<F> {
     let n = F::from(x.len()).unwrap();
@@ -999,7 +1005,7 @@ fn compute_correlation<F: Float + std::iter::Sum>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_feature_importance_calculator() {

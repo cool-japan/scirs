@@ -6,7 +6,7 @@
 
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
 use scirs2_fft::{fft, ifft};
@@ -253,7 +253,7 @@ pub fn denoise_wiener_1d(signal: &Array1<f64>, config: &WienerConfig) -> SignalR
     // Convert to complex for FFT
     let complex_signal: Vec<_> = padded_signal
         .iter()
-        .map(|&x| num_complex::Complex64::new(x, 0.0))
+        .map(|&x| scirs2_core::numeric::Complex64::new(x, 0.0))
         .collect();
 
     // Compute FFT
@@ -431,7 +431,7 @@ pub fn denoise_guided_filter_1d(
 
 /// Median filtering for 1D signals
 pub fn denoise_median_1d(signal: &Array1<f64>, window_size: usize) -> SignalResult<Array1<f64>> {
-    if window_size % 2 == 0 {
+    if window_size.is_multiple_of(2) {
         return Err(SignalError::ValueError(
             "Window size must be odd".to_string(),
         ));

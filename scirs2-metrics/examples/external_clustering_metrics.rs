@@ -1,7 +1,7 @@
+use scirs2_core::error::{CoreError, CoreResult, ErrorContext};
 /// Example demonstrating the use of external clustering metrics
 /// to evaluate clustering algorithm performance.
-use ndarray::{array, Array2};
-use scirs2_core::error::{CoreError, CoreResult, ErrorContext};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_metrics::clustering::{
     adjusted_mutual_info_score, adjusted_rand_index, fowlkes_mallows_score,
     homogeneity_completeness_v_measure, normalized_mutual_info_score,
@@ -62,16 +62,16 @@ fn main() -> CoreResult<()> {
 
 #[allow(dead_code)]
 fn evaluate_clustering<T, U, S1, S2, D1, D2>(
-    true_labels: &ndarray::ArrayBase<S1, D1>,
-    pred_labels: &ndarray::ArrayBase<S2, D2>,
+    true_labels: &scirs2_core::ndarray::ArrayBase<S1, D1>,
+    pred_labels: &scirs2_core::ndarray::ArrayBase<S2, D2>,
 ) -> CoreResult<()>
 where
     T: Clone + std::hash::Hash + Eq + std::fmt::Debug,
     U: Clone + std::hash::Hash + Eq + std::fmt::Debug,
-    S1: ndarray::Data<Elem = T>,
-    S2: ndarray::Data<Elem = U>,
-    D1: ndarray::Dimension,
-    D2: ndarray::Dimension,
+    S1: scirs2_core::ndarray::Data<Elem = T>,
+    S2: scirs2_core::ndarray::Data<Elem = U>,
+    D1: scirs2_core::ndarray::Dimension,
+    D2: scirs2_core::ndarray::Dimension,
 {
     // Calculate all metrics
     let ari = adjusted_rand_index(true_labels, pred_labels)

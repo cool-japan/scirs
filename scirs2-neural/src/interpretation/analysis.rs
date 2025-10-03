@@ -5,8 +5,8 @@
 //! interpretation methods.
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, ArrayD};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ArrayD};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -66,8 +66,8 @@ where
     F: Float
         + Debug
         + 'static
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
         + Sum
         + Clone
         + Copy,
@@ -306,7 +306,7 @@ pub fn compare_layer_statistics<F>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
     #[test]
     fn test_compute_layer_statistics() {
         let activations = Array::from_vec(vec![0.0, 0.1, 0.5, 1.0, 0.0, -0.2]).into_dyn();

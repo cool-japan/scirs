@@ -11,7 +11,7 @@ use super::types::{
     StatisticalValidationResult, PerformanceValidationResult,
     ComprehensiveValidationResult, ValidationResult
 };
-use rand::prelude::*;
+use scirs2_core::random::prelude::*;
 use std::f64::consts::PI;
 use std::time::Instant;
 
@@ -178,7 +178,7 @@ fn validate_statistical_properties(tolerance: f64) -> SignalResult<StatisticalVa
 /// Test white noise statistical properties
 #[allow(dead_code)]
 fn test_white_noise_statistics() -> SignalResult<f64> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let n_trials = 100;
     let n_samples = 500;
@@ -234,7 +234,7 @@ fn test_white_noise_statistics() -> SignalResult<f64> {
 /// Test false alarm rates
 #[allow(dead_code)]
 fn test_false_alarm_rates() -> SignalResult<f64> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let n_trials = 1000;
     let n_samples = 200;

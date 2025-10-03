@@ -5,8 +5,8 @@
 
 use crate::error::FFTResult;
 use crate::fft::{fft, ifft};
-use ndarray::Array2;
-use num_complex::Complex64;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 /// Compute the Fractional Fourier Transform using DFT eigenvector decomposition

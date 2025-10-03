@@ -4,8 +4,8 @@
 
 use crate::advanced::rbf::{RBFInterpolator, RBFKernel};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array, Array1, Array2, ArrayView1, ArrayView2, IxDyn};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Array1, Array2, ArrayView1, ArrayView2, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
@@ -80,7 +80,7 @@ impl<F: crate::traits::InterpolationFloat> RegularGridInterpolator<F> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::{Array, Array1, Dim, IxDyn};
+    /// use scirs2_core::ndarray::{Array, Array1, Dim, IxDyn};
     /// use scirs2_interpolate::interpnd::{
     ///     RegularGridInterpolator, InterpolationMethod, ExtrapolateMode
     /// };
@@ -180,7 +180,7 @@ impl<F: crate::traits::InterpolationFloat> RegularGridInterpolator<F> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::{Array, Array1, Array2, IxDyn};
+    /// use scirs2_core::ndarray::{Array, Array1, Array2, IxDyn};
     /// use scirs2_interpolate::interpnd::{
     ///     RegularGridInterpolator, InterpolationMethod, ExtrapolateMode
     /// };
@@ -226,7 +226,7 @@ impl<F: crate::traits::InterpolationFloat> RegularGridInterpolator<F> {
         let mut result = Array1::zeros(n_points);
 
         for i in 0..n_points {
-            let point = xi.slice(ndarray::s![i, ..]);
+            let point = xi.slice(scirs2_core::ndarray::s![i, ..]);
             result[i] = self.interpolate_point(&point)?;
         }
 
@@ -452,12 +452,12 @@ impl<F: crate::traits::InterpolationFloat> RegularGridInterpolator<F> {
                     F::from_f64(1.0).unwrap() - weights[dim]
                 };
 
-                vertex_weight = vertex_weight * dim_weight;
+                vertex_weight *= dim_weight;
             }
 
             // Add the weighted value to the result
             let vertex_value = self.values[vertex_index.as_slice()];
-            result = result + vertex_weight * vertex_value;
+            result += vertex_weight * vertex_value;
         }
 
         Ok(result)
@@ -497,7 +497,7 @@ impl<F: crate::traits::InterpolationFloat> RegularGridInterpolator<F> {
         let z = self
             .values
             .clone()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| InterpolateError::invalid_input("Failed to convert to 2D array"))?;
 
         // Create 2D interpolator
@@ -612,7 +612,7 @@ impl<
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     /// use scirs2_interpolate::interpnd::{
     ///     ScatteredInterpolator, ScatteredInterpolationMethod,
     ///     ExtrapolateMode, ScatteredInterpolatorParams
@@ -704,7 +704,7 @@ impl<
         let mut result = Array1::zeros(n_points);
 
         for i in 0..n_points {
-            let point = xi.slice(ndarray::s![i, ..]);
+            let point = xi.slice(scirs2_core::ndarray::s![i, ..]);
             result[i] = self.interpolate_point(&point)?;
         }
 
@@ -743,7 +743,7 @@ impl<
 
         // Find the nearest point
         for i in 0..self.points.shape()[0] {
-            let p = self.points.slice(ndarray::s![i, ..]);
+            let p = self.points.slice(scirs2_core::ndarray::s![i, ..]);
             let dist = self.compute_distance(&p, point);
 
             if dist < min_dist {
@@ -776,7 +776,7 @@ impl<
 
         // Check for exact match with any input point
         for i in 0..self.points.shape()[0] {
-            let p = self.points.slice(ndarray::s![i, ..]);
+            let p = self.points.slice(scirs2_core::ndarray::s![i, ..]);
             let dist = self.compute_distance(&p, point);
 
             if dist.is_zero() {
@@ -786,8 +786,8 @@ impl<
 
             // Calculate weight as 1/distance^power
             let weight = F::from_f64(1.0).unwrap() / dist.powf(power);
-            sum_weights = sum_weights + weight;
-            sum_weighted_values = sum_weighted_values + weight * self.values[i];
+            sum_weights += weight;
+            sum_weighted_values += weight * self.values[i];
         }
 
         // Calculate weighted average
@@ -815,7 +815,7 @@ impl<
         let mut sum_sq = F::from_f64(0.0).unwrap();
         for i in 0..p1.len() {
             let diff = p1[i] - p2[i];
-            sum_sq = sum_sq + diff * diff;
+            sum_sq += diff * diff;
         }
         sum_sq.sqrt()
     }
@@ -882,8 +882,8 @@ impl<
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array, Array1, Dim, IxDyn};
-/// use num_traits::Float;
+/// use scirs2_core::ndarray::{Array, Array1, Dim, IxDyn};
+/// use scirs2_core::numeric::Float;
 /// use scirs2_interpolate::interpnd::{
 ///     make_interp_nd, InterpolationMethod, ExtrapolateMode
 /// };
@@ -911,7 +911,7 @@ impl<
 /// ).unwrap();
 ///
 /// // Interpolate at a point
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// let points_to_interp = Array2::from_shape_vec((1, 2), vec![1.5, 2.5]).unwrap();
 /// let result = interp.__call__(&points_to_interp.view()).unwrap();
 /// assert!((result[0] - 9.0).abs() < 1e-10);
@@ -1053,7 +1053,7 @@ pub fn map_coordinates<F: crate::traits::InterpolationFloat>(
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{Array2, IxDyn}; // 配列操作用
+    use scirs2_core::ndarray::{Array2, IxDyn}; // 配列操作用
 
     #[test]
     fn test_regular_grid_interpolator_2d() {

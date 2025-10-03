@@ -245,7 +245,7 @@ pub struct DataBindingConfig {
 /// Update frequency enumeration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum UpdateFrequency {
-    /// Real-time updates
+    /// Float-time updates
     RealTime,
     /// Fixed interval updates
     Interval(Duration),

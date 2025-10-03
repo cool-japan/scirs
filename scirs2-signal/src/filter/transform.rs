@@ -8,8 +8,8 @@ use super::common::FilterCoefficients;
 use crate::error::{SignalError, SignalResult};
 use crate::lti::design::tf;
 use crate::lti::TransferFunction;
-use num_complex::Complex64;
-use num_traits::Zero;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Zero;
 
 #[allow(unused_imports)]
 /// Apply bilinear transform to convert analog filter to digital
@@ -33,7 +33,7 @@ use num_traits::Zero;
 ///
 /// ```
 /// use scirs2_signal::filter::transform::bilinear_transform;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Convert simple analog integrator to digital
 /// let analog_poles = vec![Complex64::new(0.0, 0.0)];
@@ -97,7 +97,7 @@ pub fn bilinear_transform(
 ///
 /// ```
 /// use scirs2_signal::filter::transform::zpk_to_tf;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Convert simple first-order system
 /// let zeros = vec![];

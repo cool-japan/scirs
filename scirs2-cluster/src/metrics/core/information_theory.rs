@@ -4,8 +4,8 @@
 //! clustering quality, including Jensen-Shannon divergence, variation of information,
 //! and mutual information-based measures.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{AddAssign, DivAssign, SubAssign};
@@ -28,7 +28,7 @@ use crate::utils::contingency::build_contingency_matrix;
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::jensen_shannon_divergence;
 ///
 /// let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
@@ -89,7 +89,7 @@ where
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::variation_of_information;
 ///
 /// let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
@@ -181,15 +181,15 @@ where
 
             // Discretize continuous values into bins for entropy calculation
             let entropy = calculate_entropy(&feature_values)?;
-            cluster_entropy = cluster_entropy + entropy;
+            cluster_entropy += entropy;
         }
 
-        total_within_cluster_entropy = total_within_cluster_entropy
-            + cluster_entropy * F::from_usize(cluster_indices.len()).unwrap();
+        total_within_cluster_entropy +=
+            cluster_entropy * F::from_usize(cluster_indices.len()).unwrap();
     }
 
     // Normalize by total samples
-    total_within_cluster_entropy = total_within_cluster_entropy / F::from_usize(n_samples).unwrap();
+    total_within_cluster_entropy /= F::from_usize(n_samples).unwrap();
 
     // Higher entropy within clusters indicates worse clustering
     // Return inverse of entropy as quality measure
@@ -310,8 +310,8 @@ where
     F: Float + FromPrimitive + Debug + 'static,
 {
     let n = labels_x.len() as f64;
-    let contingency = build_contingency_matrix(labels_x, labels_y)
-        .map_err(|e| ClusteringError::InvalidInput(e))?;
+    let contingency =
+        build_contingency_matrix(labels_x, labels_y).map_err(ClusteringError::InvalidInput)?;
     let mut h_xy = F::zero();
 
     let col_sums = contingency.sum_axis(Axis(0));
@@ -334,7 +334,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_jensen_shannon_divergence() {

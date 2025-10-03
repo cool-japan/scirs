@@ -5,7 +5,7 @@
 use crate::distributions::multivariate::normal::MultivariateNormal;
 use crate::error::StatsResult;
 use crate::sampling::SampleableDistribution;
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1, Ix2};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1, Ix2};
 use std::fmt::Debug;
 
 /// Multivariate Lognormal distribution structure
@@ -42,7 +42,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array1, Array2};
+    /// use scirs2_core::ndarray::{array, Array1, Array2};
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// // Create a 2D multivariate lognormal distribution
@@ -82,7 +82,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// let mu = array![0.0, 0.0];
@@ -132,7 +132,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// let mu = array![0.0, 0.0];
@@ -182,7 +182,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// let mu = array![0.0, 0.0];
@@ -211,7 +211,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// let mu = array![0.0, 0.0];
@@ -243,7 +243,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// let mu = array![0.0, 0.0];
@@ -274,7 +274,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// let mu = array![0.0, 0.0];
@@ -300,7 +300,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// let mu = array![0.0, 0.0];
@@ -332,7 +332,7 @@ impl MultivariateLognormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
     ///
     /// let mu = array![0.0, 0.0];
@@ -395,7 +395,7 @@ impl MultivariateLognormal {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distributions::multivariate;
 ///
 /// let mu = array![0.0, 0.0];
@@ -433,7 +433,7 @@ impl SampleableDistribution<Array1<f64>> for MultivariateLognormal {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Axis};
+    use scirs2_core::ndarray::{array, Axis};
 
     #[test]
     fn test_mvln_creation() {

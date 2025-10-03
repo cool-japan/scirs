@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_interpolate::spline::make_interp_spline;
 
 #[allow(dead_code)]

@@ -5,8 +5,8 @@
 //! state representations, quantum gates, and basic quantum operations.
 
 use crate::error::{SpatialError, SpatialResult};
-use num_complex::Complex64;
 use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Complex64;
 use scirs2_core::random::Rng;
 use std::f64::consts::SQRT_2;
 
@@ -28,7 +28,7 @@ pub type QuantumAmplitude = Complex64;
 /// ```rust
 /// use scirs2_spatial::quantum_inspired::concepts::QuantumState;
 /// use scirs2_core::ndarray::Array1;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Create a 2-qubit zero state |00⟩
 /// let zero_state = QuantumState::zero_state(2);
@@ -125,7 +125,7 @@ impl QuantumState {
     /// # Returns
     /// The index of the measured computational basis state
     pub fn measure(&self) -> usize {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Calculate probabilities from amplitudes
         let probabilities: Vec<f64> = self.amplitudes.iter().map(|amp| amp.norm_sqr()).collect();

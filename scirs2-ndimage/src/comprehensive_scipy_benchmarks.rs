@@ -10,8 +10,8 @@ use std::io::Write;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
-use ndarray::Array2;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::filters::BorderMode;
 

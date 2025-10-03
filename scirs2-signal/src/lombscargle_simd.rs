@@ -6,9 +6,9 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle_enhanced::{LombScargleConfig, WindowType};
 use crate::window::{blackman, hamming, hann};
-use ndarray::ArrayView1;
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::fmt::Debug;
@@ -556,7 +556,7 @@ fn compute_parallel_bootstrap_ci(
     let bootstrap_powers: Vec<Vec<f64>> = (0..n_bootstrap)
         .into_par_iter()
         .map(|iter| {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let times_ref = times_arc.clone();
             let values_ref = values_arc.clone();
             let frequencies_ref = frequencies_arc.clone();

@@ -4,8 +4,8 @@
 //! semantic similarity measures rather than traditional distance metrics. It includes
 //! algorithms optimized for document clustering, sentence clustering, and topic modeling.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
@@ -1066,7 +1066,7 @@ pub fn semantic_hierarchical(
         .ok_or_else(|| {
             ClusteringError::ComputationError("Failed to get linkage matrix".to_string())
         })
-        .map(|m| m.clone())
+        .cloned()
 }
 
 /// Perform topic-based clustering on text data
@@ -1102,7 +1102,7 @@ pub fn topic_clustering(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_semantic_kmeans_basic() {
@@ -1128,8 +1128,8 @@ mod tests {
 
     #[test]
     fn test_similarity_metrics() {
-        let a = ndarray::Array1::from_vec(vec![1.0, 0.0, 0.0]);
-        let b = ndarray::Array1::from_vec(vec![0.0, 1.0, 0.0]);
+        let a = scirs2_core::ndarray::Array1::from_vec(vec![1.0, 0.0, 0.0]);
+        let b = scirs2_core::ndarray::Array1::from_vec(vec![0.0, 1.0, 0.0]);
 
         let config = SemanticClusteringConfig::default();
         let clusterer = SemanticKMeans::new(config);

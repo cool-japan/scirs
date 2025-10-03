@@ -1,7 +1,7 @@
 //! Utility functions for interpolation
 
-use ndarray::Array;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::BoundaryMode;
@@ -145,52 +145,10 @@ where
     (start_idx, weights)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_handle_boundary_within_bounds() {
-        let result = handle_boundary(1.5, 10, BoundaryMode::Nearest)
-            .expect("handle_boundary should succeed for test");
-        assert_eq!(result, 1.5);
-    }
-
-    #[test]
-    fn test_handle_boundary_nearest() {
-        let result = handle_boundary(-2.0, 10, BoundaryMode::Nearest)
-            .expect("handle_boundary should succeed for test");
-        assert_eq!(result, 0.0);
-
-        let result = handle_boundary(15.0, 10, BoundaryMode::Nearest)
-            .expect("handle_boundary should succeed for test");
-        assert_eq!(result, 9.0);
-    }
-
-    #[test]
-    fn test_linear_weights() {
-        let (i0, i1, t) = linear_weights(1.3);
-        assert_eq!(i0, 1);
-        assert_eq!(i1, 2);
-        assert!((t - 0.3).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_cubic_weights() {
-        let (start_idx, weights) = cubic_weights(1.3);
-        assert!(start_idx <= 1);
-        assert_eq!(weights.len(), 4);
-
-        // Weights should sum to 1
-        let sum: f64 = weights.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-10);
-    }
-}
-
 /// Helper function for nearest neighbor interpolation
 #[allow(dead_code)]
 pub fn interpolate_nearest<T>(
-    input: &Array<T, ndarray::IxDyn>,
+    input: &Array<T, scirs2_core::ndarray::IxDyn>,
     coords: &[T],
     boundary: &BoundaryMode,
     const_val: T,
@@ -232,7 +190,7 @@ where
 /// Helper function for linear interpolation  
 #[allow(dead_code)]
 pub fn interpolate_linear<T>(
-    input: &Array<T, ndarray::IxDyn>,
+    input: &Array<T, scirs2_core::ndarray::IxDyn>,
     coords: &[T],
     boundary: &BoundaryMode,
     const_val: T,
@@ -386,5 +344,47 @@ pub fn apply_boundary_condition(_coord: isize, dimsize: isize, mode: &BoundaryMo
                 (mirrored.min(dimsize - 1)) as usize
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_handle_boundary_within_bounds() {
+        let result = handle_boundary(1.5, 10, BoundaryMode::Nearest)
+            .expect("handle_boundary should succeed for test");
+        assert_eq!(result, 1.5);
+    }
+
+    #[test]
+    fn test_handle_boundary_nearest() {
+        let result = handle_boundary(-2.0, 10, BoundaryMode::Nearest)
+            .expect("handle_boundary should succeed for test");
+        assert_eq!(result, 0.0);
+
+        let result = handle_boundary(15.0, 10, BoundaryMode::Nearest)
+            .expect("handle_boundary should succeed for test");
+        assert_eq!(result, 9.0);
+    }
+
+    #[test]
+    fn test_linear_weights() {
+        let (i0, i1, t) = linear_weights(1.3);
+        assert_eq!(i0, 1);
+        assert_eq!(i1, 2);
+        assert!((t - 0.3).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_cubic_weights() {
+        let (start_idx, weights) = cubic_weights(1.3);
+        assert!(start_idx <= 1);
+        assert_eq!(weights.len(), 4);
+
+        // Weights should sum to 1
+        let sum: f64 = weights.iter().sum();
+        assert!((sum - 1.0).abs() < 1e-10);
     }
 }

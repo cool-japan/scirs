@@ -3,8 +3,8 @@
 //! This module provides implementations for decomposing time series with multiple
 //! nested seasonal patterns, including automatic period detection.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::common::DecompositionModel;
@@ -79,7 +79,7 @@ impl Default for MultiSeasonalConfig {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::decomposition::{decompose_multi_seasonal, MultiSeasonalConfig};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0,
@@ -348,7 +348,7 @@ where
     for i in 0..acf.len() {
         let start = i.saturating_sub(window / 2);
         let end = (i + window / 2 + 1).min(acf.len());
-        let slice = acf.slice(ndarray::s![start..end]);
+        let slice = acf.slice(scirs2_core::ndarray::s![start..end]);
         let sum: F = slice.iter().fold(F::zero(), |acc, &x| acc + x);
         smoothed_acf.push(sum / F::from_usize(end - start).unwrap());
     }
@@ -470,7 +470,7 @@ where
             n
         };
 
-        let window_data: Vec<F> = ts.slice(ndarray::s![start..end]).to_vec();
+        let window_data: Vec<F> = ts.slice(scirs2_core::ndarray::s![start..end]).to_vec();
         trend[i] = robust_mean(&window_data);
     }
 
@@ -598,7 +598,7 @@ where
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let len = sorted.len();
-    if len % 2 == 0 {
+    if len.is_multiple_of(2) {
         let mid1 = sorted[len / 2 - 1];
         let mid2 = sorted[len / 2];
         (mid1 + mid2) / (F::one() + F::one())
@@ -619,7 +619,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_multi_seasonal_basic() {

@@ -5,7 +5,7 @@
 
 use crate::error::IntegrateResult;
 use crate::specialized::fluid_dynamics::compressible::state::CompressibleState;
-use ndarray::{s, Array3};
+use scirs2_core::ndarray::{s, Array3};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// Container for compressible flow fluxes

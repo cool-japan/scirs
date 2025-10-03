@@ -13,8 +13,8 @@ use crate::{
     validate_or_error,
 };
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use num_cpus;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::random::prelude::*;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use statrs::statistics::Statistics;
@@ -717,7 +717,7 @@ impl PerformanceBenchmark {
         n_features: usize,
         n_classes: usize,
     ) -> Result<(Array2<f64>, Array1<i32>)> {
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
 
         let mut rng = thread_rng();
         let normal = Normal::new(0.0, 1.0).unwrap();
@@ -777,7 +777,7 @@ impl PerformanceBenchmark {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_optimized_lda() {

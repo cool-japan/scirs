@@ -18,9 +18,10 @@ use crate::error::Result;
 #[cfg(test)]
 use crate::streaming::FrameMetadata;
 use crate::streaming::{Frame, ProcessingStage};
-use ndarray::{Array1, Array2};
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rand_prelude::IndexedMutRandom;
+use scirs2_core::random::Rng;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -321,7 +322,7 @@ impl QuantumHamiltonian {
         let mut external_fields = HashMap::new();
 
         // Initialize with random energies representing computational costs
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         for stagename in _stagenames {
             stage_energies.insert(stagename.clone(), rng.random_range(0.1..2.0));
             external_fields.insert(stagename.clone(), 0.0);
@@ -536,7 +537,7 @@ impl QuantumAnnealingStage {
 
         // Generate neighbor solution
         let mut neighbor_params = self.parameters.clone();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         let mut param_entries: Vec<_> = neighbor_params.iter_mut().collect();
         if let Some((_param_name, param_value)) = param_entries.choose_mut(&mut rng) {
@@ -853,7 +854,7 @@ impl QuantumSuperpositionStage {
     pub fn new(_numvariants: usize) -> Self {
         let mut processing_variants = Vec::new();
         let mut superposition_weights = Vec::new();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Create multiple processing _variants
         for i in 0.._numvariants {

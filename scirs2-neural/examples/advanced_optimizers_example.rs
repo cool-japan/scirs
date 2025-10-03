@@ -1,5 +1,5 @@
-// use ndarray::Array2;
-// use ndarray_rand::rand::rngs::SmallRng;
+// use scirs2_core::ndarray::Array2;
+// use scirs2_core::random::rngs::SmallRng;
 // use ndarray_rand::rand::SeedableRng;
 // use scirs2_neural::layers::{Dense, Dropout};
 // use scirs2_neural::losses::CrossEntropyLoss;
@@ -57,10 +57,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Split into train and test sets (80% train, 20% test)
     let train_size = (num_samples as f32 * 0.8) as usize;
     let test_size = num_samples - train_size;
-    let x_train = x_data.slice(ndarray::s![0..train_size, ..]).to_owned();
-    let y_train = y_data.slice(ndarray::s![0..train_size, ..]).to_owned();
-    let x_test = x_data.slice(ndarray::s![train_size.., ..]).to_owned();
-    let y_test = y_data.slice(ndarray::s![train_size.., ..]).to_owned();
+    let x_train = x_data.slice(scirs2_core::ndarray::s![0..train_size, ..]).to_owned();
+    let y_train = y_data.slice(scirs2_core::ndarray::s![0..train_size, ..]).to_owned();
+    let x_test = x_data.slice(scirs2_core::ndarray::s![train_size.., ..]).to_owned();
+    let y_test = y_data.slice(scirs2_core::ndarray::s![train_size.., ..]).to_owned();
     println!("Training set: {} samples", train_size);
     println!("Test set: {} samples", test_size);
     // Create a simple neural network model

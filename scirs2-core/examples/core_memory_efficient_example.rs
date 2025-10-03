@@ -90,5 +90,5 @@ fn main() -> Result<(), CoreError> {
 #[allow(dead_code)]
 fn get_corner<T: Clone>(arr: &Array2<T>, size: usize) -> Array2<T> {
     let s = std::cmp::min(size, arr.shape()[0]);
-    arr.slice(ndarray::s![0..s, 0..s]).to_owned()
+    arr.slice(scirs2_core::ndarray::s![0..s, 0..s]).to_owned()
 }

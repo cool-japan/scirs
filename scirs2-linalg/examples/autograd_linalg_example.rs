@@ -50,7 +50,7 @@ fn demo_basicmatrix_ops() {
 
         // Frobenius norm squared
         let c_flat = flatten(c);
-        let frobenius_sq = sum_all(&square(c_flat));
+        let frobenius_sq = sum_all(square(c_flat));
 
         // Compute gradients
         let grads = grad(&[frobenius_sq], &[a, b]);
@@ -144,7 +144,7 @@ fn demo_advanced_ops() {
 
         // Loss: mean squared norm
         let flat = flatten(activated);
-        let loss = reduce_mean(&square(flat), &[0], false);
+        let loss = reduce_mean(square(flat), &[0], false);
 
         // Gradients
         let grads = grad(&[loss], &[x, w, b]);

@@ -1,9 +1,9 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle_enhanced::WindowType;
 use crate::window;
-use ndarray::s;
-use ndarray::{Array, Array1, Array2};
-use num_complex::{Complex64, ComplexFloat};
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::{Array, Array1, Array2};
+use scirs2_core::numeric::{Complex64, ComplexFloat};
 use scirs2_fft;
 
 // Constant-Q Transform Implementation
@@ -143,7 +143,7 @@ pub struct SparseKernel {
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::cqt::{constant_q_transform, CqtConfig};
 ///
 /// // Generate a test signal with multiple harmonics
@@ -584,7 +584,7 @@ pub fn cqt_phase(cqt: &CqtResult) -> Array2<f64> {
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::cqt::{constant_q_transform, inverse_constant_q_transform, CqtConfig};
 ///
 /// // Generate a test signal with shorter duration for faster test

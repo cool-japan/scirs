@@ -4,9 +4,9 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use num_traits::{Float, NumCast};
-use rand_distr::{Distribution, FisherF as RandFisherF};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution, FisherF as RandFisherF};
 use std::f64::consts::PI;
 
 /// F distribution structure

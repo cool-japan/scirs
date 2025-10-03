@@ -39,7 +39,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_io::parquet::{write_parquet, ParquetWriteOptions, CompressionCodec};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
 //! let options = ParquetWriteOptions {
@@ -129,7 +129,7 @@ pub use writer::{write_parquet, write_parquet_with_name, ParquetWriter};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
     use std::fs;
     use tempfile::tempdir;
 

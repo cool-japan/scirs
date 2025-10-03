@@ -4,7 +4,7 @@
 //! that helps users understand how the different components work together.
 //! It simulates a simple system with multiple events and explains what happens at each step.
 
-use ndarray::{array, ArrayView1};
+use scirs2_core::ndarray::{array, ArrayView1};
 use scirs2_integrate::error::IntegrateResult;
 use scirs2_integrate::ode::{
     solve_ivp_with_events, terminal_event, EventAction, EventDirection, EventSpec, ODEMethod,

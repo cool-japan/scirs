@@ -132,7 +132,7 @@ fn bench_fft_multidim(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("fftn", format!("{shape:?}")),
             &data_nd,
-            |b, data: &ndarray::ArrayD<f64>| {
+            |b, data: &scirs2_core::ndarray::ArrayD<f64>| {
                 b.iter(|| {
                     fftn(
                         black_box(&data.clone().into_dyn()),

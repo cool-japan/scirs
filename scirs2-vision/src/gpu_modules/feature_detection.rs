@@ -5,8 +5,8 @@
 
 use super::{basic_operations::gpu_convolve_2d, context::GpuVisionContext};
 use crate::error::{Result, VisionError};
-use ndarray::{Array2, ArrayView2};
 use scirs2_core::gpu::GpuBackend;
+use scirs2_core::ndarray::{Array2, ArrayView2};
 
 /// GPU-accelerated Sobel edge detection
 ///
@@ -26,9 +26,11 @@ pub fn gpu_sobel_gradients(
     image: &ArrayView2<f32>,
 ) -> Result<(Array2<f32>, Array2<f32>, Array2<f32>)> {
     // Sobel kernels
-    let sobel_x = ndarray::arr2(&[[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]]);
+    let sobel_x =
+        scirs2_core::ndarray::arr2(&[[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]]);
 
-    let sobel_y = ndarray::arr2(&[[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]]);
+    let sobel_y =
+        scirs2_core::ndarray::arr2(&[[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]]);
 
     // Compute gradients using GPU convolution
     let grad_x = gpu_convolve_2d(ctx, image, &sobel_x.view())?;

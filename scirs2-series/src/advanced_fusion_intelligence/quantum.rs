@@ -4,10 +4,10 @@
 //! for the advanced fusion intelligence system, including quantum error correction,
 //! quantum algorithms, quantum-neuromorphic interfaces, and distributed quantum networks.
 
-use ndarray::Array1;
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive};
-use rand::random_range;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::Rng;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 

@@ -290,26 +290,30 @@ fn create_dataset() -> (InMemoryDataset, InMemoryDataset) {
 
     // Generate random inputs
     let inputs = Array2::<f64>::from_shape_fn((num_samples, num_features), |_| {
-        rand::random::<f64>() * 2.0 - 1.0
+        scirs2_core::random::random::<f64>() * 2.0 - 1.0
     });
 
     // Generate random one-hot targets
     let mut targets = Array2::<f64>::zeros((num_samples, num_classes));
     for i in 0..num_samples {
-        let class = (rand::random::<f64>() * num_classes as f64).floor() as usize;
+        let class = (scirs2_core::random::random::<f64>() * num_classes as f64).floor() as usize;
         targets[[i, class]] = 1.0;
     }
 
     // Split into train/val
     let train_size = (num_samples as f64 * 0.8).floor() as usize;
     // Use array view indexing which is more reliable with different dimension types
-    let train_inputs = inputs.slice(ndarray::s![0..train_size, ..]).to_owned();
-    let train_targets = targets.slice(ndarray::s![0..train_size, ..]).to_owned();
+    let train_inputs = inputs
+        .slice(scirs2_core::ndarray::s![0..train_size, ..])
+        .to_owned();
+    let train_targets = targets
+        .slice(scirs2_core::ndarray::s![0..train_size, ..])
+        .to_owned();
     let val_inputs = inputs
-        .slice(ndarray::s![train_size..num_samples, ..])
+        .slice(scirs2_core::ndarray::s![train_size..num_samples, ..])
         .to_owned();
     let val_targets = targets
-        .slice(ndarray::s![train_size..num_samples, ..])
+        .slice(scirs2_core::ndarray::s![train_size..num_samples, ..])
         .to_owned();
 
     // Create datasets

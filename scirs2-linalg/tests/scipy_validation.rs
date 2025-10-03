@@ -5,7 +5,7 @@
 //! with the standard scientific computing library.
 
 use approx::assert_abs_diff_eq;
-use ndarray::{array, s, Array2};
+use scirs2_core::ndarray::{array, s, Array2};
 use scirs2_linalg::{cholesky, det, inv, lu, matrix_norm, qr, solve, svd};
 
 const TOLERANCE: f64 = 1e-10;

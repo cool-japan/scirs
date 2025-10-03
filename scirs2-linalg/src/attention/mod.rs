@@ -18,7 +18,7 @@
 //! Basic scaled dot-product attention:
 //!
 //! ```
-//! use ndarray::{Array2, Array3};
+//! use scirs2_core::ndarray::{Array2, Array3};
 //! use scirs2_linalg::attention::{scaled_dot_product_attention, AttentionMask};
 //!
 //! // Create query, key, value matrices
@@ -46,7 +46,7 @@
 //! Multi-head attention:
 //!
 //! ```
-//! use ndarray::{Array2, Array3};
+//! use scirs2_core::ndarray::{Array2, Array3};
 //! use scirs2_linalg::attention::{multi_head_attention, AttentionConfig};
 //!
 //! // Create query, key, value matrices
@@ -109,14 +109,14 @@ pub use utils::{apply_mask, attention, AttentionConfig, AttentionMask};
 
 // For backward compatibility, keep these imports available
 use crate::error::LinalgResult;
-use ndarray::{Array3, ArrayView3};
-use num_traits::{Float, NumAssignOps, Zero};
+use scirs2_core::ndarray::{Array3, ArrayView3};
+use scirs2_core::numeric::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_basic_attention() {

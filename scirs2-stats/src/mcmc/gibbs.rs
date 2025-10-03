@@ -4,7 +4,7 @@
 //! when direct sampling is difficult but conditional distributions are available.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::validation::*;
 use scirs2_core::Rng;
 use std::fmt::Debug;
@@ -267,7 +267,7 @@ impl ConditionalDistribution for MultivariateNormalGibbs {
         let conditional_mean = self.mean[variable_index] - sum / precision_ii;
 
         // Sample from normal distribution
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
         let normal = Normal::new(conditional_mean, conditional_std).map_err(|e| {
             StatsError::ComputationError(format!("Failed to create normal distribution: {}", e))
         })?;
@@ -457,7 +457,7 @@ impl GaussianMixtureGibbs {
     /// Sample parameters from prior when no data is assigned
     fn sample_from_prior<R: Rng + ?Sized>(&mut self, component: usize, rng: &mut R) -> Result<()> {
         // Sample mean from prior
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
 
         let dim = self.prior_mean.len();
         let mut new_mean = Array1::zeros(dim);
@@ -510,7 +510,7 @@ impl GaussianMixtureGibbs {
         };
 
         // Sample new mean
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
         let mut new_mean = Array1::zeros(dim);
 
         for i in 0..dim {
@@ -542,7 +542,7 @@ impl GaussianMixtureGibbs {
         let posterior_alpha = &self.prior_alpha + &counts;
 
         // Sample from Dirichlet (using Gamma sampling)
-        use rand_distr::{Distribution, Gamma};
+        use scirs2_core::random::{Distribution, Gamma};
         let mut gamma_samples = Array1::zeros(self.n_components);
 
         for k in 0..self.n_components {

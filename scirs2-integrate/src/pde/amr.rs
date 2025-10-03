@@ -30,7 +30,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::pde::PDEResult;
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use std::collections::HashMap;
 
 /// Adaptive mesh refinement grid with hierarchical structure

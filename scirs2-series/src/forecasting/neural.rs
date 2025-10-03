@@ -3,8 +3,8 @@
 //! This module provides neural network architectures for time series forecasting,
 //! including LSTM, Transformer, and N-BEATS models.
 
-use ndarray::{s, Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -148,8 +148,8 @@ impl Default for NBeatsConfig {
 /// Simple matrix operations for neural networks
 mod simple_nn {
     use super::*;
-    use ndarray::Array2;
-    use num_traits::Float;
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::numeric::Float;
 
     /// Simple feedforward layer
     #[derive(Debug, Clone)]
@@ -1019,7 +1019,7 @@ impl<F: Float + Debug + FromPrimitive> NeuralForecaster<F> for NBeatsForecaster<
 /// Utility functions for neural forecasting
 pub mod utils {
     use super::*;
-    use ndarray::{Array2, Axis};
+    use scirs2_core::ndarray::{Array2, Axis};
 
     /// Create sliding windows for time series data  
     pub fn create_sliding_windows<F: Float + Clone>(
@@ -1124,7 +1124,7 @@ pub mod utils {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_sliding_windows() {
@@ -1263,8 +1263,8 @@ mod tests {
 /// Advanced neural forecasting models and techniques
 pub mod advanced {
     use super::*;
-    use ndarray::{Array1, Array2};
-    use num_traits::{Float, FromPrimitive};
+    use scirs2_core::ndarray::{Array1, Array2};
+    use scirs2_core::numeric::{Float, FromPrimitive};
     use std::collections::{HashMap, VecDeque};
 
     /// Stack types for N-BEATS
@@ -1325,7 +1325,7 @@ pub mod advanced {
         }
     }
 
-    impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand>
+    impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
         MultiScaleNeuralForecaster<F>
     {
         /// Create new multi-scale neural forecaster
@@ -1683,7 +1683,9 @@ pub mod advanced {
                     .base
                     .lookback_window
                     .max(self.config.initial_window)
-                && self.observation_count % self.config.update_frequency == 0
+                && self
+                    .observation_count
+                    .is_multiple_of(self.config.update_frequency)
             {
                 let current_data: Array1<F> = Array1::from_iter(self.data_buffer.iter().cloned());
                 self.base_model.fit(&current_data)?;
@@ -1746,7 +1748,9 @@ pub mod advanced {
         bias: Array1<F>,
     }
 
-    impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> AttentionForecaster<F> {
+    impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
+        AttentionForecaster<F>
+    {
         /// Create new attention-based forecaster
         pub fn new(config: NeuralConfig) -> Self {
             Self {
@@ -2561,7 +2565,7 @@ pub mod advanced {
                     let idx = self.evaluations % options.len();
                     ParameterValue::String(options[idx].clone())
                 }
-                ParameterRange::Boolean => ParameterValue::Bool(self.evaluations % 2 == 0),
+                ParameterRange::Boolean => ParameterValue::Bool(self.evaluations.is_multiple_of(2)),
             }
         }
 

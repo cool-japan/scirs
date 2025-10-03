@@ -154,13 +154,13 @@ mod tests {
 
         // Test 3D fluid state for LES
         let velocity = vec![
-            ndarray::Array3::zeros((4, 4, 4)),
-            ndarray::Array3::zeros((4, 4, 4)),
-            ndarray::Array3::zeros((4, 4, 4)),
+            scirs2_core::ndarray::Array3::zeros((4, 4, 4)),
+            scirs2_core::ndarray::Array3::zeros((4, 4, 4)),
+            scirs2_core::ndarray::Array3::zeros((4, 4, 4)),
         ];
         let les_state = FluidState3D {
             velocity,
-            pressure: ndarray::Array3::zeros((4, 4, 4)),
+            pressure: scirs2_core::ndarray::Array3::zeros((4, 4, 4)),
             temperature: None,
             time: 0.0,
             dx: 0.1,
@@ -261,7 +261,7 @@ mod tests {
     #[test]
     fn test_fft_operations_integration() {
         // Test that FFT operations can be used directly
-        let field = ndarray::Array2::ones((8, 8));
+        let field = scirs2_core::ndarray::Array2::ones((8, 8));
 
         let field_hat = FFTOperations::fft_2d_forward(&field).unwrap();
         assert_eq!(field_hat.dim(), (8, 8));
@@ -277,7 +277,7 @@ mod tests {
     #[test]
     fn test_dealiasing_strategy_integration() {
         // Test that dealiasing strategies work
-        let field = ndarray::Array2::ones((8, 8));
+        let field = scirs2_core::ndarray::Array2::ones((8, 8));
 
         let dealiased =
             DealiasingOperations::apply_dealiasing_2d(&field, DealiasingStrategy::TwoThirds)

@@ -1,6 +1,6 @@
-# scirs2-signal TODO (v0.1.0-beta.4)
+# scirs2-signal TODO (v0.1.0-rc.1)
 
-This module provides signal processing functionality similar to SciPy's signal module. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module is part of the beta.3 release with ecosystem consistency through scirs2-core abstractions.
+This module provides signal processing functionality similar to SciPy's signal module. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module is part of the RC.1 release with ecosystem consistency through scirs2-core abstractions.
 
 ## 🚨 URGENT: SIMD DISABLING PROJECT (Current Priority)
 
@@ -30,7 +30,7 @@ This module provides signal processing functionality similar to SciPy's signal m
 
 ---
 
-## Production-Ready Features (v0.1.0-beta.4)
+## Production-Ready Features (v0.1.0-rc.1)
 
 ### Core Signal Processing ✅
 - [x] Module structure and error handling
@@ -78,7 +78,7 @@ This module provides signal processing functionality similar to SciPy's signal m
 
 ## Planned for Future Releases
 
-### Next Priority (v0.1.0-beta.4)
+### Next Priority (v0.1.0-rc.1)
 - [ ] Enhanced spectral analysis
   - [ ] Multitaper spectral estimation (refine and validate)
   - [ ] Lomb-Scargle periodogram (add more validation)

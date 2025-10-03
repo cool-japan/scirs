@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::optimizers::Optimizer;
-use ndarray::Array;
-use num_traits::Float;
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 // Import from scirs2-optim
 use scirs2_optim::optimizers as optim_optimizers;
@@ -17,7 +17,7 @@ use scirs2_optim::optimizers as optim_optimizers;
 /// ```
 /// use scirs2_neural::optimizers::Adagrad;
 /// use scirs2_neural::optimizers::Optimizer;
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// // Create Adagrad optimizer with learning rate 0.01
 /// let mut adagrad = Adagrad::new(0.01);
 /// // Initialize parameters and gradients
@@ -73,8 +73,8 @@ impl<F: Float + Debug> Adagrad<F> {
     pub fn reset(&mut self) {
         self.inner.reset();
 impl<F: Float + Debug> Optimizer<F> for Adagrad<F> {
-    fn update(&mut self, params: &mut [Array<F, ndarray::IxDyn>], 
-              grads: &[Array<F, ndarray::IxDyn>]) -> Result<()> {
+    fn update(&mut self, params: &mut [Array<F, scirs2_core::ndarray::IxDyn>], 
+              grads: &[Array<F, scirs2_core::ndarray::IxDyn>]) -> Result<()> {
         if params.len() != grads.len() {
             return Err(NeuralError::TrainingError(format!(
                 "Parameter and gradient counts do not match: {} vs {}",

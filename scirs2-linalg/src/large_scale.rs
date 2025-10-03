@@ -6,10 +6,10 @@
 use crate::error::{LinalgError, LinalgResult};
 use crate::norm::vector_norm;
 use crate::solvers::iterative::{conjugate_gradient, gmres, IterativeSolverOptions};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign};
-use rand::prelude::*;
-use rand_distr::Normal;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution, Normal};
 use std::fmt::{Debug, Display};
 
 /// Randomized algorithm for solving least squares problems
@@ -29,7 +29,7 @@ use std::fmt::{Debug, Display};
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::large_scale::randomized_least_squares;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
@@ -48,7 +48,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -69,7 +69,7 @@ where
     }
 
     // Generate random sketching matrix S (sketchsize × m)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let normal = Normal::new(0.0, 1.0).unwrap();
 
     let mut s = Array2::zeros((sketchsize, m));
@@ -129,7 +129,7 @@ where
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::large_scale::randomized_norm;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -147,7 +147,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -158,7 +158,7 @@ where
     match norm_type {
         "2" | "spectral" => {
             // Estimate spectral norm using power method with random initialization
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let normal = Normal::new(0.0, 1.0).unwrap();
 
             let mut max_norm = A::zero();
@@ -203,7 +203,7 @@ where
         }
         "fro" | "frobenius" => {
             // Estimate Frobenius norm using random sampling
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let total_entries = (m * n) as f64;
             let samplesize = num_samples.min(m * n);
             let scale = A::from(total_entries / samplesize as f64).unwrap_or(A::one());
@@ -255,7 +255,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -288,8 +288,12 @@ where
     let aug_cols = k + q_cols;
 
     let mut aug_u = Array2::zeros((m, aug_cols));
-    aug_u.slice_mut(ndarray::s![.., ..k]).assign(current_u);
-    aug_u.slice_mut(ndarray::s![.., k..]).assign(&q_comp);
+    aug_u
+        .slice_mut(scirs2_core::ndarray::s![.., ..k])
+        .assign(current_u);
+    aug_u
+        .slice_mut(scirs2_core::ndarray::s![.., k..])
+        .assign(&q_comp);
 
     let mut aug_s_mat = Array2::zeros((aug_cols, aug_cols));
     // Fill diagonal with singular values
@@ -302,20 +306,20 @@ where
     let proj_cols = proj.ncols().min(q_cols);
     if proj_cols > 0 {
         aug_s_mat
-            .slice_mut(ndarray::s![..k, k..k + proj_cols])
-            .assign(&proj.slice(ndarray::s![.., ..proj_cols]));
+            .slice_mut(scirs2_core::ndarray::s![..k, k..k + proj_cols])
+            .assign(&proj.slice(scirs2_core::ndarray::s![.., ..proj_cols]));
     }
 
     // r_comp should be q_cols x q_cols (or q_cols x n_new)
     let r_rows = r_comp.nrows().min(q_cols);
     let r_cols = r_comp.ncols().min(q_cols);
     aug_s_mat
-        .slice_mut(ndarray::s![k..k + r_rows, k..k + r_cols])
-        .assign(&r_comp.slice(ndarray::s![..r_rows, ..r_cols]));
+        .slice_mut(scirs2_core::ndarray::s![k..k + r_rows, k..k + r_cols])
+        .assign(&r_comp.slice(scirs2_core::ndarray::s![..r_rows, ..r_cols]));
 
     let mut aug_vt = Array2::zeros((aug_cols, n_old + n_new));
     aug_vt
-        .slice_mut(ndarray::s![..k, ..n_old])
+        .slice_mut(scirs2_core::ndarray::s![..k, ..n_old])
         .assign(current_vt);
     // Set identity block for new _columns
     for i in 0..q_cols.min(n_new) {
@@ -333,9 +337,15 @@ where
     let actual_rank = rank.min(s_new.len()).min(m).min(n_old + n_new);
 
     Ok((
-        updated_u.slice(ndarray::s![.., ..actual_rank]).to_owned(),
-        s_new.slice(ndarray::s![..actual_rank]).to_owned(),
-        updated_vt.slice(ndarray::s![..actual_rank, ..]).to_owned(),
+        updated_u
+            .slice(scirs2_core::ndarray::s![.., ..actual_rank])
+            .to_owned(),
+        s_new
+            .slice(scirs2_core::ndarray::s![..actual_rank])
+            .to_owned(),
+        updated_vt
+            .slice(scirs2_core::ndarray::s![..actual_rank, ..])
+            .to_owned(),
     ))
 }
 
@@ -366,7 +376,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -395,7 +405,7 @@ where
     // Process blocks of RHS vectors
     for block_start in (0..n_rhs).step_by(blocksize) {
         let block_end = (block_start + blocksize).min(n_rhs);
-        let block_b = b.slice(ndarray::s![.., block_start..block_end]);
+        let block_b = b.slice(scirs2_core::ndarray::s![.., block_start..block_end]);
 
         // Solve each system in the block
         for j in 0..block_b.shape()[1] {
@@ -442,7 +452,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -488,7 +498,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -508,7 +518,7 @@ where
     }
 
     // Initialize random block
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let normal = Normal::new(0.0, 1.0).unwrap();
 
     let mut q = Array2::zeros((n, blocksize));
@@ -554,16 +564,16 @@ where
                 let h_cols = h.ncols().min(totalsize - curr_offset);
 
                 if h_rows > 0 && h_cols > 0 {
-                    t.slice_mut(ndarray::s![
+                    t.slice_mut(scirs2_core::ndarray::s![
                         prev_offset..prev_offset + h_rows,
                         curr_offset..curr_offset + h_cols
                     ])
-                    .assign(&h.slice(ndarray::s![..h_rows, ..h_cols]));
-                    t.slice_mut(ndarray::s![
+                    .assign(&h.slice(scirs2_core::ndarray::s![..h_rows, ..h_cols]));
+                    t.slice_mut(scirs2_core::ndarray::s![
                         curr_offset..curr_offset + h_cols,
                         prev_offset..prev_offset + h_rows
                     ])
-                    .assign(&h.slice(ndarray::s![..h_rows, ..h_cols]).t());
+                    .assign(&h.slice(scirs2_core::ndarray::s![..h_rows, ..h_cols]).t());
                 }
             }
         }
@@ -586,11 +596,11 @@ where
                 let avail_cols = (totalsize - curr_offset).min(r_cols);
 
                 if avail_rows > 0 && avail_cols > 0 {
-                    t.slice_mut(ndarray::s![
+                    t.slice_mut(scirs2_core::ndarray::s![
                         next_offset..next_offset + avail_rows,
                         curr_offset..curr_offset + avail_cols
                     ])
-                    .assign(&r_new.slice(ndarray::s![..avail_rows, ..avail_cols]));
+                    .assign(&r_new.slice(scirs2_core::ndarray::s![..avail_rows, ..avail_cols]));
                 }
             }
 
@@ -608,7 +618,7 @@ where
     // Solve eigenvalue problem for tridiagonal matrix
     let actualsize: usize = q_blocks.iter().map(|q| q.ncols()).sum();
     let actualsize = actualsize.min(totalsize);
-    let t_reduced = t.slice(ndarray::s![..actualsize, ..actualsize]);
+    let t_reduced = t.slice(scirs2_core::ndarray::s![..actualsize, ..actualsize]);
 
     // Use standard eigendecomposition on the reduced matrix
     let (eigvals, eigvecs_small) = crate::eigen::eigh(&t_reduced, None)?;
@@ -656,7 +666,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_randomized_least_squares() {

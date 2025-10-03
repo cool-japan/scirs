@@ -11,8 +11,8 @@
 //! - Work stealing with priority queues
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{parallel_ops::*, simd_ops::SimdUnifiedOps, validation::*};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
@@ -581,7 +581,7 @@ where
         
         while start < n {
             let end = (start + adjusted_chunksize).min(n);
-            chunks.push(data.slice(ndarray::s![start..end]));
+            chunks.push(data.slice(scirs2_core::ndarray::s![start..end]));
             start = end;
         }
         
@@ -599,7 +599,7 @@ where
         
         while start < n {
             let end = (start + optimal_chunksize).min(n);
-            let chunk = data.slice(ndarray::s![start..end]);
+            let chunk = data.slice(scirs2_core::ndarray::s![start..end]);
             
             work_units.push(WorkUnit {
                 id,
@@ -648,7 +648,7 @@ where
             let end = if node_id == num_nodes - 1 { n } else { start + chunksize };
             
             if start < n {
-                let chunk = data.slice(ndarray::s![start..end]);
+                let chunk = data.slice(scirs2_core::ndarray::s![start..end]);
                 numa_chunks.push((node_id, chunk));
             }
         }
@@ -823,7 +823,7 @@ pub fn adaptive_variance_f64(data: &ArrayView1<f64>, ddof: usize) -> StatsResult
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

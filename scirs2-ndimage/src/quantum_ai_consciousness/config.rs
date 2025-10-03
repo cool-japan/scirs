@@ -3,8 +3,8 @@
 //! This module contains configuration structures, core data types, and enums
 //! used throughout the Quantum-AI consciousness processing system.
 
-use ndarray::{Array1, Array2, Array3, Array4, Array5, Array6};
-use num_complex::Complex;
+use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, Array5, Array6};
+use scirs2_core::numeric::Complex;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 

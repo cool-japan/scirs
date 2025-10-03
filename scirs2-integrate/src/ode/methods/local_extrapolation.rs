@@ -7,7 +7,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::fmt::Debug;
 
 /// Options for local extrapolation methods

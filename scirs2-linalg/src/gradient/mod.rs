@@ -3,8 +3,8 @@
 //! This module provides utilities for calculating gradients in the context of
 //! neural network training, focusing on efficiency and numerical stability.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -26,7 +26,7 @@ use crate::error::{LinalgError, LinalgResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::gradient::mse_gradient;
 /// use approx::assert_relative_eq;
 ///
@@ -89,7 +89,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::gradient::binary_crossentropy_gradient;
 /// use approx::assert_relative_eq;
 ///
@@ -184,7 +184,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::gradient::softmax_crossentropy_gradient;
 /// use approx::assert_relative_eq;
 ///
@@ -301,7 +301,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array1};
+/// use scirs2_core::ndarray::{array, Array1};
 /// use scirs2_linalg::gradient::jacobian;
 ///
 /// // Define a simple function R^2 -> R^3
@@ -386,7 +386,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array1};
+/// use scirs2_core::ndarray::{array, Array1};
 /// use scirs2_linalg::gradient::hessian;
 ///
 /// // Define a simple quadratic function: f(x,y) = x^2 + xy + 2y^2
@@ -492,7 +492,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mse_gradient() {

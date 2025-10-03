@@ -12,7 +12,7 @@ use crate::ode::utils::jacobian;
 use crate::ode::utils::linear_solvers::solve_linear_system;
 use crate::ode::utils::mass_matrix;
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Solve an ODE with mass matrix using the Radau IIA method
 ///

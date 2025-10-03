@@ -90,7 +90,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Add some noise to create a distorted version
     let mut noisy_img = img.to_rgba8();
     for pixel in noisy_img.pixels_mut() {
-        let noise = (rand::random::<f32>() - 0.5) * 20.0;
+        let noise = (scirs2_core::random::random::<f32>() - 0.5) * 20.0;
         pixel[0] = pixel[0].saturating_add(noise as u8);
         pixel[1] = pixel[1].saturating_add(noise as u8);
         pixel[2] = pixel[2].saturating_add(noise as u8);

@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::losses::Loss;
-use ndarray::Array;
-use num_traits::Float;
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Focal loss function.
@@ -18,7 +18,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::losses::FocalLoss;
 /// use scirs2_neural::losses::Loss;
-/// use ndarray::{Array, arr2};
+/// use scirs2_core::ndarray::{Array, arr2};
 ///
 /// let focal = FocalLoss::new(2.0, Some(0.25), 1e-10);
 /// // Predictions and targets for a 3-class problem
@@ -85,8 +85,8 @@ impl Default for FocalLoss {
 impl<F: Float + Debug> Loss<F> for FocalLoss {
     fn forward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        targets: &Array<F, ndarray::IxDyn>,
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
     ) -> Result<F> {
         // Check shape compatibility
         if predictions.shape() != targets.shape() {
@@ -192,9 +192,9 @@ impl<F: Float + Debug> Loss<F> for FocalLoss {
 
     fn backward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        targets: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Check shape compatibility
         if predictions.shape() != targets.shape() {
             return Err(NeuralError::InferenceError(format!(

@@ -3,8 +3,8 @@
 // This module provides the CSR (Compressed Sparse Row) array format,
 // which is efficient for row-wise operations and is one of the most common formats.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::{self, Debug};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -68,7 +68,7 @@ use crate::sparray::{SparseArray, SparseSum};
 /// ```
 /// use scirs2_sparse::csr_array::CsrArray;
 /// use scirs2_sparse::SparseArray;
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// let rows = vec![0, 1, 2];
 /// let cols = vec![0, 1, 2];

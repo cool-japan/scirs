@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --release --example performancemonitor --all-features
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::*;
 use serde_json::json;
 use std::collections::HashMap;
@@ -305,11 +305,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let arraysizes = vec![100, 1000, 10000];
 
     for &size in &arraysizes {
-        monitor.benchmark_array_function("gamma", size, |arr| arr.mapv(|x| gamma(x)));
+        monitor.benchmark_array_function("gamma", size, |arr| arr.mapv(gamma));
 
-        monitor.benchmark_array_function("bessel_j0", size, |arr| arr.mapv(|x| j0(x)));
+        monitor.benchmark_array_function("bessel_j0", size, |arr| arr.mapv(j0));
 
-        monitor.benchmark_array_function("erf", size, |arr| arr.mapv(|x| erf(x)));
+        monitor.benchmark_array_function("erf", size, |arr| arr.mapv(erf));
 
         // Test SIMD operations if available
         #[cfg(feature = "simd")]

@@ -183,8 +183,8 @@ fn demonstrate_memory_efficient_processing() -> Result<(), Box<dyn std::error::E
         test_samples += chunk.n_samples() - chunk_trainsize;
 
         // Process chunk (simulate some computation)
-        let _mean = chunk.data.mean_axis(ndarray::Axis(0));
-        let _std = chunk.data.std_axis(ndarray::Axis(0), 0.0);
+        let _mean = chunk.data.mean_axis(scirs2_core::ndarray::Axis(0));
+        let _std = chunk.data.std_axis(scirs2_core::ndarray::Axis(0), 0.0);
 
         if chunk.is_last {
             break;
@@ -246,8 +246,8 @@ fn demonstrate_stream_transformations() -> Result<(), Box<dyn std::error::Error>
         println!("  Processing chunk {}", chunk.chunk_index + 1);
 
         // Show statistics before transformation
-        let data_mean_before = chunk.data.mean_axis(ndarray::Axis(0)).unwrap();
-        let data_std_before = chunk.data.std_axis(ndarray::Axis(0), 0.0);
+        let data_mean_before = chunk.data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let data_std_before = chunk.data.std_axis(scirs2_core::ndarray::Axis(0), 0.0);
 
         println!(
             "    Before: mean = {:.3}, std = {:.3}",
@@ -258,8 +258,8 @@ fn demonstrate_stream_transformations() -> Result<(), Box<dyn std::error::Error>
         transformer.transform_chunk(&mut chunk)?;
 
         // Show statistics after transformation
-        let data_mean_after = chunk.data.mean_axis(ndarray::Axis(0)).unwrap();
-        let data_std_after = chunk.data.std_axis(ndarray::Axis(0), 0.0);
+        let data_mean_after = chunk.data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let data_std_after = chunk.data.std_axis(scirs2_core::ndarray::Axis(0), 0.0);
 
         println!(
             "    After:  mean = {:.3}, std = {:.3}",
@@ -311,8 +311,8 @@ fn demonstrate_parallel_processing() -> Result<(), Box<dyn std::error::Error>> {
         let mut stats = HashMap::new();
 
         // Compute basic statistics
-        let mean = chunk.data.mean_axis(ndarray::Axis(0)).unwrap();
-        let std = chunk.data.std_axis(ndarray::Axis(0), 0.0);
+        let mean = chunk.data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let std = chunk.data.std_axis(scirs2_core::ndarray::Axis(0), 0.0);
 
         stats.insert("mean_feature_0".to_string(), mean[0]);
         stats.insert("std_feature_0".to_string(), std[0]);
@@ -419,7 +419,7 @@ fn demonstrate_performance_comparison() -> Result<(), Box<dyn std::error::Error>
                 processed_chunks += 1;
 
                 // Simulate minimal processing
-                let _stats = chunk.data.mean_axis(ndarray::Axis(0));
+                let _stats = chunk.data.mean_axis(scirs2_core::ndarray::Axis(0));
 
                 if chunk.is_last || processed_samples >= datasetsize {
                     break;
@@ -543,7 +543,10 @@ fn simulate_preprocessing_pipeline() -> Result<(), Box<dyn std::error::Error>> {
         transformer.transform_chunk(&mut chunk)?;
 
         // Step 2: Feature selection (simulate by keeping first 30 features)
-        let selecteddata = chunk.data.slice(ndarray::s![.., ..30]).to_owned();
+        let selecteddata = chunk
+            .data
+            .slice(scirs2_core::ndarray::s![.., ..30])
+            .to_owned();
 
         processed_chunks += 1;
         println!(
@@ -583,7 +586,7 @@ fn simulate_model_evaluation() -> Result<(), Box<dyn std::error::Error>> {
         if let Some(true_labels) = &chunk.target {
             // Simulate model predictions (random for demo)
             let predictions: Vec<f64> = (0..chunk.n_samples())
-                .map(|_| (rand::random::<f64>() * 5.0).floor())
+                .map(|_| (scirs2_core::random::random::<f64>() * 5.0).floor())
                 .collect();
 
             // Calculate accuracy for this chunk
@@ -617,7 +620,7 @@ fn simulate_model_evaluation() -> Result<(), Box<dyn std::error::Error>> {
 fn get_memory_usage() -> f64 {
     get_process_memory_usage().unwrap_or_else(|_| {
         // Fallback to a placeholder if real memory usage cannot be determined
-        rand::random::<f64>() * 50.0 + 10.0 // 10-60 MB range
+        scirs2_core::random::random::<f64>() * 50.0 + 10.0 // 10-60 MB range
     })
 }
 

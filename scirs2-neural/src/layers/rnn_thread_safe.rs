@@ -6,9 +6,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::{Array, ArrayView, Axis, Ix2, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{Array, ArrayView, Axis, Ix2, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::{Rng, SeedableRng};
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 /// Thread-safe version of RNN for sequence processing
@@ -190,7 +190,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Thre
         // Process each time step
         for t in 0..seq_len {
             // Extract input at time t
-            let x_t = input.slice(ndarray::s![.., t, ..]);
+            let x_t = input.slice(scirs2_core::ndarray::s![.., t, ..]);
             // Process one step
             let x_t_view = x_t.view().into_dyn();
             let h_view = h.view().into_dyn();
@@ -270,7 +270,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + 'static> ThreadSafeBidirec
         // In a real implementation, we would create a proper clone of the _layer
         let backward_layer = if let Some(rnn) = layer.as_any().downcast_ref::<ThreadSafeRNN<F>>() {
             // If it's a ThreadSafeRNN, create a new one with the same parameters
-            let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+            let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
             let backward_rnn =
                 ThreadSafeRNN::<F>::new(rnn.input_size, rnn.hidden_size, rnn.activation, &mut rng)?;
             Some(Box::new(backward_rnn) as Box<dyn Layer<F> + Send + Sync>)
@@ -296,7 +296,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + 'static> Clone
         // It's provided just to satisfy the Clone trait requirement for debugging.
         // The cloned object will have empty layers.
         // Create a dummy RNN for the forward _layer
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let dummy_rnn = ThreadSafeRNN::<F>::new(1, 1, RecurrentActivation::Tanh, &mut rng)
             .expect("Failed to create dummy RNN");
         Self {
@@ -317,7 +317,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F>
             backward_output.invert_axis(Axis(1));
             // Combine forward and backward outputs along last dimension
             let combined =
-                ndarray::stack(Axis(2), &[forward_output.view(), backward_output.view()])?;
+                scirs2_core::ndarray::stack(Axis(2), &[forward_output.view(), backward_output.view()])?;
             // Reshape to flatten the last dimension
             let shape = combined.shape();
             let newshape = (shape[0], shape[1], shape[2] * shape[3]);

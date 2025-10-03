@@ -3,8 +3,8 @@
 use crate::error::{StatsError, StatsResult};
 use crate::regression::utils::*;
 use crate::regression::RegressionResults;
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use scirs2_linalg::lstsq;
 use std::collections::HashSet;
 
@@ -113,7 +113,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::{stepwise_regression, StepwiseDirection, StepwiseCriterion};
 ///
 /// // Create a design matrix with 3 variables (independent)
@@ -169,9 +169,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -443,21 +443,22 @@ where
             let rss: F = model
                 .residuals
                 .iter()
-                .map(|&r| num_traits::Float::powi(r, 2))
+                .map(|&r| scirs2_core::numeric::Float::powi(r, 2))
                 .sum();
             let n_f = F::from(n).unwrap();
             let k_f = F::from(p).unwrap();
-            n_f * num_traits::Float::ln(rss / n_f) + F::from(2.0).unwrap() * k_f
+            n_f * scirs2_core::numeric::Float::ln(rss / n_f) + F::from(2.0).unwrap() * k_f
         }
         StepwiseCriterion::BIC => {
             let rss: F = model
                 .residuals
                 .iter()
-                .map(|&r| num_traits::Float::powi(r, 2))
+                .map(|&r| scirs2_core::numeric::Float::powi(r, 2))
                 .sum();
             let n_f = F::from(n).unwrap();
             let k_f = F::from(p).unwrap();
-            n_f * num_traits::Float::ln(rss / n_f) + k_f * num_traits::Float::ln(n_f)
+            n_f * scirs2_core::numeric::Float::ln(rss / n_f)
+                + k_f * scirs2_core::numeric::Float::ln(n_f)
         }
         StepwiseCriterion::AdjR2 => {
             -model.adj_r_squared // Negative because we want to maximize adj R^2
@@ -503,9 +504,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -550,7 +551,7 @@ where
 
     // Calculate mean squared error and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Calculate standard errors for coefficients
     let std_errors = match calculate_std_errors(x, &residuals.view(), df_residuals) {
@@ -564,9 +565,10 @@ where
     // Calculate p-values (simplified)
     // In a real implementation, we would use a proper t-distribution function
     let p_values = t_values.mapv(|t| {
-        let t_abs = num_traits::Float::abs(t);
+        let t_abs = scirs2_core::numeric::Float::abs(t);
         let df_f = F::from(df_residuals).unwrap();
-        F::from(2.0).unwrap() * (F::one() - t_abs / num_traits::Float::sqrt(df_f + t_abs * t_abs))
+        F::from(2.0).unwrap()
+            * (F::one() - t_abs / scirs2_core::numeric::Float::sqrt(df_f + t_abs * t_abs))
     });
 
     // Calculate confidence intervals

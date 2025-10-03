@@ -7,8 +7,8 @@
 //! - Online learning with adaptive mechanisms
 //! - Meta-cognitive assessment and reasoning chains
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, VecDeque};
 use std::hash::{Hash, Hasher};
@@ -604,7 +604,7 @@ pub fn calculate_prediction_error(_prediction: &PredictionResult, true_label: &s
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_hierarchical_concept_library() {
@@ -689,7 +689,7 @@ mod tests {
         let encoded = encode_semantic_concepts(&concepts, &config).unwrap();
 
         assert_eq!(encoded.dimension, config.hypervector_dim);
-        assert!(encoded.sparse_data.len() > 0);
+        assert!(!encoded.sparse_data.is_empty());
 
         // Test with different concepts should produce different encodings
         let other_concepts = vec!["car".to_string(), "house".to_string()];

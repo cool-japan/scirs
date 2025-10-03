@@ -5,8 +5,8 @@
 //! It's particularly useful when the number of clusters is not known in advance,
 //! and works well for non-flat geometries.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::cmp::Ordering;
 use std::fmt::Debug;
 
@@ -407,7 +407,7 @@ fn compare_labels(labels1: ArrayView1<i32>, labels2: ArrayView1<i32>) -> bool {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{ArrayView1, Array2, ArrayView2};
+/// use scirs2_core::ndarray::{ArrayView1, Array2, ArrayView2};
 /// use scirs2_cluster::affinity::{affinity_propagation, AffinityPropagationOptions};
 ///
 /// // Example data with two clusters
@@ -471,7 +471,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_affinity_propagation_basic() {

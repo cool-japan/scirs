@@ -10,7 +10,7 @@ fn main() {
     ag::run(|ctx| {
         // Create a 2x2 matrix with specific values
         println!("Creating a 2x2 matrix");
-        let matrix_data = ndarray::arr2(&[[2.0, 0.0], [0.0, 2.0]]);
+        let matrix_data = scirs2_core::ndarray::arr2(&[[2.0, 0.0], [0.0, 2.0]]);
 
         // Convert to tensor
         let matrix = T::convert_to_tensor(matrix_data.into_dyn(), ctx);

@@ -4,8 +4,8 @@
 //! including 1D and 2D convolution with various modes and boundary conditions.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 

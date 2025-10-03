@@ -1,12 +1,12 @@
 #[cfg(feature = "memory_efficient")]
 mod tests {
     use approx::assert_relative_eq;
-    use ndarray::Array2;
     use scirs2_core::array::{mask_array, masked_invalid};
     use scirs2_core::memory_efficient::{
         chunk_wise_op, create_disk_array, diagonal_view, evaluate, transpose_view,
         ChunkingStrategy, LazyArray,
     };
+    use scirs2_core::ndarray::Array2;
     use tempfile::NamedTempFile;
 
     #[test]

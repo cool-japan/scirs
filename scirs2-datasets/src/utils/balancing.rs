@@ -5,12 +5,12 @@
 //! random undersampling, and SMOTE-like synthetic sample generation.
 
 use crate::error::{DatasetsError, Result};
-use ndarray::{Array1, Array2};
-use rand::prelude::*;
-use rand::rngs::StdRng;
-use rand::seq::SliceRandom;
-use rand_distr::Uniform;
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::Uniform;
 use std::collections::HashMap;
 
 /// Balancing strategies for handling imbalanced datasets
@@ -45,7 +45,7 @@ pub enum BalancingStrategy {
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_datasets::utils::random_oversample;
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
@@ -109,8 +109,8 @@ pub fn random_oversample(
     }
 
     // Create resampled data and targets
-    let resampled_data = data.select(ndarray::Axis(0), &resampled_indices);
-    let resampled_targets = targets.select(ndarray::Axis(0), &resampled_indices);
+    let resampled_data = data.select(scirs2_core::ndarray::Axis(0), &resampled_indices);
+    let resampled_targets = targets.select(scirs2_core::ndarray::Axis(0), &resampled_indices);
 
     Ok((resampled_data, resampled_targets))
 }
@@ -133,7 +133,7 @@ pub fn random_oversample(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_datasets::utils::random_undersample;
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
@@ -192,8 +192,8 @@ pub fn random_undersample(
     }
 
     // Create undersampled data and targets
-    let undersampled_data = data.select(ndarray::Axis(0), &undersampled_indices);
-    let undersampled_targets = targets.select(ndarray::Axis(0), &undersampled_indices);
+    let undersampled_data = data.select(scirs2_core::ndarray::Axis(0), &undersampled_indices);
+    let undersampled_targets = targets.select(scirs2_core::ndarray::Axis(0), &undersampled_indices);
 
     Ok((undersampled_data, undersampled_targets))
 }
@@ -219,7 +219,7 @@ pub fn random_undersample(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_datasets::utils::generate_synthetic_samples;
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![1.0, 1.0, 2.0, 2.0, 1.5, 1.5, 2.5, 2.5]).unwrap();
@@ -344,7 +344,7 @@ pub fn generate_synthetic_samples(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_datasets::utils::{create_balanced_dataset, BalancingStrategy};
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0]).unwrap();
@@ -386,16 +386,16 @@ pub fn create_balanced_dataset(
                     )?;
 
                     // Concatenate with existing data
-                    combined_data = ndarray::concatenate(
-                        ndarray::Axis(0),
+                    combined_data = scirs2_core::ndarray::concatenate(
+                        scirs2_core::ndarray::Axis(0),
                         &[combined_data.view(), synthetic_data.view()],
                     )
                     .map_err(|_| {
                         DatasetsError::InvalidFormat("Failed to concatenate data".to_string())
                     })?;
 
-                    combined_targets = ndarray::concatenate(
-                        ndarray::Axis(0),
+                    combined_targets = scirs2_core::ndarray::concatenate(
+                        scirs2_core::ndarray::Axis(0),
                         &[combined_targets.view(), synthetic_targets.view()],
                     )
                     .map_err(|_| {
@@ -412,7 +412,7 @@ pub fn create_balanced_dataset(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand_distr::Uniform;
+    use scirs2_core::random::Uniform;
 
     #[test]
     fn test_random_oversample() {

@@ -2,7 +2,7 @@
 
 use crate::unconstrained::utils::clip_step;
 use crate::unconstrained::Bounds;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Backtracking line search with Armijo condition
 #[allow(clippy::too_many_arguments)]

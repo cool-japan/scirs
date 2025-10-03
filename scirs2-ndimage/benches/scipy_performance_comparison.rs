@@ -29,7 +29,7 @@ fn bench_filter_performance_comparison(c: &mut Criterion) {
 
     for (rows, cols) in sizes {
         let input = Array2::from_shape_fn((rows, cols), |(i, j)| {
-            ((i as f64 * 0.1).sin() * (j as f64 * 0.1).cos() * 100.0)
+            (i as f64 * 0.1).sin() * (j as f64 * 0.1).cos() * 100.0
         });
 
         // Benchmark Gaussian filter at different sigma values
@@ -196,7 +196,7 @@ fn bench_interpolation_performance(c: &mut Criterion) {
 
     for (rows, cols) in base_sizes {
         let input = Array2::from_shape_fn((rows, cols), |(i, j)| {
-            ((i as f64 / 10.0).sin() * (j as f64 / 10.0).cos())
+            (i as f64 / 10.0).sin() * (j as f64 / 10.0).cos()
         });
 
         // Benchmark zoom at different factors
@@ -242,7 +242,7 @@ fn bench_interpolation_performance(c: &mut Criterion) {
         );
 
         // Benchmark affine transformation
-        let transform_matrix = ndarray::array![[0.8, -0.2], [0.2, 0.9]]; // Scale + rotate
+        let transform_matrix = scirs2_core::ndarray::array![[0.8, -0.2], [0.2, 0.9]]; // Scale + rotate
         group.bench_with_input(
             BenchmarkId::new("affine_transform", format!("{}x{}", rows, cols)),
             &input,
@@ -494,7 +494,7 @@ fn bench_edge_detection_performance(c: &mut Criterion) {
             let circles = ((x - 0.5).powi(2) + (y - 0.5).powi(2)).sqrt();
             let waves = (x * 30.0).sin() * (y * 25.0).cos();
             let gradient = x * y;
-            (circles * 100.0 + waves * 50.0 + gradient * 25.0)
+            circles * 100.0 + waves * 50.0 + gradient * 25.0
         });
 
         // Benchmark Sobel edge detection
@@ -546,7 +546,7 @@ fn bench_data_type_performance(c: &mut Criterion) {
 
     // Generate test data for both f32 and f64
     let input_f32 = Array2::from_shape_fn(size, |(i, j)| {
-        ((i as f32 * 0.1).sin() * (j as f32 * 0.1).cos()) as f32
+        (i as f32 * 0.1).sin() * (j as f32 * 0.1).cos()
     });
 
     let input_f64 = Array2::from_shape_fn(size, |(i, j)| {

@@ -3,9 +3,9 @@
 //! This example shows how to use exponential moving average (EMA) calibration
 //! for adapting to changing data distributions.
 
-use ndarray::Array2;
-use rand::{rng, Rng};
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::{rng, Rng};
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_linalg::quantization::calibration::{
     calibrate_matrix, CalibrationConfig, CalibrationMethod,
 };
@@ -36,7 +36,7 @@ fn main() {
 /// Create a sequence of data matrices with drifting distribution
 #[allow(dead_code)]
 fn create_drifting_data_sequence(_num_matrices: usize, driftfactor: f32) -> Vec<Array2<f32>> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut result = Vec::with_capacity(_num_matrices);
 
     // Start with a base distribution
@@ -217,7 +217,7 @@ fn compare_ema_factors(datasequence: &[Array2<f32>], bits: u8) {
 #[allow(dead_code)]
 fn simulate_streaming_data() {
     let bits = 8;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Setup for a streaming scenario where data distribution changes over time
     println!("Simulating a streaming sensor with changing data distribution...");

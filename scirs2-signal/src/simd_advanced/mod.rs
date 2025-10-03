@@ -74,7 +74,7 @@
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::simd_advanced::{SimdConfig, simd_batch_spectral_analysis};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let signals = Array2::zeros((4, 1024)); // 4 signals, 1024 samples each
 //! let config = SimdConfig::default();

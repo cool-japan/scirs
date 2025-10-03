@@ -23,7 +23,7 @@
 //! ### Basic NURBS Curve
 //!
 //! ```rust
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_interpolate::nurbs::{NurbsCurve};
 //! use scirs2_interpolate::bspline::ExtrapolateMode;
 //!
@@ -51,7 +51,7 @@
 //! ### NURBS Surface
 //!
 //! ```rust
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_interpolate::nurbs::NurbsSurface;
 //! use scirs2_interpolate::bspline::ExtrapolateMode;
 //!

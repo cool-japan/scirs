@@ -1,5 +1,5 @@
 use crate::error::MetricsError;
-use ndarray::{Array1, ArrayBase, Data, Dimension};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Dimension};
 
 /// Compute learning curve points.
 ///
@@ -22,7 +22,7 @@ use ndarray::{Array1, ArrayBase, Data, Dimension};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::curves::learning_curve;
 ///
 /// let train_sizes = array![0.2, 0.4, 0.6, 0.8, 1.0];

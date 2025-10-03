@@ -5,14 +5,14 @@
 //! statistical computing workloads in production environments.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant, SystemTime};
 
 /// Production deployment configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProductionConfig {
     /// Target environment specification
     pub environment: EnvironmentSpec,
@@ -368,7 +368,7 @@ impl ProductionDeploymentValidator {
         let start_time = Instant::now();
 
         // Check if required SIMD features are available
-        let required_features = vec![SimdFeature::SSE2, SimdFeature::AVX];
+        let required_features = [SimdFeature::SSE2, SimdFeature::AVX];
         let available_features = &self.config.environment.cpu_features.simd_features;
 
         let missing_features: Vec<_> = required_features
@@ -1465,19 +1465,6 @@ pub struct Threshold {
 }
 
 // Default implementations for key types
-impl Default for ProductionConfig {
-    fn default() -> Self {
-        Self {
-            environment: EnvironmentSpec::default(),
-            performance_requirements: PerformanceRequirements::default(),
-            reliability: ReliabilityConfig::default(),
-            monitoring: MonitoringConfig::default(),
-            resource_limits: ResourceLimits::default(),
-            security: SecurityConfig::default(),
-            deployment_strategy: DeploymentStrategy::default(),
-        }
-    }
-}
 
 impl Default for EnvironmentSpec {
     fn default() -> Self {
@@ -1664,6 +1651,12 @@ impl Default for ResourceAnalysis {
     }
 }
 
+impl Default for PerformanceMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceMonitor {
     pub fn new() -> Self {
         Self {
@@ -1707,6 +1700,12 @@ impl PerformanceMonitor {
                 critical_threshold: critical,
             },
         );
+    }
+}
+
+impl Default for HealthChecker {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

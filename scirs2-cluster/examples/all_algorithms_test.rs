@@ -1,4 +1,3 @@
-use ndarray::{array, Array2};
 use scirs2_cluster::{
     // Affinity Propagation
     affinity_propagation,
@@ -31,6 +30,7 @@ use scirs2_cluster::{
     HDBSCANOptions,
     SpectralClusteringOptions,
 };
+use scirs2_core::ndarray::{array, Array2};
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -164,7 +164,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[allow(dead_code)]
-fn print_results(labels: &ndarray::Array1<usize>, data: &Array2<f64>) {
+fn print_results(labels: &scirs2_core::ndarray::Array1<usize>, data: &Array2<f64>) {
     // Count unique _labels
     let mut unique_labels = std::collections::HashSet::new();
     for &label in labels.iter() {

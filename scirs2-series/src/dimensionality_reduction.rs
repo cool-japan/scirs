@@ -16,7 +16,7 @@
 //! # Example
 //!
 //! ```rust
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_series::dimensionality_reduction::{PCAConfig, apply_pca};
 //!
 //! // Create sample time series data matrix (n_series × n_timepoints)
@@ -35,8 +35,8 @@
 //! println!("Explained variance ratio: {:?}", result.explained_variance_ratio);
 //! ```
 
-use ndarray::{s, Array1, Array2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -336,7 +336,7 @@ pub struct SymbolicApproximationResult {
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_series::dimensionality_reduction::{PCAConfig, apply_pca};
 ///
 /// let data = Array2::from_shape_vec((10, 50), (0..500).map(|x| x as f64).collect()).unwrap();
@@ -1389,7 +1389,7 @@ fn compute_reconstruction_error(_original: &Array1<f64>, reconstructed: &Array1<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_pca_basic() {

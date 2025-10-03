@@ -3,8 +3,8 @@
 //! This module provides robust variants of time series decomposition that are
 //! resistant to outliers and extreme values.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::common::{DecompositionModel, DecompositionResult};
@@ -30,7 +30,7 @@ use crate::error::{Result, TimeSeriesError};
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::decomposition::{decompose_robust_seasonal, DecompositionModel};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0];
@@ -322,7 +322,7 @@ where
             n
         };
 
-        let window_data: Vec<F> = ts.slice(ndarray::s![start..end]).to_vec();
+        let window_data: Vec<F> = ts.slice(scirs2_core::ndarray::s![start..end]).to_vec();
         trend[i] = median(&window_data);
     }
 
@@ -396,7 +396,7 @@ where
             n
         };
 
-        let window_data: Vec<F> = ts.slice(ndarray::s![start..end]).to_vec();
+        let window_data: Vec<F> = ts.slice(scirs2_core::ndarray::s![start..end]).to_vec();
         trend[i] = median(&window_data);
     }
 
@@ -623,7 +623,7 @@ where
             n
         };
 
-        let window_data: Vec<F> = ts.slice(ndarray::s![start..end]).to_vec();
+        let window_data: Vec<F> = ts.slice(scirs2_core::ndarray::s![start..end]).to_vec();
         trend[i] = m_estimator(&window_data, loss_type)?;
     }
 
@@ -845,7 +845,7 @@ where
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let len = sorted.len();
-    if len % 2 == 0 {
+    if len.is_multiple_of(2) {
         let mid1 = sorted[len / 2 - 1];
         let mid2 = sorted[len / 2];
         (mid1 + mid2) / (F::one() + F::one())

@@ -5,7 +5,7 @@
 // These features can be used for image analysis, classification, and retrieval.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -48,7 +48,7 @@ pub use types::ImageFeatureOptions;
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::image_features::{extract_image_features, ImageFeatureOptions};
 ///
 /// // Create a simple test image (8x8)
@@ -134,7 +134,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array3, Dim};
+/// use scirs2_core::ndarray::{Array3, Dim};
 /// use scirs2_signal::image_features::{extract_color_image_features, ImageFeatureOptions};
 ///
 /// // Create a simple test RGB image (8x8x3)
@@ -160,7 +160,7 @@ where
 /// ```
 #[allow(dead_code)]
 pub fn extract_color_image_features<T>(
-    image: &ndarray::Array3<T>,
+    image: &scirs2_core::ndarray::Array3<T>,
     options: &ImageFeatureOptions,
 ) -> SignalResult<HashMap<String, f64>>
 where

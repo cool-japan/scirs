@@ -5,8 +5,8 @@
 
 use crate::eigen::eig;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::{Debug, Display};
 
 /// Solves the generalized Sylvester equation AXB + CXD = E
@@ -23,7 +23,7 @@ use std::fmt::{Debug, Display};
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_equations::solve_generalized_sylvester;
 ///
 /// let a = array![[1.0, 0.0], [0.0, 2.0]];
@@ -47,7 +47,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -135,7 +135,7 @@ where
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_equations::solve_sylvester;
 ///
 /// let a = array![[1.0, 2.0], [0.0, 3.0]];
@@ -155,7 +155,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -244,7 +244,7 @@ where
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_equations::solve_continuous_riccati;
 ///
 /// let a = array![[0.0, 1.0], [0.0, 0.0]];
@@ -266,7 +266,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -302,24 +302,27 @@ where
     let mut h = Array2::<A>::zeros((2 * n, 2 * n));
 
     // Upper left: A
-    h.slice_mut(ndarray::s![..n, ..n]).assign(a);
+    h.slice_mut(scirs2_core::ndarray::s![..n, ..n]).assign(a);
 
     // Upper right: -BR^{-1}B^T
     let r_inv = crate::inv(r, None)?;
     let br_inv_bt = b.dot(&r_inv).dot(&b.t());
     // Negate br_inv_bt
     let neg_br_inv_bt = br_inv_bt.mapv(|x| -x);
-    h.slice_mut(ndarray::s![..n, n..]).assign(&neg_br_inv_bt);
+    h.slice_mut(scirs2_core::ndarray::s![..n, n..])
+        .assign(&neg_br_inv_bt);
 
     // Lower left: -Q
     // Negate q
     let neg_q = q.mapv(|x| -x);
-    h.slice_mut(ndarray::s![n.., ..n]).assign(&neg_q);
+    h.slice_mut(scirs2_core::ndarray::s![n.., ..n])
+        .assign(&neg_q);
 
     // Lower right: -A^T
     // Negate a.t()
     let neg_at = a.t().mapv(|x| -x);
-    h.slice_mut(ndarray::s![n.., n..]).assign(&neg_at);
+    h.slice_mut(scirs2_core::ndarray::s![n.., n..])
+        .assign(&neg_at);
 
     // Compute eigendecomposition of H
     let (eigvals, eigvecs) = eig(&h.view(), None)?;
@@ -380,7 +383,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -473,7 +476,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static
         + Send
@@ -534,7 +537,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_sylvester_equation() {

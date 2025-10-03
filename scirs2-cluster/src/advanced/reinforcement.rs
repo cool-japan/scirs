@@ -4,8 +4,8 @@
 //! principles to adaptively improve clustering performance through reward-based
 //! learning mechanisms.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -136,7 +136,7 @@ pub fn rl_clustering<F: Float + FromPrimitive + Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_rl_clustering_config_default() {

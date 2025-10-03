@@ -1,5 +1,5 @@
 // Copy the j1 function source to test
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 // Using a simplified version for testing

@@ -14,7 +14,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{s, Array1, Array2, ArrayView1, Zip};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, Zip};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -1586,7 +1586,7 @@ impl<F: IntegrateFloat + SimdUnifiedOps> AdvancedSimdAccelerator<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_simd_accelerator_creation() {

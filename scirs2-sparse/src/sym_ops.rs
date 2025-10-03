@@ -4,8 +4,8 @@
 // operations for symmetric sparse matrices, including matrix-vector products
 // and other computations that can take advantage of symmetry.
 
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::ops::{Add, Mul};
 
@@ -35,7 +35,7 @@ use scirs2_core::parallel_ops::*;
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_sparse::sym_csr::SymCsrMatrix;
 /// use scirs2_sparse::sym_ops::sym_csr_matvec;
 ///
@@ -183,7 +183,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_sparse::sym_coo::SymCooMatrix;
 /// use scirs2_sparse::sym_ops::sym_coo_matvec;
 ///
@@ -330,7 +330,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_sparse::sym_csr::SymCsrMatrix;
 /// use scirs2_sparse::sym_ops::sym_csr_quadratic_form;
 ///
@@ -425,7 +425,7 @@ mod tests {
     use crate::sym_csr::SymCsrMatrix;
     use crate::AsLinearOperator; // For the test_compare_with_standard_matvec test
     use approx::assert_relative_eq;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     // Create a simple symmetric matrix for testing
     fn create_test_sym_csr() -> SymCsrMatrix<f64> {

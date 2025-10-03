@@ -7,7 +7,7 @@ use crate::error::{NdimageError, NdimageResult};
 use crate::filters::{
     convolve, gaussian_filter_f32, gradient_magnitude, prewitt, scharr, sobel, BorderMode,
 };
-use ndarray::{Array, Array2, ArrayD, Ix2};
+use scirs2_core::ndarray::{Array, Array2, ArrayD, Ix2};
 use std::f32::consts::PI;
 
 /// Gradient calculation method for edge detection
@@ -83,7 +83,7 @@ impl Default for EdgeDetectionConfig {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::features::{edge_detector, EdgeDetectionConfig, EdgeDetectionAlgorithm, GradientMethod};
 /// use scirs2_ndimage::filters::BorderMode;
 ///
@@ -187,7 +187,7 @@ pub fn edge_detector(
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::features::{canny, GradientMethod};
 ///
 /// let image = array![
@@ -488,7 +488,7 @@ fn is_connected_to_strong_edge(row: usize, col: usize, edges: &Array<f32, Ix2>) 
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::features::laplacian_edges;
 /// use scirs2_ndimage::filters::BorderMode;
 ///
@@ -610,7 +610,7 @@ fn laplacian_edges_impl(
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::features::{gradient_edges, GradientMethod};
 /// use scirs2_ndimage::filters::BorderMode;
 ///
@@ -723,7 +723,7 @@ pub fn sobel_edges(image: &ArrayD<f32>) -> NdimageResult<ArrayD<f32>> {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::features::{edge_detector_simple, GradientMethod};
 ///
 /// let image = array![
@@ -761,7 +761,7 @@ pub fn edge_detector_simple(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_canny_edge_detector() {

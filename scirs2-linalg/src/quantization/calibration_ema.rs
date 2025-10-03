@@ -5,14 +5,14 @@ use super::calibration::{
 };
 use super::{QuantizationMethod, QuantizationParams};
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use std::fmt::Debug;
 
 // Utility function to convert f32 to any Float type
 #[allow(dead_code)]
 fn to_f<F>(val: f32) -> F
 where
-    F: num_traits::Float + num_traits::FromPrimitive,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::FromPrimitive,
 {
     F::from_f32(val).unwrap()
 }
@@ -21,7 +21,7 @@ where
 #[allow(dead_code)]
 fn to_f32<F>(val: F) -> f32
 where
-    F: num_traits::Float + num_traits::AsPrimitive<f32>,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::AsPrimitive<f32>,
 {
     val.as_()
 }
@@ -54,8 +54,11 @@ pub fn calibrate_matrix_ema<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Validate parameters
     if !(0.0..=1.0).contains(&ema_factor) {
@@ -217,8 +220,11 @@ pub fn calibrate_matrix_per_channel_ema<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Validate parameters
     if !(0.0..=1.0).contains(&ema_factor) {
@@ -444,8 +450,11 @@ pub fn calibrate_vector_ema<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Validate parameters
     if !(0.0..=1.0).contains(&ema_factor) {

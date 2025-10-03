@@ -5,7 +5,7 @@
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GenericImageView, GrayImage};
-use ndarray::{s, Array2};
+use scirs2_core::ndarray::{s, Array2};
 use statrs::statistics::Statistics;
 
 /// Compute Peak Signal-to-Noise Ratio (PSNR) between two images
@@ -230,7 +230,11 @@ fn gaussian_window(size: usize, sigma: f32) -> Array2<f32> {
 
 /// Compute weighted mean
 #[allow(dead_code)]
-fn weighted_mean(data: &ndarray::ArrayView2<f32>, weights: &Array2<f32>, sumweights: f32) -> f32 {
+fn weighted_mean(
+    data: &scirs2_core::ndarray::ArrayView2<f32>,
+    weights: &Array2<f32>,
+    sumweights: f32,
+) -> f32 {
     let mut sum = 0.0;
     for ((y, x), &value) in data.indexed_iter() {
         sum += value * weights[[y, x]];
@@ -241,7 +245,7 @@ fn weighted_mean(data: &ndarray::ArrayView2<f32>, weights: &Array2<f32>, sumweig
 /// Compute weighted variance
 #[allow(dead_code)]
 fn weighted_variance(
-    data: &ndarray::ArrayView2<f32>,
+    data: &scirs2_core::ndarray::ArrayView2<f32>,
     weights: &Array2<f32>,
     mean: f32,
     sumweights: f32,
@@ -256,8 +260,8 @@ fn weighted_variance(
 /// Compute weighted covariance
 #[allow(dead_code)]
 fn weighted_covariance(
-    data1: &ndarray::ArrayView2<f32>,
-    data2: &ndarray::ArrayView2<f32>,
+    data1: &scirs2_core::ndarray::ArrayView2<f32>,
+    data2: &scirs2_core::ndarray::ArrayView2<f32>,
     weights: &Array2<f32>,
     mean1: f32,
     mean2: f32,
@@ -395,7 +399,7 @@ pub fn vif(img1: &DynamicImage, img2: &DynamicImage) -> Result<f32> {
 
 /// Compute variance of an array view
 #[allow(dead_code)]
-fn variance(data: &ndarray::ArrayView2<f32>) -> f32 {
+fn variance(data: &scirs2_core::ndarray::ArrayView2<f32>) -> f32 {
     let mean = data.mean().unwrap_or(0.0);
     data.mapv(|x| (x - mean).powi(2)).mean().unwrap_or(0.0)
 }

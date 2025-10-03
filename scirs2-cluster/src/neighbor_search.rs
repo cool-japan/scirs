@@ -4,8 +4,8 @@
 //! which are crucial for density-based clustering and other algorithms that
 //! require neighborhood computations.
 
-use ndarray::{Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::BinaryHeap;
 use std::fmt::Debug;
 
@@ -864,7 +864,7 @@ fn euclidean_distance_vec(a: &[f64], b: &[f64]) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2, ArrayView1};
+    use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
     fn create_test_data() -> Array2<f64> {
         Array2::from_shape_vec(

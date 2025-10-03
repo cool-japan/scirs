@@ -4,8 +4,8 @@
 //! operations for image processing. Wavelets are particularly useful for
 //! denoising, compression, and multi-scale analysis.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -660,8 +660,17 @@ where
     let padded = pad_signal_1d(signal, &wavelet.low_dec, mode)?;
 
     // Apply low-pass and high-pass filters
-    let low_pass = convolve_downsample_1d(&padded.view(), &wavelet.low_dec, 2)?;
-    let high_pass = convolve_downsample_1d(&padded.view(), &wavelet.high_dec, 2)?;
+    let mut low_pass = convolve_downsample_1d(&padded.view(), &wavelet.low_dec, 2)?;
+    let mut high_pass = convolve_downsample_1d(&padded.view(), &wavelet.high_dec, 2)?;
+
+    // Trim to correct output length (n/2 for even n, (n+1)/2 for odd n)
+    let expected_len = (n + 1) / 2;
+    if low_pass.len() > expected_len {
+        low_pass = low_pass.slice(s![..expected_len]).to_owned();
+    }
+    if high_pass.len() > expected_len {
+        high_pass = high_pass.slice(s![..expected_len]).to_owned();
+    }
 
     Ok((low_pass, high_pass))
 }
@@ -1027,7 +1036,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_haar_coefficients() {
@@ -1042,7 +1051,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_dwt_1d() {
         let signal = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let haar =
@@ -1080,7 +1088,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_dwt_2d() {
         let image = array![
             [1.0, 2.0, 3.0, 4.0],
@@ -1108,7 +1115,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_wavelet_denoise() {
         let image = array![
             [1.0, 2.0, 3.0, 4.0],

@@ -3,7 +3,7 @@
 //! This example shows how to use the matrix trigonometric functions
 //! (cosm, sinm, tanm) in both the direct API and SciPy-compatible interface.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::compat;
 use scirs2_linalg::matrix_functions::{cosm, sinm, tanm};
 

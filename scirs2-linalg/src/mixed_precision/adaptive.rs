@@ -4,8 +4,8 @@
 //! strategy based on the problem characteristics, including iterative refinement,
 //! condition number estimation, and advanced matrix decompositions.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, NumCast, One, ToPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, NumCast, One, ToPrimitive, Zero};
 use std::fmt::Debug;
 
 use super::conversions::{convert, convert_2d};
@@ -31,7 +31,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 /// ```
-/// use ndarray::{array, ArrayView1, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView1, ArrayView2};
 /// use scirs2_linalg::mixed_precision::adaptive::mixed_precision_solve;
 ///
 /// // Create a simple system in f32 precision
@@ -169,7 +169,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::mixed_precision::adaptive::mixed_precision_cond;
 ///
 /// // Create a matrix with poor condition number
@@ -197,7 +197,7 @@ where
         + 'static
         + std::iter::Sum
         + NumAssign
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -266,7 +266,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::mixed_precision::adaptive::iterative_refinement_solve;
 ///
 /// // Solve a linear system Ax = b
@@ -293,7 +293,14 @@ where
     A: Float + NumAssign + Debug + 'static,
     B: Float + NumAssign + Debug + 'static,
     C: Float + NumAssign + Debug + 'static,
-    H: Float + NumAssign + Debug + 'static + std::iter::Sum + ndarray::ScalarOperand + Send + Sync,
+    H: Float
+        + NumAssign
+        + Debug
+        + 'static
+        + std::iter::Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
     W: Float
         + NumAssign
         + Debug
@@ -302,7 +309,7 @@ where
         + One
         + Send
         + Sync
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
     A: NumCast,
     B: NumCast,
     C: NumCast,
@@ -414,7 +421,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::mixed_precision::adaptive::mixed_precision_qr;
 ///
 /// // Create a matrix in f32 precision
@@ -439,7 +446,14 @@ pub fn mixed_precision_qr<A, C, H>(a: &ArrayView2<A>) -> LinalgResult<(Array2<C>
 where
     A: Float + NumAssign + Debug + 'static,
     C: Float + NumAssign + Debug + 'static,
-    H: Float + NumAssign + Debug + 'static + std::iter::Sum + ndarray::ScalarOperand + Send + Sync,
+    H: Float
+        + NumAssign
+        + Debug
+        + 'static
+        + std::iter::Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
     A: NumCast,
     C: NumCast,
     H: NumCast,
@@ -580,7 +594,14 @@ pub fn mixed_precision_svd<A, C, H>(
 where
     A: Float + NumAssign + Debug + 'static,
     C: Float + NumAssign + Debug + 'static,
-    H: Float + NumAssign + Debug + 'static + std::iter::Sum + ndarray::ScalarOperand + Send + Sync,
+    H: Float
+        + NumAssign
+        + Debug
+        + 'static
+        + std::iter::Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
     A: NumCast,
     C: NumCast,
     H: NumCast,
@@ -603,7 +624,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mixed_precision_solve() {

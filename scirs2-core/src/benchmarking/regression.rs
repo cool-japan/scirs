@@ -341,7 +341,7 @@ impl RegressionDetector {
             .collect();
         execution_times.sort();
 
-        let median_time = if execution_times.len() % 2 == 0 {
+        let median_time = if execution_times.len().is_multiple_of(2) {
             let mid = execution_times.len() / 2;
             (execution_times[mid - 1] + execution_times[mid]) / 2
         } else {

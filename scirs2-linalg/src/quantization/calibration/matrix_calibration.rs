@@ -6,7 +6,7 @@
 use super::super::{QuantizationMethod, QuantizationParams};
 use super::utils::*;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::ArrayView2;
+use scirs2_core::ndarray::ArrayView2;
 use std::fmt::Debug;
 
 // -------------------------------------------------------------------------
@@ -21,8 +21,11 @@ pub(super) fn calibrate_matrix_minmax<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Find min and max values in the matrix
     let mut min_val = f32::MAX;
@@ -60,8 +63,11 @@ pub(super) fn calibrate_matrix_moving_average<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Convert matrix to a flattened vector of finite f32 values
     let mut values: Vec<f32> = matrix
@@ -109,8 +115,11 @@ pub(super) fn calibrate_matrix_percentile<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     if !(0.0..=1.0).contains(&percentile) {
         return Err(LinalgError::ValueError(
@@ -160,8 +169,11 @@ pub(super) fn calibrate_matrix_entropy<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // First get min-max range to create histogram
     let (min_val, max_val) = find_min_max(matrix);
@@ -184,8 +196,11 @@ pub(super) fn calibrate_matrix_mse<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Start with min-max calibration
     let mut base_params = calibrate_matrix_minmax(matrix, bits, symmetric)?;
@@ -220,8 +235,11 @@ pub(super) fn calibrate_matrix_per_channel_minmax<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let (_rows, cols) = matrix.dim();
 
@@ -309,8 +327,11 @@ pub(super) fn calibrate_matrix_per_channel_moving_average<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let (_rows, cols) = matrix.dim();
 
@@ -411,8 +432,11 @@ pub(super) fn calibrate_matrix_per_channel_percentile<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     if !(0.0..=1.0).contains(&percentile) {
         return Err(LinalgError::ValueError(
@@ -516,8 +540,11 @@ pub(super) fn calibrate_matrix_per_channel_entropy<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let (_rows, cols) = matrix.dim();
 
@@ -591,8 +618,11 @@ pub(super) fn calibrate_matrix_per_channel_mse<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let (_rows, cols) = matrix.dim();
 

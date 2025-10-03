@@ -3,7 +3,7 @@
 //! This example demonstrates the performance improvements possible with SIMD optimization
 //! for special functions on large arrays.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::time::Instant;
 
 #[cfg(feature = "simd")]
@@ -69,7 +69,7 @@ fn benchmark_gamma_performance(size: usize) -> Result<(), Box<dyn std::error::Er
 
     // Benchmark scalar implementation
     let start = Instant::now();
-    let _scalar_f64: Array1<f64> = data_f64.mapv(|x| gamma(x));
+    let _scalar_f64: Array1<f64> = data_f64.mapv(gamma);
     let scalar_time = start.elapsed();
 
     let start = Instant::now();

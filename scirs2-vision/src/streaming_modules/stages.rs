@@ -7,7 +7,7 @@
 use super::core::{Frame, FrameMetadata, ProcessingStage};
 use crate::error::Result;
 use image::{GenericImageView, ImageBuffer, Luma};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::time::Instant;
 
 /// Grayscale conversion stage
@@ -295,7 +295,7 @@ impl FeatureDetectionStage {
     /// * Result containing Harris corner response map
     fn simd_harris_detection(
         &self,
-        image: &ndarray::ArrayView2<f32>,
+        image: &scirs2_core::ndarray::ArrayView2<f32>,
         threshold: f32,
         k: f32,
     ) -> Result<Array2<f32>> {
@@ -386,7 +386,7 @@ impl FeatureDetectionStage {
     /// * Result containing FAST corner response map
     fn simd_fast_detection(
         &self,
-        image: &ndarray::ArrayView2<f32>,
+        image: &scirs2_core::ndarray::ArrayView2<f32>,
         threshold: u8,
     ) -> Result<Array2<f32>> {
         use scirs2_core::simd_ops::SimdUnifiedOps;
@@ -519,7 +519,7 @@ impl FeatureDetectionStage {
     /// * Result containing smoothed image
     fn simd_box_filter(
         &self,
-        image: &ndarray::ArrayView2<f32>,
+        image: &scirs2_core::ndarray::ArrayView2<f32>,
         window_size: usize,
         kernel_weight: f32,
     ) -> Result<Array2<f32>> {

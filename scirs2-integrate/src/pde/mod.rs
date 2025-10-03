@@ -30,7 +30,7 @@ pub mod mesh_generation;
 pub mod method_of_lines;
 pub mod spectral;
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::ops::Range;
 
 /// Enum representing different types of boundary conditions

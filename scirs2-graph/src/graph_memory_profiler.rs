@@ -9,7 +9,7 @@
 use crate::advanced::AdvancedProcessor;
 use crate::base::{EdgeWeight, Graph, Node};
 use crate::error::Result;
-use rand::Rng;
+use scirs2_core::random::Rng;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, SystemTime};
 
@@ -1093,7 +1093,7 @@ pub fn generate_profiled_large_graph(
     profiler.record_allocation("graph_generation", num_nodes * 8, "_nodes", true);
 
     let mut graph = crate::base::Graph::new();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Add _nodes with memory tracking
     const NODE_BATCH_SIZE: usize = 25_000;

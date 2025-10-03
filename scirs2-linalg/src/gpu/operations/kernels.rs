@@ -12,7 +12,7 @@ pub struct GpuKernelManager {
 }
 
 #[derive(Debug, Clone)]
-struct CompiledKernel {
+pub struct CompiledKernel {
     source: String,
     binary: Option<Vec<u8>>,
     metadata: KernelMetadata,
@@ -48,7 +48,7 @@ pub enum OptimizationLevel {
 }
 
 #[derive(Debug, Clone)]
-struct DeviceCapabilities {
+pub struct DeviceCapabilities {
     max_work_groupsize: usize,
     max_work_item_dimensions: usize,
     local_memorysize: usize,
@@ -687,7 +687,7 @@ impl BenchmarkResults {
 }
 
 #[derive(Debug, Clone)]
-struct AutoTuneConfig {
+pub struct AutoTuneConfig {
     work_groupsize: usize,
     local_memory_usage: usize,
     unroll_factor: usize,

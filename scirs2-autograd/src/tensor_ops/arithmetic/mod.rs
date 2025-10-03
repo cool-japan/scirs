@@ -464,7 +464,7 @@ where
 /// Returns the max of x and y (i.e. x > y ? x : y) element-wise.
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::arithmetic::maximum;
 ///
@@ -492,7 +492,7 @@ where
 /// Returns the min of x and y (i.e. x > y ? y : x) element-wise.
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::arithmetic::minimum;
 ///
@@ -525,7 +525,7 @@ where
 /// When broadcast is impossible
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::arithmetic::equal;
 ///
@@ -533,7 +533,7 @@ where
 ///    let a = ag::tensor_ops::convert_to_tensor(array![1., 2., 3.], g);
 ///    let b = ag::tensor_ops::convert_to_tensor(array![3., 2., 1.], g);
 ///    let c = equal(a, b);
-///    assert_eq!(c.eval(g), Ok(ndarray::arr1(&[0., 1., 0.]).into_dyn()));
+///    assert_eq!(c.eval(g), Ok(scirs2_core::ndarray::arr1(&[0., 1., 0.]).into_dyn()));
 /// });
 ///    ```
 #[allow(dead_code)]
@@ -558,7 +558,7 @@ where
 /// When broadcast is impossible
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::arithmetic::not_equal;
 ///
@@ -658,7 +658,7 @@ where
 /// Returns the floor of the input, element-wise.
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::arithmetic::floor;
 ///
@@ -688,7 +688,7 @@ where
 /// Returns the ceiling of the input, element-wise.
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::arithmetic::ceil;
 ///
@@ -789,7 +789,7 @@ mod tests {
     use super::*;
     use crate::tensor_ops::convert_to_tensor;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_arithmetic_operations() {

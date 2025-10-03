@@ -6,7 +6,7 @@
 
 use crate::error::InterpolateResult;
 use crate::traits::{InterpolationFloat, SplineInterpolator, Interpolator};
-use ndarray::{ArrayView1, ArrayView2, Array1, Array2};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2, Array1, Array2};
 use super::core::CubicSpline;
 
 impl<F> SplineInterpolator<F> for CubicSpline<F>
@@ -327,7 +327,7 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::spline::CubicSpline;
     ///
     /// let x = array![0.0, 1.0, 2.0, 3.0];

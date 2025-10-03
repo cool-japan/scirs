@@ -16,7 +16,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_interpolate::fast_bspline::FastBSplineEvaluator;
 //! use scirs2_interpolate::bspline::{BSpline, ExtrapolateMode};
 //!
@@ -37,7 +37,7 @@ use crate::bspline::{BSpline, ExtrapolateMode};
 use crate::cache::BSplineCache;
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::traits::InterpolationFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::cell::RefCell;
 use std::sync::Arc;
 
@@ -802,7 +802,7 @@ mod tests {
     use super::*;
     use crate::bspline::{BSpline, ExtrapolateMode};
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_fast_evaluator_creation() {

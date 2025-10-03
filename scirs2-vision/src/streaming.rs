@@ -55,7 +55,7 @@ pub use memory::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     use std::time::Instant;
 
     #[test]

@@ -214,13 +214,21 @@ impl AdvancedGpuMemoryPool {
 /// Configuration for the memory pool
 #[derive(Debug, Clone)]
 pub struct PoolConfig {
+    /// Maximum total pool size in bytes
     pub max_pool_size: usize,
+    /// Minimum buffer size in bytes
     pub min_buffer_size: usize,
+    /// Maximum buffer size in bytes
     pub max_buffer_size: usize,
+    /// Memory alignment in bytes
     pub alignment: usize,
+    /// Fragmentation threshold for triggering defragmentation (0.0-1.0)
     pub defragmentation_threshold: f64,
+    /// Buffer timeout duration
     pub buffer_timeout: Duration,
+    /// Enable memory compaction
     pub enable_compaction: bool,
+    /// Enable memory prefetching
     pub enable_prefetch: bool,
 }
 
@@ -242,20 +250,31 @@ impl Default for PoolConfig {
 /// Metadata for tracking buffer usage and performance
 #[derive(Debug, Clone)]
 pub struct BufferMetadata {
+    /// Unique buffer ID
     pub id: usize,
+    /// Buffer size in bytes
     pub size: usize,
+    /// Timestamp when buffer was allocated
     pub allocated_at: Instant,
+    /// Number of times the buffer has been accessed
     pub access_count: usize,
+    /// Timestamp of last access
     pub last_access: Instant,
+    /// Source of the allocation for debugging
     pub allocation_source: String,
 }
 
 /// Buffer wrapper with lifecycle tracking
 pub struct PooledBuffer {
+    /// GPU buffer handle
     pub buffer: GpuBuffer<u8>,
+    /// Buffer metadata
     pub metadata: BufferMetadata,
+    /// Timestamp when buffer was created in pool
     pub created_at: Instant,
+    /// Timestamp of last use
     pub last_used: Instant,
+    /// Number of times the buffer has been used
     pub use_count: usize,
 }
 
@@ -317,17 +336,26 @@ impl PooledBuffer {
 /// Allocation statistics for performance monitoring
 #[derive(Debug, Default, Clone)]
 pub struct AllocationStats {
+    /// Total number of allocations
     pub total_allocations: usize,
+    /// Total number of deallocations
     pub total_deallocations: usize,
+    /// Number of cache hits
     pub cache_hits: usize,
+    /// Number of cache misses
     pub cache_misses: usize,
+    /// Total bytes allocated
     pub bytes_allocated: usize,
+    /// Total bytes deallocated
     pub bytes_deallocated: usize,
+    /// Peak memory usage in bytes
     pub peak_memory_usage: usize,
+    /// Number of memory compactions performed
     pub compaction_count: usize,
 }
 
 impl AllocationStats {
+    /// Calculate cache hit rate as a percentage (0.0-1.0)
     pub fn get_cache_hit_rate(&self) -> f64 {
         let total_requests = self.cache_hits + self.cache_misses;
         if total_requests == 0 {
@@ -337,6 +365,7 @@ impl AllocationStats {
         }
     }
 
+    /// Reset all statistics to default values
     pub fn reset(&mut self) {
         *self = Self::default();
     }
@@ -353,6 +382,7 @@ pub struct FragmentationManager {
 }
 
 impl FragmentationManager {
+    /// Create a new fragmentation manager
     pub fn new() -> Self {
         Self {
             internal_fragmentation: 0.0,
@@ -363,15 +393,18 @@ impl FragmentationManager {
         }
     }
 
+    /// Check if memory compaction is needed
     pub fn needs_compaction(&self) -> bool {
         self.external_fragmentation > self.compaction_threshold
             && self.last_compaction.elapsed() > Duration::from_secs(60)
     }
 
+    /// Get current fragmentation ratio (0.0-1.0)
     pub fn get_fragmentation_ratio(&self) -> f64 {
         (self.internal_fragmentation + self.external_fragmentation) / 2.0
     }
 
+    /// Update fragmentation measurements
     pub fn update_fragmentation(&mut self, internal: f64, external: f64) {
         self.internal_fragmentation = internal;
         self.external_fragmentation = external;
@@ -384,17 +417,20 @@ impl FragmentationManager {
         }
     }
 
+    /// Reset fragmentation counters after compaction
     pub fn reset_fragmentation(&mut self) {
         self.internal_fragmentation = 0.0;
         self.external_fragmentation = 0.0;
         self.last_compaction = Instant::now();
     }
 
+    /// Update fragmentation estimates after garbage collection
     pub fn update_after_gc(&mut self) {
         // Fragmentation typically reduces after garbage collection
         self.external_fragmentation *= 0.8;
     }
 
+    /// Get fragmentation trend based on history
     pub fn get_trend(&self) -> FragmentationTrend {
         if self.fragmentation_history.len() < 10 {
             return FragmentationTrend::Stable;
@@ -426,21 +462,31 @@ impl Default for FragmentationManager {
     }
 }
 
+/// Fragmentation trend direction
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FragmentationTrend {
+    /// Fragmentation is increasing over time
     Increasing,
+    /// Fragmentation is stable
     Stable,
+    /// Fragmentation is decreasing over time
     Decreasing,
 }
 
 /// Pool statistics for monitoring and optimization
 #[derive(Debug, Clone)]
 pub struct PoolStats {
+    /// Total number of buffers in pool
     pub total_buffers: usize,
+    /// Number of free buffers
     pub free_buffers: usize,
+    /// Total pool size in bytes
     pub total_pool_size: usize,
+    /// Current fragmentation ratio (0.0-1.0)
     pub fragmentation_ratio: f64,
+    /// Cache hit rate (0.0-1.0)
     pub cache_hit_rate: f64,
+    /// Allocation statistics
     pub allocation_stats: AllocationStats,
 }
 
@@ -463,10 +509,14 @@ impl PoolStats {
 /// Memory type for different allocation strategies
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum MemoryType {
-    Device,  // GPU device memory
-    Unified, // Unified memory (accessible by both CPU and GPU)
-    Pinned,  // Pinned host memory for fast transfers
-    Mapped,  // Memory-mapped buffers
+    /// GPU device memory
+    Device,
+    /// Unified memory (accessible by both CPU and GPU)
+    Unified,
+    /// Pinned host memory for fast transfers
+    Pinned,
+    /// Memory-mapped buffers
+    Mapped,
 }
 
 /// GPU memory pool manager for multiple pools
@@ -595,11 +645,17 @@ impl GpuMemoryPoolManager {
 /// Global statistics across all memory pools
 #[derive(Debug, Clone)]
 pub struct GlobalPoolStats {
+    /// Total number of buffers across all pools
     pub total_buffers: usize,
+    /// Total size of all pools
     pub total_pool_size: usize,
+    /// Number of memory pools
     pub pool_count: usize,
+    /// Average fragmentation across all pools
     pub average_fragmentation: f64,
+    /// Global allocation statistics
     pub global_allocation_stats: AllocationStats,
+    /// Per-pool statistics
     pub pool_stats: Vec<(MemoryType, PoolStats)>,
 }
 

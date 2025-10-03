@@ -3,8 +3,8 @@
 //! TBATS stands for Trigonometric seasonality, Box-Cox transformation,
 //! ARMA errors, Trend, and Seasonal components.
 
-use ndarray::{Array1, Array2, ScalarOperand};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use scirs2_linalg::solve;
 use std::fmt::Debug;
 
@@ -122,7 +122,7 @@ pub struct TBATSParameters {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::decomposition::{tbats_decomposition, TBATSOptions};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0,
@@ -641,7 +641,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_tbats_basic() {

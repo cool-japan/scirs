@@ -186,10 +186,7 @@ impl EventSystem {
         event_type: String,
         handler: Box<dyn EventHandler + Send + Sync>,
     ) {
-        self.handlers
-            .entry(event_type)
-            .or_insert_with(Vec::new)
-            .push(handler);
+        self.handlers.entry(event_type).or_default().push(handler);
     }
 
     /// Queue event for processing

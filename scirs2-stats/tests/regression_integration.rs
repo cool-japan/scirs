@@ -1,6 +1,5 @@
-use ndarray::{array, Array1, Array2};
-use rand::{Rng, SeedableRng};
-use rand_pcg::Pcg64;
+use scirs2_core::ndarray::{array, Array1, Array2};
+use scirs2_core::random::{ChaCha8Rng, Rng, SeedableRng};
 use scirs2_stats::regression::*;
 
 #[test]
@@ -89,8 +88,8 @@ fn test_ransac_advanced() {
     let mut y = Vec::new();
 
     // Create inliers following y = 3x + 2 with some noise
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     for i in 0..20 {
         let x_val = i as f64;
         let y_val = 3.0 * x_val + 2.0 + (rng.random::<f64>() - 0.5);
@@ -239,8 +238,8 @@ fn test_huber_regression_advanced() {
     let mut y = Vec::with_capacity(20);
 
     // Add a temporary RNG for generating outliers
-    use rand::Rng;
-    let mut temp_rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut temp_rng = scirs2_core::random::rng();
     for i in 0..20 {
         let noise = if i < 17 {
             // Regular noise for most observations
@@ -302,7 +301,7 @@ fn test_huber_regression_advanced() {
 #[allow(dead_code)]
 fn test_huber_regression_with_regularization() {
     // Use a seeded RNG for reproducible tests
-    let mut rng = Pcg64::from_seed([42; 32]);
+    let mut rng = ChaCha8Rng::from_seed([42; 32]);
 
     // Create a design matrix with moderately correlated variables
     // to test L2 regularization in Huber regression

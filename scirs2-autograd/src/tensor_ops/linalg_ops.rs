@@ -2,7 +2,7 @@ use crate::ndarray_ext::NdArray;
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::{Context, Float};
-use ndarray::{Array1, Array2, Ix1, Ix2};
+use scirs2_core::ndarray::{Array1, Array2, Ix1, Ix2};
 
 /// Identity matrix operation
 pub struct EyeOp {
@@ -55,7 +55,7 @@ impl<F: Float> Op<F> for TraceOp {
         println!("Calculated trace of {shape:?}: result = {trace:?}");
 
         // Create a proper scalar output
-        ctx.append_output(ndarray::arr0(trace).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(trace).into_dyn());
         Ok(())
     }
 

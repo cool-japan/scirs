@@ -7,7 +7,7 @@
 use super::StabilityError;
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array, IxDyn};
+use scirs2_core::ndarray::{Array, IxDyn};
 use std::collections::HashMap;
 
 /// Comprehensive stability metrics calculator

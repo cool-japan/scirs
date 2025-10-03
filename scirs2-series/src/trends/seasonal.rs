@@ -3,8 +3,8 @@
 //! This module provides methods for decomposing time series into trend, seasonal,
 //! and residual components, using various techniques.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::RobustFilterOptions;
@@ -93,7 +93,7 @@ impl Default for SeasonalDecompositionOptions {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::trends::{
 ///     seasonal_decomposition, SeasonalDecompositionOptions,
 ///     DecompositionType, DecompositionMethod
@@ -115,7 +115,7 @@ impl Default for SeasonalDecompositionOptions {
 ///
 /// // Add random noise
 /// for i in 0..n {
-///     ts[i] += 0.1 * rand::random::<f64>();
+///     ts[i] += 0.1 * scirs2_core::random::random::<f64>();
 /// }
 ///
 /// // Configure decomposition options
@@ -480,7 +480,11 @@ where
     let n = ts.len();
 
     // For even periods, use 2x period centered moving average
-    let window_size = if period % 2 == 0 { period + 1 } else { period };
+    let window_size = if period.is_multiple_of(2) {
+        period + 1
+    } else {
+        period
+    };
 
     let half_window = window_size / 2;
 
@@ -650,7 +654,7 @@ where
 {
     let n = _ts.len();
 
-    if windowsize % 2 == 0 {
+    if windowsize.is_multiple_of(2) {
         return Err(TimeSeriesError::InvalidInput(
             "Henderson filter window size must be odd".to_string(),
         ));
@@ -995,7 +999,7 @@ where
     abs_residuals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let median_idx = n / 2;
-    let mad = if n % 2 == 0 {
+    let mad = if n.is_multiple_of(2) {
         (abs_residuals[median_idx - 1] + abs_residuals[median_idx]) / F::from_f64(2.0).unwrap()
     } else {
         abs_residuals[median_idx]

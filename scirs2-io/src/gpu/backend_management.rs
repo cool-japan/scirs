@@ -11,7 +11,9 @@ use scirs2_core::simd_ops::PlatformCapabilities;
 /// GPU-accelerated I/O processor with backend management
 #[derive(Debug)]
 pub struct GpuIoProcessor {
+    /// GPU device handle
     pub device: GpuDevice,
+    /// Platform capabilities
     pub capabilities: PlatformCapabilities,
 }
 
@@ -220,13 +222,21 @@ impl Default for GpuIoProcessor {
 /// Detailed backend capabilities for optimization decisions
 #[derive(Debug, Clone)]
 pub struct BackendCapabilities {
+    /// GPU backend type
     pub backend: GpuBackend,
+    /// Total memory in gigabytes
     pub memory_gb: f64,
+    /// Maximum work group size
     pub max_work_group_size: usize,
+    /// Whether FP64 operations are supported
     pub supports_fp64: bool,
+    /// Whether FP16 operations are supported
     pub supports_fp16: bool,
+    /// Number of compute units
     pub compute_units: usize,
+    /// Maximum allocation size in bytes
     pub max_allocation_size: usize,
+    /// Local memory size in bytes
     pub local_memory_size: usize,
 }
 
@@ -268,19 +278,28 @@ impl BackendCapabilities {
 /// GPU workload types for optimal backend selection
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GpuWorkloadType {
+    /// Machine learning workloads
     MachineLearning,
+    /// Image processing workloads
     ImageProcessing,
+    /// General compute workloads
     GeneralCompute,
+    /// Data compression workloads
     Compression,
 }
 
 /// Backend performance characteristics for optimization
 #[derive(Debug, Clone)]
 pub struct BackendPerformanceProfile {
+    /// GPU backend type
     pub backend: GpuBackend,
+    /// Throughput in GB/s
     pub throughput_gbps: f64,
+    /// Latency in milliseconds
     pub latency_ms: f64,
+    /// Power efficiency score (0.0-1.0)
     pub power_efficiency: f64,
+    /// Memory efficiency score (0.0-1.0)
     pub memory_efficiency: f64,
 }
 

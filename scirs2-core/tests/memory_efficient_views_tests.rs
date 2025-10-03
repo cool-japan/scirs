@@ -1,8 +1,8 @@
 #[cfg(feature = "memory_efficient")]
 mod tests {
-    use ndarray::Array2;
     use scirs2_core::error::CoreError;
     use scirs2_core::memory_efficient::{diagonal_view, transpose_view, ArrayView};
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_transpose_view() {
@@ -90,7 +90,7 @@ mod tests {
 
         // This should panic with "not yet implemented"
         unsafe {
-            let _: ArrayView<u8, ndarray::Ix2> =
+            let _: ArrayView<u8, scirs2_core::ndarray::Ix2> =
                 scirs2_core::memory_efficient::view_as(&data).unwrap();
         }
     }

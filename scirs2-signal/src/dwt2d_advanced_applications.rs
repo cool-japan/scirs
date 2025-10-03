@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Advanced applications and algorithms for 2D Discrete Wavelet Transform
 //
 // This module provides specialized 2D wavelet algorithms for advanced applications
@@ -7,8 +7,8 @@ use ndarray::s;
 use crate::dwt::Wavelet;
 use crate::dwt2d_enhanced::BoundaryMode;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Array3};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;

@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Blind source separation module
 //
 // This module implements various blind source separation (BSS) techniques for signal processing,
@@ -6,7 +6,7 @@ use ndarray::s;
 // Non-negative Matrix Factorization (NMF), and related methods.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_linalg::eigh;
 use statrs::statistics::Statistics;
 

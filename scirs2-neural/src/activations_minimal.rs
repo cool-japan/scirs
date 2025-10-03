@@ -1,21 +1,24 @@
 //! Minimal activation functions without Layer trait dependencies
 
 use crate::error::Result;
-use ndarray::{Array, Zip};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Zip};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Trait for activation functions
 pub trait Activation<F> {
     /// Forward pass of the activation function
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>>;
+    fn forward(
+        &self,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
 
     /// Backward pass of the activation function
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        input: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>>;
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
 }
 
 /// GELU activation function
@@ -41,7 +44,10 @@ impl Default for GELU {
 }
 
 impl<F: Float + Debug> Activation<F> for GELU {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(
+        &self,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut output = input.clone();
 
         if self.fast {
@@ -73,9 +79,9 @@ impl<F: Float + Debug> Activation<F> for GELU {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        input: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut grad_input = Array::zeros(grad_output.raw_dim());
 
         if self.fast {
@@ -140,7 +146,10 @@ impl Default for Tanh {
 }
 
 impl<F: Float + Debug> Activation<F> for Tanh {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(
+        &self,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut output = input.clone();
         Zip::from(&mut output).for_each(|x| {
             *x = x.tanh();
@@ -150,9 +159,9 @@ impl<F: Float + Debug> Activation<F> for Tanh {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        input: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut grad_input = Array::zeros(grad_output.raw_dim());
 
         Zip::from(&mut grad_input)
@@ -185,7 +194,10 @@ impl Default for Sigmoid {
 }
 
 impl<F: Float + Debug> Activation<F> for Sigmoid {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(
+        &self,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut output = input.clone();
         let one = F::one();
         Zip::from(&mut output).for_each(|x| {
@@ -196,9 +208,9 @@ impl<F: Float + Debug> Activation<F> for Sigmoid {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        input: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut grad_input = Array::zeros(grad_output.raw_dim());
         let one = F::one();
 
@@ -238,7 +250,10 @@ impl Default for ReLU {
 }
 
 impl<F: Float + Debug> Activation<F> for ReLU {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(
+        &self,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut output = input.clone();
         let zero = F::zero();
         let alpha = F::from(self.alpha).unwrap_or(zero);
@@ -253,9 +268,9 @@ impl<F: Float + Debug> Activation<F> for ReLU {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        input: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut grad_input = Array::zeros(grad_output.raw_dim());
         let zero = F::zero();
         let one = F::one();
@@ -292,7 +307,10 @@ impl Default for Softmax {
 }
 
 impl<F: Float + Debug> Activation<F> for Softmax {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(
+        &self,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut output = input.clone();
 
         // Simple softmax implementation for the last axis
@@ -319,9 +337,9 @@ impl<F: Float + Debug> Activation<F> for Softmax {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        input: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Forward pass to get softmax _output
         let softmax_output = self.forward(input)?;
         let mut grad_input = Array::zeros(grad_output.raw_dim());

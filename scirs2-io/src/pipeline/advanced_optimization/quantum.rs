@@ -4,7 +4,7 @@
 //! including quantum annealing, quantum state management, and quantum tunneling.
 
 use crate::error::{IoError, Result};
-use rand::Rng;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 use super::config::QuantumOptimizationConfig;
@@ -34,7 +34,7 @@ impl QuantumState {
 
     pub fn initialize_superposition(&mut self, dimensions: usize) -> Result<()> {
         // Initialize quantum superposition state
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         for (i, qubit) in self.qubits.iter_mut().enumerate().take(dimensions) {
             qubit.set_superposition_state(
                 self.superposition_weights[i],
@@ -49,7 +49,7 @@ impl QuantumState {
     }
 
     fn create_entanglement_network(&mut self, dimensions: usize) -> Result<()> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         for i in 0..dimensions {
             for j in (i + 1)..dimensions {
                 let entanglement_strength = (rng.gen::<f64>() * 0.5).exp();
@@ -126,7 +126,7 @@ impl Qubit {
     }
 
     pub fn measure(&self) -> f64 {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         if rng.gen::<f64>() < self.amplitude_alpha.powi(2) {
             0.0
         } else {
@@ -262,7 +262,7 @@ impl QuantumAnnealer {
     }
 
     fn quantum_tunnel(&self, state: &[f64], temperature: f64) -> Result<Vec<f64>> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut new_state = state.to_vec();
         for value in &mut new_state {
             if rng.gen::<f64>() < self.tunneling_probability {
@@ -278,7 +278,7 @@ impl QuantumAnnealer {
         if temperature <= 0.0 {
             false
         } else {
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             rng.gen::<f64>() < (-energy_delta / temperature).exp()
         }
     }
@@ -427,7 +427,7 @@ impl QuantumOptimizer {
             .apply_quantum_gate(QuantumGate::Hadamard, &hadamard_indices)?;
 
         // Apply rotation gates for fine-tuning
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         for i in 0..dimensions {
             let rotation_angle = rng.gen::<f64>() * std::f64::consts::PI;
             self.quantum_state.apply_quantum_gate(

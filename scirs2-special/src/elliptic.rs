@@ -163,7 +163,7 @@
 //!    - Cached values for common parameters
 //!    - Rational approximations for rapid evaluation
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 

@@ -996,9 +996,9 @@ fn run_derivation_session(
             let choice = get_user_input("Your choice (1-5): ")?;
 
             match choice.parse::<u32>() {
-                Ok(1) => show_hints(&step, &mut session),
-                Ok(2) => show_alternatives(&step),
-                Ok(3) => run_validation_questions(&step)?,
+                Ok(1) => show_hints(step, &mut session),
+                Ok(2) => show_alternatives(step),
+                Ok(3) => run_validation_questions(step)?,
                 Ok(4) => {
                     session.completed_steps[session.current_step] = true;
                     session.current_step += 1;
@@ -1115,8 +1115,8 @@ fn run_validation_questions(step: &DerivationStep) -> Result<(), Box<dyn std::er
         }
 
         let answer = get_user_input("Your answer: ")?;
-        let answer_index = answer.to_lowercase().chars().next().and_then(|c| {
-            if c >= 'a' && c <= 'z' {
+        let answer_index = answer.to_lowercase().chars().next().and_then(|c: char| {
+            if c.is_ascii_lowercase() {
                 Some((c as u8 - b'a') as usize)
             } else {
                 None

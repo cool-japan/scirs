@@ -5,8 +5,8 @@
 
 use super::context::GpuVisionContext;
 use crate::error::{Result, VisionError};
-use ndarray::{Array2, ArrayView2};
 use scirs2_core::gpu::GpuBackend;
+use scirs2_core::ndarray::{Array2, ArrayView2};
 
 /// GPU-accelerated image convolution
 ///
@@ -534,7 +534,7 @@ fn separable_conv_1d(@builtin(global_invocation_id) global_id: vec3<u32>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_gaussian_kernel_generation() {

@@ -1061,7 +1061,7 @@ mod tests {
         if !cfg!(debug_assertions) {
             // Create a larger random dataset
             let n_points = 10000;
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
 
             let mut points = Array2::zeros((n_points, 3));
             for i in 0..n_points {

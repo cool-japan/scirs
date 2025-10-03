@@ -4,8 +4,8 @@
 //! and its inverse (IDCT).
 
 use crate::error::{FFTError, FFTResult};
-use ndarray::{Array, Array2, ArrayView, ArrayView2, Axis, IxDyn};
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array, Array2, ArrayView, ArrayView2, Axis, IxDyn};
+use scirs2_core::numeric::NumCast;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -72,7 +72,7 @@ where
     let input: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .ok_or_else(|| FFTError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect::<FFTResult<Vec<_>>>()?;
@@ -132,7 +132,7 @@ where
     let input: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .ok_or_else(|| FFTError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect::<FFTResult<Vec<_>>>()?;
@@ -165,7 +165,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{dct2, DCTType};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create a 2x2 array
 /// let signal = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
@@ -192,7 +192,7 @@ where
     // First, perform DCT along rows
     let mut result = Array2::zeros((n_rows, n_cols));
     for r in 0..n_rows {
-        let row_slice = x.slice(ndarray::s![r, ..]);
+        let row_slice = x.slice(scirs2_core::ndarray::s![r, ..]);
         let row_vec: Vec<T> = row_slice.iter().copied().collect();
         let row_dct = dct(&row_vec, Some(type_val), norm)?;
 
@@ -204,7 +204,7 @@ where
     // Next, perform DCT along columns
     let mut final_result = Array2::zeros((n_rows, n_cols));
     for c in 0..n_cols {
-        let col_slice = result.slice(ndarray::s![.., c]);
+        let col_slice = result.slice(scirs2_core::ndarray::s![.., c]);
         let col_vec: Vec<f64> = col_slice.iter().copied().collect();
         let col_dct = dct(&col_vec, Some(type_val), norm)?;
 
@@ -232,7 +232,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{dct2, idct2, DCTType};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create a 2x2 array
 /// let signal = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
@@ -267,7 +267,7 @@ where
     // First, perform IDCT along rows
     let mut result = Array2::zeros((n_rows, n_cols));
     for r in 0..n_rows {
-        let row_slice = x.slice(ndarray::s![r, ..]);
+        let row_slice = x.slice(scirs2_core::ndarray::s![r, ..]);
         let row_vec: Vec<T> = row_slice.iter().copied().collect();
         let row_idct = idct(&row_vec, Some(type_val), norm)?;
 
@@ -279,7 +279,7 @@ where
     // Next, perform IDCT along columns
     let mut final_result = Array2::zeros((n_rows, n_cols));
     for c in 0..n_cols {
-        let col_slice = result.slice(ndarray::s![.., c]);
+        let col_slice = result.slice(scirs2_core::ndarray::s![.., c]);
         let col_vec: Vec<f64> = col_slice.iter().copied().collect();
         let col_idct = idct(&col_vec, Some(type_val), norm)?;
 
@@ -332,7 +332,7 @@ where
     // Create an initial copy of the input array as float
     let mut result = Array::from_shape_fn(IxDyn(&xshape), |idx| {
         let val = x[idx];
-        num_traits::cast::cast::<T, f64>(val).unwrap_or(0.0)
+        NumCast::from(val).unwrap_or(0.0)
     });
 
     // Transform along each axis
@@ -404,7 +404,7 @@ where
     // Create an initial copy of the input array as float
     let mut result = Array::from_shape_fn(IxDyn(&xshape), |idx| {
         let val = x[idx];
-        num_traits::cast::cast::<T, f64>(val).unwrap_or(0.0)
+        NumCast::from(val).unwrap_or(0.0)
     });
 
     // Transform along each axis
@@ -852,12 +852,9 @@ fn dct2_bandwidth_saturated_avx2(x: &[f32]) -> FFTResult<Vec<f32>> {
                     let cos_chunk = &cos_table[k_offset + i_chunk..k_offset + i_end];
 
                     // Use ultra-optimized SIMD dot product for maximum bandwidth
-                    if let (Ok(x_view), Ok(cos_view)) = (
-                        ndarray::ArrayView1::from(x_chunk),
-                        ndarray::ArrayView1::from(cos_chunk),
-                    ) {
-                        sum += simd_dot_f32_ultra(&x_view, &cos_view);
-                    }
+                    let x_view = scirs2_core::ndarray::ArrayView1::from(x_chunk);
+                    let cos_view = scirs2_core::ndarray::ArrayView1::from(cos_chunk);
+                    sum += simd_dot_f32_ultra(&x_view, &cos_view);
                 } else {
                     // Handle remaining elements
                     for i in i_chunk..i_end {
@@ -966,12 +963,9 @@ fn dst_bandwidth_saturated_avx2(x: &[f32]) -> FFTResult<Vec<f32>> {
                     let x_chunk = &x[i_chunk..i_end];
                     let sin_chunk = &sin_table[k_offset + i_chunk..k_offset + i_end];
 
-                    if let (Ok(x_view), Ok(sin_view)) = (
-                        ndarray::ArrayView1::from(x_chunk),
-                        ndarray::ArrayView1::from(sin_chunk),
-                    ) {
-                        sum += simd_dot_f32_ultra(&x_view, &sin_view);
-                    }
+                    let x_view = scirs2_core::ndarray::ArrayView1::from(x_chunk);
+                    let sin_view = scirs2_core::ndarray::ArrayView1::from(sin_chunk);
+                    sum += simd_dot_f32_ultra(&x_view, &sin_view);
                 } else {
                     for i in i_chunk..i_end {
                         sum += x[i] * sin_table[k_offset + i];
@@ -1132,7 +1126,7 @@ fn mdct_bandwidth_saturated_simd_basic(x: &[f32]) -> FFTResult<Vec<f32>> {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::arr2; // 2次元配列リテラル用
+    use scirs2_core::ndarray::arr2; // 2次元配列リテラル用
 
     #[test]
     fn test_dct_and_idct() {

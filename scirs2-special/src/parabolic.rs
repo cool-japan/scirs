@@ -9,8 +9,8 @@
 //! and other areas of mathematical physics.
 
 use std::f64::consts::{PI, SQRT_2};
-// use num_traits::Float;
-// use num_complex::Complex64;
+// use scirs2_core::numeric::Float;
+// use scirs2_core::numeric::Complex64;
 
 use crate::error::{SpecialError, SpecialResult};
 use crate::gamma::{gamma, gammaln};

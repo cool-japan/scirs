@@ -3,8 +3,8 @@
 //! This module provides specialized solvers for banded matrices,
 //! which are more efficient than general eigenvalue solvers.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -31,7 +31,7 @@ where
         + One
         + Zero
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync
         + std::fmt::Debug,
@@ -166,7 +166,7 @@ where
         + One
         + Zero
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync
         + std::fmt::Debug,

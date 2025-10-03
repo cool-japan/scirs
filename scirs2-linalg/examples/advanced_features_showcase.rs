@@ -7,7 +7,7 @@
 //! - Specialized algorithms for different matrix types
 //! - Numerical stability features
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_linalg::{
     cond, conjugate_gradient,
     error::LinalgResult,
@@ -169,7 +169,7 @@ fn memory_efficiency_demo() -> LinalgResult<()> {
             let i_end = std::cmp::min(i + blocksize, size);
             let j_end = std::cmp::min(j + blocksize, size);
 
-            let block = a.slice(ndarray::s![i..i_end, j..j_end]);
+            let block = a.slice(scirs2_core::ndarray::s![i..i_end, j..j_end]);
             let block_norm = matrix_norm(&block, "fro", None)?;
             norm_accumulator += block_norm * block_norm;
         }

@@ -3,8 +3,8 @@
 use crate::error::Result;
 use crate::nas::architecture_encoding::ArchitectureEncoding;
 use crate::nas::SearchResult;
-use ndarray::prelude::*;
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::ndarray::{s, Array1, Array2};
 use std::sync::Arc;
 /// Trait for search algorithms
 pub trait SearchAlgorithm: Send + Sync {
@@ -33,7 +33,7 @@ impl RandomSearch {
 impl SearchAlgorithm for RandomSearch {
         _history: &[SearchResult],
     ) -> Result<Vec<Arc<dyn ArchitectureEncoding>>> {
-        use rand::prelude::*;
+        use scirs2_core::random::prelude::*;
         let mut rng = if let Some(seed) = self.seed {
             StdRng::seed_from_u64(seed)
         } else {
@@ -79,7 +79,7 @@ impl EvolutionarySearch {
     pub fn with_crossover_rate(mut self, rate: f32) -> Self {
         self.crossover_rate = rate;
     /// Tournament selection
-    fn tournament_select(&self, rng: &mut impl rand::Rng) -> usize {
+    fn tournament_select(&self, rng: &mut impl scirs2_core::random::Rng) -> usize {
         let mut best_idx = rng.gen_range(0..self.population.len());
         let mut best_fitness = self.fitness_scores[best_idx];
         for _ in 1..self.tournament_size {
@@ -190,7 +190,7 @@ impl ReinforcementSearch {
         // Initialize embedding weights
         let embedding_weights = Array2::random(
             (vocab_size, embedding_dim),
-            rand_distr::Normal::new(0.0, 0.1).unwrap(),
+            scirs2_core::random::Normal::new(0.0, 0.1).unwrap(),
         );
         // Initialize RNN weights
         let rnn_weights = Array2::random(
@@ -300,7 +300,7 @@ impl SearchAlgorithm for ReinforcementSearch {
                 // Convert sequence to architecture encoding
                 self_mut.sequence_to_encoding(&sequence)?
                 // Fallback to random generation
-                use rand::prelude::*;
+                use scirs2_core::random::prelude::*;
                 let mut rng = rng();
                 Arc::new(encoding) as Arc<dyn ArchitectureEncoding>
             proposals.push(encoding);
@@ -386,7 +386,7 @@ impl DifferentiableSearch {
         // Initialize with small random values
         let alpha_normal = Array2::random(
             (num_edges, num_ops),
-            rand_distr::Normal::new(0.0, 0.001).unwrap(),
+            scirs2_core::random::Normal::new(0.0, 0.001).unwrap(),
         let alpha_reduce = Array2::random(
         self.alpha_normal = Some(alpha_normal);
         self.alpha_reduce = Some(alpha_reduce);

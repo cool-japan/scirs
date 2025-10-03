@@ -8,8 +8,8 @@
 use crate::error::{LinalgError, LinalgResult};
 use crate::gpu::operations::kernels::GpuKernelManager;
 use crate::gpu::{GpuBackend, GpuContext, GpuDeviceType};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex, RwLock};

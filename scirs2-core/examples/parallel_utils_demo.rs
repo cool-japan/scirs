@@ -23,11 +23,11 @@ fn main() {
     );
     println!(
         "   First 5 elements: {:?}",
-        &large_array.slice(ndarray::s![..5])
+        &large_array.slice(scirs2_core::ndarray::s![..5])
     );
     println!(
         "   Last 5 elements: {:?}",
-        &large_array.slice(ndarray::s![-5..])
+        &large_array.slice(scirs2_core::ndarray::s![-5..])
     );
 
     // Test linspace with a small array (uses serial implementation)
@@ -55,11 +55,11 @@ fn main() {
     );
     println!(
         "   First 5 elements: {:?}",
-        &max_result.slice(ndarray::s![..5])
+        &max_result.slice(scirs2_core::ndarray::s![..5])
     );
     println!(
         "   Last 5 elements: {:?}",
-        &max_result.slice(ndarray::s![-5..])
+        &max_result.slice(scirs2_core::ndarray::s![-5..])
     );
 
     // Test minimum with large arrays
@@ -74,11 +74,11 @@ fn main() {
     );
     println!(
         "   First 5 elements: {:?}",
-        &min_result.slice(ndarray::s![..5])
+        &min_result.slice(scirs2_core::ndarray::s![..5])
     );
     println!(
         "   Last 5 elements: {:?}",
-        &min_result.slice(ndarray::s![-5..])
+        &min_result.slice(scirs2_core::ndarray::s![-5..])
     );
 
     // Demonstrate parallel speedup with a larger computation

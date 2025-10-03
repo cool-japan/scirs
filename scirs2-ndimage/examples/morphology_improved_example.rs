@@ -3,7 +3,7 @@
 //! This example shows how to use the improved morphological operations that properly
 //! handle dimensionality issues.
 
-use ndarray::{s, Array2, Array3};
+use scirs2_core::ndarray::{s, Array2, Array3};
 use scirs2_ndimage::morphology::simple_morph::{
     binary_closing_2d, binary_dilation_2d, binary_erosion_2d, binary_opening_2d, black_tophat_2d,
     grey_dilation_2d, grey_erosion_2d, morphological_gradient_2d, white_tophat_2d,
@@ -49,8 +49,8 @@ fn binary_2d_example() -> Result<(), Box<dyn std::error::Error>> {
     print_binary_2d(&input);
 
     // Create a structuring element as a 2D array directly
-    let structure_2d =
-        generate_binary_structure(2, Connectivity::Face)?.into_dimensionality::<ndarray::Ix2>()?; // Convert to 2D explicitly
+    let structure_2d = generate_binary_structure(2, Connectivity::Face)?
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()?; // Convert to 2D explicitly
 
     // Apply erosion using the 2D-specific function
     let eroded = binary_erosion_2d(&input, Some(&structure_2d), Some(1), None, None)?;
@@ -209,7 +209,7 @@ fn print_grayscale_2d(arr: &Array2<f64>) {
 // Helper function to print a slice of a 3D binary array
 #[allow(dead_code)]
 fn print_binary_3d_slice(_arr: &Array3<bool>, sliceidx: usize) {
-    let slice = _arr.index_axis(ndarray::Axis(2), sliceidx);
+    let slice = _arr.index_axis(scirs2_core::ndarray::Axis(2), sliceidx);
     for i in 0..slice.shape()[0] {
         for j in 0..slice.shape()[1] {
             if slice[[i, j]] {
@@ -225,7 +225,7 @@ fn print_binary_3d_slice(_arr: &Array3<bool>, sliceidx: usize) {
 // Helper function to print a slice of a 3D grayscale array
 #[allow(dead_code)]
 fn print_grayscale_3d_slice(_arr: &Array3<f64>, sliceidx: usize) {
-    let slice = _arr.index_axis(ndarray::Axis(2), sliceidx);
+    let slice = _arr.index_axis(scirs2_core::ndarray::Axis(2), sliceidx);
     for i in 0..slice.shape()[0] {
         for j in 0..slice.shape()[1] {
             let val = slice[[i, j]];

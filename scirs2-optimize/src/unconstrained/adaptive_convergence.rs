@@ -162,7 +162,7 @@ impl AdaptiveToleranceState {
 
         // Use median as robust scale estimate
         let median_idx = values.len() / 2;
-        let scale = if values.len() % 2 == 0 {
+        let scale = if values.len().is_multiple_of(2) {
             0.5 * (values[median_idx - 1] + values[median_idx])
         } else {
             values[median_idx]
@@ -185,7 +185,7 @@ impl AdaptiveToleranceState {
 
         // Use median as robust scale estimate
         let median_idx = values.len() / 2;
-        let scale = if values.len() % 2 == 0 {
+        let scale = if values.len().is_multiple_of(2) {
             0.5 * (values[median_idx - 1] + values[median_idx])
         } else {
             values[median_idx]

@@ -8,8 +8,8 @@
 use crate::error::StatsResult;
 use crate::error_handling_enhancements::{AdvancedContextBuilder, AdvancedErrorMessages};
 use crate::error_standardization::ErrorMessages;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast, Zero};
 use scirs2_core::parallel_ops::{num_threads, par_chunks, parallel_map, ParallelIterator};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -926,7 +926,7 @@ impl AdvancedParallelProcessor {
             let window_results: Vec<F> = match operation {
                 TimeSeriesOperation::MovingAverage => {
                     parallel_map((0..num_windows).collect(), |&start_idx| {
-                        let window = data.slice(ndarray::s![start_idx..start_idx + windowsize]);
+                        let window = data.slice(scirs2_core::ndarray::s![start_idx..start_idx + windowsize]);
                         window.iter().fold(F::zero(), |acc, &val| acc + val)
                             / F::from(windowsize).unwrap()
                     })
@@ -934,7 +934,7 @@ impl AdvancedParallelProcessor {
                 }
                 TimeSeriesOperation::MovingVariance => {
                     parallel_map((0..num_windows).collect(), |&start_idx| {
-                        let window = data.slice(ndarray::s![start_idx..start_idx + windowsize]);
+                        let window = data.slice(scirs2_core::ndarray::s![start_idx..start_idx + windowsize]);
 
                         // Compute mean
                         let mean = window.iter().fold(F::zero(), |acc, &val| acc + val)
@@ -956,14 +956,14 @@ impl AdvancedParallelProcessor {
                 }
                 TimeSeriesOperation::MovingMin => {
                     parallel_map((0..num_windows).collect(), |&start_idx| {
-                        let window = data.slice(ndarray::s![start_idx..start_idx + windowsize]);
+                        let window = data.slice(scirs2_core::ndarray::s![start_idx..start_idx + windowsize]);
                         window.iter().fold(F::infinity(), |acc, &val| acc.min(val))
                     })
                     .collect()
                 }
                 TimeSeriesOperation::MovingMax => {
                     parallel_map((0..num_windows).collect(), |&start_idx| {
-                        let window = data.slice(ndarray::s![start_idx..start_idx + windowsize]);
+                        let window = data.slice(scirs2_core::ndarray::s![start_idx..start_idx + windowsize]);
                         window
                             .iter()
                             .fold(F::neg_infinity(), |acc, &val| acc.max(val))
@@ -972,7 +972,7 @@ impl AdvancedParallelProcessor {
                 }
                 TimeSeriesOperation::MovingMedian => {
                     parallel_map((0..num_windows).collect(), |&start_idx| {
-                        let window = data.slice(ndarray::s![start_idx..start_idx + windowsize]);
+                        let window = data.slice(scirs2_core::ndarray::s![start_idx..start_idx + windowsize]);
 
                         // Simple median computation (not optimal for sliding windows)
                         let mut sorted_window: Vec<F> = window.iter().cloned().collect();
@@ -1096,7 +1096,7 @@ pub fn create_configured_advanced_parallel_processor(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

@@ -148,7 +148,7 @@ pub fn kaiser(m: usize, beta: f64, sym: bool) -> SignalResult<Vec<f64>> {
 /// # Returns
 /// A Vec<f64> of window values
 pub fn tukey(m: usize, alpha: f64, sym: bool) -> SignalResult<Vec<f64>> {
-    if alpha < 0.0 || alpha > 1.0 {
+    if !(0.0..=1.0).contains(&alpha) {
         return Err(SignalError::ValueError(
             "Alpha must be between 0.0 and 1.0".to_string(),
         ));
@@ -253,7 +253,7 @@ pub fn generalized_exponential(
         ));
     }
 
-    if peak_position < 0.0 || peak_position > 1.0 {
+    if !(0.0..=1.0).contains(&peak_position) {
         return Err(SignalError::ValueError(
             "Peak position must be between 0.0 and 1.0".to_string(),
         ));

@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Wiener filtering module
 //
 // This module implements Wiener filtering techniques for signal denoising and restoration.
@@ -13,10 +13,10 @@ use ndarray::s;
 //
 // # Example
 // ```
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::wiener::wiener_filter;
 // use scirs2_signal::waveforms;
-// use rand::Rng;
+// use scirs2_core::random::Rng;
 //
 // // Create a test signal
 // let fs = 1000.0;
@@ -29,7 +29,7 @@ use ndarray::s;
 // let clean_signal = Array1::from_vec(clean_signal_vec);
 //
 // // Add noise
-// let mut rng = rand::rng();
+// let mut rng = scirs2_core::random::rng();
 // let mut noisy_signal = clean_signal.clone();
 // for i in 0..noisy_signal.len() {
 //     noisy_signal[i] += 0.5 * rng.gen_range(-1.0..1.0);
@@ -40,9 +40,9 @@ use ndarray::s;
 // ```
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::random::Rng;
 use scirs2_fft;
 use statrs::statistics::Statistics;
 use std::cmp;
@@ -103,7 +103,7 @@ impl Default for WienerConfig {
 ///
 /// # Example
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::wiener::wiener_filter;
 ///
 /// let noisy_signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 2.0, 1.0, 0.0]);

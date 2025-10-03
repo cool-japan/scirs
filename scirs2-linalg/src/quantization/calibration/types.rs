@@ -10,7 +10,7 @@ use super::super::{
     QuantizationMethod, QuantizationParams,
 };
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 use std::fmt::Debug;
 
 use super::{matrix_calibration::*, utils::*, vector_calibration::*};
@@ -103,8 +103,11 @@ pub fn calibrate_matrix<F>(
     config: &CalibrationConfig,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     match config.method {
         CalibrationMethod::MinMax => {
@@ -199,8 +202,11 @@ pub fn calibrate_vector<F>(
     config: &CalibrationConfig,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Modify configuration to disable per-channel for vectors
     let mut config = config.clone();

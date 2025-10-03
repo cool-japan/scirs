@@ -3,8 +3,8 @@
 //! This module provides the messaging infrastructure for coordinating
 //! distributed clustering operations across multiple worker nodes.
 
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Debug;
 use std::sync::mpsc::{self, Receiver, Sender};

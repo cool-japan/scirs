@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -201,7 +201,7 @@ impl GpuRuntime for CudaRuntime {
     fn allocate<T: Float>(&mut self, size: usize) -> Result<GpuBuffer> {
         let buffer_size = size * std::mem::size_of::<T>();
         let buffer = GpuBuffer {
-            id: rand::random::<u64>(),
+            id: scirs2_core::random::random::<u64>(),
             size: buffer_size,
             buffer_type: GpuBufferType::InputOutput,
             handle: GpuBufferHandle::Cuda(0x11111111), // Placeholder
@@ -335,7 +335,7 @@ impl GpuRuntime for MetalRuntime {
     fn allocate<T: Float>(&mut self, size: usize) -> Result<GpuBuffer> {
         let buffer_size = size * std::mem::size_of::<T>();
         let buffer = GpuBuffer {
-            id: rand::random::<u64>(),
+            id: scirs2_core::random::random::<u64>(),
             size: buffer_size,
             buffer_type: GpuBufferType::InputOutput,
             handle: GpuBufferHandle::Metal(0x44444444), // Placeholder
@@ -430,7 +430,7 @@ impl GpuRuntime for VulkanRuntime {
     fn allocate<T: Float>(&mut self, size: usize) -> Result<GpuBuffer> {
         let buffer_size = size * std::mem::size_of::<T>();
         let buffer = GpuBuffer {
-            id: rand::random::<u64>(),
+            id: scirs2_core::random::random::<u64>(),
             size: buffer_size,
             buffer_type: GpuBufferType::InputOutput,
             handle: GpuBufferHandle::Vulkan(0x88888888), // Placeholder
@@ -497,7 +497,7 @@ impl GpuRuntime for OpenClRuntime {
     fn allocate<T: Float>(&mut self, size: usize) -> Result<GpuBuffer> {
         let buffer_size = size * std::mem::size_of::<T>();
         let buffer = GpuBuffer {
-            id: rand::random::<u64>(),
+            id: scirs2_core::random::random::<u64>(),
             size: buffer_size,
             buffer_type: GpuBufferType::InputOutput,
             handle: GpuBufferHandle::OpenCL(0xCCCCCCCC), // Placeholder

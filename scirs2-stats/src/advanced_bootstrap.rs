@@ -5,8 +5,8 @@
 //! and other specialized resampling methods for complex data structures.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast, One, Zero};
 use scirs2_core::{parallel_ops::*, random::prelude::*, simd_ops::SimdUnifiedOps, validation::*};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -429,7 +429,7 @@ where
         } else {
             4
         };
-        let num_chunks: usize = (self.config.n_bootstrap + chunk_size - 1) / chunk_size;
+        let num_chunks: usize = self.config.n_bootstrap.div_ceil(chunk_size);
 
         // Pre-allocate SIMD-aligned buffers for bandwidth saturation
         let mut resample_indices = Vec::<usize>::with_capacity(chunk_size * n);
@@ -603,10 +603,7 @@ where
         // Group data by strata
         let mut strata_groups: HashMap<usize, Vec<(usize, F)>> = HashMap::new();
         for (i, (&value, &stratum)) in data.iter().zip(strata.iter()).enumerate() {
-            strata_groups
-                .entry(stratum)
-                .or_insert_with(Vec::new)
-                .push((i, value));
+            strata_groups.entry(stratum).or_default().push((i, value));
         }
 
         let n = data.len();
@@ -617,7 +614,7 @@ where
             let mut resample_idx = 0;
 
             // Sample from each stratum proportionally
-            for (_, groupdata) in &strata_groups {
+            for groupdata in strata_groups.values() {
                 let groupsize = groupdata.len();
 
                 for _ in 0..groupsize {
@@ -685,7 +682,7 @@ where
         block_length: usize,
     ) -> StatsResult<Array1<F>> {
         let n = data.len();
-        let n_blocks = (n + block_length - 1) / block_length; // Ceiling division
+        let n_blocks = n.div_ceil(block_length); // Ceiling division
         let mut resample = Array1::zeros(n);
         let mut pos = 0;
 
@@ -713,7 +710,7 @@ where
         block_length: usize,
     ) -> StatsResult<Array1<F>> {
         let n = data.len();
-        let n_blocks = (n + block_length - 1) / block_length;
+        let n_blocks = n.div_ceil(block_length);
         let mut resample = Array1::zeros(n);
         let mut pos = 0;
 
@@ -750,13 +747,13 @@ where
         for i in 0..n_complete_blocks {
             let start = i * block_length;
             let end = start + block_length;
-            blocks.push(data.slice(ndarray::s![start..end]).to_owned());
+            blocks.push(data.slice(scirs2_core::ndarray::s![start..end]).to_owned());
         }
 
         // Add remainder as partial block if exists
         if remainder > 0 {
             let start = n_complete_blocks * block_length;
-            blocks.push(data.slice(ndarray::s![start..]).to_owned());
+            blocks.push(data.slice(scirs2_core::ndarray::s![start..]).to_owned());
         }
 
         // Resample blocks
@@ -821,7 +818,7 @@ where
     ) -> StatsResult<Array1<F>> {
         let n = data.len();
         let mut resample = Array1::zeros(n);
-        let n_blocks = (n + block_length - 1) / block_length;
+        let n_blocks = n.div_ceil(block_length);
         let mut pos = 0;
 
         for _ in 0..n_blocks {
@@ -1497,7 +1494,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_basicbootstrap() {

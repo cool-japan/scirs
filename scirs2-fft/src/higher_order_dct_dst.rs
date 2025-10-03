@@ -4,8 +4,8 @@
 //! These include types V-VIII which have different boundary conditions and
 //! normalization conventions.
 
-use ndarray::{Array1, ArrayBase, Data, Dimension};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Dimension};
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 use crate::error::{FFTError, FFTResult};
@@ -58,7 +58,7 @@ where
 /// This implementation uses a consistent FFT-based approach for improved
 /// numerical stability, avoiding accumulation of errors from direct summation.
 #[allow(dead_code)]
-pub fn idct_v<S>(x: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idct_v<S>(x: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -158,7 +158,7 @@ where
 
 /// Inverse DCT Type VI
 #[allow(dead_code)]
-pub fn idct_vi<S>(x: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idct_vi<S>(x: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -200,7 +200,7 @@ where
 
 /// Inverse DCT Type VII
 #[allow(dead_code)]
-pub fn idct_vii<S>(x: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idct_vii<S>(x: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -258,7 +258,7 @@ where
 
 /// Inverse DCT Type VIII
 #[allow(dead_code)]
-pub fn idct_viii<S>(x: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idct_viii<S>(x: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -305,7 +305,7 @@ where
 
 /// Inverse DST Type V
 #[allow(dead_code)]
-pub fn idst_v<S>(x: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idst_v<S>(x: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -361,7 +361,7 @@ where
 
 /// Inverse DST Type VI
 #[allow(dead_code)]
-pub fn idst_vi<S>(x: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idst_vi<S>(x: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -400,7 +400,7 @@ where
 
 /// Inverse DST Type VII
 #[allow(dead_code)]
-pub fn idst_vii<S>(x: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idst_vii<S>(x: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -438,7 +438,7 @@ where
 
 /// Inverse DST Type VIII
 #[allow(dead_code)]
-pub fn idst_viii<S>(x: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idst_viii<S>(x: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -449,7 +449,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_dct_v() {

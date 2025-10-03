@@ -6,7 +6,7 @@
 
 use super::core::{Frame, FrameMetadata};
 use crate::error::Result;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::time::{Duration, Instant};
 
 /// Video source type
@@ -129,7 +129,7 @@ impl VideoStreamReader {
                             // For now, generate a frame with noise to simulate image data
                             let frame_data = Array2::from_shape_fn(
                                 (self.height as usize, self.width as usize),
-                                |_| rand::random::<f32>(),
+                                |_| scirs2_core::random::random::<f32>(),
                             );
 
                             let frame = Frame {

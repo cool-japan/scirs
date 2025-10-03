@@ -8,8 +8,8 @@
 //! - Cross-framework weight format translation
 
 use crate::error::{NeuralError, Result};
-use ndarray::ArrayD;
-use num_traits::Float;
+use scirs2_core::ndarray::ArrayD;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::Path;
@@ -248,13 +248,13 @@ pub enum ValidationMode {
         tolerance: f64,
     /// Full validation including training behavior
     Full,
-impl<F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOperand> Default
+impl<F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_core::ndarray::ScalarOperand> Default
     for InteropManager<F>
 {
     fn default() -> Self {
         Self::new()
     }
-impl<F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOperand>
+impl<F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_core::ndarray::ScalarOperand>
     InteropManager<F>
     /// Create a new interoperability manager
     pub fn new() -> Self {
@@ -935,7 +935,7 @@ impl<F: Float + Debug> ValidationReport<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     #[test]
     fn test_interop_manager_creation() {
         let manager = InteropManager::<f64>::new();

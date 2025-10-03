@@ -4,9 +4,9 @@
 //! and implementations for the advanced fusion intelligence system, including
 //! evolutionary algorithms, architecture evolution, and genetic operations.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
-use rand::SeedableRng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::SeedableRng;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -248,17 +248,17 @@ impl<F: Float + Debug + Clone + FromPrimitive> EvolutionEngine<F> {
 
             // Crossover
             let (mut child1, mut child2) =
-                if rand::random::<f64>() < self.crossover_rate.to_f64().unwrap() {
+                if scirs2_core::random::random::<f64>() < self.crossover_rate.to_f64().unwrap() {
                     self.crossover(parent1, parent2)?
                 } else {
                     (parent1.clone(), parent2.clone())
                 };
 
             // Mutation
-            if rand::random::<f64>() < self.mutation_rate.to_f64().unwrap() {
+            if scirs2_core::random::random::<f64>() < self.mutation_rate.to_f64().unwrap() {
                 self.mutate(&mut child1)?;
             }
-            if rand::random::<f64>() < self.mutation_rate.to_f64().unwrap() {
+            if scirs2_core::random::random::<f64>() < self.mutation_rate.to_f64().unwrap() {
                 self.mutate(&mut child2)?;
             }
 
@@ -294,14 +294,15 @@ impl<F: Float + Debug + Clone + FromPrimitive> EvolutionEngine<F> {
     fn tournament_selection(&self) -> Result<Vec<Architecture<F>>> {
         let tournament_size = 3;
         let mut selected = Vec::new();
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
 
         for _ in 0..self.population.len() {
             let mut tournament = Vec::new();
 
             // Select random individuals for tournament
             for _ in 0..tournament_size {
-                let idx = rand::Rng::random_range(&mut rng, 0..self.population.len());
+                let idx =
+                    scirs2_core::random::Rng::random_range(&mut rng, 0..self.population.len());
                 tournament.push(&self.population[idx]);
             }
 
@@ -332,7 +333,8 @@ impl<F: Float + Debug + Clone + FromPrimitive> EvolutionEngine<F> {
         let mut selected = Vec::new();
 
         for _ in 0..self.population.len() {
-            let random_value = F::from_f64(rand::random::<f64>()).unwrap() * total_fitness;
+            let random_value =
+                F::from_f64(scirs2_core::random::random::<f64>()).unwrap() * total_fitness;
             let mut cumulative_fitness = F::zero();
 
             for individual in &self.population {
@@ -375,7 +377,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> EvolutionEngine<F> {
         let total_ranks: usize = (1..=self.population.len()).sum();
 
         for _ in 0..self.population.len() {
-            let random_value = rand::random::<f64>() * total_ranks as f64;
+            let random_value = scirs2_core::random::random::<f64>() * total_ranks as f64;
             let mut cumulative_rank = 0.0;
 
             for (rank, individual) in sorted_population.iter().enumerate() {
@@ -396,10 +398,10 @@ impl<F: Float + Debug + Clone + FromPrimitive> EvolutionEngine<F> {
         parent1: &Architecture<F>,
         parent2: &Architecture<F>,
     ) -> Result<(Architecture<F>, Architecture<F>)> {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let max_len = parent1.layers.len().min(parent2.layers.len());
         let crossover_point = if max_len > 0 {
-            rand::Rng::random_range(&mut rng, 0..max_len)
+            scirs2_core::random::Rng::random_range(&mut rng, 0..max_len)
         } else {
             0
         };
@@ -426,9 +428,10 @@ impl<F: Float + Debug + Clone + FromPrimitive> EvolutionEngine<F> {
         // Mutate layer parameters
         for layer in &mut individual.layers {
             for param in &mut layer.parameters {
-                if rand::random::<f64>() < 0.1 {
+                if scirs2_core::random::random::<f64>() < 0.1 {
                     let mutation_strength = F::from_f64(0.1).unwrap();
-                    let random_factor = F::from_f64(rand::random::<f64>() - 0.5).unwrap();
+                    let random_factor =
+                        F::from_f64(scirs2_core::random::random::<f64>() - 0.5).unwrap();
                     *param = *param + mutation_strength * random_factor;
                 }
             }
@@ -436,9 +439,10 @@ impl<F: Float + Debug + Clone + FromPrimitive> EvolutionEngine<F> {
 
         // Mutate connection weights
         for connection in &mut individual.connections {
-            if rand::random::<f64>() < 0.1 {
+            if scirs2_core::random::random::<f64>() < 0.1 {
                 let mutation_strength = F::from_f64(0.1).unwrap();
-                let random_factor = F::from_f64(rand::random::<f64>() - 0.5).unwrap();
+                let random_factor =
+                    F::from_f64(scirs2_core::random::random::<f64>() - 0.5).unwrap();
                 connection.weight = connection.weight + mutation_strength * random_factor;
             }
         }
@@ -486,16 +490,16 @@ impl<F: Float + Debug + Clone + FromPrimitive> EvolutionEngine<F> {
 impl<F: Float + Debug + Clone + FromPrimitive> Architecture<F> {
     /// Create random architecture
     pub fn random() -> Self {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-        let num_layers = 3 + rand::Rng::random_range(&mut rng, 0..5); // 3-7 layers
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
+        let num_layers = 3 + scirs2_core::random::Rng::random_range(&mut rng, 0..5); // 3-7 layers
         let mut layers = Vec::new();
 
         for i in 0..num_layers {
             let layer = LayerConfig {
                 layer_type: LayerType::Dense, // Simplified to Dense for now
-                size: 32 + rand::Rng::random_range(&mut rng, 0..256), // 32-287 neurons
+                size: 32 + scirs2_core::random::Rng::random_range(&mut rng, 0..256), // 32-287 neurons
                 activation: ActivationFunction::ReLU, // Simplified to ReLU
-                parameters: vec![F::from_f64(rand::random::<f64>()).unwrap(); 4],
+                parameters: vec![F::from_f64(scirs2_core::random::random::<f64>()).unwrap(); 4],
             };
             layers.push(layer);
         }
@@ -508,7 +512,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> Architecture<F> {
                 to_layer: i + 1,
                 connection_type: ConnectionType::Feedforward,
                 strength: F::from_f64(1.0).unwrap(),
-                weight: F::from_f64(rand::random::<f64>()).unwrap(),
+                weight: F::from_f64(scirs2_core::random::random::<f64>()).unwrap(),
             };
             connections.push(connection);
         }
@@ -645,7 +649,7 @@ impl MutationOperator {
         &self,
         architecture: &mut Architecture<F>,
     ) -> Result<()> {
-        if rand::random::<f64>() > self.probability {
+        if scirs2_core::random::random::<f64>() > self.probability {
             return Ok(());
         }
 
@@ -665,9 +669,10 @@ impl MutationOperator {
     ) -> Result<()> {
         for layer in &mut architecture.layers {
             for param in &mut layer.parameters {
-                if rand::random::<f64>() < 0.1 {
+                if scirs2_core::random::random::<f64>() < 0.1 {
                     let mutation =
-                        F::from_f64(self.intensity * (rand::random::<f64>() - 0.5)).unwrap();
+                        F::from_f64(self.intensity * (scirs2_core::random::random::<f64>() - 0.5))
+                            .unwrap();
                     *param = *param + mutation;
                 }
             }
@@ -689,12 +694,12 @@ impl MutationOperator {
         &self,
         architecture: &mut Architecture<F>,
     ) -> Result<()> {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let new_layer = LayerConfig {
             layer_type: LayerType::Dense,
-            size: 32 + rand::Rng::random_range(&mut rng, 0..128),
+            size: 32 + scirs2_core::random::Rng::random_range(&mut rng, 0..128),
             activation: ActivationFunction::ReLU,
-            parameters: vec![F::from_f64(rand::random::<f64>()).unwrap(); 4],
+            parameters: vec![F::from_f64(scirs2_core::random::random::<f64>()).unwrap(); 4],
         };
 
         architecture.layers.push(new_layer);
@@ -708,8 +713,9 @@ impl MutationOperator {
     ) -> Result<()> {
         if architecture.layers.len() > 2 {
             // Keep at least 2 layers
-            let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-            let remove_idx = rand::Rng::random_range(&mut rng, 0..architecture.layers.len());
+            let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
+            let remove_idx =
+                scirs2_core::random::Rng::random_range(&mut rng, 0..architecture.layers.len());
             architecture.layers.remove(remove_idx);
         }
         Ok(())
@@ -721,8 +727,10 @@ impl MutationOperator {
         architecture: &mut Architecture<F>,
     ) -> Result<()> {
         for connection in &mut architecture.connections {
-            if rand::random::<f64>() < 0.1 {
-                let mutation = F::from_f64(self.intensity * (rand::random::<f64>() - 0.5)).unwrap();
+            if scirs2_core::random::random::<f64>() < 0.1 {
+                let mutation =
+                    F::from_f64(self.intensity * (scirs2_core::random::random::<f64>() - 0.5))
+                        .unwrap();
                 connection.weight = connection.weight + mutation;
             }
         }
@@ -745,7 +753,7 @@ impl CrossoverOperator {
         parent1: &Architecture<F>,
         parent2: &Architecture<F>,
     ) -> Result<(Architecture<F>, Architecture<F>)> {
-        if rand::random::<f64>() > self.probability {
+        if scirs2_core::random::random::<f64>() > self.probability {
             return Ok((parent1.clone(), parent2.clone()));
         }
 
@@ -763,10 +771,10 @@ impl CrossoverOperator {
         parent1: &Architecture<F>,
         parent2: &Architecture<F>,
     ) -> Result<(Architecture<F>, Architecture<F>)> {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let max_len = parent1.layers.len().min(parent2.layers.len());
         let crossover_point = if max_len > 0 {
-            rand::Rng::random_range(&mut rng, 0..max_len)
+            scirs2_core::random::Rng::random_range(&mut rng, 0..max_len)
         } else {
             0
         };
@@ -795,9 +803,9 @@ impl CrossoverOperator {
             return Ok((parent1.clone(), parent2.clone()));
         }
 
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
-        let point1 = rand::Rng::random_range(&mut rng, 0..len);
-        let point2 = rand::Rng::random_range(&mut rng, 0..len);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
+        let point1 = scirs2_core::random::Rng::random_range(&mut rng, 0..len);
+        let point2 = scirs2_core::random::Rng::random_range(&mut rng, 0..len);
         let (start, end) = if point1 < point2 {
             (point1, point2)
         } else {
@@ -830,7 +838,7 @@ impl CrossoverOperator {
 
         // For each layer, randomly choose which parent to inherit from
         for i in 0..len {
-            if rand::random::<bool>() {
+            if scirs2_core::random::random::<bool>() {
                 let temp = child1.layers[i].clone();
                 child1.layers[i] = child2.layers[i].clone();
                 child2.layers[i] = temp;

@@ -456,7 +456,7 @@ impl APIConsistencyValidator {
                 for param in &function.parameters {
                     let entry = parameter_analysis
                         .entry(param.name.clone())
-                        .or_insert_with(|| ParameterUsageAnalysis::new());
+                        .or_insert_with(ParameterUsageAnalysis::new);
 
                     entry.add_usage(
                         module.clone(),
@@ -655,7 +655,7 @@ impl APIConsistencyValidator {
         }
 
         // Check for consistent error types
-        let expected_error_types = vec!["StatsError".to_string()];
+        let expected_error_types = ["StatsError".to_string()];
         for (error_type, functions) in &error_patterns {
             if !expected_error_types.contains(error_type) {
                 let inconsistency = APIInconsistency {
@@ -845,7 +845,7 @@ impl APIConsistencyValidator {
         for (scipy_name, expected_sig) in &scipy_functions {
             // Check if we have this function
             let mut found = false;
-            for (_module, functions) in &self.function_registry.functions_by_module {
+            for functions in self.function_registry.functions_by_module.values() {
                 for function in functions {
                     if function.name == *scipy_name {
                         found = true;
@@ -1074,14 +1074,14 @@ impl APIConsistencyValidator {
         self.function_registry
             .functions_by_module
             .entry(functionsig.module.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(functionsig.clone());
 
         // Add to category registry
         self.function_registry
             .functions_by_category
             .entry(functionsig.category.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(functionsig.clone());
 
         // Update parameter usage statistics

@@ -3,7 +3,7 @@
 //! This example demonstrates how to perform round-trip testing for various file formats
 //! to ensure data integrity and format compliance.
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_io::{
     csv,
     hdf5::{self, AttributeValue},
@@ -76,7 +76,9 @@ fn test_csv_round_trip(temp_dir: &tempfile::TempDir) -> Result<(), Box<dyn std::
         None
     };
     let data_only = if array_data.nrows() > 1 {
-        array_data.slice(ndarray::s![1.., ..]).to_owned()
+        array_data
+            .slice(scirs2_core::ndarray::s![1.., ..])
+            .to_owned()
     } else {
         Array2::from_shape_vec((0, cols), Vec::new())?
     };
@@ -337,7 +339,7 @@ fn test_serialization_round_trip(
     // Test binary serialization
     println!("  📝 Testing binary serialization...");
     serialize::write_array_binary(&binary_file, &test_array.clone().into_dyn())?;
-    let binary_read: ndarray::Array<f64, ndarray::IxDyn> =
+    let binary_read: scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::IxDyn> =
         serialize::read_array_binary(&binary_file)?;
 
     assert_eq!(
@@ -422,7 +424,9 @@ fn test_validation_round_trip(
         None
     };
     let data_only = if array_data.nrows() > 1 {
-        array_data.slice(ndarray::s![1.., ..]).to_owned()
+        array_data
+            .slice(scirs2_core::ndarray::s![1.., ..])
+            .to_owned()
     } else {
         Array2::from_shape_vec((0, cols), Vec::new())?
     };

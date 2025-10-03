@@ -251,7 +251,11 @@ fn estimate_filter_length(
     let length = (normalized_transition_factor / transition_width).ceil() as usize;
 
     // Ensure odd length for Type I linear phase
-    let odd_length = if length % 2 == 0 { length + 1 } else { length };
+    let odd_length = if length.is_multiple_of(2) {
+        length + 1
+    } else {
+        length
+    };
 
     // Ensure minimum length
     Ok(odd_length.max(3))

@@ -9,8 +9,8 @@
 //! - Cache-friendly memory access patterns
 
 use crate::error::{NeuralError, Result};
-use ndarray::{par_azip, s, Array, ArrayD, ArrayView, ArrayViewMut, Dimension};
-use num_traits::Float;
+use scirs2_core::ndarray::{par_azip, s, Array, ArrayD, ArrayView, ArrayViewMut, Dimension};
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::{HashMap, HashSet};
@@ -1478,9 +1478,9 @@ impl FusionOptimizer {
             *out = sum;
     /// Blocked matrix multiplication for f32
     fn blocked_matmul_f32(
-        a: &ArrayView<f32, ndarray::Ix2>,
-        b: &ArrayView<f32, ndarray::Ix2>,
-        c: &mut ArrayViewMut<f32, ndarray::Ix2>,
+        a: &ArrayView<f32, scirs2_core::ndarray::Ix2>,
+        b: &ArrayView<f32, scirs2_core::ndarray::Ix2>,
+        c: &mut ArrayViewMut<f32, scirs2_core::ndarray::Ix2>,
         block_size: usize,
         // Blocked algorithm for better cache performance
         par_azip!((index (bi, bj)_c in c.blocks(block_size, block_size)) {

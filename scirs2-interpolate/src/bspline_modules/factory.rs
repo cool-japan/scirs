@@ -3,8 +3,8 @@
 //! This module provides convenient factory functions for creating B-splines
 //! with different fitting methods and knot configurations.
 
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, RemAssign, Sub, SubAssign};
 
@@ -129,7 +129,7 @@ where
     // Solve for the coefficients that will make the spline interpolate the points
     // We need to solve a linear system Ax = y where A is the matrix of B-spline basis functions
     // evaluated at the sample points
-    let mut a = ndarray::Array2::zeros((n, n));
+    let mut a = scirs2_core::ndarray::Array2::zeros((n, n));
 
     // Setup the matrix of basis function values
     for i in 0..n {
@@ -337,7 +337,7 @@ where
     let n = t.len() - k - 1;
 
     // Create the design matrix
-    let mut b = ndarray::Array2::zeros((x.len(), n));
+    let mut b = scirs2_core::ndarray::Array2::zeros((x.len(), n));
 
     // Setup the matrix of basis function values
     for i in 0..x.len() {
@@ -356,7 +356,7 @@ where
             ));
         }
 
-        let mut weighted_b = ndarray::Array2::zeros((x.len(), n));
+        let mut weighted_b = scirs2_core::ndarray::Array2::zeros((x.len(), n));
         let mut weighted_y = Array1::zeros(y.len());
 
         for i in 0..x.len() {
@@ -520,7 +520,7 @@ where
     let n = t.len() - k - 1;
 
     // Create the design matrix
-    let mut b = ndarray::Array2::zeros((x.len(), n));
+    let mut b = scirs2_core::ndarray::Array2::zeros((x.len(), n));
     for i in 0..x.len() {
         for j in 0..n {
             let basis = BSpline::basis_element(k, j, &t.view(), extrapolate)?;
@@ -529,7 +529,7 @@ where
     }
 
     // Create regularization matrix (penalizes roughness)
-    let mut reg_matrix = ndarray::Array2::zeros((n, n));
+    let mut reg_matrix = scirs2_core::ndarray::Array2::zeros((n, n));
     if k >= 2 {
         // Penalize second derivatives (common choice)
         for i in 0..n - 2 {
@@ -653,7 +653,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_generate_knots() {

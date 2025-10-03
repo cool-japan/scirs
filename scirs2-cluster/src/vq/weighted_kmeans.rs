@@ -3,9 +3,9 @@
 //! This module provides K-means clustering with support for weighted samples,
 //! where each data point can have a different importance weight.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 
 use super::{euclidean_distance, kmeans_init, KMeansInit};
@@ -59,7 +59,7 @@ impl<F: Float + FromPrimitive> Default for WeightedKMeansOptions<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{ArrayView1, Array1, Array2};
+/// use scirs2_core::ndarray::{ArrayView1, Array1, Array2};
 /// use scirs2_cluster::vq::weighted_kmeans;
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -321,7 +321,7 @@ where
         ));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let mut centroids = Array2::zeros((k, n_features));
 
@@ -414,7 +414,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{Array1, Array2, ArrayView1};
+    use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
     #[test]
     fn test_weighted_kmeans_simple() {

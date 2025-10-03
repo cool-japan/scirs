@@ -673,7 +673,7 @@ impl TrainingCallback for ProgressCallback {
     }
 
     fn on_batch_end(&mut self, batch: usize, numbatches: usize, loss: f64) {
-        if self.verbose && (batch + 1) % (numbatches / 10).max(1) == 0 {
+        if self.verbose && (batch + 1).is_multiple_of((numbatches / 10).max(1)) {
             print!("\rBatch {}/{} - loss: {:.4}", batch + 1, numbatches, loss);
             if batch + 1 == numbatches {
                 println!();

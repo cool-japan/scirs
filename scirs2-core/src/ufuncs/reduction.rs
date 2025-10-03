@@ -282,7 +282,7 @@ impl UFunc for MinUFunc {
             let input_view = &inputs[0];
 
             // Apply minimum reduction along all dimensions
-            if input_view.len() == 0 {
+            if input_view.is_empty() {
                 return Err("Cannot compute minimum of empty array");
             }
 
@@ -328,7 +328,7 @@ impl UFunc for MaxUFunc {
             let input_view = &inputs[0];
 
             // Apply maximum reduction along all dimensions
-            if input_view.len() == 0 {
+            if input_view.is_empty() {
                 return Err("Cannot compute maximum of empty array");
             }
 
@@ -561,13 +561,13 @@ where
 ///
 /// ```
 /// use ndarray::array;
-/// use scirs2_core::ufuncs::std;
+/// use scirs2_core::ufuncs::reduction::std;
 ///
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Standard deviation over all elements
 /// let result = std(&a.view(), None);
-/// assert!((result[0] - 1.870829).abs() < 1e-6);
+/// assert!((result[0] - (35.0_f64 / 12.0).sqrt()).abs() < 1e-6);
 ///
 /// // Standard deviation along axis 0 (columns)
 /// let result = std(&a.view(), Some(0));
@@ -599,13 +599,13 @@ where
 ///
 /// ```
 /// use ndarray::array;
-/// use scirs2_core::ufuncs::var;
+/// use scirs2_core::ufuncs::reduction::var;
 ///
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 ///
 /// // Variance over all elements
 /// let result = var(&a.view(), None);
-/// assert!((result[0] - 3.5).abs() < 1e-10);
+/// assert!((result[0] - 35.0 / 12.0).abs() < 1e-10);
 ///
 /// // Variance along axis 0 (columns)
 /// let result = var(&a.view(), Some(0));

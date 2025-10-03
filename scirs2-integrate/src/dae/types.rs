@@ -5,7 +5,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::ode::ODEMethod;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// DAE system type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

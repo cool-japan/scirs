@@ -3,7 +3,7 @@
 //! This module implements conjugate prior-posterior relationships for efficient Bayesian updates.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::validation::*;
 use statrs::statistics::Statistics;
 

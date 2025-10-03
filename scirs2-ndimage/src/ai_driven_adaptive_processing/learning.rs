@@ -3,7 +3,7 @@
 //! This module contains neural networks, learning algorithms, and training components
 //! for the AI-driven adaptive processing system.
 
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use std::collections::{HashMap, VecDeque};
 
 use super::config::{AlgorithmType, ImagePattern, PatternType};

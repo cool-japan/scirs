@@ -49,17 +49,69 @@ When implementing SciPy-compatible functionality, directly read these source fil
 - Run `cargo clippy` before every commit
 
 ### SciRS2 Ecosystem Policy
-**CRITICAL**: Follow the [SciRS2 POLICY](SCIRS2_POLICY.md) for all development (Updated v0.1.0-beta.4):
+**CRITICAL**: Follow the [SciRS2 POLICY](SCIRS2_POLICY.md) for all development (Updated v0.1.0-RC.1):
 - **Core Rule**: Only `scirs2-core` may use external dependencies directly
 - **All other crates** (including tests, examples, benchmarks) MUST use SciRS2-Core abstractions
 - **Prohibited**: Direct `rand::`, `rand_distr::`, `ndarray::`, `num_complex::` imports in non-core code
-- **Required**: Use `scirs2_core::random::*`, `scirs2_core::ndarray::*`, `scirs2_core::array::*`, etc.
+- **Required**: Use `scirs2_core::random::*`, `scirs2_core::ndarray::*`, `scirs2_core::numeric::*`, etc.
 
-**Stable in beta.4**: Complete functionality available:
+**✅ POLICY Compliance Complete (v0.1.0-RC.1)**:
+- All 23 crates are now POLICY-compliant (100%)
 - `scirs2_core::random` - ALL rand_distr distributions (Beta, Cauchy, StudentT, etc.)
 - `scirs2_core::ndarray` - Complete ndarray including macros (`array!`, `s!`, `azip!`)
-- **Benefits**: Consistent APIs, version control, type safety, maintainability
-- **Migration Status**: Core enhancements complete; ecosystem integration ongoing
+- `scirs2_core::numeric` - All num-traits, num-complex functionality
+- **Benefits**: Consistent APIs, centralized version control, type safety, maintainability
+
+#### POLICY-Compliant Code Examples
+
+**✅ Correct Cargo.toml**:
+```toml
+[dependencies]
+# SCIRS2 POLICY: scirs2-core is the ONLY crate allowed external dependencies
+scirs2-core = { workspace = true, features = ["array", "random"] }
+thiserror = { workspace = true }  # Only if needed for errors
+```
+
+**✅ Correct Imports**:
+```rust
+// Arrays and numerical operations
+use scirs2_core::ndarray::{array, Array1, Array2, s};
+use scirs2_core::numeric::{Float, Zero, NumCast, Complex64};
+
+// Random number generation
+use scirs2_core::random::{thread_rng, Distribution, Normal, RandBeta};
+```
+
+**❌ Prohibited Imports** (will cause POLICY violations):
+```rust
+// FORBIDDEN - Do NOT use these in non-core crates
+use ndarray::*;           // ❌ Use scirs2_core::ndarray instead
+use num_traits::*;        // ❌ Use scirs2_core::numeric instead
+use rand::*;              // ❌ Use scirs2_core::random instead
+use rand_distr::Beta;     // ❌ Use scirs2_core::random::RandBeta instead
+```
+
+**Common Patterns**:
+```rust
+// Pattern 1: Array creation and operations
+use scirs2_core::ndarray::{array, Array2};
+let a = array![[1.0, 2.0], [3.0, 4.0]];
+let b = Array2::zeros((2, 2));
+
+// Pattern 2: Random sampling
+use scirs2_core::random::{thread_rng, Normal};
+let mut rng = thread_rng();
+let normal = Normal::new(0.0, 1.0).unwrap();
+let sample = normal.sample(&mut rng);
+
+// Pattern 3: Generic numeric functions
+use scirs2_core::numeric::{Float, NumCast};
+fn compute<T: Float>(x: T) -> T {
+    x * <T as NumCast>::from(2.0).unwrap()
+}
+```
+
+**Quick Reference**: See `/tmp/scirs2_policy_quick_reference.md` for comprehensive examples.
 
 ### Testing Requirements
 - **ALWAYS** use `cargo nextest run` instead of `cargo test`
@@ -262,9 +314,9 @@ The project uses GitHub Actions with:
 - Comprehensive test coverage
 
 ## Version Information
-- Current version: 0.1.0-beta.4
-- Release date: October 01, 2025
+- Current version: 0.1.0-RC.1 (Release Candidate 1)
+- Release date: October 02, 2025
 - Repository: https://github.com/cool-japan/scirs
 - Main branch: master
 - ML Optimization: Independent [OptiRS](https://github.com/cool-japan/optirs) project
-- SciRS2 POLICY: Effective v0.1.0-beta.4 (Implementation ongoing)
+- SciRS2 POLICY: ✅ **COMPLETE** - All 23 crates compliant (v0.1.0-RC.1)

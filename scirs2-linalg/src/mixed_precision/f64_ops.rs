@@ -4,8 +4,8 @@
 //! featuring advanced algorithms including parallel processing and sophisticated
 //! matrix multiplication strategies for large-scale computations.
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, NumCast, ToPrimitive, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, NumCast, ToPrimitive, Zero};
 use std::fmt::Debug;
 
 use super::conversions::convert_2d;
@@ -27,7 +27,7 @@ where
     C: Clone + Zero + NumCast + Debug + Send,
     H: Float + Clone + NumCast + Debug + ToPrimitive + NumAssign + Zero + Send + Sync,
 {
-    use ndarray::Zip;
+    use scirs2_core::ndarray::Zip;
 
     // Check dimensions
     let ashape = a.shape();
@@ -304,7 +304,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mixed_precision_matmul_f64_small() {

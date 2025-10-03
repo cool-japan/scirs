@@ -456,7 +456,7 @@ mod tests {
         let indices: Vec<usize> = sample.iter().map(|&&x| x as usize).collect();
         for i in 1..indices.len() {
             let gap = indices[i] - indices[i - 1];
-            assert!(gap >= 8 && gap <= 12); // Approximately interval of 10
+            assert!((8..=12).contains(&gap)); // Approximately interval of 10
         }
     }
 

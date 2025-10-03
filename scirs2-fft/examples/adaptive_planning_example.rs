@@ -25,9 +25,9 @@ fn main() {
 
     // Create test data
     let mut input = vec![Complex64::default(); size];
-    for i in 0..size {
+    for (i, item) in input.iter_mut().enumerate().take(size) {
         let phase = 2.0 * std::f64::consts::PI * (i as f64) / 100.0;
-        input[i] = Complex64::new(phase.cos(), phase.sin());
+        *item = Complex64::new(phase.cos(), phase.sin());
     }
     let mut output = vec![Complex64::default(); size];
 

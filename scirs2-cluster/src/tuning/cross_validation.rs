@@ -3,8 +3,8 @@
 //! This module provides cross-validation methods for different clustering
 //! algorithms to evaluate hyperparameter configurations.
 
-use ndarray::{Array1, Array2, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -54,7 +54,7 @@ impl CrossValidator {
             + std::fmt::Display
             + Send
             + Sync
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + std::ops::AddAssign
             + std::ops::SubAssign
             + std::ops::MulAssign
@@ -161,7 +161,7 @@ impl CrossValidator {
         metric: &EvaluationMetric,
     ) -> Result<Vec<f64>>
     where
-        F: Float + FromPrimitive + Debug + Send + Sync + ndarray::ScalarOperand,
+        F: Float + FromPrimitive + Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand,
         f64: From<F>,
     {
         let mut scores = Vec::new();
@@ -190,7 +190,7 @@ impl CrossValidator {
         metric: &EvaluationMetric,
     ) -> Result<Vec<f64>>
     where
-        F: Float + FromPrimitive + Debug + Send + Sync + ndarray::ScalarOperand,
+        F: Float + FromPrimitive + Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand,
         f64: From<F>,
     {
         let n_samples = data.nrows();
@@ -266,7 +266,7 @@ impl CrossValidator {
             + Debug
             + Send
             + Sync
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + std::ops::MulAssign
             + std::ops::DivAssign
             + std::ops::RemAssign
@@ -329,7 +329,7 @@ impl CrossValidator {
         metric: &EvaluationMetric,
     ) -> Result<Vec<f64>>
     where
-        F: Float + FromPrimitive + Debug + Send + Sync + ndarray::ScalarOperand,
+        F: Float + FromPrimitive + Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand,
         f64: From<F>,
     {
         let n_samples = data.nrows();
@@ -384,7 +384,7 @@ impl CrossValidator {
         metric: &EvaluationMetric,
     ) -> Result<Vec<f64>>
     where
-        F: Float + FromPrimitive + Debug + Send + Sync + ndarray::ScalarOperand,
+        F: Float + FromPrimitive + Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand,
         f64: From<F>,
     {
         let n_samples = data.nrows();
@@ -438,7 +438,7 @@ impl CrossValidator {
         metric: &EvaluationMetric,
     ) -> Result<Vec<f64>>
     where
-        F: Float + FromPrimitive + Debug + Send + Sync + ndarray::ScalarOperand,
+        F: Float + FromPrimitive + Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand,
         f64: From<F>,
     {
         let n_samples = data.nrows();
@@ -491,7 +491,7 @@ impl CrossValidator {
 /// Extract subset of data based on indices
 fn extract_subset<F>(data: ArrayView2<F>, indices: &[usize]) -> Result<Array2<F>>
 where
-    F: Clone + num_traits::Zero,
+    F: Clone + scirs2_core::numeric::Zero,
 {
     let n_features = data.ncols();
     let mut subset = Array2::zeros((indices.len(), n_features));
@@ -513,7 +513,7 @@ fn calculate_metric_score<F>(
     metric: &EvaluationMetric,
 ) -> Result<f64>
 where
-    F: Float + FromPrimitive + Debug + Send + Sync + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand,
     f64: From<F>,
 {
     let data_f64 = data.mapv(|x| x.to_f64().unwrap_or(0.0));

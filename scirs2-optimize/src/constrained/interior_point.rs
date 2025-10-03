@@ -6,7 +6,7 @@
 use super::{Constraint, ConstraintFn, ConstraintKind};
 use crate::error::OptimizeError;
 use crate::unconstrained::OptimizeResult;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Type alias for equality constraint function
 type EqualityConstraintFn = dyn FnMut(&ArrayView1<f64>) -> Array1<f64>;
@@ -423,10 +423,12 @@ impl<'a> InteriorPointSolver<'a> {
         let solution = solve(&kkt_matrix, &rhs)?;
 
         // Extract components
-        let dx = solution.slice(ndarray::s![0..self.n]).to_owned();
+        let dx = solution
+            .slice(scirs2_core::ndarray::s![0..self.n])
+            .to_owned();
         let ds = if self.m_ineq > 0 {
             solution
-                .slice(ndarray::s![self.n..self.n + self.m_ineq])
+                .slice(scirs2_core::ndarray::s![self.n..self.n + self.m_ineq])
                 .to_owned()
         } else {
             Array1::zeros(0)
@@ -435,7 +437,7 @@ impl<'a> InteriorPointSolver<'a> {
         let mut offset = self.n + self.m_ineq;
         let dlambda_eq = if self.m_eq > 0 {
             solution
-                .slice(ndarray::s![offset..offset + self.m_eq])
+                .slice(scirs2_core::ndarray::s![offset..offset + self.m_eq])
                 .to_owned()
         } else {
             Array1::zeros(0)
@@ -444,7 +446,7 @@ impl<'a> InteriorPointSolver<'a> {
         offset += self.m_eq;
         let dlambda_ineq = if self.m_ineq > 0 {
             solution
-                .slice(ndarray::s![offset..offset + self.m_ineq])
+                .slice(scirs2_core::ndarray::s![offset..offset + self.m_ineq])
                 .to_owned()
         } else {
             Array1::zeros(0)
@@ -731,10 +733,12 @@ impl<'a> InteriorPointSolver<'a> {
         &self,
         solution: &Array1<f64>,
     ) -> Result<NewtonDirectionResult, OptimizeError> {
-        let dx = solution.slice(ndarray::s![0..self.n]).to_owned();
+        let dx = solution
+            .slice(scirs2_core::ndarray::s![0..self.n])
+            .to_owned();
         let ds = if self.m_ineq > 0 {
             solution
-                .slice(ndarray::s![self.n..self.n + self.m_ineq])
+                .slice(scirs2_core::ndarray::s![self.n..self.n + self.m_ineq])
                 .to_owned()
         } else {
             Array1::zeros(0)
@@ -743,7 +747,7 @@ impl<'a> InteriorPointSolver<'a> {
         let mut offset = self.n + self.m_ineq;
         let dlambda_eq = if self.m_eq > 0 {
             solution
-                .slice(ndarray::s![offset..offset + self.m_eq])
+                .slice(scirs2_core::ndarray::s![offset..offset + self.m_eq])
                 .to_owned()
         } else {
             Array1::zeros(0)
@@ -752,7 +756,7 @@ impl<'a> InteriorPointSolver<'a> {
         offset += self.m_eq;
         let dlambda_ineq = if self.m_ineq > 0 {
             solution
-                .slice(ndarray::s![offset..offset + self.m_ineq])
+                .slice(scirs2_core::ndarray::s![offset..offset + self.m_ineq])
                 .to_owned()
         } else {
             Array1::zeros(0)

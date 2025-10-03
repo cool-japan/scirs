@@ -46,7 +46,7 @@ pub fn build_filters_documentation() -> ModuleDoc {
 
     gaussian_filter.add_example(
         r#"use scirs2_ndimage::filters::gaussian_filter;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let image = Array2::from_elem((100, 100), 1.0f64);
 let filtered = gaussian_filter(&image, 2.0);
@@ -79,7 +79,7 @@ assert_eq!(filtered.shape(), image.shape());"#,
 
     median_filter.add_example(
         r#"use scirs2_ndimage::filters::median_filter;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let noisyimage = Array2::from_elem((50, 50), 128.0f64);
 let filtered = median_filter(&noisyimage, 3);
@@ -127,7 +127,7 @@ pub fn build_morphology_documentation() -> ModuleDoc {
 
     binary_erosion.add_example(
         r#"use scirs2_ndimage::morphology::binary_erosion;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let binary_image = Array2::from_elem((10, 10), true);
 let structure = Array2::from_elem((3, 3), true);
@@ -155,7 +155,7 @@ let eroded = binary_erosion(&binary_image, &structure);"#,
 
     distance_transform.add_example(
         r#"use scirs2_ndimage::morphology::distance_transform_edt;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let binary_image = Array2::from_elem((100, 100), false);
 let distances = distance_transform_edt(&binary_image);
@@ -203,7 +203,7 @@ pub fn build_interpolation_documentation() -> ModuleDoc {
 
     affine_transform.add_example(
         r#"use scirs2_ndimage::interpolation::affine_transform;
-use ndarray::{Array2, array};
+use scirs2_core::ndarray::{Array2, array};
 
 let image = Array2::from_elem((50, 50), 1.0f64);
 let rotation_matrix = array![[0.866, -0.5], [0.5, 0.866]]; // 30 degree rotation
@@ -246,7 +246,7 @@ pub fn build_measurements_documentation() -> ModuleDoc {
 
     center_of_mass.add_example(
         r#"use scirs2_ndimage::measurements::center_of_mass;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let image = Array2::from_elem((100, 100), 1.0f64);
 let com = center_of_mass(&image);
@@ -284,7 +284,7 @@ pub fn add_common_filter_functions(module: &mut ModuleDoc) {
 
     sobel_filter.add_example(
         r#"use scirs2_ndimage::filters::sobel_filter;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let image = Array2::from_elem((100, 100), 1.0f64);
 let edges = sobel_filter(&image);"#,
@@ -311,7 +311,7 @@ let edges = sobel_filter(&image);"#,
 
     laplacian_filter.add_example(
         r#"use scirs2_ndimage::filters::laplacian_filter;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let image = Array2::from_elem((100, 100), 1.0f64);
 let edges = laplacian_filter(&image);"#,
@@ -346,7 +346,7 @@ pub fn add_common_morphology_functions(module: &mut ModuleDoc) {
 
     binary_dilation.add_example(
         r#"use scirs2_ndimage::morphology::binary_dilation;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 let binary_image = Array2::from_elem((10, 10), true);
 let structure = Array2::from_elem((3, 3), true);

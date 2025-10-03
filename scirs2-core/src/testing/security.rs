@@ -630,10 +630,10 @@ impl VulnerabilityAssessment {
             report.failed_tests += 1;
             for dep in vulnerable_deps {
                 report.vulnerabilities.push(SecurityVulnerability {
-                    id: format!("{}", dep.name),
+                    id: dep.name.to_string(),
                     severity: SecuritySeverity::High,
                     category: SecurityCategory::DependencyVuln,
-                    title: format!("{}", dep.name),
+                    title: dep.name.to_string(),
                     description: dep.description,
                     affected_component: dep.name.clone(),
                     cve_id: dep.cve_id,

@@ -3,7 +3,7 @@
 //! This example demonstrates the advanced edge detection capabilities in scirs2-ndimage,
 //! including the enhanced Canny edge detector and unified edge detection interface.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_ndimage::features::{
     canny, edge_detector, edge_detector_simple, gradient_edges, EdgeDetectionAlgorithm,
     EdgeDetectionConfig, GradientMethod,
@@ -39,13 +39,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Basic edge detection using gradient magnitude with Sobel operator
     println!("\n1. Edge detection using Sobel gradient magnitude (legacy API):");
     let edges_sobel = edge_detector_simple(&image_dyn, None, None)?;
-    let edges_sobel_2d = edges_sobel.into_dimensionality::<ndarray::Ix2>().unwrap();
+    let edges_sobel_2d = edges_sobel
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+        .unwrap();
     print_array(&edges_sobel_2d);
 
     // 2. Edge detection using Scharr operator for better rotational invariance
     println!("\n2. Edge detection using Scharr gradient magnitude (legacy API):");
     let edges_scharr = edge_detector_simple(&image_dyn, Some(GradientMethod::Scharr), None)?;
-    let edges_scharr_2d = edges_scharr.into_dimensionality::<ndarray::Ix2>().unwrap();
+    let edges_scharr_2d = edges_scharr
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+        .unwrap();
     print_array(&edges_scharr_2d);
 
     // 3. Canny edge detection with Sobel operator

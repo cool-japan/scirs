@@ -4,8 +4,8 @@
 //! including risk-adjusted returns, volatility measures, and various
 //! performance ratios used in quantitative portfolio management.
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 
 use super::core::PortfolioMetrics;
 use crate::error::{Result, TimeSeriesError};
@@ -30,7 +30,7 @@ use crate::error::{Result, TimeSeriesError};
 ///
 /// ```rust
 /// use scirs2_series::financial::portfolio::metrics::calculate_portfolio_metrics;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![0.01, -0.02, 0.015, -0.008, 0.012];
 /// let prices = array![1000.0, 1010.0, 989.8, 1004.64, 996.6, 1008.6];
@@ -193,7 +193,7 @@ pub fn calculate_rolling_metrics<F: Float + Clone>(
     let annualized_rf = risk_free_rate / F::from(periods_per_year).unwrap();
 
     for i in 0..n_windows {
-        let window_returns = returns.slice(ndarray::s![i..i + window]);
+        let window_returns = returns.slice(scirs2_core::ndarray::s![i..i + window]);
 
         // Calculate window metrics
         let mean_return = window_returns.sum() / F::from(window).unwrap();
@@ -426,7 +426,7 @@ pub fn calculate_capture_ratios<F: Float + Clone>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_calculate_portfolio_metrics() {

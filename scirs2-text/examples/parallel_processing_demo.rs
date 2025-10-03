@@ -282,7 +282,7 @@ fn create_testtexts(size: usize) -> Vec<String> {
     ];
 
     let mut texts = Vec::with_capacity(size);
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..size {
         let subject = subjects[rng.next_u32() as usize % subjects.len()];
@@ -322,9 +322,9 @@ trait Random {
     fn next_u32(&mut self) -> u32;
 }
 
-impl Random for rand::rngs::ThreadRng {
+impl Random for scirs2_core::random::rngs::ThreadRng {
     fn next_u32(&mut self) -> u32 {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         self.random()
     }
 }

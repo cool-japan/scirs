@@ -10,8 +10,8 @@
 
 use crate::error::FFTResult;
 use crate::fft::{fft, ifft};
-use num_complex::Complex64;
-use num_traits::Zero;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Zero;
 use std::f64::consts::PI;
 
 /// Implements the Ozaktas-Kutay algorithm for Fractional Fourier Transform

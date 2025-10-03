@@ -3,8 +3,8 @@
 //! This module provides various attention mechanisms including Flash Attention,
 //! multi-query attention, and other efficient attention variants.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::lstm::LSTMCell;

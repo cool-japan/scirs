@@ -34,10 +34,11 @@ pub struct CompressedBlock {
 }
 
 /// Type of data stored in a block
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BlockType {
     IndPtr,
     Indices,
+    #[default]
     Data,
     Combined,
     Metadata,
@@ -526,11 +527,5 @@ pub struct BlockSizeInfo {
 impl std::fmt::Display for BlockType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
-    }
-}
-
-impl Default for BlockType {
-    fn default() -> Self {
-        BlockType::Data
     }
 }

@@ -15,9 +15,9 @@
 //! - **Quantum Sensing Enhancement**: Quantum-enhanced image sensors simulation
 //! - **Adaptive Quantum Computing**: Dynamic quantum-classical resource allocation
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};

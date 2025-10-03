@@ -29,8 +29,8 @@ fn main() {
     println!("    // Create input data");
     println!("    let x = g.ones(&[2, 3]);");
     println!("    // Create weights and biases");
-    println!("    let w = g.variable(ndarray::Array2::ones((3, 1)));");
-    println!("    let b = g.variable(ndarray::Array1::ones(1));");
+    println!("    let w = g.variable(scirs2_core::ndarray::Array2::ones((3, 1)));");
+    println!("    let b = g.variable(scirs2_core::ndarray::Array1::ones(1));");
     println!("    // Forward pass");
     println!("    let y = x.dot(&w) + b;");
     println!("    // Apply activation");

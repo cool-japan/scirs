@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_series::forecasting::{auto_arima, auto_arima_with_options, AutoArimaOptions};
 
 #[test]

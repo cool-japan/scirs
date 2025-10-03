@@ -1,6 +1,6 @@
 use ag::tensor_ops::*;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 const EPSILON: f64 = 1e-5;
 const MATRIX_FUNC_EPSILON: f64 = 1e-2; // Larger tolerance for matrix function approximations

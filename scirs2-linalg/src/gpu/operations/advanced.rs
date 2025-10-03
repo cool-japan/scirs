@@ -6,8 +6,8 @@ use super::kernels::GpuKernelManager;
 use super::optimization::{BatchPerformanceRecord, BatchSizeOptimizer};
 use super::profiling::GpuPerformanceProfiler;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::collections::HashMap;
 use std::fmt::Debug;
 

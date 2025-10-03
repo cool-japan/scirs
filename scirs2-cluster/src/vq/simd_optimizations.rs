@@ -5,8 +5,8 @@
 //! and centroid calculations. All functions provide automatic fallback to scalar
 //! implementations when SIMD is not available.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
 use std::fmt::Debug;
@@ -836,7 +836,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_euclidean_distance_simd() {

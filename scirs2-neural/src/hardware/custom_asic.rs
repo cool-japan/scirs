@@ -8,7 +8,7 @@ use crate::error::Result;
 use crate::hardware::accelerator::DeviceBuffer;
 use crate::hardware::accelerator::{ComputeStream, Kernel, MemoryInfo, ProfilingInfo};
 use crate::hardware::{Accelerator, AcceleratorCapabilities, AcceleratorType};
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 /// Custom ASIC configuration

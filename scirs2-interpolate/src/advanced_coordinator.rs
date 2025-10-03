@@ -43,7 +43,7 @@
 //!     create_advanced_interpolation_coordinator,
 //!     AdvancedInterpolationConfig
 //! };
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!
 //! // Sample data
@@ -135,7 +135,7 @@ pub use crate::advanced_coordinator_modules::{
 
 /// Convenience function for creating a coordinator with default settings
 pub fn create_default_advanced_coordinator<
-    F: num_traits::Float
+    F: scirs2_core::numeric::Float
         + std::fmt::Debug
         + std::ops::MulAssign
         + std::ops::AddAssign
@@ -147,7 +147,7 @@ pub fn create_default_advanced_coordinator<
 
 /// Convenience function for creating a high-performance coordinator
 pub fn create_high_performance_coordinator<
-    F: num_traits::Float
+    F: scirs2_core::numeric::Float
         + std::fmt::Debug
         + std::ops::MulAssign
         + std::ops::AddAssign
@@ -174,7 +174,7 @@ pub fn create_high_performance_coordinator<
 
 /// Convenience function for creating a memory-efficient coordinator
 pub fn create_memory_efficient_coordinator<
-    F: num_traits::Float
+    F: scirs2_core::numeric::Float
         + std::fmt::Debug
         + std::ops::MulAssign
         + std::ops::AddAssign
@@ -201,7 +201,7 @@ pub fn create_memory_efficient_coordinator<
 
 /// Convenience function for creating a balanced coordinator
 pub fn create_balanced_coordinator<
-    F: num_traits::Float
+    F: scirs2_core::numeric::Float
         + std::fmt::Debug
         + std::ops::MulAssign
         + std::ops::AddAssign
@@ -229,7 +229,7 @@ pub fn create_balanced_coordinator<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_create_default_coordinator() {

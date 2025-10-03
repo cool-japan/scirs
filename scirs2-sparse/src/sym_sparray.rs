@@ -10,7 +10,7 @@ use crate::error::{SparseError, SparseResult};
 use crate::sparray::{SparseArray, SparseSum};
 use crate::sym_coo::SymCooArray;
 use crate::sym_csr::SymCsrArray;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -296,10 +296,10 @@ where
         self.inner().get(row, col)
     }
 
-    fn to_array(&self) -> ndarray::Array2<T> {
+    fn to_array(&self) -> scirs2_core::ndarray::Array2<T> {
         // Convert to dense vector of vectors, then to ndarray
         let dense = self.inner().to_dense();
-        let mut array = ndarray::Array2::zeros(self.shape());
+        let mut array = scirs2_core::ndarray::Array2::zeros(self.shape());
 
         for i in 0..dense.len() {
             for j in 0..dense[i].len() {
@@ -310,7 +310,7 @@ where
         array
     }
 
-    fn toarray(&self) -> ndarray::Array2<T> {
+    fn toarray(&self) -> scirs2_core::ndarray::Array2<T> {
         self.to_array()
     }
 
@@ -320,7 +320,10 @@ where
         ))
     }
 
-    fn dot_vector(&self, other: &ndarray::ArrayView1<T>) -> SparseResult<ndarray::Array1<T>> {
+    fn dot_vector(
+        &self,
+        other: &scirs2_core::ndarray::ArrayView1<T>,
+    ) -> SparseResult<scirs2_core::ndarray::Array1<T>> {
         // Use optimized symmetric matrix-vector product
         crate::sym_ops::sym_csr_matvec(self.inner(), other)
     }
@@ -402,17 +405,17 @@ where
     fn find(
         &self,
     ) -> (
-        ndarray::Array1<usize>,
-        ndarray::Array1<usize>,
-        ndarray::Array1<T>,
+        scirs2_core::ndarray::Array1<usize>,
+        scirs2_core::ndarray::Array1<usize>,
+        scirs2_core::ndarray::Array1<T>,
     ) {
         // To get the full matrix coordinates and values, we need to convert to a full CSR matrix
         match <Self as SymSparseArray<T>>::to_csr(self) {
             Ok(csr) => csr.find(),
             Err(_) => (
-                ndarray::Array1::from_vec(Vec::new()),
-                ndarray::Array1::from_vec(Vec::new()),
-                ndarray::Array1::from_vec(Vec::new()),
+                scirs2_core::ndarray::Array1::from_vec(Vec::new()),
+                scirs2_core::ndarray::Array1::from_vec(Vec::new()),
+                scirs2_core::ndarray::Array1::from_vec(Vec::new()),
             ),
         }
     }
@@ -464,7 +467,7 @@ where
                 let other_dense = other.to_array();
 
                 // Create the result dense array
-                let mut result_dense = ndarray::Array2::zeros(selfshape);
+                let mut result_dense = scirs2_core::ndarray::Array2::zeros(selfshape);
                 for i in 0..selfshape.0 {
                     for j in 0..selfshape.1 {
                         result_dense[[i, j]] = self_dense[[i, j]] + other_dense[[i, j]];
@@ -541,7 +544,7 @@ where
                 let other_dense = other.to_array();
 
                 // Create the result dense array
-                let mut result_dense = ndarray::Array2::zeros(selfshape);
+                let mut result_dense = scirs2_core::ndarray::Array2::zeros(selfshape);
                 for i in 0..selfshape.0 {
                     for j in 0..selfshape.1 {
                         result_dense[[i, j]] = self_dense[[i, j]] * other_dense[[i, j]];
@@ -670,10 +673,10 @@ where
         self.inner().get(row, col)
     }
 
-    fn to_array(&self) -> ndarray::Array2<T> {
+    fn to_array(&self) -> scirs2_core::ndarray::Array2<T> {
         // Convert to dense vector of vectors, then to ndarray
         let dense = self.inner().to_dense();
-        let mut array = ndarray::Array2::zeros(self.shape());
+        let mut array = scirs2_core::ndarray::Array2::zeros(self.shape());
 
         for i in 0..dense.len() {
             for j in 0..dense[i].len() {
@@ -684,7 +687,7 @@ where
         array
     }
 
-    fn toarray(&self) -> ndarray::Array2<T> {
+    fn toarray(&self) -> scirs2_core::ndarray::Array2<T> {
         self.to_array()
     }
 
@@ -694,7 +697,10 @@ where
         ))
     }
 
-    fn dot_vector(&self, other: &ndarray::ArrayView1<T>) -> SparseResult<ndarray::Array1<T>> {
+    fn dot_vector(
+        &self,
+        other: &scirs2_core::ndarray::ArrayView1<T>,
+    ) -> SparseResult<scirs2_core::ndarray::Array1<T>> {
         // Use optimized symmetric matrix-vector product
         crate::sym_ops::sym_coo_matvec(self.inner(), other)
     }
@@ -776,17 +782,17 @@ where
     fn find(
         &self,
     ) -> (
-        ndarray::Array1<usize>,
-        ndarray::Array1<usize>,
-        ndarray::Array1<T>,
+        scirs2_core::ndarray::Array1<usize>,
+        scirs2_core::ndarray::Array1<usize>,
+        scirs2_core::ndarray::Array1<T>,
     ) {
         // To get the full matrix coordinates and values, we need to convert to a full COO matrix
         match <Self as SymSparseArray<T>>::to_coo(self) {
             Ok(coo) => coo.find(),
             Err(_) => (
-                ndarray::Array1::from_vec(Vec::new()),
-                ndarray::Array1::from_vec(Vec::new()),
-                ndarray::Array1::from_vec(Vec::new()),
+                scirs2_core::ndarray::Array1::from_vec(Vec::new()),
+                scirs2_core::ndarray::Array1::from_vec(Vec::new()),
+                scirs2_core::ndarray::Array1::from_vec(Vec::new()),
             ),
         }
     }

@@ -1,6 +1,6 @@
 use ag::tensor_ops::*;
-use ndarray::{array, Ix2};
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::{array, Ix2};
 
 #[allow(dead_code)]
 fn main() {
@@ -54,7 +54,8 @@ fn main() {
                                 let k = s_array.len();
                                 println!("S has {} singular values", k);
 
-                                let mut s_diag_array = ndarray::Array2::<f64>::zeros((k, k));
+                                let mut s_diag_array =
+                                    scirs2_core::ndarray::Array2::<f64>::zeros((k, k));
                                 for i in 0..k {
                                     s_diag_array[[i, i]] = s_array[i];
                                 }
@@ -142,7 +143,8 @@ fn main() {
 
         // Manually perform A ≈ U * diag(S) * V^T
         // First create a diagonal matrix from S
-        let mut s_diag_arr = ndarray::Array2::<f64>::zeros((s_eval.len(), s_eval.len()));
+        let mut s_diag_arr =
+            scirs2_core::ndarray::Array2::<f64>::zeros((s_eval.len(), s_eval.len()));
         for i in 0..s_eval.len() {
             s_diag_arr[[i, i]] = s_eval[i];
         }

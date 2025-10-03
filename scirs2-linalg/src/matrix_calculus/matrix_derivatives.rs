@@ -4,8 +4,8 @@
 //! including derivatives of matrix functions, eigenvalue derivatives, and matrix factorization
 //! derivatives. These are essential for optimization and machine learning applications.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use crate::basic::{det, inv};
@@ -29,7 +29,7 @@ use crate::norm::matrix_norm;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_calculus::matrix_derivatives::det_derivative;
 ///
 /// let x = array![[2.0, 1.0], [1.0, 2.0]];
@@ -46,8 +46,8 @@ where
         + One
         + Copy
         + Debug
-        + ndarray::ScalarOperand
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -94,11 +94,11 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_calculus::matrix_derivatives::trace_derivative;
 ///
 /// // Derivative of tr(X) with respect to X is identity
-/// let d_trace: ndarray::Array2<f64> = trace_derivative(None, (3, 3)).unwrap();
+/// let d_trace: scirs2_core::ndarray::Array2<f64> = trace_derivative(None, (3, 3)).unwrap();
 ///
 /// // Should be a 3x3 identity matrix
 /// assert!((d_trace[[0, 0]] - 1.0).abs() < 1e-10);
@@ -148,7 +148,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_calculus::matrix_derivatives::inv_directional_derivative;
 ///
 /// let x = array![[2.0, 0.0], [0.0, 2.0]];  // 2*I
@@ -169,8 +169,8 @@ where
         + One
         + Copy
         + Debug
-        + ndarray::ScalarOperand
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -219,7 +219,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_calculus::matrix_derivatives::exp_directional_derivative;
 ///
 /// let x = array![[0.0, 1.0], [-1.0, 0.0]];  // Skew-symmetric (rotation generator)
@@ -239,8 +239,8 @@ where
         + One
         + Copy
         + Debug
-        + ndarray::ScalarOperand
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -318,7 +318,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_calculus::matrix_derivatives::eigenvalue_derivatives;
 ///
 /// let x = array![[2.0, 1.0], [1.0, 2.0]];  // Symmetric matrix
@@ -337,8 +337,8 @@ where
         + One
         + Copy
         + Debug
-        + ndarray::ScalarOperand
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -407,7 +407,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_calculus::matrix_derivatives::norm_derivative;
 ///
 /// let x = array![[3.0, 4.0], [0.0, 0.0]];
@@ -424,8 +424,8 @@ where
         + One
         + Copy
         + Debug
-        + ndarray::ScalarOperand
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -494,7 +494,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_calculus::matrix_derivatives::matmul_derivative;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -517,8 +517,8 @@ where
         + One
         + Copy
         + Debug
-        + ndarray::ScalarOperand
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -571,8 +571,8 @@ where
         + One
         + Copy
         + Debug
-        + ndarray::ScalarOperand
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -606,7 +606,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_det_derivative() {
@@ -680,7 +680,7 @@ mod tests {
 /// Matrix differential operators
 pub mod differential_operators {
     use super::*;
-    use ndarray::{Array3, Axis};
+    use scirs2_core::ndarray::{Array3, Axis};
 
     /// Compute the matrix divergence operator.
     ///
@@ -696,7 +696,13 @@ pub mod differential_operators {
     /// * Scalar field representing the divergence
     pub fn matrix_divergence<F>(field: &Array3<F>, spacing: F) -> LinalgResult<Array1<F>>
     where
-        F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand + num_traits::NumAssign,
+        F: Float
+            + Zero
+            + One
+            + Copy
+            + Debug
+            + scirs2_core::ndarray::ScalarOperand
+            + scirs2_core::numeric::NumAssign,
     {
         let n_points = field.len_of(Axis(2));
         let mut divergence = Array1::zeros(n_points);
@@ -747,7 +753,13 @@ pub mod differential_operators {
     /// * Scalar field representing the curl
     pub fn matrix_curl_2d<F>(field: &Array3<F>, spacing: F) -> LinalgResult<Array1<F>>
     where
-        F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand + num_traits::NumAssign,
+        F: Float
+            + Zero
+            + One
+            + Copy
+            + Debug
+            + scirs2_core::ndarray::ScalarOperand
+            + scirs2_core::numeric::NumAssign,
     {
         let n_points = field.len_of(Axis(2));
         let mut curl = Array1::zeros(n_points);
@@ -797,7 +809,13 @@ pub mod differential_operators {
     /// * Matrix field representing the Laplacian
     pub fn matrix_laplacian<F>(field: &Array3<F>, spacing: F) -> LinalgResult<Array3<F>>
     where
-        F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand + num_traits::NumAssign,
+        F: Float
+            + Zero
+            + One
+            + Copy
+            + Debug
+            + scirs2_core::ndarray::ScalarOperand
+            + scirs2_core::numeric::NumAssign,
     {
         let (n_rows, n_cols, n_points) = field.dim();
         let mut laplacian = Array3::zeros((n_rows, n_cols, n_points));
@@ -843,7 +861,13 @@ pub mod differential_operators {
     /// * Matrix field representing the gradient
     pub fn matrix_gradient<F>(field: &Array3<F>, spacing: F) -> LinalgResult<Array3<F>>
     where
-        F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand + num_traits::NumAssign,
+        F: Float
+            + Zero
+            + One
+            + Copy
+            + Debug
+            + scirs2_core::ndarray::ScalarOperand
+            + scirs2_core::numeric::NumAssign,
     {
         let (n_rows, n_cols, n_points) = field.dim();
         let mut gradient = Array3::zeros((n_rows, n_cols, n_points));

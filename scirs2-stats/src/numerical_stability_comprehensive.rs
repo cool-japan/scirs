@@ -6,12 +6,12 @@
 //! and challenging numerical scenarios.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, Zero, One};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, Zero, One};
 use std::collections::HashMap;
 use std::fmt::Debug;
-use rand::{rngs::StdRng, Rng, SeedableRng};
-use rand_distr::{Distribution, Normal, Uniform};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::{Distribution, Normal, Uniform};
 
 /// Configuration for numerical stability testing
 #[derive(Debug, Clone)]
@@ -132,7 +132,7 @@ impl NumericalStabilityTester {
     pub fn new(config: NumericalStabilityConfig) -> Self {
         let rng = match config.random_seed {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_rng(rand::thread_rng()),
+            None => StdRng::from_rng(scirs2_core::random::thread_rng()),
         };
 
         Self {
@@ -257,7 +257,7 @@ impl NumericalStabilityTester {
         });
 
         // Test Welford's algorithm stability
-        let large_scaledata: Vec<f64> = (0..1000).map(|i| 1e9 + rand::thread_rng().random::<f64>()).collect();
+        let large_scaledata: Vec<f64> = (0..1000).map(|i| 1e9 + scirs2_core::random::thread_rng().random::<f64>()).collect();
         self.run_test("variance_welford_large_scale", "basic_statistics", &large_scaledata, |data| {
             let arr = Array1::from_vec(data.clone());
             let result1 = crate::descriptive::var(&arr.view(), 1, None);
@@ -277,7 +277,7 @@ impl NumericalStabilityTester {
     fn test_standard_deviation_stability(&mut self) {
         // Test that std = sqrt(variance) relationship holds
         for _ in 0..10 {
-            let data: Vec<f64> = (0..500).map(|_| rand::thread_rng().random_range(-1e6..1e6)).collect();
+            let data: Vec<f64> = (0..500).map(|_| scirs2_core::random::thread_rng().random_range(-1e6..1e6)).collect();
             
             self.run_test("std_sqrt_variance_consistency".."basic_statistics", &data, |data| {
                 let arr = Array1::from_vec(data.clone());
@@ -359,7 +359,7 @@ impl NumericalStabilityTester {
 
         // Test with high precision requirements
         for _ in 0..5 {
-            let basedata: Vec<f64> = (0..1000).map(|_| rand::thread_rng().random::<f64>()).collect();
+            let basedata: Vec<f64> = (0..1000).map(|_| scirs2_core::random::thread_rng().random::<f64>()).collect();
             let scaleddata: Vec<f64> = basedata.iter().map(|&x| 1e15 * x + 1e10).collect();
             
             self.run_test("correlation_high_precision", "correlation", &basedata, |base| {
@@ -472,7 +472,7 @@ impl NumericalStabilityTester {
     fn test_ill_conditioned_cases(&mut self) {
         // Test correlation with nearly collinear data
         let x: Vec<f64> = (0..1000).map(|i| i as f64).collect();
-        let y: Vec<f64> = x.iter().map(|&val| val + 1e-10 * rand::thread_rng().random::<f64>()).collect();
+        let y: Vec<f64> = x.iter().map(|&val| val + 1e-10 * scirs2_core::random::thread_rng().random::<f64>()).collect();
         
         self.run_test("ill_conditioned_correlation", "ill_conditioned", &x, |_| {
             let x_arr = Array1::from_vec((0..1000).map(|i| i as f64).collect());
@@ -490,7 +490,7 @@ impl NumericalStabilityTester {
         // This would test things like iterative PCA, EM algorithms, etc.
         
         // For now, test a simple iterative mean calculation
-        let data: Vec<f64> = (0..1000).map(|_| rand::thread_rng().random::<f64>()).collect();
+        let data: Vec<f64> = (0..1000).map(|_| scirs2_core::random::thread_rng().random::<f64>()).collect();
         
         self.run_test("iterative_convergence", "iterative", &data, |data| {
             let arr = Array1::from_vec(data.clone());

@@ -35,9 +35,11 @@ fn parsebenchmark_results() -> Result<Vec<BenchmarkData>, Box<dyn Error>> {
             results.push(BenchmarkData {
                 operation: op.to_string(),
                 size,
-                time_ms: (size as f64).log2() * 0.1 * rand::random::<f64>(),
-                memory_kb: Some((size as f64) * 0.008 * (1.0 + rand::random::<f64>())),
-                accuracy: Some(1e-10 * (1.0 + rand::random::<f64>())),
+                time_ms: (size as f64).log2() * 0.1 * scirs2_core::random::random::<f64>(),
+                memory_kb: Some(
+                    (size as f64) * 0.008 * (1.0 + scirs2_core::random::random::<f64>()),
+                ),
+                accuracy: Some(1e-10 * (1.0 + scirs2_core::random::random::<f64>())),
             });
         }
     }

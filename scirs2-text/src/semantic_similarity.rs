@@ -6,7 +6,7 @@
 use crate::embeddings::Word2Vec;
 use crate::error::{Result, TextError};
 use crate::tokenize::Tokenizer;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::cmp;
 use std::collections::{HashMap, HashSet};
 

@@ -14,7 +14,7 @@
 //! - Memory-efficient access to large datasets
 
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use ndarray::{Array, ArrayD, Dimension, IxDyn};
+use scirs2_core::ndarray::{Array, ArrayD, Dimension, IxDyn};
 use netcdf3::{DataType, File as NC3File, Variable};
 use std::collections::HashMap;
 use std::fs::File;
@@ -242,7 +242,7 @@ impl NetCDFFile {
     /// let nc = NetCDFFile::open("data.nc", None).unwrap();
     ///
     /// // Read a variable
-    /// let temp: ndarray::ArrayD<f32> = nc.read_variable("temperature").unwrap();
+    /// let temp: scirs2_core::ndarray::ArrayD<f32> = nc.read_variable("temperature").unwrap();
     /// println!("Temperature data shape: {:?}", temp.shape());
     /// ```
     pub fn read_variable<T: netcdf3::FromNetcdf3 + Clone>(&self, name: &str) -> Result<ArrayD<T>> {
@@ -330,7 +330,7 @@ impl NetCDFFile {
     /// # Examples
     ///
     /// ```no_run
-    /// use ndarray::Array;
+    /// use scirs2_core::ndarray::Array;
     /// use scirs2_io::netcdf::{NetCDFFile, NetCDFOptions, NetCDFDataType};
     ///
     /// // Create a new NetCDF file
@@ -493,7 +493,7 @@ mod convert {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     use tempfile::tempdir;
     
     #[test]

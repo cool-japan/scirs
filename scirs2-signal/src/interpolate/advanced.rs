@@ -6,7 +6,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use crate::interpolate::core::InterpolationConfig;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::{cholesky, solve, solve_triangular};
 
 #[allow(unused_imports)]
@@ -30,7 +30,7 @@ use scirs2_linalg::{cholesky, solve, solve_triangular};
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::advanced::gaussian_process_interpolate;
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
@@ -173,7 +173,7 @@ pub fn gaussian_process_interpolate(
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::{advanced::kriging_interpolate, core::InterpolationConfig};
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0]);
@@ -299,7 +299,7 @@ where
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::{advanced::rbf_interpolate, core::InterpolationConfig};
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0]);
@@ -410,7 +410,7 @@ where
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::{advanced::minimum_energy_interpolate, core::InterpolationConfig};
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, f64::NAN, 4.0]);

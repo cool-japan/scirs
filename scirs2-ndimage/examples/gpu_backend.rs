@@ -1,6 +1,6 @@
 //! Example demonstrating GPU backend support for accelerated processing
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_ndimage::{
     auto_backend, backend::GaussianFilterOp, gaussian_filter, Backend, BackendBuilder,
     BackendConfig, BackendExecutor, BackendOp, NdimageResult,
@@ -131,8 +131,11 @@ struct CustomBlurOp {
     sigma: f32,
 }
 
-impl BackendOp<f32, ndarray::Ix2> for CustomBlurOp {
-    fn execute_cpu(&self, input: &ndarray::ArrayView2<f32>) -> NdimageResult<Array2<f32>> {
+impl BackendOp<f32, scirs2_core::ndarray::Ix2> for CustomBlurOp {
+    fn execute_cpu(
+        &self,
+        input: &scirs2_core::ndarray::ArrayView2<f32>,
+    ) -> NdimageResult<Array2<f32>> {
         let mut result = input.to_owned();
 
         // Apply Gaussian blur multiple times
@@ -147,7 +150,7 @@ impl BackendOp<f32, ndarray::Ix2> for CustomBlurOp {
     #[cfg(feature = "gpu")]
     fn execute_gpu(
         &self,
-        input: &ndarray::ArrayView2<f32>,
+        input: &scirs2_core::ndarray::ArrayView2<f32>,
         _backend: Backend,
     ) -> NdimageResult<Array2<f32>> {
         // In a real implementation, this would use GPU kernels

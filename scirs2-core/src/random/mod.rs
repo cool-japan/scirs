@@ -164,6 +164,7 @@ pub use rand::rngs;
 pub use rand::seq::SliceRandom;
 pub use rand::{Rng, RngCore, SeedableRng};
 pub use rand_distr as rand_distributions;
+pub use rand_distr::uniform;
 
 /// Convenience function to generate a random value of the inferred type
 ///
@@ -190,6 +191,24 @@ where
     rand::distr::StandardUniform: rand::distr::Distribution<T>,
 {
     rand::random()
+}
+
+/// Convenience function to create a thread-local RNG
+///
+/// This is equivalent to `thread_rng()` but provides a shorter name
+/// for compatibility with code that uses `rng()`.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_core::random::rng;
+/// use scirs2_core::random::Rng;
+///
+/// let mut rng = rng();
+/// let x: f64 = rng.random();
+/// ```
+pub fn rng() -> rand::rngs::ThreadRng {
+    rand::thread_rng()
 }
 
 // Comprehensive re-export of ALL rand_distr distributions for SciRS2 ecosystem compatibility
@@ -233,6 +252,9 @@ pub use rand_distr::{
     Zeta,
     Zipf,
 };
+
+// Re-export WeightedIndex from weighted submodule
+pub use rand_distr::weighted::WeightedIndex;
 
 // Clean, unprefixed type aliases for common distributions (for easier use)
 // These allow `use scirs2_core::random::Normal;` instead of `use scirs2_core::random::RandNormal;`

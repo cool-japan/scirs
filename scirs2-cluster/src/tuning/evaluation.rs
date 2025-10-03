@@ -3,8 +3,8 @@
 //! This module provides cross-validation functionality for different clustering
 //! algorithms and metric calculation methods for hyperparameter optimization.
 
-use ndarray::{Array1, Array2, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -41,7 +41,7 @@ impl<
             + std::fmt::Display
             + Send
             + Sync
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + std::ops::AddAssign
             + std::ops::SubAssign
             + std::ops::MulAssign
@@ -216,7 +216,7 @@ where
 
             // Create training data (all except current fold)
             let train_indices: Vec<usize> = (0..start_idx).chain(end_idx..n_samples).collect();
-            let train_data = data.select(ndarray::Axis(0), &train_indices);
+            let train_data = data.select(scirs2_core::ndarray::Axis(0), &train_indices);
 
             // Run OPTICS clustering
             match optics(train_data.view(), min_samples, max_eps, None) {
@@ -288,7 +288,7 @@ where
             };
 
             let train_indices: Vec<usize> = (0..start_idx).chain(end_idx..n_samples).collect();
-            let train_data = data.select(ndarray::Axis(0), &train_indices);
+            let train_data = data.select(scirs2_core::ndarray::Axis(0), &train_indices);
 
             // Create spectral clustering options
             let options = SpectralClusteringOptions {
@@ -341,7 +341,7 @@ where
             };
 
             let train_indices: Vec<usize> = (0..start_idx).chain(end_idx..n_samples).collect();
-            let train_data = data.select(ndarray::Axis(0), &train_indices);
+            let train_data = data.select(scirs2_core::ndarray::Axis(0), &train_indices);
 
             // Create affinity propagation options
             let options = AffinityPropagationOptions {
@@ -394,7 +394,7 @@ where
             };
 
             let train_indices: Vec<usize> = (0..start_idx).chain(end_idx..n_samples).collect();
-            let train_data = data.select(ndarray::Axis(0), &train_indices);
+            let train_data = data.select(scirs2_core::ndarray::Axis(0), &train_indices);
 
             // Create BIRCH options
             let options = BirchOptions {
@@ -446,7 +446,7 @@ where
             };
 
             let train_indices: Vec<usize> = (0..start_idx).chain(end_idx..n_samples).collect();
-            let train_data = data.select(ndarray::Axis(0), &train_indices);
+            let train_data = data.select(scirs2_core::ndarray::Axis(0), &train_indices);
 
             // Convert to f64 for GMM
             let train_data_f64 = train_data.mapv(|x| x.to_f64().unwrap_or(0.0));

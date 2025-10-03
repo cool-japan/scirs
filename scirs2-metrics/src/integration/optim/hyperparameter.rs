@@ -4,8 +4,8 @@
 
 use crate::error::{MetricsError, Result};
 use crate::integration::optim::OptimizationMode;
-use num_traits::{Float, FromPrimitive};
-use rand::Rng;
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
@@ -123,14 +123,14 @@ impl<F: Float + fmt::Debug + fmt::Display + FromPrimitive> HyperParameter<F> {
     pub fn random_value(&self) -> F {
         if self.is_categorical {
             if let Some(values) = &self.categorical_values {
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
                 let idx = rng.random_range(0..values.len());
                 return values[idx];
             }
         }
 
         let range = self.maxvalue - self.min_value;
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let rand_val = F::from(rng.random::<f64>()).unwrap() * range + self.min_value;
 
         if let Some(step) = self.step {

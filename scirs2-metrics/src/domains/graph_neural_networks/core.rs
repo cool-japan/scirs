@@ -103,7 +103,7 @@ pub type EdgeId = (NodeId, NodeId);
 pub type CommunityId = usize;
 
 /// Graph structure representation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GraphStructure {
     /// Number of nodes
     pub num_nodes: usize,
@@ -119,19 +119,6 @@ pub struct GraphStructure {
     pub edge_feature_dim: Option<usize>,
 }
 
-impl Default for GraphStructure {
-    fn default() -> Self {
-        Self {
-            num_nodes: 0,
-            num_edges: 0,
-            adjacency_list: HashMap::new(),
-            edge_weights: None,
-            node_feature_dim: None,
-            edge_feature_dim: None,
-        }
-    }
-}
-
 impl GraphStructure {
     pub fn new() -> Self {
         Self::default()
@@ -139,14 +126,8 @@ impl GraphStructure {
 
     /// Add an edge to the graph
     pub fn add_edge(&mut self, from: NodeId, to: NodeId, weight: Option<f64>) {
-        self.adjacency_list
-            .entry(from)
-            .or_insert_with(HashSet::new)
-            .insert(to);
-        self.adjacency_list
-            .entry(to)
-            .or_insert_with(HashSet::new)
-            .insert(from);
+        self.adjacency_list.entry(from).or_default().insert(to);
+        self.adjacency_list.entry(to).or_default().insert(from);
 
         if let Some(w) = weight {
             if self.edge_weights.is_none() {
@@ -175,7 +156,7 @@ impl GraphStructure {
     pub fn are_connected(&self, node1: NodeId, node2: NodeId) -> bool {
         self.adjacency_list
             .get(&node1)
-            .map_or(false, |neighbors| neighbors.contains(&node2))
+            .is_some_and(|neighbors| neighbors.contains(&node2))
     }
 }
 
@@ -201,7 +182,7 @@ impl Triple {
 }
 
 /// Molecular structure representation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MolecularStructure {
     /// SMILES string representation
     pub smiles: String,
@@ -217,20 +198,6 @@ pub struct MolecularStructure {
     pub molecular_weight: Option<f64>,
     /// 3D coordinates (if available)
     pub coordinates_3d: Option<Vec<(f64, f64, f64)>>,
-}
-
-impl Default for MolecularStructure {
-    fn default() -> Self {
-        Self {
-            smiles: String::new(),
-            num_atoms: 0,
-            num_bonds: 0,
-            atom_types: Vec::new(),
-            bond_types: Vec::new(),
-            molecular_weight: None,
-            coordinates_3d: None,
-        }
-    }
 }
 
 impl MolecularStructure {

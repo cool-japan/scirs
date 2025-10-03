@@ -18,10 +18,10 @@
 //! - kerp(x): Derivative of ker(x)
 //! - keip(x): Derivative of kei(x)
 
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::{PI, SQRT_2};
 // use std::ops::Neg;
-use num_traits::Zero;
+use scirs2_core::numeric::Zero;
 
 use crate::bessel::{i0, i1, k0, k1};
 use crate::error::{SpecialError, SpecialResult};
@@ -59,7 +59,7 @@ const SQRT_2_2: f64 = SQRT_2 / 2.0;
 ///
 /// ```
 /// use scirs2_special::kelvin;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let (be, ke, bep, kep) = kelvin(2.0).unwrap();
 /// println!("ber(2.0) + i·bei(2.0) = {} + {}i", be.re, be.im);

@@ -3,7 +3,7 @@
 //! This module implements the Method of Lines (MOL) approach for solving
 //! 3D parabolic PDEs, such as the 3D heat equation and 3D advection-diffusion.
 
-use ndarray::{Array1, Array3, Array4, ArrayView1, ArrayView3};
+use scirs2_core::ndarray::{Array1, Array3, Array4, ArrayView1, ArrayView3};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -344,7 +344,7 @@ impl MOLParabolicSolver3D {
                             None,
                             Some(ny),
                             Some(nz),
-                            &solver,
+                            solver,
                         );
                     }
                     (0, BoundaryLocation::Upper) => {
@@ -364,7 +364,7 @@ impl MOLParabolicSolver3D {
                             None,
                             Some(ny),
                             Some(nz),
-                            &solver,
+                            solver,
                         );
                     }
                     // Y-direction boundaries
@@ -385,7 +385,7 @@ impl MOLParabolicSolver3D {
                             Some(nx),
                             None,
                             Some(nz),
-                            &solver,
+                            solver,
                         );
                     }
                     (1, BoundaryLocation::Upper) => {
@@ -405,7 +405,7 @@ impl MOLParabolicSolver3D {
                             Some(nx),
                             None,
                             Some(nz),
-                            &solver,
+                            solver,
                         );
                     }
                     // Z-direction boundaries
@@ -426,7 +426,7 @@ impl MOLParabolicSolver3D {
                             Some(nx),
                             Some(ny),
                             Some(0),
-                            &solver,
+                            solver,
                         );
                     }
                     (2, BoundaryLocation::Upper) => {
@@ -446,7 +446,7 @@ impl MOLParabolicSolver3D {
                             Some(nx),
                             Some(ny),
                             Some(nz - 1),
-                            &solver,
+                            solver,
                         );
                     }
                     _ => {

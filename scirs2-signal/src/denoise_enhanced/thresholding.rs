@@ -4,7 +4,7 @@
 //! and threshold selection algorithms (SURE, Bayes, minimax, etc.).
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Soft thresholding function
 pub fn soft_threshold(coeffs: &Array1<f64>, threshold: f64) -> (Array1<f64>, f64) {
@@ -50,7 +50,7 @@ pub fn garotte_threshold(coeffs: &Array1<f64>, threshold: f64) -> (Array1<f64>, 
     for val in thresholded.iter_mut() {
         if val.abs() > threshold {
             let val_sq = (*val) * (*val);
-            *val = *val * (1.0 - threshold_sq / val_sq.max(f64::EPSILON));
+            *val *= 1.0 - threshold_sq / val_sq.max(f64::EPSILON);
             retained_count += 1;
         } else {
             *val = 0.0;
@@ -121,7 +121,7 @@ pub fn hyperbolic_threshold(coeffs: &Array1<f64>, threshold: f64) -> (Array1<f64
         if abs_val > 1e-12 {
             let hyperbolic_factor = 1.0 - threshold / abs_val;
             if hyperbolic_factor > 0.0 {
-                *val = *val * hyperbolic_factor;
+                *val *= hyperbolic_factor;
                 retained_count += 1;
             } else {
                 *val = 0.0;
@@ -153,7 +153,7 @@ pub fn block_threshold(
 
     for i in (0..n).step_by(block_size) {
         let end = (i + block_size).min(n);
-        let block = &coeffs.slice(ndarray::s![i..end]);
+        let block = &coeffs.slice(scirs2_core::ndarray::s![i..end]);
 
         // Compute block energy
         let block_energy: f64 = block.iter().map(|&x| x * x).sum();

@@ -6,8 +6,8 @@
 //! Bartlett's test (more powerful, but assumes normality).
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::ArrayView1;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, NumCast};
 use std::cmp::Ordering;
 
 /// Performs Levene's test for homogeneity of variance.
@@ -29,7 +29,7 @@ use std::cmp::Ordering;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::levene;
 ///
 /// // Create three samples with different variances
@@ -188,7 +188,7 @@ where
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
 
     let n = sorted.len();
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         let mid_right = n / 2;
         let mid_left = mid_right - 1;
         (sorted[mid_left] + sorted[mid_right]) / F::from(2.0).unwrap()
@@ -376,7 +376,7 @@ fn gamma_function(x: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::bartlett;
 ///
 /// // Create three samples with different variances
@@ -620,7 +620,7 @@ fn gamma_continued_fraction(a: f64, x: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::brown_forsythe;
 ///
 /// // Create three samples with different variances

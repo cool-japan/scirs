@@ -5,7 +5,7 @@
 //! numerical stability.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// Perform mixed-precision matrix-vector multiplication with SIMD acceleration
@@ -31,7 +31,7 @@ use scirs2_core::simd_ops::SimdUnifiedOps;
 /// ```
 /// #[cfg(feature = "simd")]
 /// {
-///     use ndarray::array;
+///     use scirs2_core::ndarray::array;
 ///     use scirs2_linalg::mixed_precision::simd_mixed_precision_matvec_f32_f64;
 ///
 ///     let a_f32 = array![[1.0f32, 2.0f32], [3.0f32, 4.0f32]];
@@ -55,7 +55,7 @@ pub fn simd_mixed_precision_matvec_f32_f64<C>(
     vector: &ArrayView1<f32>,
 ) -> LinalgResult<Array1<C>>
 where
-    C: Clone + num_traits::Zero + num_traits::NumCast + std::fmt::Debug,
+    C: Clone + scirs2_core::numeric::Zero + scirs2_core::numeric::NumCast + std::fmt::Debug,
 {
     let (nrows, ncols) = matrix.dim();
 
@@ -156,7 +156,7 @@ where
 /// ```
 /// #[cfg(feature = "simd")]
 /// {
-///     use ndarray::array;
+///     use scirs2_core::ndarray::array;
 ///     use scirs2_linalg::mixed_precision::simd_mixed_precision_matmul_f32_f64;
 ///
 ///     let a_f32 = array![[1.0f32, 2.0f32], [3.0f32, 4.0f32]];
@@ -182,7 +182,7 @@ pub fn simd_mixed_precision_matmul_f32_f64<C>(
     b: &ArrayView2<f32>,
 ) -> LinalgResult<Array2<C>>
 where
-    C: Clone + num_traits::Zero + num_traits::NumCast + std::fmt::Debug,
+    C: Clone + scirs2_core::numeric::Zero + scirs2_core::numeric::NumCast + std::fmt::Debug,
 {
     let (m, k1) = a.dim();
     let (k2, n) = b.dim();
@@ -341,7 +341,7 @@ where
 /// ```
 /// #[cfg(feature = "simd")]
 /// {
-///     use ndarray::array;
+///     use scirs2_core::ndarray::array;
 ///     use scirs2_linalg::mixed_precision::simd_mixed_precision_dot_f32_f64;
 ///
 ///     let a_f32 = array![1.0f32, 2.0f32, 3.0f32];
@@ -372,7 +372,7 @@ pub fn simd_mixed_precision_dot_f32_f64<C>(
     b: &ArrayView1<f32>,
 ) -> LinalgResult<C>
 where
-    C: Clone + num_traits::Zero + num_traits::NumCast + std::fmt::Debug,
+    C: Clone + scirs2_core::numeric::Zero + scirs2_core::numeric::NumCast + std::fmt::Debug,
 {
     if a.len() != b.len() {
         return Err(LinalgError::ShapeError(format!(
@@ -443,7 +443,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[cfg(feature = "simd")]

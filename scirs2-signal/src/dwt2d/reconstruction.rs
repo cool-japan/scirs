@@ -7,8 +7,8 @@
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use super::types::Dwt2dResult;
-use ndarray::Array2;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[cfg(feature = "parallel")]
@@ -65,7 +65,7 @@ use rayon::prelude::*;
 /// Basic 2D reconstruction:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, dwt2d_reconstruct};
 ///
@@ -90,7 +90,7 @@ use rayon::prelude::*;
 /// Reconstruction after coefficient modification:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, dwt2d_reconstruct, Dwt2dResult};
 ///
@@ -143,8 +143,8 @@ pub fn dwt2d_reconstruct(
             .into_par_iter()
             .map(|j| {
                 // Reconstruct low-pass columns
-                let ll_col = ll.slice(ndarray::s![.., j]).to_vec();
-                let hl_col = hl.slice(ndarray::s![.., j]).to_vec();
+                let ll_col = ll.slice(scirs2_core::ndarray::s![.., j]).to_vec();
+                let hl_col = hl.slice(scirs2_core::ndarray::s![.., j]).to_vec();
                 let col_lo = crate::dwt::dwt_reconstruct(&ll_col, &hl_col, wavelet).map_err(|e| {
                     SignalError::ComputationError(format!(
                         "Low-pass column reconstruction failed: {}",
@@ -153,8 +153,8 @@ pub fn dwt2d_reconstruct(
                 })?;
 
                 // Reconstruct high-pass columns
-                let lh_col = lh.slice(ndarray::s![.., j]).to_vec();
-                let hh_col = hh.slice(ndarray::s![.., j]).to_vec();
+                let lh_col = lh.slice(scirs2_core::ndarray::s![.., j]).to_vec();
+                let hh_col = hh.slice(scirs2_core::ndarray::s![.., j]).to_vec();
                 let col_hi = crate::dwt::dwt_reconstruct(&lh_col, &hh_col, wavelet).map_err(|e| {
                     SignalError::ComputationError(format!(
                         "High-pass column reconstruction failed: {}",
@@ -183,13 +183,13 @@ pub fn dwt2d_reconstruct(
     {
         for j in 0..cols {
             // Reconstruct low-pass columns
-            let ll_col = ll.slice(ndarray::s![.., j]).to_vec();
-            let hl_col = hl.slice(ndarray::s![.., j]).to_vec();
+            let ll_col = ll.slice(scirs2_core::ndarray::s![.., j]).to_vec();
+            let hl_col = hl.slice(scirs2_core::ndarray::s![.., j]).to_vec();
             let col_lo = crate::dwt::dwt_reconstruct(&ll_col, &hl_col, wavelet)?;
 
             // Reconstruct high-pass columns
-            let lh_col = lh.slice(ndarray::s![.., j]).to_vec();
-            let hh_col = hh.slice(ndarray::s![.., j]).to_vec();
+            let lh_col = lh.slice(scirs2_core::ndarray::s![.., j]).to_vec();
+            let hh_col = hh.slice(scirs2_core::ndarray::s![.., j]).to_vec();
             let col_hi = crate::dwt::dwt_reconstruct(&lh_col, &hh_col, wavelet)?;
 
             // Store reconstructed columns
@@ -213,8 +213,8 @@ pub fn dwt2d_reconstruct(
             .into_par_iter()
             .map(|i| {
                 // Get rows from low and high frequency parts
-                let lo_row = row_lo.slice(ndarray::s![i, ..]).to_vec();
-                let hi_row = row_hi.slice(ndarray::s![i, ..]).to_vec();
+                let lo_row = row_lo.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
+                let hi_row = row_hi.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
 
                 // Reconstruct row
                 let full_row = crate::dwt::dwt_reconstruct(&lo_row, &hi_row, wavelet).map_err(|e| {
@@ -241,8 +241,8 @@ pub fn dwt2d_reconstruct(
     {
         for i in 0..out_rows {
             // Get rows from low and high frequency parts
-            let lo_row = row_lo.slice(ndarray::s![i, ..]).to_vec();
-            let hi_row = row_hi.slice(ndarray::s![i, ..]).to_vec();
+            let lo_row = row_lo.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
+            let hi_row = row_hi.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
 
             // Reconstruct row
             let full_row = crate::dwt::dwt_reconstruct(&lo_row, &hi_row, wavelet)?;
@@ -303,7 +303,7 @@ pub fn dwt2d_reconstruct(
 /// Basic multi-level decomposition and reconstruction:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::{wavedec2, waverec2};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -328,7 +328,7 @@ pub fn dwt2d_reconstruct(
 /// Simple image compression by coefficient thresholding:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::{wavedec2, waverec2, Dwt2dResult};
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -443,7 +443,7 @@ pub fn waverec2(
 /// Basic multi-level decomposition:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::wavedec2;
 /// use scirs2_signal::dwt::Wavelet;
 ///
@@ -470,7 +470,7 @@ pub fn waverec2(
 /// Using a different wavelet family:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::wavedec2;
 /// use scirs2_signal::dwt::Wavelet;
 ///

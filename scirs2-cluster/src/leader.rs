@@ -4,8 +4,8 @@
 //! processes data points sequentially, creating clusters on-the-fly.
 
 use crate::error::{ClusteringError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Leader algorithm clustering
@@ -34,7 +34,7 @@ use std::fmt::Debug;
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_cluster::leader::{leader_clustering, euclidean_distance};
 ///
 /// let data = array![
@@ -361,7 +361,7 @@ impl<F: Float + Debug> LeaderTree<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_leader_clustering_basic() {

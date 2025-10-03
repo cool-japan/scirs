@@ -1,8 +1,8 @@
-# scirs2-optimize v0.1.0-beta.4 Release Status
+# scirs2-optimize v0.1.0-rc.1 Release Status
 
-This module provides comprehensive optimization algorithms similar to SciPy's optimize module, implemented in Rust with full production support. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module features ecosystem consistency and enhanced performance through scirs2-core abstractions.
+This module provides comprehensive optimization algorithms similar to SciPy's optimize module, implemented in Rust with full production support. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module features ecosystem consistency and platform testing.
 
-## ✅ Production-Ready Features (v0.1.0-beta.4)
+## ✅ Production-Ready Features (v0.1.0-rc.1)
 
 ### Core Optimization Methods
 - **Unconstrained Optimization**: Nelder-Mead, BFGS, L-BFGS, Powell, Conjugate Gradient
@@ -61,7 +61,7 @@ This module provides comprehensive optimization algorithms similar to SciPy's op
 - [x] Self-tuning parameter selection
 - [x] Specialized ML optimizers (L1/group regularization)
 
-## 🚀 Cutting-Edge Mode (v0.1.0-beta.4)
+## 🚀 Cutting-Edge Mode (v0.1.0-rc.1)
 
 ### Core Cutting-Edge Features
 - [x] **Unified Cutting-Edge Coordinator**: Intelligent coordination between optimization strategies

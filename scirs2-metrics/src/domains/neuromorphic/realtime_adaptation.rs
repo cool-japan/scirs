@@ -1,4 +1,4 @@
-//! Real-time adaptation engine for neuromorphic systems
+//! Float-time adaptation engine for neuromorphic systems
 //!
 //! This module provides online learning algorithms, continual learning strategies,
 //! and dynamic architecture modification for real-time adaptation.
@@ -7,10 +7,10 @@
 #![allow(dead_code)]
 
 use crate::error::Result;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
-/// Real-time adaptation engine
+/// Float-time adaptation engine
 #[derive(Debug)]
 pub struct RealtimeAdaptationEngine<F: Float> {
     /// Online learning algorithms
@@ -21,7 +21,7 @@ pub struct RealtimeAdaptationEngine<F: Float> {
     pub forgetting_prevention: ForgettingPreventionSystem<F>,
     /// Dynamic architecture modification
     pub architecture_modifier: DynamicArchitectureModifier<F>,
-    /// Real-time performance monitoring
+    /// Float-time performance monitoring
     pub realtime_monitor: RealtimePerformanceMonitor<F>,
 }
 
@@ -276,7 +276,7 @@ pub struct ArchitectureOptimization<F: Float> {
     pub parameters: HashMap<String, F>,
 }
 
-/// Real-time performance monitor
+/// Float-time performance monitor
 #[derive(Debug)]
 pub struct RealtimePerformanceMonitor<F: Float> {
     /// Performance metrics
@@ -370,8 +370,8 @@ impl<F: Float> OnlineLearningAlgorithm<F> {
 
         // Simplified SGD update
         for i in 0..self.state.parameters.len().min(input.len()) {
-            let gradient =
-                input[i] * (target.get(0).copied().unwrap_or(F::zero()) - self.state.parameters[i]);
+            let gradient = input[i]
+                * (target.first().copied().unwrap_or(F::zero()) - self.state.parameters[i]);
             self.state.parameters[i] = self.state.parameters[i] + learning_rate * gradient;
         }
         Ok(())
@@ -387,7 +387,7 @@ impl<F: Float> OnlineLearningAlgorithm<F> {
 
         // Simplified perceptron update
         let prediction = self.predict(input)?;
-        let error = target.get(0).copied().unwrap_or(F::zero()) - prediction;
+        let error = target.first().copied().unwrap_or(F::zero()) - prediction;
 
         if error.abs() > F::from(0.001).unwrap() {
             for i in 0..self.state.parameters.len().min(input.len()) {

@@ -1,6 +1,6 @@
 //! Example of using multivariate Student's t-distribution in scirs2-stats
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::distributions::multivariate;
 
 #[allow(dead_code)]
@@ -60,7 +60,7 @@ fn main() {
         samples.shape()[1]
     );
     for i in 0..n_samples.min(5) {
-        let row = samples.slice(ndarray::s![i, ..]);
+        let row = samples.slice(scirs2_core::ndarray::s![i, ..]);
         println!("Sample {}: {}", i, row);
     }
     if n_samples > 5 {
@@ -68,7 +68,7 @@ fn main() {
     }
 
     // Compute sample statistics
-    let sample_mean = samples.mean_axis(ndarray::Axis(0)).unwrap();
+    let sample_mean = samples.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
     println!(
         "\nSample mean: [{:.3}, {:.3}] (Expected: [0, 0])",
         sample_mean[0], sample_mean[1]

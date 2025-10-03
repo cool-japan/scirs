@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-metrics)](https://docs.rs/scirs2-metrics)
 
-Production-ready machine learning evaluation metrics library for the SciRS2 scientific computing ecosystem (v0.1.0-beta.4). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this comprehensive module provides high-performance functions to evaluate prediction performance across classification, regression, clustering, and specialized ML domains with ecosystem consistency and enhanced performance optimizations.
+Production-ready machine learning evaluation metrics library for the SciRS2 scientific computing ecosystem (v0.1.0-rc.1). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this comprehensive module provides high-performance functions to evaluate prediction performance across classification, regression, clustering, and specialized ML domains with ecosystem consistency and enhanced performance optimizations.
 
 ## Features
 

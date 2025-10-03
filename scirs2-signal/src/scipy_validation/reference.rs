@@ -6,7 +6,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use crate::filter::FilterType;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Reference Butterworth filter implementation
 pub fn reference_butter_filter(

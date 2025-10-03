@@ -1,7 +1,7 @@
 //! Matrix analysis functions including decompositions and matrix norms
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::eigen::eig;
@@ -25,7 +25,7 @@ use crate::validation::validate_decomposition;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::spectral_radius;
 ///
 /// let a = array![[2.0_f64, 0.0], [0.0, 3.0]];
@@ -35,7 +35,7 @@ use crate::validation::validate_decomposition;
 #[allow(dead_code)]
 pub fn spectral_radius<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -76,7 +76,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::spectral_condition_number;
 ///
 /// let a = array![[2.0_f64, 0.0], [0.0, 1.0]];
@@ -86,7 +86,7 @@ where
 #[allow(dead_code)]
 pub fn spectral_condition_number<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -137,7 +137,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::polar_decomposition;
 ///
 /// let a = array![[2.0_f64, 1.0], [0.0, 1.0]];
@@ -146,7 +146,7 @@ where
 #[allow(dead_code)]
 pub fn polar_decomposition<F>(a: &ArrayView2<F>, side: &str) -> LinalgResult<(Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use super::exponential::sqrtm;
 
@@ -244,7 +244,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::geometric_mean_spd;
 ///
 /// let a = array![[4.0_f64, 0.0], [0.0, 1.0]];
@@ -254,7 +254,7 @@ where
 #[allow(dead_code)]
 pub fn geometric_mean_spd<F>(a: &ArrayView2<F>, b: &ArrayView2<F>, t: F) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use super::exponential::sqrtm;
     use super::fractional::spdmatrix_function;
@@ -354,7 +354,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::tikhonov_regularization;
 ///
 /// let a = array![[1.0_f64, 0.5], [0.5, 1.0]];
@@ -367,7 +367,7 @@ pub fn tikhonov_regularization<F>(
     identity_like: bool,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = a.dim();
 
@@ -413,7 +413,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::nuclear_norm;
 ///
 /// let a = array![[2.0_f64, 0.0], [0.0, 3.0]];
@@ -423,7 +423,7 @@ where
 #[allow(dead_code)]
 pub fn nuclear_norm<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 

@@ -3,8 +3,8 @@
 // This module provides the DOK (Dictionary of Keys) array format,
 // which is efficient for incremental construction of sparse arrays.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::any::Any;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -543,7 +543,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_dok_array_create_and_access() {

@@ -373,7 +373,7 @@ impl BenchmarkStatistics {
             / execution_times.len() as f64;
         let mean_execution_time = Duration::from_nanos(mean_nanos as u64);
 
-        let median_execution_time = if execution_times.len() % 2 == 0 {
+        let median_execution_time = if execution_times.len().is_multiple_of(2) {
             let mid = execution_times.len() / 2;
             Duration::from_nanos(
                 ((execution_times[mid - 1].as_nanos() + execution_times[mid].as_nanos()) / 2)

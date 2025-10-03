@@ -5,6 +5,8 @@
 #![allow(clippy::field_reassign_with_default)]
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::manual_range_contains)]
+#![allow(clippy::manual_is_multiple_of)]
+#![allow(clippy::assign_op_pattern)]
 //! # SciRS2 FFT - High-Performance Fourier Transforms
 //!
 //! **scirs2-fft** provides comprehensive Fast Fourier Transform (FFT) implementations modeled after
@@ -40,7 +42,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-fft = "0.1.0-beta.4"
+//! scirs2-fft = "0.1.0-rc.1"
 //! ```
 //!
 //!
@@ -156,8 +158,8 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.1.0-beta.4
-//! - **Release Date**: October 01, 2025
+//! - **Version**: 0.1.0-rc.1
+//! - **Release Date**: October 03, 2025
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-fft](https://docs.rs/scirs2-fft)
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
@@ -475,9 +477,13 @@ pub fn stft<T>(
     fs: Option<f64>,
     detrend: Option<bool>,
     boundary: Option<&str>,
-) -> FFTResult<(Vec<f64>, Vec<f64>, ndarray::Array2<num_complex::Complex64>)>
+) -> FFTResult<(
+    Vec<f64>,
+    Vec<f64>,
+    scirs2_core::ndarray::Array2<scirs2_core::numeric::Complex64>,
+)>
 where
-    T: num_traits::NumCast + Copy + std::fmt::Debug,
+    T: scirs2_core::numeric::NumCast + Copy + std::fmt::Debug,
 {
     spectrogram::stft(
         x,
@@ -540,8 +546,8 @@ where
 
 /// Helper function to try and extract a Complex value
 #[allow(dead_code)]
-fn try_as_complex<U: 'static + Copy>(val: U) -> Option<num_complex::Complex64> {
-    use num_complex::Complex64;
+fn try_as_complex<U: 'static + Copy>(val: U) -> Option<scirs2_core::numeric::Complex64> {
+    use scirs2_core::numeric::Complex64;
     use std::any::Any;
 
     // Try to use runtime type checking with Any for _complex types
@@ -550,7 +556,8 @@ fn try_as_complex<U: 'static + Copy>(val: U) -> Option<num_complex::Complex64> {
     }
 
     // Try to handle f32 _complex numbers
-    if let Some(complex32) = (&val as &dyn Any).downcast_ref::<num_complex::Complex<f32>>() {
+    if let Some(complex32) = (&val as &dyn Any).downcast_ref::<scirs2_core::numeric::Complex<f32>>()
+    {
         return Some(Complex64::new(complex32.re as f64, complex32.im as f64));
     }
 
@@ -558,11 +565,11 @@ fn try_as_complex<U: 'static + Copy>(val: U) -> Option<num_complex::Complex64> {
 }
 
 #[allow(dead_code)]
-pub fn hilbert<T>(x: &[T]) -> FFTResult<Vec<num_complex::Complex64>>
+pub fn hilbert<T>(x: &[T]) -> FFTResult<Vec<scirs2_core::numeric::Complex64>>
 where
-    T: num_traits::NumCast + Copy + std::fmt::Debug + 'static,
+    T: scirs2_core::numeric::NumCast + Copy + std::fmt::Debug + 'static,
 {
-    use num_complex::Complex64;
+    use scirs2_core::numeric::{Complex64, NumCast};
 
     // Input length
     let n = x.len();
@@ -572,7 +579,7 @@ where
         .iter()
         .map(|&val| {
             // First, try to cast directly to f64
-            if let Some(val_f64) = num_traits::cast::<T, f64>(val) {
+            if let Some(val_f64) = NumCast::from(val) {
                 return Ok(val_f64);
             }
 
@@ -597,7 +604,7 @@ where
     // 3. Zero out the negative frequencies
     let mut h = vec![Complex64::new(1.0, 0.0); n];
 
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         // Even length case
         h[0] = Complex64::new(1.0, 0.0); // DC component
         h[n / 2] = Complex64::new(1.0, 0.0); // Nyquist component

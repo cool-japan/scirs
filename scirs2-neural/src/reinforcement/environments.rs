@@ -1,7 +1,7 @@
 //! Reinforcement learning environments
 
 use crate::error::Result;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 /// Observation from environment
 pub type Observation = Array1<f32>;
@@ -68,7 +68,7 @@ impl CartPole {
         x < -2.4 || x > 2.4 || theta < -0.2095 || theta > 0.2095 || self.steps >= self.max_steps
 impl Environment for CartPole {
     fn reset(&mut self) -> Result<Observation> {
-        use rand_distr::{Distribution, Uniform};
+        use scirs2_core::random::{Distribution, Uniform};
         let mut rng = rng();
         let uniform = Uniform::new(-0.05, 0.05);
         self.state = Array1::from_vec(vec![

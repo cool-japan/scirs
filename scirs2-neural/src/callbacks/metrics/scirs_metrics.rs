@@ -5,8 +5,8 @@
 #[cfg(feature = "metrics_integration")]
 use crate::callbacks::{Callback, CallbackContext, CallbackTiming};
 use crate::error::Result;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_metrics::integration::traits::MetricComputation;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};

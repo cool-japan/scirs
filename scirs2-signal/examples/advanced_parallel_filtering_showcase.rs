@@ -67,7 +67,7 @@ fn demonstrate_multirate_filter_bank() -> Result<(), Box<dyn std::error::Error>>
     println!("  🔍 Creating 4-band multi-rate filter bank...");
 
     // Create analysis filters (simple prototype filters)
-    let prototype_lowpass = vec![0.5, 1.0, 0.5]; // Simple lowpass prototype
+    let prototype_lowpass = [0.5, 1.0, 0.5]; // Simple lowpass prototype
     let analysis_filters = vec![
         // Band 0: Lowpass
         vec![0.25, 0.5, 0.25],
@@ -247,7 +247,7 @@ fn demonstrate_streaming_filter() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test single sample processing
     println!("\n    🔄 Testing single sample processing...");
-    let test_samples = vec![1.0, 0.5, -0.5, -1.0, 0.0, 0.5];
+    let test_samples = [1.0, 0.5, -0.5, -1.0, 0.0, 0.5];
     let mut outputs = Vec::new();
     let mut total_time = std::time::Duration::new(0, 0);
 
@@ -331,7 +331,7 @@ fn demonstrate_spectral_filtering() -> Result<(), Box<dyn std::error::Error>> {
             let freq_normalized = i as f64 / (fft_size / 2) as f64;
 
             // Bandpass filter: pass 0.1 to 0.4 normalized frequency
-            if freq_normalized >= 0.1 && freq_normalized <= 0.4 {
+            if (0.1..=0.4).contains(&freq_normalized) {
                 Complex64::new(1.0, 0.0) // Pass band
             } else {
                 Complex64::new(0.0, 0.0) // Stop band

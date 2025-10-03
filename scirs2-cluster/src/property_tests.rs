@@ -6,8 +6,8 @@
 
 #[cfg(test)]
 mod tests {
-    use ndarray::Array2;
     use proptest::prelude::*;
+    use scirs2_core::ndarray::Array2;
 
     use crate::vq::{kmeans2, MinitMethod, MissingMethod};
 
@@ -101,7 +101,7 @@ mod tests {
     #[cfg(test)]
     mod specific_tests {
         use super::*;
-        use ndarray::Array2;
+        use scirs2_core::ndarray::Array2;
 
         #[test]
         fn test_kmeans_identical_points() {

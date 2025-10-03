@@ -20,7 +20,7 @@ use crate::propertybased_validation::{
     ComprehensivePropertyTestSuite, PropertyTestConfig, PropertyTestResult,
 };
 use crate::scipy_benchmark_framework::{BenchmarkConfig, BenchmarkResult, ScipyBenchmarkFramework};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -412,8 +412,8 @@ impl ComprehensiveValidationSuite {
 
     /// Generate test data for validation
     fn generate_testdata(&self, size: usize) -> StatsResult<Array1<f64>> {
-        use rand::prelude::*;
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::{Distribution, Normal};
 
         let mut rng = StdRng::seed_from_u64(self.config.property_config.seed);
         let normal = Normal::new(0.0, 1.0)

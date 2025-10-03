@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Adaptive parametric spectral estimation methods
 //
 // This module implements advanced adaptive algorithms for parametric spectral
@@ -9,8 +9,8 @@ use ndarray::s;
 // - Online model updating
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::validation::{check_finite, check_positive};
 
@@ -218,8 +218,8 @@ fn update_rls(model: &mut AdaptiveArModel, error: f64, lambda: f64) -> SignalRes
     // Update gain matrix: P = (P - k * x' * P) / lambda
     let outer_product = k
         .view()
-        .insert_axis(ndarray::Axis(1))
-        .dot(&x.view().insert_axis(ndarray::Axis(0)));
+        .insert_axis(scirs2_core::ndarray::Axis(1))
+        .dot(&x.view().insert_axis(scirs2_core::ndarray::Axis(0)));
     model.gain = (&_model.gain - &outer_product.dot(&_model.gain)) / lambda;
 
     Ok(())
@@ -258,8 +258,8 @@ fn update_kalman(
     // Update error covariance
     let i_minus_kh = Array2::eye(order)
         - k.view()
-            .insert_axis(ndarray::Axis(1))
-            .dot(&x.view().insert_axis(ndarray::Axis(0)));
+            .insert_axis(scirs2_core::ndarray::Axis(1))
+            .dot(&x.view().insert_axis(scirs2_core::ndarray::Axis(0)));
     model.gain = i_minus_kh.dot(&model.gain);
 
     Ok(())
@@ -308,7 +308,7 @@ fn update_model_order(model: &mut AdaptiveArModel, config: &AdaptiveConfig) -> S
         // Check if higher-order coefficients are significant
         let tail_energy: f64 = _model
             .coefficients
-            .slice(ndarray::s![_model.order - 2..])
+            .slice(scirs2_core::ndarray::s![_model.order - 2..])
             .iter()
             .map(|&c| c * c)
             .sum();

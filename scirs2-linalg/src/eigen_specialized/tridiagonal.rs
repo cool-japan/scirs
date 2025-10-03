@@ -3,8 +3,8 @@
 //! This module provides specialized solvers for tridiagonal matrices,
 //! which are much faster than general eigenvalue solvers.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};

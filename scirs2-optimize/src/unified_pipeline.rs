@@ -4,8 +4,8 @@
 //! self-tuning, GPU acceleration, and visualization into a single cohesive pipeline.
 
 use crate::error::{ScirsError, ScirsResult};
-use ndarray::{Array1, ArrayView1};
 use scirs2_core::error_context;
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::path::Path;
 // Unused import: std::sync::Arc
 
@@ -113,26 +113,17 @@ impl<M: MPIInterface> UnifiedOptimizer<M> {
         };
 
         let self_tuning_optimizer = if config.use_self_tuning {
-            let tuningconfig = config
-                .self_tuningconfig
-                .clone()
-                .unwrap_or_else(SelfTuningConfig::default);
+            let tuningconfig = config.self_tuningconfig.clone().unwrap_or_default();
             Some(SelfTuningOptimizer::new(tuningconfig))
         } else {
             None
         };
 
         let (gpu_context, acceleration_manager) = if config.use_gpu {
-            let gpuconfig = config
-                .gpuconfig
-                .clone()
-                .unwrap_or_else(GpuOptimizationConfig::default);
+            let gpuconfig = config.gpuconfig.clone().unwrap_or_default();
             let gpu_ctx = GpuOptimizationContext::new(gpuconfig)?;
 
-            let accelconfig = config
-                .accelerationconfig
-                .clone()
-                .unwrap_or_else(AccelerationConfig::default);
+            let accelconfig = config.accelerationconfig.clone().unwrap_or_default();
             let accel_mgr = AccelerationManager::new(accelconfig);
 
             (Some(gpu_ctx), Some(accel_mgr))
@@ -141,10 +132,7 @@ impl<M: MPIInterface> UnifiedOptimizer<M> {
         };
 
         let (visualizer, trajectory_tracker) = if config.enable_visualization {
-            let visconfig = config
-                .visualizationconfig
-                .clone()
-                .unwrap_or_else(VisualizationConfig::default);
+            let visconfig = config.visualizationconfig.clone().unwrap_or_default();
             let vis = OptimizationVisualizer::with_config(visconfig);
             let tracker = TrajectoryTracker::new();
             (Some(vis), Some(tracker))
@@ -797,7 +785,7 @@ pub mod presets {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_unifiedconfig_creation() {

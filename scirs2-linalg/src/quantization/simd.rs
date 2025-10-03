@@ -11,7 +11,7 @@ use crate::quantization::{
     quantize_vector, QuantizationMethod, QuantizationParams, QuantizedData2D, QuantizedDataType,
     QuantizedMatrix, QuantizedVector,
 };
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// SIMD-accelerated quantized matrix-vector multiplication
@@ -425,8 +425,8 @@ pub fn simd_quantized_matmul(
                                 // Regular 8-bit quantization - we can use SIMD
 
                                 // Get row from A and column from B as slices if possible
-                                let a_row = a_data.slice(ndarray::s![i, k0..k_end]);
-                                let b_col = b_data.slice(ndarray::s![k0..k_end, j]);
+                                let a_row = a_data.slice(scirs2_core::ndarray::s![i, k0..k_end]);
+                                let b_col = b_data.slice(scirs2_core::ndarray::s![k0..k_end, j]);
 
                                 if let (Some(a_slice), Some(b_slice)) =
                                     (a_row.as_slice(), b_col.as_slice())
@@ -700,7 +700,7 @@ mod tests {
         quantize_matrix, quantize_matrix_per_channel, quantize_vector, QuantizationMethod,
     };
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

@@ -4,7 +4,7 @@
 //! including Richardson extrapolation and the Gragg-Bulirsch-Stoer method,
 //! to achieve very high accuracy in ODE integration.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_integrate::ode::{
     methods::{
         euler_method, gragg_bulirsch_stoer_method, richardson_extrapolation_step, rk4_method,

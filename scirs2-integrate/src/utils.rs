@@ -3,7 +3,7 @@
 //! This module provides utilities needed across multiple integration methods.
 
 use crate::{IntegrateError, IntegrateFloat, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::safe_ops::safe_divide;
 // use crate::error::{IntegrateError, IntegrateResult}; // Already imported
 
@@ -387,7 +387,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_numerical_jacobian() {

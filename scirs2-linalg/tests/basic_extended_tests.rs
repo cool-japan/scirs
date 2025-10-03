@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use scirs2_linalg::extended_precision::{extended_matmul, extended_matvec, extended_solve};
 
     #[test]

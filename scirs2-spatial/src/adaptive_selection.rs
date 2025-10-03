@@ -1031,7 +1031,7 @@ impl AdaptiveAlgorithmSelector {
         let bounds = self.getdata_bounds(data);
         for _ in 0..sample_size {
             let random_point: Array1<f64> = Array1::from_shape_fn(n_dims, |i| {
-                rand::random::<f64>() * (bounds[i].1 - bounds[i].0) + bounds[i].0
+                scirs2_core::random::random::<f64>() * (bounds[i].1 - bounds[i].0) + bounds[i].0
             });
 
             let mut min_dist = f64::INFINITY;

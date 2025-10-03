@@ -69,7 +69,7 @@ pub fn compute_qhull(points: &ArrayView2<'_, f64>) -> SpatialResult<ConvexHull> 
             // Add some random jitter to points
             let mut perturbed_points = vec![];
             use scirs2_core::random::Rng;
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
 
             for i in 0..npoints {
                 let mut pt = points.row(i).to_vec();

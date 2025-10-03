@@ -4,7 +4,7 @@
 
 use crate::base::{EdgeWeight, Graph, IndexType, Node};
 use crate::error::{GraphError, Result};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::parallel_ops::*;
 use std::collections::HashMap;
 use std::hash::Hash;
@@ -30,9 +30,9 @@ where
 
     let mut walk = vec![start.clone()];
     let mut current = start.clone();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
-    use rand::Rng;
+    use scirs2_core::random::Rng;
 
     for _ in 0..steps {
         // With restart_probability, jump back to start
@@ -261,7 +261,7 @@ impl AliasTable {
     }
 
     /// Sample from the alias table
-    fn sample(&self, rng: &mut impl rand::Rng) -> usize {
+    fn sample(&self, rng: &mut impl scirs2_core::random::Rng) -> usize {
         if self.prob.is_empty() {
             return 0;
         }
@@ -356,7 +356,7 @@ impl<N: Node + Clone + Hash + Eq + std::fmt::Debug> BatchRandomWalker<N> {
             .par_iter()
             .map(|start| {
                 let mut local_walks = Vec::with_capacity(num_walks_per_node);
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
 
                 for _ in 0..num_walks_per_node {
                     if let Ok(walk) = self.single_walk(graph, start, walk_length, &mut rng) {
@@ -378,7 +378,7 @@ impl<N: Node + Clone + Hash + Eq + std::fmt::Debug> BatchRandomWalker<N> {
         graph: &Graph<N, E, Ix>,
         start: &N,
         walk_length: usize,
-        rng: &mut impl rand::Rng,
+        rng: &mut impl scirs2_core::random::Rng,
     ) -> Result<Vec<N>>
     where
         E: EdgeWeight,
@@ -430,7 +430,7 @@ pub fn node2vec_walk<N, E, Ix>(
     walk_length: usize,
     p: f64, // Return parameter
     q: f64, // In-out parameter
-    rng: &mut impl rand::Rng,
+    rng: &mut impl scirs2_core::random::Rng,
 ) -> Result<Vec<N>>
 where
     N: Node + Clone + Hash + Eq + std::fmt::Debug,
@@ -539,7 +539,7 @@ where
         .map(|i| {
             let start_idx = i % starts.len();
             let start = &starts[start_idx];
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             node2vec_walk(graph, start, walk_length, p, q, &mut rng)
         })
         .collect()
@@ -553,7 +553,7 @@ pub fn simd_random_walk_with_restart<N, E, Ix>(
     start: &N,
     walk_length: usize,
     restart_prob: f64,
-    rng: &mut impl rand::Rng,
+    rng: &mut impl scirs2_core::random::Rng,
 ) -> Result<Vec<N>>
 where
     N: Node + Clone + Hash + Eq + std::fmt::Debug,

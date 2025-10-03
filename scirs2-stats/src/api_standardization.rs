@@ -9,8 +9,8 @@
 #![allow(dead_code)]
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -872,7 +872,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_descriptive_stats_builder() {
@@ -1405,7 +1405,7 @@ impl APIValidationFramework {
         let category_key = format!("{:?}", rule.category);
         self.validation_rules
             .entry(category_key)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(rule);
     }
 

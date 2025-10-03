@@ -4,8 +4,8 @@
 //! statistical features, cross-window correlations, change detection, rolling statistics,
 //! technical indicators, and normalized features for financial and statistical analysis.
 
-use ndarray::{s, Array1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::WindowConfig;
@@ -381,7 +381,7 @@ pub fn calculate_window_based_features<F>(
     config: &WindowConfig,
 ) -> Result<WindowBasedFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + ndarray::ScalarOperand + std::iter::Sum,
+    F: Float + FromPrimitive + Debug + Clone + scirs2_core::ndarray::ScalarOperand + std::iter::Sum,
 {
     let n = ts.len();
 
@@ -494,7 +494,7 @@ where
         sorted_window.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let median_idx = windowsize / 2;
-        let median = if windowsize % 2 == 0 {
+        let median = if windowsize.is_multiple_of(2) {
             (sorted_window[median_idx - 1] + sorted_window[median_idx]) / F::from(2.0).unwrap()
         } else {
             sorted_window[median_idx]
@@ -707,7 +707,7 @@ fn calculate_cross_window_correlations<F>(
     large: &WindowFeatures<F>,
 ) -> Result<CrossWindowFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + std::iter::Sum + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + Debug + Clone + std::iter::Sum + scirs2_core::ndarray::ScalarOperand,
 {
     // Align arrays by taking common length
     let min_len = small

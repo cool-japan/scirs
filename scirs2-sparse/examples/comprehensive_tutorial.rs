@@ -4,7 +4,7 @@
 //! including matrix formats, linear algebra operations, eigenvalue computations,
 //! and advanced solver methods.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_sparse::{
     csr_array::CsrArray,
     error::SparseResult,

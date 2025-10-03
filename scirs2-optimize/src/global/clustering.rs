@@ -6,7 +6,7 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::{minimize, Method, Options};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::collections::HashMap;
 
 /// Configuration for clustering local minima

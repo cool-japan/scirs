@@ -3,8 +3,8 @@
 //! This module provides functions for computing matrix factorizations
 //! using extended precision arithmetic for improved accuracy.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 
 use super::{DemotableTo, PromotableTo};
 use crate::error::LinalgResult;
@@ -28,7 +28,7 @@ use crate::error::LinalgResult;
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::factorizations::extended_lu;
 ///
 /// let a = array![
@@ -305,7 +305,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::factorizations::extended_qr;
 ///
 /// let a = array![
@@ -473,7 +473,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::factorizations::extended_cholesky;
 ///
 /// let a = array![
@@ -599,7 +599,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::factorizations::extended_svd;
 ///
 /// let a = array![

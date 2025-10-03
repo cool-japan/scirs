@@ -5,9 +5,9 @@
 //! for transformer models, etc.
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, Dimension};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, Dimension};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 /// Terminal color utilities for visualization
 pub mod colors;
@@ -48,20 +48,20 @@ pub use model_viz::{sequential_model_dataflow, sequential_model_summary, ModelVi
 /// # Examples
 /// ```
 /// use scirs2_neural::utils::random_normal;
-/// use ndarray::IxDyn;
-/// use rand::rngs::SmallRng;
-/// use rand::SeedableRng;
-/// let mut rng = rand::rng();
+/// use scirs2_core::ndarray::IxDyn;
+/// use scirs2_core::random::rngs::SmallRng;
+/// use scirs2_core::random::SeedableRng;
+/// let mut rng = scirs2_core::random::rng();
 /// let shape = IxDyn(&[2, 3]);
 /// let random_matrix = random_normal(shape, 0.0, 1.0, &mut rng).unwrap();
 /// assert_eq!(random_matrix.shape(), &[2, 3]);
 #[allow(dead_code)]
 pub fn random_normal<F: Float + Debug, R: Rng>(
-    shape: ndarray::IxDyn,
+    shape: scirs2_core::ndarray::IxDyn,
     mean: F,
     std: F,
     rng: &mut R,
-) -> Result<Array<F, ndarray::IxDyn>> {
+) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
     let size = shape.as_array_view().iter().product();
     let mean_f64 = mean.to_f64().ok_or_else(|| {
         NeuralError::InvalidArchitecture("Failed to convert mean to f64".to_string())
@@ -91,7 +91,7 @@ pub fn random_normal<F: Float + Debug, R: Rng>(
 /// * `num_classes` - Number of classes
 /// * A 2D array where each row is a one-hot encoded vector
 ///   use scirs2_neural::utils::one_hot_encode;
-///   use ndarray::arr1;
+///   use scirs2_core::ndarray::arr1;
 ///   let indices = arr1(&[0, 2, 1]);
 ///   let one_hot = one_hot_encode::<f64>(&indices, 3).unwrap();
 ///   assert_eq!(one_hot.shape(), &[3, 3]);
@@ -100,11 +100,11 @@ pub fn random_normal<F: Float + Debug, R: Rng>(
 ///   assert_eq!(one_hot[[2, 1]], 1.0f64); // Third sample, class 1
 #[allow(dead_code)]
 pub fn one_hot_encode<F: Float + Debug>(
-    indices: &ndarray::Array1<usize>,
+    indices: &scirs2_core::ndarray::Array1<usize>,
     num_classes: usize,
-) -> Result<ndarray::Array2<F>> {
+) -> Result<scirs2_core::ndarray::Array2<F>> {
     let n_samples = indices.len();
-    let mut one_hot = ndarray::Array2::zeros((n_samples, num_classes));
+    let mut one_hot = scirs2_core::ndarray::Array2::zeros((n_samples, num_classes));
     for (i, &idx) in indices.iter().enumerate() {
         if idx >= num_classes {
             return Err(NeuralError::InvalidArchitecture(format!(
@@ -124,7 +124,7 @@ pub fn one_hot_encode<F: Float + Debug>(
 /// * `rng` - Random number generator (only used if shuffle is true)
 /// * A tuple of (x_train, x_test, y_train, y_test)
 ///   use scirs2_neural::utils::train_test_split;
-///   use ndarray::{Array, arr2};
+///   use scirs2_core::ndarray::{Array, arr2};
 ///   let x = arr2(&[[1.0f64, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]]).into_dyn();
 ///   let y = arr2(&[[0.0f64], [1.0], [0.0], [1.0]]).into_dyn();
 ///   let (x_train, x_test, y_train, y_test) =
@@ -137,16 +137,16 @@ pub fn one_hot_encode<F: Float + Debug>(
 ///   assert_eq!(x_test.shape()[1], 2);
 ///   Result type for train/test split
 pub type TrainTestSplitResult<F> = (
-    ndarray::Array<F, ndarray::IxDyn>, // x_train
-    ndarray::Array<F, ndarray::IxDyn>, // x_test
-    ndarray::Array<F, ndarray::IxDyn>, // y_train
-    ndarray::Array<F, ndarray::IxDyn>, // y_test
+    scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>, // x_train
+    scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>, // x_test
+    scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>, // y_train
+    scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>, // y_test
 );
 /// This function splits input and target data into training and testing sets.
 #[allow(dead_code)]
 pub fn train_test_split<F: Float + Debug, R: Rng>(
-    x: &ndarray::Array<F, ndarray::IxDyn>,
-    y: &ndarray::Array<F, ndarray::IxDyn>,
+    x: &scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>,
+    y: &scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>,
     test_size: f64,
     shuffle: bool,
     rng: &mut R,
@@ -191,34 +191,34 @@ pub fn train_test_split<F: Float + Debug, R: Rng>(
     let mut xshape = x.shape().to_vec();
     let mut yshape = y.shape().to_vec();
     xshape[0] = n_train;
-    let mut x_train = ndarray::Array::zeros(xshape.clone());
+    let mut x_train = scirs2_core::ndarray::Array::zeros(xshape.clone());
     xshape[0] = n_test;
-    let mut x_test = ndarray::Array::zeros(xshape);
+    let mut x_test = scirs2_core::ndarray::Array::zeros(xshape);
     yshape[0] = n_train;
-    let mut y_train = ndarray::Array::zeros(yshape.clone());
+    let mut y_train = scirs2_core::ndarray::Array::zeros(yshape.clone());
     yshape[0] = n_test;
-    let mut y_test = ndarray::Array::zeros(yshape);
+    let mut y_test = scirs2_core::ndarray::Array::zeros(yshape);
     // Copy training data
     for (new_idx, &orig_idx) in train_indices.iter().enumerate() {
         // Copy x data
-        let x_slice = x.slice(ndarray::s![orig_idx, ..]);
-        let mut x_train_slice = x_train.slice_mut(ndarray::s![new_idx, ..]);
+        let x_slice = x.slice(scirs2_core::ndarray::s![orig_idx, ..]);
+        let mut x_train_slice = x_train.slice_mut(scirs2_core::ndarray::s![new_idx, ..]);
         x_train_slice.assign(&x_slice);
         // Copy y data
-        let y_slice = y.slice(ndarray::s![orig_idx, ..]);
-        let mut y_train_slice = y_train.slice_mut(ndarray::s![new_idx, ..]);
+        let y_slice = y.slice(scirs2_core::ndarray::s![orig_idx, ..]);
+        let mut y_train_slice = y_train.slice_mut(scirs2_core::ndarray::s![new_idx, ..]);
         y_train_slice.assign(&y_slice);
     }
 
     // Copy test data
     for (new_idx, &orig_idx) in test_indices.iter().enumerate() {
         // Copy x data
-        let x_slice = x.slice(ndarray::s![orig_idx, ..]);
-        let mut x_test_slice = x_test.slice_mut(ndarray::s![new_idx, ..]);
+        let x_slice = x.slice(scirs2_core::ndarray::s![orig_idx, ..]);
+        let mut x_test_slice = x_test.slice_mut(scirs2_core::ndarray::s![new_idx, ..]);
         x_test_slice.assign(&x_slice);
         // Copy y data
-        let y_slice = y.slice(ndarray::s![orig_idx, ..]);
-        let mut y_test_slice = y_test.slice_mut(ndarray::s![new_idx, ..]);
+        let y_slice = y.slice(scirs2_core::ndarray::s![orig_idx, ..]);
+        let mut y_test_slice = y_test.slice_mut(scirs2_core::ndarray::s![new_idx, ..]);
         y_test_slice.assign(&y_slice);
     }
 

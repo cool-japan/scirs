@@ -7,8 +7,8 @@
 
 use super::SpecializedMatrix;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -132,14 +132,14 @@ where
             let offset = self.block_offsets[block_idx];
             let blocksize = block.nrows();
 
-            let b_block = b.slice(ndarray::s![offset..offset + blocksize]);
+            let b_block = b.slice(scirs2_core::ndarray::s![offset..offset + blocksize]);
             let x_block = crate::solve::solve(
                 &block.view(),
                 &b_block,
                 Some(1), // workers
             )?;
 
-            x.slice_mut(ndarray::s![offset..offset + blocksize])
+            x.slice_mut(scirs2_core::ndarray::s![offset..offset + blocksize])
                 .assign(&x_block);
         }
 
@@ -236,11 +236,11 @@ where
             let offset = self.block_offsets[block_idx];
             let blocksize = block.nrows();
 
-            let x_block = x.slice(ndarray::s![offset..offset + blocksize]);
+            let x_block = x.slice(scirs2_core::ndarray::s![offset..offset + blocksize]);
             let y_block = block.dot(&x_block);
 
             result
-                .slice_mut(ndarray::s![offset..offset + blocksize])
+                .slice_mut(scirs2_core::ndarray::s![offset..offset + blocksize])
                 .assign(&y_block);
         }
 
@@ -263,12 +263,12 @@ where
             let offset = self.block_offsets[block_idx];
             let blocksize = block.nrows();
 
-            let x_block = x.slice(ndarray::s![offset..offset + blocksize]);
+            let x_block = x.slice(scirs2_core::ndarray::s![offset..offset + blocksize]);
             let block_t = block.t();
             let y_block = block_t.dot(&x_block);
 
             result
-                .slice_mut(ndarray::s![offset..offset + blocksize])
+                .slice_mut(scirs2_core::ndarray::s![offset..offset + blocksize])
                 .assign(&y_block);
         }
 
@@ -282,7 +282,7 @@ where
             let offset = self.block_offsets[block_idx];
             let blocksize = block.nrows();
 
-            let mut dense_block = dense.slice_mut(ndarray::s![
+            let mut dense_block = dense.slice_mut(scirs2_core::ndarray::s![
                 offset..offset + blocksize,
                 offset..offset + blocksize
             ]);
@@ -326,7 +326,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_block_diagonal_creation() {

@@ -4,7 +4,7 @@
 //! financial pricing models, including statistical distributions and
 //! numerical approximations.
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 
 /// Normal cumulative distribution function approximation
 ///

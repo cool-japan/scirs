@@ -163,10 +163,10 @@
 //! The goal is to infer the posterior distributions of θ and φ given the observed words.
 
 use crate::error::{Result, TextError};
-use ndarray::{Array1, Array2, Axis};
-use rand::prelude::*;
-use rand::seq::SliceRandom;
-use rand::{rngs::StdRng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::{rngs::StdRng, SeedableRng};
 use std::collections::HashMap;
 
 /// Learning method for LDA
@@ -412,13 +412,13 @@ impl LatentDirichletAllocation {
 
     // Helper functions
 
-    fn create_rng(&self) -> rand::rngs::StdRng {
-        use rand::SeedableRng;
+    fn create_rng(&self) -> scirs2_core::random::rngs::StdRng {
+        use scirs2_core::random::SeedableRng;
         match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
             None => {
-                let mut temp_rng = rand::rng();
-                rand::rngs::StdRng::from_rng(&mut temp_rng)
+                let mut temp_rng = scirs2_core::random::rng();
+                scirs2_core::random::rngs::StdRng::from_rng(&mut temp_rng)
             }
         }
     }
@@ -426,7 +426,7 @@ impl LatentDirichletAllocation {
     fn initialize_components(
         &self,
         n_features: usize,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Array2<f64> {
         // Use the RNG directly
 
@@ -522,7 +522,7 @@ impl LatentDirichletAllocation {
             let mut rng = if let Some(seed) = self.config.random_seed {
                 StdRng::seed_from_u64(seed)
             } else {
-                StdRng::from_rng(&mut rand::rng())
+                StdRng::from_rng(&mut scirs2_core::random::rng())
             };
 
             let mut components = Array2::<f64>::zeros((self.config.ntopics, n_features));
@@ -545,7 +545,7 @@ impl LatentDirichletAllocation {
             let mut rng = if let Some(seed) = self.config.random_seed {
                 StdRng::seed_from_u64(seed + epoch as u64)
             } else {
-                StdRng::from_rng(&mut rand::rng())
+                StdRng::from_rng(&mut scirs2_core::random::rng())
             };
             doc_indices.shuffle(&mut rng);
 

@@ -3,7 +3,7 @@
 //! This example shows how to use the specialized iterative solvers for quantized
 //! matrices, including conjugate gradient, GMRES, and preconditioned variants.
 
-use ndarray::{array, Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, Array2, ArrayView1};
 use scirs2_linalg::matrixfree::{conjugate_gradient, gmres, LinearOperator};
 use scirs2_linalg::quantization::{
     quantized_matrixfree::QuantizedMatrixFreeOp,

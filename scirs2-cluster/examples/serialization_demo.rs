@@ -1,12 +1,12 @@
 //! Example demonstrating clustering model serialization and persistence
 
-use ndarray::{array, Array2};
 use scirs2_cluster::{
     hierarchy::{linkage, LinkageMethod},
     kmeans_to_model, save_hierarchy, save_kmeans,
     vq::kmeans2,
     HierarchicalModel, KMeansModel, Metric, SerializableModel,
 };
+use scirs2_core::ndarray::{array, Array2};
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -3,8 +3,8 @@
 //! This module contains the main BSpline struct and its core methods for
 //! univariate spline interpolation using B-splines.
 
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, RemAssign, Sub, SubAssign};
 use std::sync::Arc;
@@ -81,7 +81,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::bspline::{BSpline, ExtrapolateMode};
     ///
     /// // Create a quadratic B-spline
@@ -513,11 +513,7 @@ where
         }
 
         // Initial coefficient index
-        let mut idx = if interval >= self.k {
-            interval - self.k
-        } else {
-            0
-        };
+        let mut idx = interval.saturating_sub(self.k);
 
         if idx > self.c.len() - self.k - 1 {
             idx = self.c.len() - self.k - 1;
@@ -582,11 +578,7 @@ where
         workspace.ensure_coeffs_capacity(self.k + 1);
 
         // Initial coefficient index
-        let mut idx = if interval >= self.k {
-            interval - self.k
-        } else {
-            0
-        };
+        let mut idx = interval.saturating_sub(self.k);
 
         if idx > self.c.len() - self.k - 1 {
             idx = self.c.len() - self.k - 1;

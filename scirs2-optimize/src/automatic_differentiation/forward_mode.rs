@@ -6,7 +6,7 @@
 
 use crate::automatic_differentiation::dual_numbers::{Dual, MultiDual};
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Options for forward-mode automatic differentiation
 #[derive(Debug, Clone)]

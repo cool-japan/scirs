@@ -5,7 +5,7 @@
 
 use super::config::{DownsamplingStrategy, VisualizationConfig};
 use crate::error::{NeuralError, Result};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -196,7 +196,7 @@ pub enum UpdateMode {
     /// Rolling window
     Rolling(usize),
 // Implementation for TrainingVisualizer
-impl<F: Float + Debug + 'static + num_traits::FromPrimitive + Send + Sync> TrainingVisualizer<F> {
+impl<F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + Send + Sync> TrainingVisualizer<F> {
     /// Create a new training visualizer
     pub fn new(config: VisualizationConfig) -> Self {
         Self {

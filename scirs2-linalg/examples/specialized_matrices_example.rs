@@ -7,7 +7,7 @@
 //!
 //! These implementations provide efficient storage and operations for special matrix structures.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_linalg::{
     specialized::{BandedMatrix, SpecializedMatrix, SymmetricMatrix, TridiagonalMatrix},
     LinalgResult,

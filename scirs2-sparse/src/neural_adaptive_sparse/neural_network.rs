@@ -3,8 +3,8 @@
 //! This module contains the neural network architectures used in the adaptive
 //! sparse matrix processing system.
 
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Neural network layer for sparse matrix optimization
@@ -130,7 +130,7 @@ impl NeuralNetwork {
 
     /// Initialize weights using Xavier initialization
     fn initialize_weights(input_size: usize, output_size: usize) -> Vec<Vec<f64>> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let bound = (6.0 / (input_size + output_size) as f64).sqrt();
 
         (0..output_size)

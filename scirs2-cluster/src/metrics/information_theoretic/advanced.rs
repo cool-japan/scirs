@@ -4,8 +4,8 @@
 //! evaluation, including Jensen-Shannon divergence, variation of information,
 //! and other specialized measures.
 
-use ndarray::ArrayView1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Debug;
 
@@ -26,7 +26,7 @@ use crate::error::{ClusteringError, Result};
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::jensen_shannon_divergence;
 ///
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
@@ -293,7 +293,6 @@ where
     }
 
     let two = F::from(2).unwrap();
-    let mut js_div = F::zero();
 
     // Calculate the average distribution M
     let m: Vec<F> = p
@@ -319,7 +318,7 @@ where
     }
 
     // Jensen-Shannon divergence
-    js_div = (kl_pm + kl_qm) / two;
+    let js_div = (kl_pm + kl_qm) / two;
 
     // Return the Jensen-Shannon distance (square root of divergence)
     Ok(js_div.sqrt())
@@ -444,7 +443,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_jensen_shannon_divergence_identical() {

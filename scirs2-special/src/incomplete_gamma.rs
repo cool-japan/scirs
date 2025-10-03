@@ -6,7 +6,7 @@
 use crate::error::{SpecialError, SpecialResult};
 use crate::gamma::{gamma, gammaln};
 use crate::validation::{check_finite, check_positive};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, MulAssign, SubAssign};
 

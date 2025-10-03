@@ -3,7 +3,7 @@
 //! This module provides diagnostic utilities for ODE solvers.
 
 use crate::IntegrateFloat;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Calculate stability metrics for a solution
 ///

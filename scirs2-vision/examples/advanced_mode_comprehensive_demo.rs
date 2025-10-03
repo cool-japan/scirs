@@ -9,7 +9,7 @@
 //! - Multi-modal AI optimization
 //! - Quantum-inspired and neuromorphic processing
 
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_vision::{
     // Scene understanding
     analyze_scene_with_reasoning,
@@ -376,7 +376,9 @@ fn main() -> Result<()> {
 
     // Process a frame with quantum-inspired optimization
     // Convert 3D color image to 2D grayscale for Frame
-    let grayscale_data = test_images[0].slice(ndarray::s![.., .., 0]).to_owned(); // Take red channel as grayscale
+    let grayscale_data = test_images[0]
+        .slice(scirs2_core::ndarray::s![.., .., 0])
+        .to_owned(); // Take red channel as grayscale
     let test_frame = Frame {
         data: grayscale_data,
         timestamp: std::time::Instant::now(),
@@ -415,7 +417,9 @@ fn main() -> Result<()> {
 
     // Process with neuromorphic adaptation
     let neuromorphic_test_frame = Frame {
-        data: test_images[1].slice(ndarray::s![.., .., 0]).to_owned(), // Use second image, red channel
+        data: test_images[1]
+            .slice(scirs2_core::ndarray::s![.., .., 0])
+            .to_owned(), // Use second image, red channel
         timestamp: std::time::Instant::now(),
         index: 1,
         metadata: Some(FrameMetadata {

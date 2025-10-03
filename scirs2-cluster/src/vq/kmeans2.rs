@@ -1,9 +1,9 @@
 //! Enhanced K-means clustering implementation with multiple initialization methods
 
-use ndarray::{s, Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::{rngs::StdRng, Rng, RngCore, SeedableRng};
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::{rngs::StdRng, Rng, RngCore, SeedableRng};
+use scirs2_core::random::{Distribution, Normal};
 use std::fmt::Debug;
 use std::str::FromStr;
 
@@ -251,7 +251,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::vq::kmeans2_str;
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -349,7 +349,7 @@ where
     let mut rng: Box<dyn RngCore> = if let Some(_seed) = randomseed {
         Box::new(StdRng::seed_from_u64(_seed))
     } else {
-        Box::new(rand::rng())
+        Box::new(scirs2_core::random::rng())
     };
 
     for i in 0..k {
@@ -383,7 +383,7 @@ where
     let mut rng: Box<dyn RngCore> = if let Some(_seed) = randomseed {
         Box::new(StdRng::seed_from_u64(_seed))
     } else {
-        Box::new(rand::rng())
+        Box::new(scirs2_core::random::rng())
     };
 
     // Choose k random indices without replacement
@@ -419,7 +419,7 @@ where
     let mut rng: Box<dyn RngCore> = if let Some(_seed) = randomseed {
         Box::new(StdRng::seed_from_u64(_seed))
     } else {
-        Box::new(rand::rng())
+        Box::new(scirs2_core::random::rng())
     };
 
     let mut centroids = Array2::zeros((k, n_features));
@@ -479,7 +479,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_kmeans2_basic_functionality() {

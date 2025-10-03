@@ -184,10 +184,8 @@ impl GarchModel {
             }
 
             // Compute negative log-likelihood
-            match self.negative_log_likelihood(returns, params[0], params[1], params[2]) {
-                Ok(nll) => nll,
-                Err(_) => 1e10,
-            }
+            self.negative_log_likelihood(returns, params[0], params[1], params[2])
+                .unwrap_or(1e10)
         };
 
         // Simple random search with local refinement
@@ -198,9 +196,9 @@ impl GarchModel {
             let mut trial = best_params.clone();
 
             // Perturb parameters
-            trial[0] *= 1.0 + (rand::random::<f64>() - 0.5) * 0.2; // ±10% omega
-            trial[1] *= 1.0 + (rand::random::<f64>() - 0.5) * 0.2; // ±10% alpha
-            trial[2] *= 1.0 + (rand::random::<f64>() - 0.5) * 0.2; // ±10% beta
+            trial[0] *= 1.0 + (scirs2_core::random::random::<f64>() - 0.5) * 0.2; // ±10% omega
+            trial[1] *= 1.0 + (scirs2_core::random::random::<f64>() - 0.5) * 0.2; // ±10% alpha
+            trial[2] *= 1.0 + (scirs2_core::random::random::<f64>() - 0.5) * 0.2; // ±10% beta
 
             // Ensure constraints
             trial[0] = trial[0].max(1e-6).min(0.01);

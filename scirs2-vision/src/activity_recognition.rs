@@ -12,7 +12,7 @@
 
 use crate::error::{Result, VisionError};
 use crate::scene_understanding::SceneAnalysisResult;
-use ndarray::{Array1, Array2, Array3, ArrayView3};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView3};
 use std::collections::HashMap;
 
 /// Advanced-advanced activity_ recognition engine with multi-level analysis
@@ -714,11 +714,11 @@ impl ActivityRecognitionEngine {
         if let Some(ref prev_frame) = self.get_previous_frame() {
             let flow = self.compute_optical_flow(frame, prev_frame)?;
             motion_features
-                .slice_mut(ndarray::s![.., .., 0])
-                .assign(&flow.slice(ndarray::s![.., .., 0]));
+                .slice_mut(scirs2_core::ndarray::s![.., .., 0])
+                .assign(&flow.slice(scirs2_core::ndarray::s![.., .., 0]));
             motion_features
-                .slice_mut(ndarray::s![.., .., 1])
-                .assign(&flow.slice(ndarray::s![.., .., 1]));
+                .slice_mut(scirs2_core::ndarray::s![.., .., 1])
+                .assign(&flow.slice(scirs2_core::ndarray::s![.., .., 1]));
         }
 
         // Feature 2: Motion magnitude

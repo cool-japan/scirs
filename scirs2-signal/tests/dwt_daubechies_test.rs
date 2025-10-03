@@ -23,8 +23,8 @@ mod dwt_daubechies_tests {
 
     #[test]
     fn test_db4_decomposition_reconstruction() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let b = [0.5, 0.5];
         // Test with a signal of length 16 (power of 2 for simplicity)
         let signal = vec![
             1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0,
@@ -91,8 +91,8 @@ mod dwt_daubechies_tests {
 
     #[test]
     fn test_db_boundary_handling() {
-        let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let b = vec![0.5, 0.5];
+        let a = [1.0, 2.0, 3.0, 4.0, 5.0];
+        let b = [0.5, 0.5];
         // Test with a signal of odd length
         let signal = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
 

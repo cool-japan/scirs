@@ -18,7 +18,7 @@
 //! ## Regression with Mean Squared Error
 //! ```rust
 //! use scirs2_neural::losses::{Loss, MeanSquaredError};
-//! use ndarray::Array;
+//! use scirs2_core::ndarray::Array;
 //! # fn example() -> scirs2_neural::error::Result<()> {
 //! let mse = MeanSquaredError::new();
 //! // Predictions and targets for regression
@@ -98,8 +98,8 @@
 //! 4. **Loss scheduling**: Consider changing loss function or parameters during training
 
 use crate::error::Result;
-use ndarray::Array;
-use num_traits::Float;
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Trait for loss functions used in neural networks
 ///
@@ -108,7 +108,7 @@ use std::fmt::Debug;
 /// # Examples
 /// ```rust
 /// use scirs2_neural::losses::{Loss, MeanSquaredError};
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// # fn example() -> scirs2_neural::error::Result<()> {
 /// let loss_fn = MeanSquaredError::new();
 /// let predictions = Array::from_vec(vec![1.0, 2.0, 3.0]).into_dyn();
@@ -133,7 +133,7 @@ pub trait Loss<F: Float + Debug> {
     /// # Examples
     /// ```rust
     /// use scirs2_neural::losses::{Loss, MeanSquaredError};
-    /// use ndarray::Array;
+    /// use scirs2_core::ndarray::Array;
     /// # fn example() -> scirs2_neural::error::Result<()> {
     /// let mse = MeanSquaredError::new();
     /// let predictions = Array::from_vec(vec![1.0, 2.0]).into_dyn();
@@ -146,8 +146,8 @@ pub trait Loss<F: Float + Debug> {
     /// ```
     fn forward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        targets: &Array<F, ndarray::IxDyn>,
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
     ) -> Result<F>;
     /// Calculate the gradient of the loss with respect to the predictions
     /// This method computes ∂Loss/∂predictions, which is used in backpropagation
@@ -162,9 +162,9 @@ pub trait Loss<F: Float + Debug> {
     ///   assert_eq!(gradients.as_slice().unwrap(), &[1.0, 1.0]);
     fn backward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        targets: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>>;
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
 }
 mod contrastive;
 mod crossentropy;

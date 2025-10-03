@@ -6,7 +6,7 @@
 
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::VecDeque;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
@@ -700,10 +700,10 @@ impl StreamTransformer {
     pub fn add_standard_scaling(self) -> Self {
         self.add_transform(|chunk| {
             // Simplified standard scaling (would need proper implementation)
-            let mean = chunk.data.mean_axis(ndarray::Axis(0)).unwrap();
-            let std = chunk.data.std_axis(ndarray::Axis(0), 0.0);
+            let mean = chunk.data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+            let std = chunk.data.std_axis(scirs2_core::ndarray::Axis(0), 0.0);
 
-            for mut row in chunk.data.axis_iter_mut(ndarray::Axis(0)) {
+            for mut row in chunk.data.axis_iter_mut(scirs2_core::ndarray::Axis(0)) {
                 for (i, val) in row.iter_mut().enumerate() {
                     if std[i] > 0.0 {
                         *val = (*val - mean[i]) / std[i];
@@ -718,9 +718,9 @@ impl StreamTransformer {
     pub fn add_missing_value_imputation(self) -> Self {
         self.add_transform(|chunk| {
             // Replace NaN values with column mean
-            let means = chunk.data.mean_axis(ndarray::Axis(0)).unwrap();
+            let means = chunk.data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
 
-            for mut row in chunk.data.axis_iter_mut(ndarray::Axis(0)) {
+            for mut row in chunk.data.axis_iter_mut(scirs2_core::ndarray::Axis(0)) {
                 for (i, val) in row.iter_mut().enumerate() {
                     if val.is_nan() {
                         *val = means[i];

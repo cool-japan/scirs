@@ -4,8 +4,8 @@
 //! structures and implementations for the advanced fusion intelligence system, including
 //! multi-timeline processing, causal discovery, paradox resolution, and dimensional analysis.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -802,6 +802,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> TemporalDimension<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for TimelineSynchronizer<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> TimelineSynchronizer<F> {
     /// Create new timeline synchronizer
     pub fn new() -> Self {
@@ -948,6 +954,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> TimelineSynchronizer<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for CausalStructureAnalyzer<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> CausalStructureAnalyzer<F> {
     /// Create new causal structure analyzer
     pub fn new() -> Self {
@@ -998,6 +1010,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> CausalStructureAnalyzer<F> {
             }
         }
         Ok(F::zero())
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for CausalGraph<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1055,6 +1073,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> CausalGraph<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for CounterfactualReasoning<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> CounterfactualReasoning<F> {
     /// Create new counterfactual reasoning system
     pub fn new() -> Self {
@@ -1088,6 +1112,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> CounterfactualReasoning<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for ReasoningEngine<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> ReasoningEngine<F> {
     /// Create new reasoning engine
     pub fn new() -> Self {
@@ -1109,6 +1139,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> ReasoningEngine<F> {
             }
             _ => Ok(F::zero()),
         }
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for TemporalParadoxResolver<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1152,6 +1188,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> TemporalParadoxResolver<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for ParadoxDetection<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> ParadoxDetection<F> {
     /// Create new paradox detection system
     pub fn new() -> Self {
@@ -1184,6 +1226,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> ParadoxDetection<F> {
         }
 
         Ok(detected_paradoxes)
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for SeverityAssessment<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1304,6 +1352,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> ResolutionStrategy<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for ConsistencyMaintenance<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> ConsistencyMaintenance<F> {
     /// Create new consistency maintenance system
     pub fn new() -> Self {
@@ -1386,6 +1440,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> RepairMechanism<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for SpacetimeMapper<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> SpacetimeMapper<F> {
     /// Create new spacetime mapper
     pub fn new() -> Self {
@@ -1413,6 +1473,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> SpacetimeMapper<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for SpacetimeModel<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> SpacetimeModel<F> {
     /// Create new spacetime model
     pub fn new() -> Self {
@@ -1422,6 +1488,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> SpacetimeModel<F> {
             topology: TopologyType::Minkowski,
             metric_signature: vec![1, -1, -1, -1], // Minkowski signature
         }
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for DimensionalAnalysis<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1446,6 +1518,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> DimensionalAnalysis<F> {
         dimensional_data.mapv_inplace(|x| x / dimension_factor.sqrt());
 
         Ok(dimensional_data)
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for MetricTensor<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

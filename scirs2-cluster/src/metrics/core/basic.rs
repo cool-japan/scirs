@@ -4,8 +4,8 @@
 //! Davies-Bouldin score, Calinski-Harabasz score, Adjusted Rand Index,
 //! and Normalized Mutual Information.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -29,7 +29,7 @@ use crate::metrics::silhouette_score;
 /// # Example
 ///
 /// ```
-/// use ndarray::{ArrayView1, Array1, Array2};
+/// use scirs2_core::ndarray::{ArrayView1, Array1, Array2};
 /// use scirs2_cluster::metrics::davies_bouldin_score;
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![
@@ -158,7 +158,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::{ArrayView1, Array1, Array2};
+/// use scirs2_core::ndarray::{ArrayView1, Array1, Array2};
 /// use scirs2_cluster::metrics::calinski_harabasz_score;
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![
@@ -281,7 +281,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::{ArrayView1, Array1, Array2};
+/// use scirs2_core::ndarray::{ArrayView1, Array1, Array2};
 /// use scirs2_cluster::metrics::mean_silhouette_score;
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![
@@ -321,7 +321,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::adjusted_rand_index;
 ///
 /// let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
@@ -444,7 +444,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::normalized_mutual_info;
 ///
 /// let labels_true = Array1::from_vec(vec![0, 0, 1, 1]);
@@ -526,7 +526,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::homogeneity_completeness_v_measure;
 ///
 /// let labels_true = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
@@ -716,7 +716,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_davies_bouldin_score() {

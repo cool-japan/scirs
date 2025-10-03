@@ -150,8 +150,8 @@ fn bench_connectivity(c: &mut Criterion) {
         }
         let mut rng = StdRng::seed_from_u64(43);
         for _ in 0..(size * 2) {
-            let u = rng.gen_range(0..*size);
-            let v = rng.gen_range(0..*size);
+            let u = rng.random_range(0..*size);
+            let v = rng.random_range(0..*size);
             if u != v {
                 let _ = directed_graph.add_edge(u, v, 1.0);
             }
@@ -249,8 +249,8 @@ fn bench_io(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("has_edge", size), &graph, |b, graph| {
             let mut rng = StdRng::seed_from_u64(44);
             b.iter(|| {
-                let u = rng.gen_range(0..*size);
-                let v = rng.gen_range(0..*size);
+                let u = rng.random_range(0..*size);
+                let v = rng.random_range(0..*size);
                 let result = graph.has_edge(&u, &v);
                 black_box(result)
             });

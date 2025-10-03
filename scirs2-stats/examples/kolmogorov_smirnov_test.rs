@@ -3,7 +3,7 @@
 //! This example demonstrates the usage of the Kolmogorov-Smirnov two-sample test,
 //! which is used to test if two samples come from the same distribution.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::{distributions, ks_2samp};
 
 #[allow(dead_code)]

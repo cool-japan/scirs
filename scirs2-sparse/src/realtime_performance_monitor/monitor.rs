@@ -138,7 +138,7 @@ impl RealTimePerformanceMonitor {
                 }
 
                 // Cleanup old data periodically
-                if sample_counter.load(Ordering::Relaxed) % 1000 == 0 {
+                if sample_counter.load(Ordering::Relaxed).is_multiple_of(1000) {
                     if let Ok(mut history) = performance_history.lock() {
                         let retention_time = config.optimization_interval_s * 1000 * 10; // 10x optimization interval
                         history.cleanup_old_samples(retention_time);

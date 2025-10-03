@@ -5,9 +5,9 @@
 //! to perturbations. These metrics help identify how sensitive a model's fairness
 //! properties are to changes in the data or model parameters.
 
-use ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
-use num_traits::real::Real;
-use rand::{random, rngs::StdRng, seq::SliceRandom, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::{random, rngs::StdRng, seq::SliceRandom, SeedableRng};
 use std::collections::HashMap;
 
 use crate::error::{MetricsError, Result};
@@ -33,7 +33,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use std::collections::HashMap;
 /// use scirs2_metrics::fairness::robustness::performance_invariance;
 /// use scirs2_metrics::classification::accuracy_score;
@@ -66,8 +66,8 @@ use crate::error::{MetricsError, Result};
 ///     &group_names,
 ///     |yt, yp| {
 ///         // Convert to arrays for accuracy_score
-///         let yt_array = ndarray::Array::from_vec(yt.to_vec());
-///         let yp_array = ndarray::Array::from_vec(yp.to_vec());
+///         let yt_array = scirs2_core::ndarray::Array::from_vec(yt.to_vec());
+///         let yp_array = scirs2_core::ndarray::Array::from_vec(yp.to_vec());
 ///         accuracy_score(&yt_array, &yp_array).unwrap_or(0.0)
 ///     }
 /// ).unwrap();
@@ -112,7 +112,7 @@ pub fn performance_invariance<T, S1, S2, S3, F>(
     metric_fn: F,
 ) -> Result<InvarianceResult>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = T>,
     S3: Data<Elem = T>,
@@ -231,7 +231,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::fairness::robustness::influence_function;
 /// use scirs2_metrics::fairness::demographic_parity_difference;
 ///
@@ -263,7 +263,7 @@ pub fn influence_function<T, F>(
     n_samples: Option<usize>,
 ) -> Result<Vec<f64>>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     F: Fn(&Array1<T>, &Array1<T>) -> f64,
 {
     // Check dimensions
@@ -348,7 +348,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::fairness::robustness::{
 ///     perturbation_sensitivity, PerturbationType, SensitivityResult
 /// };
@@ -442,7 +442,7 @@ pub fn perturbation_sensitivity<T, F>(
     random_seed: Option<u64>,
 ) -> Result<SensitivityResult>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     F: Fn(&Array1<T>, &Array1<T>) -> f64,
 {
     // Check dimensions
@@ -537,7 +537,7 @@ fn perturb_by_label_flip<T>(
     rng: &mut StdRng,
 ) -> Result<Array1<T>>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
 {
     let n_samples = y_pred.len();
     let n_flips = (n_samples as f64 * flip_prob).round() as usize;
@@ -575,7 +575,7 @@ fn perturb_by_subsample<T>(
     rng: &mut StdRng,
 ) -> Result<Array1<T>>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
 {
     let n_samples = y_pred.len();
     let n_subsample = (n_samples as f64 * sample_fraction).round() as usize;
@@ -638,7 +638,7 @@ fn perturb_by_noise<T>(
     _rng: &mut StdRng, // Prefix with underscore since we're not using it directly
 ) -> Result<Array1<T>>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
 {
     let n_samples = y_pred.len();
 

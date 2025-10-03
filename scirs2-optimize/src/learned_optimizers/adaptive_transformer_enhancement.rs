@@ -10,8 +10,8 @@ use super::{
 };
 use crate::error::{OptimizeError, OptimizeResult};
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::random::Rng;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 
@@ -642,12 +642,12 @@ impl OptimizationTransformer {
 
         // Input embedding
         let input_embedding = Array2::from_shape_fn((model_dim, model_dim), |_| {
-            (rand::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
         });
 
         // Output projection
         let output_projection = Array2::from_shape_fn((model_dim, model_dim), |_| {
-            (rand::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
         });
 
         Self {
@@ -760,16 +760,16 @@ impl MultiHeadAttention {
         let head_dim = model_dim / num_heads;
 
         let w_query = Array2::from_shape_fn((model_dim, model_dim), |_| {
-            (rand::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
         });
         let w_key = Array2::from_shape_fn((model_dim, model_dim), |_| {
-            (rand::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
         });
         let w_value = Array2::from_shape_fn((model_dim, model_dim), |_| {
-            (rand::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
         });
         let w_output = Array2::from_shape_fn((model_dim, model_dim), |_| {
-            (rand::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * (2.0 / model_dim as f64).sqrt()
         });
 
         Self {
@@ -806,9 +806,9 @@ impl MultiHeadAttention {
             let head_end = head_start + self.head_dim;
 
             // Extract head-specific Q, K, V
-            let q_head = q.slice(ndarray::s![.., head_start..head_end]);
-            let k_head = k.slice(ndarray::s![.., head_start..head_end]);
-            let v_head = v.slice(ndarray::s![.., head_start..head_end]);
+            let q_head = q.slice(scirs2_core::ndarray::s![.., head_start..head_end]);
+            let k_head = k.slice(scirs2_core::ndarray::s![.., head_start..head_end]);
+            let v_head = v.slice(scirs2_core::ndarray::s![.., head_start..head_end]);
 
             // Compute attention scores
             let scores = self.compute_attention_scores(&q_head, &k_head)?;
@@ -925,10 +925,10 @@ impl FeedForwardNetwork {
     /// Create new feed-forward network
     pub fn new(input_dim: usize, hidden_dim: usize) -> Self {
         let linear1 = Array2::from_shape_fn((hidden_dim, input_dim), |_| {
-            (rand::rng().random::<f64>() - 0.5) * (2.0 / input_dim as f64).sqrt()
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * (2.0 / input_dim as f64).sqrt()
         });
         let linear2 = Array2::from_shape_fn((input_dim, hidden_dim), |_| {
-            (rand::rng().random::<f64>() - 0.5) * (2.0 / hidden_dim as f64).sqrt()
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * (2.0 / hidden_dim as f64).sqrt()
         });
 
         Self {
@@ -1013,19 +1013,19 @@ impl TransformerProblemEncoder {
 
         Self {
             gradient_encoder: Array2::from_shape_fn((embedding_dim, feature_dim), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 0.1
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 0.1
             }),
             hessian_encoder: Array2::from_shape_fn((embedding_dim, feature_dim), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 0.1
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 0.1
             }),
             parameter_encoder: Array2::from_shape_fn((embedding_dim, feature_dim), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 0.1
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 0.1
             }),
             temporal_encoder: Array2::from_shape_fn((embedding_dim, feature_dim), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 0.1
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 0.1
             }),
             context_encoder: Array2::from_shape_fn((embedding_dim, feature_dim), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 0.1
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 0.1
             }),
             embedding_dim,
         }
@@ -1260,6 +1260,12 @@ impl AttentionAdaptation {
     }
 }
 
+impl Default for LearningRateAdapter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LearningRateAdapter {
     /// Create new learning rate adapter
     pub fn new() -> Self {
@@ -1319,12 +1325,18 @@ impl StepSizePredictor {
     pub fn new(feature_dim: usize) -> Self {
         Self {
             predictor_network: Array2::from_shape_fn((1, feature_dim), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 0.1
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 0.1
             }),
             feature_dim,
             prediction_history: Vec::new(),
             actual_steps: Vec::new(),
         }
+    }
+}
+
+impl Default for ConvergenceDetector {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1372,17 +1384,17 @@ impl LearnedOptimizer for AdaptiveTransformerOptimizer {
             let initial_params = match &task.initial_distribution {
                 super::ParameterDistribution::Uniform { low, high } => {
                     Array1::from_shape_fn(task.problem.dimension, |_| {
-                        low + rand::rng().random::<f64>() * (high - low)
+                        low + scirs2_core::random::rng().random::<f64>() * (high - low)
                     })
                 }
                 super::ParameterDistribution::Normal { mean, std } => {
                     Array1::from_shape_fn(task.problem.dimension, |_| {
-                        mean + std * (rand::rng().random::<f64>() - 0.5) * 2.0
+                        mean + std * (scirs2_core::random::rng().random::<f64>() - 0.5) * 2.0
                     })
                 }
                 super::ParameterDistribution::Custom { samples } => {
                     if !samples.is_empty() {
-                        samples[rand::rng().random_range(0..samples.len())].clone()
+                        samples[scirs2_core::random::rng().random_range(0..samples.len())].clone()
                     } else {
                         Array1::zeros(task.problem.dimension)
                     }
@@ -1551,7 +1563,7 @@ mod tests {
     #[test]
     fn test_transformer_forward_pass() {
         let mut transformer = OptimizationTransformer::new(2, 32, 10, 1);
-        let input = Array2::from_shape_fn((5, 32), |_| rand::rng().random::<f64>());
+        let input = Array2::from_shape_fn((5, 32), |_| scirs2_core::random::rng().random::<f64>());
 
         let output = transformer.forward(&input.view()).unwrap();
 

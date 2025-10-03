@@ -20,8 +20,8 @@ pub use robust::*;
 pub use seasonal::*;
 pub use spline::*;
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Type of spline to use for trend estimation

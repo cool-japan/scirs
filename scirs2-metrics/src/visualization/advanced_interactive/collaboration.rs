@@ -392,7 +392,7 @@ impl ConflictResolver {
                         .unwrap_or(operation.timestamp)
             {
                 return Some(Conflict {
-                    id: format!("conflict_{}", rand::random::<u64>()),
+                    id: format!("conflict_{}", scirs2_core::random::random::<u64>()),
                     operations: vec![existing_op.clone(), operation.clone()],
                     conflict_type: ConflictType::ConcurrentModification,
                     status: ConflictStatus::Pending,

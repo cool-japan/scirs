@@ -25,7 +25,7 @@ use std::time::Duration;
 #[allow(dead_code)]
 fn generate_testdata(size: usize, seed: u64) -> Array1<f64> {
     let mut rng = StdRng::seed_from_u64(seed);
-    Array1::from_iter((0..size).map(|_| rng.gen::<f64>() * 100.0 - 50.0))
+    Array1::from_iter((0..size).map(|_| rng.random::<f64>() * 100.0 - 50.0))
 }
 
 /// Generate matrix test data for multivariate benchmarks
@@ -480,7 +480,7 @@ fn bench_memory_efficiency(c: &mut Criterion) {
                 b.iter(|| {
                     let chunksize = 1000;
                     let mut results = Vec::new();
-                    for chunk in data.axis_chunks_iter(ndarray::Axis(0), chunksize) {
+                    for chunk in data.axis_chunks_iter(scirs2_core::ndarray::Axis(0), chunksize) {
                         results.push(chunk.iter().sum::<f64>() / chunk.len() as f64);
                     }
                     black_box(results)

@@ -164,7 +164,12 @@ pub fn minimum_vertex_cut<N, E, Ix>(
 ) -> Result<HypergraphCut<N>>
 where
     N: Node + Clone + Ord + std::fmt::Debug,
-    E: EdgeWeight + Clone + Default + num_traits::Zero + std::ops::Add<Output = E> + Into<f64>,
+    E: EdgeWeight
+        + Clone
+        + Default
+        + scirs2_core::numeric::Zero
+        + std::ops::Add<Output = E>
+        + Into<f64>,
     Ix: IndexType,
 {
     if !hypergraph.has_node(source) || !hypergraph.has_node(target) {

@@ -15,9 +15,9 @@
 //! - Mixture model diagnostics and validation
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, One, Zero};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, One, Zero};
+use scirs2_core::random::Rng;
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use std::marker::PhantomData;
 
@@ -253,7 +253,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Create new Gaussian Mixture Model
     pub fn new(_ncomponents: usize, config: GMMConfig) -> StatsResult<Self> {
@@ -374,7 +374,7 @@ where
             InitializationMethod::Random => {
                 // Random selection from data points
                 use scirs2_core::random::Random;
-                let mut init_rng = rand::thread_rng();
+                let mut init_rng = scirs2_core::random::thread_rng();
                 let mut rng = match self.config.seed {
                     Some(seed) => Random::seed(seed),
                     None => Random::seed(init_rng.random()),
@@ -433,7 +433,7 @@ where
     /// K-means++ initialization
     fn kmeans_plus_plus_init(&self, data: &ArrayView2<F>) -> StatsResult<Array2<F>> {
         use scirs2_core::random::Random;
-        let mut init_rng = rand::thread_rng();
+        let mut init_rng = scirs2_core::random::thread_rng();
         let mut rng = match self.config.seed {
             Some(seed) => Random::seed(seed),
             None => Random::seed(init_rng.random()),
@@ -859,7 +859,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Create new KDE
     pub fn new(kernel: KernelType, bandwidth: F, config: KDEConfig) -> Self {
@@ -1047,7 +1047,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let config = config.unwrap_or_default();
     let mut gmm = GaussianMixtureModel::new(n_components, config)?;
@@ -1072,7 +1072,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let kernel = kernel.unwrap_or(KernelType::Gaussian);
     let bandwidth = bandwidth.unwrap_or_else(|| {
@@ -1108,7 +1108,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let config = config.unwrap_or_default();
     let mut best_n_components = min_components;
@@ -1152,7 +1152,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Create new Robust GMM
     pub fn new(
@@ -1322,7 +1322,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Create new Streaming GMM
     pub fn new(
@@ -1431,7 +1431,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     // Simplified hierarchical clustering for initialization
     // Full implementation would use proper hierarchical clustering
@@ -1461,7 +1461,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let (n_samples_, _) = data.dim();
     let foldsize = n_samples_ / n_folds;
@@ -1487,7 +1487,7 @@ where
             data[[train_indices[i], j]]
         });
 
-        let valdata = data.slice(ndarray::s![val_start..val_end, ..]);
+        let valdata = data.slice(scirs2_core::ndarray::s![val_start..val_end, ..]);
 
         // Fit model on training data
         let mut gmm = GaussianMixtureModel::new(n_components, config.clone())?;
@@ -1529,7 +1529,7 @@ where
         + FromPrimitive
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let mut results = Vec::new();
 
@@ -1547,7 +1547,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_gmm_basic() {
@@ -1879,7 +1879,7 @@ where
         let mut means = Array2::zeros((self.max_components, n_features));
 
         use scirs2_core::random::Random;
-        let mut init_rng = rand::thread_rng();
+        let mut init_rng = scirs2_core::random::thread_rng();
         let mut rng = match self.config.seed {
             Some(seed) => Random::seed(seed),
             None => Random::seed(init_rng.random()),
@@ -2055,7 +2055,10 @@ where
         &self,
         point: &ArrayView1<F>,
         mean: &ArrayView1<F>,
-        _scale_matrix: &ndarray::ArrayBase<ndarray::ViewRepr<&F>, ndarray::Dim<[usize; 2]>>,
+        _scale_matrix: &scirs2_core::ndarray::ArrayBase<
+            scirs2_core::ndarray::ViewRepr<&F>,
+            scirs2_core::ndarray::Dim<[usize; 2]>,
+        >,
         _degrees_of_freedom: F,
     ) -> StatsResult<F> {
         // Simplified Gaussian log likelihood

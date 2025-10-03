@@ -131,8 +131,8 @@
 use crate::error::{Result, TextError};
 use crate::tokenize::{Tokenizer, WordTokenizer};
 use crate::vocabulary::Vocabulary;
-use ndarray::{Array1, Array2};
-use rand::prelude::*;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::prelude::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::fs::File;
@@ -445,7 +445,7 @@ impl Word2Vec {
         let vector_size = self.config.vector_size;
 
         // Initialize input and output embeddings with small random values
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let input_embeddings = Array2::from_shape_fn((vocab_size, vector_size), |_| {
             (rng.random::<f64>() * 2.0 - 1.0) / vector_size as f64
         });
@@ -557,7 +557,7 @@ impl Word2Vec {
 
     /// Apply subsampling to a sentence
     fn subsample_sentence(&self, sentence: &[usize]) -> Result<Vec<usize>> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let total_words: f64 = self.vocabulary.len() as f64;
         let threshold = self.config.subsample * total_words;
 
@@ -605,7 +605,7 @@ impl Word2Vec {
         // For each position in sentence, predict the word from its context
         for pos in 0..sentence.len() {
             // Determine context window (with random size)
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let window = 1 + rng.random_range(0..window_size);
             let target_word = sentence[pos];
 
@@ -714,7 +714,7 @@ impl Word2Vec {
         // For each position in sentence, predict the context from the word
         for pos in 0..sentence.len() {
             // Determine context window (with random size)
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let window = 1 + rng.random_range(0..window_size);
             let target_word = sentence[pos];
 

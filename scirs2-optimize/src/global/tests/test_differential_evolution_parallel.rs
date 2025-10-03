@@ -2,7 +2,7 @@
 
 use crate::differential_evolution::{differential_evolution, DifferentialEvolutionOptions};
 use crate::parallel::ParallelOptions;
-use ndarray::{array, ArrayView1};
+use scirs2_core::ndarray::{array, ArrayView1};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 

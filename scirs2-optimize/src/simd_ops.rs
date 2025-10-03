@@ -4,7 +4,7 @@
 //! used throughout the optimization library. It uses the scirs2-core SIMD abstraction
 //! layer for automatic platform detection and optimization.
 
-use ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
 
 /// SIMD configuration - compatibility wrapper for legacy code
@@ -163,7 +163,7 @@ impl Default for SimdVectorOps {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_platform_capabilities() {

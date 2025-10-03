@@ -6,8 +6,8 @@
 use crate::analysis::advanced;
 use crate::analysis::types::*;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 
 /// Stability analyzer for dynamical systems
 pub struct StabilityAnalyzer {

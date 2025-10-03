@@ -1,4 +1,33 @@
 #![allow(deprecated)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::unnecessary_lazy_evaluations)]
+#![allow(clippy::option_map_or_none)]
+#![allow(clippy::redundant_pattern_matching)]
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::new_ret_no_self)]
+#![allow(clippy::unwrap_or_default)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::single_match)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::vec_init_then_push)]
+#![allow(clippy::empty_line_after_outer_attr)]
+#![allow(clippy::duplicate_attributes)]
+#![allow(clippy::only_used_in_recursion)]
+#![allow(clippy::manual_ok_or)]
+#![allow(clippy::repeat_once)]
+#![allow(clippy::redundant_guards)]
+#![allow(clippy::single_match_else)]
+#![allow(clippy::manual_map)]
+#![allow(clippy::iter_repeat_n)]
+#![allow(clippy::option_if_let_else)]
+#![allow(clippy::option_as_ref_cloned)]
+#![allow(clippy::manual_ok_err)]
+#![allow(clippy::manual_repeat_n)]
+#![allow(clippy::match_single_binding)]
+#![allow(clippy::unnecessary_map_or)]
 //! # SciRS2 IO - Scientific Data Input/Output
 //!
 //! **scirs2-io** provides comprehensive file I/O capabilities for scientific computing,
@@ -30,7 +59,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-io = "0.1.0-beta.4"
+//! scirs2-io = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust,no_run
@@ -45,7 +74,7 @@
 //! let (headers, data) = read_csv("data.csv", Some(config)).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 //!
 //! ## Modules
 //!
@@ -251,7 +280,7 @@ pub mod ml_framework;
 ///
 /// ```rust,no_run
 /// use scirs2_io::mmap::{MmapArray, create_mmap_array};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create a large array file
 /// let data = Array2::from_shape_fn((1000, 1000), |(i, j)| (i + j) as f64);
@@ -335,7 +364,7 @@ pub mod out_of_core;
 ///
 /// ```rust,no_run
 /// use scirs2_io::parquet::{read_parquet, write_parquet, ParquetWriteOptions};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Write data to Parquet
 /// let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
@@ -410,7 +439,7 @@ pub mod simd_io;
 ///
 /// ```rust,no_run
 /// use scirs2_io::sparse::SparseMatrix;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create a sparse matrix from a dense array
 /// let dense = Array2::from_shape_vec((3, 3), vec![

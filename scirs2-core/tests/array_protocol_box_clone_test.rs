@@ -196,7 +196,7 @@ fn test_ndarray_wrapper_box_clone() {
     // Try to downcast the clone to the original type
     let unwrapped = cloned
         .as_any()
-        .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>();
+        .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>();
     assert!(unwrapped.is_some());
 }
 
@@ -265,7 +265,7 @@ fn test_jit_array_box_clone() {
     // Try to downcast the clone to the original type
     let unwrapped = cloned
         .as_any()
-        .downcast_ref::<JITEnabledArray<f64, NdarrayWrapper<f64, ndarray::Ix2>>>();
+        .downcast_ref::<JITEnabledArray<f64, NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>>();
     assert!(unwrapped.is_some());
 }
 

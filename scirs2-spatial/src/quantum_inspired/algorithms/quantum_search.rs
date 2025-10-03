@@ -4,8 +4,8 @@
 //! principles for enhanced spatial data retrieval and neighbor searching.
 
 use crate::error::{SpatialError, SpatialResult};
-use num_complex::Complex64;
 use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 // Import quantum concepts

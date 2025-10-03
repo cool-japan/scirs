@@ -1,7 +1,7 @@
 //! Privacy mechanisms for federated learning
 
 use crate::error::Result;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 /// Differential privacy mechanism
 pub struct DifferentialPrivacy {
     /// Privacy budget (epsilon)
@@ -54,7 +54,7 @@ impl DifferentialPrivacy {
             }
     /// Add noise based on mechanism
     fn add_noise(&self, gradients: &mut [Array2<f32>]) -> Result<()> {
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
         let mut rng = rng();
         match self.mechanism {
             NoiseMethod::Gaussian => {
@@ -94,8 +94,8 @@ impl SecureAggregation {
         client_id: usize,
     ) -> Result<Vec<Array2<f32>>> {
         // Simplified masking - in practice would use cryptographic PRG
-        use rand::rngs::StdRng;
-        use rand::{Rng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::{Rng, SeedableRng};
         let mut masked = Vec::new();
         for update in updates.iter() {
             let mut mask = Array2::<f32>::zeros(update.shape());

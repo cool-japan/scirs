@@ -1,7 +1,7 @@
 //! Tests for feature selection methods
 
 use super::*;
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 
 #[allow(dead_code)]
 fn create_test_data() -> (Array2<f64>, Array1<f64>) {

@@ -4,7 +4,7 @@
 [[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-signal)](https://docs.rs/scirs2-signal)
 
-Production-ready signal processing module for the SciRS2 scientific computing library (v0.1.0-beta.4). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module provides core signal processing tools including filtering, convolution, spectral analysis, and wavelet transforms with ecosystem consistency through scirs2-core abstractions.
+Production-ready signal processing module for the SciRS2 scientific computing library (v0.1.0-rc.1). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module provides core signal processing tools including filtering, convolution, spectral analysis, and wavelet transforms with ecosystem consistency through scirs2-core abstractions.
 
 ## 🚨 Current Status: SIMD Optimization Disabling (Active Development)
 
@@ -35,8 +35,8 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-signal = "0.1.0-beta.4"
-scirs2-core = "0.1.0-beta.4"
+scirs2-signal = "0.1.0-rc.1"
+scirs2-core = "0.1.0-rc.1"
 ndarray = "0.16.1"
 ```
 
@@ -348,7 +348,7 @@ let filtered = filter::filtfilt(&b, &a, &data)?;
 
 ## Development Status
 
-**Current Release**: 0.1.0-beta.4
+**Current Release**: 0.1.0-rc.1
 
 ### Production-Ready Features ✅
 - Digital filtering (IIR/FIR design and application)

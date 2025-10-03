@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use scirs2_core::essentials::Uniform;
 use scirs2_core::ndarray::{Array1, Array2};
@@ -267,10 +269,10 @@ fn bench_rbf_2d_comparison(c: &mut Criterion) {
                     let queries_py = queries_py.call_method1("reshape", (100, 2)).unwrap();
 
                     // Map kernel names
-                    let scipy_kernel = match kernel_name {
-                        &"gaussian" => "gaussian",
-                        &"multiquadric" => "multiquadric",
-                        &"thin_plate" => "thin_plate_spline",
+                    let scipy_kernel = match *kernel_name {
+                        "gaussian" => "gaussian",
+                        "multiquadric" => "multiquadric",
+                        "thin_plate" => "thin_plate_spline",
                         _ => "gaussian",
                     };
 
@@ -408,7 +410,7 @@ fn bench_memory_efficiency(c: &mut Criterion) {
             |b, _| {
                 b.iter(|| {
                     for &q in queries.iter() {
-                        black_box(linear_interpolate(
+                        let _ = black_box(linear_interpolate(
                             &x.view(),
                             &y.view(),
                             &Array1::from_vec(vec![q]).view(),

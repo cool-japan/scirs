@@ -7,7 +7,7 @@
 
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -446,7 +446,7 @@ where
 ///
 /// ```
 /// use scirs2_integrate::gaussian::multi_gauss_legendre;
-/// use ndarray::{Array1, ArrayView1};
+/// use scirs2_core::ndarray::{Array1, ArrayView1};
 ///
 /// // Integrate f(x,y) = x²+y² over [0,1]×[0,1] (exact result: 2/3)
 /// let result = multi_gauss_legendre(

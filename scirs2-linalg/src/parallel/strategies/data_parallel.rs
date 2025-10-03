@@ -5,8 +5,8 @@
 
 use super::super::{adaptive, WorkerConfig};
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use scirs2_core::parallel_ops::*;
 use std::iter::Sum;
 
@@ -77,7 +77,7 @@ pub fn parallel_power_iteration<F>(
     config: &WorkerConfig,
 ) -> LinalgResult<(F, Array1<F>)>
 where
-    F: Float + Send + Sync + Zero + Sum + NumAssign + One + ndarray::ScalarOperand + 'static,
+    F: Float + Send + Sync + Zero + Sum + NumAssign + One + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {
@@ -234,7 +234,7 @@ pub fn parallel_gemm<F>(
     a: &ArrayView2<F>,
     b: &ArrayView2<F>,
     config: &WorkerConfig,
-) -> LinalgResult<ndarray::Array2<F>>
+) -> LinalgResult<scirs2_core::ndarray::Array2<F>>
 where
     F: Float + Send + Sync + Zero + Sum + NumAssign + 'static,
 {
@@ -257,7 +257,7 @@ where
     // Block size for cache-friendly computation
     let blocksize = config.chunksize;
 
-    let mut result = ndarray::Array2::zeros((m, n));
+    let mut result = scirs2_core::ndarray::Array2::zeros((m, n));
 
     // Parallel computation using blocks
     result
@@ -292,7 +292,7 @@ pub fn parallel_conjugate_gradient<F>(
     config: &WorkerConfig,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float + Send + Sync + Zero + Sum + One + NumAssign + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {
@@ -363,7 +363,7 @@ pub fn parallel_jacobi<F>(
     config: &WorkerConfig,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float + Send + Sync + Zero + Sum + One + NumAssign + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {
@@ -440,7 +440,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, arr2};
+    use scirs2_core::ndarray::{arr1, arr2};
 
     #[test]
     fn test_parallel_matvec() {

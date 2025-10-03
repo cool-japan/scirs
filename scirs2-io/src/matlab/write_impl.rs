@@ -9,7 +9,7 @@ use crate::matlab::{
     MX_INT32_CLASS, MX_SINGLE_CLASS, MX_UINT8_CLASS,
 };
 use byteorder::{LittleEndian, WriteBytesExt};
-use ndarray::ArrayD;
+use scirs2_core::ndarray::ArrayD;
 use std::io::{Seek, Write};
 
 // Missing constants redefined locally

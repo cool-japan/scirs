@@ -6,8 +6,8 @@
 
 use crate::error::SpatialResult;
 use crate::kdtree::KDTree;
-use num_traits::Float;
 use scirs2_core::ndarray::{Array1, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::marker::{Send, Sync};
 
 /// Extension trait to add optimized operations to the KDTree

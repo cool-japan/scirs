@@ -6,8 +6,8 @@
 use super::config::VisualizationConfig;
 use crate::error::{NeuralError, Result};
 use crate::models::sequential::Sequential;
-use ndarray::{ArrayD, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{ArrayD, ScalarOperand};
+use scirs2_core::numeric::Float;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -134,7 +134,7 @@ impl<
         F: Float
             + Debug
             + 'static
-            + num_traits::FromPrimitive
+            + scirs2_core::numeric::FromPrimitive
             + ScalarOperand
             + Send
             + Sync
@@ -341,27 +341,27 @@ impl<
                 if processed.ndim() > 2 {
                     let mean_axis = processed.ndim() - 1; // Usually channel is last dimension
                     processed
-                        .mean_axis(ndarray::Axis(mean_axis))
+                        .mean_axis(scirs2_core::ndarray::Axis(mean_axis))
                         .unwrap()
-                        .insert_axis(ndarray::Axis(mean_axis))
+                        .insert_axis(scirs2_core::ndarray::Axis(mean_axis))
                 } else {
             ChannelAggregation::Max => {
                     let max_axis = processed.ndim() - 1;
                     let max_values = processed.fold_axis(
-                        ndarray::Axis(max_axis),
+                        scirs2_core::ndarray::Axis(max_axis),
                         F::neg_infinity(),
                         |&acc, &x| acc.max(x),
                     );
-                    max_values.insert_axis(ndarray::Axis(max_axis)), ChannelAggregation::Min => {
+                    max_values.insert_axis(scirs2_core::ndarray::Axis(max_axis)), ChannelAggregation::Min => {
                     let min_axis = processed.ndim() - 1;
                     let min_values =
-                        processed.fold_axis(ndarray::Axis(min_axis), F::infinity(), |&acc, &x| {
+                        processed.fold_axis(scirs2_core::ndarray::Axis(min_axis), F::infinity(), |&acc, &x| {
                             acc.min(x)
                         });
-                    min_values.insert_axis(ndarray::Axis(min_axis)), ChannelAggregation::Std => {
+                    min_values.insert_axis(scirs2_core::ndarray::Axis(min_axis)), ChannelAggregation::Std => {
                     let std_axis = processed.ndim() - 1;
-                    let mean = processed.mean_axis(ndarray::Axis(std_axis)).unwrap();
-                    let variance = processed.map_axis(ndarray::Axis(std_axis), |channel| {
+                    let mean = processed.mean_axis(scirs2_core::ndarray::Axis(std_axis)).unwrap();
+                    let variance = processed.map_axis(scirs2_core::ndarray::Axis(std_axis), |channel| {
                         let mean_val = mean.iter().next().copied().unwrap_or(F::zero());
                         let variance_sum = channel
                             .iter()
@@ -369,20 +369,20 @@ impl<
                             .fold(F::zero(), |acc, x| acc + x);
                         (variance_sum / F::from(channel.len()).unwrap_or(F::one())).sqrt()
                     });
-                    variance.insert_axis(ndarray::Axis(std_axis)), ChannelAggregation::Select(channels) => {
+                    variance.insert_axis(scirs2_core::ndarray::Axis(std_axis)), ChannelAggregation::Select(channels) => {
                 if processed.ndim() > 2 && !channels.is_empty() {
                     let channel_axis = processed.ndim() - 1;
                     let mut selected_slices = Vec::new();
                     for &channel_idx in channels {
                         if channel_idx < processed.shape()[channel_axis] {
                             let slice =
-                                processed.index_axis(ndarray::Axis(channel_axis), channel_idx);
-                            selected_slices.push(slice.insert_axis(ndarray::Axis(channel_axis)));
+                                processed.index_axis(scirs2_core::ndarray::Axis(channel_axis), channel_idx);
+                            selected_slices.push(slice.insert_axis(scirs2_core::ndarray::Axis(channel_axis)));
                         }
                     }
                     if !selected_slices.is_empty() {
-                        ndarray::concatenate(
-                            ndarray::Axis(channel_axis),
+                        scirs2_core::ndarray::concatenate(
+                            scirs2_core::ndarray::Axis(channel_axis),
                             &selected_slices.iter().map(|x| x.view()).collect::<Vec<_>>(),
                         )
                         .map_err(|_| {
@@ -586,7 +586,7 @@ impl<
                 "Spatial attention requires at least 3D tensors".to_string(),
         // Assume format is [batch, height, width, channels] or [height, width, channels]
         let channel_axis = activations.ndim() - 1;
-        let attention_map = activations.mean_axis(ndarray::Axis(channel_axis)).unwrap();
+        let attention_map = activations.mean_axis(scirs2_core::ndarray::Axis(channel_axis)).unwrap();
         // Normalize attention map
         let min_val = attention_map.iter().copied().fold(F::infinity(), F::min);
         let max_val = attention_map
@@ -761,10 +761,10 @@ impl Default for FeatureMapInfo {
 mod tests {
     use super::*;
     use crate::layers::Dense;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_activation_visualizer_creation() {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let mut model = Sequential::<f32>::new();
         model.add_layer(Dense::new(10, 5, Some("relu"), &mut rng).unwrap());
         let config = VisualizationConfig::default();

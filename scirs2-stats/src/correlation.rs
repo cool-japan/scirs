@@ -9,8 +9,8 @@ pub mod intraclass;
 use crate::error::StatsResult;
 use crate::error_standardization::ErrorMessages;
 use crate::{mean, std};
-use ndarray::{s, Array1, Array2, ArrayBase, Data, Dimension, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Data, Dimension, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 
 /// Compute the Pearson correlation coefficient between two arrays.
@@ -31,7 +31,7 @@ use scirs2_core::parallel_ops::*;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::pearson_r;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -127,7 +127,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::spearman_r;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -184,8 +184,8 @@ where
     assign_ranks(&y_idx, &mut y_ranks)?;
 
     // Convert ranks to arrays
-    let x_ranks = ndarray::Array1::from(x_ranks);
-    let y_ranks = ndarray::Array1::from(y_ranks);
+    let x_ranks = scirs2_core::ndarray::Array1::from(x_ranks);
+    let y_ranks = scirs2_core::ndarray::Array1::from(y_ranks);
 
     // Calculate Pearson correlation of the ranks
     pearson_r::<F, _>(&x_ranks.view(), &y_ranks.view())
@@ -240,7 +240,7 @@ fn assign_ranks<F: Float>(sorteddata: &[(F, usize)], ranks: &mut [F]) -> StatsRe
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::kendall_tau;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -360,7 +360,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2, Axis};
+/// use scirs2_core::ndarray::{array, Array2, Axis};
 /// use scirs2_stats::partial_corr;
 ///
 /// // Create sample data
@@ -446,7 +446,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::partial_corrr;
 ///
 /// // Create sample data
@@ -553,7 +553,7 @@ where
 fn compute_residuals<F, D1, D2>(
     y: &ArrayBase<D1, Ix1>,
     x: &ArrayBase<D2, Ix2>,
-) -> StatsResult<ndarray::Array1<F>>
+) -> StatsResult<scirs2_core::ndarray::Array1<F>>
 where
     F: Float + std::fmt::Debug + NumCast + std::iter::Sum<F> + 'static,
     D1: Data<Elem = F>,
@@ -613,9 +613,9 @@ where
 /// This should be replaced with a better implementation in production code
 #[allow(dead_code)]
 fn simple_linear_solve<F>(
-    a: &ndarray::Array2<F>,
-    b: &ndarray::Array1<F>,
-) -> StatsResult<ndarray::Array1<F>>
+    a: &scirs2_core::ndarray::Array2<F>,
+    b: &scirs2_core::ndarray::Array1<F>,
+) -> StatsResult<scirs2_core::ndarray::Array1<F>>
 where
     F: Float + std::fmt::Debug + NumCast + 'static,
 {
@@ -681,7 +681,7 @@ where
     }
 
     // Back substitution
-    let mut x = ndarray::Array1::zeros(n);
+    let mut x = scirs2_core::ndarray::Array1::zeros(n);
     for i in (0..n).rev() {
         let mut sum = F::zero();
         for j in (i + 1)..n {
@@ -709,7 +709,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::point_biserial;
 ///
 /// let binary = array![0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0];
@@ -829,7 +829,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::point_biserialr;
 ///
 /// // Create data with binary predictor and continuous outcome
@@ -941,7 +941,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::corrcoef;
 ///
 /// let data = array![
@@ -956,7 +956,10 @@ where
 /// println!("Correlation matrix:\n{:?}", corr_matrix);
 /// ```
 #[allow(dead_code)]
-pub fn corrcoef<F, D>(data: &ArrayBase<D, Ix2>, method: &str) -> StatsResult<ndarray::Array2<F>>
+pub fn corrcoef<F, D>(
+    data: &ArrayBase<D, Ix2>,
+    method: &str,
+) -> StatsResult<scirs2_core::ndarray::Array2<F>>
 where
     F: Float
         + std::fmt::Debug
@@ -1056,7 +1059,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_pearson_correlation() {
@@ -1191,7 +1194,7 @@ mod tests {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::pearsonr;
 ///
 /// // Create two datasets with a positive linear relationship
@@ -1488,7 +1491,7 @@ fn gamma_function(x: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::spearmanr;
 ///
 /// // Create two datasets with a monotonic (but not linear) relationship
@@ -1605,7 +1608,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::kendalltau;
 ///
 /// // Create two datasets with a perfect negative ordinal relationship

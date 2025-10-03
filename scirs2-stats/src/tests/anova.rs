@@ -6,8 +6,8 @@
 use crate::distributions::f;
 use crate::error::{StatsError, StatsResult};
 use crate::mean;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 /// Result of a one-way ANOVA test
@@ -46,7 +46,7 @@ pub struct AnovaResult<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::anova::one_way_anova;
 ///
 /// // Create three groups for comparison
@@ -191,7 +191,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::anova::{one_way_anova, tukey_hsd};
 ///
 /// // Create three groups for comparison

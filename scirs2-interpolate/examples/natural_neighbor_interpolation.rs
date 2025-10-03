@@ -3,10 +3,10 @@
 //! This example shows how to use the Voronoi-based Natural Neighbor
 //! interpolation methods for scattered 2D data.
 
-use ndarray::{Array1, Array2};
 use plotters::prelude::*;
 use plotters::style::colors::{BLACK, BLUE, RED};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use scirs2_interpolate::voronoi::{make_laplace_interpolator, make_sibson_interpolator};
 use std::error::Error;
 
@@ -14,7 +14,7 @@ use std::error::Error;
 fn main() -> Result<(), Box<dyn Error>> {
     // Generate scattered data points
     let n_points = 30;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Create points in a 2D domain
     let mut points_vec = Vec::with_capacity(n_points * 2);

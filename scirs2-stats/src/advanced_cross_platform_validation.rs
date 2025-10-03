@@ -10,7 +10,7 @@ use crate::numerical_stability_enhancements::create_exhaustive_numerical_stabili
 use crate::unified_processor:{
     create_advanced_processor, OptimizationMode, AdvancedProcessorConfig,
 };
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::simd_ops::PlatformCapabilities;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

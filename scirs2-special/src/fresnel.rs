@@ -9,8 +9,8 @@
 //!
 //! There are also modified Fresnel integrals that are used in certain applications.
 
-use num_complex::Complex64;
-use num_traits::Zero;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Zero;
 use std::f64::consts::PI;
 
 use crate::error::{SpecialError, SpecialResult};
@@ -76,7 +76,7 @@ pub fn fresnel(x: f64) -> SpecialResult<(f64, f64)> {
 ///
 /// ```
 /// use scirs2_special::fresnel_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(1.0, 0.5);
 /// let (s, c) = fresnel_complex(z).unwrap();

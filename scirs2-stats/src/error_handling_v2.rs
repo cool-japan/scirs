@@ -250,11 +250,7 @@ impl EnhancedError {
 
     /// Format the error as a detailed report
     pub fn detailed_report(&self) -> String {
-        let mut report = format!(
-            "Error {}: {}\n\n",
-            self.code.to_string(),
-            self.code.description()
-        );
+        let mut report = format!("Error {}: {}\n\n", self.code, self.code.description());
 
         report.push_str(&format!("Operation: {}\n", self.context.operation));
 

@@ -2,7 +2,7 @@
 //!
 //! This module provides advanced text analysis capabilities with SIMD acceleration.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// SIMD-accelerated text analysis operations
 pub struct SimdTextAnalyzer;

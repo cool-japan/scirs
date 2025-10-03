@@ -2,8 +2,8 @@
 //!
 //! Implements advanced ARIMA fitting, diagnostic checking, and model selection
 
-use ndarray::{s, Array1, ArrayBase, Data, Ix1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, ArrayBase, Data, Ix1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -812,7 +812,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_arima_creation() {

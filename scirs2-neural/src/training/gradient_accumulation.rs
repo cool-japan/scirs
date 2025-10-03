@@ -1,7 +1,7 @@
 //! Gradient accumulation utilities
 
-use ndarray::ScalarOperand;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Configuration for gradient accumulation

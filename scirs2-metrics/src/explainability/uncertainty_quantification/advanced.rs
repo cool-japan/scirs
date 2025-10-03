@@ -6,8 +6,8 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 
 /// Advanced uncertainty analysis
 #[derive(Debug, Clone)]

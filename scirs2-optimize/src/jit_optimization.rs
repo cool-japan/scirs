@@ -7,7 +7,7 @@
 //! - Profile-guided optimizations for critical code paths
 
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -472,8 +472,8 @@ impl PatternDetector {
     }
 
     fn generate_sample_points(&mut self, n_vars: usize) -> Result<(), OptimizeError> {
-        use rand::{prelude::*, rng};
-        let mut rng = rand::rng();
+        use scirs2_core::random::{prelude::*, rng};
+        let mut rng = scirs2_core::random::rng();
 
         // Generate various types of sample points
         let n_samples = (20 + n_vars).min(100); // Adaptive sampling

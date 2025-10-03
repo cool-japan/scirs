@@ -780,8 +780,8 @@ mod tests {
         let use_large_f64 = pool.should_use_gpu(1000, 8);
 
         // Results depend on GPU availability, but the calls should not panic
-        assert!(use_large_f32 == true || use_large_f32 == false);
-        assert!(use_large_f64 == true || use_large_f64 == false);
+        // Just ensuring the variables are used (the fact that test runs means no panic)
+        let _ = (use_large_f32, use_large_f64);
     }
 
     #[test]

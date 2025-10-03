@@ -6,7 +6,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::collections::HashMap;
 
 /// LBP variant types

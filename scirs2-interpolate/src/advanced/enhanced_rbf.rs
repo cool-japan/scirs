@@ -3,8 +3,8 @@
 
 use crate::advanced::rbf::{RBFInterpolator, RBFKernel};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Sub};
@@ -322,8 +322,8 @@ where
 
                 for i in 0..n_points {
                     for j in i + 1..n_points {
-                        let point_i = points.slice(ndarray::s![i, ..]);
-                        let point_j = points.slice(ndarray::s![j, ..]);
+                        let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
+                        let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
                         total_dist += Self::scaled_distance(&point_i, &point_j, &scale_factors);
                         pair_count += 1;
                     }
@@ -344,8 +344,8 @@ where
                     let mut min_dist = F::infinity();
                     for j in 0..n_points {
                         if i != j {
-                            let point_i = points.slice(ndarray::s![i, ..]);
-                            let point_j = points.slice(ndarray::s![j, ..]);
+                            let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
+                            let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
                             let dist = Self::scaled_distance(&point_i, &point_j, &scale_factors);
                             if dist < min_dist {
                                 min_dist = dist;
@@ -489,8 +489,8 @@ where
         // Fill the RBF part of the matrix
         for i in 0..n_points {
             for j in 0..n_points {
-                let point_i = points.slice(ndarray::s![i, ..]);
-                let point_j = points.slice(ndarray::s![j, ..]);
+                let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
+                let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
                 let r = Self::scaled_distance(&point_i, &point_j, scale_factors);
                 a_matrix[[i, j]] = Self::evaluate_kernel(r, epsilon, kernel);
             }
@@ -510,7 +510,7 @@ where
                 a_matrix[[n_points, i]] = F::one();
 
                 // Linear terms
-                let point_i = points.slice(ndarray::s![i, ..]);
+                let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
                 for j in 0..n_dims {
                     a_matrix[[i, n_points + 1 + j]] = point_i[j];
                     a_matrix[[n_points + 1 + j, i]] = point_i[j];
@@ -596,8 +596,8 @@ where
                 // Fill the block for this pair of scales
                 for i in 0..n_points {
                     for j in 0..n_points {
-                        let point_i = points.slice(ndarray::s![i, ..]);
-                        let point_j = points.slice(ndarray::s![j, ..]);
+                        let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
+                        let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
                         let r = Self::scaled_distance(&point_i, &point_j, scale_factors);
 
                         // Adjust kernel evaluation for multi-scale approach
@@ -644,7 +644,7 @@ where
                     a_matrix[[poly_start, row_idx]] = F::one();
 
                     // Linear terms
-                    let point_i = points.slice(ndarray::s![i, ..]);
+                    let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
                     for j in 0..n_dims {
                         a_matrix[[row_idx, poly_start + 1 + j]] = point_i[j];
                         a_matrix[[poly_start + 1 + j, row_idx]] = point_i[j];
@@ -786,13 +786,13 @@ where
 
                 // Evaluate on validation set
                 for &val_idx in &val_indices {
-                    let val_point = points.slice(ndarray::s![val_idx, ..]);
+                    let val_point = points.slice(scirs2_core::ndarray::s![val_idx, ..]);
                     let true_value = values[val_idx];
 
                     // Predict using trained interpolator
                     let mut predicted = F::zero();
                     for (j, &train_idx) in train_indices.iter().enumerate() {
-                        let train_point = points.slice(ndarray::s![train_idx, ..]);
+                        let train_point = points.slice(scirs2_core::ndarray::s![train_idx, ..]);
                         let r = Self::scaled_distance(&val_point, &train_point, scale_factors);
                         let rbf_val = Self::evaluate_kernel(r, epsilon, kernel);
                         predicted += coeffs[j] * rbf_val;
@@ -905,12 +905,12 @@ where
                 };
 
                 // Predict the left-out point
-                let val_point = points.slice(ndarray::s![i, ..]);
+                let val_point = points.slice(scirs2_core::ndarray::s![i, ..]);
                 let true_value = values[i];
 
                 let mut predicted = F::zero();
                 for (j, &train_idx) in train_indices.iter().enumerate() {
-                    let train_point = points.slice(ndarray::s![train_idx, ..]);
+                    let train_point = points.slice(scirs2_core::ndarray::s![train_idx, ..]);
                     let r = Self::scaled_distance(&val_point, &train_point, scale_factors);
                     let rbf_val = Self::evaluate_kernel(r, epsilon, kernel);
                     predicted += coeffs[j] * rbf_val;
@@ -937,8 +937,8 @@ where
 
         for i in 0..n_points {
             for j in i + 1..n_points {
-                let point_i = points.slice(ndarray::s![i, ..]);
-                let point_j = points.slice(ndarray::s![j, ..]);
+                let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
+                let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
                 total_dist += Self::scaled_distance(&point_i, &point_j, scalefactors);
                 pair_count += 1;
             }
@@ -991,8 +991,8 @@ where
         let mut a_matrix = Array2::<F>::zeros((n_points, n_points));
         for i in 0..n_points {
             for j in 0..n_points {
-                let point_i = points.slice(ndarray::s![i, ..]);
-                let point_j = points.slice(ndarray::s![j, ..]);
+                let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
+                let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
                 let r = Self::scaled_distance(&point_i, &point_j, scale_factors);
                 a_matrix[[i, j]] = Self::evaluate_kernel(r, epsilon, kernel);
             }
@@ -1024,11 +1024,11 @@ where
         // Compute residual sum of squares
         let mut rss = F::zero();
         for i in 0..n_points {
-            let point_i = points.slice(ndarray::s![i, ..]);
+            let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
             let mut predicted = F::zero();
 
             for j in 0..n_points {
-                let point_j = points.slice(ndarray::s![j, ..]);
+                let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
                 let r = Self::scaled_distance(&point_i, &point_j, scale_factors);
                 let rbf_val = Self::evaluate_kernel(r, epsilon, kernel);
                 predicted += coeffs[j] * rbf_val;
@@ -1194,7 +1194,7 @@ where
             let n_scales = self.scale_parameters.as_ref().unwrap().len();
 
             for q in 0..n_query {
-                let query_point = querypoints.slice(ndarray::s![q, ..]);
+                let query_point = querypoints.slice(scirs2_core::ndarray::s![q, ..]);
                 let mut value = F::zero();
 
                 // Evaluate contribution from each scale
@@ -1202,7 +1202,7 @@ where
                     let epsilon = self.scale_parameters.as_ref().unwrap()[scale_idx];
 
                     for i in 0..n_points {
-                        let sample_point = self.points.slice(ndarray::s![i, ..]);
+                        let sample_point = self.points.slice(scirs2_core::ndarray::s![i, ..]);
                         let r = EnhancedRBFBuilder::<F>::scaled_distance(
                             &query_point,
                             &sample_point,
@@ -1231,12 +1231,12 @@ where
         } else {
             // Single-scale evaluation
             for q in 0..n_query {
-                let query_point = querypoints.slice(ndarray::s![q, ..]);
+                let query_point = querypoints.slice(scirs2_core::ndarray::s![q, ..]);
                 let mut value = F::zero();
 
                 // Evaluate RBF contribution
                 for i in 0..n_points {
-                    let sample_point = self.points.slice(ndarray::s![i, ..]);
+                    let sample_point = self.points.slice(scirs2_core::ndarray::s![i, ..]);
                     let r = EnhancedRBFBuilder::<F>::scaled_distance(
                         &query_point,
                         &sample_point,
@@ -1577,7 +1577,7 @@ where
 mod tests {
     use super::*;
 
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_enhanced_rbf_builder() {

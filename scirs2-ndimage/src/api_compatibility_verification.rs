@@ -11,7 +11,7 @@ use crate::interpolation::*;
 use crate::measurements::*;
 use crate::morphology::*;
 use crate::scipy_compat_layer;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// API compatibility test result
 #[derive(Debug, Clone)]

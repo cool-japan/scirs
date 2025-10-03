@@ -5,8 +5,8 @@ mod advanced_linalg_demo_tests {
     use ag::tensor_ops::*;
     #[allow(unused_imports)]
     use approx::assert_relative_eq;
-    use ndarray::array;
     use scirs2_autograd as ag;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_existing_enhanced_operations() {
@@ -25,12 +25,21 @@ mod advanced_linalg_demo_tests {
             let ninf = norminf(&a);
             let nfro = normfro(&a);
 
-            println!("  1-norm: {}", n1.eval(g).unwrap()[ndarray::IxDyn(&[])]);
-            println!("  2-norm: {}", n2.eval(g).unwrap()[ndarray::IxDyn(&[])]);
-            println!("  ∞-norm: {}", ninf.eval(g).unwrap()[ndarray::IxDyn(&[])]);
+            println!(
+                "  1-norm: {}",
+                n1.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
+            );
+            println!(
+                "  2-norm: {}",
+                n2.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
+            );
+            println!(
+                "  ∞-norm: {}",
+                ninf.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
+            );
             println!(
                 "  Frobenius norm: {}",
-                nfro.eval(g).unwrap()[ndarray::IxDyn(&[])]
+                nfro.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
             );
 
             // 2. Symmetric Eigendecomposition
@@ -117,19 +126,19 @@ mod advanced_linalg_demo_tests {
 
             println!(
                 "  Matrix rank: {}",
-                rank.eval(g).unwrap()[ndarray::IxDyn(&[])]
+                rank.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
             );
             println!(
                 "  Condition number (2-norm): {}",
-                cond_2.eval(g).unwrap()[ndarray::IxDyn(&[])]
+                cond_2.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
             );
             println!(
                 "  Sign of determinant: {}",
-                sign.eval(g).unwrap()[ndarray::IxDyn(&[])]
+                sign.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
             );
             println!(
                 "  Log absolute determinant: {}",
-                log_det.eval(g).unwrap()[ndarray::IxDyn(&[])]
+                log_det.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
             );
 
             println!("\n=== All Enhanced Operations Working! ===");

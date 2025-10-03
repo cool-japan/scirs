@@ -1,7 +1,7 @@
 //! Demonstration of parallel hierarchical clustering performance and correctness
 
-use ndarray::Array2;
 use scirs2_cluster::hierarchy::{linkage, parallel_linkage, LinkageMethod, Metric};
+use scirs2_core::ndarray::Array2;
 use std::time::Instant;
 
 #[allow(dead_code)]

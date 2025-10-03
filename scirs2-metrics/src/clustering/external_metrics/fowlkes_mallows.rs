@@ -3,7 +3,7 @@
 //! This module provides the Fowlkes-Mallows score for evaluating clustering quality
 //! by comparing the predicted clusters with ground truth.
 
-use ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -30,7 +30,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::clustering::fowlkes_mallows_score;
 ///
 /// let labels_true = array![0, 0, 1, 1, 2, 2];
@@ -141,7 +141,7 @@ fn combinations(n: usize) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_fowlkes_mallows_score() {

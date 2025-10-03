@@ -11,9 +11,9 @@
 //! - **Quantum Kernel Methods**: Distance metrics using quantum similarity measures
 //! - **Quantum-Inspired Optimization**: Quantum annealing for hyperparameter tuning
 
-use ndarray::{Array1, Array2, Array3};
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -156,7 +156,7 @@ pub struct QuantumAttention<F: Float + Debug> {
 impl<F: Float + Debug + Clone + FromPrimitive> QuantumAttention<F> {
     /// Create new quantum attention layer
     pub fn new(_model_dim: usize, num_heads: usize, qubits_perhead: usize) -> Result<Self> {
-        if _model_dim % num_heads != 0 {
+        if !_model_dim.is_multiple_of(num_heads) {
             return Err(TimeSeriesError::InvalidInput(
                 "Model dimension must be divisible by number of _heads".to_string(),
             ));
@@ -1085,7 +1085,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> QuantumNeuralNetwork<F> {
             for i in 0..layer.linear_weights.nrows() {
                 for j in 0..layer.linear_weights.ncols() {
                     // Quantum tunneling: allow larger jumps occasionally
-                    let is_tunnel = ((iteration + layer_idx + i + j) % 50) == 0;
+                    let is_tunnel = (iteration + layer_idx + i + j).is_multiple_of(50);
                     let scale = if is_tunnel {
                         perturbation_scale * F::from(5.0).unwrap()
                     } else {

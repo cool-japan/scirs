@@ -36,7 +36,7 @@ mod tests {
         // Create a simple matrix and test its gradient
         ag::run(|g| {
             // Create a matrix [[1, 2], [3, 4]]
-            let data = ndarray::array![[1.0, 2.0], [3.0, 4.0]].into_dyn();
+            let data = scirs2_core::ndarray::array![[1.0, 2.0], [3.0, 4.0]].into_dyn();
             let x = T::convert_to_tensor(data.clone(), g);
 
             // Compute sum of elements

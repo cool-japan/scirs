@@ -346,7 +346,7 @@ fn bench_performance_characteristics(c: &mut Criterion) {
 
     for (rows, cols) in scaling_sizes {
         let input = Array2::from_shape_fn((rows, cols), |(i, j)| {
-            ((i as f64 / 10.0).sin() * (j as f64 / 10.0).cos() * 255.0)
+            (i as f64 / 10.0).sin() * (j as f64 / 10.0).cos() * 255.0
         });
 
         // Test linear scaling of uniform filter

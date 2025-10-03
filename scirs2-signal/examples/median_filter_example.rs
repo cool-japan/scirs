@@ -1,5 +1,5 @@
-use ndarray::{Array1, Array2, Array3};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::random::Rng;
 use std::fs::File;
 use std::io::Write;
 
@@ -25,13 +25,17 @@ fn main() {
     // Create configurations with different parameters
     let standard_config = MedianConfig::default();
 
-    let mut adaptive_config = MedianConfig::default();
-    adaptive_config.adaptive = true;
-    adaptive_config.max_kernel_size = 9;
+    let adaptive_config = MedianConfig {
+        adaptive: true,
+        max_kernel_size: 9,
+        ..Default::default()
+    };
 
-    let mut center_weighted_config = MedianConfig::default();
-    center_weighted_config.center_weighted = true;
-    center_weighted_config.center_weight = 3;
+    let center_weighted_config = MedianConfig {
+        center_weighted: true,
+        center_weight: 3,
+        ..Default::default()
+    };
 
     // Apply median filtering with different settings
     let filtered_standard = median_filter_1d(&noisy_signal, 5, &standard_config).unwrap();
@@ -200,17 +204,25 @@ fn main() {
     println!("\n5. Edge Mode Comparison");
 
     // Create configurations with different edge modes
-    let mut reflect_config = MedianConfig::default();
-    reflect_config.edge_mode = EdgeMode::Reflect;
+    let reflect_config = MedianConfig {
+        edge_mode: EdgeMode::Reflect,
+        ..Default::default()
+    };
 
-    let mut nearest_config = MedianConfig::default();
-    nearest_config.edge_mode = EdgeMode::Nearest;
+    let nearest_config = MedianConfig {
+        edge_mode: EdgeMode::Nearest,
+        ..Default::default()
+    };
 
-    let mut constant_config = MedianConfig::default();
-    constant_config.edge_mode = EdgeMode::Constant(0.0);
+    let constant_config = MedianConfig {
+        edge_mode: EdgeMode::Constant(0.0),
+        ..Default::default()
+    };
 
-    let mut wrap_config = MedianConfig::default();
-    wrap_config.edge_mode = EdgeMode::Wrap;
+    let wrap_config = MedianConfig {
+        edge_mode: EdgeMode::Wrap,
+        ..Default::default()
+    };
 
     // Apply median filtering with different edge modes
     let edge_reflect = median_filter_2d(&noisy_image, 3, &reflect_config).unwrap();
@@ -271,7 +283,7 @@ fn generate_impulse_signal() -> (Array1<f64>, Array1<f64>) {
     }
 
     // Add impulse noise (salt and pepper)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut noisy_signal = clean_signal.clone();
 
     // Salt and pepper rate
@@ -330,7 +342,7 @@ fn generate_impulse_image() -> (Array2<f64>, Array2<f64>) {
     }
 
     // Add impulse noise (salt and pepper)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut noisy_image = clean_image.clone();
 
     // Salt and pepper rate
@@ -402,7 +414,7 @@ fn generate_color_impulse_image() -> (Array3<f64>, Array3<f64>) {
     }
 
     // Add impulse noise (salt and pepper)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut noisy_image = clean_image.clone();
 
     // Salt and pepper rate

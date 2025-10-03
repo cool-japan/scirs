@@ -5,8 +5,8 @@
 
 use crate::error::Result;
 use crate::models::History;
-use ndarray::ScalarOperand;
-use num_traits::Float;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use super::{Callback, CallbackContext, CallbackTiming};

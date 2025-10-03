@@ -10,7 +10,7 @@
 //! ## SIMD Operations
 //! ```rust
 //! use scirs2_neural::performance::simd::SIMDOperations;
-//! use ndarray::Array;
+//! use scirs2_core::ndarray::Array;
 //! let input = Array::ones((1000, 512)).into_dyn();
 //! let result = SIMDOperations::simd_relu_f32(&input.view());
 //! ```
@@ -53,7 +53,7 @@ pub use threading::{
     },
     PerformanceProfiler, ProfilingStats, ThreadPoolManager, ThreadPoolStats,
 use crate::error::{NeuralError, Result};
-use ndarray::ArrayD;
+use scirs2_core::ndarray::ArrayD;
 use std::sync::Arc;
 /// Unified performance optimization manager
 ///
@@ -173,7 +173,7 @@ impl PerformanceOptimizer {
         forward_fn: F,
     ) -> Result<ArrayD<f32>>
     where
-        F: Fn(&ndarray::ArrayView<f32, ndarray::IxDyn>) -> Result<ArrayD<f32>>,
+        F: Fn(&scirs2_core::ndarray::ArrayView<f32, scirs2_core::ndarray::IxDyn>) -> Result<ArrayD<f32>>,
     {
         let timer = self.profiler.start_timer("memory_efficient_forward");
         let result = self
@@ -185,7 +185,7 @@ impl PerformanceOptimizer {
     pub fn process_in_chunks<F, T>(
         processor: F,
     ) -> Result<ArrayD<T>>
-        F: FnMut(&ndarray::ArrayView<f32, ndarray::IxDyn>) -> Result<ArrayD<T>>,
+        F: FnMut(&scirs2_core::ndarray::ArrayView<f32, scirs2_core::ndarray::IxDyn>) -> Result<ArrayD<T>>,
         T: Clone + std::fmt::Debug + Default,
         let timer = self.profiler.start_timer("process_in_chunks");
         let result = self.memory_processor.process_in_chunks(input, processor);
@@ -238,7 +238,7 @@ impl PerformanceOptimizer {
             return Err(NeuralError::ComputationError(
                 "Serial matmul requires 2D arrays".to_string(),
             ));
-        let mut result = ndarray::Array::zeros((m, n));
+        let mut result = scirs2_core::ndarray::Array::zeros((m, n));
         for i in 0..m {
             for j in 0..n {
                 let mut sum = 0.0;

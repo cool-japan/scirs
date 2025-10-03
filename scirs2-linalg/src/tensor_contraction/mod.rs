@@ -4,8 +4,8 @@
 //! multiplication to higher-order tensors.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayD, ArrayView, ArrayViewD, Dimension};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array2, ArrayD, ArrayView, ArrayViewD, Dimension};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -37,7 +37,7 @@ pub mod tucker;
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array, Ix3};
+/// use scirs2_core::ndarray::{array, Array, Ix3};
 /// use scirs2_linalg::tensor_contraction::contract;
 ///
 /// // Create a 2x3x2 tensor
@@ -253,7 +253,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array, Ix3};
+/// use scirs2_core::ndarray::{array, Array, Ix3};
 /// use scirs2_linalg::tensor_contraction::batch_matmul;
 ///
 /// // Create a batch of 2 matrices, each 2x3
@@ -431,7 +431,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array, Ix3};
+/// use scirs2_core::ndarray::{array, Array, Ix3};
 /// use scirs2_linalg::tensor_contraction::mode_n_product;
 ///
 /// // Create a 2x3x2 tensor
@@ -491,7 +491,10 @@ where
 
     // Convert to dynamic array views
     let tensor_dyn = tensor.view().into_dyn();
-    let matrix_view = match matrix.view().into_dimensionality::<ndarray::Ix2>() {
+    let matrix_view = match matrix
+        .view()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+    {
         Ok(view) => view,
         Err(_) => {
             return Err(LinalgError::ComputationError(
@@ -532,8 +535,7 @@ where
             return;
         }
 
-        let current_dim = if depth > mode { depth - 1 } else { depth };
-        let dimsize = shape[current_dim];
+        let dimsize = shape[depth];
 
         let mut current = current;
         for i in 0..dimsize {
@@ -621,15 +623,19 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_linalg::tensor_contraction::einsum;
 ///
 /// // Create 2x3 and 3x4 matrices for matrix multiplication
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 /// let b = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0], [9.0, 10.0, 11.0, 12.0]];
 ///
+/// // Convert to dynamic dimensional arrays
+/// let a_dyn = a.view().into_dyn();
+/// let b_dyn = b.view().into_dyn();
+///
 /// // Perform matrix multiplication with einsum
-/// let result = einsum("ij,jk->ik", &[&a.view(), &b.view()]).unwrap();
+/// let result = einsum("ij,jk->ik", &[&a_dyn, &b_dyn]).unwrap();
 ///
 /// // The result should be a 2x4 matrix
 /// assert_eq!(result.shape(), &[2, 4]);
@@ -871,7 +877,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array, Ix3};
+/// use scirs2_core::ndarray::{array, Array, Ix3};
 /// use scirs2_linalg::tensor_contraction::hosvd;
 ///
 /// // Create a 3D tensor
@@ -903,7 +909,7 @@ where
         + Sum
         + Debug
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
     D: Dimension,
 {
     // Check that the rank for each mode is valid
@@ -1067,7 +1073,7 @@ where
         + Sum
         + std::fmt::Debug
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     use crate::decomposition::svd;
 
@@ -1076,9 +1082,9 @@ where
     let (u, s, vt) = svd(&matrix_view, false, None)?;
 
     // Truncate to the specified rank
-    let u_trunc = u.slice(ndarray::s![.., ..rank]).to_owned();
-    let s_trunc = Array2::from_diag(&s.slice(ndarray::s![..rank]));
-    let vt_trunc = vt.slice(ndarray::s![..rank, ..]).to_owned();
+    let u_trunc = u.slice(scirs2_core::ndarray::s![.., ..rank]).to_owned();
+    let s_trunc = Array2::from_diag(&s.slice(scirs2_core::ndarray::s![..rank]));
+    let vt_trunc = vt.slice(scirs2_core::ndarray::s![..rank, ..]).to_owned();
 
     Ok((u_trunc, s_trunc, vt_trunc))
 }
@@ -1087,7 +1093,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn testmatrix_multiplication() {

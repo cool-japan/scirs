@@ -6,8 +6,8 @@
 //! precision validation, and compatibility assessments.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, Zero, One};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, Zero, One};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;

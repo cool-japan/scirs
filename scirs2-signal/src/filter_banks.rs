@@ -23,7 +23,7 @@
 // ## Example Usage
 //
 // ```rust
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::filter_banks::{QmfBank, WaveletFilterBank, FilterBankType};
 // # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //
@@ -48,8 +48,8 @@
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use crate::filter::{butter, FilterType};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 
 #[allow(unused_imports)]
 /// Types of filter banks

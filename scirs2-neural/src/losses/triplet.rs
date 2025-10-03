@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::losses::Loss;
-use ndarray::Array;
-use num_traits::Float;
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Triplet loss function.
@@ -18,7 +18,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::losses::TripletLoss;
 /// use scirs2_neural::losses::Loss;
-/// use ndarray::{Array, arr3};
+/// use scirs2_core::ndarray::{Array, arr3};
 ///
 /// let triplet = TripletLoss::new(1.0);
 /// // Triplets: (batch_size, 3, embedding_dim) where 3 = [anchor, positive, negative]
@@ -66,8 +66,8 @@ impl Default for TripletLoss {
 impl<F: Float + Debug> Loss<F> for TripletLoss {
     fn forward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        _targets: &Array<F, ndarray::IxDyn>,
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        _targets: &Array<F, scirs2_core::ndarray::IxDyn>,
     ) -> Result<F> {
         // Verify predictions shape: should be (batch_size, 3, embedding_dim)
         // Where the triplets are in the order: anchor, positive, negative
@@ -90,9 +90,9 @@ impl<F: Float + Debug> Loss<F> for TripletLoss {
 
         for i in 0..batch_size {
             // Extract triplet of embeddings
-            let anchor = predictions.slice(ndarray::s![i, 0, ..]);
-            let positive = predictions.slice(ndarray::s![i, 1, ..]);
-            let negative = predictions.slice(ndarray::s![i, 2, ..]);
+            let anchor = predictions.slice(scirs2_core::ndarray::s![i, 0, ..]);
+            let positive = predictions.slice(scirs2_core::ndarray::s![i, 1, ..]);
+            let negative = predictions.slice(scirs2_core::ndarray::s![i, 2, ..]);
 
             // Compute distances
             let mut pos_distance_squared = F::zero();
@@ -122,9 +122,9 @@ impl<F: Float + Debug> Loss<F> for TripletLoss {
 
     fn backward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        _targets: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        _targets: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let batch_size = predictions.shape()[0];
         let embedding_dim = predictions.shape()[2];
         let margin = F::from(self.margin)
@@ -138,9 +138,9 @@ impl<F: Float + Debug> Loss<F> for TripletLoss {
 
         // Compute gradients for each triplet in the batch
         for i in 0..batch_size {
-            let anchor = predictions.slice(ndarray::s![i, 0, ..]);
-            let positive = predictions.slice(ndarray::s![i, 1, ..]);
-            let negative = predictions.slice(ndarray::s![i, 2, ..]);
+            let anchor = predictions.slice(scirs2_core::ndarray::s![i, 0, ..]);
+            let positive = predictions.slice(scirs2_core::ndarray::s![i, 1, ..]);
+            let negative = predictions.slice(scirs2_core::ndarray::s![i, 2, ..]);
 
             // Compute distances
             let mut pos_distance_squared = F::zero();

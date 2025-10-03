@@ -3,8 +3,8 @@
 //! This module implements Mixture of Experts (MoE) architecture for conditional
 //! computation and model scaling in time series forecasting.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::lstm::LSTMCell;
@@ -30,7 +30,9 @@ pub struct MixtureOfExperts<F: Float + Debug> {
     gate_bias: Array1<F>,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MixtureOfExperts<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
+    MixtureOfExperts<F>
+{
     /// Create new Mixture of Experts layer
     pub fn new(input_dim: usize, output_dim: usize, num_experts: usize) -> Self {
         let scale = F::from(2.0).unwrap() / F::from(input_dim).unwrap();

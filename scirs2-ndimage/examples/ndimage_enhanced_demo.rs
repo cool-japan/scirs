@@ -13,7 +13,7 @@
 // Note: This example is under development. The enhanced_validation and fusion_core
 // modules are not yet implemented in scirs2_ndimage.
 
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use std::time::Instant;
 
 use scirs2_ndimage::error::NdimageResult;
@@ -74,8 +74,8 @@ fn create_test_dataset() -> Vec<(String, Array2<f64>)> {
 /// Create random test image
 #[allow(dead_code)]
 fn create_randomimage(height: usize, width: usize) -> Array2<f64> {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     Array2::from_shape_fn((height, width), |_| rng.random_range(0.0..1.0))
 }
 

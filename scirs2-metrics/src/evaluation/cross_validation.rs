@@ -3,8 +3,8 @@
 //! This module provides functions for cross-validation, a model validation technique
 //! to evaluate the generalization performance of a model to an independent dataset.
 
-use ndarray::ArrayBase;
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use scirs2_core::ndarray::ArrayBase;
+use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
 use crate::error::{MetricsError, Result};
@@ -76,8 +76,8 @@ pub fn k_fold_cross_validation(
         let mut rng = match random_seed {
             Some(_seed) => StdRng::seed_from_u64(_seed),
             None => {
-                // In rand 0.9.0, use rand::rng() instead of rand::rng()
-                let mut r = rand::rng();
+                // In rand 0.9.0, use scirs2_core::random::rng() instead of scirs2_core::random::rng()
+                let mut r = scirs2_core::random::rng();
                 StdRng::from_rng(&mut r)
             }
         };
@@ -87,7 +87,7 @@ pub fn k_fold_cross_validation(
 
     // Calculate fold sizes
     let fold_sizes = (0..n_folds)
-        .map(|i| (n - i) / n_folds + ((n - i) % n_folds > 0) as usize)
+        .map(|i| (n - i) / n_folds + !(n - i).is_multiple_of(n_folds) as usize)
         .collect::<Vec<_>>();
 
     let mut current = 0;
@@ -183,7 +183,7 @@ pub fn leave_one_out_cv(n: usize) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::evaluation::cross_validation::stratified_k_fold;
 ///
 /// let y = array![0, 0, 0, 1, 1, 1, 2, 2, 2];
@@ -192,7 +192,7 @@ pub fn leave_one_out_cv(n: usize) -> Result<Vec<(Vec<usize>, Vec<usize>)>> {
 /// ```
 #[allow(dead_code)]
 pub fn stratified_k_fold<T>(
-    y: &ArrayBase<impl ndarray::Data<Elem = T>, impl ndarray::Dimension>,
+    y: &ArrayBase<impl scirs2_core::ndarray::Data<Elem = T>, impl scirs2_core::ndarray::Dimension>,
     n_folds: usize,
     shuffle: bool,
     random_seed: Option<u64>,
@@ -245,8 +245,8 @@ where
     let mut rng = match random_seed {
         Some(_seed) => Some(StdRng::seed_from_u64(_seed)),
         None if shuffle => {
-            // In rand 0.9.0, use rand::rng() instead of rand::rng()
-            let mut r = rand::rng();
+            // In rand 0.9.0, use scirs2_core::random::rng() instead of scirs2_core::random::rng()
+            let mut r = scirs2_core::random::rng();
             Some(StdRng::from_rng(&mut r))
         }
         None => None,
@@ -414,7 +414,7 @@ pub fn time_series_split(
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::evaluation::grouped_k_fold;
 ///
 /// // Each sample belongs to one of three groups: A, B, or C
@@ -449,7 +449,10 @@ pub fn time_series_split(
 /// ```
 #[allow(dead_code)]
 pub fn grouped_k_fold<T>(
-    groups: &ArrayBase<impl ndarray::Data<Elem = T>, impl ndarray::Dimension>,
+    groups: &ArrayBase<
+        impl scirs2_core::ndarray::Data<Elem = T>,
+        impl scirs2_core::ndarray::Dimension,
+    >,
     n_folds: usize,
 ) -> Result<Vec<(Vec<usize>, Vec<usize>)>>
 where
@@ -643,7 +646,7 @@ pub fn nested_cross_validation(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_k_fold_cross_validation() {

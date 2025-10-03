@@ -1,7 +1,7 @@
 //! Common utilities for unconstrained optimization algorithms
 
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Computes finite difference gradient
 #[allow(dead_code)]

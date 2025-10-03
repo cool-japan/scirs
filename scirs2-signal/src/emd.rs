@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Empirical Mode Decomposition (EMD) and its variants
 //
 // This module provides implementations of Empirical Mode Decomposition (EMD)
@@ -8,9 +8,9 @@ use ndarray::s;
 
 use crate::error::{SignalError, SignalResult};
 use crate::hilbert;
-use ndarray::{Array1, Array2};
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use std::cmp::max;
 use std::fmt::Debug;
 
@@ -759,7 +759,7 @@ where
     let mut max_imf_count = 0;
 
     // Run EMD on ensemble of signals with added noise
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for _ in 0..ensemble_size {
         // Add white noise
         let noisy_signal: Vec<f64> = if noise_std > 0.0 {

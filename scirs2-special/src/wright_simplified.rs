@@ -5,7 +5,7 @@
 //! complex logarithm.
 
 use crate::error::{SpecialError, SpecialResult};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 // Using f64 constants directly without imports
 
@@ -30,7 +30,7 @@ use std::f64::consts::PI;
 ///
 /// ```
 /// use scirs2_special::wright_omega;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 /// use approx::assert_relative_eq;
 ///
 /// let z = Complex64::new(0.0, 0.0);
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_wright_omega_complex() {
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
 
         // Test some known values
         let z = Complex64::new(0.0, 0.0);

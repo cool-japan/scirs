@@ -7,9 +7,9 @@
 
 use crate::error::StatsResult;
 use crate::propertybased_validation::ValidationReport;
-use ndarray::{Array1, ArrayBase, ArrayView1, Data, Ix1};
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, ArrayBase, ArrayView1, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
@@ -1415,7 +1415,7 @@ impl MonteCarloStabilityTester {
         D: Data<Elem = R>,
         R: Float + NumCast + Copy + Send + Sync + Debug + 'static,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let perturbation_magnitude = R::from(1e-12).unwrap_or(R::min_positive_value());
 
         let perturbeddata = testdata.mapv(|x| {
@@ -2205,7 +2205,7 @@ where
 /// Generate test data for numerical stability testing
 #[allow(dead_code)]
 fn generate_stability_testdata(min_val: f64, maxval: f64, size: usize) -> Array1<f64> {
-    use rand::{rngs::StdRng, Rng, SeedableRng};
+    use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42);
     let mut data = Array1::zeros(size);
@@ -2328,7 +2328,7 @@ pub fn run_quick_stability_validation() -> StatsResult<bool> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_think_numerical_stability_tester_creation() {

@@ -13,24 +13,17 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true, features = ["simd", "parallel", "linalg", "gpu", "random"] }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["simd", "parallel", "linalg", "gpu", "random", "array"] }
 scirs2-linalg = { workspace = true }
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
-# BLAS dependencies handled through scirs2-core
 
 # Optimization specific dependencies
 argmin = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
 friedrich = { workspace = true }
 scirs2-sparse = { workspace = true }
 statrs = { workspace = true }
 serde = { workspace = true }
-# ndarray-linalg = { workspace = true, features = ["openblas-system"] } # Removed - use scirs2-core BLAS abstractions
 
 # Async dependencies (optional)
 tokio = { workspace = true, optional = true }

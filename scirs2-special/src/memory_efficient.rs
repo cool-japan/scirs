@@ -5,8 +5,8 @@
 //! cache efficiency.
 
 use crate::error::{SpecialError, SpecialResult};
-use ndarray::{Array, ArrayView, ArrayViewMut, Ix1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ArrayView, ArrayViewMut, Ix1};
+use scirs2_core::numeric::Float;
 use std::marker::PhantomData;
 
 /// Configuration for memory-efficient processing
@@ -84,7 +84,7 @@ where
         // Try to find a divisor of totalelements close to ideal_chunk
         for divisor in 1..=100 {
             let chunksize = totalelements / divisor;
-            if chunksize <= ideal_chunk && totalelements % divisor == 0 {
+            if chunksize <= ideal_chunk && totalelements.is_multiple_of(divisor) {
                 return chunksize;
             }
         }
@@ -134,8 +134,8 @@ where
 
         while offset < totalelements {
             let end = (offset + chunksize).min(totalelements);
-            let input_chunk = input.slice(ndarray::s![offset..end]);
-            let mut output_chunk = output.slice_mut(ndarray::s![offset..end]);
+            let input_chunk = input.slice(scirs2_core::ndarray::s![offset..end]);
+            let mut output_chunk = output.slice_mut(scirs2_core::ndarray::s![offset..end]);
 
             self.function.apply_chunk(&input_chunk, &mut output_chunk)?;
 
@@ -175,7 +175,7 @@ where
             .par_iter()
             .enumerate()
             .map(|(idx, (start, end))| {
-                let input_chunk = input.slice(ndarray::s![*start..*end]);
+                let input_chunk = input.slice(scirs2_core::ndarray::s![*start..*end]);
                 let mut temp_output = Array::zeros(end - start);
                 let mut temp_view = temp_output.view_mut();
 
@@ -192,7 +192,7 @@ where
                 Ok((idx, temp_output)) => {
                     let (start, end) = chunks[idx];
                     output
-                        .slice_mut(ndarray::s![start..end])
+                        .slice_mut(scirs2_core::ndarray::s![start..end])
                         .assign(&temp_output);
                 }
                 Err(e) => return Err(e),
@@ -231,7 +231,7 @@ impl ChunkedGamma {
 
 impl<T> ChunkableFunction<T> for ChunkedGamma
 where
-    T: Float + num_traits::FromPrimitive + std::fmt::Debug + std::ops::AddAssign,
+    T: Float + scirs2_core::numeric::FromPrimitive + std::fmt::Debug + std::ops::AddAssign,
 {
     fn apply_chunk(
         &self,
@@ -268,7 +268,7 @@ impl ChunkedBesselJ0 {
 
 impl<T> ChunkableFunction<T> for ChunkedBesselJ0
 where
-    T: Float + num_traits::FromPrimitive + std::fmt::Debug,
+    T: Float + scirs2_core::numeric::FromPrimitive + std::fmt::Debug,
 {
     fn apply_chunk(
         &self,
@@ -305,7 +305,7 @@ impl ChunkedErf {
 
 impl<T> ChunkableFunction<T> for ChunkedErf
 where
-    T: Float + num_traits::FromPrimitive,
+    T: Float + scirs2_core::numeric::FromPrimitive,
 {
     fn apply_chunk(
         &self,
@@ -333,7 +333,12 @@ pub fn gamma_chunked<T>(
     config: Option<ChunkedConfig>,
 ) -> SpecialResult<Array<T, Ix1>>
 where
-    T: Float + num_traits::FromPrimitive + std::fmt::Debug + std::ops::AddAssign + Send + Sync,
+    T: Float
+        + scirs2_core::numeric::FromPrimitive
+        + std::fmt::Debug
+        + std::ops::AddAssign
+        + Send
+        + Sync,
 {
     let config = config.unwrap_or_default();
     let processor = ChunkedProcessor::new(config, ChunkedGamma::new());
@@ -349,7 +354,7 @@ pub fn j0_chunked<T>(
     config: Option<ChunkedConfig>,
 ) -> SpecialResult<Array<T, Ix1>>
 where
-    T: Float + num_traits::FromPrimitive + std::fmt::Debug + Send + Sync,
+    T: Float + scirs2_core::numeric::FromPrimitive + std::fmt::Debug + Send + Sync,
 {
     let config = config.unwrap_or_default();
     let processor = ChunkedProcessor::new(config, ChunkedBesselJ0::new());
@@ -365,7 +370,7 @@ pub fn erf_chunked<T>(
     config: Option<ChunkedConfig>,
 ) -> SpecialResult<Array<T, Ix1>>
 where
-    T: Float + num_traits::FromPrimitive + Send + Sync,
+    T: Float + scirs2_core::numeric::FromPrimitive + Send + Sync,
 {
     let config = config.unwrap_or_default();
     let processor = ChunkedProcessor::new(config, ChunkedErf::new());
@@ -377,7 +382,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_chunksize_calculation() {

@@ -14,8 +14,8 @@ use crate::multitaper::enhanced::{enhanced_pmtm, MultitaperConfig};
 use crate::parametric::{estimate_arma, ARMethod};
 use crate::sysid::{estimate_transfer_function, TfEstimationMethod};
 use crate::validation_runner::{validate_signal_processing_library, ValidationConfig};
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -59,7 +59,7 @@ fn test_biomedical_signal_pipeline() -> SignalResult<()> {
     }
 
     // Add realistic noise (powerline interference + baseline wander + random noise)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let noisy_ecg: Vec<f64> = ecg_signal
         .iter()
         .enumerate()
@@ -250,7 +250,7 @@ fn test_audio_processing_pipeline() -> SignalResult<()> {
     }
 
     // Add realistic audio noise
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let noisy_audio: Vec<f64> = audio_signal
         .iter()
         .map(|&signal| signal + 0.01 * rng.gen_range(-1.0..1.0))
@@ -340,7 +340,7 @@ fn test_geophysical_processing_pipeline() -> SignalResult<()> {
     let n = (base_fs * duration) as usize;
 
     // Generate irregular sampling times (realistic for field data)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut times = Vec::with_capacity(n);
     let mut current_time = 0.0;
 
@@ -519,7 +519,7 @@ fn test_image_processing_pipeline() -> SignalResult<()> {
     }
 
     // Add noise
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut noisy_image = clean_image.clone();
     for element in noisy_image.iter_mut() {
         *element += 0.2 * rng.gen_range(-1.0..1.0);

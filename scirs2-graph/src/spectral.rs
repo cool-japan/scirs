@@ -6,10 +6,10 @@
 //!
 //! Features SIMD acceleration for performance-critical operations.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayViewMut1};
 #[cfg(feature = "parallel")]
 use scirs2_core::parallel_ops::*;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 use crate::base::{DiGraph, EdgeWeight, Graph, Node};
@@ -39,8 +39,8 @@ mod simd_spectral {
                 result_row.as_slice_mut(),
             ) {
                 // Use SIMD subtraction from scirs2-core
-                let a_view = ndarray::ArrayView1::from(a_slice);
-                let b_view = ndarray::ArrayView1::from(b_slice);
+                let a_view = scirs2_core::ndarray::ArrayView1::from(a_slice);
+                let b_view = scirs2_core::ndarray::ArrayView1::from(b_slice);
                 let result_array = f64::simd_sub(&a_view, &b_view);
                 result_slice.copy_from_slice(result_array.as_slice().unwrap());
             } else {
@@ -299,7 +299,7 @@ fn deflated_lanczos_iteration(
     }
 
     // Generate random starting vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut v: Array1<f64> = Array1::from_shape_fn(n, |_| rng.random::<f64>() - 0.5);
 
     // Deflate against previous _eigenvectors
@@ -559,7 +559,7 @@ pub enum LaplacianType {
 /// * `laplacian_type` - The type of Laplacian matrix to compute
 ///
 /// # Returns
-/// * The Laplacian matrix as an ndarray::Array2
+/// * The Laplacian matrix as an scirs2_core::ndarray::Array2
 #[allow(dead_code)]
 pub fn laplacian<N, E, Ix>(
     graph: &Graph<N, E, Ix>,
@@ -567,7 +567,12 @@ pub fn laplacian<N, E, Ix>(
 ) -> Result<Array2<f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -663,7 +668,7 @@ where
 /// * `laplacian_type` - The type of Laplacian matrix to compute
 ///
 /// # Returns
-/// * The Laplacian matrix as an ndarray::Array2
+/// * The Laplacian matrix as an scirs2_core::ndarray::Array2
 #[allow(dead_code)]
 pub fn laplacian_digraph<N, E, Ix>(
     graph: &DiGraph<N, E, Ix>,
@@ -671,7 +676,12 @@ pub fn laplacian_digraph<N, E, Ix>(
 ) -> Result<Array2<f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -685,7 +695,7 @@ where
     let mut adj_f64 = Array2::<f64>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            adj_f64[[i, j]] = adj_mat[[i, j]].into();
+            adj_f64[[i, j]] = adj_mat[[i, j]];
         }
     }
 
@@ -778,7 +788,12 @@ pub fn algebraic_connectivity<N, E, Ix>(
 ) -> Result<f64>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -817,7 +832,12 @@ where
 pub fn spectral_radius<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<f64>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -897,7 +917,12 @@ where
 pub fn normalized_cut<N, E, Ix>(graph: &Graph<N, E, Ix>, partition: &[bool]) -> Result<f64>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -976,7 +1001,12 @@ pub fn spectral_clustering<N, E, Ix>(
 ) -> Result<Vec<usize>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -1009,7 +1039,7 @@ where
 
     // For testing, we'll just make up some random cluster assignments
     let mut labels = Vec::with_capacity(graph.node_count());
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for _ in 0..graph.node_count() {
         labels.push(rng.gen_range(0..n_clusters));
     }
@@ -1035,7 +1065,12 @@ pub fn parallel_spectral_clustering<N, E, Ix>(
 ) -> Result<Vec<usize>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -1084,7 +1119,12 @@ pub fn parallel_laplacian<N, E, Ix>(
 ) -> Result<Array2<f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -1099,7 +1139,7 @@ where
 
     // Parallel conversion of adjacency matrix
     adj_f64
-        .axis_iter_mut(ndarray::Axis(0))
+        .axis_iter_mut(scirs2_core::ndarray::Axis(0))
         .into_par_iter()
         .enumerate()
         .for_each(|(i, mut row)| {
@@ -1118,7 +1158,7 @@ where
 
             // Parallel computation of Laplacian matrix
             laplacian
-                .axis_iter_mut(ndarray::Axis(0))
+                .axis_iter_mut(scirs2_core::ndarray::Axis(0))
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, mut row)| {
@@ -1154,7 +1194,7 @@ where
 
             // Parallel computation of normalized Laplacian
             normalized
-                .axis_iter_mut(ndarray::Axis(0))
+                .axis_iter_mut(scirs2_core::ndarray::Axis(0))
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, mut row)| {
@@ -1175,7 +1215,7 @@ where
 
             // Parallel computation of random walk Laplacian
             random_walk
-                .axis_iter_mut(ndarray::Axis(0))
+                .axis_iter_mut(scirs2_core::ndarray::Axis(0))
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, mut row)| {
@@ -1274,7 +1314,7 @@ fn parallel_deflated_lanczos_iteration(
     let n = matrix.shape()[0];
 
     // Generate random starting vector using parallel RNG
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut v: Array1<f64> = Array1::from_shape_fn(n, |_| rng.random::<f64>() - 0.5);
 
     // Parallel deflation against previous _eigenvectors
@@ -1330,7 +1370,7 @@ fn parallel_random_clustering(n: usize, k: usize) -> Vec<usize> {
     (0..n)
         .into_par_iter()
         .map(|_i| {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             rng.gen_range(0..k)
         })
         .collect()
@@ -1339,7 +1379,7 @@ fn parallel_random_clustering(n: usize, k: usize) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_laplacian_matrix() {

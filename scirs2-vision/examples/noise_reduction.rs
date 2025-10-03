@@ -7,7 +7,7 @@
 //! 4. Comparison of different noise reduction methods
 
 use image::{DynamicImage, GenericImage, GenericImageView, ImageBuffer, Rgba};
-use rand::random;
+use scirs2_core::random::random;
 use scirs2_vision::preprocessing::{bilateral_filter, gaussian_blur, median_filter};
 use std::error::Error;
 use std::path::PathBuf;

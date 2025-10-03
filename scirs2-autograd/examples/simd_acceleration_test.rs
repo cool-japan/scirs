@@ -4,8 +4,8 @@
 //! autograd module for element-wise operations like addition and multiplication.
 
 use ag::tensor_ops as T;
-use ndarray::Array1;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::Array1;
 use std::time::Instant;
 
 #[allow(dead_code)]

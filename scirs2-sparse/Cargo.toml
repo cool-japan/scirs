@@ -21,16 +21,12 @@ workspace = true
 
 [dependencies]
 # Core dependencies
-scirs2-core = { workspace = true, features = ["gpu"] }
+scirs2-core = { workspace = true, features = ["array", "random", "gpu"] }
 # Removed scirs2-linalg to avoid circular dependency
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
 
 # Sparse matrix specific dependencies
 sprs = { workspace = true }
-rand = { workspace = true }
 num_cpus = { workspace = true }
 
 # For IO operations
@@ -44,6 +40,8 @@ log = { workspace = true }
 approx = { workspace = true }
 criterion = { workspace = true }
 tempfile = { workspace = true }
+# NOTE: ndarray-linalg is already included via scirs2-core dependency
+# Adding it in dev-dependencies causes duplicate resolution and linker conflicts in doctests
 
 [[bench]]
 name = "sparse_benchmarks"

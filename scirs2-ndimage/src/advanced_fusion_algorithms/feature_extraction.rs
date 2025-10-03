@@ -15,10 +15,10 @@
 //! The module supports processing in multiple advanced dimensions beyond traditional
 //! spatial coordinates, enabling sophisticated analysis of complex image data.
 
-use ndarray::s;
-use ndarray::{Array2, Array3, Array4, Array5, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::{Array2, Array3, Array4, Array5, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use statrs::statistics::Statistics;
 use std::collections::{BTreeMap, VecDeque};
 use std::f64::consts::PI;

@@ -194,7 +194,7 @@ impl Delaunay {
                 // Add some random jitter to _points
                 let mut perturbed_points = vec![];
                 use scirs2_core::random::Rng;
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
 
                 for i in 0..npoints {
                     let mut pt = points.row(i).to_vec();
@@ -1225,7 +1225,7 @@ mod tests {
     #[test]
     fn test_random_points_2d() {
         // Generate some random points
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         let n = 20;
         let mut points_data = Vec::with_capacity(n * 2);

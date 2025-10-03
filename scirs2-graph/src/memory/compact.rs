@@ -4,7 +4,7 @@
 //! different graph characteristics (sparse, dense, regular degree, etc.).
 
 use crate::error::GraphError;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::fs::File;
 use std::io::{self, BufWriter, Read, Seek, SeekFrom, Write};
 use std::mem;

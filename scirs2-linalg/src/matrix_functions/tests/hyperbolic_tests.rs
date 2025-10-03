@@ -1,7 +1,7 @@
 //! Tests for hyperbolic matrix functions
 
 use super::super::hyperbolic::*;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_coshm_zero() {

@@ -15,7 +15,7 @@
 //! TT decomposition transforms the exponential scaling O(n^d) into linear scaling O(d·n·R²),
 //! making high-dimensional computations tractable for real-world applications.
 
-use ndarray::{Array, Array3, IxDyn};
+use scirs2_core::ndarray::{Array, Array3, IxDyn};
 use scirs2_linalg::tensor_train::{tt_add, tt_decomposition, tt_hadamard, TTTensor};
 use std::time::Instant;
 

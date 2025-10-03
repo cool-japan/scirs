@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use super::core::{NetworkTopology, SynapseType};
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
@@ -189,8 +189,8 @@ impl<F: Float> SynapticConnections<F> {
         let connections = HashMap::new();
         let delays = HashMap::new();
         let topology_data = super::core::ConnectionTopology {
-            adjacency_matrix: ndarray::Array2::from_elem((0, 0), false),
-            weight_matrix: ndarray::Array2::zeros((0, 0)),
+            adjacency_matrix: scirs2_core::ndarray::Array2::from_elem((0, 0), false),
+            weight_matrix: scirs2_core::ndarray::Array2::zeros((0, 0)),
             small_world: super::core::SmallWorldProperties {
                 clustering_coefficient: 0.0,
                 average_path_length: 0.0,

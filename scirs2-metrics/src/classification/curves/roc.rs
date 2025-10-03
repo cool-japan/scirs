@@ -1,5 +1,5 @@
 use crate::error::MetricsError;
-use ndarray::{Array1, ArrayBase, Data, Dimension};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Dimension};
 
 /// Compute Receiver Operating Characteristic (ROC) curve points.
 ///
@@ -21,7 +21,7 @@ use ndarray::{Array1, ArrayBase, Data, Dimension};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::curves::roc_curve;
 ///
 /// let y_true = array![0, 0, 1, 1, 1];

@@ -18,7 +18,7 @@
 //! # Examples
 //!
 //! ```
-//! use ndarray::{Array1, ArrayView1};
+//! use scirs2_core::ndarray::{Array1, ArrayView1};
 //! use scirs2_linalg::matrixfree::{LinearOperator, conjugate_gradient};
 //!
 //! // Define a linear operator that represents a 3x3 diagonal matrix
@@ -45,9 +45,9 @@
 //! assert!((x[2] - 1.0).abs() < 1e-10);
 //! ```
 
-use ndarray::ScalarOperand;
-use ndarray::{s, Array1, Array2, ArrayView1};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::{fmt::Debug, iter::Sum, sync::Arc};
 
 use crate::error::{LinalgError, LinalgResult};
@@ -847,7 +847,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     // Helper function to check solution
     fn check_solution<F, A>(a: &A, x: &ArrayView1<F>, b: &ArrayView1<F>, tol: F) -> bool

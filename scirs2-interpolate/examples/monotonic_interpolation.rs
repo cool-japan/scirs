@@ -1,4 +1,4 @@
-use ndarray::{array, Array1};
+use scirs2_core::ndarray::{array, Array1};
 use scirs2_interpolate::interp1d::monotonic::{
     hyman_interpolate, modified_akima_interpolate, monotonic_interpolate, steffen_interpolate,
     MonotonicMethod,

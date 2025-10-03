@@ -3,8 +3,8 @@
 //! This module provides functionality for the Student's t distribution.
 
 use crate::error::{StatsError, StatsResult};
-use num_traits::{Float, NumCast};
-use rand_distr::{Distribution, StudentT as RandStudentT};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::{Distribution, StudentT as RandStudentT};
 use std::fmt::Debug;
 
 /// Student's t distribution structure

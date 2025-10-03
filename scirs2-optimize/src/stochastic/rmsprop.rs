@@ -10,7 +10,7 @@ use crate::stochastic::{
     LearningRateSchedule, StochasticGradientFunction,
 };
 use crate::unconstrained::result::OptimizeResult;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use statrs::statistics::Statistics;
 
 /// Options for RMSProp optimization
@@ -369,7 +369,7 @@ mod tests {
     use super::*;
     use crate::stochastic::InMemoryDataProvider;
     use approx::assert_abs_diff_eq;
-    use ndarray::ArrayView1;
+    use scirs2_core::ndarray::ArrayView1;
 
     // Simple quadratic function for testing
     struct QuadraticFunction;

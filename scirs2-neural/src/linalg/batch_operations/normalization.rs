@@ -3,8 +3,8 @@
 //! This module contains functions for various normalization techniques used in neural
 //! networks, including batch normalization and layer normalization.
 
-use ndarray::{Array, Array1, Array2, ArrayView, ArrayView1, ArrayView2, Axis, Dimension};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Array1, Array2, ArrayView, ArrayView1, ArrayView2, Axis, Dimension};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use crate::error::{NeuralError, Result};
 /// Type alias for batch normalization forward return values  
@@ -32,7 +32,7 @@ type LayerNormForwardReturn<F> = (Array2<F>, (Array2<F>, Array1<F>, Array1<F>, A
 ///   - cache contains intermediate values needed for backward pass (if in training mode)
 /// # Examples
 /// ```
-/// use ndarray::{Array, Array1, Array2};
+/// use scirs2_core::ndarray::{Array, Array1, Array2};
 /// use scirs2_neural::linalg::batch_norm_forward;
 /// // Sample input: batch_size=3, features=2
 /// let x = Array::from_shape_vec(
@@ -70,7 +70,7 @@ pub fn batch_norm_forward<F>(
     training: bool,
 ) -> Result<BatchNormForwardReturn<F>>
 where
-    F: Float + Debug + num_traits::FromPrimitive,
+    F: Float + Debug + scirs2_core::numeric::FromPrimitive,
 {
     let batch_size = x.shape()[0];
     let num_features = x.shape()[1];
@@ -242,7 +242,7 @@ pub fn layer_norm_backward<F>(
 /// * `grad` - Gradient values to clip
 /// * `max_norm` - Maximum allowed norm
 /// * Clipped gradient values with the same shape as input
-/// use ndarray::{Array, Ix2};
+/// use scirs2_core::ndarray::{Array, Ix2};
 /// use scirs2_neural::linalg::clip_grad_norm;
 /// // Create a gradient with large values
 /// let grad = Array::from_shape_vec(

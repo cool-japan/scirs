@@ -6,7 +6,7 @@
 use crate::error::IntegrateResult;
 use crate::specialized::fluid_dynamics::compressible::flux_computation::CompressibleFluxes;
 use crate::specialized::fluid_dynamics::compressible::state::CompressibleState;
-use ndarray::{s, Array1, Array3};
+use scirs2_core::ndarray::{s, Array1, Array3};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// High-performance compressible flow solver with SIMD optimizations

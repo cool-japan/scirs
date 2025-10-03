@@ -11,7 +11,7 @@
 //!
 //! Run with: cargo run --example advanced_interactive_learning
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_special::*;
 use std::collections::{HashMap, VecDeque};
@@ -676,7 +676,7 @@ fn display_learning_dashboard(profile: &LearningProfile) {
     let in_progress = profile
         .skill_levels
         .values()
-        .filter(|&&level| level >= 0.3 && level < 0.8)
+        .filter(|&&level| (0.3..0.8).contains(&level))
         .count();
 
     println!(
@@ -1239,8 +1239,8 @@ fn run_assessment_question(
             }
 
             let answer = get_user_input("\nYour answer (A, B, C, etc.): ")?;
-            let answer_index = answer.to_uppercase().chars().next().and_then(|c| {
-                if c >= 'A' && c <= 'Z' {
+            let answer_index = answer.to_uppercase().chars().next().and_then(|c: char| {
+                if c.is_ascii_uppercase() {
                     Some((c as u8 - b'A') as usize)
                 } else {
                     None
@@ -1496,7 +1496,7 @@ fn display_learning_analytics(profile: &LearningProfile) -> Result<(), Box<dyn s
     let learning = profile
         .skill_levels
         .values()
-        .filter(|&&level| level >= 0.3 && level < 0.8)
+        .filter(|&&level| (0.3..0.8).contains(&level))
         .count();
     let not_started = total_skills - mastered - learning;
 
@@ -1632,7 +1632,7 @@ fn visualize_gamma_function() -> Result<(), Box<dyn std::error::Error>> {
         // Simple ASCII visualization
         if gamma_val < 20.0 {
             let bar_length = (gamma_val * 2.0) as usize;
-            let bar: String = std::iter::repeat('■').take(bar_length.min(40)).collect();
+            let bar: String = std::iter::repeat_n('■', bar_length.min(40)).collect();
             println!("{:5.2}  {:8.3} {}", x, gamma_val, bar);
         } else {
             println!("{:5.2}  {:8.3} (too large to display)", x, gamma_val);
@@ -1677,7 +1677,7 @@ fn visualize_bessel_functions() -> Result<(), Box<dyn std::error::Error>> {
         // ASCII oscillation display
         let center = 20;
         let position = center + (j_val * 15.0) as i32;
-        let display_pos = position.max(0).min(40) as usize;
+        let display_pos = position.clamp(0, 40) as usize;
 
         let mut line = [' '; 41];
         line[center as usize] = '|';

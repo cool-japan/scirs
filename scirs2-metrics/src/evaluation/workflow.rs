@@ -425,7 +425,7 @@ impl<X, Y> BatchEvaluator<X, Y> {
 ///
 /// ```
 /// # /*
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_metrics::evaluation::workflow::learning_curve;
 ///
 /// // Define a function that trains and evaluates a model

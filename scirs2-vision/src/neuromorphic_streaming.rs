@@ -17,7 +17,7 @@ use crate::error::Result;
 #[cfg(test)]
 use crate::streaming::FrameMetadata;
 use crate::streaming::{Frame, ProcessingStage};
-use ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::random::prelude::*;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
@@ -111,7 +111,7 @@ impl SpikingNeuron {
     /// Get current time (simplified)
     fn get_current_time(&self) -> f64 {
         // In a real implementation, this would return actual time
-        rand::random::<f64>() * 1000.0
+        scirs2_core::random::random::<f64>() * 1000.0
     }
 
     /// Calculate spike rate over recent history
@@ -512,7 +512,7 @@ impl NeuromorphicEdgeDetector {
         for y in half_kernel..height.saturating_sub(half_kernel) {
             for x in half_kernel..width.saturating_sub(half_kernel) {
                 // Extract local patch
-                let patch = frame.data.slice(ndarray::s![
+                let patch = frame.data.slice(scirs2_core::ndarray::s![
                     y.saturating_sub(half_kernel)..=(y + half_kernel).min(height - 1),
                     x.saturating_sub(half_kernel)..=(x + half_kernel).min(width - 1)
                 ]);

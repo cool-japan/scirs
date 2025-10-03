@@ -1,6 +1,6 @@
 //! Embedded feature selection methods
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 use super::wrapper::WrapperMethods;
@@ -29,7 +29,7 @@ impl EmbeddedMethods {
     /// # Example
     ///
     /// ```
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     /// use scirs2_series::feature_selection::EmbeddedMethods;
     ///
     /// let features = Array2::from_shape_vec((100, 10), (0..1000).map(|x| x as f64).collect()).unwrap();
@@ -297,7 +297,7 @@ impl EmbeddedMethods {
     }
 
     fn calculate_feature_importance_tree(
-        feature: &ndarray::ArrayView1<f64>,
+        feature: &scirs2_core::ndarray::ArrayView1<f64>,
         target: &Array1<f64>,
     ) -> Result<f64> {
         let n = feature.len();

@@ -22,7 +22,7 @@ use crate::{
 };
 
 #[cfg(feature = "wasm")]
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 #[cfg(feature = "wasm")]
 // Utility macro for error handling in WASM

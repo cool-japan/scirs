@@ -52,7 +52,7 @@ pub fn from_joblib_format(data: Vec<u8>) -> Result<Value> {
 }
 
 /// Convert from numpy format (simplified)
-pub fn from_numpy_format(data: Vec<u8>) -> Result<ndarray::Array2<f64>> {
+pub fn from_numpy_format(data: Vec<u8>) -> Result<scirs2_core::ndarray::Array2<f64>> {
     // This is a simplified implementation
     // Real numpy support would require proper .npy file parsing
     let json_data: Value = serde_json::from_slice(&data).map_err(|e| {
@@ -61,13 +61,12 @@ pub fn from_numpy_format(data: Vec<u8>) -> Result<ndarray::Array2<f64>> {
 
     if let Value::Array(array) = json_data {
         let mut flat_data = Vec::new();
-        let mut nrows = 0;
         let mut ncols = 0;
 
         if let Some(Value::Array(first_row)) = array.first() {
             ncols = first_row.len();
         }
-        nrows = array.len();
+        let nrows = array.len();
 
         for row in array {
             if let Value::Array(row_values) = row {
@@ -79,7 +78,7 @@ pub fn from_numpy_format(data: Vec<u8>) -> Result<ndarray::Array2<f64>> {
             }
         }
 
-        ndarray::Array2::from_shape_vec((nrows, ncols), flat_data).map_err(|e| {
+        scirs2_core::ndarray::Array2::from_shape_vec((nrows, ncols), flat_data).map_err(|e| {
             ClusteringError::InvalidInput(format!("Failed to create array from numpy data: {}", e))
         })
     } else {
@@ -218,7 +217,7 @@ pub fn to_mlflow_format<T: ClusteringModel>(model: &T) -> Result<Value> {
 }
 
 /// Convert to numpy format (simplified)
-pub fn to_numpy_format(data: &ndarray::Array2<f64>) -> Result<Vec<u8>> {
+pub fn to_numpy_format(data: &scirs2_core::ndarray::Array2<f64>) -> Result<Vec<u8>> {
     // This is a simplified implementation
     // Real numpy format would require proper .npy file generation
     let shape = data.shape();
@@ -293,7 +292,9 @@ pub fn to_r_format<T: ClusteringModel>(model: &T) -> Result<Value> {
 }
 
 /// Convert to SciPy dendrogram format
-pub fn to_scipy_dendrogram_format(linkage_matrix: &ndarray::Array2<f64>) -> Result<Value> {
+pub fn to_scipy_dendrogram_format(
+    linkage_matrix: &scirs2_core::ndarray::Array2<f64>,
+) -> Result<Value> {
     Ok(serde_json::json!({
         "linkage": linkage_matrix.as_slice().unwrap_or(&[]),
         "format": "scipy_dendrogram",
@@ -302,7 +303,9 @@ pub fn to_scipy_dendrogram_format(linkage_matrix: &ndarray::Array2<f64>) -> Resu
 }
 
 /// Convert to SciPy linkage format
-pub fn to_scipy_linkage_format(linkage_matrix: &ndarray::Array2<f64>) -> Result<Value> {
+pub fn to_scipy_linkage_format(
+    linkage_matrix: &scirs2_core::ndarray::Array2<f64>,
+) -> Result<Value> {
     Ok(serde_json::json!({
         "linkage_matrix": linkage_matrix.as_slice().unwrap_or(&[]),
         "shape": linkage_matrix.shape(),
@@ -330,7 +333,7 @@ pub fn to_sklearn_format<T: ClusteringModel>(model: &T) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_create_sklearn_param_grid() {

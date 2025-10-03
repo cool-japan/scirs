@@ -1,4 +1,4 @@
-use ndarray::{Array, Array3, IxDyn};
+use scirs2_core::ndarray::{Array, Array3, IxDyn};
 use scirs2_neural::losses::{
     ContrastiveLoss, CrossEntropyLoss, FocalLoss, Loss, MeanSquaredError, TripletLoss,
 };
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Contrastive Loss (margin=1.0): {loss:.4}");
     let gradients = contrastive.backward(&embeddings, &labels)?;
     println!("Contrastive Loss Gradients (first few):");
-    let gradient_slice = gradients.slice(ndarray::s![0, .., 0]);
+    let gradient_slice = gradients.slice(scirs2_core::ndarray::s![0, .., 0]);
     println!("{gradient_slice:?}");
     // Triplet Loss example
     println!("\n--- Triplet Loss Example ---");

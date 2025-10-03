@@ -5,8 +5,8 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::rfft::{irfft as irfft_basic, rfft as rfft_basic};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities};
 use std::fmt::Debug;
 

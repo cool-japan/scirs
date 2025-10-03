@@ -3,8 +3,8 @@
 //! This module provides Gaussian Process-based Bayesian optimization
 //! for efficient hyperparameter search.
 
-use ndarray::Array2;
-use rand::{rng, Rng, SeedableRng};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::{rng, Rng, SeedableRng};
 use std::collections::HashMap;
 
 use crate::error::{ClusteringError, Result};
@@ -98,8 +98,8 @@ impl BayesianOptimizer {
     ) -> Result<Vec<HashMap<String, f64>>> {
         let mut candidates = Vec::new();
         let mut rng = match self.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
         for _ in 0..n_candidates {
@@ -157,7 +157,7 @@ impl BayesianOptimizer {
             AcquisitionFunction::EntropySearch => -variance * (variance.ln()),
             AcquisitionFunction::KnowledgeGradient => std_dev * (1.0 / (1.0 + variance)),
             AcquisitionFunction::ThompsonSampling => {
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
                 let sample: f64 = rng.random_range(0.0..1.0);
                 mean + std_dev * self.inverse_normal_cdf(sample)
             }
@@ -367,7 +367,7 @@ impl BayesianOptimizer {
         let a0 = -3.969683028665376e+01;
         let a1 = 2.209460984245205e+02;
         let a2 = -2.759285104469687e+02;
-        let a3 = 1.383577518672690e+02;
+        let a3 = 1.383_577_518_672_69e2;
         let a4 = -3.066479806614716e+01;
         let a5 = 2.506628277459239e+00;
 

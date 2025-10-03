@@ -5,8 +5,8 @@
 //! graph representations where nodes represent data points and edges represent
 //! similarities or connections between them.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Debug;
 
@@ -210,7 +210,7 @@ impl<
 ///
 /// ```no_run
 /// // Doctest disabled due to incompatible trait constraints (Float vs Eq+Hash)
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::graph::{Graph, louvain};
 ///
 /// // Note: Graph requires F: Float + Eq + Hash, which is impossible for standard float types
@@ -834,7 +834,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     // TODO: Graph tests disabled due to trait bound conflicts
     // Float types like f64 don't implement Eq + Hash required by Graph

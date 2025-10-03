@@ -3,8 +3,8 @@
 //! This module provides utilities for processing datasets that are too large
 //! to fit in memory, using chunked processing and memory-mapped files.
 
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 use std::path::Path;
@@ -321,7 +321,7 @@ impl OutOfCoreNormalizer {
 
         let mut reservoirs: Vec<Vec<f64>> = vec![Vec::with_capacity(RESERVOIR_SIZE); nfeatures];
         let mut count = 0;
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // First pass: build reservoirs using reservoir sampling
         for chunk_result in chunks {
@@ -357,7 +357,7 @@ impl OutOfCoreNormalizer {
                 let len = reservoirs[j].len();
 
                 // Median (50th percentile)
-                median[j] = if len % 2 == 0 {
+                median[j] = if len.is_multiple_of(2) {
                     (reservoirs[j][len / 2 - 1] + reservoirs[j][len / 2]) / 2.0
                 } else {
                     reservoirs[j][len / 2]
@@ -640,7 +640,7 @@ impl Iterator for CsvChunkIterator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_out_of_core_robust_scaling() {

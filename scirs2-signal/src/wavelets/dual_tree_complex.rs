@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Dual-Tree Complex Wavelet Transform (DTCWT)
 //
 // The Dual-Tree Complex Wavelet Transform provides:
@@ -10,8 +10,8 @@ use ndarray::s;
 
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Array3};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::Complex64;
 
 #[allow(unused_imports)]
 /// Configuration for Dual-Tree Complex Wavelet Transform
@@ -911,7 +911,7 @@ fn create_dtcwt_filters(_filterset: FilterSet) -> SignalResult<DtcwtFilters> {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
     use std::f64::consts::PI;
     #[test]
     fn test_dtcwt_processor_creation() {

@@ -3,8 +3,8 @@
 // This module provides the DIA (DIAgonal) array format,
 // which is efficient for matrices with values concentrated on a small number of diagonals.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::{self, Debug};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -78,7 +78,7 @@ where
     /// ```
     /// use scirs2_sparse::dia_array::DiaArray;
     /// use scirs2_sparse::sparray::SparseArray;
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     ///
     /// // Create a 3x3 sparse array with main diagonal and upper diagonal
     /// let data = vec![

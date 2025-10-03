@@ -88,7 +88,7 @@ pub fn plot_statistics(data: &[f64]) -> PlotStatistics {
 
     let min = sorted_data[0];
     let max = sorted_data[sorted_data.len() - 1];
-    let median = if sorted_data.len() % 2 == 0 {
+    let median = if sorted_data.len().is_multiple_of(2) {
         (sorted_data[sorted_data.len() / 2 - 1] + sorted_data[sorted_data.len() / 2]) / 2.0
     } else {
         sorted_data[sorted_data.len() / 2]

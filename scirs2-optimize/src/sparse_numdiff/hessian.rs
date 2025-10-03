@@ -3,7 +3,7 @@
 //! This module provides functions for computing sparse Hessian matrices
 //! using various finite difference methods.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::parallel_ops::*;
 use scirs2_sparse::{csr_array::CsrArray, sparray::SparseArray};
 

@@ -3,8 +3,8 @@
 //! This module provides implementations for variational autoencoders specifically designed
 //! for time series data, including uncertainty quantification and probabilistic modeling.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::Result;
@@ -21,7 +21,7 @@ type EncoderWeights<F> = (
 
 /// Variational Autoencoder for Time Series with Uncertainty Quantification
 #[derive(Debug)]
-pub struct TimeSeriesVAE<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct TimeSeriesVAE<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Encoder parameters
     encoder_params: Array2<F>,
     /// Decoder parameters
@@ -37,7 +37,9 @@ pub struct TimeSeriesVAE<F: Float + Debug + ndarray::ScalarOperand> {
     decoder_hidden: usize,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> TimeSeriesVAE<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
+    TimeSeriesVAE<F>
+{
     /// Create new Time Series VAE
     pub fn new(
         seq_len: usize,

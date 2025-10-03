@@ -138,7 +138,7 @@ impl NeuralQuantumHybridProcessor {
         // Process clustering data if available
         if let Some(clustering_data) = input_data.clustering_data {
             // Simplified clustering processing
-            let cluster_assignments = ndarray::Array1::zeros(clustering_data.nrows());
+            let cluster_assignments = scirs2_core::ndarray::Array1::zeros(clustering_data.nrows());
             fused_result.clustering_output = Some(cluster_assignments);
         }
 

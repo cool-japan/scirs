@@ -1,6 +1,8 @@
 //! Enhanced Interactive Mathematical Derivation Studio
 //!
 //! This module provides a comprehensive system for interactively deriving
+
+#![allow(clippy::all)]
 //! mathematical results in special function theory, with step-by-step guidance,
 //! symbolic computation, and verification.
 //!
@@ -1033,13 +1035,14 @@ impl DerivationStudio {
                         }
 
                         let answer = get_user_input("Your answer (A, B, C, etc.): ")?;
-                        let answer_index = answer.to_uppercase().chars().next().and_then(|c| {
-                            if c >= 'A' && c <= 'Z' {
-                                Some((c as u8 - b'A') as usize)
-                            } else {
-                                None
-                            }
-                        });
+                        let answer_index =
+                            answer.to_uppercase().chars().next().and_then(|c: char| {
+                                if c.is_ascii_uppercase() {
+                                    Some((c as u8 - b'A') as usize)
+                                } else {
+                                    None
+                                }
+                            });
 
                         if let Some(idx) = answer_index {
                             if idx == *correct {
@@ -1278,7 +1281,7 @@ impl DerivationStudio {
             let normalized_y = ((y + 2.0) * 8.0) as usize;
             let display_pos = normalized_y.min(16);
 
-            let mut line = vec![' '; 17];
+            let mut line = [' '; 17];
             line[8] = '|'; // Zero line
             if display_pos < line.len() {
                 line[display_pos] = '●';
@@ -1803,9 +1806,8 @@ impl DerivationStudio {
 
             // Create visual progress bar
             let progress = (20.0 * (1.0 - error / exact)) as usize;
-            let bar: String = std::iter::repeat('█')
-                .take(progress)
-                .chain(std::iter::repeat('░').take(20 - progress))
+            let bar: String = std::iter::repeat_n('█', progress)
+                .chain(std::iter::repeat_n('░', 20 - progress))
                 .collect();
 
             print!("\rTerm {:2}: [{:20}] Error: {:.2e}", n, bar, error);
@@ -1827,7 +1829,7 @@ impl DerivationStudio {
         println!("Function: Γ(x) vs Stirling approximation");
         println!();
 
-        self.create_ascii_function_plot(&vec!["gamma".to_string()], &(1.0, 10.0))?;
+        self.create_ascii_function_plot(&["gamma".to_string()], &(1.0, 10.0))?;
 
         wait_for_user_input()?;
         Ok(())
@@ -2252,14 +2254,14 @@ fn gamma_complex(z: Complex64) -> Complex64 {
         // Use Lanczos approximation for positive real part
         let g = 7.0;
         let coef = [
-            0.99999999999980993,
+            0.999_999_999_999_809_9,
             676.5203681218851,
             -1259.1392167224028,
-            771.32342877765313,
-            -176.61502916214059,
+            771.323_428_777_653_1,
+            -176.615_029_162_140_6,
             12.507343278686905,
             -0.13857109526572012,
-            9.9843695780195716e-6,
+            9.984_369_578_019_572e-6,
             1.5056327351493116e-7,
         ];
 
@@ -2267,7 +2269,7 @@ fn gamma_complex(z: Complex64) -> Complex64 {
         let mut x = Complex64::new(coef[0], 0.0);
 
         for i in 1..coef.len() {
-            x = x + Complex64::new(coef[i], 0.0) / (z_shifted + Complex64::new(i as f64, 0.0));
+            x += Complex64::new(coef[i], 0.0) / (z_shifted + Complex64::new(i as f64, 0.0));
         }
 
         let t = z_shifted + Complex64::new(g + 0.5, 0.0);

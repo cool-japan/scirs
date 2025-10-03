@@ -12,9 +12,9 @@
 
 use crate::error::{Result, VisionError};
 use crate::feature::{Descriptor, KeyPoint};
-use ndarray::Array2;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Rng, SeedableRng};
 use std::collections::HashMap;
 
 /// Distance metrics for feature matching
@@ -1247,7 +1247,7 @@ pub mod utils {
         let mut sorted_distances = distances.clone();
         sorted_distances.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let median_distance = if sorted_distances.len() % 2 == 0 {
+        let median_distance = if sorted_distances.len().is_multiple_of(2) {
             (sorted_distances[sorted_distances.len() / 2 - 1]
                 + sorted_distances[sorted_distances.len() / 2])
                 / 2.0

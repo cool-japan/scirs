@@ -13,15 +13,11 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true, features = ["parallel", "simd"] }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["parallel", "simd", "array", "random"] }
 # Temporarily removed for publishing
 # scirs2-linalg = { workspace = true }
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
-rand = { workspace = true }
 statrs = { workspace = true }
 approx = { workspace = true }
 

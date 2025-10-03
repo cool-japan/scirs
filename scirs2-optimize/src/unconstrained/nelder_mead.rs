@@ -3,7 +3,7 @@
 use crate::error::OptimizeError;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::Options;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Implements the Nelder-Mead simplex algorithm with optional bounds support
 #[allow(dead_code)]

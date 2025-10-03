@@ -4,7 +4,7 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use ndarray::{Array2, ArrayBase, Data, Ix2};
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Ix2};
 use std::fmt::Debug;
 
 // Import helper functions from the multivariate module
@@ -42,7 +42,7 @@ impl InverseWishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::inverse_wishart::InverseWishart;
     ///
     /// // Create a 2D Inverse Wishart distribution with 5 degrees of freedom
@@ -109,7 +109,7 @@ impl InverseWishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::inverse_wishart::InverseWishart;
     ///
     /// let scale = array![[1.0, 0.0], [0.0, 1.0]];
@@ -191,7 +191,7 @@ impl InverseWishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::inverse_wishart::InverseWishart;
     ///
     /// let scale = array![[1.0, 0.0], [0.0, 1.0]];
@@ -234,7 +234,7 @@ impl InverseWishart {
     /// # Examples
     ///
     /// ```ignore
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::inverse_wishart::InverseWishart;
     ///
     /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -279,7 +279,7 @@ impl InverseWishart {
     /// # Examples
     ///
     /// ```ignore
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::inverse_wishart::InverseWishart;
     ///
     /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -303,7 +303,7 @@ impl InverseWishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::inverse_wishart::InverseWishart;
     ///
     /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -340,7 +340,7 @@ impl InverseWishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::inverse_wishart::InverseWishart;
     ///
     /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -377,7 +377,7 @@ impl InverseWishart {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distributions::multivariate;
 ///
 /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -403,7 +403,7 @@ impl SampleableDistribution<Array2<f64>> for InverseWishart {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_inverse_wishart_creation() {

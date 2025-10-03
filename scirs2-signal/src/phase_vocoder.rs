@@ -8,8 +8,8 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle_enhanced::WindowType;
 use crate::stft::{ShortTimeFft, StftConfig};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use rustfft;
 use std::fmt::Debug;
 

@@ -5,8 +5,10 @@
 //! contours in the complex plane, including non-uniform frequency spacing.
 
 use crate::{next_fast_len, FFTError, FFTResult};
-use ndarray::{s, Array, Array1, ArrayBase, ArrayD, Axis, Data, Dimension, RemoveAxis, Zip};
-use num_complex::Complex;
+use scirs2_core::ndarray::{
+    s, Array, Array1, ArrayBase, ArrayD, Axis, Data, Dimension, RemoveAxis, Zip,
+};
+use scirs2_core::numeric::Complex;
 use std::f64::consts::PI;
 
 /// Compute points at which the chirp z-transform samples

@@ -3,9 +3,9 @@
 //! This example shows how calibration methods can be applied to
 //! typical machine learning model operations like matrix multiplication.
 
-use ndarray::Array2;
-use rand::{rng, Rng};
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::{rng, Rng};
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_linalg::quantization::calibration::{
     calibrate_matrix, CalibrationConfig, CalibrationMethod,
 };
@@ -38,7 +38,7 @@ fn main() {
 /// (typical for trained neural networks)
 #[allow(dead_code)]
 fn create_model_weights(inputsize: usize, outputsize: usize) -> Array2<f32> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let normal = Normal::new(0.0, 0.1).unwrap(); // Small standard deviation typical for weights
 
     let mut weights = Array2::zeros((outputsize, inputsize));
@@ -54,7 +54,7 @@ fn create_model_weights(inputsize: usize, outputsize: usize) -> Array2<f32> {
 /// Create synthetic activations with various distributions
 #[allow(dead_code)]
 fn create_activations(_batchsize: usize, featuresize: usize) -> Array2<f32> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Create activations with ReLU-like distribution (many zeros, positive values)
     let mut activations = Array2::zeros((_batchsize, featuresize));

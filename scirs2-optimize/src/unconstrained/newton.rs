@@ -7,7 +7,7 @@ use crate::unconstrained::utils::{
     array_diff_norm, finite_difference_gradient, finite_difference_hessian,
 };
 use crate::unconstrained::{Bounds, Options};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Implements the Newton-Conjugate-Gradient algorithm for unconstrained optimization
 #[allow(dead_code)]

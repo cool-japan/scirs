@@ -1,8 +1,8 @@
 //! Data transforms for preprocessing inputs
 
 use crate::error::Result;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use statrs::statistics::Statistics;
 /// Trait for data transforms
@@ -47,9 +47,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> StandardSca
             // Compute mean and std for each sample
             let axis = 1; // Fit on feature dimension
             let mean = data
-                .mean_axis(ndarray::Axis(axis))
+                .mean_axis(scirs2_core::ndarray::Axis(axis))
                 .unwrap_or(Array::zeros(IxDyn(&[data.shape()[0]])));
-            let std = data.std_axis(ndarray::Axis(axis), zero);
+            let std = data.std_axis(scirs2_core::ndarray::Axis(axis), zero);
             self.mean = Some(mean);
             self.std = Some(std);
         } else {
@@ -127,7 +127,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> MinMaxScale
             // Compute min and max for each sample
             let mut min_vals = Array::zeros(IxDyn(&[data.shape()[0]]));
             let mut max_vals = Array::zeros(IxDyn(&[data.shape()[0]]));
-                let row = data.slice(ndarray::s![i, ..]);
+                let row = data.slice(scirs2_core::ndarray::s![i, ..]);
                 let min = match row.iter().min_by(|a, b| a.partial_cmp(b).unwrap()) {
                     Some(&val) => val,
                     None => F::zero(),
@@ -141,7 +141,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> MinMaxScale
             // Compute min and max for each feature
             let mut min_vals = Array::zeros(IxDyn(&[data.shape()[1]]));
             let mut max_vals = Array::zeros(IxDyn(&[data.shape()[1]]));
-                let col = data.slice(ndarray::s![.., j]);
+                let col = data.slice(scirs2_core::ndarray::s![.., j]);
                 let min = match col.iter().min_by(|a, b| a.partial_cmp(b).unwrap()) {
                 let max = match col.iter().max_by(|a, b| a.partial_cmp(b).unwrap()) {
                 min_vals[[j]] = min;

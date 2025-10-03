@@ -9,7 +9,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::tuning::{AutoTuner, TuningConfig, SearchStrategy, StandardSearchSpaces};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create sample data
 //! let data = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect()).unwrap();
@@ -82,19 +82,19 @@ pub fn grid_search_config() -> TuningConfig {
 
 /// Convenience function for quick K-means tuning
 pub fn quick_tune_kmeans<F>(
-    data: ndarray::ArrayView2<F>,
+    data: scirs2_core::ndarray::ArrayView2<F>,
     n_trials: Option<usize>,
 ) -> crate::error::Result<TuningResult>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Debug
         + 'static
         + std::iter::Sum
         + std::fmt::Display
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::ops::AddAssign
         + std::ops::SubAssign
         + std::ops::MulAssign
@@ -111,19 +111,19 @@ where
 
 /// Convenience function for quick DBSCAN tuning
 pub fn quick_tune_dbscan<F>(
-    data: ndarray::ArrayView2<F>,
+    data: scirs2_core::ndarray::ArrayView2<F>,
     n_trials: Option<usize>,
 ) -> crate::error::Result<TuningResult>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Debug
         + 'static
         + std::iter::Sum
         + std::fmt::Display
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::ops::AddAssign
         + std::ops::SubAssign
         + std::ops::MulAssign
@@ -141,7 +141,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_default_tuning_config() {

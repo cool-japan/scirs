@@ -12,7 +12,7 @@
 //! - **Multiple metric types**: Classification, regression, and ranking metrics
 //! - **Reset capabilities**: Start new evaluation periods
 //! - **Advanced streaming**: Concept drift detection and adaptive windowing
-//! - **Anomaly detection**: Real-time anomaly detection in streaming data
+//! - **Anomaly detection**: Float-time anomaly detection in streaming data
 //!
 //! # Examples
 //!
@@ -51,7 +51,7 @@
 //! ```
 
 use crate::error::{MetricsError, Result};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::VecDeque;
 
 // Re-export advanced streaming capabilities

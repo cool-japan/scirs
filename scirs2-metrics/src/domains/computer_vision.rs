@@ -6,7 +6,7 @@
 use crate::classification::{accuracy_score, f1_score, precision_score, recall_score};
 use crate::domains::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 /// Bounding box representation (x1, y1, x2, y2, confidence, class_id)

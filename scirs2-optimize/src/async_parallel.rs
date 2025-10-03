@@ -6,8 +6,8 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::OptimizeResult;
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use std::cmp::min;
 use std::future::Future;
 use std::sync::Arc;
@@ -360,7 +360,7 @@ impl AsyncDifferentialEvolution {
     /// Initialize random population
     fn initialize_population(&self) -> Array2<f64> {
         let mut population = Array2::zeros((self.population_size, self.dimensions));
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         if let Some((ref lower, ref upper)) = self.bounds {
             for mut individual in population.outer_iter_mut() {
@@ -578,7 +578,7 @@ impl AsyncDifferentialEvolution {
         _fitness_values: &[f64],
     ) -> Array2<f64> {
         let mut new_population = Array2::zeros((self.population_size, self.dimensions));
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for i in 0..self.population_size {
             // Select three random individuals (different from current)
@@ -674,12 +674,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_async_optimization_with_varying_times() {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
 
         // Function with varying evaluation times
         let objective = |x: Array1<f64>| async move {
             // Simulate varying computation times (10ms to 100ms)
-            let delay = rand::rng().gen_range(10..=100);
+            let delay = scirs2_core::random::rng().gen_range(10..=100);
             sleep(Duration::from_millis(delay)).await;
 
             // Rosenbrock function (2D)
@@ -728,7 +728,7 @@ mod tests {
         // Function that sometimes takes too long
         let objective = |x: Array1<f64>| async move {
             // 50% chance of taking too long
-            if rand::rng().random::<f64>() < 0.5 {
+            if scirs2_core::random::rng().random::<f64>() < 0.5 {
                 sleep(Duration::from_secs(1)).await; // Too long
             } else {
                 sleep(Duration::from_millis(10)).await; // Normal

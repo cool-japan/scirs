@@ -1,8 +1,8 @@
 //! Model checkpoint storage manager implementation
 
 use crate::error::Result;
-use ndarray::ScalarOperand;
-use num_traits::Float;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 /// Type alias for checkpoint loading result

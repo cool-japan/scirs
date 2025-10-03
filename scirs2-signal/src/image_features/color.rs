@@ -1,7 +1,7 @@
 // Color-specific feature extraction for images
 
 use crate::error::SignalResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -9,7 +9,7 @@ use std::fmt::Debug;
 /// Extract color-specific features from a color image
 #[allow(dead_code)]
 pub fn extract_color_features<T>(
-    image: &ndarray::Array3<T>,
+    image: &scirs2_core::ndarray::Array3<T>,
     features: &mut HashMap<String, f64>,
 ) -> SignalResult<()>
 where

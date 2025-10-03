@@ -9,7 +9,7 @@
 //! - Detecting precision loss and data corruption
 //! - Validating metadata preservation
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 #[cfg(feature = "hdf5")]
 use scirs2_io::hdf5::{self, AttributeValue, CompressionOptions, DatasetOptions};
 use scirs2_io::{
@@ -51,7 +51,9 @@ fn test_csv_round_trip_basic() {
         None
     };
     let data_only = if array_data.nrows() > 1 {
-        array_data.slice(ndarray::s![1.., ..]).to_owned()
+        array_data
+            .slice(scirs2_core::ndarray::s![1.., ..])
+            .to_owned()
     } else {
         Array2::from_shape_vec((0, cols), Vec::new()).unwrap()
     };
@@ -135,7 +137,9 @@ fn test_csv_round_trip_with_options() {
         None
     };
     let data_only = if array_data.nrows() > 1 {
-        array_data.slice(ndarray::s![1.., ..]).to_owned()
+        array_data
+            .slice(scirs2_core::ndarray::s![1.., ..])
+            .to_owned()
     } else {
         Array2::from_shape_vec((0, cols), Vec::new()).unwrap()
     };
@@ -387,7 +391,7 @@ fn test_hdf5_round_trip_basic() {
     assert_eq!(dataset2d.shape, vec![2, 3]);
     if let Some(data_vec) = dataset2d.as_float_vec() {
         assert_eq!(data_vec.len(), 6);
-        let expected = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let expected = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         for (i, &val) in data_vec.iter().enumerate() {
             assert!((val - expected[i]).abs() < 1e-10);
         }
@@ -637,7 +641,9 @@ fn test_validation_round_trip() {
         None
     };
     let data_only = if array_data.nrows() > 1 {
-        array_data.slice(ndarray::s![1.., ..]).to_owned()
+        array_data
+            .slice(scirs2_core::ndarray::s![1.., ..])
+            .to_owned()
     } else {
         Array2::from_shape_vec((0, cols), Vec::new()).unwrap()
     };
@@ -679,9 +685,11 @@ fn test_compression_round_trip() {
     let large_array = Array2::from_shape_fn((100, 100), |(i, j)| (i + j) as f64);
 
     // Create compression options
-    let mut compression = CompressionOptions::default();
-    compression.gzip = Some(6);
-    compression.shuffle = true;
+    let compression = CompressionOptions {
+        gzip: Some(6),
+        shuffle: true,
+        ..Default::default()
+    };
 
     let options = DatasetOptions {
         chunk_size: Some(vec![10, 10]),
@@ -811,7 +819,7 @@ fn test_precision_round_trip() {
     let dir = tempdir().unwrap();
 
     // Test various precision scenarios
-    let precision_values = vec![
+    let precision_values = [
         1e-15,                // Very small values
         1e15,                 // Very large values
         std::f64::consts::PI, // Irrational numbers
@@ -832,7 +840,7 @@ fn test_precision_round_trip() {
 
         // Test binary round-trip
         serialize::write_array_binary(&binary_file, &original_array).unwrap();
-        let binary_read: ndarray::Array<f64, ndarray::IxDyn> =
+        let binary_read: scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::IxDyn> =
             serialize::read_array_binary(&binary_file).unwrap();
 
         // Verify precision preservation

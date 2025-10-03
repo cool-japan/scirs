@@ -5,7 +5,7 @@
 //! neural network operations that exceed available memory.
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, ArrayD, ArrayView, IxDyn};
+use scirs2_core::ndarray::{Array, ArrayD, ArrayView, IxDyn};
 use std::fmt::Debug;
 #[cfg(feature = "memory_efficient")]
 use scirs2_core::memory_efficient::{chunk_wise_op, ChunkingStrategy};
@@ -63,7 +63,7 @@ impl MemoryEfficientProcessor {
         let mut start_idx = 0;
         while start_idx < batch_size {
             let end_idx = (start_idx + self.chunk_size).min(batch_size);
-            let chunk = input.slice(ndarray::s![start_idx..end_idx, ..]);
+            let chunk = input.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
             let result = processor(&chunk.into_dyn())?;
             results.push(result);
             start_idx = end_idx;
@@ -100,8 +100,8 @@ impl MemoryEfficientProcessor {
                 "Input and target must have same shape for gradient computation".to_string(),
             return gradient_fn(&input.view(), &target.view());
         let mut gradients = Vec::new();
-            let input_chunk = input.slice(ndarray::s![start_idx..end_idx, ..]);
-            let target_chunk = target.slice(ndarray::s![start_idx..end_idx, ..]);
+            let input_chunk = input.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
+            let target_chunk = target.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
             let gradient = gradient_fn(&input_chunk.into_dyn(), &target_chunk.into_dyn())?;
             gradients.push(gradient);
         self.concatenate_results(gradients)

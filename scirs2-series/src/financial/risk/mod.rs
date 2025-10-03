@@ -62,7 +62,7 @@
 //! ## Comprehensive Risk Assessment
 //! ```rust
 //! use scirs2_series::financial::risk::{metrics, drawdown};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // Portfolio data
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.003, 0.007];
@@ -93,7 +93,7 @@
 //! ## Risk-Adjusted Performance Comparison
 //! ```rust
 //! use scirs2_series::financial::risk::metrics::{sharpe_ratio, sortino_ratio, information_ratio};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let portfolio_a = array![0.012, -0.015, 0.018, -0.005, 0.010];
 //! let portfolio_b = array![0.008, -0.012, 0.015, -0.008, 0.012];
@@ -119,7 +119,7 @@
 //! use scirs2_series::financial::risk::drawdown::{
 //!     drawdown_recovery_analysis, max_consecutive_losses, average_recovery_time
 //! };
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let portfolio_values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0, 1150.0, 1300.0, 1250.0, 1400.0];
 //! let returns = array![0.10, -0.045, -0.095, 0.263, -0.042, 0.130, -0.038, 0.120];

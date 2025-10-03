@@ -4,8 +4,8 @@
 //! across different slices of data, evaluate subgroup performance, and measure
 //! intersectional fairness.
 
-use ndarray::{ArrayBase, Data, Ix1, Ix2};
-use num_traits::real::Real;
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::numeric::Float;
 use std::collections::{BTreeSet, HashMap};
 
 use crate::error::{MetricsError, Result};
@@ -41,7 +41,7 @@ pub struct DataSlice {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::fairness::bias_detection::slice_analysis;
 /// use scirs2_metrics::classification::accuracy_score;
 ///
@@ -69,8 +69,8 @@ pub struct DataSlice {
 ///     &y_pred,
 ///     |y_t, y_p| {
 ///         // Convert Vec<f64> to Array1<f64> for accuracy_score
-///         let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-///         let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+///         let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+///         let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
 ///         accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
 ///     }
 /// ).unwrap();
@@ -89,7 +89,7 @@ pub fn slice_analysis<T, S1, S2, S3, F>(
     metric_fn: F,
 ) -> Result<HashMap<String, f64>>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = T>,
     S3: Data<Elem = T>,
@@ -194,7 +194,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::fairness::bias_detection::subgroup_performance;
 /// use scirs2_metrics::classification::accuracy_score;
 ///
@@ -224,8 +224,8 @@ where
 ///     &group_names,
 ///     |y_t, y_p| {
 ///         // Convert Vec<f64> to Array1<f64> for accuracy_score
-///         let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-///         let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+///         let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+///         let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
 ///         accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
 ///     }
 /// ).unwrap();
@@ -244,7 +244,7 @@ pub fn subgroup_performance<T, S1, S2, S3, F>(
     metric_fn: F,
 ) -> Result<HashMap<String, f64>>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = T>,
     S3: Data<Elem = T>,
@@ -350,7 +350,7 @@ fn generate_intersectional_subgroups<T, S1, S2, S3, F>(
     metric_fn: F,
 ) -> Result<()>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = T>,
     S3: Data<Elem = T>,
@@ -428,7 +428,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::fairness::bias_detection::intersectional_fairness;
 ///
 /// // Create sample dataset
@@ -500,7 +500,7 @@ pub fn intersectional_fairness<T, S1, S2, S3>(
     feature_names: &[String],
 ) -> Result<HashMap<String, FairnessMetrics>>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = T>,
     S3: Data<Elem = T>,
@@ -572,7 +572,7 @@ where
             }
 
             // Create ndarray from protected_group Vec
-            let protected_group_array = ndarray::Array::from(protected_group);
+            let protected_group_array = scirs2_core::ndarray::Array::from(protected_group);
 
             // Calculate fairness metrics
             let group_name = format!("{}={}", feat_name, value);
@@ -619,7 +619,8 @@ where
                         );
 
                         // Create ndarray from protected_group Vec
-                        let protected_group_array = ndarray::Array::from(protected_group);
+                        let protected_group_array =
+                            scirs2_core::ndarray::Array::from(protected_group);
 
                         let metrics =
                             calculate_fairness_metrics(y_true, y_pred, &protected_group_array)?;
@@ -641,7 +642,7 @@ fn calculate_fairness_metrics<T, S1, S2, S3>(
     protected_group: &ArrayBase<S3, Ix1>,
 ) -> Result<FairnessMetrics>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = T>,
     S3: Data<Elem = T>,

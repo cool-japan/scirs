@@ -6,7 +6,7 @@
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::traits::InterpolationFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use super::types::SplineBoundaryCondition;
 use super::algorithms::*;
 
@@ -35,7 +35,7 @@ use super::algorithms::*;
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::spline::CubicSpline;
 ///
 /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -65,7 +65,7 @@ pub struct CubicSpline<F: InterpolationFloat> {
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::spline::{CubicSpline, SplineBoundaryCondition};
 ///
 /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -206,7 +206,7 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::spline::CubicSpline;
     ///
     /// let x = array![0.0, 1.0, 2.0, 3.0];

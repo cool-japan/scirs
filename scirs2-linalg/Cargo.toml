@@ -13,17 +13,9 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true, features = ["linalg", "parallel", "simd", "random"] }
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
+# Core dependencies - ALL numeric/array functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["linalg", "parallel", "simd", "random", "array"] }
 thiserror = { workspace = true }
-nalgebra = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
-rand_chacha = { workspace = true }
-ndarray-rand = { workspace = true }
 approx = { workspace = true }
 half = { workspace = true }
 scirs2-autograd = { workspace = true, optional = true }
@@ -44,16 +36,19 @@ required-features = ["simd"]
 [dev-dependencies]
 approx = { workspace = true }
 criterion = { workspace = true }
+# NOTE: ndarray-linalg is already included via scirs2-core dependency
+# Adding it in dev-dependencies causes duplicate resolution and linker conflicts in doctests
 
 [features]
 # Default features use platform-appropriate BLAS backend (configured at workspace level)
 default = ["linalg", "simd"]
 
 # BLAS backend features - these delegate to workspace-level platform configuration
-accelerate = ["scirs2-core/accelerate"]  # macOS Accelerate framework
-openblas-backend = ["scirs2-core/openblas"]  # OpenBLAS (Linux/Windows)
-# intel-mkl = ["scirs2-core/intel-mkl"]  # Intel MKL - removed from scirs2-core
-netlib = ["scirs2-core/netlib"]  # Reference Netlib
+# Note: macOS automatically uses Accelerate framework when linalg feature is enabled
+openblas-backend = ["scirs2-core/openblas"]  # OpenBLAS (Linux/Windows via system)
+netlib = ["scirs2-core/netlib"]  # Reference Netlib (via system)
+# NOTE: No explicit accelerate feature - Accelerate is used automatically on macOS
+# NOTE: intel-mkl removed from scirs2-core
 
 # Core functionality features
 linalg = ["scirs2-core/linalg"] # Linear algebra with BLAS/LAPACK bindings
@@ -66,6 +61,7 @@ extended-test = [] # For extended precision tests
 # GPU acceleration features (experimental)
 cuda = [] # NVIDIA CUDA support
 opencl = [] # OpenCL support
+cpu-fallback = [] # CPU fallback when no GPU backend available
 rocm = [] # AMD ROCm support
 metal = [] # Apple Metal support
 gpu = ["cuda"] # Default GPU feature uses CUDA

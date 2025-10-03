@@ -3,8 +3,8 @@
 //! This module contains optimized linear algebra routines specifically
 //! designed for B-spline interpolation and least-squares fitting.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, RemAssign, Sub, SubAssign};
 
@@ -87,7 +87,7 @@ where
 
     // Use normal equations approach: solve (A^T A) x = A^T b
     let at = transpose_matrix(a);
-    let ata = matrix_multiply(&at.view(), &a)?;
+    let ata = matrix_multiply(&at.view(), a)?;
     let atb = matrix_vector_multiply(&at.view(), b)?;
 
     // Add regularization for numerical stability
@@ -160,7 +160,7 @@ fn estimate_bandwidth<T: Float + Zero + FromPrimitive>(matrix: &ArrayView2<T>) -
     for i in 0..n {
         for j in 0..n {
             if matrix[[i, j]].abs() > tolerance {
-                let bandwidth = if i > j { i - j } else { j - i };
+                let bandwidth = i.abs_diff(j);
                 max_bandwidth = max_bandwidth.max(bandwidth);
             }
         }
@@ -548,7 +548,7 @@ fn frobenius_norm<T: Float + Zero + Copy + AddAssign>(matrix: &ArrayView2<T>) ->
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_dense_solver() {

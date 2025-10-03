@@ -5,8 +5,8 @@
 //! and PortfolioMetrics structs that form the foundation for portfolio
 //! analysis and optimization.
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -112,7 +112,7 @@ impl<F: Float + Clone> Portfolio<F> {
     ///
     /// ```rust
     /// use scirs2_series::financial::portfolio::core::Portfolio;
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     ///
     /// let weights = array![0.6, 0.4];
     /// let names = vec!["AAPL".to_string(), "GOOGL".to_string()];
@@ -306,14 +306,14 @@ impl<F: Float + Clone> Portfolio<F> {
 ///
 /// ```rust
 /// use scirs2_series::financial::portfolio::core::calculate_portfolio_returns;
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 ///
 /// let returns = Array2::from_shape_vec((3, 2), vec![0.01, 0.02, -0.01, 0.01, 0.015, -0.005]).unwrap();
 /// let weights = array![0.6, 0.4];
 /// let portfolio_returns = calculate_portfolio_returns(&returns, &weights).unwrap();
 /// ```
 pub fn calculate_portfolio_returns<F: Float + Clone>(
-    asset_returns: &ndarray::Array2<F>, // rows: time, cols: assets
+    asset_returns: &scirs2_core::ndarray::Array2<F>, // rows: time, cols: assets
     weights: &Array1<F>,
 ) -> Result<Array1<F>> {
     if asset_returns.ncols() != weights.len() {
@@ -339,7 +339,7 @@ pub fn calculate_portfolio_returns<F: Float + Clone>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, Array2};
+    use scirs2_core::ndarray::{arr1, Array2};
 
     #[test]
     fn test_portfolio_creation() {

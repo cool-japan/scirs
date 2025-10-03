@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_interpolate::bspline::ExtrapolateMode;
 use scirs2_interpolate::nurbs::{make_nurbs_circle, make_nurbs_sphere, NurbsCurve, NurbsSurface};
 
@@ -239,7 +239,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 9: Sampling a NURBS curve at multiple parameter values
     println!("\nExample 9: Sampling a NURBS curve");
-    let t_values = ndarray::Array1::<f64>::linspace(0.0, 1.0, 5);
+    let t_values = scirs2_core::ndarray::Array1::<f64>::linspace(0.0, 1.0, 5);
     let curve_points = circle.evaluate_array(&t_values.view())?;
 
     println!("  Circle points at t = [0.0, 0.25, 0.5, 0.75, 1.0]:");
@@ -254,8 +254,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Example 10: Sampling a NURBS surface at multiple parameter values
     println!("\nExample 10: Sampling a NURBS surface on a grid");
-    let u_values = ndarray::Array1::<f64>::linspace(0.0, 1.0, 3); // [0.0, 0.5, 1.0]
-    let v_values = ndarray::Array1::<f64>::linspace(0.0, 1.0, 3);
+    let u_values = scirs2_core::ndarray::Array1::<f64>::linspace(0.0, 1.0, 3); // [0.0, 0.5, 1.0]
+    let v_values = scirs2_core::ndarray::Array1::<f64>::linspace(0.0, 1.0, 3);
     let surface_points = nurbs_surface.evaluate_array(&u_values.view(), &v_values.view(), true)?;
 
     println!("  Surface points at (u,v) grid [0.0, 0.5, 1.0] x [0.0, 0.5, 1.0]:");

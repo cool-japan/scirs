@@ -7,7 +7,7 @@
 use super::expression::{SymbolicExpression, Variable};
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::HashMap;
 use SymbolicExpression::{Add, Constant, Cos, Div, Exp, Ln, Mul, Neg, Pow, Sin, Sqrt, Sub, Var};
 
@@ -310,7 +310,7 @@ impl<F: IntegrateFloat> SystemConverter<F> {
         let mut all_variable_map = HashMap::new();
 
         for ode in &self.odes {
-            let system = higher_order_to_first_order(&ode)?;
+            let system = higher_order_to_first_order(ode)?;
             all_state_vars.extend(system.state_vars);
             all_expressions.extend(system.expressions);
             all_variable_map.extend(system.variable_map);

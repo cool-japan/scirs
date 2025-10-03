@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_stats::regression::{
     huber_regression, linear_regression, ransac, theilslopes, HuberT, RegressionResults,
 };
@@ -7,7 +7,7 @@ use statrs::statistics::Statistics;
 #[allow(dead_code)]
 fn generatedata_with_outliers() -> (Array2<f64>, Array1<f64>) {
     // Generate simple linear data with slope ~2, intercept ~1
-    let x_values = vec![0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
+    let x_values = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0];
     let n = x_values.len();
 
     // Create design matrix with intercept column

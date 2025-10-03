@@ -473,8 +473,10 @@ mod tests {
     fn test_config_update() {
         let mut framework = QuantumSpatialFramework::default();
 
-        let mut new_config = QuantumConfig::default();
-        new_config.num_qubits = 16;
+        let new_config = QuantumConfig {
+            num_qubits: 16,
+            ..Default::default()
+        };
 
         framework.update_quantum_config(new_config);
         assert_eq!(framework.quantum_config().num_qubits, 16);

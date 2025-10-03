@@ -4,8 +4,8 @@
 //! In practice, optimized FFT libraries like FFTW would be used for better performance.
 
 use crate::error::IntegrateResult;
-use ndarray::{Array2, Array3};
-use num_complex::Complex;
+use scirs2_core::ndarray::{Array2, Array3};
+use scirs2_core::numeric::Complex;
 
 /// Type alias for FFT result
 pub type FFTResult<T> = IntegrateResult<T>;
@@ -345,7 +345,7 @@ impl FFTOperations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_fft_round_trip_2d() {

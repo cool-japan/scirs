@@ -8,7 +8,7 @@ use crate::error::OptimizeError;
 use crate::simd_ops::{SimdConfig, SimdVectorOps};
 use crate::unconstrained::line_search::backtracking_line_search;
 use crate::unconstrained::{Bounds, OptimizeResult, Options};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Options specific to SIMD BFGS
 #[derive(Debug, Clone)]
@@ -129,7 +129,7 @@ impl SimdBfgsState {
     /// Matrix-vector multiply using SIMD for row operations
     fn matrix_vector_multiply_simd(
         &self,
-        matrix: &ndarray::ArrayView2<f64>,
+        matrix: &scirs2_core::ndarray::ArrayView2<f64>,
         vector: &ArrayView1<f64>,
     ) -> Array1<f64> {
         self.simd_ops.matvec(matrix, vector)
@@ -140,7 +140,7 @@ impl SimdBfgsState {
     fn vector_matrix_multiply_simd(
         &self,
         vector: &ArrayView1<f64>,
-        matrix: &ndarray::ArrayView2<f64>,
+        matrix: &scirs2_core::ndarray::ArrayView2<f64>,
     ) -> Array1<f64> {
         let n = matrix.ncols();
         let mut result = Array1::zeros(n);
@@ -388,7 +388,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_simd_bfgs_quadratic() {

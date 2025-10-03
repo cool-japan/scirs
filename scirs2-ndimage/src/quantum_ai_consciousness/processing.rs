@@ -4,8 +4,8 @@
 //! consciousness processing components including emergent intelligence,
 //! pattern recognition, quantum intuition, IIT, GWT, and attention systems.
 
-use ndarray::{Array1, Array2, Array3, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 
 use super::config::{

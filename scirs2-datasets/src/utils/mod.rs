@@ -60,14 +60,14 @@ pub use advanced_analytics::{
 // Type aliases for convenience
 
 /// Convenience alias for ndarray 1D array
-pub type Array1<T> = ndarray::Array1<T>;
+pub type Array1<T> = scirs2_core::ndarray::Array1<T>;
 /// Convenience alias for ndarray 2D array
-pub type Array2<T> = ndarray::Array2<T>;
+pub type Array2<T> = scirs2_core::ndarray::Array2<T>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_module_integration() {
@@ -79,7 +79,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let target = ndarray::Array1::from(vec![0.0, 0.0, 1.0, 1.0, 1.0, 1.0]);
+        let target = scirs2_core::ndarray::Array1::from(vec![0.0, 0.0, 1.0, 1.0, 1.0, 1.0]);
 
         // Test dataset creation
         let dataset = Dataset::new(data.clone(), Some(target.clone()));
@@ -116,7 +116,7 @@ mod tests {
 
         let data =
             Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
-        let targets = ndarray::Array1::from(vec![0.0, 0.0, 1.0, 1.0]);
+        let targets = scirs2_core::ndarray::Array1::from(vec![0.0, 0.0, 1.0, 1.0]);
 
         // These should all work exactly as they did before refactoring
         let dataset = Dataset::new(data.clone(), Some(targets.clone()));
@@ -140,7 +140,8 @@ mod tests {
     fn test_cross_validation_compatibility() {
         // Test cross-validation functionality that spans multiple modules
         let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect()).unwrap();
-        let targets = ndarray::Array1::from((0..10).map(|x| (x % 3) as f64).collect::<Vec<_>>());
+        let targets =
+            scirs2_core::ndarray::Array1::from((0..10).map(|x| (x % 3) as f64).collect::<Vec<_>>());
 
         let dataset = Dataset::new(data, Some(targets.clone()));
 

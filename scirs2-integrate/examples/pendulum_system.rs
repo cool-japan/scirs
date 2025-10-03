@@ -3,7 +3,7 @@
 //! This example demonstrates solving pendulum dynamics using various ODE methods.
 //! It includes simple pendulum, damped pendulum, and driven pendulum systems.
 
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 use std::f64::consts::PI;
 

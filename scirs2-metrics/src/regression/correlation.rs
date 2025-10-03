@@ -3,8 +3,8 @@
 //! This module provides functions for calculating correlation-based metrics
 //! between predicted values and true values in regression models.
 
-use ndarray::{ArrayBase, Data, Dimension};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 
 use super::{check_sameshape, mean};
 use crate::error::{MetricsError, Result};
@@ -85,7 +85,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::r2_score;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -153,7 +153,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::adjusted_r2_score;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -214,7 +214,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::explained_variance_score;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -288,7 +288,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::pearson_correlation;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -357,7 +357,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::spearman_correlation;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -393,7 +393,7 @@ where
 
 /// Helper function to compute ranks of an array
 #[allow(dead_code)]
-fn compute_ranks<F, S, D>(x: &ArrayBase<S, D>) -> Result<ndarray::Array1<F>>
+fn compute_ranks<F, S, D>(x: &ArrayBase<S, D>) -> Result<scirs2_core::ndarray::Array1<F>>
 where
     F: Float + NumCast + std::fmt::Debug + FromPrimitive,
     S: Data<Elem = F>,
@@ -426,7 +426,7 @@ where
         i = j;
     }
 
-    Ok(ndarray::Array1::from_vec(ranks))
+    Ok(scirs2_core::ndarray::Array1::from_vec(ranks))
 }
 
 /// Calculates the concordance correlation coefficient (CCC)
@@ -446,7 +446,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::concordance_correlation;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];

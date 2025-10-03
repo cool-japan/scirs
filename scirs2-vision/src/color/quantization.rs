@@ -5,10 +5,10 @@
 
 use crate::error::Result;
 use image::{DynamicImage, Rgb, RgbImage};
-use rand::prelude::*;
-use rand::seq::SliceRandom;
-use rand::Rng;
 use scirs2_core::parallel_ops::*;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// K-means color quantization parameters
@@ -171,7 +171,7 @@ fn initialize_centers(colors: &[[f32; 3]], params: &KMeansParams) -> Vec<[f32; 3
 /// Random initialization
 #[allow(dead_code)]
 fn initialize_random(colors: &[[f32; 3]], k: usize) -> Vec<[f32; 3]> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut centers = Vec::new();
     let mut indices: Vec<_> = (0..colors.len()).collect();
     indices.shuffle(&mut rng);
@@ -184,7 +184,7 @@ fn initialize_random(colors: &[[f32; 3]], k: usize) -> Vec<[f32; 3]> {
 /// K-means++ initialization
 #[allow(dead_code)]
 fn initialize_kmeans_plus_plus(colors: &[[f32; 3]], k: usize) -> Vec<[f32; 3]> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut centers = Vec::new();
 
     // Choose first center randomly
@@ -248,7 +248,7 @@ fn initialize_frequency(colors: &[[f32; 3]], k: usize) -> Vec<[f32; 3]> {
     }
 
     // Fill remaining with random if needed
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     while centers.len() < k {
         centers.push(colors[rng.gen_range(0..colors.len())]);
     }

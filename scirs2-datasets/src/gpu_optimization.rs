@@ -6,12 +6,12 @@
 
 use crate::error::{DatasetsError, Result};
 use crate::gpu::{GpuBackend, GpuContext};
-use ndarray::{Array2, Axis};
+use scirs2_core::ndarray::{Array2, Axis};
 // Use local GPU implementation to avoid feature flag issues
 // TODO: Re-enable core GPU integration when features are stabilized
 use scirs2_core::parallel_ops::*;
 use scirs2_core::random::prelude::*;
-use scirs2_core::random::rand_distributions::Uniform;
+use scirs2_core::random::{Distribution, Uniform};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -826,8 +826,8 @@ impl AdvancedGpuOptimizer {
         cols: usize,
         distribution: &str,
     ) -> Result<Array2<f64>> {
-        use rand::{rng, Rng};
-        use rand_distr::{Distribution, Normal, Uniform};
+        use scirs2_core::random::{rng, Rng};
+        use scirs2_core::random::{Distribution, Normal, Uniform};
 
         let _rng = thread_rng();
         let total_elements = rows * cols;
@@ -1096,7 +1096,7 @@ impl AIPerformancePredictor {
         self.training_data.push(datapoint);
 
         // Retrain model if we have enough data
-        if self.training_data.len() % 100 == 0 && self.training_data.len() > 50 {
+        if self.training_data.len().is_multiple_of(100) && self.training_data.len() > 50 {
             self.retrain_model();
         }
     }

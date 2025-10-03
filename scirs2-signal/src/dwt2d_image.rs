@@ -9,7 +9,7 @@
 // Basic image denoising:
 //
 // ```
-// use ndarray::{Array, Array2};
+// use scirs2_core::ndarray::{Array, Array2};
 // use scirs2_signal::dwt::Wavelet;
 // use scirs2_signal::dwt2d::wavedec2;
 // use scirs2_signal::dwt2d_image::{denoise_image, DenoisingMethod};
@@ -34,7 +34,7 @@
 use crate::dwt::Wavelet;
 use crate::dwt2d::{wavedec2, waverec2, Dwt2dResult, ThresholdMethod};
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::f64;
 
 #[allow(unused_imports)]
@@ -79,7 +79,7 @@ pub enum DenoisingMethod {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d_image::{denoise_image, DenoisingMethod};
 ///
@@ -213,7 +213,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d_image::detect_edges;
 ///
@@ -285,7 +285,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d_image::compress_image;
 ///

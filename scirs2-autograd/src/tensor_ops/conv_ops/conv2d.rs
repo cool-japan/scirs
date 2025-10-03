@@ -1,9 +1,9 @@
 use super::*;
 use crate::tensor_ops::*;
 use crate::tensor_ops::{
-    cblas_dgemm, cblas_sgemm, BlasIF, CblasNoTrans, CblasRowMajor, CblasTrans,
+    cblas_dgemm, cblas_sgemm, BlasIF, CBLAS_NO_TRANS, CBLAS_ROW_MAJOR, CBLAS_TRANS,
 };
-use ndarray::IxDyn;
+use scirs2_core::ndarray::IxDyn;
 use std::slice;
 
 pub struct Conv2D {
@@ -89,9 +89,9 @@ fn fast_im2col_gemm_fused_kernel<F: Float>(
                     // invalid type must be reported beforehand
                     if crate::same_type::<$ty, F>() {
                         $f(
-                            CblasRowMajor,
-                            CblasNoTrans,
-                            CblasNoTrans,
+                            CBLAS_ROW_MAJOR,
+                            CBLAS_NO_TRANS,
+                            CBLAS_NO_TRANS,
                             m as BlasIF,                  // m, rows of Op(a)
                             n as BlasIF,                  // n, cols of Op(b)
                             k as BlasIF,                  // k, cols of Op(a)
@@ -248,9 +248,9 @@ fn fast_col_x_filter_kernel<F: Float>(
                 if crate::same_type::<$ty, F>() {
                     unsafe {
                         $f(
-                            CblasRowMajor,
-                            CblasNoTrans,
-                            CblasNoTrans,
+                            CBLAS_ROW_MAJOR,
+                            CBLAS_NO_TRANS,
+                            CBLAS_NO_TRANS,
                             m as BlasIF,                  // m, rows of Op(a)
                             n as BlasIF,                  // n, cols of Op(b)
                             k as BlasIF,                  // k, cols of Op(a)
@@ -530,7 +530,12 @@ fn conv2d_with_cols_impl<F: Float>(cols: &NdArrayView<F>, w: &NdArrayView<F>) ->
         kw,
         batch_size,
     );
-    unsafe { NdArray::from_shape_vec_unchecked(ndarray::IxDyn(&[batch_size, ych, yh, yw]), y) }
+    unsafe {
+        NdArray::from_shape_vec_unchecked(
+            scirs2_core::ndarray::IxDyn(&[batch_size, ych, yh, yw]),
+            y,
+        )
+    }
 }
 
 impl<T: Float> crate::op::Op<T> for Conv2D {
@@ -674,9 +679,9 @@ fn conv2d_filter_grad_impl<F: Float>(
                     for i in 0..batch_size {
                         unsafe {
                             $f(
-                                CblasRowMajor,
-                                CblasNoTrans,
-                                CblasTrans,
+                                CBLAS_ROW_MAJOR,
+                                CBLAS_NO_TRANS,
+                                CBLAS_TRANS,
                                 m,
                                 n,
                                 k,

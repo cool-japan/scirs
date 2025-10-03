@@ -5,8 +5,8 @@
 //! connected by shared indices.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{ArrayD, Dimension, IxDyn};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{ArrayD, Dimension, IxDyn};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -266,8 +266,8 @@ where
         let mut result_data = ArrayD::zeros(IxDyn(&resultshape));
 
         // Compute outer product
-        for self_idx in ndarray::indices(self.data.shape()) {
-            for other_idx in ndarray::indices(other.data.shape()) {
+        for self_idx in scirs2_core::ndarray::indices(self.data.shape()) {
+            for other_idx in scirs2_core::ndarray::indices(other.data.shape()) {
                 let mut result_idx = Vec::new();
                 for &i in self_idx.as_array_view().iter() {
                     result_idx.push(i);
@@ -363,7 +363,7 @@ where
         }
 
         // Iterate over each result index
-        for result_idx in ndarray::indices(result_data.shape()) {
+        for result_idx in scirs2_core::ndarray::indices(result_data.shape()) {
             let mut sum = A::zero();
 
             // Sum over the traced dimension
@@ -476,7 +476,7 @@ where
         };
 
         // Sum over the specified axis
-        let new_data = self.data.sum_axis(ndarray::Axis(position));
+        let new_data = self.data.sum_axis(scirs2_core::ndarray::Axis(position));
 
         // Create new indices list with the index removed
         let mut new_indices = self.indices.clone();
@@ -670,9 +670,11 @@ mod tests {
     #[test]
     fn test_tensor_node_creation() {
         // Create a 2x3 tensor
-        let data =
-            ArrayD::from_shape_vec(ndarray::IxDyn(&[2, 3]), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-                .unwrap();
+        let data = ArrayD::from_shape_vec(
+            scirs2_core::ndarray::IxDyn(&[2, 3]),
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        )
+        .unwrap();
         let indices = vec!["i".to_string(), "j".to_string()];
 
         let node = TensorNode::new(data, indices).unwrap();
@@ -685,9 +687,11 @@ mod tests {
     #[test]
     fn test_tensor_node_transpose() {
         // Create a 2x3 tensor
-        let data =
-            ArrayD::from_shape_vec(ndarray::IxDyn(&[2, 3]), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-                .unwrap();
+        let data = ArrayD::from_shape_vec(
+            scirs2_core::ndarray::IxDyn(&[2, 3]),
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        )
+        .unwrap();
         let indices = vec!["i".to_string(), "j".to_string()];
 
         let node = TensorNode::new(data, indices).unwrap();
@@ -710,14 +714,16 @@ mod tests {
     #[test]
     fn test_tensor_node_contraction() {
         // Create two tensors
-        let data1 =
-            ArrayD::from_shape_vec(ndarray::IxDyn(&[2, 3]), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-                .unwrap();
+        let data1 = ArrayD::from_shape_vec(
+            scirs2_core::ndarray::IxDyn(&[2, 3]),
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        )
+        .unwrap();
         let indices1 = vec!["i".to_string(), "j".to_string()];
         let node1 = TensorNode::new(data1, indices1).unwrap();
 
         let data2 = ArrayD::from_shape_vec(
-            ndarray::IxDyn(&[3, 2]),
+            scirs2_core::ndarray::IxDyn(&[3, 2]),
             vec![7.0, 8.0, 9.0, 10.0, 11.0, 12.0],
         )
         .unwrap();
@@ -741,11 +747,13 @@ mod tests {
     #[test]
     fn test_tensor_node_outer_product() {
         // Create two tensors
-        let data1 = ArrayD::from_shape_vec(ndarray::IxDyn(&[2]), vec![1.0, 2.0]).unwrap();
+        let data1 =
+            ArrayD::from_shape_vec(scirs2_core::ndarray::IxDyn(&[2]), vec![1.0, 2.0]).unwrap();
         let indices1 = vec!["i".to_string()];
         let node1 = TensorNode::new(data1, indices1).unwrap();
 
-        let data2 = ArrayD::from_shape_vec(ndarray::IxDyn(&[3]), vec![3.0, 4.0, 5.0]).unwrap();
+        let data2 =
+            ArrayD::from_shape_vec(scirs2_core::ndarray::IxDyn(&[3]), vec![3.0, 4.0, 5.0]).unwrap();
         let indices2 = vec!["j".to_string()];
         let node2 = TensorNode::new(data2, indices2).unwrap();
 
@@ -768,8 +776,11 @@ mod tests {
     #[test]
     fn test_tensor_node_trace() {
         // Create a 2x2 tensor
-        let data =
-            ArrayD::from_shape_vec(ndarray::IxDyn(&[2, 2]), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
+        let data = ArrayD::from_shape_vec(
+            scirs2_core::ndarray::IxDyn(&[2, 2]),
+            vec![1.0, 2.0, 3.0, 4.0],
+        )
+        .unwrap();
         let indices = vec!["i".to_string(), "j".to_string()];
         let node = TensorNode::new(data, indices).unwrap();
 
@@ -787,9 +798,11 @@ mod tests {
     #[test]
     fn test_add_dummy_index() {
         // Create a 2x3 tensor
-        let data =
-            ArrayD::from_shape_vec(ndarray::IxDyn(&[2, 3]), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-                .unwrap();
+        let data = ArrayD::from_shape_vec(
+            scirs2_core::ndarray::IxDyn(&[2, 3]),
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        )
+        .unwrap();
         let indices = vec!["i".to_string(), "j".to_string()];
         let node = TensorNode::new(data, indices).unwrap();
 
@@ -815,9 +828,11 @@ mod tests {
     #[test]
     fn test_remove_index() {
         // Create a 2x3 tensor
-        let data =
-            ArrayD::from_shape_vec(ndarray::IxDyn(&[2, 3]), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-                .unwrap();
+        let data = ArrayD::from_shape_vec(
+            scirs2_core::ndarray::IxDyn(&[2, 3]),
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        )
+        .unwrap();
         let indices = vec!["i".to_string(), "j".to_string()];
         let node = TensorNode::new(data, indices).unwrap();
 
@@ -836,14 +851,16 @@ mod tests {
     #[test]
     fn test_tensor_network_contraction() {
         // Create three tensors
-        let data1 =
-            ArrayD::from_shape_vec(ndarray::IxDyn(&[2, 3]), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
-                .unwrap();
+        let data1 = ArrayD::from_shape_vec(
+            scirs2_core::ndarray::IxDyn(&[2, 3]),
+            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0],
+        )
+        .unwrap();
         let indices1 = vec!["a".to_string(), "b".to_string()];
         let node1 = TensorNode::new(data1, indices1).unwrap();
 
         let data2 = ArrayD::from_shape_vec(
-            ndarray::IxDyn(&[3, 4]),
+            scirs2_core::ndarray::IxDyn(&[3, 4]),
             vec![
                 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
             ],
@@ -853,7 +870,7 @@ mod tests {
         let node2 = TensorNode::new(data2, indices2).unwrap();
 
         let data3 = ArrayD::from_shape_vec(
-            ndarray::IxDyn(&[4, 2]),
+            scirs2_core::ndarray::IxDyn(&[4, 2]),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
         )
         .unwrap();

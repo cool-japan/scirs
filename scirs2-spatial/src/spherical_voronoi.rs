@@ -1355,7 +1355,7 @@ mod tests {
             Ok(voronoi) => {
                 // Basic validation that we got some regions
                 assert!(
-                    voronoi.regions.len() > 0,
+                    !voronoi.regions.is_empty(),
                     "Should have some Voronoi regions"
                 );
 
@@ -1365,7 +1365,7 @@ mod tests {
                 assert!(voronoi.regions.len() <= 6, "Should have at most 6 regions");
 
                 // Count valid regions (with at least 1 vertex)
-                let valid_regions = voronoi.regions.iter().filter(|r| r.len() >= 1).count();
+                let valid_regions = voronoi.regions.iter().filter(|r| !r.is_empty()).count();
                 assert!(
                     valid_regions >= 3,
                     "Should have at least 3 valid regions with 1+ vertices"
@@ -1401,7 +1401,7 @@ mod tests {
             Ok(voronoi) => {
                 // Basic validation that we got some regions
                 assert!(
-                    voronoi.regions.len() > 0,
+                    !voronoi.regions.is_empty(),
                     "Should have some Voronoi regions"
                 );
 
@@ -1411,7 +1411,7 @@ mod tests {
                 assert!(voronoi.regions.len() <= 8, "Should have at most 8 regions");
 
                 // Count valid regions (with at least 1 vertex - cube regions might be small)
-                let valid_regions = voronoi.regions.iter().filter(|r| r.len() >= 1).count();
+                let valid_regions = voronoi.regions.iter().filter(|r| !r.is_empty()).count();
                 assert!(valid_regions >= 4, "Should have at least 4 valid regions");
             }
             Err(e) => {

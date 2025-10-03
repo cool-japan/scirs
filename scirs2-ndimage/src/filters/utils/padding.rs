@@ -4,8 +4,8 @@
 //! various border handling modes including constant, reflect, mirror, wrap, and nearest.
 //! Supports 1D, 2D, and n-dimensional arrays with efficient padding algorithms.
 
-use ndarray::{Array, ArrayBase, Dimension};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array, ArrayBase, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::Debug;
 
 use super::super::BorderMode;
@@ -62,9 +62,10 @@ where
 
     // Create output array with default constant value
     let const_val = constant_value.unwrap_or_else(|| T::zero());
-    let dimension = D::from_dimension(&ndarray::IxDyn(&newshape)).ok_or_else(|| {
-        NdimageError::DimensionError("Could not create dimension from shape".into())
-    })?;
+    let dimension =
+        D::from_dimension(&scirs2_core::ndarray::IxDyn(&newshape)).ok_or_else(|| {
+            NdimageError::DimensionError("Could not create dimension from shape".into())
+        })?;
     let mut output = Array::<T, D>::from_elem(dimension, const_val);
 
     // For 1D arrays
@@ -72,11 +73,11 @@ where
         // Convert to Array1 for easier manipulation
         let input_array1 = input
             .view()
-            .into_dimensionality::<ndarray::Ix1>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix1>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 1D array".into()))?;
         let mut output_array1 = output
             .view_mut()
-            .into_dimensionality::<ndarray::Ix1>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix1>()
             .map_err(|_| {
                 NdimageError::DimensionError("Failed to convert output to 1D array".into())
             })?;
@@ -164,11 +165,11 @@ where
         // Convert to Array2 for easier manipulation
         let input_array2 = input
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
         let mut output_array2 = output
             .view_mut()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| {
                 NdimageError::DimensionError("Failed to convert output to 2D array".into())
             })?;
@@ -440,13 +441,13 @@ where
     // Convert to dynamic dimensionality for flexible indexing
     let input_dyn = input
         .clone()
-        .into_dimensionality::<ndarray::IxDyn>()
+        .into_dimensionality::<scirs2_core::ndarray::IxDyn>()
         .map_err(|_| {
             NdimageError::DimensionError("Failed to convert input to dynamic dimensionality".into())
         })?;
     let mut output_dyn = output
         .clone()
-        .into_dimensionality::<ndarray::IxDyn>()
+        .into_dimensionality::<scirs2_core::ndarray::IxDyn>()
         .map_err(|_| {
             NdimageError::DimensionError(
                 "Failed to convert output to dynamic dimensionality".into(),
@@ -607,14 +608,14 @@ where
 /// * `Result<()>` - Success or error
 #[allow(dead_code)]
 fn copy_nd_array<T, S1, S2>(
-    output: &mut ArrayBase<S1, ndarray::IxDyn>,
-    input: &ArrayBase<S2, ndarray::IxDyn>,
+    output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+    input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
     start_indices: &[usize],
 ) -> NdimageResult<()>
 where
     T: Clone + Debug,
-    S1: ndarray::DataMut<Elem = T>,
-    S2: ndarray::Data<Elem = T>,
+    S1: scirs2_core::ndarray::DataMut<Elem = T>,
+    S2: scirs2_core::ndarray::Data<Elem = T>,
 {
     // Validate inputs
     if start_indices.len() != input.ndim() || start_indices.len() != output.ndim() {
@@ -638,11 +639,11 @@ where
     // Create a recursive function to copy values
     fn copy_recursive<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -650,8 +651,8 @@ where
     ) -> NdimageResult<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
-            let out_idx = ndarray::IxDyn(out_indices);
-            let in_idx = ndarray::IxDyn(in_indices);
+            let out_idx = scirs2_core::ndarray::IxDyn(out_indices);
+            let in_idx = scirs2_core::ndarray::IxDyn(in_indices);
             output[&out_idx] = input[&in_idx].clone();
             return Ok(());
         }
@@ -701,14 +702,14 @@ where
 /// * `Result<()>` - Success or error
 #[allow(dead_code)]
 fn pad_nd_array_reflect<T, S1, S2>(
-    output: &mut ArrayBase<S1, ndarray::IxDyn>,
-    input: &ArrayBase<S2, ndarray::IxDyn>,
+    output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+    input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
     pad_width: &[(usize, usize)],
 ) -> NdimageResult<()>
 where
     T: Clone + Debug,
-    S1: ndarray::DataMut<Elem = T>,
-    S2: ndarray::Data<Elem = T>,
+    S1: scirs2_core::ndarray::DataMut<Elem = T>,
+    S2: scirs2_core::ndarray::Data<Elem = T>,
 {
     // Initialize temporary vectors for indices
     let mut out_indices = vec![0; input.ndim()];
@@ -733,11 +734,11 @@ where
     #[allow(clippy::too_many_arguments)]
     fn pad_recursive<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -746,8 +747,8 @@ where
     ) -> NdimageResult<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
-            let out_idx = ndarray::IxDyn(out_indices);
-            let in_idx = ndarray::IxDyn(in_indices);
+            let out_idx = scirs2_core::ndarray::IxDyn(out_indices);
+            let in_idx = scirs2_core::ndarray::IxDyn(in_indices);
             output[&out_idx] = input[&in_idx].clone();
             return Ok(());
         }
@@ -794,11 +795,11 @@ where
     // For each dimension, iterate through its range
     fn process_dimension<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -852,13 +853,13 @@ where
         out_idx_vec[0] = 0;
         out_idx_vec[1] = 1;
         out_idx_vec[2] = 1;
-        let out_idx = ndarray::IxDyn(&out_idx_vec);
+        let out_idx = scirs2_core::ndarray::IxDyn(&out_idx_vec);
 
         let mut in_idx_vec = vec![0; input.ndim()];
         in_idx_vec[0] = 1;
         in_idx_vec[1] = 1;
         in_idx_vec[2] = 1;
-        let in_idx = ndarray::IxDyn(&in_idx_vec);
+        let in_idx = scirs2_core::ndarray::IxDyn(&in_idx_vec);
 
         // Set this specific point for the test
         output[&out_idx] = input[&in_idx].clone();
@@ -889,14 +890,14 @@ where
 /// * `Result<()>` - Success or error
 #[allow(dead_code)]
 fn pad_nd_array_mirror<T, S1, S2>(
-    output: &mut ArrayBase<S1, ndarray::IxDyn>,
-    input: &ArrayBase<S2, ndarray::IxDyn>,
+    output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+    input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
     pad_width: &[(usize, usize)],
 ) -> NdimageResult<()>
 where
     T: Clone + Debug,
-    S1: ndarray::DataMut<Elem = T>,
-    S2: ndarray::Data<Elem = T>,
+    S1: scirs2_core::ndarray::DataMut<Elem = T>,
+    S2: scirs2_core::ndarray::Data<Elem = T>,
 {
     // Initialize temporary vectors for indices
     let mut out_indices = vec![0; input.ndim()];
@@ -921,11 +922,11 @@ where
     #[allow(clippy::too_many_arguments)]
     fn pad_recursive<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -934,8 +935,8 @@ where
     ) -> NdimageResult<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
-            let out_idx = ndarray::IxDyn(out_indices);
-            let in_idx = ndarray::IxDyn(in_indices);
+            let out_idx = scirs2_core::ndarray::IxDyn(out_indices);
+            let in_idx = scirs2_core::ndarray::IxDyn(in_indices);
             output[&out_idx] = input[&in_idx].clone();
             return Ok(());
         }
@@ -982,11 +983,11 @@ where
     // For each dimension, iterate through its range
     fn process_dimension<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -1058,14 +1059,14 @@ where
 /// * `Result<()>` - Success or error
 #[allow(dead_code)]
 fn pad_nd_array_wrap<T, S1, S2>(
-    output: &mut ArrayBase<S1, ndarray::IxDyn>,
-    input: &ArrayBase<S2, ndarray::IxDyn>,
+    output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+    input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
     pad_width: &[(usize, usize)],
 ) -> NdimageResult<()>
 where
     T: Clone + Debug,
-    S1: ndarray::DataMut<Elem = T>,
-    S2: ndarray::Data<Elem = T>,
+    S1: scirs2_core::ndarray::DataMut<Elem = T>,
+    S2: scirs2_core::ndarray::Data<Elem = T>,
 {
     // Initialize temporary vectors for indices
     let mut out_indices = vec![0; input.ndim()];
@@ -1082,11 +1083,11 @@ where
     #[allow(clippy::too_many_arguments)]
     fn pad_recursive<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -1095,8 +1096,8 @@ where
     ) -> NdimageResult<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
-            let out_idx = ndarray::IxDyn(out_indices);
-            let in_idx = ndarray::IxDyn(in_indices);
+            let out_idx = scirs2_core::ndarray::IxDyn(out_indices);
+            let in_idx = scirs2_core::ndarray::IxDyn(in_indices);
             output[&out_idx] = input[&in_idx].clone();
             return Ok(());
         }
@@ -1143,11 +1144,11 @@ where
     // For each dimension, iterate through its range
     fn process_dimension<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -1201,13 +1202,13 @@ where
         out_idx_vec[0] = 0;
         out_idx_vec[1] = 1;
         out_idx_vec[2] = 1;
-        let out_idx = ndarray::IxDyn(&out_idx_vec);
+        let out_idx = scirs2_core::ndarray::IxDyn(&out_idx_vec);
 
         let mut in_idx_vec = vec![0; input.ndim()];
         in_idx_vec[0] = 1;
         in_idx_vec[1] = 1;
         in_idx_vec[2] = 1;
-        let in_idx = ndarray::IxDyn(&in_idx_vec);
+        let in_idx = scirs2_core::ndarray::IxDyn(&in_idx_vec);
 
         // Set this specific point for the test
         output[&out_idx] = input[&in_idx].clone();
@@ -1238,14 +1239,14 @@ where
 /// * `Result<()>` - Success or error
 #[allow(dead_code)]
 fn pad_nd_array_nearest<T, S1, S2>(
-    output: &mut ArrayBase<S1, ndarray::IxDyn>,
-    input: &ArrayBase<S2, ndarray::IxDyn>,
+    output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+    input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
     pad_width: &[(usize, usize)],
 ) -> NdimageResult<()>
 where
     T: Clone + Debug,
-    S1: ndarray::DataMut<Elem = T>,
-    S2: ndarray::Data<Elem = T>,
+    S1: scirs2_core::ndarray::DataMut<Elem = T>,
+    S2: scirs2_core::ndarray::Data<Elem = T>,
 {
     // Initialize temporary vectors for indices
     let mut out_indices = vec![0; input.ndim()];
@@ -1270,11 +1271,11 @@ where
     #[allow(clippy::too_many_arguments)]
     fn pad_recursive<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -1283,8 +1284,8 @@ where
     ) -> NdimageResult<()> {
         if dim == input.ndim() {
             // We have full indices, copy the value
-            let out_idx = ndarray::IxDyn(out_indices);
-            let in_idx = ndarray::IxDyn(in_indices);
+            let out_idx = scirs2_core::ndarray::IxDyn(out_indices);
+            let in_idx = scirs2_core::ndarray::IxDyn(in_indices);
             output[&out_idx] = input[&in_idx].clone();
             return Ok(());
         }
@@ -1331,11 +1332,11 @@ where
     // For each dimension, iterate through its range
     fn process_dimension<
         T: Clone + Debug,
-        S1: ndarray::DataMut<Elem = T>,
-        S2: ndarray::Data<Elem = T>,
+        S1: scirs2_core::ndarray::DataMut<Elem = T>,
+        S2: scirs2_core::ndarray::Data<Elem = T>,
     >(
-        output: &mut ArrayBase<S1, ndarray::IxDyn>,
-        input: &ArrayBase<S2, ndarray::IxDyn>,
+        output: &mut ArrayBase<S1, scirs2_core::ndarray::IxDyn>,
+        input: &ArrayBase<S2, scirs2_core::ndarray::IxDyn>,
         out_indices: &mut Vec<usize>,
         in_indices: &mut Vec<usize>,
         dim: usize,
@@ -1389,13 +1390,13 @@ where
         out_idx_vec[0] = 0;
         out_idx_vec[1] = 1;
         out_idx_vec[2] = 1;
-        let out_idx = ndarray::IxDyn(&out_idx_vec);
+        let out_idx = scirs2_core::ndarray::IxDyn(&out_idx_vec);
 
         let mut in_idx_vec = vec![0; input.ndim()];
         in_idx_vec[0] = 0;
         in_idx_vec[1] = 1;
         in_idx_vec[2] = 1;
-        let in_idx = ndarray::IxDyn(&in_idx_vec);
+        let in_idx = scirs2_core::ndarray::IxDyn(&in_idx_vec);
 
         // Set this specific point for the test
         output[&out_idx] = input[&in_idx].clone();
@@ -1416,7 +1417,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2, Array3, IxDyn};
+    use scirs2_core::ndarray::{Array1, Array2, Array3, IxDyn};
 
     #[test]
     fn test_pad_array_no_padding() {
@@ -1500,7 +1501,7 @@ mod tests {
 
         // Convert back for easier testing
         let dest = dest_dyn
-            .into_dimensionality::<ndarray::Ix3>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix3>()
             .expect("dest conversion back to 3D should succeed");
 
         // Check that source values are correctly copied to destination

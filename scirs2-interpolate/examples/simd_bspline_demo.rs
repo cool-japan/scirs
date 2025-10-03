@@ -5,7 +5,7 @@
 //! instructions for significant performance improvements.
 
 #[cfg(feature = "simd")]
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 #[cfg(feature = "simd")]
 use scirs2_interpolate::{
     bspline::{BSpline, BSplineWorkspace, ExtrapolateMode},
@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Test smooth spline
         let simd_smooth = simd_evaluator_smooth.eval_batch(test_points.as_slice().unwrap())?;
         println!("   Smooth spline results:");
-        for (_i, (&point, &result)) in test_points.iter().zip(simd_smooth.iter()).enumerate() {
+        for (&point, &result) in test_points.iter().zip(simd_smooth.iter()) {
             println!("     f({:.3}) = {:8.5}", point, result);
 
             // Verify against scalar evaluation
@@ -191,7 +191,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Only sample first 100 for timing
             let _ = simd_evaluator_smooth
                 .spline()
-                .evaluate_with_workspace(point, &mut BSplineWorkspace::new())?;
+                .evaluate_with_workspace(point, &BSplineWorkspace::new())?;
         }
         let individual_time_sample = start.elapsed();
         let estimated_individual_time = individual_time_sample * 50; // Scale to full batch

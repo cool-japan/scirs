@@ -8,8 +8,8 @@
 
 use super::super::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
@@ -75,7 +75,7 @@ pub struct DriftMetrics {
     pub drift_consistency: f64,
 }
 
-/// Real-time performance metrics
+/// Float-time performance metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RealTimePerformanceMetrics {
     /// Average processing time per frame/iteration
@@ -136,7 +136,7 @@ pub enum CoordinateSystem {
 /// Evaluation modes
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum EvaluationMode {
-    /// Real-time evaluation
+    /// Float-time evaluation
     RealTime,
     /// Offline analysis
     Offline,

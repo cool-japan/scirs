@@ -29,8 +29,8 @@
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::simd_optimized::{get_simd_config, simd_distance_matrix, simd_rbf_evaluate, RBFKernel};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
@@ -597,12 +597,12 @@ impl<T: InterpolationFloat + scirs2_core::simd_ops::SimdUnifiedOps + ordered_flo
         // Simple batch evaluation timing (placeholder implementation)
         let simd_timing = self.benchmark_operation(|| {
             // Simulate batch processing
-            points.axis_iter(ndarray::Axis(0)).count()
+            points.axis_iter(scirs2_core::ndarray::Axis(0)).count()
         })?;
 
         let scalar_timing = self.benchmark_operation(|| {
             // Simulate scalar batch processing
-            points.axis_iter(ndarray::Axis(0)).count()
+            points.axis_iter(scirs2_core::ndarray::Axis(0)).count()
         })?;
 
         // For batch evaluation, we create a synthetic correctness result
@@ -812,10 +812,10 @@ impl<T: InterpolationFloat + scirs2_core::simd_ops::SimdUnifiedOps + ordered_flo
         if scalar_result.len() != simd_result.len() {
             return Ok(CorrectnessResult {
                 is_correct: false,
-                max_absolute_error: <T as num_traits::Float>::infinity(),
-                max_relative_error: <T as num_traits::Float>::infinity(),
-                mean_absolute_error: <T as num_traits::Float>::infinity(),
-                error_std_dev: <T as num_traits::Float>::infinity(),
+                max_absolute_error: <T as scirs2_core::numeric::Float>::infinity(),
+                max_relative_error: <T as scirs2_core::numeric::Float>::infinity(),
+                mean_absolute_error: <T as scirs2_core::numeric::Float>::infinity(),
+                error_std_dev: <T as scirs2_core::numeric::Float>::infinity(),
                 num_values_compared: 0,
             });
         }
@@ -827,8 +827,8 @@ impl<T: InterpolationFloat + scirs2_core::simd_ops::SimdUnifiedOps + ordered_flo
 
         for (scalar_val, simd_val) in scalar_result.iter().zip(simd_result.iter()) {
             let diff_val = *scalar_val - *simd_val;
-            let abs_error = num_traits::Float::abs(diff_val);
-            let scalar_abs = num_traits::Float::abs(*scalar_val);
+            let abs_error = scirs2_core::numeric::Float::abs(diff_val);
+            let scalar_abs = scirs2_core::numeric::Float::abs(*scalar_val);
             let rel_error = if scalar_abs > T::zero() {
                 abs_error / scalar_abs
             } else {

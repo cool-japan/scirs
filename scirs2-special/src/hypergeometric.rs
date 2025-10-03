@@ -142,7 +142,7 @@
 use crate::bessel::{iv, jv};
 use crate::error::{SpecialError, SpecialResult};
 use crate::gamma::gamma;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::ops::{AddAssign, MulAssign, SubAssign};
 
@@ -341,17 +341,28 @@ where
     if z >= F::zero() {
         let sqrt_z = z.sqrt();
         let nu = v - F::one();
+        let two_sqrt_z = F::from(2.0).unwrap() * sqrt_z;
 
-        // Use ₀F₁(v, z) = (√z)^(1-v) * Γ(v) * I_{v-1}(2√z)
-        let bessel_val = iv(nu, F::from(2.0).unwrap() * sqrt_z);
+        // Use ₀F₁(;v;z) = Γ(v) * (z/4)^((1-v)/2) * I_{v-1}(2√z)
+        // Which is: Γ(v) * 2^(v-1) * z^((1-v)/2) * I_{v-1}(2√z)
+        let bessel_val = iv(nu, two_sqrt_z);
         let gamma_v = gamma(v);
-        let power = if nu == F::zero() {
+
+        // Compute (z/4)^((1-v)/2) = z^((1-v)/2) / 2^(1-v)
+        let one_minus_v = F::one() - v;
+        let z_power = if one_minus_v.abs() < F::from(1e-10).unwrap() {
             F::one()
         } else {
-            sqrt_z.powf(F::one() - v)
+            z.powf(one_minus_v / F::from(2.0).unwrap())
         };
 
-        let result = power * gamma_v * bessel_val;
+        let two_power = if one_minus_v.abs() < F::from(1e-10).unwrap() {
+            F::one()
+        } else {
+            F::from(2.0).unwrap().powf(one_minus_v)
+        };
+
+        let result = gamma_v * z_power * bessel_val / two_power;
 
         // Check for numerical issues (NaN or infinite)
         if result.is_finite() {
@@ -364,17 +375,28 @@ where
         // For negative z, use regular Bessel function representation
         let sqrt_neg_z = (-z).sqrt();
         let nu = v - F::one();
+        let two_sqrt_neg_z = F::from(2.0).unwrap() * sqrt_neg_z;
 
-        // Use ₀F₁(v, z) = (√(-z))^(1-v) * Γ(v) * J_{v-1}(2√(-z))
-        let bessel_val = jv(nu, F::from(2.0).unwrap() * sqrt_neg_z);
+        // Use ₀F₁(;v;-|z|) = Γ(v) * (|z|/4)^((1-v)/2) * J_{v-1}(2√|z|)
+        let bessel_val = jv(nu, two_sqrt_neg_z);
         let gamma_v = gamma(v);
-        let power = if nu == F::zero() {
+
+        // Compute (|z|/4)^((1-v)/2) = |z|^((1-v)/2) / 2^(1-v)
+        let one_minus_v = F::one() - v;
+        let neg_z = -z;
+        let z_power = if one_minus_v.abs() < F::from(1e-10).unwrap() {
             F::one()
         } else {
-            sqrt_neg_z.powf(F::one() - v)
+            neg_z.powf(one_minus_v / F::from(2.0).unwrap())
         };
 
-        let result = power * gamma_v * bessel_val;
+        let two_power = if one_minus_v.abs() < F::from(1e-10).unwrap() {
+            F::one()
+        } else {
+            F::from(2.0).unwrap().powf(one_minus_v)
+        };
+
+        let result = gamma_v * z_power * bessel_val / two_power;
 
         // Check for numerical issues (NaN or infinite)
         if result.is_finite() {

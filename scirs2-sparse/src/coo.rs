@@ -4,7 +4,7 @@
 //! efficient for incremental matrix construction.
 
 use crate::error::{SparseError, SparseResult};
-use num_traits::Zero;
+use scirs2_core::numeric::Zero;
 use std::cmp::PartialEq;
 
 /// Coordinate (COO) matrix

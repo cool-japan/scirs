@@ -2,7 +2,7 @@
 
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rand_distributions::{Distribution, Uniform};
 use std::f64::consts::PI;
@@ -78,7 +78,7 @@ pub fn make_classification(
     let mut data = Array2::zeros((n_samples, n_features));
     let mut target = Array1::zeros(n_samples);
 
-    let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
+    let normal = scirs2_core::random::Normal::new(0.0, 1.0).unwrap();
 
     // Samples per _class
     let samples_per_class = n_samples / n_classes;
@@ -193,7 +193,7 @@ pub fn make_regression(
 
     // Generate the coefficients for the _informative _features
     let mut coef = Array1::zeros(n_features);
-    let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
+    let normal = scirs2_core::random::Normal::new(0.0, 1.0).unwrap();
 
     for i in 0..n_informative {
         coef[i] = 100.0 * normal.sample(&mut rng);
@@ -279,7 +279,7 @@ pub fn make_time_series(
         }
     };
 
-    let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
+    let normal = scirs2_core::random::Normal::new(0.0, 1.0).unwrap();
     let mut data = Array2::zeros((n_samples, n_features));
 
     for feature in 0..n_features {
@@ -400,7 +400,7 @@ pub fn make_blobs(
     let mut data = Array2::zeros((n_samples, n_features));
     let mut target = Array1::zeros(n_samples);
 
-    let normal = rand_distr::Normal::new(0.0, cluster_std).unwrap();
+    let normal = scirs2_core::random::Normal::new(0.0, cluster_std).unwrap();
 
     // Samples per center
     let samples_per_center = n_samples / centers;
@@ -481,7 +481,7 @@ pub fn make_spirals(
     let mut target = Array1::zeros(n_samples);
 
     let normal = if noise > 0.0 {
-        Some(rand_distr::Normal::new(0.0, noise).unwrap())
+        Some(scirs2_core::random::Normal::new(0.0, noise).unwrap())
     } else {
         None
     };
@@ -558,7 +558,7 @@ pub fn make_moons(n_samples: usize, noise: f64, randomseed: Option<u64>) -> Resu
     let mut target = Array1::zeros(n_samples);
 
     let normal = if noise > 0.0 {
-        Some(rand_distr::Normal::new(0.0, noise).unwrap())
+        Some(scirs2_core::random::Normal::new(0.0, noise).unwrap())
     } else {
         None
     };
@@ -655,7 +655,7 @@ pub fn make_circles(
     let mut target = Array1::zeros(n_samples);
 
     let normal = if noise > 0.0 {
-        Some(rand_distr::Normal::new(0.0, noise).unwrap())
+        Some(scirs2_core::random::Normal::new(0.0, noise).unwrap())
     } else {
         None
     };
@@ -778,7 +778,7 @@ pub fn make_anisotropic_blobs(
     let mut data = Array2::zeros((n_samples, n_features));
     let mut target = Array1::zeros(n_samples);
 
-    let normal = rand_distr::Normal::new(0.0, cluster_std).unwrap();
+    let normal = scirs2_core::random::Normal::new(0.0, cluster_std).unwrap();
 
     let samples_per_center = n_samples / centers;
     let remainder = n_samples % centers;
@@ -916,8 +916,8 @@ pub fn make_hierarchical_clusters(
     let mut main_target = Array1::zeros(n_samples);
     let mut sub_target = Array1::zeros(n_samples);
 
-    let main_normal = rand_distr::Normal::new(0.0, main_cluster_std).unwrap();
-    let sub_normal = rand_distr::Normal::new(0.0, sub_cluster_std).unwrap();
+    let main_normal = scirs2_core::random::Normal::new(0.0, main_cluster_std).unwrap();
+    let sub_normal = scirs2_core::random::Normal::new(0.0, sub_cluster_std).unwrap();
 
     let samples_per_main = n_samples / n_main_clusters;
     let remainder = n_samples % n_main_clusters;

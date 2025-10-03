@@ -79,7 +79,7 @@ fn main() {
 
     // Convert from various array types
     let vec_input = vec![1.0, 2.0, 3.0, 4.0];
-    let ndarray_input = ndarray::Array1::from(vec![1.0, 2.0, 3.0, 4.0]);
+    let ndarray_input = scirs2_core::ndarray::Array1::from(vec![1.0, 2.0, 3.0, 4.0]);
 
     // All should work with the same interface
     let result1 = fft(&vec_input, None).unwrap();

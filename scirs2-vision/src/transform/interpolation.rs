@@ -13,7 +13,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgba};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Interpolation methods for image resampling
 #[derive(Debug, Clone, Copy, PartialEq)]

@@ -8,8 +8,8 @@ use crate::error::{NdimageError, NdimageResult};
 use crate::utils::{safe_f64_to_float, safe_usize_to_float};
 use crate::visualization::colormap::create_colormap;
 use crate::visualization::types::{PlotConfig, ReportFormat};
-use ndarray::{ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, ToPrimitive, Zero};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive, Zero};
 use std::fmt::{Debug, Write};
 
 /// Generate a histogram plot representation
@@ -952,7 +952,7 @@ where
 mod tests {
     use super::*;
     use crate::visualization::types::{ColorMap, PlotConfig, ReportFormat};
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_plot_histogram() {
@@ -990,7 +990,7 @@ mod tests {
 
     #[test]
     fn test_plot_surface() {
-        let data = ndarray::Array2::from_shape_fn((10, 10), |(i, j)| (i + j) as f64);
+        let data = scirs2_core::ndarray::Array2::from_shape_fn((10, 10), |(i, j)| (i + j) as f64);
         let config = PlotConfig {
             title: "Test Surface".to_string(),
             format: ReportFormat::Text,

@@ -3,9 +3,9 @@
 //! This module provides optimized implementations of N-dimensional FFT
 //! operations with better memory access patterns and performance.
 
-use ndarray::{Array, ArrayView, Axis, Dimension};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array, ArrayView, Axis, Dimension};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use scirs2_core::parallel_ops::*;
 use std::cmp::min;
 
@@ -28,7 +28,7 @@ where
 
     // Convert input to complex
     let mut result = Array::zeros(x.raw_dim());
-    ndarray::Zip::from(&mut result)
+    scirs2_core::ndarray::Zip::from(&mut result)
         .and(x)
         .for_each(|dst, &src| {
             *dst = Complex64::new(
@@ -182,7 +182,7 @@ where
     let mut result = Array::zeros(x.raw_dim());
 
     // Convert input to complex
-    ndarray::Zip::from(&mut result)
+    scirs2_core::ndarray::Zip::from(&mut result)
         .and(x)
         .for_each(|dst, &src| {
             *dst = Complex64::new(
@@ -279,7 +279,7 @@ where
 
     // Convert to real array for first transform
     let mut real_data = Array::zeros(x.raw_dim());
-    ndarray::Zip::from(&mut real_data)
+    scirs2_core::ndarray::Zip::from(&mut real_data)
         .and(x)
         .for_each(|dst, &src| {
             *dst = NumCast::from(src)

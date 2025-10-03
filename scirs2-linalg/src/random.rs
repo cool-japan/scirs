@@ -26,7 +26,7 @@
 //! ## Examples
 //!
 //! ```
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_linalg::random::{uniform, normal, orthogonal, spd};
 //!
 //! // Generate 3x3 random uniform matrix with values in [0, 1]
@@ -42,10 +42,9 @@
 //! let s = spd::<f64>(3, 1.0, 10.0, None);
 //! ```
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive, NumAssign, One, Zero};
-use rand::{self, Rng, SeedableRng};
-use rand_chacha::ChaCha8Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign, One, Zero};
+use scirs2_core::random::{self, ChaCha8Rng, Rng, SeedableRng};
 use std::iter::Sum;
 
 use crate::decomposition::qr;
@@ -87,7 +86,7 @@ where
         Some(s) => ChaCha8Rng::seed_from_u64(s),
         None => {
             let mut seedarr = [0u8; 32];
-            rand::rng().fill(&mut seedarr);
+            scirs2_core::random::rng().fill(&mut seedarr);
             ChaCha8Rng::from_seed(seedarr)
         }
     };
@@ -150,7 +149,7 @@ where
 #[allow(dead_code)]
 pub fn random_normalmatrix<F>(shape: (usize, usize), seed: Option<u64>) -> LinalgResult<Array2<F>>
 where
-    F: Float + Zero + One + Copy + num_traits::FromPrimitive + NumAssign + 'static,
+    F: Float + Zero + One + Copy + scirs2_core::numeric::FromPrimitive + NumAssign + 'static,
 {
     Ok(normal(shape.0, shape.1, F::zero(), F::one(), seed))
 }
@@ -164,7 +163,7 @@ where
         Some(s) => ChaCha8Rng::seed_from_u64(s),
         None => {
             let mut seedarr = [0u8; 32];
-            rand::rng().fill(&mut seedarr);
+            scirs2_core::random::rng().fill(&mut seedarr);
             ChaCha8Rng::from_seed(seedarr)
         }
     };
@@ -204,7 +203,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// // Define a helper function for matrix closeness check
 /// fn close_l2(a: &Array2<f64>, b: &Array2<f64>, tol: f64) -> bool {
 ///     let diff = a - b;
@@ -234,7 +233,7 @@ where
         + Sum
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static,
 {
     // Generate a random matrix with standard normal distribution
@@ -266,7 +265,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::random::spd;
 /// use scirs2_linalg::cholesky;
 ///
@@ -293,7 +292,7 @@ where
         + Sum
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static,
 {
     // Generate a random matrix
@@ -308,7 +307,7 @@ where
         Some(s) => ChaCha8Rng::seed_from_u64(s),
         None => {
             let mut seedarr = [0u8; 32];
-            rand::rng().fill(&mut seedarr);
+            scirs2_core::random::rng().fill(&mut seedarr);
             ChaCha8Rng::from_seed(seedarr)
         }
     };
@@ -365,7 +364,7 @@ where
         Some(s) => ChaCha8Rng::seed_from_u64(s),
         None => {
             let mut seedarr = [0u8; 32];
-            rand::rng().fill(&mut seedarr);
+            scirs2_core::random::rng().fill(&mut seedarr);
             ChaCha8Rng::from_seed(seedarr)
         }
     };
@@ -434,7 +433,7 @@ where
         Some(s) => ChaCha8Rng::seed_from_u64(s),
         None => {
             let mut seedarr = [0u8; 32];
-            rand::rng().fill(&mut seedarr);
+            scirs2_core::random::rng().fill(&mut seedarr);
             ChaCha8Rng::from_seed(seedarr)
         }
     };
@@ -507,7 +506,7 @@ where
         Some(s) => ChaCha8Rng::seed_from_u64(s),
         None => {
             let mut seedarr = [0u8; 32];
-            rand::rng().fill(&mut seedarr);
+            scirs2_core::random::rng().fill(&mut seedarr);
             ChaCha8Rng::from_seed(seedarr)
         }
     };
@@ -565,7 +564,7 @@ where
         Some(s) => ChaCha8Rng::seed_from_u64(s),
         None => {
             let mut seedarr = [0u8; 32];
-            rand::rng().fill(&mut seedarr);
+            scirs2_core::random::rng().fill(&mut seedarr);
             ChaCha8Rng::from_seed(seedarr)
         }
     };
@@ -647,7 +646,7 @@ where
         + Sum
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static,
 {
     // Validate condition _number
@@ -703,7 +702,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::random::with_eigenvalues;
 /// use scirs2_linalg::eigvals;
 ///
@@ -732,7 +731,7 @@ where
         + Sum
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static,
 {
     let n = eigenvalues.len();
@@ -816,7 +815,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::random::vandermonde;
 ///
 /// // Generate a Vandermonde matrix from points [1, 2, 3]
@@ -907,7 +906,7 @@ where
         + Sum
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static,
 {
     // Generate a random matrix with n rows and n/2 + 1 columns
@@ -979,7 +978,7 @@ where
         + Sum
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static,
 {
     if rank > rows.min(cols) {
@@ -1072,7 +1071,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::random::permutation;
 ///
 /// // Generate a 4x4 random permutation matrix
@@ -1105,7 +1104,7 @@ where
         Some(s) => ChaCha8Rng::seed_from_u64(s),
         None => {
             let mut seedarr = [0u8; 32];
-            rand::rng().fill(&mut seedarr);
+            scirs2_core::random::rng().fill(&mut seedarr);
             ChaCha8Rng::from_seed(seedarr)
         }
     };
@@ -1136,7 +1135,7 @@ mod tests {
     use crate::decomposition::{cholesky, svd};
     use crate::eigen::eigvals;
     use approx::assert_relative_eq;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
     // cond is used in the examples but not directly in the tests
 
     #[test]

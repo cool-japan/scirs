@@ -5,8 +5,8 @@
 use crate::csr_array::CsrArray;
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 #[cfg(feature = "gpu")]
@@ -565,7 +565,7 @@ impl OpenCLMemoryManager {
         let avg_nnz_per_row = matrix.nnz() as f64 / matrix.shape().0 as f64;
 
         // Vectorization is beneficial for sparse matrices with moderate sparsity
-        avg_nnz_per_row >= 4.0 && avg_nnz_per_row <= 32.0
+        (4.0..=32.0).contains(&avg_nnz_per_row)
     }
 }
 
@@ -586,7 +586,7 @@ pub struct OpenCLMatrixBuffers<T: super::GpuDataType> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_opencl_spmv_creation() {
@@ -646,6 +646,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn test_kernel_sources() {
         assert!(!OPENCL_SPMV_KERNEL_SOURCE.is_empty());
         assert!(!OPENCL_VECTORIZED_KERNEL_SOURCE.is_empty());

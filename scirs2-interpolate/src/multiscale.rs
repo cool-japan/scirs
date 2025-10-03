@@ -1,5 +1,5 @@
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashSet;
 use std::fmt::Debug;
 
@@ -590,7 +590,7 @@ pub fn make_adaptive_bspline<
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_multiscale_bspline_creation() {

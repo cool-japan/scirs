@@ -5,8 +5,8 @@
 
 use super::types::*;
 use crate::error::SignalResult;
-use ndarray::Array1;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Comprehensive statistical properties validation
@@ -42,7 +42,7 @@ pub fn analyze_basis_selection_consistency(
 
             // Add small noise and test stability
             let mut noisy_signal = test_signal.clone();
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             for i in 0..noisy_signal.len() {
                 noisy_signal[i] += rng.gen_range(-0.01..0.01);
             }
@@ -126,7 +126,7 @@ pub fn perform_significance_testing(
         statistical_power: 0.8,
         minimum_detectable_effect: 0.2,
         sample_size_recommendation: 100,
-        power_curve: ndarray::Array2::zeros((10, 2)),
+        power_curve: scirs2_core::ndarray::Array2::zeros((10, 2)),
     };
 
     Ok(SignificanceTestingResult {

@@ -5,8 +5,8 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::quantile_simd::{median_simd, quantile_simd};
-use ndarray::{ArrayBase, Data, DataMut, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, DataMut, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{AutoOptimizer, SimdUnifiedOps};
 
 /// SIMD-optimized Mean Absolute Deviation (MAD)
@@ -50,7 +50,7 @@ where
         }
         "omit" => {
             // Filter out NaN values
-            let filtered: ndarray::Array1<F> =
+            let filtered: scirs2_core::ndarray::Array1<F> =
                 x.iter().filter(|&&v| !v.is_nan()).copied().collect();
 
             if filtered.is_empty() {
@@ -74,14 +74,14 @@ where
 
     let deviations = if optimizer.should_use_simd(n_valid) {
         // SIMD path
-        let med_array = ndarray::Array1::from_elem(n_valid, med);
+        let med_array = scirs2_core::ndarray::Array1::from_elem(n_valid, med);
         let diff = F::simd_sub(&validdata, &med_array.view());
 
         // Compute absolute values using SIMD
         F::simd_abs(&diff.view())
     } else {
         // Scalar fallback
-        ndarray::Array1::from_shape_fn(n_valid, |i| (validdata[i] - med).abs())
+        scirs2_core::ndarray::Array1::from_shape_fn(n_valid, |i| (validdata[i] - med).abs())
     };
 
     // Compute median of absolute deviations
@@ -169,7 +169,7 @@ where
             x.view()
         }
         "omit" => {
-            let filtered: ndarray::Array1<F> =
+            let filtered: scirs2_core::ndarray::Array1<F> =
                 x.iter().filter(|&&v| !v.is_nan()).copied().collect();
 
             if filtered.is_empty() {
@@ -269,7 +269,7 @@ where
 
     if optimizer.should_use_simd(n) {
         // SIMD path
-        let indices = ndarray::Array1::from_shape_fn(n, |i| F::from(i + 1).unwrap());
+        let indices = scirs2_core::ndarray::Array1::from_shape_fn(n, |i| F::from(i + 1).unwrap());
         let weighted = F::simd_mul(&sorteddata.view(), &indices.view());
         let weighted_sum = F::simd_sum(&weighted.view());
         let total_sum = F::simd_sum(&sorteddata.view());
@@ -356,12 +356,12 @@ where
 
     let deviations = if optimizer.should_use_simd(n) {
         // SIMD path
-        let center_array = ndarray::Array1::from_elem(n, center_val);
+        let center_array = scirs2_core::ndarray::Array1::from_elem(n, center_val);
         let diff = F::simd_sub(&x.view(), &center_array.view());
         F::simd_abs(&diff.view())
     } else {
         // Scalar fallback
-        ndarray::Array1::from_shape_fn(n, |i| (x[i] - center_val).abs())
+        scirs2_core::ndarray::Array1::from_shape_fn(n, |i| (x[i] - center_val).abs())
     };
 
     // Compute median of absolute deviations
@@ -414,7 +414,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mad_simd() {

@@ -6,7 +6,7 @@
 use super::core::{Frame, FrameMetadata, PipelineMetrics, ProcessingStage};
 use crate::error::Result;
 use crossbeam_channel::{bounded, Receiver};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Instant;

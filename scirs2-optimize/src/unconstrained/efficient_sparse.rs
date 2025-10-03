@@ -10,7 +10,7 @@ use crate::unconstrained::line_search::backtracking_line_search;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::utils::check_convergence;
 use crate::unconstrained::Options;
-use ndarray::{Array1, Array2, ArrayView1, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 use scirs2_sparse::{csr_array::CsrArray, sparray::SparseArray};
 // Collections for potential future use
 // use std::collections::{HashMap, HashSet};

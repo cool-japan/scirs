@@ -10,7 +10,7 @@
 
 use crate::error::{IoError, Result};
 use crate::matlab::{read_mat, write_mat, MatType};
-use ndarray::{ArrayD, IxDyn};
+use scirs2_core::ndarray::{ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -278,7 +278,7 @@ impl EnhancedMatFile {
             MatType::Char(string) => {
                 // MATLAB stores strings as UTF-16
                 let utf16_data: Vec<u16> = string.encode_utf16().collect();
-                let array = ndarray::Array1::from_vec(utf16_data).into_dyn();
+                let array = scirs2_core::ndarray::Array1::from_vec(utf16_data).into_dyn();
                 file.create_dataset_from_array(name, &array, Some(options.clone()))?;
                 file.set_attribute(
                     name,
@@ -570,9 +570,10 @@ impl EnhancedMatFile {
         };
 
         // Write CSC data
-        let ir_array = ndarray::Array1::from_vec(csc_data.row_indices.clone()).into_dyn();
-        let jc_array = ndarray::Array1::from_vec(csc_data.col_ptrs.clone()).into_dyn();
-        let data_array = ndarray::Array1::from_vec(csc_data.values.clone()).into_dyn();
+        let ir_array =
+            scirs2_core::ndarray::Array1::from_vec(csc_data.row_indices.clone()).into_dyn();
+        let jc_array = scirs2_core::ndarray::Array1::from_vec(csc_data.col_ptrs.clone()).into_dyn();
+        let data_array = scirs2_core::ndarray::Array1::from_vec(csc_data.values.clone()).into_dyn();
 
         file.create_dataset_from_array(&format!("{}/ir", name), &ir_array, Some(options.clone()))?;
         file.create_dataset_from_array(&format!("{}/jc", name), &jc_array, Some(options.clone()))?;
@@ -688,7 +689,7 @@ pub fn read_mat_enhanced<P: AsRef<Path>>(
 /// Create a complex number MatType
 #[allow(dead_code)]
 pub fn create_complex_array(real: ArrayD<f64>, imag: ArrayD<f64>) -> Result<MatType> {
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
 
     if real.shape() != imag.shape() {
         return Err(IoError::FormatError(
@@ -993,7 +994,7 @@ impl MatV73Sparse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_enhanced_config() {
@@ -1024,7 +1025,7 @@ mod tests {
         if let MatType::Cell(ref cells) = cell_array {
             assert_eq!(cells.len(), 2);
         } else {
-            assert!(false, "Expected MatType::Cell, got {:?}", cell_array);
+            panic!("Expected MatType::Cell, got {:?}", cell_array);
         }
     }
 
@@ -1041,7 +1042,7 @@ mod tests {
             assert!(fields.contains_key("data"));
             assert!(fields.contains_key("name"));
         } else {
-            assert!(false, "Expected MatType::Struct, got {:?}", structure);
+            panic!("Expected MatType::Struct, got {:?}", structure);
         }
     }
 }

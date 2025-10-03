@@ -125,7 +125,7 @@ fn main() {
     // Generate some sample data (roughly correlated)
     for i in 0..n {
         let x_val = (i as f64) / 10.0;
-        let y_val = x_val + (rand::random::<f64>() - 0.5) * 3.0;
+        let y_val = x_val + (scirs2_core::random::random::<f64>() - 0.5) * 3.0;
         x.push(x_val);
         y.push(y_val);
     }

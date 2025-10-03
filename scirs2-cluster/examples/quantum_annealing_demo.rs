@@ -3,11 +3,11 @@
 //! This example demonstrates the quantum annealing clustering algorithm,
 //! showcasing its ability to find global optima using quantum tunneling effects.
 
-use ndarray::Array2;
 use scirs2_cluster::{
     quantum_annealing_clustering, CoolingSchedule, QuantumAnnealingClustering,
     QuantumAnnealingConfig,
 };
+use scirs2_core::ndarray::Array2;
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

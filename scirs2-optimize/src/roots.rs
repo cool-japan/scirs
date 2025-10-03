@@ -6,7 +6,7 @@
 //! ## Example
 //!
 //! ```
-//! use ndarray::{array, Array1, Array2};
+//! use scirs2_core::ndarray::{array, Array1, Array2};
 //! use scirs2_optimize::roots::{root, Method};
 //!
 //! // Define a function for which we want to find the root
@@ -39,7 +39,7 @@
 
 use crate::error::{OptimizeError, OptimizeResult};
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
 use std::fmt;
 
 // Import the specialized root-finding implementations
@@ -149,7 +149,7 @@ impl Default for Options {
 /// # Example
 ///
 /// ```
-/// use ndarray::{array, Array1, Array2};
+/// use scirs2_core::ndarray::{array, Array1, Array2};
 /// use scirs2_optimize::roots::{root, Method};
 ///
 /// // Define a function for which we want to find the root
@@ -1245,7 +1245,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     fn f(x: &[f64]) -> Array1<f64> {
         let x0 = x[0];

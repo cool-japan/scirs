@@ -17,7 +17,7 @@
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, RgbImage};
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 
 /// SLIC superpixel center
 #[derive(Debug, Clone)]
@@ -555,7 +555,7 @@ pub fn draw_superpixel_boundaries(
 mod tests {
     use super::*;
     use image::DynamicImage;
-    use ndarray::s;
+    use scirs2_core::ndarray::s;
 
     #[test]
     fn test_slic_basic() {

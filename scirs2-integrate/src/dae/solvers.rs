@@ -9,7 +9,7 @@ use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::utils::jacobian::JacobianStrategy;
 use crate::ode::{solve_ivp, ODEOptions};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 
 /// Solve an initial value problem (IVP) for a semi-explicit index-1 DAE
 ///
@@ -87,8 +87,8 @@ where
     // for implicit solution of the DAE system.
     let combined_system = move |t: F, z: ArrayView1<F>| -> Array1<F> {
         // Split the combined state vector into x and y components
-        let x = z.slice(ndarray::s![0..n_x]);
-        let y = z.slice(ndarray::s![n_x..]);
+        let x = z.slice(scirs2_core::ndarray::s![0..n_x]);
+        let y = z.slice(scirs2_core::ndarray::s![n_x..]);
 
         // Evaluate the derivative function for the differential variables
         let x_dot = f_closure(t, x, y);
@@ -178,8 +178,8 @@ where
 
     for z in &ode_result.y {
         // Split the combined state vector
-        let x_part = z.slice(ndarray::s![0..n_x]).to_owned();
-        let y_part = z.slice(ndarray::s![n_x..]).to_owned();
+        let x_part = z.slice(scirs2_core::ndarray::s![0..n_x]).to_owned();
+        let y_part = z.slice(scirs2_core::ndarray::s![n_x..]).to_owned();
 
         x_results.push(x_part);
         y_results.push(y_part);
@@ -1111,31 +1111,23 @@ where
 /// Solve an index-2 DAE system using specialized BDF with constraint stabilization
 #[allow(dead_code)]
 fn solve_index2_dae_specialized<F, FFunc, GFunc>(
-    f: FFunc,
-    g: GFunc,
-    t_span: [F; 2],
-    x0: Array1<F>,
-    y0: Array1<F>,
-    options: DAEOptions<F>,
+    _f: FFunc,
+    _g: GFunc,
+    _t_span: [F; 2],
+    _x0: Array1<F>,
+    _y0: Array1<F>,
+    _options: DAEOptions<F>,
 ) -> IntegrateResult<DAEResult<F>>
 where
     F: IntegrateFloat + std::default::Default,
     FFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
     GFunc: Fn(F, ArrayView1<F>, ArrayView1<F>) -> Array1<F>,
 {
-    // For index-2 systems, use BDF method with modified options
-
-    // Use smaller initial step size for index-2 systems
-    let mut modified_options = options;
-    if modified_options.h0.is_none() {
-        modified_options.h0 = Some(F::from_f64(1e-6).unwrap_or(F::from_f64(1e-4).unwrap()));
-    }
-
-    // Use stricter tolerances for index-2 systems
-    modified_options.rtol *= F::from_f64(0.1).unwrap();
-    modified_options.atol *= F::from_f64(0.1).unwrap();
-
-    bdf_semi_explicit_dae(f, g, t_span, x0, y0, modified_options)
+    // Index-2 DAE systems require proper index reduction or specialized methods
+    // The current BDF-based approach produces unstable results
+    Err(IntegrateError::NotImplementedError(
+        "Index2 systems are not yet implemented. Please use index reduction or reformulate as index-1 DAE.".to_string()
+    ))
 }
 
 /// Solve an index-3 DAE system using projection method with dummy derivatives

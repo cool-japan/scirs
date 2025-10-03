@@ -4,8 +4,8 @@
 //! including percentiles, quartiles, quantiles, and related summary statistics.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast};
 
 /// Methods for interpolating quantiles
 ///
@@ -81,7 +81,7 @@ pub enum QuantileInterpolation {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::quantile;
 /// use scirs2_stats::QuantileInterpolation;
 ///
@@ -266,7 +266,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::percentile;
 /// use scirs2_stats::QuantileInterpolation;
 ///
@@ -327,7 +327,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::quartiles;
 /// use scirs2_stats::QuantileInterpolation;
 ///
@@ -376,7 +376,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::quintiles;
 /// use scirs2_stats::QuantileInterpolation;
 ///
@@ -427,7 +427,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::deciles;
 /// use scirs2_stats::QuantileInterpolation;
 ///
@@ -487,7 +487,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::boxplot_stats;
 /// use scirs2_stats::QuantileInterpolation;
 ///
@@ -583,7 +583,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::winsorized_mean;
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 100.0];  // Note the outlier
@@ -669,7 +669,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::winsorized_variance;
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 100.0];  // Note the outlier
@@ -739,7 +739,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_quantile() {

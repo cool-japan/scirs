@@ -8,7 +8,7 @@ use crate::error::SparseResult;
 use crate::sym_coo::{SymCooArray, SymCooMatrix};
 use crate::sym_csr::{SymCsrArray, SymCsrMatrix};
 use crate::sym_sparray::SymSparseArray;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 

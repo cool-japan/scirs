@@ -2,7 +2,7 @@
 
 use crate::error::Result;
 use crate::layers::Layer;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 /// Gradient checkpointing strategy
 #[derive(Debug, Clone, Copy, PartialEq)]

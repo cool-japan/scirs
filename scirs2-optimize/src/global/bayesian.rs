@@ -7,7 +7,7 @@
 //! # Example
 //!
 //! ```
-//! use ndarray::{array, ArrayView1};
+//! use scirs2_core::ndarray::{array, ArrayView1};
 //! use scirs2_optimize::global::{bayesian_optimization, BayesianOptimizationOptions};
 //!
 //! // Define objective function (simple sphere)
@@ -36,10 +36,10 @@ use std::fmt;
 use friedrich::gaussian_process::GaussianProcess;
 use friedrich::kernel::SquaredExp;
 use friedrich::prior::ConstantPrior;
-use ndarray::{Array1, ArrayView1};
-use rand::rngs::StdRng;
-use rand::Rng;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Rng;
+use scirs2_core::random::SeedableRng;
 
 use crate::error::OptimizeError;
 use crate::parallel::ParallelOptions;
@@ -503,7 +503,9 @@ impl BayesianOptimizer {
     /// Create a new Bayesian optimizer
     pub fn new(space: Space, options: Option<BayesianOptimizationOptions>) -> Self {
         let options = options.unwrap_or_default();
-        let seed = options.seed.unwrap_or_else(|| rand::rng().random());
+        let seed = options
+            .seed
+            .unwrap_or_else(|| scirs2_core::random::rng().random());
         let rng = StdRng::seed_from_u64(seed);
 
         Self {
@@ -810,7 +812,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_space_creation() {

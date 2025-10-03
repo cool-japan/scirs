@@ -12,10 +12,10 @@
 #![allow(dead_code)]
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
-use rand::{rngs::StdRng, Rng, SeedableRng};
-use rand_distr::{Distribution, Normal, StandardNormal};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::{Distribution, Normal, StandardNormal};
 use statrs::statistics::Statistics;
 use std::fmt::{Debug, Display};
 
@@ -95,7 +95,7 @@ impl<T: Float + FromPrimitive + Debug + Display + std::iter::Sum> BootstrapInter
         let mut rng = match self.config.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => {
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
                 StdRng::from_rng(&mut rng)
             }
         };
@@ -287,7 +287,7 @@ impl<
 
                 // Add noise variance to diagonal
                 if i == j {
-                    k_xx[[i, j]] = k_xx[[i, j]] + self.config.noise_variance;
+                    k_xx[[i, j]] += self.config.noise_variance;
                 }
             }
         }
@@ -300,7 +300,7 @@ impl<
                 // Fallback to regularized system if Cholesky fails
                 let regularization = T::from(1e-6).unwrap();
                 for i in 0..n {
-                    k_xx[[i, i]] = k_xx[[i, i]] + regularization;
+                    k_xx[[i, i]] += regularization;
                 }
                 self.solve_gp_system(&k_xx.view(), &self.y_obs.view())?
             }
@@ -321,7 +321,7 @@ impl<
         for i in 0..m {
             let mut sum = T::zero();
             for j in 0..n {
-                sum = sum + k_star_x[[i, j]] * weights[j];
+                sum += k_star_x[[i, j]] * weights[j];
             }
             // Add prior mean
             mean[i] = (self.config.prior_mean)(xnew[i]) + sum;
@@ -365,7 +365,7 @@ impl<
         // Σ* = K(X*, X*) - K(X*, X)[K(X, X) + σ²I]^(-1)K(X, X*)
 
         let mut samples = Array2::zeros((n_samples, m));
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Compute approximate posterior variance at each point
         let length_scale = T::one();
@@ -377,8 +377,8 @@ impl<
             for i in 0..self.x_obs.len() {
                 let dist_sq = (xnew[j] - self.x_obs[i]).powi(2);
                 let influence = (-dist_sq / (T::from(2.0).unwrap() * length_scale.powi(2))).exp();
-                total_influence = total_influence + influence;
-                reduction_factor = reduction_factor + influence * influence;
+                total_influence += influence;
+                reduction_factor += influence * influence;
             }
 
             // Approximate posterior variance
@@ -632,7 +632,7 @@ impl<T: Float + FromPrimitive + Debug + Display> StochasticInterpolator<T> {
         let m = xnew.len();
         let mut realizations = Array2::zeros((self.n_realizations, m));
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for r in 0..self.n_realizations {
             // Generate a realization using conditional simulation
@@ -874,15 +874,15 @@ impl<T: crate::traits::InterpolationFloat> EnsembleInterpolator<T> {
             let weight = self.weights[i];
 
             for j in 0..xnew.len() {
-                weighted_results[j] = weighted_results[j] + weight * result[j];
+                weighted_results[j] += weight * result[j];
             }
-            total_weight = total_weight + weight;
+            total_weight += weight;
         }
 
         // Normalize if requested
         if self.normalize_weights && total_weight > T::zero() {
             for val in weighted_results.iter_mut() {
-                *val = *val / total_weight;
+                *val /= total_weight;
             }
         }
 
@@ -917,14 +917,14 @@ impl<T: crate::traits::InterpolationFloat> EnsembleInterpolator<T> {
         for (i, result) in all_results.iter().enumerate() {
             let weight = self.weights[i];
             for j in 0..xnew.len() {
-                weighted_mean[j] = weighted_mean[j] + weight * result[j];
+                weighted_mean[j] += weight * result[j];
             }
-            total_weight = total_weight + weight;
+            total_weight += weight;
         }
 
         if total_weight > T::zero() {
             for val in weighted_mean.iter_mut() {
-                *val = *val / total_weight;
+                *val /= total_weight;
             }
         }
 
@@ -935,13 +935,13 @@ impl<T: crate::traits::InterpolationFloat> EnsembleInterpolator<T> {
                 let weight = self.weights[i];
                 for j in 0..xnew.len() {
                     let diff = result[j] - weighted_mean[j];
-                    variance[j] = variance[j] + weight * diff * diff;
+                    variance[j] += weight * diff * diff;
                 }
             }
 
             if total_weight > T::zero() {
                 for val in variance.iter_mut() {
-                    *val = *val / total_weight;
+                    *val /= total_weight;
                 }
             }
         }
@@ -991,7 +991,11 @@ impl CrossValidationUncertainty {
         interpolator_factory: F,
     ) -> InterpolateResult<(Array1<T>, Array1<T>)>
     where
-        T: Clone + Copy + num_traits::Float + num_traits::FromPrimitive + std::iter::Sum,
+        T: Clone
+            + Copy
+            + scirs2_core::numeric::Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum,
         F: Fn(&ArrayView1<T>, &ArrayView1<T>, &ArrayView1<T>) -> InterpolateResult<Array1<T>>,
     {
         let n = x.len();
@@ -1014,7 +1018,11 @@ impl CrossValidationUncertainty {
         interpolator_factory: F,
     ) -> InterpolateResult<(Array1<T>, Array1<T>)>
     where
-        T: Clone + Copy + num_traits::Float + num_traits::FromPrimitive + std::iter::Sum,
+        T: Clone
+            + Copy
+            + scirs2_core::numeric::Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum,
         F: Fn(&ArrayView1<T>, &ArrayView1<T>, &ArrayView1<T>) -> InterpolateResult<Array1<T>>,
     {
         let n = x.len();
@@ -1071,7 +1079,11 @@ impl CrossValidationUncertainty {
         interpolator_factory: F,
     ) -> InterpolateResult<(Array1<T>, Array1<T>)>
     where
-        T: Clone + Copy + num_traits::Float + num_traits::FromPrimitive + std::iter::Sum,
+        T: Clone
+            + Copy
+            + scirs2_core::numeric::Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum,
         F: Fn(&ArrayView1<T>, &ArrayView1<T>, &ArrayView1<T>) -> InterpolateResult<Array1<T>>,
     {
         let n = x.len();
@@ -1082,14 +1094,14 @@ impl CrossValidationUncertainty {
         let mut rng = match self.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => {
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
                 StdRng::from_rng(&mut rng)
             }
         };
 
         // Create shuffled indices
         let mut indices: Vec<usize> = (0..n).collect();
-        use rand::seq::SliceRandom;
+        use scirs2_core::random::seq::SliceRandom;
         indices.shuffle(&mut rng);
 
         // K-fold cross-validation

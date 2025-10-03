@@ -3,8 +3,8 @@
 //! This example shows how to use the integrated validation suite
 //! to comprehensively test statistical functions.
 
-use ndarray::Array1;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::ndarray::ArrayView1;
 use scirs2_stats::{
     /* comprehensive_validation_suite::*, */ mean, numerical_stability_analyzer::*,
     /* propertybased_validation::*, */ scipy_benchmark_framework::*,
@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("========================");
 
     // Mock SciPy reference implementation
-    let scipy_mean = |data: &ndarray::ArrayView1<f64>| -> f64 { data.sum() / data.len() as f64 };
+    let scipy_mean = |data: &scirs2_core::ndarray::ArrayView1<f64>| -> f64 { data.sum() / data.len() as f64 };
 
     // Validate the mean function comprehensively
     let mean_validation =
@@ -90,7 +90,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=====================================");
 
     // Mock SciPy reference implementation
-    let scipy_mean = |data: &ndarray::ArrayView1<f64>| -> f64 { data.sum() / data.len() as f64 };
+    let scipy_mean =
+        |data: &scirs2_core::ndarray::ArrayView1<f64>| -> f64 { data.sum() / data.len() as f64 };
 
     // Demonstrate SciPy Benchmark Framework
     println!("\n📊 SciPy Benchmark Framework:");
@@ -101,7 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let benchmark_results =
-        benchmark_framework.benchmark_function("mean_benchmark", |data| mean(data), scipy_mean)?;
+        benchmark_framework.benchmark_function("mean_benchmark", mean, scipy_mean)?;
 
     for result in &benchmark_results {
         println!("   ✓ Data size: {}", result.datasize);
@@ -154,11 +155,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     });
 
     let testdata = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0, -50.0]);
-    let stability_result = stability_analyzer.analyze_function(
-        "mean_stability",
-        |data| mean(data),
-        &testdata.view(),
-    )?;
+    let stability_result =
+        stability_analyzer.analyze_function("mean_stability", mean, &testdata.view())?;
 
     println!(
         "   ✓ Stability Grade: {:?}",

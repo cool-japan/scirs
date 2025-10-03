@@ -8,9 +8,9 @@ use crate::error::{LinalgError, LinalgResult};
 use crate::matrixfree::MatrixFreeOp;
 use crate::norm::vector_norm;
 use crate::quantization::quantized_matrixfree::QuantizedMatrixFreeOp;
-use ndarray::ScalarOperand;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{AsPrimitive, Float, FromPrimitive, NumAssign, One, Zero};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{AsPrimitive, Float, FromPrimitive, NumAssign, One, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -699,7 +699,7 @@ mod tests {
     use crate::quantization::quantized_matrixfree::QuantizedMatrixFreeOp;
     use crate::quantization::QuantizationMethod;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_quantized_conjugate_gradient_smallmatrix() {

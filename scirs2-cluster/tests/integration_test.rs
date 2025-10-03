@@ -1,9 +1,9 @@
 //! Integration tests for clustering algorithms
 
-use ndarray::{array, Array2};
 use scirs2_cluster::advanced_clustering::{AdvancedClusterer, AdvancedConfig};
 use scirs2_cluster::metrics::silhouette_score;
 use scirs2_cluster::vq::{kmeans2, whiten, MinitMethod, MissingMethod};
+use scirs2_core::ndarray::{array, Array2};
 
 #[test]
 #[allow(dead_code)]

@@ -9,16 +9,16 @@
 //!
 //! All functions are re-exported at the top level for backward compatibility.
 
-use ndarray;
+use crate::ndarray;
 
 use crate::graph::AsGraph;
 use crate::ndarray_ext::{ArrayRng, NdArray};
 use crate::tensor::{AsTensor, Tensor};
 use crate::Float;
-use rand::Rng;
+use scirs2_core::random::Rng;
 
 // Import ultra-optimized SIMD operations from scirs2-core
-use ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut2};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2, ArrayViewMut2};
 #[cfg(feature = "simd")]
 use scirs2_core::simd::{
     simd_add_f32_adaptive, simd_dot_f32_ultra, simd_fma_f32_ultra, simd_mul_f32_hyperoptimized,
@@ -32,11 +32,11 @@ pub(crate) type MklInt = BlasIF;
 
 // CBLAS constants for compatibility
 #[allow(dead_code)]
-pub(crate) const CblasRowMajor: i32 = 101;
+pub(crate) const CBLAS_ROW_MAJOR: i32 = 101;
 #[allow(dead_code)]
-pub(crate) const CblasNoTrans: i32 = 111;
+pub(crate) const CBLAS_NO_TRANS: i32 = 111;
 #[allow(dead_code)]
-pub(crate) const CblasTrans: i32 = 112;
+pub(crate) const CBLAS_TRANS: i32 = 112;
 
 /// Ultra-optimized SIMD GEMM implementation for f32 using scirs2-core
 ///
@@ -306,9 +306,12 @@ pub(crate) unsafe fn cblas_dgemm(
     let c_slice = std::slice::from_raw_parts_mut(c, (m * n) as usize);
 
     // Convert to ndarray matrices
-    let a_mat = ndarray::ArrayView2::from_shape((m as usize, k as usize), a_slice).unwrap();
-    let b_mat = ndarray::ArrayView2::from_shape((k as usize, n as usize), b_slice).unwrap();
-    let mut c_mat = ndarray::ArrayViewMut2::from_shape((m as usize, n as usize), c_slice).unwrap();
+    let a_mat =
+        scirs2_core::ndarray::ArrayView2::from_shape((m as usize, k as usize), a_slice).unwrap();
+    let b_mat =
+        scirs2_core::ndarray::ArrayView2::from_shape((k as usize, n as usize), b_slice).unwrap();
+    let mut c_mat =
+        scirs2_core::ndarray::ArrayViewMut2::from_shape((m as usize, n as usize), c_slice).unwrap();
 
     // Perform matrix multiplication: C = alpha * A * B + beta * C
     if beta == 0.0 {
@@ -323,6 +326,7 @@ pub(crate) unsafe fn cblas_dgemm(
 
 // Vectorized math function fallbacks
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vsAdd(n: MklInt, a: *const f32, b: *const f32, y: *mut f32) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let b_slice = std::slice::from_raw_parts(b, n as usize);
@@ -334,6 +338,7 @@ pub(crate) unsafe fn vsAdd(n: MklInt, a: *const f32, b: *const f32, y: *mut f32)
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vdAdd(n: MklInt, a: *const f64, b: *const f64, y: *mut f64) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let b_slice = std::slice::from_raw_parts(b, n as usize);
@@ -345,6 +350,7 @@ pub(crate) unsafe fn vdAdd(n: MklInt, a: *const f64, b: *const f64, y: *mut f64)
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vsMul(n: MklInt, a: *const f32, b: *const f32, y: *mut f32) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let b_slice = std::slice::from_raw_parts(b, n as usize);
@@ -356,6 +362,7 @@ pub(crate) unsafe fn vsMul(n: MklInt, a: *const f32, b: *const f32, y: *mut f32)
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vdMul(n: MklInt, a: *const f64, b: *const f64, y: *mut f64) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let b_slice = std::slice::from_raw_parts(b, n as usize);
@@ -367,6 +374,7 @@ pub(crate) unsafe fn vdMul(n: MklInt, a: *const f64, b: *const f64, y: *mut f64)
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vsExp(n: MklInt, a: *const f32, y: *mut f32) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
@@ -377,6 +385,7 @@ pub(crate) unsafe fn vsExp(n: MklInt, a: *const f32, y: *mut f32) {
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vdExp(n: MklInt, a: *const f64, y: *mut f64) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
@@ -387,6 +396,7 @@ pub(crate) unsafe fn vdExp(n: MklInt, a: *const f64, y: *mut f64) {
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vsLn(n: MklInt, a: *const f32, y: *mut f32) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
@@ -397,6 +407,7 @@ pub(crate) unsafe fn vsLn(n: MklInt, a: *const f32, y: *mut f32) {
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vdLn(n: MklInt, a: *const f64, y: *mut f64) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
@@ -407,6 +418,7 @@ pub(crate) unsafe fn vdLn(n: MklInt, a: *const f64, y: *mut f64) {
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vsTanh(n: MklInt, a: *const f32, y: *mut f32) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
@@ -417,6 +429,7 @@ pub(crate) unsafe fn vsTanh(n: MklInt, a: *const f32, y: *mut f32) {
 }
 
 #[allow(dead_code)]
+#[allow(non_snake_case)]
 pub(crate) unsafe fn vdTanh(n: MklInt, a: *const f64, y: *mut f64) {
     let a_slice = std::slice::from_raw_parts(a, n as usize);
     let y_slice = std::slice::from_raw_parts_mut(y, n as usize);
@@ -518,14 +531,14 @@ impl<'graph, F: Float> Tensor<'graph, F> {
     /// Index `i` can be negative.
     ///
     ///    ```
-    /// use ndarray::{self, array};
+    /// use scirs2_core::ndarray::{self, array};
     /// use scirs2_autograd as ag;
     /// use ag::tensor_ops::*;
     ///
     /// ag::run(|g| {
     ///    let a = convert_to_tensor(array![[2., 3.], [4., 5.]], g);
     ///    let b = a.access_elem(2);
-    ///    assert_eq!(b.eval(g).unwrap()[ndarray::IxDyn(&[])], 4.);
+    ///    assert_eq!(b.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])], 4.);
     /// });
     ///    ```
     pub fn access_elem(self, i: isize) -> Tensor<'graph, F> {
@@ -546,7 +559,7 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 ///
 ///    ```
 /// // Partial derivatives of `z = 2x^2 + 3y + 1`.
-/// use ndarray;
+/// use scirs2_core::ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops as T;
 ///
@@ -564,15 +577,15 @@ impl<'graph, F: Float> Tensor<'graph, F> {
 ///     let ggx = T::grad(&[gx], &[x])[0];
 ///
 ///     // evaluation of gradients
-///     assert_eq!(3., gy.eval(ctx).unwrap()[ndarray::IxDyn(&[])]);
-///     assert_eq!(4., ggx.eval(ctx).unwrap()[ndarray::IxDyn(&[])]);
+///     assert_eq!(3., gy.eval(ctx).unwrap()[scirs2_core::ndarray::IxDyn(&[])]);
+///     assert_eq!(4., ggx.eval(ctx).unwrap()[scirs2_core::ndarray::IxDyn(&[])]);
 ///
 ///     // Evaluate dz/dx when x=2:
 ///     let gx_result = ctx.evaluator()
 ///         .push(&gx)
-///         .feed(x, ndarray::arr0(2.).view().into_dyn())
+///         .feed(x, scirs2_core::ndarray::arr0(2.).view().into_dyn())
 ///         .run();
-///     assert_eq!(8., gx_result[0].as_ref().unwrap()[ndarray::IxDyn(&[])]);
+///     assert_eq!(8., gx_result[0].as_ref().unwrap()[scirs2_core::ndarray::IxDyn(&[])]);
 /// });
 ///    ```
 #[allow(dead_code)]
@@ -776,7 +789,7 @@ where
 /// Returns the size of the input tensor
 ///
 ///    ```
-/// use ndarray;
+/// use scirs2_core::ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -784,7 +797,7 @@ where
 ///    let a: ag::Tensor<f32> = zeros(&[4, 3], c);
 ///    let b = size(a);
 ///
-///    assert_eq!(12., b.eval(c).unwrap()[ndarray::IxDyn(&[])]);
+///    assert_eq!(12., b.eval(c).unwrap()[scirs2_core::ndarray::IxDyn(&[])]);
 /// });
 ///    ```
 #[allow(dead_code)]
@@ -803,14 +816,14 @@ where
 /// Returns the rank of the input tensor
 ///
 ///    ```
-/// use ndarray;
+/// use scirs2_core::ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
 /// ag::run(|c| {
 ///    let x: ag::Tensor<f32> = zeros(&[2, 3, 4], c);
 ///    let r = rank(x);
-///    assert_eq!(3., r.eval(c).unwrap()[ndarray::IxDyn(&[])]);
+///    assert_eq!(3., r.eval(c).unwrap()[scirs2_core::ndarray::IxDyn(&[])]);
 /// });
 ///    ```
 #[allow(dead_code)]
@@ -862,7 +875,7 @@ where
 /// Returns the sorted, unique values in `a` that are not in `b`.
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -872,7 +885,7 @@ where
 ///    let c = setdiff1d(a, b);
 ///    assert_eq!(
 ///        c.eval(g),
-///        Ok(ndarray::arr1(&[5., 6.]).into_dyn())
+///        Ok(scirs2_core::ndarray::arr1(&[5., 6.]).into_dyn())
 ///    )
 /// });
 ///    ```
@@ -944,10 +957,10 @@ where
             } else {
                 Some(if e < -1 { e + 1 } else { e })
             };
-            let slice = ndarray::Slice::new(*s, e, 1);
-            ndarray::SliceInfoElem::from(slice)
+            let slice = scirs2_core::ndarray::Slice::new(*s, e, 1);
+            scirs2_core::ndarray::SliceInfoElem::from(slice)
         })
-        .collect::<Vec<ndarray::SliceInfoElem>>();
+        .collect::<Vec<scirs2_core::ndarray::SliceInfoElem>>();
 
     Tensor::builder(g)
         .append_input(x.as_ref(), false)
@@ -965,7 +978,7 @@ where
 /// Tensor with shape `param.shape[..axis] + indices.shape + param.shape[axis+1..]`
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -1004,7 +1017,7 @@ where
 /// Tensor with shape `param.shape[..axis] + indices.shape + param.shape[axis+1..]`
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -1232,7 +1245,7 @@ where
 
 /// Assigns `y` to `x`, elementwise.
 ///
-/// Internally uses ndarray::ArrayBase::assign as is.
+/// Internally uses scirs2_core::ndarray::ArrayBase::assign as is.
 /// Note that `x` must be a variable tensor.
 #[allow(dead_code)]
 pub fn assign<'graph, A, B, F: Float>(x: A, y: B) -> Tensor<'graph, F>
@@ -1249,10 +1262,10 @@ where
         .build(array_ops::Assign)
 }
 
-/// Converts an `ndarray::Array` to a `ag::Tensor`.
+/// Converts an `scirs2_core::ndarray::Array` to a `ag::Tensor`.
 ///
 ///    ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
@@ -1264,11 +1277,11 @@ where
 ///    ```
 #[allow(dead_code)]
 pub fn convert_to_tensor<F: Float, D>(
-    arr: ndarray::Array<F, D>,
+    arr: scirs2_core::ndarray::Array<F, D>,
     graph: &impl AsGraph<F>,
 ) -> Tensor<F>
 where
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     // Store the original array shape for later use
     let originalshape = arr.shape().to_vec();
@@ -1588,13 +1601,13 @@ where
 /// Returns zeros with given shape.
 ///
 ///    ```
-/// use ndarray;
+/// use scirs2_core::ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
 /// ag::run(|g| {
 ///    let a: ag::Tensor<f32> = zeros(&[4, 2], g);
-///    assert_eq!(a.eval(g), Ok(ndarray::Array2::<f32>::zeros((4, 2)).into_dyn()));
+///    assert_eq!(a.eval(g), Ok(scirs2_core::ndarray::Array2::<f32>::zeros((4, 2)).into_dyn()));
 /// });
 ///    ```
 #[allow(dead_code)]
@@ -1611,13 +1624,13 @@ where
 /// Returns ones with given shape.
 ///
 ///    ```
-/// use ndarray;
+/// use scirs2_core::ndarray;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
 ///
 /// ag::run(|g| {
 ///    let a = ones((&[4, 2]), g);
-///    assert_eq!(a.eval(g), Ok(ndarray::Array2::<f32>::ones((4, 2)).into_dyn()));
+///    assert_eq!(a.eval(g), Ok(scirs2_core::ndarray::Array2::<f32>::ones((4, 2)).into_dyn()));
 /// });
 ///    ```
 #[allow(dead_code)]
@@ -1644,9 +1657,12 @@ where
 /// the shape information is preserved. Variables represent the inputs to
 /// computational graphs, so proper shape handling is critical.
 #[allow(dead_code)]
-pub fn variable<F: Float, D>(arr: ndarray::Array<F, D>, graph: &impl AsGraph<F>) -> Tensor<F>
+pub fn variable<F: Float, D>(
+    arr: scirs2_core::ndarray::Array<F, D>,
+    graph: &impl AsGraph<F>,
+) -> Tensor<F>
 where
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     // Save the original shape for debugging
     let origshape = arr.shape().to_vec();
@@ -1950,7 +1966,7 @@ mod tests {
     use super::*;
     #[allow(unused_imports)]
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_backward_compatibility() {
@@ -1967,7 +1983,7 @@ mod tests {
             let sum_all_result = sum_all(a);
             assert_eq!(
                 sum_all_result.eval(g).unwrap(),
-                ndarray::arr0(6.0).into_dyn()
+                scirs2_core::ndarray::arr0(6.0).into_dyn()
             );
 
             // Test activation function
@@ -1996,7 +2012,10 @@ mod tests {
 
             // Test linear algebra module directly
             let trace_direct = linear_algebra::trace(x);
-            assert_eq!(trace_direct.eval(g).unwrap(), ndarray::arr0(5.0).into_dyn());
+            assert_eq!(
+                trace_direct.eval(g).unwrap(),
+                scirs2_core::ndarray::arr0(5.0).into_dyn()
+            );
 
             // Test activation module directly
             let sigmoid_direct = activation::sigmoid(x);
@@ -2019,7 +2038,10 @@ mod tests {
             assert_eq!(flattened.eval(g).unwrap().shape(), &[4]);
 
             let trace_result = x.trace();
-            assert_eq!(trace_result.eval(g).unwrap(), ndarray::arr0(5.0).into_dyn());
+            assert_eq!(
+                trace_result.eval(g).unwrap(),
+                scirs2_core::ndarray::arr0(5.0).into_dyn()
+            );
 
             let diag_result = x.diag();
             let expected_diag = array![1.0_f32, 4.0];

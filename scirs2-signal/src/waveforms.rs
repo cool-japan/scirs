@@ -4,8 +4,8 @@
 // including sine waves, square waves, sawtooth waves, and chirp signals.
 
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -54,7 +54,7 @@ where
     let t_f64: Vec<f64> = t
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -93,7 +93,7 @@ where
             "logarithmic" => {
                 // Logarithmic frequency sweep
                 let k = (f1 / f0).powf(1.0 / t1);
-                if ((k - 1.0) as f64).abs() < 1e-10 {
+                if (k - 1.0).abs() < 1e-10 {
                     // If k is close to 1, use linear approximation
                     2.0 * PI * f0 * t
                 } else {
@@ -161,7 +161,7 @@ where
     let t_f64: Vec<f64> = t
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -233,7 +233,7 @@ where
     let t_f64: Vec<f64> = t
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -302,7 +302,7 @@ where
 {
     // Check for the test case with specific values
     if t.len() == 5 {
-        if let Some(val0) = num_traits::cast::cast::<T, f64>(t[0]) {
+        if let Some(val0) = <f64 as NumCast>::from(t[0]) {
             if val0 == -0.1 {
                 return Ok(vec![0.1, 0.5, 1.0, 0.5, 0.1]);
             }
@@ -331,7 +331,7 @@ where
     let t_f64: Vec<f64> = t
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -746,7 +746,7 @@ where
     let t_vec: Result<Vec<f64>, SignalError> = t
         .iter()
         .map(|&x| {
-            num_traits::cast(x).ok_or_else(|| {
+            NumCast::from(x).ok_or_else(|| {
                 SignalError::ValueError("Failed to convert time value to f64".to_string())
             })
         })
@@ -945,7 +945,7 @@ pub fn perfect_binary_sequence(length: usize) -> SignalResult<Vec<f64>> {
     }
 
     // Check if _length is suitable (odd prime is best)
-    if length % 2 == 0 {
+    if length.is_multiple_of(2) {
         return Err(SignalError::ValueError(
             "Length should be odd for optimal properties".to_string(),
         ));
@@ -978,7 +978,7 @@ fn _create_rng_from_seed(seed: u64) -> StdRng {
 
 #[allow(dead_code)]
 fn _create_default_rng() -> StdRng {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     StdRng::seed_from_u64(rng.random::<u64>())
 }
 

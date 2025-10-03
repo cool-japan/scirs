@@ -2,8 +2,9 @@
 //!
 //! This module provides common utility functions used throughout the library.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, Dimension, Ix1, Ix2};
-use num_traits::{Float, FloatConst, FromPrimitive, Zero};
+// SCIRS2 POLICY: Use scirs2_core re-exports
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, Dimension, Ix1, Ix2};
+use scirs2_core::numeric::{Float, FloatConst, FromPrimitive, Zero};
 
 use crate::error::{SciRS2Error, SciRS2Result, check_value};
 
@@ -150,7 +151,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2::utils::allclose;
 ///
 /// let a = array![1.0, 2.0, 3.0];
@@ -164,7 +165,7 @@ where
 #[allow(dead_code)]
 pub fn allclose<A, D, T>(a: &A, b: &A, rtol: T, atol: T) -> bool
 where
-    A: ndarray::NdIndex<D>,
+    A: scirs2_core::ndarray::NdIndex<D>,
     D: Dimension,
     T: Float,
 {
@@ -208,12 +209,12 @@ where
 /// assert_eq!(yy[[1, 0]], 5.0);
 /// ```
 #[allow(dead_code)]
-pub fn meshgrid<T: Float + Copy>(x: &[T], y: &[T]) -> (ndarray::Array2<T>, ndarray::Array2<T>) {
+pub fn meshgrid<T: Float + Copy>(x: &[T], y: &[T]) -> (scirs2_core::ndarray::Array2<T>, scirs2_core::ndarray::Array2<T>) {
     let nx = x.len();
     let ny = y.len();
-    
-    let mut xx = ndarray::Array2::<T>::zeros((ny, nx));
-    let mut yy = ndarray::Array2::<T>::zeros((ny, nx));
+
+    let mut xx = scirs2_core::ndarray::Array2::<T>::zeros((ny, nx));
+    let mut yy = scirs2_core::ndarray::Array2::<T>::zeros((ny, nx));
     
     for i in 0..ny {
         for j in 0..nx {

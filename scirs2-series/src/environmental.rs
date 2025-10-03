@@ -5,7 +5,7 @@
 //! atmospheric measurements, and other environmental indicators.
 
 use crate::error::{Result, TimeSeriesError};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -179,7 +179,9 @@ impl TemperatureAnalysis {
         let mut normals = Array1::zeros(self.temperatures.len() - windowsize + 1);
 
         for i in 0..normals.len() {
-            let window = self.temperatures.slice(ndarray::s![i..i + windowsize]);
+            let window = self
+                .temperatures
+                .slice(scirs2_core::ndarray::s![i..i + windowsize]);
             normals[i] = window.mean();
         }
 
@@ -261,7 +263,7 @@ impl PrecipitationAnalysis {
         for i in 0..spi.len() {
             rolling_sums[i] = self
                 .precipitation
-                .slice(ndarray::s![i..i + windowsize])
+                .slice(scirs2_core::ndarray::s![i..i + windowsize])
                 .sum();
         }
 
@@ -693,7 +695,7 @@ impl Default for EnvironmentalAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_temperature_analysis() {

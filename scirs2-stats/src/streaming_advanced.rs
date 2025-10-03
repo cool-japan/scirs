@@ -6,8 +6,8 @@
 //! It supports the "Streaming Analytics" roadmap goal for Integration & Ecosystem.
 
 use crate::error::StatsResult;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
@@ -954,7 +954,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_streaming_processor_creation() {

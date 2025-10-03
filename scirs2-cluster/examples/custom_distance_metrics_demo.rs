@@ -4,13 +4,13 @@
 //! implemented in scirs2-cluster. It shows how different distance metrics
 //! can significantly affect clustering results.
 
-use ndarray::{Array1, Array2};
 use scirs2_cluster::metrics::silhouette_score;
 use scirs2_cluster::preprocess::standardize;
 use scirs2_cluster::vq::{
     kmeans_with_metric, ChebyshevDistance, CorrelationDistance, CosineDistance, EuclideanDistance,
     KMeansInit, KMeansOptions, MahalanobisDistance, ManhattanDistance,
 };
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

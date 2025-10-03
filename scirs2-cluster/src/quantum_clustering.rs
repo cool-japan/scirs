@@ -7,8 +7,8 @@
 //! These algorithms leverage quantum computing principles while running on classical computers,
 //! offering potential advantages in optimization landscapes and finding global optima.
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive, One, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive, One, Zero};
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::fmt::Debug;
@@ -357,8 +357,8 @@ impl<F: Float + FromPrimitive + Debug> QAOAClustering<F> {
         self.beta_params = Array1::zeros(self.config.p_layers);
 
         // Initialize with random small values
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
 
         for i in 0..self.config.p_layers {
             self.gamma_params[i] = rng.random_range(0.0..PI);
@@ -696,8 +696,8 @@ impl<F: Float + FromPrimitive + Debug> VQEClustering<F> {
 
     /// Initialize circuit parameters
     fn initialize_circuit_parameters(&mut self) {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
 
         for i in 0..self.circuit_parameters.len() {
             self.circuit_parameters[i] = rng.random_range(-PI..PI);
@@ -1002,8 +1002,8 @@ impl<F: Float + FromPrimitive + Debug> VQEClustering<F> {
 
     /// SPSA update
     fn spsa_update(&mut self, iteration: usize) -> Result<()> {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
 
         let ak = 0.1 / (iteration as f64 + 1.0).powf(0.602);
         let ck = 0.1 / (iteration as f64 + 1.0).powf(0.101);
@@ -1243,13 +1243,15 @@ impl<F: Float + FromPrimitive + Debug> QuantumAnnealingClustering<F> {
         let qubits_per_sample = (self.n_clusters as f64).log2().ceil() as usize;
         let total_qubits = nsamples * qubits_per_sample;
 
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = if let Some(seed) = self.config.random_seed {
-            use rand::SeedableRng;
-            rand::rngs::StdRng::seed_from_u64(seed)
+            use scirs2_core::random::SeedableRng;
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         } else {
-            use rand::SeedableRng;
-            rand::rngs::StdRng::seed_from_u64(rand::rng().random::<u64>())
+            use scirs2_core::random::SeedableRng;
+            scirs2_core::random::rngs::StdRng::seed_from_u64(
+                scirs2_core::random::rng().random::<u64>(),
+            )
         };
 
         let mut spins = Array1::zeros(total_qubits);
@@ -1266,7 +1268,7 @@ impl<F: Float + FromPrimitive + Debug> QuantumAnnealingClustering<F> {
         self.spin_configuration = Some(i8_spins.clone());
         self.best_configuration = Some(i8_spins);
         self.best_energy =
-            Some(self.calculate_ising_energy(&self.spin_configuration.as_ref().unwrap()));
+            Some(self.calculate_ising_energy(self.spin_configuration.as_ref().unwrap()));
 
         Ok(())
     }
@@ -1304,13 +1306,15 @@ impl<F: Float + FromPrimitive + Debug> QuantumAnnealingClustering<F> {
 
     /// Run quantum annealing optimization
     fn run_annealing(&mut self) -> Result<()> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = if let Some(seed) = self.config.random_seed {
-            use rand::SeedableRng;
-            rand::rngs::StdRng::seed_from_u64(seed)
+            use scirs2_core::random::SeedableRng;
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         } else {
-            use rand::SeedableRng;
-            rand::rngs::StdRng::seed_from_u64(rand::rng().random::<u64>())
+            use scirs2_core::random::SeedableRng;
+            scirs2_core::random::rngs::StdRng::seed_from_u64(
+                scirs2_core::random::rng().random::<u64>(),
+            )
         };
 
         let n_qubits = self.spin_configuration.as_ref().unwrap().len();
@@ -1459,7 +1463,7 @@ pub fn quantum_annealing_clustering<F: Float + FromPrimitive + Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_qaoa_clustering_creation() {

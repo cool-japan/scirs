@@ -5,7 +5,7 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::ifft;
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 use super::algorithms::SparseFFTResult;
@@ -193,7 +193,7 @@ pub fn reconstruct_high_resolution(
     }
 
     // Handle the negative frequencies (those above Nyquist in the original spectrum)
-    if original_length % 2 == 0 {
+    if original_length.is_multiple_of(2) {
         // Even _length case - map original negative frequencies to the new negative frequencies
         #[allow(clippy::needless_range_loop)]
         for i in (original_nyquist + 1)..original_length {
@@ -206,7 +206,7 @@ pub fn reconstruct_high_resolution(
         }
 
         // If even length, also copy the Nyquist component
-        if original_length % 2 == 0 && target_length % 2 == 0 {
+        if original_length.is_multiple_of(2) && target_length.is_multiple_of(2) {
             high_res_spectrum[target_nyquist] = spectrum[original_nyquist];
         }
     } else {

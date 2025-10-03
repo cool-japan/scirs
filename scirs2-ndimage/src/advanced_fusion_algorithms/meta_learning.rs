@@ -23,8 +23,8 @@
 //! and advanced temporal fusion capabilities (`enhanced_meta_learning_with_temporal_fusion`)
 //! for different complexity requirements.
 
-use ndarray::{s, Array1, Array2, Array3, Axis};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
+use scirs2_core::random::Rng;
 use std::collections::{HashMap, VecDeque};
 
 use super::config::*;
@@ -484,7 +484,7 @@ pub fn evolve_learning_strategies(
     hierarchical_output: &Array2<f64>,
     task_context: &str,
 ) -> NdimageResult<Vec<EvolutionaryStrategy>> {
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Evaluate current population fitness
     for strategy in strategy_evolution.strategy_population.iter_mut() {
@@ -1033,7 +1033,7 @@ fn apply_selection(
                 selected.extend(sorted_pop.into_iter().take(elite_count));
             }
             SelectionMechanism::Tournament { tournament_size } => {
-                let mut rng = rand::thread_rng();
+                let mut rng = scirs2_core::random::rng();
                 for _ in 0..(target_size - selected.len()) {
                     let mut tournament = Vec::new();
                     for _ in 0..*tournament_size {
@@ -1071,7 +1071,7 @@ fn crossover_strategies(
     parent1: &EvolutionaryStrategy,
     parent2: &EvolutionaryStrategy,
 ) -> NdimageResult<EvolutionaryStrategy> {
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::rng();
     let genome_size = parent1.genome.len().min(parent2.genome.len());
     let crossover_point = rng.gen_range(1..genome_size);
 
@@ -1099,7 +1099,7 @@ fn mutate_strategy(
     strategy: &mut EvolutionaryStrategy,
     mutation_params: &MutationParameters,
 ) -> NdimageResult<()> {
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::rng();
 
     for gene in strategy.genome.iter_mut() {
         if rng.gen::<f64>() < mutation_params.mutation_rate {

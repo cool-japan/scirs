@@ -3,8 +3,8 @@
 //! These tests validate the key functionality of the optimization library
 //! across different algorithm categories.
 
-use ndarray::{Array1, ArrayView1};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::Rng;
 use scirs2_optimize::{
     stochastic::{
         minimize_adam, minimize_sgd, AdamOptions, DataProvider, InMemoryDataProvider, SGDOptions,
@@ -209,7 +209,7 @@ fn test_stochastic_workflow() {
     impl StochasticGradientFunction for NoisyQuadratic {
         fn compute_gradient(&mut self, x: &ArrayView1<f64>, _batchdata: &[f64]) -> Array1<f64> {
             // Add small noise to simulate stochastic gradients
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             x.mapv(|xi| 2.0 * xi + rng.random_range(-0.01..0.01))
         }
 

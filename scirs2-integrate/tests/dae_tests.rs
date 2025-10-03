@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_integrate::dae::{
     solve_higher_index_dae, solve_implicit_dae, solve_semi_explicit_dae, DAEIndex, DAEOptions,
     DAEStructure, DAEType,

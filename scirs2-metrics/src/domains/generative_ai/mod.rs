@@ -41,9 +41,9 @@ pub use results::{
 mod tests {
     use super::*;
     use crate::domains::DomainMetrics;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
-    fn mock_inception_features() -> ndarray::Array2<f64> {
+    fn mock_inception_features() -> scirs2_core::ndarray::Array2<f64> {
         array![
             [1.0, 2.0, 3.0, 4.0],
             [2.0, 3.0, 4.0, 5.0],

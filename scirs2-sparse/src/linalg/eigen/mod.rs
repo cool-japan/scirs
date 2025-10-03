@@ -155,7 +155,7 @@ pub fn solve_eigenvalues<T>(
     strategy: EigenSolverStrategy,
 ) -> crate::error::SparseResult<EigenResult<T>>
 where
-    T: num_traits::Float
+    T: scirs2_core::numeric::Float
         + std::fmt::Debug
         + Copy
         + std::ops::Add<Output = T>
@@ -294,6 +294,6 @@ mod tests {
         let result = solve_eigenvalues(&matrix, &config, EigenSolverStrategy::Lanczos).unwrap();
 
         assert!(result.converged);
-        assert!(result.eigenvalues.len() >= 1);
+        assert!(!result.eigenvalues.is_empty());
     }
 }

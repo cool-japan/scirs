@@ -19,7 +19,7 @@ pub struct RoboticPerceptionMetrics {
     pub scene_understanding: SceneUnderstandingMetrics,
     /// Sensor fusion quality
     pub sensor_fusion: SensorFusionMetrics,
-    /// Real-time performance
+    /// Float-time performance
     pub real_time_performance: RealTimePerformanceMetrics,
 }
 

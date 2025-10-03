@@ -7,8 +7,8 @@
 use crate::advanced_simd_stats::{BatchOperation, AdvancedSimdConfig, AdvancedSimdOptimizer};
 use crate::parallel_enhancements::AdvancedParallelConfig;
 use crate::{kurtosis, mean, pearson_r, skew, std, var};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast};
 use std::time::Instant;
 
 /// Advanced-comprehensive property testing framework
@@ -409,8 +409,8 @@ impl AdvancedPropertyTester {
         // Additional correlation tests if we can split the data
         if data.len() >= 4 {
             let mid = data.len() / 2;
-            let x = data.slice(ndarray::s![..mid]);
-            let y = data.slice(ndarray::s![mid..mid + x.len()]);
+            let x = data.slice(scirs2_core::ndarray::s![..mid]);
+            let y = data.slice(scirs2_core::ndarray::s![mid..mid + x.len()]);
             report.correlation_properties = self.test_correlation_properties(&x, &y);
         }
 
@@ -553,7 +553,7 @@ pub fn create_advanced_property_tester() -> AdvancedPropertyTester {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

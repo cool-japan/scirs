@@ -15,9 +15,9 @@
 //! - **STDP Learning** (Spike-Timing Dependent Plasticity) for unsupervised feature learning
 //! - **Address-Event Representation** for efficient sparse image encoding
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::Rng;
 use std::collections::VecDeque;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -425,7 +425,7 @@ where
     let (filter_h, filter_w) = filter_size;
 
     // Initialize synaptic weights randomly
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut learned_filter = Array2::from_shape_fn(filter_size, |_| (rng.gen_range(-0.1..0.1)));
 
     let pre_synaptic_traces = Array2::<f64>::zeros(filter_size);
@@ -536,7 +536,7 @@ where
 {
     let (height, width) = image.dim();
     let mut spike_trains = Array3::zeros((time_steps, height, width));
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Convert pixel intensities to Poisson spike trains
     for y in 0..height {
@@ -558,7 +558,7 @@ where
 #[allow(dead_code)]
 fn forward_propagate_snn(
     network: &mut [Array2<SpikingNeuron>],
-    input_spikes: &ndarray::ArrayView2<f64>,
+    input_spikes: &scirs2_core::ndarray::ArrayView2<f64>,
     config: &NeuromorphicConfig,
     current_time: usize,
 ) -> NdimageResult<Array2<f64>> {
@@ -638,7 +638,7 @@ fn apply_stdp_learning(
 
 #[allow(dead_code)]
 fn spike_trains_toimage<T>(
-    spike_trains: ndarray::ArrayView3<f64>,
+    spike_trains: scirs2_core::ndarray::ArrayView3<f64>,
     _config: &NeuromorphicConfig,
 ) -> NdimageResult<Array2<T>>
 where
@@ -784,7 +784,7 @@ fn initialize_reservoir(
     config: &NeuromorphicConfig,
 ) -> NdimageResult<Array1<SpikingNeuron>> {
     let mut reservoir = Array1::from_elem(reservoir_size, SpikingNeuron::default());
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Initialize reservoir with diverse properties
     for (i, neuron) in reservoir.iter_mut().enumerate() {
@@ -951,7 +951,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_neuromorphic_config_default() {

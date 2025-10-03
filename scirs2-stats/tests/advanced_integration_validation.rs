@@ -2,7 +2,7 @@
 //!
 //! This module contains basic integration tests for core statistical functionality.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_stats::{mean, std, var};
 
 #[test]

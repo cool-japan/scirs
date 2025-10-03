@@ -3,8 +3,8 @@
 //! This module implements active contour models for image segmentation,
 //! including parametric snakes and level set methods.
 
-use ndarray::{arr2, Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{arr2, Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -402,18 +402,18 @@ pub fn smooth_contour(
     }
 
     // Apply Gaussian smoothing to x and y coordinates separately
-    let x_coords = contour.slice(ndarray::s![.., 0]);
-    let y_coords = contour.slice(ndarray::s![.., 1]);
+    let x_coords = contour.slice(scirs2_core::ndarray::s![.., 0]);
+    let y_coords = contour.slice(scirs2_core::ndarray::s![.., 1]);
 
     // Pad for circular boundary
     let mut x_padded = Array1::zeros(num_points + 4);
     let mut y_padded = Array1::zeros(num_points + 4);
 
     x_padded
-        .slice_mut(ndarray::s![2..num_points + 2])
+        .slice_mut(scirs2_core::ndarray::s![2..num_points + 2])
         .assign(&x_coords);
     y_padded
-        .slice_mut(ndarray::s![2..num_points + 2])
+        .slice_mut(scirs2_core::ndarray::s![2..num_points + 2])
         .assign(&y_coords);
 
     // Circular padding
@@ -456,8 +456,12 @@ pub fn smooth_contour(
 
     // Combine smoothed coordinates
     let mut smoothed = Array2::zeros((num_points, 2));
-    smoothed.slice_mut(ndarray::s![.., 0]).assign(&smooth_x);
-    smoothed.slice_mut(ndarray::s![.., 1]).assign(&smooth_y);
+    smoothed
+        .slice_mut(scirs2_core::ndarray::s![.., 0])
+        .assign(&smooth_x);
+    smoothed
+        .slice_mut(scirs2_core::ndarray::s![.., 1])
+        .assign(&smooth_y);
 
     Ok(smoothed)
 }

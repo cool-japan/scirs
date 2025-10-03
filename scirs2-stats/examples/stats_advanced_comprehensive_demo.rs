@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates core statistical operations available in scirs2-stats.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_stats::{mean, std, var};
 
 #[allow(dead_code)]

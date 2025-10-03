@@ -99,19 +99,19 @@ impl ContextualDisambiguator {
         // Check for common disambiguation patterns
         if index > 0 {
             let prev_word = &tokens[index - 1];
-            if prev_word == "the" || prev_word == "a" || prev_word == "an" {
-                if initial_tag == PosTag::Verb {
-                    return (PosTag::Noun, 0.8); // "the running" -> "running" is likely a noun
-                }
+            if (prev_word == "the" || prev_word == "a" || prev_word == "an")
+                && initial_tag == PosTag::Verb
+            {
+                return (PosTag::Noun, 0.8); // "the running" -> "running" is likely a noun
             }
         }
 
         if index + 1 < tokens.len() {
             let next_word = &tokens[index + 1];
-            if next_word == "is" || next_word == "was" || next_word == "are" {
-                if word.ends_with("ing") {
-                    return (PosTag::Verb, 0.8); // "running is" -> "running" is likely a verb
-                }
+            if (next_word == "is" || next_word == "was" || next_word == "are")
+                && word.ends_with("ing")
+            {
+                return (PosTag::Verb, 0.8); // "running is" -> "running" is likely a verb
             }
         }
 

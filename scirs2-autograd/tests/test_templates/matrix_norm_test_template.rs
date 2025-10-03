@@ -2,7 +2,7 @@
 // Use this template when implementing gradient calculations for matrix norms
 
 use crate::{
-    ndarray::{array, Array2},
+    scirs2_core::ndarray::{array, Array2},
     tensor_ops as T,
 };
 use scirs2_autograd as ag;

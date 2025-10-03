@@ -11,9 +11,9 @@ use crate::layers::{Dense, Layer, LayerNorm, Sequential};
 use crate::models::architectures::{ViTConfig, VisionTransformer};
 use crate::transformer::TransformerEncoderLayer;
 // use crate::utils::positional_encoding::{PositionalEncoding, SinusoidalPositionalEncoding}; // Disabled - module is broken
-use ndarray::{Array, Axis, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::{rngs::SmallRng,  SeedableRng};
+use scirs2_core::ndarray::{Array, Axis, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::{rngs::SmallRng,  SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 /// Type alias for CLIP output (image embeddings, text embeddings, logit scale)
@@ -147,7 +147,7 @@ impl<
         let batch_size = x.shape()[0];
         let hidden_size = x.shape()[2];
         let cls_token = x
-            .slice_axis(Axis(1), ndarray::Slice::from(0..1))
+            .slice_axis(Axis(1), scirs2_core::ndarray::Slice::from(0..1))
             .into_shape_with_order((batch_size, hidden_size))?;
         // Apply projection - convert to owned array to fix the reference type
         let cls_token_owned = cls_token.to_owned().into_dyn();

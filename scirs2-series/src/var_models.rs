@@ -2,8 +2,8 @@
 //!
 //! Implements VAR, VARMA, VECM and related multivariate time series models
 
-use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Data, Ix2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -731,7 +731,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_var_creation() {
@@ -799,12 +799,12 @@ mod tests {
         data[[0, 1]] = 0.5;
 
         // Generate AR(1) process with sufficient variation
-        use rand::SeedableRng;
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        use scirs2_core::random::SeedableRng;
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
 
         for t in 1..100 {
-            let noise1: f64 = rand::Rng::random_range(&mut rng, -0.1..0.1);
-            let noise2: f64 = rand::Rng::random_range(&mut rng, -0.1..0.1);
+            let noise1: f64 = scirs2_core::random::Rng::random_range(&mut rng, -0.1..0.1);
+            let noise2: f64 = scirs2_core::random::Rng::random_range(&mut rng, -0.1..0.1);
 
             data[[t, 0]] = 0.3 * data[[t - 1, 0]] + 0.1 * data[[t - 1, 1]] + 0.1 + noise1;
             data[[t, 1]] = 0.2 * data[[t - 1, 0]] + 0.4 * data[[t - 1, 1]] + 0.05 + noise2;

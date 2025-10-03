@@ -6,8 +6,8 @@
 use crate::error::Result;
 use crate::reinforcement::policy::{Policy, PolicyNetwork};
 use crate::reinforcement::value::ValueNetwork;
-use ndarray::prelude::*;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::ndarray::ArrayView1;
 use statrs::statistics::Statistics;
 // Note: Would use ndarray_linalg for matrix operations in production
 /// TRPO configuration

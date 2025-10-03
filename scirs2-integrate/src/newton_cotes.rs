@@ -8,9 +8,9 @@
 
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::f64::consts::PI;
-// use num_traits::Float;
+// use scirs2_core::numeric::Float;
 
 /// Represents the type of Newton-Cotes formula to generate
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -150,7 +150,7 @@ pub fn newton_cotes<F: IntegrateFloat>(
     // Calculate degree of exactness (highest degree polynomial integrated exactly)
     let degree = match formula_type {
         NewtonCotesType::Closed => {
-            if n % 2 == 0 {
+            if n.is_multiple_of(2) {
                 n - 1
             } else {
                 n
@@ -412,7 +412,7 @@ fn calculate_error_coefficient<F: IntegrateFloat>(
                 8 => Ok(F::from(-8183.0 / 518400.0).unwrap()),
                 _ => {
                     // For higher orders, use an approximation
-                    let degree = if n % 2 == 0 { n } else { n + 1 } - 1;
+                    let degree = if n.is_multiple_of(2) { n } else { n + 1 } - 1;
                     let coeff = F::from(
                         (-1.0_f64).powi((degree + 1) as i32)
                             / ((degree + 2) as f64 * (degree + 3) as f64),

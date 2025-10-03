@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod test_robust_methods {
-    use ndarray::Array2;
-    use num_traits::Float;
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::numeric::Float;
     use scirs2_stats::error::StatsResult;
 
     // A simplified version of TheilSlopes just for testing

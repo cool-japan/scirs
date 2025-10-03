@@ -39,7 +39,7 @@
 //! ## 1. Data Preparation
 //! ```rust
 //! use scirs2_series::financial::portfolio::{core::Portfolio, optimization::calculate_correlation_matrix};
-//! use ndarray::{Array1, Array2, array};
+//! use scirs2_core::ndarray::{Array1, Array2, array};
 //!
 //! // Prepare asset return data (generate synthetic returns)
 //! let returns_data: Vec<f64> = (0..756).map(|i| {
@@ -60,7 +60,7 @@
 //!     risk_parity_portfolio, minimum_variance_portfolio, calculate_efficient_portfolio,
 //!     calculate_correlation_matrix
 //! };
-//! use ndarray::{Array1, Array2, array};
+//! use scirs2_core::ndarray::{Array1, Array2, array};
 //!
 //! // Setup returns data (needed for this doctest block)
 //! let returns_data: Vec<f64> = (0..756).map(|i| {
@@ -93,7 +93,7 @@
 //! ## 3. Portfolio Construction
 //! ```rust
 //! use scirs2_series::financial::portfolio::{core::Portfolio, optimization::{risk_parity_portfolio, calculate_correlation_matrix}};
-//! use ndarray::{Array2, array};
+//! use scirs2_core::ndarray::{Array2, array};
 //!
 //! // Setup data for this doctest block
 //! let returns_data: Vec<f64> = (0..756).map(|i| {
@@ -127,7 +127,7 @@
 //!     metrics::calculate_portfolio_metrics,
 //!     optimization::{risk_parity_portfolio, calculate_correlation_matrix}
 //! };
-//! use ndarray::{Array1, Array2, array};
+//! use scirs2_core::ndarray::{Array1, Array2, array};
 //!
 //! // Setup data for this doctest block
 //! let returns_data: Vec<f64> = (0..756).map(|i| {
@@ -177,7 +177,7 @@
 //!     core::Portfolio,
 //!     optimization::{risk_parity_portfolio, calculate_correlation_matrix}
 //! };
-//! use ndarray::{Array2, array};
+//! use scirs2_core::ndarray::{Array2, array};
 //!
 //! // Setup data for this doctest block
 //! let returns_data: Vec<f64> = (0..756).map(|i| {
@@ -264,7 +264,7 @@
 //! ## Multi-Asset Portfolio Construction
 //! ```rust
 //! use scirs2_series::financial::portfolio::{core, optimization, metrics};
-//! use ndarray::{Array1, Array2, array};
+//! use scirs2_core::ndarray::{Array1, Array2, array};
 //!
 //! // Define asset universe
 //! let asset_names = vec![

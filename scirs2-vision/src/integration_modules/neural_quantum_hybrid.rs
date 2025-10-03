@@ -9,7 +9,7 @@ use crate::error::Result;
 use crate::neuromorphic_streaming::*;
 use crate::quantum_inspired_streaming::*;
 use crate::streaming::{Frame, FrameMetadata};
-use ndarray::{s, Array3};
+use scirs2_core::ndarray::{s, Array3};
 use std::time::Instant;
 
 /// Advanced Neural-Quantum Hybrid Processor
@@ -223,7 +223,7 @@ pub struct BehaviorPattern {
     /// Occurrence frequency
     pub frequency: f64,
     /// Pattern signature
-    pub signature: ndarray::Array1<f64>,
+    pub signature: scirs2_core::ndarray::Array1<f64>,
 }
 
 /// Complexity metrics for behavior analysis

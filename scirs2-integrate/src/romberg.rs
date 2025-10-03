@@ -7,8 +7,8 @@
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::quad::trapezoid;
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1};
-use rand_distr::{Distribution, Uniform};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::random::{Distribution, Uniform};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -218,7 +218,7 @@ pub fn multi_romberg<F, Func>(
     options: Option<RombergOptions<F>>,
 ) -> IntegrateResult<F>
 where
-    F: IntegrateFloat + rand_distr::uniform::SampleUniform,
+    F: IntegrateFloat + scirs2_core::random::uniform::SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Copy,
 {
     let result = multi_romberg_with_details(f, ranges, options)?;
@@ -236,7 +236,7 @@ pub fn multi_romberg_with_details<F, Func>(
     options: Option<RombergOptions<F>>,
 ) -> IntegrateResult<MultiRombergResult<F>>
 where
-    F: IntegrateFloat + rand_distr::uniform::SampleUniform,
+    F: IntegrateFloat + scirs2_core::random::uniform::SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Copy,
 {
     if ranges.is_empty() {
@@ -284,7 +284,7 @@ fn integrate_adaptive_nested<F, Func>(
     opts: &RombergOptions<F>,
 ) -> IntegrateResult<MultiRombergResult<F>>
 where
-    F: IntegrateFloat + rand_distr::uniform::SampleUniform,
+    F: IntegrateFloat + scirs2_core::random::uniform::SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Copy,
 {
     let n_dims = ranges.len();
@@ -460,7 +460,7 @@ fn monte_carlo_high_dimensions<F, Func>(
     opts: &RombergOptions<F>,
 ) -> IntegrateResult<MultiRombergResult<F>>
 where
-    F: IntegrateFloat + rand_distr::uniform::SampleUniform,
+    F: IntegrateFloat + scirs2_core::random::uniform::SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Copy,
 {
     let n_dims = ranges.len();
@@ -472,7 +472,7 @@ where
 
     let mut sum = F::zero();
     let mut sum_squares = F::zero();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Prepare uniform samplers for each dimension
     let uniforms: Vec<_> = ranges

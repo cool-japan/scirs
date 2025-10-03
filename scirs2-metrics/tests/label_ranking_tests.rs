@@ -1,5 +1,5 @@
 use approx::assert_abs_diff_eq;
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_metrics::ranking::label::{
     coverage_error, coverage_error_multiple, label_ranking_average_precision_score,
     label_ranking_loss,

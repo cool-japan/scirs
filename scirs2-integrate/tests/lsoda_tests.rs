@@ -1,5 +1,5 @@
-use ndarray::array;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::array;
+use scirs2_core::ndarray::ArrayView1;
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 
 #[test]
@@ -53,7 +53,7 @@ fn test_lsoda_with_stiffness_change() {
     // Van der Pol oscillator with moderate mu (too large causes issues)
     let mu = 10.0;
 
-    let van_der_pol = move |_t: f64, y: ndarray::ArrayView1<f64>| {
+    let van_der_pol = move |_t: f64, y: scirs2_core::ndarray::ArrayView1<f64>| {
         array![y[1], mu * (1.0 - y[0].powi(2)) * y[1] - y[0]]
     };
 
@@ -107,7 +107,7 @@ fn test_lsoda_method_switching() {
     // The test passes a problem with known stiffness characteristics
 
     // Problem that starts non-stiff and becomes stiff
-    let varying_stiffness = |t: f64, y: ndarray::ArrayView1<f64>| {
+    let varying_stiffness = |t: f64, y: scirs2_core::ndarray::ArrayView1<f64>| {
         // Create increasing stiffness, but not too extreme
         let stiffness = 1.0 + t * t * 100.0;
         array![-stiffness * y[0]]

@@ -12,7 +12,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_io::formats::astronomical::{FitsFile, FitsTableReader, VOTable};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Read FITS file
 //! let fits = FitsFile::open("hubble_image.fits")?;
@@ -35,7 +35,7 @@
 
 use crate::error::{IoError, Result};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufWriter, Read, Seek, SeekFrom, Write};

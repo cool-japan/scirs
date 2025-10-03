@@ -26,7 +26,7 @@
 //! ```
 
 use crate::common::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2};
 use std::collections::VecDeque;
 
 /// Memory pool for efficient allocation and reuse of buffers

@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 use criterion::{criterion_group, criterion_main, Bencher, Criterion};
 use scirs2_core::random::prelude::*;
 use scirs2_fft::{
@@ -33,10 +34,10 @@ fn create_noisy_sparse_signal(
     let mut signal = create_sparse_signal(n, frequencies);
 
     // Add noise
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for i in 0..n {
-        signal[i] += noise_level * rng.gen_range(-1.0..1.0);
+        signal[i] += noise_level * rng.random_range(-1.0..1.0);
     }
 
     signal

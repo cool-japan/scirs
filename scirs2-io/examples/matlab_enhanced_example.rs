@@ -7,7 +7,7 @@
 //! - Configuration options and format detection
 //! - Error handling and performance monitoring
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_io::matlab::enhanced::{
     create_cell_array, create_struct, read_mat_enhanced, write_mat_enhanced, EnhancedMatFile,
     MatFileConfig,

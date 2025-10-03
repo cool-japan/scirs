@@ -7,8 +7,8 @@ use crate::error::SpecialResult;
 use crate::error_context::{ErrorContext, ErrorContextExt, RecoveryStrategy};
 use crate::special_error;
 use crate::validation;
-use ndarray::{Array1, ArrayBase, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayBase, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 /// Configuration for error handling behavior
@@ -238,9 +238,12 @@ where
     }
 
     /// Evaluate the function on an array with full error handling
-    pub fn evaluate<S>(&self, input: &ArrayBase<S, ndarray::Ix1>) -> SpecialResult<Array1<T>>
+    pub fn evaluate<S>(
+        &self,
+        input: &ArrayBase<S, scirs2_core::ndarray::Ix1>,
+    ) -> SpecialResult<Array1<T>>
     where
-        S: ndarray::Data<Elem = T>,
+        S: scirs2_core::ndarray::Data<Elem = T>,
     {
         // Validate array
         validation::check_array_finite(input, "input").with_context(|| {
@@ -339,7 +342,7 @@ mod tests {
 
     #[test]
     fn test_array_wrapper() {
-        use ndarray::arr1;
+        use scirs2_core::ndarray::arr1;
 
         let arr_gamma = ArrayWrapper::new("gamma_array", |x: &ArrayView1<f64>| {
             x.mapv(crate::gamma::gamma::<f64>)

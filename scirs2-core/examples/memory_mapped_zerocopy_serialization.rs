@@ -164,7 +164,7 @@ fn custom_type_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error>>
     );
 
     // Read the array
-    let loaded_array = loaded.readonlyarray::<ndarray::Ix2>()?;
+    let loaded_array = loaded.readonlyarray::<scirs2_core::ndarray::Ix2>()?;
 
     // Calculate magnitude for each element in a corner sample
     println!("\nCalculating magnitudes from loaded array (3x3 corner):");
@@ -252,7 +252,7 @@ fn basic_serialization_example(tempdir: &Path) -> Result<(), Box<dyn std::error:
     );
 
     // Verify the loaded array
-    let loaded_array = loaded.readonlyarray::<ndarray::Ix1>()?;
+    let loaded_array = loaded.readonlyarray::<scirs2_core::ndarray::Ix1>()?;
     println!(
         "Loaded array shape: {:?}, elements: {}",
         loaded_array.shape(),
@@ -354,7 +354,7 @@ fn metadata_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
 
     // Load the array and verify data wasn't affected by metadata update
     let loaded = MemoryMappedArray::<f32>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
-    let loaded_array = loaded.readonlyarray::<ndarray::Ix1>()?;
+    let loaded_array = loaded.readonlyarray::<scirs2_core::ndarray::Ix1>()?;
 
     // Check a few values
     println!("\nVerifying data integrity after metadata update:");
@@ -387,7 +387,7 @@ fn multidimensional_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Er
     println!("Loaded 3D array from file");
 
     // Verify the loaded array
-    let loaded_array = loaded.readonlyarray::<ndarray::Ix3>()?;
+    let loaded_array = loaded.readonlyarray::<scirs2_core::ndarray::Ix3>()?;
     println!(
         "Loaded array shape: {:?}, elements: {}",
         loaded_array.shape(),
@@ -426,7 +426,7 @@ fn multidimensional_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Er
     // Load dynamic array
     let loaded_dyn =
         MemoryMappedArray::<f64>::open_zero_copy(&dyn_file_path, AccessMode::ReadOnly)?;
-    let loaded_dyn_array = loaded_dyn.readonlyarray::<ndarray::IxDyn>()?;
+    let loaded_dyn_array = loaded_dyn.readonlyarray::<scirs2_core::ndarray::IxDyn>()?;
 
     println!(
         "Loaded dynamic array shape: {:?}, elements: {}",
@@ -502,7 +502,7 @@ fn performance_comparison(tempdir: &Path) -> Result<(), Box<dyn std::error::Erro
     // 5. Array access time (zero-copy)
     let loaded = MemoryMappedArray::<f64>::open_zero_copy(&zero_copy_path, AccessMode::ReadOnly)?;
     let start = Instant::now();
-    let array = loaded.readonlyarray::<ndarray::Ix2>()?;
+    let array = loaded.readonlyarray::<scirs2_core::ndarray::Ix2>()?;
     let mut _sum = 0.0;
     for i in 0..10 {
         for j in 0..10 {
@@ -628,7 +628,7 @@ fn updating_data_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error
 
     // Modify the array
     {
-        let mut array = mmap.as_array_mut::<ndarray::Ix2>()?;
+        let mut array = mmap.as_array_mut::<scirs2_core::ndarray::Ix2>()?;
 
         // Set diagonal elements to 1000
         for i in 0..10 {
@@ -649,7 +649,7 @@ fn updating_data_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error
 
     // Load again to verify changes
     let loaded = MemoryMappedArray::<f32>::open_zero_copy(&file_path, AccessMode::ReadOnly)?;
-    let loaded_array = loaded.readonlyarray::<ndarray::Ix2>()?;
+    let loaded_array = loaded.readonlyarray::<scirs2_core::ndarray::Ix2>()?;
 
     // Display modified data
     println!("\nModified array (10x10):");

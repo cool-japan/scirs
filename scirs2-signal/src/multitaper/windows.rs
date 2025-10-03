@@ -1,8 +1,8 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // DPSS (Slepian) window generation for multitaper spectral estimation.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[allow(unused_imports)]
 /// Compute Discrete Prolate Spheroidal Sequences (DPSS), also known as Slepian sequences.

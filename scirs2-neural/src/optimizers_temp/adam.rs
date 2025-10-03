@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::optimizers::Optimizer;
-use ndarray::Array;
-use num_traits::Float;
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 // Import from scirs2-optim
 use scirs2_optim::optimizers as optim_optimizers;
@@ -19,7 +19,7 @@ use scirs2_optim::optimizers as optim_optimizers;
 /// ```
 /// use scirs2_neural::optimizers::Adam;
 /// use scirs2_neural::optimizers::Optimizer;
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// // Create Adam optimizer with default hyperparameters
 /// let mut adam = Adam::new(0.001, 0.9, 0.999, 1e-8);
 /// // Initialize parameters and gradients
@@ -116,8 +116,8 @@ impl<F: Float + Debug> Default for Adam<F> {
         let epsilon = F::from(1e-8).unwrap_or(F::zero());
         Self::new(_learning_rate, beta1, beta2, epsilon)
 impl<F: Float + Debug> Optimizer<F> for Adam<F> {
-    fn update(&mut self, params: &mut [Array<F, ndarray::IxDyn>], 
-              grads: &[Array<F, ndarray::IxDyn>]) -> Result<()> {
+    fn update(&mut self, params: &mut [Array<F, scirs2_core::ndarray::IxDyn>], 
+              grads: &[Array<F, scirs2_core::ndarray::IxDyn>]) -> Result<()> {
         if params.len() != grads.len() {
             return Err(NeuralError::TrainingError(format!(
                 "Parameter and gradient counts do not match: {} vs {}",

@@ -15,7 +15,7 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 
 use crate::error::{Result, TransformError};
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 
 /// Node identifier for distributed processing
 pub type NodeId = String;
@@ -64,7 +64,10 @@ pub enum PartitioningStrategy {
     /// Split data by columns (features)
     ColumnWise,
     /// Split data in blocks
-    BlockWise { block_size: (usize, usize) },
+    BlockWise {
+        /// Size of each block as (rows, columns)
+        block_size: (usize, usize),
+    },
     /// Adaptive partitioning based on node capabilities
     Adaptive,
 }
@@ -75,20 +78,29 @@ pub enum PartitioningStrategy {
 pub enum DistributedTask {
     /// Fit a transformer on a data partition
     Fit {
+        /// Unique identifier for this task
         task_id: TaskId,
+        /// Type of transformer to fit (e.g., "StandardScaler", "PCA")
         transformer_type: String,
+        /// Hyperparameters for the transformer
         parameters: HashMap<String, f64>,
+        /// Training data partition assigned to this task
         data_partition: Vec<Vec<f64>>,
     },
     /// Transform data using a fitted transformer
     Transform {
+        /// Unique identifier for this task
         task_id: TaskId,
+        /// Serialized state of the fitted transformer
         transformer_state: Vec<u8>,
+        /// Data partition to transform
         data_partition: Vec<Vec<f64>>,
     },
     /// Aggregate results from multiple nodes
     Aggregate {
+        /// Unique identifier for this task
         task_id: TaskId,
+        /// Partial results from worker nodes to combine
         partial_results: Vec<Vec<u8>>,
     },
 }
@@ -97,10 +109,15 @@ pub enum DistributedTask {
 #[cfg(feature = "distributed")]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskResult {
+    /// Unique identifier for the completed task
     pub task_id: TaskId,
+    /// ID of the node that executed this task
     pub node_id: NodeId,
+    /// Serialized result data
     pub result: Vec<u8>,
+    /// Task execution time in milliseconds
     pub execution_time_ms: u64,
+    /// Memory used during execution in megabytes
     pub memory_used_mb: f64,
 }
 
@@ -779,7 +796,7 @@ impl DistributedPCA {
             let end_row = (current_row + rows_for_node).min(n_samples_);
 
             if current_row < end_row {
-                let partition = x.slice(ndarray::s![current_row..end_row, ..]);
+                let partition = x.slice(scirs2_core::ndarray::s![current_row..end_row, ..]);
                 let partition_vec: Vec<Vec<f64>> = partition
                     .rows()
                     .into_iter()
@@ -820,7 +837,7 @@ impl DistributedPCA {
             let end_col = ((i + 1) * features_per_node).min(n_features);
 
             if start_col < end_col {
-                let partition = x.slice(ndarray::s![.., start_col..end_col]);
+                let partition = x.slice(scirs2_core::ndarray::s![.., start_col..end_col]);
                 let partition_vec: Vec<Vec<f64>> = partition
                     .rows()
                     .into_iter()
@@ -876,7 +893,10 @@ impl DistributedPCA {
                 let end_col = ((block_col + 1) * block_cols).min(n_features);
 
                 if start_row < end_row && start_col < end_col {
-                    let block = x.slice(ndarray::s![start_row..end_row, start_col..end_col]);
+                    let block = x.slice(scirs2_core::ndarray::s![
+                        start_row..end_row,
+                        start_col..end_col
+                    ]);
                     for row in block.rows() {
                         node_partition.push(row.to_vec());
                     }
@@ -977,8 +997,8 @@ impl DistributedPCA {
     /// Quick correlation calculation for adaptive partitioning
     fn quick_correlation(
         &self,
-        x: &ndarray::ArrayView1<f64>,
-        y: &ndarray::ArrayView1<f64>,
+        x: &scirs2_core::ndarray::ArrayView1<f64>,
+        y: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> Result<f64> {
         if x.len() != y.len() || x.len() < 2 {
             return Ok(0.0);
@@ -1487,8 +1507,8 @@ impl EnhancedDistributedCoordinator {
         tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
         // Simulate varying health metrics
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
 
         Ok(NodeHealth {
             node_id: _nodeinfo.id.clone(),
@@ -1677,13 +1697,21 @@ enum ScalingAction {
 #[cfg(feature = "distributed")]
 #[derive(Debug, Clone)]
 pub struct ClusterHealthSummary {
+    /// Total number of nodes in the cluster
     pub total_nodes: usize,
+    /// Number of fully operational nodes
     pub healthy_nodes: usize,
+    /// Number of nodes with degraded performance
     pub degraded_nodes: usize,
+    /// Number of failed or unreachable nodes
     pub failed_nodes: usize,
+    /// Average CPU utilization across all nodes (0.0 to 1.0)
     pub average_cpu_utilization: f64,
+    /// Average memory utilization across all nodes (0.0 to 1.0)
     pub average_memory_utilization: f64,
+    /// Number of currently open circuit breakers
     pub open_circuit_breakers: usize,
+    /// Whether automatic scaling is enabled
     pub auto_scaling_enabled: bool,
 }
 

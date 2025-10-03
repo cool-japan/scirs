@@ -1,7 +1,7 @@
 //! Geometric transformation functions
 
-use ndarray::{Array, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::utils::{interpolate_linear, interpolate_nearest};
@@ -65,7 +65,7 @@ where
         .collect();
 
     // Create output array with calculated shape
-    let output = Array::zeros(ndarray::IxDyn(&outputshape));
+    let output = Array::zeros(scirs2_core::ndarray::IxDyn(&outputshape));
 
     // Convert input to dynamic for easier indexing
     let input_dyn = input.clone().into_dyn();
@@ -331,7 +331,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_zoom() {

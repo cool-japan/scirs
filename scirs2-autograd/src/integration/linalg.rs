@@ -1095,7 +1095,8 @@ mod tests {
 
             // Try to evaluate the tensor in the graph context
             if let Ok(evaluated) = result.primary_output.eval(g) {
-                assert_eq!(evaluated[ndarray::IxDyn(&[0])], 5.0f32); // trace = 1 + 4 = 5
+                assert_eq!(evaluated[scirs2_core::ndarray::IxDyn(&[0])], 5.0f32);
+            // trace = 1 + 4 = 5
             } else {
                 // Fallback: check that result tensor has correct shape and verify integration worked
                 assert_eq!(result.primary_output.shape(), vec![1]);
@@ -1116,7 +1117,8 @@ mod tests {
 
             // Try to evaluate the tensor in the graph context
             if let Ok(evaluated) = result.primary_output.eval(g) {
-                assert_eq!(evaluated[ndarray::IxDyn(&[0])], 5.0f32); // ||[3,4]||_2 = 5
+                assert_eq!(evaluated[scirs2_core::ndarray::IxDyn(&[0])], 5.0f32);
+            // ||[3,4]||_2 = 5
             } else {
                 // Fallback: check that result tensor has correct shape and verify integration worked
                 assert_eq!(result.primary_output.shape(), vec![1]);

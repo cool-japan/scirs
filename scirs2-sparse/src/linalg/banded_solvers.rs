@@ -5,8 +5,8 @@
 
 use crate::banded_array::BandedArray;
 use crate::error::{SparseError, SparseResult};
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, Zero, One};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, Zero, One};
 use std::fmt::Debug;
 
 /// Cholesky decomposition result for symmetric positive definite banded matrices

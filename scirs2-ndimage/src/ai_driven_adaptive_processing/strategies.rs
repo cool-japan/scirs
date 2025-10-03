@@ -3,7 +3,7 @@
 //! This module handles processing strategies, algorithm steps, and strategy selection
 //! for the AI-driven adaptive processing system.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::collections::HashMap;
 
 use super::config::{AlgorithmType, ImagePattern};

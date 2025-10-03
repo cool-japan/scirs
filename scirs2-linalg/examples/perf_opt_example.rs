@@ -3,11 +3,21 @@
 //! This example shows how to use the performance optimization
 //! module for efficient matrix operations on large matrices.
 
-use ndarray::{Array2, ShapeBuilder};
-use ndarray_rand::rand_distr::Uniform;
-use ndarray_rand::RandomExt;
+use scirs2_core::ndarray::{Array2, ShapeBuilder};
+use scirs2_core::random::{thread_rng, Distribution, Uniform};
 use scirs2_linalg::prelude::*;
 use std::time::Instant;
+
+// Helper function to create random arrays (POLICY-compliant)
+fn random_array<Sh: ShapeBuilder<Dim = scirs2_core::ndarray::Ix2>>(
+    shape: Sh,
+    low: f64,
+    high: f64,
+) -> Array2<f64> {
+    let dist = Uniform::new(low, high).unwrap();
+    let mut rng = thread_rng();
+    Array2::from_shape_fn(shape, |_| dist.sample(&mut rng))
+}
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -38,8 +48,8 @@ fn demo_blocked_matmul() -> Result<(), Box<dyn std::error::Error>> {
     println!("----------------------------");
 
     let size = 1024;
-    let a = Array2::<f64>::random((size, size).f(), Uniform::new(-1.0, 1.0));
-    let b = Array2::<f64>::random((size, size).f(), Uniform::new(-1.0, 1.0));
+    let a = random_array((size, size).f(), -1.0, 1.0);
+    let b = random_array((size, size).f(), -1.0, 1.0);
 
     // Standard matrix multiplication
     let start = Instant::now();
@@ -84,8 +94,8 @@ fn demo_inplace_operations() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------");
 
     let size = 2048;
-    let mut a = Array2::<f64>::random((size, size).f(), Uniform::new(-1.0, 1.0));
-    let b = Array2::<f64>::random((size, size).f(), Uniform::new(-1.0, 1.0));
+    let mut a = random_array((size, size).f(), -1.0, 1.0);
+    let b = random_array((size, size).f(), -1.0, 1.0);
 
     // Standard addition (creates new array)
     let a_copy = a.clone();
@@ -112,7 +122,7 @@ fn demo_inplace_operations() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Demonstrate in-place scaling
-    let mut a = Array2::<f64>::random((size, size).f(), Uniform::new(-1.0, 1.0));
+    let mut a = random_array((size, size).f(), -1.0, 1.0);
     let scale = 2.5;
 
     // Standard scaling
@@ -143,7 +153,7 @@ fn demo_optimized_transpose() -> Result<(), Box<dyn std::error::Error>> {
     println!("------------------");
 
     let size = 2048;
-    let a = Array2::<f64>::random((size, size).f(), Uniform::new(-1.0, 1.0));
+    let a = random_array((size, size).f(), -1.0, 1.0);
 
     // Standard transpose
     let start = Instant::now();
@@ -174,8 +184,8 @@ fn demo_adaptive_algorithm() -> Result<(), Box<dyn std::error::Error>> {
     let sizes = [64, 256, 1024];
 
     for size in &sizes {
-        let a = Array2::<f64>::random((*size, *size).f(), Uniform::new(-1.0, 1.0));
-        let b = Array2::<f64>::random((*size, *size).f(), Uniform::new(-1.0, 1.0));
+        let a = random_array((*size, *size).f(), -1.0, 1.0);
+        let b = random_array((*size, *size).f(), -1.0, 1.0);
 
         // Use adaptive algorithm
         let config = OptConfig::default().with_algorithm(OptAlgorithm::Adaptive);
@@ -202,8 +212,8 @@ fn demo_parallel_control() -> Result<(), Box<dyn std::error::Error>> {
     println!("--------------------------");
 
     let size = 1024;
-    let a = Array2::<f64>::random((size, size).f(), Uniform::new(-1.0, 1.0));
-    let b = Array2::<f64>::random((size, size).f(), Uniform::new(-1.0, 1.0));
+    let a = random_array((size, size).f(), -1.0, 1.0);
+    let b = random_array((size, size).f(), -1.0, 1.0);
 
     // Force serial execution
     let config_serial = OptConfig::default()

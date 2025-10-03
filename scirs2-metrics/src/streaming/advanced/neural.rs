@@ -7,9 +7,9 @@
 #![allow(dead_code)]
 
 use crate::error::Result;
-use ndarray::{Array1, Array2};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -213,7 +213,7 @@ impl<F: Float + std::fmt::Debug + std::ops::AddAssign + std::iter::Sum> MultiArm
     pub fn select_action(&mut self) -> Result<usize> {
         match &self.algorithm {
             BanditAlgorithm::EpsilonGreedy { epsilon } => {
-                let mut rng = rand::thread_rng();
+                let mut rng = scirs2_core::random::thread_rng();
                 if rng.gen::<f64>() < *epsilon {
                     // Explore: random action
                     Ok(rng.gen_range(0..self.actions.len()))
@@ -416,7 +416,7 @@ impl<F: Float + std::fmt::Debug> AdaptiveLearningScheduler<F> {
 
         match &self.scheduler_type {
             SchedulerType::StepLR { step_size, gamma } => {
-                if self.performance_history.len() % step_size == 0 {
+                if self.performance_history.len().is_multiple_of(*step_size) {
                     self.current_lr = self.current_lr * *gamma;
                 }
             }
@@ -491,7 +491,9 @@ impl<F: Float + std::fmt::Debug> Default for SchedulerAdaptationParams<F> {
 }
 
 // Simplified implementations for the other neural components
-impl<F: Float + std::fmt::Debug + Send + Sync + ndarray::ScalarOperand> AutoencoderNetwork<F> {
+impl<F: Float + std::fmt::Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand>
+    AutoencoderNetwork<F>
+{
     pub fn new(input_dim: usize, encoding_dim: usize) -> Self {
         Self {
             encoder_layers: vec![input_dim, encoding_dim * 2, encoding_dim],
@@ -518,7 +520,9 @@ impl<F: Float + std::fmt::Debug> AttentionMechanism<F> {
     }
 }
 
-impl<F: Float + std::fmt::Debug + Send + Sync + ndarray::ScalarOperand> FeatureSelectionNetwork<F> {
+impl<F: Float + std::fmt::Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand>
+    FeatureSelectionNetwork<F>
+{
     pub fn new(num_features: usize, threshold: F) -> Self {
         Self {
             threshold,
@@ -539,7 +543,9 @@ impl<F: Float + std::fmt::Debug + Send + Sync + ndarray::ScalarOperand> FeatureS
     }
 }
 
-impl<F: Float + std::fmt::Debug + Send + Sync + ndarray::ScalarOperand> NeuralFeatureExtractor<F> {
+impl<F: Float + std::fmt::Debug + Send + Sync + scirs2_core::ndarray::ScalarOperand>
+    NeuralFeatureExtractor<F>
+{
     pub fn new(input_dim: usize, output_dim: usize) -> Self {
         Self {
             input_dim,

@@ -9,12 +9,12 @@ use crate::parallel::{parallel_evaluate_batch, ParallelOptions};
 use crate::unconstrained::{
     minimize, Bounds as UnconstrainedBounds, Method, OptimizeResult, Options,
 };
-use ndarray::{Array1, ArrayView1};
-use rand::distr::Uniform;
-use rand::prelude::SliceRandom;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::prelude::SliceRandom;
+use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::Random;
+use scirs2_core::random::Uniform;
+use scirs2_core::random::{Rng, SeedableRng};
 
 /// Simplified Sobol sequence generator
 /// For production use, a full Sobol implementation with proper generating matrices would be preferred
@@ -184,7 +184,7 @@ where
     nfev: usize,
 }
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 impl<F> DifferentialEvolution<F>
 where
@@ -204,7 +204,9 @@ where
             options.popsize
         };
 
-        let seed = options.seed.unwrap_or_else(|| rand::rng().random());
+        let seed = options
+            .seed
+            .unwrap_or_else(|| scirs2_core::random::rng().random());
         let rng = Random::seed(seed);
 
         let strategy_enum = Strategy::from_str(strategy).unwrap_or(Strategy::Best1Bin);
@@ -345,7 +347,7 @@ where
 
     /// Initialize population using Halton sequence
     fn init_halton(&mut self) {
-        let primes = vec![
+        let primes = [
             2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71, 73, 79, 83,
             89, 97,
         ];

@@ -17,6 +17,7 @@ workspace = true
 ndarray = { workspace = true }
 num-traits = { workspace = true }
 num-complex = { workspace = true }
+num-integer = { workspace = true }
 thiserror = { workspace = true }
 once_cell.workspace = true
 cached = { workspace = true, optional = true }  # Memoization and caching
@@ -25,6 +26,8 @@ rand = { workspace = true }
 rand_distr = { workspace = true }
 rand_chacha = { workspace = true }
 ndarray-rand = { workspace = true, optional = true }
+ndarray-stats = { workspace = true, optional = true }
+ndarray-npy = { workspace = true, optional = true }
 serde = { workspace = true, optional = true }  # Serialization
 serde_json = { workspace = true, optional = true }  # JSON serialization
 uuid = { workspace = true, features = ["serde"] }  # Used for unique identifiers
@@ -56,13 +59,14 @@ sysinfo = { workspace = true, optional = true }  # System information gathering
 # Platform-specific dependencies for cross-platform validation are handled through feature gates
 
 # BLAS/LAPACK dependencies for linear algebra operations
-# Note: BLAS backend selection is now handled at workspace level with platform-specific defaults
-ndarray-linalg = { workspace = true, optional = true, default-features = false }  # LAPACK bindings for ndarray
-
-# BLAS backend dependencies - optional and feature-gated
-openblas-src = { workspace = true, optional = true }
+# Note: BLAS backend selection is platform-specific:
+# - macOS: Accelerate framework (system BLAS)
+# - Linux: System OpenBLAS (no source build)
+# - Windows: System BLAS or fallback
+ndarray-linalg = { workspace = true, optional = true, default-features = false }
 blas-src = { workspace = true, optional = true }
-# NOTE: intel-mkl-src removed to avoid conflicts with openblas-src
+# NOTE: openblas-src removed - use system libraries only (SciRS2 POLICY)
+# NOTE: intel-mkl-src removed to avoid conflicts with system BLAS
 
 # JIT compilation for Array Protocol
 cranelift-module = { workspace = true, optional = true }  # JIT compilation module
@@ -95,23 +99,23 @@ rug = { workspace = true, optional = true }  # High-performance arbitrary precis
 gmp-mpfr-sys = { workspace = true, optional = true }  # Low-level GMP/MPFR bindings
 
 # Platform-specific BLAS backend configuration
-# macOS: Use Accelerate framework by default (when linalg feature is enabled)
+# macOS: Use Accelerate framework ONLY (system BLAS, no source build)
 [target.'cfg(target_os = "macos")'.dependencies]
-# For macOS, we don't include OpenBLAS dependencies - use system Accelerate framework
+# macOS uses Accelerate framework - NO openblas-src dependency
 # Metal GPU dependencies (macOS only)
 metal = { workspace = true, optional = true }  # Metal GPU backend for macOS
 objc2 = { workspace = true, optional = true }  # Objective-C runtime for Metal
 objc2-foundation = { workspace = true, optional = true }  # Foundation framework for Metal
 objc2-metal-performance-shaders = { workspace = true, optional = true }  # MPS integration for Metal
 
-# Linux: OpenBLAS by default (when openblas feature is enabled)
+# Linux: Use system OpenBLAS ONLY (no source build via openblas-src)
 [target.'cfg(target_os = "linux")'.dependencies]
-openblas-src = { workspace = true, optional = true }
+# Linux uses system libopenblas.so - NO openblas-src dependency
 blas-src = { workspace = true, optional = true }
 
-# Windows: OpenBLAS by default (when openblas feature is enabled)
+# Windows: Use system BLAS or fallback (no source build via openblas-src)
 [target.'cfg(target_os = "windows")'.dependencies]
-openblas-src = { workspace = true, optional = true }
+# Windows uses system BLAS - NO openblas-src dependency
 blas-src = { workspace = true, optional = true }
 
 # CUDA support - only available on x86_64 Linux and Windows
@@ -122,6 +126,8 @@ cudarc = { workspace = true, optional = true }  # CUDA runtime
 approx = { workspace = true }
 criterion = { workspace = true }
 tempfile = { workspace = true }
+# NOTE: ndarray-linalg is already included in [dependencies] via "array" feature
+# Adding it in dev-dependencies causes duplicate resolution and linker conflicts in doctests
 
 [features]
 default = ["array", "serialization"]  # Enable array module by default
@@ -153,21 +159,27 @@ memory_compression = ["memory_efficient", "lz4", "zstd", "snap", "flate2", "byte
 memory_metrics = ["memory_management", "serde", "serde_json"]  # Enhanced memory metrics tracking
 sysinfo = ["dep:sysinfo"]  # System information gathering
 serialization = ["serde", "serde_json"]  # Serialization support
-array = []  # Scientific array types (MaskedArray, RecordArray)
+array = ["ndarray-rand"]  # Basic ndarray with random support (minimal dependencies)
+array_stats = ["array", "ndarray-stats"]  # Statistics operations on arrays
+array_io = ["array", "ndarray-npy"]  # Array I/O (save/load .npy files)
 memory_visualization = ["memory_metrics"]  # Memory usage visualization
 memory_call_stack = ["memory_metrics"]  # Capture call stacks for memory events
 profiling = ["num_cpus"]  # Performance profiling tools
-random = ["dep:ndarray-rand"]  # Random number generation utilities with ndarray support
+random = ["array"]  # Random number generation utilities with ndarray support
 types = []  # Type conversion utilities
 ufuncs = []  # Universal Functions (ufuncs) system
 testing = ["tempfile", "serde", "serde_json", "quickcheck"]  # Testing framework for production systems
 benchmarking = ["testing", "serde", "serde_json"]  # Comprehensive benchmarking system
-linalg = ["ndarray-linalg"]  # Linear algebra with BLAS/LAPACK bindings
-# LAPACK backends - Note: On macOS, use system Accelerate; on Linux/Windows, use OpenBLAS
-openblas = ["linalg", "dep:openblas-src", "dep:blas-src"]  # Force OpenBLAS (Linux/Windows)
-netlib = ["linalg", "dep:blas-src"]  # Force Reference Netlib
-accelerate = ["linalg"]  # Use system BLAS (typically Accelerate on macOS)
-# NOTE: intel-mkl feature removed to avoid conflicts with openblas
+linalg = ["array", "ndarray-linalg"]  # Linear algebra with BLAS/LAPACK bindings
+# LAPACK backends - Platform-specific system libraries ONLY:
+# - macOS: Accelerate framework automatically used (no feature needed, no source build)
+# - Linux: System OpenBLAS via pkg-config (no source build)
+# - Windows: System BLAS (no source build)
+openblas = ["linalg", "dep:blas-src"]  # Use system OpenBLAS (Linux/Windows, via pkg-config)
+netlib = ["linalg", "dep:blas-src"]  # Use system Netlib BLAS
+# NOTE: No explicit accelerate feature - macOS automatically uses Accelerate via ndarray-linalg
+# NOTE: openblas-src removed - system libraries only (no source build)
+# NOTE: intel-mkl feature removed to avoid conflicts with system BLAS
 array_protocol = []  # Array Protocol for third-party array implementations
 array_protocol_jit = ["array_protocol", "cranelift-module", "cranelift-jit", "cranelift-frontend"]  # JIT compilation for Array Protocol
 array_protocol_gpu = ["array_protocol", "gpu"]  # GPU support for Array Protocol
@@ -196,7 +208,7 @@ arbitrary-precision = ["num-bigint", "num-rational", "rug", "gmp-mpfr-sys"]  # A
 all = [
     "simd", "parallel", "cache", "validation", "logging",
     "gpu", "cuda", "memory_management", "memory_efficient", "memory_compression",
-    "array", "profiling", "random", "types", "ufuncs", "testing", "benchmarking",
+    "array", "array_stats", "array_io", "linalg", "profiling", "random", "types", "ufuncs", "testing", "benchmarking",
     "array_protocol_all", "production", "arbitrary-precision"
 ]  # Enable all features except mutually exclusive BLAS backends
 # NOTE: BLAS backends (openblas, netlib) are mutually exclusive

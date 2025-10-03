@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::losses::Loss;
-use ndarray::{Array, Zip};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Zip};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Cross-entropy loss function.
 ///
@@ -14,7 +14,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::losses::CrossEntropyLoss;
 /// use scirs2_neural::losses::Loss;
-/// use ndarray::{Array, arr1, arr2};
+/// use scirs2_core::ndarray::{Array, arr1, arr2};
 /// let ce = CrossEntropyLoss::new(1e-10);
 /// // One-hot encoded targets and softmax'd predictions for a 3-class problem
 /// let predictions = arr2(&[
@@ -54,8 +54,8 @@ impl Default for CrossEntropyLoss {
 impl<F: Float + Debug> Loss<F> for CrossEntropyLoss {
     fn forward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        targets: &Array<F, ndarray::IxDyn>,
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
     ) -> Result<F> {
         // Check shape compatibility
         if predictions.shape() != targets.shape() {
@@ -107,9 +107,9 @@ impl<F: Float + Debug> Loss<F> for CrossEntropyLoss {
     }
     fn backward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        targets: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Check shape compatibility
         if predictions.shape() != targets.shape() {
             return Err(NeuralError::InferenceError(format!(

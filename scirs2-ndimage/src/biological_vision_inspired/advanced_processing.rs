@@ -4,8 +4,8 @@
 //! advanced retinal circuits, binocular stereo processing, visual working memory,
 //! circadian vision processing, and neural plasticity adaptation.
 
-use ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 
@@ -729,7 +729,7 @@ fn apply_circadian_color_adjustment(value: f64, _phase: f64) -> NdimageResult<f6
 
 fn compute_short_term_adaptation<T>(
     _images: &[ArrayView2<T>],
-    _output: &mut ndarray::ArrayViewMut2<f64>,
+    _output: &mut scirs2_core::ndarray::ArrayViewMut2<f64>,
 ) -> NdimageResult<()>
 where
     T: Float + FromPrimitive + Copy,
@@ -739,7 +739,7 @@ where
 
 fn compute_medium_term_adaptation<T>(
     _images: &[ArrayView2<T>],
-    _output: &mut ndarray::ArrayViewMut2<f64>,
+    _output: &mut scirs2_core::ndarray::ArrayViewMut2<f64>,
 ) -> NdimageResult<()>
 where
     T: Float + FromPrimitive + Copy,
@@ -749,7 +749,7 @@ where
 
 fn compute_long_term_adaptation<T>(
     _images: &[ArrayView2<T>],
-    _output: &mut ndarray::ArrayViewMut2<f64>,
+    _output: &mut scirs2_core::ndarray::ArrayViewMut2<f64>,
 ) -> NdimageResult<()>
 where
     T: Float + FromPrimitive + Copy,
@@ -759,7 +759,7 @@ where
 
 fn compute_homeostatic_adaptation<T>(
     _images: &[ArrayView2<T>],
-    _output: &mut ndarray::ArrayViewMut2<f64>,
+    _output: &mut scirs2_core::ndarray::ArrayViewMut2<f64>,
 ) -> NdimageResult<()>
 where
     T: Float + FromPrimitive + Copy,

@@ -4,8 +4,8 @@
 //! supporting multiple output formats (HTML, Markdown, Text) and comprehensive
 //! analysis sections including basic statistics, quality metrics, and texture analysis.
 
-use ndarray::ArrayView2;
-use num_traits::{Float, FromPrimitive, ToPrimitive, Zero};
+use scirs2_core::ndarray::ArrayView2;
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive, Zero};
 use std::fmt::{Debug, Write};
 
 use crate::analysis::{ImageQualityMetrics, TextureMetrics};
@@ -32,7 +32,7 @@ use statrs::statistics::Statistics;
 /// # Examples
 ///
 /// ```rust,ignore
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::visualization::{ReportConfig, ReportFormat, generate_report};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -598,7 +598,7 @@ where
 mod tests {
     use super::*;
     use crate::visualization::types::{ReportConfig, ReportFormat};
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_generate_basic_report() {

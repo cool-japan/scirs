@@ -4,7 +4,7 @@
 //! in high-dimensional data and projects the data onto a lower-dimensional subspace.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::validation::*;
 
 /// Principal Component Analysis
@@ -199,7 +199,7 @@ impl PCA {
         n_components: usize,
         n_samples: usize,
     ) -> Result<(Array2<f64>, Array1<f64>, Array1<f64>, Array1<f64>)> {
-        use ndarray_linalg::SVD;
+        use scirs2_core::ndarray::ndarray_linalg::SVD;
 
         // Perform SVD: X = U * S * V^T
         let (_u, s, vt) = data
@@ -208,10 +208,12 @@ impl PCA {
         let v = vt.unwrap().t().to_owned();
 
         // Extract _components
-        let components = v.slice(ndarray::s![.., ..n_components]).to_owned();
+        let components = v
+            .slice(scirs2_core::ndarray::s![.., ..n_components])
+            .to_owned();
 
         // Compute explained variance
-        let singular_values = s.slice(ndarray::s![..n_components]).to_owned();
+        let singular_values = s.slice(scirs2_core::ndarray::s![..n_components]).to_owned();
         let explained_variance = &singular_values * &singular_values / (n_samples - 1) as f64;
 
         // Compute explained variance ratio
@@ -233,9 +235,9 @@ impl PCA {
         n_components: usize,
         n_samples: usize,
     ) -> Result<(Array2<f64>, Array1<f64>, Array1<f64>, Array1<f64>)> {
-        use ndarray_linalg::{QR, SVD};
-        use rand::{rngs::StdRng, SeedableRng};
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::ndarray::ndarray_linalg::{QR, SVD};
+        use scirs2_core::random::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::{Distribution, Normal};
 
         let n_features = data.ncols();
         let n_oversamples = 10.min((n_features - n_components) / 2);
@@ -296,10 +298,12 @@ impl PCA {
         let v = vt.unwrap().t().to_owned();
 
         // Extract _components
-        let components = v.slice(ndarray::s![.., ..n_components]).to_owned();
+        let components = v
+            .slice(scirs2_core::ndarray::s![.., ..n_components])
+            .to_owned();
 
         // Compute explained variance
-        let singular_values = s.slice(ndarray::s![..n_components]).to_owned();
+        let singular_values = s.slice(scirs2_core::ndarray::s![..n_components]).to_owned();
         let explained_variance = &singular_values * &singular_values / (n_samples - 1) as f64;
 
         // Compute explained variance ratio
@@ -411,14 +415,17 @@ pub fn mle_components(data: ArrayView2<f64>, maxcomponents: Option<usize>) -> Re
 
         // Average of remaining eigenvalues
         let sigma2 = if k < eigenvalues.len() - 1 {
-            eigenvalues.slice(ndarray::s![k + 1..]).sum() / (p - k_f64 - 1.0)
+            eigenvalues.slice(scirs2_core::ndarray::s![k + 1..]).sum() / (p - k_f64 - 1.0)
         } else {
             1e-10
         };
 
         // Log-likelihood
         let ll = -n / 2.0
-            * (eigenvalues.slice(ndarray::s![..=k]).mapv(f64::ln).sum()
+            * (eigenvalues
+                .slice(scirs2_core::ndarray::s![..=k])
+                .mapv(f64::ln)
+                .sum()
                 + (p - k_f64 - 1.0) * sigma2.ln()
                 + p * (2.0 * std::f64::consts::PI).ln());
 
@@ -508,7 +515,7 @@ impl IncrementalPCA {
 
         if self.svd_u.is_none() {
             // First batch - initialize with standard SVD
-            use ndarray_linalg::SVD;
+            use scirs2_core::ndarray::ndarray_linalg::SVD;
             let (u, s, vt) = centered_batch
                 .svd(true, true)
                 .map_err(|e| StatsError::ComputationError(format!("Initial SVD failed: {}", e)))?;
@@ -517,9 +524,16 @@ impl IncrementalPCA {
             let vt = vt.unwrap();
 
             // Keep only n_components
-            self.svd_u = Some(u.slice(ndarray::s![.., ..n_components]).to_owned());
-            self.svd_s = Some(s.slice(ndarray::s![..n_components]).to_owned());
-            self.svd_v = Some(vt.slice(ndarray::s![..n_components, ..]).t().to_owned());
+            self.svd_u = Some(
+                u.slice(scirs2_core::ndarray::s![.., ..n_components])
+                    .to_owned(),
+            );
+            self.svd_s = Some(s.slice(scirs2_core::ndarray::s![..n_components]).to_owned());
+            self.svd_v = Some(
+                vt.slice(scirs2_core::ndarray::s![..n_components, ..])
+                    .t()
+                    .to_owned(),
+            );
 
             self.components = Some(self.svd_v.as_ref().unwrap().t().to_owned());
             self.singular_values = Some(self.svd_s.as_ref().unwrap().clone());
@@ -534,7 +548,7 @@ impl IncrementalPCA {
             let residual = &centered_batch - &projection.dot(&v_old.t());
 
             // QR decomposition of residual
-            use ndarray_linalg::QR;
+            use scirs2_core::ndarray::ndarray_linalg::QR;
             let (q_res, r_res) = residual.qr().map_err(|e| {
                 StatsError::ComputationError(format!("QR decomposition failed: {}", e))
             })?;
@@ -560,7 +574,7 @@ impl IncrementalPCA {
             }
 
             // SVD of augmented matrix
-            use ndarray_linalg::SVD;
+            use scirs2_core::ndarray::ndarray_linalg::SVD;
             let (u_aug, s_aug, vt_aug) = augmented.svd(true, true).map_err(|e| {
                 StatsError::ComputationError(format!("Augmented SVD failed: {}", e))
             })?;
@@ -570,34 +584,40 @@ impl IncrementalPCA {
 
             // Update U
             let mut u_new = Array2::zeros((old_n + batchsize, n_components));
-            let u_aug_slice = u_aug.slice(ndarray::s![..n_components, ..n_components]);
+            let u_aug_slice = u_aug.slice(scirs2_core::ndarray::s![..n_components, ..n_components]);
 
             // Update old samples part
             let u_old_part = u_old.dot(&u_aug_slice.t());
             u_new
-                .slice_mut(ndarray::s![..old_n, ..])
+                .slice_mut(scirs2_core::ndarray::s![..old_n, ..])
                 .assign(&u_old_part);
 
             // Update new samples part
-            let u_batch_part = projection.dot(&u_aug_slice.slice(ndarray::s![.., ..k]).t());
-            let u_res_part = q_res.dot(&u_aug_slice.slice(ndarray::s![.., k..]).t());
+            let u_batch_part =
+                projection.dot(&u_aug_slice.slice(scirs2_core::ndarray::s![.., ..k]).t());
+            let u_res_part = q_res.dot(&u_aug_slice.slice(scirs2_core::ndarray::s![.., k..]).t());
             u_new
-                .slice_mut(ndarray::s![old_n.., ..])
+                .slice_mut(scirs2_core::ndarray::s![old_n.., ..])
                 .assign(&(&u_batch_part + &u_res_part));
 
             // Update singular values
-            self.svd_s = Some(s_aug.slice(ndarray::s![..n_components]).to_owned());
+            self.svd_s = Some(
+                s_aug
+                    .slice(scirs2_core::ndarray::s![..n_components])
+                    .to_owned(),
+            );
 
             // Update V
-            let v_aug_slice = vt_aug.slice(ndarray::s![..n_components, ..n_components]);
+            let v_aug_slice =
+                vt_aug.slice(scirs2_core::ndarray::s![..n_components, ..n_components]);
             let mut v_new = Array2::zeros((n_features, n_components));
 
-            let v_old_part = v_old.dot(&v_aug_slice.slice(ndarray::s![.., ..k]).t());
+            let v_old_part = v_old.dot(&v_aug_slice.slice(scirs2_core::ndarray::s![.., ..k]).t());
             let v_res_part = q_res
                 .t()
                 .dot(&centered_batch)
                 .t()
-                .dot(&v_aug_slice.slice(ndarray::s![.., k..]).t());
+                .dot(&v_aug_slice.slice(scirs2_core::ndarray::s![.., k..]).t());
             v_new.assign(&(&v_old_part + &v_res_part));
 
             self.svd_u = Some(u_new);

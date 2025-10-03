@@ -23,7 +23,7 @@ use crate::tensor_ops::{array_ops, math_ops, reduction_ops, shape};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::reduce_sum;
 ///
@@ -63,7 +63,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::reduce_mean;
 ///
@@ -100,7 +100,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::reduce_prod;
 ///
@@ -137,7 +137,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::reduce_min;
 ///
@@ -174,7 +174,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::reduce_max;
 ///
@@ -211,7 +211,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::reduce_variance;
 ///
@@ -264,14 +264,14 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::sum_all;
 ///
 /// ag::run(|g| {
 ///    let x = ag::tensor_ops::convert_to_tensor(array![[1., 2.], [3., 4.]], g);
 ///    let total = sum_all(x);
-///    assert_eq!(total.eval(g), Ok(ndarray::arr0(10.).into_dyn()));
+///    assert_eq!(total.eval(g), Ok(scirs2_core::ndarray::arr0(10.).into_dyn()));
 /// });
 /// ```
 #[allow(dead_code)]
@@ -291,14 +291,14 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::mean_all;
 ///
 /// ag::run(|g| {
 ///    let x = ag::tensor_ops::convert_to_tensor(array![[1., 2.], [3., 4.]], g);
 ///    let avg = mean_all(x);
-///    assert_eq!(avg.eval(g), Ok(ndarray::arr0(2.5).into_dyn()));
+///    assert_eq!(avg.eval(g), Ok(scirs2_core::ndarray::arr0(2.5).into_dyn()));
 /// });
 /// ```
 #[allow(dead_code)]
@@ -323,7 +323,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::argmax;
 ///
@@ -358,7 +358,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::argmin;
 ///
@@ -390,7 +390,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::reduce_logsumexp;
 ///
@@ -399,7 +399,7 @@ where
 ///    let lse = reduce_logsumexp(x, 0, false);
 ///    // Should be approximately log(e^1 + e^2 + e^3) ≈ 3.407
 ///    let result = lse.eval(g).unwrap();
-///    assert!((result[ndarray::IxDyn(&[])] - 3.407_f64).abs() < 0.01);
+///    assert!((result[scirs2_core::ndarray::IxDyn(&[])] - 3.407_f64).abs() < 0.01);
 /// });
 /// ```
 #[allow(dead_code)]
@@ -423,7 +423,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::add_n;
 ///
@@ -514,14 +514,14 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::reduction::frobenius_norm;
 ///
 /// ag::run(|g| {
 ///    let x = ag::tensor_ops::convert_to_tensor(array![[3., 4.], [0., 0.]], g);
 ///    let norm = frobenius_norm(x);
-///    assert_eq!(norm.eval(g), Ok(ndarray::arr0(5.).into_dyn()));
+///    assert_eq!(norm.eval(g), Ok(scirs2_core::ndarray::arr0(5.).into_dyn()));
 /// });
 /// ```
 #[allow(dead_code)]
@@ -581,7 +581,7 @@ mod tests {
     use crate::tensor_ops::convert_to_tensor;
     #[allow(unused_imports)]
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_basic_reductions() {
@@ -648,14 +648,14 @@ mod tests {
             let sum_all_result = sum_all(x);
             assert_eq!(
                 sum_all_result.eval(g).unwrap(),
-                ndarray::arr0(10.0).into_dyn()
+                scirs2_core::ndarray::arr0(10.0).into_dyn()
             );
 
             // Test mean all
             let mean_all_result = mean_all(x);
             assert_eq!(
                 mean_all_result.eval(g).unwrap(),
-                ndarray::arr0(2.5).into_dyn()
+                scirs2_core::ndarray::arr0(2.5).into_dyn()
             );
         });
     }
@@ -667,7 +667,10 @@ mod tests {
 
             // Test Frobenius norm
             let frob_norm = frobenius_norm(x);
-            assert_eq!(frob_norm.eval(g).unwrap(), ndarray::arr0(5.0).into_dyn());
+            assert_eq!(
+                frob_norm.eval(g).unwrap(),
+                scirs2_core::ndarray::arr0(5.0).into_dyn()
+            );
 
             // Test L1 norm
             let l1_result = l1_norm(x, &[0], false);

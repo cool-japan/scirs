@@ -1,6 +1,6 @@
 //! Gaussian filtering functions for n-dimensional arrays
 
-use ndarray::{Array, Array1, Array2, Dimension, Ix2, IxDyn};
+use scirs2_core::ndarray::{Array, Array1, Array2, Dimension, Ix2, IxDyn};
 
 use super::{pad_array, BorderMode};
 use crate::error::{NdimageError, NdimageResult};
@@ -31,7 +31,7 @@ use scirs2_core::{parallel_ops, CoreError};
 ///
 /// ## Basic 1D smoothing
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::filters::gaussian_filter;
 ///
 /// let data = array![1.0, 5.0, 2.0, 8.0, 3.0];
@@ -41,7 +41,7 @@ use scirs2_core::{parallel_ops, CoreError};
 ///
 /// ## 2D image smoothing with different border modes
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::filters::{gaussian_filter, BorderMode};
 ///
 /// let image = Array2::from_shape_fn((10, 10), |(i, j)| {
@@ -57,7 +57,7 @@ use scirs2_core::{parallel_ops, CoreError};
 ///
 /// ## 3D volume smoothing
 /// ```no_run
-/// use ndarray::Array3;
+/// use scirs2_core::ndarray::Array3;
 /// use scirs2_ndimage::filters::gaussian_filter;
 ///
 /// let volume = Array3::from_shape_fn((20, 20, 20), |(i, j, k)| {
@@ -170,7 +170,7 @@ where
     if input.ndim() == 1 {
         let input_1d = input
             .to_owned()
-            .into_dimensionality::<ndarray::Ix1>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix1>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 1D array".into()))?;
         let result_1d = apply_kernel1d_1d_f64(&input_1d, &kernel, &border_mode)?;
         return result_1d.into_dimensionality::<D>().map_err(|_| {
@@ -290,7 +290,7 @@ where
         // We need to convert to Array2 to use the slice methods for 2D arrays
         let array2d = input
             .clone()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
         let mut output = array2d.clone();
@@ -621,7 +621,7 @@ where
             // For 1D arrays, convert to Array1 first for correct indexing
             let array1d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
@@ -911,7 +911,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_gaussian_kernel1d() {
@@ -951,7 +951,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_filter_2d() {
-        use ndarray::Array2;
+        use scirs2_core::ndarray::Array2;
 
         // Create a simple 2D impulse array
         let mut input = Array2::zeros((7, 7));
@@ -977,7 +977,7 @@ mod tests {
 
     #[test]
     fn test_gaussian_filter_3d() {
-        use ndarray::Array3;
+        use scirs2_core::ndarray::Array3;
 
         // Create a simple 3D impulse array
         let mut input = Array3::zeros((5, 5, 5));

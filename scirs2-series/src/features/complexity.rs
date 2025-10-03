@@ -10,7 +10,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_series::features::complexity::*;
 //!
 //! let ts = Array1::from_vec(vec![1.0, 2.0, 1.5, 3.0, 2.5, 4.0, 3.5, 5.0]);
@@ -20,8 +20,8 @@
 //! ```
 
 use crate::error::{Result, TimeSeriesError};
-use ndarray::{s, Array1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -270,7 +270,7 @@ where
         let mut sorted: Vec<F> = ts.iter().cloned().collect();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let n = sorted.len();
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (sorted[n / 2 - 1] + sorted[n / 2]) / F::from(2.0).unwrap()
         } else {
             sorted[n / 2]
@@ -473,7 +473,7 @@ where
             }
 
             // Linear detrending of the window
-            let window = integrated.slice(ndarray::s![start..end]);
+            let window = integrated.slice(scirs2_core::ndarray::s![start..end]);
             let x_vals: Array1<F> = (0..window_size).map(|j| F::from(j).unwrap()).collect();
 
             // Linear regression coefficients
@@ -950,7 +950,7 @@ where
     let mut conditional_entropy = F::zero();
 
     for ((x_bin, _y_bin), &joint_count) in joint_counts.iter() {
-        let marginal_count = marginal_counts[&x_bin];
+        let marginal_count = marginal_counts[x_bin];
 
         let p_xy = F::from(joint_count as f64 / total).unwrap();
         let p_x = F::from(marginal_count as f64 / total).unwrap();
@@ -1369,7 +1369,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_approximate_entropy() {

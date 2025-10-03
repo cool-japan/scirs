@@ -1,8 +1,8 @@
 use crate::error::{SignalError, SignalResult};
 use crate::features::options::FeatureOptions;
-use ndarray::s;
-use ndarray::Array2;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -125,7 +125,7 @@ where
 ///
 /// ```
 /// use scirs2_signal::features::{extract_features_batch, FeatureOptions};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Generate multiple signals
 /// let n_signals = 5;

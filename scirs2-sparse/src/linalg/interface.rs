@@ -6,7 +6,7 @@
 
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::Debug;
 use std::iter::Sum;
 use std::marker::PhantomData;
@@ -322,7 +322,7 @@ impl<F: Float + NumAssign + Sum + 'static + Debug> LinearOperator<F>
             });
         }
 
-        use ndarray::Array1;
+        use scirs2_core::ndarray::Array1;
         let x_array = Array1::from_vec(x.to_vec());
         let result = self.matrix.dot_vector(&x_array.view())?;
         Ok(result.to_vec())

@@ -1,15 +1,15 @@
+use crate::ndarray;
 use crate::ndarray_ext::{NdArray, NdArrayView};
 use crate::op;
 use crate::tensor::Tensor;
 use crate::tensor_ops::*;
 use crate::Float;
 use crate::Graph;
-use ndarray;
-use ndarray::Axis;
+use scirs2_core::ndarray::Axis;
 
 // Import ultra-optimized SIMD operations from scirs2-core
 #[allow(unused_imports)]
-use ndarray::{ArrayView1, ArrayViewMut1};
+use scirs2_core::ndarray::{ArrayView1, ArrayViewMut1};
 #[cfg(feature = "simd")]
 use scirs2_core::simd::{
     simd_add_f32_adaptive, simd_dot_f32_ultra, simd_fma_f32_ultra, simd_mul_f32_hyperoptimized,
@@ -24,6 +24,7 @@ pub struct MaybeReduceSum;
 pub struct MaybeBroadcast;
 
 #[cfg(feature = "blas")]
+#[allow(unused_macros)]
 macro_rules! bin_op_sameshape {
     ($vms_op:ident, $vmd_op:ident, $std_op:tt, $a:expr, $b:expr) => {
         unsafe {
@@ -70,7 +71,7 @@ impl<T: Float> op::Op<T> for MaybeReduceSum {
         if origshape == gyshape {
             // The case where forward path didn't cause broadcast.
             ctx.append_output(
-                gy.into_shape_with_order(ndarray::IxDyn(origshape_))
+                gy.into_shape_with_order(scirs2_core::ndarray::IxDyn(origshape_))
                     .unwrap()
                     .to_owned(),
             );
@@ -194,7 +195,7 @@ impl<T: Float> op::Op<T> for SubOp {
         let shape0: &[usize] = x0.shape();
         let ret = if shape0.is_empty() {
             // is scalar
-            let x0_elem = x0[ndarray::IxDyn(&[])];
+            let x0_elem = x0[scirs2_core::ndarray::IxDyn(&[])];
             x1.map(move |&a| x0_elem - a)
         } else {
             x0 - x1
@@ -257,11 +258,11 @@ impl<T: Float> op::Op<T> for DivOp {
         let is_scalar1 = shape1.is_empty() || shape1 == [1];
         let ret = if is_scalar0 {
             // a is a scalar
-            let x0_elem = x0[ndarray::IxDyn(&[])];
+            let x0_elem = x0[scirs2_core::ndarray::IxDyn(&[])];
             x1.map(move |&a| x0_elem / a)
         } else if is_scalar1 {
             // b is a scalar
-            let x1_elem = x1[ndarray::IxDyn(&[])];
+            let x1_elem = x1[scirs2_core::ndarray::IxDyn(&[])];
             let rhs = T::one() / x1_elem;
             x0.mapv(|x0_elem| x0_elem * rhs)
         } else {
@@ -316,10 +317,10 @@ macro_rules! impl_bin_op_forward {
             let x1_is_scalar = shape1 == scalarshape || shape1 == scalarshape1;
 
             if x0_is_scalar && !x1_is_scalar {
-                let elem = x0[ndarray::IxDyn(&[])];
+                let elem = x0[scirs2_core::ndarray::IxDyn(&[])];
                 x1.map(move |&a| a $bin_op elem)
             } else if x1_is_scalar && !x0_is_scalar {
-                let elem = x1[ndarray::IxDyn(&[])];
+                let elem = x1[scirs2_core::ndarray::IxDyn(&[])];
                 x0.map(move |&a| a $bin_op elem )
             } else if !x0_is_scalar && !x1_is_scalar {
                 let len0: usize = shape0.iter().product();
@@ -336,26 +337,26 @@ macro_rules! impl_bin_op_forward {
                             if same_type::<T, f32>() {
                                 // SIMD acceleration for f32
                                 if let (Ok(x0_1d), Ok(x1_1d)) = (
-                                    x0.clone().into_dimensionality::<ndarray::Ix1>(),
-                                    x1.clone().into_dimensionality::<ndarray::Ix1>()
+                                    x0.clone().into_dimensionality::<scirs2_core::ndarray::Ix1>(),
+                                    x1.clone().into_dimensionality::<scirs2_core::ndarray::Ix1>()
                                 ) {
-                                    let x0_f32 = unsafe { std::mem::transmute::<ndarray::ArrayView1<T>, ndarray::ArrayView1<f32>>(x0_1d.view()) };
-                                    let x1_f32 = unsafe { std::mem::transmute::<ndarray::ArrayView1<T>, ndarray::ArrayView1<f32>>(x1_1d.view()) };
+                                    let x0_f32 = unsafe { std::mem::transmute::<scirs2_core::ndarray::ArrayView1<T>, scirs2_core::ndarray::ArrayView1<f32>>(x0_1d.view()) };
+                                    let x1_f32 = unsafe { std::mem::transmute::<scirs2_core::ndarray::ArrayView1<T>, scirs2_core::ndarray::ArrayView1<f32>>(x1_1d.view()) };
                                     let result_f32 = $simd_f32(&x0_f32, &x1_f32);
                                     let result_dyn = result_f32.into_dyn();
-                                    return unsafe { std::mem::transmute::<ndarray::Array<f32, ndarray::IxDyn>, NdArray<T>>(result_dyn) };
+                                    return unsafe { std::mem::transmute::<scirs2_core::ndarray::Array<f32, scirs2_core::ndarray::IxDyn>, NdArray<T>>(result_dyn) };
                                 }
                             } else if same_type::<T, f64>() {
                                 // SIMD acceleration for f64
                                 if let (Ok(x0_1d), Ok(x1_1d)) = (
-                                    x0.clone().into_dimensionality::<ndarray::Ix1>(),
-                                    x1.clone().into_dimensionality::<ndarray::Ix1>()
+                                    x0.clone().into_dimensionality::<scirs2_core::ndarray::Ix1>(),
+                                    x1.clone().into_dimensionality::<scirs2_core::ndarray::Ix1>()
                                 ) {
-                                    let x0_f64 = unsafe { std::mem::transmute::<ndarray::ArrayView1<T>, ndarray::ArrayView1<f64>>(x0_1d.view()) };
-                                    let x1_f64 = unsafe { std::mem::transmute::<ndarray::ArrayView1<T>, ndarray::ArrayView1<f64>>(x1_1d.view()) };
+                                    let x0_f64 = unsafe { std::mem::transmute::<scirs2_core::ndarray::ArrayView1<T>, scirs2_core::ndarray::ArrayView1<f64>>(x0_1d.view()) };
+                                    let x1_f64 = unsafe { std::mem::transmute::<scirs2_core::ndarray::ArrayView1<T>, scirs2_core::ndarray::ArrayView1<f64>>(x1_1d.view()) };
                                     let result_f64 = $simd_f64(&x0_f64, &x1_f64);
                                     let result_dyn = result_f64.into_dyn();
-                                    return unsafe { std::mem::transmute::<ndarray::Array<f64, ndarray::IxDyn>, NdArray<T>>(result_dyn) };
+                                    return unsafe { std::mem::transmute::<scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::IxDyn>, NdArray<T>>(result_dyn) };
                                 }
                             }
                         }
@@ -379,7 +380,10 @@ macro_rules! impl_bin_op_forward {
 }
 
 // Ultra-optimized SIMD binary operations using scirs2-core hyperoptimized functions
-fn simd_add_f32_ultra(x0: &ArrayView1<f32>, x1: &ArrayView1<f32>) -> ndarray::Array1<f32> {
+fn simd_add_f32_ultra(
+    x0: &ArrayView1<f32>,
+    x1: &ArrayView1<f32>,
+) -> scirs2_core::ndarray::Array1<f32> {
     let caps = PlatformCapabilities::detect();
 
     // Use adaptive SIMD addition for optimal performance
@@ -393,9 +397,12 @@ fn simd_add_f32_ultra(x0: &ArrayView1<f32>, x1: &ArrayView1<f32>) -> ndarray::Ar
     x0.to_owned() + x1
 }
 
-fn simd_add_f64_ultra(x0: &ArrayView1<f64>, x1: &ArrayView1<f64>) -> ndarray::Array1<f64> {
+fn simd_add_f64_ultra(
+    x0: &ArrayView1<f64>,
+    x1: &ArrayView1<f64>,
+) -> scirs2_core::ndarray::Array1<f64> {
     // For f64, use element-wise operation with SIMD-friendly loop unrolling
-    let mut result = ndarray::Array1::zeros(x0.len());
+    let mut result = scirs2_core::ndarray::Array1::zeros(x0.len());
     let result_slice = result.as_slice_mut().unwrap();
     let x0_slice = x0.as_slice().unwrap();
     let x1_slice = x1.as_slice().unwrap();
@@ -418,7 +425,10 @@ fn simd_add_f64_ultra(x0: &ArrayView1<f64>, x1: &ArrayView1<f64>) -> ndarray::Ar
     result
 }
 
-fn simd_mul_f32_ultra(x0: &ArrayView1<f32>, x1: &ArrayView1<f32>) -> ndarray::Array1<f32> {
+fn simd_mul_f32_ultra(
+    x0: &ArrayView1<f32>,
+    x1: &ArrayView1<f32>,
+) -> scirs2_core::ndarray::Array1<f32> {
     let caps = PlatformCapabilities::detect();
 
     // Use hyperoptimized SIMD multiplication for maximum performance
@@ -432,9 +442,12 @@ fn simd_mul_f32_ultra(x0: &ArrayView1<f32>, x1: &ArrayView1<f32>) -> ndarray::Ar
     x0.to_owned() * x1
 }
 
-fn simd_mul_f64_ultra(x0: &ArrayView1<f64>, x1: &ArrayView1<f64>) -> ndarray::Array1<f64> {
+fn simd_mul_f64_ultra(
+    x0: &ArrayView1<f64>,
+    x1: &ArrayView1<f64>,
+) -> scirs2_core::ndarray::Array1<f64> {
     // For f64, use cache-optimized loop unrolling similar to hyperoptimized approach
-    let mut result = ndarray::Array1::zeros(x0.len());
+    let mut result = scirs2_core::ndarray::Array1::zeros(x0.len());
     let result_slice = result.as_slice_mut().unwrap();
     let x0_slice = x0.as_slice().unwrap();
     let x1_slice = x1.as_slice().unwrap();
@@ -467,7 +480,7 @@ fn simd_fma_f32_ultra_op(
     x0: &ArrayView1<f32>,
     x1: &ArrayView1<f32>,
     x2: &ArrayView1<f32>,
-) -> ndarray::Array1<f32> {
+) -> scirs2_core::ndarray::Array1<f32> {
     let caps = PlatformCapabilities::detect();
 
     // Use ultra-optimized FMA for best performance in gradient operations
@@ -520,9 +533,12 @@ fn simd_dot_f32_ultra_op(x0: &ArrayView1<f32>, x1: &ArrayView1<f32>) -> f32 {
 }
 
 // Enhanced division operation with SIMD optimization
-fn simd_div_f32_ultra(x0: &ArrayView1<f32>, x1: &ArrayView1<f32>) -> ndarray::Array1<f32> {
+fn simd_div_f32_ultra(
+    x0: &ArrayView1<f32>,
+    x1: &ArrayView1<f32>,
+) -> scirs2_core::ndarray::Array1<f32> {
     let caps = PlatformCapabilities::detect();
-    let mut result = ndarray::Array1::zeros(x0.len());
+    let mut result = scirs2_core::ndarray::Array1::zeros(x0.len());
     let result_slice = result.as_slice_mut().unwrap();
     let x0_slice = x0.as_slice().unwrap();
     let x1_slice = x1.as_slice().unwrap();
@@ -558,9 +574,12 @@ fn simd_div_f32_ultra(x0: &ArrayView1<f32>, x1: &ArrayView1<f32>) -> ndarray::Ar
 }
 
 // Enhanced subtraction operation with SIMD optimization
-fn simd_sub_f32_ultra(x0: &ArrayView1<f32>, x1: &ArrayView1<f32>) -> ndarray::Array1<f32> {
+fn simd_sub_f32_ultra(
+    x0: &ArrayView1<f32>,
+    x1: &ArrayView1<f32>,
+) -> scirs2_core::ndarray::Array1<f32> {
     let caps = PlatformCapabilities::detect();
-    let mut result = ndarray::Array1::zeros(x0.len());
+    let mut result = scirs2_core::ndarray::Array1::zeros(x0.len());
     let result_slice = result.as_slice_mut().unwrap();
     let x0_slice = x0.as_slice().unwrap();
     let x1_slice = x1.as_slice().unwrap();

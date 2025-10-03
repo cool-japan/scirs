@@ -5,9 +5,9 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::NormMode;
-use ndarray::{Array, Array1, Array2, ArrayD, Dimension, IxDyn, ShapeBuilder};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array, Array1, Array2, ArrayD, Dimension, IxDyn, ShapeBuilder};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
 use std::fmt::Debug;
 use std::sync::Arc;
@@ -55,7 +55,7 @@ where
     }
     
     // Handle real value
-    let real = num_traits::cast::<T, f64>(_val)
+    let real = NumCast::from(_val)
         .ok_or_else(|| FFTError::ValueError(format!("Could not convert {:?} to f64", val)))?;
     
     Ok(Complex64::new(real, 0.0))
@@ -72,7 +72,7 @@ fn try_as_complex<T: 'static>(val: &T) -> Option<Complex64> {
     }
     
     // Try f32 complex
-    if let Some(complex) = (_val as &dyn Any).downcast_ref::<num_complex::Complex<f32>>() {
+    if let Some(complex) = (_val as &dyn Any).downcast_ref::<scirs2_core::numeric::Complex<f32>>() {
         return Some(Complex64::new(complex.re as f64, complex.im as f64));
     }
     

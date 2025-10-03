@@ -12,7 +12,7 @@
 //! 2. Detect when the pendulum reaches maximum amplitude (dtheta/dt = 0)
 //! 3. Detect when the pendulum reaches a specific angle (terminal condition)
 
-use ndarray::{array, ArrayView1};
+use scirs2_core::ndarray::{array, ArrayView1};
 use scirs2_integrate::error::IntegrateResult;
 use scirs2_integrate::ode::{
     solve_ivp_with_events, terminal_event, EventAction, EventDirection, EventSpec, ODEMethod,

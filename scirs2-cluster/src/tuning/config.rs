@@ -3,7 +3,7 @@
 //! This module contains all configuration structures and enums used for
 //! hyperparameter optimization in clustering algorithms.
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -234,7 +234,7 @@ pub enum LoadBalancingStrategy {
 }
 
 /// Resource constraints for hyperparameter tuning
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ResourceConstraints {
     /// Maximum memory usage per evaluation (bytes)
     pub max_memory_per_evaluation: Option<usize>,
@@ -242,16 +242,6 @@ pub struct ResourceConstraints {
     pub max_time_per_evaluation: Option<f64>,
     /// Maximum total tuning time (seconds)
     pub max_total_time: Option<f64>,
-}
-
-impl Default for ResourceConstraints {
-    fn default() -> Self {
-        Self {
-            max_memory_per_evaluation: None,
-            max_time_per_evaluation: None,
-            max_total_time: None,
-        }
-    }
 }
 
 /// Hyperparameter specification

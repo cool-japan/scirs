@@ -40,8 +40,8 @@
 //! }
 //! ```
 
-use num_traits::Float;
 use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 // use scirs2_core::random::rngs::StdRng;
 // use scirs2_core::random::{Rng, SeedableRng};
 // use std::collections::HashMap;
@@ -658,7 +658,7 @@ impl PotentialFieldPlanner {
         total_distance: &mut f64,
     ) -> bool {
         use scirs2_core::random::Rng;
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Try multiple random directions
         for _ in 0..8 {

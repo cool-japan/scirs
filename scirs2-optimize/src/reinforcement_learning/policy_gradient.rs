@@ -13,10 +13,10 @@ use super::{
 };
 use crate::error::{OptimizeError, OptimizeResult};
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, Array3, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1};
 // use scirs2_core::error::CoreResult; // Unused import
 // use scirs2_core::simd_ops::SimdUnifiedOps; // Unused import
-use rand::{rng, Rng};
+use scirs2_core::random::{rng, Rng};
 use std::collections::{HashMap, VecDeque};
 
 /// Advanced Neural Network with Meta-Learning Capabilities
@@ -65,9 +65,9 @@ impl MetaPolicyNetwork {
             for i in 0..fan_out {
                 for j in 0..fan_in {
                     policy_weights[[layer, i, j]] =
-                        rand::rng().random_range(-0.5..0.5) * 2.0 * xavier_std;
+                        scirs2_core::random::rng().random_range(-0.5..0.5) * 2.0 * xavier_std;
                     meta_weights[[layer, i, j]] =
-                        rand::rng().random_range(-0.5..0.5) * 2.0 * xavier_std * 0.1;
+                        scirs2_core::random::rng().random_range(-0.5..0.5) * 2.0 * xavier_std * 0.1;
                 }
             }
         }
@@ -186,8 +186,9 @@ impl MetaPolicyNetwork {
         if let Some(embedding) = self.problem_embeddings.get(problem_class) {
             embedding.clone()
         } else {
-            let embedding =
-                Array1::from_shape_fn(input_size, |_| rand::rng().random_range(-0.05..0.05));
+            let embedding = Array1::from_shape_fn(input_size, |_| {
+                scirs2_core::random::rng().random_range(-0.05..0.05)
+            });
             self.problem_embeddings
                 .insert(problem_class.to_string(), embedding.clone());
             embedding
@@ -230,7 +231,7 @@ impl MetaPolicyNetwork {
         }
 
         // Update curriculum difficulty based on meta-learning progress
-        self.update_curriculum_difficulty(&meta_gradients);
+        self.update_curriculum_difficulty(meta_gradients);
     }
 
     fn update_curriculum_difficulty(&mut self, metagradients: &MetaGradients) {
@@ -345,6 +346,12 @@ pub struct CurriculumController {
     pub progress_tracker: VecDeque<f64>,
 }
 
+impl Default for CurriculumController {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CurriculumController {
     pub fn new() -> Self {
         Self {
@@ -424,7 +431,7 @@ impl MetaExperienceBuffer {
 
         for _ in 0..batchsize.min(self.trajectories.len()) {
             // Weighted sampling based on problem class performance
-            let idx = rand::rng().random_range(0..self.trajectories.len());
+            let idx = scirs2_core::random::rng().random_range(0..self.trajectories.len());
             if let Some(trajectory) = self.trajectories.get(idx) {
                 batch.push(trajectory.clone());
             }

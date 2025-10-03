@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, Luma, Rgb, RgbImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 use std::f32::consts::PI;
 
@@ -189,8 +189,8 @@ pub fn hough_lines_p(edges: &GrayImage, params: &HoughParams) -> Result<Vec<Line
 
     // Process edge points randomly
 
-    use rand::seq::SliceRandom;
-    let mut rng = rand::rng();
+    use scirs2_core::random::seq::SliceRandom;
+    let mut rng = scirs2_core::random::rng();
     edge_points.shuffle(&mut rng);
 
     for &(x, y) in &edge_points {

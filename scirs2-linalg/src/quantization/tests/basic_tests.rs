@@ -6,7 +6,7 @@
 use crate::quantization::{
     dequantize_matrix, quantize_matrix, QuantizationMethod, QuantizedDataType,
 };
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_quantize_dequantize_uniform() {

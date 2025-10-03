@@ -4,7 +4,7 @@
 use crate::error::{IoError, Result};
 use crate::ml_framework::types::{DataType, MLTensor};
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use ndarray::{ArrayD, IxDyn};
+use scirs2_core::ndarray::{ArrayD, IxDyn};
 use std::fs::File;
 use std::io::Read;
 

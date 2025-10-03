@@ -4,7 +4,7 @@
 //! and schedulers without circular dependencies.
 
 use approx::assert_abs_diff_eq;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_metrics::classification::accuracy_score;
 use scirs2_metrics::integration::optim::{
     MetricOptimizer, MetricSchedulerTrait, OptimizationMode, SchedulerConfig,

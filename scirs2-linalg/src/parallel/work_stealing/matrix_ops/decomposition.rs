@@ -4,8 +4,8 @@
 //! algorithms including Cholesky, QR, SVD, LU, and eigenvalue computations.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::iter::Sum;
 
 use super::super::core::{QRWorkItem, WorkItem};

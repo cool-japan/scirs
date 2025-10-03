@@ -7,8 +7,8 @@
 use crate::error::{NdimageError, NdimageResult};
 use crate::filters::*;
 use crate::interpolation::BoundaryMode;
-use ndarray::{Array, ArrayView, ArrayViewMut, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView, ArrayViewMut, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -48,7 +48,7 @@ pub mod scipy_ndimage {
         // For now, handle 2D case (can be extended to n-dimensional)
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?;
 
             // Convert to f64, apply filter, convert back
@@ -109,7 +109,7 @@ pub mod scipy_ndimage {
 
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?;
 
             let kernel_size = size.unwrap_or(vec![3, 3]);
@@ -167,7 +167,7 @@ pub mod scipy_ndimage {
 
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?;
 
             let kernel_size = size.unwrap_or(vec![3, 3]);
@@ -225,7 +225,7 @@ pub mod scipy_ndimage {
 
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?;
 
             let axis_usize = axis.unwrap_or(0) as usize;
@@ -258,20 +258,20 @@ pub mod scipy_ndimage {
     {
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?
                 .to_owned();
 
             let structure_2d = structure
                 .map(|s| {
-                    s.into_dimensionality::<ndarray::Ix2>()
+                    s.into_dimensionality::<scirs2_core::ndarray::Ix2>()
                         .ok()
                         .map(|arr| arr.to_owned())
                 })
                 .flatten();
             let mask_2d = mask
                 .map(|m| {
-                    m.into_dimensionality::<ndarray::Ix2>()
+                    m.into_dimensionality::<scirs2_core::ndarray::Ix2>()
                         .ok()
                         .map(|arr| arr.to_owned())
                 })
@@ -313,20 +313,20 @@ pub mod scipy_ndimage {
     {
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?
                 .to_owned();
 
             let structure_2d = structure
                 .map(|s| {
-                    s.into_dimensionality::<ndarray::Ix2>()
+                    s.into_dimensionality::<scirs2_core::ndarray::Ix2>()
                         .ok()
                         .map(|arr| arr.to_owned())
                 })
                 .flatten();
             let mask_2d = mask
                 .map(|m| {
-                    m.into_dimensionality::<ndarray::Ix2>()
+                    m.into_dimensionality::<scirs2_core::ndarray::Ix2>()
                         .ok()
                         .map(|arr| arr.to_owned())
                 })
@@ -386,7 +386,7 @@ pub mod scipy_ndimage {
 
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?;
 
             if zoom.len() != 2 {
@@ -399,7 +399,7 @@ pub mod scipy_ndimage {
 
             // Use affine_transform for per-axis zooming
             // Create a diagonal matrix with zoom factors
-            let mut matrix = ndarray::Array2::<T>::zeros((2, 2));
+            let mut matrix = scirs2_core::ndarray::Array2::<T>::zeros((2, 2));
             matrix[[0, 0]] = T::from_f64(1.0 / zoom[0]).unwrap_or(T::one());
             matrix[[1, 1]] = T::from_f64(1.0 / zoom[1]).unwrap_or(T::one());
 
@@ -486,7 +486,7 @@ pub mod scipy_ndimage {
 
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?
                 .to_owned();
 
@@ -533,13 +533,13 @@ pub mod scipy_ndimage {
     {
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?
                 .to_owned();
 
             let structure_2d = structure
                 .map(|s| {
-                    s.into_dimensionality::<ndarray::Ix2>()
+                    s.into_dimensionality::<scirs2_core::ndarray::Ix2>()
                         .ok()
                         .map(|arr| arr.to_owned())
                 })
@@ -580,13 +580,13 @@ pub mod scipy_ndimage {
             + Sync
             + std::ops::AddAssign
             + std::ops::DivAssign
-            + num_traits::NumAssign
+            + scirs2_core::numeric::NumAssign
             + 'static,
         D: Dimension,
     {
         if D::NDIM == Some(2) {
             let input_2d = input
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::InvalidInput("Expected 2D array".to_string()))?
                 .to_owned();
 
@@ -790,7 +790,7 @@ pub mod migration_utils {
 
             report.push_str("### Array Types\n");
             report.push_str("- SciPy: NumPy arrays\n");
-            report.push_str("- scirs2: ndarray::Array types\n\n");
+            report.push_str("- scirs2: scirs2_core::ndarray::Array types\n\n");
 
             report.push_str("## Performance Benefits\n\n");
             report.push_str("- 🚀 **SIMD optimizations**: 2-4x faster for large arrays\n");
@@ -846,7 +846,7 @@ impl ScipyCompatWrapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_scipy_gaussian_filter_compatibility() {

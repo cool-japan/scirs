@@ -6,10 +6,10 @@
 use crate::dwt::{wavedec, Wavelet};
 use crate::error::{SignalError, SignalResult};
 use crate::wpt::{reconstruct_from_nodes, wp_decompose, WaveletPacketTree};
-use ndarray::ArrayView1;
-use num_traits::{Float, NumCast};
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::validation::{check_finite, check_positive};
 use std::collections::HashMap;
@@ -786,7 +786,7 @@ fn analyze_best_basis_stability(
 
     // Test stability under noise
     let mut noise_stability_scores = Vec::new();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..5 {
         // Add small amount of noise

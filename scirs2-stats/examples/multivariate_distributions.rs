@@ -1,6 +1,6 @@
 //! Example of using multivariate distributions in scirs2-stats
 
-use ndarray::{array, Array2, Axis};
+use scirs2_core::ndarray::{array, Array2, Axis};
 use scirs2_stats::distributions::multivariate;
 
 #[allow(dead_code)]

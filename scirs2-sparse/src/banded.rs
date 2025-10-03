@@ -3,8 +3,8 @@
 use crate::banded_array::BandedArray;
 use crate::error::SparseResult;
 use crate::sparray::SparseArray;
-use ndarray::Array2;
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 /// Legacy banded matrix wrapper around BandedArray

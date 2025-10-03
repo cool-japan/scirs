@@ -4,8 +4,8 @@
 //! feature extraction algorithms, including mathematical operations,
 //! data transformations, pattern detection, and statistical computations.
 
-use ndarray::{s, Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::TurningPointsConfig;
@@ -99,7 +99,7 @@ where
     let mut sorted: Vec<F> = ts.iter().cloned().collect();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let n = sorted.len();
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         (sorted[n / 2 - 1] + sorted[n / 2]) / F::from(2.0).unwrap()
     } else {
         sorted[n / 2]
@@ -665,7 +665,7 @@ where
     let mut deviations: Vec<F> = ts.iter().map(|&x| (x - median).abs()).collect();
     deviations.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-    Ok(if n % 2 == 0 {
+    Ok(if n.is_multiple_of(2) {
         (deviations[n / 2 - 1] + deviations[n / 2]) / F::from(2.0).unwrap()
     } else {
         deviations[n / 2]

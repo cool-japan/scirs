@@ -3,7 +3,7 @@
 //! This example demonstrates real-world applications of the Advanced mode
 //! with complex datasets and production-ready scenarios.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_transform::{
     AdvancedNeuromorphicProcessor, AdvancedQuantumOptimizer, AutoFeatureEngineer,
     DatasetMetaFeatures, NeuromorphicTransformationSystem, QuantumTransformationOptimizer,
@@ -418,8 +418,8 @@ fn create_sparse_dataset(
     n_features: usize,
     sparsity: f64,
 ) -> Result<Array2<f64>, Box<dyn std::error::Error>> {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     for i in 0..n_samples {
@@ -439,8 +439,8 @@ fn create_drifting_dataset(
     _features: usize,
     drift_factor: f64,
 ) -> Result<Array2<f64>, Box<dyn std::error::Error>> {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     let mut data = Array2::zeros((n_samples, _features));
 
     for i in 0..n_samples {
@@ -459,8 +459,8 @@ fn create_numerical_features(
     n_samples: usize,
     n_features: usize,
 ) -> Result<Array2<f64>, Box<dyn std::error::Error>> {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     for i in 0..n_samples {
@@ -477,8 +477,8 @@ fn create_categorical_features(
     n_samples: usize,
     n_features: usize,
 ) -> Result<Array2<f64>, Box<dyn std::error::Error>> {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     for i in 0..n_samples {
@@ -495,8 +495,8 @@ fn create_temporal_features(
     n_samples: usize,
     n_features: usize,
 ) -> Result<Array2<f64>, Box<dyn std::error::Error>> {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     for i in 0..n_samples {
@@ -525,8 +525,8 @@ fn create_benchmark_dataset(
     n_samples: usize,
     n_features: usize,
 ) -> Result<Array2<f64>, Box<dyn std::error::Error>> {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     let mut data = Array2::zeros((n_samples, n_features));
 
     for i in 0..n_samples {
@@ -593,7 +593,7 @@ fn adapt_to_concept_drift(
 
 #[allow(dead_code)]
 fn traditional_optimization(
-    _data: &ndarray::ArrayView2<f64>,
+    _data: &scirs2_core::ndarray::ArrayView2<f64>,
 ) -> Result<Vec<TransformationConfig>, Box<dyn std::error::Error>> {
     // Simulate traditional grid search - intentionally slow
     std::thread::sleep(std::time::Duration::from_millis(50));
@@ -607,7 +607,7 @@ fn traditional_optimization(
 
 #[allow(dead_code)]
 fn advanced_optimization(
-    data: &ndarray::ArrayView2<f64>,
+    data: &scirs2_core::ndarray::ArrayView2<f64>,
 ) -> Result<Vec<TransformationConfig>, Box<dyn std::error::Error>> {
     // Use actual Advanced optimization
     let mut quantum_optimizer = QuantumTransformationOptimizer::new()?;

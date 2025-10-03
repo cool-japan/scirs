@@ -3,13 +3,13 @@
 //! This example shows how to create animated visualizations of K-means clustering
 //! that capture the iterative convergence process with rich visual feedback.
 
-use ndarray::Array2;
 use scirs2_cluster::preprocess::standardize;
 use scirs2_cluster::visualization::animation::{
     AnimationFrame, ConvergenceInfo, IterativeAnimationConfig, IterativeAnimationRecorder,
 };
 use scirs2_cluster::vq::kmeans2;
 use scirs2_cluster::VisualizationConfig;
+use scirs2_core::ndarray::Array2;
 use std::path::Path;
 
 #[allow(dead_code)]
@@ -92,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Run animated K-means clustering with full convergence tracking
 #[allow(dead_code)]
 fn run_animated_kmeans(
-    data: ndarray::ArrayView2<f64>,
+    data: scirs2_core::ndarray::ArrayView2<f64>,
     k: usize,
     animation_config: &IterativeAnimationConfig,
     vis_config: &VisualizationConfig,
@@ -112,7 +112,7 @@ fn run_animated_kmeans(
         }
     }
 
-    let mut labels = ndarray::Array1::zeros(n_samples);
+    let mut labels = scirs2_core::ndarray::Array1::zeros(n_samples);
     let mut prev_inertia = f64::INFINITY;
     let max_iterations = 50;
 
@@ -325,26 +325,26 @@ fn generate_multi_cluster_data() -> Array2<f64> {
 
     // Cluster 1: centered at (2, 2)
     for _ in 0..50 {
-        data.push(2.0 + (rand::random::<f64>() - 0.5) * 1.5);
-        data.push(2.0 + (rand::random::<f64>() - 0.5) * 1.5);
+        data.push(2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.5);
+        data.push(2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.5);
     }
 
     // Cluster 2: centered at (-2, 2)
     for _ in 0..50 {
-        data.push(-2.0 + (rand::random::<f64>() - 0.5) * 1.5);
-        data.push(2.0 + (rand::random::<f64>() - 0.5) * 1.5);
+        data.push(-2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.5);
+        data.push(2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.5);
     }
 
     // Cluster 3: centered at (0, -2)
     for _ in 0..50 {
-        data.push(0.0 + (rand::random::<f64>() - 0.5) * 1.5);
-        data.push(-2.0 + (rand::random::<f64>() - 0.5) * 1.5);
+        data.push(0.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.5);
+        data.push(-2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.5);
     }
 
     // Cluster 4: centered at (4, -1)
     for _ in 0..50 {
-        data.push(4.0 + (rand::random::<f64>() - 0.5) * 1.5);
-        data.push(-1.0 + (rand::random::<f64>() - 0.5) * 1.5);
+        data.push(4.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.5);
+        data.push(-1.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.5);
     }
 
     Array2::from_shape_vec((200, 2), data).unwrap()
@@ -360,9 +360,9 @@ fn generate_3d_cluster_data() -> Array2<f64> {
 
     for center in &centers {
         for _ in 0..40 {
-            data.push(center.0 + (rand::random::<f64>() - 0.5) * 2.0);
-            data.push(center.1 + (rand::random::<f64>() - 0.5) * 2.0);
-            data.push(center.2 + (rand::random::<f64>() - 0.5) * 2.0);
+            data.push(center.0 + (scirs2_core::random::random::<f64>() - 0.5) * 2.0);
+            data.push(center.1 + (scirs2_core::random::random::<f64>() - 0.5) * 2.0);
+            data.push(center.2 + (scirs2_core::random::random::<f64>() - 0.5) * 2.0);
         }
     }
 

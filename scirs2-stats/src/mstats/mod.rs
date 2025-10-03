@@ -4,7 +4,7 @@
 //! following SciPy's `stats.mstats` module.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Masked array structure
 ///
@@ -95,7 +95,7 @@ impl<T: Copy> MaskedArray2<T> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::mstats::{MaskedArray, masked_mean};
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -244,7 +244,7 @@ where
     }
 
     for &quantile in q.iter() {
-        if quantile < 0.0 || quantile > 1.0 {
+        if !(0.0..=1.0).contains(&quantile) {
             return Err(StatsError::InvalidArgument(
                 "Quantiles must be between 0 and 1".to_string(),
             ));
@@ -637,7 +637,7 @@ pub fn masked_tmean<T>(maskedarray: &MaskedArray<T>, proportiontocut: f64) -> St
 where
     T: Copy + Into<f64> + PartialOrd,
 {
-    if proportiontocut < 0.0 || proportiontocut >= 0.5 {
+    if !(0.0..0.5).contains(&proportiontocut) {
         return Err(StatsError::InvalidArgument(
             "proportiontocut must be between 0 and 0.5".to_string(),
         ));

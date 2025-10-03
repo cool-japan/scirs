@@ -2,7 +2,7 @@
 
 use super::utils::factorial;
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 #[allow(unused_imports)]
@@ -370,7 +370,7 @@ pub fn shannon(
     }
 
     // Normalization factor for unit energy
-    let norm = scale.sqrt().recip() * ((2.0 * bandwidth) as f64).sqrt();
+    let norm = scale.sqrt().recip() * (2.0 * bandwidth).sqrt();
 
     // Generate position vector
     let mid_point = (points - 1) as f64 / 2.0;

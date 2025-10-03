@@ -11,7 +11,7 @@
 //!
 //! # Example
 //! ```
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_signal::parametric::{estimate_ar, ARMethod, burg_method};
 //!
 //! // Create a signal with spectral peaks
@@ -33,8 +33,8 @@
 
 use super::types::{ARMethod, OrderSelection};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::validation::{check_finite, check_positive};
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
@@ -53,7 +53,7 @@ use std::f64::consts::PI;
 ///
 /// # Example
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::parametric::{estimate_ar, ARMethod};
 ///
 /// let signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 3.0, 2.0, 1.0, 0.0, -1.0, -2.0]);
@@ -172,7 +172,7 @@ fn levinson_durbin(
         // Update AR coefficients based on the reflection coefficient
         a[k] = k_reflection;
         if k > 0 {
-            let a_prev = a.slice(ndarray::s![0..k]).to_owned();
+            let a_prev = a.slice(scirs2_core::ndarray::s![0..k]).to_owned();
             for j in 0..k {
                 a[j] = a_prev[j] - k_reflection * a_prev[k - 1 - j];
             }

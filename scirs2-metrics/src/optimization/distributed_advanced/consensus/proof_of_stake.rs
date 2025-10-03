@@ -23,23 +23,12 @@ pub struct Validator {
 }
 
 /// Proof of Stake algorithm state
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct PoSState {
     pub current_epoch: u64,
     pub validators: HashMap<String, Validator>,
     pub finalized_blocks: Vec<String>,
     pub pending_transactions: Vec<String>,
-}
-
-impl Default for PoSState {
-    fn default() -> Self {
-        Self {
-            current_epoch: 0,
-            validators: HashMap::new(),
-            finalized_blocks: Vec::new(),
-            pending_transactions: Vec::new(),
-        }
-    }
 }
 
 impl ProofOfStakeConsensus {

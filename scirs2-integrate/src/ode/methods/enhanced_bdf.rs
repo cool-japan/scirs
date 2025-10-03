@@ -11,7 +11,7 @@ use crate::ode::utils::jacobian::{
     newton_solve, JacobianManager, JacobianStrategy, JacobianStructure, NewtonParameters,
 };
 use crate::IntegrateFloat;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Solve ODE using an enhanced Backward Differentiation Formula (BDF) method
 ///

@@ -8,7 +8,7 @@ use crate::error::{StatsError, StatsResult};
 use crate::error_recovery_system::{
     EnhancedStatsError, RecoveryAction, RecoverySuggestion, SuggestionType,
 };
-use rand::Rng;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Intelligent error recovery analyzer
@@ -752,11 +752,17 @@ pub struct NeuralErrorClassifier {
     learning_rate: f64,
 }
 
+impl Default for NeuralErrorClassifier {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NeuralErrorClassifier {
     /// Create new neural classifier
     pub fn new() -> Self {
         // Initialize with small random weights
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut weights = Vec::new();
         let inputsize = 12; // Number of features
         let hiddensize = 8;
@@ -991,6 +997,12 @@ impl StrategyGenerator for SimilarityBasedGenerator {
     }
 }
 
+impl Default for SimilarityBasedGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SimilarityBasedGenerator {
     pub fn new() -> Self {
         Self {
@@ -1071,6 +1083,12 @@ impl StrategyGenerator for ClusteringBasedGenerator {
     }
 }
 
+impl Default for ClusteringBasedGenerator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClusteringBasedGenerator {
     pub fn new() -> Self {
         Self {
@@ -1085,6 +1103,12 @@ impl ClusteringBasedGenerator {
             .map(|(a, b)| (a - b).powi(2))
             .sum::<f64>()
             .sqrt()
+    }
+}
+
+impl Default for RecoveryStrategyEnsemble {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1187,7 +1211,7 @@ impl RecoveryStrategyEnsemble {
     pub fn update_weights(&mut self, generatorname: &str, success: bool) {
         self.performance_history
             .entry(generatorname.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(success);
 
         // Update weights based on recent performance

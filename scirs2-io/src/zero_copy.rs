@@ -8,7 +8,7 @@
 
 use crate::error::{IoError, Result};
 use memmap2::{Mmap, MmapMut, MmapOptions};
-use ndarray::{Array1, ArrayView, ArrayView1, ArrayViewMut, IxDyn};
+use scirs2_core::ndarray::{Array1, ArrayView, ArrayView1, ArrayViewMut, IxDyn};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::fs::{File, OpenOptions};
@@ -396,7 +396,7 @@ impl<'a> ZeroCopyBinaryReader<'a> {
 /// SIMD-optimized zero-copy operations
 pub mod simd_zero_copy {
     use super::*;
-    use ndarray::{Array2, ArrayView2};
+    use scirs2_core::ndarray::{Array2, ArrayView2};
 
     /// Zero-copy SIMD operations for f32 arrays
     pub struct SimdZeroCopyOpsF32;
@@ -1123,7 +1123,7 @@ mod tests {
         let advice = MemoryAdvice::Sequential;
         match advice {
             MemoryAdvice::Sequential => {} // Expected case
-            _ => assert!(false, "Unexpected memory advice"),
+            _ => panic!("Unexpected memory advice"),
         }
     }
 
@@ -1133,7 +1133,7 @@ mod tests {
         let policy = NumaMemoryPolicy::Local;
         match policy {
             NumaMemoryPolicy::Local => {} // Expected case
-            _ => assert!(false, "Unexpected NUMA policy"),
+            _ => panic!("Unexpected NUMA policy"),
         }
 
         let bind_policy = NumaMemoryPolicy::Bind(0);

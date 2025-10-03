@@ -7,7 +7,7 @@ use super::core::advanced_enhanced_arma;
 use super::types::*;
 use super::utils::{compute_ar_psd, compute_arma_psd, generate_frequency_grid};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::f64::consts::PI;
 
 /// Multi-taper parametric spectral estimation
@@ -148,7 +148,7 @@ fn combine_multitaper_spectra(
     match method {
         CombinationMethod::ArithmeticMean => {
             for spectrum in spectra {
-                combined_psd = combined_psd + &spectrum.psd;
+                combined_psd += &spectrum.psd;
             }
             combined_psd /= spectra.len() as f64;
         }
@@ -166,7 +166,7 @@ fn combine_multitaper_spectra(
             for i in 0..n_freq {
                 let mut values: Vec<f64> = spectra.iter().map(|s| s.psd[i]).collect();
                 values.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                combined_psd[i] = if values.len() % 2 == 0 {
+                combined_psd[i] = if values.len().is_multiple_of(2) {
                     (values[values.len() / 2 - 1] + values[values.len() / 2]) / 2.0
                 } else {
                     values[values.len() / 2]
@@ -184,7 +184,7 @@ fn combine_multitaper_spectra(
             let weight_sum: f64 = weights.iter().sum();
             for (j, spectrum) in spectra.iter().enumerate() {
                 let w = weights[j] / weight_sum;
-                combined_psd = combined_psd + &spectrum.psd.mapv(|x| x * w);
+                combined_psd += &spectrum.psd.mapv(|x| x * w);
             }
         }
         CombinationMethod::AdaptiveWeighting => {
@@ -346,7 +346,7 @@ mod tests {
                 1.0 + 0.7 * (i as f64 * 0.08).sin()
                     + 0.5 * (i as f64 * 0.12).cos()
                     + 0.3 * (i as f64 * 0.04).sin()
-                    + 0.1 * rand::random::<f64>(), // Add small amount of noise
+                    + 0.1 * scirs2_core::random::random::<f64>(), // Add small amount of noise
             );
         }
 

@@ -17,8 +17,8 @@ pub use sparse_training::{SparseTrainer, SparsitySchedule};
 pub use model_compression::{CompressionStrategy, ModelCompressor};
 use crate::error::Result;
 use crate::models::sequential::Sequential;
-use ndarray::prelude::*;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::ndarray::ArrayView1;
 /// Configuration for on-device training
 #[derive(Debug, Clone)]
 pub struct OnDeviceConfig {

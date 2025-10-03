@@ -1,4 +1,6 @@
 //! Interactive Tutorial for Special Functions
+
+#![allow(clippy::all)]
 //!
 //! This example provides an interactive command-line tutorial that guides users
 //! through the various special functions implemented in scirs2-special.
@@ -7,7 +9,7 @@
 
 #![allow(unexpected_cfgs)]
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_special::*;
 use statrs::statistics::Statistics;

@@ -4,8 +4,8 @@
 //! quality metrics, texture analysis, multi-scale analysis, and
 //! advanced statistical measurements for scientific image processing.
 
-use ndarray::{Array2, ArrayView2, Zip};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView2, Zip};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -993,27 +993,27 @@ where
         ));
     }
 
-    let mut results = Vec::with_capacity(referenceimages.len());
-
     // Process images in parallel if the parallel feature is enabled
     #[cfg(feature = "parallel")]
-    {
+    let results = {
         use scirs2_core::parallel_ops::*;
 
         let paired_images: Vec<_> = referenceimages.iter().zip(testimages.iter()).collect();
-        results = paired_images
+        paired_images
             .into_par_iter()
             .map(|(ref_img, test_img)| image_quality_assessment(ref_img, test_img))
-            .collect::<Result<Vec<_>, _>>()?;
-    }
+            .collect::<Result<Vec<_>, _>>()?
+    };
 
     #[cfg(not(feature = "parallel"))]
-    {
+    let results = {
+        let mut results = Vec::with_capacity(referenceimages.len());
         for (ref_img, test_img) in referenceimages.iter().zip(testimages.iter()) {
             let metrics = image_quality_assessment(ref_img, test_img)?;
             results.push(metrics);
         }
-    }
+        results
+    };
 
     Ok(results)
 }
@@ -1193,7 +1193,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mean_squared_error() {

@@ -14,8 +14,8 @@ pub use validation::*;
 use crate::data::Dataset;
 use crate::error::{Error, Result};
 use crate::layers::Layer;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -144,9 +144,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
         // Generate indices
         let mut indices: Vec<usize> = (0..dataset.len()).collect();
         if self.config.shuffle {
-            // use rand::rngs::SmallRng;
-            use rand::seq::SliceRandom;
-            // use rand::SeedableRng;
+            // use scirs2_core::random::rngs::SmallRng;
+            use scirs2_core::random::seq::SliceRandom;
+            // use scirs2_core::random::SeedableRng;
             let mut rng = rng();
             indices.shuffle(&mut rng);
         // Process each batch
@@ -175,9 +175,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
             for (i, &idx) in batch_indices.iter().enumerate() {
                 let (x, y) = dataset.get(idx)?;
                 // Copy data into batch arrays
-                let mut batch_x_slice = batch_x.slice_mut(ndarray::s![i, ..]);
+                let mut batch_x_slice = batch_x.slice_mut(scirs2_core::ndarray::s![i, ..]);
                 batch_x_slice.assign(&x);
-                let mut batch_y_slice = batch_y.slice_mut(ndarray::s![i, ..]);
+                let mut batch_y_slice = batch_y.slice_mut(scirs2_core::ndarray::s![i, ..]);
                 batch_y_slice.assign(&y);
             // Forward pass
             let outputs = model.forward(&batch_x)?;

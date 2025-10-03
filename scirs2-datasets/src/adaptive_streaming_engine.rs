@@ -5,7 +5,7 @@
 
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::prelude::*;
 // Use rayon directly for parallel operations to avoid feature flag issues
 use scirs2_core::parallel_ops::*;

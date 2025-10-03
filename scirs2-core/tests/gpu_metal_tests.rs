@@ -87,7 +87,7 @@ fn test_metal_buffer_creation() {
 
     // Test buffer copy operations
     let mut result = vec![0.0f32; 4];
-    buffer.copy_to_host(&mut result);
+    buffer.copy_to_host(&mut result).unwrap();
     assert_eq!(result, data);
 }
 
@@ -179,10 +179,10 @@ fn test_metal_kernel_execution() {
 
     // Verify results
     let mut result = vec![0.0f32; 4];
-    y_buffer.copy_to_host(&mut result);
+    y_buffer.copy_to_host(&mut result).unwrap();
 
     // Expected: y = alpha * x + y = 2 * [1,2,3,4] + [5,6,7,8] = [7,10,13,16]
-    let expected = vec![7.0f32, 10.0, 13.0, 16.0];
+    let expected = [7.0f32, 10.0, 13.0, 16.0];
     for (i, (r, e)) in result.iter().zip(expected.iter()).enumerate() {
         assert!(
             (r - e).abs() < 1e-6,
@@ -239,14 +239,14 @@ fn test_metal_complex_operations() {
 
     // Verify results
     let mut result = vec![0.0f32; 8];
-    result_buffer.copy_to_host(&mut result);
+    result_buffer.copy_to_host(&mut result).unwrap();
 
     // Expected complex multiplication results:
     // (1+0i) * (2+0i) = 2+0i
     // (2+1i) * (1-1i) = 3-1i
     // (3-1i) * (0+1i) = 1+3i
     // (0+2i) * (3+1i) = -2+6i
-    let expected = vec![
+    let expected = [
         2.0f32, 0.0, // 2 + 0i
         3.0, -1.0, // 3 - 1i
         1.0, 3.0, // 1 + 3i
@@ -266,6 +266,7 @@ fn test_metal_complex_operations() {
 
 #[test]
 #[allow(dead_code)]
+#[allow(unexpected_cfgs)]
 fn test_metal_performance_shaders() {
     #[cfg(feature = "metal-performance-shaders")]
     {
@@ -322,7 +323,7 @@ fn test_metalerror_handling() {
     let huge_size = usize::MAX / 2;
     let buffer = context.create_buffer::<f32>(huge_size);
     // Buffer creation should succeed but size might be limited by implementation
-    assert!(buffer.len() > 0);
+    assert!(!buffer.is_empty());
 }
 
 #[test]
@@ -365,7 +366,7 @@ mod benchmarks {
             // Benchmark device to host transfer
             let mut result = vec![0.0f32; size];
             let start = Instant::now();
-            buffer.copy_to_host(&mut result);
+            buffer.copy_to_host(&mut result).unwrap();
             let d2h_time = start.elapsed();
 
             let size_mb = (size * 4) as f64 / (1024.0 * 1024.0);

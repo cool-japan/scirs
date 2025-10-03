@@ -37,7 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Created memory-mapped array with {} elements", mmap.size);
 
     // Read the array back
-    let array = mmap.as_array::<ndarray::Ix1>()?;
+    let array = mmap.as_array::<scirs2_core::ndarray::Ix1>()?;
     println!("Read data: {:?}", array);
 
     // Process the data in chunks

@@ -6,7 +6,7 @@ use crate::quantization::{
     quantize_matrix, quantize_vector, quantized_dot, quantized_matmul, quantized_matvec,
     QuantizationMethod,
 };
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_quantized_matmul() {

@@ -1,7 +1,7 @@
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
 use crate::roots::Options;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
 
 /// Implements Anderson mixing method for root finding
 ///

@@ -4,8 +4,8 @@
 //! for quantum calculations and quantum chemistry applications.
 
 use crate::error::{IntegrateError, IntegrateResult as Result};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use std::collections::HashMap;
 
 /// Advanced basis sets for quantum calculations
@@ -65,7 +65,10 @@ impl AdvancedBasisSets {
         basis_functions: &mut Array2<Complex64>,
     ) -> Result<()> {
         for (i, param) in self.parameters.iter().enumerate() {
-            for (j, coord_row) in coordinates.axis_iter(ndarray::Axis(0)).enumerate() {
+            for (j, coord_row) in coordinates
+                .axis_iter(scirs2_core::ndarray::Axis(0))
+                .enumerate()
+            {
                 let x = coord_row[0];
                 let y = if coord_row.len() > 1 {
                     coord_row[1]
@@ -97,7 +100,10 @@ impl AdvancedBasisSets {
         basis_functions: &mut Array2<Complex64>,
     ) -> Result<()> {
         for (i, param) in self.parameters.iter().enumerate() {
-            for (j, coord_row) in coordinates.axis_iter(ndarray::Axis(0)).enumerate() {
+            for (j, coord_row) in coordinates
+                .axis_iter(scirs2_core::ndarray::Axis(0))
+                .enumerate()
+            {
                 let x = coord_row[0];
                 let y = if coord_row.len() > 1 {
                     coord_row[1]
@@ -132,7 +138,10 @@ impl AdvancedBasisSets {
         use scirs2_core::constants::PI;
 
         for (i, param) in self.parameters.iter().enumerate() {
-            for (j, coord_row) in coordinates.axis_iter(ndarray::Axis(0)).enumerate() {
+            for (j, coord_row) in coordinates
+                .axis_iter(scirs2_core::ndarray::Axis(0))
+                .enumerate()
+            {
                 let x = coord_row[0];
                 let y = if coord_row.len() > 1 {
                     coord_row[1]
@@ -165,7 +174,10 @@ impl AdvancedBasisSets {
     ) -> Result<()> {
         // Simplified atomic orbital generation
         for (i, param) in self.parameters.iter().enumerate() {
-            for (j, coord_row) in coordinates.axis_iter(ndarray::Axis(0)).enumerate() {
+            for (j, coord_row) in coordinates
+                .axis_iter(scirs2_core::ndarray::Axis(0))
+                .enumerate()
+            {
                 let x = coord_row[0];
                 let y = if coord_row.len() > 1 {
                     coord_row[1]

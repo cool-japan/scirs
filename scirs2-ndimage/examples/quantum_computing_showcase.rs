@@ -17,7 +17,7 @@
 //! 9. **Quantum Amplitude Amplification** - Enhanced feature detection
 //! 10. **Quantum Annealing Segmentation** - Global optimization segmentation
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_ndimage::{
     quantum_amplitude_amplification, quantum_annealing_segmentation,
     quantum_entanglement_correlation, quantum_error_correction, quantum_fourier_enhancement,
@@ -37,10 +37,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let testimages = create_testimages();
 
     // Configure quantum algorithms
-    let mut config = QuantumConfig::default();
-    config.iterations = 20; // Reduce for demo
-    config.coherence_threshold = 0.9;
-    config.entanglement_strength = 0.7;
+    let config = QuantumConfig {
+        iterations: 20, // Reduce for demo
+        coherence_threshold: 0.9,
+        entanglement_strength: 0.7,
+        ..Default::default()
+    };
 
     println!("📊 Quantum Configuration:");
     println!("   Iterations: {}", config.iterations);
@@ -133,8 +135,8 @@ fn create_testimages() -> TestImages {
     // Create noisy version
     let mut noisy = original.clone();
     for element in noisy.iter_mut() {
-        *element += (rand::random::<f64>() - 0.5) * 0.3;
-        *element = element.max(0.0).min(1.0);
+        *element += (scirs2_core::random::random::<f64>() - 0.5) * 0.3;
+        *element = element.clamp(0.0, 1.0);
     }
 
     // Create blurred version (simple box blur)

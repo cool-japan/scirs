@@ -318,7 +318,7 @@ impl MemoryMigration {
         transform: F,
     ) -> Result<DeviceBuffer>
     where
-        F: FnOnce(ndarray::Array2<f32>) -> ndarray::Array2<f32>,
+        F: FnOnce(scirs2_core::ndarray::Array2<f32>) -> scirs2_core::ndarray::Array2<f32>,
     {
         // Apply transformation
         let transformed = transform(data);

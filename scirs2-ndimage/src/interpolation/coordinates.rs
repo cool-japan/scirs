@@ -1,7 +1,7 @@
 //! Coordinate-based interpolation functions
 
-use ndarray::{Array, IxDyn};
-use num_traits::{Float, FromPrimitive, One, Zero};
+use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive, One, Zero};
 use std::fmt::Debug;
 
 use super::{BoundaryMode, InterpolationOrder};
@@ -37,7 +37,7 @@ pub fn map_coordinates<T, D>(
 ) -> NdimageResult<Array<T, IxDyn>>
 where
     T: Float + FromPrimitive + Debug + Clone + std::ops::AddAssign + std::ops::DivAssign + 'static,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     // Validate inputs
     if input.ndim() == 0 {
@@ -340,7 +340,7 @@ where
 pub fn value_at_coordinates<T, D>(input: &Array<T, D>, indices: &[usize]) -> NdimageResult<T>
 where
     T: Float + FromPrimitive + Debug,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     // Validate inputs
     if input.ndim() == 0 {
@@ -375,7 +375,7 @@ where
 
     // Use proper n-dimensional array indexing
     // Convert indices to IxDyn for dynamic indexing
-    use ndarray::IxDyn;
+    use scirs2_core::ndarray::IxDyn;
     let dynamic_indices = IxDyn(indices);
 
     // Access the element at the specified indices using dynamic view
@@ -400,18 +400,18 @@ where
 ///
 /// # Returns
 ///
-/// * `Result<Array<T, ndarray::Ix1>>` - Interpolated values at the points
+/// * `Result<Array<T, scirs2_core::ndarray::Ix1>>` - Interpolated values at the points
 #[allow(dead_code)]
 pub fn interpn<T, D>(
     input: &Array<T, D>,
-    points: &[Array<T, ndarray::Ix1>],
+    points: &[Array<T, scirs2_core::ndarray::Ix1>],
     order: Option<InterpolationOrder>,
     mode: Option<BoundaryMode>,
     cval: Option<T>,
-) -> NdimageResult<Array<T, ndarray::Ix1>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix1>>
 where
     T: Float + FromPrimitive + Debug + std::ops::DivAssign + std::ops::AddAssign + 'static,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     // Validate inputs
     if input.ndim() == 0 {
@@ -480,8 +480,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array1;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     #[ignore]

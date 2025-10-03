@@ -7,8 +7,8 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::sparse_fft::{SparseFFTAlgorithm, WindowFunction};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::fmt::Debug;
 

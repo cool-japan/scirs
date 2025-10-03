@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
@@ -614,7 +614,7 @@ pub struct MemoryConsolidationProtocol<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum>
+impl<F: Float + Send + Sync + scirs2_core::ndarray::ScalarOperand + std::iter::Sum>
     AdvancedMemoryArchitecture<F>
 {
     /// Create new advanced memory architecture
@@ -809,7 +809,9 @@ pub enum MemoryType {
     Working,
 }
 
-impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum> HierarchicalMemorySystem<F> {
+impl<F: Float + Send + Sync + scirs2_core::ndarray::ScalarOperand + std::iter::Sum>
+    HierarchicalMemorySystem<F>
+{
     /// Create new hierarchical memory system
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -821,7 +823,7 @@ impl<F: Float + Send + Sync + ndarray::ScalarOperand + std::iter::Sum> Hierarchi
     }
 }
 
-impl<F: Float + Send + Sync + ndarray::ScalarOperand> SensoryMemoryBuffer<F> {
+impl<F: Float + Send + Sync + scirs2_core::ndarray::ScalarOperand> SensoryMemoryBuffer<F> {
     /// Create new sensory memory buffer
     pub fn new(capacity: usize, decay_rate: F) -> Self {
         Self {

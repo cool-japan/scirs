@@ -1,12 +1,12 @@
 # scirs2-ndimage Development Status
 
-**Status: PRODUCTION READY - Version 0.1.0-beta.4 (Beta 4 - SciRS2 POLICY & Enhanced Performance)**
+**Status: PRODUCTION READY - Version 0.1.0-rc.1 (Release Candidate 1 - Platform Testing)**
 
 This module provides comprehensive multidimensional image processing functionality similar to SciPy's ndimage module. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), it includes functions for filtering, interpolation, measurements, and morphological operations on n-dimensional arrays with ecosystem consistency.
 
-## Release Status - 0.1.0-beta.4 (Beta 4)
+## Release Status - 0.1.0-rc.1 (Release Candidate 1)
 
-This beta 3 release features SciRS2 POLICY implementation and enhanced performance. All core functionality has been implemented, tested, and optimized with ecosystem consistency.
+This Release Candidate 1 features comprehensive platform testing and final preparation for stable release. All core functionality has been implemented, tested, and optimized with ecosystem consistency.
 
 ### Production Readiness Checklist ✅
 
@@ -444,7 +444,7 @@ This beta 3 release features SciRS2 POLICY implementation and enhanced performan
 - **Test Coverage**: 100% function coverage with edge case and error condition testing
 - **Documentation**: Complete tutorial coverage for all major functionality
 
-## Production Release Summary (0.1.0-beta.4)
+## Production Release Summary (0.1.0-rc.1)
 
 ### ✅ Core Implementation Status
 - **Complete n-dimensional image processing suite**
@@ -568,7 +568,7 @@ This beta 3 release features SciRS2 POLICY implementation and enhanced performan
 
 ## Module Status Summary
 
-🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-beta.4 
+🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-rc.1 
 
 ### Release Highlights
 - **142 unit tests + 39 doctests**: All passing with zero warnings
@@ -798,4 +798,4 @@ These implementations represent a significant leap in performance, usability, an
 
 ## 📋 Module Status Summary
 
-🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-beta.4 with **Next-Generation Ultrathink Enhancements**
+🎯 **PRODUCTION READY**: scirs2-ndimage 0.1.0-rc.1 with **Next-Generation Ultrathink Enhancements**

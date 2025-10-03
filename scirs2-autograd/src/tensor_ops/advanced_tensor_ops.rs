@@ -2,14 +2,14 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops::convert_to_tensor;
 use crate::Float;
-use ndarray::{Array2, ArrayD, IxDyn};
+use scirs2_core::ndarray::{Array2, ArrayD, IxDyn};
 
 /// Solve tensor equation a_ijk... x_jk... = b_i...
 pub struct TensorSolveOp {
     axes: Option<Vec<i32>>,
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for TensorSolveOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for TensorSolveOp {
     fn name(&self) -> &'static str {
         "TensorSolve"
     }
@@ -95,7 +95,7 @@ pub struct EinsumOp {
     pattern: String,
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for EinsumOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for EinsumOp {
     fn name(&self) -> &'static str {
         "Einsum"
     }
@@ -189,7 +189,7 @@ fn validate_tensor_solveshapes(
 
 #[allow(dead_code)]
 fn reshape_for_solve<F: Float>(
-    tensor: &ndarray::ArrayViewD<F>,
+    tensor: &scirs2_core::ndarray::ArrayViewD<F>,
     rows: usize,
     cols: usize,
 ) -> Result<Array2<F>, OpError> {
@@ -210,9 +210,9 @@ fn reshape_for_solve<F: Float>(
 
 #[allow(dead_code)]
 fn reshape_vector<F: Float>(
-    tensor: &ndarray::ArrayViewD<F>,
+    tensor: &scirs2_core::ndarray::ArrayViewD<F>,
     size: usize,
-) -> Result<ndarray::Array1<F>, OpError> {
+) -> Result<scirs2_core::ndarray::Array1<F>, OpError> {
     tensor
         .view()
         .to_shape(size)
@@ -223,8 +223,8 @@ fn reshape_vector<F: Float>(
 #[allow(dead_code)]
 fn solve_linear_system<F: Float>(
     a: &Array2<F>,
-    b: &ndarray::Array1<F>,
-) -> Result<ndarray::Array1<F>, OpError> {
+    b: &scirs2_core::ndarray::Array1<F>,
+) -> Result<scirs2_core::ndarray::Array1<F>, OpError> {
     let n = a.shape()[0];
     let m = a.shape()[1];
 
@@ -249,8 +249,8 @@ fn solve_linear_system<F: Float>(
 #[allow(dead_code)]
 fn solve_square_system<F: Float>(
     a: &Array2<F>,
-    b: &ndarray::Array1<F>,
-) -> Result<ndarray::Array1<F>, OpError> {
+    b: &scirs2_core::ndarray::Array1<F>,
+) -> Result<scirs2_core::ndarray::Array1<F>, OpError> {
     let n = a.shape()[0];
     let mut aug = Array2::<F>::zeros((n, n + 1));
 
@@ -293,7 +293,7 @@ fn solve_square_system<F: Float>(
     }
 
     // Back substitution
-    let mut x = ndarray::Array1::<F>::zeros(n);
+    let mut x = scirs2_core::ndarray::Array1::<F>::zeros(n);
     for i in (0..n).rev() {
         x[i] = aug[[i, n]];
         for j in (i + 1)..n {
@@ -341,7 +341,7 @@ fn compute_solutionshape(
 
 #[allow(dead_code)]
 fn reshape_solution<F: Float>(
-    flat: &ndarray::Array1<F>,
+    flat: &scirs2_core::ndarray::Array1<F>,
     shape: &[usize],
 ) -> Result<ArrayD<F>, OpError> {
     let total: usize = shape.iter().product();
@@ -399,8 +399,8 @@ fn parse_einsum_pattern(pattern: &str) -> Result<(Vec<String>, String), OpError>
 
 #[allow(dead_code)]
 fn compute_matmul<F: Float>(
-    a: &ndarray::ArrayViewD<F>,
-    b: &ndarray::ArrayViewD<F>,
+    a: &scirs2_core::ndarray::ArrayViewD<F>,
+    b: &scirs2_core::ndarray::ArrayViewD<F>,
 ) -> Result<ArrayD<F>, OpError> {
     if a.ndim() != 2 || b.ndim() != 2 {
         return Err(OpError::IncompatibleShape(
@@ -408,16 +408,22 @@ fn compute_matmul<F: Float>(
         ));
     }
 
-    let a_2d = a.view().into_dimensionality::<ndarray::Ix2>().unwrap();
-    let b_2d = b.view().into_dimensionality::<ndarray::Ix2>().unwrap();
+    let a_2d = a
+        .view()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+        .unwrap();
+    let b_2d = b
+        .view()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+        .unwrap();
 
     Ok(a_2d.dot(&b_2d).into_dyn())
 }
 
 #[allow(dead_code)]
 fn compute_dot_product<F: Float>(
-    a: &ndarray::ArrayViewD<F>,
-    b: &ndarray::ArrayViewD<F>,
+    a: &scirs2_core::ndarray::ArrayViewD<F>,
+    b: &scirs2_core::ndarray::ArrayViewD<F>,
 ) -> Result<ArrayD<F>, OpError> {
     if a.shape() != b.shape() {
         return Err(OpError::IncompatibleShape(
@@ -430,13 +436,13 @@ fn compute_dot_product<F: Float>(
         sum += a_val * b_val;
     }
 
-    Ok(ndarray::arr0(sum).into_dyn())
+    Ok(scirs2_core::ndarray::arr0(sum).into_dyn())
 }
 
 #[allow(dead_code)]
 fn compute_elementwise_mul<F: Float>(
-    a: &ndarray::ArrayViewD<F>,
-    b: &ndarray::ArrayViewD<F>,
+    a: &scirs2_core::ndarray::ArrayViewD<F>,
+    b: &scirs2_core::ndarray::ArrayViewD<F>,
 ) -> Result<ArrayD<F>, OpError> {
     if a.shape() != b.shape() {
         return Err(OpError::IncompatibleShape(
@@ -449,8 +455,8 @@ fn compute_elementwise_mul<F: Float>(
 
 #[allow(dead_code)]
 fn compute_general_einsum<F: Float>(
-    a: &ndarray::ArrayViewD<F>,
-    _b: &ndarray::ArrayViewD<F>,
+    a: &scirs2_core::ndarray::ArrayViewD<F>,
+    _b: &scirs2_core::ndarray::ArrayViewD<F>,
     _input_specs: &[String],
     _output_spec: &str,
 ) -> Result<ArrayD<F>, OpError> {
@@ -462,7 +468,7 @@ fn compute_general_einsum<F: Float>(
 
 /// Solve tensor equation a @ x = b for x
 #[allow(dead_code)]
-pub fn tensor_solve<'g, F: Float + ndarray::ScalarOperand>(
+pub fn tensor_solve<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     a: &Tensor<'g, F>,
     b: &Tensor<'g, F>,
     axes: Option<Vec<i32>>,
@@ -477,7 +483,7 @@ pub fn tensor_solve<'g, F: Float + ndarray::ScalarOperand>(
 
 /// Einstein summation convention
 #[allow(dead_code)]
-pub fn einsum<'g, F: Float + ndarray::ScalarOperand>(
+pub fn einsum<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     pattern: &str,
     operands: &[&Tensor<'g, F>],
 ) -> Tensor<'g, F> {

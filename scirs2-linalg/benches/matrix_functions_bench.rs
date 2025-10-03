@@ -245,7 +245,7 @@ fn benchmatrix_power(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("matrix_power_eig", size),
             &(&spdmatrix, 2.5),
-            |b, (m_p)| {
+            |b, m_p| {
                 b.iter(|| {
                     // matrix_power_via_eig not available
                     // Just use identity as placeholder
@@ -572,7 +572,7 @@ fn bench_accuracy_performance_tradeoffs(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new(format!("expm_tol_{:.0e}", tolerance), size),
             &(&matrix, tolerance),
-            |b, (m_tol)| {
+            |b, m_tol| {
                 b.iter(|| {
                     // expm_with_tolerance not available, use standard expm
                     matrix_functions::expm(black_box(&m_tol.0.view()), None).unwrap()

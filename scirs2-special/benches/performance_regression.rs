@@ -178,7 +178,7 @@ fn algorithm_switching_benchmarks(c: &mut Criterion) {
     ];
 
     for (name, value) in gamma_test_points {
-        group.bench_function(&format!("gamma_{}", name), |b| {
+        group.bench_function(format!("gamma_{}", name), |b| {
             b.iter(|| gamma(black_box(value)))
         });
     }
@@ -194,7 +194,7 @@ fn algorithm_switching_benchmarks(c: &mut Criterion) {
     ];
 
     for (name, value) in bessel_test_points {
-        group.bench_function(&format!("bessel_j0_{}", name), |b| {
+        group.bench_function(format!("bessel_j0_{}", name), |b| {
             b.iter(|| bessel::j0(black_box(value)))
         });
     }
@@ -220,11 +220,11 @@ fn edge_case_benchmarks(c: &mut Criterion) {
 
     // Values near zeros of Bessel functions
     group.bench_function("bessel_j0_near_zero", |b| {
-        b.iter(|| bessel::j0(black_box(2.4048255576957727686)))
+        b.iter(|| bessel::j0(black_box(2.404_825_557_695_773)))
     });
 
     group.bench_function("bessel_j1_near_zero", |b| {
-        b.iter(|| bessel::j1(black_box(3.8317059702075123156)))
+        b.iter(|| bessel::j1(black_box(3.831_705_970_207_512_5)))
     });
 
     // Complex values with different argument ranges

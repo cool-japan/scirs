@@ -1,4 +1,4 @@
-// use ndarray::{Array, IxDyn}; // Unused imports
+// use scirs2_core::ndarray::{Array, IxDyn}; // Unused imports
 // use scirs2_neural::layers::Layer; // Unused imports
 // use scirs2_neural::models::{BertConfig, BertModel}; // TODO: Implement models module
 
@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Input tensor contains token IDs
     let input = Array::from_shape_fn(
         IxDyn(&[2, 16]),
-        |_| rand::random::<f32>() * 100.0, // Random token IDs between 0 and 100
+        |_| scirs2_core::random::random::<f32>() * 100.0, // Random token IDs between 0 and 100
     );
     println!("Input shape: {:?}", input.shape());
     // Get sequence output (hidden states)
@@ -38,7 +38,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create dummy input for a longer sequence
     let base_input = Array::from_shape_fn(
         IxDyn(&[1, 64]),
-        |_| rand::random::<f32>() * 1000.0, // Random token IDs
+        |_| scirs2_core::random::random::<f32>() * 1000.0, // Random token IDs
     );
     println!("BERT-Base input shape: {:?}", base_input.shape());
     // Forward pass to get pooled output

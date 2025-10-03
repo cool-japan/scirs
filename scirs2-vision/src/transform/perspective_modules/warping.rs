@@ -6,7 +6,7 @@
 use super::core::{BorderMode, PerspectiveTransform};
 use crate::error::Result;
 use image::{DynamicImage, GenericImageView, ImageBuffer, Pixel, Rgba};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// Warp an image using a perspective transformation
@@ -176,8 +176,12 @@ pub fn bilinear_interpolate_simd(
         let chunk_size = chunk_end - chunk_start;
 
         // Extract coordinate chunks
-        let x_chunk: Vec<f64> = x_coords.slice(ndarray::s![chunk_start..chunk_end]).to_vec();
-        let y_chunk: Vec<f64> = y_coords.slice(ndarray::s![chunk_start..chunk_end]).to_vec();
+        let x_chunk: Vec<f64> = x_coords
+            .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
+            .to_vec();
+        let y_chunk: Vec<f64> = y_coords
+            .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
+            .to_vec();
 
         let x_arr = Array1::from_vec(x_chunk);
         let y_arr = Array1::from_vec(y_chunk);

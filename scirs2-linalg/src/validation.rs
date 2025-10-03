@@ -5,8 +5,8 @@
 //! user-friendly error messages.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 
 /// Validates that a matrix is not empty
 ///
@@ -498,7 +498,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_validate_not_emptymatrix() {

@@ -16,12 +16,12 @@ pub fn compute_legendre_assoc_derivative(n: usize, m: i32, x: f64) -> f64 {
         if m == 0 {
             // For P_n^0(x), the derivative at x = ±1 is n(n+1)/2 * (±1)^{n+1}
             let sign = if x > 0.0 {
-                if n % 2 == 0 {
+                if n.is_multiple_of(2) {
                     1.0
                 } else {
                     -1.0
                 }
-            } else if n % 2 == 0 {
+            } else if n.is_multiple_of(2) {
                 -1.0
             } else {
                 1.0
@@ -273,20 +273,126 @@ fn solve_eigenvalue_matrix_method(m: i32, n: i32, c: f64, matrixsize: usize) -> 
         }
     }
 
-    // For simplicity, use a basic eigenvalue approximation
-    // In a full implementation, this would use proper matrix eigenvalue solvers
-    let central_index = matrixsize / 2;
-    let approximate_lambda = main_diag[central_index]
-        + if central_index > 0 {
-            lower_diag[central_index - 1]
-        } else {
-            0.0
-        }
-        + if central_index < matrixsize - 1 {
-            upper_diag[central_index]
-        } else {
-            0.0
-        };
+    // Use proper eigenvalue solver with inverse iteration for the target eigenvalue
+    solve_tridiagonal_eigenvalue(&main_diag, &upper_diag, n)
+}
 
-    Ok(approximate_lambda)
+/// Solve for a specific eigenvalue of a symmetric tridiagonal matrix using inverse iteration
+/// This finds the eigenvalue closest to n(n+1), which is the expected characteristic value
+fn solve_tridiagonal_eigenvalue(
+    main_diag: &[f64],
+    off_diag: &[f64],
+    target_n: i32,
+) -> SpecialResult<f64> {
+    let n = main_diag.len();
+    if n == 0 {
+        return Err(SpecialError::ComputationError("Empty matrix".to_string()));
+    }
+
+    // Initial guess for eigenvalue near n(n+1)
+    let target_f = target_n as f64;
+    let mut sigma = target_f * (target_f + 1.0);
+
+    let max_iter = 100;
+    let tolerance = 1e-12;
+
+    // Inverse iteration with Rayleigh quotient shift
+    let mut v = vec![1.0; n];
+    // Normalize initial vector
+    let mut norm = v.iter().map(|x| x * x).sum::<f64>().sqrt();
+    for vi in v.iter_mut() {
+        *vi /= norm;
+    }
+
+    for _ in 0..max_iter {
+        // Solve (A - σI)w = v using tridiagonal solver
+        let w = solve_shifted_tridiagonal(main_diag, off_diag, &v, sigma)?;
+
+        // Normalize w
+        norm = w.iter().map(|x| x * x).sum::<f64>().sqrt();
+        if norm < 1e-100 {
+            return Err(SpecialError::ComputationError(
+                "Eigenvalue iteration produced zero vector".to_string(),
+            ));
+        }
+
+        for i in 0..n {
+            v[i] = w[i] / norm;
+        }
+
+        // Compute Rayleigh quotient: λ = v^T A v
+        let mut lambda = 0.0;
+        for i in 0..n {
+            lambda += v[i] * main_diag[i] * v[i];
+            if i < n - 1 {
+                lambda += 2.0 * v[i] * off_diag[i] * v[i + 1];
+            }
+        }
+
+        // Check convergence
+        if (lambda - sigma).abs() < tolerance {
+            return Ok(lambda);
+        }
+
+        // Update shift
+        sigma = lambda;
+    }
+
+    // If not converged, return best approximation
+    Ok(sigma)
+}
+
+/// Solve the tridiagonal system (A - σI)x = b using Thomas algorithm
+fn solve_shifted_tridiagonal(
+    main_diag: &[f64],
+    off_diag: &[f64],
+    rhs: &[f64],
+    sigma: f64,
+) -> SpecialResult<Vec<f64>> {
+    let n = main_diag.len();
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+
+    // Create shifted diagonal
+    let mut a = vec![0.0; n]; // lower diagonal
+    let mut b = vec![0.0; n]; // main diagonal (shifted)
+    let mut c = vec![0.0; n]; // upper diagonal
+
+    for i in 0..n {
+        b[i] = main_diag[i] - sigma;
+        if i < n - 1 {
+            c[i] = off_diag[i];
+            a[i + 1] = off_diag[i];
+        }
+    }
+
+    // Thomas algorithm (forward elimination)
+    let mut c_prime = vec![0.0; n];
+    let mut d_prime = vec![0.0; n];
+
+    c_prime[0] = c[0] / b[0];
+    d_prime[0] = rhs[0] / b[0];
+
+    for i in 1..n {
+        let denom = b[i] - a[i] * c_prime[i - 1];
+        if denom.abs() < 1e-100 {
+            // Matrix is nearly singular, use regularization
+            let reg_denom = denom + 1e-10 * denom.signum();
+            c_prime[i] = if i < n - 1 { c[i] / reg_denom } else { 0.0 };
+            d_prime[i] = (rhs[i] - a[i] * d_prime[i - 1]) / reg_denom;
+        } else {
+            c_prime[i] = if i < n - 1 { c[i] / denom } else { 0.0 };
+            d_prime[i] = (rhs[i] - a[i] * d_prime[i - 1]) / denom;
+        }
+    }
+
+    // Back substitution
+    let mut x = vec![0.0; n];
+    x[n - 1] = d_prime[n - 1];
+    for i in (0..n - 1).rev() {
+        x[i] = d_prime[i] - c_prime[i] * x[i + 1];
+    }
+
+    Ok(x)
 }

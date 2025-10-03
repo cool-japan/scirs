@@ -10,7 +10,7 @@
 //! symmetry.
 
 use crate::error::SpecialResult;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -567,7 +567,7 @@ where
 
     let beta = q * q / F::from(4.0).unwrap();
 
-    if m % 2 == 0 {
+    if m.is_multiple_of(2) {
         // Even m case
         for i in (2..extended_coeffs).rev() {
             if i < 2 {
@@ -816,7 +816,7 @@ where
     let mut result = F::zero();
     let mut derivative = F::zero();
 
-    if m % 2 == 0 {
+    if m.is_multiple_of(2) {
         // For even m=2n, ce_m(x) = sum_{k=0} A_(2n)^(2k) cos(2k*x)
         for (k, &coef) in coeffs.iter().enumerate() {
             let arg = F::from(2 * k).unwrap() * x;

@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --example educational_applications
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_special::*;
 use std::f64::consts::PI;
@@ -57,7 +57,7 @@ fn physics_applications() -> Result<(), Box<dyn std::error::Error>> {
     println!("-------------------------------------------");
 
     for n in 1..=3 {
-        for l in 0..(n as usize) {
+        for l in 0..n {
             let prob_a0 = hydrogen_radial_probability(n, l, a0)?;
             let prob_2a0 = hydrogen_radial_probability(n, l, 2.0 * a0)?;
             let prob_5a0 = hydrogen_radial_probability(n, l, 5.0 * a0)?;
@@ -461,7 +461,7 @@ fn statistics_applications() -> Result<(), Box<dyn std::error::Error>> {
     println!();
 
     let samplesizes = vec![1, 4, 9, 16, 25];
-    let sigma_levels = vec![2.0, 3.0];
+    let sigma_levels = [2.0, 3.0];
 
     println!("Control chart factors:");
     println!("n     2σ limits   3σ limits   LCL      UCL");
@@ -646,7 +646,7 @@ fn computer_graphics_applications() -> Result<(), Box<dyn std::error::Error>> {
     println!("Environmental lighting using spherical harmonics basis functions.");
     println!();
 
-    let light_directions = vec![
+    let light_directions = [
         (0.0, 0.0),            // Overhead
         (PI / 2.0, 0.0),       // Horizon, front
         (PI / 2.0, PI / 2.0),  // Horizon, side
@@ -807,7 +807,7 @@ fn computer_graphics_applications() -> Result<(), Box<dyn std::error::Error>> {
     println!("Point      Gaussian K   Mean H      Principal κ₁  κ₂");
     println!("------------------------------------------------");
 
-    let test_points = vec![
+    let test_points = [
         (0.0, 0.0, sphere_radius),
         (
             sphere_radius / 2.0_f64.sqrt(),
@@ -1187,7 +1187,7 @@ fn bessel_filter_response(freq: f64, fc: f64, order: usize) -> (f64, f64, f64) {
     // Bessel polynomial evaluation would go here
     // This is a simplified approximation
     let magnitude: f64 = 1.0 / (1.0 + (freq / fc).powi(2 * order as i32)).sqrt();
-    let magnitude_db = 20.0 * magnitude.log10() as f64;
+    let magnitude_db = 20.0 * magnitude.log10();
     let phase_deg = -(order as f64) * (freq / fc).atan() * 180.0 / PI;
     let group_delay = (order as f64) / (2.0 * PI * fc);
 
@@ -1199,7 +1199,7 @@ fn radar_detection_probability(snr: f64, pfa: f64) -> Result<f64, Box<dyn std::e
     // Radar detection probability for Swerling I target
     let threshold = ndtri(1.0 - pfa)?; // Detection threshold
     let pd: f64 = 0.5 * (1.0 + erf((snr - threshold) / (2.0_f64.sqrt())));
-    Ok(pd.max(0.0).min(1.0))
+    Ok(pd.clamp(0.0, 1.0))
 }
 
 #[allow(dead_code)]
@@ -1437,7 +1437,7 @@ fn efficient_frontier_point(
             let w3 = 1.0 - w1 - w2;
 
             if w3 >= 0.0 {
-                let weights = vec![w1, w2, w3];
+                let weights = [w1, w2, w3];
 
                 // Calculate portfolio _return
                 let port_return: f64 = weights.iter().zip(returns.iter()).map(|(w, r)| w * r).sum();

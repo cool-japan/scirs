@@ -6,8 +6,8 @@
 //! - Matrix exponential, logarithm, and square root functions
 //! - Matrix sign function and other matrix decompositions
 
-use ndarray::{Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -27,7 +27,7 @@ use crate::solve::solve_multiple;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::special::block_diag;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -93,7 +93,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::special;
 ///
 /// let a = array![[0.0_f64, 1.0], [-1.0, 0.0]];
@@ -103,7 +103,7 @@ where
 #[allow(dead_code)]
 pub fn expm<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync,
 {
     // Redirect to the implementation in matrix_functions module
     matrix_functions::expm(a, workers)
@@ -122,7 +122,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::special::logm;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 1.0]];
@@ -151,7 +151,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::special;
 ///
 /// let a = array![[4.0_f64, 0.0], [0.0, 9.0]];
@@ -161,7 +161,7 @@ where
 #[allow(dead_code)]
 pub fn sqrtm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Redirect to the implementation in matrix_functions module with default parameters
     matrix_functions::sqrtm(a, 20, F::from(1e-10).unwrap())
@@ -187,7 +187,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::special;
 ///
 /// // Positive definite matrix - should yield the identity matrix
@@ -202,7 +202,7 @@ where
 #[allow(dead_code)]
 pub fn signm<F>(a: &ArrayView2<F>, maxiter: usize, tol: F) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     if a.nrows() != a.ncols() {
         return Err(LinalgError::ShapeError(format!(
@@ -278,7 +278,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_block_diag() {

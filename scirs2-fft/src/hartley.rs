@@ -3,8 +3,8 @@
 //! The Hartley transform is a real-valued alternative to the Fourier transform.
 //! It is related to the FFT by: H(f) = Re(FFT(f)) - Im(FFT(f))
 
-use ndarray::{Array1, ArrayBase, Data, Dimension};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Dimension};
+use scirs2_core::numeric::Complex64;
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::fft;
@@ -27,7 +27,7 @@ use crate::fft::fft;
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_fft::hartley::dht;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0];
@@ -82,7 +82,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_fft::hartley::{dht, idht};
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0];
@@ -91,7 +91,7 @@ where
 /// assert!((x_recovered[0] - 1.0).abs() < 1e-10);
 /// ```
 #[allow(dead_code)]
-pub fn idht<S>(h: &ArrayBase<S, ndarray::Ix1>) -> FFTResult<Array1<f64>>
+pub fn idht<S>(h: &ArrayBase<S, scirs2_core::ndarray::Ix1>) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -125,7 +125,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_fft::hartley::dht2;
 ///
 /// let x = array![[1.0, 2.0], [3.0, 4.0]];
@@ -134,9 +134,9 @@ where
 /// ```
 #[allow(dead_code)]
 pub fn dht2<S>(
-    x: &ArrayBase<S, ndarray::Ix2>,
+    x: &ArrayBase<S, scirs2_core::ndarray::Ix2>,
     axes: Option<(usize, usize)>,
-) -> FFTResult<ndarray::Array2<f64>>
+) -> FFTResult<scirs2_core::ndarray::Array2<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -150,12 +150,12 @@ where
     }
 
     // Apply 1D Hartley transform along first axis
-    let mut result = ndarray::Array2::zeros((shape[0], shape[1]));
+    let mut result = scirs2_core::ndarray::Array2::zeros((shape[0], shape[1]));
 
     if axes.0 == 0 {
         // Transform along rows
         for j in 0..shape[1] {
-            let column = x.slice(ndarray::s![.., j]);
+            let column = x.slice(scirs2_core::ndarray::s![.., j]);
             let transformed = dht(&column)?;
             for i in 0..shape[0] {
                 result[[i, j]] = transformed[i];
@@ -164,7 +164,7 @@ where
     } else {
         // Transform along columns
         for i in 0..shape[0] {
-            let row = x.slice(ndarray::s![i, ..]);
+            let row = x.slice(scirs2_core::ndarray::s![i, ..]);
             let transformed = dht(&row)?;
             for j in 0..shape[1] {
                 result[[i, j]] = transformed[j];
@@ -173,12 +173,12 @@ where
     }
 
     // Apply 1D Hartley transform along second axis
-    let mut final_result = ndarray::Array2::zeros((shape[0], shape[1]));
+    let mut final_result = scirs2_core::ndarray::Array2::zeros((shape[0], shape[1]));
 
     if axes.1 == 1 {
         // Transform along columns
         for i in 0..shape[0] {
-            let row = result.slice(ndarray::s![i, ..]);
+            let row = result.slice(scirs2_core::ndarray::s![i, ..]);
             let transformed = dht(&row)?;
             for j in 0..shape[1] {
                 final_result[[i, j]] = transformed[j];
@@ -187,7 +187,7 @@ where
     } else {
         // Transform along rows
         for j in 0..shape[1] {
-            let column = result.slice(ndarray::s![.., j]);
+            let column = result.slice(scirs2_core::ndarray::s![.., j]);
             let transformed = dht(&column)?;
             for i in 0..shape[0] {
                 final_result[[i, j]] = transformed[i];
@@ -214,7 +214,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_hartley_transform() {

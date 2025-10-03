@@ -260,7 +260,7 @@ impl NeuromorphicProcessor {
     /// with random values representing the initial device states.
     fn initialize_crossbar(&mut self) {
         let (rows, cols) = self.crossbar_size;
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Initialize conductances with random values
         for i in 0..rows {

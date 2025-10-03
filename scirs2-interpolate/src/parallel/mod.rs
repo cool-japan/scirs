@@ -18,7 +18,7 @@
 //! # Examples
 //!
 //! ```
-//! use ndarray::{Array1, Array2, ArrayView2};
+//! use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 //! use scirs2_interpolate::parallel::{
 //!     ParallelMovingLeastSquares, ParallelConfig,
 //!     ParallelEvaluate
@@ -54,8 +54,8 @@
 //! let results: Array1<f64> = parallel_mls.evaluate_parallel(&query_points.view(), &config).unwrap();
 //! ```
 
-use ndarray::{Array1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView2};
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 

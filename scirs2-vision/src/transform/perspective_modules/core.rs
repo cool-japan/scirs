@@ -6,7 +6,7 @@
 
 use crate::error::{Result, VisionError};
 use image::Rgba;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// Border handling methods for areas outside the image boundaries

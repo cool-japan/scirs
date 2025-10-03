@@ -6,8 +6,8 @@
 
 use crate::error::LinalgResult;
 use crate::parallel::{algorithms, WorkerConfig};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::iter::Sum;
 
 /// Parallel-aware matrix decomposition dispatcher
@@ -17,7 +17,7 @@ impl ParallelDecomposition {
     /// Choose and execute the appropriate Cholesky decomposition implementation
     pub fn cholesky<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<Array2<F>>
     where
-        F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -39,7 +39,14 @@ impl ParallelDecomposition {
         workers: Option<usize>,
     ) -> LinalgResult<(Array2<F>, Array2<F>, Array2<F>)>
     where
-        F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float
+            + NumAssign
+            + One
+            + Sum
+            + Send
+            + Sync
+            + scirs2_core::ndarray::ScalarOperand
+            + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -58,7 +65,14 @@ impl ParallelDecomposition {
     /// Choose and execute the appropriate QR decomposition implementation
     pub fn qr<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<(Array2<F>, Array2<F>)>
     where
-        F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float
+            + NumAssign
+            + One
+            + Sum
+            + Send
+            + Sync
+            + scirs2_core::ndarray::ScalarOperand
+            + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -81,7 +95,14 @@ impl ParallelDecomposition {
         workers: Option<usize>,
     ) -> LinalgResult<(Array2<F>, Array1<F>, Array2<F>)>
     where
-        F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float
+            + NumAssign
+            + One
+            + Sum
+            + Send
+            + Sync
+            + scirs2_core::ndarray::ScalarOperand
+            + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -111,7 +132,14 @@ impl ParallelSolver {
         workers: Option<usize>,
     ) -> LinalgResult<Array1<F>>
     where
-        F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float
+            + NumAssign
+            + One
+            + Sum
+            + Send
+            + Sync
+            + scirs2_core::ndarray::ScalarOperand
+            + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -143,7 +171,7 @@ impl ParallelSolver {
             + Sum
             + Send
             + Sync
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + std::fmt::Debug
             + std::fmt::Display
             + 'static,
@@ -177,7 +205,14 @@ impl ParallelSolver {
         workers: Option<usize>,
     ) -> LinalgResult<Array1<F>>
     where
-        F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float
+            + NumAssign
+            + One
+            + Sum
+            + Send
+            + Sync
+            + scirs2_core::ndarray::ScalarOperand
+            + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -202,7 +237,14 @@ impl ParallelSolver {
         workers: Option<usize>,
     ) -> LinalgResult<Array1<F>>
     where
-        F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float
+            + NumAssign
+            + One
+            + Sum
+            + Send
+            + Sync
+            + scirs2_core::ndarray::ScalarOperand
+            + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -228,7 +270,14 @@ impl ParallelSolver {
         workers: Option<usize>,
     ) -> LinalgResult<Array1<F>>
     where
-        F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float
+            + NumAssign
+            + One
+            + Sum
+            + Send
+            + Sync
+            + scirs2_core::ndarray::ScalarOperand
+            + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -304,7 +353,15 @@ impl ParallelOperations {
         workers: Option<usize>,
     ) -> LinalgResult<(F, Array1<F>)>
     where
-        F: Float + NumAssign + One + Zero + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+        F: Float
+            + NumAssign
+            + One
+            + Zero
+            + Sum
+            + Send
+            + Sync
+            + scirs2_core::ndarray::ScalarOperand
+            + 'static,
     {
         if let Some(num_workers) = workers {
             let config = WorkerConfig::new().with_workers(num_workers);
@@ -376,7 +433,7 @@ impl Default for ParallelConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_parallel_dispatch_smallmatrix() {

@@ -4,8 +4,8 @@
 //! using separable algorithms, particularly the Felzenszwalb & Huttenlocher
 //! method for Euclidean distance transforms.
 
-use ndarray::{Array, Array1, Array2, IxDyn};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Array1, Array2, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops;
 use std::fmt::Debug;
 
@@ -498,7 +498,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_euclidean_distance_transform_simple() {

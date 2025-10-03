@@ -1,7 +1,7 @@
 use crate::error::{SignalError, SignalResult};
-use ndarray::s;
-use ndarray::{Array1, Array2, Array3};
-use rand::Rng;
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::random::Rng;
 use scirs2_linalg::{cholesky, inv};
 use statrs::statistics::Statistics;
 
@@ -656,7 +656,7 @@ where
 
     // Initialize _ensemble
     let mut _ensemble = Vec::with_capacity(n_ensemble);
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..n_ensemble {
         // Generate random perturbation based on initial covariance

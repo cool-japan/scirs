@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Robust Filtering module
 //
 // This module implements robust filtering techniques for handling outliers
@@ -17,7 +17,7 @@ use ndarray::s;
 //
 // # Example
 // ```
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::robust::{alpha_trimmed_filter, hampel_filter};
 //
 // // Create a test signal with outliers
@@ -31,7 +31,7 @@ use ndarray::s;
 // ```
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[allow(unused_imports)]
 /// Configuration for robust filtering algorithms
@@ -89,7 +89,7 @@ pub enum EdgeMode {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::robust::alpha_trimmed_filter;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 1.2, 10.0, 1.1, 1.3]);
@@ -186,7 +186,7 @@ pub fn alpha_trimmed_filter(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::robust::hampel_filter;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 1.2, 10.0, 1.1, 1.3]);
@@ -295,7 +295,7 @@ pub fn hampel_filter(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::robust::winsorize_filter;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 1.2, 10.0, 1.1, 1.3]);
@@ -391,7 +391,7 @@ pub fn winsorize_filter(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::robust::huber_filter;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 1.2, 10.0, 1.1, 1.3]);

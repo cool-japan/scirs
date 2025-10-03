@@ -16,7 +16,7 @@ use super::types::{DenoisingMethod, Dwt2dConfig, EnhancedDwt2dResult, Multilevel
 use super::{wavedec2_enhanced, waverec2_enhanced};
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::validation::{check_positive, checkarray_finite};
@@ -44,7 +44,7 @@ use statrs::statistics::Statistics;
 /// ```rust
 /// use scirs2_signal::dwt2d_enhanced::{adaptive_wavelet_denoising, DenoisingMethod};
 /// use scirs2_signal::dwt::Wavelet;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create minimal test data (8x8 for maximum compatibility)
 /// let mut noisy_data = Array2::zeros((8, 8));
@@ -500,8 +500,8 @@ fn patch_distance(patch1: &[f64], patch2: &[f64]) -> f64 {
 mod tests {
     use super::*;
     use crate::dwt::Wavelet;
-    use ndarray::Array2;
-    use rand::prelude::*;
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::random::prelude::*;
 
     #[test]
     fn test_soft_threshold() {

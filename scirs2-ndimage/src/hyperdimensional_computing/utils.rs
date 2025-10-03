@@ -4,8 +4,8 @@
 //! HDC operations including pattern matching, overlap calculations,
 //! and feature analysis helpers.
 
-use ndarray::ArrayView2;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use super::types::PatternMatch;
 use crate::error::{NdimageError, NdimageResult};
@@ -329,7 +329,7 @@ fn create_merged_match(matches: &[PatternMatch], cluster: &[usize]) -> PatternMa
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_calculate_overlap() {

@@ -17,8 +17,8 @@ where
     E: EdgeWeight
         + Into<f64>
         + Clone
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::cmp::PartialOrd
         + std::fmt::Debug
         + Copy
@@ -65,8 +65,8 @@ where
     E: EdgeWeight
         + Into<f64>
         + Clone
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::cmp::PartialOrd
         + std::fmt::Debug
         + Copy
@@ -120,8 +120,8 @@ where
     E: EdgeWeight
         + Into<f64>
         + Clone
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::cmp::PartialOrd
         + std::fmt::Debug
         + Copy

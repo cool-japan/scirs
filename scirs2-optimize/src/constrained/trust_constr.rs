@@ -3,7 +3,7 @@
 use crate::constrained::{Constraint, ConstraintFn, ConstraintKind, Options};
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1};
 
 #[allow(clippy::many_single_char_names)]
 #[allow(dead_code)]

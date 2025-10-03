@@ -5,7 +5,7 @@
 
 use crate::error::{Result, VisionError};
 use crate::registration::{identity_transform, Point2D, RegistrationParams, RegistrationResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 
 /// Simple least squares solver result
 #[derive(Debug)]

@@ -3,7 +3,7 @@
 //! A simple demonstration of the new validation capabilities
 //! that can run quickly to verify basic functionality.
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Simple demo without external dependencies
 #[allow(dead_code)]
@@ -72,7 +72,7 @@ fn demo_validation_concepts() {
     );
 
     // Demonstrate benchmark concepts
-    let simulated_times = vec![1.2, 1.1, 1.3, 1.0, 1.2]; // milliseconds
+    let simulated_times = [1.2, 1.1, 1.3, 1.0, 1.2]; // milliseconds
     let avg_time = simulated_times.iter().sum::<f64>() / simulated_times.len() as f64;
 
     println!("   • Performance tracking: avg = {:.2}ms", avg_time);

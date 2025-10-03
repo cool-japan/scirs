@@ -10,7 +10,7 @@
 //! Krylov-based DAE solvers in the `krylov_dae` module.
 
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Block ILU(0) Preconditioner for Semi-explicit DAE Systems
 ///
@@ -295,7 +295,7 @@ impl<F: IntegrateFloat> BlockJacobiPreconditioner<F> {
 
         // Ensure block _size divides the matrix _size evenly
         assert!(
-            n % blocksize == 0,
+            n.is_multiple_of(blocksize),
             "Matrix _size must be divisible by block _size"
         );
 
@@ -309,7 +309,7 @@ impl<F: IntegrateFloat> BlockJacobiPreconditioner<F> {
 
             // Extract the diagonal block
             let block = jacobian
-                .slice(ndarray::s![start..end, start..end])
+                .slice(scirs2_core::ndarray::s![start..end, start..end])
                 .to_owned();
 
             // Compute the inverse of the block (or an approximation)
@@ -509,7 +509,7 @@ impl<F: IntegrateFloat> BlockJacobiPreconditioner<F> {
             let end = start + self.block_size;
 
             // Extract the segment of the input vector
-            let v_segment = v.slice(ndarray::s![start..end]).to_owned();
+            let v_segment = v.slice(scirs2_core::ndarray::s![start..end]).to_owned();
 
             // Apply the block inverse
             let block_result = &self.block_inverses[i].dot(&v_segment);

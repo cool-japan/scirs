@@ -4,7 +4,7 @@
 //! including method enums, options, and results.
 
 use crate::common::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -74,7 +74,7 @@ pub struct MassMatrix<F: IntegrateFloat> {
     /// Type of the mass matrix
     pub matrix_type: MassMatrixType,
     /// Constant mass matrix (if applicable)
-    pub constant_matrix: Option<ndarray::Array2<F>>,
+    pub constant_matrix: Option<scirs2_core::ndarray::Array2<F>>,
     /// Function for time-dependent mass matrix
     pub time_function: Option<TimeFunction<F>>,
     /// Function for state-dependent mass matrix
@@ -130,7 +130,7 @@ impl<F: IntegrateFloat> MassMatrix<F> {
     }
 
     /// Create a new constant mass matrix
-    pub fn constant(matrix: ndarray::Array2<F>) -> Self {
+    pub fn constant(matrix: scirs2_core::ndarray::Array2<F>) -> Self {
         MassMatrix {
             matrix_type: MassMatrixType::Constant,
             constant_matrix: Some(matrix),
@@ -145,7 +145,7 @@ impl<F: IntegrateFloat> MassMatrix<F> {
     /// Create a new time-dependent mass matrix M(t)
     pub fn time_dependent<Func>(func: Func) -> Self
     where
-        Func: Fn(F) -> ndarray::Array2<F> + Send + Sync + 'static,
+        Func: Fn(F) -> scirs2_core::ndarray::Array2<F> + Send + Sync + 'static,
     {
         MassMatrix {
             matrix_type: MassMatrixType::TimeDependent,
@@ -161,7 +161,10 @@ impl<F: IntegrateFloat> MassMatrix<F> {
     /// Create a new state-dependent mass matrix M(t,y)
     pub fn state_dependent<Func>(func: Func) -> Self
     where
-        Func: Fn(F, ndarray::ArrayView1<F>) -> ndarray::Array2<F> + Send + Sync + 'static,
+        Func: Fn(F, scirs2_core::ndarray::ArrayView1<F>) -> scirs2_core::ndarray::Array2<F>
+            + Send
+            + Sync
+            + 'static,
     {
         MassMatrix {
             matrix_type: MassMatrixType::StateDependent,
@@ -183,7 +186,11 @@ impl<F: IntegrateFloat> MassMatrix<F> {
     }
 
     /// Get the mass matrix at a given time and state
-    pub fn evaluate(&self, t: F, y: ndarray::ArrayView1<F>) -> Option<ndarray::Array2<F>> {
+    pub fn evaluate(
+        &self,
+        t: F,
+        y: scirs2_core::ndarray::ArrayView1<F>,
+    ) -> Option<scirs2_core::ndarray::Array2<F>> {
         match self.matrix_type {
             MassMatrixType::Identity => None, // Identity is handled specially
             MassMatrixType::Constant => self.constant_matrix.clone(),

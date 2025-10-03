@@ -4,8 +4,8 @@
 //! including the Wilcoxon signed-rank test, Mann-Whitney U test, and the Kruskal-Wallis test.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::ArrayView1;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, NumCast};
 use std::cmp::Ordering;
 
 /// Performs the Wilcoxon signed-rank test for paired samples.
@@ -29,7 +29,7 @@ use std::cmp::Ordering;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::wilcoxon;
 ///
 /// // Create two paired samples
@@ -197,7 +197,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::mann_whitney;
 ///
 /// // Create two independent samples
@@ -394,7 +394,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::kruskal_wallis;
 ///
 /// // Create three independent samples
@@ -539,7 +539,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::friedman;
 ///
 /// // Create a 2D array where each row is a subject and each column is a treatment
@@ -558,7 +558,7 @@ where
 /// let significant = p_value < 0.05;
 /// ```
 #[allow(dead_code)]
-pub fn friedman<F>(data: &ndarray::ArrayView2<F>) -> StatsResult<(F, F)>
+pub fn friedman<F>(data: &scirs2_core::ndarray::ArrayView2<F>) -> StatsResult<(F, F)>
 where
     F: Float
         + std::iter::Sum<F>
@@ -579,7 +579,7 @@ where
     }
 
     // Rank data within each subject (row)
-    let mut ranks = ndarray::Array2::<F>::zeros((n, k));
+    let mut ranks = scirs2_core::ndarray::Array2::<F>::zeros((n, k));
 
     for i in 0..n {
         // Extract the row

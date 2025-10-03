@@ -3,8 +3,8 @@
 //! This module implements the Chan-Vese model for image segmentation,
 //! which is based on the Mumford-Shah functional and uses level sets.
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};

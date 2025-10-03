@@ -5,7 +5,7 @@
 
 use crate::csr::CsrMatrix;
 use crate::error::{SparseError, SparseResult};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::iter::Sum;
 
 /// Compute the matrix exponential using scaling and squaring with Padé approximation

@@ -5,7 +5,7 @@
 //! and matched filtering.
 
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use std::f64::consts::PI;
 
@@ -19,7 +19,7 @@ fn par_iter_with_setup<I, IT, S, F, R, RF, E>(
 where
     I: IntoIterator<Item = IT>,
     IT: Copy,
-    S: Fn() -> (),
+    S: Fn(),
     F: Fn((), IT) -> Result<R, E>,
     RF: Fn(&mut Vec<R>, Result<R, E>) -> Result<(), E>,
     E: std::fmt::Debug,
@@ -195,13 +195,11 @@ pub fn parallel_minimum_phase(
             } else {
                 min_phase_roots.push(root);
             }
+        } else if root.re > 0.0 {
+            // Reflect root to left half plane
+            min_phase_roots.push(Complex64::new(-root.re, root.im));
         } else {
-            if root.re > 0.0 {
-                // Reflect root to left half plane
-                min_phase_roots.push(Complex64::new(-root.re, root.im));
-            } else {
-                min_phase_roots.push(root);
-            }
+            min_phase_roots.push(root);
         }
     }
 
@@ -575,7 +573,9 @@ mod tests {
     #[test]
     fn test_parallel_wiener_filter() {
         let signal: Vec<f64> = (0..200)
-            .map(|i| (2.0 * PI * i as f64 / 30.0).sin() + 0.1 * rand::random::<f64>())
+            .map(|i| {
+                (2.0 * PI * i as f64 / 30.0).sin() + 0.1 * scirs2_core::random::random::<f64>()
+            })
             .collect();
 
         let result = parallel_wiener_filter(&signal, 0.01, 1.0, 5, None).unwrap();

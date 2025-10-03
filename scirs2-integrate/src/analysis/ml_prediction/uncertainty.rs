@@ -3,7 +3,7 @@
 //! This module contains structures for uncertainty quantification, performance tracking,
 //! and various methods for estimating prediction uncertainty.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Model performance metrics
 #[derive(Debug, Clone, Default)]

@@ -5,8 +5,8 @@
 //! and coordinating between different interpretation techniques.
 
 use crate::error::Result;
-use ndarray::ArrayD;
-use num_traits::Float;
+use scirs2_core::ndarray::ArrayD;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -27,8 +27,8 @@ pub struct ModelInterpreter<
     F: Float
         + Debug
         + 'static
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
         + Sum
         + Clone
         + Copy,
@@ -54,8 +54,8 @@ impl<
         F: Float
             + Debug
             + 'static
-            + ndarray::ScalarOperand
-            + num_traits::FromPrimitive
+            + scirs2_core::ndarray::ScalarOperand
+            + scirs2_core::numeric::FromPrimitive
             + Sum
             + Clone
             + Copy,
@@ -209,7 +209,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
     #[test]
     fn test_model_interpreter_creation() {
         let interpreter: ModelInterpreter<f64> = ModelInterpreter::new();

@@ -5,7 +5,7 @@
 
 use super::types::*;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
 
 /// Quantum state visualization tools
 pub struct QuantumVisualizer;

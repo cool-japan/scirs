@@ -115,8 +115,8 @@ mod tests {
 
     #[test]
     fn test_boundary_condition_application() {
-        let mut u = ndarray::Array2::ones((5, 5));
-        let mut v = ndarray::Array2::ones((5, 5));
+        let mut u = scirs2_core::ndarray::Array2::ones((5, 5));
+        let mut v = scirs2_core::ndarray::Array2::ones((5, 5));
 
         let bc_x = (
             FluidBoundaryCondition::NoSlip,

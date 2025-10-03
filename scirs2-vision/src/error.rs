@@ -1,6 +1,6 @@
 //! Error types for the vision module
 
-use ndarray::ShapeError;
+use scirs2_core::ndarray::ShapeError;
 use thiserror::Error;
 
 /// Vision module error type

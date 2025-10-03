@@ -6,7 +6,7 @@
 
 use crate::dwt2d_enhanced::types::{Dwt2dStatistics, MultilevelDwt2d};
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Compute enhanced 2D DWT statistics for analysis
 ///

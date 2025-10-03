@@ -3,8 +3,8 @@
 //! This module provides utility functions for use in DAE solvers.
 
 use crate::IntegrateFloat;
-use ndarray::{Array2, ArrayView2};
-// use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+// use scirs2_core::numeric::{Float, FromPrimitive};
 
 // Linear solvers
 pub mod linear_solvers;

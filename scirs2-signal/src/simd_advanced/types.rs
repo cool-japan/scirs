@@ -4,7 +4,7 @@
 //! validation structures used throughout the SIMD-optimized signal processing
 //! operations.
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Configuration for SIMD operations
 ///

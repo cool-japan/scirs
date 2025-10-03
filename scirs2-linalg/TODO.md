@@ -1,13 +1,13 @@
 # scirs2-linalg TODO
 
-**Current Version**: 0.1.0-beta.4 (Released October 01, 2025)
+**Current Version**: 0.1.0-rc.1 (Released October 03, 2025)
 **Status**: Production Ready - Comprehensive linear algebra for scientific computing
 
 This module provides comprehensive linear algebra functionality comparable to NumPy/SciPy's linalg module. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module uses scirs2-core abstractions for consistent ecosystem integration.
 
 ---
 
-## 🎯 Current Release: Beta 4 (October 2025)
+## 🎯 Current Release: RC.1 (October 2025)
 
 ### ✅ Production Status: COMPLETE
 
@@ -94,7 +94,7 @@ This module provides comprehensive linear algebra functionality comparable to Nu
 
 ## 🚀 Future Plans
 
-### Beta 5: GPU and Distributed Computing (Q1 2026)
+### v0.2.0: GPU and Distributed Computing (Q1 2026)
 
 #### P0: GPU Integration
 - [ ] **CUDA Support**
@@ -118,7 +118,7 @@ This module provides comprehensive linear algebra functionality comparable to Nu
   - [ ] Work-stealing scheduler optimizations
   - [ ] Advanced thread pool configurations
 
-### Beta 6: Performance and Optimization (Q2 2026)
+### v0.3.0: Performance and Optimization (Q2 2026)
 
 #### Hardware-Specific Optimizations
 - [ ] AVX/AVX2/AVX-512 optimizations
@@ -231,7 +231,7 @@ This module provides comprehensive linear algebra functionality comparable to Nu
 - NUMA-aware computing, work-stealing scheduler
 - Memory-efficient algorithms, cache-friendly implementations
 
-### 🔄 Future Extensions (Post-Beta 5)
+### 🔄 Future Extensions (Post-0.1.0)
 - GPU acceleration (CUDA, OpenCL, Vulkan, ROCm)
 - Distributed computing (MPI, multi-node operations)
 - Specialized hardware support (TPUs, FPGAs)
@@ -240,7 +240,7 @@ This module provides comprehensive linear algebra functionality comparable to Nu
 
 ## 🎯 Production Release Summary
 
-**v0.1.0-beta.4 delivers:**
+**v0.1.0-rc.1 delivers:**
 - ✅ **Enterprise-Grade Performance**: Comparable to NumPy/SciPy with native BLAS/LAPACK
 - ✅ **ML/AI Ready**: Complete attention mechanisms, quantization, mixed-precision
 - ✅ **Comprehensive API**: 500+ functions with SciPy compatibility layer
@@ -261,13 +261,12 @@ This release is suitable for:
 
 ## 🗺️ Roadmap
 
-- **✅ 0.1.0-beta.4** (2025-10-01): **CURRENT** - Production-ready with ultra-precision solvers
-- **🎯 0.1.0-beta.5** (2026-Q1): GPU and distributed computing
-- **🎯 0.1.0-beta.6** (2026-Q2): Performance optimization and hardware acceleration
-- **🎯 0.1.0** (2026-Q4): First stable release with API guarantees
+- **✅ 0.1.0-rc.1** (2025-10-03): **CURRENT** - Production-ready with ultra-precision solvers
+- **🎯 0.1.0** (2026-Q4): First stable release with full SciPy feature parity and API guarantees
+- **🎯 0.2.0** (2027+): Performance optimization, GPU acceleration, and hardware acceleration
 
 ---
 
 **Built with ❤️ for the scientific computing community**
 
-*Version: 0.1.0-beta.4 | Released: October 01, 2025 | Next: Beta 5 (Q1 2026)*
+*Version: 0.1.0-rc.1 | Released: October 03, 2025 | Next: 0.1.0 (Q4 2026)*

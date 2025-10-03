@@ -13,8 +13,8 @@ use crate::{
     numerical_stability::{assess_matrix_condition, StabilityLevel},
     spline::CubicSpline,
 };
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 use std::sync::{Arc, Mutex};
@@ -98,7 +98,7 @@ pub struct MemoryMetrics {
 }
 
 /// Error handling validation results
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ErrorHandlingResults {
     pub error_recovery_passed: bool,
     pub graceful_degradation_passed: bool,
@@ -253,7 +253,7 @@ impl ProductionValidator {
             let data = self.generate_test_data::<F>(n)?;
 
             // Create and destroy interpolators repeatedly
-            let _ = self.create_and_test_interpolator::<F>(&data)?;
+            self.create_and_test_interpolator::<F>(&data)?;
 
             // Periodically force garbage collection if possible
             if i % 100 == 0 {
@@ -791,17 +791,6 @@ impl Default for MemoryMetrics {
             average_memory_mb: 0.0,
             memory_leak_detected: false,
             allocation_efficiency: 0.0,
-        }
-    }
-}
-
-impl Default for ErrorHandlingResults {
-    fn default() -> Self {
-        Self {
-            error_recovery_passed: false,
-            graceful_degradation_passed: false,
-            thread_safety_passed: false,
-            resource_exhaustion_handled: false,
         }
     }
 }

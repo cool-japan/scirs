@@ -15,8 +15,8 @@
 //! - **Bandwidth Adaptation**: Network-aware streaming for distributed processing
 //! - **Error Recovery AI**: Intelligent fault tolerance and recovery strategies
 
-use ndarray::{Array1, Array2, ArrayView2, Dimension};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
@@ -1058,7 +1058,7 @@ pub struct StreamingParameters {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_ai_stream_config_default() {
@@ -1128,7 +1128,7 @@ mod tests {
                 .unwrap();
 
         assert!(!result.is_empty());
-        assert!(result[0].size.len() > 0);
+        assert!(!result[0].size.is_empty());
     }
 
     #[test]
@@ -1168,8 +1168,7 @@ mod tests {
                 // Expected for low pressure
             }
             _ => {
-                assert!(
-                    false,
+                panic!(
                     "Expected Optimistic strategy for low pressure, got: {:?}",
                     result
                 );

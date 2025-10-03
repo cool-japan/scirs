@@ -29,6 +29,12 @@ pub struct Suggestion {
     pub docs: Vec<String>,
 }
 
+impl Default for SuggestionEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl SuggestionEngine {
     /// Create a new suggestion engine with built-in patterns
     pub fn new() -> Self {
@@ -340,6 +346,12 @@ fn log_sum_exp(values: &[f64]) -> f64 {
 /// Enhanced error formatter with suggestions
 pub struct ErrorFormatter {
     suggestion_engine: SuggestionEngine,
+}
+
+impl Default for ErrorFormatter {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ErrorFormatter {

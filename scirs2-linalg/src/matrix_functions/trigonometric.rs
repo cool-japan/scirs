@@ -1,7 +1,7 @@
 //! Matrix trigonometric functions
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -26,7 +26,7 @@ use crate::validation::validate_decomposition;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::cosm;
 ///
 /// let a = array![[0.0_f64, 1.0], [-1.0, 0.0]]; // Rotation matrix
@@ -35,7 +35,7 @@ use crate::validation::validate_decomposition;
 #[allow(dead_code)]
 pub fn cosm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     validate_decomposition(a, "Matrix cosine computation", true)?;
 
@@ -139,7 +139,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::sinm;
 ///
 /// let a = array![[0.0_f64, 1.0], [-1.0, 0.0]]; // Rotation matrix
@@ -148,7 +148,7 @@ where
 #[allow(dead_code)]
 pub fn sinm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     validate_decomposition(a, "Matrix sine computation", true)?;
 
@@ -257,7 +257,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::tanm;
 ///
 /// let a = array![[0.1_f64, 0.0], [0.0, 0.1]];
@@ -266,7 +266,7 @@ where
 #[allow(dead_code)]
 pub fn tanm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::solve::solve_multiple;
 
@@ -294,7 +294,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::acosm;
 ///
 /// let a = array![[0.5_f64, 0.0], [0.0, 0.5]];
@@ -303,7 +303,7 @@ where
 #[allow(dead_code)]
 pub fn acosm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     validate_decomposition(a, "Matrix arccosine computation", true)?;
 
@@ -363,7 +363,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::asinm;
 ///
 /// let a = array![[0.5_f64, 0.0], [0.0, 0.5]];
@@ -372,7 +372,7 @@ where
 #[allow(dead_code)]
 pub fn asinm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     validate_decomposition(a, "Matrix arcsine computation", true)?;
 
@@ -432,7 +432,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::atanm;
 ///
 /// let a = array![[0.5_f64, 0.0], [0.0, 0.5]];
@@ -441,7 +441,7 @@ where
 #[allow(dead_code)]
 pub fn atanm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     validate_decomposition(a, "Matrix arctangent computation", true)?;
 

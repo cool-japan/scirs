@@ -5,8 +5,8 @@
 
 use crate::error::MetricsError;
 use crate::integration::traits::MetricComputation;
-use ndarray::{Array, IxDyn};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 /// Type alias for metric function
@@ -97,8 +97,8 @@ impl<F: Float + Debug + Display + FromPrimitive + scirs2_core::simd_ops::SimdUni
                     .map(|&x| x.to_f64().unwrap_or(0.0))
                     .collect();
 
-                let preds_arr = ndarray::Array1::from(preds_f64);
-                let targets_arr = ndarray::Array1::from(targets_f64);
+                let preds_arr = scirs2_core::ndarray::Array1::from(preds_f64);
+                let targets_arr = scirs2_core::ndarray::Array1::from(targets_f64);
 
                 let pos_label = 1.0;
                 let result =
@@ -126,8 +126,8 @@ impl<F: Float + Debug + Display + FromPrimitive + scirs2_core::simd_ops::SimdUni
                     .map(|&x| x.to_f64().unwrap_or(0.0))
                     .collect();
 
-                let preds_arr = ndarray::Array1::from(preds_f64);
-                let targets_arr = ndarray::Array1::from(targets_f64);
+                let preds_arr = scirs2_core::ndarray::Array1::from(preds_f64);
+                let targets_arr = scirs2_core::ndarray::Array1::from(targets_f64);
 
                 let pos_label = 1.0;
                 let result =
@@ -155,8 +155,8 @@ impl<F: Float + Debug + Display + FromPrimitive + scirs2_core::simd_ops::SimdUni
                     .map(|&x| x.to_f64().unwrap_or(0.0))
                     .collect();
 
-                let preds_arr = ndarray::Array1::from(preds_f64);
-                let targets_arr = ndarray::Array1::from(targets_f64);
+                let preds_arr = scirs2_core::ndarray::Array1::from(preds_f64);
+                let targets_arr = scirs2_core::ndarray::Array1::from(targets_f64);
 
                 let pos_label = 1.0;
                 let result = crate::classification::f1_score(&targets_arr, &preds_arr, pos_label)?;

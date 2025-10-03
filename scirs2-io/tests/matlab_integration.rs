@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_io::matlab::{read_mat, write_mat, MatType};
 use std::collections::HashMap;
 use std::f32::consts::PI as PI_F32;
@@ -47,7 +47,7 @@ fn test_matlab_write_read_roundtrip() {
     for (name, original) in &vars {
         let loaded = loaded_vars
             .get(name)
-            .expect(&format!("Variable {} not found", name));
+            .unwrap_or_else(|| panic!("Variable {} not found", name));
 
         match (original, loaded) {
             (MatType::Double(orig), MatType::Double(load)) => {

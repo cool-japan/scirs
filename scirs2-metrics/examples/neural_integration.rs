@@ -8,7 +8,7 @@
 //! ```
 
 #[cfg(feature = "neural_common")]
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 #[cfg(feature = "neural_common")]
 use scirs2_metrics::classification::{
     accuracy_score, f1_score, precision_score, recall_score, roc_auc_score,
@@ -145,19 +145,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         )?;
 
         // Convert to class predictions (for metrics that need class labels)
-        let multiclass_pred_classes = multiclass_predictions.map_axis(ndarray::Axis(1), |row| {
-            let mut max_idx = 0;
-            let mut max_val = row[0];
+        let multiclass_pred_classes =
+            multiclass_predictions.map_axis(scirs2_core::ndarray::Axis(1), |row| {
+                let mut max_idx = 0;
+                let mut max_val = row[0];
 
-            for (i, &val) in row.iter().enumerate().skip(1) {
-                if val > max_val {
-                    max_idx = i;
-                    max_val = val;
+                for (i, &val) in row.iter().enumerate().skip(1) {
+                    if val > max_val {
+                        max_idx = i;
+                        max_val = val;
+                    }
                 }
-            }
 
-            max_idx as f64
-        });
+                max_idx as f64
+            });
 
         // Create custom adapter for multiclass F1 score
         let multiclass_f1_adapter = NeuralMetricAdapter::new(
@@ -168,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // For now, using individual class metrics as a placeholder
                 let targets_1d = targets
                     .clone()
-                    .into_dimensionality::<ndarray::Ix1>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                     .map_err(|e| {
                         scirs2_metrics::error::MetricsError::InvalidInput(format!(
                             "Shape error: {e}"
@@ -176,7 +177,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     })?;
                 let preds_1d = preds
                     .clone()
-                    .into_dimensionality::<ndarray::Ix1>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                     .map_err(|e| {
                         scirs2_metrics::error::MetricsError::InvalidInput(format!(
                             "Shape error: {e}"

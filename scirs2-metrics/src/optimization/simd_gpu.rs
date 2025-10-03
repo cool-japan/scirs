@@ -9,8 +9,8 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::collections::HashMap;
 
@@ -1100,7 +1100,7 @@ impl BenchmarkResults {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_simd_metrics_creation() {

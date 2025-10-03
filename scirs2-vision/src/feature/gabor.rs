@@ -6,7 +6,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use statrs::statistics::Statistics;
 use std::f32::consts::PI;
 
@@ -120,7 +120,7 @@ pub fn gabor_filter(img: &DynamicImage, params: &GaborParams) -> Result<GrayImag
 
     // Determine kernel size based on sigma
     let kernel_size = (6.0 * params.sigma).ceil() as usize;
-    let kernel_size = if kernel_size % 2 == 0 {
+    let kernel_size = if kernel_size.is_multiple_of(2) {
         kernel_size + 1
     } else {
         kernel_size
@@ -357,7 +357,7 @@ mod tests {
         // Fill with some test data
         for i in 0..4 {
             responses
-                .slice_mut(ndarray::s![i, .., ..])
+                .slice_mut(scirs2_core::ndarray::s![i, .., ..])
                 .fill(i as f32 * 0.25);
         }
 

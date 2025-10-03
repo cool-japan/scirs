@@ -23,7 +23,7 @@
 use crate::error::OptimizeError;
 // Unused import
 // use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 // Unused import: ArrayView2
 
 type Result<T> = std::result::Result<T, OptimizeError>;

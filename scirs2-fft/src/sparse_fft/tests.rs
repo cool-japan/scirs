@@ -314,13 +314,13 @@ fn test_signal_size_limit() {
 #[allow(dead_code)]
 fn test_complex_input_conversion() {
     // Test try_as_complex function
-    let complex_val = num_complex::Complex64::new(1.0, 2.0);
+    let complex_val = scirs2_core::numeric::Complex64::new(1.0, 2.0);
     assert_eq!(config::try_as_complex(complex_val), Some(complex_val));
 
-    let complex32_val = num_complex::Complex32::new(1.0f32, 2.0f32);
+    let complex32_val = scirs2_core::numeric::Complex32::new(1.0f32, 2.0f32);
     assert_eq!(
         config::try_as_complex(complex32_val),
-        Some(num_complex::Complex64::new(1.0, 2.0))
+        Some(scirs2_core::numeric::Complex64::new(1.0, 2.0))
     );
 }
 

@@ -29,7 +29,7 @@
 // Basic usage:
 //
 // ```
-// use ndarray::Array2;
+// use scirs2_core::ndarray::Array2;
 // use scirs2_signal::dwt::Wavelet;
 // use scirs2_signal::wpt2d::wpt2d_full;
 //
@@ -54,8 +54,8 @@
 
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -272,7 +272,7 @@ impl WaveletPacketTree2D {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::wpt2d::wpt2d_full;
 ///
@@ -308,7 +308,7 @@ where
     if max_level == 0 {
         // If max_level is 0, just convert the data to f64 and return it as the root node
         let root_coeffs = data.mapv(|val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
         });
 
@@ -328,7 +328,7 @@ where
 
     // Convert input to f64
     let root_coeffs = data.mapv(|val| {
-        num_traits::cast::cast::<T, f64>(val)
+        NumCast::from(val)
             .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
     });
 
@@ -619,7 +619,7 @@ fn apply_filter(signal: &[f64], filter: &[f64], mode: Option<&str>) -> Vec<f64> 
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::wpt2d::{wpt2d_selective, WaveletPacket2D};
 ///
@@ -663,7 +663,7 @@ where
     if max_level == 0 {
         // If max_level is 0, just convert the data to f64 and return it as the root node
         let root_coeffs = data.mapv(|val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
         });
 
@@ -672,7 +672,7 @@ where
 
     // Convert input to f64
     let root_coeffs = data.mapv(|val| {
-        num_traits::cast::cast::<T, f64>(val)
+        NumCast::from(val)
             .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
     });
 

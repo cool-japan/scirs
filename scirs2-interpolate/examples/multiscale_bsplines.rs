@@ -1,4 +1,4 @@
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_interpolate::{
     make_adaptive_bspline, make_lsq_bspline, BSplineExtrapolateMode, ExtrapolateMode,
     MultiscaleBSpline, RefinementCriterion,

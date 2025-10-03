@@ -4,8 +4,8 @@
 
 use crate::error::{NdimageError, NdimageResult};
 use crate::utils::safe_f64_to_float;
-use ndarray::{Array, Dimension, Ix2};
-use num_traits::{Float, FromPrimitive, NumAssign};
+use scirs2_core::ndarray::{Array, Dimension, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 
 /// Helper function for safe conversion from usize to float
 #[allow(dead_code)]
@@ -29,7 +29,7 @@ fn safe_usize_to_float<T: Float + FromPrimitive>(value: usize) -> NdimageResult<
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::segmentation::threshold_binary;
 ///
 /// let image = array![
@@ -69,7 +69,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::segmentation::otsu_threshold;
 ///
 /// let image = array![
@@ -195,7 +195,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::segmentation::{adaptive_threshold, AdaptiveMethod};
 ///
 /// let image = array![
@@ -244,7 +244,10 @@ where
             let end_col = std::cmp::min(j + radius + 1, cols);
 
             // Slice the neighborhood
-            let neighborhood = image.slice(ndarray::s![start_row..end_row, start_col..end_col]);
+            let neighborhood = image.slice(scirs2_core::ndarray::s![
+                start_row..end_row,
+                start_col..end_col
+            ]);
 
             // Compute local threshold based on method
             let threshold = match method {

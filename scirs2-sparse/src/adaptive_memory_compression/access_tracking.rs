@@ -94,7 +94,7 @@ impl AccessTracker {
         // Update spatial patterns
         self.spatial_patterns
             .entry(block_id.block_row)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(block_id.block_col);
 
         // Trim spatial history

@@ -5,7 +5,7 @@
 
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use statrs::statistics::Statistics;
 
 /// Compute comprehensive quality metrics for advanced-refined wavelet analysis
@@ -86,7 +86,7 @@ pub fn compute_subband_energy(coefficients: &Array3<f64>, level: usize, index: u
         return 0.0;
     }
 
-    let level_slice = coefficients.slice(ndarray::s![level, .., ..]);
+    let level_slice = coefficients.slice(scirs2_core::ndarray::s![level, .., ..]);
     let total_elements = level_slice.len();
 
     if total_elements == 0 {
@@ -105,7 +105,7 @@ pub fn compute_subband_entropy(coefficients: &Array3<f64>, level: usize, index: 
         return 0.0;
     }
 
-    let level_slice = coefficients.slice(ndarray::s![level, .., ..]);
+    let level_slice = coefficients.slice(scirs2_core::ndarray::s![level, .., ..]);
     let level_vec: Vec<f64> = level_slice.iter().cloned().collect();
 
     if level_vec.is_empty() {
@@ -552,7 +552,7 @@ fn compute_total_coefficients_energy(coefficients: &Array3<f64>) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array3;
+    use scirs2_core::ndarray::Array3;
 
     #[test]
     fn test_compute_image_energy() {

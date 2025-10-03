@@ -19,7 +19,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::{Array1, Array2};
+//! use scirs2_core::ndarray::{Array1, Array2};
 //! use scirs2_interpolate::voronoi::{
 //!     NaturalNeighborInterpolator, InterpolationMethod
 //! };

@@ -32,8 +32,8 @@
 
 use super::types::SimdConfig;
 use crate::error::{SignalError, SignalResult};
-use ndarray::ArrayView1;
-use num_complex::Complex64;
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::Complex64;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -318,7 +318,7 @@ pub fn simd_cross_correlation(
 /// ```
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::simd_advanced::{SimdConfig, simd_complex_fft_butterfly};
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let mut data = vec![Complex64::new(1.0, 0.0), Complex64::new(0.0, 1.0)];
 /// let twiddles = vec![Complex64::new(1.0, 0.0), Complex64::new(0.707, -0.707)];
@@ -330,8 +330,8 @@ pub fn simd_cross_correlation(
 /// ```
 #[allow(dead_code)]
 pub fn simd_complex_fft_butterfly(
-    data: &mut [num_complex::Complex<f64>],
-    twiddles: &[num_complex::Complex<f64>],
+    data: &mut [scirs2_core::numeric::Complex<f64>],
+    twiddles: &[scirs2_core::numeric::Complex<f64>],
     config: &SimdConfig,
 ) -> SignalResult<()> {
     let n = data.len();
@@ -677,8 +677,8 @@ pub fn scalar_cross_correlation(
 /// Scalar fallback for complex butterfly operations
 #[allow(dead_code)]
 fn scalar_complex_butterfly(
-    data: &mut [num_complex::Complex<f64>],
-    twiddles: &[num_complex::Complex<f64>],
+    data: &mut [scirs2_core::numeric::Complex<f64>],
+    twiddles: &[scirs2_core::numeric::Complex<f64>],
 ) -> SignalResult<()> {
     for i in 0..data.len() / 2 {
         let t = data[i + data.len() / 2] * twiddles[i];

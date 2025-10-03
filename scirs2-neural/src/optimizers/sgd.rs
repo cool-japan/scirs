@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::optimizers::Optimizer;
-use ndarray::{Array, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Stochastic Gradient Descent optimizer
 ///
@@ -13,7 +13,7 @@ use std::fmt::Debug;
 /// param_t = param_{t-1} - v_t
 /// # Examples
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_neural::optimizers::{SGD, Optimizer};
 /// // Create a simple SGD optimizer with learning rate 0.01
 /// let mut sgd = SGD::new(0.01f64);
@@ -28,7 +28,7 @@ pub struct SGD<F: Float + ScalarOperand + Debug> {
     /// Weight decay factor (L2 regularization)
     weight_decay: F,
     /// Velocity (momentum state) for each parameter array
-    velocity: Vec<Array<F, ndarray::IxDyn>>,
+    velocity: Vec<Array<F, scirs2_core::ndarray::IxDyn>>,
 }
 impl<F: Float + ScalarOperand + Debug> SGD<F> {
     /// Creates a new SGD optimizer with the given learning rate and no momentum/weight decay
@@ -68,8 +68,8 @@ impl<F: Float + ScalarOperand + Debug> SGD<F> {
 impl<F: Float + ScalarOperand + Debug> Optimizer<F> for SGD<F> {
     fn update(
         &mut self,
-        params: &mut [Array<F, ndarray::IxDyn>],
-        grads: &[Array<F, ndarray::IxDyn>],
+        params: &mut [Array<F, scirs2_core::ndarray::IxDyn>],
+        grads: &[Array<F, scirs2_core::ndarray::IxDyn>],
     ) -> Result<()> {
         if params.len() != grads.len() {
             return Err(NeuralError::TrainingError(format!(

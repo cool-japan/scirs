@@ -4,7 +4,7 @@ use crate::error::OptimizeError;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::utils::{finite_difference_gradient, finite_difference_hessian};
 use crate::unconstrained::Options;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Implements the Trust-Region Newton Conjugate Gradient method for optimization
 #[allow(dead_code)]

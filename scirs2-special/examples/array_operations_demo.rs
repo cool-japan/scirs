@@ -4,7 +4,7 @@
 //! of scirs2-special, including vectorized special functions, broadcasting,
 //! memory-efficient processing, and complex number arrays.
 
-use ndarray::{arr1, arr2, Array1};
+use scirs2_core::ndarray::{arr1, arr2, Array1};
 use scirs2_core::Complex64;
 #[cfg(feature = "gpu")]
 use scirs2_special::array_ops::{

@@ -2,7 +2,7 @@
 mod tests {
     use crate::tests::nonparametric::friedman;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

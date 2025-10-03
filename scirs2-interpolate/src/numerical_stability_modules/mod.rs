@@ -104,8 +104,8 @@ pub mod info {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use ndarray::{Array1, Array2};
-    use num_traits::Float;
+    use scirs2_core::ndarray::{Array1, Array2};
+    use scirs2_core::numeric::Float;
 
     #[test]
     fn test_complete_stability_workflow() {

@@ -67,7 +67,7 @@ pub use utils::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_module_integration() {

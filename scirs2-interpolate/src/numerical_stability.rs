@@ -31,7 +31,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_interpolate::numerical_stability::{assess_matrix_condition, StabilityLevel};
 //!
 //! // Assess the condition of a matrix
@@ -69,8 +69,8 @@ pub use crate::numerical_stability_modules::{
 pub use crate::numerical_stability_modules::prelude::*;
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
@@ -100,7 +100,7 @@ pub mod info {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_quick_condition_check() {

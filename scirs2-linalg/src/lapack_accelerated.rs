@@ -8,9 +8,9 @@
 //! uses pure Rust algorithms for better compatibility and stability. Future versions will
 //! incorporate optimized LAPACK routines for performance-critical applications.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, NumAssign};
 
 use crate::error::{LinalgError, LinalgResult};
 
@@ -33,7 +33,7 @@ use crate::error::{LinalgError, LinalgResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::lapack_accelerated::lu;
 ///
 /// let a = array![[2.0_f64, 1.0, 1.0], [4.0, 3.0, 3.0], [8.0, 7.0, 9.0]];
@@ -163,7 +163,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::lapack_accelerated::qr;
 ///
 /// let a = array![[2.0_f64, 1.0], [4.0, 3.0], [8.0, 7.0]];
@@ -273,7 +273,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::lapack_accelerated::svd;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0], [5.0, 6.0]];
@@ -430,8 +430,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::lapack_accelerated::eig;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -593,7 +593,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::lapack_accelerated::eigh;
 ///
 /// let a = array![[1.0_f64, 2.0], [2.0, 4.0]];
@@ -779,7 +779,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::lapack_accelerated::cholesky;
 ///
 /// let a = array![[4.0_f64, 2.0], [2.0, 5.0]];
@@ -874,7 +874,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_lu() {

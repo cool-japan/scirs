@@ -10,7 +10,7 @@
 
 use crate::error::{MetricsError, Result};
 use crate::optimization::quantum_acceleration::QuantumMetricsComputer;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -69,7 +69,7 @@ pub struct NeuromorphicMetricsComputer<F: Float> {
     meta_learning: MetaLearningSystem<F>,
     /// Distributed neuromorphic coordinator
     distributed_coordinator: Option<DistributedNeuromorphicCoordinator<F>>,
-    /// Real-time adaptation engine
+    /// Float-time adaptation engine
     realtime_adapter: RealtimeAdaptationEngine<F>,
     /// Advanced memory architectures
     advanced_memory: AdvancedMemoryArchitecture<F>,
@@ -80,7 +80,13 @@ pub struct NeuromorphicMetricsComputer<F: Float> {
 }
 
 impl<
-        F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug,
+        F: Float
+            + Send
+            + Sync
+            + std::iter::Sum
+            + 'static
+            + scirs2_core::ndarray::ScalarOperand
+            + std::fmt::Debug,
     > NeuromorphicMetricsComputer<F>
 {
     /// Create new neuromorphic metrics computer
@@ -157,7 +163,7 @@ impl<
         // let performance_snapshot = self.performance_monitor.get_current_performance();
         // self.learning_controller.update(performance_snapshot)?;
 
-        // Real-time adaptation (placeholder - no-op)
+        // Float-time adaptation (placeholder - no-op)
         // self.realtime_adapter.adapt(data, &network_output.activity_levels)?;
 
         // Quantum processing if enabled (placeholder)
@@ -462,14 +468,26 @@ pub struct MemoryStatistics<F: Float> {
 
 /// Create a neuromorphic metrics computer with default configuration
 pub fn create_default_neuromorphic_computer<
-    F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug,
+    F: Float
+        + Send
+        + Sync
+        + std::iter::Sum
+        + 'static
+        + scirs2_core::ndarray::ScalarOperand
+        + std::fmt::Debug,
 >() -> Result<NeuromorphicMetricsComputer<F>> {
     NeuromorphicMetricsComputer::new(NeuromorphicConfig::default())
 }
 
 /// Create a neuromorphic metrics computer optimized for real-time processing
 pub fn create_realtime_neuromorphic_computer<
-    F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug,
+    F: Float
+        + Send
+        + Sync
+        + std::iter::Sum
+        + 'static
+        + scirs2_core::ndarray::ScalarOperand
+        + std::fmt::Debug,
 >() -> Result<NeuromorphicMetricsComputer<F>> {
     let mut config = NeuromorphicConfig::default();
     config.timestep = Duration::from_micros(50); // Faster timestep
@@ -482,7 +500,13 @@ pub fn create_realtime_neuromorphic_computer<
 
 /// Create a neuromorphic metrics computer optimized for accuracy
 pub fn create_accuracy_optimized_neuromorphic_computer<
-    F: Float + Send + Sync + std::iter::Sum + 'static + ndarray::ScalarOperand + std::fmt::Debug,
+    F: Float
+        + Send
+        + Sync
+        + std::iter::Sum
+        + 'static
+        + scirs2_core::ndarray::ScalarOperand
+        + std::fmt::Debug,
 >() -> Result<NeuromorphicMetricsComputer<F>> {
     let mut config = NeuromorphicConfig::default();
     config.enable_quantum_processing = true; // Enable quantum enhancement

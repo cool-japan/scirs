@@ -1,7 +1,7 @@
 #[cfg(feature = "autograd")]
 #[allow(unused_imports)]
 mod example {
-    // use ndarray::array;  // Temporarily disabled
+    // use scirs2_core::ndarray::array;  // Temporarily disabled
     use scirs2_autograd::error::Result as AutogradResult;
     // use scirs2_autograd::variable::Variable;  // Temporarily disabled
     // Import the implemented autograd transformations

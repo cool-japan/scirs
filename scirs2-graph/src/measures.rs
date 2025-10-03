@@ -7,7 +7,7 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 use crate::algorithms::{dijkstra_path, dijkstra_path_digraph};
 use crate::base::{DiGraph, EdgeWeight, Graph, Node};
@@ -64,8 +64,8 @@ pub fn centrality<N, E, Ix>(
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Into<f64>
@@ -110,8 +110,8 @@ pub fn centrality_digraph<N, E, Ix>(
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Into<f64>
@@ -207,8 +207,8 @@ fn betweenness_centrality<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<HashMap<N
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Into<f64>
@@ -265,8 +265,8 @@ fn betweenness_centrality_digraph<N, E, Ix>(graph: &DiGraph<N, E, Ix>) -> Result
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Into<f64>
@@ -323,8 +323,8 @@ fn closeness_centrality<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<HashMap<N, 
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Into<f64>
@@ -384,8 +384,8 @@ fn closeness_centrality_digraph<N, E, Ix>(graph: &DiGraph<N, E, Ix>) -> Result<H
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Into<f64>
@@ -446,7 +446,12 @@ where
 fn eigenvector_centrality<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<HashMap<N, f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let nodes = graph.nodes();
@@ -517,7 +522,12 @@ where
 fn eigenvector_centrality_digraph<N, E, Ix>(graph: &DiGraph<N, E, Ix>) -> Result<HashMap<N, f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + PartialOrd + Into<f64> + std::marker::Copy,
+    E: EdgeWeight
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Into<f64>
+        + std::marker::Copy,
     Ix: petgraph::graph::IndexType,
 {
     let nodes = graph.nodes();
@@ -532,7 +542,7 @@ where
     let mut adj_f64 = Array2::<f64>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            adj_f64[[i, j]] = adj_mat[[i, j]].into();
+            adj_f64[[i, j]] = adj_mat[[i, j]];
         }
     }
 
@@ -714,7 +724,7 @@ pub fn katz_centrality<N, E, Ix>(
 ) -> Result<HashMap<N, f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + Into<f64> + Copy,
+    E: EdgeWeight + scirs2_core::numeric::Zero + scirs2_core::numeric::One + Into<f64> + Copy,
     Ix: petgraph::graph::IndexType,
 {
     let nodes = graph.nodes();
@@ -794,7 +804,7 @@ pub fn katz_centrality_digraph<N, E, Ix>(
 ) -> Result<HashMap<N, f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + num_traits::Zero + num_traits::One + Into<f64> + Copy,
+    E: EdgeWeight + scirs2_core::numeric::Zero + scirs2_core::numeric::One + Into<f64> + Copy,
     Ix: petgraph::graph::IndexType,
 {
     let nodes = graph.nodes();
@@ -809,7 +819,7 @@ where
     let mut adj_f64 = Array2::<f64>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            adj_f64[[i, j]] = adj_mat[[i, j]].into();
+            adj_f64[[i, j]] = adj_mat[[i, j]];
         }
     }
 
@@ -1351,8 +1361,8 @@ where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
         + Into<f64>
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Copy
@@ -1399,8 +1409,8 @@ where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
         + Into<f64>
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Copy
@@ -1447,8 +1457,8 @@ where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
         + Into<f64>
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Copy
@@ -1501,8 +1511,8 @@ where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
         + Into<f64>
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + Copy

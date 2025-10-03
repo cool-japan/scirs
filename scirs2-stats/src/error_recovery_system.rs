@@ -781,7 +781,7 @@ impl ErrorRecoverySystem {
     pub fn generate_error_report(&self, enhancederror: &EnhancedStatsError) -> String {
         let mut report = String::new();
 
-        report.push_str(&format!("# Error Report\n\n"));
+        report.push_str("# Error Report\n\n");
         report.push_str(&format!("**Error:** {}\n\n", enhancederror.error));
         report.push_str(&format!("**Severity:** {:?}\n\n", enhancederror.severity));
         report.push_str(&format!(

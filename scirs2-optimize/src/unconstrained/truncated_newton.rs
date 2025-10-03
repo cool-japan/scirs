@@ -6,7 +6,7 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::{line_search::backtracking_line_search, OptimizeResult};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::VecDeque;
 
 /// Preconditioner types for truncated Newton methods
@@ -693,7 +693,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_truncated_newton_quadratic() {

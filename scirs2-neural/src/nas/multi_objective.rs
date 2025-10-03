@@ -369,7 +369,7 @@ impl MultiObjectiveOptimizer {
         Ok(offspring)
     /// Tournament selection for parent selection
     fn tournament_selection(&self) -> Result<&MultiObjectiveSolution> {
-        use rand::prelude::*;
+        use scirs2_core::random::prelude::*;
         let mut rng = rng();
         let tournament_size = 3;
         let mut best_idx = rng.gen_range(0..self.population.len());
@@ -402,10 +402,10 @@ impl MultiObjectiveOptimizer {
         // Simplified objective estimation
         // In practice, would use actual evaluation or prediction models
             let value = match obj_config.name.as_str() {
-                "validation_accuracy" => 0.7 + 0.2 * rand::random::<f64>(),
-                "model_flops" => 1e6 + 1e6 * rand::random::<f64>(),
-                "model_params" => 1e5 + 1e5 * rand::random::<f64>(),
-                "inference_latency" => 10.0 + 10.0 * rand::random::<f64>(, _ => 0.5,
+                "validation_accuracy" => 0.7 + 0.2 * scirs2_core::random::random::<f64>(),
+                "model_flops" => 1e6 + 1e6 * scirs2_core::random::random::<f64>(),
+                "model_params" => 1e5 + 1e5 * scirs2_core::random::random::<f64>(),
+                "inference_latency" => 10.0 + 10.0 * scirs2_core::random::random::<f64>(, _ => 0.5,
             };
     /// Generate random architecture for initialization
     fn generate_random_architecture(&self) -> Result<Arc<dyn ArchitectureEncoding>> {
@@ -417,10 +417,10 @@ impl MultiObjectiveOptimizer {
             .objectives
             .iter()
             .map(|obj| match obj.name.as_str() {
-                "validation_accuracy" => 0.3 + 0.4 * rand::random::<f64>(),
-                "model_flops" => 1e5 + 1e6 * rand::random::<f64>(),
-                "model_params" => 1e4 + 1e5 * rand::random::<f64>(),
-                "inference_latency" => 1.0 + 20.0 * rand::random::<f64>(, _ => rand::random::<f64>(),
+                "validation_accuracy" => 0.3 + 0.4 * scirs2_core::random::random::<f64>(),
+                "model_flops" => 1e5 + 1e6 * scirs2_core::random::random::<f64>(),
+                "model_params" => 1e4 + 1e5 * scirs2_core::random::random::<f64>(),
+                "inference_latency" => 1.0 + 20.0 * scirs2_core::random::random::<f64>(, _ => scirs2_core::random::random::<f64>(),
             })
             .collect()
     /// Update Pareto front
@@ -670,9 +670,9 @@ impl MultiObjectiveOptimizer {
             // Fill remaining with random weights if needed
             while weights.len() < num_weights {
                 let mut weight = vec![0.0; num_objectives];
-                let sum: f64 = (0..num_objectives).map(|_| rand::random::<f64>()).sum();
+                let sum: f64 = (0..num_objectives).map(|_| scirs2_core::random::random::<f64>()).sum();
                 for w in &mut weight {
-                    *w = rand::random::<f64>() / sum;
+                    *w = scirs2_core::random::random::<f64>() / sum;
                 weights.push(weight);
             weights.truncate(num_weights);
             // For higher dimensions, use random weights

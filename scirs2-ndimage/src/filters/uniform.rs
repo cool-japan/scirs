@@ -3,8 +3,8 @@
 //! This module provides functions for applying uniform filters (also known as box filters)
 //! to n-dimensional arrays.
 
-use ndarray::{s, Array, Array1, Array2, Dim, Dimension, IxDyn, IxDynImpl, NdIndex};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array, Array1, Array2, Dim, Dimension, IxDyn, IxDynImpl, NdIndex};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::validation::{check_1d, check_2d, check_positive};
 use std::fmt::Debug;
 
@@ -40,7 +40,7 @@ use scirs2_core::parallel_ops;
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::filters::{uniform_filter, BorderMode};
 ///
 /// let input = array![[1.0, 2.0, 3.0],
@@ -125,7 +125,7 @@ where
             // Handle 1D array
             let input_1d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
@@ -143,7 +143,7 @@ where
             // Handle 2D array
             let input_2d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 2D array".into())
                 })?;
@@ -545,7 +545,7 @@ where
             // 1D case - direct iteration
             let input_1d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
@@ -553,7 +553,7 @@ where
             let padded_input = pad_array(&input_1d, &pad_width, mode, None)?;
             let mut output_1d = output
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
@@ -578,7 +578,7 @@ where
             // 2D case - direct access with (i,j) indexing
             let input_2d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 2D array".into())
                 })?;
@@ -586,7 +586,7 @@ where
             let padded_input = pad_array(&input_2d, &pad_width, mode, None)?;
             let mut output_2d = output
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 2D array".into())
                 })?;
@@ -945,21 +945,20 @@ where
             // For 1D arrays, handle directly
             let input_1d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
 
-            let padded_input_1d =
-                padded_input
-                    .into_dimensionality::<ndarray::Ix1>()
-                    .map_err(|_| {
-                        NdimageError::DimensionError("Failed to convert padded input to 1D".into())
-                    })?;
+            let padded_input_1d = padded_input
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
+                .map_err(|_| {
+                    NdimageError::DimensionError("Failed to convert padded input to 1D".into())
+                })?;
 
             let mut output_1d = output
                 .view_mut()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert output to 1D".into())
                 })?;
@@ -979,21 +978,20 @@ where
             // For 2D arrays, handle directly with special cases for each axis
             let input_2d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 2D array".into())
                 })?;
 
-            let padded_input_2d =
-                padded_input
-                    .into_dimensionality::<ndarray::Ix2>()
-                    .map_err(|_| {
-                        NdimageError::DimensionError("Failed to convert padded input to 2D".into())
-                    })?;
+            let padded_input_2d = padded_input
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| {
+                    NdimageError::DimensionError("Failed to convert padded input to 2D".into())
+                })?;
 
             let mut output_2d = output
                 .view_mut()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert output to 2D".into())
                 })?;
@@ -1038,8 +1036,8 @@ where
             // Helper function to iterate through all indices
             #[allow(clippy::too_many_arguments)]
             fn process_indices<T: Float + FromPrimitive + std::ops::AddAssign>(
-                input_dyn: &ndarray::ArrayViewD<T>,
-                output_dyn: &mut ndarray::ArrayViewMutD<T>,
+                input_dyn: &scirs2_core::ndarray::ArrayViewD<T>,
+                output_dyn: &mut scirs2_core::ndarray::ArrayViewMutD<T>,
                 size: usize,
                 axis: usize,
                 idx: &mut Vec<usize>,
@@ -1257,7 +1255,7 @@ where
 mod tests {
     use super::*;
     //use approx::assert_abs_diff_eq; // Will be used again when we improve the tests
-    use ndarray::{array, Array3};
+    use scirs2_core::ndarray::{array, Array3};
 
     // NOTE: 1D tests are currently disabled due to stack overflow issues
     // We'll need to optimize the implementation before re-enabling them
@@ -1321,7 +1319,7 @@ mod tests {
     #[test]
     fn test_uniform_filter_4d() {
         // Test 4D arrays to ensure general n-dimensional support
-        let input = ndarray::Array4::<f64>::from_elem((2, 2, 2, 2), 5.0);
+        let input = scirs2_core::ndarray::Array4::<f64>::from_elem((2, 2, 2, 2), 5.0);
 
         let result = uniform_filter(&input, &[2, 2, 2, 2], None, None).unwrap();
 

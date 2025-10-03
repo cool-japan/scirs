@@ -1,6 +1,6 @@
 //! Example demonstrating streaming operations for large images
 
-use ndarray::{Array2, ArrayView2, ArrayViewMut2};
+use scirs2_core::ndarray::{Array2, ArrayView2, ArrayViewMut2};
 use scirs2_ndimage::{
     stream_process_file, streaming::OverlapInfo, StreamConfig, StreamableOp,
     StreamingGaussianFilter,
@@ -45,7 +45,7 @@ fn process_largeimage_gaussian() {
 
     // This would process the image in chunks without loading it all into memory
     println!("Would process image of size {:?} in chunks...", shape);
-    // stream_process_file::<f64, ndarray::Ix2_>(
+    // stream_process_file::<f64, scirs2_core::ndarray::Ix2_>(
     //     input_path,
     //     output_path,
     //     shape,
@@ -91,7 +91,7 @@ fn process_with_custom_op() {
         strength: f64,
     }
 
-    impl StreamableOp<f64, ndarray::Ix2> for EdgeEnhancementOp {
+    impl StreamableOp<f64, scirs2_core::ndarray::Ix2> for EdgeEnhancementOp {
         fn apply_chunk(
             &self,
             chunk: &ArrayView2<f64>,
@@ -129,7 +129,7 @@ fn process_with_custom_op() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
     use scirs2_ndimage::StreamProcessor;
 
     #[test]

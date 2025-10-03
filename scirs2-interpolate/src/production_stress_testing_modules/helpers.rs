@@ -7,7 +7,7 @@ use super::generators::*;
 use super::types::*;
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::traits::InterpolationFloat;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::time::{Duration, Instant};
 
 impl<T: InterpolationFloat + std::panic::RefUnwindSafe> ProductionStressTester<T> {

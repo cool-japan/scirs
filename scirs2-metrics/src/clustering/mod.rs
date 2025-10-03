@@ -39,8 +39,8 @@ pub use self::internal_metrics::*;
 pub use self::validation::*;
 
 // Common utility functions that might be used across multiple submodules
-use ndarray::{Array1, Array2, ArrayBase, Data, Dimension, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Dimension, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 
 use crate::error::{MetricsError, Result};

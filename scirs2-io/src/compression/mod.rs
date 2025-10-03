@@ -835,7 +835,7 @@ fn compress_fpzip(data: &[u8], level: u32) -> Result<Vec<u8>> {
 
     // For now, use a simple approach: if data length is divisible by 4 or 8,
     // assume it's floating-point data and apply bit manipulation optimizations
-    if data.len() % 8 == 0 {
+    if data.len().is_multiple_of(8) {
         // Assume f64 data - apply bit manipulation to reduce entropy
         let float_data =
             unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f64, data.len() / 8) };
@@ -858,7 +858,7 @@ fn compress_fpzip(data: &[u8], level: u32) -> Result<Vec<u8>> {
         // Compress the XOR'd data with LZ4
         let compressed = compress_data(&encoded_data, CompressionAlgorithm::Lz4, Some(6))?;
         result.extend_from_slice(&compressed);
-    } else if data.len() % 4 == 0 {
+    } else if data.len().is_multiple_of(4) {
         // Assume f32 data - apply similar technique
         let float_data =
             unsafe { std::slice::from_raw_parts(data.as_ptr() as *const f32, data.len() / 4) };
@@ -959,7 +959,7 @@ fn compress_delta_lz4(data: &[u8], level: u32) -> Result<Vec<u8>> {
     // Try to detect _data type and apply appropriate delta encoding
     let mut delta_encoded = Vec::with_capacity(data.len());
 
-    if data.len() % 8 == 0 {
+    if data.len().is_multiple_of(8) {
         // Assume i64 or f64 time series
         let values =
             unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i64, data.len() / 8) };
@@ -972,7 +972,7 @@ fn compress_delta_lz4(data: &[u8], level: u32) -> Result<Vec<u8>> {
             let delta = values[i].wrapping_sub(values[i - 1]);
             delta_encoded.extend_from_slice(&delta.to_le_bytes());
         }
-    } else if data.len() % 4 == 0 {
+    } else if data.len().is_multiple_of(4) {
         // Assume i32 or f32 time series
         let values =
             unsafe { std::slice::from_raw_parts(data.as_ptr() as *const i32, data.len() / 4) };

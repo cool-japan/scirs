@@ -4,8 +4,8 @@
 //! in optimization algorithms, providing significant speedup for suitable workloads.
 
 use crate::error::{ScirsError, ScirsResult};
-use ndarray::{Array1, Array2};
 use scirs2_core::gpu::{GpuContext, GpuKernelHandle};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::sync::Arc;
 
 /// Tensor Core acceleration configuration
@@ -80,8 +80,7 @@ impl TensorCoreOptimizer {
         config: &TensorCoreOptimizationConfig,
     ) -> ScirsResult<GpuKernelHandle> {
         let kernel_source = if config.mixed_precision {
-            format!(
-                r#"
+            r#"
                 #include <cuda_fp16.h>
                 #include <mma.h>
                 
@@ -93,7 +92,7 @@ impl TensorCoreOptimizer {
                     float* C,
                     int M, int N, int K,
                     float alpha, float beta
-                ) {{
+                ) {
                     const int WMMA_M = 16;
                     const int WMMA_N = 16;
                     const int WMMA_K = 16;
@@ -108,35 +107,33 @@ impl TensorCoreOptimizer {
                     
                     wmma::fill_fragment(acc_frag, 0.0f);
                     
-                    for (int i = 0; i < K; i += WMMA_K) {{
+                    for (int i = 0; i < K; i += WMMA_K) {
                         int aRow = warpM * WMMA_M;
                         int aCol = i;
                         int bRow = i;
                         int bCol = warpN * WMMA_N;
                         
-                        if (aRow < M && aCol < K && bRow < K && bCol < N) {{
+                        if (aRow < M && aCol < K && bRow < K && bCol < N) {
                             wmma::load_matrix_sync(a_frag, A + aRow * K + aCol, K);
                             wmma::load_matrix_sync(b_frag, B + bRow * N + bCol, N);
                             wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
-                        }}
-                    }}
+                        }
+                    }
                     
                     int cRow = warpM * WMMA_M;
                     int cCol = warpN * WMMA_N;
                     
-                    if (cRow < M && cCol < N) {{
+                    if (cRow < M && cCol < N) {
                         wmma::load_matrix_sync(c_frag, C + cRow * N + cCol, N, wmma::mem_row_major);
-                        for (int i = 0; i < c_frag.num_elements; i++) {{
+                        for (int i = 0; i < c_frag.num_elements; i++) {
                             c_frag.x[i] = alpha * acc_frag.x[i] + beta * c_frag.x[i];
-                        }}
+                        }
                         wmma::store_matrix_sync(C + cRow * N + cCol, c_frag, N, wmma::mem_row_major);
-                    }}
-                }}
-            "#,
-            )
+                    }
+                }
+            "#.to_string()
         } else {
-            format!(
-                r#"
+            r#"
                 #include <mma.h>
                 
                 using namespace nvcuda;
@@ -147,7 +144,7 @@ impl TensorCoreOptimizer {
                     float* C,
                     int M, int N, int K,
                     float alpha, float beta
-                ) {{
+                ) {
                     // Standard FP32 Tensor Core implementation
                     const int WMMA_M = 16;
                     const int WMMA_N = 16;
@@ -163,32 +160,31 @@ impl TensorCoreOptimizer {
                     
                     wmma::fill_fragment(acc_frag, 0.0f);
                     
-                    for (int i = 0; i < K; i += WMMA_K) {{
+                    for (int i = 0; i < K; i += WMMA_K) {
                         int aRow = warpM * WMMA_M;
                         int aCol = i;
                         int bRow = i;
                         int bCol = warpN * WMMA_N;
                         
-                        if (aRow < M && aCol < K && bRow < K && bCol < N) {{
+                        if (aRow < M && aCol < K && bRow < K && bCol < N) {
                             wmma::load_matrix_sync(a_frag, A + aRow * K + aCol, K);
                             wmma::load_matrix_sync(b_frag, B + bRow * N + bCol, N);
                             wmma::mma_sync(acc_frag, a_frag, b_frag, acc_frag);
-                        }}
-                    }}
+                        }
+                    }
                     
                     int cRow = warpM * WMMA_M;
                     int cCol = warpN * WMMA_N;
                     
-                    if (cRow < M && cCol < N) {{
+                    if (cRow < M && cCol < N) {
                         wmma::load_matrix_sync(c_frag, C + cRow * N + cCol, N, wmma::mem_row_major);
-                        for (int i = 0; i < c_frag.num_elements; i++) {{
+                        for (int i = 0; i < c_frag.num_elements; i++) {
                             c_frag.x[i] = alpha * acc_frag.x[i] + beta * c_frag.x[i];
-                        }}
+                        }
                         wmma::store_matrix_sync(C + cRow * N + cCol, c_frag, N, wmma::mem_row_major);
-                    }}
-                }}
-            "#,
-            )
+                    }
+                }
+            "#.to_string()
         };
 
         let kernel_name = if config.mixed_precision {

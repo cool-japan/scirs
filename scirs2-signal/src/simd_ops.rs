@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // SIMD-optimized signal processing operations
 //
 // This module provides SIMD-accelerated implementations of common signal
@@ -6,7 +6,7 @@ use ndarray::s;
 
 use crate::error::{SignalError, SignalResult};
 use crate::hilbert::hilbert;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::sync::Once;

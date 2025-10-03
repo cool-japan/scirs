@@ -3,8 +3,8 @@
 //! This module defines common traits and types that are used by multiple
 //! parts of the code to ensure consistency and reduce duplication.
 
-use ndarray::ScalarOperand;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display, LowerExp};
 
 /// A trait that bundles all the requirements for floating-point types

@@ -3,9 +3,11 @@
 //! This module provides functionality for processing images that are too large
 //! to fit in memory by processing them in chunks or tiles.
 
-use ndarray::{Array, ArrayView, ArrayViewMut, Dimension, IxDyn, Slice, SliceInfoElem};
-use num_traits::{Float, FromPrimitive, Zero};
-// use rayon::prelude::*; // FORBIDDEN: Use scirs2-core::parallel_ops instead
+use scirs2_core::ndarray::{
+    Array, ArrayView, ArrayViewMut, Dimension, IxDyn, Slice, SliceInfoElem,
+};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
+// use scirs2_core::parallel_ops::prelude::*; // FORBIDDEN: Use scirs2-core::parallel_ops instead
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 use std::fs::File;
@@ -571,7 +573,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_chunk_iterator() {

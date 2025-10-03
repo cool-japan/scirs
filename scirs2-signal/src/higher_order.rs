@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Higher-order spectral analysis module
 //
 // This module implements higher-order spectral analysis methods, including:
@@ -12,7 +12,7 @@ use ndarray::s;
 //
 // # Example
 // ```
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::higher_order::{bispectrum, bicoherence};
 //
 // // Create a signal with quadratic phase coupling
@@ -44,8 +44,8 @@ use ndarray::s;
 
 use crate::error::{SignalError, SignalResult};
 use crate::window;
-use ndarray::{Array1, Array2};
-use num_complex::{Complex64, ComplexFloat};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Complex64, ComplexFloat};
 use scirs2_fft;
 
 #[allow(unused_imports)]
@@ -133,7 +133,7 @@ impl Default for HigherOrderConfig {
 ///
 /// # Example
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::higher_order::bispectrum;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 2.0, 1.0, 0.0, -1.0, -2.0, -1.0, 0.0]);
@@ -184,7 +184,7 @@ pub fn bispectrum(
 ///
 /// # Example
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::higher_order::bicoherence;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 2.0, 1.0, 0.0, -1.0, -2.0, -1.0, 0.0]);

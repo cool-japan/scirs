@@ -3,7 +3,7 @@
 //! This module contains the configuration structures, enums, and utility functions
 //! used to configure and control sparse FFT computations.
 
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::fmt::Debug;
 
 /// Helper function to extract complex values from various types (for doctests)
@@ -17,7 +17,8 @@ pub fn try_as_complex<T: 'static + Copy>(val: T) -> Option<Complex64> {
     }
 
     // Try to handle f32 complex numbers
-    if let Some(complex32) = (&val as &dyn Any).downcast_ref::<num_complex::Complex<f32>>() {
+    if let Some(complex32) = (&val as &dyn Any).downcast_ref::<scirs2_core::numeric::Complex<f32>>()
+    {
         return Some(Complex64::new(complex32.re as f64, complex32.im as f64));
     }
 
@@ -141,7 +142,7 @@ mod tests {
         let val = Complex64::new(1.0, 2.0);
         assert_eq!(try_as_complex(val), Some(val));
 
-        let val32 = num_complex::Complex::new(1.0f32, 2.0f32);
+        let val32 = scirs2_core::numeric::Complex::new(1.0f32, 2.0f32);
         assert_eq!(try_as_complex(val32), Some(Complex64::new(1.0, 2.0)));
     }
 }

@@ -8,7 +8,7 @@ Computer vision module for SciRS2, providing comprehensive functionality for ima
 
 ⚠️ **SciRS2 POLICY Migration**: This module is currently being updated to follow the [SciRS2 POLICY](../SCIRS2_POLICY.md) - migration from direct `rand::` usage to scirs2-core abstractions is in progress.
 
-## Production Status (0.1.0-beta.4)
+## Production Status (0.1.0-rc.1)
 
 **✅ PRODUCTION READY** - Beta 4 release with SciRS2 POLICY implementation:
 - **217 unit tests** passing with zero warnings
@@ -209,14 +209,14 @@ Add `scirs2-vision` to your dependencies in `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-vision = "0.1.0-beta.4"
+scirs2-vision = "0.1.0-rc.1"
 ```
 
 To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-vision = { version = "0.1.0-beta.4", features = ["parallel"] }
+scirs2-vision = { version = "0.1.0-rc.1", features = ["parallel"] }
 ```
 
 ## Documentation
@@ -279,7 +279,7 @@ This project is dual-licensed under:
 You can choose to use either license. See the [LICENSE](../LICENSE) file for details.
 ## Production Readiness
 
-This **0.1.0-beta.4** release represents a mature, production-ready computer vision library suitable for:
+This **0.1.0-rc.1** release represents a mature, production-ready computer vision library suitable for:
 
 ### 🏭 Production Applications
 - **Scientific Computing**: Research applications requiring reliable computer vision algorithms

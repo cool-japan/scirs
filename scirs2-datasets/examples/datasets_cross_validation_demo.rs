@@ -3,7 +3,7 @@
 //! This example demonstrates the use of K-fold, stratified K-fold, and time series
 //! cross-validation utilities provided by scirs2-datasets.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_datasets::{k_fold_split, stratified_k_fold_split, time_series_split, Dataset};
 
 #[allow(dead_code)]
@@ -97,14 +97,14 @@ fn main() {
     let (train_indices, val_indices) = first_fold;
 
     // Create training subset
-    let traindata = data.select(ndarray::Axis(0), train_indices);
-    let train_target = target.select(ndarray::Axis(0), train_indices);
+    let traindata = data.select(scirs2_core::ndarray::Axis(0), train_indices);
+    let train_target = target.select(scirs2_core::ndarray::Axis(0), train_indices);
     let traindataset = Dataset::new(traindata, Some(train_target))
         .with_description("Training fold from K-fold CV".to_string());
 
     // Create validation subset
-    let valdata = data.select(ndarray::Axis(0), val_indices);
-    let val_target = target.select(ndarray::Axis(0), val_indices);
+    let valdata = data.select(scirs2_core::ndarray::Axis(0), val_indices);
+    let val_target = target.select(scirs2_core::ndarray::Axis(0), val_indices);
     let valdataset = Dataset::new(valdata, Some(val_target))
         .with_description("Validation fold from K-fold CV".to_string());
 

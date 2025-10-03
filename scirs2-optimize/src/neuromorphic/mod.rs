@@ -23,9 +23,9 @@
 
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayView1};
-use rand::Rng;
 use scirs2_core::error::CoreResult as Result;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::random::Rng;
 
 pub mod event_driven;
 pub mod liquid_state_machines;
@@ -187,7 +187,7 @@ impl NeuromorphicNetwork {
             for j in 0..config.num_neurons {
                 if i != j {
                     // Random connection strength
-                    connectivity[[i, j]] = rand::rng().random_range(-0.05..0.05);
+                    connectivity[[i, j]] = scirs2_core::random::rng().random_range(-0.05..0.05);
                 }
             }
         }
@@ -276,8 +276,8 @@ impl NeuromorphicNetwork {
 
             // Add noise
             if self.config.noise_level > 0.0 {
-                let noise =
-                    rand::rng().random_range(-self.config.noise_level..self.config.noise_level);
+                let noise = scirs2_core::random::rng()
+                    .random_range(-self.config.noise_level..self.config.noise_level);
                 self.neurons[i].potential += noise;
             }
 

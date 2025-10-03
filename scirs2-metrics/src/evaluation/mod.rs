@@ -3,9 +3,9 @@
 //! This module provides utilities for evaluating machine learning models,
 //! such as cross-validation, train-test split, and learning curves.
 
-use ndarray::{Array1, ArrayBase, Data, Dimension};
-use num_traits::NumCast;
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Dimension};
+use scirs2_core::numeric::NumCast;
+use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 
 use crate::error::{MetricsError, Result};
 
@@ -44,7 +44,7 @@ pub type TrainTestSplitResult<T> = (Vec<Array1<T>>, Vec<Array1<T>>);
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array, Ix1};
+/// use scirs2_core::ndarray::{Array, Ix1};
 /// use scirs2_metrics::evaluation::train_test_split;
 ///
 /// let x = Array::<f64, Ix1>::linspace(0., 9., 10).into_shape(Ix1(10)).unwrap();
@@ -110,12 +110,12 @@ where
     let mut indices: Vec<usize> = (0..n_samples).collect();
 
     // Initialize random number generator with provided _seed
-    // In rand 0.9.0 we need to use rand::rng() instead of rand::rng()
+    // In rand 0.9.0 we need to use scirs2_core::random::rng() instead of scirs2_core::random::rng()
     let mut rng = match random_seed {
         Some(_seed) => StdRng::seed_from_u64(_seed),
         None => {
             // In rand 0.9.0, from_rng returns the RNG directly, not a Result
-            let mut r = rand::rng();
+            let mut r = scirs2_core::random::rng();
             StdRng::from_rng(&mut r)
         }
     };
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_train_test_split() {
-        let x = ndarray::Array::linspace(0.0, 9.0, 10);
+        let x = scirs2_core::ndarray::Array::linspace(0.0, 9.0, 10);
         let y = &x * 2.0;
 
         let (train_arrays, test_arrays) = train_test_split(&[&x, &y], 0.3, Some(42)).unwrap();

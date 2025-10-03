@@ -4,8 +4,8 @@
 //! and implementations for the advanced fusion intelligence system, including conscious
 //! attention systems, working memory, global workspace, and self-awareness mechanisms.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -360,6 +360,12 @@ pub struct ConsciousnessState<F: Float> {
     pub metacognitive_control: F,
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for ConsciousAttentionSystem<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> ConsciousAttentionSystem<F> {
     /// Create new conscious attention system
     pub fn new() -> Self {
@@ -521,7 +527,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> AttentionMechanism<F> {
         let radius = self.focus_window.radius.to_usize().unwrap_or(10);
 
         for (i, value) in input.iter_mut().enumerate() {
-            let distance = (i as i32 - center_idx as i32).abs() as usize;
+            let distance = (i as i32 - center_idx as i32).unsigned_abs() as usize;
             let attention_weight = if distance <= radius {
                 self.focus_window.intensity
             } else {
@@ -538,6 +544,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> AttentionMechanism<F> {
         let alerting_factor = F::from_f64(1.1).unwrap();
         input.mapv_inplace(|x| x * alerting_factor);
         Ok(())
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for FocusWindow<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -559,6 +571,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> FocusWindow<F> {
     /// Update focus window radius
     pub fn update_radius(&mut self, new_radius: F) {
         self.radius = new_radius;
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for MetacognitiveController<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -609,6 +627,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> MetacognitiveController<F> {
                 + alpha * performance_score;
         }
         Ok(())
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for MonitoringSystem<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -682,6 +706,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> PerformanceMonitor<F> {
         let performance_score = performance_ratio.min(F::from_f64(1.0).unwrap());
 
         Ok(performance_score)
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for ErrorDetectionSystem<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -773,6 +803,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> CorrectionMechanism<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for ConfidenceAssessment<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> ConfidenceAssessment<F> {
     /// Create new confidence assessment system
     pub fn new() -> Self {
@@ -828,6 +864,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> ConfidenceMetric<F> {
         }
 
         Ok(self.confidence_value * self.reliability_score)
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for UncertaintyEstimation<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -905,6 +947,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> ControlStrategy<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for ConsciousnessSimulator<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> ConsciousnessSimulator<F> {
     /// Create new consciousness simulator
     pub fn new() -> Self {
@@ -979,6 +1027,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> ConsciousnessSimulator<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for ConsciousWorkingMemory<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> ConsciousWorkingMemory<F> {
     /// Create new conscious working memory
     pub fn new() -> Self {
@@ -1025,6 +1079,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> ConsciousWorkingMemory<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for GlobalWorkspace<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> GlobalWorkspace<F> {
     /// Create new global workspace
     pub fn new() -> Self {
@@ -1054,6 +1114,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> GlobalWorkspace<F> {
         self.consciousness_level = self.consciousness_level.min(F::from_f64(1.0).unwrap());
 
         Ok(())
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for SelfAwarenessModule<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1087,6 +1153,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> SelfAwarenessModule<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for SelfModel<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> SelfModel<F> {
     /// Create new self-model
     pub fn new() -> Self {
@@ -1103,7 +1175,8 @@ impl<F: Float + Debug + Clone + FromPrimitive> SelfModel<F> {
         // Simple self-representation update
         for repr in &mut self.self_representation {
             let update = F::from_f64(0.01).unwrap()
-                * (F::from_f64(rand::random::<f64>()).unwrap() - F::from_f64(0.5).unwrap());
+                * (F::from_f64(scirs2_core::random::random::<f64>()).unwrap()
+                    - F::from_f64(0.5).unwrap());
             *repr = *repr + update;
         }
         Ok(())
@@ -1137,6 +1210,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> IntrospectionMechanism<F> {
         // Simple introspection update
         self.reflection_depth = self.reflection_depth * F::from_f64(1.01).unwrap();
         Ok(())
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for MetaConsciousness<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

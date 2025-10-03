@@ -1,12 +1,12 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array1, Array2, Ix1, Ix2};
+use scirs2_core::ndarray::{Array1, Array2, Ix1, Ix2};
 
 /// Solve linear system Ax = b
 pub struct LinearSolveOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for LinearSolveOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LinearSolveOp {
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let a = ctx.input(0);
         let b = ctx.input(1);
@@ -246,9 +246,9 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for LinearSolveOp {
 // Enhanced version of solve_transpose_system with better error handling
 #[allow(dead_code)]
 fn solve_transpose_system<F: Float>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
-) -> Result<ndarray::ArrayD<F>, OpError> {
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView1<F>,
+) -> Result<scirs2_core::ndarray::ArrayD<F>, OpError> {
     let at = a.t();
     solve_linear_system_1d(&at, b)
 }
@@ -256,9 +256,9 @@ fn solve_transpose_system<F: Float>(
 // Enhanced version of solve_transpose_system_2d with better error handling
 #[allow(dead_code)]
 fn solve_transpose_system_2d<F: Float>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView2<F>,
-) -> Result<ndarray::ArrayD<F>, OpError> {
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView2<F>,
+) -> Result<scirs2_core::ndarray::ArrayD<F>, OpError> {
     let at = a.t();
     solve_linear_system_2d(&at, b)
 }
@@ -484,9 +484,9 @@ impl<F: Float> Op<F> for LeastSquaresSolveOp {
 // Helper functions
 #[allow(dead_code)]
 fn solve_linear_system_1d<F: Float>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
-) -> Result<ndarray::ArrayD<F>, OpError> {
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView1<F>,
+) -> Result<scirs2_core::ndarray::ArrayD<F>, OpError> {
     let n = a.shape()[0];
     let mut aug = Array2::<F>::zeros((n, n + 1));
 
@@ -544,9 +544,9 @@ fn solve_linear_system_1d<F: Float>(
 
 #[allow(dead_code)]
 fn solve_linear_system_2d<F: Float>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayView2<F>,
-) -> Result<ndarray::ArrayD<F>, OpError> {
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayView2<F>,
+) -> Result<scirs2_core::ndarray::ArrayD<F>, OpError> {
     let n = a.shape()[0];
     let m = b.shape()[1];
     let mut x = Array2::<F>::zeros((n, m));
@@ -567,9 +567,9 @@ fn solve_linear_system_2d<F: Float>(
 
 #[allow(dead_code)]
 fn solve_symmetric_system<F: Float>(
-    a: &ndarray::ArrayView2<F>,
-    b: &ndarray::ArrayViewD<F>,
-) -> Result<ndarray::ArrayD<F>, OpError> {
+    a: &scirs2_core::ndarray::ArrayView2<F>,
+    b: &scirs2_core::ndarray::ArrayViewD<F>,
+) -> Result<scirs2_core::ndarray::ArrayD<F>, OpError> {
     // Cholesky decomposition for symmetric positive definite matrices
     let n = a.shape()[0];
     let mut l = Array2::<F>::zeros((n, n));
@@ -667,9 +667,9 @@ fn solve_symmetric_system<F: Float>(
 
 #[allow(dead_code)]
 fn compute_outer_product_gradient<F: Float>(
-    a: &ndarray::ArrayViewD<F>,
-    b: &ndarray::ArrayViewD<F>,
-) -> Result<ndarray::ArrayD<F>, OpError> {
+    a: &scirs2_core::ndarray::ArrayViewD<F>,
+    b: &scirs2_core::ndarray::ArrayViewD<F>,
+) -> Result<scirs2_core::ndarray::ArrayD<F>, OpError> {
     if a.ndim() == 1 && b.ndim() == 1 {
         let a_1d = match a.view().into_dimensionality::<Ix1>() {
             Ok(view) => view,
@@ -704,7 +704,7 @@ fn compute_outer_product_gradient<F: Float>(
         };
 
         Ok(a_2d
-            .dot(&b_1d.view().insert_axis(ndarray::Axis(0)))
+            .dot(&b_1d.view().insert_axis(scirs2_core::ndarray::Axis(0)))
             .into_dyn())
     } else if a.ndim() == 1 && b.ndim() == 2 {
         let a_1d = match a.view().into_dimensionality::<Ix1>() {
@@ -719,7 +719,7 @@ fn compute_outer_product_gradient<F: Float>(
 
         Ok(a_1d
             .view()
-            .insert_axis(ndarray::Axis(1))
+            .insert_axis(scirs2_core::ndarray::Axis(1))
             .dot(&b_2d)
             .into_dyn())
     } else {
@@ -739,7 +739,7 @@ fn compute_outer_product_gradient<F: Float>(
 
 // Public API functions
 #[allow(dead_code)]
-pub fn solve<'g, F: Float + ndarray::ScalarOperand>(
+pub fn solve<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     a: &Tensor<'g, F>,
     b: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
@@ -756,7 +756,7 @@ pub fn solve<'g, F: Float + ndarray::ScalarOperand>(
 }
 
 #[allow(dead_code)]
-pub fn lstsq<'g, F: Float + ndarray::ScalarOperand>(
+pub fn lstsq<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     a: &Tensor<'g, F>,
     b: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {

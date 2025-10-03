@@ -4,7 +4,7 @@
 //! including acid-base equilibria, complex formation, solubility equilibria,
 //! and activity coefficient models.
 
-use ndarray::arr1;
+use scirs2_core::ndarray::arr1;
 use scirs2_integrate::ode::chemical_equilibrium::{systems, ActivityModel, ThermoData};
 
 #[allow(dead_code)]

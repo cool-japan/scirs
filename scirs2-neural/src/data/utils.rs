@@ -1,10 +1,10 @@
 //! Utility functions for data processing
 
 use crate::error::Result;
-use ndarray::{Array, Axis, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::seq::SliceRandom;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array, Axis, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::SeedableRng;
 use std::fmt::Debug;
 /// Type alias for train-val split return type
 type SplitResult<F> = Result<(
@@ -62,10 +62,10 @@ pub fn train_val_split<F: Float + Debug + ScalarOperand>(
         Ok((x_train, y_train, x_val, y_val))
     } else {
         // Split data without shuffling
-        let x_train_2d = x.slice(ndarray::s![0..n_train, ..]).to_owned();
-        let y_train_2d = y.slice(ndarray::s![0..n_train, ..]).to_owned();
-        let x_val_2d = x.slice(ndarray::s![n_train.., ..]).to_owned();
-        let y_val_2d = y.slice(ndarray::s![n_train.., ..]).to_owned();
+        let x_train_2d = x.slice(scirs2_core::ndarray::s![0..n_train, ..]).to_owned();
+        let y_train_2d = y.slice(scirs2_core::ndarray::s![0..n_train, ..]).to_owned();
+        let x_val_2d = x.slice(scirs2_core::ndarray::s![n_train.., ..]).to_owned();
+        let y_val_2d = y.slice(scirs2_core::ndarray::s![n_train.., ..]).to_owned();
 }
 /// K-fold cross-validation indices generator
 pub struct KFold {
@@ -95,7 +95,7 @@ impl KFold {
         if self.shuffle {
             // Use separate branches for different RNG types
             if let Some(seed) = self.random_state {
-                let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
                 indices.shuffle(&mut rng);
             } else {
                 let mut rng = rng();

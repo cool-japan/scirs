@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use scirs2_metrics::classification::threshold::{
         average_precision_score, find_optimal_threshold, find_optimal_threshold_g_means,
         g_means_score, precision_recall_curve,
@@ -121,14 +121,16 @@ mod tests {
         let y_prob = array![0.1, 0.2, 0.3, 0.4, 0.6, 0.7, 0.8, 0.9];
 
         // Define a simple accuracy score function
-        let accuracy_func = |y_true: &ndarray::Array1<i32>, y_pred: &ndarray::Array1<i32>| {
-            let correct = y_true
-                .iter()
-                .zip(y_pred.iter())
-                .filter(|(&t, &p)| t == p)
-                .count();
-            correct as f64 / y_true.len() as f64
-        };
+        let accuracy_func =
+            |y_true: &scirs2_core::ndarray::Array1<i32>,
+             y_pred: &scirs2_core::ndarray::Array1<i32>| {
+                let correct = y_true
+                    .iter()
+                    .zip(y_pred.iter())
+                    .filter(|(&t, &p)| t == p)
+                    .count();
+                correct as f64 / y_true.len() as f64
+            };
 
         let (threshold, score) =
             find_optimal_threshold(&y_true, &y_prob, None, accuracy_func, None).unwrap();

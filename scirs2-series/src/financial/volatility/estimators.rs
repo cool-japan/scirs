@@ -46,7 +46,7 @@
 //! ## Basic Realized Volatility
 //! ```rust
 //! use scirs2_series::financial::volatility::estimators::realized_volatility;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012];
 //! let realized_vol = realized_volatility(&returns);
@@ -55,7 +55,7 @@
 //! ## Garman-Klass Estimator
 //! ```rust
 //! use scirs2_series::financial::volatility::estimators::garman_klass_volatility;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let high = array![102.0, 105.0, 103.5];
 //! let low = array![98.0, 101.0, 99.5];
@@ -68,15 +68,15 @@
 //! ## EWMA Volatility
 //! ```rust
 //! use scirs2_series::financial::volatility::estimators::ewma_volatility;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012];
 //! let lambda = 0.94; // RiskMetrics standard
 //! let ewma_vol = ewma_volatility(&returns, lambda).unwrap();
 //! ```
 
-use ndarray::{s, Array1};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::Float;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -101,7 +101,7 @@ use crate::error::{Result, TimeSeriesError};
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::realized_volatility;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![0.01, -0.02, 0.015, -0.008, 0.012];
 /// let rv = realized_volatility(&returns);
@@ -134,7 +134,7 @@ pub fn realized_volatility<F: Float>(returns: &Array1<F>) -> F {
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::garman_klass_volatility;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![102.0, 105.0, 103.5];
 /// let low = array![98.0, 101.0, 99.5];
@@ -191,7 +191,7 @@ pub fn garman_klass_volatility<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::parkinson_volatility;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![102.0, 105.0, 103.5];
 /// let low = array![98.0, 101.0, 99.5];
@@ -243,7 +243,7 @@ pub fn parkinson_volatility<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::rogers_satchell_volatility;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![102.0, 105.0, 103.5];
 /// let low = array![98.0, 101.0, 99.5];
@@ -303,7 +303,7 @@ pub fn rogers_satchell_volatility<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::yang_zhang_volatility;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![102.0, 105.0, 103.5, 106.0];
 /// let low = array![98.0, 101.0, 99.5, 102.0];
@@ -377,7 +377,7 @@ pub fn yang_zhang_volatility<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::garch_volatility_estimate;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.003, 0.007];
 /// let garch_vol = garch_volatility_estimate(&returns, 5).unwrap();
@@ -442,7 +442,7 @@ pub fn garch_volatility_estimate<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::ewma_volatility;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![0.01, -0.02, 0.015, -0.008, 0.012];
 /// let lambda = 0.94; // RiskMetrics standard
@@ -499,7 +499,7 @@ pub fn ewma_volatility<F: Float + Clone>(returns: &Array1<F>, lambda: F) -> Resu
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::range_volatility;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![102.0, 105.0, 103.5, 106.0, 104.5];
 /// let low = array![98.0, 101.0, 99.5, 102.0, 101.0];
@@ -560,7 +560,7 @@ pub fn range_volatility<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::volatility::estimators::intraday_volatility;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let prices = array![100.0, 100.1, 99.9, 100.05, 99.95, 100.2];
 /// let sampling_freq = 2; // Every 2 observations
@@ -599,7 +599,7 @@ pub fn intraday_volatility<F: Float + Clone>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_realized_volatility() {

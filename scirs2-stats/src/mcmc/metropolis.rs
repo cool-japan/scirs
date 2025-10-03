@@ -1,8 +1,8 @@
 //! Metropolis-Hastings algorithm for MCMC sampling
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2};
-use rand_distr::{Distribution, Uniform};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::{Distribution, Uniform};
 use scirs2_core::validation::*;
 use scirs2_linalg::{det, inv};
 use std::fmt::Debug;
@@ -19,7 +19,11 @@ pub trait TargetDistribution: Send + Sync {
 /// Proposal distribution trait for Metropolis-Hastings
 pub trait ProposalDistribution: Send + Sync {
     /// Sample a new proposal given the current state
-    fn sample<R: rand::Rng + ?Sized>(&self, current: &Array1<f64>, rng: &mut R) -> Array1<f64>;
+    fn sample<R: scirs2_core::random::Rng + ?Sized>(
+        &self,
+        current: &Array1<f64>,
+        rng: &mut R,
+    ) -> Array1<f64>;
 
     /// Compute the log density ratio q(x|y) / q(y|x) for asymmetric proposals
     fn log_ratio(from: &Array1<f64>, to: &Array1<f64>) -> f64 {
@@ -43,8 +47,12 @@ impl RandomWalkProposal {
 }
 
 impl ProposalDistribution for RandomWalkProposal {
-    fn sample<R: rand::Rng + ?Sized>(&self, current: &Array1<f64>, rng: &mut R) -> Array1<f64> {
-        use rand_distr::Normal;
+    fn sample<R: scirs2_core::random::Rng + ?Sized>(
+        &self,
+        current: &Array1<f64>,
+        rng: &mut R,
+    ) -> Array1<f64> {
+        use scirs2_core::random::Normal;
         let normal = Normal::new(0.0, self.stepsize).unwrap();
         current + Array1::from_shape_fn(current.len(), |_| normal.sample(rng))
     }
@@ -91,7 +99,7 @@ impl<T: TargetDistribution, P: ProposalDistribution> MetropolisHastings<T, P> {
     }
 
     /// Perform one step of the Metropolis-Hastings algorithm
-    pub fn step<R: rand::Rng + ?Sized>(&mut self, rng: &mut R) -> Array1<f64> {
+    pub fn step<R: scirs2_core::random::Rng + ?Sized>(&mut self, rng: &mut R) -> Array1<f64> {
         // Propose new state
         let proposed = self.proposal.sample(&self.current, rng);
         let proposed_log_density = self.target.log_density(&proposed);
@@ -113,7 +121,11 @@ impl<T: TargetDistribution, P: ProposalDistribution> MetropolisHastings<T, P> {
     }
 
     /// Sample multiple states from the distribution
-    pub fn sample<R: rand::Rng + ?Sized>(&mut self, nsamples_: usize, rng: &mut R) -> Array2<f64> {
+    pub fn sample<R: scirs2_core::random::Rng + ?Sized>(
+        &mut self,
+        nsamples_: usize,
+        rng: &mut R,
+    ) -> Array2<f64> {
         let dim = self.current.len();
         let mut samples = Array2::zeros((nsamples_, dim));
 
@@ -126,7 +138,7 @@ impl<T: TargetDistribution, P: ProposalDistribution> MetropolisHastings<T, P> {
     }
 
     /// Sample with thinning to reduce autocorrelation
-    pub fn sample_thinned<R: rand::Rng + ?Sized>(
+    pub fn sample_thinned<R: scirs2_core::random::Rng + ?Sized>(
         &mut self,
         n_samples_: usize,
         thin: usize,
@@ -202,11 +214,11 @@ impl<T: TargetDistribution> AdaptiveMetropolisHastings<T> {
     }
 
     /// Perform one adaptive step
-    pub fn step<R: rand::Rng + ?Sized>(&mut self, rng: &mut R) -> Array1<f64> {
+    pub fn step<R: scirs2_core::random::Rng + ?Sized>(&mut self, rng: &mut R) -> Array1<f64> {
         let sample = self.sampler.step(rng);
 
         // Adapt step size based on acceptance rate
-        if self.sampler.n_proposed % 100 == 0 && self.sampler.n_proposed > 0 {
+        if self.sampler.n_proposed.is_multiple_of(100) && self.sampler.n_proposed > 0 {
             let current_rate = self.sampler.acceptance_rate();
             let adjustment = 1.0 + self.adaptation_rate * (current_rate - self.target_rate);
 
@@ -221,7 +233,11 @@ impl<T: TargetDistribution> AdaptiveMetropolisHastings<T> {
     }
 
     /// Run adaptation phase
-    pub fn adapt<R: rand::Rng + ?Sized>(&mut self, nsteps: usize, rng: &mut R) -> Result<()> {
+    pub fn adapt<R: scirs2_core::random::Rng + ?Sized>(
+        &mut self,
+        nsteps: usize,
+        rng: &mut R,
+    ) -> Result<()> {
         check_positive(nsteps, "n_steps")?;
 
         for _ in 0..nsteps {

@@ -4,8 +4,8 @@
 //! operations, targeting maximum performance for large datasets.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use statrs::statistics::Statistics;
 
@@ -23,7 +23,7 @@ where
         + One
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     checkarray_finite(data, "data")?;
 
@@ -151,7 +151,7 @@ where
         + One
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     checkarray_finite(data, "data")?;
     check_positive(windowsize, "windowsize")?;
@@ -172,7 +172,7 @@ where
 
     // Process each window
     for i in 0..n_windows {
-        let window = data.slice(ndarray::s![i..i + windowsize]);
+        let window = data.slice(scirs2_core::ndarray::s![i..i + windowsize]);
 
         // Use SIMD for window statistics if window is large enough
         if windowsize > 16 {
@@ -244,7 +244,7 @@ where
         + One
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     checkarray_finite(data, "data")?;
 
@@ -335,7 +335,7 @@ where
     }
 
     for &q in quantiles {
-        if q < 0.0 || q > 1.0 {
+        if !(0.0..=1.0).contains(&q) {
             return Err(StatsError::InvalidArgument(
                 "Quantiles must be between 0 and 1".to_string(),
             ));
@@ -388,7 +388,7 @@ where
         + One
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     checkarray_finite(data, "data")?;
 
@@ -439,7 +439,7 @@ where
         + Zero
         + One
         + std::fmt::Display
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     checkarray_finite(data, "data")?;
 
@@ -547,7 +547,7 @@ where
         + PartialOrd
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     let stats = comprehensive_stats_simd(data)?;
 

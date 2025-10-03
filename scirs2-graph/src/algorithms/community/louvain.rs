@@ -42,7 +42,7 @@ use std::hash::Hash;
 pub fn louvain_communities_result<N, E, Ix>(graph: &Graph<N, E, Ix>) -> CommunityResult<N>
 where
     N: Node + Clone + Hash + Eq + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + num_traits::Zero + Copy,
+    E: EdgeWeight + Into<f64> + scirs2_core::numeric::Zero + Copy,
     Ix: petgraph::graph::IndexType,
 {
     let structure = louvain_communities_legacy(graph);
@@ -61,7 +61,7 @@ where
 pub fn louvain_communities<N, E, Ix>(graph: &Graph<N, E, Ix>) -> CommunityStructure<N>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + num_traits::Zero + Copy,
+    E: EdgeWeight + Into<f64> + scirs2_core::numeric::Zero + Copy,
     Ix: petgraph::graph::IndexType,
 {
     louvain_communities_legacy(graph)
@@ -72,7 +72,7 @@ where
 fn louvain_communities_legacy<N, E, Ix>(graph: &Graph<N, E, Ix>) -> CommunityStructure<N>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + num_traits::Zero + Copy,
+    E: EdgeWeight + Into<f64> + scirs2_core::numeric::Zero + Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();

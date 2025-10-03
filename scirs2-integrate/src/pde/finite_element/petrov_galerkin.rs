@@ -19,7 +19,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::pde::{BoundaryCondition, PDEResult, PDESolution, PDESolverInfo};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::HashMap;
 
 /// Petrov-Galerkin formulation types

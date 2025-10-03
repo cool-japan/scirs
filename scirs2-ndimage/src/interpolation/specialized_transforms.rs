@@ -4,8 +4,8 @@
 //! affine transforms, including perspective transforms, non-rigid deformations,
 //! and multi-resolution approaches.
 
-use ndarray::Array2;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops;
 use std::fmt::Debug;
 
@@ -34,7 +34,7 @@ use crate::error::{NdimageError, NdimageResult};
 /// # Example
 ///
 /// ```ignore
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::interpolation::specialized_transforms::perspective_transform;
 ///
 /// // Create a perspective transformation matrix
@@ -531,7 +531,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_perspective_transform_identity() {

@@ -2,8 +2,8 @@
 
 use ag::tensor_ops::*;
 use approx::assert_relative_eq;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 #[test]
 #[ignore = "Gradient shape propagation architectural limitation - see issue #1"]

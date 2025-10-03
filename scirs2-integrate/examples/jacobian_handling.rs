@@ -8,7 +8,7 @@
 //! - Sparse Jacobian optimizations
 //! - Parallel Jacobian computation
 
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_integrate::ode::utils::jacobian::JacobianStrategy;
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 use std::time::Instant;

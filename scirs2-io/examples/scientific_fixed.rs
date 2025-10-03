@@ -1,4 +1,4 @@
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_io::csv::{read_csv, write_csv, CsvReaderConfig, CsvWriterConfig};
 use std::collections::HashMap;
 use std::env;
@@ -269,7 +269,7 @@ fn convert_units_and_create_derived_data(output_dir: &str) -> Result<(), Box<dyn
     }
 
     // Process each material group to sort by time
-    for (_material, indices) in &mut material_groups {
+    for indices in material_groups.values_mut() {
         indices.sort_by(|&a, &b| {
             let time_a = data[[a, 0]].parse::<f64>().unwrap_or(0.0);
             let time_b = data[[b, 0]].parse::<f64>().unwrap_or(0.0);

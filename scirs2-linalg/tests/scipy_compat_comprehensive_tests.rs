@@ -4,7 +4,7 @@
 //! produce results that match SciPy's behavior for a wide range of inputs and
 //! edge cases.
 
-use ndarray::{array, Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{array, Array1, Array2, ArrayView2};
 use scirs2_linalg::compat;
 // use scirs2_linalg::error::{LinalgError, LinalgResult};
 

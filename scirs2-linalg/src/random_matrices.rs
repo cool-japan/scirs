@@ -3,11 +3,11 @@
 //! This module provides functions for generating various types of random matrices
 //! commonly used in scientific computing, testing, and simulations.
 
-use ndarray::{Array1, Array2};
-use num_complex::Complex;
-use num_traits::{Float, NumAssign};
-use rand::Rng;
-use rand_distr::{Distribution, Normal, Uniform};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, NumAssign};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{Distribution, Normal, Uniform};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -64,7 +64,14 @@ pub fn randommatrix<F, R>(
     rng: &mut R,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + Debug + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Debug
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
     R: Rng + ?Sized,
 {
     match matrix_type {
@@ -164,7 +171,14 @@ fn random_positive_definite<F, R>(
     rng: &mut R,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + Debug + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Debug
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
     R: Rng + ?Sized,
 {
     if eigenvalue_min <= 0.0 {
@@ -204,7 +218,14 @@ where
 #[allow(dead_code)]
 fn random_orthogonal<F, R>(size: usize, rng: &mut R) -> LinalgResult<Array2<F>>
 where
-    F: Float + Debug + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Debug
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
     R: Rng + ?Sized,
 {
     // Generate random matrix with normal distribution
@@ -222,7 +243,14 @@ where
 #[allow(dead_code)]
 fn random_correlation<F, R>(size: usize, rng: &mut R) -> LinalgResult<Array2<F>>
 where
-    F: Float + Debug + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Debug
+        + NumAssign
+        + Sum
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
     R: Rng + ?Sized,
 {
     // Start with a positive definite matrix
@@ -427,8 +455,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use rand::SeedableRng;
-    use rand_chacha::ChaCha8Rng;
+    use scirs2_core::random::{ChaCha8Rng, SeedableRng};
 
     #[test]
     fn test_symmetricmatrix() {

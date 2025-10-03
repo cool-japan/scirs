@@ -7,10 +7,10 @@ use crate::error::Result;
 use crate::reinforcement::policy::PolicyNetwork;
 use crate::reinforcement::value::ValueNetwork;
 use crate::reinforcement::{ExperienceBatch, LossInfo, RLAgent};
-use ndarray::prelude::*;
-use num_traits::Float;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use statrs::statistics::Statistics;
 /// Natural Policy Gradients (NPG) implementation
 pub struct NaturalPolicyGradient {
@@ -492,7 +492,7 @@ impl RLAgent for MAMLAgent {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     #[test]
     fn test_natural_policy_gradient() {
         let config = NPGConfig::default();

@@ -5,8 +5,8 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::error_standardization::ErrorMessages;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumCast, Signed};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast, Signed};
 use scirs2_core::simd_ops::{AutoOptimizer, SimdUnifiedOps};
 
 /// Compute the arithmetic mean of a data set.
@@ -22,7 +22,7 @@ use scirs2_core::simd_ops::{AutoOptimizer, SimdUnifiedOps};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::mean;
 ///
 /// let data = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
@@ -45,7 +45,7 @@ where
     // Auto-select SIMD vs scalar based on data size and platform capabilities
     let sum = if optimizer.should_use_simd(n) {
         // Use SIMD operations for better performance on large arrays
-        F::simd_sum(&x)
+        F::simd_sum(x)
     } else {
         // Fallback to scalar sum for small arrays or unsupported platforms
         x.iter().cloned().sum::<F>()
@@ -69,7 +69,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::weighted_mean;
 ///
 /// let data = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
@@ -136,7 +136,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::median;
 ///
 /// let data = array![1.0f64, 3.0, 5.0, 2.0, 4.0];
@@ -166,7 +166,7 @@ where
     let len = sorted.len();
     let half = len / 2;
 
-    if len % 2 == 0 {
+    if len.is_multiple_of(2) {
         // Even length: average the two middle values
         let mid1 = sorted[half - 1];
         let mid2 = sorted[half];
@@ -192,7 +192,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::var;
 ///
 /// let data = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
@@ -258,7 +258,7 @@ where
     } else if optimizer.should_use_simd(n) {
         // Use SIMD operations for variance calculation on large arrays
         let mean_array = Array1::from_elem(x.len(), mean_val);
-        let deviations = F::simd_sub(&x, &mean_array.view());
+        let deviations = F::simd_sub(x, &mean_array.view());
         let squared_deviations = F::simd_mul(&deviations.view(), &deviations.view());
         F::simd_sum(&squared_deviations.view())
     } else {
@@ -292,7 +292,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::std;
 ///
 /// let data = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
@@ -336,7 +336,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::skew;
 ///
 /// let data = array![2.0f64, 8.0, 0.0, 4.0, 1.0, 9.0, 9.0, 0.0];
@@ -454,7 +454,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::kurtosis;
 ///
 /// let data = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
@@ -623,7 +623,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::moment;
 ///
 /// let data = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
@@ -827,7 +827,7 @@ mod tests {
     use super::*;
     use crate::test_utils;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mean() {

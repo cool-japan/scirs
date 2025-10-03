@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::optimizers::Optimizer;
-use ndarray::{Array, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// AdamW optimizer for neural networks
 ///
@@ -15,7 +15,7 @@ use std::fmt::Debug;
 /// rather than to the gradients.
 /// # Examples
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_neural::optimizers::{AdamW, Optimizer};
 /// // Create a simple AdamW optimizer with default parameters
 /// let mut adamw = AdamW::<f64>::default_with_lr(0.001).unwrap();
@@ -34,9 +34,9 @@ pub struct AdamW<F: Float + ScalarOperand + Debug> {
     /// Weight decay factor (decoupled from gradient updates)
     weight_decay: F,
     /// First moment estimate for each parameter array
-    m: Vec<Array<F, ndarray::IxDyn>>,
+    m: Vec<Array<F, scirs2_core::ndarray::IxDyn>>,
     /// Second moment estimate for each parameter array
-    v: Vec<Array<F, ndarray::IxDyn>>,
+    v: Vec<Array<F, scirs2_core::ndarray::IxDyn>>,
     /// Current timestep
     t: usize,
 }
@@ -109,8 +109,8 @@ impl<F: Float + ScalarOperand + Debug> AdamW<F> {
 impl<F: Float + ScalarOperand + Debug> Optimizer<F> for AdamW<F> {
     fn update(
         &mut self,
-        params: &mut [Array<F, ndarray::IxDyn>],
-        grads: &[Array<F, ndarray::IxDyn>],
+        params: &mut [Array<F, scirs2_core::ndarray::IxDyn>],
+        grads: &[Array<F, scirs2_core::ndarray::IxDyn>],
     ) -> Result<()> {
         if params.len() != grads.len() {
             return Err(NeuralError::TrainingError(format!(

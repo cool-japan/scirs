@@ -5,8 +5,8 @@
 //! multiple CPU cores, which is particularly useful for large datasets or
 //! when making predictions at many query points.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -31,7 +31,7 @@ use crate::spatial::kdtree::KdTree;
 /// ```
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::parallel::{ParallelLocalPolynomialRegression, ParallelConfig};
 /// use scirs2_interpolate::local::polynomial::LocalPolynomialConfig;
 /// use scirs2_interpolate::local::mls::{WeightFunction, PolynomialBasis};
@@ -45,7 +45,7 @@ use crate::spatial::kdtree::KdTree;
 /// }
 ///
 /// // Create 2D points array from 1D data
-/// let points = x.clone().insert_axis(ndarray::Axis(1));
+/// let points = x.clone().insert_axis(scirs2_core::ndarray::Axis(1));
 ///
 /// // Configure LOESS model
 /// let config = LocalPolynomialConfig {
@@ -64,7 +64,7 @@ use crate::spatial::kdtree::KdTree;
 ///
 /// // Create test points
 /// let test_x = Array1::<f64>::linspace(0.0, 10.0, 50);
-/// let testpoints = test_x.clone().insert_axis(ndarray::Axis(1));
+/// let testpoints = test_x.clone().insert_axis(scirs2_core::ndarray::Axis(1));
 ///
 /// // Parallel evaluation
 /// let parallel_config = ParallelConfig::new();
@@ -257,7 +257,7 @@ where
                 let mut chunk_results = Vec::with_capacity(chunk.shape()[0]);
 
                 for i in 0..chunk.shape()[0] {
-                    let query = chunk.slice(ndarray::s![i, ..]);
+                    let query = chunk.slice(scirs2_core::ndarray::s![i, ..]);
 
                     // Find nearest neighbors using KD-tree
                     let neighbors =
@@ -288,8 +288,8 @@ where
 
                     for (j, &(idx, dist)) in neighbors.iter().enumerate() {
                         localpoints
-                            .slice_mut(ndarray::s![j, ..])
-                            .assign(&points_ref.slice(ndarray::s![idx, ..]));
+                            .slice_mut(scirs2_core::ndarray::s![j, ..])
+                            .assign(&points_ref.slice(scirs2_core::ndarray::s![idx, ..]));
                         local_values[j] = values_ref[idx];
 
                         // Compute weight
@@ -589,7 +589,7 @@ mod tests {
 
         for (i, &x_val) in x.iter().enumerate() {
             // y = sin(x) with some noise
-            y[i] = x_val.sin() + 0.1 * (rand::random::<f64>() - 0.5);
+            y[i] = x_val.sin() + 0.1 * (scirs2_core::random::random::<f64>() - 0.5);
         }
 
         // Convert to 2D points
@@ -641,7 +641,7 @@ mod tests {
 
         for (i, &x_val) in x.iter().enumerate() {
             // y = x^2 with some noise
-            y[i] = x_val.powi(2) + (rand::random::<f64>() - 0.5) * 5.0;
+            y[i] = x_val.powi(2) + (scirs2_core::random::random::<f64>() - 0.5) * 5.0;
         }
 
         let points = x.clone().insert_axis(Axis(1));

@@ -7,7 +7,7 @@
 use super::expression::{simplify, SymbolicExpression, Variable};
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array2, ArrayView1};
+use scirs2_core::ndarray::{Array2, ArrayView1};
 use std::collections::HashMap;
 
 // Helper functions for creating symbolic expressions
@@ -317,7 +317,7 @@ mod tests {
         SymbolicExpression::{Neg, Var},
         Variable,
     };
-    use ndarray::ArrayView1;
+    use scirs2_core::ndarray::ArrayView1;
     use std::collections::HashMap;
 
     #[test]

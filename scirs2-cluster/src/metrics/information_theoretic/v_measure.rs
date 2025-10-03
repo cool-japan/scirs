@@ -4,8 +4,8 @@
 //! completeness) for evaluating clustering quality. These metrics are based on
 //! information theory and measure different aspects of clustering performance.
 
-use ndarray::ArrayView1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -25,7 +25,7 @@ use crate::error::{ClusteringError, Result};
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::v_measure_score;
 ///
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
@@ -64,7 +64,7 @@ where
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::homogeneity_score;
 ///
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1]);
@@ -107,7 +107,7 @@ where
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::completeness_score;
 ///
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1]);
@@ -300,7 +300,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_v_measure_perfect() {

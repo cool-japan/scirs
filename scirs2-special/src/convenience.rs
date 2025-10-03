@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::{bessel, erf, orthogonal, spherical_harmonics, statistical, SpecialResult};
-use ndarray::{Array1, Array2, ArrayView1};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 /// Physics-related convenience functions
@@ -595,7 +595,7 @@ pub mod finance {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_particle_in_box() {

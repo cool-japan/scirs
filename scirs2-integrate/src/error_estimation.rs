@@ -6,7 +6,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::VecDeque;
 
 /// Advanced error estimator using multiple techniques

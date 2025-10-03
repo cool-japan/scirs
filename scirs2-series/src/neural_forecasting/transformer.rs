@@ -3,8 +3,8 @@
 //! This module provides Transformer-based architectures including multi-head attention,
 //! feed-forward networks, and complete transformer blocks for time series forecasting.
 
-use ndarray::{Array1, Array2, Array3};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::ActivationFunction;
@@ -39,7 +39,7 @@ pub struct MultiHeadAttention<F: Float + Debug> {
 impl<F: Float + Debug + Clone + FromPrimitive> MultiHeadAttention<F> {
     /// Create new multi-head attention layer
     pub fn new(_model_dim: usize, numheads: usize) -> Result<Self> {
-        if _model_dim % numheads != 0 {
+        if !_model_dim.is_multiple_of(numheads) {
             return Err(TimeSeriesError::InvalidInput(
                 "Model dimension must be divisible by number of heads".to_string(),
             ));

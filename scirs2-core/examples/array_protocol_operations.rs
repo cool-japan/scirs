@@ -95,7 +95,7 @@ fn main() {
             // When reshaping to 1D, we need to use Ix1
             if let Some(result_array) = result
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix1>>()
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix1>>()
             {
                 println!("reshape(A, [9]) = {:?}", result_array.as_array());
             } else {

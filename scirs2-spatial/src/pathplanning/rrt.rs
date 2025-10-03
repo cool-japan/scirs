@@ -104,7 +104,7 @@ impl Clone for RRTPlanner {
         Self {
             config: self.config.clone(),
             collision_checker: None, // We can't clone the collision checker function
-            rng: StdRng::seed_from_u64(rand::random()), // Create a new random number generator
+            rng: StdRng::seed_from_u64(scirs2_core::random::random()), // Create a new random number generator
             dimension: self.dimension,
             bounds: self.bounds.clone(),
         }
@@ -114,7 +114,7 @@ impl Clone for RRTPlanner {
 impl RRTPlanner {
     /// Create a new RRT planner with the given configuration
     pub fn new(config: RRTConfig, dimension: usize) -> Self {
-        let seed = config.seed.unwrap_or_else(rand::random);
+        let seed = config.seed.unwrap_or_else(scirs2_core::random::random);
         let rng = StdRng::seed_from_u64(seed);
 
         RRTPlanner {

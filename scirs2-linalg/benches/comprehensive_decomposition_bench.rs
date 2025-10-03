@@ -376,7 +376,7 @@ fn bench_polar_decomposition(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("polar_unitary", size), &matrix, |b, m| {
             b.iter(|| {
                 // polar_unitary not available, use polar_decomposition and extract unitary part
-                let (u_) = advanced_polar_decomposition(black_box(&m.view()), true).unwrap();
+                let u_ = advanced_polar_decomposition(black_box(&m.view()), true).unwrap();
                 u_
             })
         });

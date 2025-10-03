@@ -28,7 +28,7 @@
 //!
 //! ```rust,ignore
 //! use crate::advanced_fusion_algorithms::quantum_consciousness::*;
-//! use ndarray::{Array2, Array5};
+//! use scirs2_core::ndarray::{Array2, Array5};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! # let features = Array5::zeros((1, 3, 10, 64, 64));
@@ -55,9 +55,9 @@
 //! # }
 //! ```
 
-use ndarray::{s, Array1, Array2, Array3, Array4, Array5, ArrayView1, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, Array5, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 use std::sync::{Arc, RwLock};

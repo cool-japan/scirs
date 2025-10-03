@@ -2,7 +2,7 @@
 
 use crate::error::{IoError, Result};
 use crate::ml_framework::{MLModel, MLTensor, ModelMetadata, TensorMetadata};
-use ndarray::{ArrayD, IxDyn};
+use scirs2_core::ndarray::{ArrayD, IxDyn};
 use std::collections::HashMap;
 
 /// Quantization methods

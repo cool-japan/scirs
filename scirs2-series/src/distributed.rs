@@ -3,8 +3,8 @@
 //! This module provides infrastructure for distributing time series computations
 //! across multiple nodes, supporting both synchronous and asynchronous processing.
 
-use ndarray::{Array1, Array2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
@@ -232,7 +232,12 @@ pub enum NodeStatus {
 
 /// Distributed time series processor
 pub struct DistributedProcessor<
-    F: Float + Debug + Clone + num_traits::FromPrimitive + num_traits::Zero + ndarray::ScalarOperand,
+    F: Float
+        + Debug
+        + Clone
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::Zero
+        + scirs2_core::ndarray::ScalarOperand,
 > {
     /// Cluster configuration
     config: ClusterConfig,
@@ -265,9 +270,9 @@ impl<
         F: Float
             + Debug
             + Clone
-            + num_traits::FromPrimitive
-            + num_traits::Zero
-            + ndarray::ScalarOperand,
+            + scirs2_core::numeric::FromPrimitive
+            + scirs2_core::numeric::Zero
+            + scirs2_core::ndarray::ScalarOperand,
     > DistributedProcessor<F>
 {
     /// Create a new distributed processor
@@ -390,7 +395,7 @@ impl<
 
         while start + window_size <= data.len() {
             let end = (start + window_size).min(data.len());
-            let window = data.slice(ndarray::s![start..end]).to_owned();
+            let window = data.slice(scirs2_core::ndarray::s![start..end]).to_owned();
 
             let mut params = HashMap::new();
             params.insert("window_index".to_string(), i as f64);
@@ -636,7 +641,7 @@ impl<
             let start = i.saturating_sub(window_size / 2);
             let end = (i + window_size / 2 + 1).min(data.len());
 
-            let window_sum = data.slice(ndarray::s![start..end]).sum();
+            let window_sum = data.slice(scirs2_core::ndarray::s![start..end]).sum();
             let window_len = F::from(end - start).unwrap();
             trend[i] = window_sum / window_len;
         }
@@ -823,7 +828,12 @@ pub struct ClusterStatus {
 /// Convenience functions for common distributed operations
 #[allow(dead_code)]
 pub fn distributed_moving_average<
-    F: Float + Debug + Clone + num_traits::FromPrimitive + num_traits::Zero + ndarray::ScalarOperand,
+    F: Float
+        + Debug
+        + Clone
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::Zero
+        + scirs2_core::ndarray::ScalarOperand,
 >(
     processor: &mut DistributedProcessor<F>,
     data: &Array1<F>,

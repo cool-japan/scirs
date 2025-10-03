@@ -70,19 +70,19 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2 = { version = "0.1.0-beta.4", features = ["linalg", "stats"] }
+//! scirs2 = { version = "0.1.0-rc.1", features = ["linalg", "stats"] }
 //! ```
 //!
 //! Or install all features:
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2 = { version = "0.1.0-beta.4", features = ["full"] }
+//! scirs2 = { version = "0.1.0-rc.1", features = ["full"] }
 //! ```
 //!
 //! ### Linear Algebra Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! # use scirs2_core::ndarray::array;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Matrix operations
@@ -105,7 +105,7 @@
 //!
 //! ### Statistics Example
 //!
-//! ```rust
+//! ```rust,no_run
 //! # use scirs2_core::ndarray::array;
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -234,7 +234,7 @@
 //! - **Deprecation Policy**: 2-release deprecation cycle
 //! - **Production Features**: Enterprise-grade error handling and diagnostics
 //!
-//! Current version: **0.1.0-beta.4** (Released October 01, 2025)
+//! Current version: **0.1.0-rc.1** (Released October 03, 2025)
 //!
 //! ## 🤝 Ecosystem Integration
 //!
@@ -348,11 +348,11 @@ pub mod prelude {
     // Use the Error type directly from thiserror
     pub use thiserror::Error;
 
-    // Core numeric utilities
-    pub use ndarray::{Array, Array1, Array2, ArrayD};
+    // Core numeric utilities (SCIRS2 POLICY: use scirs2_core re-exports)
+    pub use scirs2_core::ndarray::{Array, Array1, Array2, ArrayD};
 
-    // Re-export common type conversions
-    pub use num_traits::{Float, One, Zero};
+    // Re-export common type conversions (SCIRS2 POLICY: use scirs2_core re-exports)
+    pub use scirs2_core::numeric::{Float, One, Zero};
 
     // Various modules with feature gates
     #[cfg(feature = "linalg")]

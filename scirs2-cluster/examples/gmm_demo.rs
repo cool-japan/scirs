@@ -1,6 +1,6 @@
-use ndarray::Array2;
 use scirs2_cluster::gmm::{gaussian_mixture, CovarianceType, GMMInit, GMMOptions};
 use scirs2_cluster::metrics::silhouette_score;
+use scirs2_core::ndarray::Array2;
 
 #[allow(dead_code)]
 fn main() {
@@ -140,24 +140,24 @@ fn generate_gaussian_mixture_data() -> Array2<f64> {
 
     // Component 1: centered at (0, 0) with small variance
     for _ in 0..50 {
-        let x = rand::random::<f64>() * 1.0 - 0.5;
-        let y = rand::random::<f64>() * 1.0 - 0.5;
+        let x = scirs2_core::random::random::<f64>() * 1.0 - 0.5;
+        let y = scirs2_core::random::random::<f64>() * 1.0 - 0.5;
         data.push(x);
         data.push(y);
     }
 
     // Component 2: centered at (4, 4) with medium variance
     for _ in 0..40 {
-        let x = 4.0 + (rand::random::<f64>() * 2.0 - 1.0);
-        let y = 4.0 + (rand::random::<f64>() * 2.0 - 1.0);
+        let x = 4.0 + (scirs2_core::random::random::<f64>() * 2.0 - 1.0);
+        let y = 4.0 + (scirs2_core::random::random::<f64>() * 2.0 - 1.0);
         data.push(x);
         data.push(y);
     }
 
     // Component 3: centered at (0, 4) with larger variance
     for _ in 0..30 {
-        let x = 0.0 + (rand::random::<f64>() * 3.0 - 1.5);
-        let y = 4.0 + (rand::random::<f64>() * 3.0 - 1.5);
+        let x = 0.0 + (scirs2_core::random::random::<f64>() * 3.0 - 1.5);
+        let y = 4.0 + (scirs2_core::random::random::<f64>() * 3.0 - 1.5);
         data.push(x);
         data.push(y);
     }

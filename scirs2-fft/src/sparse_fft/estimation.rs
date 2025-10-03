@@ -6,7 +6,7 @@
 use crate::error::FFTResult;
 use crate::fft::fft;
 // Complex64 is used through the FFT functions
-use num_traits::NumCast;
+use scirs2_core::numeric::NumCast;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 

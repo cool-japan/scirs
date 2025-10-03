@@ -7,8 +7,8 @@ use crate::distributions;
 use crate::error::{StatsError, StatsResult};
 use crate::tests::ttest::{Alternative, TTestResult};
 use crate::{mean, std};
-use ndarray::ArrayView1;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, NumCast};
 
 // Export submodules
 pub mod anova;
@@ -50,7 +50,7 @@ pub use ttest::{
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::ttest::{ttest_1samp, Alternative};
 ///
 /// let data = array![5.1, 4.9, 6.2, 5.7, 5.5, 5.1, 5.2, 5.0];
@@ -104,7 +104,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::ttest::{ttest_ind, Alternative};
 ///
 /// let group1 = array![5.1, 4.9, 6.2, 5.7, 5.5];
@@ -229,7 +229,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::ttest::{ttest_rel, Alternative};
 ///
 /// // Data from paired measurements (e.g., before and after treatment)
@@ -285,7 +285,7 @@ where
     }
 
     // Convert the differences to an array view
-    let diff_array = ndarray::Array1::from(differences);
+    let diff_array = scirs2_core::ndarray::Array1::from(differences);
 
     // Perform a one-sample t-test on the differences
     // (testing if the mean difference is different from 0)
@@ -311,7 +311,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::{kstest, distributions};
 ///
 /// // Test if data follows a normal distribution
@@ -421,7 +421,7 @@ fn calculate_ks_p_value<F: Float + NumCast>(_ksstat: F, n: F) -> F {
                     - F::from(2.0 / 14175.0).unwrap() * z5
                     + F::from(2.0 / 467775.0).unwrap() * z6);
 
-        return p.max(F::zero());
+        p.max(F::zero())
     } else {
         // For large z, use the exponential approximation
         let z2 = z * z;
@@ -431,7 +431,7 @@ fn calculate_ks_p_value<F: Float + NumCast>(_ksstat: F, n: F) -> F {
         // Ensure the p-value is in the valid range [0, 1]
         p = p.min(F::one()).max(F::zero());
 
-        return p;
+        p
     }
 }
 
@@ -448,7 +448,7 @@ fn calculate_ks_p_value<F: Float + NumCast>(_ksstat: F, n: F) -> F {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::shapiro;
 ///
 /// // Test if data follows a normal distribution

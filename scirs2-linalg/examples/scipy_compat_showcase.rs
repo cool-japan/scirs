@@ -4,7 +4,7 @@
 //! coverage provided by scirs2-linalg. It shows how to use common SciPy
 //! functions with the same interface and parameter names.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::compat;
 use scirs2_linalg::error::LinalgResult;
 
@@ -236,7 +236,7 @@ fn main() -> LinalgResult<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_scipy_compat_basic_ops() {

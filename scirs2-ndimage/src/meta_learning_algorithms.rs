@@ -15,8 +15,8 @@
 //! - **Multi-Modal Transfer**: Transfer between different types of image data
 //! - **Quantum-Enhanced Meta-Learning**: Leverage quantum algorithms for meta-learning
 
-use ndarray::Array2;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 
 use crate::error::NdimageResult;
@@ -428,7 +428,7 @@ pub fn enhanced_meta_learning_processing<T>(
     config: &AdvancedMetaLearningConfig,
 ) -> NdimageResult<(Vec<Array2<T>>, MetaLearningInsights<T>)>
 where
-    T: Float + FromPrimitive + Copy + Send + Sync + ndarray::ScalarOperand,
+    T: Float + FromPrimitive + Copy + Send + Sync + scirs2_core::ndarray::ScalarOperand,
 {
     let mut results = Vec::new();
     let mut insights = MetaLearningInsights::<T>::default();
@@ -555,7 +555,7 @@ fn apply_few_shot_learning<T>(
     _config: &AdvancedMetaLearningConfig,
 ) -> NdimageResult<FewShotResult<T>>
 where
-    T: Float + FromPrimitive + Copy + ndarray::ScalarOperand,
+    T: Float + FromPrimitive + Copy + scirs2_core::ndarray::ScalarOperand,
 {
     // Simplified few-shot learning implementation
     let (height, width) = task.support_set[0].input.dim();
@@ -576,7 +576,7 @@ fn apply_transfer_learning<T>(
     _config: &AdvancedMetaLearningConfig,
 ) -> NdimageResult<TransferResult<T>>
 where
-    T: Float + FromPrimitive + Copy + ndarray::ScalarOperand,
+    T: Float + FromPrimitive + Copy + scirs2_core::ndarray::ScalarOperand,
 {
     // Simplified transfer learning implementation
     let (height, width) = task.support_set[0].input.dim();

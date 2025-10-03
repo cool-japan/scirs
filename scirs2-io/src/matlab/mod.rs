@@ -16,7 +16,7 @@ pub mod v73_enhanced;
 mod write_impl;
 
 use byteorder::{ByteOrder, LittleEndian};
-use ndarray::{Array, ArrayD, IxDyn};
+use scirs2_core::ndarray::{Array, ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
@@ -591,7 +591,7 @@ fn bytes_to_u64_vec(bytes: &[u8]) -> Vec<u64> {
 ///
 /// ```no_run
 /// use scirs2_io::matlab::{write_mat, MatType};
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// use std::collections::HashMap;
 /// use std::path::Path;
 ///

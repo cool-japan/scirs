@@ -13,15 +13,11 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core module - always included
-scirs2-core = { workspace = true, features = ["cache", "logging", "profiling", "memory_management"] }
+# Core module - always included (SCIRS2 POLICY: scirs2-core is the ONLY crate allowed external dependencies)
+scirs2-core = { workspace = true, features = ["cache", "logging", "profiling", "memory_management", "array", "random"] }
 
 # Basic utility dependencies
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
-rand = { workspace = true }
 
 # Standard modules
 scirs2-linalg = { workspace = true, optional = true }
@@ -53,6 +49,8 @@ scirs2-autograd = { workspace = true, optional = true }
 [dev-dependencies]
 approx = { workspace = true }
 criterion = { workspace = true }
+# NOTE: ndarray-linalg is already included via scirs2-core dependency chain
+# Adding it in dev-dependencies causes duplicate resolution and linker conflicts in doctests
 
 [features]
 default = ["standard"]
@@ -65,10 +63,10 @@ memory_management = []
 
 # BLAS backend override features (optional - platform defaults are used if not specified)
 # These allow users to override platform defaults when needed
-accelerate = ["linalg", "scirs2-linalg/accelerate"]  # Force use of macOS Accelerate framework
-openblas = ["linalg", "scirs2-linalg/openblas-backend"]  # Force use of OpenBLAS
-# intel-mkl = ["linalg", "scirs2-linalg/intel-mkl"]  # Force use of Intel MKL - removed due to conflicts
-netlib = ["linalg", "scirs2-linalg/netlib"]  # Force use of reference Netlib
+# NOTE: macOS automatically uses Accelerate framework when linalg is enabled (no explicit feature needed)
+openblas = ["linalg", "scirs2-linalg/openblas-backend"]  # Force use of system OpenBLAS (Linux/Windows)
+netlib = ["linalg", "scirs2-linalg/netlib"]  # Force use of system Netlib BLAS
+# NOTE: intel-mkl removed due to conflicts with system BLAS
 
 # Functional groupings
 standard = [

@@ -6,7 +6,7 @@
 use super::*;
 use crate::csv::{read_csv, write_csv};
 use crate::error::Result;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::fs::File;
 use std::path::{Path, PathBuf};
 use std::time::Duration;

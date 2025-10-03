@@ -3,8 +3,8 @@
 //! This module implements attention mechanisms and saccade planning inspired by
 //! primate visual systems for efficient scene exploration.
 
-use ndarray::{Array2, Array3, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, Array3, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 
 use super::config::{AttentionSystem, BiologicalVisionConfig};

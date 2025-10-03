@@ -5,8 +5,8 @@
 // identify spectral lines against a background continuum.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::validation::{check_positive, checkshape};
 use statrs::distribution::{ContinuousCDF, FisherSnedecor};
 use statrs::statistics::Statistics;
@@ -132,11 +132,11 @@ pub fn multitaper_ftest(
 /// * `significant` - Boolean significance indicators
 #[allow(dead_code)]
 pub fn multitaper_ftest_complex(
-    eigenspectra: &Array2<num_complex::Complex64>,
+    eigenspectra: &Array2<scirs2_core::numeric::Complex64>,
     tapers: &Array2<f64>,
     eigenvalues: &Array1<f64>,
     p_value: Option<f64>,
-) -> SignalResult<(Array1<f64>, Array1<num_complex::Complex64>, Array1<bool>)> {
+) -> SignalResult<(Array1<f64>, Array1<scirs2_core::numeric::Complex64>, Array1<bool>)> {
     let (k, n_freq) = eigenspectra.dim();
     let (k_taper, n_time) = tapers.dim();
 
@@ -172,7 +172,7 @@ pub fn multitaper_ftest_complex(
         // Model: Y_k = μ + a * U_k + ε_k
         // where Y_k are the eigenspectra and U_k are the taper DC values
 
-        let mut sum_wy = num_complex::Complex64::new(0.0, 0.0);
+        let mut sum_wy = scirs2_core::numeric::Complex64::new(0.0, 0.0);
         let mut sum_wu = 0.0;
         let mut sum_wuu = 0.0;
         let mut sum_w = 0.0;
@@ -194,11 +194,11 @@ pub fn multitaper_ftest_complex(
         let u_mean = sum_wu / sum_w;
 
         // Regression coefficient
-        let mut beta = num_complex::Complex64::new(0.0, 0.0);
+        let mut beta = scirs2_core::numeric::Complex64::new(0.0, 0.0);
         let denominator = sum_wuu - sum_wu * u_mean;
 
         if denominator.abs() > 1e-10 {
-            let mut numerator = num_complex::Complex64::new(0.0, 0.0);
+            let mut numerator = scirs2_core::numeric::Complex64::new(0.0, 0.0);
             for i in 0..k {
                 let w = eigenvalues[i];
                 let y_centered = eigenspectra[[i, j]] - y_mean;

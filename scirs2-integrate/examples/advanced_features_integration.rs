@@ -9,7 +9,7 @@
 //! The example solves a 2D heat equation with adaptive mesh refinement
 //! while monitoring performance and using advanced error estimation.
 
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_integrate::{
     // Advanced modules
     amr_advanced::{

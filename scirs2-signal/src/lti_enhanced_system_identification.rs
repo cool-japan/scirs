@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Enhanced System Identification with Advanced-level capabilities
 //
 // This module provides state-of-the-art system identification techniques combining:
@@ -13,9 +13,9 @@ use ndarray::s;
 use crate::error::{SignalError, SignalResult};
 use crate::lti::design::tf;
 use crate::lti::{LtiSystem, StateSpace, TransferFunction};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::{check_finite, check_positive, checkshape};
 use statrs::statistics::Statistics;

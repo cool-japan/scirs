@@ -5,8 +5,8 @@
 use crate::csr_array::CsrArray;
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 #[cfg(feature = "gpu")]
@@ -456,7 +456,7 @@ pub enum MemoryAccessPattern {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_cuda_spmv_creation() {
@@ -503,6 +503,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn test_kernel_sources() {
         assert!(!CUDA_SPMV_KERNEL_SOURCE.is_empty());
         assert!(!CUDA_WARP_SPMV_KERNEL_SOURCE.is_empty());

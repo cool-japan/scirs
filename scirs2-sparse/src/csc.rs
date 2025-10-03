@@ -4,7 +4,7 @@
 //! efficient for column operations, sparse matrix multiplication, and more.
 
 use crate::error::{SparseError, SparseResult};
-use num_traits::Zero;
+use scirs2_core::numeric::Zero;
 use scirs2_core::GpuDataType;
 use std::cmp::PartialEq;
 
@@ -446,7 +446,7 @@ impl CscMatrix<f64> {
 
 impl<T> CscMatrix<T>
 where
-    T: num_traits::Float
+    T: scirs2_core::numeric::Float
         + std::fmt::Debug
         + Copy
         + Default

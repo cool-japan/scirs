@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod clustering_validation_tests {
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
     use scirs2_metrics::clustering::validation::{
         cluster_stability, consensus_score, fold_stability, jaccard_similarity,
     };

@@ -5,8 +5,8 @@
 //! load balancing, and fault tolerance.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 

@@ -6,7 +6,7 @@
 
 use crate::bspline::{BSpline, ExtrapolateMode};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use super::types::{NurbsCurve, NurbsSurface, NurbsFloat, NurbsValidator, ValidationResult};
 
 impl<T: NurbsFloat> NurbsCurve<T> {
@@ -35,7 +35,7 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::{array, Array1, Array2};
+    /// use scirs2_core::ndarray::{array, Array1, Array2};
     /// use scirs2_interpolate::nurbs::NurbsCurve;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -282,7 +282,7 @@ impl<T: NurbsFloat> NurbsSurface<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::{array, Array1, Array2};
+    /// use scirs2_core::ndarray::{array, Array1, Array2};
     /// use scirs2_interpolate::nurbs::NurbsSurface;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///

@@ -4,8 +4,8 @@
 //! for performing sophisticated extrapolation using ensemble, adaptive, and
 //! statistical methods.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::default::Default;
 use std::ops::AddAssign;
 
@@ -352,7 +352,7 @@ impl<T: Float + std::fmt::Display + Default + AddAssign> AdvancedExtrapolator<T>
             let mut count = 0;
 
             for i in lag..n {
-                sum = sum + y_data[i] * y_data[i - lag];
+                sum += y_data[i] * y_data[i - lag];
                 count += 1;
             }
 
@@ -394,7 +394,7 @@ impl<T: Float + std::fmt::Display + Default + AddAssign> AdvancedExtrapolator<T>
         let start_idx = y_data.len() - order;
 
         for i in 0..order {
-            prediction = prediction + coeffs[i] * y_data[start_idx + i];
+            prediction += coeffs[i] * y_data[start_idx + i];
         }
 
         // Adjust prediction based on distance from domain
@@ -406,7 +406,7 @@ impl<T: Float + std::fmt::Display + Default + AddAssign> AdvancedExtrapolator<T>
         if extrapolation_distance != T::zero() && y_data.len() >= 2 {
             let trend = (y_data[y_data.len() - 1] - y_data[y_data.len() - 2])
                 / (x_data[x_data.len() - 1] - x_data[x_data.len() - 2]);
-            prediction = prediction + trend * extrapolation_distance;
+            prediction += trend * extrapolation_distance;
         }
 
         Ok(prediction)

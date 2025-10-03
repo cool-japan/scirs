@@ -5,7 +5,7 @@
 
 use super::types::*;
 use crate::error::InterpolateResult;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::time::Instant;
@@ -264,10 +264,10 @@ impl<F: Float + Debug> IntelligentMethodSelector<F> {
 
         // Apply decision tree rules
         for rule in &self.selection_model.decision_tree {
-            if self.evaluate_condition(&rule.condition, data_profile, performance_targets)? {
-                if rule.method == method {
-                    score += rule.confidence * 0.1; // 10% rule bonus
-                }
+            if self.evaluate_condition(&rule.condition, data_profile, performance_targets)?
+                && rule.method == method
+            {
+                score += rule.confidence * 0.1; // 10% rule bonus
             }
         }
 

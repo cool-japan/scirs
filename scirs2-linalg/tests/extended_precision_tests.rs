@@ -1,7 +1,7 @@
 #[cfg(feature = "extended-test")]
 mod tests {
     use approx::assert_relative_eq;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
     #[allow(unused_imports)]
     use scirs2_linalg::extended_precision::{
         extended_cholesky, extended_lu, extended_matmul, extended_matvec, extended_qr,

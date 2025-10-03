@@ -1,4 +1,4 @@
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_fft::{hfft2, ihfft2};
 use std::f64::consts::PI;
 

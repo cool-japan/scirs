@@ -251,9 +251,9 @@
 
 use crate::error::{SpecialError, SpecialResult};
 // use crate::{bessel::j0, gamma, precision::constants};
-// use ndarray::{Array1, ArrayView1};
-use num_complex::Complex64;
-use num_traits::Float;
+// use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Float;
 use std::f64::consts::PI;
 
 /// Planck's radiation law functions

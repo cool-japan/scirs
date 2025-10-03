@@ -6,10 +6,10 @@
  */
 
 use crate::error::{FFTError, FFTResult};
-use ndarray::{Array2, ArrayD, Axis, IxDyn};
-use num_complex::Complex64;
-use num_traits::NumCast;
 use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
+use scirs2_core::ndarray::{Array2, ArrayD, Axis, IxDyn};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use scirs2_core::safe_ops::{safe_divide, safe_sqrt};
 use std::fmt::Debug;
 
@@ -96,7 +96,7 @@ where
     T: NumCast + Copy + Debug + 'static,
 {
     // First try to cast directly to f64 (for real numbers)
-    if let Some(real) = num_traits::cast::<T, f64>(val) {
+    if let Some(real) = NumCast::from(val) {
         return Ok(Complex64::new(real, 0.0));
     }
 
@@ -107,7 +107,8 @@ where
     }
 
     // Try to handle f32 complex numbers
-    if let Some(complex32) = (&val as &dyn Any).downcast_ref::<num_complex::Complex<f32>>() {
+    if let Some(complex32) = (&val as &dyn Any).downcast_ref::<scirs2_core::numeric::Complex<f32>>()
+    {
         return Ok(Complex64::new(complex32.re as f64, complex32.im as f64));
     }
 
@@ -140,7 +141,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::fft;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Generate a simple signal
 /// let signal = vec![1.0, 2.0, 3.0, 4.0];
@@ -215,7 +216,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{fft, ifft};
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Generate a simple signal
 /// let signal = vec![1.0, 2.0, 3.0, 4.0];
@@ -305,7 +306,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::fft2;
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 ///
 /// // Create a simple 2x2 array
 /// let input = array![[1.0, 2.0], [3.0, 4.0]];
@@ -444,7 +445,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{fft2, ifft2};
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 ///
 /// // Create a simple 2x2 array
 /// let input = array![[1.0, 2.0], [3.0, 4.0]];
@@ -587,7 +588,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::fftn;
-/// use ndarray::{Array, IxDyn};
+/// use scirs2_core::ndarray::{Array, IxDyn};
 ///
 /// // Create a 3D array
 /// let mut data = Array::zeros(IxDyn(&[2, 2, 2]));
@@ -752,8 +753,8 @@ where
 ///
 /// ```
 /// use scirs2_fft::{fftn, ifftn};
-/// use ndarray::{Array, IxDyn};
-/// use num_complex::Complex64;
+/// use scirs2_core::ndarray::{Array, IxDyn};
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Create a 3D array
 /// let mut data = Array::zeros(IxDyn(&[2, 2, 2]));

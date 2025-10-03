@@ -3,7 +3,7 @@
 use super::types::ImageFeatureOptions;
 use super::utils::compute_glcm;
 use crate::error::SignalResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 
 #[allow(unused_imports)]

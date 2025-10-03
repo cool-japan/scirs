@@ -2,9 +2,9 @@
 
 use crate::error::Result;
 use crate::layers::Layer;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::VecDeque;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// Memory-efficient trainer
 pub struct MemoryEfficientTrainer {
     /// Enable gradient accumulation

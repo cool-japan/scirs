@@ -2,7 +2,7 @@
 
 use crate::error::{SpecialError, SpecialResult};
 use crate::validation;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use super::core::{betaln, gamma, gammaln};

@@ -3,7 +3,7 @@
 //! This example shows various convenience functions for different
 //! scientific and engineering domains.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::convenience::*;
 
 #[allow(dead_code)]

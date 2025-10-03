@@ -10,7 +10,7 @@
 //!
 //! ```
 //! use scirs2_optimize::parallel::{parallel_finite_diff_gradient, ParallelOptions};
-//! use ndarray::{array, ArrayView1};
+//! use scirs2_core::ndarray::{array, ArrayView1};
 //!
 //! fn objective(x: &ArrayView1<f64>) -> f64 {
 //!     x.iter().map(|&xi| xi.powi(2)).sum()
@@ -21,7 +21,7 @@
 //! let gradient = parallel_finite_diff_gradient(objective, x.view(), &options);
 //! ```
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::parallel_ops::*;
 
 // Conditional imports for parallel operations
@@ -493,7 +493,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     fn quadratic(x: &ArrayView1<f64>) -> f64 {
         x.iter().map(|&xi| xi * xi).sum()

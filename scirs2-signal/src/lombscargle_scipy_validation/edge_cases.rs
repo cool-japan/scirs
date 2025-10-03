@@ -7,7 +7,7 @@ use super::types::*;
 use super::utils::find_peaks;
 use crate::error::SignalResult;
 use crate::lombscargle::{lombscargle, AutoFreqMethod};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::f64::consts::PI;
 
 /// Validate edge cases

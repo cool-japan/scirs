@@ -58,7 +58,7 @@ pub use neural_operations::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_gpu_context_creation() {

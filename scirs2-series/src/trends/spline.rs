@@ -3,8 +3,8 @@
 //! This module provides functions for estimating trends using various types of splines,
 //! including cubic splines, natural cubic splines, B-splines, and P-splines.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::{
@@ -31,7 +31,7 @@ use crate::error::{Result, TimeSeriesError};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::trends::{estimate_spline_trend, SplineTrendOptions, SplineType, KnotPlacementStrategy};
 ///
 /// // Create a sample time series with a trend and noise

@@ -3,8 +3,8 @@
 //! This module provides methods for handling missing values in datasets,
 //! which is a crucial preprocessing step for machine learning.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 
 use crate::error::{Result, TransformError};
@@ -76,7 +76,7 @@ impl SimpleImputer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -111,7 +111,7 @@ impl SimpleImputer {
                     sorted_data
                         .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                     let n = sorted_data.len();
-                    if n % 2 == 0 {
+                    if n.is_multiple_of(2) {
                         (sorted_data[n / 2 - 1] + sorted_data[n / 2]) / 2.0
                     } else {
                         sorted_data[n / 2]
@@ -153,7 +153,7 @@ impl SimpleImputer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -274,7 +274,7 @@ impl MissingIndicator {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_features = x_f64.shape()[1];
         let mut features_with_missing = Vec::new();
@@ -302,7 +302,7 @@ impl MissingIndicator {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
 
@@ -474,7 +474,7 @@ impl KNNImputer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         // Validate that we have enough samples for k-nearest neighbors
         let n_samples = x_f64.shape()[0];
@@ -502,7 +502,7 @@ impl KNNImputer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         if self.x_train_.is_none() {
             return Err(TransformError::TransformationError(
@@ -756,7 +756,9 @@ impl SimpleRegressor {
         // Add intercept column if needed
         let x_design = if self.includeintercept {
             let mut x_with_intercept = Array2::ones((n_samples, n_features + 1));
-            x_with_intercept.slice_mut(ndarray::s![.., 1..]).assign(x);
+            x_with_intercept
+                .slice_mut(scirs2_core::ndarray::s![.., 1..])
+                .assign(x);
             x_with_intercept
         } else {
             x.to_owned()
@@ -790,7 +792,9 @@ impl SimpleRegressor {
         let x_design = if self.includeintercept {
             let (n_samples, n_features) = x.dim();
             let mut x_with_intercept = Array2::ones((n_samples, n_features + 1));
-            x_with_intercept.slice_mut(ndarray::s![.., 1..]).assign(x);
+            x_with_intercept
+                .slice_mut(scirs2_core::ndarray::s![.., 1..])
+                .assign(x);
             x_with_intercept
         } else {
             x.to_owned()
@@ -805,8 +809,12 @@ impl SimpleRegressor {
         let mut aug_matrix = Array2::zeros((n, n + 1));
 
         // Create augmented matrix [A|b]
-        aug_matrix.slice_mut(ndarray::s![.., ..n]).assign(a);
-        aug_matrix.slice_mut(ndarray::s![.., n]).assign(b);
+        aug_matrix
+            .slice_mut(scirs2_core::ndarray::s![.., ..n])
+            .assign(a);
+        aug_matrix
+            .slice_mut(scirs2_core::ndarray::s![.., n])
+            .assign(b);
 
         // Forward elimination
         for i in 0..n {
@@ -975,7 +983,7 @@ impl IterativeImputer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
         let (n_samples, n_features) = x_f64.dim();
 
         if n_samples == 0 || n_features == 0 {
@@ -1020,7 +1028,7 @@ impl IterativeImputer {
                     let mut sorted_data = feature_data;
                     sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap());
                     let len = sorted_data.len();
-                    if len % 2 == 0 {
+                    if len.is_multiple_of(2) {
                         (sorted_data[len / 2 - 1] + sorted_data[len / 2]) / 2.0
                     } else {
                         sorted_data[len / 2]
@@ -1060,7 +1068,7 @@ impl IterativeImputer {
             ));
         }
 
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
         let missing_features = self.missing_features_.as_ref().unwrap();
 
         if missing_features.is_empty() {
@@ -1276,7 +1284,7 @@ impl IterativeImputer {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_simple_imputer_mean() {

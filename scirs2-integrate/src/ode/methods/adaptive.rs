@@ -7,7 +7,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Solve ODE using the Dormand-Prince method (RK45)
 ///

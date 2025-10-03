@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```
-//! use ndarray::{array, Array1, Array2};
+//! use scirs2_core::ndarray::{array, Array1, Array2};
 //! use scirs2_optimize::least_squares::robust::{robust_least_squares, HuberLoss, RobustOptions};
 //!
 //! // Define a function that returns the residuals
@@ -61,7 +61,7 @@
 
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
 
 /// Trait for robust loss functions
 pub trait RobustLoss: Clone {
@@ -548,7 +548,7 @@ fn solve(a: &Array2<f64>, b: &Array1<f64>) -> Option<Array1<f64>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_huber_loss() {

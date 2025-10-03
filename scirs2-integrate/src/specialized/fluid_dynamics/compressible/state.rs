@@ -3,7 +3,7 @@
 //! This module provides the core data structures for representing compressible fluid states
 //! and methods for state manipulation and conversion between primitive and conservative variables.
 
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 
 /// Compressible fluid state representation
 ///

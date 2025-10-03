@@ -1,4 +1,4 @@
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::error::Error;
 
 // Test module to verify the fix for the binary_predictions array in neural_integration.rs

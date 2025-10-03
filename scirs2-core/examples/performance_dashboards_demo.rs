@@ -390,11 +390,7 @@ fn demo_real_time_metrics_and_alerts() -> CoreResult<()> {
 
         for (metric_source, value) in metrics {
             dashboard.update_metric(metric_source, *value)?;
-            println!(
-                "  📊 Updated {}: {:.1}",
-                format!("{:?}", metric_source),
-                value
-            );
+            println!("  📊 Updated {:?}: {:.1}", metric_source, value);
         }
 
         // Check alert status

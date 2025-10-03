@@ -1,7 +1,7 @@
 //! Singular Spectrum Analysis (SSA) for time series decomposition
 
-use ndarray::{Array1, Array2, ScalarOperand};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use scirs2_linalg::{lowrank::randomized_svd, svd};
 use std::fmt::Debug;
 
@@ -61,7 +61,7 @@ impl Default for SSAOptions {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::decomposition::{ssa_decomposition, SSAOptions};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0];
@@ -415,7 +415,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_ssa_basic() {

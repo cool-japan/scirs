@@ -17,7 +17,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_interpolate::timeseries::{
 //!     TimeSeriesInterpolator, TemporalPattern, SeasonalityType
 //! };
@@ -49,8 +49,8 @@
 use crate::advanced::rbf::{RBFInterpolator, RBFKernel};
 use crate::bspline::BSpline;
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive, ToPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive};
 use std::fmt::{Debug, Display, LowerExp};
 use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
 
@@ -448,7 +448,9 @@ where
             let start = i.saturating_sub(window_size / 2);
             let end = (i + window_size / 2 + 1).min(n);
 
-            let window = self.train_values.slice(ndarray::s![start..end]);
+            let window = self
+                .train_values
+                .slice(scirs2_core::ndarray::s![start..end]);
             let mean = window.sum() / T::from_usize(window.len()).unwrap();
 
             let variance = window.iter().map(|&x| (x - mean) * (x - mean)).sum::<T>()
@@ -718,7 +720,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_time_series_interpolator_creation() {

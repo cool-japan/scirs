@@ -3,7 +3,7 @@
 use super::config::{ManifoldConfig, ManifoldType};
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rand_distributions::{Distribution, Uniform};
 use std::f64::consts::PI;
@@ -36,7 +36,7 @@ pub fn make_swiss_roll(n_samples: usize, noise: f64, randomseed: Option<u64>) ->
     let mut color = Array1::zeros(n_samples); // Color parameter for visualization
 
     let normal = if noise > 0.0 {
-        Some(rand_distr::Normal::new(0.0, noise).unwrap())
+        Some(scirs2_core::random::Normal::new(0.0, noise).unwrap())
     } else {
         None
     };
@@ -102,7 +102,7 @@ pub fn make_s_curve(n_samples: usize, noise: f64, randomseed: Option<u64>) -> Re
     let mut data = Array2::zeros((n_samples, 3));
     let mut color = Array1::zeros(n_samples);
 
-    let noise_dist = rand_distr::Normal::new(0.0, noise).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, noise).unwrap();
 
     for i in 0..n_samples {
         // Parameter t ranges from 0 to 4π
@@ -156,8 +156,8 @@ pub fn make_swiss_roll_advanced(
     let mut data = Array2::zeros((n_samples, 3));
     let mut color = Array1::zeros(n_samples);
 
-    let noise_dist = rand_distr::Normal::new(0.0, noise).unwrap();
-    let uniform = rand_distr::Uniform::new(0.0, 1.0).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, noise).unwrap();
+    let uniform = scirs2_core::random::Uniform::new(0.0, 1.0).unwrap();
 
     for i in 0..n_samples {
         // Sample parameters
@@ -226,8 +226,8 @@ pub fn make_severed_sphere(
     let mut data = Array2::zeros((n_samples, 3));
     let mut color = Array1::zeros(n_samples);
 
-    let noise_dist = rand_distr::Normal::new(0.0, noise).unwrap();
-    let uniform = rand_distr::Uniform::new(0.0, 1.0).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, noise).unwrap();
+    let uniform = scirs2_core::random::Uniform::new(0.0, 1.0).unwrap();
 
     for i in 0..n_samples {
         // Sample spherical coordinates, but exclude a region to "sever" the sphere
@@ -285,8 +285,8 @@ pub fn make_twin_peaks(n_samples: usize, noise: f64, randomseed: Option<u64>) ->
     let mut data = Array2::zeros((n_samples, 3));
     let mut labels = Array1::zeros(n_samples);
 
-    let noise_dist = rand_distr::Normal::new(0.0, noise).unwrap();
-    let uniform = rand_distr::Uniform::new(-2.0, 2.0).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, noise).unwrap();
+    let uniform = scirs2_core::random::Uniform::new(-2.0, 2.0).unwrap();
 
     for i in 0..n_samples {
         let x = uniform.sample(&mut rng);
@@ -357,7 +357,7 @@ pub fn make_helix(
     let mut data = Array2::zeros((n_samples, 3));
     let mut color = Array1::zeros(n_samples);
 
-    let noise_dist = rand_distr::Normal::new(0.0, noise).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, noise).unwrap();
 
     for i in 0..n_samples {
         // Parameter t ranges from 0 to n_turns * 2π
@@ -413,8 +413,8 @@ pub fn make_intersecting_manifolds(
     let mut data = Array2::zeros((n_samples, 3));
     let mut labels = Array1::zeros(n_samples);
 
-    let noise_dist = rand_distr::Normal::new(0.0, noise).unwrap();
-    let uniform = rand_distr::Uniform::new(-2.0, 2.0).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, noise).unwrap();
+    let uniform = scirs2_core::random::Uniform::new(-2.0, 2.0).unwrap();
 
     let mut sample_idx = 0;
 
@@ -497,8 +497,8 @@ pub fn make_torus(
     let mut data = Array2::zeros((n_samples, 3));
     let mut color = Array1::zeros(n_samples);
 
-    let noise_dist = rand_distr::Normal::new(0.0, noise).unwrap();
-    let uniform = rand_distr::Uniform::new(0.0, 2.0 * PI).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, noise).unwrap();
+    let uniform = scirs2_core::random::Uniform::new(0.0, 2.0 * PI).unwrap();
 
     for i in 0..n_samples {
         let theta = uniform.sample(&mut rng); // Major angle

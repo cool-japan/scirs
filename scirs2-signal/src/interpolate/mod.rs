@@ -18,7 +18,7 @@
 // For simple interpolation tasks, use the main dispatch function:
 //
 // ```rust
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::interpolate::{interpolate, InterpolationMethod, InterpolationConfig};
 //
 // let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
@@ -29,7 +29,7 @@
 // For automatic method selection:
 //
 // ```rust
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::interpolate::{auto_interpolate, InterpolationConfig};
 //
 // let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
@@ -51,7 +51,7 @@
 // | Spectral | Periodic signals | Good for frequency content | Iterative process |
 
 use crate::error::SignalResult;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 // Re-export all submodules
 #[allow(unused_imports)]
@@ -114,7 +114,7 @@ pub use spectral::polynomial::{
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::linear;
 ///
 /// let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0]);
@@ -122,7 +122,7 @@ pub use spectral::polynomial::{
 /// assert_eq!(result[1], 2.0); // Linear interpolation between 1.0 and 3.0
 /// ```
 #[allow(dead_code)]
-pub fn linear(signal: &ndarray::Array1<f64>) -> crate::error::SignalResult<ndarray::Array1<f64>> {
+pub fn linear(signal: &scirs2_core::ndarray::Array1<f64>) -> crate::error::SignalResult<scirs2_core::ndarray::Array1<f64>> {
     linear_interpolate(_signal)
 }
 
@@ -141,7 +141,7 @@ pub fn linear(signal: &ndarray::Array1<f64>) -> crate::error::SignalResult<ndarr
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::cubic_spline;
 ///
 /// let signal = Array1::from_vec(vec![1.0, f64::NAN, f64::NAN, 4.0]);
@@ -150,8 +150,8 @@ pub fn linear(signal: &ndarray::Array1<f64>) -> crate::error::SignalResult<ndarr
 /// ```
 #[allow(dead_code)]
 pub fn cubic_spline(
-    signal: &ndarray::Array1<f64>,
-) -> crate::error::SignalResult<ndarray::Array1<f64>> {
+    signal: &scirs2_core::ndarray::Array1<f64>,
+) -> crate::error::SignalResult<scirs2_core::ndarray::Array1<f64>> {
     let config = InterpolationConfig::default();
     cubic_spline_interpolate(signal, &config)
 }
@@ -171,7 +171,7 @@ pub fn cubic_spline(
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::auto;
 ///
 /// let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
@@ -180,8 +180,8 @@ pub fn cubic_spline(
 /// ```
 #[allow(dead_code)]
 pub fn auto(
-    signal: &ndarray::Array1<f64>,
-) -> crate::error::SignalResult<(ndarray::Array1<f64>, InterpolationMethod)> {
+    signal: &scirs2_core::ndarray::Array1<f64>,
+) -> crate::error::SignalResult<(scirs2_core::ndarray::Array1<f64>, InterpolationMethod)> {
     let config = InterpolationConfig::default();
     auto_interpolate(signal, &config, false)
 }
@@ -193,7 +193,7 @@ pub fn auto(
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::{InterpolationBuilder, InterpolationMethod};
 ///
 /// let signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0]);
@@ -288,25 +288,25 @@ impl InterpolationBuilder {
     /// Performs interpolation with the configured settings
     pub fn interpolate(
         self,
-        signal: &ndarray::Array1<f64>,
-    ) -> crate::error::SignalResult<ndarray::Array1<f64>> {
+        signal: &scirs2_core::ndarray::Array1<f64>,
+    ) -> crate::error::SignalResult<scirs2_core::ndarray::Array1<f64>> {
         interpolate(signal, self.method, &self.config)
     }
 
     /// Performs 2D interpolation with the configured settings
     pub fn interpolate_2d(
         self,
-        image: &ndarray::Array2<f64>,
-    ) -> crate::error::SignalResult<ndarray::Array2<f64>> {
+        image: &scirs2_core::ndarray::Array2<f64>,
+    ) -> crate::error::SignalResult<scirs2_core::ndarray::Array2<f64>> {
         interpolate_2d(image, self.method, &self.config)
     }
 
     /// Performs automatic method selection and interpolation
     pub fn auto_interpolate(
         self,
-        signal: &ndarray::Array1<f64>,
+        signal: &scirs2_core::ndarray::Array1<f64>,
         cross_validation: bool,
-    ) -> crate::error::SignalResult<(ndarray::Array1<f64>, InterpolationMethod)> {
+    ) -> crate::error::SignalResult<(scirs2_core::ndarray::Array1<f64>, InterpolationMethod)> {
         auto_interpolate(signal, &self.config, cross_validation)
     }
 }

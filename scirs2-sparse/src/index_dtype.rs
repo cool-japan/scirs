@@ -3,8 +3,8 @@
 // This module provides utilities for handling index dtypes in sparse arrays,
 // similar to SciPy's index dtype handling in the sparse module.
 
-use ndarray::{Array1, ArrayView1};
-use num_traits::PrimInt;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::PrimInt;
 use std::cmp::max;
 
 use crate::error::{SparseError, SparseResult};
@@ -26,7 +26,7 @@ use crate::error::{SparseError, SparseResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_sparse::index_dtype::get_index_dtype;
 ///
 /// // Small array, i32 is sufficient
@@ -92,7 +92,7 @@ pub fn get_index_dtype(shape: (usize, usize), idx_arrays: &[ArrayView1<usize>]) 
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_sparse::index_dtype::safely_cast_index_arrays;
 ///
 /// // Valid conversion (all values fit in i32)
@@ -175,7 +175,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_get_index_dtype_small() {

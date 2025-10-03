@@ -1,6 +1,6 @@
-# SciRS2 Autograd - Production Status (v0.1.0-beta.4)
+# SciRS2 Autograd - Production Status (v0.1.0-rc.1)
 
-**Beta 4 Release - SciRS2 POLICY & Enhanced Performance**
+**RC.1 Release - Release Candidate with Platform Testing**
 
 This module provides robust automatic differentiation functionality comparable to PyTorch/TensorFlow's autograd systems, serving as a battle-tested building block for machine learning and scientific computing in Rust.
 

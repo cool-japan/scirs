@@ -1,7 +1,7 @@
 use crate::convolve;
 use crate::error::{SignalError, SignalResult};
-use ndarray::s;
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use rustfft::{num_complex::Complex, FftPlanner};
 
 // Signal deconvolution module

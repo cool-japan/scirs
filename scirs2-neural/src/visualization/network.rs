@@ -6,13 +6,13 @@
 use super::config::{ImageFormat, VisualizationConfig};
 use crate::error::{NeuralError, Result};
 use crate::models::sequential::Sequential;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use serde::Serialize;
 use std::fmt::Debug;
 use std::fs;
 /// Network architecture visualizer
 #[allow(dead_code)]
-pub struct NetworkVisualizer<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct NetworkVisualizer<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Model to visualize
     model: Sequential<F>,
     /// Visualization configuration
@@ -185,7 +185,7 @@ pub struct LayerInfo {
     pub layer_index: usize,
 // Implementation for NetworkVisualizer
 impl<
-        F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOperand + Send + Sync,
+        F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_core::ndarray::ScalarOperand + Send + Sync,
     > NetworkVisualizer<F>
 {
     /// Create a new network visualizer
@@ -1015,10 +1015,10 @@ impl<
 mod tests {
     use super::*;
     use crate::layers::Dense;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_network_visualizer_creation() {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let mut model = Sequential::<f32>::new();
         model.add_layer(Dense::new(10, 5, Some("relu"), &mut rng).unwrap());
         let config = VisualizationConfig::default();

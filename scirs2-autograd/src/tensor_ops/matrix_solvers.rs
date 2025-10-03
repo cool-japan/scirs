@@ -2,12 +2,12 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops;
 use crate::Float;
-use ndarray::{Array2, ArrayView2, Ix2};
+use scirs2_core::ndarray::{Array2, ArrayView2, Ix2};
 
 /// Solve Sylvester equation AX + XB = C
 pub struct SylvesterSolveOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for SylvesterSolveOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SylvesterSolveOp {
     fn name(&self) -> &'static str {
         "SylvesterSolve"
     }
@@ -178,7 +178,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SylvesterSolveOp {
 /// Solve Lyapunov equation AX + XA^T = Q
 pub struct LyapunovSolveOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for LyapunovSolveOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LyapunovSolveOp {
     fn name(&self) -> &'static str {
         "LyapunovSolve"
     }
@@ -339,7 +339,7 @@ impl<F: Float> Op<F> for CholeskySolveOp {
         let x = if bshape.len() == 1 {
             let b_1d = b
                 .view()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| OpError::IncompatibleShape("Failed to convert b to 1D".into()))?;
 
             solve_cholesky_1d(&l.view(), &b_1d)?.into_dyn()
@@ -415,7 +415,7 @@ impl<F: Float> Op<F> for CholeskySolveOp {
         let grad_b = if grad_output_array.ndim() == 1 {
             let grad_x_1d = match grad_output_array
                 .view()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
             {
                 Ok(view) => view,
                 Err(_) => {
@@ -426,7 +426,7 @@ impl<F: Float> Op<F> for CholeskySolveOp {
             };
 
             solve_cholesky_1d(&l.view(), &grad_x_1d)
-                .unwrap_or_else(|_| ndarray::Array1::zeros(grad_x_1d.len()))
+                .unwrap_or_else(|_| scirs2_core::ndarray::Array1::zeros(grad_x_1d.len()))
                 .into_dyn()
         } else {
             let grad_x_2d = match grad_output_array.view().into_dimensionality::<Ix2>() {
@@ -484,7 +484,7 @@ impl<F: Float> Op<F> for CholeskySolveOp {
 
 /// Solve Sylvester equation AX + XB = C using Bartels-Stewart algorithm
 #[allow(dead_code)]
-fn solve_sylvester_internal<F: Float + ndarray::ScalarOperand>(
+fn solve_sylvester_internal<F: Float + scirs2_core::ndarray::ScalarOperand>(
     a: &ArrayView2<F>,
     b: &ArrayView2<F>,
     c: &ArrayView2<F>,
@@ -519,7 +519,7 @@ fn solve_sylvester_internal<F: Float + ndarray::ScalarOperand>(
         }
 
         // Vectorize C
-        let mut c_vec = ndarray::Array1::<F>::zeros(m * n);
+        let mut c_vec = scirs2_core::ndarray::Array1::<F>::zeros(m * n);
         for i in 0..m {
             for j in 0..n {
                 c_vec[i * n + j] = c[[i, j]];
@@ -568,7 +568,7 @@ fn solve_sylvester_internal<F: Float + ndarray::ScalarOperand>(
 
 /// Solve Lyapunov equation AX + XA^T = Q
 #[allow(dead_code)]
-fn solve_lyapunov_internal<F: Float + ndarray::ScalarOperand>(
+fn solve_lyapunov_internal<F: Float + scirs2_core::ndarray::ScalarOperand>(
     a: &ArrayView2<F>,
     q: &ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
@@ -582,8 +582,8 @@ fn solve_lyapunov_internal<F: Float + ndarray::ScalarOperand>(
 #[allow(dead_code)]
 fn solve_linear_system<F: Float>(
     a: &ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
-) -> Result<ndarray::Array1<F>, OpError> {
+    b: &scirs2_core::ndarray::ArrayView1<F>,
+) -> Result<scirs2_core::ndarray::Array1<F>, OpError> {
     let n = a.shape()[0];
     let mut aug = Array2::<F>::zeros((n, n + 1));
 
@@ -626,7 +626,7 @@ fn solve_linear_system<F: Float>(
     }
 
     // Back substitution
-    let mut x = ndarray::Array1::<F>::zeros(n);
+    let mut x = scirs2_core::ndarray::Array1::<F>::zeros(n);
     for i in (0..n).rev() {
         x[i] = aug[[i, n]];
         for j in (i + 1)..n {
@@ -699,12 +699,12 @@ fn compute_cholesky<F: Float>(matrix: &ArrayView2<F>) -> Result<Array2<F>, OpErr
 #[allow(dead_code)]
 fn solve_cholesky_1d<F: Float>(
     l: &ArrayView2<F>,
-    b: &ndarray::ArrayView1<F>,
-) -> Result<ndarray::Array1<F>, OpError> {
+    b: &scirs2_core::ndarray::ArrayView1<F>,
+) -> Result<scirs2_core::ndarray::Array1<F>, OpError> {
     let n = l.shape()[0];
 
     // Forward substitution: Ly = b
-    let mut y = ndarray::Array1::<F>::zeros(n);
+    let mut y = scirs2_core::ndarray::Array1::<F>::zeros(n);
     for i in 0..n {
         y[i] = b[i];
         for j in 0..i {
@@ -715,7 +715,7 @@ fn solve_cholesky_1d<F: Float>(
     }
 
     // Back substitution: Lᵀx = y
-    let mut x = ndarray::Array1::<F>::zeros(n);
+    let mut x = scirs2_core::ndarray::Array1::<F>::zeros(n);
     for i in (0..n).rev() {
         x[i] = y[i];
         for j in (i + 1)..n {
@@ -751,16 +751,16 @@ fn solve_cholesky_2d<F: Float>(l: &ArrayView2<F>, b: &ArrayView2<F>) -> Result<A
 /// Compute outer product gradient
 #[allow(dead_code)]
 fn compute_outer_product_gradient<F: Float>(
-    a: &ndarray::ArrayViewD<F>,
-    b: &ndarray::ArrayViewD<F>,
-) -> Result<ndarray::ArrayD<F>, OpError> {
+    a: &scirs2_core::ndarray::ArrayViewD<F>,
+    b: &scirs2_core::ndarray::ArrayViewD<F>,
+) -> Result<scirs2_core::ndarray::ArrayD<F>, OpError> {
     if a.ndim() == 1 && b.ndim() == 1 {
-        let a_1d = match a.view().into_dimensionality::<ndarray::Ix1>() {
+        let a_1d = match a.view().into_dimensionality::<scirs2_core::ndarray::Ix1>() {
             Ok(view) => view,
             Err(_) => return Err(OpError::IncompatibleShape("Failed to convert to 1D".into())),
         };
 
-        let b_1d = match b.view().into_dimensionality::<ndarray::Ix1>() {
+        let b_1d = match b.view().into_dimensionality::<scirs2_core::ndarray::Ix1>() {
             Ok(view) => view,
             Err(_) => return Err(OpError::IncompatibleShape("Failed to convert to 1D".into())),
         };
@@ -782,16 +782,16 @@ fn compute_outer_product_gradient<F: Float>(
             Err(_) => return Err(OpError::IncompatibleShape("Failed to convert to 2D".into())),
         };
 
-        let b_1d = match b.view().into_dimensionality::<ndarray::Ix1>() {
+        let b_1d = match b.view().into_dimensionality::<scirs2_core::ndarray::Ix1>() {
             Ok(view) => view,
             Err(_) => return Err(OpError::IncompatibleShape("Failed to convert to 1D".into())),
         };
 
         Ok(a_2d
-            .dot(&b_1d.view().insert_axis(ndarray::Axis(0)))
+            .dot(&b_1d.view().insert_axis(scirs2_core::ndarray::Axis(0)))
             .into_dyn())
     } else if a.ndim() == 1 && b.ndim() == 2 {
-        let a_1d = match a.view().into_dimensionality::<ndarray::Ix1>() {
+        let a_1d = match a.view().into_dimensionality::<scirs2_core::ndarray::Ix1>() {
             Ok(view) => view,
             Err(_) => return Err(OpError::IncompatibleShape("Failed to convert to 1D".into())),
         };
@@ -803,7 +803,7 @@ fn compute_outer_product_gradient<F: Float>(
 
         Ok(a_1d
             .view()
-            .insert_axis(ndarray::Axis(1))
+            .insert_axis(scirs2_core::ndarray::Axis(1))
             .dot(&b_2d)
             .into_dyn())
     } else {
@@ -825,7 +825,7 @@ fn compute_outer_product_gradient<F: Float>(
 
 /// Solve Sylvester equation AX + XB = C
 #[allow(dead_code)]
-pub fn solve_sylvester<'g, F: Float + ndarray::ScalarOperand>(
+pub fn solve_sylvester<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     a: &Tensor<'g, F>,
     b: &Tensor<'g, F>,
     c: &Tensor<'g, F>,
@@ -843,7 +843,7 @@ pub fn solve_sylvester<'g, F: Float + ndarray::ScalarOperand>(
 
 /// Solve Lyapunov equation AX + XA^T = Q
 #[allow(dead_code)]
-pub fn solve_lyapunov<'g, F: Float + ndarray::ScalarOperand>(
+pub fn solve_lyapunov<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     a: &Tensor<'g, F>,
     q: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {

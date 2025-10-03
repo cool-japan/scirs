@@ -13,15 +13,10 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Essential dependencies only
-scirs2-core = { workspace = true, features = ["random"] }
-ndarray = { workspace = true, features = ["serde", "rayon"] }
-ndarray-rand = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["random", "array", "parallel"] }
 thiserror = { workspace = true }
 approx = { workspace = true }
-rand = { workspace = true }
 statrs = { workspace = true }
 
 [features]

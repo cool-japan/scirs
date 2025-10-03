@@ -99,7 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n\nAnalyzing a new document:");
     let new_doc = "Machine learning algorithms are revolutionizing artificial intelligence";
     let new_doc_vec = vectorizer.transform(new_doc)?;
-    let new_doc_topics = lda.transform(&new_doc_vec.insert_axis(ndarray::Axis(0)))?;
+    let new_doc_topics = lda.transform(&new_doc_vec.insert_axis(scirs2_core::ndarray::Axis(0)))?;
 
     println!("Document: \"{new_doc}\"");
     println!("Topic distribution:");

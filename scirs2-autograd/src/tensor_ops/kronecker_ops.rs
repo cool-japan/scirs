@@ -3,7 +3,7 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array2, Ix2};
+use scirs2_core::ndarray::{Array2, Ix2};
 
 /// Kronecker Product Operation
 ///
@@ -147,7 +147,7 @@ impl<F: Float> Op<F> for KroneckerOp {
 /// ```
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::*;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// ag::run(|g| {
 ///     let a = convert_to_tensor(array![[1.0_f32, 2.0], [3.0, 4.0]], g);
@@ -176,7 +176,7 @@ pub fn kron<'g, F: Float>(a: &Tensor<'g, F>, b: &Tensor<'g, F>) -> Tensor<'g, F>
 mod tests {
     use super::*;
     use crate::tensor_ops::convert_to_tensor;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_kronecker_product() {

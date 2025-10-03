@@ -5,8 +5,8 @@
 
 use crate::bspline::{generate_knots, BSpline, ExtrapolateMode};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::ArrayView1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -63,7 +63,7 @@ where
     /// ```
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///

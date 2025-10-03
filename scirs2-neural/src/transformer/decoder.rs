@@ -6,9 +6,9 @@
 use crate::error::{NeuralError, Result};
 use crate::layers::{AttentionConfig, Layer, LayerNorm, MultiHeadAttention, SelfAttention};
 use crate::transformer::encoder::FeedForward;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
@@ -242,13 +242,13 @@ pub struct TransformerDecoder<F: Float + Debug + Send + Sync + SimdUnifiedOps> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array3;
-    use rand::rngs::SmallRng;
-    use rand::SeedableRng;
+    use scirs2_core::ndarray::Array3;
+    use scirs2_core::random::rngs::SmallRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_decoder_layershape() {
         // Set up decoder layer
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let d_model = 64;
         let n_heads = 4;
         let d_ff = 256;

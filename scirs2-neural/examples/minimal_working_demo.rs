@@ -1,6 +1,6 @@
 //! Minimal working demo of scirs2-neural functionality
 
-use ndarray::Array;
+use scirs2_core::ndarray::Array;
 use scirs2_neural::prelude::*;
 
 #[allow(dead_code)]

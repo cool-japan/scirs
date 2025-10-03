@@ -14,8 +14,8 @@
 //! These functions help to determine the optimal decision threshold based on various criteria
 //! such as F1 score, G-means, or custom cost functions.
 
-use ndarray::{Array1, ArrayBase, Data, Dimension, Ix1};
-use num_traits::real::Real;
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Dimension, Ix1};
+use scirs2_core::numeric::Float;
 use std::cmp::Ordering;
 
 use crate::error::{MetricsError, Result};
@@ -43,7 +43,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::threshold::precision_recall_curve;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 1.0];
@@ -59,7 +59,7 @@ pub fn precision_recall_curve<T, S1, S2, D1>(
     sample_weight: Option<&ArrayBase<S2, Ix1>>,
 ) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>)>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = f64>,
     D1: Dimension,
@@ -217,7 +217,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::threshold::{precision_recall_curve, average_precision_score_from_curve};
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 1.0];
@@ -269,7 +269,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::threshold::average_precision_score;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 1.0];
@@ -285,7 +285,7 @@ pub fn average_precision_score<T, S1, S2, D1>(
     sample_weight: Option<&ArrayBase<S2, Ix1>>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = f64>,
     D1: Dimension,
@@ -315,14 +315,14 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::threshold::find_optimal_threshold;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 1.0];
 /// let y_prob = array![0.1, 0.4, 0.35, 0.8];
 ///
 /// // Define a simple accuracy score function
-/// let score_func = |y_true: &ndarray::Array1<i32>, y_pred: &ndarray::Array1<i32>| {
+/// let score_func = |y_true: &scirs2_core::ndarray::Array1<i32>, y_pred: &scirs2_core::ndarray::Array1<i32>| {
 ///     let correct = y_true.iter().zip(y_pred.iter())
 ///         .filter(|(&t, &p)| t == p)
 ///         .count();
@@ -340,7 +340,7 @@ pub fn find_optimal_threshold<T, S1, S2, D1, F>(
     _sample_weight: Option<&ArrayBase<S2, Ix1>>,
 ) -> Result<(f64, f64)>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = f64>,
     D1: Dimension,
@@ -434,7 +434,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::threshold::g_means_score;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 1.0];
@@ -449,7 +449,7 @@ pub fn g_means_score<T, S1, S2, D1, D2>(
     pos_label: Option<T>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = T>,
     D1: Dimension,
@@ -530,7 +530,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::threshold::find_optimal_threshold_g_means;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 1.0];
@@ -546,7 +546,7 @@ pub fn find_optimal_threshold_g_means<T, S1, S2, D1>(
     sample_weight: Option<&ArrayBase<S2, Ix1>>,
 ) -> Result<(f64, f64)>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S1: Data<Elem = T>,
     S2: Data<Elem = f64>,
     D1: Dimension,
@@ -568,7 +568,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_precision_recall_curve() {

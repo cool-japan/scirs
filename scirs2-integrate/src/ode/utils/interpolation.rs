@@ -5,8 +5,8 @@
 //! within the integration range without recomputing the entire solution.
 
 use crate::IntegrateFloat;
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Continuous output method for interpolation

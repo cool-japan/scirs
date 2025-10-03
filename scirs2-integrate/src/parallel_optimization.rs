@@ -6,7 +6,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
@@ -910,7 +910,7 @@ impl<F: IntegrateFloat + Send + Sync> ParallelTask for VectorizedComputeTask<F> 
 mod tests {
     use crate::parallel_optimization::ArithmeticOp;
     use crate::{NumaTopology, ParallelOptimizer, VectorOperation, VectorizedComputeTask};
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_parallel_optimizer_creation() {

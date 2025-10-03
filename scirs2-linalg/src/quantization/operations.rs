@@ -4,7 +4,7 @@
 //! on quantized matrices and vectors, including matrix multiplication,
 //! matrix-vector multiplication, and dot products.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 use crate::error::{LinalgError, LinalgResult};
 

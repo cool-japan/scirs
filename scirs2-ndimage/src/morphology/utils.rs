@@ -1,7 +1,7 @@
 //! Utility functions for morphological operations
 
-use ndarray::{Array, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::MorphBorderMode;
@@ -159,7 +159,7 @@ where
 ///
 /// * `Result<Vec<isize>>` - Center indices
 pub(crate) fn get_structure_center_dyn(
-    structure: &Array<bool, ndarray::IxDyn>,
+    structure: &Array<bool, scirs2_core::ndarray::IxDyn>,
     origin: Option<&[isize]>,
 ) -> NdimageResult<Vec<isize>> {
     get_structure_center(structure, origin)
@@ -168,7 +168,7 @@ pub(crate) fn get_structure_center_dyn(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_validate_structure() {

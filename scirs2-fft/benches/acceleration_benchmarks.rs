@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 //! Comprehensive Acceleration Benchmarks
 //!
 //! This benchmark suite provides formal performance measurement for all acceleration
@@ -48,7 +49,7 @@ fn create_sparse_signal(n: usize, sparsity: usize) -> Vec<f64> {
     let mut rng = thread_rng();
 
     for sample in &mut signal {
-        *sample += 0.01 * (rng.gen::<f64>() - 0.5);
+        *sample += 0.01 * (rng.random::<f64>() - 0.5);
     }
 
     signal

@@ -6,7 +6,7 @@
 use crate::error::{Result, VisionError};
 use crate::registration::{transform_point, Point2D, TransformMatrix};
 use image::{GrayImage, Luma, Rgb, RgbImage};
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use std::time::{Duration, Instant};
 
 /// Interpolation method for image resampling

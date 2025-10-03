@@ -4,8 +4,8 @@
 //! stable and efficient method for polynomial interpolation.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Barycentric interpolation object
@@ -40,7 +40,7 @@ impl<F: Float + FromPrimitive + Debug> BarycentricInterpolator<F> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::advanced::barycentric::BarycentricInterpolator;
     ///
     /// let x = array![0.0f64, 1.0, 2.0, 3.0, 4.0];
@@ -264,7 +264,7 @@ impl<F: Float + FromPrimitive + Debug> BarycentricTriangulation<F> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::advanced::barycentric::BarycentricTriangulation;
     ///
     /// // Create 2D points (x, y coordinates flattened)
@@ -294,7 +294,7 @@ impl<F: Float + FromPrimitive + Debug> BarycentricTriangulation<F> {
         triangles: Vec<[usize; 3]>,
     ) -> InterpolateResult<Self> {
         // Check inputs
-        if points.len() % 2 != 0 {
+        if !points.len().is_multiple_of(2) {
             return Err(InterpolateError::invalid_input(
                 "points array length must be even (x, y pairs)".to_string(),
             ));
@@ -426,7 +426,7 @@ impl<F: Float + FromPrimitive + Debug> BarycentricTriangulation<F> {
     ///
     /// The interpolated values at each point
     pub fn interpolate_many(&self, points: &ArrayView1<F>) -> InterpolateResult<Array1<F>> {
-        if points.len() % 2 != 0 {
+        if !points.len().is_multiple_of(2) {
             return Err(InterpolateError::invalid_input(
                 "points array length must be even (x, y pairs)".to_string(),
             ));
@@ -460,7 +460,7 @@ impl<F: Float + FromPrimitive + Debug> BarycentricTriangulation<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::advanced::barycentric::make_barycentric_interpolator;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0, 4.0];
@@ -486,7 +486,7 @@ pub fn make_barycentric_interpolator<F: crate::traits::InterpolationFloat>(
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_barycentric_interpolator_linear() {

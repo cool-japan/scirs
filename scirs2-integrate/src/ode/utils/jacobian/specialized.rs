@@ -5,7 +5,7 @@
 //! sparse Jacobians, and systems with special structure.
 
 use crate::common::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Computes Jacobian for a banded system with specified number of lower and upper diagonals
 #[allow(dead_code)]

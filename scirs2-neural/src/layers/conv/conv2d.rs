@@ -3,8 +3,8 @@
 use super::common::{validate_conv_params, PaddingMode};
 use crate::error::{NeuralError, Result};
 use crate::layers::{Layer, ParamLayer};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// 2D Convolutional layer for neural networks (minimal implementation)
@@ -81,9 +81,9 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + Default> Layer<F> for Conv
 
     fn backward(
         &self,
-        _input: &Array<F, ndarray::IxDyn>,
-        grad_output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        _input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Placeholder implementation - return gradient as-is
         Ok(grad_output.clone())
     }
@@ -138,7 +138,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + Default> ParamLayer<F> for
         Ok(())
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Placeholder implementation - return empty vector
         Vec::new()
     }

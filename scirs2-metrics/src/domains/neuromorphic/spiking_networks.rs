@@ -10,8 +10,8 @@ use super::core::{
     ConnectionPattern, LateralInhibition, LayerParameters, NetworkTopology, NeuronType,
     RecurrentConnection,
 };
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
@@ -102,9 +102,9 @@ pub struct SpikeHistory {
 #[derive(Debug)]
 pub struct SynchronyMeasures {
     /// Cross-correlation matrix
-    pub cross_correlation: ndarray::Array2<f64>,
+    pub cross_correlation: scirs2_core::ndarray::Array2<f64>,
     /// Phase-locking values
-    pub phase_locking: ndarray::Array2<f64>,
+    pub phase_locking: scirs2_core::ndarray::Array2<f64>,
     /// Global synchrony index
     pub global_synchrony: f64,
     /// Local synchrony clusters
@@ -394,7 +394,7 @@ impl<F: Float> NeuronLayer<F> {
         for i in 0..self.neurons.len() {
             for j in 0..self.neurons.len() {
                 if i != j {
-                    let distance = (i as i32 - j as i32).abs() as usize;
+                    let distance = (i as i32 - j as i32).unsigned_abs() as usize;
                     if distance <= self.lateral_inhibition.radius {
                         let inhibition =
                             self.lateral_inhibition.strength / F::from(distance + 1).unwrap();
@@ -456,8 +456,8 @@ impl SynchronyMeasures {
     /// Create new synchrony measures
     pub fn new() -> Self {
         Self {
-            cross_correlation: ndarray::Array2::zeros((0, 0)),
-            phase_locking: ndarray::Array2::zeros((0, 0)),
+            cross_correlation: scirs2_core::ndarray::Array2::zeros((0, 0)),
+            phase_locking: scirs2_core::ndarray::Array2::zeros((0, 0)),
             global_synchrony: 0.0,
             local_clusters: Vec::new(),
         }

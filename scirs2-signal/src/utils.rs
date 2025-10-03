@@ -5,8 +5,8 @@
 
 use super::*;
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -54,7 +54,7 @@ where
         let x_f64: Vec<f64> = x
             .iter()
             .map(|&val| {
-                num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+                NumCast::from(val).ok_or_else(|| {
                     SignalError::ValueError(format!("Could not convert {:?} to f64", val))
                 })
             })
@@ -66,7 +66,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -271,7 +271,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -331,7 +331,7 @@ where
 ///
 /// ```
 /// use scirs2_signal::utils::is_real;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Create a real-valued complex signal
 /// let signal = vec![
@@ -352,7 +352,7 @@ where
 /// assert!(!is_real(&signal, 1e-10));
 /// ```
 #[allow(dead_code)]
-pub fn is_real(x: &[num_complex::Complex64], tol: f64) -> bool {
+pub fn is_real(x: &[scirs2_core::numeric::Complex64], tol: f64) -> bool {
     if x.is_empty() {
         return true;
     }
@@ -365,7 +365,7 @@ pub fn is_real(x: &[num_complex::Complex64], tol: f64) -> bool {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
 
     #[test]
     fn test_zero_pad_constant() {

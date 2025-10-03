@@ -1,8 +1,8 @@
+use crate::ndarray;
 use crate::ndarray_ext;
 use crate::ndarray_ext::NdArray;
 use crate::op;
 use crate::Float;
-use ndarray;
 
 pub struct Zeros;
 pub struct Ones;
@@ -15,7 +15,7 @@ pub struct Scalar<T: Float> {
 
 impl<T: Float> op::Op<T> for Scalar<T> {
     fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
-        ctx.append_output(ndarray::arr0(self.val).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(self.val).into_dyn());
         Ok(())
     }
 

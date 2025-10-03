@@ -4,8 +4,8 @@
 //! operations that can benefit significantly from multi-threading.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Axis, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, ArrayView1, Axis, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use std::sync::{Arc, Mutex};
 
@@ -43,7 +43,7 @@ impl AdvancedParallelConfig {
             return size;
         }
 
-        let threads = self.max_threads.unwrap_or_else(|| num_cpus::get());
+        let threads = self.max_threads.unwrap_or_else(num_cpus::get);
 
         if self.dynamic_chunks {
             // Dynamic sizing based on data size and thread count
@@ -257,7 +257,6 @@ where
 
         // Parallel computation of correlations for each fold
         let correlations: Vec<F> = (0..self.k_folds)
-            .into_iter()
             .map(|fold| {
                 let start = fold * foldsize;
                 let end = if fold == self.k_folds - 1 {
@@ -377,16 +376,15 @@ where
 
         // Parallel bootstrap sampling
         let bootstrap_stats: Vec<F> = (0..self.n_simulations)
-            .into_iter()
             .map(|seed| {
-                use rand::rngs::StdRng;
-                use rand::SeedableRng;
+                use scirs2_core::random::rngs::StdRng;
+                use scirs2_core::random::SeedableRng;
 
                 let mut rng = StdRng::seed_from_u64(seed as u64);
                 let mut bootstrap_sample = Array1::zeros(n);
 
                 for i in 0..n {
-                    use rand::Rng;
+                    use scirs2_core::random::Rng;
                     let idx = rng.gen_range(0..n);
                     bootstrap_sample[i] = data_arc[idx];
                 }
@@ -451,9 +449,9 @@ where
         let combined_arc = Arc::new(combined);
         let count_extreme = Arc::new(Mutex::new(0usize));
 
-        (0..self.n_simulations).into_iter().for_each(|seed| {
-            use rand::rngs::StdRng;
-            use rand::{seq::SliceRandom, SeedableRng};
+        (0..self.n_simulations).for_each(|seed| {
+            use scirs2_core::random::rngs::StdRng;
+            use scirs2_core::random::{SeedableRng, SliceRandom};
 
             let mut rng = StdRng::seed_from_u64(seed as u64);
             let mut permuted = combined_arc.as_ref().clone();
@@ -577,7 +575,7 @@ impl ParallelMatrixOps {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

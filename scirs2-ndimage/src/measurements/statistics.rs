@@ -1,7 +1,7 @@
 //! Statistical measurement functions for labeled arrays
 
-use ndarray::{Array, Array1, Dimension};
-use num_traits::{Float, FromPrimitive, NumAssign};
+use scirs2_core::ndarray::{Array, Array1, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -34,7 +34,7 @@ fn safe_usize_to_float<T: Float + FromPrimitive>(value: usize) -> NdimageResult<
 ///
 /// ## Basic usage with 2D arrays
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::sum_labels;
 ///
 /// // Create input image and corresponding labels
@@ -58,7 +58,7 @@ fn safe_usize_to_float<T: Float + FromPrimitive>(value: usize) -> NdimageResult<
 ///
 /// ## Computing specific region sums
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::sum_labels;
 ///
 /// let values = array![
@@ -79,7 +79,7 @@ fn safe_usize_to_float<T: Float + FromPrimitive>(value: usize) -> NdimageResult<
 ///
 /// ## Processing segmented image data
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::sum_labels;
 ///
 /// // Simulate segmented image with intensity values
@@ -177,7 +177,7 @@ where
 ///
 /// ## Basic mean calculation for segmented image
 /// ```rust
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::mean_labels;
 ///
 /// // Image with different intensity regions
@@ -201,7 +201,7 @@ where
 ///
 /// ## Region-based intensity analysis
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::mean_labels;
 ///
 /// // Simulate medical image with different tissue types
@@ -230,7 +230,7 @@ where
 ///
 /// ## Quality control: analyzing specific regions only
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::measurements::mean_labels;
 ///
 /// let values = array![
@@ -253,7 +253,7 @@ where
 ///
 /// ## Workflow: segmentation → feature extraction
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::mean_labels;
 ///
 /// // Simulate workflow after watershed segmentation
@@ -375,7 +375,7 @@ where
 ///
 /// ## Basic variance calculation
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::variance_labels;
 ///
 /// let values = array![
@@ -513,7 +513,7 @@ where
 ///
 /// ## Basic region size measurement
 /// ```rust
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::count_labels;
 ///
 /// let segmentation = array![
@@ -532,7 +532,7 @@ where
 ///
 /// ## Object size filtering workflow
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::count_labels;
 ///
 /// // Simulate segmented image with objects of various sizes
@@ -561,7 +561,7 @@ where
 ///
 /// ## Cell counting and size analysis
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::measurements::count_labels;
 ///
 /// // Simulated cell segmentation result
@@ -597,7 +597,7 @@ where
 ///
 /// ## Quality control: count specific regions only
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::measurements::count_labels;
 ///
 /// let labels = array![
@@ -617,7 +617,7 @@ where
 ///
 /// ## Segmentation validation workflow
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::count_labels;
 ///
 /// // After watershed or other segmentation algorithm
@@ -755,7 +755,7 @@ where
 ///
 /// ## Basic histogram of entire image
 /// ```rust
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::histogram;
 ///
 /// let image = array![
@@ -775,7 +775,7 @@ where
 ///
 /// ## Histogram of specific regions only
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::measurements::histogram;
 ///
 /// let intensities = array![
@@ -801,7 +801,7 @@ where
 ///
 /// ## Texture analysis workflow
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::histogram;
 ///
 /// // Simulate textured image regions
@@ -848,7 +848,7 @@ where
 ///
 /// ## Medical image intensity analysis
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::histogram;
 ///
 /// // Simulate medical image with different tissue types
@@ -888,7 +888,7 @@ where
 ///
 /// ## Quality control: histogram-based thresholding
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::histogram;
 ///
 /// let image = Array2::from_shape_fn((50, 50), |(i, j)| {
@@ -1029,7 +1029,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array2, Array3};
+    use scirs2_core::ndarray::{array, Array2, Array3};
 
     #[test]
     fn test_sum_labels_basic() {
@@ -1227,8 +1227,8 @@ mod tests {
         assert!(variance_labels(&input, &labels, None).is_err());
 
         // Test 0-dimensional input
-        let input_0d = ndarray::arr0(1.0);
-        let labels_0d = ndarray::arr0(1);
+        let input_0d = scirs2_core::ndarray::arr0(1.0);
+        let labels_0d = scirs2_core::ndarray::arr0(1);
 
         assert!(sum_labels(&input_0d, &labels_0d, None).is_err());
         assert!(mean_labels(&input_0d, &labels_0d, None).is_err());

@@ -49,7 +49,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::dwt2d_enhanced::{enhanced_dwt2d_decompose, Dwt2dConfig, BoundaryMode};
 //! use scirs2_signal::dwt::Wavelet;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let data = Array2::zeros((128, 128));
 //! let config = Dwt2dConfig {
@@ -73,7 +73,7 @@
 //!     enhanced_dwt2d_decompose, enhanced_dwt2d_reconstruct, Dwt2dConfig
 //! };
 //! use scirs2_signal::dwt::Wavelet;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let data = Array2::zeros((128, 128));
 //! let config = Dwt2dConfig::default();
@@ -94,7 +94,7 @@
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! use scirs2_signal::dwt2d_enhanced::{wavedec2_enhanced, waverec2_enhanced, Dwt2dConfig};
 //! use scirs2_signal::dwt::Wavelet;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create minimal test data for multilevel processing
 //! let data = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect())?;
@@ -124,7 +124,7 @@
 //!     adaptive_wavelet_denoising, DenoisingMethod
 //! };
 //! use scirs2_signal::dwt::Wavelet;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create simple test data for denoising demonstration
 //! let mut noisy_data = Array2::zeros((64, 64));

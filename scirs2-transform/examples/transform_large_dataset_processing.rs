@@ -5,7 +5,7 @@
 //! 2. Handle streaming data in real-time
 //! 3. Use windowed transformations
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_transform::{
     normalize::NormalizationMethod,
     out_of_core::{csv_chunks, OutOfCoreNormalizer, OutOfCoreTransformer},
@@ -85,7 +85,7 @@ fn example_streaming_transformations() -> Result<(), Box<dyn std::error::Error>>
     for i in 0..5 {
         // Generate a batch of data
         let batch = Array2::from_shape_fn((100, n_features), |(_, j)| {
-            (i as f64 + j as f64) * 10.0 + rand::random::<f64>() * 5.0
+            (i as f64 + j as f64) * 10.0 + scirs2_core::random::random::<f64>() * 5.0
         });
 
         // Update scaler
@@ -136,7 +136,7 @@ fn example_windowed_streaming() -> Result<(), Box<dyn std::error::Error>> {
             // Generate data with shifting distribution
             let offset = epoch as f64 * 50.0;
             let batch = Array2::from_shape_fn((100, n_features), |(_, j)| {
-                offset + j as f64 * 10.0 + rand::random::<f64>() * 20.0
+                offset + j as f64 * 10.0 + scirs2_core::random::random::<f64>() * 20.0
             });
 
             // Update windowed scaler
@@ -178,11 +178,11 @@ fn example_streaming_quantiles() -> Result<(), Box<dyn std::error::Error>> {
             // Feature 1: Uniform distribution
             if j == 0 {
                 // Box-Muller transform for normal distribution
-                let u1 = rand::random::<f64>();
-                let u2 = rand::random::<f64>();
+                let u1 = scirs2_core::random::random::<f64>();
+                let u2 = scirs2_core::random::random::<f64>();
                 (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos() * 10.0 + 50.0
             } else {
-                rand::random::<f64>() * 100.0
+                scirs2_core::random::random::<f64>() * 100.0
             }
         });
 
@@ -223,7 +223,12 @@ fn create_sample_csv(
 
     for i in 0..n_rows {
         let row: Vec<String> = (0..n_cols)
-            .map(|j| format!("{:.2}", (i + j) as f64 * 0.1 + rand::random::<f64>()))
+            .map(|j| {
+                format!(
+                    "{:.2}",
+                    (i + j) as f64 * 0.1 + scirs2_core::random::random::<f64>()
+                )
+            })
             .collect();
         writeln!(file, "{}", row.join(","))?;
     }

@@ -4,7 +4,7 @@
 //! special functions for better performance on large arrays.
 
 use crate::error::SpecialResult;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 #[cfg(feature = "simd")]
 use scirs2_core::simd::*;
@@ -152,7 +152,7 @@ fn lanczos_gamma_f32(z: f32) -> f32 {
 
     let mut ag = LANCZOS_COEFFS[0];
     for i in 1..LANCZOS_COEFFS.len() {
-        ag += LANCZOS_COEFFS[i] / (z + i as f32 - 1.0);
+        ag += LANCZOS_COEFFS[i] / (z + i as f32);
     }
 
     let term1 = sqrt_2pi * ag / z;
@@ -165,57 +165,12 @@ fn lanczos_gamma_f32(z: f32) -> f32 {
 #[cfg(feature = "simd")]
 #[allow(dead_code)]
 fn simd_gamma_approx_f64(x: &[f64]) -> Vec<f64> {
-    // Enhanced gamma function using higher precision Lanczos approximation
-    // Coefficients for Lanczos approximation (g=7, n=15) for better f64 precision
-    #[allow(dead_code)]
-    const LANCZOS_COEFFS: [f64; 15] = [
-        0.99999999999999709182,
-        57.156235665862923517,
-        -59.597960355475491248,
-        14.136097974741747174,
-        -0.49191381609762019978,
-        0.000033994649984811888699,
-        0.00004652362892704858047,
-        -0.0000098374475304879564677,
-        0.00000015808870322491248884,
-        -0.00000002103937310653993906,
-        0.0000000016125516516672222819,
-        -0.00000000006050073988424023865,
-        0.000000000013525146073944673582,
-        -0.000000000000020085822498639073869,
-        0.0000000000000010773925999973567529,
-    ];
-
+    // Use the standard scalar gamma implementation for correctness
+    // In the future, this can be optimized with proper SIMD intrinsics
     let mut result = vec![0.0f64; x.len()];
 
     for i in 0..x.len() {
-        let xi = x[i];
-
-        if xi <= 0.0 {
-            result[i] = f64::NAN;
-        } else if xi < 0.5 {
-            // Use reflection formula: Γ(z)Γ(1-z) = π/sin(πz)
-            let pi_sin_pi_z = std::f64::consts::PI / (std::f64::consts::PI * xi).sin();
-            result[i] = pi_sin_pi_z / lanczos_gamma_f64(1.0 - xi);
-        } else if xi < 1.5 {
-            // Direct Lanczos evaluation
-            result[i] = lanczos_gamma_f64(xi);
-        } else if xi < 15.0 {
-            // Use recurrence relation for moderate values
-            let mut z = xi;
-            let mut result_mult = 1.0;
-
-            while z > 1.5 {
-                z -= 1.0;
-                result_mult *= z;
-            }
-
-            result[i] = lanczos_gamma_f64(z) * result_mult;
-        } else {
-            // For very large values, use asymptotic expansion or fall back to scalar
-            // to avoid numerical issues with the Lanczos approximation
-            result[i] = crate::gamma::gamma(xi);
-        }
+        result[i] = crate::gamma::gamma(x[i]);
     }
 
     result
@@ -248,7 +203,7 @@ fn lanczos_gamma_f64(z: f64) -> f64 {
 
     let mut ag = LANCZOS_COEFFS[0];
     for i in 1..LANCZOS_COEFFS.len() {
-        ag += LANCZOS_COEFFS[i] / (z + i as f64 - 1.0);
+        ag += LANCZOS_COEFFS[i] / (z + i as f64);
     }
 
     let term1 = sqrt_2pi * ag / z;
@@ -402,7 +357,7 @@ pub fn gamma_f64_parallel(input: &ArrayView1<f64>) -> SpecialResult<Array1<f64>>
                 });
         } else {
             // Fallback for non-contiguous arrays
-            use ndarray::Zip;
+            use scirs2_core::ndarray::Zip;
             Zip::from(&mut output).and(input).par_for_each(|out, &inp| {
                 *out = crate::gamma::gamma(inp);
             });
@@ -435,7 +390,7 @@ pub fn j0_f64_parallel(input: &ArrayView1<f64>) -> SpecialResult<Array1<f64>> {
                 });
         } else {
             // Fallback for non-contiguous arrays
-            use ndarray::Zip;
+            use scirs2_core::ndarray::Zip;
             Zip::from(&mut output).and(input).par_for_each(|out, &inp| {
                 *out = crate::bessel::j0(inp);
             });
@@ -475,7 +430,7 @@ pub fn gamma_f32_simd_parallel(input: &ArrayView1<f32>) -> SpecialResult<Array1<
                 });
         } else {
             // Fallback for non-contiguous arrays
-            use ndarray::Zip;
+            use scirs2_core::ndarray::Zip;
             Zip::from(&mut output).and(input).par_for_each(|out, &inp| {
                 *out = crate::gamma::gamma(inp as f64) as f32;
             });
@@ -1127,7 +1082,6 @@ mod tests {
 
     #[test]
     #[cfg(feature = "simd")]
-    #[ignore] // TODO: Fix SIMD gamma implementation - currently produces incorrect results
     fn test_gamma_f64_simd() {
         let input = Array1::from_vec(vec![1.0f64, 2.0, 3.0, 4.0, 5.0]);
         let result = gamma_f64_simd(&input.view()).unwrap();

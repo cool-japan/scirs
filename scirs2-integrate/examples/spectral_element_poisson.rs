@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Compute L2 error norm
-    l2_error = (l2_error / result.nodes.len() as f64).sqrt() as f64;
+    l2_error = (l2_error / result.nodes.len() as f64).sqrt();
 
     println!("\nError analysis:");
     println!("  - Maximum error: {max_error:.6e}");
@@ -179,7 +179,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             l2_error += error * error;
         }
 
-        l2_error = (l2_error / result.nodes.len() as f64).sqrt() as f64;
+        l2_error = (l2_error / result.nodes.len() as f64).sqrt();
 
         println!(
             "  - Order p = {}: L2 error = {:.6e}, DOFs = {}",
@@ -218,7 +218,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             l2_error += error * error;
         }
 
-        l2_error = (l2_error / result.nodes.len() as f64).sqrt() as f64;
+        l2_error = (l2_error / result.nodes.len() as f64).sqrt();
 
         println!(
             "  - Grid {}x{}: L2 error = {:.6e}, DOFs = {}",

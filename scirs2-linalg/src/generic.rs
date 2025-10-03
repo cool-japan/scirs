@@ -4,8 +4,8 @@
 //! that work with different numeric types (f32, f64, Complex<f32>, Complex<f64>).
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -18,7 +18,7 @@ pub trait LinalgScalar:
     + NumAssign
     + Sum
     + for<'a> Sum<&'a Self>
-    + ndarray::ScalarOperand
+    + scirs2_core::ndarray::ScalarOperand
     + 'static
 {
     /// Type used for norms and condition numbers (always real)
@@ -161,7 +161,7 @@ impl LinalgScalar for f64 {
 #[allow(dead_code)]
 pub fn gemm<T>(a: &ArrayView2<T>, b: &ArrayView2<T>) -> LinalgResult<Array2<T>>
 where
-    T: LinalgScalar + ndarray::LinalgScalar,
+    T: LinalgScalar + scirs2_core::ndarray::LinalgScalar,
 {
     if a.ncols() != b.nrows() {
         return Err(LinalgError::DimensionError(format!(
@@ -178,9 +178,12 @@ where
 
 /// Generic matrix-vector multiplication - wrapper using ndarray's dot
 #[allow(dead_code)]
-pub fn gemv<T>(a: &ArrayView2<T>, x: &ndarray::ArrayView1<T>) -> LinalgResult<ndarray::Array1<T>>
+pub fn gemv<T>(
+    a: &ArrayView2<T>,
+    x: &scirs2_core::ndarray::ArrayView1<T>,
+) -> LinalgResult<scirs2_core::ndarray::Array1<T>>
 where
-    T: LinalgScalar + ndarray::LinalgScalar,
+    T: LinalgScalar + scirs2_core::ndarray::LinalgScalar,
 {
     if a.ncols() != x.len() {
         return Err(LinalgError::DimensionError(format!(
@@ -218,7 +221,7 @@ pub fn gnorm<T: LinalgScalar + Float + Send + Sync>(
 /// Generic SVD decomposition result
 pub struct GenericSVD<T: LinalgScalar> {
     pub u: Array2<T>,
-    pub s: ndarray::Array1<T>,
+    pub s: scirs2_core::ndarray::Array1<T>,
     pub vt: Array2<T>,
 }
 
@@ -254,8 +257,8 @@ pub fn gqr<T: LinalgScalar + Float + Send + Sync>(a: &ArrayView2<T>) -> LinalgRe
 
 /// Generic eigendecomposition result (complex for real matrices)
 pub struct GenericEigen<T: LinalgScalar> {
-    pub eigenvalues: ndarray::Array1<num_complex::Complex<T>>,
-    pub eigenvectors: Array2<num_complex::Complex<T>>,
+    pub eigenvalues: scirs2_core::ndarray::Array1<scirs2_core::numeric::Complex<T>>,
+    pub eigenvectors: Array2<scirs2_core::numeric::Complex<T>>,
 }
 
 /// Generic eigendecomposition (only for real floats, returns complex)
@@ -302,7 +305,7 @@ impl PrecisionSelector for f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_gemm() {

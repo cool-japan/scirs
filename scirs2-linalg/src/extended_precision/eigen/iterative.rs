@@ -4,8 +4,8 @@
 //! including Rayleigh quotient iteration, Newton corrections, and other
 //! high-precision numerical methods.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 
 use super::super::{DemotableTo, PromotableTo};
 use super::standard_eigen::extended_eigh;
@@ -36,7 +36,7 @@ use crate::error::LinalgResult;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::extended_precision::eigen::advanced_precision_eigh;
 ///
 /// let a = array![[2.0f32, 1.0], [1.0, 2.0]];
@@ -609,11 +609,11 @@ where
 /// Compute eigenvector using inverse iteration in extended precision
 #[allow(dead_code)]
 pub(super) fn compute_eigenvector_inverse_iteration<I>(
-    shiftedmatrix: &Array2<num_complex::Complex<I>>,
-    _lambda: num_complex::Complex<I>,
+    shiftedmatrix: &Array2<scirs2_core::numeric::Complex<I>>,
+    _lambda: scirs2_core::numeric::Complex<I>,
     max_iter: usize,
     tol: I,
-) -> Array1<num_complex::Complex<I>>
+) -> Array1<scirs2_core::numeric::Complex<I>>
 where
     I: Float
         + Zero
@@ -628,7 +628,7 @@ where
 
     // Start with a random vector
     let mut v = Array1::zeros(n);
-    v[0] = num_complex::Complex::new(I::one(), I::zero());
+    v[0] = scirs2_core::numeric::Complex::new(I::one(), I::zero());
 
     for _ in 0..max_iter {
         // Solve (A - λI)u = v for u using LU decomposition
@@ -637,7 +637,7 @@ where
         // Normalize u
         let norm = compute_complex_norm(&u);
         if norm > I::epsilon() {
-            let norm_complex = num_complex::Complex::new(norm, I::zero());
+            let norm_complex = scirs2_core::numeric::Complex::new(norm, I::zero());
             for i in 0..n {
                 u[i] = u[i] / norm_complex;
             }
@@ -663,9 +663,9 @@ where
 /// Solve complex linear system using simplified Gaussian elimination
 #[allow(dead_code)]
 fn solve_linear_system_complex<I>(
-    a: &Array2<num_complex::Complex<I>>,
-    b: &Array1<num_complex::Complex<I>>,
-) -> Array1<num_complex::Complex<I>>
+    a: &Array2<scirs2_core::numeric::Complex<I>>,
+    b: &Array1<scirs2_core::numeric::Complex<I>>,
+) -> Array1<scirs2_core::numeric::Complex<I>>
 where
     I: Float + Zero + One + Copy + std::fmt::Debug,
 {
@@ -730,7 +730,7 @@ where
 
 /// Compute the norm of a complex vector
 #[allow(dead_code)]
-fn compute_complex_norm<I>(v: &Array1<num_complex::Complex<I>>) -> I
+fn compute_complex_norm<I>(v: &Array1<scirs2_core::numeric::Complex<I>>) -> I
 where
     I: Float + Zero + Copy,
 {
@@ -744,7 +744,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_precision_eigh() {
@@ -796,7 +796,7 @@ mod tests {
         let identity = array![[1.0f32, 0.0], [0.0, 1.0]];
         let cond = estimate_condition_number(&identity.view()).unwrap();
         assert!(
-            cond >= 0.5 && cond <= 2.0,
+            (0.5..=2.0).contains(&cond),
             "Expected condition number ~1, got {}",
             cond
         );

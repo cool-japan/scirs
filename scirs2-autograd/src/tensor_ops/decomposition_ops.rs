@@ -2,7 +2,7 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops::convert_to_tensor;
 use crate::Float;
-use ndarray::{Array1, Array2, Ix2};
+use scirs2_core::ndarray::{Array1, Array2, Ix2};
 
 /// QR Decomposition
 pub struct QROp;
@@ -224,7 +224,7 @@ impl<F: Float> Op<F> for QRExtractOp {
 /// SVD Operation
 pub struct SVDOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for SVDOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SVDOp {
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let input = ctx.input(0);
         let shape = input.shape();
@@ -352,7 +352,7 @@ pub struct SVDExtractOp {
     component: usize,
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for SVDExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SVDExtractOp {
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let input = ctx.input(0);
         let shape = input.shape();
@@ -435,7 +435,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SVDExtractOp {
 /// The power iteration method for finding eigenvectors of a matrix.
 /// This is used in the SVD implementation for matrices larger than 2x2.
 #[allow(dead_code)]
-fn power_iteration<F: Float + ndarray::ScalarOperand>(
+fn power_iteration<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Array2<F>,
     max_iter: usize,
     tol: F,
@@ -501,15 +501,15 @@ fn power_iteration<F: Float + ndarray::ScalarOperand>(
 /// This removes the contribution of a found singular value and vectors
 /// from the matrix to find additional singular values.
 #[allow(dead_code)]
-fn improved_deflation<F: Float + ndarray::ScalarOperand>(
+fn improved_deflation<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Array2<F>,
     u_vec: &Array1<F>,
     s_val: F,
     v_vec: &Array1<F>,
 ) -> Array2<F> {
     // Create 2D versions for outer product
-    let u_2d = u_vec.clone().insert_axis(ndarray::Axis(1));
-    let v_2d = v_vec.clone().insert_axis(ndarray::Axis(1));
+    let u_2d = u_vec.clone().insert_axis(scirs2_core::ndarray::Axis(1));
+    let v_2d = v_vec.clone().insert_axis(scirs2_core::ndarray::Axis(1));
 
     // Compute outer product u*v^T scaled by singular value
     let update = &u_2d * &v_2d.t() * s_val;
@@ -558,7 +558,7 @@ pub fn qr<'g, F: Float>(matrix: &Tensor<'g, F>) -> (Tensor<'g, F>, Tensor<'g, F>
 /// # Returns
 /// A tuple of tensors (U, S, V) representing the decomposition
 #[allow(dead_code)]
-pub fn svd<'g, F: Float + ndarray::ScalarOperand>(
+pub fn svd<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
 ) -> (Tensor<'g, F>, Tensor<'g, F>, Tensor<'g, F>) {
     let g = matrix.graph();
@@ -689,8 +689,8 @@ impl<F: Float> Op<F> for CholeskyOp {
 /// Compute gradient for Cholesky decomposition
 #[allow(dead_code)]
 fn compute_cholesky_gradient<F: Float>(
-    input: &ndarray::ArrayView2<F>,
-    grad_output: &ndarray::ArrayView2<F>,
+    input: &scirs2_core::ndarray::ArrayView2<F>,
+    grad_output: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Array2<F> {
     let n = input.shape()[0];
     let mut grad_input = Array2::<F>::zeros((n, n));
@@ -756,7 +756,7 @@ pub fn cholesky<'g, F: Float>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
 /// Uses a more stable algorithm optimized for symmetric matrices
 pub struct SymmetricEigenOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for SymmetricEigenOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SymmetricEigenOp {
     fn name(&self) -> &'static str {
         "SymmetricEigen"
     }
@@ -882,8 +882,8 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SymmetricEigenOp {
 
 /// Compute eigenvalues for symmetric matrix using iterative method
 #[allow(dead_code)]
-fn compute_symmetric_eigenvalues<F: Float + ndarray::ScalarOperand>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_symmetric_eigenvalues<F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Array1<F> {
     let n = matrix.shape()[0];
     let mut eigenvalues = Array1::zeros(n);
@@ -911,8 +911,8 @@ fn compute_symmetric_eigenvalues<F: Float + ndarray::ScalarOperand>(
 
 /// Compute eigenvectors for symmetric matrix
 #[allow(dead_code)]
-fn compute_symmetric_eigenvectors<F: Float + ndarray::ScalarOperand>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_symmetric_eigenvectors<F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
     _eigenvalues: &Array1<F>,
 ) -> Array2<F> {
     let n = matrix.shape()[0];
@@ -948,7 +948,7 @@ fn compute_symmetric_eigenvectors<F: Float + ndarray::ScalarOperand>(
 /// # Returns
 /// A tensor representing the eigendecomposition result
 #[allow(dead_code)]
-pub fn symmetric_eigen<'g, F: Float + ndarray::ScalarOperand>(
+pub fn symmetric_eigen<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();
@@ -961,7 +961,7 @@ pub fn symmetric_eigen<'g, F: Float + ndarray::ScalarOperand>(
 /// Computes exp(A) for a square matrix A
 pub struct MatrixExpOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for MatrixExpOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixExpOp {
     fn name(&self) -> &'static str {
         "MatrixExp"
     }
@@ -1000,7 +1000,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for MatrixExpOp {
 /// Computes log(A) for a square matrix A
 pub struct MatrixLogOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for MatrixLogOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixLogOp {
     fn name(&self) -> &'static str {
         "MatrixLog"
     }
@@ -1049,7 +1049,7 @@ pub struct MatrixPowerOp {
     pub power: f64,
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for MatrixPowerOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixPowerOp {
     fn name(&self) -> &'static str {
         "MatrixPower"
     }
@@ -1084,8 +1084,8 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for MatrixPowerOp {
 
 /// Compute matrix exponential using Padé approximation
 #[allow(dead_code)]
-fn compute_matrix_exp<F: Float + ndarray::ScalarOperand>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_exp<F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
 
@@ -1114,8 +1114,8 @@ fn compute_matrix_exp<F: Float + ndarray::ScalarOperand>(
 
 /// Compute matrix logarithm
 #[allow(dead_code)]
-fn compute_matrix_log<F: Float + ndarray::ScalarOperand>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_log<F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
 
@@ -1145,8 +1145,8 @@ fn compute_matrix_log<F: Float + ndarray::ScalarOperand>(
 
 /// Compute matrix power
 #[allow(dead_code)]
-fn compute_matrix_power<F: Float + ndarray::ScalarOperand>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_power<F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
     power: f64,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
@@ -1204,7 +1204,9 @@ fn compute_matrix_power<F: Float + ndarray::ScalarOperand>(
 /// # Returns
 /// A tensor representing exp(A)
 #[allow(dead_code)]
-pub fn matrix_exp<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
+pub fn matrix_exp<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &Tensor<'g, F>,
+) -> Tensor<'g, F> {
     let g = matrix.graph();
     Tensor::builder(g)
         .append_input(matrix, false)
@@ -1221,7 +1223,9 @@ pub fn matrix_exp<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>)
 /// # Returns
 /// A tensor representing log(A)
 #[allow(dead_code)]
-pub fn matrix_log<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
+pub fn matrix_log<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &Tensor<'g, F>,
+) -> Tensor<'g, F> {
     let g = matrix.graph();
     Tensor::builder(g)
         .append_input(matrix, false)
@@ -1239,7 +1243,7 @@ pub fn matrix_log<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>)
 /// # Returns
 /// A tensor representing A^p
 #[allow(dead_code)]
-pub fn matrix_power<'g, F: Float + ndarray::ScalarOperand>(
+pub fn matrix_power<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
     power: f64,
 ) -> Tensor<'g, F> {
@@ -1252,7 +1256,7 @@ pub fn matrix_power<'g, F: Float + ndarray::ScalarOperand>(
 /// LU Decomposition Operation
 pub struct LUOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for LUOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LUOp {
     fn name(&self) -> &'static str {
         "LU"
     }
@@ -1360,7 +1364,7 @@ pub struct LUExtractOp {
     component: usize, // 0 for P, 1 for L, 2 for U
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for LUExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for LUExtractOp {
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let input = ctx.input(0);
         let shape = input.shape();
@@ -1423,7 +1427,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for LUExtractOp {
 /// - L is lower triangular with ones on diagonal
 /// - U is upper triangular
 #[allow(dead_code)]
-pub fn lu<'g, F: Float + ndarray::ScalarOperand>(
+pub fn lu<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
 ) -> (Tensor<'g, F>, Tensor<'g, F>, Tensor<'g, F>) {
     let g = matrix.graph();

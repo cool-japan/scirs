@@ -14,8 +14,8 @@
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::spline::CubicSpline;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Enum for the different monotonic interpolation methods
@@ -685,7 +685,7 @@ impl<F: Float + FromPrimitive + Debug + crate::traits::InterpolationFloat>
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::interp1d::monotonic::{monotonic_interpolate, MonotonicMethod};
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -730,7 +730,7 @@ pub fn monotonic_interpolate<
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::interp1d::monotonic::hyman_interpolate;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -765,7 +765,7 @@ pub fn hyman_interpolate<F: Float + FromPrimitive + Debug + crate::traits::Inter
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::interp1d::monotonic::steffen_interpolate;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -800,7 +800,7 @@ pub fn steffen_interpolate<F: Float + FromPrimitive + Debug + crate::traits::Int
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::interp1d::monotonic::modified_akima_interpolate;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -825,7 +825,7 @@ pub fn modified_akima_interpolate<
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_monotonic_methods_at_data_points() {

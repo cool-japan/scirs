@@ -4,7 +4,7 @@
 //! using the Lucas-Kanade tracker.
 
 use image::{DynamicImage, ImageBuffer, Luma, Rgb, RgbImage};
-use rand::prelude::*;
+use scirs2_core::random::prelude::*;
 use scirs2_vision::error::Result;
 use scirs2_vision::feature::{
     extract_feature_coordinates, harris_corners, LKTracker, TrackerParams,
@@ -173,7 +173,7 @@ fn create_synthetic_sequence() -> Result<Vec<DynamicImage>> {
         }
 
         // Add some noise
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         for _ in 0..100 {
             let x = rng.random_range(0..width);
             let y = rng.random_range(0..height);

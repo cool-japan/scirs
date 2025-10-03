@@ -7,10 +7,10 @@ use crate::error::{SignalError, SignalResult};
 use crate::lombscargle::lombscargle;
 use crate::lombscargle_enhanced::{lombscargle_enhanced, LombScargleConfig, WindowType};
 use super::types::{ValidationResult, SingleTestResult};
-use num_traits::Float;
-use rand::prelude::*;
-use rand::seq::SliceRandom;
-use rand::Rng;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::Rng;
 use std::f64::consts::PI;
 use std::time::Instant;
 
@@ -347,7 +347,7 @@ fn validate_uneven_sampling(
     let f_signal = 10.0;
 
     // Create heavily uneven sampling (random gaps and clustering)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut t = Vec::new();
     let mut current_time = 0.0;
 
@@ -465,7 +465,7 @@ fn validate_sparse_sampling(
     let fs = 100.0;
     let f_signal = 10.0;
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut indices: Vec<usize> = (0..n_total).collect();
     indices.shuffle(&mut rng);
     indices.truncate(n_samples);

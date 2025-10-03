@@ -9,8 +9,8 @@ use std::collections::HashMap;
 use std::mem;
 use std::sync::Arc;
 
-use ndarray::{Array, ArrayView, ArrayView2, Dimension, Ix2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView, ArrayView2, Dimension, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::backend::gpu_acceleration_framework::{
     GpuAccelerationManager, GpuPerformanceReport, MemoryPoolConfig,
@@ -791,7 +791,7 @@ impl GpuOperations {
             let converted_distances = distances.mapv(|x| T::from_f64(x).unwrap_or(T::zero()));
             // Convert from dynamic dimension back to Ix2
             converted_distances
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError(
                         "Failed to convert distance transform result to 2D".into(),
@@ -916,7 +916,7 @@ fn safe_f64_to_float<T: Float>(value: f64) -> NdimageResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_gpu_operations_creation() {

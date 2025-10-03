@@ -8,8 +8,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::{Array, ArrayD, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ArrayD, Axis};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use statrs::statistics::Statistics;
@@ -125,7 +125,7 @@ pub struct DistillationStatistics<F: Float + Debug> {
     pub similarity_metrics: HashMap<String, F>,
     /// Training step
     pub current_step: usize,
-impl<F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOperand>
+impl<F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_core::ndarray::ScalarOperand>
     DistillationTrainer<F>
 {
     /// Create a new distillation trainer
@@ -398,8 +398,8 @@ impl<F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOpe
         let mut relations = Array::zeros((batch_size, batch_size));
         for i in 0..batch_size {
             for j in 0..batch_size {
-                let feat_i = features.slice(ndarray::s![i, ..]);
-                let feat_j = features.slice(ndarray::s![j, ..]);
+                let feat_i = features.slice(scirs2_core::ndarray::s![i, ..]);
+                let feat_j = features.slice(scirs2_core::ndarray::s![j, ..]);
                 let distance = match metric {
                     DistanceMetric::Euclidean => {
                         let diff = &feat_i - &feat_j;
@@ -473,7 +473,7 @@ impl<F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOpe
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     #[test]
     fn test_response_based_distillation() {
         let method = DistillationMethod::ResponseBased {

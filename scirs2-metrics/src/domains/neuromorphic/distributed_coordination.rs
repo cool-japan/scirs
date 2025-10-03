@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use crate::error::Result;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 /// Distributed neuromorphic coordinator
@@ -577,11 +577,11 @@ impl DistributedTopology {
     pub fn add_connection(&mut self, node1: &str, node2: &str) {
         self.connections
             .entry(node1.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(node2.to_string());
         self.connections
             .entry(node2.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(node1.to_string());
     }
 

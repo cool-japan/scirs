@@ -177,7 +177,7 @@ impl SearchSpace {
         })
     /// Sample a random architecture from the search space
     pub fn sample(&self) -> Result<Architecture> {
-        use rand::prelude::*;
+        use scirs2_core::random::prelude::*;
         let mut rng = rng();
         let mut layers = Vec::new();
         let mut connections = Vec::new();

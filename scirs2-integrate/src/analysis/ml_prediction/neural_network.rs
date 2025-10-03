@@ -5,8 +5,8 @@
 
 use crate::analysis::types::*;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Neural network for bifurcation classification and prediction
@@ -252,7 +252,7 @@ impl BifurcationPredictionNetwork {
             return Ok(x.clone());
         }
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mask: Array1<f64> = Array1::from_shape_fn(x.len(), |_| {
             if rng.random::<f64>() < dropout_rate {
                 0.0

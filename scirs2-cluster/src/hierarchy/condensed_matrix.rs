@@ -4,8 +4,8 @@
 //! which store only the upper triangular portion of a symmetric distance matrix
 //! in a flattened 1D array format for memory efficiency.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -27,7 +27,7 @@ use crate::error::{ClusteringError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::hierarchy::condensed_matrix::square_to_condensed;
 ///
 /// let square = Array2::from_shape_vec((3, 3), vec![
@@ -89,7 +89,7 @@ pub fn square_to_condensed<F: Float + Zero + Copy>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::hierarchy::condensed_matrix::condensed_to_square;
 ///
 /// let condensed = Array1::from_vec(vec![1.0, 2.0, 3.0]);
@@ -153,7 +153,7 @@ pub fn condensed_to_square<F: Float + Zero + Copy>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::hierarchy::condensed_matrix::get_distance;
 ///
 /// let condensed = Array1::from_vec(vec![1.0, 2.0, 3.0]);
@@ -376,7 +376,7 @@ pub fn validate_condensed_matrix<F: Float + FromPrimitive + Debug + PartialOrd>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_square_to_condensed() {

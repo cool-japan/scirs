@@ -4,8 +4,8 @@
 //! including matrix and vector quantization/dequantization and fake quantization.
 
 use half::{bf16, f16};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{AsPrimitive, Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{AsPrimitive, Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{LinalgError, LinalgResult};

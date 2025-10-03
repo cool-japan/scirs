@@ -7,9 +7,9 @@ use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
 use crate::transformer::{TransformerDecoder, TransformerEncoder};
 use crate::utils::{PositionalEncoding, PositionalEncodingFactory, PositionalEncodingType};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
@@ -181,13 +181,13 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array3;
-    use rand::rngs::SmallRng;
-    use rand::SeedableRng;
+    use scirs2_core::ndarray::Array3;
+    use scirs2_core::random::rngs::SmallRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_transformer_train() {
         // Set up transformer with small configuration for testing
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let config = TransformerConfig {
             d_model: 64,
             n_encoder_layers: 2,

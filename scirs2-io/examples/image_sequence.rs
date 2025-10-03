@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates how to work with animated images and sequences
 
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 use scirs2_io::image::{
     save_image, AnimationData, ColorMode, ImageData, ImageFormat, ImageMetadata,
 };
@@ -108,7 +108,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create a tiled image from frames for visualization
     println!("\n5. Creating a tiled visualization of all frames...");
     let tile_cols = 5;
-    let tile_rows = (frames + tile_cols - 1) / tile_cols;
+    let tile_rows = frames.div_ceil(tile_cols);
     let tiled_width = size * tile_cols;
     let tiled_height = size * tile_rows;
     let mut tiled_image = Array3::zeros((tiled_height, tiled_width, 3));

@@ -3,8 +3,8 @@
 //! This module provides memory-efficient data structures, anomaly detection,
 //! pattern matching, and utilities for managing multiple time series streams.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 

@@ -13,7 +13,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::{HashMap, VecDeque};
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex, RwLock};

@@ -15,10 +15,10 @@ pub use elastic_weight_consolidation::{EWCConfig, EWC};
 pub use shared_backbone::{MultiTaskArchitecture, SharedBackbone, TaskSpecificHead, TaskType};
 use crate::error::Result;
 use crate::models::sequential::Sequential;
-use ndarray::concatenate;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::concatenate;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// Configuration for continual learning
 #[derive(Debug, Clone)]
 pub struct ContinualConfig {
@@ -714,7 +714,7 @@ impl AdvancedMemoryManager {
                 // Use gradient magnitude as importance
                 Ok(data.iter().map(|&x| x.abs()).sum::<f32>() / data.len() as f32), ConsolidationStrategy::UncertaintyBased => {
                 // Use prediction uncertainty
-                Ok(0.5 + 0.3 * rand::random::<f32>()) // Placeholder
+                Ok(0.5 + 0.3 * scirs2_core::random::random::<f32>()) // Placeholder
             ConsolidationStrategy::DiversityBased => {
                 // Use distance from existing prototypes
                 self.compute_diversity_score(data)
@@ -843,7 +843,7 @@ impl AdvancedMemoryManager {
         let total_importance: f32 = self.core_memory.samples.iter().map(|s| s.importance_score).sum();
         for _ in 0..actual_samples {
             let mut cumulative = 0.0;
-            let target = rand::random::<f32>() * total_importance;
+            let target = scirs2_core::random::random::<f32>() * total_importance;
             for (idx, sample) in self.core_memory.samples.iter().enumerate() {
                 cumulative += sample.importance_score;
                 if cumulative >= target {

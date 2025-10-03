@@ -309,7 +309,7 @@ fn bench_imputation(c: &mut Criterion) {
             // Insert NaN values randomly (about 10%)
             for i in 0..n_samples {
                 for j in 0..n_features {
-                    if thread_rng().gen::<f64>() < 0.1 {
+                    if thread_rng().random::<f64>() < 0.1 {
                         data[[i, j]] = f64::NAN;
                     }
                 }

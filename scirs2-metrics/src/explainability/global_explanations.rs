@@ -1,8 +1,8 @@
 //! Global explanation methods for understanding overall model behavior
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -18,13 +18,15 @@ pub struct GlobalExplainer<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> Default for GlobalExplainer<F> {
+impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> Default
+    for GlobalExplainer<F>
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> GlobalExplainer<F> {
+impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> GlobalExplainer<F> {
     /// Create new global explainer
     pub fn new() -> Self {
         Self {
@@ -963,7 +965,7 @@ pub struct StabilityMetrics<F: Float> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     // Mock model for testing
     fn mock_model(x: &ArrayView2<f64>) -> Array1<f64> {

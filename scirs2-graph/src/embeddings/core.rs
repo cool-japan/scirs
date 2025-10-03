@@ -4,7 +4,7 @@ use super::negative_sampling::NegativeSampler;
 use super::types::ContextPair;
 use crate::base::{DiGraph, EdgeWeight, Graph, Node};
 use crate::error::{GraphError, Result};
-use rand::Rng;
+use scirs2_core::random::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 

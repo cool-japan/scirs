@@ -227,29 +227,29 @@ impl WindowLookupTable {
             "welch" => triangular::welch(length, symmetric),
 
             "kaiser" => {
-                let beta = parameters.get(0).copied().unwrap_or(5.0);
+                let beta = parameters.first().copied().unwrap_or(5.0);
                 exponential::kaiser(length, beta, symmetric)
             }
             "gaussian" => {
-                let std = parameters.get(0).copied().unwrap_or(1.0);
+                let std = parameters.first().copied().unwrap_or(1.0);
                 exponential::gaussian(length, std, symmetric)
             }
             "tukey" => {
-                let alpha = parameters.get(0).copied().unwrap_or(0.5);
+                let alpha = parameters.first().copied().unwrap_or(0.5);
                 exponential::tukey(length, alpha, symmetric)
             }
             "exponential" => {
-                let tau = parameters.get(0).copied().unwrap_or(2.0);
+                let tau = parameters.first().copied().unwrap_or(2.0);
                 exponential::exponential(length, tau, symmetric)
             }
 
             "bohman" => specialized::bohman(length, symmetric),
             "poisson" => {
-                let alpha = parameters.get(0).copied().unwrap_or(1.0);
+                let alpha = parameters.first().copied().unwrap_or(1.0);
                 specialized::poisson(length, alpha, symmetric)
             }
             "dpss" => {
-                let nw = parameters.get(0).copied().unwrap_or(2.5);
+                let nw = parameters.first().copied().unwrap_or(2.5);
                 specialized::dpss_approximation(length, nw, symmetric)
             }
 

@@ -3,9 +3,9 @@
 //! This module provides functions for statistical testing to
 //! determine whether models differ significantly in performance.
 
-use ndarray::{Array, Array1, Array2, ArrayBase, Data, Ix1, Ix2};
-use num_traits::real::Real;
-use rand::{random, rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array, Array1, Array2, ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::{random, rngs::StdRng, Rng, SeedableRng};
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::panic;
@@ -39,7 +39,7 @@ use statrs::statistics::Statistics;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::evaluation::mcnemars_test;
 ///
 /// // Create a contingency table
@@ -54,7 +54,7 @@ pub fn mcnemars_test<T>(
     correction: bool,
 ) -> Result<f64>
 where
-    T: Real + std::fmt::Display,
+    T: Float + std::fmt::Display,
 {
     // Check dimensions
     if table.shape() != [2, 2] {
@@ -126,7 +126,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::evaluation::cochrans_q_test;
 ///
 /// // Create binary predictions for 3 models on 10 samples
@@ -145,7 +145,7 @@ pub fn cochrans_q_test<T>(
     binary_predictions: &ArrayBase<impl Data<Elem = T>, Ix2>,
 ) -> Result<(f64, f64)>
 where
-    T: Real + std::fmt::Display,
+    T: Float + std::fmt::Display,
 {
     // Get dimensions
     let shape = binary_predictions.shape();
@@ -246,7 +246,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::evaluation::friedman_test;
 ///
 /// // Create performance metrics for 3 models on 5 datasets
@@ -266,7 +266,7 @@ pub fn friedman_test<T>(
     performance_metrics: &ArrayBase<impl Data<Elem = T>, Ix2>,
 ) -> Result<(f64, f64)>
 where
-    T: Real + std::fmt::Display + PartialOrd,
+    T: Float + std::fmt::Display + PartialOrd,
 {
     // Get dimensions
     let shape = performance_metrics.shape();
@@ -384,7 +384,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::evaluation::wilcoxon_signed_rank_test;
 ///
 /// // Performance metrics for two models across 8 different datasets
@@ -408,7 +408,7 @@ pub fn wilcoxon_signed_rank_test<T>(
     correction: bool,
 ) -> Result<(f64, f64)>
 where
-    T: Real + std::fmt::Display + PartialOrd,
+    T: Float + std::fmt::Display + PartialOrd,
 {
     // Check input dimensions
     let n = x.len();
@@ -582,7 +582,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::evaluation::bootstrap_confidence_interval;
 ///
 /// // Sample data
@@ -607,7 +607,7 @@ pub fn bootstrap_confidence_interval<T, S, F>(
     random_seed: Option<u64>,
 ) -> Result<(f64, f64, f64)>
 where
-    T: Real + std::fmt::Display + PartialOrd + Clone + std::panic::RefUnwindSafe,
+    T: Float + std::fmt::Display + PartialOrd + Clone + std::panic::RefUnwindSafe,
     S: Data<Elem = T>,
     F: Fn(&Array1<T>) -> f64 + std::panic::RefUnwindSafe,
 {
@@ -639,8 +639,8 @@ where
     let mut rng = match random_seed {
         Some(_seed) => StdRng::seed_from_u64(_seed),
         None => {
-            // In rand 0.9.0, use rand::rng() instead of rand::rng()
-            let mut r = rand::rng();
+            // In rand 0.9.0, use scirs2_core::random::rng() instead of scirs2_core::random::rng()
+            let mut r = scirs2_core::random::rng();
             StdRng::from_rng(&mut r)
         }
     };
@@ -665,11 +665,11 @@ where
 
         // Create a new array from the resampled values
         // We have to cast it back to the appropriate type to use statistic_fn
-        let resampled_data = ndarray::Array::from_vec(resampled_data_values)
-            .into_dimensionality::<ndarray::Ix1>()
+        let resampled_data = scirs2_core::ndarray::Array::from_vec(resampled_data_values)
+            .into_dimensionality::<scirs2_core::ndarray::Ix1>()
             .unwrap_or_else(|_| {
                 // If _dimensionality conversion fails..create an empty array
-                ndarray::Array::zeros(0)
+                scirs2_core::ndarray::Array::zeros(0)
             });
 
         // Calculate the statistic on the resampled data
@@ -1013,7 +1013,7 @@ fn incomplete_beta(a: f64, b: f64, x: f64) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mcnemars_test() {

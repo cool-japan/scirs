@@ -58,8 +58,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         // Add some noise
         for _ in 0..100 {
-            let x = rand::random::<u32>() % 100;
-            let y = rand::random::<u32>() % 100;
+            let x = scirs2_core::random::random::<u32>() % 100;
+            let y = scirs2_core::random::random::<u32>() % 100;
             img_buffer.put_pixel(x, y, image::Luma([255]));
         }
 

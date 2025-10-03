@@ -3,7 +3,7 @@
 //! This example demonstrates the performance improvements achieved through
 //! SIMD acceleration, parallel processing, and optimized algorithms.
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_ndimage::filters::{filter_functions, generic_filter, BorderMode};
 use std::time::Instant;
 

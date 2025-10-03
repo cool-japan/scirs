@@ -1,8 +1,8 @@
 use crate::error::SignalResult;
 use crate::{spectral, window};
-use ndarray::s;
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 
 // Reassigned Spectrogram Implementation
 //
@@ -101,7 +101,7 @@ pub struct ReassignedResult {
 /// # Example
 ///
 /// ```
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_signal::reassigned::{reassigned_spectrogram, ReassignedConfig};
 /// use scirs2_signal::window;
 ///

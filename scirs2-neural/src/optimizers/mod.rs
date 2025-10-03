@@ -7,8 +7,8 @@
 
 use crate::error::Result;
 use crate::layers::ParamLayer;
-use ndarray::{Array, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 // Re-export scirs2-optim's optimizers when the feature is enabled
 // Note: scirs2_optim crate may not exist yet - commented out for compilation
@@ -19,8 +19,8 @@ pub trait Optimizer<F: Float + Debug + ScalarOperand> {
     /// Update parameters based on gradients
     fn update(
         &mut self,
-        params: &mut [Array<F, ndarray::IxDyn>],
-        grads: &[Array<F, ndarray::IxDyn>],
+        params: &mut [Array<F, scirs2_core::ndarray::IxDyn>],
+        grads: &[Array<F, scirs2_core::ndarray::IxDyn>],
     ) -> Result<()>;
     /// Update model parameters using the optimizer (non-generic version for trait objects)
     fn step_model(&mut self, model: &mut dyn ParamLayer<F>) -> Result<()> {
@@ -28,9 +28,9 @@ pub trait Optimizer<F: Float + Debug + ScalarOperand> {
         let params_refs = model.get_parameters();
         let grads_refs = model.get_gradients();
         // Convert to owned arrays for update
-        let mut params: Vec<Array<F, ndarray::IxDyn>> =
+        let mut params: Vec<Array<F, scirs2_core::ndarray::IxDyn>> =
             params_refs.iter().map(|p| (*p).clone()).collect();
-        let grads: Vec<Array<F, ndarray::IxDyn>> =
+        let grads: Vec<Array<F, scirs2_core::ndarray::IxDyn>> =
             grads_refs.iter().map(|g| (*g).clone()).collect();
         // Update parameters
         self.update(&mut params, &grads)?;
@@ -81,7 +81,7 @@ pub use sgd::SGD;
 // mod wrappers {
 // use super::*;
 // use crate::NeuralError;
-// use ndarray::Dimension;
+// use scirs2_core::ndarray::Dimension;
 // use scirs2_optim::optimizers as optim;
 // /// Wrapper for optim optimizers to conform to our Optimizer trait
 // pub struct OptimOptimizerWrapper<F, D, O>
@@ -107,8 +107,8 @@ pub use sgd::SGD;
 // impl<F, D, O> super::Optimizer<F> for OptimOptimizerWrapper<F, D, O>
 //     fn update(
 //         &mut self,
-//         params: &mut [Array<F, ndarray::IxDyn>],
-//         grads: &[Array<F, ndarray::IxDyn>],
+//         params: &mut [Array<F, scirs2_core::ndarray::IxDyn>],
+//         grads: &[Array<F, scirs2_core::ndarray::IxDyn>],
 //     ) -> Result<()> {
 //         if params.len() != grads.len() {
 //             return Err(NeuralError::TrainingError(format!(
@@ -117,8 +117,8 @@ pub use sgd::SGD;
 //                 grads.len()
 //             )));
 //         // Convert to refs for optim library
-//         let params_refs: Vec<&Array<F, ndarray::IxDyn>> = params.iter().collect();
-//         let grads_refs: Vec<&Array<F, ndarray::IxDyn>> = grads.iter().collect();
+//         let params_refs: Vec<&Array<F, scirs2_core::ndarray::IxDyn>> = params.iter().collect();
+//         let grads_refs: Vec<&Array<F, scirs2_core::ndarray::IxDyn>> = grads.iter().collect();
 //         // Use the optim library's step_list method
 //         let updated_params = self
 //             .optimizer
@@ -137,7 +137,7 @@ pub use sgd::SGD;
 //     lr: F,
 //     momentum: F,
 //     weight_decay: F,
-// ) -> OptimOptimizerWrapper<F, ndarray::IxDyn, optim::SGD<F>> {
+// ) -> OptimOptimizerWrapper<F, scirs2_core::ndarray::IxDyn, optim::SGD<F>> {
 //     let sgd = optim::SGD::new_with_config(lr, momentum, weight_decay);
 //     OptimOptimizerWrapper::new(sgd)
 // // Helper function to create wrapped Adam optimizer
@@ -145,16 +145,16 @@ pub use sgd::SGD;
 //     beta1: F,
 //     beta2: F,
 //     epsilon: F,
-// ) -> OptimOptimizerWrapper<F, ndarray::IxDyn, optim::Adam<F>> {
+// ) -> OptimOptimizerWrapper<F, scirs2_core::ndarray::IxDyn, optim::Adam<F>> {
 //     let adam = optim::Adam::new_with_config(lr, beta1, beta2, epsilon, weight_decay);
 //     OptimOptimizerWrapper::new(adam)
 // // Helper function to create wrapped AdamW optimizer
 // pub fn wrap_adamw<F: Float + Debug + ScalarOperand>(
-// ) -> OptimOptimizerWrapper<F, ndarray::IxDyn, optim::AdamW<F>> {
+// ) -> OptimOptimizerWrapper<F, scirs2_core::ndarray::IxDyn, optim::AdamW<F>> {
 //     let adamw = optim::AdamW::new_with_config(lr, beta1, beta2, epsilon, weight_decay);
 //     OptimOptimizerWrapper::new(adamw)
 // // Helper function to create wrapped RAdam optimizer
 // pub fn wrap_radam<F: Float + Debug + ScalarOperand>(
-// ) -> OptimOptimizerWrapper<F, ndarray::IxDyn, optim::RAdam<F>> {
+// ) -> OptimOptimizerWrapper<F, scirs2_core::ndarray::IxDyn, optim::RAdam<F>> {
 //     let radam = optim::RAdam::new_with_config(lr, beta1, beta2, epsilon, weight_decay);
 //     OptimOptimizerWrapper::new(radam)

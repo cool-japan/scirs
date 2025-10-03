@@ -1,4 +1,4 @@
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use scirs2_integrate::romberg::{multi_romberg, romberg, RombergOptions};
 use std::f64::consts::PI;
 

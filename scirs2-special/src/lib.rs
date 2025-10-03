@@ -1,4 +1,17 @@
 #![allow(deprecated)]
+#![allow(clippy::excessive_precision)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::legacy_numeric_constants)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::manual_slice_size_calculation)]
+#![allow(clippy::useless_format)]
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::redundant_pattern_matching)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::let_and_return)]
+#![allow(clippy::derivable_impls)]
+#![allow(clippy::cast_abs_to_unsigned)]
 //! # SciRS2 Special - Special Mathematical Functions
 //!
 //! **scirs2-special** provides production-ready special mathematical functions modeled after SciPy's
@@ -32,7 +45,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-special = "0.1.0-beta.4"
+//! scirs2-special = "0.1.0-rc.1"
 //! ```
 //!
 //!
@@ -84,8 +97,8 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.1.0-beta.4
-//! - **Release Date**: October 01, 2025
+//! - **Version**: 0.1.0-rc.1
+//! - **Release Date**: October 03, 2025
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
 
 // Export error types
@@ -442,7 +455,7 @@ pub use arbitrary_precision::{
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
 
     #[test]
     fn test_gamma_function() {

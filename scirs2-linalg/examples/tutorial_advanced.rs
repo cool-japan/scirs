@@ -3,7 +3,7 @@
 //! This tutorial covers advanced features including iterative solvers,
 //! matrix functions, structured matrices, and ML operations.
 
-use ndarray::{array, Array3};
+use scirs2_core::ndarray::{array, Array3};
 use scirs2_linalg::attention::scaled_dot_product_attention;
 use scirs2_linalg::matrix_functions::{expm, logm, sqrtm};
 use scirs2_linalg::prelude::*;
@@ -145,9 +145,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let d_v = 8;
 
     // Create random Q, K, V matrices
-    let query = Array3::from_shape_fn((batchsize, seq_len, d_k), |_| rand::random::<f32>());
-    let key = Array3::from_shape_fn((batchsize, seq_len, d_k), |_| rand::random::<f32>());
-    let value = Array3::from_shape_fn((batchsize, seq_len, d_v), |_| rand::random::<f32>());
+    let query = Array3::from_shape_fn((batchsize, seq_len, d_k), |_| {
+        scirs2_core::random::random::<f32>()
+    });
+    let key = Array3::from_shape_fn((batchsize, seq_len, d_k), |_| {
+        scirs2_core::random::random::<f32>()
+    });
+    let value = Array3::from_shape_fn((batchsize, seq_len, d_v), |_| {
+        scirs2_core::random::random::<f32>()
+    });
 
     // Scaled dot-product attention
     let scale = 1.0 / (d_k as f32).sqrt();

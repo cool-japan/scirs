@@ -1,6 +1,6 @@
-use ndarray::{s, Array1, Array2, Array3};
-use rand::rngs::SmallRng;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3};
+use scirs2_core::random::rngs::SmallRng;
+use scirs2_core::random::{Rng, SeedableRng};
 // use serde::{Deserialize, Serialize}; // Serde not available in minimal version
 use std::collections::HashMap;
 use std::f32;

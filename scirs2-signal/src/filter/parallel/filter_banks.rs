@@ -5,7 +5,7 @@
 
 use super::core::parallel_filter_overlap_save;
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::parallel_ops::*;
 
 /// Helper for parallel operations (temporary replacement)
@@ -18,7 +18,7 @@ fn par_iter_with_setup<I, IT, S, F, R, RF, E>(
 where
     I: IntoIterator<Item = IT>,
     IT: Copy,
-    S: Fn() -> (),
+    S: Fn(),
     F: Fn((), IT) -> Result<R, E>,
     RF: Fn(&mut Vec<R>, Result<R, E>) -> Result<(), E>,
     E: std::fmt::Debug,

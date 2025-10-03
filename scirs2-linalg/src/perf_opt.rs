@@ -5,8 +5,8 @@
 //! parallelization, and memory layout optimizations.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array2, ArrayView2, Axis, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::parallel_ops::*;
 use std::cmp;
 use std::iter::Sum;
@@ -82,7 +82,7 @@ pub fn blocked_matmul<F>(
     config: &OptConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, k) = (a.nrows(), a.ncols());
     let (k2, n) = (b.nrows(), b.ncols());
@@ -229,7 +229,7 @@ pub fn blocked_matmul_with_workers<F>(
     workers: Option<usize>,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -430,7 +430,7 @@ pub mod inplace {
 #[allow(dead_code)]
 pub fn adaptive_matmul<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     adaptive_matmul_with_workers(a, b, None)
 }
@@ -443,7 +443,7 @@ pub fn adaptive_matmul_with_workers<F>(
     workers: Option<usize>,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -476,7 +476,10 @@ where
 
 /// Convenience function for in-place matrix addition
 #[allow(dead_code)]
-pub fn inplace_add<F>(a: &mut ndarray::ArrayViewMut2<F>, b: &ArrayView2<F>) -> LinalgResult<()>
+pub fn inplace_add<F>(
+    a: &mut scirs2_core::ndarray::ArrayViewMut2<F>,
+    b: &ArrayView2<F>,
+) -> LinalgResult<()>
 where
     F: Float + NumAssign + Send + Sync,
 {
@@ -488,7 +491,10 @@ where
 
 /// Convenience function for in-place scalar multiplication
 #[allow(dead_code)]
-pub fn inplace_scale<F>(a: &mut ndarray::ArrayViewMut2<F>, scalar: F) -> LinalgResult<()>
+pub fn inplace_scale<F>(
+    a: &mut scirs2_core::ndarray::ArrayViewMut2<F>,
+    scalar: F,
+) -> LinalgResult<()>
 where
     F: Float + NumAssign + Send + Sync,
 {
@@ -506,7 +512,7 @@ pub fn matmul_benchmark<F>(
     config: &OptConfig,
 ) -> LinalgResult<String>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use std::time::Instant;
 
@@ -532,7 +538,7 @@ where
 /// These implementations minimize memory allocations and reuse workspace arrays
 pub mod decomposition_opt {
     use super::*;
-    use ndarray::{s, Array1, Array2, ArrayView2};
+    use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 
     /// Workspace for QR decomposition to avoid repeated allocations
     pub struct QRWorkspace<F: Float> {
@@ -799,7 +805,7 @@ pub mod decomposition_opt {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_blocked_matmul() {

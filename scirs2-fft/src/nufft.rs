@@ -15,8 +15,8 @@
 //! * Type 2 (Uniform to Non-Uniform): Data at uniform locations, transform to non-uniform frequency grid
 
 use crate::error::{FFTError, FFTResult};
-use num_complex::Complex64;
-use num_traits::Zero;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Zero;
 use std::f64::consts::PI;
 
 /// NUFFT interpolation type
@@ -55,7 +55,7 @@ pub enum InterpolationType {
 ///
 /// ```
 /// use scirs2_fft::nufft::{nufft_type1, InterpolationType};
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 /// use std::f64::consts::PI;
 ///
 /// // Create non-uniform sample points in [-π, π]
@@ -204,7 +204,7 @@ pub fn nufft_type1(
 ///
 /// ```
 /// use scirs2_fft::nufft::{nufft_type2, InterpolationType};
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 /// use std::f64::consts::PI;
 ///
 /// // Create a spectrum on a uniform grid
@@ -340,7 +340,7 @@ fn fft_backend(data: &[Complex64]) -> FFTResult<Vec<Complex64>> {
     // Perform the FFT
     fft.process(&mut buffer);
 
-    // Convert back to num_complex::Complex64
+    // Convert back to scirs2_core::numeric::Complex64
     Ok(buffer
         .into_iter()
         .map(|c| Complex64::new(c.re, c.im))
@@ -362,7 +362,7 @@ fn ifft_backend(data: &[Complex64]) -> FFTResult<Vec<Complex64>> {
     // Perform the IFFT
     ifft.process(&mut buffer);
 
-    // Convert back to num_complex::Complex64 and normalize
+    // Convert back to scirs2_core::numeric::Complex64 and normalize
     let scale = 1.0 / n as f64;
     Ok(buffer
         .into_iter()

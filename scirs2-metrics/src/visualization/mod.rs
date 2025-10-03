@@ -36,7 +36,7 @@
 //! The module provides specialized visualizers for common metrics visualizations:
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::classification::confusion_matrix;
 //! use scirs2_metrics::visualization::{
 //!     confusion_matrix::confusion_matrix_visualization,

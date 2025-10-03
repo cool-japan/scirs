@@ -3,9 +3,9 @@
 //! This example shows how to use clustering evaluation metrics to
 //! assess the quality of different clustering results.
 
-use ndarray::{Array1, Array2};
 use scirs2_cluster::metrics::{davies_bouldin_score, silhouette_score};
 use scirs2_cluster::vq::{kmeans2, MinitMethod, MissingMethod};
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[allow(dead_code)]
 fn generate_dataset() -> (Array2<f64>, Array1<i32>) {
@@ -15,8 +15,8 @@ fn generate_dataset() -> (Array2<f64>, Array1<i32>) {
 
     // Cluster 1: centered at (0, 0)
     for i in 0..50 {
-        let x = i as f64 * 0.1 - 2.5 + rand::random::<f64>() * 0.5;
-        let y = i as f64 * 0.1 - 2.5 + rand::random::<f64>() * 0.5;
+        let x = i as f64 * 0.1 - 2.5 + scirs2_core::random::random::<f64>() * 0.5;
+        let y = i as f64 * 0.1 - 2.5 + scirs2_core::random::random::<f64>() * 0.5;
         data.push(x);
         data.push(y);
         true_labels.push(0);
@@ -24,8 +24,8 @@ fn generate_dataset() -> (Array2<f64>, Array1<i32>) {
 
     // Cluster 2: centered at (5, 5)
     for i in 0..50 {
-        let x = 5.0 + i as f64 * 0.1 - 2.5 + rand::random::<f64>() * 0.5;
-        let y = 5.0 + i as f64 * 0.1 - 2.5 + rand::random::<f64>() * 0.5;
+        let x = 5.0 + i as f64 * 0.1 - 2.5 + scirs2_core::random::random::<f64>() * 0.5;
+        let y = 5.0 + i as f64 * 0.1 - 2.5 + scirs2_core::random::random::<f64>() * 0.5;
         data.push(x);
         data.push(y);
         true_labels.push(1);
@@ -33,8 +33,8 @@ fn generate_dataset() -> (Array2<f64>, Array1<i32>) {
 
     // Cluster 3: centered at (-5, 5)
     for i in 0..50 {
-        let x = -5.0 + i as f64 * 0.1 - 2.5 + rand::random::<f64>() * 0.5;
-        let y = 5.0 + i as f64 * 0.1 - 2.5 + rand::random::<f64>() * 0.5;
+        let x = -5.0 + i as f64 * 0.1 - 2.5 + scirs2_core::random::random::<f64>() * 0.5;
+        let y = 5.0 + i as f64 * 0.1 - 2.5 + scirs2_core::random::random::<f64>() * 0.5;
         data.push(x);
         data.push(y);
         true_labels.push(2);

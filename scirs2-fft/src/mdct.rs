@@ -4,7 +4,7 @@
 //! in audio coding (MP3, AAC, Vorbis) due to their perfect reconstruction properties
 //! with overlapping windows.
 
-use ndarray::{Array1, ArrayBase, Data};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data};
 use std::f64::consts::PI;
 
 use crate::error::{FFTError, FFTResult};
@@ -28,7 +28,7 @@ use crate::window::Window;
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_fft::mdct::mdct;
 /// use scirs2_fft::window::Window;
 ///
@@ -38,14 +38,14 @@ use crate::window::Window;
 /// ```
 #[allow(dead_code)]
 pub fn mdct<S>(
-    x: &ArrayBase<S, ndarray::Ix1>,
+    x: &ArrayBase<S, scirs2_core::ndarray::Ix1>,
     n: usize,
     window: Option<Window>,
 ) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
-    if n % 2 != 0 {
+    if !n.is_multiple_of(2) {
         return Err(FFTError::ValueError("MDCT size must be even".to_string()));
     }
 
@@ -98,7 +98,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_fft::mdct::{mdct, imdct};
 /// use scirs2_fft::window::Window;
 ///
@@ -108,7 +108,10 @@ where
 /// assert_eq!(reconstructed.len(), 8); // Output is twice the input length
 /// ```
 #[allow(dead_code)]
-pub fn imdct<S>(x: &ArrayBase<S, ndarray::Ix1>, window: Option<Window>) -> FFTResult<Array1<f64>>
+pub fn imdct<S>(
+    x: &ArrayBase<S, scirs2_core::ndarray::Ix1>,
+    window: Option<Window>,
+) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -151,14 +154,14 @@ where
 /// MDST coefficients (n/2 values)
 #[allow(dead_code)]
 pub fn mdst<S>(
-    x: &ArrayBase<S, ndarray::Ix1>,
+    x: &ArrayBase<S, scirs2_core::ndarray::Ix1>,
     n: usize,
     window: Option<Window>,
 ) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
-    if n % 2 != 0 {
+    if !n.is_multiple_of(2) {
         return Err(FFTError::ValueError("MDST size must be even".to_string()));
     }
 
@@ -207,7 +210,10 @@ where
 ///
 /// Reconstructed signal (2 * input length)
 #[allow(dead_code)]
-pub fn imdst<S>(x: &ArrayBase<S, ndarray::Ix1>, window: Option<Window>) -> FFTResult<Array1<f64>>
+pub fn imdst<S>(
+    x: &ArrayBase<S, scirs2_core::ndarray::Ix1>,
+    window: Option<Window>,
+) -> FFTResult<Array1<f64>>
 where
     S: Data<Elem = f64>,
 {
@@ -282,7 +288,7 @@ pub fn mdct_overlap_add(
 mod tests {
     use super::*;
     use crate::window::Window;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mdct_basic() {

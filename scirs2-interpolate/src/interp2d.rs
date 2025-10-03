@@ -6,8 +6,8 @@
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::interp1d::linear_interpolate;
 use crate::spline::CubicSpline;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// 2D interpolation methods
@@ -62,7 +62,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_interpolate::interp2d::{Interp2d, Interp2dKind};
     ///
     /// // Define grid
@@ -138,7 +138,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_interpolate::interp2d::{Interp2d, Interp2dKind};
     ///
     /// let x = array![0.0, 1.0, 2.0];
@@ -225,19 +225,19 @@ where
 
         let result = if y_idx == 0 && ynew < self.y[0] {
             // Extrapolate below
-            let row = self.z.slice(ndarray::s![0, ..]);
+            let row = self.z.slice(scirs2_core::ndarray::s![0, ..]);
             linear_interpolate(&self.x.view(), &row, &Array1::from_vec(vec![x_new]).view())?[0]
         } else if y_idx >= self.y.len() - 1 && ynew > self.y[self.y.len() - 1] {
             // Extrapolate above
-            let row = self.z.slice(ndarray::s![self.y.len() - 1, ..]);
+            let row = self.z.slice(scirs2_core::ndarray::s![self.y.len() - 1, ..]);
             linear_interpolate(&self.x.view(), &row, &Array1::from_vec(vec![x_new]).view())?[0]
         } else {
             // Interpolate between two y values
             let y_idx = y_idx.min(self.y.len() - 2);
 
             // Interpolate along x for both y levels
-            let row0 = self.z.slice(ndarray::s![y_idx, ..]);
-            let row1 = self.z.slice(ndarray::s![y_idx + 1, ..]);
+            let row0 = self.z.slice(scirs2_core::ndarray::s![y_idx, ..]);
+            let row1 = self.z.slice(scirs2_core::ndarray::s![y_idx + 1, ..]);
 
             let val0 =
                 linear_interpolate(&self.x.view(), &row0, &Array1::from_vec(vec![x_new]).view())?
@@ -267,7 +267,7 @@ where
         let mut values_at_x = Array1::zeros(self.y.len());
 
         for (i, &_y_val) in self.y.iter().enumerate() {
-            let row = self.z.slice(ndarray::s![i, ..]);
+            let row = self.z.slice(scirs2_core::ndarray::s![i, ..]);
             let spline = CubicSpline::new(&self.x.view(), &row)?;
             values_at_x[i] = spline.evaluate(x_new)?;
         }
@@ -334,7 +334,7 @@ fn find_interval<F: PartialOrd>(arr: &ArrayView1<F>, value: F) -> usize {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_interpolate::interp2d::{interp2d, Interp2dKind};
 ///
 /// let x = array![0.0, 1.0, 2.0];
@@ -364,7 +364,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_linear_interpolation() -> InterpolateResult<()> {

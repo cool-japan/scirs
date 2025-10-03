@@ -4,7 +4,7 @@
 //! and end-to-end workflows in the time series analysis library.
 
 use approx::assert_abs_diff_eq;
-use ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_series::{
     // TODO: Fix these imports when modules are implemented
     // anomaly::AnomalyDetector,
@@ -175,7 +175,7 @@ fn test_feature_extraction_and_classification_pipeline() {
 
     // Stack into matrix for clustering
     let data_matrix =
-        ndarray::stack(Axis(0), &[series1.view(), series2.view(), series3.view()]).unwrap();
+        scirs2_core::ndarray::stack(Axis(0), &[series1.view(), series2.view(), series3.view()]).unwrap();
 
     // 1. Extract statistical features
     let feature_extractor = StatisticalFeatures::new();
@@ -318,7 +318,7 @@ fn test_financial_analysis_integration() {
     // Generate financial return series
     let returns = generate_test_series(500, 0.0, 1, 0.02); // Daily returns with volatility
     let prices =
-        Array1::from_iter((0..500).map(|i| 100.0 + returns.slice(ndarray::s![..=i]).sum()));
+        Array1::from_iter((0..500).map(|i| 100.0 + returns.slice(scirs2_core::ndarray::s![..=i]).sum()));
 
     // 1. Bollinger Bands analysis
     let bb_config = BollingerBandsConfig {
@@ -458,7 +458,7 @@ fn test_out_of_core_processing_integration() {
 
     for start in (0..large_data.len()).step_by(chunk_size - overlap) {
         let end = (start + chunk_size).min(large_data.len());
-        let chunk = large_data.slice(ndarray::s![start..end]);
+        let chunk = large_data.slice(scirs2_core::ndarray::s![start..end]);
 
         // Simulate chunk processing (compute mean)
         let chunk_mean = chunk.mean();
@@ -495,8 +495,8 @@ fn test_cross_validation_workflow() {
 
     // Evaluate ARIMA model on each fold
     for split in splits {
-        let train_data = data.slice(ndarray::s![split.train_start..split.train_end]);
-        let test_data = data.slice(ndarray::s![split.test_start..split.test_end]);
+        let train_data = data.slice(scirs2_core::ndarray::s![split.train_start..split.train_end]);
+        let test_data = data.slice(scirs2_core::ndarray::s![split.test_start..split.test_end]);
 
         // Fit ARIMA model
         let mut arima = ArimaModel::new(1, 1, 1).unwrap();
@@ -650,7 +650,7 @@ fn test_comprehensive_workflow() {
     let mut segment_features = Vec::new();
 
     for &(start, end) in &segments {
-        let segment = cleaned_data.slice(ndarray::s![start..end]);
+        let segment = cleaned_data.slice(scirs2_core::ndarray::s![start..end]);
         let features = feature_extractor.extract(&segment.to_owned()).unwrap();
         segment_features.push(features);
     }
@@ -666,7 +666,7 @@ fn test_comprehensive_workflow() {
     assert_eq!(arima_forecast.len(), 50);
 
     // The forecast should be reasonable given the trend
-    let last_values_mean = cleaned_data.slice(ndarray::s![-50..]).mean();
+    let last_values_mean = cleaned_data.slice(scirs2_core::ndarray::s![-50..]).mean();
     let forecast_mean = arima_forecast.mean();
     assert!((forecast_mean - last_values_mean).abs() < 20.0);
 
@@ -687,5 +687,4 @@ fn test_basic_compilation() {
     // This test ensures the file compiles with available imports
     use scirs2_series::streaming::StreamConfig;
     let _config = StreamConfig::default();
-    assert!(true);
 }

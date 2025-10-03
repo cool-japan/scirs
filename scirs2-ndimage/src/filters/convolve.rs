@@ -1,7 +1,7 @@
 //! Convolution functions for n-dimensional arrays
 
-use ndarray::{Array, Array1, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Array1, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::{convolve_optimized as convolve_opt, BorderMode};
@@ -112,14 +112,14 @@ where
                 // Convert to 2D arrays
                 let input_2d = input
                     .to_owned()
-                    .into_dimensionality::<ndarray::Ix2>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                     .map_err(|_| {
                         NdimageError::DimensionError("Failed to convert to 2D array".into())
                     })?;
 
                 let weights_2d = weights
                     .to_owned()
-                    .into_dimensionality::<ndarray::Ix2>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                     .map_err(|_| {
                         NdimageError::DimensionError("Failed to convert weights to 2D array".into())
                     })?;
@@ -143,14 +143,14 @@ where
                 // 1D convolution
                 let input_1d = input
                     .to_owned()
-                    .into_dimensionality::<ndarray::Ix1>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                     .map_err(|_| {
                         NdimageError::DimensionError("Failed to convert to 1D array".into())
                     })?;
 
                 let weights_1d = weights
                     .to_owned()
-                    .into_dimensionality::<ndarray::Ix1>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                     .map_err(|_| {
                         NdimageError::DimensionError("Failed to convert weights to 1D array".into())
                     })?;
@@ -166,14 +166,14 @@ where
                 // 3D convolution
                 let input_3d = input
                     .to_owned()
-                    .into_dimensionality::<ndarray::Ix3>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix3>()
                     .map_err(|_| {
                         NdimageError::DimensionError("Failed to convert to 3D array".into())
                     })?;
 
                 let weights_3d = weights
                     .to_owned()
-                    .into_dimensionality::<ndarray::Ix3>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix3>()
                     .map_err(|_| {
                         NdimageError::DimensionError("Failed to convert weights to 3D array".into())
                     })?;
@@ -196,10 +196,10 @@ where
 /// Perform 2D convolution with a kernel
 #[allow(dead_code)]
 fn convolve_2d<T>(
-    input: &Array<T, ndarray::Ix2>,
-    weights: &Array<T, ndarray::Ix2>,
+    input: &Array<T, scirs2_core::ndarray::Ix2>,
+    weights: &Array<T, scirs2_core::ndarray::Ix2>,
     mode: &BorderMode,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
 {
@@ -214,7 +214,7 @@ where
     let pad_cols_after = weights_cols - pad_cols_before - 1;
 
     // Create output array
-    let mut output = Array::<T, ndarray::Ix2>::zeros((input_rows, input_cols));
+    let mut output = Array::<T, scirs2_core::ndarray::Ix2>::zeros((input_rows, input_cols));
 
     // Create padding configuration
     let pad_width = vec![
@@ -306,7 +306,7 @@ where
     T: Float + FromPrimitive + Debug + Clone + std::ops::AddAssign + std::ops::DivAssign + 'static,
     D: Dimension + 'static,
 {
-    use ndarray::IxDyn;
+    use scirs2_core::ndarray::IxDyn;
 
     let mode = mode.unwrap_or(BorderMode::Reflect);
     let _cval = cval.unwrap_or(T::zero());
@@ -340,7 +340,7 @@ where
     let mut output = Array::zeros(input_dyn.raw_dim());
 
     // Iterate over the output and compute convolution
-    for out_idx in ndarray::indices(output.shape()) {
+    for out_idx in scirs2_core::ndarray::indices(output.shape()) {
         let mut sum = T::zero();
 
         // For this output position, compute the 1D convolution
@@ -365,10 +365,10 @@ where
 /// Perform 1D convolution with a kernel
 #[allow(dead_code)]
 fn convolve_1d<T>(
-    input: &Array<T, ndarray::Ix1>,
-    weights: &Array<T, ndarray::Ix1>,
+    input: &Array<T, scirs2_core::ndarray::Ix1>,
+    weights: &Array<T, scirs2_core::ndarray::Ix1>,
     mode: &BorderMode,
-) -> NdimageResult<Array<T, ndarray::Ix1>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix1>>
 where
     T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
 {
@@ -438,10 +438,10 @@ where
 /// Perform 3D convolution with a kernel
 #[allow(dead_code)]
 fn convolve_3d<T>(
-    input: &Array<T, ndarray::Ix3>,
-    weights: &Array<T, ndarray::Ix3>,
+    input: &Array<T, scirs2_core::ndarray::Ix3>,
+    weights: &Array<T, scirs2_core::ndarray::Ix3>,
     mode: &BorderMode,
-) -> NdimageResult<Array<T, ndarray::Ix3>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix3>>
 where
     T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
 {
@@ -489,7 +489,7 @@ where
 /// Helper function to get padded values for 3D arrays
 #[allow(dead_code)]
 fn get_padded_value_3d<T>(
-    input: &Array<T, ndarray::Ix3>,
+    input: &Array<T, scirs2_core::ndarray::Ix3>,
     z: isize,
     y: isize,
     x: isize,
@@ -592,12 +592,12 @@ where
     let mut output = Array::zeros(input.raw_dim());
 
     // Iterate over all output positions
-    for out_indices in ndarray::indices(inputshape) {
+    for out_indices in scirs2_core::ndarray::indices(inputshape) {
         let out_coords: Vec<usize> = out_indices.slice().to_vec();
         let mut sum = T::zero();
 
         // Iterate over all kernel positions
-        for weight_indices in ndarray::indices(weightsshape) {
+        for weight_indices in scirs2_core::ndarray::indices(weightsshape) {
             let weight_coords: Vec<usize> = weight_indices.slice().to_vec();
 
             // Calculate input coordinates
@@ -647,14 +647,14 @@ where
     if in_bounds {
         // Convert to dynamic dimension for safe indexing
         let input_dyn = input.view().into_dyn();
-        return input_dyn[ndarray::IxDyn(&clamped_coords)];
+        return input_dyn[scirs2_core::ndarray::IxDyn(&clamped_coords)];
     }
 
     match mode {
         BorderMode::Constant => T::zero(),
         BorderMode::Nearest => {
             let input_dyn = input.view().into_dyn();
-            input_dyn[ndarray::IxDyn(&clamped_coords)]
+            input_dyn[scirs2_core::ndarray::IxDyn(&clamped_coords)]
         }
         BorderMode::Reflect => {
             let mut reflected_coords = vec![0usize; ndim];
@@ -668,7 +668,7 @@ where
                 };
             }
             let input_dyn = input.view().into_dyn();
-            input_dyn[ndarray::IxDyn(&reflected_coords)]
+            input_dyn[scirs2_core::ndarray::IxDyn(&reflected_coords)]
         }
         BorderMode::Wrap => {
             let mut wrapped_coords = vec![0usize; ndim];
@@ -677,7 +677,7 @@ where
                     % shape[d] as isize) as usize;
             }
             let input_dyn = input.view().into_dyn();
-            input_dyn[ndarray::IxDyn(&wrapped_coords)]
+            input_dyn[scirs2_core::ndarray::IxDyn(&wrapped_coords)]
         }
         BorderMode::Mirror => {
             let mut mirrored_coords = vec![0usize; ndim];
@@ -691,7 +691,7 @@ where
                 };
             }
             let input_dyn = input.view().into_dyn();
-            input_dyn[ndarray::IxDyn(&mirrored_coords)]
+            input_dyn[scirs2_core::ndarray::IxDyn(&mirrored_coords)]
         }
     }
 }
@@ -699,7 +699,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_uniform_filter() {

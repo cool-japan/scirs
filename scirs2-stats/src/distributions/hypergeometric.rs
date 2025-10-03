@@ -49,8 +49,8 @@
 //! The variance is Var[X] = n * (K/N) * (1 - K/N) * (N - n)/(N - 1)
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::Array1;
-use num_traits::{cast::NumCast, Float, FloatConst};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FloatConst, NumCast};
 use scirs2_core::random::prelude::*;
 use std::cmp;
 

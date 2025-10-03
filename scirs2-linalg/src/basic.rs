@@ -1,8 +1,8 @@
 //! Basic matrix operations
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 /// Compute the determinant of a square matrix.
@@ -19,7 +19,7 @@ use std::iter::Sum;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::det;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -108,7 +108,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::inv;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
@@ -204,7 +204,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_power;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -286,7 +286,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::basic_trace;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -358,7 +358,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_det_2x2() {

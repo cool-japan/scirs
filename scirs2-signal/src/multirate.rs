@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Perfect Reconstruction Filter Banks and Multirate Processing
 //
 // This module provides comprehensive multirate signal processing capabilities including:
@@ -25,8 +25,8 @@ use ndarray::s;
 #[allow(non_snake_case)]
 #[allow(clippy::needless_range_loop)]
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Array3, ArrayView1};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1};
+use scirs2_core::numeric::Complex64;
 
 /// Configuration for perfect reconstruction filter banks
 #[derive(Debug, Clone)]
@@ -519,7 +519,7 @@ impl PerfectReconstructionFilterBank {
                 if m < polyphase_inputs.len() {
                     let filtered = self.apply_polyphase_filter(
                         &polyphase_inputs[m],
-                        &self.analysis_polyphase.slice(ndarray::s![k, m, ..]),
+                        &self.analysis_polyphase.slice(scirs2_core::ndarray::s![k, m, ..]),
                     )?;
 
                     for (i, &val) in filtered.iter().enumerate() {
@@ -555,7 +555,7 @@ impl PerfectReconstructionFilterBank {
             for k in 0..M {
                 let filtered = self.apply_polyphase_filter(
                     &subbands[k],
-                    &self.synthesis_polyphase.slice(ndarray::s![m, k, ..]),
+                    &self.synthesis_polyphase.slice(scirs2_core::ndarray::s![m, k, ..]),
                 )?;
 
                 for (i, &val) in filtered.iter().enumerate() {
@@ -631,7 +631,7 @@ impl PerfectReconstructionFilterBank {
     fn apply_polyphase_filter(
         &self,
         input: &Array1<f64>,
-        filter: &ndarray::ArrayView1<f64>,
+        filter: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> SignalResult<Array1<f64>> {
         let input_len = input.len();
         let filter_len = filter.len();

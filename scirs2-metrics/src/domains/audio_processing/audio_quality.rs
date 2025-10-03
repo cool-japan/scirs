@@ -8,8 +8,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 
 /// Audio quality assessment metrics
@@ -656,7 +656,7 @@ impl IntelligibilityMetrics {
 }
 
 // Import necessary ndarray features
-use ndarray::s;
+use scirs2_core::ndarray::s;
 
 impl Default for AudioQualityMetrics {
     fn default() -> Self {

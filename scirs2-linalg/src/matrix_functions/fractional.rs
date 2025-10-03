@@ -1,7 +1,7 @@
 //! Fractional matrix functions and advanced matrix power computations
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::eigen::eigh;
@@ -27,7 +27,7 @@ use crate::validation::validate_decomposition;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::fractionalmatrix_power;
 ///
 /// let a = array![[4.0_f64, 0.0], [0.0, 9.0]];
@@ -37,7 +37,7 @@ use crate::validation::validate_decomposition;
 #[allow(dead_code)]
 pub fn fractionalmatrix_power<F>(a: &ArrayView2<F>, p: F, method: &str) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + 'static + Send + Sync + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + One + 'static + Send + Sync + scirs2_core::ndarray::ScalarOperand,
 {
     validate_decomposition(a, "Fractional matrix power computation", true)?;
 
@@ -77,7 +77,7 @@ where
 /// Compute matrix power using eigendecomposition.
 fn eigendecomposition_power<F>(a: &ArrayView2<F>, p: F) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + 'static + Send + Sync + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + One + 'static + Send + Sync + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
 
@@ -119,7 +119,7 @@ where
 /// Compute matrix power using Padé approximation.
 fn pade_fractional_power<F>(a: &ArrayView2<F>, p: F) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + 'static + Send + Sync + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + One + 'static + Send + Sync + scirs2_core::ndarray::ScalarOperand,
 {
     // For simplicity, this implementation uses a basic approach
     // A full Padé implementation would be more complex
@@ -144,7 +144,7 @@ where
 /// Compute integer power using repeated squaring.
 fn integer_power<F>(a: &ArrayView2<F>, p: i32) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + 'static + Send + Sync + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + One + 'static + Send + Sync + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
 
@@ -214,7 +214,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::spdmatrix_function;
 ///
 /// let a = array![[4.0_f64, 0.0], [0.0, 9.0]];
@@ -227,7 +227,7 @@ pub fn spdmatrix_function<F, Func>(
     check_spd: bool,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + 'static + Send + Sync + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + One + 'static + Send + Sync + scirs2_core::ndarray::ScalarOperand,
     Func: Fn(F) -> F,
 {
     validate_decomposition(a, "SPD matrix function computation", true)?;

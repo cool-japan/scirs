@@ -244,7 +244,7 @@ fn performance_comparison_example() {
     let n_samples = 10_000;
 
     // Generate test data
-    let true_labels: Vec<i32> = (0..n_samples).map(|i| (i % 2)).collect();
+    let true_labels: Vec<i32> = (0..n_samples).map(|i| i % 2).collect();
     let pred_labels: Vec<i32> = (0..n_samples)
         .map(|i| if (i * 7) % 10 < 8 { i % 2 } else { 1 - i % 2 })
         .collect();

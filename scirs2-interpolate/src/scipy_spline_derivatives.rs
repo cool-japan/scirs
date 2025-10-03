@@ -26,8 +26,8 @@ use crate::bspline::BSpline;
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::spline::{CubicSpline, SplineBoundaryCondition};
 use crate::traits::InterpolationFloat;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::FromPrimitive;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::FromPrimitive;
 use std::fmt::{Debug, Display};
 
 /// Enhanced SciPy-compatible cubic spline with complete derivative/integral interface
@@ -143,7 +143,7 @@ impl<T: InterpolationFloat + Debug + Display + std::ops::AddAssign + FromPrimiti
     ///
     /// # Example
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::scipy_spline_derivatives::{SciPyCompatibleCubicSpline, SciPyBoundaryType};
     ///
     /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -179,7 +179,7 @@ impl<T: InterpolationFloat + Debug + Display + std::ops::AddAssign + FromPrimiti
     ///
     /// # Example
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::scipy_spline_derivatives::{SciPyCompatibleCubicSpline, SciPyBoundaryType};
     ///
     /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -217,7 +217,7 @@ impl<T: InterpolationFloat + Debug + Display + std::ops::AddAssign + FromPrimiti
     ///
     /// # Example
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::scipy_spline_derivatives::{SciPyCompatibleCubicSpline, SciPyBoundaryType};
     ///
     /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -716,7 +716,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_scipy_cubic_spline_derivative() {

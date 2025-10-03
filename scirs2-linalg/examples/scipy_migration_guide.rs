@@ -3,7 +3,7 @@
 //! This example demonstrates how to migrate from SciPy's linalg module to scirs2-linalg,
 //! showing equivalent operations and highlighting key differences and improvements.
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_linalg::{
     cholesky,
     compat, // SciPy-compatible API

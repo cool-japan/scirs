@@ -3,8 +3,8 @@
 //! This module provides utilities for generating and working with filter kernels,
 //! particularly Gaussian kernels and separable filtering operations.
 
-use ndarray::{Array, ArrayView2, Ix1, Ix2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array, ArrayView2, Ix1, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::Debug;
 
 #[cfg(feature = "parallel")]
@@ -132,7 +132,7 @@ where
 
     #[cfg(feature = "parallel")]
     {
-        temp.axis_iter_mut(ndarray::Axis(0))
+        temp.axis_iter_mut(scirs2_core::ndarray::Axis(0))
             .into_par_iter()
             .enumerate()
             .for_each(|(_y, mut row)| {
@@ -174,7 +174,7 @@ where
     #[cfg(feature = "parallel")]
     {
         output
-            .axis_chunks_iter_mut(ndarray::Axis(1), 1)
+            .axis_chunks_iter_mut(scirs2_core::ndarray::Axis(1), 1)
             .into_par_iter()
             .enumerate()
             .for_each(|(_x, mut col)| {

@@ -18,8 +18,8 @@ use crate::memory_optimized::{memory_optimized_fir_filter, MemoryConfig};
 use crate::simd_memory_optimization::{simd_optimized_convolution, SimdMemoryConfig};
 use crate::spectral::{periodogram, spectrogram, welch};
 use crate::wavelets::{cwt, morlet};
-use ndarray::Array1;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::Rng;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use statrs::statistics::Statistics;
@@ -748,7 +748,7 @@ fn benchmark_parallel_vs_sequential(
     benchmark_operation(name, size, config, || {
         // Parallel processing example: element-wise operations
         let chunks: Vec<_> = signal
-            .axis_chunks_iter(ndarray::Axis(0), size / 4)
+            .axis_chunks_iter(scirs2_core::ndarray::Axis(0), size / 4)
             .collect();
         let results: Vec<_> = chunks
             .into_iter()
@@ -977,7 +977,7 @@ fn generate_test_signal(_size: usize, signaltype: &str) -> Array1<f64> {
             })
             .collect(),
         "noise" => {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             (0.._size).map(|_| rng.gen_range(-1.0..1.0)).collect()
         }
         "gaussian" => (0.._size)
@@ -994,7 +994,7 @@ fn generate_test_signal(_size: usize, signaltype: &str) -> Array1<f64> {
                     let t = i as f64 / 44100.0; // 44.1 kHz sample rate
                     0.5 * (2.0 * PI * 440.0 * t).sin() + // A4 note
                     0.3 * (2.0 * PI * 880.0 * t).sin() + // A5 note
-                    0.1 * rand::rng().random_range(-1.0..1.0) // Noise
+                    0.1 * scirs2_core::random::rng().random_range(-1.0..1.0) // Noise
                 })
                 .collect()
         }
@@ -1009,7 +1009,7 @@ fn generate_test_signal(_size: usize, signaltype: &str) -> Array1<f64> {
                     } else {
                         0.0
                     };
-                    heartbeat + qrs + 0.05 * rand::rng().random_range(-1.0..1.0)
+                    heartbeat + qrs + 0.05 * scirs2_core::random::rng().random_range(-1.0..1.0)
                 })
                 .collect()
         }

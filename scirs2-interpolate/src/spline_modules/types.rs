@@ -109,7 +109,7 @@ pub enum SplineBoundaryCondition<T> {
     ///
     /// **Example:**
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::spline::SplineBoundaryCondition;
     /// // For angular data from 0 to 2π
     /// let x = array![0.0, 1.57, 3.14, 4.71, 6.28]; // π/2, π, 3π/2, 2π

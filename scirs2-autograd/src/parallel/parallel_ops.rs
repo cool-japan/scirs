@@ -5,7 +5,7 @@
 
 use super::{init_thread_pool, ThreadPoolError};
 use crate::Float;
-use ndarray::{Array, Axis, IxDyn, Zip};
+use scirs2_core::ndarray::{Array, Axis, IxDyn, Zip};
 use scirs2_core::parallel_ops::*;
 
 /// Configuration for parallel operations
@@ -631,7 +631,7 @@ impl Default for ParallelDispatcher {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_parallel_element_wise_add() {

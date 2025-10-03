@@ -1,7 +1,7 @@
 //! Safe numeric conversion utilities for spatial algorithms
 
 use crate::error::{SpatialError, SpatialResult};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 
 /// Safely convert a numeric literal to type T
 ///

@@ -6,7 +6,7 @@
 use crate::error::IntegrateResult;
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
 use crate::IntegrateFloat;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Solve ODE using Euler's method
 ///

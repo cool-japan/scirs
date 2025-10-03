@@ -153,7 +153,7 @@ fn demonstrate_emergent_optimization_discovery() -> Result<()> {
     let mut coordinator = AdvancedCoordinator::new()?;
 
     // Process multiple related datasets to discover emergent patterns
-    let related_datasets = vec![
+    let related_datasets = [
         generate_correlated_data_sequence(5000, 1),
         generate_correlated_data_sequence(5000, 2),
         generate_correlated_data_sequence(5000, 3),
@@ -400,13 +400,15 @@ fn demonstrate_autonomous_system_evolution() -> Result<()> {
 
 #[allow(dead_code)]
 fn generate_repetitive_data(size: usize) -> Vec<u8> {
-    let pattern = vec![1, 2, 3, 4, 5];
+    let pattern = [1, 2, 3, 4, 5];
     (0..size).map(|i| pattern[i % pattern.len()]).collect()
 }
 
 #[allow(dead_code)]
 fn generate_random_data(size: usize) -> Vec<u8> {
-    (0..size).map(|_| rand::random::<u8>()).collect()
+    (0..size)
+        .map(|_| scirs2_core::random::random::<u8>())
+        .collect()
 }
 
 #[allow(dead_code)]
@@ -430,7 +432,7 @@ fn generate_mixed_pattern_data(size: usize) -> Vec<u8> {
     for i in 0..size {
         let value = match i % 4 {
             0 => (i % 256) as u8,
-            1 => rand::random::<u8>(),
+            1 => scirs2_core::random::random::<u8>(),
             2 => ((i / 4) % 256) as u8,
             _ => 128,
         };
@@ -461,8 +463,8 @@ fn generate_financial_data(size: usize) -> Vec<u8> {
     let mut data = Vec::with_capacity(size);
     let mut value = 128.0;
     for _ in 0..size {
-        value += (rand::random::<f64>() - 0.5) * 10.0;
-        value = value.max(0.0).min(255.0);
+        value += (scirs2_core::random::random::<f64>() - 0.5) * 10.0;
+        value = value.clamp(0.0, 255.0);
         data.push(value as u8);
     }
     data
@@ -491,7 +493,7 @@ fn generate_network_data(size: usize) -> Vec<u8> {
         .map(|i| {
             if i % 100 < 10 {
                 // Simulate packet headers
-                rand::random::<u8>()
+                scirs2_core::random::random::<u8>()
             } else {
                 (i % 256) as u8
             }

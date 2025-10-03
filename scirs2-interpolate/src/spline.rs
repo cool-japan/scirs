@@ -48,7 +48,7 @@
 //! ## Example Usage
 //!
 //! ```rust
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_interpolate::spline::{CubicSpline, SplineBoundaryCondition};
 //!
 //! // Basic usage with natural boundary conditions

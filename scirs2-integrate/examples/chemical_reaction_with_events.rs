@@ -16,7 +16,7 @@
 //! Parameters A and B control the behavior of the system. For B > 1 + A^2, the system
 //! exhibits oscillatory behavior, which we'll detect using events.
 
-use ndarray::{array, ArrayView1};
+use scirs2_core::ndarray::{array, ArrayView1};
 use scirs2_integrate::error::{IntegrateError, IntegrateResult};
 use scirs2_integrate::ode::{
     solve_ivp_with_events, terminal_event, EventAction, EventDirection, EventSpec, ODEMethod,

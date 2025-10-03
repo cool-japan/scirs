@@ -5,7 +5,7 @@ use crate::unconstrained::line_search::backtracking_line_search;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::utils::{array_diff_norm, check_convergence, finite_difference_gradient};
 use crate::unconstrained::Options;
-use ndarray::{Array1, Array2, ArrayView1, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
 
 /// Update formula for Quasi-Newton methods
 #[derive(Debug, Clone, Copy)]

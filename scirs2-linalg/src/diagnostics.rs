@@ -4,8 +4,8 @@
 //! helping users understand and fix issues more effectively.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::ArrayView2;
-use num_traits::{Float, NumAssign, ToPrimitive};
+use scirs2_core::ndarray::ArrayView2;
+use scirs2_core::numeric::{Float, NumAssign, ToPrimitive};
 use std::fmt;
 
 #[allow(dead_code)]
@@ -104,7 +104,13 @@ impl<F: Float + fmt::Display> fmt::Display for MatrixDiagnostics<F> {
 #[allow(dead_code)]
 pub fn analyzematrix<F>(a: &ArrayView2<F>) -> MatrixDiagnostics<F>
 where
-    F: Float + NumAssign + std::iter::Sum + fmt::Display + ndarray::ScalarOperand + Send + Sync,
+    F: Float
+        + NumAssign
+        + std::iter::Sum
+        + fmt::Display
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
 {
     let shape = (a.nrows(), a.ncols());
     let mut diagnostics = MatrixDiagnostics {
@@ -296,7 +302,13 @@ fn is_symmetric<F: Float>(a: &ArrayView2<F>) -> bool {
 #[allow(dead_code)]
 fn estimate_condition_number<F>(a: &ArrayView2<F>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + std::iter::Sum + fmt::Display + ndarray::ScalarOperand + Send + Sync,
+    F: Float
+        + NumAssign
+        + std::iter::Sum
+        + fmt::Display
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
 {
     // Simple estimation using determinant and norm
     use crate::basic::det;
@@ -352,7 +364,13 @@ pub fn enhanced_error<F>(
     operation: &str,
 ) -> LinalgError
 where
-    F: Float + NumAssign + std::iter::Sum + fmt::Display + ndarray::ScalarOperand + Send + Sync,
+    F: Float
+        + NumAssign
+        + std::iter::Sum
+        + fmt::Display
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
 {
     if let Some(a) = matrix {
         let diagnostics = analyzematrix(a);
@@ -367,7 +385,13 @@ where
 #[allow(dead_code)]
 pub fn regularization_suggestions<F>(matrix: &ArrayView2<F>, operation: &str) -> LinalgError
 where
-    F: Float + NumAssign + std::iter::Sum + fmt::Display + ndarray::ScalarOperand + Send + Sync,
+    F: Float
+        + NumAssign
+        + std::iter::Sum
+        + fmt::Display
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
 {
     let mut diagnostics = analyzematrix(matrix);
 
@@ -417,7 +441,7 @@ fn compute_gershgorin_radius<F: Float + NumAssign>(a: &ArrayView2<F>) -> Option<
 /// This is an approximation for symmetric matrices
 #[allow(dead_code)]
 fn estimate_near_zero_eigenvalues<
-    F: Float + NumAssign + std::iter::Sum + Send + Sync + ndarray::ScalarOperand,
+    F: Float + NumAssign + std::iter::Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand,
 >(
     a: &ArrayView2<F>,
 ) -> Option<usize> {
@@ -458,7 +482,7 @@ where
         + std::iter::Sum
         + fmt::Display
         + ToPrimitive
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -540,7 +564,7 @@ where
 /// Estimate the numerical rank of a matrix
 #[allow(dead_code)]
 fn estimate_numerical_rank<
-    F: Float + NumAssign + std::iter::Sum + Send + Sync + ndarray::ScalarOperand,
+    F: Float + NumAssign + std::iter::Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand,
 >(
     a: &ArrayView2<F>,
 ) -> Option<usize> {
@@ -620,7 +644,7 @@ impl<F: Float + fmt::Display> fmt::Display for StabilityReport<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_analyzematrix() {

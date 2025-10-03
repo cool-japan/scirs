@@ -6,7 +6,7 @@
 use crate::error::{SparseError, SparseResult};
 use crate::linalg::interface::{AdjointOperator, LinearOperator};
 use crate::parallel_vector_ops::*;
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -557,7 +557,7 @@ impl<F: Float + NumAssign + Sum + Copy + Send + Sync + SimdUnifiedOps> Convoluti
 
         // Use SIMD-optimized dot product if segments are large enough
         if kernel_segment.len() >= self.options.simd_threshold {
-            use ndarray::ArrayView1;
+            use scirs2_core::ndarray::ArrayView1;
             let kernel_view = ArrayView1::from(&kernel_segment);
             let x_view = ArrayView1::from(&x_segment);
             F::simd_dot(&kernel_view, &x_view)

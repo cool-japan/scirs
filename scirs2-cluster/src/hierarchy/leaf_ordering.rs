@@ -4,8 +4,8 @@
 //! to minimize the sum of distances between adjacent leaves, improving
 //! the visual interpretability of hierarchical clustering results.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -405,7 +405,7 @@ pub fn apply_leaf_ordering<F: Float + FromPrimitive + Debug + PartialOrd + Clone
 mod tests {
     use super::*;
     use crate::hierarchy::{linkage, LinkageMethod, Metric};
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_optimal_leaf_ordering_small() {

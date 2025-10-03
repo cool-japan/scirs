@@ -4,12 +4,12 @@
 //! such that V ≈ WH. This is useful for parts-based representation and interpretable
 //! feature extraction.
 
-use ndarray::{Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 
 use crate::error::{Result, TransformError};
-// use statrs::statistics::Statistics; // TODO: Add statrs dependency
+// use statrs::statistics::Statistics; // TODO: Add statrs dependency - needs generic type fixes
 
 /// Non-negative Matrix Factorization (NMF)
 ///
@@ -115,7 +115,7 @@ impl NMF {
     /// Initialize matrices with random non-negative values
     fn random_initialization(&self, v: &Array2<f64>) -> (Array2<f64>, Array2<f64>) {
         let (n_samples, n_features) = (v.shape()[0], v.shape()[1]);
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         let scale = (v.mean().unwrap() / self.n_components as f64).sqrt();
 
@@ -395,7 +395,7 @@ impl NMF {
     {
         // Validate non-negativity before conversion
         for elem in x.iter() {
-            let val = num_traits::cast::<S::Elem, f64>(*elem).unwrap_or(0.0);
+            let val = NumCast::from(*elem).unwrap_or(0.0);
             if val < 0.0 {
                 return Err(TransformError::InvalidInput(
                     "NMF requires non-negative input data".to_string(),
@@ -404,7 +404,7 @@ impl NMF {
         }
 
         // Convert to f64
-        let v = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let v = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let (n_samples, n_features) = (v.shape()[0], v.shape()[1]);
 
@@ -478,7 +478,7 @@ impl NMF {
 
         // Validate non-negativity before conversion
         for elem in x.iter() {
-            let val = num_traits::cast::<S::Elem, f64>(*elem).unwrap_or(0.0);
+            let val = NumCast::from(*elem).unwrap_or(0.0);
             if val < 0.0 {
                 return Err(TransformError::InvalidInput(
                     "NMF requires non-negative input data".to_string(),
@@ -487,13 +487,13 @@ impl NMF {
         }
 
         // Convert to f64
-        let v = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let v = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let h = self.components.as_ref().unwrap();
         let n_samples = v.shape()[0];
 
         // Initialize W randomly
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         let scale = (v.mean().unwrap() / self.n_components as f64).sqrt();
         let mut w = Array2::zeros((n_samples, self.n_components));
@@ -564,7 +564,7 @@ impl NMF {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_nmf_basic() {

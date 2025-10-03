@@ -1,4 +1,4 @@
-use ndarray::{arr1, arr2};
+use scirs2_core::ndarray::{arr1, arr2};
 use scirs2_neural::activations_minimal::{Activation, Softmax};
 
 #[allow(dead_code)]
@@ -24,7 +24,7 @@ fn main() {
     println!("Softmax output 2D:\n{output_2d:?}");
     // Verify each row sums to 1
     for i in 0..output_2d.shape()[0] {
-        let row_sum: f64 = output_2d.slice(ndarray::s![i, ..]).sum();
+        let row_sum: f64 = output_2d.slice(scirs2_core::ndarray::s![i, ..]).sum();
         println!("Row {i} sum: {row_sum}");
         assert!((row_sum - 1.0).abs() < 1e-6, "Each row should sum to 1");
     }

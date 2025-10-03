@@ -37,7 +37,7 @@ pub use transpose::{simd_transpose_f32, simd_transpose_f64};
 #[cfg(feature = "simd")]
 use crate::{LinalgError, LinalgResult};
 #[cfg(feature = "simd")]
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 #[cfg(feature = "simd")]
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
 

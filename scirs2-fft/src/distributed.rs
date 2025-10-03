@@ -6,9 +6,9 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::fft;
-use ndarray::{s, ArrayBase, ArrayD, Data, Dimension, IxDyn};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::ndarray::{s, ArrayBase, ArrayD, Data, Dimension, IxDyn};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
 use std::sync::Arc;
 use std::time::Instant;
@@ -848,7 +848,7 @@ impl Communicator for MockCommunicator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_distributed_config_default() {

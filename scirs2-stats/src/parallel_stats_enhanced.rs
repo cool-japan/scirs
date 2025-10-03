@@ -8,8 +8,8 @@
 
 use crate::descriptive_simd::{mean_simd, variance_simd};
 use crate::error::{StatsError, StatsResult};
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, ArrayView2, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::{num_threads, par_chunks, parallel_map, ParallelIterator};
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::f64::consts::PI;
@@ -21,6 +21,12 @@ pub struct AdaptiveThreshold {
     cpu_cores: usize,
     simd_available: bool,
     cache_linesize: usize,
+}
+
+impl Default for AdaptiveThreshold {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AdaptiveThreshold {
@@ -591,10 +597,10 @@ impl<F: Float + NumCast + Send + Sync + std::fmt::Display> ParallelCrossValidati
                 .collect();
 
             // Create train/test data
-            let x_train = x.select(ndarray::Axis(0), &train_indices);
-            let y_train = y.select(ndarray::Axis(0), &train_indices);
-            let x_test = x.select(ndarray::Axis(0), test_indices);
-            let y_test = y.select(ndarray::Axis(0), test_indices);
+            let x_train = x.select(scirs2_core::ndarray::Axis(0), &train_indices);
+            let y_train = y.select(scirs2_core::ndarray::Axis(0), &train_indices);
+            let x_test = x.select(scirs2_core::ndarray::Axis(0), test_indices);
+            let y_test = y.select(scirs2_core::ndarray::Axis(0), test_indices);
 
             // Train model on fold
             let fold_model = model.clone();
@@ -717,9 +723,9 @@ where
         + Send
         + Sync
         + SimdUnifiedOps
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
-        + num_traits::NumAssign,
+        + scirs2_core::numeric::NumAssign,
     D: Data<Elem = F> + Sync,
 {
     use scirs2_linalg::lstsq;
@@ -756,7 +762,7 @@ where
     }
 
     // Create control matrix
-    let control_matrix = data.select(ndarray::Axis(1), control_vars);
+    let control_matrix = data.select(scirs2_core::ndarray::Axis(1), control_vars);
 
     // Generate pairs excluding control variables
     let pairs: Vec<(usize, usize)> = (0..n_vars)
@@ -885,28 +891,26 @@ where
         parallel_map(&lags, |&lag| {
             if lag == 0 {
                 F::one()
+            } else if F::simd_available() && n - lag > 64 {
+                // Use SIMD for large lags
+                let data_start = data.slice(s![..n - lag]);
+                let data_lagged = data.slice(s![lag..]);
+
+                let mean_array = scirs2_core::ndarray::Array1::from_elem(n - lag, mean);
+                let start_centered = F::simd_sub(&data_start, &mean_array.view());
+                let lagged_centered = F::simd_sub(&data_lagged, &mean_array.view());
+
+                let products = F::simd_mul(&start_centered.view(), &lagged_centered.view());
+                let sum = F::simd_sum(&products.view());
+
+                sum / (F::from(n - lag).unwrap() * variance)
             } else {
-                if F::simd_available() && n - lag > 64 {
-                    // Use SIMD for large lags
-                    let data_start = data.slice(s![..n - lag]);
-                    let data_lagged = data.slice(s![lag..]);
-
-                    let mean_array = ndarray::Array1::from_elem(n - lag, mean);
-                    let start_centered = F::simd_sub(&data_start, &mean_array.view());
-                    let lagged_centered = F::simd_sub(&data_lagged, &mean_array.view());
-
-                    let products = F::simd_mul(&start_centered.view(), &lagged_centered.view());
-                    let sum = F::simd_sum(&products.view());
-
-                    sum / (F::from(n - lag).unwrap() * variance)
-                } else {
-                    // Scalar fallback
-                    let mut sum = F::zero();
-                    for i in 0..n - lag {
-                        sum = sum + (data[i] - mean) * (data[i + lag] - mean);
-                    }
-                    sum / (F::from(n - lag).unwrap() * variance)
+                // Scalar fallback
+                let mut sum = F::zero();
+                for i in 0..n - lag {
+                    sum = sum + (data[i] - mean) * (data[i + lag] - mean);
                 }
+                sum / (F::from(n - lag).unwrap() * variance)
             }
         })
     };
@@ -918,7 +922,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

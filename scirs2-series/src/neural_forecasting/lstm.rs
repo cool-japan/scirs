@@ -3,8 +3,8 @@
 //! This module provides Long Short-Term Memory (LSTM) network implementations
 //! for time series forecasting, including LSTM cells, states, and multi-layer networks.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::ActivationFunction;

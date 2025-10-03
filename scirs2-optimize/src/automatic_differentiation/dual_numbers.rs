@@ -4,7 +4,7 @@
 //! differentiation. Dual numbers extend real numbers with an infinitesimal part
 //! that tracks derivatives.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::ops::{Add, Div, Mul, Neg, Sub};
 
 /// Dual number for forward-mode automatic differentiation

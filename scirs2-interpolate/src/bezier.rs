@@ -9,8 +9,8 @@
 //! the intermediate control points which instead "pull" the curve toward them.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Bezier curve defined by control points
@@ -40,7 +40,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> BezierCurve<F> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::bezier::BezierCurve;
     ///
     /// // Create a 2D cubic Bezier curve (degree 3) with 4 control points
@@ -193,7 +193,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> BezierCurve<F> {
         if t == F::zero() {
             // Special case: split at beginning
             let left_point = self.control_points.row(0).to_owned();
-            let left_point = left_point.insert_axis(ndarray::Axis(0));
+            let left_point = left_point.insert_axis(scirs2_core::ndarray::Axis(0));
             let left = Self::new(&left_point.view())?;
             let right = self.clone();
             return Ok((left, right));
@@ -202,7 +202,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> BezierCurve<F> {
         if t == F::one() {
             // Special case: split at end
             let right_point = self.control_points.row(self.degree).to_owned();
-            let right_point = right_point.insert_axis(ndarray::Axis(0));
+            let right_point = right_point.insert_axis(scirs2_core::ndarray::Axis(0));
             let right = Self::new(&right_point.view())?;
             let left = self.clone();
             return Ok((left, right));
@@ -282,7 +282,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> BezierSurface<F> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::bezier::BezierSurface;
     ///
     /// // Create a 3x3 grid of control points for a 3D Bezier surface
@@ -610,7 +610,7 @@ pub fn compute_bernstein_all<F: Float + FromPrimitive>(
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_bernstein_polynomials() {

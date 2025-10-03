@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the visualization module to create various plots
 //! for metrics results, such as ROC curves, confusion matrices, etc.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_metrics::{
     classification::confusion_matrix,
     classification::curves::{calibration_curve, precision_recall_curve, roc_curve},

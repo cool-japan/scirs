@@ -8,7 +8,7 @@ use crate::error::{SignalError, SignalResult};
 use crate::lombscargle_edge_case_validation::{run_edge_case_validation, EdgeCaseValidationResult};
 use crate::parametric_advanced_enhanced::comprehensive_parametric_validation;
 use crate::wpt_super_validation::{run_advanced_wpt_validation, AdvancedWptValidationResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::time::Instant;
 
 #[allow(unused_imports)]

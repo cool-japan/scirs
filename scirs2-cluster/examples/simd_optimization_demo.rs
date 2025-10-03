@@ -3,11 +3,11 @@
 //! This example demonstrates the SIMD optimization capabilities of the clustering algorithms,
 //! comparing performance between standard and SIMD-accelerated implementations.
 
-use ndarray::Array2;
 use scirs2_cluster::vq::{
     kmeans, kmeans_simd, vq, vq_simd, whiten, whiten_simd, KMeansInit, KMeansOptions,
     SimdOptimizationConfig,
 };
+use scirs2_core::ndarray::Array2;
 use std::time::Instant;
 
 #[allow(dead_code)]
@@ -281,9 +281,9 @@ fn generate_synthetic_data(
     n_features: usize,
     n_clusters: usize,
 ) -> (Array2<f64>, Vec<usize>) {
-    use rand::Rng;
+    use scirs2_core::random::Rng;
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut data = Array2::zeros((n_samples, n_features));
     let mut labels = Vec::with_capacity(n_samples);
 
@@ -322,9 +322,9 @@ fn generate_synthetic_data(
 /// Generate random centroids for testing
 #[allow(dead_code)]
 fn generate_centroids(n_clusters: usize, nfeatures: usize) -> Array2<f64> {
-    use rand::Rng;
+    use scirs2_core::random::Rng;
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut centroids = Array2::zeros((n_clusters, nfeatures));
 
     for i in 0..n_clusters {

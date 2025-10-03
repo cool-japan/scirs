@@ -4,7 +4,7 @@
 //! that can be used for signal denoising and shape-based filtering.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Morphological opening for denoising (erosion followed by dilation)
 pub fn denoise_morphological_opening(

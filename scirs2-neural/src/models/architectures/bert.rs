@@ -7,12 +7,12 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Dropout, Embedding, Layer, LayerNorm, MultiHeadAttention};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 // RNG imports removed due to version conflicts - using manual initialization
 use std::fmt::Debug;
 // Import the RngCore trait (use the version from layers/dropout.rs)
-use rand::RngCore;
+use scirs2_core::random::RngCore;
 // Dummy RNG to work around version conflicts
 #[derive(Debug)]
 struct DummyRng;

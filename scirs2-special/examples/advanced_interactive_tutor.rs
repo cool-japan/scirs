@@ -3,6 +3,8 @@
 //! This example provides a comprehensive, gamified learning experience with:
 //! - Adaptive difficulty based on user performance
 //! - Real-time hints and explanations
+
+#![allow(clippy::all)]
 //! - Mathematical proof walkthroughs
 //! - Interactive problem-solving sessions
 //! - Visual concept demonstrations

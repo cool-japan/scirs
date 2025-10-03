@@ -9,7 +9,7 @@ use crate::error::{DatasetsError, Result};
 use crate::neuromorphic_data_processor::NeuromorphicProcessor;
 use crate::quantum_enhanced_generators::QuantumDatasetGenerator;
 use crate::utils::Dataset;
-use ndarray::{s, Array1, Array2, Array3};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rand_distributions::Uniform;
 use statrs::statistics::Statistics;
@@ -752,7 +752,7 @@ impl QuantumNeuromorphicFusion {
 
     fn encode_classical_to_quantum(
         &self,
-        classical_data: &ndarray::ArrayView1<f64>,
+        classical_data: &scirs2_core::ndarray::ArrayView1<f64>,
         quantum_neurons: &mut [QuantumNeuron],
     ) -> Result<()> {
         for (idx, &value) in classical_data.iter().enumerate() {
@@ -857,8 +857,8 @@ impl QuantumNeuromorphicFusion {
 
     fn calculate_correlation(
         &self,
-        quantum_data: &ndarray::ArrayView1<f64>,
-        biological_data: &ndarray::ArrayView1<f64>,
+        quantum_data: &scirs2_core::ndarray::ArrayView1<f64>,
+        biological_data: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> Result<f64> {
         if quantum_data.len() != biological_data.len() {
             return Ok(0.0);
@@ -913,8 +913,8 @@ pub fn create_fusion_with_params(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
-    use rand_distr::Uniform;
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::random::Uniform;
 
     #[test]
     fn test_quantum_neuromorphic_fusion_creation() {

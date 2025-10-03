@@ -3,7 +3,7 @@
 //! This example shows how to use the streaming analysis capabilities for real-time
 //! time series processing, including online statistics, change detection, and forecasting.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_series::streaming::{
     advanced::{
         CircularBuffer, ModelState, StreamingAnomalyDetector, StreamingForecaster,
@@ -72,7 +72,7 @@ fn basic_streaming_demo() {
         // Simulate real-time processing delay
         thread::sleep(Duration::from_millis(10));
 
-        if let Ok(_) = analyzer.add_observation(value) {
+        if analyzer.add_observation(value).is_ok() {
             // Check for change points
             let change_points = analyzer.get_change_points();
             if !change_points.is_empty() {
@@ -334,7 +334,7 @@ fn anomaly_detection_demo() {
         // Inject anomalies
         let value = if i == 50 || i == 120 || i == 180 {
             normal_value + 30.0 // Clear anomaly
-        } else if i >= 80 && i <= 90 {
+        } else if (80..=90).contains(&i) {
             normal_value + 15.0 // Anomalous period
         } else {
             normal_value
@@ -388,7 +388,7 @@ fn pattern_matching_demo() {
     println!("    Oscillation pattern: {:?}", oscillation);
 
     // Generate data stream with embedded patterns
-    let data_stream = vec![2.0, 3.0, 2.5, 2.8, 3.2]; // Initial data
+    let data_stream = [2.0, 3.0, 2.5, 2.8, 3.2]; // Initial data
 
     // Add spike pattern at position 20
     for i in 0..50 {

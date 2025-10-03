@@ -4,9 +4,9 @@
 //! processing system, including quantum entanglement networks, coherence mechanisms,
 //! and quantum state management.
 
-use ndarray::{Array1, Array2, Array3, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 
 use super::config::{QuantumAIConsciousnessConfig, QuantumAIConsciousnessState};

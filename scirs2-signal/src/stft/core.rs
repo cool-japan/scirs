@@ -6,9 +6,9 @@
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
 use crate::window;
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use std::f64::consts::PI;
 
 /// A parametrized discrete Short-time Fourier transform (STFT)

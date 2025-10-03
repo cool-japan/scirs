@@ -6,7 +6,7 @@
 use crate::error::Result;
 use crate::feature::image_to_array;
 use image::DynamicImage;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::f32::consts::PI;
 
 /// Feature point with position, scale, and orientation

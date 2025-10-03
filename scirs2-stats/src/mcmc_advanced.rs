@@ -12,10 +12,10 @@
 #![allow(dead_code)]
 
 use crate::error::StatsResult;
-use ndarray::{Array1, Array2, Array3};
-use num_traits::{Float, NumCast};
-use rand::Rng;
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::marker::PhantomData;
 use std::sync::RwLock;
@@ -614,7 +614,7 @@ where
         // Simplified - would implement proper sampling from multivariate normal
         let dim = self.target.dim();
         let normal = Normal::new(0.0, 1.0).unwrap();
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
 
         let momentum: Array1<F> =
             Array1::from_shape_fn(dim, |_| F::from(normal.sample(&mut rng)).unwrap());
@@ -672,7 +672,7 @@ where
             true
         } else {
             let accept_prob = (-energydiff).exp();
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let u: f64 = rng.gen_range(0.0..1.0);
             F::from(u).unwrap() < accept_prob
         }
@@ -903,7 +903,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     // Simple target distribution for testing
     #[derive(Debug)]

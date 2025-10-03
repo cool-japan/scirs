@@ -57,8 +57,8 @@
 use crate::error::{SpatialError, SpatialResult};
 use crate::neuromorphic::SpikingNeuron;
 use crate::quantum_inspired::QuantumState;
-use num_complex::Complex64;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::random::quick::random_f64;
 use std::f64::consts::PI;
 use std::time::Instant;

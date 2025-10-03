@@ -287,7 +287,7 @@ impl PRMPlanner {
         }
 
         // Use the provided seed or generate a random one
-        let seed = config.seed.unwrap_or_else(rand::random);
+        let seed = config.seed.unwrap_or_else(scirs2_core::random::random);
         let rng = StdRng::seed_from_u64(seed);
 
         Ok(PRMPlanner {

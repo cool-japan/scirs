@@ -4,8 +4,8 @@
 //! with optimization algorithms, particularly useful for machine learning
 //! and scientific computing applications.
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 // use crate::basic::det; // Currently unused
@@ -72,7 +72,7 @@ pub struct OptimizationResult<F: Float> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::matrix_calculus::optimization::{matrix_gradient_descent, OptimizationConfig};
 /// use scirs2_linalg::error::LinalgResult;
 ///
@@ -95,7 +95,7 @@ pub fn matrix_gradient_descent<F>(
     config: &OptimizationConfig<F>,
 ) -> LinalgResult<OptimizationResult<F>>
 where
-    F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand,
+    F: Float + Zero + One + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
 {
     let mut x = x0.to_owned();
     let mut f_history = Vec::new();
@@ -182,7 +182,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::matrix_calculus::optimization::{matrix_newton_method, OptimizationConfig};
 /// use scirs2_linalg::error::LinalgResult;
 ///
@@ -208,7 +208,7 @@ pub fn matrix_newton_method<F>(
     config: &OptimizationConfig<F>,
 ) -> LinalgResult<OptimizationResult<F>>
 where
-    F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand,
+    F: Float + Zero + One + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
 {
     let mut x = x0.to_owned();
     let mut f_history = Vec::new();
@@ -292,7 +292,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::matrix_calculus::optimization::{projected_gradient_descent, OptimizationConfig};
 /// use scirs2_linalg::error::LinalgResult;
 ///
@@ -302,7 +302,7 @@ where
 /// };
 ///
 /// // Simple projection: keep only positive diagonal elements, zero off-diagonal
-/// let project = |x: &ArrayView2<f64>| -> LinalgResult<ndarray::Array2<f64>> {
+/// let project = |x: &ArrayView2<f64>| -> LinalgResult<scirs2_core::ndarray::Array2<f64>> {
 ///     let mut result = x.to_owned();
 ///     for i in 0..result.nrows() {
 ///         for j in 0..result.ncols() {
@@ -329,7 +329,7 @@ pub fn projected_gradient_descent<F>(
     config: &OptimizationConfig<F>,
 ) -> LinalgResult<OptimizationResult<F>>
 where
-    F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand,
+    F: Float + Zero + One + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
 {
     let mut x = x0.to_owned();
     let mut f_history = Vec::new();
@@ -481,7 +481,7 @@ pub mod common_problems {
         config: &OptimizationConfig<F>,
     ) -> LinalgResult<Array2<F>>
     where
-        F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand,
+        F: Float + Zero + One + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
     {
         if a.shape() != b.shape() {
             return Err(LinalgError::ShapeError(format!(
@@ -547,7 +547,7 @@ pub mod common_problems {
         config: &OptimizationConfig<F>,
     ) -> LinalgResult<Array2<F>>
     where
-        F: Float + Zero + One + Copy + Debug + ndarray::ScalarOperand,
+        F: Float + Zero + One + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
     {
         // Objective: minimize squared error on observed entries
         let f = |x: &ArrayView2<F>| -> LinalgResult<F> {
@@ -586,7 +586,7 @@ pub mod common_problems {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn testmatrix_gradient_descent() {

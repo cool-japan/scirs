@@ -1002,11 +1002,11 @@ struct AllocationRecord {
 
 /// Performance metrics for allocation strategies
 #[derive(Debug, Clone, Default)]
-struct AllocationMetrics {
-    total_allocations: usize,
-    average_allocation_time: Duration,
-    memory_efficiency: f64,
-    cache_hit_ratio: f64,
+pub struct AllocationMetrics {
+    pub total_allocations: usize,
+    pub average_allocation_time: Duration,
+    pub memory_efficiency: f64,
+    pub cache_hit_ratio: f64,
 }
 
 impl SmartAllocator {

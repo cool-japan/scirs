@@ -3,9 +3,9 @@
 //! This module provides functions for calculating confidence intervals around
 //! estimated trends, using bootstrap, parametric, and prediction interval methods.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
-use rand::prelude::*;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::prelude::*;
 use std::fmt::Debug;
 
 use super::{ConfidenceIntervalMethod, ConfidenceIntervalOptions, TrendWithConfidenceInterval};
@@ -30,14 +30,14 @@ use crate::error::{Result, TimeSeriesError};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::trends::{compute_trend_confidence_interval, ConfidenceIntervalOptions, ConfidenceIntervalMethod};
 ///
 /// // Create a sample time series with a trend and noise
 /// let n = 100;
 /// let xs = Array1::from_vec((0..n).map(|t| t as f64).collect());
 /// let trend = Array1::from_vec((0..n).map(|t| (t as f64 / 10.0).sin() + t as f64 / 50.0).collect());
-/// let noise = Array1::from_vec((0..n).map(|_| 0.1 * rand::random::<f64>()).collect());
+/// let noise = Array1::from_vec((0..n).map(|_| 0.1 * scirs2_core::random::random::<f64>()).collect());
 /// let ts = &trend + &noise;
 ///
 /// // Configure confidence interval options
@@ -386,7 +386,7 @@ fn normal_quantile(p: f64) -> Result<f64> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::trends::{
 ///     create_trend_with_ci, SplineTrendOptions, ConfidenceIntervalOptions,
 ///     SplineType, KnotPlacementStrategy, ConfidenceIntervalMethod,
@@ -395,7 +395,7 @@ fn normal_quantile(p: f64) -> Result<f64> {
 ///
 /// // Create a sample time series
 /// let n = 100;
-/// let ts = Array1::from_vec((0..n).map(|t| (t as f64 / 10.0).sin() + t as f64 / 50.0 + 0.1 * rand::random::<f64>()).collect());
+/// let ts = Array1::from_vec((0..n).map(|t| (t as f64 / 10.0).sin() + t as f64 / 50.0 + 0.1 * scirs2_core::random::random::<f64>()).collect());
 ///
 /// // Configure options
 /// let trend_options = SplineTrendOptions {

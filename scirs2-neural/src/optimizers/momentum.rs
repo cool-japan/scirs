@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::optimizers::Optimizer;
-use ndarray::{Array, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Momentum optimizer
 ///
@@ -13,7 +13,7 @@ use std::fmt::Debug;
 /// param_t = param_{t-1} - v_t
 /// # Examples
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_neural::optimizers::{MomentumOptimizer, Optimizer};
 /// // Create a momentum optimizer with learning rate 0.01 and momentum 0.9
 /// let mut momentum = MomentumOptimizer::new(0.01f64, 0.9);
@@ -28,7 +28,7 @@ pub struct MomentumOptimizer<F: Float + ScalarOperand + Debug> {
     /// Weight decay factor (L2 regularization)
     weight_decay: F,
     /// Velocity (momentum state) for each parameter array
-    velocity: Vec<Array<F, ndarray::IxDyn>>,
+    velocity: Vec<Array<F, scirs2_core::ndarray::IxDyn>>,
 }
 impl<F: Float + ScalarOperand + Debug> MomentumOptimizer<F> {
     /// Creates a new momentum optimizer with the given learning rate and momentum
@@ -65,8 +65,8 @@ impl<F: Float + ScalarOperand + Debug> MomentumOptimizer<F> {
 impl<F: Float + ScalarOperand + Debug> Optimizer<F> for MomentumOptimizer<F> {
     fn update(
         &mut self,
-        params: &mut [Array<F, ndarray::IxDyn>],
-        grads: &[Array<F, ndarray::IxDyn>],
+        params: &mut [Array<F, scirs2_core::ndarray::IxDyn>],
+        grads: &[Array<F, scirs2_core::ndarray::IxDyn>],
     ) -> Result<()> {
         if params.len() != grads.len() {
             return Err(NeuralError::TrainingError(format!(

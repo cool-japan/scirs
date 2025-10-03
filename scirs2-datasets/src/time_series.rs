@@ -11,7 +11,7 @@
 use crate::cache::{fetch_data, RegistryEntry};
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;

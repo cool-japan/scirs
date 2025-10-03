@@ -32,7 +32,7 @@ use super::{
     simd_autocorrelation, simd_cross_correlation, simd_fir_filter, SimdConfig, SimdValidationResult,
 };
 use crate::error::SignalResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Comprehensive SIMD validation and performance testing
 ///

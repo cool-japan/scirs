@@ -8,8 +8,8 @@
 //! TPS are particularly useful for 2D and 3D interpolation and warping problems.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Thin-plate spline interpolator for scattered data
@@ -67,7 +67,7 @@ where
     /// ```
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_interpolate::advanced::thinplate::ThinPlateSpline;
     ///
     /// // Create 2D scattered data
@@ -364,7 +364,7 @@ where
 mod tests {
     use super::*;
 
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_thinplate_exact_fit() {

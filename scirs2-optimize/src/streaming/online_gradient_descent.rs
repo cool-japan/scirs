@@ -13,7 +13,7 @@ use super::{
     StreamingStats,
 };
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 // Unused import
 // use scirs2_core::error::CoreResult;
 // Unused import
@@ -429,6 +429,12 @@ pub struct FederatedAveragingState {
     pub staleness_tolerance: Duration,
 }
 
+impl Default for FederatedAveragingState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FederatedAveragingState {
     pub fn new() -> Self {
         Self {
@@ -515,6 +521,12 @@ pub struct NetworkSynchronizationState {
     pub last_sync: Instant,
     /// Synchronization period
     pub sync_period: Duration,
+}
+
+impl Default for NetworkSynchronizationState {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NetworkSynchronizationState {
@@ -854,7 +866,7 @@ impl<T: StreamingObjective + Clone> StreamingOptimizer for AdvancedAdvancedDistr
             &self.consensus_node.gradient_accumulator + &gradient;
 
         // Periodic consensus protocol
-        if self.stats.points_processed % 10 == 0 {
+        if self.stats.points_processed.is_multiple_of(10) {
             if let Some(consensus_params) = self.run_consensus_protocol()? {
                 self.apply_consensus_parameters(consensus_params)?;
             }

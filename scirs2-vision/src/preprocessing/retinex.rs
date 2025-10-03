@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GenericImageView, RgbImage};
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 
 /// Single-Scale Retinex (SSR)
 ///
@@ -45,7 +45,7 @@ pub fn single_scale_retinex(img: &DynamicImage, sigma: f32) -> Result<DynamicIma
     let mut result = RgbImage::new(width, height);
 
     for c in 0..3 {
-        let channel = reflectance.index_axis(ndarray::Axis(2), c);
+        let channel = reflectance.index_axis(scirs2_core::ndarray::Axis(2), c);
         let (min_val, max_val) = find_min_max(&channel);
         let range = max_val - min_val;
 
@@ -126,7 +126,7 @@ pub fn multi_scale_retinex(
     let mut result = RgbImage::new(width, height);
 
     for c in 0..3 {
-        let channel = msr.index_axis(ndarray::Axis(2), c);
+        let channel = msr.index_axis(scirs2_core::ndarray::Axis(2), c);
         let (min_val, max_val) = find_min_max(&channel);
         let range = max_val - min_val;
 
@@ -241,7 +241,7 @@ fn gaussian_blur_3d(img: &Array3<f32>, sigma: f32) -> Result<Array3<f32>> {
 
     // Apply separable convolution to each channel
     for c in 0..channels {
-        let channel = img.index_axis(ndarray::Axis(2), c);
+        let channel = img.index_axis(scirs2_core::ndarray::Axis(2), c);
         let blurred_channel = separable_convolution(&channel, &kernel)?;
 
         for y in 0..height {
@@ -279,7 +279,10 @@ fn create_gaussian_kernel(size: usize, sigma: f32) -> Vec<f32> {
 
 /// Separable convolution (horizontal then vertical)
 #[allow(dead_code)]
-fn separable_convolution(img: &ndarray::ArrayView2<f32>, kernel: &[f32]) -> Result<Array2<f32>> {
+fn separable_convolution(
+    img: &scirs2_core::ndarray::ArrayView2<f32>,
+    kernel: &[f32],
+) -> Result<Array2<f32>> {
     let (height, width) = img.dim();
     let kernel_size = kernel.len();
     let pad = kernel_size / 2;
@@ -325,7 +328,7 @@ fn separable_convolution(img: &ndarray::ArrayView2<f32>, kernel: &[f32]) -> Resu
 
 /// Find min and max values in 2D array
 #[allow(dead_code)]
-fn find_min_max(arr: &ndarray::ArrayView2<f32>) -> (f32, f32) {
+fn find_min_max(arr: &scirs2_core::ndarray::ArrayView2<f32>) -> (f32, f32) {
     let mut min_val = f32::MAX;
     let mut max_val = f32::MIN;
 

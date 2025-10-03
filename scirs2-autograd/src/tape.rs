@@ -3,8 +3,8 @@
 //! This module provides a gradient tape implementation that records operations
 //! and allows automatic computation of gradients in reverse mode.
 
-use ndarray::{Array, IxDyn};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};

@@ -4,7 +4,7 @@
 
 use crate::csr::CsrMatrix;
 use crate::error::{SparseError, SparseResult};
-use num_traits::Zero;
+use scirs2_core::numeric::Zero;
 
 /// Create an identity matrix in CSR format
 ///
@@ -185,8 +185,8 @@ pub fn random(shape: (usize, usize), density: f64) -> SparseResult<CsrMatrix<f64
     let mut used = vec![vec![false; cols]; rows];
     let mut count = 0;
 
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
 
     while count < nnz {
         let i = rng.random_range(0..rows);

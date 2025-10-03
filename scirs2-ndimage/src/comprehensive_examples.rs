@@ -69,7 +69,7 @@ impl ExampleTutorial {
                     .to_string(),
             code_example: r#"
 use scirs2_ndimage::filters::{gaussian_filter, BorderMode};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Create a noisy image (in practice, you'd load from file)
 let mut noisyimage = Array2::zeros((100, 100));
@@ -123,7 +123,7 @@ println!("Border modes: Reflect, Wrap, Constant");
                     .to_string(),
             code_example: r#"
 use scirs2_ndimage::filters::{median_filter, BorderMode};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Create image with impulse noise
 let mut image_with_impulses = Array2::from_shape_fn((50, 50), |(i, j)| {
@@ -175,7 +175,7 @@ println!("Larger kernels remove more noise but may blur edges");
             description: "Detect edges using gradient-based and Laplacian operators".to_string(),
             code_example: r#"
 use scirs2_ndimage::filters::{sobel, laplace, gaussian_filter};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Create test image with clear edges
 let image = Array2::from_shape_fn((60, 60), |(i, j)| {
@@ -238,7 +238,7 @@ use scirs2_ndimage::morphology::{
     binary_erosion, binary_dilation, binary_opening, binary_closing,
     generate_binary_structure, disk_structure
 };
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Create binary image with various shapes
 let mut binary_image = Array2::from_elem((80, 80), false);
@@ -308,7 +308,7 @@ use scirs2_ndimage::morphology::{
     grey_erosion, grey_dilation, grey_opening, grey_closing,
     white_tophat, black_tophat, morphological_gradient
 };
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Create grayscale test image
 let image = Array2::from_shape_fn((60, 60), |(i, j)| {
@@ -381,7 +381,7 @@ use scirs2_ndimage::interpolation::{
     zoom, rotate, shift, affine_transform, map_coordinates,
     InterpolationOrder, BoundaryMode
 };
-use ndarray::{Array2, Array1};
+use scirs2_core::ndarray::{Array2, Array1};
 
 // Create test image with clear features
 let image = Array2::from_shape_fn((40, 40), |(i, j)| {
@@ -474,7 +474,7 @@ use scirs2_ndimage::measurements::{
     extrema, region_properties
 };
 use scirs2_ndimage::morphology::label;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Create test image with multiple objects
 let mut image = Array2::zeros((60, 60));
@@ -583,7 +583,7 @@ use scirs2_ndimage::segmentation::{
 };
 use scirs2_ndimage::filters::gaussian_filter;
 use scirs2_ndimage::morphology::{binary_erosion, label};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Create test image with multiple regions
 let image = Array2::from_shape_fn((80, 80), |(i, j)| {
@@ -694,7 +694,7 @@ use scirs2_ndimage::features::{
     gradient_edges, GradientMethod
 };
 use scirs2_ndimage::filters::gaussian_filter;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 // Create test image with corners and edges
 let image = Array2::from_shape_fn((60, 60), |(i, j)| {
@@ -822,7 +822,7 @@ println!("Created combined feature map with edges and corners");
             description: "Combine multiple techniques for comprehensive image analysis".to_string(),
             code_example: r#"
 use scirs2_ndimage::*;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use statrs::statistics::Statistics;
 
 // Simulate a real-world image analysis scenario:
@@ -908,7 +908,7 @@ println!("   - Found {} strong corner features", strong_corners);
 // Step 6: Quality metrics
 println!("\n6. QUALITY ASSESSMENT");
 let image_mean = image.mean().unwrap();
-let image_std = image.var(ndarray::Axis(0)).unwrap().mean().unwrap().sqrt();
+let image_std = image.var(scirs2_core::ndarray::Axis(0)).unwrap().mean().unwrap().sqrt();
 let signal_to_noise = image_mean / image_std;
 
 println!("   - Image mean intensity: {:.3}", image_mean);

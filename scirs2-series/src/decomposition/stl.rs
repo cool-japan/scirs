@@ -1,7 +1,7 @@
 //! STL (Seasonal-Trend decomposition using LOESS) and MSTL implementation
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::common::DecompositionResult;
@@ -95,7 +95,7 @@ pub struct MultiSeasonalDecompositionResult<F> {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::decomposition::{stl_decomposition, STLOptions};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0];
@@ -123,13 +123,13 @@ where
     }
 
     // Validate options
-    if options.trend_window % 2 == 0 {
+    if options.trend_window.is_multiple_of(2) {
         return Err(TimeSeriesError::InvalidParameter {
             name: "trend_window".to_string(),
             message: "Trend window size must be odd".to_string(),
         });
     }
-    if options.seasonal_window % 2 == 0 {
+    if options.seasonal_window.is_multiple_of(2) {
         return Err(TimeSeriesError::InvalidParameter {
             name: "seasonal_window".to_string(),
             message: "Seasonal window size must be odd".to_string(),
@@ -319,7 +319,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::decomposition::{mstl_decomposition, MSTLOptions};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0,

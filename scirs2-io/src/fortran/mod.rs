@@ -21,7 +21,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_io::fortran::{FortranFile, RecordType, EndianMode};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Read a Fortran unformatted file
 //! let mut file = FortranFile::open("data.unf")?;
@@ -36,7 +36,7 @@
 //! ```
 
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
-use ndarray::{Array, Array1, Array2, Array3, ShapeBuilder};
+use scirs2_core::ndarray::{Array, Array1, Array2, Array3, ShapeBuilder};
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::Path;
@@ -612,7 +612,7 @@ impl<W: Write> FortranFile<W> {
     /// Write a generic N-dimensional array
     pub fn write_array<T: ScientificNumber, D>(&mut self, array: &Array<T, D>) -> Result<()>
     where
-        D: ndarray::Dimension,
+        D: scirs2_core::ndarray::Dimension,
     {
         let mut data = Vec::with_capacity(array.len() * std::mem::size_of::<T>());
 
@@ -752,7 +752,7 @@ pub fn detect_fortran_format<P: AsRef<Path>>(path: P) -> Result<(EndianMode, Rec
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
     use tempfile::NamedTempFile;
 
     #[test]

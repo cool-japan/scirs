@@ -8,7 +8,7 @@
 #[cfg(feature = "tensor_contraction")]
 #[allow(dead_code)]
 fn main() -> scirs2_linalg::error::LinalgResult<()> {
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use scirs2_linalg::tensor_contraction::tucker::{tucker_als, tucker_decomposition};
 
     println!("Tucker Decomposition Example");

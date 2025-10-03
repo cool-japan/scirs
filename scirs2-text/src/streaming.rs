@@ -937,7 +937,7 @@ impl ProgressTracker {
     pub fn update(&mut self, count: usize) {
         self.current += count;
 
-        if self.current % self.report_interval == 0 || self.current >= self.total {
+        if self.current.is_multiple_of(self.report_interval) || self.current >= self.total {
             let percentage = (self.current as f64 / self.total as f64) * 100.0;
             println!(
                 "Progress: {:.1}% ({}/{})",

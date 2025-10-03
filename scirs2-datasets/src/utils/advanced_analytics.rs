@@ -4,7 +4,7 @@
 //! dataset quality, complexity, and characteristics.
 
 use super::Dataset;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use statrs::statistics::Statistics;
 use std::error::Error;
 
@@ -92,8 +92,10 @@ impl AdvancedDatasetAnalyzer {
         let _n_features = data.ncols();
 
         // Calculate basic statistics
-        let _mean_values: Array1<f64> = data.mean_axis(ndarray::Axis(0)).unwrap();
-        let _std_values: Array1<f64> = data.var_axis(ndarray::Axis(0), 1.0).mapv(|x| x.sqrt());
+        let _mean_values: Array1<f64> = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let _std_values: Array1<f64> = data
+            .var_axis(scirs2_core::ndarray::Axis(0), 1.0)
+            .mapv(|x| x.sqrt());
 
         // Calculate complexity score based on data distribution
         let complexity_score = self.calculate_complexity_score(data)?;
@@ -126,7 +128,7 @@ impl AdvancedDatasetAnalyzer {
     fn calculate_complexity_score(&self, data: &Array2<f64>) -> Result<f64, Box<dyn Error>> {
         // Simple complexity measure based on variance and correlation
         let var_mean = {
-            let val = data.var_axis(ndarray::Axis(0), 1.0).mean();
+            let val = data.var_axis(scirs2_core::ndarray::Axis(0), 1.0).mean();
             if val.is_nan() {
                 1.0
             } else {
@@ -187,7 +189,7 @@ impl AdvancedDatasetAnalyzer {
 
     fn calculate_ml_quality_score(&self, data: &Array2<f64>) -> Result<f64, Box<dyn Error>> {
         // ML quality based on feature variance and separability
-        let var_scores: Array1<f64> = data.var_axis(ndarray::Axis(0), 1.0);
+        let var_scores: Array1<f64> = data.var_axis(scirs2_core::ndarray::Axis(0), 1.0);
         let mean_variance = {
             let val = var_scores.mean();
             if val.is_nan() {
@@ -234,7 +236,7 @@ impl AdvancedDatasetAnalyzer {
 
     fn simplified_normality_test(
         &self,
-        data: &ndarray::ArrayView1<f64>,
+        data: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> Result<f64, Box<dyn Error>> {
         // Placeholder normality test based on skewness and kurtosis
         let n = data.len();
@@ -317,7 +319,7 @@ pub fn quick_quality_assessment(dataset: &Dataset) -> Result<f64, Box<dyn Error>
     let completeness = valid_count as f64 / data.len() as f64;
 
     // Check feature variance
-    let variances: Array1<f64> = data.var_axis(ndarray::Axis(0), 1.0);
+    let variances: Array1<f64> = data.var_axis(scirs2_core::ndarray::Axis(0), 1.0);
     let non_zero_var_count = variances.iter().filter(|&&x| x > 1e-10).count();
     let variance_score = non_zero_var_count as f64 / n_features as f64;
 
@@ -346,7 +348,7 @@ pub fn analyze_dataset_advanced(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_quick_quality_assessment() {

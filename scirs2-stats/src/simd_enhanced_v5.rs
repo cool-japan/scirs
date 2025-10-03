@@ -4,9 +4,9 @@
 //! operations, building upon v4 with additional functionality and improved algorithms.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
+use scirs2_core::random::Rng;
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use statrs::statistics::Statistics;
 
@@ -47,8 +47,8 @@ where
 
     // Sequential processing for all datasets (parallel version needs different implementation)
     for i in 0..n_windows {
-        let window = data.slice(ndarray::s![i..i + windowsize]);
-        compute_window_statistics(&window, &statistics, &mut results, i);
+        let window = data.slice(scirs2_core::ndarray::s![i..i + windowsize]);
+        compute_window_statistics(&window, statistics, &mut results, i);
     }
 
     Ok(results)
@@ -462,7 +462,7 @@ where
                     let chunksize = 1000;
                     for i in (0..flattened.len()).step_by(chunksize) {
                         let end = (i + chunksize).min(flattened.len());
-                        let chunk = flattened.slice(ndarray::s![i..end]);
+                        let chunk = flattened.slice(scirs2_core::ndarray::s![i..end]);
                         let squared = F::simd_mul(&chunk, &chunk);
                         sum = sum + F::simd_sum(&squared.view());
                     }
@@ -813,7 +813,7 @@ where
         + Sync
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     checkarray_finite(data, "data")?;
     check_positive(n_bootstrap, "n_bootstrap")?;

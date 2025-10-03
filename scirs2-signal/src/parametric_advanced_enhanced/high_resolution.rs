@@ -6,8 +6,8 @@
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
 use crate::parametric_advanced::compute_eigendecomposition;
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 /// High-resolution spectral estimation using eigenvalue methods
@@ -406,7 +406,7 @@ mod tests {
                 1.0 + 0.8 * (i as f64 * 0.1).sin()
                     + 0.6 * (i as f64 * 0.15).cos()
                     + 0.4 * (i as f64 * 0.05).sin()
-                    + 0.1 * rand::random::<f64>(), // Add small amount of noise
+                    + 0.1 * scirs2_core::random::random::<f64>(), // Add small amount of noise
             );
         }
         let config = HighResolutionConfig::default();

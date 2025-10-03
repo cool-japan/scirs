@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::distribution_characteristics::{
     cross_entropy, entropy, kl_divergence, kurtosis_ci, mode, skewness_ci, ModeMethod,
 };

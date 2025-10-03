@@ -9,8 +9,8 @@
 //! - Pole-zero analysis and root finding
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{s, Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::validation::{check_finite, check_positive};
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -997,7 +997,7 @@ fn compute_residuals(signal: &Array1<f64>, params: &ARMAParameters) -> SignalRes
 
         // AR component
         for i in 0..p {
-            if t >= i + 1 {
+            if t > i {
                 prediction += params.ar_coeffs[i] * signal[t - i - 1];
             }
         }

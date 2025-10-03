@@ -1,7 +1,7 @@
 use super::*;
 use crate::tensor_ops::*;
 use crate::tensor_ops::{
-    cblas_dgemm, cblas_sgemm, BlasIF, CblasNoTrans, CblasRowMajor, CblasTrans,
+    cblas_dgemm, cblas_sgemm, BlasIF, CBLAS_NO_TRANS, CBLAS_ROW_MAJOR, CBLAS_TRANS,
 };
 
 pub struct Conv2DTranspose {
@@ -167,9 +167,9 @@ fn conv2d_transpose_impl<F: Float>(
                         ($ty:ty, $f:ident) => {
                             if crate::same_type::<$ty, F>() {
                                 $f(
-                                    CblasRowMajor,
-                                    CblasTrans,
-                                    CblasNoTrans,
+                                    CBLAS_ROW_MAJOR,
+                                    CBLAS_TRANS,
+                                    CBLAS_NO_TRANS,
                                     m as BlasIF,                    // m, rows of Op(a)
                                     n as BlasIF,                    // n, cols of Op(b)
                                     k as BlasIF,                    // k, cols of Op(a)
@@ -242,7 +242,7 @@ fn conv2d_transpose_impl<F: Float>(
     // return gx
     unsafe {
         Ok(NdArray::from_shape_vec_unchecked(
-            ndarray::IxDyn(&[batch_size, xch, xh, xw]),
+            scirs2_core::ndarray::IxDyn(&[batch_size, xch, xh, xw]),
             gx,
         ))
     }
@@ -365,9 +365,9 @@ fn conv2d_transpose_filter_grad_impl<F: Float>(
                             let x_region_head = &x[i * size_per_batch_x] as *const F;
                             let gy_col_region_ptr = &gy_cols[i * size_per_batch_cols] as *const F;
                             $f(
-                                CblasRowMajor,
-                                CblasNoTrans,
-                                CblasTrans,
+                                CBLAS_ROW_MAJOR,
+                                CBLAS_NO_TRANS,
+                                CBLAS_TRANS,
                                 m as BlasIF,
                                 n as BlasIF,
                                 k as BlasIF,
@@ -491,7 +491,7 @@ fn test_deconv() {
     let (yh, yw) = (2, 2);
     let batch_size = 2;
     let ans = NdArray::<f32>::from_shape_vec(
-        ndarray::IxDyn(&[2, 3, 3, 3]),
+        scirs2_core::ndarray::IxDyn(&[2, 3, 3, 3]),
         vec![
             2.0, 4.0, 2.0, 4.0, 8.0, 4.0, 2.0, 4.0, 2.0, 2.0, 4.0, 2.0, 4.0, 8.0, 4.0, 2.0, 4.0,
             2.0, 2.0, 4.0, 2.0, 4.0, 8.0, 4.0, 2.0, 4.0, 2.0, 2.0, 4.0, 2.0, 4.0, 8.0, 4.0, 2.0,

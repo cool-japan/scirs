@@ -4,8 +4,8 @@
 //! These replace the need for external linear algebra libraries like ndarray-linalg.
 
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Enum for different types of linear solvers
@@ -182,7 +182,7 @@ where
         + std::ops::MulAssign
         + std::default::Default
         + std::iter::Sum
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::ops::DivAssign,
 {
     match solver_type {
@@ -248,7 +248,7 @@ where
         + std::ops::MulAssign
         + Default
         + std::iter::Sum
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::ops::DivAssign,
 {
     let n = a.nrows();

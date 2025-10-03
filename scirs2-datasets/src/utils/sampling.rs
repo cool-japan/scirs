@@ -6,12 +6,12 @@
 //! and handling imbalanced data distributions.
 
 use crate::error::{DatasetsError, Result};
-use ndarray::Array1;
-use rand::prelude::*;
-use rand::rngs::StdRng;
-use rand::seq::SliceRandom;
-use rand_distr::Uniform;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::Uniform;
 use std::collections::HashMap;
 
 /// Performs random sampling with or without replacement
@@ -113,7 +113,7 @@ pub fn random_sample(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_datasets::utils::stratified_sample;
 ///
 /// let targets = Array1::from(vec![0.0, 0.0, 1.0, 1.0, 1.0, 2.0, 2.0, 2.0]);
@@ -230,7 +230,7 @@ pub fn stratified_sample(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_datasets::utils::importance_sample;
 ///
 /// // Give higher weights to the last few samples
@@ -441,8 +441,8 @@ pub fn multiple_bootstrap_samples(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
-    use rand_distr::Uniform;
+    use scirs2_core::ndarray::array;
+    use scirs2_core::random::Uniform;
     use std::collections::HashSet;
 
     #[test]

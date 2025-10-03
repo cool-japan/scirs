@@ -3,8 +3,8 @@
 use crate::error::{StatsError, StatsResult};
 use crate::regression::utils::*;
 use crate::regression::{linregress, RegressionResults};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use scirs2_linalg::{inv, lstsq};
 
 /// Results for Theil-Sen regression.
@@ -182,7 +182,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::theilslopes;
 ///
 /// // Create data with an outlier
@@ -300,15 +300,17 @@ where
         "exact" => {
             // Exact method using the distribution of the median of n(n-1)/2 slopes
             // This is computationally expensive for large n
-            F::from(1.0).unwrap() / (F::from(6.0).unwrap() * num_traits::Float::sqrt(n_f))
+            F::from(1.0).unwrap() / (F::from(6.0).unwrap() * scirs2_core::numeric::Float::sqrt(n_f))
         }
         _ => {
             // Approximate method (Sen, 1968)
-            let factor = num_traits::Float::sqrt(
+            let factor = scirs2_core::numeric::Float::sqrt(
                 F::from(3.0).unwrap() * n_f * (n_f + F::one())
                     / (F::from(0.5).unwrap() * n_f * (n_f - F::one())),
             );
-            factor / (num_traits::Float::sqrt(n_f) * num_traits::Float::sqrt(n_f - F::one()))
+            factor
+                / (scirs2_core::numeric::Float::sqrt(n_f)
+                    * scirs2_core::numeric::Float::sqrt(n_f - F::one()))
         }
     };
 
@@ -345,7 +347,7 @@ where
         .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let mid = n / 2;
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         (sorted[mid - 1] + sorted[mid]) / F::from(2.0).unwrap()
     } else {
         sorted[mid]
@@ -396,7 +398,7 @@ where
 ///
 /// Simple example with an obvious outlier:
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::ransac;
 ///
 /// // Create data with outliers
@@ -417,7 +419,7 @@ where
 ///
 /// Simpler example with fewer dimensions:
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::ransac;
 ///
 /// // Create 1D data with outlier, but in 2D form to match function requirements
@@ -463,13 +465,13 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
-    use rand::seq::SliceRandom;
+    use scirs2_core::random::SliceRandom;
 
     // Check input dimensions
     if x.len() != y.len() {
@@ -525,8 +527,8 @@ where
         Random::seed(_seed)
     } else {
         // Use a random _seed
-        use rand::Rng;
-        let mut temp_rng = rand::thread_rng();
+        use scirs2_core::random::Rng;
+        let mut temp_rng = scirs2_core::random::thread_rng();
         Random::seed(temp_rng.random())
     };
 
@@ -690,9 +692,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -719,9 +721,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -758,7 +760,7 @@ where
 
     // Calculate mean squared error and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Calculate standard errors for coefficients
     let std_errors = match calculate_std_errors(x, &residuals.view(), df_residuals) {
@@ -771,9 +773,10 @@ where
 
     // Calculate p-values (simplified)
     let p_values = t_values.mapv(|t| {
-        let t_abs = num_traits::Float::abs(t);
+        let t_abs = scirs2_core::numeric::Float::abs(t);
         let df_f = F::from(df_residuals).unwrap();
-        F::from(2.0).unwrap() * (F::one() - t_abs / num_traits::Float::sqrt(df_f + t_abs * t_abs))
+        F::from(2.0).unwrap()
+            * (F::one() - t_abs / scirs2_core::numeric::Float::sqrt(df_f + t_abs * t_abs))
     });
 
     // Calculate confidence intervals
@@ -865,7 +868,7 @@ where
 ///
 /// Basic example with an outlier:
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::huber_regression;
 ///
 /// // Create data with outliers
@@ -886,7 +889,7 @@ where
 ///
 /// Using custom epsilon and regularization:
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::huber_regression;
 ///
 /// // Create data with outliers and some collinearity
@@ -940,11 +943,11 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
         + Send
         + Sync
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     // Check input dimensions
     if x.nrows() != y.len() {
@@ -1021,8 +1024,10 @@ where
         }
 
         // Weighted least squares
-        let sqrt_weights = weights.mapv(|w| num_traits::Float::sqrt(w));
-        let sqrt_weights_col = sqrt_weights.clone().insert_axis(ndarray::Axis(1));
+        let sqrt_weights = weights.mapv(|w| scirs2_core::numeric::Float::sqrt(w));
+        let sqrt_weights_col = sqrt_weights
+            .clone()
+            .insert_axis(scirs2_core::ndarray::Axis(1));
         let x_weighted = &x_design * &sqrt_weights_col;
         let y_weighted = &y.to_owned() * &sqrt_weights;
 
@@ -1069,12 +1074,12 @@ where
     let y_mean = y.iter().cloned().sum::<F>() / F::from(n).unwrap();
     let ss_total = y
         .iter()
-        .map(|&yi| num_traits::Float::powi(yi - y_mean, 2))
+        .map(|&yi| scirs2_core::numeric::Float::powi(yi - y_mean, 2))
         .sum::<F>();
 
     let ss_residual = residuals
         .iter()
-        .map(|&ri| num_traits::Float::powi(ri, 2))
+        .map(|&ri| scirs2_core::numeric::Float::powi(ri, 2))
         .sum::<F>();
 
     let ss_explained = ss_total - ss_residual;
@@ -1086,7 +1091,7 @@ where
 
     // Calculate mean squared error and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Use a robust estimate for standard errors
     let std_errors = match calculate_huber_std_errors(
@@ -1105,9 +1110,10 @@ where
 
     // Calculate p-values (simplified)
     let p_values = t_values.mapv(|t| {
-        let t_abs = num_traits::Float::abs(t);
+        let t_abs = scirs2_core::numeric::Float::abs(t);
         let df_f = F::from(df_residuals).unwrap();
-        F::from(2.0).unwrap() * (F::one() - t_abs / num_traits::Float::sqrt(df_f + t_abs * t_abs))
+        F::from(2.0).unwrap()
+            * (F::one() - t_abs / scirs2_core::numeric::Float::sqrt(df_f + t_abs * t_abs))
     });
 
     // Calculate confidence intervals
@@ -1157,9 +1163,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -1187,9 +1193,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -1218,9 +1224,9 @@ where
     };
 
     // The diagonal elements of (X'WX)^-1 * sigma^2 are the variances of the coefficients
-    let std_errors = xtx_inv
-        .diag()
-        .mapv(|v| num_traits::Float::sqrt(v * num_traits::Float::powi(sigma, 2)));
+    let std_errors = xtx_inv.diag().mapv(|v| {
+        scirs2_core::numeric::Float::sqrt(v * scirs2_core::numeric::Float::powi(sigma, 2))
+    });
 
     Ok(std_errors)
 }

@@ -4,7 +4,7 @@
 use crate::error::{IoError, Result};
 use crate::ml_framework::converters::MLFrameworkConverter;
 use crate::ml_framework::types::{MLFramework, MLModel, MLTensor};
-use ndarray::{ArrayD, IxDyn};
+use scirs2_core::ndarray::{ArrayD, IxDyn};
 use std::fs::File;
 use std::path::Path;
 

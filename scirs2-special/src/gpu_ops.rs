@@ -12,8 +12,8 @@
 //! significant performance improvements for large arrays (>1000 elements).
 
 use crate::error::{SpecialError, SpecialResult};
-use ndarray::{ArrayView1, ArrayViewMut1};
 use scirs2_core::gpu::{GpuContext, GpuError};
+use scirs2_core::ndarray::{ArrayView1, ArrayViewMut1};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -59,8 +59,8 @@ use log;
 #[allow(dead_code)]
 pub fn gamma_gpu<F>(input: &ArrayView1<F>, output: &mut ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Debug
         + std::ops::AddAssign
         + Send
@@ -160,7 +160,12 @@ where
 #[allow(dead_code)]
 pub fn j0_gpu<F>(input: &ArrayView1<F>, output: &mut ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + Send + Sync + 'static,
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
+        + std::fmt::Debug
+        + Send
+        + Sync
+        + 'static,
 {
     if input.len() != output.len() {
         return Err(SpecialError::ValueError(
@@ -181,7 +186,7 @@ where
 #[allow(dead_code)]
 pub fn erf_gpu<F>(input: &ArrayView1<F>, output: &mut ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::FromPrimitive + Send + Sync + 'static,
 {
     if input.len() != output.len() {
         return Err(SpecialError::ValueError(
@@ -202,8 +207,8 @@ where
 #[allow(dead_code)]
 pub fn digamma_gpu<F>(input: &ArrayView1<F>, output: &mut ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + Send
         + Sync
         + 'static
@@ -232,8 +237,8 @@ where
 #[allow(dead_code)]
 pub fn log_gamma_gpu<F>(input: &ArrayView1<F>, output: &mut ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + Send
         + Sync
         + 'static
@@ -259,8 +264,8 @@ where
 #[allow(dead_code)]
 fn gamma_cpu_fallback<F>(input: &ArrayView1<F>, output: &mut ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Debug
         + std::ops::AddAssign
         + Send
@@ -300,7 +305,11 @@ where
 #[allow(dead_code)]
 fn j0_cpu_fallback<F>(input: &ArrayView1<F>, output: &mut ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + Send + Sync,
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
+        + std::fmt::Debug
+        + Send
+        + Sync,
 {
     use crate::bessel::j0;
     #[cfg(feature = "parallel")]
@@ -334,7 +343,7 @@ where
 #[allow(dead_code)]
 fn erf_cpu_fallback<F>(input: &ArrayView1<F>, output: &mut ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::FromPrimitive + Send + Sync,
 {
     use crate::erf::erf;
     #[cfg(feature = "parallel")]
@@ -371,8 +380,8 @@ fn digamma_cpu_fallback<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + Send
         + Sync
         + std::fmt::Debug
@@ -416,8 +425,8 @@ fn log_gamma_cpu_fallback<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + Send
         + Sync
         + std::fmt::Debug
@@ -450,47 +459,6 @@ where
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ndarray::Array1;
-
-    #[test]
-    #[cfg(feature = "gpu")]
-    fn test_gamma_gpu_fallback() {
-        // Test that CPU fallback works correctly
-        let input = Array1::linspace(0.1, 5.0, 10);
-        let mut output = Array1::zeros(10);
-
-        gamma_gpu(&input.view(), &mut output.view_mut()).unwrap();
-
-        // Verify some known values
-        use crate::gamma::gamma;
-        for i in 0..10 {
-            let expected = gamma(input[i]);
-            let diff: f64 = output[i] - expected;
-            assert!(diff.abs() < 1e-10_f64);
-        }
-    }
-
-    #[test]
-    #[cfg(feature = "gpu")]
-    fn test_j0_gpu_fallback() {
-        let input = Array1::linspace(0.1, 10.0, 10);
-        let mut output = Array1::zeros(10);
-
-        j0_gpu(&input.view(), &mut output.view_mut()).unwrap();
-
-        // Verify some known values
-        use crate::bessel::j0;
-        for i in 0..10 {
-            let expected = j0(input[i]);
-            let diff: f64 = output[i] - expected;
-            assert!(diff.abs() < 1e-10_f64);
-        }
-    }
-}
-
 /// Enhanced GPU execution for gamma function with advanced error handling and backend selection
 #[cfg(feature = "gpu")]
 #[allow(dead_code)]
@@ -499,8 +467,8 @@ fn try_gamma_gpu_execution_enhanced<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<scirs2_core::gpu::GpuBackend>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Debug
         + std::ops::AddAssign
         + Send
@@ -534,6 +502,8 @@ where
         "GPU operations currently only support f64 type".to_string(),
     ));
 
+    // TODO: Implement support for other types
+    #[allow(unreachable_code)]
     Ok(backend_type)
 }
 
@@ -545,7 +515,12 @@ fn try_j0_gpu_execution<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + Send + Sync + 'static,
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
+        + std::fmt::Debug
+        + Send
+        + Sync
+        + 'static,
 {
     // GPU operations currently only support f64. Fall back to CPU for other types.
     Err(SpecialError::GpuNotAvailable(
@@ -561,7 +536,7 @@ fn try_erf_gpu_execution<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + Send + Sync + 'static,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::FromPrimitive + Send + Sync + 'static,
 {
     // GPU operations currently only support f64. Fall back to CPU for other types.
     Err(SpecialError::GpuNotAvailable(
@@ -577,8 +552,8 @@ fn try_digamma_gpu_execution<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + Send
         + Sync
         + 'static
@@ -602,8 +577,8 @@ fn try_log_gamma_gpu_execution<F>(
     output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<()>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + Send
         + Sync
         + 'static
@@ -755,7 +730,7 @@ fn read_gpu_buffer_to_array<T>(
     output: &mut [T],
 ) -> SpecialResult<()>
 where
-    T: Copy + num_traits::FromPrimitive + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::FromPrimitive + scirs2_core::numeric::Zero,
 {
     let data = ctx
         .read_buffer(buffer)
@@ -783,7 +758,10 @@ fn read_gpu_buffer_to_array_typed<T>(
     output: &mut [T],
 ) -> SpecialResult<()>
 where
-    T: num_traits::Float + std::fmt::Debug + num_traits::FromPrimitive + num_traits::Zero,
+    T: scirs2_core::numeric::Float
+        + std::fmt::Debug
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::Zero,
 {
     let data = ctx.read_buffer(buffer).map_err(|e| {
         SpecialError::ComputationError(format!("Failed to read typed GPU buffer: {}", e))
@@ -1064,7 +1042,10 @@ fn read_gpu_buffer_with_validation<T>(
     output: &mut [T],
 ) -> SpecialResult<()>
 where
-    T: num_traits::Float + std::fmt::Debug + num_traits::FromPrimitive + num_traits::Zero,
+    T: scirs2_core::numeric::Float
+        + std::fmt::Debug
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::Zero,
 {
     let read_start = Instant::now();
 
@@ -1114,7 +1095,7 @@ where
 #[allow(dead_code)]
 fn validate_gamma_results<F>(input: &ArrayView1<F>, output: &ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float + std::fmt::Debug + num_traits::FromPrimitive,
+    F: scirs2_core::numeric::Float + std::fmt::Debug + scirs2_core::numeric::FromPrimitive,
 {
     let mut error_count = 0;
     let zero = F::zero();
@@ -1170,7 +1151,7 @@ where
 #[allow(dead_code)]
 fn validate_gpu_results<F>(output: &ArrayViewMut1<F>) -> SpecialResult<()>
 where
-    F: num_traits::Float + std::fmt::Debug,
+    F: scirs2_core::numeric::Float + std::fmt::Debug,
 {
     let mut nan_count = 0;
     let mut inf_count = 0;
@@ -1211,4 +1192,45 @@ where
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array1;
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gamma_gpu_fallback() {
+        // Test that CPU fallback works correctly
+        let input = Array1::linspace(0.1, 5.0, 10);
+        let mut output = Array1::zeros(10);
+
+        gamma_gpu(&input.view(), &mut output.view_mut()).unwrap();
+
+        // Verify some known values
+        use crate::gamma::gamma;
+        for i in 0..10 {
+            let expected = gamma(input[i]);
+            let diff: f64 = output[i] - expected;
+            assert!(diff.abs() < 1e-10_f64);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_j0_gpu_fallback() {
+        let input = Array1::linspace(0.1, 10.0, 10);
+        let mut output = Array1::zeros(10);
+
+        j0_gpu(&input.view(), &mut output.view_mut()).unwrap();
+
+        // Verify some known values
+        use crate::bessel::j0;
+        for i in 0..10 {
+            let expected = j0(input[i]);
+            let diff: f64 = output[i] - expected;
+            assert!(diff.abs() < 1e-10_f64);
+        }
+    }
 }

@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Validation utilities for 2D Discrete Wavelet Transform
 //
 // This module provides comprehensive validation for 2D DWT implementations,
@@ -8,8 +8,8 @@ use ndarray::s;
 use crate::dwt::Wavelet;
 use crate::dwt2d::{dwt2d_decompose, dwt2d_reconstruct};
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
-use rand::Rng;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::Rng;
 use statrs::statistics::Statistics;
 use std::f64;
 use std::time::Instant;
@@ -618,7 +618,7 @@ pub fn generate_test_images() -> Vec<(&'static str, Array2<f64>)> {
 
     // 5. Random noise
     let mut noise = Array2::zeros((64, 64));
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for i in 0..64 {
         for j in 0..64 {
             noise[[i, j]] = rng.gen_range(0.0..1.0);

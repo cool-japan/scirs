@@ -4,8 +4,8 @@
 
 use super::BssConfig;
 use crate::error::SignalResult;
-use ndarray::Array2;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::{Rng, SeedableRng};
 
 #[allow(unused_imports)]
 /// Apply Multivariate Empirical Mode Decomposition (MEMD) to separate components
@@ -34,11 +34,11 @@ pub fn multivariate_emd(
     // Generate direction vectors on a hypersphere
     let mut _directions = Vec::with_capacity(n_directions);
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64([seed as u8; 32])
+        scirs2_core::random::rngs::StdRng::seed_from_u64([seed as u8; 32])
     } else {
         {
             // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
-            rand::rngs::StdRng::from_rng(&mut rand::rng())
+            scirs2_core::random::rngs::StdRng::from_rng(&mut scirs2_core::random::rng())
         }
     };
 

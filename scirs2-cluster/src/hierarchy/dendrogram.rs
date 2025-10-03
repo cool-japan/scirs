@@ -3,8 +3,8 @@
 //! This module provides functions for analyzing and potentially visualizing dendrograms
 //! created by hierarchical clustering.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -291,7 +291,7 @@ pub fn dendrogram<F: Float + FromPrimitive + Clone>(
 mod tests {
     use super::*;
     use crate::hierarchy::{linkage, LinkageMethod, Metric};
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_cophenet_simple() {

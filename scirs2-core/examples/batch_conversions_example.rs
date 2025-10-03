@@ -327,7 +327,7 @@ fn demo_ndarray_integration() -> CoreResult<()> {
     println!("8. Integration with ndarray");
     println!("===========================");
 
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     let converter = BatchConverter::with_default_config();
 
     // Create a 2D array
@@ -341,7 +341,7 @@ fn demo_ndarray_integration() -> CoreResult<()> {
 
     // Convert the entire array
     let start = Instant::now();
-    let array_f32: ndarray::Array2<f32> = converter.convert_array(&array_f64)?;
+    let array_f32: scirs2_core::ndarray::Array2<f32> = converter.convert_array(&array_f64)?;
     let conversion_time = start.elapsed();
 
     println!("Array conversion completed in {:?}", conversion_time);

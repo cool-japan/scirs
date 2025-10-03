@@ -4,9 +4,9 @@
 //! combination of basic elements called atoms. The atoms compose a dictionary.
 //! This is useful for sparse coding, denoising, and feature extraction.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use scirs2_linalg::{svd, vector_norm};
 
 use crate::error::{Result, TransformError};
@@ -93,7 +93,7 @@ impl DictionaryLearning {
         let n_features = x.shape()[1];
         let n_samples = x.shape()[0];
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         let mut dictionary = Array2::zeros((self.n_components, n_features));
 
@@ -328,7 +328,7 @@ impl DictionaryLearning {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0));
+        let x_f64 = x.mapv(|v| NumCast::from(v).unwrap_or(0.0));
         let _n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
 
@@ -390,7 +390,7 @@ impl DictionaryLearning {
             ));
         }
 
-        let x_f64 = x.mapv(|v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0));
+        let x_f64 = x.mapv(|v| NumCast::from(v).unwrap_or(0.0));
         let dictionary = self.dictionary.as_ref().unwrap();
 
         Ok(self.sparse_code_step(&x_f64, dictionary))
@@ -438,7 +438,7 @@ impl DictionaryLearning {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     #[ignore] // Slow test - dictionary learning takes ~60s

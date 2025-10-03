@@ -2,8 +2,8 @@
 
 use crate::activations::Activation;
 use crate::error::Result;
-use ndarray::{Array, Zip};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Zip};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Sigmoid activation function.
 ///
@@ -14,7 +14,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::activations::Sigmoid;
 /// use scirs2_neural::activations::Activation;
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// let sigmoid = Sigmoid::new();
 /// let input = Array::from_vec(vec![0.0f64, 1.0, -1.0]).into_dyn();
 /// let output = sigmoid.forward(&input).unwrap();
@@ -37,7 +37,7 @@ impl Default for Sigmoid {
 }
 
 impl<F: Float + Debug> Activation<F> for Sigmoid {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let one = F::one();
         let mut output = input.clone();
         Zip::from(&mut output).for_each(|x| {
@@ -48,9 +48,9 @@ impl<F: Float + Debug> Activation<F> for Sigmoid {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let one = F::one();
         let mut grad_input = Array::zeros(_output.raw_dim());
         // For sigmoid: derivative = sigmoid(x) * (1 - sigmoid(x))

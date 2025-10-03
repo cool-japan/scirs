@@ -2,8 +2,8 @@
 //!
 //! Provides centralized validation functions for parameters and data
 
-use ndarray::{ArrayBase, Data, Ix1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Display;
 
 use crate::error::{Result, TimeSeriesError};
@@ -252,8 +252,8 @@ where
 
     // Split _data into two halves
     let mid = data.len() / 2;
-    let first_half = data.slice(ndarray::s![..mid]);
-    let second_half = data.slice(ndarray::s![mid..]);
+    let first_half = data.slice(scirs2_core::ndarray::s![..mid]);
+    let second_half = data.slice(scirs2_core::ndarray::s![mid..]);
 
     // Compare means and variances
     let mean1 = first_half.mean().unwrap_or(F::zero());
@@ -287,7 +287,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_check_positive() {

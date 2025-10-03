@@ -6,10 +6,10 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::{fft, ifft};
-use ndarray::{Array, ArrayBase, Data};
-use num_complex::Complex64;
-use num_traits::NumCast;
 use rustfft::FftPlanner;
+use scirs2_core::ndarray::{Array, ArrayBase, Data};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -640,8 +640,8 @@ impl OptimizedFFT {
     /// Perform 2D FFT with optimizations
     pub fn fft2<S>(
         &mut self,
-        input: &ArrayBase<S, ndarray::Ix2>,
-    ) -> FFTResult<Array<Complex64, ndarray::Ix2>>
+        input: &ArrayBase<S, scirs2_core::ndarray::Ix2>,
+    ) -> FFTResult<Array<Complex64, scirs2_core::ndarray::Ix2>>
     where
         S: Data,
         S::Elem: NumCast + Copy + Debug,
@@ -659,7 +659,7 @@ impl OptimizedFFT {
         // Process each row
         for i in 0..rows {
             let row: Vec<_> = input
-                .slice(ndarray::s![i, ..cols])
+                .slice(scirs2_core::ndarray::s![i, ..cols])
                 .iter()
                 .map(|&val| {
                     let val_f64 = NumCast::from(val).ok_or_else(|| {

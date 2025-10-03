@@ -1,7 +1,7 @@
 //! Tests for exponential matrix functions
 
 use super::super::exponential::*;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_expm_identity() {

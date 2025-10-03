@@ -5,8 +5,8 @@
 //! - Zoom FFT for frequency analysis
 //! - CZT along arbitrary contours
 
-use ndarray::Array1;
 use plotly::{Plot, Scatter};
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex;
 use scirs2_fft::{czt, czt_points, zoom_fft, CZT};
 use std::f64::consts::PI;

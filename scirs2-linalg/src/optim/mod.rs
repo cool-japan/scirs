@@ -4,8 +4,8 @@
 //! that are specifically optimized for large parameter matrices in
 //! machine learning applications.
 
-use ndarray::{s, Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{s, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -29,7 +29,7 @@ use crate::error::{LinalgError, LinalgResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::optim::block_matmul;
 ///
 /// // Create two matrices
@@ -134,7 +134,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::optim::strassen_matmul;
 ///
 /// // Create two matrices
@@ -317,7 +317,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::optim::tiled_matmul;
 ///
 /// // Create two matrices
@@ -398,7 +398,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_block_matmul_2x2() {

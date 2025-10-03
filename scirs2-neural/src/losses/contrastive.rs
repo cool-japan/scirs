@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::losses::Loss;
-use ndarray::Array;
-use num_traits::Float;
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Contrastive loss function.
 ///
@@ -17,7 +17,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::losses::ContrastiveLoss;
 /// use scirs2_neural::losses::Loss;
-/// use ndarray::{Array, arr2};
+/// use scirs2_core::ndarray::{Array, arr2};
 /// // Create contrastive loss with margin=1.0
 /// let contrastive = ContrastiveLoss::new(1.0);
 /// // Embedding pairs (batch_size x 2 x embedding_dim)
@@ -60,8 +60,8 @@ impl Default for ContrastiveLoss {
 impl<F: Float + Debug> Loss<F> for ContrastiveLoss {
     fn forward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        targets: &Array<F, ndarray::IxDyn>,
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
     ) -> Result<F> {
         // Verify predictions shape: should be (batch_size, 2, embedding_dim)
         if predictions.ndim() != 3 || predictions.shape()[1] != 2 {
@@ -96,8 +96,8 @@ impl<F: Float + Debug> Loss<F> for ContrastiveLoss {
         })?;
         for i in 0..batch_size {
             // Extract pair of embeddings
-            let x1 = predictions.slice(ndarray::s![i, 0, ..]);
-            let x2 = predictions.slice(ndarray::s![i, 1, ..]);
+            let x1 = predictions.slice(scirs2_core::ndarray::s![i, 0, ..]);
+            let x2 = predictions.slice(scirs2_core::ndarray::s![i, 1, ..]);
             // Compute Euclidean distance
             let mut distance_squared = F::zero();
             for j in 0..embedding_dim {
@@ -126,9 +126,9 @@ impl<F: Float + Debug> Loss<F> for ContrastiveLoss {
 
     fn backward(
         &self,
-        predictions: &Array<F, ndarray::IxDyn>,
-        targets: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        predictions: &Array<F, scirs2_core::ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Get dimensions
         let batch_size = predictions.shape()[0];
         let embedding_dim = predictions.shape()[2];
@@ -143,8 +143,8 @@ impl<F: Float + Debug> Loss<F> for ContrastiveLoss {
 
         // Compute gradients for each sample in the batch
         for i in 0..batch_size {
-            let x1 = predictions.slice(ndarray::s![i, 0, ..]);
-            let x2 = predictions.slice(ndarray::s![i, 1, ..]);
+            let x1 = predictions.slice(scirs2_core::ndarray::s![i, 0, ..]);
+            let x2 = predictions.slice(scirs2_core::ndarray::s![i, 1, ..]);
             let y = targets[[i, 0]];
 
             // Compute distance between embeddings

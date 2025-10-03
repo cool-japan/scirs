@@ -33,13 +33,13 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-neural = "0.1.0-beta.4"
+//! scirs2-neural = "0.1.0-rc.1"
 //! ```
 //!
 //! ### Building a Simple Neural Network
 //!
 //! ```rust,ignore
-//! # IGNORED: Waiting for beta.5/rc.1 - API needs migration to scirs2_core abstractions
+//! # IGNORED: Waiting for 0.1.0 - API needs migration to scirs2_core abstractions
 //! # Current implementation uses ndarray_rand::rand directly (POLICY violation)
 //! # TODO: Migrate all layer APIs to use scirs2_core::random::Random
 //! use scirs2_neural::prelude::*;
@@ -67,7 +67,7 @@
 //! ### Using Individual Layers
 //!
 //! ```rust,ignore
-//! # IGNORED: Waiting for beta.5/rc.1 - API needs migration to scirs2_core abstractions
+//! # IGNORED: Waiting for 0.1.0 - API needs migration to scirs2_core abstractions
 //! use scirs2_neural::prelude::*;
 //! use scirs2_core::ndarray::Array2;
 //!
@@ -99,7 +99,7 @@
 //! ### Convolutional Networks
 //!
 //! ```rust,ignore
-//! # IGNORED: Waiting for beta.5/rc.1 - API needs migration to scirs2_core abstractions
+//! # IGNORED: Waiting for 0.1.0 - API needs migration to scirs2_core abstractions
 //! use scirs2_neural::prelude::*;
 //!
 //! fn main() -> Result<()> {
@@ -122,7 +122,7 @@
 //! ### Recurrent Networks (LSTM)
 //!
 //! ```rust,ignore
-//! # IGNORED: Waiting for beta.5/rc.1 - API needs migration to scirs2_core abstractions
+//! # IGNORED: Waiting for 0.1.0 - API needs migration to scirs2_core abstractions
 //! use scirs2_neural::prelude::*;
 //!
 //! fn main() -> Result<()> {
@@ -142,7 +142,7 @@
 //! ### Loss Functions
 //!
 //! ```rust,ignore
-//! # IGNORED: Consistent with other examples pending beta.5/rc.1 API migration
+//! # IGNORED: Consistent with other examples pending 0.1.0 API migration
 //! use scirs2_neural::prelude::*;
 //! use scirs2_core::ndarray::array;
 //!
@@ -174,7 +174,7 @@
 //! ### Training a Model
 //!
 //! ```rust,ignore
-//! # IGNORED: Waiting for beta.5/rc.1 - API needs migration to scirs2_core abstractions
+//! # IGNORED: Waiting for 0.1.0 - API needs migration to scirs2_core abstractions
 //! use scirs2_neural::prelude::*;
 //! use scirs2_neural::training::ValidationSettings;
 //! use scirs2_core::ndarray::Array2;
@@ -306,7 +306,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.1.0-beta.4** (Released October 01, 2025)
+//! Current version: **0.1.0-rc.1** (Released October 03, 2025)
 
 pub mod activations_minimal;
 pub mod autograd;

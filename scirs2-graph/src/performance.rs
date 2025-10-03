@@ -133,8 +133,8 @@ where
         + Clone
         + Send
         + Sync
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + std::marker::Copy
@@ -173,7 +173,7 @@ where
 pub fn cache_friendly_adjacency_matrix<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<Vec<Vec<E>>>
 where
     N: Node + Clone + std::fmt::Debug,
-    E: EdgeWeight + Clone + num_traits::Zero + Copy,
+    E: EdgeWeight + Clone + scirs2_core::numeric::Zero + Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
@@ -301,8 +301,8 @@ pub mod simd_ops {
         assert_eq!(a.len(), b.len());
 
         // Convert slices to ArrayView1 for SIMD operations
-        let a_view = ndarray::ArrayView1::from(a);
-        let b_view = ndarray::ArrayView1::from(b);
+        let a_view = scirs2_core::ndarray::ArrayView1::from(a);
+        let b_view = scirs2_core::ndarray::ArrayView1::from(b);
 
         // Use scirs2-core SIMD operations for optimal performance
         let result = f64::simd_add(&a_view, &b_view);
@@ -315,8 +315,8 @@ pub mod simd_ops {
     #[allow(dead_code)]
     pub fn simd_dot_product(a: &[f64], b: &[f64]) -> f64 {
         assert_eq!(a.len(), b.len());
-        let a_view = ndarray::ArrayView1::from(a);
-        let b_view = ndarray::ArrayView1::from(b);
+        let a_view = scirs2_core::ndarray::ArrayView1::from(a);
+        let b_view = scirs2_core::ndarray::ArrayView1::from(b);
 
         // Use scirs2-core SIMD optimized dot product
         f64::simd_dot(&a_view, &b_view)
@@ -325,7 +325,7 @@ pub mod simd_ops {
     /// SIMD-optimized vector normalization
     #[allow(dead_code)]
     pub fn simd_normalize(vector: &mut [f64]) {
-        let vector_view = ndarray::ArrayView1::from(&*vector);
+        let vector_view = scirs2_core::ndarray::ArrayView1::from(&*vector);
         let norm = f64::simd_norm(&vector_view);
         if norm > 0.0 {
             for val in vector.iter_mut() {
@@ -338,8 +338,8 @@ pub mod simd_ops {
     #[allow(dead_code)]
     pub fn simd_cosine_similarity(a: &[f64], b: &[f64]) -> f64 {
         assert_eq!(a.len(), b.len());
-        let a_view = ndarray::ArrayView1::from(a);
-        let b_view = ndarray::ArrayView1::from(b);
+        let a_view = scirs2_core::ndarray::ArrayView1::from(a);
+        let b_view = scirs2_core::ndarray::ArrayView1::from(b);
         let dot_product = f64::simd_dot(&a_view, &b_view);
         let norm_a = f64::simd_norm(&a_view);
         let norm_b = f64::simd_norm(&b_view);
@@ -350,8 +350,8 @@ pub mod simd_ops {
     #[allow(dead_code)]
     pub fn simd_euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
         assert_eq!(a.len(), b.len());
-        let a_view = ndarray::ArrayView1::from(a);
-        let b_view = ndarray::ArrayView1::from(b);
+        let a_view = scirs2_core::ndarray::ArrayView1::from(a);
+        let b_view = scirs2_core::ndarray::ArrayView1::from(b);
         let diff = f64::simd_sub(&a_view, &b_view);
         f64::simd_norm(&diff.view())
     }
@@ -367,8 +367,8 @@ pub mod simd_ops {
         assert_eq!(centralities.len(), weights.len());
 
         // Multiply contributions by weights and add to centralities
-        let contrib_view = ndarray::ArrayView1::from(contributions);
-        let weights_view = ndarray::ArrayView1::from(weights);
+        let contrib_view = scirs2_core::ndarray::ArrayView1::from(contributions);
+        let weights_view = scirs2_core::ndarray::ArrayView1::from(weights);
         let weighted_contribs = f64::simd_mul(&contrib_view, &weights_view);
 
         // Manual add-assign since there's no direct simd_add_assign
@@ -400,8 +400,8 @@ pub mod simd_ops {
             let x_vals: Vec<f64> = row_indices.iter().map(|&j| x[j]).collect();
 
             // SIMD dot product for this row
-            let row_view = ndarray::ArrayView1::from(row_values);
-            let x_view = ndarray::ArrayView1::from(&x_vals);
+            let row_view = scirs2_core::ndarray::ArrayView1::from(row_values);
+            let x_view = scirs2_core::ndarray::ArrayView1::from(&x_vals);
             *y_i = f64::simd_dot(&row_view, &x_view);
         }
     }
@@ -881,7 +881,7 @@ impl<N: Node + std::fmt::Debug, E: EdgeWeight, Ix: petgraph::graph::IndexType + 
     LargeGraphOps<N, E> for Graph<N, E, Ix>
 where
     N: Clone + Send + Sync + std::fmt::Debug,
-    E: Clone + Send + Sync + num_traits::Zero + Copy,
+    E: Clone + Send + Sync + scirs2_core::numeric::Zero + Copy,
 {
     fn parallel_degrees(&self, config: &ParallelConfig) -> Result<HashMap<N, usize>> {
         parallel_degree_computation(self, config)

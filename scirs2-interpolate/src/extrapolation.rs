@@ -56,7 +56,7 @@ pub use crate::extrapolation_modules::*;
 // Provide convenience functions for backward compatibility
 
 /// Creates a simple extrapolator with specified method for both boundaries
-pub fn create_simple_extrapolator<T: num_traits::Float + std::fmt::Display>(
+pub fn create_simple_extrapolator<T: scirs2_core::numeric::Float + std::fmt::Display>(
     lower_bound: T,
     upper_bound: T,
     lower_value: T,
@@ -74,7 +74,7 @@ pub fn create_simple_extrapolator<T: num_traits::Float + std::fmt::Display>(
 }
 
 /// Creates an extrapolator with different methods for lower and upper boundaries
-pub fn create_asymmetric_extrapolator<T: num_traits::Float + std::fmt::Display>(
+pub fn create_asymmetric_extrapolator<T: scirs2_core::numeric::Float + std::fmt::Display>(
     lower_bound: T,
     upper_bound: T,
     lower_value: T,
@@ -93,7 +93,7 @@ pub fn create_asymmetric_extrapolator<T: num_traits::Float + std::fmt::Display>(
 }
 
 /// Creates a production-ready extrapolator with conservative settings
-pub fn create_production_extrapolator<T: num_traits::Float + std::fmt::Display>(
+pub fn create_production_extrapolator<T: scirs2_core::numeric::Float + std::fmt::Display>(
     lower_bound: T,
     upper_bound: T,
     lower_value: T,
@@ -114,8 +114,8 @@ pub fn create_production_extrapolator<T: num_traits::Float + std::fmt::Display>(
 
 /// Creates an extrapolator optimized for the given data characteristics
 pub fn create_optimized_extrapolator<
-    T: num_traits::Float
-        + num_traits::FromPrimitive
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Display
         + std::default::Default
         + std::ops::AddAssign,
@@ -142,7 +142,7 @@ pub fn create_optimized_extrapolator<
 }
 
 /// Quick extrapolation function for single values
-pub fn extrapolate_value<T: num_traits::Float + std::fmt::Display>(
+pub fn extrapolate_value<T: scirs2_core::numeric::Float + std::fmt::Display>(
     x: T,
     domain: (T, T),
     boundary_values: (T, T),
@@ -158,7 +158,7 @@ pub fn extrapolate_value<T: num_traits::Float + std::fmt::Display>(
 }
 
 /// Batch extrapolation for multiple values
-pub fn extrapolate_batch<T: num_traits::Float + std::fmt::Display>(
+pub fn extrapolate_batch<T: scirs2_core::numeric::Float + std::fmt::Display>(
     x_values: &[T],
     domain: (T, T),
     boundary_values: (T, T),

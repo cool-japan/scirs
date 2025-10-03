@@ -3,8 +3,8 @@
 // This module provides the base trait for sparse arrays, inspired by SciPy's transition
 // from matrix-based API to array-based API.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -512,9 +512,10 @@ where
             return Err(SparseError::InvalidSliceRange);
         }
 
-        let view = self
-            .data
-            .slice(ndarray::s![start_row..end_row, start_col..end_col]);
+        let view = self.data.slice(scirs2_core::ndarray::s![
+            start_row..end_row,
+            start_col..end_col
+        ]);
         Ok(Box::new(SparseArrayBase::new(view.to_owned())))
     }
 
@@ -544,7 +545,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_sparse_array_base() {

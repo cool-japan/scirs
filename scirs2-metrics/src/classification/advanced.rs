@@ -5,8 +5,8 @@
 //! Cohen's kappa, and more.
 
 use crate::error::{MetricsError, Result};
-use ndarray::{self, Array1, Array2, ArrayBase, Data, Dimension};
-use num_traits::NumCast;
+use scirs2_core::ndarray::{self, Array1, Array2, ArrayBase, Data, Dimension};
+use scirs2_core::numeric::NumCast;
 use std::collections::BTreeSet;
 
 /// Calculates the Matthews Correlation Coefficient (MCC)
@@ -31,7 +31,7 @@ use std::collections::BTreeSet;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::advanced::matthews_corrcoef;
 ///
 /// let y_true = array![1, 0, 1, 1, 0, 0];
@@ -181,7 +181,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::advanced::balanced_accuracy_score;
 ///
 /// let y_true = array![0, 0, 0, 1, 1, 1];
@@ -290,7 +290,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::advanced::cohen_kappa_score;
 ///
 /// let y_true = array![0, 1, 2, 0, 1, 2];
@@ -406,7 +406,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::advanced::brier_score_loss;
 ///
 /// let y_true = array![0, 1, 1, 0];
@@ -494,7 +494,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::advanced::jaccard_score;
 ///
 /// let y_true = array![0, 1, 1, 0, 1];
@@ -575,7 +575,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::advanced::hamming_loss;
 ///
 /// let y_true = array![0, 1, 0, 1];
@@ -671,8 +671,8 @@ where
 #[doc(hidden)]
 #[allow(dead_code)]
 fn log_loss_2d<T, S1, S2>(
-    y_true: &ArrayBase<S1, ndarray::Ix2>,
-    y_prob: &ArrayBase<S2, ndarray::Ix2>,
+    y_true: &ArrayBase<S1, scirs2_core::ndarray::Ix2>,
+    y_prob: &ArrayBase<S2, scirs2_core::ndarray::Ix2>,
     eps: f64,
     normalize: bool,
 ) -> Result<f64>
@@ -682,14 +682,14 @@ where
     S2: Data<Elem = f64>,
 {
     // Check inputs
-    let n_samples = y_true.len_of(ndarray::Axis(0));
+    let n_samples = y_true.len_of(scirs2_core::ndarray::Axis(0));
     if n_samples == 0 {
         return Err(MetricsError::InvalidInput(
             "Empty arrays provided".to_string(),
         ));
     }
 
-    let n_classes = y_prob.len_of(ndarray::Axis(1));
+    let n_classes = y_prob.len_of(scirs2_core::ndarray::Axis(1));
 
     let mut loss = 0.0;
     for i in 0..n_samples {
@@ -744,8 +744,8 @@ where
 #[doc(hidden)]
 #[allow(dead_code)]
 fn log_loss_1d<T, S1, S2>(
-    y_true: &ArrayBase<S1, ndarray::Ix1>,
-    y_prob: &ArrayBase<S2, ndarray::Ix1>,
+    y_true: &ArrayBase<S1, scirs2_core::ndarray::Ix1>,
+    y_prob: &ArrayBase<S2, scirs2_core::ndarray::Ix1>,
     eps: f64,
     normalize: bool,
 ) -> Result<f64>
@@ -821,7 +821,7 @@ pub fn log_loss<T, S1, S2, D1, D2>(
     normalize: bool,
 ) -> Result<f64>
 where
-    T: PartialEq + NumCast + Clone + std::fmt::Debug + num_traits::Zero,
+    T: PartialEq + NumCast + Clone + std::fmt::Debug + scirs2_core::numeric::Zero,
     S1: Data<Elem = T>,
     S2: Data<Elem = f64>,
     D1: Dimension,
@@ -833,14 +833,14 @@ where
             // Both are 1D arrays - binary classification
             let y_true_1d = y_true
                 .view()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     MetricsError::InvalidInput("Error converting y_true to 1D".to_string())
                 })?;
 
             let y_prob_1d = y_prob
                 .view()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     MetricsError::InvalidInput("Error converting y_prob to 1D".to_string())
                 })?;
@@ -851,14 +851,14 @@ where
             // y_true is 1D (class indices), y_prob is 2D (probabilities per class)
             let y_true_1d = y_true
                 .view()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     MetricsError::InvalidInput("Error converting y_true to 1D".to_string())
                 })?;
 
             let y_prob_2d = y_prob
                 .view()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     MetricsError::InvalidInput("Error converting y_prob to 2D".to_string())
                 })?;
@@ -907,14 +907,14 @@ where
             // Both are 2D - multi-class/multi-label
             let y_true_2d = y_true
                 .view()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     MetricsError::InvalidInput("Error converting y_true to 2D".to_string())
                 })?;
 
             let y_prob_2d = y_prob
                 .view()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     MetricsError::InvalidInput("Error converting y_prob to 2D".to_string())
                 })?;
@@ -953,7 +953,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::advanced::calibration_curve;
 ///
 /// let y_true = array![0, 0, 0, 0, 1, 1, 1, 1, 1];

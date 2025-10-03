@@ -1,3 +1,4 @@
+#![allow(clippy::all)]
 //! Comprehensive Acceleration Showcase
 //!
 //! This example demonstrates the complete acceleration ecosystem of scirs2-fft,
@@ -131,8 +132,8 @@ fn create_sparse_signal(n: usize, components: &[(usize, f64)]) -> Vec<f64> {
     }
 
     // Add some noise
-    use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::{Rng, SeedableRng};
     let mut rng = StdRng::seed_from_u64(42);
 
     for sample in &mut signal {

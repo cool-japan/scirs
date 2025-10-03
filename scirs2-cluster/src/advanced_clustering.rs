@@ -29,7 +29,7 @@
 //!
 //! ```
 //! use scirs2_cluster::advanced_clustering::{AdvancedClusterer, QuantumNeuromorphicMetrics};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_cluster::error::Result;
 //!
 //! # fn main() -> Result<()> {
@@ -53,8 +53,8 @@
 use crate::error::{ClusteringError, Result};
 use crate::quantum_clustering::{QAOAConfig, VQEConfig};
 use crate::vq::euclidean_distance;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Complex64;
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 use std::time::Instant;
@@ -481,6 +481,12 @@ pub struct AIClusteringSelector {
     performance_models: HashMap<String, PerformancePredictionModel>,
 }
 
+impl Default for AIClusteringSelector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AIClusteringSelector {
     pub fn new() -> Self {
         Self {
@@ -816,14 +822,20 @@ pub struct QuantumNeuromorphicProcessor {
     plasticity_rules: BioplasticityRules,
 }
 
+impl Default for QuantumNeuromorphicProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QuantumNeuromorphicProcessor {
     pub fn new() -> Self {
         Self {
             quantum_spiking_neurons: Vec::new(),
             global_quantum_state: QuantumClusterState::new(),
-            neuromorphic_params: NeuromorphicParameters::default(),
+            neuromorphic_params: NeuromorphicParameters,
             entanglement_matrix: Array2::eye(1),
-            plasticity_rules: BioplasticityRules::default(),
+            plasticity_rules: BioplasticityRules,
         }
     }
 
@@ -1140,7 +1152,7 @@ impl QuantumNeuromorphicProcessor {
                     let mut weighted_centroid = Array1::zeros(centroids.ncols());
 
                     for (point, weight) in cluster_points.iter().zip(quantum_weights.iter()) {
-                        weighted_centroid = weighted_centroid + &(point.to_owned() * *weight);
+                        weighted_centroid += &(point.to_owned() * *weight);
                     }
 
                     weighted_centroid /= total_weight;
@@ -1435,6 +1447,12 @@ pub struct MetaLearningClusterOptimizer {
     transfer_engine: TransferLearningEngine,
 }
 
+impl Default for MetaLearningClusterOptimizer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MetaLearningClusterOptimizer {
     pub fn new() -> Self {
         Self {
@@ -1574,6 +1592,12 @@ pub struct ClusteringKnowledgeBase {
     algorithms: Vec<String>,
 }
 
+impl Default for ClusteringKnowledgeBase {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClusteringKnowledgeBase {
     pub fn new() -> Self {
         Self {
@@ -1588,6 +1612,12 @@ impl ClusteringKnowledgeBase {
 
 #[derive(Debug)]
 pub struct AlgorithmSelectionNetwork;
+impl Default for AlgorithmSelectionNetwork {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AlgorithmSelectionNetwork {
     pub fn new() -> Self {
         Self
@@ -1596,6 +1626,12 @@ impl AlgorithmSelectionNetwork {
 
 #[derive(Debug)]
 pub struct ClusteringRLAgent;
+impl Default for ClusteringRLAgent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClusteringRLAgent {
     pub fn new() -> Self {
         Self
@@ -1621,6 +1657,12 @@ impl Default for BioplasticityRules {
     }
 }
 
+impl Default for QuantumClusterState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl QuantumClusterState {
     pub fn new() -> Self {
         Self {
@@ -1637,6 +1679,12 @@ pub struct ClusteringPerformanceRecord;
 
 #[derive(Debug)]
 pub struct ContinualAdaptationEngine;
+impl Default for ContinualAdaptationEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ContinualAdaptationEngine {
     pub fn new() -> Self {
         Self
@@ -1673,6 +1721,12 @@ pub struct MetaLearningEpisode;
 
 #[derive(Debug)]
 pub struct FewShotClusterLearner;
+impl Default for FewShotClusterLearner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FewShotClusterLearner {
     pub fn new() -> Self {
         Self
@@ -1688,6 +1742,12 @@ impl FewShotClusterLearner {
 
 #[derive(Debug)]
 pub struct TransferLearningEngine;
+impl Default for TransferLearningEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TransferLearningEngine {
     pub fn new() -> Self {
         Self

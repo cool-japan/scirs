@@ -4,9 +4,9 @@
 //! that leverage quantum computing principles such as superposition, entanglement,
 //! and quantum annealing to potentially find better local optima than classical methods.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Zip};
-use num_traits::{Float, FromPrimitive, Zero};
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Zip};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
+use scirs2_core::random::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -198,7 +198,7 @@ impl<F: Float + FromPrimitive + Debug> QuantumKMeans<F> {
     /// Generate quantum noise for superposition
     fn quantum_noise(&self) -> F {
         // Simplified quantum noise generation
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         F::from(rng.gen_range(-1.0..1.0)).unwrap()
     }
 
@@ -435,7 +435,7 @@ pub fn quantum_kmeans<F: Float + FromPrimitive + Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_quantum_config_default() {

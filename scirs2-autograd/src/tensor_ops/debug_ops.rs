@@ -1,8 +1,8 @@
 // Debug operators for testing gradient computation
+use crate::ndarray;
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray;
 
 /// A simple operator that passes through the input unchanged but has a very simple gradient
 pub struct DebugIdentityWithGradient;
@@ -42,7 +42,7 @@ impl<F: Float> Op<F> for DebugScalarOne {
 
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         // Return a scalar with value 1.0
-        ctx.append_output(ndarray::arr0(F::one()).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(F::one()).into_dyn());
         Ok(())
     }
 
@@ -55,7 +55,7 @@ impl<F: Float> Op<F> for DebugScalarOne {
 
         // Input shape may not be available, so we create a simple array of the same shape filled with 1s
         if let Ok(input_array) = input.eval(g) {
-            let gradient = ndarray::Array::ones(input_array.raw_dim());
+            let gradient = scirs2_core::ndarray::Array::ones(input_array.raw_dim());
             let grad_tensor = crate::tensor_ops::convert_to_tensor(gradient, g);
             ctx.append_input_grad(0, Some(grad_tensor));
             println!("DEBUG: DebugScalarOne full gradient appended");

@@ -3,7 +3,7 @@
 // This example demonstrates how to convert filters to minimum phase equivalents,
 // which preserve the magnitude response while ensuring all zeros are in stable locations.
 
-use num_traits::Zero;
+use scirs2_core::numeric::Zero;
 use scirs2_signal::filter::{group_delay, minimum_phase};
 use std::f64::consts::PI;
 
@@ -163,7 +163,7 @@ fn main() {
 
 /// Helper function to evaluate filter response at a frequency
 #[allow(dead_code)]
-fn evaluate_filter_response(b: &[f64], w: f64) -> num_complex::Complex64 {
+fn evaluate_filter_response(b: &[f64], w: f64) -> scirs2_core::numeric::Complex64 {
     use scirs2_core::Complex64;
 
     let z = Complex64::new(w.cos(), w.sin());

@@ -7,7 +7,7 @@ use scirs2_core::random::{Distribution, Rng};
 
 /// Example 1: Struct with seeded RNG field
 struct DeterministicAlgorithm {
-    rng: CoreRandom<rand::rngs::StdRng>,
+    rng: CoreRandom<scirs2_core::random::rngs::StdRng>,
 }
 
 impl DeterministicAlgorithm {
@@ -49,7 +49,7 @@ impl<R: Rng> GenericAlgorithm<R> {
     }
 
     fn process(&mut self) -> Vec<f64> {
-        (0..10).map(|_| self.rng.gen()).collect()
+        (0..10).map(|_| self.rng.random()).collect()
     }
 }
 
@@ -61,7 +61,7 @@ fn process_with_rng<R: Rng>(rng: &mut CoreRandom<R>, size: usize) -> Vec<f64> {
 
 /// Example 5: Machine Learning model with reproducible initialization
 struct NeuralNetwork {
-    rng: CoreRandom<rand::rngs::StdRng>,
+    rng: CoreRandom<scirs2_core::random::rngs::StdRng>,
     weights: Vec<f64>,
 }
 
@@ -91,7 +91,7 @@ impl NeuralNetwork {
 
 /// Example 6: Text sampling with weighted selection
 struct TextSampler {
-    rng: CoreRandom<rand::rngs::StdRng>,
+    rng: CoreRandom<scirs2_core::random::rngs::StdRng>,
 }
 
 impl TextSampler {

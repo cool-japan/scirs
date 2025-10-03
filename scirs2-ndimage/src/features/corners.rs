@@ -4,8 +4,8 @@
 //! including Harris corner detection and other corner detection methods.
 
 use crate::filters::{sobel, BorderMode};
-use ndarray::{Array, ArrayD, Dimension, Ix2};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array, ArrayD, Dimension, Ix2};
+use scirs2_core::numeric::{Float, NumAssign};
 
 /// Harris corner detector
 ///
@@ -26,7 +26,7 @@ use num_traits::{Float, NumAssign};
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::features::harris_corners;
 ///
 /// let image = array![
@@ -156,7 +156,7 @@ pub fn harris_corners(
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::features::fast_corners;
 ///
 /// let image = array![
@@ -174,7 +174,7 @@ pub fn harris_corners(
 #[allow(dead_code)]
 pub fn fast_corners<T>(image: &Array<T, Ix2>, threshold: T, n: usize) -> Array<bool, Ix2>
 where
-    T: Float + NumAssign + num_traits::FromPrimitive,
+    T: Float + NumAssign + scirs2_core::numeric::FromPrimitive,
 {
     let shape = image.raw_dim();
     let (rows, cols) = (shape[0], shape[1]);

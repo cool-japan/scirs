@@ -3,8 +3,8 @@
 //! This module provides batch operations on tensors that support gradient tracking.
 //! Batch operations apply the same operation to multiple matrices or vectors at once.
 
-use ndarray::{Array, ArrayView4, Axis, IxDyn};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array, ArrayView4, Axis, IxDyn};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use scirs2_autograd::error::Result as AutogradResult;

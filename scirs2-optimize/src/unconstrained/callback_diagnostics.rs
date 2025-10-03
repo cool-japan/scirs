@@ -8,7 +8,7 @@ use crate::unconstrained::convergence_diagnostics::{
     ConvergenceDiagnostics, DiagnosticCollector, DiagnosticOptions, LineSearchDiagnostic,
 };
 use crate::unconstrained::OptimizeResult;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::cell::RefCell;
 use std::rc::Rc;
 

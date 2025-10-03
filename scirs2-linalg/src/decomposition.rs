@@ -1,7 +1,7 @@
 //! Matrix decomposition functions
 
-use ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -34,7 +34,7 @@ type CODResult<F> = LinalgResult<(Array2<F>, Array2<F>, Array2<F>)>;
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::cholesky;
 ///
 /// let a = array![[4.0, 2.0], [2.0, 5.0]];
@@ -112,7 +112,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::lu;
 ///
 /// // Non-singular matrix example
@@ -237,7 +237,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::qr;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -318,7 +318,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::svd;
 ///
 /// let a = array![[1.0, 0.0], [0.0, 1.0]];
@@ -443,7 +443,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::schur;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -503,7 +503,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::qz;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -604,7 +604,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::complete_orthogonal_decomposition;
 ///
 /// let a = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
@@ -839,7 +839,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_cholesky_2x2() {

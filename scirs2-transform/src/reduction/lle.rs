@@ -4,8 +4,8 @@
 //! on a low-dimensional manifold that is locally linear. It preserves local
 //! neighborhood structure in the embedding space.
 
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::validation::{check_positive, checkshape};
 use scirs2_linalg::{eigh, solve};
 use std::collections::BinaryHeap;
@@ -83,8 +83,8 @@ impl LLE {
                 if i != j {
                     let mut dist = 0.0;
                     for k in 0..x.shape()[1] {
-                        let diff = num_traits::cast::<S::Elem, f64>(x[[i, k]]).unwrap_or(0.0)
-                            - num_traits::cast::<S::Elem, f64>(x[[j, k]]).unwrap_or(0.0);
+                        let diff = NumCast::from(x[[i, k]]).unwrap_or(0.0)
+                            - NumCast::from(x[[j, k]]).unwrap_or(0.0);
                         dist += diff * diff;
                     }
                     dist = dist.sqrt();
@@ -138,8 +138,8 @@ impl LLE {
 
                     let mut dot = 0.0;
                     for m in 0..n_features {
-                        let diff_j = num_traits::cast::<S::Elem, f64>(xi[m] - xj[m]).unwrap_or(0.0);
-                        let diff_l = num_traits::cast::<S::Elem, f64>(xi[m] - xl[m]).unwrap_or(0.0);
+                        let diff_j = NumCast::from(xi[m] - xj[m]).unwrap_or(0.0);
+                        let diff_l = NumCast::from(xi[m] - xl[m]).unwrap_or(0.0);
                         dot += diff_j * diff_l;
                     }
                     c[[j, l]] = dot;
@@ -262,7 +262,7 @@ impl LLE {
         }
 
         // Convert to f64
-        let x_f64 = x.mapv(|v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0));
+        let x_f64 = x.mapv(|v| NumCast::from(v).unwrap_or(0.0));
 
         // Step 1: Find k nearest neighbors
         let (neighbors, distances) = self.find_neighbors(&x_f64.view());
@@ -303,7 +303,7 @@ impl LLE {
             .as_ref()
             .ok_or_else(|| TransformError::NotFitted("Training data not available".to_string()))?;
 
-        let x_f64 = x.mapv(|v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0));
+        let x_f64 = x.mapv(|v| NumCast::from(v).unwrap_or(0.0));
 
         // Check if this is the training data
         if self.is_same_data(&x_f64, training_data) {
@@ -392,7 +392,7 @@ impl LLE {
     /// Compute embedding coordinates for a single new point
     fn compute_new_point_embedding(
         &self,
-        x_new: &ndarray::ArrayView1<f64>,
+        x_new: &scirs2_core::ndarray::ArrayView1<f64>,
         training_data: &Array2<f64>,
         training_embedding: &Array2<f64>,
     ) -> Result<Array1<f64>> {
@@ -434,7 +434,7 @@ impl LLE {
     /// Compute reconstruction weights for a single point given its neighbors
     fn compute_reconstruction_weights_for_point(
         &self,
-        x_point: &ndarray::ArrayView1<f64>,
+        x_point: &scirs2_core::ndarray::ArrayView1<f64>,
         training_data: &Array2<f64>,
         neighbor_indices: &[usize],
     ) -> Result<Array1<f64>> {
@@ -491,7 +491,7 @@ impl LLE {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_lle_basic() {

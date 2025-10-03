@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 // The GPU kernel modules are not fully implemented yet
 // This example demonstrates the planned features and interface
 
@@ -45,14 +46,14 @@ fn main() {
     println!("```rust");
     println!("// Create kernel launcher");
     println!("let launcher = KernelLauncher::new(factory);");
-    println!("");
+    println!();
     println!("// Configure kernel parameters");
     println!("let config = KernelConfig {{");
     println!("    blocksize: 256,");
     println!("    use_mixedprecision: true,");
     println!("    ..Default::default()");
     println!("}};");
-    println!("");
+    println!();
     println!("// Launch optimized sparse FFT kernel");
     println!("let stats = launcher.launch_sparse_fft_kernel(");
     println!("    inputsize, sparsity, algorithm, window");

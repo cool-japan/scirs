@@ -65,7 +65,7 @@
 //!    # #[cfg(feature = "parallel")]
 //!    # {
 //!    # use scirs2_core::memory_efficient::{create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunksParallel};
-//!    # use ndarray::Array1;
+//!    # use scirs2_core::ndarray::Array1;
 //!    # let data = Array1::<f64>::zeros(1000);
 //!    # let mmap = create_mmap(&data, "/tmp/data.bin", AccessMode::Write, 0).unwrap();
 //!    // Process chunks in parallel
@@ -122,7 +122,7 @@ pub trait MemoryMappedChunks<A: Clone + Copy + 'static + Send + Sync> {
     ///
     /// ```
     /// use scirs2_core::memory_efficient::{create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunks};
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     ///
     /// // Create a memory-mapped array with 100 elements
     /// let data = Array1::<f64>::linspace(0., 99., 100);
@@ -154,20 +154,20 @@ pub trait MemoryMappedChunks<A: Clone + Copy + 'static + Send + Sync> {
     ///
     /// ```
     /// use scirs2_core::memory_efficient::{create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunks};
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     ///
-    /// // Create a memory-mapped array with 100 elements
-    /// let data = Array1::<i32>::from_vec((0..100).collect());
+    /// // Create a memory-mapped array with 20 elements (small numbers to avoid overflow)
+    /// let data = Array1::<f64>::from_vec((0..20).map(|x| x as f64).collect());
     /// let file_path = "example.bin";  // In practice, use a proper temporary path
     /// let mmap = create_mmap(&data, file_path.as_ref(), AccessMode::Write, 0).unwrap();
     ///
     /// // Calculate the sum of each chunk
     /// let chunk_sums = mmap.process_chunks(
-    ///     ChunkingStrategy::Fixed(25),
-    ///     |chunk, chunk_idx| chunk.iter().sum::<i32>()
+    ///     ChunkingStrategy::Fixed(5),
+    ///     |chunk, chunk_idx| chunk.iter().sum::<f64>()
     /// );
     ///
-    /// // We should have 4 chunks with sums of 0-24, 25-49, 50-74, 75-99
+    /// // We should have 4 chunks with sums of elements 0-4, 5-9, 10-14, 15-19
     /// assert_eq!(chunk_sums.len(), 4);
     /// ```
     fn process_chunks<F, R>(&self, strategy: ChunkingStrategy, f: F) -> Vec<R>
@@ -190,7 +190,7 @@ pub trait MemoryMappedChunks<A: Clone + Copy + 'static + Send + Sync> {
     ///
     /// ```
     /// use scirs2_core::memory_efficient::{create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunks};
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     ///
     /// // Create a memory-mapped array with 100 zeros
     /// let data = Array1::<f64>::zeros(100);
@@ -248,7 +248,7 @@ pub trait MemoryMappedChunksParallel<A: Clone + Copy + 'static + Send + Sync + S
     /// # #[cfg(feature = "parallel")]
     /// # {
     /// use scirs2_core::memory_efficient::{create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunks, MemoryMappedChunksParallel};
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     ///
     /// // Create a memory-mapped array with 20 elements (small numbers to avoid overflow)
     /// let data = Array1::<i32>::from_vec((1..=20).collect());
@@ -286,7 +286,7 @@ pub trait MemoryMappedChunksParallel<A: Clone + Copy + 'static + Send + Sync + S
     /// # #[cfg(feature = "parallel")]
     /// # {
     /// use scirs2_core::memory_efficient::{create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunks, MemoryMappedChunksParallel};
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     ///
     /// // Create a memory-mapped array with 100 zeros
     /// let data = Array1::<f64>::zeros(100);
@@ -325,7 +325,7 @@ pub trait MemoryMappedChunksParallel<A: Clone + Copy + 'static + Send + Sync + S
 ///
 /// ```
 /// use scirs2_core::memory_efficient::{create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunkIter};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Create a memory-mapped array
 /// let data = Array1::<f64>::linspace(0., 99., 100);
@@ -428,7 +428,7 @@ pub trait MemoryMappedChunkIter<A: Clone + Copy + 'static + Send + Sync> {
     ///
     /// ```
     /// use scirs2_core::memory_efficient::{create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunkIter};
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     ///
     /// // Create a memory-mapped array
     /// let data = Array1::<f64>::linspace(0., 99., 100);

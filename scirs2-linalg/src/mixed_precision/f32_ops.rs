@@ -3,8 +3,8 @@
 //! This module provides specialized implementations optimized for f32 precision,
 //! focusing on basic matrix operations with efficient algorithms for smaller matrices.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, NumAssign, NumCast, ToPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, NumAssign, NumCast, ToPrimitive, Zero};
 use std::fmt::Debug;
 
 use super::conversions::{convert, convert_2d};
@@ -30,7 +30,7 @@ use crate::error::{LinalgError, LinalgResult};
 ///
 /// # Examples
 /// ```
-/// use ndarray::{array, ArrayView1, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView1, ArrayView2};
 /// use scirs2_linalg::mixed_precision::f32_ops::mixed_precision_matvec_f32;
 ///
 /// let a_f32 = array![[1.0f32, 2.0f32], [3.0f32, 4.0f32]];
@@ -290,7 +290,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mixed_precision_matvec_f32() {

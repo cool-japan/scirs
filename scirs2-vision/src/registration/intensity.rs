@@ -9,7 +9,7 @@ use crate::registration::{
     identity_transform, RegistrationParams, RegistrationResult, TransformMatrix,
 };
 use image::GrayImage;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Similarity metric for intensity-based registration
 #[derive(Debug, Clone, Copy, PartialEq)]

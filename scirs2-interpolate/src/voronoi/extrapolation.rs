@@ -3,8 +3,8 @@
 //! This module provides methods for extrapolating values outside the convex hull
 //! of the input data points when using Voronoi-based interpolation methods.
 
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::natural::NaturalNeighborInterpolator;
@@ -124,7 +124,7 @@ impl<
         F: Float
             + FromPrimitive
             + Debug
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + 'static
             + for<'a> std::iter::Sum<&'a F>
             + std::cmp::PartialOrd
@@ -181,17 +181,18 @@ impl<
                     // Compute distance
                     let mut dist_sq = F::zero();
                     for j in 0..dim {
-                        dist_sq = dist_sq + num_traits::Float::powi(point[j] - query[j], 2);
+                        dist_sq =
+                            dist_sq + scirs2_core::numeric::Float::powi(point[j] - query[j], 2);
                     }
 
                     // Avoid division by zero
-                    if dist_sq < <F as num_traits::Float>::epsilon() {
+                    if dist_sq < <F as scirs2_core::numeric::Float>::epsilon() {
                         return Ok(self.values[idx]);
                     }
 
                     // Compute weight as inverse distance to the power p
                     let weight = F::one()
-                        / num_traits::Float::powf(
+                        / scirs2_core::numeric::Float::powf(
                             dist_sq,
                             params.idw_power / F::from(2.0).unwrap(),
                         );

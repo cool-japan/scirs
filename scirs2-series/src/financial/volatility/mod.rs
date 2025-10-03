@@ -66,7 +66,7 @@
 //! use scirs2_series::financial::volatility::estimators::{
 //!     realized_volatility, parkinson_volatility, garman_klass_volatility
 //! };
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // Simple realized volatility
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012];
@@ -86,7 +86,7 @@
 //! ## Time-Varying Volatility Models
 //! ```rust
 //! use scirs2_series::financial::volatility::estimators::{ewma_volatility, garch_volatility_estimate};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.003, 0.007];
 //!
@@ -102,7 +102,7 @@
 //! ## Comprehensive Volatility Analysis
 //! ```rust
 //! use scirs2_series::financial::volatility::estimators::*;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // HLOC data
 //! let high = array![102.0, 105.0, 103.5, 106.0];

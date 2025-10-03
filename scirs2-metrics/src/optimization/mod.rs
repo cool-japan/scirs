@@ -40,7 +40,7 @@
 //! ```
 //! use scirs2_metrics::optimization::parallel::{ParallelConfig, compute_metrics_batch};
 //! use scirs2_metrics::error::Result;
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! fn compute_multiple_metrics(y_true: &Array1<f64>, y_pred: &Array1<f64>) -> Result<Vec<f64>> {
 //!     let config = ParallelConfig {
@@ -96,7 +96,7 @@
 //! ```
 //! use scirs2_metrics::optimization::quantum_acceleration::{QuantumMetricsComputer, QuantumConfig};
 //! use scirs2_metrics::error::Result;
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! fn compute_quantum_correlation(x: &Array1<f64>, y: &Array1<f64>) -> Result<f64> {
 //!     let config = QuantumConfig::default();

@@ -4,8 +4,8 @@
 //! including tests for equality of covariance matrices, sphericity tests,
 //! and multivariate normality tests.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::f64::consts::PI;
 
 use crate::basic::{det, inv};
@@ -71,9 +71,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -218,9 +218,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -292,9 +292,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -405,9 +405,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -482,7 +482,7 @@ where
 #[allow(dead_code)]
 fn compute_box_correction_c1<F>(_samplesizes: &[usize], p: usize) -> LinalgResult<F>
 where
-    F: Float + Zero + One + Copy + num_traits::FromPrimitive,
+    F: Float + Zero + One + Copy + scirs2_core::numeric::FromPrimitive,
 {
     let k = _samplesizes.len();
     let mut sum_inv = F::zero();
@@ -504,7 +504,7 @@ where
 #[allow(dead_code)]
 fn chi_square_survival_function<F>(x: F, df: usize) -> LinalgResult<F>
 where
-    F: Float + Zero + One + Copy + num_traits::FromPrimitive,
+    F: Float + Zero + One + Copy + scirs2_core::numeric::FromPrimitive,
 {
     // Simplified approximation for chi-square survival function
     // In practice, you'd use a proper implementation
@@ -526,7 +526,7 @@ where
 #[allow(dead_code)]
 fn f_survival_function<F>(x: F, _df1: usize, df2: usize) -> LinalgResult<F>
 where
-    F: Float + Zero + One + Copy + num_traits::FromPrimitive,
+    F: Float + Zero + One + Copy + scirs2_core::numeric::FromPrimitive,
 {
     // Simplified approximation for F survival function
     if x <= F::zero() {
@@ -541,7 +541,7 @@ where
 #[allow(dead_code)]
 fn standard_normal_survival_function<F>(z: F) -> F
 where
-    F: Float + Zero + One + Copy + num_traits::FromPrimitive,
+    F: Float + Zero + One + Copy + scirs2_core::numeric::FromPrimitive,
 {
     // Simplified approximation for standard normal survival function
     if z <= F::zero() {
@@ -554,7 +554,7 @@ where
 }
 
 #[cfg(test)]
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 #[allow(dead_code)]

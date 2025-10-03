@@ -83,7 +83,7 @@ pub mod info {
 #[cfg(test)]
 mod integration_tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_complete_workflow() {

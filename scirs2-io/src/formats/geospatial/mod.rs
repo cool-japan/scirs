@@ -14,7 +14,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_io::formats::geospatial::{GeoTiff, Shapefile, GeoJson};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Read GeoTIFF
 //! let geotiff = GeoTiff::open("elevation.tif")?;
@@ -35,7 +35,7 @@
 #![allow(missing_docs)]
 
 use crate::error::{IoError, Result};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, Read};

@@ -7,7 +7,7 @@
 //! - Coherence analysis for frequency domain relationships
 
 use crate::error::TimeSeriesError;
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::validation::checkarray_finite;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
@@ -1273,7 +1273,7 @@ struct Complex {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_cross_correlation() {
@@ -1311,7 +1311,7 @@ mod tests {
         let x = Array1::from_vec((0..n).map(|i| (i as f64 * 0.1).sin()).collect());
         let y = Array1::from_vec(
             (0..n)
-                .map(|i| (i as f64 * 0.1).sin() + 0.1 * rand::random::<f64>())
+                .map(|i| (i as f64 * 0.1).sin() + 0.1 * scirs2_core::random::random::<f64>())
                 .collect(),
         );
 

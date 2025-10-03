@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::{concatenate, Array, Axis, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{concatenate, Array, Axis, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
@@ -16,12 +16,12 @@ use std::sync::{Arc, RwLock};
 /// # Examples
 /// ```
 /// use scirs2_neural::layers::{Layer, recurrent::{Bidirectional, RNN, rnn::RecurrentActivation}};
-/// use ndarray::{Array, Array3};
-/// use rand::rngs::SmallRng;
-/// use rand::SeedableRng;
+/// use scirs2_core::ndarray::{Array, Array3};
+/// use scirs2_core::random::rngs::SmallRng;
+/// use scirs2_core::random::SeedableRng;
 ///
 /// // Create RNN layers for forward and backward directions
-/// let mut rng = rand::rng();
+/// let mut rng = scirs2_core::random::rng();
 /// let forward_rnn = RNN::new(10, 20, RecurrentActivation::Tanh, &mut rng).unwrap();
 /// let backward_rnn = RNN::new(10, 20, RecurrentActivation::Tanh, &mut rng).unwrap();
 ///
@@ -113,7 +113,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
             // Create reversed input
             let mut reversed_slices = Vec::new();
             for t in (0..seq_len).rev() {
-                let slice = input.slice(ndarray::s![.., t..t + 1, ..]);
+                let slice = input.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
                 reversed_slices.push(slice);
             }
             let views: Vec<_> = reversed_slices.iter().map(|s| s.view()).collect();
@@ -125,7 +125,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
             // Reverse the backward output to align with forward output
             let mut backward_reversed_slices = Vec::new();
             for t in (0..seq_len).rev() {
-                let slice = backward_output.slice(ndarray::s![.., t..t + 1, ..]);
+                let slice = backward_output.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
                 backward_reversed_slices.push(slice);
             }
             let backward_views: Vec<_> =
@@ -146,7 +146,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
         // Create views for each time step and reverse their order
         let mut reversed_slices = Vec::new();
         for t in (0..seq_len).rev() {
-            let slice = input.slice(ndarray::s![.., t..t + 1, ..]);
+            let slice = input.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
             reversed_slices.push(slice);
         }
 
@@ -160,7 +160,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
         // Reverse the backward output to align with forward output
         let mut backward_reversed_slices = Vec::new();
         for t in (0..seq_len).rev() {
-            let slice = backward_output.slice(ndarray::s![.., t..t + 1, ..]);
+            let slice = backward_output.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
             backward_reversed_slices.push(slice);
         }
         let backward_views: Vec<_> = backward_reversed_slices.iter().map(|s| s.view()).collect();
@@ -204,11 +204,11 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
             // Split gradient into forward and backward components
             let hidden_size = total_hidden / 2;
             let grad_forward = grad_output
-                .slice(ndarray::s![.., .., ..hidden_size])
+                .slice(scirs2_core::ndarray::s![.., .., ..hidden_size])
                 .to_owned()
                 .into_dyn();
             let grad_backward = grad_output
-                .slice(ndarray::s![.., .., hidden_size..])
+                .slice(scirs2_core::ndarray::s![.., .., hidden_size..])
                 .to_owned()
                 .into_dyn();
 
@@ -218,7 +218,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
             // For backward gradient, we need to reverse it first, then compute backward pass
             let mut backward_grad_slices = Vec::new();
             for t in (0..seq_len).rev() {
-                let slice = grad_backward.slice(ndarray::s![.., t..t + 1, ..]);
+                let slice = grad_backward.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
                 backward_grad_slices.push(slice);
             }
             let backward_grad_views: Vec<_> =
@@ -228,7 +228,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
             // Reverse the _input for backward processing
             let mut input_slices = Vec::new();
             for t in (0..seq_len).rev() {
-                let slice = cached_input.slice(ndarray::s![.., t..t + 1, ..]);
+                let slice = cached_input.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
                 input_slices.push(slice);
             }
             let input_views: Vec<_> = input_slices.iter().map(|s| s.view()).collect();
@@ -242,7 +242,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
             // Reverse the backward gradient back to original order
             let mut final_backward_slices = Vec::new();
             for t in (0..seq_len).rev() {
-                let slice = grad_input_backward_reversed.slice(ndarray::s![.., t..t + 1, ..]);
+                let slice =
+                    grad_input_backward_reversed.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
                 final_backward_slices.push(slice);
             }
             let final_backward_views: Vec<_> =
@@ -260,11 +261,11 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
         // Split gradient into forward and backward components
         let hidden_size = total_hidden / 2;
         let grad_forward = grad_output
-            .slice(ndarray::s![.., .., ..hidden_size])
+            .slice(scirs2_core::ndarray::s![.., .., ..hidden_size])
             .to_owned()
             .into_dyn();
         let grad_backward = grad_output
-            .slice(ndarray::s![.., .., hidden_size..])
+            .slice(scirs2_core::ndarray::s![.., .., hidden_size..])
             .to_owned()
             .into_dyn();
 
@@ -275,7 +276,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
         // Reverse the gradient for backward layer
         let mut backward_grad_slices = Vec::new();
         for t in (0..seq_len).rev() {
-            let slice = grad_backward.slice(ndarray::s![.., t..t + 1, ..]);
+            let slice = grad_backward.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
             backward_grad_slices.push(slice);
         }
         let backward_grad_views: Vec<_> = backward_grad_slices.iter().map(|s| s.view()).collect();
@@ -284,7 +285,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
         // Reverse the _input for backward layer
         let mut input_slices = Vec::new();
         for t in (0..seq_len).rev() {
-            let slice = cached_input.slice(ndarray::s![.., t..t + 1, ..]);
+            let slice = cached_input.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
             input_slices.push(slice);
         }
         let input_views: Vec<_> = input_slices.iter().map(|s| s.view()).collect();
@@ -297,7 +298,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Bidi
         // Reverse the backward gradient back to original order
         let mut final_backward_slices = Vec::new();
         for t in (0..seq_len).rev() {
-            let slice = grad_input_backward_reversed.slice(ndarray::s![.., t..t + 1, ..]);
+            let slice =
+                grad_input_backward_reversed.slice(scirs2_core::ndarray::s![.., t..t + 1, ..]);
             final_backward_slices.push(slice);
         }
         let final_backward_views: Vec<_> = final_backward_slices.iter().map(|s| s.view()).collect();

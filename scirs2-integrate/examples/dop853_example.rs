@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use ndarray::{array, ArrayView1};
+use scirs2_core::ndarray::{array, ArrayView1};
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 use std::f64::consts::PI;
 

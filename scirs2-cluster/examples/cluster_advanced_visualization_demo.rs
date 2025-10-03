@@ -407,7 +407,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let viz_time = start.elapsed();
 
         let start = Instant::now();
-        export_scatter_2d_to_html(&plot, &format!("perf_test_{}.html", size), &export_config)?;
+        export_scatter_2d_to_html(&plot, format!("perf_test_{}.html", size), &export_config)?;
         let export_time = start.elapsed();
 
         println!(
@@ -459,7 +459,7 @@ fn generate_2d_clustering_data() -> (Array2<f64>, Array1<i32>, Array2<f64>) {
     )
     .unwrap();
 
-    let labels = Array1::from_vec((0..60).map(|i| (i / 20) as i32).collect());
+    let labels = Array1::from_vec((0..60).map(|i| i / 20).collect());
     let centroids = Array2::from_shape_vec((3, 2), vec![1.0, 1.0, 4.0, 4.0, 7.0, 1.0]).unwrap();
 
     (data, labels, centroids)
@@ -518,7 +518,7 @@ fn generate_3d_clustering_data() -> (Array2<f64>, Array1<i32>, Array2<f64>) {
     )
     .unwrap();
 
-    let labels = Array1::from_vec((0..30).map(|i| (i / 10) as i32).collect());
+    let labels = Array1::from_vec((0..30).map(|i| i / 10).collect());
     let centroids =
         Array2::from_shape_vec((3, 3), vec![1.0, 1.0, 1.0, 4.0, 4.0, 4.0, 7.0, 1.0, 7.0]).unwrap();
 
@@ -544,8 +544,8 @@ fn generate_high_dimensional_data() -> (Array2<f64>, Array1<i32>, Array2<f64>) {
             .collect();
 
         for _ in 0..(n_samples / n_clusters) {
-            for j in 0..n_features {
-                data_vec.push(cluster_center[j] + rng.gen_range(-1.0..1.0));
+            for &center_val in cluster_center.iter().take(n_features) {
+                data_vec.push(center_val + rng.gen_range(-1.0..1.0));
             }
             labels_vec.push(cluster_id as i32);
         }

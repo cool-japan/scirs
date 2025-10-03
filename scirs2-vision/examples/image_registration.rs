@@ -4,8 +4,8 @@
 //! feature-based and intensity-based methods.
 
 use image::{DynamicImage, ImageBuffer, Luma, Rgb, RgbImage};
-use ndarray::Array2;
-use rand::prelude::*;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::prelude::*;
 use scirs2_vision::error::Result;
 use scirs2_vision::registration::{
     feature_based::{register_images, FeatureRegistrationConfig},
@@ -229,7 +229,7 @@ fn create_test_images() -> Result<(DynamicImage, DynamicImage, Array2<f64>)> {
     }
 
     // Add some noise
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for _ in 0..500 {
         let x = rng.random_range(0..width);
         let y = rng.random_range(0..height);
@@ -341,7 +341,7 @@ fn add_corner_pattern(
 #[allow(dead_code)]
 fn create_synthetic_matches(_nummatches: usize) -> Vec<PointMatch> {
     let mut _matches = Vec::new();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Create mostly good _matches with known transformation
     let true_transform = Array2::from_shape_vec(

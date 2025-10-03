@@ -11,8 +11,8 @@
 //! - Machine learning enhanced spectral methods
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, Array3, Array4, ArrayView1, ArrayView2};
-use num_traits::{Float, FloatConst, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FloatConst, NumCast, One, Zero};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use scirs2_linalg::parallel_dispatch::ParallelConfig;
 use std::collections::HashMap;
@@ -271,7 +271,7 @@ pub struct CoherenceResults<F> {
     /// Magnitude-squared coherence
     pub magnitude_squared: Option<Array2<F>>,
     /// Complex coherence
-    pub complex_coherence: Option<Array2<num_complex::Complex<F>>>,
+    pub complex_coherence: Option<Array2<scirs2_core::numeric::Complex<F>>>,
     /// Partial coherence
     pub partial_coherence: Option<Array3<F>>,
     /// Multiple coherence
@@ -284,11 +284,11 @@ pub struct CoherenceResults<F> {
 #[derive(Debug, Clone)]
 pub struct HigherOrderResults<F> {
     /// Bispectrum
-    pub bispectrum: Option<Array3<num_complex::Complex<F>>>,
+    pub bispectrum: Option<Array3<scirs2_core::numeric::Complex<F>>>,
     /// Bicoherence
     pub bicoherence: Option<Array3<F>>,
     /// Trispectrum
-    pub trispectrum: Option<Array4<num_complex::Complex<F>>>,
+    pub trispectrum: Option<Array4<scirs2_core::numeric::Complex<F>>>,
     /// Tricoherence
     pub tricoherence: Option<Array4<F>>,
 }
@@ -297,7 +297,7 @@ pub struct HigherOrderResults<F> {
 #[derive(Debug, Clone)]
 pub struct WaveletResults<F> {
     /// Continuous wavelet transform coefficients
-    pub cwt_coefficients: Option<Array3<num_complex::Complex<F>>>,
+    pub cwt_coefficients: Option<Array3<scirs2_core::numeric::Complex<F>>>,
     /// Discrete wavelet transform coefficients
     pub dwt_coefficients: Option<Vec<Array1<F>>>,
     /// Wavelet packet coefficients
@@ -382,7 +382,7 @@ struct SpectralCache<F> {
     /// Cached FFT plans
     fft_plans: HashMap<usize, Vec<u8>>, // Placeholder for FFT plans
     /// Cached wavelets
-    wavelets: HashMap<String, Array2<num_complex::Complex<F>>>,
+    wavelets: HashMap<String, Array2<scirs2_core::numeric::Complex<F>>>,
     /// Cached tapers
     tapers: HashMap<String, Array2<F>>,
 }
@@ -592,7 +592,7 @@ where
 
             let window_end = window_start + windowsize;
             let windowed_signal = self.apply_window(
-                &signal.slice(ndarray::s![window_start..window_end]),
+                &signal.slice(scirs2_core::ndarray::s![window_start..window_end]),
                 &window.view(),
             )?;
 
@@ -813,19 +813,22 @@ where
         Ok(windowed)
     }
 
-    fn compute_fft(&self, signal: &Array1<F>) -> StatsResult<Vec<num_complex::Complex<F>>> {
+    fn compute_fft(
+        &self,
+        signal: &Array1<F>,
+    ) -> StatsResult<Vec<scirs2_core::numeric::Complex<F>>> {
         // Simplified FFT implementation - would use proper FFT library
         let n = signal.len();
         let mut spectrum = Vec::with_capacity(n);
 
         for k in 0..n {
-            let mut sum = num_complex::Complex::new(F::zero(), F::zero());
+            let mut sum = scirs2_core::numeric::Complex::new(F::zero(), F::zero());
             for j in 0..n {
                 let angle =
                     -F::from(2.0).unwrap() * F::PI() * F::from(k).unwrap() * F::from(j).unwrap()
                         / F::from(n).unwrap();
-                let complex_exp = num_complex::Complex::new(angle.cos(), angle.sin());
-                sum = sum + num_complex::Complex::new(signal[j], F::zero()) * complex_exp;
+                let complex_exp = scirs2_core::numeric::Complex::new(angle.cos(), angle.sin());
+                sum = sum + scirs2_core::numeric::Complex::new(signal[j], F::zero()) * complex_exp;
             }
             spectrum.push(sum);
         }
@@ -883,13 +886,13 @@ where
     fn compute_complex_coherence(
         &self,
         signals: &ArrayView2<F>,
-    ) -> StatsResult<Array2<num_complex::Complex<F>>> {
+    ) -> StatsResult<Array2<scirs2_core::numeric::Complex<F>>> {
         let (_, n_channels) = signals.dim();
         let n_freqs = signals.nrows() / 2 + 1;
         let n_pairs = n_channels * (n_channels - 1) / 2;
         Ok(Array2::from_elem(
             (n_freqs, n_pairs),
-            num_complex::Complex::new(F::zero(), F::zero()),
+            scirs2_core::numeric::Complex::new(F::zero(), F::zero()),
         ))
     }
 
@@ -905,12 +908,15 @@ where
         Ok(Array2::zeros((n_freqs, n_channels)))
     }
 
-    fn compute_cwt(&self, signal: &ArrayView1<F>) -> StatsResult<Array3<num_complex::Complex<F>>> {
+    fn compute_cwt(
+        &self,
+        signal: &ArrayView1<F>,
+    ) -> StatsResult<Array3<scirs2_core::numeric::Complex<F>>> {
         let n_samples_ = signal.len();
         let n_scales = self.config.wavelet_config.scales;
         Ok(Array3::from_elem(
             (n_scales, n_samples_, 1),
-            num_complex::Complex::new(F::zero(), F::zero()),
+            scirs2_core::numeric::Complex::new(F::zero(), F::zero()),
         ))
     }
 
@@ -938,12 +944,12 @@ where
     fn compute_bispectrum(
         &self,
         signal: &ArrayView1<F>,
-    ) -> StatsResult<(Array3<num_complex::Complex<F>>, Array3<F>)> {
+    ) -> StatsResult<(Array3<scirs2_core::numeric::Complex<F>>, Array3<F>)> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;
         let bispectrum = Array3::from_elem(
             (n_freqs, n_freqs, 1),
-            num_complex::Complex::new(F::zero(), F::zero()),
+            scirs2_core::numeric::Complex::new(F::zero(), F::zero()),
         );
         let bicoherence = Array3::zeros((n_freqs, n_freqs, 1));
         Ok((bispectrum, bicoherence))
@@ -952,12 +958,12 @@ where
     fn compute_trispectrum(
         &self,
         signal: &ArrayView1<F>,
-    ) -> StatsResult<(Array4<num_complex::Complex<F>>, Array4<F>)> {
+    ) -> StatsResult<(Array4<scirs2_core::numeric::Complex<F>>, Array4<F>)> {
         let n = signal.len();
         let n_freqs = n / 2 + 1;
         let trispectrum = Array4::from_elem(
             (n_freqs, n_freqs, n_freqs, 1),
-            num_complex::Complex::new(F::zero(), F::zero()),
+            scirs2_core::numeric::Complex::new(F::zero(), F::zero()),
         );
         let tricoherence = Array4::zeros((n_freqs, n_freqs, n_freqs, 1));
         Ok((trispectrum, tricoherence))
@@ -1059,7 +1065,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_spectral_analyzer_creation() {

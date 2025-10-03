@@ -4,10 +4,10 @@
 //! quality of clustering results, including bootstrap validation,
 //! consensus clustering, and stability indices.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::seq::SliceRandom;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::{Rng, SeedableRng};
 use std::collections::HashSet;
 use std::fmt::Debug;
 
@@ -103,10 +103,10 @@ impl<F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Dis
         }
 
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
             None => {
                 // Use a default seed when no seed is provided
-                rand::rngs::StdRng::seed_from_u64(42)
+                scirs2_core::random::rngs::StdRng::seed_from_u64(42)
             }
         };
 
@@ -299,10 +299,10 @@ impl<F: Float + FromPrimitive + Debug + std::iter::Sum + std::fmt::Display> Cons
         }
 
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
             None => {
                 // Use a default seed when no seed is provided
-                rand::rngs::StdRng::seed_from_u64(42)
+                scirs2_core::random::rngs::StdRng::seed_from_u64(42)
             }
         };
 
@@ -522,10 +522,10 @@ impl<F: Float + FromPrimitive + Debug + 'static + std::iter::Sum + std::fmt::Dis
             // Calculate expected log(W_k) from reference distribution
             let mut reference_log_wks = Vec::new();
             let mut rng = match self.config.random_seed {
-                Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
+                Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
                 None => {
                     // Use a default seed when no seed is provided
-                    rand::rngs::StdRng::seed_from_u64(42)
+                    scirs2_core::random::rngs::StdRng::seed_from_u64(42)
                 }
             };
 
@@ -810,7 +810,7 @@ pub mod advanced {
             k: usize,
         ) -> Result<StabilityResult<F>> {
             let mut all_stability_scores = Vec::new();
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
 
             // Get baseline clustering
             let (baseline_centroids, baseline_labels) = kmeans2(
@@ -1093,8 +1093,10 @@ pub mod advanced {
         /// Compute prediction strength for a specific number of clusters
         pub fn compute_prediction_strength(&self, data: ArrayView2<F>, k: usize) -> Result<F> {
             let mut rng = match self.config.random_seed {
-                Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-                None => rand::rngs::StdRng::seed_from_u64(rand::rng().random()),
+                Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+                None => scirs2_core::random::rngs::StdRng::seed_from_u64(
+                    scirs2_core::random::rng().random(),
+                ),
             };
 
             let n_samples = data.nrows();
@@ -1115,8 +1117,8 @@ pub mod advanced {
                 }
 
                 // Create training and test data
-                let train_data = data.select(ndarray::Axis(0), train_indices);
-                let test_data = data.select(ndarray::Axis(0), test_indices);
+                let train_data = data.select(scirs2_core::ndarray::Axis(0), train_indices);
+                let test_data = data.select(scirs2_core::ndarray::Axis(0), test_indices);
 
                 // Cluster training data
                 match kmeans2(train_data.view(), k, None, None, None, None, None, None) {
@@ -1190,7 +1192,7 @@ pub mod advanced {
         /// Find closest point in training data to a test point
         fn find_closest_point(
             &self,
-            test_point: &ndarray::ArrayView1<F>,
+            test_point: &scirs2_core::ndarray::ArrayView1<F>,
             train_data: &Array2<F>,
         ) -> Result<usize> {
             let mut min_distance = F::infinity();
@@ -1270,8 +1272,10 @@ pub mod advanced {
         /// Compute Jaccard stability index for given data and cluster number
         pub fn compute_stability(&self, data: ArrayView2<F>, k: usize) -> Result<F> {
             let mut rng = match self.random_seed {
-                Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-                None => rand::rngs::StdRng::seed_from_u64(rand::rng().random()),
+                Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+                None => scirs2_core::random::rngs::StdRng::seed_from_u64(
+                    scirs2_core::random::rng().random(),
+                ),
             };
 
             let n_samples = data.nrows();
@@ -1285,13 +1289,13 @@ pub mod advanced {
                 let mut indices1: Vec<usize> = (0..n_samples).collect();
                 indices1.shuffle(&mut rng);
                 let sample_indices1 = &indices1[..subsample_size];
-                let sample_data1 = data.select(ndarray::Axis(0), sample_indices1);
+                let sample_data1 = data.select(scirs2_core::ndarray::Axis(0), sample_indices1);
 
                 // Second bootstrap sample
                 let mut indices2: Vec<usize> = (0..n_samples).collect();
                 indices2.shuffle(&mut rng);
                 let sample_indices2 = &indices2[..subsample_size];
-                let sample_data2 = data.select(ndarray::Axis(0), sample_indices2);
+                let sample_data2 = data.select(scirs2_core::ndarray::Axis(0), sample_indices2);
 
                 // Cluster both samples
                 match (
@@ -1428,8 +1432,10 @@ pub mod advanced {
             k: usize,
         ) -> Result<ClusterStabilityResult<F>> {
             let mut rng = match self.config.random_seed {
-                Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-                None => rand::rngs::StdRng::seed_from_u64(rand::rng().random()),
+                Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+                None => scirs2_core::random::rngs::StdRng::seed_from_u64(
+                    scirs2_core::random::rng().random(),
+                ),
             };
 
             let n_samples = data.nrows();
@@ -1443,7 +1449,7 @@ pub mod advanced {
                 let mut indices: Vec<usize> = (0..n_samples).collect();
                 indices.shuffle(&mut rng);
                 let sample_indices = &indices[..subsample_size];
-                let sample_data = data.select(ndarray::Axis(0), sample_indices);
+                let sample_data = data.select(scirs2_core::ndarray::Axis(0), sample_indices);
 
                 match kmeans2(sample_data.view(), k, None, None, None, None, None, None) {
                     Ok((_, labels)) => {
@@ -1601,8 +1607,10 @@ pub mod advanced {
             data: ArrayView2<F>,
         ) -> Result<ParameterStabilityResult<F>> {
             let mut rng = match self.random_seed {
-                Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-                None => rand::rngs::StdRng::seed_from_u64(rand::rng().random()),
+                Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+                None => scirs2_core::random::rngs::StdRng::seed_from_u64(
+                    scirs2_core::random::rng().random(),
+                ),
             };
 
             let mut stability_by_perturbation = Vec::new();
@@ -1708,7 +1716,7 @@ pub mod advanced {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_stability_config_default() {

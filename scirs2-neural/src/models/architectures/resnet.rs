@@ -7,9 +7,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{BatchNorm, Conv2D, Dense, Dropout, Layer, PaddingMode};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::SeedableRng;
 use std::fmt::Debug;
 /// Type alias for average pooling function
 type AvgPoolFn<F> = Box<dyn Fn(&Array<F, IxDyn>) -> Result<Array<F, IxDyn>> + Send + Sync>;
@@ -100,7 +100,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> BasicBlock<F> {
         downsample: bool,
     ) -> Result<Self> {
         // First convolutional layer
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let kernel_size = (3, 3);
         let stride_tuple = if stride == 1 {
             (1, 1)
@@ -125,7 +125,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> BasicBlock<F> {
         let bn2 = BatchNorm::new(out_channels, 1e-5, 0.1, &mut rng)?;
         // Downsample if needed
         let downsample = if downsample {
-            let mut ds_rng = rand::rngs::SmallRng::from_seed([42; 32]);
+            let mut ds_rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
             let ds_conv = Conv2D::new(
                 in_channels,
                 out_channels,

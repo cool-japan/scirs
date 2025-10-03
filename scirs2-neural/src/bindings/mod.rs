@@ -50,7 +50,7 @@ mod tests {
     use crate::layers::Dense;
     use crate::models::sequential::Sequential;
     use crate::serving::PackageMetadata;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     use tempfile::TempDir;
     #[test]
     fn test_binding_module_integration() {
@@ -81,7 +81,7 @@ mod tests {
             checksum: "test_checksum".to_string(),
         };
         // Create a simple sequential model for testing
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let mut model = Sequential::<f32>::new();
         model.add_layer(Dense::new(10, 5, Some("relu"), &mut rng).unwrap());
         model.add_layer(Dense::new(5, 2, None, &mut rng).unwrap());

@@ -4,8 +4,8 @@
 
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, ArrayView1};
-use rand::{rng, Rng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::{rng, Rng};
 // Unused import
 // use scirs2_core::error::CoreResult;
 
@@ -34,7 +34,7 @@ impl BanditOptimizer {
     pub fn select_arm(&self) -> usize {
         let total_counts: usize = self.arm_counts.sum();
         if total_counts == 0 {
-            return rand::rng().random_range(0..self.num_arms);
+            return scirs2_core::random::rng().random_range(0..self.num_arms);
         }
 
         let mut best_arm = 0;
@@ -94,7 +94,7 @@ where
 
         // Simple gradient-like update
         for i in 0..params.len() {
-            params[i] += (rand::rng().random::<f64>() - 0.5) * step_size;
+            params[i] += (scirs2_core::random::rng().random::<f64>() - 0.5) * step_size;
         }
 
         let new_obj = objective(&params.view());

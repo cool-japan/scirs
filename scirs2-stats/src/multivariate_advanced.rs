@@ -10,8 +10,8 @@
 //! - Deep learning based dimensionality reduction
 
 use crate::error::StatsResult;
-use ndarray::{Array1, Array2, Array3, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -547,7 +547,7 @@ where
         + Send
         + Sync
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Create new advanced multivariate analysis
     pub fn new(config: AdvancedMultivariateConfig<F>) -> Self {
@@ -686,10 +686,10 @@ where
 
         // Select top _components
         let components = eigenvectors
-            .slice(ndarray::s![.., 0..actual_components])
+            .slice(scirs2_core::ndarray::s![.., 0..actual_components])
             .to_owned();
         let explained_variance = eigenvalues
-            .slice(ndarray::s![0..actual_components])
+            .slice(scirs2_core::ndarray::s![0..actual_components])
             .to_owned();
 
         let total_variance = eigenvalues.sum();
@@ -1047,7 +1047,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

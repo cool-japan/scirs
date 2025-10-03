@@ -3,8 +3,8 @@
 //! This module implements color constancy mechanisms inspired by human color perception
 //! for robust color processing under varying illumination.
 
-use ndarray::{Array2, Array3};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, Array3};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use super::config::{BiologicalVisionConfig, ColorConstancySystem};
 use crate::error::{NdimageError, NdimageResult};

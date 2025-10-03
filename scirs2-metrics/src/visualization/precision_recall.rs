@@ -4,7 +4,7 @@
 
 #![allow(clippy::uninlined_format_args)]
 
-use ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
 use std::error::Error;
 
 use super::{MetricVisualizer, PlotType, VisualizationData, VisualizationMetadata};
@@ -314,7 +314,7 @@ pub fn precision_recall_visualization(
     recall: Vec<f64>,
     thresholds: Option<Vec<f64>>,
     average_precision: Option<f64>,
-) -> PrecisionRecallVisualizer<'static, f64, ndarray::OwnedRepr<f64>> {
+) -> PrecisionRecallVisualizer<'static, f64, scirs2_core::ndarray::OwnedRepr<f64>> {
     PrecisionRecallVisualizer::new(precision, recall, thresholds, average_precision)
 }
 

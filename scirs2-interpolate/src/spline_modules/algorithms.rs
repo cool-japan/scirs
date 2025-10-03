@@ -31,7 +31,7 @@
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::traits::InterpolationFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Compute the coefficients for a natural cubic spline
 ///
@@ -125,7 +125,7 @@ pub fn compute_natural_cubic_spline<F: InterpolationFloat>(
             ));
         }
         let m = a[i] / b[i - 1];
-        b[i] = b[i] - m * c[i - 1];
+        b[i] -= m * c[i - 1];
         d[i] = d[i] - m * d[i - 1];
     }
 
@@ -469,7 +469,7 @@ pub fn compute_clamped_cubic_spline<F: InterpolationFloat>(
     // Forward sweep
     for i in 1..n {
         let m = a[i] / b[i - 1];
-        b[i] = b[i] - m * c[i - 1];
+        b[i] -= m * c[i - 1];
         d[i] = d[i] - m * d[i - 1];
     }
 
@@ -595,7 +595,7 @@ pub fn compute_periodic_cubic_spline<F: InterpolationFloat>(
     // Forward sweep
     for i in 1..n - 1 {
         let m = a[i] / b_mod[i - 1];
-        b_mod[i] = b_mod[i] - m * c[i - 1];
+        b_mod[i] -= m * c[i - 1];
         d_mod[i] = d_mod[i] - m * d_mod[i - 1];
     }
 
@@ -724,7 +724,7 @@ pub fn compute_second_derivative_cubic_spline<F: InterpolationFloat>(
     // Forward sweep
     for i in 1..n {
         let m = a[i] / b[i - 1];
-        b[i] = b[i] - m * c[i - 1];
+        b[i] -= m * c[i - 1];
         d[i] = d[i] - m * d[i - 1];
     }
 
@@ -847,7 +847,7 @@ pub fn compute_parabolic_runout_cubic_spline<F: InterpolationFloat>(
     // Forward sweep
     for i in 1..n {
         let m = a[i] / b[i - 1];
-        b[i] = b[i] - m * c[i - 1];
+        b[i] -= m * c[i - 1];
         d[i] = d[i] - m * d[i - 1];
     }
 

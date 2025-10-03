@@ -4,10 +4,10 @@
 // of signals.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, ArrayView1};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
 use rustfft::FftPlanner;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{
     simd_add_f32_adaptive, simd_dot_f32_ultra, simd_fma_f32_ultra, simd_mul_f32_hyperoptimized,
     PlatformCapabilities,
@@ -49,7 +49,7 @@ where
     let a_f64: Vec<f64> = a
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -58,7 +58,7 @@ where
     let v_f64: Vec<f64> = v
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -356,7 +356,7 @@ where
     let v_f64: Vec<f64> = v
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -522,10 +522,10 @@ fn next_power_of_two(n: usize) -> usize {
 /// * 2D convolution result
 #[allow(dead_code)]
 pub fn convolve2d(
-    a: &ndarray::Array2<f64>,
-    v: &ndarray::Array2<f64>,
+    a: &scirs2_core::ndarray::Array2<f64>,
+    v: &scirs2_core::ndarray::Array2<f64>,
     mode: &str,
-) -> SignalResult<ndarray::Array2<f64>> {
+) -> SignalResult<scirs2_core::ndarray::Array2<f64>> {
     let (n_rows_a, n_cols_a) = a.dim();
     let (n_rows_v, n_cols_v) = v.dim();
 

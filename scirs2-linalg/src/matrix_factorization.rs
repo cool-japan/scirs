@@ -13,9 +13,9 @@
 //! These factorizations are useful for dimensionality reduction, data compression,
 //! and constructing low-rank approximations with specific properties.
 
-use ndarray::{s, Array1, Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
-use rand::{self, Rng};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
+use scirs2_core::random::{self, Rng};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -43,7 +43,7 @@ use crate::error::{LinalgError, LinalgResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_factorization::nmf;
 ///
 /// let a = array![
@@ -115,7 +115,7 @@ where
     let mut h = Array2::<F>::zeros((rank, n));
 
     // Use random initialization
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for i in 0..m {
         for j in 0..rank {
             w[[i, j]] = F::from(rng.random::<f64>()).unwrap() + epsilon;
@@ -211,7 +211,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_factorization::interpolative_decomposition;
 ///
 /// let a = array![
@@ -247,7 +247,7 @@ where
         + Sum
         + Debug
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -488,7 +488,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_factorization::cur_decomposition;
 ///
 /// let a = array![
@@ -532,7 +532,7 @@ where
         + Sum
         + Debug
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -567,14 +567,14 @@ where
 
             // Simple random sampling without replacement
             while col_indices.len() < c_samples {
-                let idx = rand::rng().random_range(0..n);
+                let idx = scirs2_core::random::rng().random_range(0..n);
                 if !col_indices.contains(&idx) {
                     col_indices.push(idx);
                 }
             }
 
             while row_indices.len() < r_samples {
-                let idx = rand::rng().random_range(0..m);
+                let idx = scirs2_core::random::rng().random_range(0..m);
                 if !row_indices.contains(&idx) {
                     row_indices.push(idx);
                 }
@@ -642,7 +642,7 @@ where
             // First, compute approximate leverage scores via randomized SVD
 
             // Sketch the matrix for faster SVD
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let omega = Array2::<F>::from_shape_fn((n, k + 5), |_| {
                 F::from(rng.random::<f64>() * 2.0 - 1.0).unwrap()
             });
@@ -823,7 +823,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_factorization::rank_revealing_qr;
 ///
 /// // Create a rank-deficient matrix
@@ -882,7 +882,7 @@ where
         + Sum
         + Debug
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -1041,7 +1041,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_factorization::utv_decomposition;
 ///
 /// let a = array![
@@ -1086,7 +1086,7 @@ where
         + Sum
         + Debug
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -1207,7 +1207,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_nmf_simple() {

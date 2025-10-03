@@ -2,8 +2,8 @@
 
 use ag::tensor_ops::PreconditionerType;
 use ag::tensor_ops::*;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 #[test]
 #[allow(dead_code)]
@@ -41,7 +41,7 @@ fn test_iterative_solvers() {
         let ax_flat = reshape(ax, &[2]);
         let diff = sub(ax_flat, b);
         let error = normfro(&reshape(diff, &[2, 1]));
-        let error_val = error.eval(g).unwrap()[ndarray::IxDyn(&[])];
+        let error_val = error.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])];
         assert!(error_val < 1e-4, "CG solver error too large: {}", error_val);
 
         // Test GMRES
@@ -137,7 +137,7 @@ fn test_preconditioned_cg() {
         let ax_flat = reshape(ax, &[2]);
         let diff = sub(ax_flat, b);
         let error = normfro(&reshape(diff, &[2, 1]));
-        let error_val = error.eval(g).unwrap()[ndarray::IxDyn(&[])];
+        let error_val = error.eval(g).unwrap()[scirs2_core::ndarray::IxDyn(&[])];
         assert!(
             error_val < 1e-4,
             "PCG solver error too large: {}",

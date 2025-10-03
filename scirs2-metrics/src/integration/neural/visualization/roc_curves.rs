@@ -6,12 +6,12 @@
 use crate::classification::curves::roc_curve;
 use crate::visualization::roc_curve::roc_curve_visualization;
 use crate::visualization::MetricVisualizer;
-use ndarray::{Array, Ix1, IxDyn};
+use scirs2_core::ndarray::{Array, Ix1, IxDyn};
 use std::error::Error;
 
 /// Create a ROC curve visualizer from neural network predictions and targets
 #[allow(dead_code)]
-pub fn neural_roc_curve_visualization<F: num_traits::Float + std::fmt::Debug>(
+pub fn neural_roc_curve_visualization<F: scirs2_core::numeric::Float + std::fmt::Debug>(
     y_true: &Array<F, IxDyn>,
     y_pred: &Array<F, IxDyn>,
     auc: Option<f64>,

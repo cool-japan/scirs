@@ -4,8 +4,8 @@
 //! linear algebra operations that are now implemented with autodiff support.
 
 use ag::tensor_ops::*;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 #[allow(dead_code)]
 fn main() {

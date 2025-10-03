@@ -31,7 +31,7 @@ jobs:
             no_default_features: true
             
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Install Rust
         uses: dtolnay/rust-toolchain@master
@@ -104,7 +104,7 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Validate cross-platform consistency
         run: |
@@ -119,7 +119,7 @@ jobs:
     name: Portability Check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       
       - name: Check for platform-specific code
         run: |

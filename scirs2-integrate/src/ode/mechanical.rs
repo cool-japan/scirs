@@ -5,7 +5,7 @@
 //! These methods are optimized for the specific structure and properties of mechanical systems.
 
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 
 /// Type alias for external force functions
 type ExternalForceFunction =
@@ -1239,7 +1239,7 @@ mod tests {
         MechanicalSystemType, RigidBodyState,
     };
     use approx::assert_abs_diff_eq;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_rigid_body_state_creation() {

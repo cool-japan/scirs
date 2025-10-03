@@ -5,8 +5,8 @@
 
 use super::SpecializedMatrix;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -18,7 +18,7 @@ use std::iter::Sum;
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_linalg::specialized::BandedMatrix;
 /// use scirs2_linalg::SpecializedMatrix;
 ///
@@ -586,7 +586,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_banded_creation() {

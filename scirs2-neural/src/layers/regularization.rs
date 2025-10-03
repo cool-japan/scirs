@@ -5,8 +5,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::{Arc, RwLock};
@@ -17,7 +17,7 @@ use std::sync::{Arc, RwLock};
 /// # Examples
 /// ```
 /// use scirs2_neural::layers::{ActivityRegularization, Layer};
-/// use ndarray::{Array, Array2};
+/// use scirs2_core::ndarray::{Array, Array2};
 /// // Create an activity regularization layer with L1=0.01 and L2=0.01
 /// let regularizer = ActivityRegularization::new(Some(0.01), Some(0.01), Some("activity_reg")).unwrap();
 /// // Forward pass with a batch of 2 samples, 10 features
@@ -223,7 +223,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> L2ActivityRegular
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
     #[test]
     fn test_activity_regularization_creation() {
         // Test L1 only

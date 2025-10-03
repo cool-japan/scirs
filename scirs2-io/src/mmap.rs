@@ -22,7 +22,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_io::mmap::{MmapArray, create_mmap_array};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use std::path::Path;
 //!
 //! // Create a large array file
@@ -45,7 +45,7 @@
 //! ```
 
 use crate::error::{IoError, Result};
-use ndarray::{ArrayBase, ArrayD, ArrayView, ArrayViewMut, Dimension, IxDyn};
+use scirs2_core::ndarray::{ArrayBase, ArrayD, ArrayView, ArrayViewMut, Dimension, IxDyn};
 use std::fs::{File, OpenOptions};
 use std::io::Write;
 use std::marker::PhantomData;
@@ -132,7 +132,7 @@ impl<'a> MmapArrayBuilder<'a> {
     /// Create a memory-mapped array from an existing ndarray
     pub fn create_from_array<S, D, T>(&self, array: &ArrayBase<S, D>) -> Result<()>
     where
-        S: ndarray::Data<Elem = T>,
+        S: scirs2_core::ndarray::Data<Elem = T>,
         D: Dimension,
         T: Clone + bytemuck::Pod,
     {
@@ -553,7 +553,7 @@ where
 pub fn create_mmap_array<P, S, D, T>(path: P, array: &ArrayBase<S, D>) -> Result<()>
 where
     P: AsRef<Path>,
-    S: ndarray::Data<Elem = T>,
+    S: scirs2_core::ndarray::Data<Elem = T>,
     D: Dimension,
     T: Clone + bytemuck::Pod,
 {
@@ -576,7 +576,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array, Array1, Array2};
+    use scirs2_core::ndarray::{array, Array1, Array2};
     use tempfile::tempdir;
 
     #[test]

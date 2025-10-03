@@ -404,11 +404,11 @@ impl AdvancedBenchmark {
         let algorithms = self.get_algorithms_to_benchmark();
 
         for algorithm_name in algorithms {
-            match self.benchmark_algorithm(&algorithm_name, data) {
+            match self.benchmark_algorithm(algorithm_name, data) {
                 Ok(result) => {
                     // Check for performance regressions
                     if self.config.regression_detection {
-                        if let Some(alert) = self.detect_regression(&algorithm_name, &result) {
+                        if let Some(alert) = self.detect_regression(algorithm_name, &result) {
                             regression_alerts.push(alert);
                         }
                     }
@@ -742,7 +742,7 @@ impl AdvancedBenchmark {
                 let n_clusters = labels_
                     .iter()
                     .filter(|&&x| x >= 0)
-                    .map(|&x| x)
+                    .copied()
                     .max()
                     .unwrap_or(-1) as usize
                     + 1;
@@ -793,7 +793,7 @@ impl AdvancedBenchmark {
                 continue; // Skip sizes larger than available _data
             }
 
-            let subset = base_data.slice(ndarray::s![0..size, ..]);
+            let subset = base_data.slice(scirs2_core::ndarray::s![0..size, ..]);
             let start_time = Instant::now();
 
             if self.run_algorithm_once(algorithm, &subset).is_ok() {
@@ -1329,7 +1329,7 @@ fn generate_recommendations_html(results: &BenchmarkResults) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     #[ignore = "timeout"]

@@ -22,14 +22,14 @@
 //! let validator = Validator::new(config)?;
 //!
 //! let schema = ValidationSchema::new()
-//!     .name(user_schema)
-//!     .require_field(name, DataType::String)
+//!     .name("user_schema")
+//!     .require_field("name", DataType::String)
 //!     .require_field("age", DataType::Integer);
 //!
 //! #
 //! # {
 //! let data = serde_json::json!({
-//!     name: "John Doe",
+//!     "name": "John Doe",
 //!     "age": 30
 //! });
 //!
@@ -132,9 +132,9 @@ impl Validator {
     /// ```rust
     /// use scirs2_core::validation::data::{Validator, ValidationConfig};
     ///
-    /// let config = ValidationConfig::default()
-    ///     .with_max_depth(10)
-    ///     .with_strict_mode(true);
+    /// let mut config = ValidationConfig::default();
+    /// config.max_depth = 10;
+    /// config.strict_mode = true;
     ///
     /// let validator = Validator::new(config)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
@@ -361,20 +361,20 @@ impl Validator {
     ///
     /// ```rust
     /// use scirs2_core::validation::data::{Validator, ValidationConfig, ValidationRule};
+    /// use serde_json::Value as JsonValue;
     ///
     /// struct EmailRule;
     ///
     /// impl ValidationRule for EmailRule {
-    ///     
-    ///     fn path( &str) -> Result<(), String> {
+    ///     fn validate(&self, value: &JsonValue, fieldpath: &str) -> Result<(), String> {
     ///         if let Some(email) = value.as_str() {
     ///             if email.contains('@') {
     ///                 Ok(())
     ///             } else {
-    ///                 Err(format!("{fieldpath}"))
+    ///                 Err(format!("{fieldpath}: invalid email format"))
     ///             }
     ///         } else {
-    ///             Err(format!("{fieldpath}"))
+    ///             Err(format!("{fieldpath}: expected string"))
     ///         }
     ///     }
     ///
@@ -383,7 +383,7 @@ impl Validator {
     /// }
     ///
     /// let mut validator = Validator::new(ValidationConfig::default())?;
-    /// validator.add_custom_rule(email.to_string(), Box::new(EmailRule));
+    /// validator.add_custom_rule("email".to_string(), Box::new(EmailRule));
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn add_custom_rule(&mut self, name: String, rule: Box<dyn ValidationRule + Send + Sync>) {
@@ -416,7 +416,6 @@ impl Validator {
     }
 
     /// Validate individual fields
-
     fn validate_fields(
         &self,
         data: &JsonValue,
@@ -464,7 +463,7 @@ impl Validator {
             let fieldpath = if depth == 0 {
                 fieldname.clone()
             } else {
-                format!("{fieldname}")
+                fieldname.to_string()
             };
 
             if let Some(field_value) = data_obj.get(fieldname) {
@@ -515,7 +514,6 @@ impl Validator {
     }
 
     /// Validate field type
-
     fn validate_field_type(
         &self,
         value: &JsonValue,
@@ -555,7 +553,6 @@ impl Validator {
     }
 
     /// Validate field constraints
-
     #[allow(clippy::only_used_in_recursion)]
     fn validate_field_constraints(
         &self,
@@ -632,7 +629,7 @@ impl Validator {
                                 errors.push(ValidationError {
                                     errortype: ValidationErrorType::DuplicateValues,
                                     fieldpath: fieldpath.to_string(),
-                                    message: format!("{item_str}"),
+                                    message: item_str.to_string(),
                                     expected: Some("unique values".to_string()),
                                     actual: Some("duplicate found".to_string()),
                                     constraint: Some("unique".to_string()),
@@ -656,7 +653,7 @@ impl Validator {
                                             "Value '{}' does not match pattern '{}'",
                                             s, pattern
                                         ),
-                                        expected: Some(format!("{pattern}")),
+                                        expected: Some(pattern.to_string()),
                                         actual: Some(s.to_string()),
                                         constraint: Some(pattern.to_string()),
                                         severity: ErrorSeverity::Error,
@@ -1242,7 +1239,7 @@ impl Validator {
                     for constraint in constraints {
                         self.validate_field_constraints(
                             value,
-                            &[constraint.clone()],
+                            std::slice::from_ref(constraint),
                             fieldpath,
                             errors,
                             warnings,
@@ -1260,7 +1257,7 @@ impl Validator {
                         let mut constraintwarnings = Vec::new();
                         self.validate_field_constraints(
                             value,
-                            &[constraint.clone()],
+                            std::slice::from_ref(constraint),
                             fieldpath,
                             &mut constrainterrors,
                             &mut constraintwarnings,
@@ -1362,7 +1359,6 @@ impl Validator {
     }
 
     /// Validate global constraints
-
     #[allow(clippy::ptr_arg)]
     fn validate_global_constraints(
         &self,
@@ -1377,7 +1373,6 @@ impl Validator {
     }
 
     /// Check for additional fields
-
     #[allow(clippy::ptr_arg)]
     fn check_additional_fields(
         &self,
@@ -1406,7 +1401,6 @@ impl Validator {
     }
 
     /// Get the type name for a JSON value
-
     fn get_value_type_name(&self, value: &JsonValue) -> String {
         match value {
             JsonValue::Null => "null".to_string(),
@@ -1425,7 +1419,6 @@ impl Validator {
     }
 
     /// Generate cache key for validation result
-
     fn generate_cachekey(
         &self,
         data: &JsonValue,

@@ -2,7 +2,7 @@
 
 use crate::database::{DatabaseConnection, QueryBuilder};
 use crate::error::Result;
-use ndarray::ArrayView2;
+use scirs2_core::ndarray::ArrayView2;
 
 /// Bulk insert configuration
 #[derive(Debug, Clone)]
@@ -42,7 +42,7 @@ pub fn bulk_insert(
 
     for chunk_start in (0..row_count).step_by(config.batch_size) {
         let chunk_end = (chunk_start + config.batch_size).min(row_count);
-        let chunk = data.slice(ndarray::s![chunk_start..chunk_end, ..]);
+        let chunk = data.slice(scirs2_core::ndarray::s![chunk_start..chunk_end, ..]);
 
         total_inserted += conn.insert_array(table, chunk, columns)?;
 

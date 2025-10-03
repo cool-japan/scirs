@@ -6,7 +6,7 @@
 
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::parallel_ops::*;
 use statrs::statistics::Statistics;
 
@@ -796,7 +796,7 @@ pub fn quick_quality_assessment(dataset: &Dataset) -> Result<f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[allow(dead_code)]
     fn create_test_dataset() -> Dataset {

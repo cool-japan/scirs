@@ -16,19 +16,19 @@ pub mod activations {
     pub use tanh::Tanh;
     
     use crate::error::Result;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
     
     /// Trait for activation functions
     pub trait Activation<F> {
         /// Forward pass of the activation function
-        fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>>;
+        fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
         
         /// Backward pass of the activation function
         fn backward(
             &self,
-            grad_output: &Array<F, ndarray::IxDyn>,
-            input: &Array<F, ndarray::IxDyn>,
-        ) -> Result<Array<F, ndarray::IxDyn>>;
+            grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+            input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
     }
 }
 

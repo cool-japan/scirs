@@ -7,9 +7,9 @@
 use crate::error::{FFTError, FFTResult};
 use crate::fft::{fft, ifft};
 use crate::{window, WindowFunction};
-use ndarray::Array2;
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -751,8 +751,8 @@ mod tests {
         let result = compute_stft(&signal, &config, Some(sample_rate)).unwrap();
 
         // Check dimensions
-        assert!(result.times.len() > 0);
-        assert!(result.frequencies.len() > 0);
+        assert!(!result.times.is_empty());
+        assert!(!result.frequencies.is_empty());
         assert_eq!(
             result.coefficients.dim(),
             (result.times.len(), result.frequencies.len())

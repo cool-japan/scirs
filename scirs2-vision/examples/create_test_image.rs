@@ -77,8 +77,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Add some noise
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..1000 {
         let x = rng.random_range(0..400);

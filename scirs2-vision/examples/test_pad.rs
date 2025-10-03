@@ -1,4 +1,4 @@
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 #[allow(dead_code)]
 fn main() {

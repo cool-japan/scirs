@@ -7,7 +7,7 @@
 //! - Optimized data structures for statistical computations
 
 use crate::error::StatsResult;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::{
     atomic::{AtomicUsize, Ordering},

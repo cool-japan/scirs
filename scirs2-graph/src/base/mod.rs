@@ -14,10 +14,10 @@ pub use types::{Edge, EdgeWeight, Node};
 pub use petgraph::graph::IndexType;
 
 // Legacy imports for backward compatibility - include remaining graph types here
-use ndarray::{Array1, Array2};
 use petgraph::graph::{Graph as PetGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::{Directed, Undirected};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;

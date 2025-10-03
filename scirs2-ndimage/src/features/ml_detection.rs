@@ -3,8 +3,8 @@
 //! This module provides ML-powered feature detection algorithms including
 //! learned edge detectors, keypoint detectors, and semantic feature extraction.
 
-use ndarray::{Array1, Array2, Array3, Array4, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -85,16 +85,16 @@ impl LearnedEdgeDetector {
 
         // Sobel-like filters
         layer1
-            .slice_mut(ndarray::s![.., .., 0, 0])
-            .assign(&ndarray::arr2(&[
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0, 0])
+            .assign(&scirs2_core::ndarray::arr2(&[
                 [-1.0, 0.0, 1.0],
                 [-2.0, 0.0, 2.0],
                 [-1.0, 0.0, 1.0],
             ]));
 
         layer1
-            .slice_mut(ndarray::s![.., .., 0, 1])
-            .assign(&ndarray::arr2(&[
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0, 1])
+            .assign(&scirs2_core::ndarray::arr2(&[
                 [-1.0, -2.0, -1.0],
                 [0.0, 0.0, 0.0],
                 [1.0, 2.0, 1.0],
@@ -102,16 +102,16 @@ impl LearnedEdgeDetector {
 
         // Diagonal edge filters
         layer1
-            .slice_mut(ndarray::s![.., .., 0, 2])
-            .assign(&ndarray::arr2(&[
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0, 2])
+            .assign(&scirs2_core::ndarray::arr2(&[
                 [-2.0, -1.0, 0.0],
                 [-1.0, 0.0, 1.0],
                 [0.0, 1.0, 2.0],
             ]));
 
         layer1
-            .slice_mut(ndarray::s![.., .., 0, 3])
-            .assign(&ndarray::arr2(&[
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0, 3])
+            .assign(&scirs2_core::ndarray::arr2(&[
                 [0.0, -1.0, -2.0],
                 [1.0, 0.0, -1.0],
                 [2.0, 1.0, 0.0],
@@ -119,8 +119,8 @@ impl LearnedEdgeDetector {
 
         // Laplacian-like filters
         layer1
-            .slice_mut(ndarray::s![.., .., 0, 4])
-            .assign(&ndarray::arr2(&[
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0, 4])
+            .assign(&scirs2_core::ndarray::arr2(&[
                 [0.0, -1.0, 0.0],
                 [-1.0, 4.0, -1.0],
                 [0.0, -1.0, 0.0],
@@ -128,8 +128,8 @@ impl LearnedEdgeDetector {
 
         // Corner-like filters
         layer1
-            .slice_mut(ndarray::s![.., .., 0, 5])
-            .assign(&ndarray::arr2(&[
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0, 5])
+            .assign(&scirs2_core::ndarray::arr2(&[
                 [1.0, -2.0, 1.0],
                 [-2.0, 4.0, -2.0],
                 [1.0, -2.0, 1.0],
@@ -137,16 +137,16 @@ impl LearnedEdgeDetector {
 
         // Texture filters
         layer1
-            .slice_mut(ndarray::s![.., .., 0, 6])
-            .assign(&ndarray::arr2(&[
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0, 6])
+            .assign(&scirs2_core::ndarray::arr2(&[
                 [1.0, 0.0, -1.0],
                 [0.0, 0.0, 0.0],
                 [-1.0, 0.0, 1.0],
             ]));
 
         layer1
-            .slice_mut(ndarray::s![.., .., 0, 7])
-            .assign(&ndarray::arr2(&[
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0, 7])
+            .assign(&scirs2_core::ndarray::arr2(&[
                 [0.0, 1.0, 0.0],
                 [1.0, -4.0, 1.0],
                 [0.0, 1.0, 0.0],
@@ -161,7 +161,9 @@ impl LearnedEdgeDetector {
         for i in 0..4 {
             for j in 0..8 {
                 let weight = if i == j / 2 { 1.0 } else { 0.1 };
-                layer2.slice_mut(ndarray::s![1, 1, j, i]).fill(weight);
+                layer2
+                    .slice_mut(scirs2_core::ndarray::s![1, 1, j, i])
+                    .fill(weight);
             }
         }
 
@@ -194,7 +196,7 @@ impl LearnedEdgeDetector {
         // Add channel dimension
         let mut features_3d = Array3::zeros((height, width, 1));
         features_3d
-            .slice_mut(ndarray::s![.., .., 0])
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0])
             .assign(&features);
 
         // Apply convolutional layers
@@ -214,8 +216,8 @@ impl LearnedEdgeDetector {
                 let mut channel_sum = Array2::zeros((height, width));
 
                 for in_ch in 0..in_channels {
-                    let kernel = kernels.slice(ndarray::s![.., .., in_ch, out_ch]);
-                    let input = features_3d.slice(ndarray::s![.., .., in_ch]);
+                    let kernel = kernels.slice(scirs2_core::ndarray::s![.., .., in_ch, out_ch]);
+                    let input = features_3d.slice(scirs2_core::ndarray::s![.., .., in_ch]);
 
                     // Simple 2D convolution
                     let conv_result = self.convolve_2d(&input, &kernel)?;
@@ -227,7 +229,7 @@ impl LearnedEdgeDetector {
                 channel_sum.mapv_inplace(|x| x.max(0.0));
 
                 output
-                    .slice_mut(ndarray::s![.., .., out_ch])
+                    .slice_mut(scirs2_core::ndarray::s![.., .., out_ch])
                     .assign(&channel_sum);
             }
 
@@ -237,7 +239,7 @@ impl LearnedEdgeDetector {
         // Combine all output channels into edge strength
         let mut edge_map = Array2::zeros((height, width));
         for ch in 0..features_3d.dim().2 {
-            let channel = features_3d.slice(ndarray::s![.., .., ch]);
+            let channel = features_3d.slice(scirs2_core::ndarray::s![.., .., ch]);
             edge_map += &(&channel * &channel);
         }
         edge_map.mapv_inplace(|x| x.sqrt());
@@ -510,7 +512,7 @@ impl SemanticFeatureExtractor {
                 // Apply filter
                 let response = convolve(&img_f64, &filter, None)?;
                 features
-                    .slice_mut(ndarray::s![.., .., feature_idx])
+                    .slice_mut(scirs2_core::ndarray::s![.., .., feature_idx])
                     .assign(&response);
 
                 feature_idx += 1;
@@ -538,24 +540,26 @@ impl SemanticFeatureExtractor {
         let edges_y = crate::filters::sobel(&binary, 0, None)?; // y-direction gradient
         let edge_magnitude = (edges_x.mapv(|x| x * x) + edges_y.mapv(|x| x * x)).mapv(|x| x.sqrt());
         features
-            .slice_mut(ndarray::s![.., .., 0])
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0])
             .assign(&edge_magnitude);
 
         // Feature 2: Local curvature (using Laplacian)
         let curvature = crate::filters::laplace(&binary, None, None)?;
         features
-            .slice_mut(ndarray::s![.., .., 1])
+            .slice_mut(scirs2_core::ndarray::s![.., .., 1])
             .assign(&curvature.mapv(|x| x.abs()));
 
         // Feature 3: Local thickness (simplified)
         let smoothed = gaussian_filter(&binary, 3.0, None, None)?;
-        features.slice_mut(ndarray::s![.., .., 2]).assign(&smoothed);
+        features
+            .slice_mut(scirs2_core::ndarray::s![.., .., 2])
+            .assign(&smoothed);
 
         // Feature 4: Orientation strength
         let (gx, gy) = (&edges_x, &edges_y);
         let orientation_strength = gx.mapv(|x| x.abs()) + gy.mapv(|x| x.abs());
         features
-            .slice_mut(ndarray::s![.., .., 3])
+            .slice_mut(scirs2_core::ndarray::s![.., .., 3])
             .assign(&orientation_strength);
 
         Ok(features)
@@ -579,7 +583,7 @@ impl SemanticFeatureExtractor {
             img_f64.clone()
         };
         features
-            .slice_mut(ndarray::s![.., .., 0])
+            .slice_mut(scirs2_core::ndarray::s![.., .., 0])
             .assign(&normalized);
 
         // Feature 2: Local contrast
@@ -588,7 +592,7 @@ impl SemanticFeatureExtractor {
 
         for i in window_size / 2..height - window_size / 2 {
             for j in window_size / 2..width - window_size / 2 {
-                let window = img_f64.slice(ndarray::s![
+                let window = img_f64.slice(scirs2_core::ndarray::s![
                     i - window_size / 2..=i + window_size / 2,
                     j - window_size / 2..=j + window_size / 2
                 ]);
@@ -599,14 +603,16 @@ impl SemanticFeatureExtractor {
                 contrast[[i, j]] = local_std / (local_mean + epsilon.to_f64().unwrap_or(1e-6));
             }
         }
-        features.slice_mut(ndarray::s![.., .., 1]).assign(&contrast);
+        features
+            .slice_mut(scirs2_core::ndarray::s![.., .., 1])
+            .assign(&contrast);
 
         // Feature 3: Local entropy (simplified)
         let mut entropy = Array2::zeros((height, width));
 
         for i in window_size / 2..height - window_size / 2 {
             for j in window_size / 2..width - window_size / 2 {
-                let window = img_f64.slice(ndarray::s![
+                let window = img_f64.slice(scirs2_core::ndarray::s![
                     i - window_size / 2..=i + window_size / 2,
                     j - window_size / 2..=j + window_size / 2
                 ]);
@@ -616,7 +622,9 @@ impl SemanticFeatureExtractor {
                 entropy[[i, j]] = (1.0 + variance).ln();
             }
         }
-        features.slice_mut(ndarray::s![.., .., 2]).assign(&entropy);
+        features
+            .slice_mut(scirs2_core::ndarray::s![.., .., 2])
+            .assign(&entropy);
 
         Ok(features)
     }
@@ -697,8 +705,10 @@ impl ObjectProposalGenerator {
                     for y in (0..=scaled_height - box_height).step_by(self.stride) {
                         for x in (0..=scaled_width - box_width).step_by(self.stride) {
                             // Compute objectness score
-                            let roi = scaled_edges
-                                .slice(ndarray::s![y..y + box_height, x..x + box_width]);
+                            let roi = scaled_edges.slice(scirs2_core::ndarray::s![
+                                y..y + box_height,
+                                x..x + box_width
+                            ]);
 
                             let objectness = self.compute_objectness(&roi);
 
@@ -834,7 +844,7 @@ pub struct ObjectProposal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_learned_edge_detector() {
@@ -880,7 +890,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_semantic_feature_extractor() {
         let image = arr2(&[
             [0.0, 0.0, 1.0, 1.0],

@@ -6,8 +6,8 @@
 use crate::error::Result;
 use crate::layers::Layer;
 use crate::models::History;
-use ndarray::ScalarOperand;
-use num_traits::Float;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Enum for callback execution timing
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

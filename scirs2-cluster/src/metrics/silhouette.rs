@@ -1,7 +1,7 @@
 //! Silhouette coefficient for evaluating clustering quality
 
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::error::{ClusteringError, Result};
 use crate::vq::euclidean_distance;
@@ -62,7 +62,7 @@ where
             continue;
         }
 
-        let sample_i = data.slice(ndarray::s![i, ..]);
+        let sample_i = data.slice(scirs2_core::ndarray::s![i, ..]);
 
         // a(i): Mean distance to other samples in the same cluster
         let mut intra_dist_sum = F::zero();
@@ -76,7 +76,7 @@ where
                 // Same cluster - compute intra-cluster distance
                 for j in 0..n_samples {
                     if i != j && labels[j] == label_i {
-                        let sample_j = data.slice(ndarray::s![j, ..]);
+                        let sample_j = data.slice(scirs2_core::ndarray::s![j, ..]);
                         intra_dist_sum = intra_dist_sum + euclidean_distance(sample_i, sample_j);
                         intra_count += 1;
                     }
@@ -88,7 +88,7 @@ where
 
                 for j in 0..n_samples {
                     if labels[j] == cluster_label {
-                        let sample_j = data.slice(ndarray::s![j, ..]);
+                        let sample_j = data.slice(scirs2_core::ndarray::s![j, ..]);
                         cluster_dist_sum =
                             cluster_dist_sum + euclidean_distance(sample_i, sample_j);
                         cluster_count += 1;
@@ -160,7 +160,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_silhouette_samples() {

@@ -6,11 +6,11 @@
 
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::Array1;
-use rand::prelude::*;
-use rand::rngs::StdRng;
-use rand::seq::SliceRandom;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::seq::SliceRandom;
 use std::collections::HashMap;
 
 /// Cross-validation fold indices
@@ -37,7 +37,7 @@ pub type CrossValidationFolds = Vec<(Vec<usize>, Vec<usize>)>;
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_datasets::utils::{Dataset, train_test_split};
 ///
 /// let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect()).unwrap();
@@ -83,11 +83,13 @@ pub fn train_test_split(
     let test_indices = &indices[n_train..];
 
     // Create training dataset
-    let train_data = dataset.data.select(ndarray::Axis(0), train_indices);
+    let train_data = dataset
+        .data
+        .select(scirs2_core::ndarray::Axis(0), train_indices);
     let train_target = dataset
         .target
         .as_ref()
-        .map(|t| t.select(ndarray::Axis(0), train_indices));
+        .map(|t| t.select(scirs2_core::ndarray::Axis(0), train_indices));
 
     let mut train_dataset = Dataset::new(train_data, train_target);
     if let Some(featurenames) = &dataset.featurenames {
@@ -98,11 +100,13 @@ pub fn train_test_split(
     }
 
     // Create test dataset
-    let test_data = dataset.data.select(ndarray::Axis(0), test_indices);
+    let test_data = dataset
+        .data
+        .select(scirs2_core::ndarray::Axis(0), test_indices);
     let test_target = dataset
         .target
         .as_ref()
-        .map(|t| t.select(ndarray::Axis(0), test_indices));
+        .map(|t| t.select(scirs2_core::ndarray::Axis(0), test_indices));
 
     let mut test_dataset = Dataset::new(test_data, test_target);
     if let Some(featurenames) = &dataset.featurenames {
@@ -216,7 +220,7 @@ pub fn k_fold_split(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_datasets::utils::stratified_k_fold_split;
 ///
 /// let targets = Array1::from(vec![0.0, 0.0, 1.0, 1.0, 0.0, 1.0]);
@@ -395,7 +399,7 @@ pub fn time_series_split(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_train_test_split() {

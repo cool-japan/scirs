@@ -18,7 +18,7 @@ pub use spea2::SPEA2;
 
 use super::solutions::{MultiObjectiveResult, MultiObjectiveSolution, Population};
 use crate::error::OptimizeError;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Configuration for multi-objective optimization algorithms
 #[derive(Debug, Clone)]
@@ -182,7 +182,7 @@ impl OptimizerFactory {
 /// Utility functions for multi-objective optimization
 pub mod utils {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     /// Generate Das-Dennis reference points for NSGA-III
     pub fn generate_das_dennis_points(
@@ -288,8 +288,8 @@ pub mod utils {
         reference_point: &Array1<f64>,
         n_samples: usize,
     ) -> f64 {
-        use rand::prelude::*;
-        let mut rng = rand::rng();
+        use scirs2_core::random::prelude::*;
+        let mut rng = scirs2_core::random::rng();
         let n_objectives = reference_point.len();
 
         // Find bounds for sampling
@@ -343,7 +343,7 @@ pub mod utils {
             .map(|sol1| {
                 pareto_front
                     .iter()
-                    .filter(|sol2| sol1 as *const _ != *sol2 as *const _)
+                    .filter(|sol2| !std::ptr::eq(sol1, *sol2))
                     .map(|sol2| sol1.objective_distance(sol2))
                     .fold(f64::INFINITY, f64::min)
             })
@@ -387,8 +387,8 @@ pub mod utils {
         n_variables: usize,
         bounds: &Option<(Array1<f64>, Array1<f64>)>,
     ) -> Vec<Array1<f64>> {
-        use rand::prelude::*;
-        let mut rng = rand::rng();
+        use scirs2_core::random::prelude::*;
+        let mut rng = scirs2_core::random::rng();
         let mut population = Vec::with_capacity(size);
 
         let (lower, upper) = match bounds {
@@ -420,7 +420,7 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_config_default() {

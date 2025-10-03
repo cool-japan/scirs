@@ -4,8 +4,8 @@
 
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, ArrayView1};
-use rand::{rng, Rng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::{rng, Rng};
 // Unused import
 // use scirs2_core::error::CoreResult;
 
@@ -27,8 +27,9 @@ impl EvolutionaryStrategy {
     pub fn new(population_size: usize, dimensions: usize, sigma: f64) -> Self {
         let mut population = Vec::with_capacity(population_size);
         for _ in 0..population_size {
-            let individual =
-                Array1::from_shape_fn(dimensions, |_| rand::rng().random::<f64>() - 0.5);
+            let individual = Array1::from_shape_fn(dimensions, |_| {
+                scirs2_core::random::rng().random::<f64>() - 0.5
+            });
             population.push(individual);
         }
 
@@ -60,13 +61,13 @@ impl EvolutionaryStrategy {
 
         // Generate new population
         for i in elite_size..self.population_size {
-            let parent_idx = indices[rand::rng().random_range(0..elite_size)];
+            let parent_idx = indices[scirs2_core::random::rng().random_range(0..elite_size)];
             let parent = &self.population[parent_idx];
 
             // Mutate
             let mut offspring = parent.clone();
             for j in 0..offspring.len() {
-                offspring[j] += self.sigma * (rand::rng().random_range(-0.5..0.5));
+                offspring[j] += self.sigma * (scirs2_core::random::rng().random_range(-0.5..0.5));
             }
 
             self.population[i] = offspring;

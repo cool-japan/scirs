@@ -5,10 +5,10 @@
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution as ScirsDist};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand_distr::{ChiSquared as RandChiSquared, Distribution};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{ChiSquared as RandChiSquared, Distribution};
 use std::f64::consts::PI;
 
 /// Chi-square distribution structure

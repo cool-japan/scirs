@@ -14,7 +14,7 @@
 //! ## Examples
 //!
 //! ```
-//! use ndarray::{Array2, Array1, array};
+//! use scirs2_core::ndarray::{Array2, Array1, array};
 //! use scirs2_linalg::sparse_dense::{sparse_from_ndarray, sparse_dense_matvec};
 //!
 //! // Create a dense matrix and convert to sparse
@@ -31,12 +31,12 @@
 //! assert!(f64::abs(result[2] - 14.0) < 1e-10);
 //! ```
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{Add, Mul, Sub};
 
-use num_traits::{cast, Float, NumAssign, NumCast, Zero};
+use scirs2_core::numeric::{Float, NumAssign, NumCast, Zero};
 
 use crate::error::{LinalgError, LinalgResult};
 
@@ -206,8 +206,9 @@ where
     // Count non-zeros and fill data
     for (i, row) in array.axis_iter(Axis(0)).enumerate() {
         for (j, &val) in row.iter().enumerate() {
-            let val_abs: F = if let Some(v) = cast::<T, F>(val) {
-                v.abs()
+            let val_abs: F = if let Some(v) = NumCast::from(val) {
+                let v_typed: F = v;
+                v_typed.abs()
             } else {
                 F::zero()
             };
@@ -652,7 +653,7 @@ pub mod advanced {
             + Mul<Output = T>
             + PartialOrd
             + std::iter::Sum
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + NumAssign
             + Send
             + Sync,
@@ -691,7 +692,7 @@ pub mod advanced {
             + Sub<Output = T>
             + Mul<Output = T>
             + PartialOrd
-            + ndarray::ScalarOperand,
+            + scirs2_core::ndarray::ScalarOperand,
     {
         let n = a.nrows();
         if a.ncols() != n {
@@ -766,7 +767,7 @@ pub mod advanced {
             + Sub<Output = T>
             + Mul<Output = T>
             + PartialOrd
-            + ndarray::ScalarOperand,
+            + scirs2_core::ndarray::ScalarOperand,
     {
         // Extract diagonal for preconditioning
         let mut diag = Array1::zeros(a.nrows());
@@ -987,7 +988,7 @@ where
         + Mul<Output = T>
         + PartialOrd
         + std::iter::Sum
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + NumAssign
         + Send
         + Sync,
@@ -1045,7 +1046,7 @@ pub mod utils {
             + NumCast
             + NumAssign
             + std::iter::Sum
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + Send
             + Sync,
     {
@@ -1113,7 +1114,7 @@ use std::ops::Neg;
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_sparse_from_ndarray() {

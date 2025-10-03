@@ -3,10 +3,10 @@
 //! This module provides the main distributed K-means algorithm with
 //! support for multiple workers, fault tolerance, and load balancing.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive, Zero};
-use rand::prelude::*;
-use rand::seq::SliceRandom;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rand_prelude::IndexedRandom;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -249,20 +249,22 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync + 'static> DistributedKMeans
             self.update_convergence_history(iteration_time)?;
 
             // Check for rebalancing if needed
-            if self.config.enable_load_balancing && self.current_iteration % 10 == 0 {
+            if self.config.enable_load_balancing && self.current_iteration.is_multiple_of(10) {
                 self.check_and_rebalance(data, &mut stats)?;
             }
 
             // Create checkpoint if configured
             if self.config.enable_fault_tolerance
-                && self.current_iteration % self.config.checkpoint_interval == 0
+                && self
+                    .current_iteration
+                    .is_multiple_of(self.config.checkpoint_interval)
             {
                 self.create_checkpoint()?;
             }
 
             self.current_iteration += 1;
 
-            if self.config.verbose && self.current_iteration % 10 == 0 {
+            if self.config.verbose && self.current_iteration.is_multiple_of(10) {
                 println!(
                     "Iteration {}: inertia = {:.6}",
                     self.current_iteration, self.global_inertia
@@ -372,9 +374,9 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync + 'static> DistributedKMeans
 
     /// Random centroid initialization
     fn random_initialization(&self, data: ArrayView2<F>) -> Result<Array2<F>> {
-        use rand::seq::SliceRandom;
+        use scirs2_core::random::seq::SliceRandom;
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let data_indices: Vec<usize> = (0..data.nrows()).collect();
         let selected_indices: Vec<_> = data_indices
             .as_slice()
@@ -392,9 +394,9 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync + 'static> DistributedKMeans
 
     /// K-means++ centroid initialization
     fn kmeans_plus_plus_initialization(&self, data: ArrayView2<F>) -> Result<Array2<F>> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut centroids = Array2::zeros((self.k, data.ncols()));
 
         // Choose first centroid randomly
@@ -846,7 +848,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync + 'static> DistributedKMeans
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_distributed_kmeans_creation() {

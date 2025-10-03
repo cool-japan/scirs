@@ -7,8 +7,8 @@
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
 use crate::models::Model;
-use ndarray::{Array, ArrayD, Dimension, IxDyn, Zip, Axis, s};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ArrayD, Dimension, IxDyn, Zip, Axis, s};
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -133,7 +133,7 @@ pub fn compute_batch_attribution<F, M>(
     config: &AttributionConfig,
 ) -> Result<ArrayD<F>>
 where
-    F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimitive + Sum + Clone + Copy + Send + Sync,
+    F: Float + Debug + 'static + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive + Sum + Clone + Copy + Send + Sync,
     M: Model<F> + Sync,
 {
     if inputs.ndim() < 2 {
@@ -174,7 +174,7 @@ where
 #[allow(dead_code)]
 fn compute_single_attribution<F, M>(
     input: &ArrayD<F>,
-    F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimitive + Sum + Clone + Copy,
+    F: Float + Debug + 'static + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive + Sum + Clone + Copy,
     M: Model<F>,
     match method {
         AttributionMethod::Saliency => {
@@ -214,8 +214,8 @@ pub fn compute_saliency_attribution<F>(
     F: Float
         + Debug
         + 'static
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
         + Sum
         + Clone
         + Copy,
@@ -560,18 +560,18 @@ pub fn compute_gradcam_attribution<F>(
     let mut weights = Vec::new();
     let num_channels = activations.shape()[1];
     for c in 0..num_channels {
-        let channel_grad = gradients.index_axis(ndarray::Axis(1), c);
+        let channel_grad = gradients.index_axis(scirs2_core::ndarray::Axis(1), c);
         let weight = channel_grad.mean().unwrap_or(F::zero());
         weights.push(weight);
     // Compute weighted combination of activation maps
     let first_channel = activations
-        .index_axis(ndarray::Axis(1), 0)
+        .index_axis(scirs2_core::ndarray::Axis(1), 0)
         .to_owned()
         .into_dyn();
     let mut gradcam = Array::zeros(first_channel.raw_dim());
     for (c, &weight) in weights.iter().enumerate().take(num_channels) {
         let channel_activation = activations
-            .index_axis(ndarray::Axis(1), c)
+            .index_axis(scirs2_core::ndarray::Axis(1), c)
             .to_owned()
             .into_dyn();
         let weighted_activation = channel_activation * weight;
@@ -611,7 +611,7 @@ pub fn compute_shap_attribution<F>(
     for _ in 0..num_samples {
         // Create random coalition
         let coalition_mask = input.mapv(|_| {
-            if rand::random::<f64>() > 0.5 {
+            if scirs2_core::random::random::<f64>() > 0.5 {
                 F::one()
             } else {
                 F::zero()
@@ -662,9 +662,9 @@ pub fn create_baseline<F>(input: &ArrayD<F>, baseline: &BaselineMethod) -> Resul
         BaselineMethod::Zero => Ok(Array::zeros(_input.raw_dim())),
         BaselineMethod::Random { seed: _ } => {
             // Generate random baseline (simplified)
-            Ok(input.mapv(|_| F::from(rand::random::<f64>()).unwrap())), BaselineMethod::GaussianBlur { sigma: _ } => {
+            Ok(input.mapv(|_| F::from(scirs2_core::random::random::<f64>()).unwrap())), BaselineMethod::GaussianBlur { sigma: _ } => {
             // Gaussian blur baseline (simplified - just add small noise)
-            Ok(input.mapv(|x| x + F::from(rand::random::<f64>() * 0.1).unwrap())), BaselineMethod::TrainingMean => {
+            Ok(input.mapv(|x| x + F::from(scirs2_core::random::random::<f64>() * 0.1).unwrap())), BaselineMethod::TrainingMean => {
             // Training mean baseline (simplified - use zeros)
             Ok(Array::zeros(input.raw_dim())), BaselineMethod::Custom(custom_baseline) => {
             // Convert f32 custom baseline to F type
@@ -698,7 +698,7 @@ fn resize_attribution<F>(_attribution: &ArrayD<F>, targetdim: IxDyn) -> Result<A
         // Same dimensions - direct copy with size adjustment
         let attrshape = attribution.shape();
         // Copy elements up to the minimum size in each dimension
-        for idx in ndarray::indices(&target_dim) {
+        for idx in scirs2_core::ndarray::indices(&target_dim) {
             let idx_slice = idx.as_slice().unwrap();
             let mut attr_idx = vec![0; attr_ndim];
             // Map indices, clamping to attribution bounds
@@ -718,14 +718,14 @@ fn resize_attribution<F>(_attribution: &ArrayD<F>, targetdim: IxDyn) -> Result<A
 pub fn compute_smoothgrad_attribution<F>(
     base_method: &AttributionMethod,
     noise_std: f64,
-    use rand::prelude::*;
+    use scirs2_core::random::prelude::*;
 use statrs::statistics::Statistics;
     let mut rng = rng();
     let noise_std_f = F::from(noise_std).unwrap();
     let mut accumulated_attribution = ArrayD::zeros(input.raw_dim());
         // Add Gaussian noise to input
         let noise: ArrayD<F> = input.mapv(|_| {
-            let gaussian: f64 = rng.sample(rand_distr::StandardNormal);
+            let gaussian: f64 = rng.sample(scirs2_core::random::StandardNormal);
             F::from(gaussian * noise_std).unwrap()
         let noisy_input = input + &noise;
         // Compute attribution for noisy input
@@ -756,7 +756,7 @@ pub fn compute_expected_gradients_attribution<F>(
             0 => {
                 // Gaussian noise around input
                 input.mapv(|x| {
-                    let noise: f64 = rng.sample(rand_distr::StandardNormal);
+                    let noise: f64 = rng.sample(scirs2_core::random::StandardNormal);
                     x + F::from(noise * 0.1).unwrap()
                 })
             1 => {
@@ -873,7 +873,7 @@ fn generate_occlusion_positions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
     #[test]
     fn test_baseline_creation() {
         let input = Array::ones((2, 3, 4)).into_dyn();
@@ -926,11 +926,11 @@ pub fn compute_input_x_gradient_attribution_optimized<F, M>(
 /// Optimized SmoothGrad attribution
 #[allow(dead_code)]
 pub fn compute_smoothgrad_attribution_optimized<F, M>(
-    use rand_distr::StandardNormal;
+    use scirs2_core::random::StandardNormal;
     // Generate all noise samples upfront for better parallelization
     let noise_samples: Vec<ArrayD<F>> = (0..num_samples)
         .map(|_| {
-            use rand::prelude::*;
+            use scirs2_core::random::prelude::*;
             let mut rng = rng();
             input.mapv(|_| {
                 let gaussian: f64 = rng.sample(StandardNormal);

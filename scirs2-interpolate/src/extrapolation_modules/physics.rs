@@ -3,7 +3,7 @@
 //! This module provides extrapolation methods that incorporate physical laws
 //! and boundary conditions to ensure physically realistic extrapolation.
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::default::Default;
 use std::ops::AddAssign;
 

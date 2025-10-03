@@ -8,8 +8,8 @@ use crate::lombscargle::lombscargle;
 use crate::lombscargle_enhanced::{lombscargle_enhanced, LombScargleConfig, WindowType};
 use super::types::{EnhancedValidationConfig, EnhancedValidationResult, SciPyComparisonResult};
 use super::analytical::validate_analytical_cases;
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 use std::time::Instant;
 
 /// Enhanced validation with comprehensive testing including SciPy reference comparison,
@@ -128,7 +128,7 @@ fn validate_against_scipy_reference(
         // Generate test signal
         let n = 1000;
         let t: Vec<f64> = (0..n)
-            .map(|i| i as f64 * 0.01 + rand::rng().random_range(0.0..0.001))
+            .map(|i| i as f64 * 0.01 + scirs2_core::random::rng().random_range(0.0..0.001))
             .collect();
         let freq1 = 0.5;
         let freq2 = 1.5;
@@ -258,7 +258,7 @@ fn validate_noise_robustness(config: &EnhancedValidationConfig) -> SignalResult<
         let noise_power = signal_power / snr_linear;
         let noise_std = noise_power.sqrt();
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let noisy_signal: Vec<f64> = clean_signal
             .iter()
             .map(|&s| s + noise_std * rng.gen_range(-1.0..1.0))

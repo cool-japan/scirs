@@ -1,5 +1,5 @@
-use ndarray::{Array1, Array2, Array3};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::random::Rng;
 use std::fs::File;
 use std::io::Write;
 
@@ -257,7 +257,7 @@ fn generate_test_signal() -> (Array1<f64>, Array1<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let noise_level = 0.15;
     let mut noisy_signal = clean_signal.clone();
 
@@ -313,7 +313,7 @@ fn generate_test_image() -> (Array2<f64>, Array2<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let noise_level = 0.1;
     let mut noisy_image = clean_image.clone();
 
@@ -377,7 +377,7 @@ fn generate_color_image() -> (Array3<f64>, Array3<f64>) {
     }
 
     // Add noise
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let noise_level = 0.1;
     let mut noisy_image = clean_image.clone();
 
@@ -406,7 +406,7 @@ fn generate_inpainting_image() -> (Array2<f64>, Array2<f64>) {
     let mut corrupted_image = clean_image.clone();
 
     // Create a random mask for missing pixels
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let missing_ratio = 0.3; // 30% of pixels will be missing
 
     for i in 0..height {

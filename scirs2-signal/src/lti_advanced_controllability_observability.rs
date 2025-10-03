@@ -12,8 +12,8 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lti::analysis::KalmanDecomposition;
 use crate::lti::systems::StateSpace;
-use ndarray::{Array1, Array2, Array3};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_finite;
 

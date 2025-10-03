@@ -9,7 +9,7 @@ use crate::ode::utils::interpolation::{
     cubic_hermite_interpolation, linear_interpolation, ContinuousOutputMethod,
 };
 use crate::IntegrateFloat;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::fmt::Debug;
 
 /// Type alias for derivative function

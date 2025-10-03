@@ -6,9 +6,9 @@ use crate::error::{StatsError, StatsResult};
 use crate::error_messages::{helpers, validation};
 use crate::sampling::SampleableDistribution;
 use crate::traits::{ContinuousDistribution, Distribution};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand_distr::{Distribution as RandDistribution, Normal as RandNormal};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::{Distribution as RandDistribution, Normal as RandNormal};
 
 /// Normal distribution structure
 pub struct Normal<F: Float> {
@@ -210,7 +210,7 @@ impl<F: Float + NumCast + std::fmt::Display> Normal<F> {
     /// assert_eq!(samples.len(), 1000);
     /// ```
     pub fn rvs(&self, size: usize) -> StatsResult<Array1<F>> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut samples = Vec::with_capacity(size);
 
         for _ in 0..size {

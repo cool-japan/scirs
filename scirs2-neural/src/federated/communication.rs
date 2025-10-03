@@ -1,7 +1,7 @@
 //! Communication protocols for federated learning
 
 use crate::error::Result;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 /// Communication protocol trait
 pub trait CommunicationProtocol: Send + Sync {

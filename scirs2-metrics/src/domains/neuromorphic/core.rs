@@ -6,8 +6,8 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use ndarray::Array2;
-use num_traits::Float;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};

@@ -7,7 +7,7 @@ use arrow::array::{
 };
 use arrow::datatypes::{ArrowPrimitiveType, DataType, Field, Schema};
 use arrow::record_batch::RecordBatch;
-use ndarray::{Array1, ArrayBase, Data as NdData, Dimension};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data as NdData, Dimension};
 use std::sync::Arc;
 
 /// Convert ndarray to Arrow RecordBatch
@@ -52,12 +52,15 @@ where
 
 /// Trait for types that can be converted to Arrow arrays
 pub trait ToArrowArray: Sized {
+    /// Convert a slice of data to an Arrow array
     fn to_arrow_array(data: &[Self]) -> Result<ArrayRef>;
+    /// Get the Arrow data type for this type
     fn arrow_data_type() -> DataType;
 }
 
 /// Trait for types that can be extracted from Arrow arrays
 pub trait FromArrowArray: Sized {
+    /// Extract data from an Arrow array into an ndarray
     fn from_arrow_array(array: &ArrayRef) -> Result<Array1<Self>>;
 }
 

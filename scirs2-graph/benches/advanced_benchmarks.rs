@@ -111,7 +111,7 @@ impl BenchmarkResults {
 /// Generate test graphs for benchmarking
 #[allow(dead_code)]
 fn generate_test_graph(size: usize, density: f64) -> Graph<i32, f64> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let graph = erdos_renyi_graph(size, density, &mut rng).unwrap();
 
     // Convert Graph<usize, f64> to Graph<i32, f64>
@@ -381,16 +381,15 @@ fn benchmark_advanced_comprehensive(c: &mut Criterion) {
             &(&graph, &config),
             |b, (g, _cfg)| {
                 b.iter(|| {
-                    black_box(
-                        execute_with_advanced(g, |graph| {
-                            // Run multiple algorithms in sequence
-                            let _components = connected_components(graph);
-                            let _pagerank = pagerank_centrality(graph, 0.85, 1e-6)?;
-                            let _communities = louvain_communities_result(graph);
-                            Ok(())
-                        })
-                        .unwrap(),
-                    )
+                    let _: () = execute_with_advanced(g, |graph| {
+                        // Run multiple algorithms in sequence
+                        let _components = connected_components(graph);
+                        let _pagerank = pagerank_centrality(graph, 0.85, 1e-6)?;
+                        let _communities = louvain_communities_result(graph);
+                        Ok(())
+                    })
+                    .unwrap();
+                    black_box(())
                 })
             },
         );
@@ -414,7 +413,7 @@ fn benchmark_memory_efficiency(c: &mut Criterion) {
                 let start = Instant::now();
                 for _ in 0..iters {
                     let _result = pagerank_centrality(g, 0.85, 1e-6);
-                    black_box(_result);
+                    let _ = black_box(_result);
                 }
                 start.elapsed()
             })
@@ -432,7 +431,7 @@ fn benchmark_memory_efficiency(c: &mut Criterion) {
                         let _result = execute_with_advanced(g, |graph| {
                             pagerank_centrality(graph, 0.85, 1e-6)
                         });
-                        black_box(_result);
+                        let _ = black_box(_result);
                     }
                     start.elapsed()
                 })

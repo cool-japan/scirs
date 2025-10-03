@@ -3,9 +3,9 @@
 //! This example shows the enhanced kmeans2 function that provides
 //! compatibility with SciPy's kmeans2 interface.
 
-use ndarray::Array2;
 use scirs2_cluster::metrics::silhouette_score;
 use scirs2_cluster::vq::{kmeans2, whiten, MinitMethod, MissingMethod};
+use scirs2_core::ndarray::Array2;
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -116,24 +116,24 @@ fn generate_sample_data() -> Array2<f64> {
 
     // Cluster 1
     for _ in 0..30 {
-        let x = rand::random::<f64>() * 2.0 - 1.0;
-        let y = rand::random::<f64>() * 2.0 - 1.0;
+        let x = scirs2_core::random::random::<f64>() * 2.0 - 1.0;
+        let y = scirs2_core::random::random::<f64>() * 2.0 - 1.0;
         data.push(x);
         data.push(y);
     }
 
     // Cluster 2
     for _ in 0..30 {
-        let x = 5.0 + rand::random::<f64>() * 2.0 - 1.0;
-        let y = 5.0 + rand::random::<f64>() * 2.0 - 1.0;
+        let x = 5.0 + scirs2_core::random::random::<f64>() * 2.0 - 1.0;
+        let y = 5.0 + scirs2_core::random::random::<f64>() * 2.0 - 1.0;
         data.push(x);
         data.push(y);
     }
 
     // Cluster 3
     for _ in 0..30 {
-        let x = -3.0 + rand::random::<f64>() * 2.0 - 1.0;
-        let y = 4.0 + rand::random::<f64>() * 2.0 - 1.0;
+        let x = -3.0 + scirs2_core::random::random::<f64>() * 2.0 - 1.0;
+        let y = 4.0 + scirs2_core::random::random::<f64>() * 2.0 - 1.0;
         data.push(x);
         data.push(y);
     }
@@ -142,7 +142,7 @@ fn generate_sample_data() -> Array2<f64> {
 }
 
 #[allow(dead_code)]
-fn get_unique_labels(labels: &ndarray::Array1<usize>) -> Vec<usize> {
+fn get_unique_labels(labels: &scirs2_core::ndarray::Array1<usize>) -> Vec<usize> {
     let mut unique = labels.to_vec();
     unique.sort();
     unique.dedup();

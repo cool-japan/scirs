@@ -2,8 +2,8 @@
 
 use crate::activations::Activation;
 use crate::error::Result;
-use ndarray::{Array, Zip};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Zip};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Mish activation function.
 ///
@@ -15,7 +15,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::activations::Mish;
 /// use scirs2_neural::activations::Activation;
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// let mish = Mish::new();
 /// let input = Array::from_vec(vec![1.0, -1.0, 2.0, -2.0]).into_dyn();
 /// let output = mish.forward(&input).unwrap();
@@ -34,7 +34,7 @@ impl Default for Mish {
 }
 
 impl<F: Float + Debug> Activation<F> for Mish {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut output = input.clone();
         // Compute x * tanh(softplus(x)) = x * tanh(ln(1 + e^x))
         Zip::from(&mut output).for_each(|x| {
@@ -54,9 +54,9 @@ impl<F: Float + Debug> Activation<F> for Mish {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // We need to compute the derivative of Mish: d(mish)/dx
         let mut grad_input = Array::zeros(grad_output.raw_dim());
         // We need the original x to compute the derivative accurately

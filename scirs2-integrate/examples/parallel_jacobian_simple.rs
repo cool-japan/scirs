@@ -4,8 +4,8 @@
 //! without depending on other parts of the codebase. It compares the performance
 //! of serial vs parallel Jacobian computation for a large ODE system.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::time::Instant;
 

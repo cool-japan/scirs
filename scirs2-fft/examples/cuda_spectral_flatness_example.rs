@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use scirs2_core::random::prelude::*;
 use scirs2_core::Complex64;
 use scirs2_fft::{

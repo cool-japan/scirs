@@ -8,7 +8,7 @@ use crate::error::{LinalgError, LinalgResult};
 use super::{MPICommunicator, MPIDatatype, MPIReduceOp};
 use super::topology::TreeTopology;
 use super::communicator::DistributedMatrix;
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::ffi::{c_int, c_void};

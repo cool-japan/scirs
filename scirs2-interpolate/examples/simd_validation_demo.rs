@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     // Also run default validation for f32
-    println!("{}", format!("\n{}", "=".repeat(50)));
+    println!("\n{}", "=".repeat(50));
     println!("Running default f32 validation...");
 
     match run_simd_validation::<f32>() {

@@ -6,7 +6,7 @@ use crate::database::{
 };
 use crate::error::{IoError, Result};
 use duckdb::{params_from_iter, Connection as DuckdbConn, ToSql};
-use ndarray::ArrayView2;
+use scirs2_core::ndarray::ArrayView2;
 use std::sync::{Arc, Mutex};
 
 /// DuckDB connection wrapper

@@ -6,7 +6,7 @@
 //! - Working with different matrix types and symmetries
 //! - Converting between different representations
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_io::error::Result;
 use scirs2_io::matrix_market::{
     coo_to_sparse, read_dense_matrix, read_sparse_matrix, sparse_to_coo, write_dense_matrix,

@@ -8,9 +8,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Dropout, Embedding, EmbeddingConfig, Layer, LayerNorm};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::SeedableRng;
 use std::fmt::Debug;
 /// Configuration for a GPT model
 #[derive(Debug, Clone)]
@@ -107,7 +107,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> GPTEmbeddings<F> {
         let position_embeddings = Embedding::new(position_embedding_config)?;
         // Dropout
         let dropout_prob = config.hidden_dropout_prob;
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let dropout = Dropout::new(dropout_prob, &mut rng)?;
         Ok(Self {
             token_embeddings,

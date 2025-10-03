@@ -20,7 +20,7 @@
 //! - Financial modeling and risk analysis
 //! - Epidemiological modeling and population studies
 
-use ndarray::{array, Array2, ArrayView2};
+use scirs2_core::ndarray::{array, Array2, ArrayView2};
 use scirs2_linalg::matrix_dynamics::{
     lyapunov_solve, matrix_exp_action, matrix_ode_solve, quantum_evolution, riccati_solve,
     stability_analysis, DynamicsConfig,

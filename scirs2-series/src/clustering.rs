@@ -8,7 +8,7 @@
 
 use crate::correlation::{CorrelationAnalyzer, DTWConfig};
 use crate::error::TimeSeriesError;
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use std::collections::{HashMap, HashSet};
 
 /// Result type for clustering and classification
@@ -1363,7 +1363,7 @@ impl Default for TimeSeriesClusterer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_kmeans_clustering() {

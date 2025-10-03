@@ -14,10 +14,10 @@
 //! - **Quantum Walk-Based Edge Detection**: Novel edge detection using quantum random walks
 //! - **Quantum Amplitude Amplification**: Enhanced feature detection through amplitude amplification
 
-use ndarray::{Array1, Array2, Array3, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::Rng;
 use std::f64::consts::PI;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -341,7 +341,7 @@ where
 {
     let (height, width) = superposition.dim();
     let mut measured = Array2::zeros((height, width));
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Apply quantum measurement with decoherence
     for y in 0..height {
@@ -514,7 +514,7 @@ where
     T: Float + FromPrimitive + Copy,
 {
     let (height, width) = segmentation.dim();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Apply quantum tunneling moves
     for y in 0..height {
@@ -550,7 +550,7 @@ fn apply_quantum_decoherence<T>(
 ) -> NdimageResult<()> {
     // Apply decoherence effects - simplified model
     let (height, width) = segmentation.dim();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for y in 0..height {
         for x in 0..width {
@@ -577,7 +577,7 @@ where
     let (height, width) = image.dim();
     let (mut y, mut x) = start_pos;
     let mut edge_strength = T::zero();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..steps {
         // Quantum walk step with superposition of directions
@@ -1163,7 +1163,7 @@ where
 {
     let param_count = _numlayers * 3; // 3 parameters per layer
     let mut parameters = Array1::zeros(param_count);
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Initialize with small random values
     for i in 0..param_count {
@@ -1290,7 +1290,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_quantum_superposition_filter() {
@@ -1397,8 +1397,10 @@ mod tests {
             Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
                 .unwrap();
 
-        let mut config = QuantumConfig::default();
-        config.iterations = 5; // Reduce iterations for testing
+        let config = QuantumConfig {
+            iterations: 5, // Reduce iterations for testing
+            ..Default::default()
+        };
 
         let result = quantum_variational_enhancement(image.view(), 2, &config).unwrap();
 

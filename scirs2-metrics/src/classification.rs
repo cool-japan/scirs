@@ -13,7 +13,7 @@
 //! Cohen's kappa, Brier score, Jaccard similarity, and Hamming loss.
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::classification::advanced::{matthews_corrcoef, balanced_accuracy_score};
 //!
 //! let y_true = array![0, 1, 2, 0, 1, 2];
@@ -29,7 +29,7 @@
 //! considering each pair of classes separately.
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::classification::one_vs_one::{one_vs_one_accuracy, one_vs_one_f1_score};
 //!
 //! let y_true = array![0, 1, 2, 0, 1, 2];
@@ -45,8 +45,8 @@ pub mod one_vs_one;
 pub mod threshold;
 pub mod threshold_analyzer;
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Dimension};
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Dimension};
+use scirs2_core::numeric::NumCast;
 
 use crate::error::{MetricsError, Result};
 
@@ -98,7 +98,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::accuracy_score;
 ///
 /// let y_true = array![0, 1, 2, 3];
@@ -164,7 +164,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::confusion_matrix;
 ///
 /// let y_true = array![0, 1, 2, 0, 1, 2];
@@ -308,7 +308,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::precision_score;
 ///
 /// let y_true = array![0, 1, 0, 0, 1, 1];
@@ -435,7 +435,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::recall_score;
 ///
 /// let y_true = array![0, 1, 0, 0, 1, 1];
@@ -574,7 +574,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::f1_score;
 ///
 /// let y_true = array![0, 1, 0, 0, 1, 1];
@@ -623,7 +623,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::fbeta_score;
 ///
 /// let y_true = array![0, 1, 0, 0, 1, 1];
@@ -684,7 +684,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::binary_log_loss;
 ///
 /// let y_true = array![0, 1, 1, 0];
@@ -753,7 +753,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::roc_auc_score;
 ///
 /// let y_true = array![0, 0, 1, 1];
@@ -870,7 +870,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::lift_chart;
 ///
 /// let y_true = array![0, 0, 1, 0, 1, 1, 0, 1, 0, 1];
@@ -1000,7 +1000,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::gain_chart;
 ///
 /// let y_true = array![0, 0, 1, 0, 1, 1, 0, 1, 0, 1];
@@ -1040,7 +1040,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::classification_report;
 ///
 /// let y_true = array![0, 1, 2, 0, 1, 2];
@@ -1133,7 +1133,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_accuracy_score() {

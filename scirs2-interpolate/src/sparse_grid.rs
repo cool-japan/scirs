@@ -31,7 +31,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::{Array1, Array2};
+//! use scirs2_core::ndarray::{Array1, Array2};
 //! use scirs2_interpolate::sparse_grid::{SparseGridInterpolator, SparseGridBuilder};
 //!
 //! // Create a 5D test function
@@ -52,8 +52,8 @@
 //! ```
 
 use crate::error::{InterpolateError, InterpolateResult};
-// use ndarray::Array1; // Not currently used
-use num_traits::{Float, FromPrimitive, Zero};
+// use scirs2_core::ndarray::Array1; // Not currently used
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, MulAssign};

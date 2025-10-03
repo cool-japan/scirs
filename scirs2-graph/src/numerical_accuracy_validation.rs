@@ -667,19 +667,19 @@ impl AdvancedNumericalValidator {
             } => erdos_renyi_graph(
                 *nodes,
                 *edges as f64 / (*nodes * (*nodes - 1) / 2) as f64,
-                &mut rand::rng(),
+                &mut scirs2_core::random::rng(),
             ),
             GraphGenerator::ErdosRenyi { nodes, probability } => {
-                erdos_renyi_graph(*nodes, *probability, &mut rand::rng())
+                erdos_renyi_graph(*nodes, *probability, &mut scirs2_core::random::rng())
             }
             GraphGenerator::BarabasiAlbert {
                 nodes,
                 edges_per_node,
-            } => barabasi_albert_graph(*nodes, *edges_per_node, &mut rand::rng()),
+            } => barabasi_albert_graph(*nodes, *edges_per_node, &mut scirs2_core::random::rng()),
             GraphGenerator::SmallWorld { nodes, k: _, p: _ } => {
                 // For now, approximate with Erdős-Rényi
                 // In a full implementation, we'd have a proper small-world generator
-                erdos_renyi_graph(*nodes, 6.0 / *nodes as f64, &mut rand::rng())
+                erdos_renyi_graph(*nodes, 6.0 / *nodes as f64, &mut scirs2_core::random::rng())
             }
             GraphGenerator::Complete { nodes } => {
                 let mut graph = Graph::new();

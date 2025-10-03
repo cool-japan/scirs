@@ -33,9 +33,9 @@ pub use search_algorithms::{
 pub use search_space::{SearchSpace, SearchSpaceConfig};
 use crate::error::Result;
 use crate::models::sequential::Sequential;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::sync::Arc;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// Configuration for Neural Architecture Search
 pub struct NASConfig {
     /// Search space configuration

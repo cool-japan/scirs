@@ -1,7 +1,7 @@
 //! Tests for trigonometric matrix functions
 
 use super::super::trigonometric::*;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_cosm_zero() {

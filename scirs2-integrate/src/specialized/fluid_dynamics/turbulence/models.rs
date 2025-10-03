@@ -5,7 +5,7 @@
 //! base functionality shared across different turbulence models.
 
 use crate::error::IntegrateResult;
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 
 /// Turbulence model types supported by the framework
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

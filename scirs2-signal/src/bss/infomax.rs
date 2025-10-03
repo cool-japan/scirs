@@ -1,13 +1,13 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Infomax and Extended Infomax implementations for ICA
 //
 // This module implements Infomax-based algorithms for blind source separation.
 
 use super::BssConfig;
 use crate::error::SignalResult;
-use ndarray::Array2;
-use rand::SeedableRng;
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::SeedableRng;
+use scirs2_core::random::{Distribution, Normal};
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -34,11 +34,11 @@ pub fn infomax_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64([seed as u8; 32])
+        scirs2_core::random::rngs::StdRng::seed_from_u64([seed as u8; 32])
     } else {
         {
             // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
-            rand::rngs::StdRng::from_rng(&mut rand::rng())
+            scirs2_core::random::rngs::StdRng::from_rng(&mut scirs2_core::random::rng())
         }
     };
 
@@ -136,11 +136,11 @@ pub fn extended_infomax_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64([seed as u8; 32])
+        scirs2_core::random::rngs::StdRng::seed_from_u64([seed as u8; 32])
     } else {
         {
             // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
-            rand::rngs::StdRng::from_rng(&mut rand::rng())
+            scirs2_core::random::rngs::StdRng::from_rng(&mut scirs2_core::random::rng())
         }
     };
 

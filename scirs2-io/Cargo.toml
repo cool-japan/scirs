@@ -13,8 +13,8 @@ categories = ["science", "encoding"]
 workspace = true
 
 [dependencies]
-ndarray = { workspace = true }
-scirs2-core = { workspace = true, features = ["parallel", "simd", "gpu"] }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["parallel", "simd", "gpu", "array", "random"] }
 byteorder = { workspace = true }
 image = { workspace = true }
 serde = { workspace = true }
@@ -25,7 +25,6 @@ flate2 = { workspace = true }
 lz4 = { workspace = true }
 zstd = { workspace = true }
 bzip2 = { workspace = true }
-rand = { workspace = true }
 sha2 = { workspace = true }
 crc32fast = { workspace = true }
 blake3 = { workspace = true }
@@ -34,7 +33,6 @@ digest = { workspace = true }
 data-encoding = { workspace = true }
 chrono = { workspace = true }
 tempfile = { workspace = true }
-num-complex = { workspace = true }
 regex = { workspace = true }
 glob = { workspace = true }
 netcdf3 = { workspace = true }
@@ -61,7 +59,6 @@ arrow-cast = { workspace = true, optional = true }
 parquet = { workspace = true, optional = true }
 serde_yaml = { workspace = true }
 toml = { workspace = true }
-num-traits = { workspace = true }
 uuid = { workspace = true, features = ["v4", "serde"] }
 urlencoding = { workspace = true }
 crossbeam-channel = { workspace = true }

@@ -1,6 +1,6 @@
 use plotly::common::Mode;
 use plotly::{Plot, Scatter};
-use rand::Rng;
+use scirs2_core::random::Rng;
 use scirs2_signal::dwt::Wavelet;
 use scirs2_signal::swt::{iswt, swt};
 use scirs2_signal::waveforms::chirp;
@@ -13,7 +13,7 @@ fn main() {
     let signal = chirp(&t, 0.0, 1.0, 100.0, "linear", 0.5).unwrap();
 
     // Add some noise to the signal
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let noisy_signal = signal
         .iter()
         .map(|&x| x + 0.1 * (rng.random::<f64>() * 2.0 - 1.0))

@@ -13,21 +13,12 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core dependencies
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
-thiserror = { workspace = true }
-# Linear algebra for PCA and other multivariate methods
-ndarray-linalg = { workspace = true, default-features = false, features = ["openblas-system"] }
-scirs2-core = { workspace = true, features = ["validation", "parallel", "simd", "linalg", "random"] }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["validation", "parallel", "simd", "linalg", "random", "array"] }
 scirs2-linalg = { workspace = true }
+thiserror = { workspace = true }
 
 # Statistics specific dependencies
-rand = { workspace = true }
-rand_distr = { workspace = true }
-rand_pcg = { workspace = true }
-rand_chacha = { workspace = true }
 statrs = { workspace = true }
 special = { workspace = true }
 num_cpus = { workspace = true }
@@ -46,14 +37,16 @@ quickcheck = { workspace = true }
 quickcheck_macros = { workspace = true }
 rand = { workspace = true }
 approx = { workspace = true }
+# NOTE: ndarray-linalg is already included via scirs2-core/scirs2-linalg dependencies
+# Adding it in dev-dependencies causes duplicate resolution and linker conflicts in doctests
 
 [features]
 default = []
 # BLAS backends - these are mutually exclusive, managed through scirs2-core
-openblas = ["scirs2-core/openblas"]
-accelerate = ["scirs2-core/accelerate"]  # System BLAS (Accelerate on macOS)
-# intel-mkl = ["scirs2-core/intel-mkl"]  # Removed due to conflicts with openblas
-netlib = ["scirs2-core/netlib"]
+openblas = ["scirs2-core/openblas"]  # System OpenBLAS (Linux/Windows)
+netlib = ["scirs2-core/netlib"]  # System Netlib BLAS
+# NOTE: macOS automatically uses Accelerate framework (no explicit feature needed)
+# NOTE: intel-mkl removed due to conflicts with system BLAS
 # Memory mapping support for large files
 memmap = []
 

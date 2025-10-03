@@ -3,8 +3,8 @@
 use crate::activations::Activation;
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::{Array, IxDyn, ScalarOperand, Zip};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand, Zip};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Swish activation function, also known as SiLU (Sigmoid-weighted Linear Unit).
@@ -16,7 +16,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::activations::Swish;
 /// use scirs2_neural::activations::Activation;
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// 
 /// let swish = Swish::new(1.0);
 /// let input = Array::from_vec(vec![1.0, -1.0, 2.0, -2.0]).into_dyn();
@@ -45,7 +45,7 @@ impl Default for Swish {
 }
 
 impl<F: Float + Debug> Activation<F> for Swish {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let beta = F::from(self.beta).ok_or_else(|| {
             NeuralError::InferenceError(
                 "Could not convert beta to the required float type".to_string(),
@@ -65,9 +65,9 @@ impl<F: Float + Debug> Activation<F> for Swish {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        input: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let beta = F::from(self.beta).ok_or_else(|| {
             NeuralError::InferenceError(
                 "Could not convert beta to the required float type".to_string(),

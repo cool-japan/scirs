@@ -3,10 +3,13 @@
 //! This module provides CUDA-specific implementations for GPU-accelerated
 //! image processing operations.
 
+// Allow unused unsafe blocks for CUDA fallback functions
+#![allow(unused_unsafe)]
+
 use crate::backend::kernels::{GpuBuffer, GpuKernelExecutor, KernelInfo};
 use crate::error::{NdimageError, NdimageResult};
-use ndarray::{Array, ArrayView2, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView2, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::ffi::{c_char, c_void, CStr, CString};
 use std::fmt::Debug;
@@ -93,11 +96,13 @@ extern "C" {
 }
 
 // Fallback function declarations for non-CUDA platforms
+// These function names must match CUDA API exactly
 #[cfg(not(all(
     feature = "cuda",
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaMalloc(_dev_ptr: *mut *mut c_void, _size: usize) -> i32 {
     CUDA_SUCCESS
 }
@@ -107,6 +112,7 @@ fn cudaMalloc(_dev_ptr: *mut *mut c_void, _size: usize) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaFree(_dev_ptr: *mut c_void) -> i32 {
     CUDA_SUCCESS
 }
@@ -116,6 +122,7 @@ fn cudaFree(_dev_ptr: *mut c_void) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaMemcpyAsync(
     _dst: *mut c_void,
     _src: *const c_void,
@@ -131,6 +138,7 @@ fn cudaMemcpyAsync(
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaStreamCreate(_stream: *mut *mut c_void) -> i32 {
     CUDA_SUCCESS
 }
@@ -140,6 +148,7 @@ fn cudaStreamCreate(_stream: *mut *mut c_void) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaGetLastError() -> i32 {
     CUDA_SUCCESS
 }
@@ -149,6 +158,7 @@ fn cudaGetLastError() -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaGetErrorString(_error: i32) -> *const c_char {
     b"No error (fallback)\0".as_ptr() as *const c_char
 }
@@ -158,6 +168,7 @@ fn cudaGetErrorString(_error: i32) -> *const c_char {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaGetDeviceCount(_count: *mut i32) -> i32 {
     unsafe {
         *_count = 1; // Simulate 1 device
@@ -170,6 +181,7 @@ fn cudaGetDeviceCount(_count: *mut i32) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaMemGetInfo(_free: *mut usize, _total: *mut usize) -> i32 {
     unsafe {
         *_free = 1024 * 1024 * 1024; // 1GB free
@@ -183,6 +195,7 @@ fn cudaMemGetInfo(_free: *mut usize, _total: *mut usize) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaStreamDestroy(_stream: *mut c_void) -> i32 {
     CUDA_SUCCESS
 }
@@ -192,6 +205,7 @@ fn cudaStreamDestroy(_stream: *mut c_void) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaStreamSynchronize(_stream: *mut c_void) -> i32 {
     CUDA_SUCCESS
 }
@@ -201,6 +215,7 @@ fn cudaStreamSynchronize(_stream: *mut c_void) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn nvrtcCreateProgram(
     _prog: *mut *mut c_void,
     _src: *const c_char,
@@ -220,6 +235,7 @@ fn nvrtcCreateProgram(
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn nvrtcCompileProgram(
     _prog: *mut c_void,
     _num_options: i32,
@@ -233,6 +249,7 @@ fn nvrtcCompileProgram(
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn nvrtcGetProgramLogSize(_prog: *mut c_void, logsize: *mut usize) -> i32 {
     unsafe {
         *logsize = 1; // Empty log
@@ -245,6 +262,7 @@ fn nvrtcGetProgramLogSize(_prog: *mut c_void, logsize: *mut usize) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn nvrtcGetProgramLog(_prog: *mut c_void, _log: *mut c_char) -> i32 {
     NVRTC_SUCCESS
 }
@@ -254,6 +272,7 @@ fn nvrtcGetProgramLog(_prog: *mut c_void, _log: *mut c_char) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn nvrtcDestroyProgram(_prog: *mut *mut c_void) -> i32 {
     NVRTC_SUCCESS
 }
@@ -263,6 +282,7 @@ fn nvrtcDestroyProgram(_prog: *mut *mut c_void) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn nvrtcGetPTXSize(_prog: *mut c_void, ptxsize: *mut usize) -> i32 {
     unsafe {
         *ptxsize = 100; // Dummy PTX size
@@ -275,6 +295,7 @@ fn nvrtcGetPTXSize(_prog: *mut c_void, ptxsize: *mut usize) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn nvrtcGetPTX(_prog: *mut c_void, _ptx: *mut c_char) -> i32 {
     NVRTC_SUCCESS
 }
@@ -284,6 +305,7 @@ fn nvrtcGetPTX(_prog: *mut c_void, _ptx: *mut c_char) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cuModuleLoadData(_module: *mut *mut c_void, _image: *const c_void) -> i32 {
     unsafe {
         *_module = 0x2 as *mut c_void; // Dummy module pointer
@@ -296,6 +318,7 @@ fn cuModuleLoadData(_module: *mut *mut c_void, _image: *const c_void) -> i32 {
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cuModuleGetFunction(_hfunc: *mut *mut c_void, _hmod: *mut c_void, _name: *const c_char) -> i32 {
     unsafe {
         *_hfunc = 0x3 as *mut c_void; // Dummy function pointer
@@ -308,6 +331,7 @@ fn cuModuleGetFunction(_hfunc: *mut *mut c_void, _hmod: *mut c_void, _name: *con
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cuLaunchKernel(
     _f: *mut c_void,
     _grid_dim_x: u32,
@@ -329,6 +353,7 @@ fn cuLaunchKernel(
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaMemcpy(_dst: *mut c_void, _src: *const c_void, _count: usize, _kind: i32) -> i32 {
     CUDA_SUCCESS
 }
@@ -338,6 +363,7 @@ fn cudaMemcpy(_dst: *mut c_void, _src: *const c_void, _count: usize, _kind: i32)
     target_arch = "x86_64",
     any(target_os = "linux", target_os = "windows")
 )))]
+#[allow(non_snake_case)]
 fn cudaSetDevice(_device: i32) -> i32 {
     CUDA_SUCCESS
 }
@@ -916,7 +942,7 @@ impl CudaOperations {
         &self,
         input: &ArrayView2<T>,
         sigma: [T; 2],
-    ) -> NdimageResult<Array<T, ndarray::Ix2>>
+    ) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
     where
         T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     {
@@ -928,7 +954,7 @@ impl CudaOperations {
         &self,
         input: &ArrayView2<T>,
         kernel: &ArrayView2<T>,
-    ) -> NdimageResult<Array<T, ndarray::Ix2>>
+    ) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
     where
         T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     {
@@ -940,7 +966,7 @@ impl CudaOperations {
         &self,
         input: &ArrayView2<T>,
         size: [usize; 2],
-    ) -> NdimageResult<Array<T, ndarray::Ix2>>
+    ) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
     where
         T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     {
@@ -952,7 +978,7 @@ impl CudaOperations {
         &self,
         input: &ArrayView2<T>,
         structure: &ArrayView2<bool>,
-    ) -> NdimageResult<Array<T, ndarray::Ix2>>
+    ) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
     where
         T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
     {

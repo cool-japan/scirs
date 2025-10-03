@@ -6,7 +6,7 @@
 use super::types::*;
 use super::utils::{generate_test_signal, construct_frame_matrix};
 use crate::error::SignalResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Validate frame properties of wavelet packet decompositions
 pub fn validate_frame_properties(
@@ -195,7 +195,7 @@ fn power_iteration(
     }
 
     // Start with random vector
-    let mut v = ndarray::Array1::ones(n);
+    let mut v = scirs2_core::ndarray::Array1::ones(n);
     v /= v.dot(&v).sqrt();
 
     let mut eigenvalue = 0.0;
@@ -322,7 +322,7 @@ mod tests {
     #[test]
     fn test_power_iteration() {
         // Test with simple 2x2 matrix
-        let matrix = ndarray::Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 2.0]).unwrap();
+        let matrix = scirs2_core::ndarray::Array2::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 2.0]).unwrap();
 
         let eigenvalue = power_iteration(&matrix, 100, 1e-10).unwrap();
 
@@ -332,7 +332,7 @@ mod tests {
 
     #[test]
     fn test_compute_redundancy_factor() {
-        let matrix = ndarray::Array2::zeros((10, 20));
+        let matrix = scirs2_core::ndarray::Array2::zeros((10, 20));
         let redundancy = compute_redundancy_factor(&matrix);
 
         assert_eq!(redundancy, 2.0); // 20 columns / 10 rows

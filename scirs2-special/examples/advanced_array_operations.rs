@@ -4,7 +4,7 @@
 //! including lazy evaluation, GPU acceleration, and multidimensional support.
 
 #[cfg(feature = "gpu")]
-use ndarray::{Array, Array1};
+use scirs2_core::ndarray::{Array, Array1};
 #[cfg(feature = "gpu")]
 use scirs2_special::array_ops::{
     convenience::{self, ConfigBuilder},

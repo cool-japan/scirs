@@ -11,7 +11,7 @@
 use super::types::{BoundaryMode, Dwt2dConfig, EnhancedDwt2dResult, MultilevelDwt2d};
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{s, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{s, Array2, ArrayView1, ArrayView2};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
@@ -37,7 +37,7 @@ use scirs2_core::simd_ops::SimdUnifiedOps;
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::dwt2d_enhanced::*;
 /// use scirs2_signal::dwt::Wavelet;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// let data = Array2::from_shape_vec((32, 32), (0..1024).map(|x| x as f64).collect())?;
 /// let config = Dwt2dConfig::default();
@@ -310,7 +310,7 @@ fn enhanced_simd_dwt2d_reconstruct(
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// use scirs2_signal::dwt2d_enhanced::*;
 /// use scirs2_signal::dwt::Wavelet;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create minimal test data for reconstruction demonstration
 /// let data = Array2::from_shape_vec((8, 8), (0..64).map(|x| x as f64).collect())?;
@@ -779,7 +779,7 @@ fn compute_gradient_magnitude(image: &Array2<f64>) -> SignalResult<Array2<f64>> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_upsample() {

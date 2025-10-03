@@ -3,8 +3,8 @@
 //! This module provides specialized analysis functions for understanding
 //! the characteristics of interpolation data and suggesting optimal approaches.
 
-use ndarray::{ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
 
@@ -347,12 +347,10 @@ where
                 alternative_methods.push(InterpolationMethod::Kriging);
                 reasons.push("Non-smooth functions with outliers need robust methods".to_string());
             }
-        } else {
-            if data_points.num_points >= 10 {
-                primary_method = InterpolationMethod::PiecewisePolynomial;
-                alternative_methods.push(InterpolationMethod::BSpline);
-                reasons.push("Non-smooth functions benefit from piecewise approaches".to_string());
-            }
+        } else if data_points.num_points >= 10 {
+            primary_method = InterpolationMethod::PiecewisePolynomial;
+            alternative_methods.push(InterpolationMethod::BSpline);
+            reasons.push("Non-smooth functions benefit from piecewise approaches".to_string());
         }
     } else if function_values.is_monotonic && data_points.num_points >= 10 {
         primary_method = InterpolationMethod::CubicSpline;
@@ -503,7 +501,7 @@ pub enum SamplingStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_data_scaling_analysis() {

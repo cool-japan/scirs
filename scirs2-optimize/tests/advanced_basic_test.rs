@@ -2,7 +2,7 @@
 //!
 //! This test verifies that the Advanced mode can be instantiated and performs basic operations.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_optimize::prelude::*;
 
 /// Simple quadratic test function

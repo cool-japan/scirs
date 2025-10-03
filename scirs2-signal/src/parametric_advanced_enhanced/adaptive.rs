@@ -6,7 +6,7 @@
 use super::types::*;
 use super::utils::{compute_ar_psd, generate_frequency_grid};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::validation::check_positive;
 
 /// Adaptive spectral estimation with time-varying AR models

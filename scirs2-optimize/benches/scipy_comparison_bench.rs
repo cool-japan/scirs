@@ -345,7 +345,7 @@ fn bench_least_squares(c: &mut Criterion) {
         let x_data: Vec<f64> = (0..n).map(|i| i as f64 / n as f64).collect();
         let y_data: Vec<f64> = x_data
             .iter()
-            .map(|&x| 2.0 + 3.0 * x + 0.1 * thread_rng().gen::<f64>())
+            .map(|&x| 2.0 + 3.0 * x + 0.1 * thread_rng().random::<f64>())
             .collect();
         let mut data_vec = x_data;
         data_vec.extend(y_data);

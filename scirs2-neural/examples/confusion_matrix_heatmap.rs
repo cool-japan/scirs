@@ -1,6 +1,6 @@
-use ndarray::Array1;
-use rand::prelude::*;
-use rand::rngs::SmallRng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rngs::SmallRng;
 use scirs2_neural::utils::colors::ColorOptions;
 use scirs2_neural::utils::evaluation::ConfusionMatrix;
 

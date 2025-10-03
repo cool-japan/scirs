@@ -4,7 +4,6 @@
 //! precision preservation, and mathematical correctness across all
 //! automatic differentiation operations.
 
-use ndarray::{Array, IxDyn};
 use scirs2_autograd as ag;
 use scirs2_autograd::optimization::{GraphOptimizer, OptimizationLevel};
 use scirs2_autograd::parallel::{init_thread_pool_with_config, ThreadPoolConfig};
@@ -12,6 +11,7 @@ use scirs2_autograd::tensor_ops as T;
 use scirs2_autograd::tracing::{
     configure_tracing, end_trace_session, start_trace_session, TracingConfig,
 };
+use scirs2_core::ndarray::{Array, IxDyn};
 use std::f32;
 
 /// Tolerance levels for numerical comparisons
@@ -95,7 +95,7 @@ fn test_matrix_operation_stability() {
     ag::run(|ctx: &mut ag::Context<f32>| {
         // Test with ill-conditioned matrices
         let ill_conditioned = T::convert_to_tensor(
-            Array::<f32, ndarray::Ix2>::from_shape_vec(
+            Array::<f32, scirs2_core::ndarray::Ix2>::from_shape_vec(
                 (3, 3),
                 vec![1.0, 1.0, 1.0, 1.0, 1.0 + 1e-7, 1.0, 1.0, 1.0, 1.0 + 1e-7],
             )
@@ -104,7 +104,8 @@ fn test_matrix_operation_stability() {
         );
 
         let vector = T::convert_to_tensor(
-            Array::<f32, ndarray::Ix2>::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0]).unwrap(),
+            Array::<f32, scirs2_core::ndarray::Ix2>::from_shape_vec((3, 1), vec![1.0, 2.0, 3.0])
+                .unwrap(),
             ctx,
         );
 
@@ -130,7 +131,11 @@ fn test_matrix_operation_stability() {
         // NOTE: The inverse operation appears to have implementation issues
         // For now, we'll skip the detailed inverse verification
         let well_conditioned = T::convert_to_tensor(
-            Array::<f32, ndarray::Ix2>::from_shape_vec((2, 2), vec![2.0, 1.0, 1.0, 2.0]).unwrap(),
+            Array::<f32, scirs2_core::ndarray::Ix2>::from_shape_vec(
+                (2, 2),
+                vec![2.0, 1.0, 1.0, 2.0],
+            )
+            .unwrap(),
             ctx,
         );
 
@@ -222,7 +227,7 @@ fn test_reduction_stability() {
     ag::run(|ctx: &mut ag::Context<f32>| {
         // Test sum with values that could cause cancellation
         let cancellation_prone = T::convert_to_tensor(
-            Array::<f32, ndarray::Ix1>::from_shape_vec(
+            Array::<f32, scirs2_core::ndarray::Ix1>::from_shape_vec(
                 1000,
                 (0..1000)
                     .map(|i| if i % 2 == 0 { 1e-3 } else { -1e-3 })
@@ -243,7 +248,7 @@ fn test_reduction_stability() {
 
         // Test mean with extreme values
         let extreme_values = T::convert_to_tensor(
-            Array::<f32, ndarray::Ix1>::from_shape_vec(
+            Array::<f32, scirs2_core::ndarray::Ix1>::from_shape_vec(
                 6,
                 vec![1e-20, 1e-10, 1.0, 1e10, 1e20, 1e30],
             )
@@ -262,7 +267,7 @@ fn test_reduction_stability() {
 
         // Test max/min with NaN handling
         let with_special_values = T::convert_to_tensor(
-            Array::<f32, ndarray::Ix1>::from_shape_vec(
+            Array::<f32, scirs2_core::ndarray::Ix1>::from_shape_vec(
                 5,
                 vec![-f32::INFINITY, -1.0, 0.0, 1.0, f32::INFINITY],
             )
@@ -288,7 +293,7 @@ fn test_reduction_stability() {
 
         // Test variance stability
         let variance_test = T::convert_to_tensor(
-            Array::<f32, ndarray::Ix1>::from_shape_vec(
+            Array::<f32, scirs2_core::ndarray::Ix1>::from_shape_vec(
                 100,
                 (0..100).map(|i| 1.0 + (i as f32) * 1e-6).collect(),
             )
@@ -369,7 +374,11 @@ fn test_gradient_numerical_stability() {
 
         // Test gradient of matrix operations
         let matrix = T::convert_to_tensor(
-            Array::<f32, ndarray::Ix2>::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap(),
+            Array::<f32, scirs2_core::ndarray::Ix2>::from_shape_vec(
+                (2, 2),
+                vec![1.0, 2.0, 3.0, 4.0],
+            )
+            .unwrap(),
             ctx,
         );
 
@@ -500,7 +509,7 @@ fn test_parallel_operation_stability() {
         ag::run(|ctx: &mut ag::Context<f32>| {
             // Test parallel reduction stability
             let large_array = T::convert_to_tensor(
-                Array::<f32, ndarray::Ix1>::from_shape_vec(
+                Array::<f32, scirs2_core::ndarray::Ix1>::from_shape_vec(
                     10000,
                     (0..10000).map(|i| (i as f32).sin() * 1e-3).collect(),
                 )
@@ -541,7 +550,7 @@ fn test_parallel_operation_stability() {
 
             // Test parallel matrix multiplication
             let matrix_a = T::convert_to_tensor(
-                Array::<f32, ndarray::Ix2>::from_shape_vec(
+                Array::<f32, scirs2_core::ndarray::Ix2>::from_shape_vec(
                     (100, 100),
                     (0..10000).map(|i| (i as f32 % 10.0) * 0.1).collect(),
                 )
@@ -549,7 +558,7 @@ fn test_parallel_operation_stability() {
                 ctx,
             );
             let matrix_b = T::convert_to_tensor(
-                Array::<f32, ndarray::Ix2>::from_shape_vec(
+                Array::<f32, scirs2_core::ndarray::Ix2>::from_shape_vec(
                     (100, 100),
                     (0..10000).map(|i| ((i + 1) as f32 % 10.0) * 0.1).collect(),
                 )

@@ -7,11 +7,11 @@
 //! to minimize the Kullback-Leibler divergence between the joint probabilities of
 //! the low-dimensional embedding and the high-dimensional data.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use ndarray_rand::rand_distr::Normal;
-use ndarray_rand::RandomExt;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
+use scirs2_core::random::Normal;
+use scirs2_core::random::RandomExt;
 
 use crate::error::{Result, TransformError};
 use crate::reduction::PCA;
@@ -916,7 +916,7 @@ impl TSNE {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -979,10 +979,15 @@ impl TSNE {
         } else if self.init == "random" {
             // Random initialization from standard normal distribution
             // Ignoring random_state as it's not needed for basic random functionality
+            use scirs2_core::random::{thread_rng, Distribution};
             let normal = Normal::new(0.0, 1e-4).unwrap();
+            let mut rng = thread_rng();
 
             // Use simple random initialization
-            Ok(Array2::random((n_samples, self.n_components), normal))
+            let data: Vec<f64> = (0..(n_samples * self.n_components))
+                .map(|_| normal.sample(&mut rng))
+                .collect();
+            Ok(Array2::from_shape_vec((n_samples, self.n_components), data).unwrap())
         } else {
             Err(TransformError::InvalidInput(format!(
                 "Initialization method '{}' not recognized",
@@ -1842,8 +1847,8 @@ where
     S1::Elem: Float + NumCast,
     S2::Elem: Float + NumCast,
 {
-    let x_f64 = x.mapv(|x| num_traits::cast::<S1::Elem, f64>(x).unwrap_or(0.0));
-    let x_embedded_f64 = x_embedded.mapv(|x| num_traits::cast::<S2::Elem, f64>(x).unwrap_or(0.0));
+    let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
+    let x_embedded_f64 = x_embedded.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     let n_samples = x_f64.shape()[0];
 
@@ -1959,7 +1964,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_tsne_simple() {
@@ -1991,13 +1996,15 @@ mod tests {
 
         // Check that groups are separated in the embedding space
         // Compute the average distance within each group
-        let dist_group1 = average_pairwise_distance(&embedding_exact.slice(ndarray::s![0..4, ..]));
-        let dist_group2 = average_pairwise_distance(&embedding_exact.slice(ndarray::s![4..8, ..]));
+        let dist_group1 =
+            average_pairwise_distance(&embedding_exact.slice(scirs2_core::ndarray::s![0..4, ..]));
+        let dist_group2 =
+            average_pairwise_distance(&embedding_exact.slice(scirs2_core::ndarray::s![4..8, ..]));
 
         // Compute the average distance between groups
         let dist_between = average_intergroup_distance(
-            &embedding_exact.slice(ndarray::s![0..4, ..]),
-            &embedding_exact.slice(ndarray::s![4..8, ..]),
+            &embedding_exact.slice(scirs2_core::ndarray::s![0..4, ..]),
+            &embedding_exact.slice(scirs2_core::ndarray::s![4..8, ..]),
         );
 
         // The between-group distance should be larger than the within-group distances
@@ -2163,7 +2170,9 @@ mod tests {
     }
 
     // Helper function to compute average pairwise distance within a group
-    fn average_pairwise_distance(points: &ArrayBase<ndarray::ViewRepr<&f64>, Ix2>) -> f64 {
+    fn average_pairwise_distance(
+        points: &ArrayBase<scirs2_core::ndarray::ViewRepr<&f64>, Ix2>,
+    ) -> f64 {
         let n = points.shape()[0];
         let mut total_dist = 0.0;
         let mut count = 0;
@@ -2189,8 +2198,8 @@ mod tests {
 
     // Helper function to compute average distance between two groups
     fn average_intergroup_distance(
-        group1: &ArrayBase<ndarray::ViewRepr<&f64>, Ix2>,
-        group2: &ArrayBase<ndarray::ViewRepr<&f64>, Ix2>,
+        group1: &ArrayBase<scirs2_core::ndarray::ViewRepr<&f64>, Ix2>,
+        group2: &ArrayBase<scirs2_core::ndarray::ViewRepr<&f64>, Ix2>,
     ) -> f64 {
         let n1 = group1.shape()[0];
         let n2 = group2.shape()[0];

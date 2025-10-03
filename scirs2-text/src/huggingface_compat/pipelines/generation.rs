@@ -52,7 +52,7 @@ impl TextGenerationPipeline {
         let words = prompt.split_whitespace().collect::<Vec<_>>();
         let last_word = words.last().unwrap_or(&"");
 
-        let continuations = vec![
+        let continuations = [
             " and this is a continuation.",
             " which leads to interesting possibilities.",
             " that demonstrates the capabilities.",
@@ -69,6 +69,7 @@ impl TextGenerationPipeline {
         self.max_length = max_length;
     }
 
+    /// Set the number of sequences to return
     pub fn set_num_return_sequences(&mut self, num_sequences: usize) {
         self.num_return_sequences = num_sequences;
     }

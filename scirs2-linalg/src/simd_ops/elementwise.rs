@@ -7,7 +7,7 @@
 #[cfg(feature = "simd")]
 use crate::error::{LinalgError, LinalgResult};
 #[cfg(feature = "simd")]
-use ndarray::{Array1, Array2, ArrayView2, ArrayViewMut2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ArrayViewMut2};
 #[cfg(feature = "simd")]
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
@@ -163,7 +163,7 @@ pub fn simdmatrix_scale_f32(a: &ArrayView2<f32>, scalar: f32) -> LinalgResult<Ar
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[cfg(feature = "simd")]

@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --example statistical_functions_interactive_tutorial
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::*;
 use std::io::{self, Write};
 
@@ -348,13 +348,13 @@ fn machine_learning_applications() -> Result<(), Box<dyn std::error::Error>> {
 
     // Simulate network outputs (logits)
     let logits = Array1::from_vec(vec![2.0, 1.0, 0.1]);
-    let class_names = vec!["Cat", "Dog", "Bird"];
+    let class_names = ["Cat", "Dog", "Bird"];
 
     let probabilities = softmax(logits.view())?;
 
     println!("Network outputs (logits): {:?}", logits.to_vec());
     println!("Class probabilities:");
-    for (_i, (&prob, &name)) in probabilities.iter().zip(class_names.iter()).enumerate() {
+    for (&prob, &name) in probabilities.iter().zip(class_names.iter()) {
         println!("  {}: {:.4} ({:.1}%)", name, prob, prob * 100.0);
     }
 

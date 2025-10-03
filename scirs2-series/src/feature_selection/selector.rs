@@ -1,6 +1,6 @@
 //! High-level feature selection interface
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 use super::embedded::EmbeddedMethods;
@@ -31,7 +31,7 @@ impl FeatureSelector {
     /// # Example
     ///
     /// ```
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     /// use scirs2_series::feature_selection::{FeatureSelector, FeatureSelectionConfig};
     ///
     /// let features = Array2::from_shape_vec((100, 10), (0..1000).map(|x| x as f64).collect()).unwrap();

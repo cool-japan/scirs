@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, Array2}; // ArrayView1は使用していない
+use scirs2_core::ndarray::{array, Array1, Array2}; // ArrayView1は使用していない
 use scirs2_interpolate::{
     cubic_interpolate,
 
@@ -183,7 +183,7 @@ fn demo_nd_interpolation() {
     let points = vec![x, y];
 
     // Create values on the grid (z = x^2 + y^2)
-    let mut values = ndarray::Array::zeros(ndarray::IxDyn(&[3, 4]));
+    let mut values = scirs2_core::ndarray::Array::zeros(scirs2_core::ndarray::IxDyn(&[3, 4]));
     for i in 0..3 {
         for j in 0..4 {
             let idx = [i, j];

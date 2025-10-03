@@ -13,7 +13,7 @@ use pyo3::types::{PyAny, PyDict, PyType};
 use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
 
 #[cfg(feature = "python")]
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 #[cfg(feature = "python")]
 use std::collections::HashMap;

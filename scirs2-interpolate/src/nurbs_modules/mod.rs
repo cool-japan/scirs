@@ -23,7 +23,7 @@
 // ## Basic NURBS Curve
 //
 // ```rust
-// use ndarray::array;
+// use scirs2_core::ndarray::array;
 // use scirs2_interpolate::nurbs::{NurbsCurve};
 // use scirs2_interpolate::bspline::ExtrapolateMode;
 //
@@ -50,7 +50,7 @@
 // ## NURBS Surface
 //
 // ```rust
-// use ndarray::array;
+// use scirs2_core::ndarray::array;
 // use scirs2_interpolate::nurbs::NurbsSurface;
 // use scirs2_interpolate::bspline::ExtrapolateMode;
 //
@@ -90,7 +90,7 @@ pub mod surface {
     //! NURBS surface evaluation and manipulation methods
     use super::types::{NurbsSurface, NurbsFloat};
     use crate::error::InterpolateResult;
-    use ndarray::{Array1, Array2, ArrayView1};
+    use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
     impl<T: NurbsFloat> NurbsSurface<T> {
         /// Evaluate the NURBS surface at parameters (u, v)
@@ -179,7 +179,7 @@ pub mod api {
     use super::types::{NurbsCurve, NurbsSurface, NurbsFloat};
     use crate::bspline::ExtrapolateMode;
     use crate::error::InterpolateResult;
-    use ndarray::{array, Array1, Array2};
+    use scirs2_core::ndarray::{array, Array1, Array2};
 
     /// Create a NURBS circle
     pub fn make_nurbs_circle<T: NurbsFloat>(
@@ -258,7 +258,7 @@ pub use api::{make_nurbs_circle, make_nurbs_sphere};
 mod tests {
     use super::*;
     use crate::bspline::ExtrapolateMode;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use approx::assert_abs_diff_eq;
 
     #[test]

@@ -17,7 +17,7 @@
 //! # Basic Usage
 //! ```rust
 //! use scirs2_neural::interpretation::{ModelInterpreter, AttributionMethod, BaselineMethod};
-//! use ndarray::Array;
+//! use scirs2_core::ndarray::Array;
 //! // Create interpreter
 //! let mut interpreter = ModelInterpreter::<f64>::new();
 //! // Add attribution methods
@@ -77,7 +77,7 @@ pub use reporting::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array, ArrayD};
+    use scirs2_core::ndarray::{Array, ArrayD};
     #[test]
     fn test_interpretation_module_integration() {
         // Test that all modules work together

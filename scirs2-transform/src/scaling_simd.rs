@@ -3,8 +3,8 @@
 //! This module provides SIMD-optimized implementations of scaling operations
 //! using the unified SIMD operations from scirs2-core.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 use crate::error::{Result, TransformError};

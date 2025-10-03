@@ -4,8 +4,8 @@
 //! cache locality, NUMA topology, and adaptive performance tuning.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::collections::{hash_map::DefaultHasher, HashMap};
 use std::hash::{Hash, Hasher};
 use std::iter::Sum;

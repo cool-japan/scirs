@@ -3,7 +3,7 @@
 //! This module provides implementations of various orthogonal polynomials,
 //! including Legendre, Laguerre, Hermite, and Chebyshev polynomials.
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::f64;
 use std::fmt::Debug;
 
@@ -119,7 +119,7 @@ pub fn legendre_assoc<F: Float + FromPrimitive + Debug>(n: usize, m: i32, x: F) 
 
     if x == -F::one() && m != 0 {
         // For m odd and n even, or m even and n odd
-        if (m % 2 == 1 && n % 2 == 0) || (m % 2 == 0 && n % 2 == 1) {
+        if (m % 2 == 1 && n.is_multiple_of(2)) || (m % 2 == 0 && n % 2 == 1) {
             return F::zero();
         } else {
             return F::infinity(); // Diverges
@@ -161,7 +161,11 @@ pub fn legendre_assoc<F: Float + FromPrimitive + Debug>(n: usize, m: i32, x: F) 
             return F::from(2.25).unwrap();
         }
 
-        let sign = if (n % 2) != 0 { -F::one() } else { F::one() };
+        let sign = if !n.is_multiple_of(2) {
+            -F::one()
+        } else {
+            F::one()
+        };
         return sign * double_factorial * oneminus_x2_pow_m_half;
     }
 
@@ -172,7 +176,7 @@ pub fn legendre_assoc<F: Float + FromPrimitive + Debug>(n: usize, m: i32, x: F) 
             return F::from(-1.299038105676658).unwrap();
         }
 
-        let sign = if ((n - 1) % 2) != 0 {
+        let sign = if !(n - 1).is_multiple_of(2) {
             -F::one()
         } else {
             F::one()
@@ -530,7 +534,7 @@ pub fn chebyshev<F: Float + FromPrimitive + Debug>(n: usize, x: F, firstkind: bo
             return (n_f * x.acosh()).cosh();
         } else {
             // For x < -1
-            if n % 2 == 0 {
+            if n.is_multiple_of(2) {
                 // Even n: T_n(-x) = T_n(x)
                 return (n_f * (-x).acosh()).cosh();
             } else {

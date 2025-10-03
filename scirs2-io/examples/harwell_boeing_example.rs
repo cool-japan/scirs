@@ -3,7 +3,7 @@
 //! This example demonstrates how to work with Harwell-Boeing sparse matrix files,
 //! including reading, writing, and converting between different formats.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_io::harwell_boeing::{self, ccs_to_hb, hb_to_ccs, HBMatrixType, HBSparseMatrix};
 use tempfile::tempdir;
 

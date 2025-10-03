@@ -4,7 +4,7 @@
 //! A dual number has the form a + b*ε where ε² = 0.
 
 use crate::common::IntegrateFloat;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::fmt;
 use std::ops::{Add, Div, Mul, Neg, Sub};
 

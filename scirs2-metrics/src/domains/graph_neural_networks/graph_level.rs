@@ -8,8 +8,8 @@
 
 use super::core::ClassMetrics;
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -99,7 +99,7 @@ impl GraphRegressionMetrics {
 }
 
 /// Graph property prediction metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct GraphPropertyMetrics {
     /// Structural property prediction accuracy
     pub structural_accuracy: HashMap<String, f64>, // property -> accuracy
@@ -107,16 +107,6 @@ pub struct GraphPropertyMetrics {
     pub spectral_accuracy: HashMap<String, f64>,
     /// Topological property prediction accuracy
     pub topological_accuracy: HashMap<String, f64>,
-}
-
-impl Default for GraphPropertyMetrics {
-    fn default() -> Self {
-        Self {
-            structural_accuracy: HashMap::new(),
-            spectral_accuracy: HashMap::new(),
-            topological_accuracy: HashMap::new(),
-        }
-    }
 }
 
 impl GraphPropertyMetrics {

@@ -4,7 +4,7 @@
 //! used for grouping columns in sparse finite difference calculations.
 
 use crate::error::OptimizeError;
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 use scirs2_sparse::csr_array::CsrArray;
 use std::collections::{HashMap, HashSet};
 

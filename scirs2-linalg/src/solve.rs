@@ -1,7 +1,7 @@
 //! Linear equation solvers
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::basic::inv;
@@ -42,7 +42,7 @@ pub struct LstsqResult<F: Float> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::solve;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 1.0]];
@@ -58,7 +58,7 @@ pub fn solve<F>(
     workers: Option<usize>,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + One + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Parameter validation using helper function
     validate_linear_system(a, b, "Linear system solve")?;
@@ -127,7 +127,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::solve_triangular;
 ///
 /// // Lower triangular system
@@ -225,7 +225,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::lstsq;
 ///
 /// let a = array![[1.0_f64, 1.0], [1.0, 2.0], [1.0, 3.0]];
@@ -240,7 +240,7 @@ pub fn lstsq<F>(
     workers: Option<usize>,
 ) -> LinalgResult<LstsqResult<F>>
 where
-    F: Float + NumAssign + Sum + One + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + One + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     // Parameter validation using helper function
     validate_least_squares(a, b, "Least squares solve")?;
@@ -268,10 +268,12 @@ where
         let rank = a.ncols(); // Assume full rank for now
 
         // Extract the first part of Q^T * b corresponding to the rank
-        let qt_b_truncated = qt_b.slice(ndarray::s![0..rank]).to_owned();
+        let qt_b_truncated = qt_b.slice(scirs2_core::ndarray::s![0..rank]).to_owned();
 
         // Solve R * x = Q^T * b using back substitution
-        let r_truncated = r.slice(ndarray::s![0..rank, 0..a.ncols()]).to_owned();
+        let r_truncated = r
+            .slice(scirs2_core::ndarray::s![0..rank, 0..a.ncols()])
+            .to_owned();
         let x = solve_triangular(&r_truncated.view(), &qt_b_truncated.view(), false, false)?;
 
         // Compute residuals: ||Ax - b||²
@@ -363,7 +365,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::solve_multiple;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 1.0]];
@@ -379,7 +381,7 @@ pub fn solve_multiple<F>(
     workers: Option<usize>,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + One + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Parameter validation using helper function
     validate_multiple_linear_systems(a, b, "Multiple linear systems solve")?;
@@ -439,7 +441,7 @@ where
 #[allow(dead_code)]
 pub fn solve_default<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + One + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     solve(a, b, None)
 }
@@ -448,7 +450,7 @@ where
 #[allow(dead_code)]
 pub fn lstsq_default<F>(a: &ArrayView2<F>, b: &ArrayView1<F>) -> LinalgResult<LstsqResult<F>>
 where
-    F: Float + NumAssign + Sum + One + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + One + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     lstsq(a, b, None)
 }
@@ -457,7 +459,7 @@ where
 #[allow(dead_code)]
 pub fn solve_multiple_default<F>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + One + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + One + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     solve_multiple(a, b, None)
 }
@@ -466,7 +468,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_solve() {

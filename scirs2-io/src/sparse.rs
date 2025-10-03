@@ -19,7 +19,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_io::sparse::{SparseMatrix, SparseFormat};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create a sparse matrix from a dense array
 //! let dense = Array2::from_shape_vec((3, 3), vec![
@@ -47,7 +47,7 @@ use crate::matrix_market::{
     MMDataType, MMFormat, MMHeader, MMSparseMatrix, MMSymmetry, SparseEntry,
 };
 use crate::serialize::{SparseMatrixCOO, SparseMatrixCSC, SparseMatrixCSR};
-use ndarray::{Array2, ArrayBase, Data, Dimension};
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Dimension};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -701,7 +701,7 @@ pub mod ops {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use tempfile::tempdir;
 
     #[test]

@@ -6,7 +6,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use approx::assert_abs_diff_eq;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use rustfft::{num_complex::Complex, FftPlanner};
 use scirs2_core::validation::check_positive;
 

@@ -116,7 +116,7 @@
 // - [`robust_analysis`] - Enhanced robust controllability/observability analysis
 // - [`design`] - System creation and interconnection functions
 
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 
 // Re-export all public modules
 #[allow(unused_imports)]

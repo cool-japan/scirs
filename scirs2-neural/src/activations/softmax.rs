@@ -3,8 +3,8 @@
 use crate::activations::Activation;
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::{Array, Axis, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Axis, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Softmax activation function.
@@ -16,7 +16,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::activations::Softmax;
 /// use scirs2_neural::activations::Activation;
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// 
 /// let softmax = Softmax::new(0);
 /// let input = Array::from_vec(vec![1.0, 2.0, 3.0]).into_dyn();
@@ -45,7 +45,7 @@ impl Default for Softmax {
 }
 
 impl<F: Float + Debug> Activation<F> for Softmax {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         if input.ndim() <= self.axis {
             return Err(NeuralError::InferenceError(format!(
                 "Softmax axis {} is out of bounds for input with {} dimensions",
@@ -106,9 +106,9 @@ impl<F: Float + Debug> Activation<F> for Softmax {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Softmax backward pass: grad_input = softmax * (grad_output - sum(grad_output * softmax))
         // This implements the full Jacobian-vector product for softmax
         

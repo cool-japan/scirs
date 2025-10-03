@@ -5,7 +5,7 @@
 //! and various data formats for integration with other visualization tools.
 
 use chrono::{DateTime, Utc};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -493,7 +493,7 @@ fn generate_scatter_2d_html(plot: &ScatterPlot2D, config: &ExportConfig) -> Resu
         .replace("{height}", &config.dimensions.1.to_string())
         .replace(
             "{point_size}",
-            &plot.sizes.get(0).unwrap_or(&5.0).to_string(),
+            &plot.sizes.first().unwrap_or(&5.0).to_string(),
         )
         .replace("{opacity}", &(config.quality as f32 / 100.0).to_string())
         .replace("{interactive}", &config.interactive.to_string())
@@ -939,7 +939,7 @@ struct Scatter3DExport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_export_config_defaults() {

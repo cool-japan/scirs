@@ -4,9 +4,9 @@ use crate::csr::CsrMatrix;
 use crate::error::SparseResult;
 use crate::linalg::interface::LinearOperator;
 use crate::sparray::SparseArray;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumAssign};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumAssign};
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 use std::iter::Sum;
 use std::ops::{Add, Div, Mul, Sub};
@@ -279,7 +279,7 @@ where
     }
 
     // Initialize with a random unit vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut v: Vec<F> = (0..n)
         .map(|_| F::from(rng.random::<f64>() - 0.5).unwrap())
         .collect();
@@ -477,7 +477,7 @@ where
     let n = a.cols();
 
     // Initialize with a random unit vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut v: Vec<F> = (0..n)
         .map(|_| F::from(rng.random::<f64>() - 0.5).unwrap())
         .collect();
@@ -695,7 +695,7 @@ where
     }
 
     // Initialize with random vectors
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut x = vec![vec![F::zero(); n]; t];
     for x_j in x.iter_mut().take(t) {
         for x_elem in x_j.iter_mut().take(n) {
@@ -1075,7 +1075,7 @@ where
             _guess.to_owned()
         }
         None => {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let mut v_arr = Array1::zeros(n);
             for i in 0..n {
                 v_arr[i] = T::from(rng.random::<f64>() - 0.5).unwrap();
@@ -1265,7 +1265,7 @@ where
     }
 
     // Initialize with random ±1 vectors
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut x_vectors = Vec::with_capacity(t);
 
     for _ in 0..t {
@@ -1402,7 +1402,7 @@ where
     let (_, n) = a.shape();
 
     // Initialize with a random unit vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut v = Array1::zeros(n);
     for i in 0..n {
         v[i] = T::from(rng.random::<f64>() - 0.5).unwrap();

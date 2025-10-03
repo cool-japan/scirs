@@ -10,7 +10,7 @@
 use crate::error::OptimizeError;
 use crate::unconstrained::utils::clip_step;
 use crate::unconstrained::Bounds;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::VecDeque;
 
 /// Advanced line search method selection

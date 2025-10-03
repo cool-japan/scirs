@@ -1,13 +1,13 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array1, Array2, Ix2};
-use num_traits::FromPrimitive;
+use scirs2_core::ndarray::{Array1, Array2, Ix2};
+use scirs2_core::numeric::FromPrimitive;
 
 /// Matrix sine function
 pub struct MatrixSineOp;
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSineOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSineOp {
     fn name(&self) -> &'static str {
         "MatrixSine"
     }
@@ -62,7 +62,7 @@ impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSineOp {
 /// Matrix cosine function
 pub struct MatrixCosineOp;
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixCosineOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixCosineOp {
     fn name(&self) -> &'static str {
         "MatrixCosine"
     }
@@ -116,7 +116,7 @@ impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixCosineOp
 /// Matrix sign function
 pub struct MatrixSignOp;
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSignOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSignOp {
     fn name(&self) -> &'static str {
         "MatrixSign"
     }
@@ -151,7 +151,7 @@ impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSignOp {
 /// Matrix hyperbolic sine function
 pub struct MatrixSinhOp;
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSinhOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSinhOp {
     fn name(&self) -> &'static str {
         "MatrixSinh"
     }
@@ -205,7 +205,7 @@ impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixSinhOp {
 /// Matrix hyperbolic cosine function
 pub struct MatrixCoshOp;
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixCoshOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixCoshOp {
     fn name(&self) -> &'static str {
         "MatrixCosh"
     }
@@ -262,7 +262,7 @@ pub struct MatrixFunctionOp<F: Float> {
     name: &'static str,
 }
 
-impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixFunctionOp<F> {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixFunctionOp<F> {
     fn name(&self) -> &'static str {
         self.name
     }
@@ -298,8 +298,8 @@ impl<F: Float + ndarray::ScalarOperand + FromPrimitive> Op<F> for MatrixFunction
 
 /// Compute matrix sine using Taylor series
 #[allow(dead_code)]
-fn compute_matrix_sine<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_sine<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
     let mut result = matrix.to_owned();
@@ -324,8 +324,8 @@ fn compute_matrix_sine<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix cosine using Taylor series
 #[allow(dead_code)]
-fn compute_matrix_cosine<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_cosine<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
     let mut result = Array2::<F>::eye(n);
@@ -350,8 +350,8 @@ fn compute_matrix_cosine<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix sign function using Newton iteration
 #[allow(dead_code)]
-fn compute_matrix_sign<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_sign<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
     let mut x = matrix.to_owned();
@@ -377,8 +377,8 @@ fn compute_matrix_sign<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix hyperbolic sine
 #[allow(dead_code)]
-fn compute_matrix_sinh<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_sinh<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     // sinh(A) = (exp(A) - exp(-A)) / 2
     let exp_a = compute_matrix_exp(matrix)?;
@@ -390,8 +390,8 @@ fn compute_matrix_sinh<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix hyperbolic cosine
 #[allow(dead_code)]
-fn compute_matrix_cosh<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_cosh<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     // cosh(A) = (exp(A) + exp(-A)) / 2
     let exp_a = compute_matrix_exp(matrix)?;
@@ -403,8 +403,8 @@ fn compute_matrix_cosh<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix exponential (from matrix_ops.rs)
 #[allow(dead_code)]
-fn compute_matrix_exp<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_exp<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
     let mut result = Array2::<F>::eye(n);
@@ -428,7 +428,9 @@ fn compute_matrix_exp<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix inverse
 #[allow(dead_code)]
-fn compute_matrix_inverse<F: Float>(matrix: &ndarray::ArrayView2<F>) -> Result<Array2<F>, OpError> {
+fn compute_matrix_inverse<F: Float>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
+) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
     let mut a = matrix.to_owned();
     let mut inv = Array2::<F>::eye(n);
@@ -481,8 +483,8 @@ fn compute_matrix_inverse<F: Float>(matrix: &ndarray::ArrayView2<F>) -> Result<A
 
 /// Compute general matrix function using eigendecomposition
 #[allow(dead_code)]
-fn compute_matrix_function<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_matrix_function<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
     func: fn(F) -> F,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
@@ -519,7 +521,7 @@ fn compute_matrix_function<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Check if matrix is symmetric
 #[allow(dead_code)]
-fn is_symmetric_matrix<F: Float>(matrix: &ndarray::ArrayView2<F>) -> bool {
+fn is_symmetric_matrix<F: Float>(matrix: &scirs2_core::ndarray::ArrayView2<F>) -> bool {
     let n = matrix.shape()[0];
     for i in 0..n {
         for j in i + 1..n {
@@ -533,8 +535,8 @@ fn is_symmetric_matrix<F: Float>(matrix: &ndarray::ArrayView2<F>) -> bool {
 
 /// Simple symmetric eigendecomposition
 #[allow(dead_code)]
-fn compute_symmetric_eigen<F: Float + ndarray::ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+fn compute_symmetric_eigen<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<(Array1<F>, Array2<F>), OpError> {
     let n = matrix.shape()[0];
 
@@ -665,7 +667,7 @@ fn compute_symmetric_eigen<F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix sine
 #[allow(dead_code)]
-pub fn sinm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn sinm<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();
@@ -679,7 +681,7 @@ pub fn sinm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix cosine
 #[allow(dead_code)]
-pub fn cosm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn cosm<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();
@@ -693,7 +695,7 @@ pub fn cosm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix sign function
 #[allow(dead_code)]
-pub fn signm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn signm<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();
@@ -707,7 +709,7 @@ pub fn signm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix hyperbolic sine
 #[allow(dead_code)]
-pub fn sinhm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn sinhm<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();
@@ -721,7 +723,7 @@ pub fn sinhm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute matrix hyperbolic cosine
 #[allow(dead_code)]
-pub fn coshm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn coshm<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();
@@ -735,7 +737,7 @@ pub fn coshm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
 
 /// Compute general matrix function
 #[allow(dead_code)]
-pub fn funm<'g, F: Float + ndarray::ScalarOperand + FromPrimitive>(
+pub fn funm<'g, F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &Tensor<'g, F>,
     func: fn(F) -> F,
     name: &'static str,

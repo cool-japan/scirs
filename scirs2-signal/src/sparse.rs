@@ -1,12 +1,12 @@
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
-use ndarray::s;
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use rand::rngs::StdRng;
-use rand::seq::SliceRandom;
-use rand::{Rng, SeedableRng};
-use rand_distr::Distribution;
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::Distribution;
 use rustfft::{num_complex::Complex, FftPlanner};
 use scirs2_linalg::{solve, vector_norm};
 use std::cmp::min;
@@ -1448,7 +1448,7 @@ pub fn estimate_rip_constant(phi: &Array2<f64>, s: usize) -> SignalResult<f64> {
     // which is computationally infeasible for large n and s.
     // Instead, we use a Monte Carlo approach with random sparse vectors.
     const NUM_TRIALS: usize = 1000;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let mut min_ratio = f64::MAX;
     let mut max_ratio = 0.0;

@@ -4,8 +4,8 @@
 //! memory-efficient algorithms with adaptive strategies based on available memory.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::VecDeque;
 use std::sync::Arc;
 
@@ -33,6 +33,12 @@ pub struct MemoryAdaptiveAlgorithm {
     /// Whether to use in-place algorithms when possible
     #[allow(dead_code)]
     prefer_inplace: bool,
+}
+
+impl Default for MemoryAdaptiveAlgorithm {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MemoryAdaptiveAlgorithm {
@@ -535,6 +541,12 @@ pub struct MemoryTracker {
     deallocations: usize,
 }
 
+impl Default for MemoryTracker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MemoryTracker {
     /// Create a new memory tracker
     pub fn new() -> Self {
@@ -633,7 +645,7 @@ pub mod cache_friendly {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_memory_adaptive_algorithm() {

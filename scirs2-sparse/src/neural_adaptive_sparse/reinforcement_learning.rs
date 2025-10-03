@@ -6,7 +6,7 @@
 use super::neural_network::NeuralNetwork;
 use super::pattern_memory::OptimizationStrategy;
 use crate::error::SparseResult;
-use rand::Rng;
+use scirs2_core::random::Rng;
 use std::collections::VecDeque;
 
 /// Reinforcement learning algorithms
@@ -111,7 +111,7 @@ impl RLAgent {
 
     /// Select action using current policy
     pub fn select_action(&self, state: &[f64]) -> OptimizationStrategy {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
 
         // Epsilon-greedy action selection for DQN
         if matches!(self.algorithm, RLAlgorithm::DQN) && rng.gen::<f64>() < self.epsilon {
@@ -158,7 +158,7 @@ impl RLAgent {
 
     /// Select random action
     fn random_action(&self) -> OptimizationStrategy {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let strategies = [
             OptimizationStrategy::RowWiseCache,
             OptimizationStrategy::ColumnWiseLocality,
@@ -397,7 +397,7 @@ impl ExperienceBuffer {
 
     /// Sample a batch of experiences
     pub fn sample(&self, batch_size: usize) -> Vec<Experience> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut batch = Vec::new();
 
         for _ in 0..batch_size.min(self.buffer.len()) {
@@ -416,7 +416,7 @@ impl ExperienceBuffer {
             return self.sample(batch_size);
         }
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut batch = Vec::new();
         let total_weight: f64 = self.priority_weights.iter().sum();
 

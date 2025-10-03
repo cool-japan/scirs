@@ -4,7 +4,7 @@
 //! following SciPy's conventions and API.
 
 use crate::error::{FFTError, FFTResult};
-use ndarray::{Array, Axis};
+use scirs2_core::ndarray::{Array, Axis};
 use std::collections::HashSet;
 use std::fmt::Debug;
 use std::sync::LazyLock;
@@ -38,7 +38,7 @@ pub fn fftfreq(n: usize, d: f64) -> FFTResult<Vec<f64>> {
     }
 
     let val = 1.0 / (n as f64 * d);
-    let results = if n % 2 == 0 {
+    let results = if n.is_multiple_of(2) {
         // Even case
         let mut freq = Vec::with_capacity(n);
         for i in 0..n / 2 {
@@ -126,7 +126,7 @@ pub fn rfftfreq(n: usize, d: f64) -> FFTResult<Vec<f64>> {
 ///
 /// ```
 /// use scirs2_fft::fftshift;
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// let x = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
 /// let shifted = fftshift(&x).unwrap();
@@ -136,7 +136,7 @@ pub fn rfftfreq(n: usize, d: f64) -> FFTResult<Vec<f64>> {
 pub fn fftshift<F, D>(x: &Array<F, D>) -> FFTResult<Array<F, D>>
 where
     F: Copy + Debug,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     // For each axis, we need to swap the first and second half
     let mut result = x.to_owned();
@@ -151,12 +151,20 @@ where
         let temp = result.clone();
 
         // Copy the second half to the beginning
-        let mut slice1 = result.slice_axis_mut(Axis(axis), ndarray::Slice::from(0..n - split_idx));
-        slice1.assign(&temp.slice_axis(Axis(axis), ndarray::Slice::from(split_idx..n)));
+        let mut slice1 = result.slice_axis_mut(
+            Axis(axis),
+            scirs2_core::ndarray::Slice::from(0..n - split_idx),
+        );
+        slice1
+            .assign(&temp.slice_axis(Axis(axis), scirs2_core::ndarray::Slice::from(split_idx..n)));
 
         // Copy the first half to the end
-        let mut slice2 = result.slice_axis_mut(Axis(axis), ndarray::Slice::from(n - split_idx..n));
-        slice2.assign(&temp.slice_axis(Axis(axis), ndarray::Slice::from(0..split_idx)));
+        let mut slice2 = result.slice_axis_mut(
+            Axis(axis),
+            scirs2_core::ndarray::Slice::from(n - split_idx..n),
+        );
+        slice2
+            .assign(&temp.slice_axis(Axis(axis), scirs2_core::ndarray::Slice::from(0..split_idx)));
     }
 
     Ok(result)
@@ -176,7 +184,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{fftshift, ifftshift};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// let x = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0]);
 /// let shifted = fftshift(&x).unwrap();
@@ -187,7 +195,7 @@ where
 pub fn ifftshift<F, D>(x: &Array<F, D>) -> FFTResult<Array<F, D>>
 where
     F: Copy + Debug,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     // For each axis, we need to swap the first and second half
     let mut result = x.to_owned();
@@ -202,12 +210,20 @@ where
         let temp = result.clone();
 
         // Copy the second half to the beginning
-        let mut slice1 = result.slice_axis_mut(Axis(axis), ndarray::Slice::from(0..n - split_idx));
-        slice1.assign(&temp.slice_axis(Axis(axis), ndarray::Slice::from(split_idx..n)));
+        let mut slice1 = result.slice_axis_mut(
+            Axis(axis),
+            scirs2_core::ndarray::Slice::from(0..n - split_idx),
+        );
+        slice1
+            .assign(&temp.slice_axis(Axis(axis), scirs2_core::ndarray::Slice::from(split_idx..n)));
 
         // Copy the first half to the end
-        let mut slice2 = result.slice_axis_mut(Axis(axis), ndarray::Slice::from(n - split_idx..n));
-        slice2.assign(&temp.slice_axis(Axis(axis), ndarray::Slice::from(0..split_idx)));
+        let mut slice2 = result.slice_axis_mut(
+            Axis(axis),
+            scirs2_core::ndarray::Slice::from(n - split_idx..n),
+        );
+        slice2
+            .assign(&temp.slice_axis(Axis(axis), scirs2_core::ndarray::Slice::from(0..split_idx)));
     }
 
     Ok(result)
@@ -288,7 +304,7 @@ pub fn next_fast_len(target: usize, real: bool) -> usize {
         while remaining > 1 {
             let mut factor_found = false;
             for &p in EFFICIENT_FACTORS.iter().filter(|&&p| p <= max_factor) {
-                if remaining % p == 0 {
+                if remaining.is_multiple_of(p) {
                     remaining /= p;
                     factor_found = true;
                     break;
@@ -350,7 +366,7 @@ pub fn prev_fast_len(target: usize, real: bool) -> usize {
         while remaining > 1 {
             let mut factor_found = false;
             for &p in EFFICIENT_FACTORS.iter().filter(|&&p| p <= max_factor) {
-                if remaining % p == 0 {
+                if remaining.is_multiple_of(p) {
                     remaining /= p;
                     factor_found = true;
                     break;
@@ -377,7 +393,7 @@ pub fn prev_fast_len(target: usize, real: bool) -> usize {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_fftfreq() {

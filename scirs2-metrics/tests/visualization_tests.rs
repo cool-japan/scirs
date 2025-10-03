@@ -2,7 +2,7 @@
 //!
 //! This module tests the visualization components in the scirs2-metrics crate.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_metrics::{
     classification::confusion_matrix,
     classification::curves::{calibration_curve, precision_recall_curve, roc_curve},

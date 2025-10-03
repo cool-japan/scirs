@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Advanced-advanced adaptive denoising with multi-algorithm fusion
 //
 // This module provides state-of-the-art adaptive denoising algorithms that:
@@ -13,10 +13,10 @@ use crate::dwt::{dwt_decompose, dwt_reconstruct, Wavelet};
 use crate::error::{SignalError, SignalResult};
 use crate::nlm::{nlm_denoise_1d, NlmConfig};
 use crate::wiener::wiener_filter;
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 use scirs2_core::validation::check_finite;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -1074,7 +1074,7 @@ mod tests {
         let clean_signal: Vec<f64> = t.iter().map(|&ti| (2.0 * PI * ti).sin()).collect();
 
         // Add noise
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let noisy_signal: Vec<f64> = clean_signal
             .iter()
             .map(|&s| s + 0.1 * rng.gen_range(-1.0..1.0))

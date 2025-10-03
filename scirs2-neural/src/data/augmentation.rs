@@ -1,9 +1,9 @@
 //! Data augmentation for training neural networks
 
 use crate::error::Result;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 /// Trait for data augmentation
 pub trait Augmentation<F: Float + Debug + ScalarOperand> {
@@ -28,7 +28,7 @@ impl<F: Float + Debug + ScalarOperand> Augmentation<F> for GaussianNoise<F> {
         let mut result = input.clone();
         for item in result.iter_mut() {
             // Create a normal distribution
-            let normal = rand_distr::Normal::new(0.0, self.std.to_f64().unwrap_or(0.1))
+            let normal = scirs2_core::random::Normal::new(0.0, self.std.to_f64().unwrap_or(0.1))
                 .expect("Failed to create normal distribution");
             // Sample from the distribution
             let noise = F::from(rng.sample::<f64>(normal)).unwrap_or(F::zero());

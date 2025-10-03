@@ -5,7 +5,7 @@
 //! have very different value distributions. This is particularly important for weights
 //! in neural networks.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::quantization::{
     dequantize_matrix, quantize_matrix, quantize_matrix_per_channel, QuantizationMethod,
 };

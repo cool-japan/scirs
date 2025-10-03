@@ -8,9 +8,9 @@
 //! - GPU acceleration support (when available)
 
 use crate::error::StatsResult;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive, One, Zero};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive, One, Zero};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
@@ -258,7 +258,7 @@ where
         // Initialize random number generator
         let mut main_rng = match self.config.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_rng(&mut rand::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         let mut total_samples = 0;
@@ -345,7 +345,7 @@ where
         T: IntegrableFunction<F>,
     {
         let chunksize = self.config.chunksize;
-        let num_chunks = (n_samples_ + chunksize - 1) / chunksize;
+        let num_chunks = n_samples_.div_ceil(chunksize);
 
         // Generate seeds for parallel workers
         let seeds: Vec<u64> = (0..num_chunks).map(|_| rng.random()).collect();
@@ -486,7 +486,7 @@ where
         } else {
             4
         };
-        let num_chunks = (n_samples_ + chunk_size - 1) / chunk_size;
+        let num_chunks = n_samples_.div_ceil(chunk_size);
         let mut values = Vec::with_capacity(n_samples_);
 
         // Pre-allocate SIMD-aligned buffers for bandwidth saturation
@@ -681,7 +681,7 @@ where
         {
             // Simple subdivision along the first dimension
             let region = state.regions[worst_region_idx].clone();
-            if region.lower_bounds.len() > 0 {
+            if !region.lower_bounds.is_empty() {
                 let mid = (region.lower_bounds[0] + region.upper_bounds[0]) / F::from(2.0).unwrap();
 
                 let mut left_upper = region.upper_bounds.clone();

@@ -8,8 +8,8 @@
 //! - Persisting tuning results for future use
 //! - Detecting CPU features and adapting algorithms accordingly
 
-use num_complex::Complex64;
 use rustfft::FftPlanner;
+use scirs2_core::numeric::Complex64;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File};

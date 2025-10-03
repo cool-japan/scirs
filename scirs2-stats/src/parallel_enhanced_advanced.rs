@@ -8,8 +8,8 @@ use crate::error::{StatsError, StatsResult};
 use crate::error_standardization::ErrorMessages;
 use crate::simd_enhanced_core::{mean_enhanced, variance_enhanced, ComprehensiveStats};
 use crossbeam;
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::{PlatformCapabilities, SimdUnifiedOps},
@@ -271,7 +271,7 @@ where
             .config
             .num_threads
             .unwrap_or_else(|| self.optimal_thread_count());
-        let samples_per_thread = (n_samples_ + num_threads - 1) / num_threads;
+        let samples_per_thread = n_samples_.div_ceil(num_threads);
 
         // Parallel bootstrap computation with work stealing
         self.bootstrap_work_stealing(x, n_samples_, samples_per_thread, statistic_fn, seed)
@@ -286,16 +286,15 @@ where
 
         // Account for hyperthreading - usually optimal to use physical cores
         // Simple heuristic: if we have more than 2 logical cores, assume hyperthreading
-        let physical_cores = if logical_cores > 2 {
-            logical_cores / 2
-        } else {
-            logical_cores
-        };
 
         // For CPU-intensive tasks, use physical cores
         // For memory-bound tasks, might benefit from more threads
         // Use physical cores for better performance
-        physical_cores
+        if logical_cores > 2 {
+            logical_cores / 2
+        } else {
+            logical_cores
+        }
     }
 
     fn mean_work_stealing<D>(&self, x: &ArrayBase<D, Ix1>) -> StatsResult<F>
@@ -307,7 +306,7 @@ where
             .config
             .num_threads
             .unwrap_or_else(|| self.optimal_thread_count());
-        let initial_chunksize = (n + num_threads - 1) / num_threads;
+        let initial_chunksize = n.div_ceil(num_threads);
 
         // Create work queue with initial chunks
         let work_queue: Arc<Mutex<VecDeque<(usize, usize)>>> =
@@ -382,7 +381,7 @@ where
             l2_cache / elementsize // Chunk to fit in L2
         };
 
-        let num_chunks = (n + chunksize - 1) / chunksize;
+        let num_chunks = n.div_ceil(chunksize);
         let _num_threads = self
             .config
             .num_threads
@@ -393,7 +392,7 @@ where
             .map(|i| {
                 let start = i * chunksize;
                 let end = ((i + 1) * chunksize).min(n);
-                x.slice(ndarray::s![start..end])
+                x.slice(scirs2_core::ndarray::s![start..end])
             })
             .collect();
 
@@ -449,7 +448,7 @@ where
 
         if len <= CACHE_THRESHOLD {
             // Base case: compute directly
-            let slice = x.slice(ndarray::s![start..start + len]);
+            let slice = x.slice(scirs2_core::ndarray::s![start..start + len]);
             let sum = slice.iter().fold(F::zero(), |acc, &val| acc + val);
             Ok(sum / F::from(len).unwrap())
         } else {
@@ -475,8 +474,8 @@ where
         let chunks: Vec<_> = x
             .exact_chunks(chunksize)
             .into_iter()
-            .chain(if n % chunksize != 0 {
-                vec![x.slice(ndarray::s![n - (n % chunksize)..])]
+            .chain(if !n.is_multiple_of(chunksize) {
+                vec![x.slice(scirs2_core::ndarray::s![n - (n % chunksize)..])]
             } else {
                 vec![]
             })
@@ -503,7 +502,7 @@ where
             .config
             .num_threads
             .unwrap_or_else(|| self.optimal_thread_count());
-        let chunksize = (n + num_threads - 1) / num_threads;
+        let chunksize = n.div_ceil(num_threads);
 
         let results: Vec<(F, F, usize)> = (0..num_threads)
             .into_par_iter()
@@ -515,7 +514,7 @@ where
                     return (F::zero(), F::zero(), 0);
                 }
 
-                let chunk = x.slice(ndarray::s![start..end]);
+                let chunk = x.slice(scirs2_core::ndarray::s![start..end]);
                 let mut mean = F::zero();
                 let mut m2 = F::zero();
                 let count = chunk.len();
@@ -629,7 +628,7 @@ where
             .config
             .num_threads
             .unwrap_or_else(|| self.optimal_thread_count());
-        let chunksize = (n + num_threads - 1) / num_threads;
+        let chunksize = n.div_ceil(num_threads);
 
         // Parallel computation of all moments
         let results: Vec<(F, F, F, F, usize)> = (0..num_threads)
@@ -642,7 +641,7 @@ where
                     return (F::zero(), F::zero(), F::zero(), F::zero(), 0);
                 }
 
-                let chunk = x.slice(ndarray::s![start..end]);
+                let chunk = x.slice(scirs2_core::ndarray::s![start..end]);
                 let count = chunk.len();
                 let count_f = F::from(count).unwrap();
 
@@ -730,8 +729,8 @@ where
     where
         D: Data<Elem = F> + Sync + Send,
     {
-        use rand::{Rng, SeedableRng};
-        use rand_chacha::ChaCha8Rng;
+        use scirs2_core::random::ChaCha8Rng;
+        use scirs2_core::random::{Rng, SeedableRng};
 
         let num_threads = self
             .config
@@ -754,7 +753,7 @@ where
                     let mut rng = if let Some(seed) = seed {
                         ChaCha8Rng::seed_from_u64(seed + thread_id as u64)
                     } else {
-                        ChaCha8Rng::from_rng(&mut rand::thread_rng())
+                        ChaCha8Rng::from_rng(&mut scirs2_core::random::thread_rng())
                     };
 
                     let mut local_results = Vec::with_capacity(samples_per_thread);

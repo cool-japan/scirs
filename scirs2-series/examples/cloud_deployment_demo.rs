@@ -225,7 +225,7 @@ fn submit_sample_jobs(
                 let t = x as f64 * 0.1;
                 2.0 * (2.0 * std::f64::consts::PI * t).sin()
                     + 0.5 * (10.0 * std::f64::consts::PI * t).sin()
-                    + 0.1 * rand::random::<f64>()
+                    + 0.1 * scirs2_core::random::random::<f64>()
             })
             .collect();
 

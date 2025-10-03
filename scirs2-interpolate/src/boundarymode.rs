@@ -1,5 +1,5 @@
-use ndarray::ArrayView1;
-use num_traits::Float;
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::Float;
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::ExtrapolateMode;
@@ -632,7 +632,7 @@ pub fn make_linear_gradient_boundary<T: Float + std::fmt::Display>(
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_zero_gradient_boundary() {

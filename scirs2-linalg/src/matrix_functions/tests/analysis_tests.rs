@@ -1,7 +1,7 @@
 //! Tests for analysis matrix functions
 
 use super::super::analysis::*;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_spectral_radius_diagonal() {

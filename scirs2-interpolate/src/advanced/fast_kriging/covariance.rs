@@ -6,8 +6,8 @@
 use crate::advanced::enhanced_kriging::AnisotropicCovariance;
 use crate::advanced::kriging::CovarianceFunction;
 use crate::error::InterpolateResult;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -184,8 +184,8 @@ pub fn compute_low_rank_approximation<
                 sample_cov[[i, j]] = anisotropic_cov.sigma_sq + anisotropic_cov.nugget;
             } else {
                 let dist = compute_anisotropic_distance(
-                    &points.slice(ndarray::s![idx_i, ..]),
-                    &points.slice(ndarray::s![idx_j, ..]),
+                    &points.slice(scirs2_core::ndarray::s![idx_i, ..]),
+                    &points.slice(scirs2_core::ndarray::s![idx_j, ..]),
                     anisotropic_cov,
                 )?;
                 sample_cov[[i, j]] = compute_covariance(dist, anisotropic_cov);
@@ -231,9 +231,9 @@ pub fn compute_low_rank_approximation<
 
     // Truncate to desired rank
     let actual_rank = std::cmp::min(rank, s.len());
-    let u_r = u.slice(ndarray::s![.., 0..actual_rank]).to_owned();
-    let s_r = s.slice(ndarray::s![0..actual_rank]).to_owned();
-    let v_r = vt.slice(ndarray::s![0..actual_rank, ..]).t().to_owned();
+    let u_r = u.slice(scirs2_core::ndarray::s![.., 0..actual_rank]).to_owned();
+    let s_r = s.slice(scirs2_core::ndarray::s![0..actual_rank]).to_owned();
+    let v_r = vt.slice(scirs2_core::ndarray::s![0..actual_rank, ..]).t().to_owned();
 
     Ok((u_r, s_r, v_r))
 }
@@ -271,8 +271,8 @@ pub fn compute_tapered_covariance<
             } else {
                 // Off-diagonal element
                 let dist = compute_anisotropic_distance(
-                    &points.slice(ndarray::s![i, ..]),
-                    &points.slice(ndarray::s![j, ..]),
+                    &points.slice(scirs2_core::ndarray::s![i, ..]),
+                    &points.slice(scirs2_core::ndarray::s![j, ..]),
                     anisotropic_cov,
                 )?;
 
@@ -318,7 +318,7 @@ pub fn project_to_feature<
 
     // Use a landmark _point as basis for the feature
     let landmark_idx = feature_idx % n_points;
-    let landmark = points.slice(ndarray::s![landmark_idx, ..]);
+    let landmark = points.slice(scirs2_core::ndarray::s![landmark_idx, ..]);
 
     // Project by computing covariance with landmark
     let dist = compute_anisotropic_distance(query_point, &landmark, anisotropic_cov)?;

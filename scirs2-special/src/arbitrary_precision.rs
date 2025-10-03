@@ -574,11 +574,11 @@ pub fn to_f64(x: &Float) -> f64 {
     x.to_f64()
 }
 
-/// Convert arbitrary precision Complex to num_complex::Complex64
+/// Convert arbitrary precision Complex to scirs2_core::numeric::Complex64
 #[allow(dead_code)]
-pub fn to_complex64(z: &Complex) -> num_complex::Complex64 {
+pub fn to_complex64(z: &Complex) -> scirs2_core::numeric::Complex64 {
     let (re, im) = z.clone().into_real_imag();
-    num_complex::Complex64::new(re.to_f64(), im.to_f64())
+    scirs2_core::numeric::Complex64::new(re.to_f64(), im.to_f64())
 }
 
 /// Clean up MPFR cache

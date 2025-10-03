@@ -1,11 +1,11 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // JADE (Joint Approximate Diagonalization of Eigenmatrices) for ICA
 //
 // This module implements the JADE algorithm for blind source separation.
 
 use super::{pca, BssConfig};
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_linalg::solve_multiple;
 
 #[allow(unused_imports)]

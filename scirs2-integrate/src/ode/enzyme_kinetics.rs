@@ -4,7 +4,7 @@
 //! multi-substrate mechanisms, allosteric regulation, and metabolic pathway
 //! network simulation.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 /// Types of enzyme mechanisms
@@ -675,7 +675,7 @@ impl MetabolicPathway {
 /// Factory functions for common metabolic pathways
 pub mod pathways {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     /// Create a simple glycolysis pathway (simplified)
     pub fn simple_glycolysis() -> MetabolicPathway {
@@ -891,7 +891,7 @@ pub mod pathways {
 mod tests {
     use crate::ode::{enzyme_kinetics::pathways, EnzymeParameters};
     use approx::assert_abs_diff_eq;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_michaelis_menten_kinetics() {

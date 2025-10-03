@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Performance-optimized signal processing operations
 //
 // This module provides highly optimized implementations of critical signal
@@ -10,8 +10,8 @@ use ndarray::s;
 
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, ArrayView1, Zip};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Zip};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_fft::{fft, ifft};
@@ -694,7 +694,7 @@ fn next_power_of_two(n: usize) -> usize {
 /// Performance benchmarking utilities
 pub mod benchmark {
     use crate::{SignalResult};
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
     use std::time::Instant;
 
     /// Benchmark result

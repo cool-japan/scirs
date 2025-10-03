@@ -7,9 +7,9 @@
 //! - Adaptive sequence refinement
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive, One, Zero};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive, One, Zero};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 use scirs2_core::{parallel_ops::*, simd_ops::SimdUnifiedOps, validation::*};
 use std::marker::PhantomData;
 
@@ -235,7 +235,7 @@ where
     /// Generate sequence in parallel
     fn generate_parallel(&mut self, n: usize) -> StatsResult<Array2<F>> {
         let chunksize = self.config.chunksize;
-        let num_chunks = (n + chunksize - 1) / chunksize;
+        let num_chunks = n.div_ceil(chunksize);
 
         let chunks = parallel_map_result(
             (0..num_chunks).collect::<Vec<_>>().as_slice(),
@@ -256,7 +256,7 @@ where
             let chunk = chunk;
             let chunk_rows = chunk.nrows();
             result
-                .slice_mut(ndarray::s![row_idx..row_idx + chunk_rows, ..])
+                .slice_mut(scirs2_core::ndarray::s![row_idx..row_idx + chunk_rows, ..])
                 .assign(&chunk);
             row_idx += chunk_rows;
         }
@@ -457,7 +457,7 @@ where
     fn initialize_randomization(&mut self) -> StatsResult<()> {
         let mut rng = match self.config.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_rng(&mut rand::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         // Initialize scrambling matrices
@@ -576,7 +576,7 @@ where
             return 2;
         }
 
-        let mut candidate = if n % 2 == 0 { n + 1 } else { n };
+        let mut candidate = if n.is_multiple_of(2) { n + 1 } else { n };
 
         while !self.is_prime(candidate) {
             candidate += 2;
@@ -593,13 +593,13 @@ where
         if n == 2 {
             return true;
         }
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             return false;
         }
 
         let sqrt_n = (n as f64).sqrt() as u32;
         for i in (3..=sqrt_n).step_by(2) {
-            if n % i == 0 {
+            if n.is_multiple_of(i) {
                 return false;
             }
         }
@@ -617,7 +617,7 @@ where
         let mut max_discrepancy = 0.0;
         let num_test_points = 50.min(n);
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         for _ in 0..num_test_points {
             let mut test_point = Array1::zeros(d);
             for j in 0..d {

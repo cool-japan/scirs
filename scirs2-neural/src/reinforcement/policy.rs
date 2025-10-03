@@ -3,10 +3,10 @@
 use crate::activations::Activation;
 use crate::error::Result;
 use crate::layers::{Dense, Layer};
-use ndarray::prelude::*;
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::random::{Distribution, Normal};
 use std::sync::Arc;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// Base trait for policies
 pub trait Policy: Send + Sync {
     /// Sample an action from the policy
@@ -107,7 +107,7 @@ impl Policy for PolicyNetwork {
             }
             Ok(action)
             // Sample from categorical distribution
-            let uniform: f32 = rand::Rng::random(&mut rng);
+            let uniform: f32 = scirs2_core::random::Rng::random(&mut rng);
             let mut cumsum = 0.0;
             let mut action_idx = 0;
             for (i, &prob) in params.iter().enumerate() {

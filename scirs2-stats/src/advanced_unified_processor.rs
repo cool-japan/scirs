@@ -19,8 +19,8 @@ use crate::num_stubs::{
     create_advanced_parallel_processor, MatrixOperationType, TimeSeriesOperation,
     AdvancedParallelProcessor, AdvancedParallelConfig,
 };
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -906,7 +906,7 @@ pub fn create_configured_advanced_processor(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_processor_creation() {

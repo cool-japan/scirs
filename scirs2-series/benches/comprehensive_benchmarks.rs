@@ -164,9 +164,7 @@ pub mod data_generators {
                 "humidity" => {
                     let base = 50.0;
                     let variation = (i as f64 * 2.0 * std::f64::consts::PI / 288.0).sin() * 20.0;
-                    (base + variation + (random - 0.5) * 5.0)
-                        .max(0.0)
-                        .min(100.0)
+                    (base + variation + (random - 0.5) * 5.0).clamp(0.0, 100.0)
                 }
                 "pressure" => {
                     let base = 1013.25; // Standard atmospheric pressure

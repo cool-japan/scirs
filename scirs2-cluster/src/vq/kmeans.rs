@@ -1,8 +1,8 @@
 //! K-means clustering implementation
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 
 use super::{euclidean_distance, vq};
@@ -58,7 +58,7 @@ impl<F: Float + FromPrimitive> Default for KMeansOptions<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{ArrayView1, Array2, ArrayView2};
+/// use scirs2_core::ndarray::{ArrayView1, Array2, ArrayView2};
 /// use scirs2_cluster::vq::kmeans;
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -147,7 +147,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{ArrayView1, Array2, ArrayView2};
+/// use scirs2_core::ndarray::{ArrayView1, Array2, ArrayView2};
 /// use scirs2_cluster::vq::kmeans_with_options;
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -408,7 +408,7 @@ where
         )));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut centroids = Array2::zeros((k, n_features));
     let mut selected_indices = Vec::with_capacity(k);
 
@@ -460,7 +460,7 @@ where
         )));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let mut centroids = Array2::zeros((k, n_features));
 
@@ -567,7 +567,7 @@ where
         )));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Hyperparameters for K-means||
     let l = F::from(5.0).unwrap(); // Multiplication factor for oversampling
@@ -841,7 +841,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::vq::{kmeans_with_metric, EuclideanDistance, KMeansOptions};
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -1053,7 +1053,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_kmeans_random_init() {

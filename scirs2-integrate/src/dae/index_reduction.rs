@@ -12,8 +12,8 @@
 use crate::dae::types::DAEIndex;
 use crate::dae::utils::{compute_constraint_jacobian, is_singular_matrix};
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display, LowerExp};
 
 /// Index structure of a DAE system

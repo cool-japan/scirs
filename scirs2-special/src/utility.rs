@@ -120,8 +120,8 @@
 
 use crate::error::{SpecialError, SpecialResult};
 use crate::validation::check_finite;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::{Debug, Display};
 
 /// Cube root function
@@ -809,7 +809,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_special::expit_array;
 /// let input = array![0.0, 1.0, -1.0];
 /// let result = expit_array(&input.view());
@@ -833,7 +833,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_special::logit_array;
 /// let input = array![0.1, 0.5, 0.9];
 /// let result = logit_array(&input.view());
@@ -876,7 +876,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_special::log1p_array_utility;
 /// let input = array![0.0, 1e-10, 0.1];
 /// let result = log1p_array_utility(&input.view());
@@ -900,7 +900,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_special::expm1_array_utility;
 /// let input = array![0.0, 1e-10, 0.1];
 /// let result = expm1_array_utility(&input.view());
@@ -1138,7 +1138,7 @@ mod tests {
 
     #[test]
     fn test_array_functions() {
-        use ndarray::array;
+        use scirs2_core::ndarray::array;
 
         // Test expit_array
         let input = array![0.0, 1.0, -1.0];

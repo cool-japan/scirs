@@ -25,8 +25,8 @@
 //! ```
 
 use crate::error::{IntegrateError, IntegrateResult as Result};
-use rand::Rng;
-use rand_distr::{Distribution, Normal};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{Distribution, Normal};
 
 /// Variance reduction technique
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -129,7 +129,7 @@ impl PathGenerator {
     pub fn generate_paths(&self, n_paths: usize) -> Result<Vec<Vec<f64>>> {
         self.config.validate()?;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::rng();
         let normal = Normal::new(0.0, 1.0).map_err(|e| {
             IntegrateError::ValueError(format!("Failed to create normal distribution: {}", e))
         })?;
@@ -217,7 +217,7 @@ impl PathGenerator {
     pub fn generate_terminal_values(&self, n_paths: usize) -> Result<Vec<f64>> {
         self.config.validate()?;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::rng();
         let normal = Normal::new(0.0, 1.0).map_err(|e| {
             IntegrateError::ValueError(format!("Failed to create normal distribution: {}", e))
         })?;
@@ -284,7 +284,7 @@ pub trait RandomNumberGenerator {
 
 /// Standard pseudo-random number generator
 pub struct StandardRng {
-    rng: rand::rngs::ThreadRng,
+    rng: scirs2_core::random::rngs::ThreadRng,
     normal: Normal<f64>,
 }
 
@@ -296,7 +296,7 @@ impl StandardRng {
         })?;
 
         Ok(Self {
-            rng: rand::thread_rng(),
+            rng: scirs2_core::random::rng(),
             normal,
         })
     }

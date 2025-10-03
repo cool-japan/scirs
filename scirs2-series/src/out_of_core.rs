@@ -42,7 +42,7 @@
 
 use crate::error::{Result, TimeSeriesError};
 use memmap2::{Mmap, MmapOptions};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::validation::check_positive;
 use std::collections::VecDeque;
 use std::fs::{File, OpenOptions};

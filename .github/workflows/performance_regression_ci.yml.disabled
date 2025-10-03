@@ -51,7 +51,7 @@ jobs:
             
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
       with:
         fetch-depth: 100  # Need history for regression analysis
 
@@ -363,7 +363,7 @@ EOF
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -646,7 +646,7 @@ ${statusText}
     
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install Rust and tools
       uses: dtolnay/rust-toolchain@stable
@@ -687,7 +687,7 @@ ${statusText}
         
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v5
 
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable

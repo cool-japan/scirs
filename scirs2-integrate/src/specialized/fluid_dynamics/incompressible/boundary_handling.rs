@@ -4,7 +4,7 @@
 //! to velocity and pressure fields in incompressible fluid simulations.
 
 use crate::error::{IntegrateError, IntegrateResult as Result};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 use super::super::core::FluidBoundaryCondition;
 
@@ -132,31 +132,36 @@ fn apply_y_boundary_bottom(
 ) -> Result<()> {
     match bc {
         FluidBoundaryCondition::NoSlip => {
-            for i in 0..nx {
+            // Skip corners (i=0 and i=nx-1) to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[0, i]] = 0.0;
                 v[[0, i]] = 0.0;
             }
         }
         FluidBoundaryCondition::FreeSlip => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[0, i]] = 0.0; // Zero normal velocity
                 v[[0, i]] = v[[1, i]]; // Zero normal gradient for tangential velocity
             }
         }
         FluidBoundaryCondition::Periodic => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[0, i]] = u[[u.dim().0 - 2, i]];
                 v[[0, i]] = v[[v.dim().0 - 2, i]];
             }
         }
         FluidBoundaryCondition::Inflow(u_in, v_in) => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[0, i]] = u_in;
                 v[[0, i]] = v_in;
             }
         }
         FluidBoundaryCondition::Outflow => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[0, i]] = u[[1, i]]; // Zero gradient
                 v[[0, i]] = v[[1, i]];
             }
@@ -175,31 +180,36 @@ fn apply_y_boundary_top(
 ) -> Result<()> {
     match bc {
         FluidBoundaryCondition::NoSlip => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[ny - 1, i]] = 0.0;
                 v[[ny - 1, i]] = 0.0;
             }
         }
         FluidBoundaryCondition::FreeSlip => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[ny - 1, i]] = 0.0; // Zero normal velocity
                 v[[ny - 1, i]] = v[[ny - 2, i]]; // Zero normal gradient for tangential velocity
             }
         }
         FluidBoundaryCondition::Periodic => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[ny - 1, i]] = u[[1, i]];
                 v[[ny - 1, i]] = v[[1, i]];
             }
         }
         FluidBoundaryCondition::Inflow(u_in, v_in) => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[ny - 1, i]] = u_in;
                 v[[ny - 1, i]] = v_in;
             }
         }
         FluidBoundaryCondition::Outflow => {
-            for i in 0..nx {
+            // Skip corners to let x-direction boundaries take precedence
+            for i in 1..nx - 1 {
                 u[[ny - 1, i]] = u[[ny - 2, i]]; // Zero gradient
                 v[[ny - 1, i]] = v[[ny - 2, i]];
             }
@@ -335,7 +345,7 @@ pub fn apply_periodic_conditions(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_no_slip_boundary_conditions() {

@@ -4,8 +4,8 @@
 //! numerical precisions, enabling seamless transitions between f32, f64,
 //! and other numeric types in mixed-precision linear algebra operations.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{NumCast, ToPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{NumCast, ToPrimitive, Zero};
 use std::fmt::Debug;
 
 /// Convert an array to a different numeric type
@@ -22,7 +22,7 @@ use std::fmt::Debug;
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::mixed_precision::conversions::convert;
 ///
 /// let arr_f64 = array![1.0, 2.0, 3.0];
@@ -63,7 +63,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::mixed_precision::conversions::convert_2d;
 ///
 /// let arr_f64 = array![[1.0, 2.0], [3.0, 4.0]];
@@ -93,7 +93,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_convert_f64_to_f32() {

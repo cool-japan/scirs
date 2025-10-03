@@ -5,10 +5,10 @@ use super::config::GpuConfig;
 use crate::error::{DatasetsError, Result};
 use crate::gpu::{GpuContext, GpuDeviceInfo};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2};
-use rand::prelude::*;
-use rand::rngs::StdRng;
-use rand_distr::Distribution;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::Distribution;
 // Use local GPU implementation instead of core to avoid feature flag issues
 use crate::gpu::GpuBackend as LocalGpuBackend;
 
@@ -217,14 +217,17 @@ fn generate_classification_chunk_gpu(
                 // Generate sample around centroid
                 for j in 0..n_informative {
                     let centroid_val = centroids[centroid_idx * n_informative + j];
-                    let noise = rand_distr::Normal::new(0.0, 0.3).unwrap().sample(&mut rng);
+                    let noise = scirs2_core::random::Normal::new(0.0, 0.3)
+                        .unwrap()
+                        .sample(&mut rng);
                     data[sample_idx * n_features + j] = centroid_val + noise;
                 }
 
                 // Add noise _features
                 for j in n_informative..n_features {
-                    data[sample_idx * n_features + j] =
-                        rand_distr::Normal::new(0.0, 1.0).unwrap().sample(&mut rng);
+                    data[sample_idx * n_features + j] = scirs2_core::random::Normal::new(0.0, 1.0)
+                        .unwrap()
+                        .sample(&mut rng);
                 }
 
                 targets[sample_idx] = _class as f64;
@@ -253,8 +256,8 @@ fn generate_classification_gpu_optimized(
     // TODO: Implement proper GPU acceleration when core GPU _features are stabilized
 
     // CPU fallback implementation since GPU _features are not available
-    use rand_distr::Distribution;
-    let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
+    use scirs2_core::random::Distribution;
+    let normal = scirs2_core::random::Normal::new(0.0, 1.0).unwrap();
 
     let mut data = vec![0.0; n_samples * n_features];
     let mut targets = vec![0.0; n_samples];
@@ -444,7 +447,7 @@ fn generate_regression_chunk_gpu(
 
     // Generate random data matrix
     let mut data = vec![0.0; n_samples * n_features];
-    let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
+    let normal = scirs2_core::random::Normal::new(0.0, 1.0).unwrap();
 
     // Use GPU for matrix multiplication if available
     for i in 0..n_samples {
@@ -455,7 +458,7 @@ fn generate_regression_chunk_gpu(
 
     // Calculate targets using GPU matrix operations
     let mut targets = vec![0.0; n_samples];
-    let noise_dist = rand_distr::Normal::new(0.0, noise).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, noise).unwrap();
 
     // Create GPU buffers for accelerated matrix operations
     if *gpu_context.backend() != LocalGpuBackend::Cpu {
@@ -503,8 +506,8 @@ fn generate_regression_gpu_optimized(
     // TODO: Implement proper GPU acceleration when core GPU _features are stabilized
 
     // CPU fallback implementation since GPU _features are not available
-    use rand_distr::Distribution;
-    let normal = rand_distr::Normal::new(0.0, noise).unwrap();
+    use scirs2_core::random::Distribution;
+    let normal = scirs2_core::random::Normal::new(0.0, noise).unwrap();
 
     let mut targets = vec![0.0; n_samples];
 
@@ -590,7 +593,7 @@ fn make_blobs_gpu_impl(
 
     // Generate cluster _centers
     let mut centers = Array2::zeros((n_centers, n_features));
-    let center_dist = rand_distr::Normal::new(0.0, 10.0).unwrap();
+    let center_dist = scirs2_core::random::Normal::new(0.0, 10.0).unwrap();
 
     for i in 0..n_centers {
         for j in 0..n_features {
@@ -606,7 +609,7 @@ fn make_blobs_gpu_impl(
     let mut target = Array1::zeros(n_samples);
 
     let mut sample_idx = 0;
-    let noise_dist = rand_distr::Normal::new(0.0, cluster_std).unwrap();
+    let noise_dist = scirs2_core::random::Normal::new(0.0, cluster_std).unwrap();
 
     for center_idx in 0..n_centers {
         let n_samples_center = if center_idx < remainder {
@@ -683,8 +686,8 @@ fn generate_blobs_center_gpu(
     let _center_coords: Vec<f64> = (0..n_features).map(|j| centers[[center_idx, j]]).collect();
 
     // CPU fallback implementation since GPU _features are not available
-    use rand_distr::Distribution;
-    let normal = rand_distr::Normal::new(0.0, cluster_std).unwrap();
+    use scirs2_core::random::Distribution;
+    let normal = scirs2_core::random::Normal::new(0.0, cluster_std).unwrap();
 
     let mut result = Vec::with_capacity(n_samples_center);
 

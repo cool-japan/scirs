@@ -7,7 +7,7 @@
 use crate::error::{ClusteringError, Result};
 use crate::hierarchy::visualization::{create_dendrogramplot, DendrogramConfig, DendrogramPlot};
 use crate::visualization::{ScatterPlot2D, ScatterPlot3D, VisualizationConfig};
-use ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use std::path::Path;
 
 #[cfg(feature = "egui")]
@@ -1027,7 +1027,7 @@ pub fn launch_interactive_visualization(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn testhex_color_parsing() {

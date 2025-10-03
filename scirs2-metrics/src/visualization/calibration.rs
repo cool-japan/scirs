@@ -2,7 +2,7 @@
 //!
 //! This module provides tools for visualizing calibration curves (reliability diagrams).
 
-use ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
 use std::error::Error;
 
 use super::{MetricVisualizer, PlotType, VisualizationData, VisualizationMetadata};
@@ -241,7 +241,7 @@ pub fn calibration_visualization(
     mean_predicted_value: Vec<f64>,
     n_bins: usize,
     strategy: String,
-) -> CalibrationVisualizer<'static, f64, ndarray::OwnedRepr<f64>> {
+) -> CalibrationVisualizer<'static, f64, scirs2_core::ndarray::OwnedRepr<f64>> {
     CalibrationVisualizer::new(
         fraction_of_positives,
         mean_predicted_value,

@@ -32,6 +32,12 @@ pub enum ProcessingMode {
     Adaptive,
 }
 
+impl Default for IntelligentIoManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl IntelligentIoManager {
     pub fn new() -> Self {
         Self {
@@ -51,7 +57,7 @@ impl IntelligentIoManager {
         let metrics = self.collect_system_metrics();
 
         // Choose processing strategy based on data and system characteristics
-        let chosen_mode = self.choose_processing_mode(&data, &metrics);
+        let chosen_mode = self.choose_processing_mode(data, &metrics);
 
         // Process data using chosen strategy
         let result = match chosen_mode {
@@ -295,6 +301,12 @@ pub enum TrendDirection {
 /// Workload simulation for different scenarios
 pub struct WorkloadSimulator {
     manager: IntelligentIoManager,
+}
+
+impl Default for WorkloadSimulator {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl WorkloadSimulator {

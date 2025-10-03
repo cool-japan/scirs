@@ -6,9 +6,9 @@
 //! Extended to include comprehensive testing of additional statistical operations,
 //! SIMD optimizations, and advanced mathematical properties.
 
-use ndarray::{Array1, Array2};
 use quickcheck::{Arbitrary, Gen, TestResult};
 use quickcheck_macros::quickcheck;
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_stats::{
     corrcoef,
     distributions::{beta, gamma, norm, uniform},
@@ -214,7 +214,7 @@ mod correlation_properties {
 
         let correlation = pearson_r(&x.view(), &y.view()).unwrap();
 
-        TestResult::from_bool(correlation >= -1.0 && correlation <= 1.0 && correlation.is_finite())
+        TestResult::from_bool((-1.0..=1.0).contains(&correlation) && correlation.is_finite())
     }
 
     #[quickcheck]
@@ -375,7 +375,7 @@ mod distribution_properties {
         let normal = norm(mu, sigma).unwrap();
         let cdf_value = normal.cdf(x);
 
-        TestResult::from_bool(cdf_value >= 0.0 && cdf_value <= 1.0 && cdf_value.is_finite())
+        TestResult::from_bool((0.0..=1.0).contains(&cdf_value) && cdf_value.is_finite())
     }
 
     #[quickcheck]
@@ -422,7 +422,6 @@ mod distribution_properties {
 
 /// Note: Property-based tests are automatically run by the #[quickcheck] macro
 /// No manual test runner is needed as each #[quickcheck] function becomes a test
-
 /// Extended property-based tests for additional statistical functions
 #[cfg(test)]
 mod extended_properties {
@@ -451,7 +450,7 @@ mod extended_properties {
             return TestResult::discard();
         }
 
-        if q1 < 0.0 || q1 > 1.0 || q2 < 0.0 || q2 > 1.0 || q1 >= q2 {
+        if !(0.0..=1.0).contains(&q1) || !(0.0..=1.0).contains(&q2) || q1 >= q2 {
             return TestResult::discard();
         }
 
@@ -469,7 +468,7 @@ mod extended_properties {
             return TestResult::discard();
         }
 
-        if q < 0.0 || q > 1.0 {
+        if !(0.0..=1.0).contains(&q) {
             return TestResult::discard();
         }
 
@@ -624,7 +623,7 @@ mod advanced_distribution_properties {
             return TestResult::discard();
         }
 
-        if x < 0.0 || x > 1.0 {
+        if !(0.0..=1.0).contains(&x) {
             return TestResult::discard();
         }
 
@@ -635,8 +634,7 @@ mod advanced_distribution_properties {
                 TestResult::from_bool(
                     pdf_val >= 0.0
                         && pdf_val.is_finite()
-                        && cdf_val >= 0.0
-                        && cdf_val <= 1.0
+                        && (0.0..=1.0).contains(&cdf_val)
                         && cdf_val.is_finite(),
                 )
             }
@@ -654,7 +652,7 @@ mod advanced_distribution_properties {
             return TestResult::discard();
         }
 
-        if x < 0.0 || x > 1000.0 {
+        if !(0.0..=1000.0).contains(&x) {
             return TestResult::discard();
         }
 
@@ -665,8 +663,7 @@ mod advanced_distribution_properties {
                 TestResult::from_bool(
                     pdf_val >= 0.0
                         && pdf_val.is_finite()
-                        && cdf_val >= 0.0
-                        && cdf_val <= 1.0
+                        && (0.0..=1.0).contains(&cdf_val)
                         && cdf_val.is_finite(),
                 )
             }
@@ -723,7 +720,7 @@ mod simd_consistency_properties {
     #[quickcheck]
     #[ignore = "timeout"]
     fn simd_scalar_consistency_mean(data: Vec<f64>) -> TestResult {
-        if data.len() < 1 || data.iter().any(|x| !x.is_finite()) {
+        if data.is_empty() || data.iter().any(|x| !x.is_finite()) {
             return TestResult::discard();
         }
 
@@ -756,7 +753,7 @@ mod simd_consistency_properties {
 
     #[quickcheck]
     fn largedataset_stability(size: usize) -> TestResult {
-        if size < 100 || size > 10000 {
+        if !(100..=10000).contains(&size) {
             return TestResult::discard();
         }
 
@@ -786,7 +783,7 @@ mod numerical_stability_properties {
 
     #[quickcheck]
     fn tiny_values_stability(exponent: i32) -> TestResult {
-        if exponent < -100 || exponent > -10 {
+        if !(-100..=-10).contains(&exponent) {
             return TestResult::discard();
         }
 
@@ -804,7 +801,7 @@ mod numerical_stability_properties {
 
     #[quickcheck]
     fn large_values_stability(exponent: i32) -> TestResult {
-        if exponent < 10 || exponent > 100 {
+        if !(10..=100).contains(&exponent) {
             return TestResult::discard();
         }
 
@@ -820,7 +817,7 @@ mod numerical_stability_properties {
 
     #[quickcheck]
     fn near_identical_values_stability(base: f64, epsilon_exp: i32) -> TestResult {
-        if !base.is_finite() || base.abs() > 1000.0 || epsilon_exp < -15 || epsilon_exp > -5 {
+        if !base.is_finite() || base.abs() > 1000.0 || !(-15..=-5).contains(&epsilon_exp) {
             return TestResult::discard();
         }
 
@@ -924,7 +921,7 @@ mod multivariate_properties {
         for i in 0..corr_matrix.nrows() {
             for j in 0..corr_matrix.ncols() {
                 let corr_val = corr_matrix[[i, j]];
-                if corr_val < -1.0 || corr_val > 1.0 || !corr_val.is_finite() {
+                if !(-1.0..=1.0).contains(&corr_val) || !corr_val.is_finite() {
                     properties_hold = false;
                     break;
                 }

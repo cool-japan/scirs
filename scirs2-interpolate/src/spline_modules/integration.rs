@@ -32,7 +32,7 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::spline::CubicSpline;
     ///
     /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -82,15 +82,15 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
             integral = self.integrate_segment(idx_a, a, b)?;
         } else {
             // Integrate from a to the end of its segment
-            integral = integral + self.integrate_segment(idx_a, a, self.x()[idx_a + 1])?;
+            integral += self.integrate_segment(idx_a, a, self.x()[idx_a + 1])?;
 
             // Integrate all complete segments in between
             for i in (idx_a + 1)..idx_b {
-                integral = integral + self.integrate_segment(i, self.x()[i], self.x()[i + 1])?;
+                integral += self.integrate_segment(i, self.x()[i], self.x()[i + 1])?;
             }
 
             // Integrate from the start of b's segment to b
-            integral = integral + self.integrate_segment(idx_b, self.x()[idx_b], b)?;
+            integral += self.integrate_segment(idx_b, self.x()[idx_b], b)?;
         }
 
         Ok(integral)
@@ -135,7 +135,7 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::spline::CubicSpline;
     /// use scirs2_interpolate::interp1d::ExtrapolateMode;
     ///
@@ -178,9 +178,9 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
 
         match extrapolate_mode {
             crate::interp1d::ExtrapolateMode::Error => {
-                return Err(InterpolateError::OutOfBounds(
+                Err(InterpolateError::OutOfBounds(
                     "Integration bounds outside interpolation range and extrapolate=false".to_string(),
-                ));
+                ))
             }
             crate::interp1d::ExtrapolateMode::Extrapolate => {
                 self.integrate_with_linear_extrapolation(a, b)
@@ -280,18 +280,18 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
         // Left extrapolation region
         if a < x_min {
             let region_end = b.min(x_min);
-            integral = integral + self.integrate_left_extrapolation(a, region_end)?;
+            integral += self.integrate_left_extrapolation(a, region_end)?;
         }
 
         // Interior region
         if a_clamped < b_clamped {
-            integral = integral + self.integrate(a_clamped, b_clamped)?;
+            integral += self.integrate(a_clamped, b_clamped)?;
         }
 
         // Right extrapolation region
         if b > x_max {
             let region_start = a.max(x_max);
-            integral = integral + self.integrate_right_extrapolation(region_start, b)?;
+            integral += self.integrate_right_extrapolation(region_start, b)?;
         }
 
         Ok(integral)
@@ -323,12 +323,12 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
         if a < x_min {
             let region_end = b.min(x_min);
             let width = region_end - a;
-            integral = integral + self.y()[0] * width;
+            integral += self.y()[0] * width;
         }
 
         // Interior region
         if a_clamped < b_clamped {
-            integral = integral + self.integrate(a_clamped, b_clamped)?;
+            integral += self.integrate(a_clamped, b_clamped)?;
         }
 
         // Right extrapolation region (constant y[n-1])
@@ -336,7 +336,7 @@ impl<F: InterpolationFloat + ToString> CubicSpline<F> {
             let region_start = a.max(x_max);
             let width = b - region_start;
             let n = self.y().len() - 1;
-            integral = integral + self.y()[n] * width;
+            integral += self.y()[n] * width;
         }
 
         Ok(integral)

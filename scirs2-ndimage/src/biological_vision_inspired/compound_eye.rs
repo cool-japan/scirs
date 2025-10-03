@@ -3,8 +3,8 @@
 //! This module implements insect-inspired compound eye vision for ultra-wide field
 //! motion detection and looming object detection.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::VecDeque;
 use std::f64::consts::PI;
 

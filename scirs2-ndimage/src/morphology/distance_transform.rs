@@ -31,8 +31,8 @@
 
 #![allow(clippy::type_complexity)]
 
-use ndarray::{Array, Dimension, IxDyn};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Dimension, IxDyn};
+use scirs2_core::numeric::Float;
 
 use std::fmt::Debug;
 
@@ -62,8 +62,8 @@ fn distance_transform_edt_optimized<D>(
 ) -> (Option<Array<f64, D>>, Option<Array<i32, IxDyn>>)
 where
     D: Dimension + 'static,
-    D::Pattern: ndarray::NdIndex<D>,
-    for<'a> &'a [usize]: ndarray::NdIndex<D>,
+    D::Pattern: scirs2_core::ndarray::NdIndex<D>,
+    for<'a> &'a [usize]: scirs2_core::ndarray::NdIndex<D>,
 {
     let ndim = input.ndim();
     let shape = input.shape();
@@ -82,7 +82,7 @@ where
     };
 
     // Initialize: background pixels have distance 0, foreground have infinity
-    for idx in ndarray::indices(shape) {
+    for idx in scirs2_core::ndarray::indices(shape) {
         let idx_vec: Vec<_> = idx.slice().to_vec();
         if input[idx_vec.as_slice()] {
             // Foreground pixel - initialize with infinity
@@ -109,7 +109,7 @@ where
     // Convert squared _distances to actual _distances if requested
     let _distances = if return_distances {
         let mut final_dist = Array::<f64, D>::zeros(input.raw_dim());
-        for idx in ndarray::indices(shape) {
+        for idx in scirs2_core::ndarray::indices(shape) {
             let idx_vec: Vec<_> = idx.slice().to_vec();
             final_dist[idx_vec.as_slice()] = dist_sq[idx_vec.as_slice()].sqrt();
         }
@@ -134,7 +134,7 @@ fn felzenszwalb_1d_edt<D>(
     sampling: f64,
 ) where
     D: Dimension,
-    for<'a> &'a [usize]: ndarray::NdIndex<D>,
+    for<'a> &'a [usize]: scirs2_core::ndarray::NdIndex<D>,
 {
     let shape = dist_sq.shape().to_vec();
     let ndim = dist_sq.ndim();
@@ -299,7 +299,7 @@ fn intersection_point(p: usize, q: usize, f: &[f64], samplingsq: f64) -> f64 {
 fn apply_1d_distance_transform<D>(_distancesquared: &mut Array<f64, D>, dim: usize, sampling: f64)
 where
     D: Dimension,
-    for<'a> &'a [usize]: ndarray::NdIndex<D>,
+    for<'a> &'a [usize]: scirs2_core::ndarray::NdIndex<D>,
 {
     let shape_vec: Vec<usize> = _distancesquared.shape().to_vec();
     let ndim = _distancesquared.ndim();
@@ -400,8 +400,8 @@ fn distance_transform_edt_brute_force<D>(
 ) -> (Option<Array<f64, D>>, Option<Array<i32, IxDyn>>)
 where
     D: Dimension + 'static,
-    D::Pattern: ndarray::NdIndex<D>,
-    for<'a> &'a [usize]: ndarray::NdIndex<D>,
+    D::Pattern: scirs2_core::ndarray::NdIndex<D>,
+    for<'a> &'a [usize]: scirs2_core::ndarray::NdIndex<D>,
 {
     let ndim = input.ndim();
     let shape = input.shape();
@@ -423,7 +423,7 @@ where
     };
 
     // Brute force computation (original algorithm)
-    for idx in ndarray::indices(shape) {
+    for idx in scirs2_core::ndarray::indices(shape) {
         let idx_vec: Vec<_> = idx.slice().to_vec();
         if !input[idx_vec.as_slice()] {
             // Background pixels have distance 0
@@ -445,7 +445,7 @@ where
             let mut closest_idx = vec![0; ndim];
 
             // Scan the entire image to find the nearest background pixel
-            for bg_idx in ndarray::indices(shape) {
+            for bg_idx in scirs2_core::ndarray::indices(shape) {
                 let bg_idx_vec: Vec<_> = bg_idx.slice().to_vec();
                 if !input[bg_idx_vec.as_slice()] {
                     // Calculate the Euclidean distance
@@ -508,7 +508,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array2, array, IxDyn};
+/// use scirs2_core::ndarray::{Array2, array, IxDyn};
 /// use scirs2_ndimage::morphology::distance_transform_edt;
 ///
 /// let input = array![[false, true, true, true, true],
@@ -530,8 +530,8 @@ pub fn distance_transform_edt<D>(
 ) -> NdimageResult<(Option<Array<f64, D>>, Option<Array<i32, IxDyn>>)>
 where
     D: Dimension + 'static,
-    D::Pattern: ndarray::NdIndex<D>,
-    for<'a> &'a [usize]: ndarray::NdIndex<D>,
+    D::Pattern: scirs2_core::ndarray::NdIndex<D>,
+    for<'a> &'a [usize]: scirs2_core::ndarray::NdIndex<D>,
 {
     // Input validation
     if !return_distances && !return_indices {
@@ -589,7 +589,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array2, array, IxDyn};
+/// use scirs2_core::ndarray::{Array2, array, IxDyn};
 /// use scirs2_ndimage::morphology::distance_transform_cdt;
 ///
 /// let input = array![[false, true, true, true, true],
@@ -611,8 +611,8 @@ pub fn distance_transform_cdt<D>(
 ) -> NdimageResult<(Option<Array<i32, D>>, Option<Array<i32, IxDyn>>)>
 where
     D: Dimension + 'static,
-    D::Pattern: ndarray::NdIndex<D>,
-    for<'a> &'a [usize]: ndarray::NdIndex<D>,
+    D::Pattern: scirs2_core::ndarray::NdIndex<D>,
+    for<'a> &'a [usize]: scirs2_core::ndarray::NdIndex<D>,
 {
     // Input validation
     if !return_distances && !return_indices {
@@ -660,7 +660,7 @@ where
     let shape = input.shape();
 
     // For each point in the array
-    for idx in ndarray::indices(shape) {
+    for idx in scirs2_core::ndarray::indices(shape) {
         let idx_vec: Vec<_> = idx.slice().to_vec();
         if !input[idx_vec.as_slice()] {
             // Background pixels have distance 0
@@ -682,7 +682,7 @@ where
             let mut closest_idx = vec![0; ndim];
 
             // Scan the entire image to find the nearest background pixel
-            for bg_idx in ndarray::indices(shape) {
+            for bg_idx in scirs2_core::ndarray::indices(shape) {
                 let bg_idx_vec: Vec<_> = bg_idx.slice().to_vec();
                 if !input[bg_idx_vec.as_slice()] {
                     // Calculate the distance based on the metric
@@ -758,7 +758,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array2, array, IxDyn};
+/// use scirs2_core::ndarray::{Array2, array, IxDyn};
 /// use scirs2_ndimage::morphology::distance_transform_bf;
 ///
 /// let input = array![[false, true, true, true, true],
@@ -781,8 +781,8 @@ pub fn distance_transform_bf<D>(
 ) -> NdimageResult<(Option<Array<f64, D>>, Option<Array<i32, IxDyn>>)>
 where
     D: Dimension + 'static,
-    D::Pattern: ndarray::NdIndex<D>,
-    for<'a> &'a [usize]: ndarray::NdIndex<D>,
+    D::Pattern: scirs2_core::ndarray::NdIndex<D>,
+    for<'a> &'a [usize]: scirs2_core::ndarray::NdIndex<D>,
 {
     // Input validation
     if !return_distances && !return_indices {
@@ -843,7 +843,7 @@ where
     let shape = input.shape();
 
     // For each point in the array
-    for idx in ndarray::indices(shape) {
+    for idx in scirs2_core::ndarray::indices(shape) {
         let idx_vec: Vec<_> = idx.slice().to_vec();
         if !input[idx_vec.as_slice()] {
             // Background pixels have distance 0
@@ -865,7 +865,7 @@ where
             let mut closest_idx = vec![0; ndim];
 
             // Scan the entire image to find the nearest background pixel
-            for bg_idx in ndarray::indices(shape) {
+            for bg_idx in scirs2_core::ndarray::indices(shape) {
                 let bg_idx_vec: Vec<_> = bg_idx.slice().to_vec();
                 if !input[bg_idx_vec.as_slice()] {
                     // Calculate the distance based on the metric
@@ -932,7 +932,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_distance_transform_edt() {
@@ -954,7 +954,7 @@ mod tests {
             .expect("Distance transform should succeed");
         let distances = distances_option
             .expect("Expected distances")
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .expect("Failed to convert back to Ix2");
 
         // Check the distances
@@ -991,7 +991,7 @@ mod tests {
             .expect("Distance transform should succeed");
         let distances = distances_option
             .expect("Expected distances")
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .expect("Failed to convert back to Ix2");
 
         // Check the distances (cityblock distance)
@@ -1033,12 +1033,12 @@ mod tests {
 
         let opt_dist = optimized_dist
             .expect("Expected optimized distances")
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .expect("Failed to convert optimized to Ix2");
 
         let bf_dist = brute_force_dist
             .expect("Expected brute force distances")
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .expect("Failed to convert brute force to Ix2");
 
         // Compare results
@@ -1072,7 +1072,7 @@ mod tests {
                 .expect("Distance transform should succeed");
         let euclidean = euclidean_option
             .expect("Expected euclidean distances")
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .expect("Failed to convert back to Ix2");
 
         let (cityblock_option, _) =
@@ -1080,7 +1080,7 @@ mod tests {
                 .expect("Distance transform should succeed");
         let cityblock = cityblock_option
             .expect("Expected cityblock distances")
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .expect("Failed to convert back to Ix2");
 
         let (chessboard_option, _) =
@@ -1088,7 +1088,7 @@ mod tests {
                 .expect("Distance transform should succeed");
         let chessboard = chessboard_option
             .expect("Expected chessboard distances")
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .expect("Failed to convert back to Ix2");
 
         // Check euclidean distances

@@ -1,5 +1,5 @@
-use ndarray::{array, Array2};
 use plotters::prelude::*;
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_stats::huber_regression;
 
 #[allow(dead_code)]
@@ -145,7 +145,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &RED,
         ))?
         .label("Huber (ε=1.345)")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
 
     let huber_robust_intercept = huber_result_robust.coefficients[0];
     let huber_robust_slope = huber_result_robust.coefficients[1];
@@ -160,7 +160,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &MAGENTA,
         ))?
         .label("Huber (ε=0.8)")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &MAGENTA));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], MAGENTA));
 
     let huber_less_robust_intercept = huber_result_less_robust.coefficients[0];
     let huber_less_robust_slope = huber_result_less_robust.coefficients[1];
@@ -175,7 +175,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &CYAN,
         ))?
         .label("Huber (ε=2.5)")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &CYAN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], CYAN));
 
     // Plot OLS regression line
     chart
@@ -188,12 +188,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &GREEN,
         ))?
         .label("OLS")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     println!("Plot saved as 'huber_regression.png'");

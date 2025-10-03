@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::structured::{
     solve_circulant, solve_toeplitz, structured_to_operator, CirculantMatrix, HankelMatrix,
     StructuredMatrix, ToeplitzMatrix,

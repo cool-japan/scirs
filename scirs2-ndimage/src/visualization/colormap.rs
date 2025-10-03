@@ -4,8 +4,8 @@
 //! including scientific color maps like Viridis, Plasma, and traditional maps like Jet.
 
 use crate::visualization::types::{ColorMap, RgbColor};
-use ndarray::{Array3, ArrayView2};
-use num_traits::{Float, FromPrimitive, ToPrimitive};
+use scirs2_core::ndarray::{Array3, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive};
 use std::fmt::Debug;
 
 /// Create a color map for visualization
@@ -270,7 +270,7 @@ pub fn apply_colormap_to_array<T>(
 where
     T: Float + FromPrimitive + ToPrimitive + Debug + Clone,
 {
-    use ndarray::Array3;
+    use scirs2_core::ndarray::Array3;
 
     let (height, width) = data.dim();
     let mut result = Array3::zeros((height, width, 3));

@@ -141,11 +141,11 @@ where
     let mut best_modularity = current_modularity;
 
     let mut temp = initial_temp;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _iteration in 0..max_iterations {
         // Choose a random node to move
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let node_idx = rng.gen_range(0..n);
         let node = &nodes[node_idx];
         let current_community = current_communities[node];

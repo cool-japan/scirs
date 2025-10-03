@@ -10,7 +10,7 @@ use crate::error::{SignalError, SignalResult};
 use crate::lombscargle::lombscargle;
 use crate::multitaper::enhanced::{enhanced_pmtm, MultitaperConfig};
 use crate::parametric::{ar_spectrum, estimate_ar, ARMethod};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Validate spectral analysis operations against SciPy reference
 pub fn validate_spectral_analysis(config: &ValidationConfig) -> SignalResult<ValidationResults> {

@@ -2,8 +2,8 @@
 //!
 //! Various mutation strategies for maintaining diversity in populations.
 
-use rand::Rng;
-use rand_distr::{Distribution, Normal};
+use scirs2_core::random::Rng;
+use scirs2_core::random::{Distribution, Normal};
 
 /// Trait for mutation operators
 pub trait MutationOperator {
@@ -38,7 +38,7 @@ impl PolynomialMutation {
 
 impl MutationOperator for PolynomialMutation {
     fn mutate(&self, solution: &mut [f64], bounds: &[(f64, f64)]) {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let n = solution.len();
 
         for i in 0..n {
@@ -72,7 +72,7 @@ impl GaussianMutation {
 
 impl MutationOperator for GaussianMutation {
     fn mutate(&self, solution: &mut [f64], bounds: &[(f64, f64)]) {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let normal = Normal::new(0.0, self.std_dev).unwrap();
 
         for i in 0..solution.len() {
@@ -103,7 +103,7 @@ impl UniformMutation {
 
 impl MutationOperator for UniformMutation {
     fn mutate(&self, solution: &mut [f64], bounds: &[(f64, f64)]) {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for i in 0..solution.len() {
             if rng.random::<f64>() <= self.mutation_probability {

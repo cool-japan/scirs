@@ -6,7 +6,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{ODEMethod, ODEOptions};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 
 /// Options for controlling the behavior of the BVP solver
 #[derive(Debug, Clone)]
@@ -74,7 +74,7 @@ pub struct BVPResult<F: IntegrateFloat> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array1, ArrayView1};
+/// use scirs2_core::ndarray::{array, Array1, ArrayView1};
 /// use scirs2_integrate::bvp::{solve_bvp, BVPOptions};
 ///
 /// // Solve a simple linear ODE: y' = -y with boundary conditions
@@ -573,7 +573,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_solve_bvp_sine() {

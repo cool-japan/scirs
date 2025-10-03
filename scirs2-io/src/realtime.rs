@@ -25,15 +25,16 @@
 //!
 //! ```rust,no_run
 //! use scirs2_io::realtime::{StreamClient, StreamProcessor, Protocol};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //!     // Create a WebSocket stream client
-//!     let client = StreamClient::new(Protocol::WebSocket)
+//!     let mut client = StreamClient::new(Protocol::WebSocket)
 //!         .endpoint("ws://localhost:8080/data")
 //!         .reconnect(true)
-//!         .buffer_size(1000);
+//!         .buffer_size(1000)
+//!         .build()?;
 //!
 //!     // Process streaming data
 //!     client.stream()
@@ -42,7 +43,7 @@
 //!         .map(|data| data * 2.0)
 //!         .sink("output.dat")
 //!         .await?;
-//!     
+//!
 //!     Ok(())
 //! }
 //! ```
@@ -50,9 +51,9 @@
 use crate::error::{IoError, Result};
 #[cfg(feature = "async")]
 use futures::{SinkExt, Stream, StreamExt};
-use ndarray::{Array1, Array2, ArrayD, ArrayView1, IxDyn};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayD, ArrayView1, IxDyn};
 use scirs2_core::numeric::ScientificNumber;
+use scirs2_core::random::Rng;
 use serde_json;
 use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
@@ -539,7 +540,7 @@ impl StreamConnection for WebSocketConnection {
 
         let endpoint_str = self.config.endpoint.clone();
         // tokio_tungstenite connect_async accepts &str / String / Request
-        let (ws_stream_response) =
+        let ws_stream_response =
             tokio::time::timeout(self.config.timeout, connect_async(&endpoint_str))
                 .await
                 .map_err(|_| IoError::TimeoutError("WebSocket connection timeout".to_string()))?
@@ -1205,7 +1206,7 @@ impl StreamConnection for MqttConnection {
         }
 
         // Simulate realistic MQTT message with proper JSON structure
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let sensor_data = serde_json::json!({
             "client_id": self.client_id,
             "topic": self.topic,
@@ -1615,7 +1616,7 @@ struct TimePoint<T> {
 
 /// Buffer statistics
 #[derive(Debug, Default)]
-struct BufferStats {
+pub struct BufferStats {
     /// Total points added
     total_added: u64,
     /// Total points dropped

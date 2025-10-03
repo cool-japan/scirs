@@ -23,7 +23,7 @@
 //! - For production code: Prefer the simple_morph module when working with 2D arrays
 //!
 
-use ndarray::{Array, Array1, Array2, Dimension, Ix1, Ix2, IxDyn};
+use scirs2_core::ndarray::{Array, Array1, Array2, Dimension, Ix1, Ix2, IxDyn};
 
 use super::structuring::generate_binary_structure_dyn;
 use super::utils::get_structure_center_dyn;
@@ -52,7 +52,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Basic 2D erosion
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::morphology::binary_erosion;
 ///
 /// // Create a simple 3x3 array filled with true values
@@ -67,7 +67,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Custom structuring element
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::morphology::binary_erosion;
 ///
 /// let input = array![
@@ -91,7 +91,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Multiple iterations for heavy erosion
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::morphology::binary_erosion;
 ///
 /// // Create a larger filled region
@@ -106,7 +106,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Using a mask to limit erosion area
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::morphology::binary_erosion;
 ///
 /// let input = Array2::from_elem((5, 5), true);
@@ -126,7 +126,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## 1D signal processing
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_ndimage::morphology::binary_erosion;
 ///
 /// let signal = Array1::from_vec(vec![false, true, true, true, false]);
@@ -577,7 +577,7 @@ fn binary_erosion_dyn(
         let temp = result.clone();
 
         // Iterate through all positions in the input array
-        for idx in ndarray::indices(input.shape()) {
+        for idx in scirs2_core::ndarray::indices(input.shape()) {
             let idx_vec: Vec<_> = idx.slice().to_vec();
 
             // Skip if masked out
@@ -591,7 +591,7 @@ fn binary_erosion_dyn(
             let mut all_fit = true;
 
             // Check each structure element
-            for str_idx in ndarray::indices(default_structure.shape()) {
+            for str_idx in scirs2_core::ndarray::indices(default_structure.shape()) {
                 let str_idx_vec: Vec<_> = str_idx.slice().to_vec();
 
                 // Skip if structure element is false
@@ -1111,7 +1111,7 @@ fn binary_dilation_dyn(
         let temp = result.clone();
 
         // Iterate through all positions in the input array
-        for idx in ndarray::indices(input.shape()) {
+        for idx in scirs2_core::ndarray::indices(input.shape()) {
             let idx_vec: Vec<_> = idx.slice().to_vec();
 
             // Skip if masked out
@@ -1125,7 +1125,7 @@ fn binary_dilation_dyn(
             let mut any_fit = false;
 
             // Check each structure element
-            for str_idx in ndarray::indices(default_structure.shape()) {
+            for str_idx in scirs2_core::ndarray::indices(default_structure.shape()) {
                 let str_idx_vec: Vec<_> = str_idx.slice().to_vec();
 
                 // Skip if structure element is false
@@ -1327,7 +1327,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::morphology::binary_hit_or_miss;
 ///
 /// // Create a binary image with a specific pattern
@@ -1360,7 +1360,7 @@ where
         1 => {
             let input_1d = input
                 .clone()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| NdimageError::DimensionError("Failed to convert to 1D".to_string()))?;
             let result_1d = binary_hit_or_miss_1d(
                 &input_1d,
@@ -1378,7 +1378,7 @@ where
         2 => {
             let input_2d = input
                 .clone()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D".to_string()))?;
             let result_2d = binary_hit_or_miss_2d(
                 &input_2d,
@@ -1405,14 +1405,14 @@ where
 /// Apply binary hit-or-miss transform to a 1D array
 #[allow(dead_code)]
 fn binary_hit_or_miss_1d<D>(
-    input: &Array<bool, ndarray::Ix1>,
+    input: &Array<bool, scirs2_core::ndarray::Ix1>,
     _structure1: Option<&Array<bool, D>>,
     _structure2: Option<&Array<bool, D>>,
     _mask: Option<&Array<bool, D>>,
     _border_value: Option<bool>,
     _origin1: Option<&[isize]>,
     _origin2: Option<&[isize]>,
-) -> NdimageResult<Array<bool, ndarray::Ix1>>
+) -> NdimageResult<Array<bool, scirs2_core::ndarray::Ix1>>
 where
     D: Dimension + 'static,
 {
@@ -1423,18 +1423,18 @@ where
 /// Apply binary hit-or-miss transform to a 2D array
 #[allow(dead_code)]
 fn binary_hit_or_miss_2d<D>(
-    input: &Array<bool, ndarray::Ix2>,
+    input: &Array<bool, scirs2_core::ndarray::Ix2>,
     structure1: Option<&Array<bool, D>>,
     structure2: Option<&Array<bool, D>>,
     mask: Option<&Array<bool, D>>,
     border_value: Option<bool>,
     origin1: Option<&[isize]>,
     origin2: Option<&[isize]>,
-) -> NdimageResult<Array<bool, ndarray::Ix2>>
+) -> NdimageResult<Array<bool, scirs2_core::ndarray::Ix2>>
 where
     D: Dimension + 'static,
 {
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     let border = border_value.unwrap_or(false);
     let (rows, cols) = input.dim();
@@ -1448,7 +1448,7 @@ where
             ));
         }
         s.clone()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| {
                 NdimageError::DimensionError("Failed to convert structure to 2D".to_string())
             })?
@@ -1471,7 +1471,7 @@ where
             ));
         }
         s.clone()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| {
                 NdimageError::DimensionError("Failed to convert structure to 2D".to_string())
             })?
@@ -1528,7 +1528,7 @@ where
                 }
                 let m_2d = m
                     .clone()
-                    .into_dimensionality::<ndarray::Ix2>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                     .map_err(|_| {
                         NdimageError::DimensionError("Failed to convert mask to 2D".to_string())
                     })?;
@@ -1539,7 +1539,7 @@ where
 
             // Check if foreground structure "hits"
             let mut foreground_hit = true;
-            for (si, sj) in ndarray::indices(default_structure1.dim()) {
+            for (si, sj) in scirs2_core::ndarray::indices(default_structure1.dim()) {
                 if !default_structure1[[si, sj]] {
                     continue; // Skip false elements in structure
                 }
@@ -1566,7 +1566,7 @@ where
             // Check if background structure "misses"
             let mut background_miss = true;
             if foreground_hit {
-                for (si, sj) in ndarray::indices(default_structure2.dim()) {
+                for (si, sj) in scirs2_core::ndarray::indices(default_structure2.dim()) {
                     if !default_structure2[[si, sj]] {
                         continue; // Skip false elements in structure
                     }
@@ -1601,7 +1601,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_binary_erosion() {
@@ -1740,8 +1740,8 @@ mod tests {
     #[test]
     fn test_binary_erosion_3d() {
         // Create a 3D test array with a solid cube
-        let mut input: ndarray::Array<bool, ndarray::Ix3> =
-            ndarray::Array::from_elem((3, 3, 3), false);
+        let mut input: scirs2_core::ndarray::Array<bool, scirs2_core::ndarray::Ix3> =
+            scirs2_core::ndarray::Array::from_elem((3, 3, 3), false);
         // Fill the cube
         for i in 0..3 {
             for j in 0..3 {
@@ -1771,8 +1771,8 @@ mod tests {
     #[test]
     fn test_binary_dilation_3d() {
         // Create a 3D test array with a single point
-        let mut input: ndarray::Array<bool, ndarray::Ix3> =
-            ndarray::Array::from_elem((3, 3, 3), false);
+        let mut input: scirs2_core::ndarray::Array<bool, scirs2_core::ndarray::Ix3> =
+            scirs2_core::ndarray::Array::from_elem((3, 3, 3), false);
         input[[1, 1, 1]] = true;
 
         // Apply dilation with default structure

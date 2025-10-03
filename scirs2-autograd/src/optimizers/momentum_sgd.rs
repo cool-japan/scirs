@@ -24,7 +24,7 @@ use crate::{Context, Float, VariableEnvironment};
 ///    let p = g.placeholder("p", &[]);
 ///
 ///    let mut feeder = ag::Feeder::new();
-///    let feed = ag::ndarray::arr0(2.);
+///    let feed = scirs2_core::ndarray::arr0(2.);
 ///    let feeder = feeder.push(p, feed.view().into_dyn());
 ///
 ///    let (params, grads): (&[Tensor], &[Tensor]) = (&[], &[]); // dummy here

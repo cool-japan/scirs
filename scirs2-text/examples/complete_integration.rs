@@ -182,7 +182,7 @@ impl AdvancedSystem {
         println!("⚡ Demo 2: Performance-Monitored SIMD Operations");
         println!("===============================================");
 
-        let testtexts = vec![
+        let testtexts = [
             "The quick brown fox jumps over the lazy dog".to_string(),
             "Pack my box with five dozen liquor jugs".to_string(),
             "How vexingly quick daft zebras jump!".to_string(),

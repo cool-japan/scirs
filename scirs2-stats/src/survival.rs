@@ -4,7 +4,7 @@
 //! Cox proportional hazards model, and related statistical tests.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::validation::*;
 
 /// Kaplan-Meier survival estimator
@@ -51,7 +51,7 @@ impl KaplanMeierEstimator {
             )));
         }
 
-        if durations.len() == 0 {
+        if durations.is_empty() {
             return Err(StatsError::InvalidArgument(
                 "Input arrays cannot be empty".to_string(),
             ));
@@ -304,12 +304,10 @@ impl LogRankTest {
                     } else {
                         censored_group1 += 1.0;
                     }
+                } else if is_event {
+                    events_group2 += 1.0;
                 } else {
-                    if is_event {
-                        events_group2 += 1.0;
-                    } else {
-                        censored_group2 += 1.0;
-                    }
+                    censored_group2 += 1.0;
                 }
                 i += 1;
             }
@@ -1262,7 +1260,7 @@ impl CompetingRisksModel {
         let mut weights = Array1::ones(n_samples_);
 
         // Calculate Kaplan-Meier for censoring distribution
-        let censoring_km = Self::kaplan_meier_censoring(&durations, &events)?;
+        let censoring_km = Self::kaplan_meier_censoring(durations, events)?;
 
         for i in 0..n_samples_ {
             if events[i] == target_risk {

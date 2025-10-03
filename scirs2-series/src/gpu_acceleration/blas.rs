@@ -4,8 +4,8 @@
 //! optimized for GPU execution, including Level 1, 2, and 3 operations,
 //! as well as Tensor Cores optimized implementations.
 
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use super::{GpuCapabilities, GpuConfig, TensorCoresConfig, TensorCoresGeneration};
@@ -251,7 +251,9 @@ pub struct TensorCoresBLAS<F: Float + Debug> {
     device_capabilities: GpuCapabilities,
 }
 
-impl<F: Float + Debug + Clone + num_traits::Zero + num_traits::One> TensorCoresBLAS<F> {
+impl<F: Float + Debug + Clone + scirs2_core::numeric::Zero + scirs2_core::numeric::One>
+    TensorCoresBLAS<F>
+{
     /// Create new tensor cores BLAS processor
     pub fn new(_config: GpuConfig, devicecapabilities: GpuCapabilities) -> Result<Self> {
         let base_blas = GpuBLAS::new(_config.clone());
@@ -562,7 +564,8 @@ impl<F: Float + Debug + Clone + num_traits::Zero + num_traits::One> TensorCoresB
         if let Some(generation) = self.device_capabilities.tensor_cores_generation {
             let supported_dims = generation.supported_matrix_dimensions();
             for &(tile_m, tile_n, tile_k) in &supported_dims {
-                if m % tile_m == 0 && n % tile_n == 0 && k % tile_k == 0 {
+                if m.is_multiple_of(tile_m) && n.is_multiple_of(tile_n) && k.is_multiple_of(tile_k)
+                {
                     return true;
                 }
             }

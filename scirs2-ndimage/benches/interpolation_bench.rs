@@ -144,7 +144,7 @@ fn bench_map_coordinates(c: &mut Criterion) {
     // Create simple coordinate transformation (identity with slight offset)
     let (rows, cols) = input.dim();
     let coordinates = Array2::from_shape_fn((rows, cols), |(i, j)| (i * j) as f64 + 0.5)
-        .into_dimensionality::<ndarray::IxDyn>()
+        .into_dimensionality::<scirs2_core::ndarray::IxDyn>()
         .unwrap();
 
     group.bench_function("map_coordinates_linear", |b| {

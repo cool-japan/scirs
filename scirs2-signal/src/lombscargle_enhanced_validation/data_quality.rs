@@ -6,7 +6,7 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle::lombscargle;
 use crate::lombscargle_enhanced::LombScargleConfig;
-use rand::Rng;
+use scirs2_core::random::Rng;
 use std::f64::consts::PI;
 
 use super::config::{IrregularSamplingResults, MissingDataResults, NoiseRobustnessResults};
@@ -17,7 +17,7 @@ pub fn test_irregular_sampling(
     tolerance: f64,
 ) -> SignalResult<IrregularSamplingResults> {
     // Create irregularly sampled signal
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::thread_rng();
     let mut t_irregular = vec![0.0];
 
     // Generate irregular time points
@@ -203,7 +203,7 @@ pub fn test_noise_robustness(
             let noise_power = signal_power / 10.0_f64.powf(snr_db / 10.0);
             let noise_std = noise_power.sqrt();
 
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let signal: Vec<f64> = t
                 .iter()
                 .map(|&ti| (2.0 * PI * f_true * ti).sin() + noise_std * rng.gen_range(-1.0..1.0))

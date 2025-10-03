@@ -7,7 +7,7 @@
 //! The physical system modeled is a variable-mass pendulum, where the
 //! pendulum's mass changes with time (like a pendulum with a leaking bob).
 
-use ndarray::{array, Array2, ArrayView1};
+use scirs2_core::ndarray::{array, Array2, ArrayView1};
 use scirs2_integrate::error::IntegrateResult;
 use scirs2_integrate::ode::{
     solve_ivp_with_events, terminal_event, EventAction, EventDirection, EventSpec, MassMatrix,

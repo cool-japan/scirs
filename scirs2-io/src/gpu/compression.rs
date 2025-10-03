@@ -6,8 +6,8 @@
 use super::backend_management::GpuIoProcessor;
 use crate::compression::{CompressionAlgorithm, ParallelCompressionConfig};
 use crate::error::{IoError, Result};
-use ndarray::{Array1, ArrayView1};
 use scirs2_core::gpu::{GpuBackend, GpuDataType};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::simd_ops::PlatformCapabilities;
 
 /// GPU-accelerated compression processor
@@ -610,16 +610,20 @@ impl Default for GpuCompressionProcessor {
 /// Compression performance statistics
 #[derive(Debug, Clone)]
 pub struct CompressionStats {
+    /// GPU backend type
     pub backend: scirs2_core::gpu::GpuBackend,
+    /// Minimum data size for GPU acceleration
     pub threshold_bytes: usize,
+    /// Estimated throughput in GB/s
     pub estimated_throughput_gbps: f64,
+    /// Number of parallel processing chunks
     pub parallel_chunks: usize,
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_compression_processor_creation() {

@@ -4,15 +4,15 @@
 //! distances between all points. It extends MDS by using geodesic distances instead
 //! of Euclidean distances.
 
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::validation::{check_positive, checkshape};
 use scirs2_linalg::eigh;
 use std::collections::BinaryHeap;
 use std::f64;
 
 use crate::error::{Result, TransformError};
-// use statrs::statistics::Statistics; // TODO: Add statrs dependency
+// use statrs::statistics::Statistics; // TODO: Add statrs dependency - needs generic type fixes
 
 /// Isomap (Isometric Feature Mapping) dimensionality reduction
 ///
@@ -75,8 +75,8 @@ impl Isomap {
             for j in i + 1..n_samples {
                 let mut dist = 0.0;
                 for k in 0..x.shape()[1] {
-                    let diff = num_traits::cast::<S::Elem, f64>(x[[i, k]]).unwrap_or(0.0)
-                        - num_traits::cast::<S::Elem, f64>(x[[j, k]]).unwrap_or(0.0);
+                    let diff = NumCast::from(x[[i, k]]).unwrap_or(0.0)
+                        - NumCast::from(x[[j, k]]).unwrap_or(0.0);
                     dist += diff * diff;
                 }
                 dist = dist.sqrt();
@@ -251,7 +251,7 @@ impl Isomap {
         }
 
         // Convert input to f64
-        let x_f64 = x.mapv(|v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0));
+        let x_f64 = x.mapv(|v| NumCast::from(v).unwrap_or(0.0));
 
         // Step 1: Compute pairwise distances
         let distances = self.compute_distances(&x_f64.view());
@@ -297,7 +297,7 @@ impl Isomap {
             .as_ref()
             .ok_or_else(|| TransformError::NotFitted("Training data not available".to_string()))?;
 
-        let x_f64 = x.mapv(|v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0));
+        let x_f64 = x.mapv(|v| NumCast::from(v).unwrap_or(0.0));
 
         // Check if this is the training data
         if self.is_same_data(&x_f64, training_data) {
@@ -405,7 +405,7 @@ impl Isomap {
     /// Solve for landmark coordinates using weighted least squares
     fn solve_landmark_coordinates(
         &self,
-        distances_to_landmarks: &ndarray::ArrayView1<f64>,
+        distances_to_landmarks: &scirs2_core::ndarray::ArrayView1<f64>,
         landmark_embedding: &Array2<f64>,
         _geodesic_distances: &Array2<f64>,
     ) -> Result<Array1<f64>> {
@@ -543,7 +543,7 @@ impl Isomap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_isomap_basic() {
@@ -591,7 +591,7 @@ mod tests {
     #[test]
     fn test_isomap_disconnected_graph() {
         // Create clearly disconnected data: two separate clusters
-        let x = ndarray::array![
+        let x = scirs2_core::ndarray::array![
             [0.0, 0.0],   // Cluster 1
             [0.1, 0.1],   // Cluster 1
             [10.0, 10.0], // Cluster 2 (far away)

@@ -43,7 +43,7 @@
 //! ## Using Basic Indicators
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::basic::{sma, rsi, bollinger_bands};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let prices = array![10.0, 11.0, 12.0, 11.5, 13.0, 14.0, 13.5, 15.0];
 //!
@@ -62,7 +62,7 @@
 //! use scirs2_series::financial::technical_indicators::advanced::{
 //!     BollingerBandsConfig, MovingAverageType, bollinger_bands, kama
 //! };
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let prices = array![20.0, 21.0, 19.5, 22.0, 21.5, 20.0, 19.0, 23.0, 22.5, 21.0];
 //!
@@ -81,7 +81,7 @@
 //! ## Combining Multiple Indicators
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::{basic, advanced};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let prices = array![10.0, 12.0, 11.0, 13.0, 15.0, 14.0, 16.0, 18.0];
 //!

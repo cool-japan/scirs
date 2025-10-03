@@ -4,8 +4,8 @@
 //! that are commonly used in convolutional neural networks, such as im2col/col2im,
 //! efficient convolution algorithms, and other related operations.
 
-use ndarray::{Array2, Array4, ArrayView4, ScalarOperand};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array2, Array4, ArrayView4, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -31,7 +31,7 @@ use crate::error::{LinalgError, LinalgResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array4;
+/// use scirs2_core::ndarray::Array4;
 /// use scirs2_linalg::convolution::im2col;
 ///
 /// // Create a 1x3x4x4 input tensor (1 batch, 3 channels, 4x4 spatial dimensions)
@@ -157,7 +157,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array4, ArrayView4};
+/// use scirs2_core::ndarray::{Array4, ArrayView4};
 /// use scirs2_linalg::convolution::{im2col, col2im};
 ///
 /// // Create a 1x3x4x4 input tensor
@@ -189,7 +189,7 @@ where
 /// ```
 #[allow(dead_code)]
 pub fn col2im<F>(
-    cols: &ndarray::ArrayView2<F>,
+    cols: &scirs2_core::ndarray::ArrayView2<F>,
     outputshape: (usize, usize, usize, usize),
     kernelsize: (usize, usize),
     stride: (usize, usize),
@@ -312,7 +312,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array4;
+/// use scirs2_core::ndarray::Array4;
 /// use scirs2_linalg::convolution::max_pool2d;
 ///
 /// // Create a 1x1x4x4 input tensor
@@ -424,7 +424,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array4;
+/// use scirs2_core::ndarray::Array4;
 /// use scirs2_linalg::convolution::{max_pool2d, max_pool2d_backward};
 ///
 /// // Create a 1x1x4x4 input tensor
@@ -455,7 +455,7 @@ where
 #[allow(dead_code)]
 pub fn max_pool2d_backward<F>(
     grad_output: &ArrayView4<F>,
-    indices: &ndarray::ArrayView4<usize>,
+    indices: &scirs2_core::ndarray::ArrayView4<usize>,
     inputshape: (usize, usize, usize, usize),
 ) -> LinalgResult<Array4<F>>
 where
@@ -540,7 +540,7 @@ pub fn compute_conv_indices(
     kernelshape: (usize, usize, usize, usize),
     stride: (usize, usize),
     padding: (usize, usize),
-) -> LinalgResult<ndarray::Array1<usize>> {
+) -> LinalgResult<scirs2_core::ndarray::Array1<usize>> {
     let (batchsize, _in_channels, height, width) = inputshape;
     let (out_channels_, in_channels, kernel_h, kernel_w) = kernelshape;
     let (stride_h, stride_w) = stride;
@@ -563,7 +563,7 @@ pub fn compute_conv_indices(
         batchsize * out_channels_ * output_h * output_w * in_channels * kernel_h * kernel_w;
 
     // Allocate array for indices (5 values per element)
-    let mut indices = ndarray::Array1::<usize>::zeros(total_elements * 5);
+    let mut indices = scirs2_core::ndarray::Array1::<usize>::zeros(total_elements * 5);
 
     // Compute indices for batch matmul
     let mut idx = 0;
@@ -622,7 +622,7 @@ pub fn compute_conv_indices(
     }
 
     // Resize the array to remove unused elements
-    let indices = indices.slice(ndarray::s![0..idx]).to_owned();
+    let indices = indices.slice(scirs2_core::ndarray::s![0..idx]).to_owned();
     Ok(indices)
 }
 
@@ -648,7 +648,7 @@ pub fn compute_conv_indices(
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array, Array4};
+/// use scirs2_core::ndarray::{Array, Array4};
 /// use scirs2_linalg::convolution::conv2d_im2col;
 ///
 /// // Create a 2x3x32x32 input tensor (2 batches, 3 channels, 32x32 spatial dimensions)
@@ -677,7 +677,7 @@ pub fn compute_conv_indices(
 pub fn conv2d_im2col<F>(
     input: &ArrayView4<F>,
     kernel: &ArrayView4<F>,
-    bias: Option<ndarray::ArrayView1<F>>,
+    bias: Option<scirs2_core::ndarray::ArrayView1<F>>,
     stride: (usize, usize),
     padding: (usize, usize),
     dilation: (usize, usize),
@@ -777,7 +777,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array4;
+/// use scirs2_core::ndarray::Array4;
 /// use scirs2_linalg::convolution::{conv2d_im2col, conv2d_backward_input};
 ///
 /// // Forward pass
@@ -899,7 +899,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array4;
+/// use scirs2_core::ndarray::Array4;
 /// use scirs2_linalg::convolution::{conv2d_im2col, conv2d_backward_kernel};
 ///
 /// // Simple example with smaller dimensions
@@ -1001,7 +1001,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array4;
+/// use scirs2_core::ndarray::Array4;
 /// use scirs2_linalg::convolution::conv2d_backward_bias;
 ///
 /// // Backward pass for bias
@@ -1012,14 +1012,16 @@ where
 /// assert_eq!(grad_bias.shape(), &[16]);
 /// ```
 #[allow(dead_code)]
-pub fn conv2d_backward_bias<F>(grad_output: &ArrayView4<F>) -> LinalgResult<ndarray::Array1<F>>
+pub fn conv2d_backward_bias<F>(
+    grad_output: &ArrayView4<F>,
+) -> LinalgResult<scirs2_core::ndarray::Array1<F>>
 where
     F: Float + NumAssign + Sum + Zero,
 {
     let (batchsize, out_channels_, output_h, output_w) = grad_output.dim();
 
     // Allocate gradient for bias
-    let mut grad_bias = ndarray::Array1::<F>::zeros(out_channels_);
+    let mut grad_bias = scirs2_core::ndarray::Array1::<F>::zeros(out_channels_);
 
     // Sum gradients over batch, height, and width dimensions
     for batch_idx in 0..batchsize {
@@ -1058,7 +1060,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array, Array4};
+/// use scirs2_core::ndarray::{Array, Array4};
 /// use scirs2_linalg::convolution::conv_transpose2d;
 ///
 /// // Simple example with smaller dimensions
@@ -1087,7 +1089,7 @@ where
 pub fn conv_transpose2d<F>(
     input: &ArrayView4<F>,
     kernel: &ArrayView4<F>,
-    bias: Option<ndarray::ArrayView1<F>>,
+    bias: Option<scirs2_core::ndarray::ArrayView1<F>>,
     stride: (usize, usize),
     padding: (usize, usize),
     output_padding: (usize, usize),
@@ -1196,7 +1198,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{Array1, Array4};
+    use scirs2_core::ndarray::{Array1, Array4};
 
     #[test]
     fn test_im2col_basic() {

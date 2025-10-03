@@ -6,7 +6,7 @@
 
 use super::core::PerspectiveTransform;
 use crate::error::{Result, VisionError};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Automatically detect and correct perspective distortion in an image
 ///

@@ -1,6 +1,6 @@
 //! Example of using ARIMA models for time series analysis
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_series::arima_models::{
     auto_arima, ArimaModel, ArimaSelectionOptions, SelectionCriterion,
 };

@@ -4,8 +4,8 @@
 //! to be more robust to outliers than cubic splines.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Akima spline interpolation object
@@ -39,7 +39,7 @@ impl<F: Float + FromPrimitive + Debug> AkimaSpline<F> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::advanced::akima::AkimaSpline;
     ///
     /// let x = array![0.0f64, 1.0, 2.0, 3.0, 4.0];
@@ -259,7 +259,7 @@ impl<F: Float + FromPrimitive + Debug> AkimaSpline<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::advanced::akima::make_akima_spline;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0, 4.0];
@@ -294,7 +294,7 @@ pub fn akima_interpolate<F: crate::traits::InterpolationFloat>(
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_akima_spline() {

@@ -115,7 +115,7 @@ fn run_benchmark_suite(size: usize, iterations: usize) {
     println!("  HYPER-OPTIMIZED:    {:.2}x", scalar_time / hyper_time);
 
     // Find winner
-    let mut times = vec![
+    let mut times = [
         ("Standard SIMD", standard_time),
         ("Branch-free SIMD", branchfree_time),
         ("Cache-line aware", cacheline_time),

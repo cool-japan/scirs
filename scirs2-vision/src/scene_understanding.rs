@@ -10,7 +10,7 @@
 #![allow(dead_code)]
 
 use crate::error::Result;
-use ndarray::{Array2, Array3, ArrayView3};
+use scirs2_core::ndarray::{Array2, Array3, ArrayView3};
 use std::collections::HashMap;
 
 /// Advanced-advanced scene understanding engine with multi-level reasoning

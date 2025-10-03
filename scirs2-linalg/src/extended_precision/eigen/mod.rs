@@ -18,7 +18,7 @@
 //! # Examples
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_linalg::extended_precision::eigen::{extended_eigvalsh, extended_eigh};
 //!
 //! // Create a symmetric matrix

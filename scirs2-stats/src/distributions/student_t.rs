@@ -5,10 +5,10 @@
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution as ScirsDist};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand_distr::{Distribution, StudentT as RandStudentT};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution, StudentT as RandStudentT};
 use std::f64::consts::PI;
 
 /// Student's t distribution structure

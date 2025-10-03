@@ -4,8 +4,8 @@
 //! generation, LIME explanations, concept activation vectors, and adversarial explanations.
 
 use crate::error::{NeuralError, Result};
-use ndarray::ArrayD;
-use num_traits::Float;
+use scirs2_core::ndarray::ArrayD;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -79,8 +79,8 @@ where
     F: Float
         + Debug
         + 'static
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
         + Sum
         + Clone
         + Copy,
@@ -111,7 +111,7 @@ where
         for _iteration in 0..self.max_iterations {
             // Apply small random perturbations
             counterfactual = counterfactual.mapv(|x| {
-                let perturbation = F::from(rand::random::<f64>() * 0.01).unwrap();
+                let perturbation = F::from(scirs2_core::random::random::<f64>() * 0.01).unwrap();
                 x + perturbation
             });
             // In practice, would evaluate model and check if target is reached
@@ -176,7 +176,7 @@ impl<F> LIMEExplainer<F>
         for _i in 0..self.num_perturbations {
             // Generate perturbation
             let perturbation = input.mapv(|x| {
-                let noise = F::from(rand::random::<f64>() * self.neighborhood_size).unwrap();
+                let noise = F::from(scirs2_core::random::random::<f64>() * self.neighborhood_size).unwrap();
                 x + noise
             // In practice, would evaluate model on perturbation
             // and use results to train local linear model
@@ -206,7 +206,7 @@ pub fn generate_adversarial_explanation<F>(
         "fgsm" => {
             // Fast Gradient Sign Method (simplified)
             original_input.mapv(|_| {
-                let sign = if rand::random::<f64>() > 0.5 {
+                let sign = if scirs2_core::random::random::<f64>() > 0.5 {
                     1.0
                 } else {
                     -1.0
@@ -216,7 +216,7 @@ pub fn generate_adversarial_explanation<F>(
         "pgd" => {
             // Projected Gradient Descent (simplified)
             original_input
-                .mapv(|_| F::from(rand::random::<f64>() * epsilon * 2.0 - epsilon).unwrap())
+                .mapv(|_| F::from(scirs2_core::random::random::<f64>() * epsilon * 2.0 - epsilon).unwrap())
         _ => {
             return Err(NeuralError::NotImplementedError(format!(
                 "Attack method '{}' not implemented",
@@ -279,7 +279,7 @@ pub fn compute_concept_vectors<F>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
     #[test]
     fn test_counterfactual_generator() {
         let mut generator = CounterfactualGenerator::<f64>::new(5, 0.01, 100, DistanceMetric::L2);

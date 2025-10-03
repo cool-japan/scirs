@@ -4,7 +4,7 @@
 //! training capabilities for efficient parallel execution of neural network operations.
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, ArrayD};
+use scirs2_core::ndarray::{Array, ArrayD};
 #[cfg(feature = "parallel")]
 use scirs2_core::parallel_ops::{ThreadPoolBuilder, *};
 use serde::{Deserialize, Serialize};
@@ -79,7 +79,7 @@ impl ThreadPoolManager {
         return self.execute(|| {
             let mut result = Array::zeros((m, n));
             result
-                .axis_iter_mut(ndarray::Axis(0))
+                .axis_iter_mut(scirs2_core::ndarray::Axis(0))
                 .into_par_iter()
                 .enumerate()
                 .for_each(|(i, mut row)| {

@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::numeric::Float;
 use std::iter::Sum;
 
 use super::results::{ClusteringResult, LinearProbingResult, RepresentationRankResult};
@@ -24,15 +24,19 @@ pub struct SelfSupervisedMetrics<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> Default
-    for SelfSupervisedMetrics<F>
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > Default for SelfSupervisedMetrics<F>
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> SelfSupervisedMetrics<F> {
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > SelfSupervisedMetrics<F>
+{
     /// Create new self-supervised learning metrics
     pub fn new() -> Self {
         Self {

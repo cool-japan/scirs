@@ -1,10 +1,10 @@
 #[cfg(feature = "memory_efficient")]
 mod tests {
-    use ndarray::Array1;
     use scirs2_core::memory_efficient::{
         create_mmap, AccessMode, ChunkingStrategy, MemoryMappedArray, MemoryMappedChunkIter,
         MemoryMappedChunks,
     };
+    use scirs2_core::ndarray::Array1;
     use tempfile::tempdir;
 
     #[test]
@@ -74,7 +74,7 @@ mod tests {
         });
 
         // Verify changes persisted
-        let array = mmap.as_array::<ndarray::Ix1>().unwrap();
+        let array = mmap.as_array::<scirs2_core::ndarray::Ix1>().unwrap();
         println!("After mutation through process_chunksmut: {:?}", array);
 
         // Test should pass if mutation worked
@@ -98,10 +98,10 @@ mod tests {
             MemoryMappedArray::<i32>::open_zero_copy(&file_path, AccessMode::ReadWrite).unwrap();
 
         // Get the original data
-        let original = mmap.as_array::<ndarray::Ix1>().unwrap();
+        let original = mmap.as_array::<scirs2_core::ndarray::Ix1>().unwrap();
         println!(
             "Original data (first 5 elements): {:?}",
-            original.slice(ndarray::s![0..5])
+            original.slice(scirs2_core::ndarray::s![0..5])
         );
 
         // Process chunks and modify each chunk
@@ -122,11 +122,13 @@ mod tests {
         // Reopen the file
         let reopened_mmap =
             MemoryMappedArray::<i32>::open_zero_copy(&file_path, AccessMode::ReadOnly).unwrap();
-        let modified = reopened_mmap.as_array::<ndarray::Ix1>().unwrap();
+        let modified = reopened_mmap
+            .as_array::<scirs2_core::ndarray::Ix1>()
+            .unwrap();
 
         println!(
             "Modified data (first 15 elements): {:?}",
-            modified.slice(ndarray::s![0..15])
+            modified.slice(scirs2_core::ndarray::s![0..15])
         );
 
         // Check the values in each chunk

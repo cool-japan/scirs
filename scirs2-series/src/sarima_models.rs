@@ -2,8 +2,8 @@
 //!
 //! Implements SARIMA models with proper seasonal components
 
-use ndarray::{Array1, ArrayBase, Data, Ix1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::arima_models::SelectionCriterion;
@@ -240,20 +240,24 @@ where
 
         // AR parameters
         if self.p > 0 {
-            self.ar_params = params.slice(ndarray::s![idx..idx + self.p]).to_owned();
+            self.ar_params = params
+                .slice(scirs2_core::ndarray::s![idx..idx + self.p])
+                .to_owned();
             idx += self.p;
         }
 
         // MA parameters
         if self.q > 0 {
-            self.ma_params = params.slice(ndarray::s![idx..idx + self.q]).to_owned();
+            self.ma_params = params
+                .slice(scirs2_core::ndarray::s![idx..idx + self.q])
+                .to_owned();
             idx += self.q;
         }
 
         // Seasonal AR parameters
         if self.p_seasonal > 0 {
             self.sar_params = params
-                .slice(ndarray::s![idx..idx + self.p_seasonal])
+                .slice(scirs2_core::ndarray::s![idx..idx + self.p_seasonal])
                 .to_owned();
             idx += self.p_seasonal;
         }
@@ -261,7 +265,7 @@ where
         // Seasonal MA parameters
         if self.q_seasonal > 0 {
             self.sma_params = params
-                .slice(ndarray::s![idx..idx + self.q_seasonal])
+                .slice(scirs2_core::ndarray::s![idx..idx + self.q_seasonal])
                 .to_owned();
         }
     }
@@ -276,14 +280,18 @@ where
         idx += 1;
 
         let ar_params = if self.p > 0 {
-            params.slice(ndarray::s![idx..idx + self.p]).to_owned()
+            params
+                .slice(scirs2_core::ndarray::s![idx..idx + self.p])
+                .to_owned()
         } else {
             Array1::zeros(0)
         };
         idx += self.p;
 
         let ma_params = if self.q > 0 {
-            params.slice(ndarray::s![idx..idx + self.q]).to_owned()
+            params
+                .slice(scirs2_core::ndarray::s![idx..idx + self.q])
+                .to_owned()
         } else {
             Array1::zeros(0)
         };
@@ -291,7 +299,7 @@ where
 
         let sar_params = if self.p_seasonal > 0 {
             params
-                .slice(ndarray::s![idx..idx + self.p_seasonal])
+                .slice(scirs2_core::ndarray::s![idx..idx + self.p_seasonal])
                 .to_owned()
         } else {
             Array1::zeros(0)
@@ -300,7 +308,7 @@ where
 
         let sma_params = if self.q_seasonal > 0 {
             params
-                .slice(ndarray::s![idx..idx + self.q_seasonal])
+                .slice(scirs2_core::ndarray::s![idx..idx + self.q_seasonal])
                 .to_owned()
         } else {
             Array1::zeros(0)
@@ -384,7 +392,9 @@ where
         }
 
         // Return only the valid portion
-        Ok(residuals.slice(ndarray::s![start_idx..]).to_owned())
+        Ok(residuals
+            .slice(scirs2_core::ndarray::s![start_idx..])
+            .to_owned())
     }
 
     /// Calculate gradient of log-likelihood
@@ -427,7 +437,9 @@ where
 
         // Initialize with historical data and zeros for predictions
         let mut extended_data = Array1::zeros(n + steps);
-        extended_data.slice_mut(ndarray::s![..n]).assign(&diff_data);
+        extended_data
+            .slice_mut(scirs2_core::ndarray::s![..n])
+            .assign(&diff_data);
 
         let mut residuals = Array1::zeros(n + steps);
 
@@ -443,7 +455,7 @@ where
 
         let start_idx = n - historical_residuals.len();
         residuals
-            .slice_mut(ndarray::s![start_idx..n])
+            .slice_mut(scirs2_core::ndarray::s![start_idx..n])
             .assign(&historical_residuals);
 
         // Make predictions
@@ -483,7 +495,9 @@ where
             extended_data[t] = pred;
         }
 
-        Ok(extended_data.slice(ndarray::s![n..]).to_owned())
+        Ok(extended_data
+            .slice(scirs2_core::ndarray::s![n..])
+            .to_owned())
     }
 }
 
@@ -582,7 +596,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_sarima_creation() {

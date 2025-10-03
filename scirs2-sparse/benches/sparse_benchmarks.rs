@@ -13,10 +13,10 @@ fn generate_sparse_matrix(size: usize, density: f64) -> (Vec<usize>, Vec<usize>,
 
     for i in 0..size {
         for j in 0..size {
-            if rng.gen::<f64>() < density {
+            if rng.random::<f64>() < density {
                 rows.push(i);
                 cols.push(j);
-                data.push(rng.gen::<f64>());
+                data.push(rng.random::<f64>());
             }
         }
     }
@@ -190,8 +190,8 @@ fn bench_linear_solvers(c: &mut Criterion) {
         let mut rng = thread_rng();
         for i in 0..*size {
             for j in (i + 1)..*size {
-                if rng.gen::<f64>() < 0.02 {
-                    let val = rng.gen::<f64>() * 0.5;
+                if rng.random::<f64>() < 0.02 {
+                    let val = rng.random::<f64>() * 0.5;
                     rows.push(i);
                     cols.push(j);
                     data.push(val);

@@ -4,8 +4,8 @@
 //! that are not specifically quantum-related, including task scheduling,
 //! resource management, and general distributed coordination.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -344,7 +344,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> DistributedTaskScheduler<F> {
 
         for task in &self.task_queue {
             let node_id = self.available_nodes[node_index % self.available_nodes.len()];
-            let task_list = schedule.entry(node_id).or_insert_with(Vec::new);
+            let task_list = schedule.entry(node_id).or_default();
             task_list.push(task.task_id);
             node_index += 1;
         }
@@ -356,7 +356,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> DistributedTaskScheduler<F> {
     fn round_robin_scheduling(&mut self, schedule: &mut HashMap<usize, Vec<usize>>) -> Result<()> {
         for (i, task) in self.task_queue.iter().enumerate() {
             let node_id = self.available_nodes[i % self.available_nodes.len()];
-            let task_list = schedule.entry(node_id).or_insert_with(Vec::new);
+            let task_list = schedule.entry(node_id).or_default();
             task_list.push(task.task_id);
         }
 
@@ -373,7 +373,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> DistributedTaskScheduler<F> {
         let mut node_index = 0;
         for task in &self.task_queue {
             let node_id = self.available_nodes[node_index % self.available_nodes.len()];
-            let task_list = schedule.entry(node_id).or_insert_with(Vec::new);
+            let task_list = schedule.entry(node_id).or_default();
             task_list.push(task.task_id);
             node_index += 1;
         }
@@ -397,7 +397,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> DistributedTaskScheduler<F> {
                 .copied()
                 .unwrap_or(self.available_nodes[0]);
 
-            let task_list = schedule.entry(least_loaded_node).or_insert_with(Vec::new);
+            let task_list = schedule.entry(least_loaded_node).or_default();
             task_list.push(task.task_id);
         }
 
@@ -478,6 +478,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> Default for ResourceRequirements<
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for DistributedResourceManager<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> DistributedResourceManager<F> {
     /// Create new distributed resource manager
     pub fn new() -> Self {
@@ -524,17 +530,14 @@ impl<F: Float + Debug + Clone + FromPrimitive> DistributedResourceManager<F> {
 
     /// Check if node can accommodate task
     fn can_accommodate_task(&self, node: &NodeResources<F>, task: &DistributedTask<F>) -> bool {
-        node.cpu_cores >= task.resource_requirements.cpu_cores as usize
+        node.cpu_cores >= task.resource_requirements.cpu_cores
             && node.available_memory >= task.resource_requirements.memory_gb
             && (!task.resource_requirements.gpu_required || node.gpu_count > 0)
     }
 
     /// Allocate task to specific node
     fn allocate_task_to_node(&mut self, node_id: usize, task_id: usize) -> Result<()> {
-        let task_list = self
-            .resource_allocation
-            .entry(node_id)
-            .or_insert_with(Vec::new);
+        let task_list = self.resource_allocation.entry(node_id).or_default();
         task_list.push(task_id);
         Ok(())
     }
@@ -558,6 +561,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> DistributedResourceManager<F> {
             .iter()
             .map(|(&node_id, node)| (node_id, node.utilization))
             .collect()
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for LoadBalancer<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -609,6 +618,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> LoadBalancer<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for DistributedIntelligenceCoordinator<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> DistributedIntelligenceCoordinator<F> {
     /// Create new distributed intelligence coordinator
     pub fn new() -> Self {
@@ -653,7 +668,7 @@ impl<F: Float + Debug + Clone + FromPrimitive> DistributedIntelligenceCoordinato
         let chunk_size = (data.len() / 4).max(1); // Distribute across 4 nodes
 
         for (i, chunk) in data
-            .axis_chunks_iter(ndarray::Axis(0), chunk_size)
+            .axis_chunks_iter(scirs2_core::ndarray::Axis(0), chunk_size)
             .enumerate()
         {
             let task = DistributedTask::new(i, TaskType::DataProcessing, F::from_f64(1.0).unwrap());
@@ -669,9 +684,18 @@ impl<F: Float + Debug + Clone + FromPrimitive> DistributedIntelligenceCoordinato
         let execution_time = F::from_f64(0.1).unwrap(); // 100ms
 
         // Create dummy result
-        let result = Array1::from_elem(10, F::from_f64(rand::random::<f64>()).unwrap());
+        let result = Array1::from_elem(
+            10,
+            F::from_f64(scirs2_core::random::random::<f64>()).unwrap(),
+        );
 
         Ok(result)
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for CommunicationLayer<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -708,6 +732,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> CommunicationLayer<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for FaultToleranceSystem<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> FaultToleranceSystem<F> {
     /// Create new fault tolerance system
     pub fn new() -> Self {
@@ -738,6 +768,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> FaultToleranceSystem<F> {
     pub fn create_checkpoint(&self, data: &Array1<F>) -> Result<Array1<F>> {
         // In a real implementation, this would save state to persistent storage
         Ok(data.clone())
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for FailureDetection<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -813,7 +849,8 @@ impl<F: Float + Debug + Clone + FromPrimitive> RecoveryMechanism<F> {
     /// Apply recovery mechanism
     pub fn apply_recovery(&self, failedtasks: &[usize]) -> Result<bool> {
         // Simulate recovery process
-        let recovery_success = self.success_rate > F::from_f64(rand::random::<f64>()).unwrap();
+        let recovery_success =
+            self.success_rate > F::from_f64(scirs2_core::random::random::<f64>()).unwrap();
 
         if recovery_success {
             // Recovery successful

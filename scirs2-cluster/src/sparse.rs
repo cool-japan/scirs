@@ -4,8 +4,8 @@
 //! with sparse distance matrices, particularly useful for high-dimensional
 //! data where most pairwise distances are zero or very large.
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -485,7 +485,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_sparse_distance_matrix_creation() {

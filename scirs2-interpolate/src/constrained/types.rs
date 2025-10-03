@@ -5,7 +5,7 @@
 //! and the main ConstrainedSpline struct.
 
 use crate::bspline::BSpline;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 

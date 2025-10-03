@@ -3,7 +3,7 @@
 //! This example demonstrates the core linear algebra functionality provided by scirs2-linalg,
 //! including basic operations, decompositions, solvers, and parallel processing.
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_linalg::{
     cholesky, det, eig, eigh,
     error::LinalgResult,

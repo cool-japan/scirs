@@ -8,8 +8,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::ArrayD;
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::ArrayD;
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{Add, Div};
@@ -747,13 +747,13 @@ pub enum AdaptationMethod {
             ));
         // Compute mean across batch dimension
         let mean = features
-            .mean_axis(ndarray::Axis(0))
+            .mean_axis(scirs2_core::ndarray::Axis(0))
             .ok_or_else(|| NeuralError::ComputationError("Failed to compute mean".to_string()))?;
         // Compute variance
         let variance = {
             let diff = features - &mean;
             let squared_diff = diff.mapv(|x| x * x);
-            squared_diff.mean_axis(ndarray::Axis(0)).ok_or_else(|| {
+            squared_diff.mean_axis(scirs2_core::ndarray::Axis(0)).ok_or_else(|| {
                 NeuralError::ComputationError("Failed to compute variance".to_string())
             })?
         let stats = DomainStatistics {
@@ -856,9 +856,9 @@ mod tests {
         let mut loader = PretrainedWeightLoader::new();
         let mut weights = HashMap::new();
         weights.insert(
-            ArrayD::zeros(ndarray::IxDyn(&[10, 5])),
+            ArrayD::zeros(scirs2_core::ndarray::IxDyn(&[10, 5])),
         );
-        weights.insert("layer2".to_string(), ArrayD::ones(ndarray::IxDyn(&[5, 3])));
+        weights.insert("layer2".to_string(), ArrayD::ones(scirs2_core::ndarray::IxDyn(&[5, 3])));
         loader.load_weights(weights).unwrap();
         loader.add_layer_mapping("layer1".to_string(), "new_layer1".to_string());
         let available = loader.get_available_weights();
@@ -885,7 +885,7 @@ mod tests {
         let mut adapter = DomainAdaptation::<f64>::new(AdaptationMethod::BatchNormAdaptation);
         // Create some test features
         let source_features = ArrayD::from_shape_vec(
-            ndarray::IxDyn(&[10, 5]),
+            scirs2_core::ndarray::IxDyn(&[10, 5]),
             (0..50).map(|x| x as f64 / 10.0).collect(),
         )
         .unwrap()
@@ -910,7 +910,7 @@ mod tests {
         assert!(display_str.contains("Frozen layers: 3"));
     fn test_weight_statistics() {
         let weights = ArrayD::from_shape_vec(
-            ndarray::IxDyn(&[3, 3]),
+            scirs2_core::ndarray::IxDyn(&[3, 3]),
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
         .unwrap();
         let stats = WeightStatistics::from_tensor(&weights);
@@ -963,7 +963,7 @@ mod tests {
         pytorch_state_dict.insert(
             "layer1.weight".to_string(),
             "layer1.bias".to_string(),
-            ArrayD::zeros(ndarray::IxDyn(&[10])),
+            ArrayD::zeros(scirs2_core::ndarray::IxDyn(&[10])),
         loader
             .load_from_pytorch_state_dict(pytorch_state_dict)
         assert!(available.contains(&"layer1_bias".to_string()));
@@ -972,7 +972,7 @@ mod tests {
         tf_checkpoint.insert(
             "dense_layer/kernel:0".to_string(),
             "dense_layer/bias:0".to_string(),
-            ArrayD::zeros(ndarray::IxDyn(&[5])),
+            ArrayD::zeros(scirs2_core::ndarray::IxDyn(&[5])),
             .load_from_tensorflow_checkpoint(tf_checkpoint)
         assert!(available.contains(&"dense_layer".to_string()));
         assert!(available.contains(&"dense_layer_bias".to_string()));

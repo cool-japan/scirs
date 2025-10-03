@@ -11,7 +11,7 @@
 
 #![allow(dead_code)]
 
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 /// Complex Bessel function J₀(z) of the first kind, order 0
@@ -30,7 +30,7 @@ use std::f64::consts::PI;
 ///
 /// ```
 /// use scirs2_special::j0_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(1.0, 0.0);
 /// let result = j0_complex(z);
@@ -76,7 +76,7 @@ pub fn j0_complex(z: Complex64) -> Complex64 {
 ///
 /// ```
 /// use scirs2_special::j1_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(1.0, 0.0);
 /// let result = j1_complex(z);
@@ -123,7 +123,7 @@ pub fn j1_complex(z: Complex64) -> Complex64 {
 ///
 /// ```
 /// use scirs2_special::jn_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(2.0, 0.0);
 /// let result = jn_complex(2, z);
@@ -181,7 +181,7 @@ pub fn jn_complex(n: i32, z: Complex64) -> Complex64 {
 ///
 /// ```
 /// use scirs2_special::jv_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(1.0, 0.0);
 /// let result = jv_complex(0.5, z);
@@ -243,7 +243,7 @@ pub fn jv_complex(v: f64, z: Complex64) -> Complex64 {
 ///
 /// ```
 /// use scirs2_special::i0_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(1.0, 0.0);
 /// let result = i0_complex(z);
@@ -292,7 +292,7 @@ pub fn i0_complex(z: Complex64) -> Complex64 {
 ///
 /// ```
 /// use scirs2_special::k0_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let z = Complex64::new(1.0, 0.0);
 /// let result = k0_complex(z);

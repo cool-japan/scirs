@@ -6,9 +6,9 @@
 //! The system is a constrained mechanical system (slider-crank mechanism)
 //! which naturally forms an index-2 DAE.
 
-use ndarray::{array, ArrayView1};
-use num_traits::Float;
 use plotters::prelude::*;
+use scirs2_core::ndarray::{array, ArrayView1};
+use scirs2_core::numeric::Float;
 use scirs2_integrate::{
     bdf_semi_explicit_dae, DAEIndex, DAEOptions, DAEStructure, DAEType, ProjectionMethod,
 };

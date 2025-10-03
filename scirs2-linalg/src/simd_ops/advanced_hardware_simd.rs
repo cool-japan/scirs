@@ -7,8 +7,8 @@
 //! - Fused operations and specialized kernels for ML/AI workloads
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, s};
-use num_traits::{Float, NumAssign, Zero, One};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, s};
+use scirs2_core::numeric::{Float, NumAssign, Zero, One};
 use std::mem;
 
 /// Advanced hardware capabilities detection with fine-grained features
@@ -797,7 +797,7 @@ impl CacheOptimizedOperations {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_capabilities_detection() {

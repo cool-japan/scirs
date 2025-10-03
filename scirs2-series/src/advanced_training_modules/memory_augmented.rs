@@ -3,8 +3,8 @@
 //! This module implements Memory-Augmented Neural Networks (MANNs) for few-shot learning
 //! and other tasks that require external memory capabilities.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::few_shot::FewShotEpisode;
@@ -12,7 +12,7 @@ use crate::error::Result;
 
 /// Memory-Augmented Neural Network (MANN)
 #[derive(Debug)]
-pub struct MANN<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct MANN<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Controller network parameters
     controller_params: Array2<F>,
     /// External memory matrix
@@ -31,7 +31,7 @@ pub struct MANN<F: Float + Debug + ndarray::ScalarOperand> {
     write_head_params: Array2<F>,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MANN<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand> MANN<F> {
     /// Create new Memory-Augmented Neural Network
     pub fn new(
         memory_size: usize,

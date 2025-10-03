@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_integrate::dae::{create_block_ilu_preconditioner, create_block_jacobi_preconditioner};
 use std::time::Instant;
 
@@ -88,8 +88,8 @@ fn matrix_vector_product(
     let mut result = Array1::zeros(n_total);
 
     // Extract the _x and _y components of the input vector
-    let v_x = v.slice(ndarray::s![0..n_x]).to_owned();
-    let v_y = v.slice(ndarray::s![n_x..]).to_owned();
+    let v_x = v.slice(scirs2_core::ndarray::s![0..n_x]).to_owned();
+    let v_y = v.slice(scirs2_core::ndarray::s![n_x..]).to_owned();
 
     // Apply the Jacobian blocks
     // (I - h * β * ∂f/∂_x) * v_x

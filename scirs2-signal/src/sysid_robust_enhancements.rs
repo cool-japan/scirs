@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Robust System Identification Enhancements
 //
 // This module provides enhanced numerical robustness, advanced validation,
@@ -9,9 +9,9 @@ use crate::error::{SignalError, SignalResult};
 use crate::lti::design::tf;
 use crate::lti::StateSpace;
 use crate::sysid_enhanced::{EnhancedSysIdConfig, ModelValidationMetrics, SystemModel};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::random::Rng;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::{check_finite, checkshape};
 use statrs::statistics::Statistics;
@@ -761,7 +761,7 @@ fn compute_mad(data: &[f64]) -> f64 {
 fn bootstrap_resample(data: &[f64]) -> Vec<f64> {
     let n = data.len();
     let mut result = Vec::with_capacity(n);
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..n {
         let idx = rng.gen_range(0..n);

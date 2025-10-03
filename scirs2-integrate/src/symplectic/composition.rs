@@ -14,7 +14,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// A symplectic integrator constructed by composition of a base method
 #[derive(Debug, Clone)]
@@ -176,7 +176,7 @@ mod tests {
     use super::*;
     use crate::symplectic::leapfrog::StormerVerlet;
     use crate::symplectic::potential::SeparableHamiltonian;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     /// Test error convergence rates for different order methods
     #[test]

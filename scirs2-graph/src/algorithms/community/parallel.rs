@@ -3,7 +3,7 @@
 use super::louvain::calculate_modularity;
 use super::types::{CommunityResult, CommunityStructure};
 use crate::base::{EdgeWeight, Graph, IndexType, Node};
-use rand::seq::SliceRandom;
+use scirs2_core::random::seq::SliceRandom;
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
@@ -185,7 +185,7 @@ where
         .map(|(i, node)| (node.clone(), i))
         .collect();
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..max_iter {
         // Create a shuffled order for processing nodes

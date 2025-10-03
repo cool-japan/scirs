@@ -4,8 +4,8 @@
 //! statistical functions that can benefit significantly from vectorization.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// SIMD-optimized t-test computation
@@ -201,7 +201,7 @@ where
     sorteddata.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
     // Compute median
-    let median = if n % 2 == 0 {
+    let median = if n.is_multiple_of(2) {
         (sorteddata[n / 2 - 1] + sorteddata[n / 2]) / F::from(2).unwrap()
     } else {
         sorteddata[n / 2]
@@ -219,7 +219,7 @@ where
         let mut dev_sorted = deviations.to_vec();
         dev_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (dev_sorted[n / 2 - 1] + dev_sorted[n / 2]) / F::from(2).unwrap()
         } else {
             dev_sorted[n / 2]
@@ -228,7 +228,7 @@ where
         let mut dev_sorted = deviations.to_vec();
         dev_sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (dev_sorted[n / 2 - 1] + dev_sorted[n / 2]) / F::from(2).unwrap()
         } else {
             dev_sorted[n / 2]
@@ -262,8 +262,8 @@ where
         return Err(StatsError::invalid_argument("Data cannot be empty"));
     }
 
-    use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::{Rng, SeedableRng};
 
     let mut rng = match seed {
         Some(s) => StdRng::seed_from_u64(s),

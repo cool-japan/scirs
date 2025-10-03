@@ -3,15 +3,16 @@
 //! This benchmark suite provides performance comparisons for all major
 //! statistical functions between scirs2-stats and SciPy.
 
-use criterion::{
-    black_box, criterion_group, criterion_main, BenchmarkId, Criterion, PlotConfiguration,
-};
+#![allow(unused_must_use)]
+
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, PlotConfiguration};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::prelude::*;
-use scirs2_core::random::{Distribution, Exp, StandardNormal};
+use scirs2_core::random::{Distribution, Exponential, StandardNormal};
 use scirs2_stats::tests::ttest::Alternative;
 use scirs2_stats::*;
 use scirs2_stats::{coefficient_of_variation_simd, mad_simd, quantiles_simd};
+use std::hint::black_box;
 use std::time::Duration;
 
 /// Configuration for benchmark runs
@@ -49,7 +50,7 @@ mod data_generators {
 
     pub fn exponential(n: usize, lambda: f64) -> Array1<f64> {
         let mut rng = thread_rng();
-        let exp = Exp::new(lambda).unwrap();
+        let exp = Exponential::new(lambda).unwrap();
         Array1::from_shape_fn(n, |_| rng.sample(exp))
     }
 
@@ -415,7 +416,7 @@ fn bench_random_sampling(c: &mut Criterion) {
             &data,
             |b, data| {
                 b.iter(|| {
-                    let mut rng = rand::rng();
+                    let mut rng = scirs2_core::random::rng();
                     black_box(random::choice(&data.view(), 100.min(n), true, None, None).unwrap())
                 })
             },
@@ -428,7 +429,7 @@ fn bench_random_sampling(c: &mut Criterion) {
                 &data,
                 |b, data| {
                     b.iter(|| {
-                        let mut rng = rand::rng();
+                        let mut rng = scirs2_core::random::rng();
                         black_box(
                             random::choice(&data.view(), 100.min(n), false, None, None).unwrap(),
                         )
@@ -449,7 +450,7 @@ fn bench_random_sampling(c: &mut Criterion) {
     group.finish();
 }
 
-/// Main benchmark groups
+// Main benchmark groups
 criterion_group! {
     name = benches;
     config = Criterion::default()

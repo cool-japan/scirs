@@ -8,9 +8,9 @@
 //! - Principal component analysis with metric
 //! - Modal analysis in structural engineering
 
-use ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
-use num_complex::Complex;
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::decomposition::{cholesky, qz};
@@ -41,7 +41,7 @@ use super::standard::{eig, eigh, EigenResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::generalized::eig_gen;
 ///
 /// let a = array![[2.0_f64, 1.0], [1.0, 2.0]];
@@ -57,7 +57,7 @@ use super::standard::{eig, eigh, EigenResult};
 #[allow(dead_code)]
 pub fn eig_gen<F>(a: &ArrayView2<F>, b: &ArrayView2<F>, workers: Option<usize>) -> EigenResult<F>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Configure workers for parallel operations
     parallel::configure_workers(workers);
@@ -155,7 +155,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::generalized::eigh_gen;
 ///
 /// let a = array![[2.0_f64, 1.0], [1.0, 3.0]];
@@ -288,7 +288,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::generalized::eigvals_gen;
 ///
 /// let a = array![[2.0_f64, 1.0], [1.0, 2.0]];
@@ -325,7 +325,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::generalized::eigvalsh_gen;
 ///
 /// let a = array![[2.0_f64, 1.0], [1.0, 3.0]];
@@ -390,7 +390,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_eig_gen_identity() {

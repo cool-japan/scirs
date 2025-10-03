@@ -2,7 +2,7 @@
 
 use crate::csr::CsrMatrix;
 use crate::error::{SparseError, SparseResult};
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 // Re-export the functions from the original linalg.rs

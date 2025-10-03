@@ -3,7 +3,7 @@
 //! This example shows how to use various complex matrix decompositions
 //! including LU, QR, SVD, Cholesky, and eigenvalue decompositions.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_core::Complex;
 use scirs2_linalg::complex::*;
 use scirs2_linalg::LinalgResult;
@@ -279,7 +279,7 @@ fn demo_complex_eigh() -> LinalgResult<()> {
             print_complexmatrix(&vhv);
 
             // --- Hermitian eigenvalue decomposition check: A ≈ QΛQ^H ---
-            use ndarray::Array2;
+            use scirs2_core::ndarray::Array2;
             let recon = eig_result
                 .eigenvectors
                 .dot(&Array2::from_diag(&eig_result.eigenvalues))

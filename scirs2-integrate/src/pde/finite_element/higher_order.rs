@@ -5,7 +5,7 @@
 
 use super::{ElementType, Point, TriangularMesh};
 use crate::pde::{PDEError, PDEResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Extended triangle element for higher-order elements
 #[derive(Debug, Clone)]

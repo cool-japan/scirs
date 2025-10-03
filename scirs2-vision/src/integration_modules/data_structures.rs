@@ -3,7 +3,7 @@
 //! This module provides data structures and result types for advanced
 //! cross-module processing and integration.
 
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use std::time::Instant;
 
 /// Advanced input data structure supporting multiple module types,

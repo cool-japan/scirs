@@ -134,7 +134,7 @@ fn analyze_edge_case_performance() -> Result<(), Box<dyn std::error::Error>> {
     let normal_time = start.elapsed();
 
     // Edge case values
-    let edge_values = vec![
+    let edge_values = [
         1e-15, 1e-10, 1e-5, 0.1, 0.5, 1.0, 1.5, 2.0, 10.0, 50.0, 100.0, 170.0,
     ];
     let start = Instant::now();

@@ -5,7 +5,7 @@
 // and comprehensive resampling utilities.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use rustfft::{num_complex::Complex, FftPlanner};
 
 use super::basic::linear_interpolate;
@@ -29,7 +29,7 @@ use super::core::{find_nearest_valid_index, InterpolationConfig, InterpolationMe
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::spectral::sinc_interpolate;
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
@@ -140,7 +140,7 @@ pub fn sinc_interpolate(_signal: &Array1<f64>, cutofffreq: f64) -> SignalResult<
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::{spectral::spectral_interpolate, core::InterpolationConfig};
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
@@ -260,7 +260,7 @@ pub fn spectral_interpolate(
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::{spectral::auto_interpolate, core::InterpolationConfig};
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
@@ -568,7 +568,7 @@ pub mod resampling {
 
 pub mod polynomial {
     use crate::error::{SignalError, SignalResult};
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
     use scirs2_linalg::solve;
 
     /// Polynomial interpolation methods and utilities

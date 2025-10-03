@@ -2,8 +2,8 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::regression::{MultilinearRegressionResult, RegressionResults};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use scirs2_linalg::{lstsq, svd};
 
 /// Perform multiple linear regression and return a tuple containing
@@ -25,7 +25,7 @@ use scirs2_linalg::{lstsq, svd};
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::multilinear_regression;
 ///
 /// // Create a design matrix with 3 variables (including a constant term)
@@ -61,9 +61,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -161,7 +161,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::linear_regression;
 ///
 /// // Create a design matrix with 3 variables (including a constant term)
@@ -200,9 +200,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -261,12 +261,12 @@ where
     let y_mean = y.iter().cloned().sum::<F>() / F::from(n).unwrap();
     let ss_total = y
         .iter()
-        .map(|&yi| num_traits::Float::powi(yi - y_mean, 2))
+        .map(|&yi| scirs2_core::numeric::Float::powi(yi - y_mean, 2))
         .sum::<F>();
 
     let ss_residual = residuals
         .iter()
-        .map(|&ri| num_traits::Float::powi(ri, 2))
+        .map(|&ri| scirs2_core::numeric::Float::powi(ri, 2))
         .sum::<F>();
 
     let ss_explained = ss_total - ss_residual;
@@ -278,7 +278,7 @@ where
 
     // Calculate mean squared error (MSE) and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Calculate standard errors for coefficients
     // We need (X'X)^-1 for standard errors
@@ -360,7 +360,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::linregress;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -413,8 +413,8 @@ where
         let x_diff = x[i] - x_mean;
         let y_diff = y[i] - y_mean;
 
-        ss_x = ss_x + num_traits::Float::powi(x_diff, 2);
-        ss_y = ss_y + num_traits::Float::powi(y_diff, 2);
+        ss_x = ss_x + scirs2_core::numeric::Float::powi(x_diff, 2);
+        ss_y = ss_y + scirs2_core::numeric::Float::powi(y_diff, 2);
         ss_xy = ss_xy + x_diff * y_diff;
     }
 
@@ -430,7 +430,7 @@ where
     let intercept = y_mean - slope * x_mean;
 
     // Calculate correlation coefficient
-    let r = ss_xy / num_traits::Float::sqrt(ss_x * ss_y);
+    let r = ss_xy / scirs2_core::numeric::Float::sqrt(ss_x * ss_y);
 
     // Calculate df for p-value
     let df = F::from(n - 2).unwrap();
@@ -439,11 +439,13 @@ where
     let residual_ss = ss_y - ss_xy * ss_xy / ss_x;
 
     // Standard error of the estimate
-    let std_err = num_traits::Float::sqrt(residual_ss / df) / num_traits::Float::sqrt(ss_x);
+    let std_err = scirs2_core::numeric::Float::sqrt(residual_ss / df)
+        / scirs2_core::numeric::Float::sqrt(ss_x);
 
     // Calculate p-value from t-distribution
     // t = r * sqrt(df) / sqrt(1 - r^2)
-    let t_stat = r * num_traits::Float::sqrt(df) / num_traits::Float::sqrt(F::one() - r * r);
+    let t_stat = r * scirs2_core::numeric::Float::sqrt(df)
+        / scirs2_core::numeric::Float::sqrt(F::one() - r * r);
 
     // Calculate p-value using a two-tailed test
     // We're using a simple approximation for the p-value based on the t-statistic
@@ -451,7 +453,8 @@ where
     let p_value = F::from(2.0).unwrap()
         * F::from(0.5).unwrap()
         * (F::one()
-            - (num_traits::Float::powi(t_stat, 2) / (df + num_traits::Float::powi(t_stat, 2))));
+            - (scirs2_core::numeric::Float::powi(t_stat, 2)
+                / (df + scirs2_core::numeric::Float::powi(t_stat, 2))));
 
     Ok((slope, intercept, r, p_value, std_err))
 }
@@ -478,7 +481,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::odr;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -547,18 +550,19 @@ where
     let mut s_xy = F::zero();
 
     for i in 0..n {
-        s_xx = s_xx + num_traits::Float::powi(x_centered[i], 2);
-        s_yy = s_yy + num_traits::Float::powi(y_centered[i], 2);
+        s_xx = s_xx + scirs2_core::numeric::Float::powi(x_centered[i], 2);
+        s_yy = s_yy + scirs2_core::numeric::Float::powi(y_centered[i], 2);
         s_xy = s_xy + x_centered[i] * y_centered[i];
     }
 
     // Calculate the slope using total least squares formula
     // slope = (s_yy - s_xx + sqrt((s_yy - s_xx)^2 + 4*s_xy^2)) / (2*s_xy)
-    let discriminant = num_traits::Float::powi(s_yy - s_xx, 2)
-        + F::from(4.0).unwrap() * num_traits::Float::powi(s_xy, 2);
+    let discriminant = scirs2_core::numeric::Float::powi(s_yy - s_xx, 2)
+        + F::from(4.0).unwrap() * scirs2_core::numeric::Float::powi(s_xy, 2);
 
     let slope = if s_xy.abs() > F::epsilon() {
-        (s_yy - s_xx + num_traits::Float::sqrt(discriminant)) / (F::from(2.0).unwrap() * s_xy)
+        (s_yy - s_xx + scirs2_core::numeric::Float::sqrt(discriminant))
+            / (F::from(2.0).unwrap() * s_xy)
     } else if s_yy > s_xx {
         F::infinity() // Vertical line
     } else {
@@ -576,7 +580,7 @@ where
         let y_pred = intercept + slope * x[i];
         let d = (y[i] - y_pred).abs(); // Vertical distance (simplified)
         residuals[i] = d;
-        eps_total = eps_total + num_traits::Float::powi(d, 2);
+        eps_total = eps_total + scirs2_core::numeric::Float::powi(d, 2);
     }
 
     // Create parameter array

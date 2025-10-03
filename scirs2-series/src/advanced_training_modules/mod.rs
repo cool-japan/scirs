@@ -71,7 +71,7 @@ pub use optimization::{MetaOptimizer, OptimizationProblem};
 mod integration_tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_module_integration_maml_with_vae() {

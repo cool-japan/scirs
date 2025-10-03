@@ -4,9 +4,9 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use rand_distr::{ChiSquared, Distribution, Normal as RandNormal};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{ChiSquared, Distribution, Normal as RandNormal};
 use std::fmt::Debug;
 
 // Import helper functions from the multivariate module
@@ -127,7 +127,7 @@ impl Wishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::wishart::Wishart;
     ///
     /// // Create a 2D Wishart distribution with 5 degrees of freedom
@@ -193,7 +193,7 @@ impl Wishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::wishart::Wishart;
     ///
     /// let scale = array![[1.0, 0.0], [0.0, 1.0]];
@@ -273,7 +273,7 @@ impl Wishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::wishart::Wishart;
     ///
     /// let scale = array![[1.0, 0.0], [0.0, 1.0]];
@@ -316,7 +316,7 @@ impl Wishart {
     /// # Examples
     ///
     /// ```ignore
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::wishart::Wishart;
     ///
     /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -418,7 +418,7 @@ impl Wishart {
     /// # Examples
     ///
     /// ```ignore
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::wishart::Wishart;
     ///
     /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -442,7 +442,7 @@ impl Wishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::wishart::Wishart;
     ///
     /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -467,7 +467,7 @@ impl Wishart {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::wishart::Wishart;
     ///
     /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -507,7 +507,7 @@ impl Wishart {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distributions::multivariate;
 ///
 /// let scale = array![[1.0, 0.5], [0.5, 2.0]];
@@ -533,7 +533,7 @@ impl SampleableDistribution<Array2<f64>> for Wishart {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_wishart_creation() {

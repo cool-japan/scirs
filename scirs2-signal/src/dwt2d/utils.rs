@@ -8,7 +8,7 @@ use crate::error::{SignalError, SignalResult};
 use super::types::{Dwt2dResult, Dwt2dConfig, ThresholdMethod};
 use super::simd::PlatformCapabilities;
 use super::thresholding::{apply_adaptive_thresholding, estimate_noise_variance};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_core::validation::{check_positive, check_finite};
 
 /// Calculate Peak Signal-to-Noise Ratio (PSNR) between two images.
@@ -45,7 +45,7 @@ use scirs2_core::validation::{check_positive, check_finite};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::calculate_psnr;
 ///
 /// // Create original and slightly noisy version
@@ -144,7 +144,7 @@ pub fn calculate_psnr(original: &Array2<f64>, reconstructed: &Array2<f64>) -> Si
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::calculate_ssim;
 ///
 /// // Create test images
@@ -199,8 +199,8 @@ pub fn calculate_ssim(
     for i in (0..=(height.saturating_sub(window_size))).step_by(step) {
         for j in (0..=(width.saturating_sub(window_size))).step_by(step) {
             // Extract windows
-            let window1 = original.slice(ndarray::s![i..i + window_size, j..j + window_size]);
-            let window2 = reconstructed.slice(ndarray::s![i..i + window_size, j..j + window_size]);
+            let window1 = original.slice(scirs2_core::ndarray::s![i..i + window_size, j..j + window_size]);
+            let window2 = reconstructed.slice(scirs2_core::ndarray::s![i..i + window_size, j..j + window_size]);
 
             // Calculate local statistics
             let n = (window_size * window_size) as f64;
@@ -246,7 +246,7 @@ pub fn dwt2d_decompose_adaptive<T>(
     mode: Option<&str>,
 ) -> SignalResult<Dwt2dResult>
 where
-    T: num_traits::Float + num_traits::NumCast + std::fmt::Debug,
+    T: scirs2_core::numeric::Float + scirs2_core::numeric::NumCast + std::fmt::Debug,
 {
     if data.is_empty() {
         return Err(SignalError::ValueError("Input array is empty".to_string()));
@@ -310,7 +310,7 @@ pub fn wavedec2_enhanced<T>(
     mode: Option<&str>,
 ) -> SignalResult<Vec<Dwt2dResult>>
 where
-    T: num_traits::Float + num_traits::NumCast + std::fmt::Debug,
+    T: scirs2_core::numeric::Float + scirs2_core::numeric::NumCast + std::fmt::Debug,
 {
     if data.is_empty() {
         return Err(SignalError::ValueError("Input array is empty".to_string()));
@@ -344,7 +344,7 @@ where
     // Validate input data for numerical stability
     if let Some(data_slice) = data.as_slice() {
         for &val in data_slice {
-            if let Some(f64_val) = num_traits::NumCast::from(val) {
+            if let Some(f64_val) = scirs2_core::numeric::NumCast::from(val) {
                 check_finite(f64_val, "input data")?;
             }
         }
@@ -467,7 +467,7 @@ fn div_ceil(a: usize, b: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     use crate::dwt::Wavelet;
 
     #[test]

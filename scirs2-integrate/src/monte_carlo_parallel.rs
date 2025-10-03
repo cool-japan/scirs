@@ -8,10 +8,10 @@
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::monte_carlo::{ErrorEstimationMethod, MonteCarloOptions, MonteCarloResult};
 use crate::IntegrateFloat;
-use ndarray::{Array1, ArrayView1};
-use rand::prelude::*;
-use rand_distr::uniform::SampleUniform;
-use rand_distr::{Distribution, Uniform};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::uniform::SampleUniform;
+use scirs2_core::random::{Distribution, Uniform};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::{Arc, Mutex};
@@ -96,7 +96,7 @@ impl<F: IntegrateFloat> From<MonteCarloOptions<F>> for ParallelMonteCarloOptions
 ///
 /// ```
 /// use scirs2_integrate::monte_carlo_parallel::{parallel_monte_carlo, ParallelMonteCarloOptions};
-/// use ndarray::ArrayView1;
+/// use scirs2_core::ndarray::ArrayView1;
 /// use std::marker::PhantomData;
 ///
 /// // Integrate an expensive function f(x,y) = sin(x*y) * exp(-x²-y²) over [-2,2]×[-2,2]
@@ -125,7 +125,7 @@ pub fn parallel_monte_carlo<F, Func>(
 where
     F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync + Send,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     let opts = options.unwrap_or_default();
     let n_dims = ranges.len();
@@ -176,7 +176,7 @@ fn parallel_monte_carlo_chunked<F, Func>(
 where
     F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync + Send,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     let n_dims = ranges.len();
     let n_actual_samples = if opts.use_antithetic {
@@ -286,7 +286,7 @@ fn parallel_monte_carlo_batched<F, Func>(
 where
     F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync + Send,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     let n_dims = ranges.len();
     let n_actual_samples = if opts.use_antithetic {
@@ -448,7 +448,7 @@ pub fn adaptive_parallel_monte_carlo<F, Func>(
 where
     F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync + Send,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     let opts = options.unwrap_or_default();
     let initial_samples = opts.n_samples.min(max_samples / 4); // Start with 25% of max _samples
@@ -508,7 +508,7 @@ pub fn parallel_monte_carlo<F, Func>(
 where
     F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync + Send,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     // Convert to regular MonteCarloOptions and use sequential implementation
     let regular_opts = options.map(|opts| crate::monte_carlo::MonteCarloOptions {
@@ -534,7 +534,7 @@ pub fn adaptive_parallel_monte_carlo<F, Func>(
 where
     F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync + Send,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     // Fallback to regular Monte Carlo
     let regular_opts = options.map(|opts| crate::monte_carlo::MonteCarloOptions {
@@ -553,7 +553,7 @@ mod tests {
     use super::*;
     use crate::monte_carlo::{ErrorEstimationMethod, MonteCarloOptions};
     use approx::assert_relative_eq;
-    use ndarray::ArrayView1;
+    use scirs2_core::ndarray::ArrayView1;
     use std::marker::PhantomData;
 
     #[test]

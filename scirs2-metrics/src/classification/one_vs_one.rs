@@ -11,8 +11,8 @@
 //! - `one_vs_one_precision_recall`: Computes precision and recall for each class in OvO setting
 //! - `one_vs_one_f1_score`: Computes F1 score for each class in OvO setting
 
-use ndarray::{ArrayBase, Data, Dimension};
-use num_traits::NumCast;
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::numeric::NumCast;
 use std::collections::{BTreeSet, HashMap};
 
 use crate::error::{MetricsError, Result};
@@ -34,7 +34,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::one_vs_one::one_vs_one_accuracy;
 ///
 /// let y_true = array![0, 1, 2, 0, 1, 2];
@@ -146,7 +146,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::one_vs_one::one_vs_one_precision_recall;
 ///
 /// let y_true = array![0, 1, 2, 0, 1, 2];
@@ -256,7 +256,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::one_vs_one::one_vs_one_f1_score;
 ///
 /// let y_true = array![0, 1, 2, 0, 1, 2];
@@ -315,7 +315,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::classification::one_vs_one::weighted_one_vs_one_f1_score;
 ///
 /// let y_true = array![0, 1, 2, 0, 1, 2];

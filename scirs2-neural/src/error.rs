@@ -99,9 +99,9 @@ impl From<std::io::Error> for NeuralError {
     }
 }
 
-// Implement conversion from ndarray::ShapeError to NeuralError
-impl From<ndarray::ShapeError> for NeuralError {
-    fn from(error: ndarray::ShapeError) -> Self {
+// Implement conversion from scirs2_core::ndarray::ShapeError to NeuralError
+impl From<scirs2_core::ndarray::ShapeError> for NeuralError {
+    fn from(error: scirs2_core::ndarray::ShapeError) -> Self {
         NeuralError::ShapeMismatch(format!("Shape error: {error}"))
     }
 }

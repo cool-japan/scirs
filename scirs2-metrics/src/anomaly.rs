@@ -11,7 +11,7 @@
 //! for anomaly detection contexts.
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::anomaly::{
 //!     detection_accuracy, false_alarm_rate, miss_detection_rate,
 //!     anomaly_auc_score, anomaly_average_precision_score
@@ -46,7 +46,7 @@
 //! Distribution-based metrics for comparing distributions and measuring divergence:
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::anomaly::{
 //!     kl_divergence, js_divergence, wasserstein_distance, maximum_mean_discrepancy
 //! };
@@ -78,7 +78,7 @@
 //! aspects and tolerance windows:
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::anomaly::{
 //!     precision_recall_with_tolerance, point_adjusted_precision_recall, nab_score
 //! };
@@ -99,8 +99,8 @@
 //! let nab = nab_score(&y_true, &y_pred, None, None, None).unwrap();
 //! ```
 
-use ndarray::{Array1, ArrayBase, Data, Ix1};
-use num_traits::real::Real;
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1};
+use scirs2_core::numeric::Float;
 use std::cmp::Ordering;
 use std::collections::HashSet;
 
@@ -123,7 +123,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::detection_accuracy;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
@@ -139,7 +139,7 @@ pub fn detection_accuracy<T, S, R>(
     y_pred: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -189,7 +189,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::false_alarm_rate;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
@@ -205,7 +205,7 @@ pub fn false_alarm_rate<T, S, R>(
     y_pred: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -264,7 +264,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::miss_detection_rate;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
@@ -280,7 +280,7 @@ pub fn miss_detection_rate<T, S, R>(
     y_pred: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -339,7 +339,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::anomaly_auc_score;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
@@ -355,7 +355,7 @@ pub fn anomaly_auc_score<T, S, R>(
     y_score: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -452,7 +452,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::anomaly_average_precision_score;
 ///
 /// let y_true = array![0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 0.0];
@@ -468,7 +468,7 @@ pub fn anomaly_average_precision_score<T, S, R>(
     y_score: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -552,7 +552,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::kl_divergence;
 ///
 /// // Two probability distributions
@@ -565,7 +565,7 @@ where
 #[allow(dead_code)]
 pub fn kl_divergence<T, S, R>(p: &ArrayBase<S, Ix1>, q: &ArrayBase<R, Ix1>) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -629,7 +629,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::js_divergence;
 ///
 /// // Two probability distributions
@@ -643,7 +643,7 @@ where
 #[allow(dead_code)]
 pub fn js_divergence<T, S, R>(p: &ArrayBase<S, Ix1>, q: &ArrayBase<R, Ix1>) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -723,7 +723,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::wasserstein_distance;
 ///
 /// // Two sets of samples
@@ -743,7 +743,7 @@ pub fn wasserstein_distance<T, S, R>(
     v_values: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -818,7 +818,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::maximum_mean_discrepancy;
 ///
 /// // Two similar sample sets
@@ -843,7 +843,7 @@ pub fn maximum_mean_discrepancy<T, S, R>(
     bandwidth: Option<f64>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -976,7 +976,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::precision_recall_with_tolerance;
 ///
 /// // Ground truth: anomalies at positions 3-4 and 9
@@ -999,7 +999,7 @@ pub fn precision_recall_with_tolerance<T, S, R>(
     tolerance: usize,
 ) -> Result<(f64, f64, f64)>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -1123,7 +1123,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::point_adjusted_precision_recall;
 ///
 /// // Ground truth: anomaly sequences at positions 3-4 and 9
@@ -1140,7 +1140,7 @@ pub fn point_adjusted_precision_recall<T, S, R>(
     y_pred: &ArrayBase<R, Ix1>,
 ) -> Result<(f64, f64, f64)>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -1276,21 +1276,21 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::anomaly::nab_score;
 ///
 /// // Ground truth: anomalies at positions 20 and 50
 /// let mut y_true = vec![0.0; 100];
 /// y_true[20] = 1.0;
 /// y_true[50] = 1.0;
-/// let y_true = ndarray::Array::from(y_true);
+/// let y_true = scirs2_core::ndarray::Array::from(y_true);
 ///
 /// // Predictions: early detection of first anomaly, late detection of second anomaly
 /// let mut y_pred = vec![0.0; 100];
 /// y_pred[18] = 0.7; // Early detection of first anomaly (position 20)
 /// y_pred[52] = 0.8; // Late detection of second anomaly (position 50)
 /// y_pred[70] = 0.6; // False positive
-/// let y_pred = ndarray::Array::from(y_pred);
+/// let y_pred = scirs2_core::ndarray::Array::from(y_pred);
 ///
 /// // Calculate NAB score with default parameters
 /// let score = nab_score(&y_true, &y_pred, None, None, None).unwrap();
@@ -1307,7 +1307,7 @@ pub fn nab_score<T, S, R>(
     fp_weight: Option<f64>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {

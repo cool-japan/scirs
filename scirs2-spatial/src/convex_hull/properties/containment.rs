@@ -142,7 +142,7 @@ fn check_containment_1d(hull: &ConvexHull, point: &[f64]) -> SpatialResult<bool>
 /// Check 2D containment using ray casting or winding number
 fn check_containment_2d(hull: &ConvexHull, point: &[f64]) -> SpatialResult<bool> {
     // Handle degenerate cases
-    if hull.vertex_indices.len() == 0 {
+    if hull.vertex_indices.is_empty() {
         return Ok(false);
     }
 
@@ -213,7 +213,7 @@ fn check_containment_2d(hull: &ConvexHull, point: &[f64]) -> SpatialResult<bool>
 /// Check 3D containment using simplex-based method
 fn check_containment_3d(hull: &ConvexHull, point: &[f64]) -> SpatialResult<bool> {
     // Handle degenerate cases
-    if hull.vertex_indices.len() == 0 {
+    if hull.vertex_indices.is_empty() {
         return Ok(false);
     }
 
@@ -549,13 +549,13 @@ mod tests {
         let hull = ConvexHull::new(&points.view()).unwrap();
 
         // Point inside the triangle
-        assert!(check_point_containment(&hull, &[0.1, 0.1]).unwrap());
+        assert!(check_point_containment(&hull, [0.1, 0.1]).unwrap());
 
         // Point outside the triangle
-        assert!(!check_point_containment(&hull, &[2.0, 2.0]).unwrap());
+        assert!(!check_point_containment(&hull, [2.0, 2.0]).unwrap());
 
         // Point on the edge (should be considered inside)
-        assert!(check_point_containment(&hull, &[0.5, 0.0]).unwrap());
+        assert!(check_point_containment(&hull, [0.5, 0.0]).unwrap());
     }
 
     #[test]
@@ -564,14 +564,14 @@ mod tests {
         let hull = ConvexHull::new(&points.view()).unwrap();
 
         // Point inside the line segment
-        assert!(check_point_containment(&hull, &[1.5]).unwrap());
+        assert!(check_point_containment(&hull, [1.5]).unwrap());
 
         // Point outside the line segment
-        assert!(!check_point_containment(&hull, &[5.0]).unwrap());
+        assert!(!check_point_containment(&hull, [5.0]).unwrap());
 
         // Point at the boundary
-        assert!(check_point_containment(&hull, &[0.0]).unwrap());
-        assert!(check_point_containment(&hull, &[3.0]).unwrap());
+        assert!(check_point_containment(&hull, [0.0]).unwrap());
+        assert!(check_point_containment(&hull, [3.0]).unwrap());
     }
 
     #[test]
@@ -585,10 +585,10 @@ mod tests {
         let hull = ConvexHull::new(&points.view()).unwrap();
 
         // Point inside the tetrahedron
-        assert!(check_point_containment(&hull, &[0.1, 0.1, 0.1]).unwrap());
+        assert!(check_point_containment(&hull, [0.1, 0.1, 0.1]).unwrap());
 
         // Point outside the tetrahedron
-        assert!(!check_point_containment(&hull, &[2.0, 2.0, 2.0]).unwrap());
+        assert!(!check_point_containment(&hull, [2.0, 2.0, 2.0]).unwrap());
     }
 
     #[test]
@@ -600,9 +600,9 @@ mod tests {
         let results = check_multiple_containment(&hull, &test_points.view()).unwrap();
 
         assert_eq!(results.len(), 3);
-        assert_eq!(results[0], true); // Inside
-        assert_eq!(results[1], false); // Outside
-        assert_eq!(results[2], true); // Inside
+        assert!(results[0]); // Inside
+        assert!(!results[1]); // Outside
+        assert!(results[2]); // Inside
     }
 
     #[test]
@@ -611,11 +611,11 @@ mod tests {
         let hull = ConvexHull::new(&points.view()).unwrap();
 
         // Distance should be negative for interior points
-        let dist = distance_to_hull(&hull, &[0.1, 0.1]).unwrap();
+        let dist = distance_to_hull(&hull, [0.1, 0.1]).unwrap();
         assert!(dist < 0.0);
 
         // Distance should be positive for exterior points
-        let dist = distance_to_hull(&hull, &[2.0, 2.0]).unwrap();
+        let dist = distance_to_hull(&hull, [2.0, 2.0]).unwrap();
         assert!(dist > 0.0);
     }
 
@@ -625,11 +625,11 @@ mod tests {
         let hull = ConvexHull::new(&points.view()).unwrap();
 
         // Test 3D point with 2D hull
-        let result = check_point_containment(&hull, &[0.1, 0.1, 0.1]);
+        let result = check_point_containment(&hull, [0.1, 0.1, 0.1]);
         assert!(result.is_err());
 
         // Test 1D point with 2D hull
-        let result = check_point_containment(&hull, &[0.1]);
+        let result = check_point_containment(&hull, [0.1]);
         assert!(result.is_err());
     }
 
@@ -650,11 +650,11 @@ mod tests {
         let hull = ConvexHull::new(&points.view()).unwrap();
 
         // Point inside the triangle
-        let result = check_point_containment(&hull, &[0.1, 0.1]).unwrap();
+        let result = check_point_containment(&hull, [0.1, 0.1]).unwrap();
         assert!(result);
 
         // Point outside the triangle
-        let result = check_point_containment(&hull, &[2.0, 2.0]).unwrap();
+        let result = check_point_containment(&hull, [2.0, 2.0]).unwrap();
         assert!(!result);
     }
 }

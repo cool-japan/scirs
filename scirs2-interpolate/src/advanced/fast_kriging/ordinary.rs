@@ -10,8 +10,8 @@ use crate::advanced::fast_kriging::{
 };
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::numerical_stability::{assess_matrix_condition, safe_reciprocal, StabilityLevel};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -50,7 +50,7 @@ where
 
         // For each query point
         for i in 0..n_query {
-            let query_point = query_points.slice(ndarray::s![i, ..]);
+            let query_point = query_points.slice(scirs2_core::ndarray::s![i, ..]);
 
             // Find nearest neighbors
             let (indices_distances) = find_nearest_neighbors(
@@ -75,8 +75,8 @@ where
 
             for (j, &idx) in indices.iter().enumerate() {
                 local_points
-                    .slice_mut(ndarray::s![j, ..])
-                    .assign(&self._points.slice(ndarray::s![idx, ..]));
+                    .slice_mut(scirs2_core::ndarray::s![j, ..])
+                    .assign(&self._points.slice(scirs2_core::ndarray::s![idx, ..]));
                 local_values[j] = self.values[idx];
             }
 
@@ -89,8 +89,8 @@ where
                             self.anisotropic_cov.sigma_sq + self.anisotropic_cov.nugget;
                     } else {
                         let dist = compute_anisotropic_distance(
-                            &local_points.slice(ndarray::s![j, ..]),
-                            &local_points.slice(ndarray::s![k, ..]),
+                            &local_points.slice(scirs2_core::ndarray::s![j, ..]),
+                            &local_points.slice(scirs2_core::ndarray::s![k, ..]),
                             &self.anisotropic_cov,
                         )?;
                         cov_matrix[[j, k]] = compute_covariance(dist, &self.anisotropic_cov);
@@ -213,7 +213,7 @@ where
                 for j in 0..n_neighbors {
                     let dist = compute_anisotropic_distance(
                         &query_point,
-                        &local_points.slice(ndarray::s![j, ..]),
+                        &local_points.slice(scirs2_core::ndarray::s![j, ..]),
                         &self.anisotropic_cov,
                     )?;
                     k_star[j] = compute_covariance(dist, &self.anisotropic_cov);
@@ -261,7 +261,7 @@ where
 
         // Project query _points into low-rank feature space
         for i in 0..n_query {
-            let query_point = query_points.slice(ndarray::s![i, ..]);
+            let query_point = query_points.slice(scirs2_core::ndarray::s![i, ..]);
 
             // Compute projection
             for j in 0..rank {
@@ -274,7 +274,7 @@ where
         // Compute predictions efficiently using low-rank structure
         for i in 0..n_query {
             // Compute residual using low-rank approximation
-            let query_feature = "query_features".slice(ndarray::s![i, ..]);
+            let query_feature = "query_features".slice(scirs2_core::ndarray::s![i, ..]);
 
             // Create safe reciprocal array for singular values
             let mut s_inv = Array1::zeros(s.len());
@@ -340,7 +340,7 @@ where
 
         // For each query point
         for i in 0..n_query {
-            let query_point = query_points.slice(ndarray::s![i, ..]);
+            let query_point = query_points.slice(scirs2_core::ndarray::s![i, ..]);
 
             // Find training _points within taper range
             let n_train = self._points.shape()[0];
@@ -350,7 +350,7 @@ where
             for j in 0..n_train {
                 let dist = compute_anisotropic_distance(
                     &query_point,
-                    &self._points.slice(ndarray::s![j, ..]),
+                    &self._points.slice(scirs2_core::ndarray::s![j, ..]),
                     &self.anisotropic_cov,
                 )?;
 
@@ -444,7 +444,7 @@ where
         let n_blocks = (n_points + max_leaf_size - 1) / max_leaf_size;
 
         for i in 0..n_query {
-            let query_point = query_points.slice(ndarray::s![i, ..]);
+            let query_point = query_points.slice(scirs2_core::ndarray::s![i, ..]);
 
             // Find the most relevant blocks for this query point
             let mut block_contributions = Vec::new();
@@ -487,8 +487,8 @@ where
                 // Compute block contribution
                 if weight > F::from_f64(1e-6).unwrap() {
                     // Use local kriging within this block
-                    let block_points = self._points.slice(ndarray::s![start_idx..end_idx, ..]);
-                    let block_values = self.values.slice(ndarray::s![start_idx..end_idx]);
+                    let block_points = self._points.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
+                    let block_values = self.values.slice(scirs2_core::ndarray::s![start_idx..end_idx]);
 
                     let local_prediction = self.predict_block_local(
                         &query_point,
@@ -556,8 +556,8 @@ where
                         self.anisotropic_cov.sigma_sq + self.anisotropic_cov.nugget;
                 } else {
                     let dist = compute_anisotropic_distance(
-                        &block_points.slice(ndarray::s![j, ..]),
-                        &block_points.slice(ndarray::s![k, ..]),
+                        &block_points.slice(scirs2_core::ndarray::s![j, ..]),
+                        &block_points.slice(scirs2_core::ndarray::s![k, ..]),
                         &self.anisotropic_cov,
                     )?;
                     cov_matrix[[j, k]] = compute_covariance(dist, &self.anisotropic_cov);
@@ -570,7 +570,7 @@ where
         for j in 0..n_block {
             let dist = compute_anisotropic_distance(
                 query_point,
-                &block_points.slice(ndarray::s![j, ..]),
+                &block_points.slice(scirs2_core::ndarray::s![j, ..]),
                 &self.anisotropic_cov,
             )?;
             k_star[j] = compute_covariance(dist, &self.anisotropic_cov);

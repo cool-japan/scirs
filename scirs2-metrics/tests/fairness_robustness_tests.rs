@@ -1,5 +1,5 @@
 use approx::assert_abs_diff_eq;
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_metrics::classification::accuracy_score;
 use scirs2_metrics::fairness::robustness::{
     influence_function, performance_invariance, perturbation_sensitivity, PerturbationType,
@@ -39,8 +39,8 @@ fn test_performance_invariance() {
         &protected_groups,
         &group_names,
         |yt, yp| {
-            let yt_array = ndarray::Array::from_vec(yt.to_vec());
-            let yp_array = ndarray::Array::from_vec(yp.to_vec());
+            let yt_array = scirs2_core::ndarray::Array::from_vec(yt.to_vec());
+            let yp_array = scirs2_core::ndarray::Array::from_vec(yp.to_vec());
             accuracy_score(&yt_array, &yp_array).unwrap_or(0.0)
         },
     )
@@ -65,8 +65,8 @@ fn test_performance_invariance() {
         &protected_groups,
         &group_names,
         |yt, yp| {
-            let yt_array = ndarray::Array::from_vec(yt.to_vec());
-            let yp_array = ndarray::Array::from_vec(yp.to_vec());
+            let yt_array = scirs2_core::ndarray::Array::from_vec(yt.to_vec());
+            let yp_array = scirs2_core::ndarray::Array::from_vec(yp.to_vec());
             accuracy_score(&yt_array, &yp_array).unwrap_or(0.0)
         }
     )
@@ -80,8 +80,8 @@ fn test_performance_invariance() {
         &protected_groups,
         &wrong_group_names,
         |yt, yp| {
-            let yt_array = ndarray::Array::from_vec(yt.to_vec());
-            let yp_array = ndarray::Array::from_vec(yp.to_vec());
+            let yt_array = scirs2_core::ndarray::Array::from_vec(yt.to_vec());
+            let yp_array = scirs2_core::ndarray::Array::from_vec(yp.to_vec());
             accuracy_score(&yt_array, &yp_array).unwrap_or(0.0)
         }
     )

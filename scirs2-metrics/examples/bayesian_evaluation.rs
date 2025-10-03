@@ -4,7 +4,7 @@
 //! and comparison, including Bayes factors, information criteria, posterior
 //! predictive checks, credible intervals, and Bayesian model averaging.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_metrics::bayesian::*;
 use scirs2_metrics::error::Result;
 use statrs::statistics::Statistics;
@@ -306,7 +306,10 @@ fn bayesian_model_averaging_example() -> Result<()> {
         );
         println!(
             "  Model uncertainty (first 5): {:?}",
-            results.model_uncertainty.slice(ndarray::s![0..5]).to_vec()
+            results
+                .model_uncertainty
+                .slice(scirs2_core::ndarray::s![0..5])
+                .to_vec()
         );
         println!();
     }
@@ -347,8 +350,8 @@ fn comprehensive_bayesian_workflow() -> Result<()> {
 
     // Step 2: Model comparison using Bayes factors
     let model_comparison = BayesianModelComparison::new();
-    let model1_loglik_sum = model1_loglik.sum_axis(ndarray::Axis(1));
-    let model2_loglik_sum = model2_loglik.sum_axis(ndarray::Axis(1));
+    let model1_loglik_sum = model1_loglik.sum_axis(scirs2_core::ndarray::Axis(1));
+    let model2_loglik_sum = model2_loglik.sum_axis(scirs2_core::ndarray::Axis(1));
 
     let comparison_result =
         model_comparison.compare_models(&model1_loglik_sum, &model2_loglik_sum, None, None)?;

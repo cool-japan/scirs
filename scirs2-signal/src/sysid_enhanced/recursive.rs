@@ -5,7 +5,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use super::types::*;
-use ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 
 /// Recursive system identification for online applications
 ///
@@ -16,7 +16,7 @@ use ndarray::{Array1, Array2, Axis};
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::sysid_enhanced::{RecursiveSysId, EnhancedSysIdConfig};
 ///
 /// // Initialize with initial parameter guess

@@ -5,8 +5,8 @@
 //! hardware detection and benchmarking capabilities.
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -1209,10 +1209,10 @@ impl AdvancedGpuOrchestrator {
 
         for (deviceid, (start_idx, end_idx)) in work_distribution {
             let y_true_slice = y_true_batch
-                .slice(ndarray::s![start_idx..end_idx, ..])
+                .slice(scirs2_core::ndarray::s![start_idx..end_idx, ..])
                 .to_owned();
             let y_pred_slice = y_pred_batch
-                .slice(ndarray::s![start_idx..end_idx, ..])
+                .slice(scirs2_core::ndarray::s![start_idx..end_idx, ..])
                 .to_owned();
 
             // Clone metrics for the task - convert to owned strings
@@ -1639,7 +1639,7 @@ impl Default for AdvancedGpuOrchestrator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "GPU availability varies by environment"]

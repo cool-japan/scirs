@@ -4,7 +4,7 @@
 //! and adaptive threshold systems for bifurcation detection.
 
 use crate::analysis::types::BifurcationType;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
@@ -26,7 +26,7 @@ pub struct RealTimeBifurcationMonitor {
 }
 
 /// Alert system configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct AlertSystemConfig {
     /// Alert thresholds for different bifurcation types
     pub alert_thresholds: HashMap<BifurcationType, f64>,
@@ -253,17 +253,6 @@ pub enum FeedbackMechanism {
     Automated,
     /// Hybrid manual and automated
     Hybrid,
-}
-
-impl Default for AlertSystemConfig {
-    fn default() -> Self {
-        Self {
-            alert_thresholds: HashMap::new(),
-            escalation_levels: Vec::new(),
-            notification_methods: Vec::new(),
-            suppression_config: AlertSuppressionConfig::default(),
-        }
-    }
 }
 
 impl Default for AlertSuppressionConfig {

@@ -8,7 +8,7 @@
 
 use super::core::{EnsembleAggregation, StreamingMetric};
 use crate::error::Result;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 /// Ensemble of different metrics
@@ -123,7 +123,7 @@ impl<F: Float + std::fmt::Debug + Send + Sync + std::iter::Sum> MetricEnsemble<F
         values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let len = values.len();
 
-        if len % 2 == 0 {
+        if len.is_multiple_of(2) {
             (values[len / 2 - 1] + values[len / 2]) / F::from(2.0).unwrap()
         } else {
             values[len / 2]

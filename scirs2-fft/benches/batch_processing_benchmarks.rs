@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::random::prelude::*;
 use scirs2_fft::sparse_fft::{sparse_fft, SparseFFTAlgorithm, WindowFunction};
@@ -21,10 +22,10 @@ fn create_sparse_signal(n: usize, frequencies: &[(usize, f64)]) -> Vec<f64> {
 // Helper to add noise to signals
 #[allow(dead_code)]
 fn add_noise(_signal: &[f64], noise_level: f64) -> Vec<f64> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     _signal
         .iter()
-        .map(|&x| x + rng.gen_range(-noise_level..noise_level))
+        .map(|&x| x + rng.random_range(-noise_level..noise_level))
         .collect()
 }
 

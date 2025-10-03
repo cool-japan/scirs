@@ -13,7 +13,7 @@ use super::out_of_core::OutOfCoreManager;
 use super::stats::AccessPatternType;
 use super::stats::{CompressionMetadata, CompressionStats, MemoryStats};
 use crate::error::{SparseError, SparseResult};
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -227,7 +227,13 @@ impl AdaptiveMemoryCompressor {
         compressed_matrix: &CompressedMatrix<T>,
     ) -> SparseResult<(Vec<usize>, Vec<usize>, Vec<T>)>
     where
-        T: Float + NumAssign + Send + Sync + Copy + std::fmt::Debug + num_traits::FromPrimitive,
+        T: Float
+            + NumAssign
+            + Send
+            + Sync
+            + Copy
+            + std::fmt::Debug
+            + scirs2_core::numeric::FromPrimitive,
     {
         let start_time = std::time::Instant::now();
 
@@ -861,7 +867,7 @@ impl AdaptiveMemoryCompressor {
 
     fn parse_data_values<T>(&self, data: &[u8]) -> SparseResult<Vec<T>>
     where
-        T: Float + NumAssign + Send + Sync + Copy + num_traits::FromPrimitive,
+        T: Float + NumAssign + Send + Sync + Copy + scirs2_core::numeric::FromPrimitive,
     {
         if data.len() < 8 {
             return Ok(Vec::new());
@@ -963,8 +969,7 @@ mod tests {
         // Test random optimization
         compressor.optimize_for_random_access();
 
-        // Should not panic
-        assert!(true);
+        // Should not panic (implicit in test succeeding)
     }
 
     #[test]

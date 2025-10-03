@@ -4,8 +4,8 @@
 //! meta-learning to select optimal transformations for given datasets.
 
 use crate::error::{Result, TransformError};
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use rand::seq::SliceRandom;
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::random::seq::SliceRandom;
 use scirs2_core::validation::check_not_empty;
 use std::collections::HashMap;
 
@@ -424,7 +424,7 @@ impl AutoFeatureEngineer {
         let has_missing = missing_count > 0;
 
         // Calculate variance statistics with better numerical stability
-        let variances: Array1<f64> = x.var_axis(ndarray::Axis(0), 0.0);
+        let variances: Array1<f64> = x.var_axis(scirs2_core::ndarray::Axis(0), 0.0);
         let finite_variances: Vec<f64> = variances
             .iter()
             .filter(|&&v| v.is_finite() && v >= 0.0)
@@ -1058,7 +1058,7 @@ impl AdvancedMetaLearningSystem {
         let base_features = auto_engineer.extract_meta_features(x)?;
 
         // Extract additional advanced meta-features
-        let (_n_samples_n_features) = x.dim();
+        let _n_samples_n_features = x.dim();
 
         // Topological features
         let manifold_dimension = self.estimate_intrinsic_dimension(x)?;
@@ -1184,8 +1184,8 @@ impl AdvancedMetaLearningSystem {
         }
 
         // Sample random points and compute distances
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let sample_size = 100.min(n_samples);
         let mut distances = Vec::new();
 
@@ -1236,8 +1236,8 @@ impl AdvancedMetaLearningSystem {
             return Ok(0.5); // Neutral value
         }
 
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let sample_size = 10.min(n_samples / 2);
 
         // Generate random points in the data space
@@ -1305,8 +1305,8 @@ impl AdvancedMetaLearningSystem {
         let mut pair_count = 0;
 
         // Sample pairs of features to avoid O(n²) complexity
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let max_pairs = 50.min((n_features * (n_features - 1)) / 2);
 
         for _ in 0..max_pairs {
@@ -1328,8 +1328,8 @@ impl AdvancedMetaLearningSystem {
 
     fn estimate_mutual_information(
         &self,
-        x: &ndarray::ArrayView1<f64>,
-        y: &ndarray::ArrayView1<f64>,
+        x: &scirs2_core::ndarray::ArrayView1<f64>,
+        y: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> Result<f64> {
         // Simplified MI estimation using binning
         let n_bins = 10;
@@ -1430,8 +1430,8 @@ impl AdvancedMetaLearningSystem {
     // Additional helper methods
     fn euclidean_distance(
         &self,
-        a: &ndarray::ArrayView1<f64>,
-        b: &ndarray::ArrayView1<f64>,
+        a: &scirs2_core::ndarray::ArrayView1<f64>,
+        b: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> f64 {
         a.iter()
             .zip(b.iter())
@@ -1448,7 +1448,7 @@ impl AdvancedMetaLearningSystem {
             .sqrt()
     }
 
-    fn create_bins(&self, data: &ndarray::ArrayView1<f64>, n_bins: usize) -> Vec<f64> {
+    fn create_bins(&self, data: &scirs2_core::ndarray::ArrayView1<f64>, n_bins: usize) -> Vec<f64> {
         let mut sorted: Vec<f64> = data.iter().filter(|&&x| x.is_finite()).copied().collect();
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -1483,7 +1483,7 @@ impl AdvancedMetaLearningSystem {
         // For high-dimensional data, use sampling approach
         let sample_size = 1000.min(n_samples);
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut all_indices: Vec<usize> = (0..n_samples).collect();
         all_indices.shuffle(&mut rng);
         let indices: Vec<usize> = all_indices.into_iter().take(sample_size).collect();
@@ -1668,8 +1668,8 @@ impl AdvancedMetaLearningSystem {
 
         // Sample pairs to avoid O(n²) complexity for large feature sets
         let max_pairs = 100.min((n_features * (n_features - 1)) / 2);
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
 
         for _ in 0..max_pairs {
             let i = rng.gen_range(0..n_features);
@@ -1698,8 +1698,8 @@ impl AdvancedMetaLearningSystem {
     /// Quick correlation calculation without full validation
     fn quick_correlation(
         &self,
-        x: &ndarray::ArrayView1<f64>,
-        y: &ndarray::ArrayView1<f64>,
+        x: &scirs2_core::ndarray::ArrayView1<f64>,
+        y: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> Result<f64> {
         if x.len() != y.len() || x.len() < 2 {
             return Ok(0.0);
@@ -1743,7 +1743,7 @@ impl AdvancedMetaLearningSystem {
         // Build correlation adjacency matrix (sampled)
         let sample_size = 20.min(n_features);
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut all_features: Vec<usize> = (0..n_features).collect();
         all_features.shuffle(&mut rng);
         let sampled_features: Vec<usize> = all_features.into_iter().take(sample_size).collect();

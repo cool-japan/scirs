@@ -6,10 +6,10 @@
 //! 3. Matrix calculus utilities
 
 use approx::assert_abs_diff_eq;
-use ndarray::array;
-use num_complex::Complex;
+use scirs2_core::ndarray::array;
+use scirs2_core::numeric::Complex;
 
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use scirs2_linalg::complex::enhanced_ops::{
     det, hermitian_part, inner_product, is_hermitian, is_unitary, matrix_exp, matvec,
 };

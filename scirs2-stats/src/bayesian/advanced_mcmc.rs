@@ -4,7 +4,7 @@
 //! Hamiltonian Monte Carlo, No-U-Turn Sampler (NUTS), and adaptive algorithms.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::{random::prelude::*, validation::*};
 
 /// Trait for defining log probability density functions
@@ -320,6 +320,12 @@ pub struct NoUTurnSampler {
     pub seed: Option<u64>,
 }
 
+impl Default for NoUTurnSampler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NoUTurnSampler {
     /// Create a new NUTS sampler
     pub fn new() -> Self {
@@ -494,6 +500,12 @@ pub struct AdaptiveMetropolis {
     pub epsilon: f64,
     /// Random seed
     pub seed: Option<u64>,
+}
+
+impl Default for AdaptiveMetropolis {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl AdaptiveMetropolis {

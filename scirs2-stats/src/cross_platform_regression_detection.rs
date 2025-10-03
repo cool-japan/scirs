@@ -13,7 +13,7 @@
 //! - Integration with CI/CD pipelines
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
@@ -404,21 +404,18 @@ impl CrossPlatformRegressionDetector {
         // Load baseline files from storage
         let baseline_dir = Path::new(&self.config.baseline_storage_path);
         if let Ok(entries) = fs::read_dir(baseline_dir) {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.extension().map_or(false, |ext| ext == "json") {
-                        if let Ok(content) = fs::read_to_string(&path) {
-                            if let Ok(baseline) =
-                                serde_json::from_str::<PerformanceBaseline>(&content)
-                            {
-                                let key = format!(
-                                    "{}-{}",
-                                    baseline.platform.platform_id(),
-                                    baseline.function_name
-                                );
-                                self.baselines.insert(key, baseline);
-                            }
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().is_some_and(|ext| ext == "json") {
+                    if let Ok(content) = fs::read_to_string(&path) {
+                        if let Ok(baseline) = serde_json::from_str::<PerformanceBaseline>(&content)
+                        {
+                            let key = format!(
+                                "{}-{}",
+                                baseline.platform.platform_id(),
+                                baseline.function_name
+                            );
+                            self.baselines.insert(key, baseline);
                         }
                     }
                 }
@@ -474,7 +471,7 @@ impl CrossPlatformRegressionDetector {
         // Add to historical data
         self.historicaldata
             .entry(timestamp)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(measurement.clone());
 
         // Update or create baseline
@@ -642,7 +639,7 @@ impl CrossPlatformRegressionDetector {
         let mut sorted_times = times.clone();
         sorted_times.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-        let median = if sorted_times.len() % 2 == 0 {
+        let median = if sorted_times.len().is_multiple_of(2) {
             let mid = sorted_times.len() / 2;
             (sorted_times[mid - 1] + sorted_times[mid]) / 2.0
         } else {

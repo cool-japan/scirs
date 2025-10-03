@@ -5,7 +5,7 @@
 
 use super::types::*;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{s, Array1, Array2, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
 use std::collections::HashMap;
 
 /// Error visualization engine for numerical analysis
@@ -97,7 +97,7 @@ impl ErrorVisualizationEngine {
             return 0.0;
         }
 
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             (sorted_values[n / 2 - 1] + sorted_values[n / 2]) / 2.0
         } else {
             sorted_values[n / 2]

@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use crate::topic_modeling::Topic;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::{HashMap, HashSet};
 
 /// Topic coherence calculator

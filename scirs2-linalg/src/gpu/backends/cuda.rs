@@ -385,6 +385,7 @@ pub mod cuda_impl {
     }
 
     impl GpuContext for CudaContext {
+        #[allow(static_mut_refs)]
         fn device_info(&self) -> &GpuDeviceInfo {
             // Convert CudaDeviceInfo to GpuDeviceInfo
             static mut CACHED_INFO: Option<GpuDeviceInfo> = None;

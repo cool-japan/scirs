@@ -5,10 +5,10 @@
 use super::{utils, OptimizationAction, OptimizationState, RLOptimizationConfig, RLOptimizer};
 use crate::error::{OptimizeError, OptimizeResult};
 use crate::result::OptimizeResults;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 // Unused import
 // use scirs2_core::error::CoreResult;
-use rand::{rng, Rng};
+use scirs2_core::random::{rng, Rng};
 use std::collections::HashMap;
 
 /// Q-Learning optimizer for optimization problems
@@ -95,10 +95,10 @@ impl RLOptimizer for QLearningOptimizer {
 
     fn select_action(&mut self, state: &OptimizationState) -> OptimizationAction {
         // Epsilon-greedy action selection
-        if rand::rng().random_range(0.0..1.0) < self.exploration_rate {
+        if scirs2_core::random::rng().random_range(0.0..1.0) < self.exploration_rate {
             // Random action
             let actions = self.get_possible_actions();
-            let idx = rand::rng().random_range(0..actions.len());
+            let idx = scirs2_core::random::rng().random_range(0..actions.len());
             actions[idx].clone()
         } else {
             // Greedy action

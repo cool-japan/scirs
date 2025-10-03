@@ -7,8 +7,8 @@
 //! - Model compression analysis and optimization
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, ArrayD};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ArrayD};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 /// Quantization precision levels
@@ -400,12 +400,12 @@ impl<F: Float + Debug + 'static> ModelPruner<F> {
         let mut mask = Array::from_elem(weights.raw_dim(), true);
         // For each output channel, compute L2 norm and decide whether to prune
         for i in 0..weights.shape()[0] {
-            let channel_slice = weights.slice(ndarray::s![i, ..]);
+            let channel_slice = weights.slice(scirs2_core::ndarray::s![i, ..]);
             let l2_norm = channel_slice.mapv(|x| x * x).sum().sqrt();
             // Simple heuristic: prune channels with norm below median
             let threshold = F::from(0.1).unwrap(); // Simplified threshold
             if l2_norm < threshold {
-                mask.slice_mut(ndarray::s![i, ..]).fill(false);
+                mask.slice_mut(scirs2_core::ndarray::s![i, ..]).fill(false);
     fn filter_wise_mask(&self, weights: &ArrayD<F>) -> Result<ArrayD<bool>> {
         // Similar to channel-wise but operates on filters
         self.channel_wise_mask(weights) // Simplified implementation
@@ -420,12 +420,12 @@ impl<F: Float + Debug + 'static> ModelPruner<F> {
             for j in (0..cols).step_by(block_w) {
                 let end_i = (i + block_h).min(rows);
                 let end_j = (j + block_w).min(cols);
-                let block = weights.slice(ndarray::s![i..end_i, j..end_j]);
+                let block = weights.slice(scirs2_core::ndarray::s![i..end_i, j..end_j]);
                 let block_norm = block.mapv(|x| x * x).sum().sqrt();
                 // Keep block if norm is above threshold
                 let threshold = F::from(0.1).unwrap();
                 if block_norm >= threshold {
-                    mask.slice_mut(ndarray::s![i..end_i, j..end_j]).fill(true);
+                    mask.slice_mut(scirs2_core::ndarray::s![i..end_i, j..end_j]).fill(true);
     fn compute_gradual_sparsity(
     ) -> f64 {
         if self.current_step < begin_step {
@@ -560,7 +560,7 @@ impl std::fmt::Display for CompressionReport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     #[test]
     fn test_post_training_quantizer() {
         let mut quantizer = PostTrainingQuantizer::<f64>::new(

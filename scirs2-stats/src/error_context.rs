@@ -77,7 +77,7 @@ impl EnhancedError {
 /// Enhanced validation with detailed error context
 pub mod enhanced_validation {
     use super::*;
-    use num_traits::Float;
+    use scirs2_core::numeric::Float;
 
     /// Validate distribution parameters with enhanced error messages
     pub fn validate_distribution_params<F: Float + Display>(
@@ -267,7 +267,7 @@ pub mod numerical {
 /// Enhanced error handling for data validation
 pub mod data_validation {
     use super::*;
-    use num_traits::Float;
+    use scirs2_core::numeric::Float;
 
     /// Validate input data with enhanced error messages
     pub fn validatedata_quality<T>(data: &[T], context: &str, allow_empty: bool) -> StatsResult<()>

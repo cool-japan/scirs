@@ -239,7 +239,7 @@ mod tests {
 
         let state = processor.save_state();
         assert_eq!(state.total_operations, 0);
-        assert!(state.neural_network_params.len() > 0);
+        assert!(!state.neural_network_params.is_empty());
 
         // Test that state can be loaded (this would require a mutable processor in real usage)
         // Just test the state structure for now

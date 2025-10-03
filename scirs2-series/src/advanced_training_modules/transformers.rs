@@ -3,15 +3,15 @@
 //! This module provides transformer architectures specifically designed for time series
 //! forecasting tasks, incorporating attention mechanisms and positional encoding.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::Result;
 
 /// Transformer model for time series forecasting with multi-head attention
 #[derive(Debug)]
-pub struct TimeSeriesTransformer<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct TimeSeriesTransformer<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Number of transformer layers
     num_layers: usize,
     /// Attention heads per layer
@@ -30,7 +30,9 @@ pub struct TimeSeriesTransformer<F: Float + Debug + ndarray::ScalarOperand> {
     positional_encoding: Array2<F>,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> TimeSeriesTransformer<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
+    TimeSeriesTransformer<F>
+{
     /// Create new Transformer for time series forecasting
     pub fn new(
         seq_len: usize,

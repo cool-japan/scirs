@@ -12,7 +12,7 @@
 //! - Algorithm stability recommendations
 
 use crate::error::StatsResult;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -430,7 +430,7 @@ impl NumericalStabilityAnalyzer {
             // Test with zeros
             total_tests += 1;
             let zerodata = Array1::from_vec(vec![0.0, 0.0, 0.0]);
-            if let Ok(_) = function(&zerodata.view()) {
+            if function(&zerodata.view()).is_ok() {
                 handles_zero = true;
                 tests_passed += 1;
             }
@@ -438,7 +438,7 @@ impl NumericalStabilityAnalyzer {
             // Test with very large values
             total_tests += 1;
             let largedata = Array1::from_vec(vec![1e100, 1e200, 1e300]);
-            if let Ok(_) = function(&largedata.view()) {
+            if function(&largedata.view()).is_ok() {
                 handles_large_values = true;
                 tests_passed += 1;
             }
@@ -446,7 +446,7 @@ impl NumericalStabilityAnalyzer {
             // Test with very small values
             total_tests += 1;
             let smalldata = Array1::from_vec(vec![1e-100, 1e-200, 1e-300]);
-            if let Ok(_) = function(&smalldata.view()) {
+            if function(&smalldata.view()).is_ok() {
                 handles_small_values = true;
                 tests_passed += 1;
             }

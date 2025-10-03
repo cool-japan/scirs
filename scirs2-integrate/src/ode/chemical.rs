@@ -5,7 +5,7 @@
 //! kinetics, and chemical equilibrium calculations.
 
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Types of chemical systems supported
 #[derive(Debug, Clone, Copy, PartialEq)]

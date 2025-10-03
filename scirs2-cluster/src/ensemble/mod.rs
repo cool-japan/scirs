@@ -9,7 +9,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::ensemble::{EnsembleClusterer, EnsembleConfig, SamplingStrategy};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create sample data
 //! let data = Array2::from_shape_vec((100, 2), (0..200).map(|x| x as f64).collect()).unwrap();
@@ -31,7 +31,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::ensemble::convenience::ensemble_clustering;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let data = Array2::from_shape_vec((50, 3), (0..150).map(|x| x as f64).collect()).unwrap();
 //! let result = ensemble_clustering(data.view()).unwrap();
@@ -49,7 +49,7 @@
 //!     BoostingConfig, ReweightingStrategy, ErrorFunction,
 //!     StackingConfig, MetaClusteringAlgorithm, ClusteringAlgorithm,
 //! };
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Advanced ensemble with meta-learning
 //! let data = Array2::from_shape_vec((100, 4), (0..400).map(|x| x as f64).collect()).unwrap();
@@ -170,12 +170,12 @@ pub fn graph_based_consensus_config(similarity_threshold: f64) -> EnsembleConfig
 
 /// Convenience function for quick ensemble clustering with default parameters
 pub fn quick_ensemble_clustering<F>(
-    data: ndarray::ArrayView2<F>,
+    data: scirs2_core::ndarray::ArrayView2<F>,
     n_estimators: Option<usize>,
 ) -> crate::error::Result<EnsembleResult>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Debug
         + 'static
         + std::iter::Sum
@@ -194,11 +194,11 @@ where
 
 /// Convenience function for multi-algorithm ensemble with common algorithms
 pub fn quick_multi_algorithm_ensemble<F>(
-    data: ndarray::ArrayView2<F>,
+    data: scirs2_core::ndarray::ArrayView2<F>,
 ) -> crate::error::Result<EnsembleResult>
 where
-    F: num_traits::Float
-        + num_traits::FromPrimitive
+    F: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Debug
         + 'static
         + std::iter::Sum
@@ -224,7 +224,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_default_ensemble_config() {

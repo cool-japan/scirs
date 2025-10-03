@@ -2,8 +2,8 @@
 //!
 //! Implements various diagnostic tests and residual analysis
 
-use ndarray::{Array1, ArrayBase, Data, Ix1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -144,7 +144,7 @@ where
         .mapv(|x| (x - mean) * (x - mean))
         .mean()
         .unwrap_or(F::zero());
-    let std_dev = num_traits::Float::sqrt(variance);
+    let std_dev = scirs2_core::numeric::Float::sqrt(variance);
 
     // Standardized residuals
     let standardized_residuals = if std_dev > F::zero() {
@@ -305,9 +305,11 @@ where
     let squared_residuals = residuals.mapv(|x| x * x);
 
     // Regress squared _residuals on their lags
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
-    let y = squared_residuals.slice(ndarray::s![lags..]).to_owned();
+    let y = squared_residuals
+        .slice(scirs2_core::ndarray::s![lags..])
+        .to_owned();
     let mut x = Array2::zeros((n - lags, lags + 1));
 
     // Add constant
@@ -513,8 +515,10 @@ where
         }
 
         // Split data
-        let train_data = data.slice(ndarray::s![..train_end]).to_owned();
-        let test_data = data.slice(ndarray::s![train_end..test_end]).to_owned();
+        let train_data = data.slice(scirs2_core::ndarray::s![..train_end]).to_owned();
+        let test_data = data
+            .slice(scirs2_core::ndarray::s![train_end..test_end])
+            .to_owned();
 
         // Fit model
         let mut fold_model = model.clone();
@@ -606,7 +610,7 @@ where
 
 /// Simple matrix solve using Gaussian elimination
 #[allow(dead_code)]
-fn matrix_solve<F>(a: &ndarray::Array2<F>, b: &Array1<F>) -> Result<Array1<F>>
+fn matrix_solve<F>(a: &scirs2_core::ndarray::Array2<F>, b: &Array1<F>) -> Result<Array1<F>>
 where
     F: Float + FromPrimitive + ScalarOperand,
 {
@@ -676,7 +680,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_residual_diagnostics() {

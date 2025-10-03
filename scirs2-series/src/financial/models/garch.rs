@@ -23,7 +23,7 @@
 //! ## Basic GARCH(1,1) Model
 //! ```rust
 //! use scirs2_series::financial::models::garch::{GarchModel, GarchConfig};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = GarchModel::garch_11();
 //! let data = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -55,7 +55,7 @@
 //! ## Volatility Forecasting
 //! ```rust
 //! use scirs2_series::financial::models::garch::GarchModel;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = GarchModel::garch_11();
 //! let data = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -70,8 +70,8 @@
 //! println!("Volatility Forecasts: {:?}", forecasts);
 //! ```
 
-use ndarray::{s, Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -769,7 +769,10 @@ impl<F: Float + Debug + std::iter::Sum> GarchModel<F> {
     }
 
     /// Helper method for matrix multiplication
-    fn matrix_multiply_transpose(&self, x: &ndarray::ArrayView2<F>) -> Result<Array2<F>> {
+    fn matrix_multiply_transpose(
+        &self,
+        x: &scirs2_core::ndarray::ArrayView2<F>,
+    ) -> Result<Array2<F>> {
         let rows = x.ncols();
         let mut result = Array2::zeros((rows, rows));
 
@@ -789,8 +792,8 @@ impl<F: Float + Debug + std::iter::Sum> GarchModel<F> {
     /// Helper method for matrix-vector multiplication
     fn matrix_vector_multiply_transpose(
         &self,
-        x: &ndarray::ArrayView2<F>,
-        y: &ndarray::ArrayView1<F>,
+        x: &scirs2_core::ndarray::ArrayView2<F>,
+        y: &scirs2_core::ndarray::ArrayView1<F>,
     ) -> Result<Array1<F>> {
         let cols = x.ncols();
         let mut result = Array1::zeros(cols);
@@ -886,7 +889,7 @@ impl<F: Float + Debug + std::iter::Sum> GarchModel<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_garch_11_basic() {

@@ -24,7 +24,7 @@
 // ## Example Usage
 //
 // ```rust
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::streaming_stft::{StreamingStft, StreamingStftConfig};
 // # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //
@@ -50,9 +50,9 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle_enhanced::WindowType;
 use crate::window::get_window;
-use ndarray::s;
-use ndarray::Array1;
-use num_complex::Complex64;
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Complex64;
 use std::collections::VecDeque;
 
 #[allow(unused_imports)]
@@ -270,7 +270,7 @@ impl StreamingStft {
         let mut start = 0;
 
         while start + frame_size <= input_data.len() {
-            let frame = input_data.slice(ndarray::s![start..start + frame_size]);
+            let frame = input_data.slice(scirs2_core::ndarray::s![start..start + frame_size]);
             let frame_array = frame.to_owned();
 
             if let Some(spectrum) = self.process_frame(&frame_array)? {
@@ -282,7 +282,7 @@ impl StreamingStft {
 
         // Process remaining samples if any
         if start < input_data.len() {
-            let remaining = input_data.slice(ndarray::s![start..]);
+            let remaining = input_data.slice(scirs2_core::ndarray::s![start..]);
             let frame_array = remaining.to_owned();
 
             if let Some(spectrum) = self.process_frame(&frame_array)? {

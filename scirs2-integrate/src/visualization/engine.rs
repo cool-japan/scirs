@@ -7,7 +7,7 @@ use super::types::*;
 use crate::analysis::{BasinAnalysis, BifurcationPoint};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEResult;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Main visualization engine for creating plots from numerical data
 #[derive(Debug, Clone)]

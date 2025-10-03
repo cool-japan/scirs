@@ -3,8 +3,8 @@
 //! This module provides the main public functions for computing eigenvalues
 //! and eigenvectors using extended precision arithmetic.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 
 use super::super::{DemotableTo, PromotableTo};
 use super::generalized_eigen::*;
@@ -13,8 +13,8 @@ use crate::error::LinalgResult;
 
 /// Type for eigenvalue and eigenvector results with complex numbers
 pub type EigenResult<A> = LinalgResult<(
-    Array1<num_complex::Complex<A>>,
-    Array2<num_complex::Complex<A>>,
+    Array1<scirs2_core::numeric::Complex<A>>,
+    Array2<scirs2_core::numeric::Complex<A>>,
 )>;
 
 /// Compute eigenvalues of a general matrix using extended precision
@@ -35,9 +35,9 @@ pub type EigenResult<A> = LinalgResult<(
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::eigen::extended_eigvals;
-/// use num_complex::Complex;
+/// use scirs2_core::numeric::Complex;
 ///
 /// let a = array![
 ///     [1.0_f32, 2.0],
@@ -55,7 +55,7 @@ pub fn extended_eigvals<A, I>(
     a: &ArrayView2<A>,
     max_iter: Option<usize>,
     tol: Option<A>,
-) -> LinalgResult<Array1<num_complex::Complex<A>>>
+) -> LinalgResult<Array1<scirs2_core::numeric::Complex<A>>>
 where
     A: Float + Zero + One + PromotableTo<I> + DemotableTo<A> + Copy,
     I: Float
@@ -96,7 +96,7 @@ where
     // Convert eigenvalues back to original precision
     let mut eigenvalues = Array1::zeros(n);
     for i in 0..n {
-        eigenvalues[i] = num_complex::Complex::new(
+        eigenvalues[i] = scirs2_core::numeric::Complex::new(
             eigenvalues_high[i].re.demote(),
             eigenvalues_high[i].im.demote(),
         );
@@ -123,9 +123,9 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::eigen::extended_eig;
-/// use num_complex::Complex;
+/// use scirs2_core::numeric::Complex;
 ///
 /// let a = array![
 ///     [1.0_f32, 2.0],
@@ -178,13 +178,15 @@ where
     // For each eigenvalue, compute the corresponding eigenvector using inverse iteration
     for (k, lambda) in eigenvalues.iter().enumerate() {
         // Create (A - λI) matrix in extended precision as complex numbers
-        let mut shiftedmatrix: Array2<num_complex::Complex<I>> = Array2::zeros((n, n));
-        let lambda_high = num_complex::Complex::new(lambda.re.promote(), lambda.im.promote());
+        let mut shiftedmatrix: Array2<scirs2_core::numeric::Complex<I>> = Array2::zeros((n, n));
+        let lambda_high =
+            scirs2_core::numeric::Complex::new(lambda.re.promote(), lambda.im.promote());
 
         // Convert real matrix to complex and subtract eigenvalue from diagonal
         for i in 0..n {
             for j in 0..n {
-                shiftedmatrix[[i, j]] = num_complex::Complex::new(a_high[[i, j]], I::zero());
+                shiftedmatrix[[i, j]] =
+                    scirs2_core::numeric::Complex::new(a_high[[i, j]], I::zero());
             }
         }
 
@@ -202,7 +204,7 @@ where
 
         // Convert eigenvector back to original precision
         for i in 0..n {
-            eigenvectors[[i, k]] = num_complex::Complex::new(
+            eigenvectors[[i, k]] = scirs2_core::numeric::Complex::new(
                 eigenvector_high[i].re.demote(),
                 eigenvector_high[i].im.demote(),
             );
@@ -231,7 +233,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::eigen::extended_eigvalsh;
 ///
 /// let a = array![
@@ -333,7 +335,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::extended_precision::eigen::extended_eigh;
 ///
 /// let a = array![

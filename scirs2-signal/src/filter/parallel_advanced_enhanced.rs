@@ -6,9 +6,9 @@
 
 use crate::error::{SignalError, SignalResult};
 use crate::filter::parallel::ParallelFilterConfig;
-use num_complex::Complex64;
-use num_traits::Float;
 use rustfft::{num_complex::Complex, FftPlanner};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
@@ -522,7 +522,7 @@ impl ParallelSpectralFilter {
         config: &AdvancedParallelConfig,
     ) -> SignalResult<Vec<f64>> {
         let hop_size = (self.fft_size as f64 * (1.0 - self.overlap_factor)) as usize;
-        let num_frames = (signal.len() + hop_size - 1) / hop_size;
+        let num_frames = signal.len().div_ceil(hop_size);
 
         // Process frames in parallel
         let frame_results: Result<Vec<_>, SignalError> = (0..num_frames)
@@ -626,7 +626,7 @@ fn parallel_convolve_decimated(
         })
         .collect();
 
-    Ok(results?)
+    results
 }
 
 /// Parallel interpolation and filtering
@@ -797,7 +797,7 @@ pub fn validate_parallel_filtering_accuracy(
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use std::f64::consts::PI;
     #[test]
     #[ignore] // FIXME: Perfect reconstruction error is too high - needs algorithm review

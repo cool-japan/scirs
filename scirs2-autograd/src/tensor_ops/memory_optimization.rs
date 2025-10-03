@@ -7,7 +7,7 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::IxDyn;
+use scirs2_core::ndarray::IxDyn;
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
@@ -599,8 +599,8 @@ pub fn efficient_zeros<'g, F: Float>(shape: &[usize], graph: &'g crate::Graph<F>
     // In a full implementation, this would use the memory pool
     crate::tensor_ops::zeros(
         &crate::tensor_ops::convert_to_tensor(
-            ndarray::Array::from_shape_vec(
-                ndarray::IxDyn(&[shape.len()]),
+            scirs2_core::ndarray::Array::from_shape_vec(
+                scirs2_core::ndarray::IxDyn(&[shape.len()]),
                 shape
                     .iter()
                     .map(|&x| F::from(x).unwrap())
@@ -620,8 +620,8 @@ pub fn efficient_ones<'g, F: Float>(shape: &[usize], graph: &'g crate::Graph<F>)
     // In a full implementation, this would use the memory pool
     crate::tensor_ops::ones(
         &crate::tensor_ops::convert_to_tensor(
-            ndarray::Array::from_shape_vec(
-                ndarray::IxDyn(&[shape.len()]),
+            scirs2_core::ndarray::Array::from_shape_vec(
+                scirs2_core::ndarray::IxDyn(&[shape.len()]),
                 shape
                     .iter()
                     .map(|&x| F::from(x).unwrap())

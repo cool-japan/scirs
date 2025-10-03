@@ -820,6 +820,7 @@ impl EcosystemTestRunner {
     }
 
     /// Analyze a specific module directory
+    #[allow(clippy::wrong_self_convention)]
     fn from_path(&self, modulepath: &Path) -> CoreResult<DiscoveredModule> {
         let name = modulepath
             .file_name()
@@ -1673,13 +1674,11 @@ impl EcosystemTestRunner {
         let api_score = ecosystem_results.api_stability.api_coverage * 100.0;
 
         // Overall health score (weighted average)
-        let health_score = compatibility_score * 0.3
+        compatibility_score * 0.3
             + performance_score * 0.25
             + api_score * 0.2
             + ecosystem_results.production_readiness.readiness_score * 0.15
-            + ecosystem_results.long_term_stability.stability_score * 0.1;
-
-        health_score
+            + ecosystem_results.long_term_stability.stability_score * 0.1
     }
 
     /// Assess 1.0 release readiness

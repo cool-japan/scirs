@@ -4,7 +4,7 @@ use crate::error::OptimizeError;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::utils::{array_diff_norm, check_convergence, finite_difference_gradient};
 use crate::unconstrained::{Bounds, Options};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Implements the Conjugate Gradient method for unconstrained optimization with optional bounds support
 #[allow(dead_code)]

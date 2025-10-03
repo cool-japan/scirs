@@ -5,7 +5,7 @@
 //! SIMD (Single Instruction, Multiple Data) operations can provide significant
 //! speedups by processing multiple data elements simultaneously.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_integrate::ode::{
     methods::{rk45_method, rk4_method},
     types::ODEOptions,

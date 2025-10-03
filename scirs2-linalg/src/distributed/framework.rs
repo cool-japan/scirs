@@ -17,7 +17,7 @@ use std::time::{Duration, Instant};
 /// advanced communication optimization.
 pub struct AdvancedDistributedFramework<T>
 where
-    T: num_traits::Float + Send + Sync + 'static,
+    T: scirs2_core::numeric::Float + Send + Sync + 'static,
 {
     /// Adaptive load balancer with machine learning
     adaptive_balancer: AdaptiveLoadBalancer,
@@ -669,7 +669,7 @@ pub enum AllocationStrategy {
 
 impl<T> AdvancedDistributedFramework<T>
 where
-    T: num_traits::Float + Send + Sync + 'static,
+    T: scirs2_core::numeric::Float + Send + Sync + 'static,
 {
     /// Create a new advanced distributed framework
     pub fn new() -> Self {

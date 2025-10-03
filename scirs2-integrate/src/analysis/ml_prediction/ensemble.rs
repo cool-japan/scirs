@@ -3,7 +3,7 @@
 //! This module contains ensemble learning methods, feature selection,
 //! and cross-validation configurations for bifurcation prediction.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Advanced ensemble learning for bifurcation classification
 #[derive(Debug, Clone)]

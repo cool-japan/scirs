@@ -2,8 +2,8 @@
 
 use super::transform::cwt;
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]

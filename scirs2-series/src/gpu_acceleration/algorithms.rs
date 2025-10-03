@@ -3,8 +3,8 @@
 //! This module provides comprehensive time series processing algorithms optimized
 //! for GPU execution, including forecasting, feature extraction, and statistical analysis.
 
-use ndarray::{s, Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use super::{utils, GpuConfig, GpuDeviceManager};
@@ -25,8 +25,8 @@ impl<
         F: Float
             + Debug
             + Clone
-            + num_traits::Zero
-            + num_traits::One
+            + scirs2_core::numeric::Zero
+            + scirs2_core::numeric::One
             + std::iter::Sum
             + PartialOrd
             + Copy,

@@ -1,8 +1,9 @@
 #![allow(deprecated)]
+#![allow(clippy::all)]
 #![allow(unreachable_code)]
 #![allow(unused_mut)]
 #![allow(missing_docs)]
-#![allow(clippy::for_loops_over_fallibles)]
+#![allow(for_loops_over_fallibles)]
 #![allow(dead_code)]
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
@@ -46,7 +47,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-stats = "0.1.0-beta.4"
+//! scirs2-stats = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust
@@ -204,8 +205,8 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.1.0-beta.4
-//! - **Release Date**: October 01, 2025
+//! - **Version**: 0.1.0-rc.1
+//! - **Release Date**: October 03, 2025
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-stats](https://docs.rs/scirs2-stats)
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
@@ -213,7 +214,7 @@
 //! ### Dispersion Measures
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_stats::{
 //!     mean_abs_deviation, median_abs_deviation, iqr, data_range, coef_variation
 //! };
@@ -279,7 +280,7 @@
 //! let mean = exp.mean(); // Should be 1.0
 //!
 //! // Multivariate normal distribution
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! let mvn_mean = array![0.0, 0.0];
 //! let mvn_cov = array![[1.0, 0.5], [0.5, 2.0]];
 //! let mvn = distributions::multivariate::multivariate_normal(mvn_mean, mvn_cov).unwrap();
@@ -290,7 +291,7 @@
 //! ### Statistical Tests
 //!
 //! ```
-//! use ndarray::{array, Array2};
+//! use scirs2_core::ndarray::{array, Array2};
 //! use scirs2_stats::{
 //!     ttest_1samp, ttest_ind, ttest_rel, kstest, shapiro, mann_whitney,
 //!     shapiro_wilk, anderson_darling, dagostino_k2, wilcoxon, kruskal_wallis, friedman,
@@ -381,7 +382,7 @@
 //!
 //! ```
 //! use scirs2_stats::random::{uniform, randn, randint, choice};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // Generate uniform random numbers between 0 and 1
 //! let uniform_samples = uniform(0.0, 1.0, 10, Some(42)).unwrap();
@@ -401,7 +402,7 @@
 //!
 //! ```
 //! use scirs2_stats::sampling;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // Create an array
 //! let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -1017,7 +1018,7 @@ mod test_utils {
     // Common utilities for testing statistical functions
 
     /// Generate a simple test array
-    pub fn test_array() -> ndarray::Array1<f64> {
-        ndarray::array![1.0, 2.0, 3.0, 4.0, 5.0]
+    pub fn test_array() -> scirs2_core::ndarray::Array1<f64> {
+        scirs2_core::ndarray::array![1.0, 2.0, 3.0, 4.0, 5.0]
     }
 }

@@ -67,7 +67,7 @@ pub use training::{
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_advanced_memory_intelligence_creation() {

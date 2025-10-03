@@ -13,15 +13,10 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-# rayon = { workspace = true }  # Now use scirs2-core parallel abstractions
-rand = { workspace = true }
-rand_core = { workspace = true }
-rand_distr = { workspace = true }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["parallel", "array", "random"] }
 approx = { workspace = true }
 thiserror = { workspace = true }
-num-complex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 once_cell = { workspace = true }
@@ -33,7 +28,6 @@ matrixmultiply = { workspace = true }
 num = { workspace = true }
 special = { workspace = true }
 array-init = { workspace = true }
-scirs2-core = { workspace = true, features = ["parallel"] }
 # Remove dependency on scirs2-linalg to avoid circular dependency
 # BLAS dependencies removed - using core abstractions
 # ndarray-linalg = { workspace = true, default-features = false }
@@ -43,11 +37,12 @@ toml = { workspace = true }
 [features]
 default = []
 blas = ["scirs2-core/linalg"]
-openblas = ["scirs2-core/openblas"] 
+openblas = ["scirs2-core/openblas"]
 netlib = ["scirs2-core/netlib"]
 # intel-mkl feature removed from scirs2-core to avoid conflicts
 # mkl = ["intel-mkl"]  # Legacy feature compatibility removed
 simd = ["scirs2-core/simd"]
+parallel = [] # Parallel processing support
 
 [[example]]
 name = "basic_autograd"

@@ -13,25 +13,18 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["random", "array"] }
 # Temporarily removed for publishing
 # scirs2-linalg = { workspace = true }
 scirs2-fft = { workspace = true }
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
-rand_core = { workspace = true }
 libc = { workspace = true }
 libm = { workspace = true }
 sobol = { workspace = true }
 halton = { workspace = true }
 num_cpus = { workspace = true }
 half = { workspace = true }
-# Note: wide crate is accessed via scirs2-core, not directly
 
 # Optional dependencies
 scirs2-autograd = { workspace = true, optional = true }

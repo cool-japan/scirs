@@ -18,7 +18,7 @@
 //! ```rust
 //! use scirs2_signal::stft::{ShortTimeFft, StftConfig};
 //! use scirs2_signal::window;
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use std::f64::consts::PI;
 //!
 //! // Create a signal with varying frequency

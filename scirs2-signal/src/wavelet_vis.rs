@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Wavelet Coefficient Visualization Utilities
 //
 // This module provides utilities for visualizing and working with wavelet coefficients.
@@ -15,7 +15,7 @@ use ndarray::s;
 // # Examples
 //
 // ```
-// use ndarray::Array2;
+// use scirs2_core::ndarray::Array2;
 // use scirs2_signal::dwt::Wavelet;
 // use scirs2_signal::dwt2d::dwt2d_decompose;
 // use scirs2_signal::wavelet_vis::arrange_coefficients_2d;
@@ -41,8 +41,8 @@ use crate::error::{SignalError, SignalResult};
 use crate::swt2d::swt2d_decompose;
 #[cfg(feature = "parallel")]
 use crate::swt2d::Swt2dResult;
-use ndarray::Array2;
-use num_traits::Float;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -101,7 +101,7 @@ pub struct WaveletEnergy {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::dwt2d_decompose;
 /// use scirs2_signal::wavelet_vis::arrange_coefficients_2d;
@@ -177,7 +177,7 @@ pub fn arrange_coefficients_2d(decomposition: &Dwt2dResult) -> Array2<f64> {
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::wavedec2;
 /// use scirs2_signal::wavelet_vis::arrange_multilevel_coefficients_2d;
@@ -324,7 +324,7 @@ pub fn arrange_multilevel_coefficients_2d(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::dwt2d_decompose;
 /// use scirs2_signal::wavelet_vis::calculate_energy_2d;
@@ -400,7 +400,7 @@ pub fn calculate_energy_2d(decomposition: &Dwt2dResult) -> WaveletEnergy {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::swt2d::swt2d_decompose;
 /// use scirs2_signal::wavelet_vis::calculate_energy_swt2d;
@@ -544,7 +544,7 @@ pub fn calculate_energy_1d(approx: &[f64], detail: &[f64]) -> WaveletEnergy {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::dwt2d_decompose;
 /// use scirs2_signal::wavelet_vis::{normalize_coefficients, NormalizationStrategy};
@@ -701,7 +701,7 @@ pub enum NormalizationStrategy {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::dwt2d_decompose;
 /// use scirs2_signal::wavelet_vis::count_nonzero_coefficients;
@@ -805,7 +805,7 @@ pub struct WaveletCoeffCount {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::dwt2d_decompose;
 /// use scirs2_signal::wavelet_vis::{create_coefficient_heatmap, NormalizationStrategy, colormaps};
@@ -833,7 +833,7 @@ pub fn create_coefficient_heatmap<F>(
     coefficients: &Array2<f64>,
     colormap: F,
     normalization: Option<NormalizationStrategy>,
-) -> ndarray::Array3<u8>
+) -> scirs2_core::ndarray::Array3<u8>
 where
     F: Fn(f64) -> [u8; 3],
 {
@@ -845,7 +845,7 @@ where
     let (height, width) = normalized.dim();
 
     // Create RGB output array
-    let mut rgb = ndarray::Array3::zeros((height, width, 3));
+    let mut rgb = scirs2_core::ndarray::Array3::zeros((height, width, 3));
 
     // Apply colormap
     for i in 0..height {

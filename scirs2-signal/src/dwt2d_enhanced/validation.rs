@@ -6,7 +6,7 @@
 
 use crate::dwt2d_enhanced::types::{Dwt2dConfig, EnhancedDwt2dResult};
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Validate 2D DWT decomposition result
 ///
@@ -27,8 +27,8 @@ fn validate_dwt2d_result(
     config: &Dwt2dConfig,
 ) -> SignalResult<()> {
     let (orig_rows, orig_cols) = originalshape;
-    let expected_rows = (orig_rows + 1) / 2;
-    let expected_cols = (orig_cols + 1) / 2;
+    let expected_rows = orig_rows.div_ceil(2);
+    let expected_cols = orig_cols.div_ceil(2);
 
     // Check dimensions of all subbands
     if result.approx.dim() != (expected_rows, expected_cols) {
@@ -163,8 +163,8 @@ fn validate_dwt2d_result_enhanced(
     let approx_cols = result.approx.ncols();
 
     // Expected dimensions (with downsampling)
-    let expected_rows = (orig_rows + 1) / 2;
-    let expected_cols = (orig_cols + 1) / 2;
+    let expected_rows = orig_rows.div_ceil(2);
+    let expected_cols = orig_cols.div_ceil(2);
 
     if approx_rows != expected_rows || approx_cols != expected_cols {
         return Err(SignalError::ComputationError(format!(

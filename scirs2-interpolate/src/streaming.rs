@@ -25,8 +25,8 @@
 //! - **Ensemble streaming**: Combine multiple streaming methods
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::validation::check_finite;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;

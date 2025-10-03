@@ -65,7 +65,7 @@ pub use core::Extrapolator as ExtrapolationEngine;
 /// # Returns
 ///
 /// A basic extrapolator configured for linear extrapolation
-pub fn create_basic_extrapolator<T: num_traits::Float + std::fmt::Display>(
+pub fn create_basic_extrapolator<T: scirs2_core::numeric::Float + std::fmt::Display>(
     lower_bound: T,
     upper_bound: T,
     lower_value: T,
@@ -102,7 +102,7 @@ pub fn create_basic_extrapolator<T: num_traits::Float + std::fmt::Display>(
 ///
 /// An advanced extrapolator with multiple methods for robust extrapolation
 pub fn create_robust_extrapolator<
-    T: num_traits::Float + std::fmt::Display + std::default::Default + std::ops::AddAssign,
+    T: scirs2_core::numeric::Float + std::fmt::Display + std::default::Default + std::ops::AddAssign,
 >(
     lower_bound: T,
     upper_bound: T,
@@ -139,8 +139,8 @@ pub fn create_robust_extrapolator<
 ///
 /// An advanced extrapolator with method selection based on data analysis
 pub fn create_smart_extrapolator<
-    T: num_traits::Float
-        + num_traits::FromPrimitive
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
         + std::fmt::Display
         + std::default::Default
         + std::ops::AddAssign,
@@ -176,7 +176,9 @@ pub fn create_smart_extrapolator<
 /// # Returns
 ///
 /// Data characteristics for informed extrapolation method selection
-pub fn analyze_data_for_extrapolation<T: num_traits::Float + num_traits::FromPrimitive>(
+pub fn analyze_data_for_extrapolation<
+    T: scirs2_core::numeric::Float + scirs2_core::numeric::FromPrimitive,
+>(
     values: &[T],
     gradients: Option<&[T]>,
 ) -> DataCharacteristics<T> {

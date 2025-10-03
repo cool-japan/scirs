@@ -5,8 +5,8 @@
 
 use crate::distributions::chi2;
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, NumCast, PrimInt};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, NumCast, PrimInt};
 use std::fmt::Debug;
 
 /// Result of a chi-square test
@@ -39,7 +39,7 @@ pub struct ChiSquareResult<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::chi2_test::chi2_gof;
 ///
 /// // Observed frequencies
@@ -154,7 +154,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::chi2_test::chi2_independence;
 ///
 /// // Observed contingency table
@@ -276,7 +276,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::tests::chi2_test::chi2_yates;
 ///
 /// // Observed 2x2 contingency table

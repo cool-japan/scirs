@@ -4,8 +4,8 @@
 //! hierarchical clustering results, including automatic cluster count estimation
 //! and distance-based cluster pruning.
 
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 
@@ -626,7 +626,7 @@ pub fn prune_clusters<F: Float + FromPrimitive + Debug + PartialOrd>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_extract_clusters_by_count() {

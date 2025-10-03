@@ -1,5 +1,5 @@
-use ndarray::{array, Array2};
 use scirs2_cluster::meanshift::{estimate_bandwidth, mean_shift, MeanShiftOptions};
+use scirs2_core::ndarray::{array, Array2};
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -65,8 +65,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut data_vec = Vec::new();
 
     // Add three Gaussian-like clusters
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
 
     // Cluster 1 around (0, 0)
     for _ in 0..50 {

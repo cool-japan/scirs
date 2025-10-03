@@ -3,7 +3,7 @@
 //! This module provides comprehensive feature selection methods specifically designed for time series data.
 //! It includes filter methods, wrapper methods, embedded methods, and time series specific approaches.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::collections::HashMap;
 
 // Re-export submodules

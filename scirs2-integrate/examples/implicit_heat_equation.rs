@@ -1,4 +1,4 @@
-use ndarray::{s, Array1};
+use scirs2_core::ndarray::{s, Array1};
 use scirs2_integrate::pde::implicit::{
     BackwardEuler1D, CrankNicolson1D, ImplicitMethod, ImplicitOptions, ImplicitResult,
 };

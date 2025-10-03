@@ -4,9 +4,9 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use num_traits::{Float, NumCast};
-use rand_distr::{Distribution, Geometric as RandGeometric};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution, Geometric as RandGeometric};
 
 /// Geometric distribution structure
 ///
@@ -47,7 +47,7 @@ impl<F: Float + NumCast + std::fmt::Display> Geometric<F> {
         }
 
         // Create RNG for Geometric distribution
-        let p_f64 = <f64 as num_traits::NumCast>::from(p).unwrap();
+        let p_f64 = <f64 as scirs2_core::numeric::NumCast>::from(p).unwrap();
         let rand_distr = match RandGeometric::new(p_f64) {
             Ok(distr) => distr,
             Err(_) => {

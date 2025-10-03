@@ -295,7 +295,7 @@ fn bench_array_manipulation(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::new("slice", size), &arr, |b, a| {
             b.iter(|| {
                 let mid = size / 2;
-                let result = a.slice(ndarray::s![..mid]).to_owned();
+                let result = a.slice(scirs2_core::ndarray::s![..mid]).to_owned();
                 black_box(result)
             })
         });

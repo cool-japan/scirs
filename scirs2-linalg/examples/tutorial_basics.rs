@@ -2,7 +2,7 @@
 //!
 //! This tutorial covers fundamental operations in scirs2-linalg.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::prelude::*;
 use scirs2_linalg::LinalgError;
 

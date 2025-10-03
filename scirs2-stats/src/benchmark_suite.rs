@@ -6,7 +6,7 @@
 //! detection, memory usage analysis, and optimization recommendations.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::parallel_ops::*;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -529,9 +529,9 @@ impl BenchmarkSuite {
 
     /// Generate test data for benchmarking
     fn generate_testdata(&self, size: usize) -> StatsResult<Array1<f64>> {
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let normal = Normal::new(0.0, 1.0).map_err(|e| {
             StatsError::ComputationError(format!("Failed to create normal distribution: {}", e))
         })?;
@@ -547,9 +547,9 @@ impl BenchmarkSuite {
         basedata: &Array1<f64>,
         correlation: f64,
     ) -> StatsResult<Array1<f64>> {
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let normal = Normal::new(0.0, 1.0).map_err(|e| {
             StatsError::ComputationError(format!("Failed to create normal distribution: {}", e))
         })?;
@@ -566,9 +566,9 @@ impl BenchmarkSuite {
 
     /// Generate matrix test data
     fn generate_matrixdata(&self, rows: usize, cols: usize) -> StatsResult<Array2<f64>> {
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let normal = Normal::new(0.0, 1.0).map_err(|e| {
             StatsError::ComputationError(format!("Failed to create normal distribution: {}", e))
         })?;
@@ -717,7 +717,7 @@ impl BenchmarkSuite {
         for metric in metrics {
             function_groups
                 .entry(metric.function_name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(metric);
         }
 

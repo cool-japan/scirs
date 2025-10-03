@@ -5,8 +5,8 @@
 //! can be understood and trusted by humans.
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -64,16 +64,24 @@ pub struct ExplainabilityEvaluator<F: Float> {
     pub confidence_level: F,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOperand> Default
-    for ExplainabilityEvaluator<F>
+impl<
+        F: Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum
+            + scirs2_core::ndarray::ScalarOperand,
+    > Default for ExplainabilityEvaluator<F>
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOperand>
-    ExplainabilityEvaluator<F>
+impl<
+        F: Float
+            + scirs2_core::numeric::FromPrimitive
+            + std::iter::Sum
+            + scirs2_core::ndarray::ScalarOperand,
+    > ExplainabilityEvaluator<F>
 {
     /// Create new explainability evaluator
     pub fn new() -> Self {
@@ -1060,7 +1068,7 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum + ndarray::ScalarOper
         for i in 0..n_features {
             if i != target_feature {
                 pseudo_random = pseudo_random.wrapping_mul(1103515245).wrapping_add(12345);
-                coalition[i] = (pseudo_random % 2) == 0;
+                coalition[i] = pseudo_random.is_multiple_of(2);
             }
         }
 
@@ -1347,7 +1355,7 @@ pub fn compute_interpretability_score<F: Float + std::iter::Sum>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_explainability_evaluator_creation() {

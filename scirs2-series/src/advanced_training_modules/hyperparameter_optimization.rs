@@ -4,15 +4,15 @@
 //! using various optimization strategies including random search, Bayesian optimization,
 //! and evolutionary algorithms.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::Result;
 
 /// Hyperparameter Optimization Framework
 #[derive(Debug)]
-pub struct HyperparameterOptimizer<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct HyperparameterOptimizer<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Optimization method
     method: OptimizationMethod,
     /// Search space definition
@@ -90,7 +90,9 @@ pub struct OptimizationResults<F: Float + Debug> {
     pub convergence_curve: Vec<F>,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> HyperparameterOptimizer<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
+    HyperparameterOptimizer<F>
+{
     /// Create new hyperparameter optimizer
     pub fn new(
         method: OptimizationMethod,
@@ -169,7 +171,7 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> Hyperpar
         // Sample continuous parameters
         for (name, min_val, max_val) in &self.search_space.continuous {
             let range = *max_val - *min_val;
-            let random_val = F::from(rand::random::<f64>()).unwrap();
+            let random_val = F::from(scirs2_core::random::random::<f64>()).unwrap();
             let value = *min_val + range * random_val;
             params.continuous.push((name.clone(), value));
         }
@@ -177,14 +179,14 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> Hyperpar
         // Sample integer parameters
         for (name, min_val, max_val) in &self.search_space.integer {
             let range = max_val - min_val;
-            let random_val = (rand::random::<f64>() * (range + 1) as f64) as i32;
+            let random_val = (scirs2_core::random::random::<f64>() * (range + 1) as f64) as i32;
             let value = min_val + random_val;
             params.integer.push((name.clone(), value));
         }
 
         // Sample categorical parameters
         for (name, choices) in &self.search_space.categorical {
-            let idx = (rand::random::<f64>() * choices.len() as f64) as usize;
+            let idx = (scirs2_core::random::random::<f64>() * choices.len() as f64) as usize;
             let value = choices[idx.min(choices.len() - 1)].clone();
             params.categorical.push((name.clone(), value));
         }
@@ -286,12 +288,12 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> Hyperpar
 
         // Crossover continuous parameters
         for ((name1, val1), (_, val2)) in parent1.continuous.iter().zip(&parent2.continuous) {
-            let alpha = F::from(rand::random::<f64>()).unwrap();
+            let alpha = F::from(scirs2_core::random::random::<f64>()).unwrap();
             let crossed_val = *val1 + alpha * (*val2 - *val1);
 
             // Mutation
-            let mutation = if rand::random::<f64>() < 0.1 {
-                F::from((rand::random::<f64>() - 0.5) * 0.2).unwrap()
+            let mutation = if scirs2_core::random::random::<f64>() < 0.1 {
+                F::from((scirs2_core::random::random::<f64>() - 0.5) * 0.2).unwrap()
             } else {
                 F::zero()
             };

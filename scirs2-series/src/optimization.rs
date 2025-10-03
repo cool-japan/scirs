@@ -2,8 +2,8 @@
 //!
 //! Implements numerical optimization methods for parameter estimation
 
-use ndarray::{Array1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -204,7 +204,7 @@ pub struct BFGSOptimizer<F> {
     h_inv: Option<Array2<F>>,
 }
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 impl<F> BFGSOptimizer<F>
 where
@@ -273,16 +273,16 @@ where
                 let rho = F::one() / sy;
                 let sy_outer = s
                     .clone()
-                    .insert_axis(ndarray::Axis(1))
-                    .dot(&y.clone().insert_axis(ndarray::Axis(0)));
+                    .insert_axis(scirs2_core::ndarray::Axis(1))
+                    .dot(&y.clone().insert_axis(scirs2_core::ndarray::Axis(0)));
                 let ys_outer = y
                     .clone()
-                    .insert_axis(ndarray::Axis(1))
-                    .dot(&s.clone().insert_axis(ndarray::Axis(0)));
+                    .insert_axis(scirs2_core::ndarray::Axis(1))
+                    .dot(&s.clone().insert_axis(scirs2_core::ndarray::Axis(0)));
                 let ss_outer = s
                     .clone()
-                    .insert_axis(ndarray::Axis(1))
-                    .dot(&s.clone().insert_axis(ndarray::Axis(0)));
+                    .insert_axis(scirs2_core::ndarray::Axis(1))
+                    .dot(&s.clone().insert_axis(scirs2_core::ndarray::Axis(0)));
 
                 let i_minus_rho_sy = Array2::eye(n) - &sy_outer * rho;
                 let i_minus_rho_ys = Array2::eye(n) - &ys_outer * rho;
@@ -358,7 +358,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_lbfgs_optimizer() {

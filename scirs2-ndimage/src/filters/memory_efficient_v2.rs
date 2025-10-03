@@ -3,8 +3,8 @@
 //! This module provides advanced memory-efficient versions of filters that leverage
 //! scirs2-core's memory management infrastructure for optimal performance with large arrays.
 
-use ndarray::{Array, ArrayView, Dimension, Ix1, Ix2, IxDyn};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension, Ix1, Ix2, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use std::fmt::Debug;
 
 use scirs2_core::error::CoreResult;
@@ -275,7 +275,7 @@ fn generate_gaussian_kernel_1d<T>(sigma: T) -> Array<T, Ix1>
 where
     T: Float + FromPrimitive,
 {
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     let sigma_f64: f64 = NumCast::from(sigma).unwrap_or(1.0);
     let truncate = 4.0;
@@ -495,7 +495,7 @@ impl MemoryEfficientConfigBuilder {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_gaussian_filter_auto() {

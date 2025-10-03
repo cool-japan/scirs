@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Comprehensive Optimization for Parametric Spectral Estimation
 //
 // This module provides advanced optimizations and enhancements for AR, MA, and ARMA
@@ -12,8 +12,8 @@ use ndarray::s;
 
 use crate::error::{SignalError, SignalResult};
 use crate::parametric::ARMethod;
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::{check_finite, check_positive};
 use std::time::Instant;

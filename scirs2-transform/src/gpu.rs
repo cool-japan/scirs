@@ -4,8 +4,8 @@
 //! and matrix operations. Currently provides basic stubs with CPU fallback.
 
 use crate::error::{Result, TransformError};
-use ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::gpu::{GpuBackend, GpuContext};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::validation::{check_not_empty, check_positive, checkarray_finite};
 
 /// GPU-accelerated Principal Component Analysis
@@ -84,7 +84,7 @@ impl GpuPCA {
     ///
     /// ```should_panic
     /// # use scirs2_transform::gpu::GpuPCA;
-    /// # use ndarray::Array2;
+    /// # use scirs2_core::ndarray::Array2;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut pca = GpuPCA::new(2)?;
     /// let data = Array2::zeros((100, 5));

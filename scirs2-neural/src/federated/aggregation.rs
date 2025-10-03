@@ -2,7 +2,7 @@
 
 use crate::error::Result;
 use crate::federated::ClientUpdate;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 /// Trait for aggregation strategies
 pub trait AggregationStrategy: Send + Sync {
     /// Aggregate client updates

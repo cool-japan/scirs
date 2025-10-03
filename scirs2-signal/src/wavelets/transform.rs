@@ -2,8 +2,8 @@
 
 use super::cwt::{convolve_complex_same_complex, convolve_complex_same_real};
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -79,7 +79,7 @@ where
     let mut is_complex = false;
     let data_real: Result<Vec<f64>, ()> = data
         .iter()
-        .map(|&val| num_traits::cast::cast::<T, f64>(val).ok_or(()))
+        .map(|&val| NumCast::from(val).ok_or(()))
         .collect();
 
     // Process data based on type
@@ -91,7 +91,7 @@ where
         is_complex = true;
         data.iter()
             .map(|&val| {
-                num_traits::cast::cast::<T, Complex64>(val).ok_or_else(|| {
+                NumCast::from(val).ok_or_else(|| {
                     SignalError::ValueError(format!("Could not convert {:?} to Complex64", val))
                 })
             })

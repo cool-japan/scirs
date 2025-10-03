@@ -4,7 +4,7 @@
 //! multiple formats, metadata enrichment, and cross-platform compatibility.
 
 use crate::error::{ClusteringError, Result};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -490,7 +490,7 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_kmeans_export_summary() {

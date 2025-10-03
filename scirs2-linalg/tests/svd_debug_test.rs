@@ -1,4 +1,4 @@
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_linalg::lapack::svd;
 
 #[test]

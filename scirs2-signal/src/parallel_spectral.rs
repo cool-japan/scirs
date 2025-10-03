@@ -8,8 +8,8 @@ use crate::error::{SignalError, SignalResult};
 use crate::filter::butter;
 use crate::hilbert::hilbert;
 use crate::window;
-use ndarray::Array2;
-use num_complex::Complex64;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Complex64;
 use rustfft::{num_complex::Complex, FftPlanner};
 use scirs2_core::parallel_ops::*;
 use std::sync::Arc;
@@ -1442,7 +1442,7 @@ mod tests {
         let signal1: Vec<f64> = (0..n)
             .map(|i| (2.0 * PI * 50.0 * i as f64 / fs).sin())
             .collect();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let signal2: Vec<f64> = signal1
             .iter()
             .map(|&x| x + 0.1 * rng.random::<f64>())

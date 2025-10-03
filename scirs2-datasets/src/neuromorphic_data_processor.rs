@@ -6,7 +6,7 @@
 
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{s, Array1, Array2, Array3};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rand_distributions::Uniform;
 use statrs::statistics::Statistics;
@@ -376,7 +376,7 @@ impl NeuromorphicProcessor {
 
     fn process_sample_neuromorphic(
         &self,
-        sample: &ndarray::ArrayView1<f64>,
+        sample: &scirs2_core::ndarray::ArrayView1<f64>,
         network: &mut [Vec<Synapse>],
         time_steps: usize,
         _rng: &mut StdRng,
@@ -433,7 +433,7 @@ impl NeuromorphicProcessor {
 
     fn apply_input_stimulus(
         &self,
-        sample: &ndarray::ArrayView1<f64>,
+        sample: &scirs2_core::ndarray::ArrayView1<f64>,
         neuron_states: &mut [NeuronState],
         _time_idx: usize,
     ) -> Result<()> {
@@ -713,8 +713,8 @@ pub fn create_neuromorphic_processor_with_topology(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
-    use rand_distr::Uniform;
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::random::Uniform;
 
     #[test]
     fn test_neuromorphic_dataset_transformation() {

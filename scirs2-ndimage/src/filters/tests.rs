@@ -5,10 +5,11 @@
 //! and various filter types.
 
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use super::super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array1, Array2, Array3, Ix2, IxDyn};
+    use scirs2_core::ndarray::{array, Array1, Array2, Array3, Ix2, IxDyn};
 
     #[test]
     fn test_filters_preserveshape() {
@@ -161,8 +162,7 @@ mod tests {
 
         // Test that minimum and maximum filters work for 3D
         let min_result = minimum_filter(&input, &[3, 3, 3], None, None);
-        if min_result.is_ok() {
-            let min_output = min_result.unwrap();
+        if let Ok(min_output) = min_result {
             assert_eq!(min_output[[1, 1, 1]], 0.0); // Should be 0 due to surrounding zeros
         } else {
             // If not implemented yet, that's expected
@@ -170,8 +170,7 @@ mod tests {
         }
 
         let max_result = maximum_filter(&input, &[3, 3, 3], None, None);
-        if max_result.is_ok() {
-            let max_output = max_result.unwrap();
+        if let Ok(max_output) = max_result {
             assert_eq!(max_output[[1, 1, 1]], 1.0); // Should be 1 from the center value
         } else {
             // If not implemented yet, that's expected
@@ -366,7 +365,7 @@ mod tests {
     fn test_generic_filter_1d() {
         use super::super::filter_functions;
         use super::super::generic_filter;
-        use ndarray::Array1;
+        use scirs2_core::ndarray::Array1;
 
         let input = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 
@@ -503,7 +502,7 @@ mod tests {
 
         // Apply filter to each 2D slice separately
         let mut manual_result = input_3d.clone();
-        for mut slice in manual_result.axis_iter_mut(ndarray::Axis(2)) {
+        for mut slice in manual_result.axis_iter_mut(scirs2_core::ndarray::Axis(2)) {
             let temp = gaussian_filter(&slice.to_owned(), 0.5, None, None)
                 .expect("gaussian_filter on slice should succeed");
             slice.assign(&temp);

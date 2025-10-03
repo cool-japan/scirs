@@ -1,7 +1,7 @@
 #[cfg(feature = "memory_efficient")]
 mod tests {
-    use ndarray::Array1;
     use scirs2_core::memory_efficient::{evaluate, LazyArray, LazyOp, LazyOpKind};
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_lazy_array_creation() {

@@ -1,6 +1,6 @@
 //! Simple test for specialized matrices
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::specialized::{BandedMatrix, SymmetricMatrix, TridiagonalMatrix};
 use scirs2_linalg::SpecializedMatrix;
 
@@ -21,7 +21,7 @@ fn main() {
     println!("Size: {}x{}", tri.nrows(), tri.ncols());
 
     // Test banded matrix
-    let mut band_data = ndarray::Array2::zeros((3, 4)); // 3 diagonals (1+1+1), 4 columns
+    let mut band_data = scirs2_core::ndarray::Array2::zeros((3, 4)); // 3 diagonals (1+1+1), 4 columns
 
     // Lower diagonal
     band_data[[0, 0]] = 1.0;

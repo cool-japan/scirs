@@ -387,8 +387,8 @@ impl DubinsPlanner {
                 if path_length < best_length {
                     best_length = path_length;
                     best_path = Some(DubinsPath::new(
-                        start.clone(),
-                        goal.clone(),
+                        *start,
+                        goal,
                         self.turning_radius,
                         path_type,
                         segments,

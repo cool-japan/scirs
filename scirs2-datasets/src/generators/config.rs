@@ -18,8 +18,11 @@ pub enum MissingPattern {
 /// Outlier types for injection
 #[derive(Debug, Clone, Copy)]
 pub enum OutlierType {
+    /// Individual point outliers
     Point,
+    /// Context-dependent outliers
     Contextual,
+    /// Collective outliers (groups of anomalous points)
     Collective,
 }
 

@@ -12,7 +12,7 @@ pub use lstm::LSTM;
 pub use rnn::RNN;
 
 // Type aliases for compatibility
-use ndarray::{Array, IxDyn};
+use scirs2_core::ndarray::{Array, IxDyn};
 use std::sync::{Arc, RwLock};
 
 /// Type alias for LSTM state cache (hidden, cell)

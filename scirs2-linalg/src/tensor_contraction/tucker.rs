@@ -5,8 +5,8 @@
 //! multiplied by a matrix along each mode.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayD, ArrayView, Dimension};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array2, ArrayD, ArrayView, Dimension};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -44,7 +44,7 @@ where
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Creates a new Tucker decomposition from the given core tensor and factor matrices.
     ///
@@ -373,7 +373,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayD};
+/// use scirs2_core::ndarray::{array, ArrayD};
 /// use scirs2_linalg::tensor_contraction::tucker::tucker_decomposition;
 ///
 /// // Create a 2x3x2 tensor
@@ -406,7 +406,7 @@ where
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
     D: Dimension,
 {
     use super::hosvd;
@@ -464,7 +464,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayD};
+/// use scirs2_core::ndarray::{array, ArrayD};
 /// use scirs2_linalg::tensor_contraction::tucker::tucker_als;
 ///
 /// // Create a 2x3x2 tensor
@@ -494,7 +494,7 @@ where
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
     D: Dimension,
 {
     use super::mode_n_product;
@@ -528,11 +528,13 @@ where
                 compute_khatri_rao_product(&tucker.factors, mode, &tucker.core)?;
 
             // Compute the new factor matrix using least squares
-            let tensor_result = tensor_unfolded.dot(&khatri_rao_product);
+            let tensor_result = tensor_unfolded.dot(&khatri_rao_product.t());
             let (u, _, _) = svd(&tensor_result.view(), false, None)?;
 
             // Update the factor matrix for this mode
-            let new_factor = u.slice(ndarray::s![.., ..ranks[mode]]).to_owned();
+            let new_factor = u
+                .slice(scirs2_core::ndarray::s![.., ..ranks[mode]])
+                .to_owned();
             tucker.factors[mode] = new_factor;
 
             // Update the core tensor based on the new factor matrices
@@ -603,7 +605,7 @@ where
     }
 
     // Populate the unfolded _tensor
-    for idx in ndarray::indices(shape) {
+    for idx in scirs2_core::ndarray::indices(shape) {
         let mode_idx = idx[mode];
         let idx_vec: Vec<usize> = idx.as_array_view().to_vec();
         let col_idx = calc_col_idx(&idx_vec, shape, mode);
@@ -652,7 +654,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "SVD fails for small matrices due to unimplemented eigendecomposition"]

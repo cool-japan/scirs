@@ -3,9 +3,9 @@
 //! This module contains the main AutoTuner implementation and methods
 //! for tuning hyperparameters of specific clustering algorithms.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::{rng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::{rng, Rng, SeedableRng};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -47,7 +47,7 @@ impl<
             + std::fmt::Display
             + Send
             + Sync
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + std::ops::AddAssign
             + std::ops::SubAssign
             + std::ops::MulAssign
@@ -81,8 +81,8 @@ where
         let parameter_combinations = parameter_generator.generate_combinations(&search_space)?;
 
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
         for (eval_idx, params) in parameter_combinations.iter().enumerate() {

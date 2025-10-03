@@ -12,7 +12,7 @@
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::dwt2d::dwt2d_decompose;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_positive;
@@ -477,7 +477,7 @@ fn simd_column_transform(
 /// SIMD-optimized 1D transform
 #[allow(dead_code)]
 fn simd_1d_transform(
-    signal: ndarray::ArrayView1<f64>,
+    signal: scirs2_core::ndarray::ArrayView1<f64>,
     filters: &WaveletFilters,
 ) -> SignalResult<Array1<f64>> {
     let n = signal.len();

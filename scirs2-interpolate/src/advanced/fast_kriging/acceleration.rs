@@ -8,8 +8,8 @@ use crate::advanced::enhanced_kriging::AnisotropicCovariance;
 use crate::advanced::fast_kriging::{FastKriging, FastKrigingBuilder, FastKrigingMethod};
 use crate::advanced::kriging::CovarianceFunction;
 use crate::error::InterpolateResult;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -36,7 +36,7 @@ use std::ops::{Add, Div, Mul, Sub};
 /// ```
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::make_local_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -118,7 +118,7 @@ pub fn make_local_kriging<
 /// ```
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::make_fixed_rank_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -199,7 +199,7 @@ pub fn make_fixed_rank_kriging<
 /// ```
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::make_tapered_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -280,7 +280,7 @@ pub fn make_tapered_kriging<
 /// ```
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::make_hodlr_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -433,7 +433,7 @@ pub struct KrigingPerformanceStats {
 /// ```
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::benchmark_methods;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -503,8 +503,8 @@ pub fn benchmark_methods<
     for i in 0..n_query {
         let idx = i * stride;
         query_points
-            .slice_mut(ndarray::s![i, ..])
-            .assign(&points.slice(ndarray::s![idx, ..]));
+            .slice_mut(scirs2_core::ndarray::s![i, ..])
+            .assign(&points.slice(scirs2_core::ndarray::s![idx, ..]));
     }
 
     // Track performance

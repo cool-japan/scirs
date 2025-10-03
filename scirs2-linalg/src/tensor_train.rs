@@ -33,8 +33,8 @@
 //! - Dolgov, S., & Savostyanov, D. (2014). "Alternating minimal energy methods"
 //! - Holtz, S., Rohwedder, T., & Schneider, R. (2012). "The alternating linear scheme"
 
-use ndarray::{Array1, Array2, Array3, Dimension, IxDyn};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, Array3, Dimension, IxDyn};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::decomposition::svd;
@@ -58,7 +58,7 @@ pub struct TTTensor<F> {
 
 impl<F> TTTensor<F>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     /// Create a new TT tensor with specified cores
     ///
@@ -73,7 +73,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ndarray::Array3;
+    /// use scirs2_core::ndarray::Array3;
     /// use scirs2_linalg::tensor_train::TTTensor;
     ///
     /// // Create a simple 3D tensor in TT format
@@ -197,7 +197,7 @@ where
 
         for (k, &idx) in indices.iter().enumerate() {
             let core = &self.cores[k];
-            let core_slice = core.slice(ndarray::s![.., idx, ..]);
+            let core_slice = core.slice(scirs2_core::ndarray::s![.., idx, ..]);
 
             // Matrix-vector multiplication: current_vector = current_vector * core_slice
             current_vector = current_vector.dot(&core_slice);
@@ -223,7 +223,7 @@ where
     ///
     /// This operation has exponential memory complexity and should only be used
     /// for small tensors or testing purposes.
-    pub fn to_dense(&self) -> LinalgResult<ndarray::Array<F, IxDyn>> {
+    pub fn to_dense(&self) -> LinalgResult<scirs2_core::ndarray::Array<F, IxDyn>> {
         let shape: Vec<usize> = self.modesizes.clone();
         let totalsize: usize = shape.iter().product();
 
@@ -252,7 +252,7 @@ where
         }
 
         // Create ndarray with correct shape
-        let dense = ndarray::Array::from_shape_vec(IxDyn(&shape), data)
+        let dense = scirs2_core::ndarray::Array::from_shape_vec(IxDyn(&shape), data)
             .map_err(|e| LinalgError::ShapeError(e.to_string()))?;
 
         Ok(dense)
@@ -337,8 +337,10 @@ where
             trunc_rank = trunc_rank.min(r_left).min(n_k * r_right);
 
             // Truncate singular values and vectors
-            let s_trunc = s.slice(ndarray::s![..trunc_rank]);
-            let vt_trunc = vt.slice(ndarray::s![..trunc_rank, ..]).to_owned();
+            let s_trunc = s.slice(scirs2_core::ndarray::s![..trunc_rank]);
+            let vt_trunc = vt
+                .slice(scirs2_core::ndarray::s![..trunc_rank, ..])
+                .to_owned();
 
             // Update current core: reshape VT back to tensor
             let new_core = vt_trunc
@@ -348,7 +350,9 @@ where
 
             // Transfer U and S to the left core
             if k > 0 {
-                let u_trunc = u.slice(ndarray::s![.., ..trunc_rank]).to_owned();
+                let u_trunc = u
+                    .slice(scirs2_core::ndarray::s![.., ..trunc_rank])
+                    .to_owned();
                 let us = u_trunc.dot(&Array2::from_diag(&s_trunc));
 
                 let left_core = &new_cores[k - 1];
@@ -405,7 +409,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// use scirs2_linalg::tensor_train::tt_decomposition;
 ///
 /// // Create a simple 3D tensor (diagonal structure)
@@ -428,12 +432,12 @@ where
 /// ```
 #[allow(dead_code)]
 pub fn tt_decomposition<F, D>(
-    tensor: &ndarray::ArrayView<F, D>,
+    tensor: &scirs2_core::ndarray::ArrayView<F, D>,
     tolerance: F,
     max_rank: Option<usize>,
 ) -> LinalgResult<TTTensor<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
     D: Dimension,
 {
     let shape = tensor.shape();
@@ -475,8 +479,9 @@ where
             )));
         }
 
-        let matrix = ndarray::Array2::from_shape_vec((matrix_rows, matrix_cols), current_data)
-            .map_err(|e| LinalgError::ShapeError(e.to_string()))?;
+        let matrix =
+            scirs2_core::ndarray::Array2::from_shape_vec((matrix_rows, matrix_cols), current_data)
+                .map_err(|e| LinalgError::ShapeError(e.to_string()))?;
 
         // SVD decomposition
         let (u, s, vt) = svd(&matrix.view(), false, None)?;
@@ -499,9 +504,9 @@ where
         }
 
         // Truncate SVD components
-        let u_trunc = u.slice(ndarray::s![.., ..r_k]);
-        let s_trunc = s.slice(ndarray::s![..r_k]);
-        let vt_trunc = vt.slice(ndarray::s![..r_k, ..]);
+        let u_trunc = u.slice(scirs2_core::ndarray::s![.., ..r_k]);
+        let s_trunc = s.slice(scirs2_core::ndarray::s![..r_k]);
+        let vt_trunc = vt.slice(scirs2_core::ndarray::s![..r_k, ..]);
 
         // Create k-th TT core
         let core = u_trunc
@@ -536,8 +541,9 @@ where
     }
 
     // Reshape to (r_prev, n_d) matrix first
-    let reshaped_last_core = ndarray::Array2::from_shape_vec((r_prev, n_d), current_data)
-        .map_err(|e| LinalgError::ShapeError(format!("Last core reshape: {e}")))?;
+    let reshaped_last_core =
+        scirs2_core::ndarray::Array2::from_shape_vec((r_prev, n_d), current_data)
+            .map_err(|e| LinalgError::ShapeError(format!("Last core reshape: {e}")))?;
 
     // Convert to 3D with last dimension = 1
     let last_core = reshaped_last_core
@@ -566,7 +572,7 @@ where
 #[allow(dead_code)]
 pub fn tt_add<F>(a: &TTTensor<F>, b: &TTTensor<F>) -> LinalgResult<TTTensor<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     if a.modesizes != b.modesizes {
         return Err(LinalgError::ShapeError(
@@ -598,9 +604,9 @@ where
 
 /// Create a rank-1 TT tensor from a dense tensor (simplified implementation)
 #[allow(dead_code)]
-fn tt_from_dense_simple<F>(dense: &ndarray::ArrayViewD<F>) -> LinalgResult<TTTensor<F>>
+fn tt_from_dense_simple<F>(dense: &scirs2_core::ndarray::ArrayViewD<F>) -> LinalgResult<TTTensor<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let shape = dense.shape();
     let d = shape.len();
@@ -640,7 +646,7 @@ where
 #[allow(dead_code)]
 pub fn tt_hadamard<F>(a: &TTTensor<F>, b: &TTTensor<F>) -> LinalgResult<TTTensor<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     if a.modesizes != b.modesizes {
         return Err(LinalgError::ShapeError(
@@ -667,8 +673,8 @@ where
 
         // Compute Kronecker product of cores
         for i in 0..n_k {
-            let slice_a = core_a.slice(ndarray::s![.., i, ..]);
-            let slice_b = core_b.slice(ndarray::s![.., i, ..]);
+            let slice_a = core_a.slice(scirs2_core::ndarray::s![.., i, ..]);
+            let slice_b = core_b.slice(scirs2_core::ndarray::s![.., i, ..]);
 
             // Kronecker product of matrices
             for (ia, &val_a) in slice_a.indexed_iter() {
@@ -693,7 +699,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_tt_tensor_creation() {

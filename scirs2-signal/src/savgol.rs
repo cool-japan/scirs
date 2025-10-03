@@ -1,12 +1,12 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Savitzky-Golay filtering
 //
 // This module provides functions for Savitzky-Golay filtering, which is
 // used for smoothing data and computing derivatives.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -456,7 +456,7 @@ where
     let x_edge: Vec<f64> = x[config.window_start..config.window_stop]
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -543,7 +543,7 @@ where
     let mut y: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -667,7 +667,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })

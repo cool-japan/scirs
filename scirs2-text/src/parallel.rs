@@ -6,7 +6,7 @@
 use crate::error::Result;
 use crate::tokenize::Tokenizer;
 use crate::vectorize::Vectorizer;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_core::parallel_ops::*;
 use std::sync::{Arc, Mutex};
 

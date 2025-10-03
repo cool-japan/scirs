@@ -169,7 +169,7 @@ pub fn rectangular_pulse_train(
     n_pulses: usize,
     sym: bool,
 ) -> SignalResult<Vec<f64>> {
-    if duty_cycle < 0.0 || duty_cycle > 1.0 {
+    if !(0.0..=1.0).contains(&duty_cycle) {
         return Err(SignalError::ValueError(
             "Duty cycle must be between 0.0 and 1.0".to_string(),
         ));
@@ -218,8 +218,8 @@ pub fn rectangular_pulse_train(
 pub fn rectangular_window_spectrum(
     frequencies: &[f64],
     window_length: usize,
-) -> Vec<num_complex::Complex64> {
-    use num_complex::Complex64;
+) -> Vec<scirs2_core::numeric::Complex64> {
+    use scirs2_core::numeric::Complex64;
 
     frequencies
         .iter()

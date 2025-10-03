@@ -4,7 +4,7 @@
 //! panics, or incorrect results across all metric categories.
 
 use approx::assert_abs_diff_eq;
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_metrics::{
     anomaly::{js_divergence, kl_divergence},
     classification::{accuracy_score, f1_score, precision_score, recall_score},

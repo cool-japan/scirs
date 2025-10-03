@@ -3,8 +3,8 @@
 //! This module provides various initial condition setups for common fluid dynamics
 //! problems, including lid-driven cavity, Taylor-Green vortex, and other benchmark cases.
 
-use ndarray::Array2;
 use scirs2_core::constants::PI;
+use scirs2_core::ndarray::Array2;
 
 use super::super::core::FluidState;
 

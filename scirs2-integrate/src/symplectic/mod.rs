@@ -25,7 +25,7 @@
 //! use scirs2_integrate::symplectic::potential::HamiltonianSystem;
 //! use scirs2_integrate::symplectic::leapfrog::StormerVerlet;
 //! use scirs2_integrate::symplectic::SymplecticIntegrator;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // Define a simple harmonic oscillator: H = p²/2 + q²/2
 //! let system = HamiltonianSystem::new(
@@ -68,7 +68,7 @@ pub use runge_kutta::{GaussLegendre4, GaussLegendre6};
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Result of symplectic integration containing state history
 #[derive(Debug, Clone)]

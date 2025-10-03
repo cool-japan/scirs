@@ -3,9 +3,9 @@
 //! This module provides various strategies for partitioning data across
 //! multiple worker nodes in distributed clustering algorithms.
 
-use ndarray::{Array1, Array2, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive, Zero};
-use rand::seq::SliceRandom;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
+use scirs2_core::random::seq::SliceRandom;
 use std::fmt::Debug;
 
 use super::fault_tolerance::DataPartition;
@@ -182,7 +182,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync> DataPartitioner<F> {
 
         // Create random permutation of indices
         let mut indices: Vec<usize> = (0..n_samples).collect();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         indices.shuffle(&mut rng);
 
         let mut partitions = Vec::new();
@@ -236,7 +236,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync> DataPartitioner<F> {
         // Step 3: Distribute strata points proportionally to workers
         let mut worker_assignments: Vec<Vec<usize>> = vec![Vec::new(); self.config.n_workers];
 
-        for (_, stratum_points) in strata_groups.iter().enumerate() {
+        for stratum_points in strata_groups.iter() {
             if stratum_points.is_empty() {
                 continue;
             }
@@ -307,7 +307,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync> DataPartitioner<F> {
         let n_features = data.ncols();
 
         // Initialize centroids randomly
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut point_indices: Vec<usize> = (0..n_samples).collect();
         point_indices.shuffle(&mut rng);
 
@@ -420,7 +420,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync> DataPartitioner<F> {
         // Hash each data point to a worker
         for (row_idx, row) in data.rows().into_iter().enumerate() {
             // Simple hash based on first feature (can be improved)
-            let hash_value = if row.len() > 0 {
+            let hash_value = if !row.is_empty() {
                 (row[0].to_f64().unwrap_or(0.0) * 1000.0) as u64
             } else {
                 row_idx as u64
@@ -676,7 +676,7 @@ impl<F: Float + FromPrimitive + Debug + Send + Sync> DataPartitioner<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_data_partitioner_creation() {

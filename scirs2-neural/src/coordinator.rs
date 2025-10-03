@@ -13,8 +13,8 @@
 use crate::error::Result;
 use crate::layers::Layer;
 use crate::models::Model;
-use ndarray::{ArrayD, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{ArrayD, ScalarOperand};
+use scirs2_core::numeric::Float;
 // use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;

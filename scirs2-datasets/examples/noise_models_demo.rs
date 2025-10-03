@@ -4,7 +4,7 @@
 //! datasets with missing data, outliers, and various noise patterns that mimic real-world
 //! data quality issues.
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_datasets::{
     add_time_series_noise, inject_missing_data, inject_outliers, load_iris, make_corrupted_dataset,
     make_time_series, MissingPattern, OutlierType,

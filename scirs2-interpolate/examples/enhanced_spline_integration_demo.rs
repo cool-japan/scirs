@@ -3,7 +3,7 @@
 //! This example demonstrates the new `integrate_with_extrapolation` method
 //! that provides SciPy-compatible integration beyond spline domain boundaries.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_interpolate::error::InterpolateResult;
 use scirs2_interpolate::interp1d::ExtrapolateMode;
 use scirs2_interpolate::spline::CubicSpline;

@@ -4,9 +4,9 @@
 //! and Schrödinger equation solvers.
 
 use crate::error::{IntegrateError, IntegrateResult as Result};
-use ndarray::{Array1, Array2, ArrayView1};
-use num_complex::Complex64;
 use scirs2_core::constants::{PI, REDUCED_PLANCK};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 /// Quantum state representation
@@ -279,10 +279,10 @@ impl SchrodingerSolver {
             // This shouldn't happen, but handle it gracefully
             let n = state.psi.len().min(state.x.len());
             if state.psi.len() > n {
-                state.psi = state.psi.slice(ndarray::s![..n]).to_owned();
+                state.psi = state.psi.slice(scirs2_core::ndarray::s![..n]).to_owned();
             }
             if state.x.len() > n {
-                state.x = state.x.slice(ndarray::s![..n]).to_owned();
+                state.x = state.x.slice(scirs2_core::ndarray::s![..n]).to_owned();
             }
         }
 

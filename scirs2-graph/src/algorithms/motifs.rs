@@ -434,14 +434,14 @@ where
 pub fn sample_motif_frequencies<N, E, Ix>(
     graph: &Graph<N, E, Ix>,
     sample_size: usize,
-    rng: &mut impl rand::Rng,
+    rng: &mut impl scirs2_core::random::Rng,
 ) -> HashMap<MotifType, f64>
 where
     N: Node + Clone + Hash + Eq + std::fmt::Debug + Send + Sync,
     E: EdgeWeight + Send + Sync,
     Ix: IndexType + Send + Sync,
 {
-    use rand::seq::SliceRandom;
+    use scirs2_core::random::seq::SliceRandom;
 
     let all_nodes: Vec<_> = graph.nodes().into_iter().cloned().collect();
     if all_nodes.len() <= sample_size {

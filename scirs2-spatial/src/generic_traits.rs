@@ -33,8 +33,8 @@
 //! let _result = calculate_distance(point1.as_slice().unwrap(), point2.as_slice().unwrap());
 //! ```
 
-use num_traits::{Float, NumCast};
 use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 

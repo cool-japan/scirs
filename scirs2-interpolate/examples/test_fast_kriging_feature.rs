@@ -6,7 +6,7 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(feature = "linalg")]
     {
-        use ndarray::{Array1, Array2};
+        use scirs2_core::ndarray::{Array1, Array2};
         use scirs2_interpolate::advanced::fast_kriging::{
             make_fixed_rank_kriging, make_local_kriging, make_tapered_kriging, FastKrigingBuilder,
             FastKrigingMethod,

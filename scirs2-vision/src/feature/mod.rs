@@ -78,7 +78,7 @@ pub use vision_transformer::{
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GrayImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Convert an image to a 2D grayscale array
 ///
@@ -217,7 +217,7 @@ pub fn harris_corners(
     let (height, width) = array.dim();
 
     // Check if block_size is valid
-    if block_size % 2 == 0 || block_size < 3 {
+    if block_size.is_multiple_of(2) || block_size < 3 {
         return Err(VisionError::InvalidParameter(
             "block_size must be odd and at least 3".to_string(),
         ));

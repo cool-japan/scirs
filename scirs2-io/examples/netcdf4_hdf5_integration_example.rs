@@ -3,7 +3,7 @@
 //! This example demonstrates the enhanced NetCDF4 format support with HDF5 backend,
 //! showcasing improved performance, compression, and larger dataset handling.
 
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_io::netcdf::{
     create_netcdf4_with_data, read_netcdf, NetCDFFile, NetCDFFormat, NetCDFOptions,
 };

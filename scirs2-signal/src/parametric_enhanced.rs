@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Enhanced parametric spectral estimation with SIMD and parallel processing
 //
 // This module provides high-performance implementations of parametric spectral
@@ -7,8 +7,8 @@ use ndarray::s;
 use crate::error::{SignalError, SignalResult};
 use crate::parametric::{estimate_ar, ARMethod};
 use crate::parametric_arma::{estimate_arma, ArmaMethod};
-use ndarray::{Array1, Array2, Axis};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_finite;
 use statrs::distribution::{ChiSquared, ContinuousCDF};

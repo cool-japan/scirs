@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates working with image metadata including EXIF data
 
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 use scirs2_io::image::{
     get_image_info, load_image, read_exif_metadata, save_image, ColorMode, ImageData, ImageFormat,
     ImageMetadata,

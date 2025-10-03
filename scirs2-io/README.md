@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-io)](https://docs.rs/scirs2-io)
 
-**Production-ready Input/Output module for the SciRS2 scientific computing library (v0.1.0-beta.4).** Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module provides comprehensive functionality for reading and writing various scientific and numerical data formats with high performance, reliability, and enhanced real-time streaming capabilities through scirs2-core abstractions.
+**Production-ready Input/Output module for the SciRS2 scientific computing library (v0.1.0-rc.1).** Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module provides comprehensive functionality for reading and writing various scientific and numerical data formats with high performance, reliability, and enhanced real-time streaming capabilities through scirs2-core abstractions.
 
 ## Features
 
@@ -52,14 +52,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.1.0-beta.4"
+scirs2-io = "0.1.0-rc.1"
 ```
 
 Enable specific features as needed:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.1.0-beta.4", features = ["hdf5", "async", "compression"] }
+scirs2-io = { version = "0.1.0-rc.1", features = ["hdf5", "async", "compression"] }
 ```
 
 ### Available Features
@@ -317,4 +317,4 @@ Choose the license that works best for your project.
 
 ---
 
-**Ready for Production**: scirs2-io v0.1.0-beta.4 provides enterprise-grade I/O capabilities for scientific computing applications.
+**Ready for Production**: scirs2-io v0.1.0-rc.1 provides enterprise-grade I/O capabilities for scientific computing applications.

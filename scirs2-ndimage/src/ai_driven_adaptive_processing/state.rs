@@ -3,7 +3,7 @@
 //! This module handles the main processing state, experience buffers,
 //! and state transitions for the AI-driven adaptive processing system.
 
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use std::collections::{HashMap, VecDeque};
 
 use super::config::ImagePattern;

@@ -20,7 +20,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::{Array1, Array2};
+//! use scirs2_core::ndarray::{Array1, Array2};
 //! use scirs2_interpolate::high_dimensional::{
 //!     HighDimensionalInterpolator, DimensionReductionMethod
 //! };
@@ -44,8 +44,8 @@
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::spatial::{BallTree, KdTree};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::ops::AddAssign;
@@ -255,7 +255,7 @@ where
     ///
     /// ```rust
     /// use scirs2_interpolate::high_dimensional::HighDimensionalInterpolatorBuilder;
-    /// use ndarray::Array2;
+    /// use scirs2_core::ndarray::Array2;
     ///
     /// let builder = HighDimensionalInterpolatorBuilder::<f64>::new();
     /// ```
@@ -597,7 +597,7 @@ where
     ///
     /// ```rust
     /// use scirs2_interpolate::high_dimensional::{HighDimensionalInterpolator, DimensionReductionMethod};
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     ///
     /// // Create sample 5D data
     /// let points = Array2::from_shape_vec((4, 5), vec![
@@ -823,7 +823,7 @@ where
     ///
     /// ```rust
     /// use scirs2_interpolate::high_dimensional::HighDimensionalInterpolator;
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     ///
     /// let points = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).unwrap();
     /// let values = Array1::from_vec(vec![0.0, 1.0, 2.0]);
@@ -871,7 +871,7 @@ where
     ///
     /// ```rust
     /// use scirs2_interpolate::high_dimensional::HighDimensionalInterpolator;
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     ///
     /// let points = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).unwrap();
     /// let values = Array1::from_vec(vec![0.0, 1.0, 2.0]);
@@ -923,7 +923,7 @@ where
             .into_par_iter()
             .with_min_len(chunk_size)
             .map(|i| {
-                let query = queries.slice(ndarray::s![i, ..]);
+                let query = queries.slice(scirs2_core::ndarray::s![i, ..]);
                 self.interpolate(&query.view())
             })
             .collect::<Result<Vec<F>, InterpolateError>>();
@@ -968,7 +968,7 @@ where
 ///
 /// ```rust
 /// use scirs2_interpolate::high_dimensional::make_knn_interpolator;
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 ///
 /// // Create 3D scattered data
 /// let points = Array2::from_shape_vec((5, 3), vec![
@@ -1034,7 +1034,7 @@ where
 ///
 /// ```rust
 /// use scirs2_interpolate::high_dimensional::make_pca_interpolator;
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 ///
 /// // Create high-dimensional data that lies on a lower-dimensional manifold
 /// let points = Array2::from_shape_vec((4, 6), vec![
@@ -1101,7 +1101,7 @@ where
 ///
 /// ```rust
 /// use scirs2_interpolate::high_dimensional::make_local_rbf_interpolator;
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 ///
 /// // Create scattered 2D data
 /// let points = Array2::from_shape_vec((4, 2), vec![
@@ -1149,7 +1149,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_high_dimensional_interpolator_creation() {

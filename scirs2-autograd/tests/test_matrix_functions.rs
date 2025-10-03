@@ -1,8 +1,8 @@
 //! Tests for matrix functions (sqrtm, logm, powm)
 
 use ag::tensor_ops::*;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 #[test]
 #[allow(dead_code)]

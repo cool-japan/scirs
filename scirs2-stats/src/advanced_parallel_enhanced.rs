@@ -6,8 +6,8 @@
 //! efficiency on large-scale statistical computing workloads.
 
 use crate::error::StatsResult;
-use ndarray::{Array2, ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast, Zero};
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant, SystemTime};

@@ -14,7 +14,7 @@ use crate::realtime_performance_adaptation::{
     AdaptationStrategy, AdaptationTriggers, OptimizationObjectives, PerformanceConstraints,
     RealTimeAdaptiveOptimizer, TargetMetrics,
 };
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::time::Duration;
 
 /// Test suite for GPU advanced-acceleration functionality
@@ -223,7 +223,7 @@ mod memory_optimization_tests {
 /// Test suite for advanced SIMD acceleration functionality
 mod simd_acceleration_tests {
     use crate::{AdvancedSimdAccelerator, IntegrateResult};
-    use ndarray::{Array1, Array2, ArrayView1};
+    use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
     #[test]
     pub fn test_advanced_simd_accelerator_creation() {
@@ -499,7 +499,7 @@ mod integration_tests {
         AdaptationStrategy, AdvancedGPUAccelerator, AdvancedMemoryOptimizer,
         AdvancedSimdAccelerator, RealTimeAdaptiveOptimizer,
     };
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
     use std::time::Duration;
 
     #[test]

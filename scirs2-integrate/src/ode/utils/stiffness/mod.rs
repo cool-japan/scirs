@@ -6,7 +6,7 @@
 pub mod integration;
 
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 

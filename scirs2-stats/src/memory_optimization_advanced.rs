@@ -6,8 +6,8 @@
 //! allocation strategies.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use serde::{Deserialize, Serialize};
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::collections::{HashMap, VecDeque};
@@ -840,7 +840,7 @@ impl AllocationPatternAnalyzer {
         }
 
         // Update patterns periodically
-        if self.allocation_history.len() % 100 == 0 {
+        if self.allocation_history.len().is_multiple_of(100) {
             self.update_patterns();
         }
     }
@@ -851,7 +851,7 @@ impl AllocationPatternAnalyzer {
         for event in &self.allocation_history {
             operation_groups
                 .entry(event.operation_type.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(event);
         }
 
@@ -993,7 +993,7 @@ impl MemoryOptimizationSuite {
         // First pass: compute means
         for chunk_start in (0..n_samples_).step_by(chunksize) {
             let chunk_end = (chunk_start + chunksize).min(n_samples_);
-            let chunk = data.slice(ndarray::s![chunk_start..chunk_end, ..]);
+            let chunk = data.slice(scirs2_core::ndarray::s![chunk_start..chunk_end, ..]);
 
             for (feature_idx, column) in chunk.axis_iter(Axis(1)).enumerate() {
                 for &value in column.iter() {
@@ -1182,7 +1182,7 @@ pub struct MemoryOptimizationRecommendation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_streaming_stats_calculator() {

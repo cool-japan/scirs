@@ -3,8 +3,8 @@
 //! This module contains implementations of recurrent neural network operations,
 //! including LSTM cells and related functions.
 
-use ndarray::{Array, Array2, ArrayView, ArrayView1, ArrayView2, Axis, Dimension};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Array2, ArrayView, ArrayView1, ArrayView2, Axis, Dimension};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use crate::error::{NeuralError, Result};
 /// Type alias for LSTM forward return values
@@ -31,7 +31,7 @@ type AdamUpdateReturn<F, D> = (Array<F, D>, Array<F, D>, Array<F, D>);
 ///   - cache: Cached values for backpropagation
 /// # Examples
 /// ```
-/// use ndarray::{Array, Array1, Array2};
+/// use scirs2_core::ndarray::{Array, Array1, Array2};
 /// use scirs2_neural::linalg::lstm_cell;
 /// // Sample dimensions
 /// let batch_size = 2;
@@ -150,8 +150,8 @@ fn sigmoid<F: Float>(x: F) -> F {
 /// * Tuple of (output, mask) where:
 ///   - output: Result after applying dropout
 ///   - mask: Binary mask used for dropout (1 for kept elements, 0 for dropped)
-/// use ndarray::{Array, Array2};
-/// use rand::prelude::*;
+/// use scirs2_core::ndarray::{Array, Array2};
+/// use scirs2_core::random::prelude::*;
 /// use scirs2_neural::linalg::dropout;
 /// // Create input tensor
 /// let x = Array::from_shape_fn((3, 4), |_| 1.0);
@@ -171,7 +171,7 @@ pub fn dropout<F, D, R>(
 ) -> Result<(Array<F, D>, Array<F, D>)>
     F: Float + Debug + std::fmt::Display,
     D: Dimension,
-    R: rand::Rng,
+    R: scirs2_core::random::Rng,
     // Validate dropout rate
     if dropout_rate < F::zero() || dropout_rate >= F::one() {
         return Err(NeuralError::InvalidArgument(format!(
@@ -224,7 +224,7 @@ pub fn dropout_backward<F, D>(
 /// value before exponentiating.
 /// * `dim` - Dimension along which to compute softmax
 /// * Log-softmax values with the same shape as input
-/// use ndarray::{Array, Array2, Axis};
+/// use scirs2_core::ndarray::{Array, Array2, Axis};
 /// use scirs2_neural::linalg::log_softmax;
 /// // Create sample input
 /// let x = Array::from_shape_vec(
@@ -279,7 +279,7 @@ pub fn log_softmax<F, D>(x: &ArrayView<F, D>, dim: usize) -> Result<Array<F, D>>
 ///   - updated_w: Updated parameters
 ///   - updated_m: Updated first moment
 ///   - updated_v: Updated second moment
-/// use ndarray::{Array, Array1, Ix1};
+/// use scirs2_core::ndarray::{Array, Array1, Ix1};
 /// use scirs2_neural::linalg::adam_update;
 /// // Setup parameters and gradients
 /// let w = Array::from_vec(vec![1.0, 2.0, 3.0]);

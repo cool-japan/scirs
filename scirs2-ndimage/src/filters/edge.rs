@@ -1,7 +1,7 @@
 //! Edge detection filters for n-dimensional arrays
 
-use ndarray::{array, Array, Array2, Dimension, Ix2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{array, Array, Array2, Dimension, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::{convolve, BorderMode};
@@ -34,7 +34,7 @@ fn safe_i32_to_float<T: Float + FromPrimitive>(value: i32) -> NdimageResult<T> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::filters::{sobel, BorderMode};
 ///
 /// let image = array![
@@ -78,7 +78,7 @@ where
         // Convert to 2D array for processing
         let input_2d = input
             .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
         // Apply the 2D Sobel filter
@@ -126,7 +126,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::filters::{laplace, BorderMode};
 ///
 /// let image = array![
@@ -166,7 +166,7 @@ where
         // Convert to 2D array for processing
         let input_2d = input
             .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
         // Apply the 2D Laplacian filter
@@ -209,7 +209,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::filters::{prewitt, BorderMode};
 ///
 /// let image = array![
@@ -253,7 +253,7 @@ where
         // Convert to 2D array for processing
         let input_2d = input
             .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
         // Apply the 2D Prewitt filter
@@ -303,7 +303,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::filters::{roberts, BorderMode};
 ///
 /// let image = array![
@@ -342,7 +342,7 @@ where
         // Convert to 2D array for processing
         let input_2d = input
             .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
         // Apply the 2D Roberts Cross filter
@@ -405,7 +405,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::filters::{gradient_magnitude, BorderMode};
 ///
 /// let image = array![
@@ -448,7 +448,7 @@ where
         // Convert to 2D array for processing
         let input_2d = input
             .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
         // Calculate gradients based on the specified method
@@ -680,10 +680,172 @@ where
     convolve(input, &kernel, Some(*mode))
 }
 
+/// Apply a Scharr filter to calculate gradients in an n-dimensional array
+///
+/// The Scharr operator is a more accurate approximation of the gradient than the Sobel operator.
+/// It uses different coefficients that provide better rotational symmetry, which makes it more
+/// accurate for calculating gradients in all directions.
+///
+/// # Arguments
+///
+/// * `input` - Input array to filter
+/// * `axis` - Axis along which to calculate the gradient
+/// * `mode` - Border handling mode (defaults to Reflect)
+///
+/// # Returns
+///
+/// * `Result<Array<T, D>>` - Filtered array with gradient values
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_core::ndarray::{Array2, array};
+/// use scirs2_ndimage::filters::{scharr, BorderMode};
+///
+/// let image = array![
+///     [0.0, 0.0, 0.0],
+///     [0.0, 1.0, 0.0],
+///     [0.0, 0.0, 0.0],
+/// ];
+///
+/// // Calculate gradient along x-axis (axis=1)
+/// let gradient_x = scharr(&image, 1, None).unwrap();
+/// ```
+#[allow(dead_code)]
+pub fn scharr<T, D>(
+    input: &Array<T, D>,
+    axis: usize,
+    mode: Option<BorderMode>,
+) -> NdimageResult<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+    D: Dimension + 'static,
+{
+    let border_mode = mode.unwrap_or(BorderMode::Reflect);
+
+    // Validate inputs
+    if input.ndim() <= 1 {
+        return Err(NdimageError::InvalidInput(
+            "Input array must have at least 2 dimensions for scharr filter".into(),
+        ));
+    }
+
+    if axis >= input.ndim() {
+        return Err(NdimageError::InvalidInput(format!(
+            "Axis {} is out of bounds for array of dimension {}",
+            axis,
+            input.ndim()
+        )));
+    }
+
+    // For 2D arrays, we can implement the Scharr operator directly
+    if input.ndim() == 2 {
+        // Convert to 2D array for processing
+        let input_2d = input
+            .to_owned()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
+
+        // Apply the 2D Scharr filter
+        let result = match axis {
+            0 => scharr_2d_x(&input_2d, &border_mode)?, // Vertical edges (y-derivative)
+            1 => scharr_2d_y(&input_2d, &border_mode)?, // Horizontal edges (x-derivative)
+            _ => {
+                return Err(NdimageError::InvalidInput(format!(
+                    "Invalid axis {} for 2D array, must be 0 or 1",
+                    axis
+                )));
+            }
+        };
+
+        // Convert result back to original dimensionality
+        result.into_dimensionality::<D>().map_err(|_| {
+            NdimageError::DimensionError(
+                "Failed to convert result back to original dimensions".into(),
+            )
+        })
+    } else {
+        // For higher dimensions, we'll need a more general approach
+        // For now, return a placeholder until we implement the full n-dimensional version
+        Err(NdimageError::NotImplementedError(
+            "Scharr filter not yet implemented for arrays with more than 2 dimensions".into(),
+        ))
+    }
+}
+
+// Helper function to apply Scharr filter along y-axis (vertical gradient)
+#[allow(dead_code)]
+fn scharr_2d_x<T>(input: &Array<T, Ix2>, mode: &BorderMode) -> NdimageResult<Array<T, Ix2>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+{
+    // Create the Scharr 3x3 kernel for y-derivative (vertical gradient)
+    // [[ 3,  10,  3],
+    //  [ 0,   0,  0],
+    //  [-3, -10, -3]]
+    let mut kernel = Array2::<T>::zeros((3, 3));
+    kernel[[0, 0]] = safe_i32_to_float(3)?;
+    kernel[[0, 1]] = safe_i32_to_float(10)?;
+    kernel[[0, 2]] = safe_i32_to_float(3)?;
+    kernel[[2, 0]] = safe_i32_to_float(-3)?;
+    kernel[[2, 1]] = safe_i32_to_float(-10)?;
+    kernel[[2, 2]] = safe_i32_to_float(-3)?;
+
+    // Apply convolution
+    convolve(input, &kernel, Some(*mode))
+}
+
+// Helper function to apply Scharr filter along x-axis (horizontal gradient)
+#[allow(dead_code)]
+fn scharr_2d_y<T>(input: &Array<T, Ix2>, mode: &BorderMode) -> NdimageResult<Array<T, Ix2>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+{
+    // Create the Scharr 3x3 kernel for x-derivative (horizontal gradient)
+    // [[ -3,  0,  3],
+    //  [-10,  0, 10],
+    //  [ -3,  0,  3]]
+    let mut kernel = Array2::<T>::zeros((3, 3));
+    kernel[[0, 0]] = safe_i32_to_float(-3)?;
+    kernel[[1, 0]] = safe_i32_to_float(-10)?;
+    kernel[[2, 0]] = safe_i32_to_float(-3)?;
+    kernel[[0, 2]] = safe_i32_to_float(3)?;
+    kernel[[1, 2]] = safe_i32_to_float(10)?;
+    kernel[[2, 2]] = safe_i32_to_float(3)?;
+
+    // Apply convolution
+    convolve(input, &kernel, Some(*mode))
+}
+
+/// N-dimensional Sobel filter implementation
+#[allow(dead_code)]
+fn sobel_nd<T, D>(input: &Array<T, D>, axis: usize, mode: &BorderMode) -> NdimageResult<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+    D: Dimension + 'static,
+{
+    use super::convolve::correlate1d;
+
+    // First apply the derivative filter [-1, 0, 1] along the specified axis
+    let deriv_kernel = array![-T::one(), T::zero(), T::one()];
+    let mut result = correlate1d(input, &deriv_kernel, axis, Some(*mode), None)?;
+
+    // Then apply the smoothing filter [1, 2, 1] along all other axes
+    let smooth_kernel = array![T::one(), safe_i32_to_float(2)?, T::one()];
+
+    for ax in 0..input.ndim() {
+        if ax != axis {
+            result = correlate1d(&result, &smooth_kernel, ax, Some(*mode), None)?;
+        }
+    }
+
+    Ok(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_sobel() {
@@ -853,7 +1015,7 @@ mod tests {
             roberts(&image, None, None).expect("roberts magnitude filter should succeed");
 
         // The center 2x2 area is where we expect the response
-        let center_region = roberts_mag.slice(ndarray::s![1..3, 1..3]);
+        let center_region = roberts_mag.slice(scirs2_core::ndarray::s![1..3, 1..3]);
 
         // At least one value in the center region should be significantly positive
         let mut has_significant_response = false;
@@ -974,7 +1136,7 @@ mod tests {
 
     #[test]
     fn test_sobel_3d() {
-        use ndarray::Array3;
+        use scirs2_core::ndarray::Array3;
 
         // Create a simple 3x3x3 test volume with a plane at z=1
         let mut volume = Array3::<f64>::zeros((3, 3, 3));
@@ -1004,166 +1166,4 @@ mod tests {
         assert!(max_z > max_x, "Z gradient should be strongest");
         assert!(max_z > max_y, "Z gradient should be strongest");
     }
-}
-
-/// Apply a Scharr filter to calculate gradients in an n-dimensional array
-///
-/// The Scharr operator is a more accurate approximation of the gradient than the Sobel operator.
-/// It uses different coefficients that provide better rotational symmetry, which makes it more
-/// accurate for calculating gradients in all directions.
-///
-/// # Arguments
-///
-/// * `input` - Input array to filter
-/// * `axis` - Axis along which to calculate the gradient
-/// * `mode` - Border handling mode (defaults to Reflect)
-///
-/// # Returns
-///
-/// * `Result<Array<T, D>>` - Filtered array with gradient values
-///
-/// # Examples
-///
-/// ```
-/// use ndarray::{Array2, array};
-/// use scirs2_ndimage::filters::{scharr, BorderMode};
-///
-/// let image = array![
-///     [0.0, 0.0, 0.0],
-///     [0.0, 1.0, 0.0],
-///     [0.0, 0.0, 0.0],
-/// ];
-///
-/// // Calculate gradient along x-axis (axis=1)
-/// let gradient_x = scharr(&image, 1, None).unwrap();
-/// ```
-#[allow(dead_code)]
-pub fn scharr<T, D>(
-    input: &Array<T, D>,
-    axis: usize,
-    mode: Option<BorderMode>,
-) -> NdimageResult<Array<T, D>>
-where
-    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
-    D: Dimension + 'static,
-{
-    let border_mode = mode.unwrap_or(BorderMode::Reflect);
-
-    // Validate inputs
-    if input.ndim() <= 1 {
-        return Err(NdimageError::InvalidInput(
-            "Input array must have at least 2 dimensions for scharr filter".into(),
-        ));
-    }
-
-    if axis >= input.ndim() {
-        return Err(NdimageError::InvalidInput(format!(
-            "Axis {} is out of bounds for array of dimension {}",
-            axis,
-            input.ndim()
-        )));
-    }
-
-    // For 2D arrays, we can implement the Scharr operator directly
-    if input.ndim() == 2 {
-        // Convert to 2D array for processing
-        let input_2d = input
-            .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
-            .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
-
-        // Apply the 2D Scharr filter
-        let result = match axis {
-            0 => scharr_2d_x(&input_2d, &border_mode)?, // Vertical edges (y-derivative)
-            1 => scharr_2d_y(&input_2d, &border_mode)?, // Horizontal edges (x-derivative)
-            _ => {
-                return Err(NdimageError::InvalidInput(format!(
-                    "Invalid axis {} for 2D array, must be 0 or 1",
-                    axis
-                )));
-            }
-        };
-
-        // Convert result back to original dimensionality
-        result.into_dimensionality::<D>().map_err(|_| {
-            NdimageError::DimensionError(
-                "Failed to convert result back to original dimensions".into(),
-            )
-        })
-    } else {
-        // For higher dimensions, we'll need a more general approach
-        // For now, return a placeholder until we implement the full n-dimensional version
-        Err(NdimageError::NotImplementedError(
-            "Scharr filter not yet implemented for arrays with more than 2 dimensions".into(),
-        ))
-    }
-}
-
-// Helper function to apply Scharr filter along y-axis (vertical gradient)
-#[allow(dead_code)]
-fn scharr_2d_x<T>(input: &Array<T, Ix2>, mode: &BorderMode) -> NdimageResult<Array<T, Ix2>>
-where
-    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
-{
-    // Create the Scharr 3x3 kernel for y-derivative (vertical gradient)
-    // [[ 3,  10,  3],
-    //  [ 0,   0,  0],
-    //  [-3, -10, -3]]
-    let mut kernel = Array2::<T>::zeros((3, 3));
-    kernel[[0, 0]] = safe_i32_to_float(3)?;
-    kernel[[0, 1]] = safe_i32_to_float(10)?;
-    kernel[[0, 2]] = safe_i32_to_float(3)?;
-    kernel[[2, 0]] = safe_i32_to_float(-3)?;
-    kernel[[2, 1]] = safe_i32_to_float(-10)?;
-    kernel[[2, 2]] = safe_i32_to_float(-3)?;
-
-    // Apply convolution
-    convolve(input, &kernel, Some(*mode))
-}
-
-// Helper function to apply Scharr filter along x-axis (horizontal gradient)
-#[allow(dead_code)]
-fn scharr_2d_y<T>(input: &Array<T, Ix2>, mode: &BorderMode) -> NdimageResult<Array<T, Ix2>>
-where
-    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
-{
-    // Create the Scharr 3x3 kernel for x-derivative (horizontal gradient)
-    // [[ -3,  0,  3],
-    //  [-10,  0, 10],
-    //  [ -3,  0,  3]]
-    let mut kernel = Array2::<T>::zeros((3, 3));
-    kernel[[0, 0]] = safe_i32_to_float(-3)?;
-    kernel[[1, 0]] = safe_i32_to_float(-10)?;
-    kernel[[2, 0]] = safe_i32_to_float(-3)?;
-    kernel[[0, 2]] = safe_i32_to_float(3)?;
-    kernel[[1, 2]] = safe_i32_to_float(10)?;
-    kernel[[2, 2]] = safe_i32_to_float(3)?;
-
-    // Apply convolution
-    convolve(input, &kernel, Some(*mode))
-}
-
-/// N-dimensional Sobel filter implementation
-#[allow(dead_code)]
-fn sobel_nd<T, D>(input: &Array<T, D>, axis: usize, mode: &BorderMode) -> NdimageResult<Array<T, D>>
-where
-    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
-    D: Dimension + 'static,
-{
-    use super::convolve::correlate1d;
-
-    // First apply the derivative filter [-1, 0, 1] along the specified axis
-    let deriv_kernel = array![-T::one(), T::zero(), T::one()];
-    let mut result = correlate1d(input, &deriv_kernel, axis, Some(*mode), None)?;
-
-    // Then apply the smoothing filter [1, 2, 1] along all other axes
-    let smooth_kernel = array![T::one(), safe_i32_to_float(2)?, T::one()];
-
-    for ax in 0..input.ndim() {
-        if ax != axis {
-            result = correlate1d(&result, &smooth_kernel, ax, Some(*mode), None)?;
-        }
-    }
-
-    Ok(result)
 }

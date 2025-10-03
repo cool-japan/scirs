@@ -34,7 +34,7 @@ pub mod retinal_processing;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array2, Array3, Axis};
+    use scirs2_core::ndarray::{Array2, Array3, Axis};
 
     #[test]
     fn test_biological_vision_config_default() {
@@ -233,7 +233,7 @@ mod tests {
         assert_eq!(stereo_result.depth_map.dim(), (16, 16));
         assert_eq!(stereo_result.ocular_dominance_map.dim(), (16, 16));
         assert_eq!(stereo_result.stereo_confidence.dim(), (16, 16));
-        assert!(stereo_result.binocular_neurons.len() > 0);
+        assert!(!stereo_result.binocular_neurons.is_empty());
     }
 
     #[test]
@@ -252,9 +252,9 @@ mod tests {
 
         let vwm_result = visual_working_memory_processing(&image_views, &config).unwrap();
 
-        assert!(vwm_result.memory_slots.len() > 0);
-        assert!(vwm_result.attention_weights.len() > 0);
-        assert!(vwm_result.maintenance_activity.len() > 0);
+        assert!(!vwm_result.memory_slots.is_empty());
+        assert!(!vwm_result.attention_weights.is_empty());
+        assert!(!vwm_result.maintenance_activity.is_empty());
     }
 
     #[test]

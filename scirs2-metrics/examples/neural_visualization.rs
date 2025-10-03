@@ -16,10 +16,10 @@ use scirs2_metrics::integration::neural;
 use std::collections::HashMap;
 
 #[cfg(feature = "neural_common")]
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 #[cfg(feature = "neural_common")]
-use rand::Rng;
+use scirs2_core::random::Rng;
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn Error>> {
@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         let mut history = Vec::with_capacity(num_epochs);
         let mut val_history = Vec::with_capacity(num_epochs);
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Generate improving metrics over epochs
         for epoch in 0..num_epochs {

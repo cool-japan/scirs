@@ -9,7 +9,7 @@ use crate::sparse_numdiff::SparseFiniteDiffOptions;
 use crate::unconstrained::memory_efficient::MemoryOptions;
 use crate::unconstrained::result::OptimizeResult;
 // use crate::unconstrained::sparse_optimization::compute_sparse_gradient;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_sparse::csr_array::CsrArray;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -321,7 +321,9 @@ where
             let block_start = state.blocks[i].start_idx;
             let block_size = state.blocks[i].size;
             let block_x = current_x
-                .slice(ndarray::s![block_start..block_start + block_size])
+                .slice(scirs2_core::ndarray::s![
+                    block_start..block_start + block_size
+                ])
                 .to_owned();
 
             // Optimize this block while keeping others fixed
@@ -338,7 +340,9 @@ where
             // Update the full solution with optimized block
             let mut new_x = current_x.clone();
             new_x
-                .slice_mut(ndarray::s![block_start..block_start + block_size])
+                .slice_mut(scirs2_core::ndarray::s![
+                    block_start..block_start + block_size
+                ])
                 .assign(&block_result.x);
 
             state.update_variables(&new_x)?;
@@ -413,7 +417,9 @@ where
     let block_fun = |block_vars: &ArrayView1<f64>| -> f64 {
         let mut temp_x = full_x.clone();
         temp_x
-            .slice_mut(ndarray::s![block_start..block_start + block_vars.len()])
+            .slice_mut(scirs2_core::ndarray::s![
+                block_start..block_start + block_vars.len()
+            ])
             .assign(block_vars);
         fun(&temp_x.view()).into()
     };

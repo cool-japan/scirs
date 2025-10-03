@@ -23,7 +23,7 @@ pub struct DashboardConfig {
     pub theme: ThemeConfig,
     /// Layout configuration
     pub layout: LayoutConfig,
-    /// Real-time update settings
+    /// Float-time update settings
     pub realtime_config: RealtimeConfig,
     /// Interaction settings
     pub interaction_config: InteractionConfig,
@@ -127,7 +127,7 @@ pub struct AnimationConfig {
     pub performance_mode: bool,
 }
 
-/// Real-time configuration
+/// Float-time configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RealtimeConfig {
     /// Enable real-time updates

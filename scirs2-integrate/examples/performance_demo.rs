@@ -3,8 +3,8 @@
 //! This example showcases the performance characteristics of various integration
 //! methods and provides a simple timing framework for basic comparisons.
 
-use ndarray::Array1;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::ndarray::ArrayView1;
 use scirs2_integrate::monte_carlo::{monte_carlo, MonteCarloOptions};
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 use scirs2_integrate::quad::{quad, QuadOptions};
@@ -51,17 +51,17 @@ where
 
 // Test problems
 #[allow(dead_code)]
-fn exponential_decay(t: f64, y: ndarray::ArrayView1<f64>) -> Array1<f64> {
+fn exponential_decay(t: f64, y: scirs2_core::ndarray::ArrayView1<f64>) -> Array1<f64> {
     Array1::from_vec(vec![-y[0]])
 }
 
 #[allow(dead_code)]
-fn harmonic_oscillator(t: f64, y: ndarray::ArrayView1<f64>) -> Array1<f64> {
+fn harmonic_oscillator(t: f64, y: scirs2_core::ndarray::ArrayView1<f64>) -> Array1<f64> {
     Array1::from_vec(vec![y[1], -y[0]])
 }
 
 #[allow(dead_code)]
-fn van_der_pol_stiff(t: f64, y: ndarray::ArrayView1<f64>) -> Array1<f64> {
+fn van_der_pol_stiff(t: f64, y: scirs2_core::ndarray::ArrayView1<f64>) -> Array1<f64> {
     let mu = 100.0; // Stiff parameter
     Array1::from_vec(vec![y[1], mu * (1.0 - y[0] * y[0]) * y[1] - y[0]])
 }
@@ -77,7 +77,7 @@ fn oscillatory_integrand(x: f64) -> f64 {
 }
 
 #[allow(dead_code)]
-fn gaussian_2d(x: ndarray::ArrayView1<f64>) -> f64 {
+fn gaussian_2d(x: scirs2_core::ndarray::ArrayView1<f64>) -> f64 {
     let r2 = x[0] * x[0] + x[1] * x[1];
     (-r2).exp()
 }
@@ -334,7 +334,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Create a large linear ODE system: dy/dt = A*y
         let (_time, result) = time_function(
             || {
-                use ndarray::Array2;
+                use scirs2_core::ndarray::Array2;
 
                 let a_matrix = Array2::from_shape_fn((n, n), |(i, j)| {
                     if i == j {
@@ -346,7 +346,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 });
 
-                let linear_system = move |_t: f64, y: ndarray::ArrayView1<f64>| {
+                let linear_system = move |_t: f64, y: scirs2_core::ndarray::ArrayView1<f64>| {
                     let y_owned = y.to_owned();
                     a_matrix.dot(&y_owned)
                 };

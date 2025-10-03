@@ -12,7 +12,7 @@
 //! - spherical_jn_scaled(n, x): Scaled spherical Bessel function of the first kind (for large arguments)
 //! - spherical_yn_scaled(n, x): Scaled spherical Bessel function of the second kind (for large arguments)
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Helper function for small argument series expansion of spherical Bessel functions

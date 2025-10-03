@@ -7,8 +7,8 @@
 
 // pub use adapters::boxed;
 
-use ndarray::{Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::any::Any;
 
 use crate::error::{Result, TransformError};
@@ -79,7 +79,7 @@ impl Pipeline {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let mut x_transformed = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let mut x_transformed = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         for (name, transformer) in &mut self.steps {
             transformer.fit(&x_transformed).map_err(|e| {
@@ -115,7 +115,7 @@ impl Pipeline {
             ));
         }
 
-        let mut x_transformed = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let mut x_transformed = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         for (name, transformer) in &self.steps {
             x_transformed = transformer.transform(&x_transformed).map_err(|e| {
@@ -240,7 +240,7 @@ impl ColumnTransformer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
         let n_features = x_f64.shape()[1];
 
         // Validate column indices
@@ -288,7 +288,7 @@ impl ColumnTransformer {
             ));
         }
 
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
 

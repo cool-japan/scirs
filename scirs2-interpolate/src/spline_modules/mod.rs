@@ -25,7 +25,7 @@
 // # Quick Start
 //
 // ```rust
-// use ndarray::array;
+// use scirs2_core::ndarray::array;
 // use scirs2_interpolate::spline::CubicSpline;
 //
 // // Create a simple cubic spline
@@ -49,7 +49,7 @@
 // # Advanced Usage
 //
 // ```rust
-// use ndarray::array;
+// use scirs2_core::ndarray::array;
 // use scirs2_interpolate::spline::{CubicSpline, SplineBoundaryCondition};
 //
 // let x = array![0.0, 1.0, 2.0, 3.0];
@@ -67,7 +67,7 @@
 // # SciPy Compatibility
 //
 // ```rust
-// use ndarray::array;
+// use scirs2_core::ndarray::array;
 // use scirs2_interpolate::spline::cubic_spline_scipy;
 //
 // let x = array![0.0, 1.0, 2.0, 3.0];
@@ -123,7 +123,7 @@ pub use crate::traits::InterpolationFloat;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use approx::assert_abs_diff_eq;
 
     #[test]

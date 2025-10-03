@@ -3,8 +3,8 @@
 use crate::error::{StatsError, StatsResult};
 use crate::regression::utils::*;
 use crate::regression::RegressionResults;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use scirs2_linalg::lstsq;
 
 /// Fit a polynomial of specified degree to data.
@@ -25,7 +25,7 @@ use scirs2_linalg::lstsq;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::polyfit;
 ///
 /// let x = array![0.0, 1.0, 2.0, 3.0, 4.0];
@@ -52,9 +52,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -86,7 +86,7 @@ where
         vandermonde[[i, 0]] = F::one(); // Constant term
 
         for j in 1..=deg {
-            vandermonde[[i, j]] = num_traits::Float::powi(x[i], j as i32);
+            vandermonde[[i, j]] = scirs2_core::numeric::Float::powi(x[i], j as i32);
         }
     }
 
@@ -122,7 +122,7 @@ where
 
     // Calculate mean squared error and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Calculate standard errors for coefficients
     let std_errors =

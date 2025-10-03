@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Non-Local Means denoising module
 //
 // This module implements Non-Local Means (NLM) denoising techniques for signal and image
@@ -13,9 +13,9 @@ use ndarray::s;
 //
 // # Example
 // ```
-// use ndarray::{Array1, Array2};
+// use scirs2_core::ndarray::{Array1, Array2};
 // use scirs2_signal::nlm::{nlm_denoise_1d, nlm_denoise_2d, NlmConfig};
-// use rand::Rng;
+// use scirs2_core::random::Rng;
 //
 // // Create a test signal
 // let n = 500;
@@ -25,7 +25,7 @@ use ndarray::s;
 // }
 //
 // // Add noise
-// let mut rng = rand::rng();
+// let mut rng = scirs2_core::random::rng();
 // let mut noisy_signal = clean_signal.clone();
 // for i in 0..n {
 //     noisy_signal[i] += 0.2 * rng.gen_range(-1.0..1.0);
@@ -37,8 +37,8 @@ use ndarray::s;
 // ```
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Array3, Axis};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
+use scirs2_core::random::Rng;
 use std::cmp;
 
 #[allow(unused_imports)]
@@ -95,7 +95,7 @@ impl Default for NlmConfig {
 ///
 /// # Example
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::nlm::{nlm_denoise_1d, NlmConfig};
 ///
 /// let signal = Array1::from_vec(vec![1.2, 2.3, 3.1, 2.2, 1.3, 0.2, -0.3, -1.1]);
@@ -260,7 +260,7 @@ pub fn nlm_denoise_1d(signal: &Array1<f64>, config: &NlmConfig) -> SignalResult<
 ///
 /// # Example
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::nlm::{nlm_denoise_2d, NlmConfig};
 ///
 /// let image = Array2::from_shape_fn((10, 10), |(i, j)| (i + j) as f64 / 20.0);

@@ -12,7 +12,7 @@
 //! - Predictive scaling with machine learning
 //! - Multi-objective optimization balancing speed, accuracy, and energy
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_vision::{
     // Neuromorphic processing
     AdaptiveNeuromorphicPipeline,

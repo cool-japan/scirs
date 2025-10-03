@@ -3,7 +3,7 @@
 // This example shows how to use the specialized symmetric sparse formats
 // and the optimized operations that take advantage of symmetry.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_sparse::{
     sparray::SparseArray,
     sym_coo::SymCooArray,

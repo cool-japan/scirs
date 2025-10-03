@@ -1,10 +1,10 @@
+use crate::ndarray;
 use crate::ndarray_ext::{NdArray, NdArrayView};
 use crate::op;
 use crate::tensor::Tensor;
 use crate::tensor_ops;
 use crate::tensor_ops::*;
 use crate::Float;
-use ndarray;
 
 pub struct SoftmaxCrossEntropy;
 pub struct SparseSoftmaxCrossEntropy;
@@ -93,7 +93,7 @@ impl<T: Float> op::Op<T> for SparseSoftmaxCrossEntropy {
         let mut t_iter = t.iter();
         // loops batch size times.
         let ret = log_x
-            .map_axis(ndarray::Axis(1), move |row| {
+            .map_axis(scirs2_core::ndarray::Axis(1), move |row| {
                 -*row
                     .get(
                         t_iter
@@ -104,7 +104,7 @@ impl<T: Float> op::Op<T> for SparseSoftmaxCrossEntropy {
                     )
                     .expect("Wrong label value")
             })
-            .into_shape_with_order(ndarray::IxDyn(&[log_x.shape()[0], 1]))
+            .into_shape_with_order(scirs2_core::ndarray::IxDyn(&[log_x.shape()[0], 1]))
             .unwrap();
 
         ctx.append_output(ret);
@@ -141,7 +141,7 @@ impl<T: Float> op::Op<T> for SparseSoftmaxCrossEntropyGrad {
         let log_x = &ctx.input(0); // x is softmax
         let mut x = log_x.map(|a| a.exp());
         let t = &ctx.input(1);
-        for (mut row, &t_) in x.axis_iter_mut(ndarray::Axis(0)).zip(t) {
+        for (mut row, &t_) in x.axis_iter_mut(scirs2_core::ndarray::Axis(0)).zip(t) {
             row[t_.to_usize().unwrap()] -= T::one();
         }
 
@@ -169,7 +169,7 @@ impl<T: Float> op::Op<T> for SoftmaxCrossEntropy {
         let minus_one = T::one().neg();
         ctx.append_output(
             (t * &log_x)
-                .sum_axis(ndarray::Axis(1))
+                .sum_axis(scirs2_core::ndarray::Axis(1))
                 .mapv(move |elem| elem * minus_one),
         );
         ctx.append_output(log_x);

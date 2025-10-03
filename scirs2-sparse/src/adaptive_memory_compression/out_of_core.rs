@@ -300,7 +300,7 @@ impl OutOfCoreManager {
             let old_path = Path::new(&old_dir).join(file_name);
             let new_path = Path::new(new_dir).join(file_name);
 
-            if let Err(_) = std::fs::copy(&old_path, &new_path) {
+            if std::fs::copy(&old_path, &new_path).is_err() {
                 migration_errors += 1;
             } else {
                 let _ = std::fs::remove_file(&old_path);

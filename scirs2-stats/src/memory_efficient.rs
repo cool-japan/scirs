@@ -7,8 +7,8 @@ use crate::error::{StatsError, StatsResult};
 use crate::error_standardization::ErrorMessages;
 #[cfg(feature = "memmap")]
 use memmap2::Mmap;
-use ndarray::{s, ArrayBase, ArrayViewMut1, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{s, ArrayBase, ArrayViewMut1, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::cmp::Ordering;
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read};
@@ -238,7 +238,7 @@ fn partition<F: Float>(data: &mut [F], left: usize, right: usize) -> usize {
 pub fn covariance_chunked<F, D>(
     data: &ArrayBase<D, Ix2>,
     ddof: usize,
-) -> StatsResult<ndarray::Array2<F>>
+) -> StatsResult<scirs2_core::ndarray::Array2<F>>
 where
     F: Float + NumCast,
     D: Data<Elem = F>,
@@ -253,14 +253,14 @@ where
     }
 
     // Compute means for each variable
-    let mut means = ndarray::Array1::zeros(n_vars);
+    let mut means = scirs2_core::ndarray::Array1::zeros(n_vars);
     for j in 0..n_vars {
         let col = data.slice(s![.., j]);
         means[j] = col.iter().fold(F::zero(), |acc, &val| acc + val) / F::from(n_obs).unwrap();
     }
 
     // Initialize covariance matrix
-    let mut cov_matrix = ndarray::Array2::zeros((n_vars, n_vars));
+    let mut cov_matrix = scirs2_core::ndarray::Array2::zeros((n_vars, n_vars));
 
     // Process data in chunks to compute covariance
     let chunksize = CHUNK_SIZE / n_vars;
@@ -386,25 +386,27 @@ impl<F: Float + NumCast + std::fmt::Display> StreamingCorrelation<F> {
 #[allow(dead_code)]
 pub struct IncrementalCovariance<F: Float> {
     n: usize,
-    means: ndarray::Array1<F>,
-    cov_matrix: ndarray::Array2<F>,
+    means: scirs2_core::ndarray::Array1<F>,
+    cov_matrix: scirs2_core::ndarray::Array2<F>,
     n_vars: usize,
 }
 
 #[allow(dead_code)]
-impl<F: Float + NumCast + ndarray::ScalarOperand + std::fmt::Display> IncrementalCovariance<F> {
+impl<F: Float + NumCast + scirs2_core::ndarray::ScalarOperand + std::fmt::Display>
+    IncrementalCovariance<F>
+{
     /// Create a new incremental covariance calculator
     pub fn new(_nvars: usize) -> Self {
         Self {
             n: 0,
-            means: ndarray::Array1::zeros(_nvars),
-            cov_matrix: ndarray::Array2::zeros((_nvars, _nvars)),
+            means: scirs2_core::ndarray::Array1::zeros(_nvars),
+            cov_matrix: scirs2_core::ndarray::Array2::zeros((_nvars, _nvars)),
             n_vars: _nvars,
         }
     }
 
     /// Update with a new observation
-    pub fn update(&mut self, observation: &ndarray::ArrayView1<F>) -> StatsResult<()> {
+    pub fn update(&mut self, observation: &scirs2_core::ndarray::ArrayView1<F>) -> StatsResult<()> {
         if observation.len() != self.n_vars {
             return Err(StatsError::DimensionMismatch(
                 "Observation dimension doesn't match".to_string(),
@@ -415,7 +417,7 @@ impl<F: Float + NumCast + ndarray::ScalarOperand + std::fmt::Display> Incrementa
         let n = F::from(self.n).unwrap();
 
         // Update means and covariance using Welford's algorithm
-        let mut delta = ndarray::Array1::zeros(self.n_vars);
+        let mut delta = scirs2_core::ndarray::Array1::zeros(self.n_vars);
 
         for i in 0..self.n_vars {
             delta[i] = observation[i] - self.means[i];
@@ -439,7 +441,7 @@ impl<F: Float + NumCast + ndarray::ScalarOperand + std::fmt::Display> Incrementa
     }
 
     /// Get current covariance matrix
-    pub fn covariance(&self, ddof: usize) -> StatsResult<ndarray::Array2<F>> {
+    pub fn covariance(&self, ddof: usize) -> StatsResult<scirs2_core::ndarray::Array2<F>> {
         if self.n <= ddof {
             return Err(StatsError::InvalidArgument(
                 "Not enough observations for the given degrees of freedom".to_string(),
@@ -451,7 +453,7 @@ impl<F: Float + NumCast + ndarray::ScalarOperand + std::fmt::Display> Incrementa
     }
 
     /// Get current means
-    pub fn means(&self) -> &ndarray::Array1<F> {
+    pub fn means(&self) -> &scirs2_core::ndarray::Array1<F> {
         &self.means
     }
 }
@@ -541,11 +543,11 @@ impl<F: Float + NumCast + std::fmt::Display> RollingStats<F> {
     }
 
     /// Get current buffer as array
-    pub fn as_array(&self) -> ndarray::Array1<F> {
+    pub fn as_array(&self) -> scirs2_core::ndarray::Array1<F> {
         if self.is_full {
-            ndarray::Array1::from_vec(self.buffer.clone())
+            scirs2_core::ndarray::Array1::from_vec(self.buffer.clone())
         } else {
-            ndarray::Array1::from_vec(self.buffer[..self.position].to_vec())
+            scirs2_core::ndarray::Array1::from_vec(self.buffer[..self.position].to_vec())
         }
     }
 }

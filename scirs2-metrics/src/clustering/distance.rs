@@ -4,8 +4,8 @@
 //! and within clusters. These metrics are useful for evaluating the
 //! quality of clustering results without external ground truth.
 
-use ndarray::{Array1, ArrayBase, Data, Dimension, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Dimension, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::{HashMap, HashSet};
 use std::ops::{AddAssign, DivAssign};
@@ -30,7 +30,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::distance::inter_cluster_distances;
 ///
 /// // Create a small dataset with 2 clusters
@@ -57,7 +57,7 @@ where
     F: Float
         + NumCast
         + std::fmt::Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + AddAssign
         + DivAssign
         + SimdUnifiedOps,
@@ -99,7 +99,7 @@ where
 
         for (i, &sample_label) in labels.iter().enumerate() {
             if sample_label == label {
-                let sample = x.slice(ndarray::s![i, ..]);
+                let sample = x.slice(scirs2_core::ndarray::s![i, ..]);
                 centroid += &sample;
                 count += 1;
             }
@@ -156,7 +156,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::distance::intra_cluster_distances;
 ///
 /// // Create a small dataset with 2 clusters
@@ -183,7 +183,7 @@ where
     F: Float
         + NumCast
         + std::fmt::Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + AddAssign
         + DivAssign
         + SimdUnifiedOps,
@@ -225,7 +225,7 @@ where
 
         for (i, &sample_label) in labels.iter().enumerate() {
             if sample_label == label {
-                let sample = x.slice(ndarray::s![i, ..]);
+                let sample = x.slice(scirs2_core::ndarray::s![i, ..]);
                 centroid += &sample;
                 count += 1;
             }
@@ -247,7 +247,7 @@ where
 
         for (i, &sample_label) in labels.iter().enumerate() {
             if sample_label == label {
-                let sample = x.slice(ndarray::s![i, ..]);
+                let sample = x.slice(scirs2_core::ndarray::s![i, ..]);
 
                 let distance = match metric {
                     "euclidean" => euclidean_distance(&sample, centroid),
@@ -293,7 +293,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::distance::distance_ratio_index;
 ///
 /// // Create a small dataset with 2 clusters
@@ -320,7 +320,7 @@ where
     F: Float
         + NumCast
         + std::fmt::Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + AddAssign
         + DivAssign
         + SimdUnifiedOps,
@@ -399,7 +399,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::distance::isolation_index;
 ///
 /// // Create a small dataset with 2 clusters
@@ -426,7 +426,7 @@ where
     F: Float
         + NumCast
         + std::fmt::Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + AddAssign
         + DivAssign
         + SimdUnifiedOps,
@@ -492,7 +492,7 @@ where
 #[allow(dead_code)]
 fn euclidean_distance<F, S1, S2>(x: &ArrayBase<S1, Ix1>, y: &ArrayBase<S2, Ix1>) -> F
 where
-    F: Float + ndarray::ScalarOperand + SimdUnifiedOps,
+    F: Float + scirs2_core::ndarray::ScalarOperand + SimdUnifiedOps,
     S1: Data<Elem = F>,
     S2: Data<Elem = F>,
 {
@@ -515,7 +515,7 @@ where
 #[allow(dead_code)]
 fn manhattan_distance<F, S1, S2>(x: &ArrayBase<S1, Ix1>, y: &ArrayBase<S2, Ix1>) -> F
 where
-    F: Float + ndarray::ScalarOperand + SimdUnifiedOps,
+    F: Float + scirs2_core::ndarray::ScalarOperand + SimdUnifiedOps,
     S1: Data<Elem = F>,
     S2: Data<Elem = F>,
 {
@@ -538,7 +538,7 @@ where
 #[allow(dead_code)]
 fn cosine_distance<F, S1, S2>(x: &ArrayBase<S1, Ix1>, y: &ArrayBase<S2, Ix1>) -> F
 where
-    F: Float + ndarray::ScalarOperand + SimdUnifiedOps,
+    F: Float + scirs2_core::ndarray::ScalarOperand + SimdUnifiedOps,
     S1: Data<Elem = F>,
     S2: Data<Elem = F>,
 {
@@ -580,7 +580,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     #[ignore = "timeout"]

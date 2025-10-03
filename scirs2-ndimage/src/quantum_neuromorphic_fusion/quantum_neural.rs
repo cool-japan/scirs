@@ -20,9 +20,9 @@
 //! multiple neural states to exist simultaneously while biological constraints ensure
 //! energy efficiency and temporal dynamics.
 
-use ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 
@@ -534,7 +534,7 @@ where
 #[allow(dead_code)]
 fn quantum_neuromorphic_forward_pass(
     network: &mut [Array2<QuantumSpikingNeuron>],
-    inputstates: &ndarray::ArrayView3<Complex<f64>>,
+    inputstates: &scirs2_core::ndarray::ArrayView3<Complex<f64>>,
     config: &QuantumNeuromorphicConfig,
     current_time: usize,
 ) -> NdimageResult<Array3<Complex<f64>>> {
@@ -671,7 +671,7 @@ fn quantum_network_memory_consolidation(
 /// Convert quantum states to image
 #[allow(dead_code)]
 fn quantumstates_toimage<T>(
-    quantumstates: ndarray::ArrayView4<Complex<f64>>,
+    quantumstates: scirs2_core::ndarray::ArrayView4<Complex<f64>>,
     config: &QuantumNeuromorphicConfig,
 ) -> NdimageResult<Array2<T>>
 where
@@ -1019,7 +1019,7 @@ fn apply_bio_attention_gate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_quantum_spiking_neural_network() {

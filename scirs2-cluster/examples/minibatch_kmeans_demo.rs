@@ -169,8 +169,14 @@ fn generate_clustered_data(n_samples: usize, ndim: usize) -> Array2<f64> {
 /// Calculate the agreement between two clusterings (adjusting for label permutation)
 #[allow(dead_code)]
 fn calculate_cluster_agreement(
-    labels1: &ndarray::ArrayBase<ndarray::OwnedRepr<usize>, ndarray::Dim<[usize; 1]>>,
-    labels2: &ndarray::ArrayBase<ndarray::OwnedRepr<usize>, ndarray::Dim<[usize; 1]>>,
+    labels1: &scirs2_core::ndarray::ArrayBase<
+        scirs2_core::ndarray::OwnedRepr<usize>,
+        scirs2_core::ndarray::Dim<[usize; 1]>,
+    >,
+    labels2: &scirs2_core::ndarray::ArrayBase<
+        scirs2_core::ndarray::OwnedRepr<usize>,
+        scirs2_core::ndarray::Dim<[usize; 1]>,
+    >,
 ) -> f64 {
     let n_samples = labels1.len();
 

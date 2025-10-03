@@ -200,7 +200,7 @@ impl NeuralSpatialOptimizer {
             // Xavier/Glorot initialization
             let scale = (2.0_f64 / (input_size + output_size) as f64).sqrt();
             let weights = Array2::from_shape_fn((output_size, input_size), |_| {
-                (rand::random::<f64>() - 0.5) * 2.0 * scale
+                (scirs2_core::random::random::<f64>() - 0.5) * 2.0 * scale
             });
             let biases = Array1::zeros(output_size);
 
@@ -232,7 +232,7 @@ impl NeuralSpatialOptimizer {
             // Xavier/Glorot initialization
             let scale = (2.0_f64 / (input_size + output_size) as f64).sqrt();
             let weights = Array2::from_shape_fn((output_size, input_size), |_| {
-                (rand::random::<f64>() - 0.5) * 2.0 * scale
+                (scirs2_core::random::random::<f64>() - 0.5) * 2.0 * scale
             });
             let biases = Array1::zeros(output_size);
 
@@ -446,7 +446,7 @@ impl NeuralSpatialOptimizer {
         let bounds = self.get_data_bounds(points);
         for _ in 0..sample_size {
             let random_point: Array1<f64> = Array1::from_shape_fn(n_dims, |i| {
-                rand::random::<f64>() * (bounds[i].1 - bounds[i].0) + bounds[i].0
+                scirs2_core::random::random::<f64>() * (bounds[i].1 - bounds[i].0) + bounds[i].0
             });
 
             let mut min_dist = f64::INFINITY;
@@ -576,13 +576,13 @@ impl NeuralSpatialOptimizer {
             InitMethod::Random => {
                 for i in 0..params.num_clusters {
                     for j in 0..n_dims {
-                        centroids[[i, j]] = rand::random::<f64>();
+                        centroids[[i, j]] = scirs2_core::random::random::<f64>();
                     }
                 }
             }
             InitMethod::KMeansPlusPlus => {
                 // Simplified k-means++ initialization
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
                 let mut selected = Vec::new();
                 for _ in 0..params.num_clusters {
                     let idx = rng.gen_range(0..n_points);
@@ -856,7 +856,7 @@ impl NeuralSpatialOptimizer {
         self.training_iterations += 1;
 
         // Adaptive learning rate
-        if self.adaptive_learning && self.training_iterations % 100 == 0 {
+        if self.adaptive_learning && self.training_iterations.is_multiple_of(100) {
             self.learning_rate *= 0.95; // Decay learning rate
         }
 
@@ -1101,7 +1101,7 @@ impl ReinforcementLearningSelector {
         let state = self.analyze_data_state(points)?;
 
         // Epsilon-greedy action selection
-        if rand::random::<f64>() < self.epsilon {
+        if scirs2_core::random::random::<f64>() < self.epsilon {
             // Explore: random action
             Ok(self.random_algorithm())
         } else {
@@ -1232,7 +1232,7 @@ impl ReinforcementLearningSelector {
         let bounds = self.get_data_bounds(points);
         for _ in 0..sample_size {
             let random_point: Array1<f64> = Array1::from_shape_fn(n_dims, |i| {
-                rand::random::<f64>() * (bounds[i].1 - bounds[i].0) + bounds[i].0
+                scirs2_core::random::random::<f64>() * (bounds[i].1 - bounds[i].0) + bounds[i].0
             });
 
             let mut min_dist = f64::INFINITY;
@@ -1282,7 +1282,7 @@ impl ReinforcementLearningSelector {
             SpatialAlgorithm::BallTree,
         ];
 
-        let index = (rand::random::<f64>() * algorithms.len() as f64) as usize;
+        let index = (scirs2_core::random::random::<f64>() * algorithms.len() as f64) as usize;
         algorithms[index.min(algorithms.len() - 1)].clone()
     }
 

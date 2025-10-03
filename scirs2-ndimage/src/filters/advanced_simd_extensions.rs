@@ -6,8 +6,10 @@
 //! - Memory prefetching and alignment optimizations
 //! - Specialized algorithms for common operations
 
-use ndarray::{s, Array, Array2, ArrayView, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, Ix2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{
+    s, Array, Array2, ArrayView, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis, Ix2,
+};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 
@@ -770,7 +772,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_advanced_simd_wavelet_pyramid() {

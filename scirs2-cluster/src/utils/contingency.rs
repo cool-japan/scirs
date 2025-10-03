@@ -3,7 +3,7 @@
 //! This module provides utilities for building and working with contingency matrices
 //! used in clustering evaluation metrics.
 
-use ndarray::{Array2, ArrayView1};
+use scirs2_core::ndarray::{Array2, ArrayView1};
 
 /// Build a contingency matrix from two label arrays
 ///

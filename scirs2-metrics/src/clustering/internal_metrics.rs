@@ -4,8 +4,8 @@
 //! which assess clustering quality without external ground truth. These include
 //! silhouette score, Davies-Bouldin index, Calinski-Harabasz index, and Dunn index.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Dimension, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Dimension, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 
 use super::{calculate_distance, group_by_labels, pairwise_distances};
@@ -53,7 +53,7 @@ pub struct SilhouetteAnalysis<F: Float> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::silhouette_score;
 ///
 /// // Create a small dataset with 2 clusters
@@ -78,7 +78,7 @@ pub fn silhouette_score<F, S1, S2, D>(
     metric: &str,
 ) -> Result<F>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + 'static,
+    F: Float + NumCast + std::fmt::Debug + scirs2_core::ndarray::ScalarOperand + 'static,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -105,7 +105,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::silhouette_samples;
 ///
 /// // Create a small dataset with 2 clusters
@@ -130,7 +130,7 @@ pub fn silhouette_samples<F, S1, S2, D>(
     metric: &str,
 ) -> Result<Vec<F>>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + 'static,
+    F: Float + NumCast + std::fmt::Debug + scirs2_core::ndarray::ScalarOperand + 'static,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -157,7 +157,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::silhouette_scores_per_cluster;
 ///
 /// // Create a small dataset with 3 clusters
@@ -182,7 +182,7 @@ pub fn silhouette_scores_per_cluster<F, S1, S2, D>(
     metric: &str,
 ) -> Result<HashMap<usize, F>>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + 'static,
+    F: Float + NumCast + std::fmt::Debug + scirs2_core::ndarray::ScalarOperand + 'static,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -210,7 +210,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::silhouette_analysis;
 ///
 /// // Create a small dataset with 3 clusters
@@ -245,7 +245,7 @@ pub fn silhouette_analysis<F, S1, S2, D>(
     metric: &str,
 ) -> Result<SilhouetteAnalysis<F>>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + 'static,
+    F: Float + NumCast + std::fmt::Debug + scirs2_core::ndarray::ScalarOperand + 'static,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -443,7 +443,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::davies_bouldin_score;
 ///
 /// // Create a small dataset with 2 clusters
@@ -467,7 +467,7 @@ pub fn davies_bouldin_score<F, S1, S2, D>(
     labels: &ArrayBase<S2, D>,
 ) -> Result<F>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + 'static,
+    F: Float + NumCast + std::fmt::Debug + scirs2_core::ndarray::ScalarOperand + 'static,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -578,7 +578,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::calinski_harabasz_score;
 ///
 /// // Create a small dataset with 2 clusters
@@ -602,7 +602,7 @@ pub fn calinski_harabasz_score<F, S1, S2, D>(
     labels: &ArrayBase<S2, D>,
 ) -> Result<F>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + 'static,
+    F: Float + NumCast + std::fmt::Debug + scirs2_core::ndarray::ScalarOperand + 'static,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,

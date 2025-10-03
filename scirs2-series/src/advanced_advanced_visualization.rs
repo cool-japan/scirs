@@ -17,7 +17,7 @@
 //! - **Accessibility Features**: Screen reader support and color-blind friendly palettes
 
 use crate::error::{Result, TimeSeriesError};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::VecDeque;
 
 /// Advanced-advanced plot configuration with AI assistance

@@ -1,4 +1,4 @@
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_interpolate::{
     make_antisymmetric_boundary, make_cubic_extrapolator, make_exponential_extrapolator,
     make_linear_extrapolator, make_linear_gradient_boundary, make_periodic_boundary,

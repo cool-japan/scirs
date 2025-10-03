@@ -21,8 +21,8 @@
 //! - Resource management and constraint specifications
 //! - Data conversion pipeline configurations
 
-use ndarray::{Array1, Array2};
-use num_complex::Complex;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex;
 use std::collections::VecDeque;
 
 // Import from parent modules

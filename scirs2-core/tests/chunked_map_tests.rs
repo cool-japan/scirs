@@ -2,8 +2,8 @@
 
 #[cfg(feature = "memory_efficient")]
 mod tests {
-    use ndarray::Array1;
     use scirs2_core::memory_efficient::{ChunkedArray, ChunkingStrategy};
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_chunked_array_map_1d() {

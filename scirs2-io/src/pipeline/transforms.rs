@@ -5,8 +5,8 @@
 
 use super::*;
 use crate::error::Result;
-use ndarray::{s, Array1, Array2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -609,27 +609,33 @@ impl DataTransformer for FeatureEngineeringTransform {
                 match operation {
                     FeatureOperation::Log => {
                         let log_features = result.mapv(|x| if x > 0.0 { x.ln() } else { 0.0 });
-                        result =
-                            ndarray::concatenate(Axis(1), &[result.view(), log_features.view()])
-                                .unwrap();
+                        result = scirs2_core::ndarray::concatenate(
+                            Axis(1),
+                            &[result.view(), log_features.view()],
+                        )
+                        .unwrap();
                     }
                     FeatureOperation::Sqrt => {
                         let sqrt_features = result.mapv(|x| if x >= 0.0 { x.sqrt() } else { 0.0 });
-                        result =
-                            ndarray::concatenate(Axis(1), &[result.view(), sqrt_features.view()])
-                                .unwrap();
+                        result = scirs2_core::ndarray::concatenate(
+                            Axis(1),
+                            &[result.view(), sqrt_features.view()],
+                        )
+                        .unwrap();
                     }
                     FeatureOperation::Square => {
                         let square_features = result.mapv(|x| x * x);
-                        result =
-                            ndarray::concatenate(Axis(1), &[result.view(), square_features.view()])
-                                .unwrap();
+                        result = scirs2_core::ndarray::concatenate(
+                            Axis(1),
+                            &[result.view(), square_features.view()],
+                        )
+                        .unwrap();
                     }
                     FeatureOperation::Polynomial { degree } => {
                         let mut poly_features = result.clone();
                         for d in 2..=*degree {
                             let power_features = result.mapv(|x| x.powi(d as i32));
-                            poly_features = ndarray::concatenate(
+                            poly_features = scirs2_core::ndarray::concatenate(
                                 Axis(1),
                                 &[poly_features.view(), power_features.view()],
                             )
@@ -645,7 +651,7 @@ impl DataTransformer for FeatureEngineeringTransform {
                                     interaction_col *= &result.column(idx);
                                 }
                             }
-                            result = ndarray::concatenate(
+                            result = scirs2_core::ndarray::concatenate(
                                 Axis(1),
                                 &[result.view(), interaction_col.insert_axis(Axis(1)).view()],
                             )
@@ -668,9 +674,11 @@ impl DataTransformer for FeatureEngineeringTransform {
                             }
                         }
 
-                        result =
-                            ndarray::concatenate(Axis(1), &[result.view(), binned_features.view()])
-                                .unwrap();
+                        result = scirs2_core::ndarray::concatenate(
+                            Axis(1),
+                            &[result.view(), binned_features.view()],
+                        )
+                        .unwrap();
                     }
                 }
             }
@@ -765,7 +773,7 @@ impl DataTransformer for TextProcessingTransform {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_normalize_minmax() {

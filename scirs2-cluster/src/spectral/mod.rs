@@ -4,8 +4,8 @@
 //! dimensionality before clustering in fewer dimensions. This method is particularly
 //! useful when the clusters have complex shapes and KMeans would perform poorly.
 
-use ndarray::{s, Array1, Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_linalg::{eigh, smallest_k_eigh};
 use std::fmt::Debug;
 
@@ -308,7 +308,7 @@ impl<F: Float + FromPrimitive> Default for SpectralClusteringOptions<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, ArrayView2};
+/// use scirs2_core::ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::spectral::{spectral_clustering, SpectralClusteringOptions, AffinityMode};
 ///
 /// // Example data with two ring-shaped clusters
@@ -567,7 +567,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_spectral_clustering_basic() {

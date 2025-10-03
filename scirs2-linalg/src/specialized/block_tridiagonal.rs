@@ -6,8 +6,8 @@
 
 use super::SpecializedMatrix;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -21,7 +21,7 @@ use std::iter::Sum;
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_linalg::specialized::BlockTridiagonalMatrix;
 /// use scirs2_linalg::SpecializedMatrix;
 ///
@@ -299,7 +299,7 @@ where
         for block_idx in 0..self.block_count() {
             let blocksize = self.block_dims[block_idx];
             let mut result_block =
-                result.slice_mut(ndarray::s![row_offset..row_offset + blocksize]);
+                result.slice_mut(scirs2_core::ndarray::s![row_offset..row_offset + blocksize]);
 
             // Initialize with zeros
             for val in result_block.iter_mut() {
@@ -315,7 +315,7 @@ where
             for b in 0..block_idx {
                 col_offset += self.block_dims[b];
             }
-            let x_block = x.slice(ndarray::s![col_offset..col_offset + blocksize]);
+            let x_block = x.slice(scirs2_core::ndarray::s![col_offset..col_offset + blocksize]);
 
             // Multiply diagonal block: result_block += diag_block * x_block
             for i in 0..blocksize {
@@ -328,7 +328,7 @@ where
             if block_idx < self.block_count() - 1 {
                 let super_block = &self.superdiagonal[block_idx];
                 let next_blocksize = self.block_dims[block_idx + 1];
-                let x_next_block = x.slice(ndarray::s![
+                let x_next_block = x.slice(scirs2_core::ndarray::s![
                     col_offset + blocksize..col_offset + blocksize + next_blocksize
                 ]);
 
@@ -344,7 +344,9 @@ where
             if block_idx > 0 {
                 let prev_blocksize = self.block_dims[block_idx - 1];
                 let sub_block = &self.subdiagonal[block_idx - 1];
-                let x_prev_block = x.slice(ndarray::s![col_offset - prev_blocksize..col_offset]);
+                let x_prev_block = x.slice(scirs2_core::ndarray::s![
+                    col_offset - prev_blocksize..col_offset
+                ]);
 
                 // Multiply subdiagonal block: result_block += sub_block * x_prev_block
                 for i in 0..blocksize {
@@ -376,7 +378,7 @@ where
         for block_idx in 0..self.block_count() {
             let blocksize = self.block_dims[block_idx];
             let mut result_block =
-                result.slice_mut(ndarray::s![col_offset..col_offset + blocksize]);
+                result.slice_mut(scirs2_core::ndarray::s![col_offset..col_offset + blocksize]);
 
             // Initialize with zeros
             for val in result_block.iter_mut() {
@@ -392,7 +394,7 @@ where
             for b in 0..block_idx {
                 row_offset += self.block_dims[b];
             }
-            let x_block = x.slice(ndarray::s![row_offset..row_offset + blocksize]);
+            let x_block = x.slice(scirs2_core::ndarray::s![row_offset..row_offset + blocksize]);
 
             // Multiply diagonal block transpose: result_block += diag_block^T * x_block
             for i in 0..blocksize {
@@ -405,7 +407,7 @@ where
             if block_idx < self.block_count() - 1 {
                 let sub_block = &self.subdiagonal[block_idx];
                 let next_blocksize = self.block_dims[block_idx + 1];
-                let x_next_block = x.slice(ndarray::s![
+                let x_next_block = x.slice(scirs2_core::ndarray::s![
                     row_offset + blocksize..row_offset + blocksize + next_blocksize
                 ]);
 
@@ -421,7 +423,9 @@ where
             if block_idx > 0 {
                 let prev_blocksize = self.block_dims[block_idx - 1];
                 let super_block = &self.superdiagonal[block_idx - 1];
-                let x_prev_block = x.slice(ndarray::s![row_offset - prev_blocksize..row_offset]);
+                let x_prev_block = x.slice(scirs2_core::ndarray::s![
+                    row_offset - prev_blocksize..row_offset
+                ]);
 
                 // Multiply superdiagonal block transpose: result_block += super_block^T * x_prev_block
                 for i in 0..blocksize {
@@ -595,7 +599,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     fn create_testmatrix() -> BlockTridiagonalMatrix<f64> {
         // Create 2×2 blocks

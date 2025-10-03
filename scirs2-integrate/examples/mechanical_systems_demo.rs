@@ -4,7 +4,7 @@
 //! mechanical systems including rigid body dynamics, constrained multibody systems,
 //! and various integration schemes optimized for mechanical systems.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_integrate::ode::mechanical::{systems, MechanicalIntegrator, PositionIntegrationMethod};
 use std::f64::consts::PI;
 

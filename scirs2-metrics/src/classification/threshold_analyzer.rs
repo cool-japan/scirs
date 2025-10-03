@@ -4,7 +4,7 @@
 //! across different thresholds and finding optimal thresholds based on various
 //! metrics and strategies.
 
-use ndarray::{ArrayBase, Data, Dimension, Ix1};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension, Ix1};
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 

@@ -3,8 +3,8 @@
 //! This module provides deep learning-based clustering algorithms that
 //! learn feature representations and cluster assignments simultaneously.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
@@ -167,7 +167,7 @@ pub fn variational_deep_embedding<F: Float + FromPrimitive + Debug + 'static>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_deep_clustering_config_default() {

@@ -1,5 +1,5 @@
-use rand::prelude::*;
-use rand::rngs::SmallRng;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rngs::SmallRng;
 use scirs2_neural::utils::colors::ColorOptions;
 use scirs2_neural::utils::evaluation::ConfusionMatrix;
 
@@ -39,7 +39,8 @@ fn main() {
     // Convert to ndarray
     let flat_matrix: Vec<f64> = matrix.iter().flatten().map(|&x| x as f64).collect();
     let ndarray_matrix =
-        ndarray::Array::from_shape_vec((num_classes, num_classes), flat_matrix).unwrap();
+        scirs2_core::ndarray::Array::from_shape_vec((num_classes, num_classes), flat_matrix)
+            .unwrap();
     // Create class labels
     let class_labels = vec![
         "Class A".to_string(),

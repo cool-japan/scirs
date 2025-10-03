@@ -3,9 +3,9 @@
 use crate::error::Result;
 use crate::reinforcement::policy::{Policy, PolicyNetwork};
 use crate::reinforcement::value::ValueNetwork;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::sync::Arc;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use statrs::statistics::Statistics;
 /// Base Actor-Critic structure
 pub struct ActorCritic {

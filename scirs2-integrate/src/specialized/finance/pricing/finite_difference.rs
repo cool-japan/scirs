@@ -4,7 +4,7 @@ use crate::error::IntegrateResult;
 use crate::specialized::finance::models::VolatilityModel;
 use crate::specialized::finance::solvers::StochasticPDESolver;
 use crate::specialized::finance::types::{FinancialOption, OptionStyle, OptionType};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Main finite difference pricing function
 pub fn price_finite_difference(

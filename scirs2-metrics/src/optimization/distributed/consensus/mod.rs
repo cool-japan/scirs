@@ -7,7 +7,7 @@
 //! - Simple majority voting
 
 use crate::error::{MetricsError, Result};
-use rand::Rng;
+use scirs2_core::random::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
@@ -93,7 +93,7 @@ impl RaftConsensus {
 
         // Reset election timeout with randomization
         let base_timeout = self.config.election_timeout_ms;
-        let jitter = rand::rng().random_range(0..base_timeout / 2);
+        let jitter = scirs2_core::random::rng().random_range(0..base_timeout / 2);
         self.election_timeout = Duration::from_millis(base_timeout + jitter);
 
         // TODO: Send vote requests to all peers
@@ -362,7 +362,7 @@ impl PbftConsensus {
 
         // PBFT requires 3f + 1 nodes to tolerate f Byzantine failures
         // For simplicity, we use 2f + 1 for non-Byzantine consensus
-        healthy_nodes >= (total_nodes * 2 / 3) + 1
+        healthy_nodes > (total_nodes * 2 / 3)
     }
 
     /// Start PBFT three-phase protocol
@@ -510,7 +510,7 @@ impl SimpleMajorityConsensus {
                 .duration_since(std::time::UNIX_EPOCH)
                 .unwrap()
                 .as_millis(),
-            rand::rng().random::<u64>()
+            scirs2_core::random::rng().random::<u64>()
         );
 
         let vote = Vote {

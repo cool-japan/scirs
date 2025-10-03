@@ -31,7 +31,7 @@
 //! ## Examples
 //!
 //! ```
-//! use ndarray::{array, ArrayView1};
+//! use scirs2_core::ndarray::{array, ArrayView1};
 //! use scirs2_linalg::matrix_calculus::gradient;
 //! use scirs2_linalg::error::LinalgResult;
 //!
@@ -49,8 +49,8 @@
 //! assert!((grad[1] - 4.0_f64).abs() < 1e-6_f64);
 //! ```
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use crate::error::{LinalgError, LinalgResult};

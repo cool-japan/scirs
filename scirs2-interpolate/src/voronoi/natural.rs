@@ -7,8 +7,8 @@
 //! the concept of natural neighbors in a Voronoi diagram to determine weights
 //! for interpolation. It provides C¹ continuity except at the data points.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -35,7 +35,7 @@ pub struct NaturalNeighborInterpolator<
     F: Float
         + FromPrimitive
         + Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
         + std::cmp::PartialOrd
         + ordered_float::FloatCore,
@@ -60,7 +60,7 @@ impl<
         F: Float
             + FromPrimitive
             + Debug
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + 'static
             + std::cmp::PartialOrd
             + ordered_float::FloatCore,
@@ -143,7 +143,8 @@ impl<
             let mut is_same = true;
 
             for j in 0..dim {
-                if num_traits::Float::abs(point[j] - query[j]) > <F as num_traits::Float>::epsilon()
+                if scirs2_core::numeric::Float::abs(point[j] - query[j])
+                    > <F as scirs2_core::numeric::Float>::epsilon()
                 {
                     is_same = false;
                     break;
@@ -213,11 +214,12 @@ impl<
                     // Compute distance to the neighbor
                     let mut distance = F::zero();
                     for j in 0..dim {
-                        distance = distance + num_traits::Float::powi(site[j] - query[j], 2);
+                        distance =
+                            distance + scirs2_core::numeric::Float::powi(site[j] - query[j], 2);
                     }
                     distance = distance.sqrt();
 
-                    if distance < <F as num_traits::Float>::epsilon() {
+                    if distance < <F as scirs2_core::numeric::Float>::epsilon() {
                         // If the query point is very close to this site,
                         // just return the value at this site
                         return Ok(self.values[*idx_]);
@@ -302,7 +304,7 @@ pub fn make_natural_neighbor_interpolator<
     F: Float
         + FromPrimitive
         + Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
         + std::cmp::PartialOrd
         + ordered_float::FloatCore,
@@ -327,7 +329,7 @@ pub fn make_sibson_interpolator<
     F: Float
         + FromPrimitive
         + Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
         + std::cmp::PartialOrd
         + ordered_float::FloatCore,
@@ -351,7 +353,7 @@ pub fn make_laplace_interpolator<
     F: Float
         + FromPrimitive
         + Debug
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static
         + std::cmp::PartialOrd
         + ordered_float::FloatCore,

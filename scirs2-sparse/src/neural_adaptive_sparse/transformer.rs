@@ -5,7 +5,7 @@
 
 use super::neural_network::{ActivationFunction, AttentionHead, LayerNorm};
 use crate::error::SparseResult;
-use rand::Rng;
+use scirs2_core::random::Rng;
 
 /// Transformer model for advanced pattern recognition
 #[derive(Debug, Clone)]
@@ -246,7 +246,7 @@ impl MultiHeadAttention {
 
     /// Initialize weights
     fn initialize_weights(input_dim: usize, output_dim: usize) -> Vec<Vec<f64>> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let bound = (6.0 / (input_dim + output_dim) as f64).sqrt();
 
         (0..output_dim)
@@ -331,7 +331,7 @@ impl FeedForwardNetwork {
 
     /// Initialize weights
     fn initialize_weights(input_dim: usize, output_dim: usize) -> Vec<Vec<f64>> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let bound = (6.0 / (input_dim + output_dim) as f64).sqrt();
 
         (0..output_dim)

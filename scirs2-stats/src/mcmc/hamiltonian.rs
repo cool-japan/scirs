@@ -4,8 +4,8 @@
 //! more efficient proposals than random walk methods.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2};
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_core::validation::*;
 use scirs2_core::Rng;
 use std::fmt::Debug;

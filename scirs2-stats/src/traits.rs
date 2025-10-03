@@ -4,8 +4,8 @@
 //! including standard distributions and specialized circular distributions.
 
 use crate::error::StatsResult;
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 
 /// Base trait for all statistical distributions
 pub trait Distribution<F: Float> {
@@ -239,13 +239,13 @@ pub trait MultivariateDistribution<F: Float> {
     /// # Returns
     ///
     /// A matrix where each row is a sample
-    fn rvs(&self, size: usize) -> StatsResult<ndarray::Array2<F>>;
+    fn rvs(&self, size: usize) -> StatsResult<scirs2_core::ndarray::Array2<F>>;
 
     /// Mean vector of the distribution
     fn mean(&self) -> Array1<F>;
 
     /// Covariance matrix of the distribution
-    fn cov(&self) -> ndarray::Array2<F>;
+    fn cov(&self) -> scirs2_core::ndarray::Array2<F>;
 
     /// Dimensionality of the distribution
     fn dim(&self) -> usize;

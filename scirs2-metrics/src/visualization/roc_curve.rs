@@ -2,7 +2,7 @@
 //!
 //! This module provides tools for visualizing ROC (Receiver Operating Characteristic) curves.
 
-use ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
 use std::error::Error;
 
 use super::{MetricVisualizer, PlotType, VisualizationData, VisualizationMetadata};
@@ -296,7 +296,7 @@ pub fn roc_curve_visualization(
     tpr: Vec<f64>,
     thresholds: Option<Vec<f64>>,
     auc: Option<f64>,
-) -> ROCCurveVisualizer<'static, f64, ndarray::OwnedRepr<f64>> {
+) -> ROCCurveVisualizer<'static, f64, scirs2_core::ndarray::OwnedRepr<f64>> {
     ROCCurveVisualizer::new(fpr, tpr, thresholds, auc)
 }
 

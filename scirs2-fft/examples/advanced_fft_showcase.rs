@@ -3,7 +3,7 @@
 //! This example demonstrates basic FFT operations as a placeholder
 //! for advanced FFT optimization capabilities.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_fft::fft;
 use std::f64::consts::PI;

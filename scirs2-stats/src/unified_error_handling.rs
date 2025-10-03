@@ -45,9 +45,8 @@ impl UnifiedErrorHandler {
 
         // Create enhanced error with context and suggestions
         let base_error = StatsError::computation(message);
-        let enhanced = ErrorBuilder::new(code, operation_str).build(base_error);
 
-        enhanced
+        ErrorBuilder::new(code, operation_str).build(base_error)
     }
 
     /// Create error with parameter validation and automatic suggestions
@@ -66,11 +65,10 @@ impl UnifiedErrorHandler {
 
         // Create enhanced error with parameter context
         let base_error = StatsError::invalid_argument(validation_message);
-        let enhanced = ErrorBuilder::new(code, operation_str)
-            .parameter(parameter_name, parameter_value)
-            .build(base_error);
 
-        enhanced
+        ErrorBuilder::new(code, operation_str)
+            .parameter(parameter_name, parameter_value)
+            .build(base_error)
     }
 
     /// Validate array and create appropriate error if validation fails
@@ -108,7 +106,7 @@ impl UnifiedErrorHandler {
 
         // Check for finite values using core validation
         for &value in data {
-            if let Err(_) = check_finite(value, name) {
+            if check_finite(value, name).is_err() {
                 let code = if value.is_nan() {
                     ErrorCode::E3005
                 } else if value.is_infinite() {
@@ -131,10 +129,10 @@ impl UnifiedErrorHandler {
         operation: &str,
     ) -> StatsResult<()> {
         // Use scirs2-core validation
-        if let Err(_) = scirs2_core::validation::check_probability(value, name) {
+        if scirs2_core::validation::check_probability(value, name).is_err() {
             let code = if value.is_nan() {
                 ErrorCode::E3005
-            } else if value < 0.0 || value > 1.0 {
+            } else if !(0.0..=1.0).contains(&value) {
                 ErrorCode::E1003
             } else {
                 ErrorCode::E1001
@@ -154,7 +152,7 @@ impl UnifiedErrorHandler {
         operation: &str,
     ) -> StatsResult<()> {
         // Use scirs2-core validation
-        if let Err(_) = check_positive(value, name) {
+        if check_positive(value, name).is_err() {
             let code = if value.is_nan() {
                 ErrorCode::E3005
             } else if value.is_infinite() {

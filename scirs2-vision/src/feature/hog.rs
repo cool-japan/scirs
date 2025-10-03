@@ -5,7 +5,7 @@
 use crate::error::Result;
 use crate::feature::image_to_array;
 use image::DynamicImage;
-use ndarray::{s, Array1, Array2, Array3};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3};
 use std::f32::consts::PI;
 
 /// Configuration for HOG descriptor

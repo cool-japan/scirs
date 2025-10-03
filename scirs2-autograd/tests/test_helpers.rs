@@ -45,8 +45,8 @@ pub fn create_test_tensor_in_context<'a, F>(
 where
     F: Float,
 {
-    use ndarray::{Array, IxDyn};
     use scirs2_autograd::tensor_ops as T;
+    use scirs2_core::ndarray::{Array, IxDyn};
 
     let size: usize = shape.iter().product();
     let data: Vec<F> = (0..size)
@@ -68,10 +68,10 @@ pub fn create_uncertainty_tensor_in_context<'a, F>(
 where
     F: Float,
 {
-    use ndarray::{Array, IxDyn};
-    use rand::prelude::*;
-    use rand::rng;
     use scirs2_autograd::tensor_ops as T;
+    use scirs2_core::ndarray::{Array, IxDyn};
+    use scirs2_core::random::prelude::*;
+    use scirs2_core::random::rng;
 
     let size: usize = shape.iter().product();
     let mut rng = rng();

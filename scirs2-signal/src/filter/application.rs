@@ -5,8 +5,8 @@
 // phase conversion, and matched filtering for signal detection.
 
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast, Zero};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast, Zero};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -52,7 +52,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -122,7 +122,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })

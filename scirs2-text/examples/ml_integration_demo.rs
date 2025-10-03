@@ -139,8 +139,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("\n7. Feature Statistics");
     println!("--------------------");
 
-    let feature_means = train_features.features.mean_axis(ndarray::Axis(0)).unwrap();
-    let feature_stds = train_features.features.std_axis(ndarray::Axis(0), 0.0);
+    let feature_means = train_features
+        .features
+        .mean_axis(scirs2_core::ndarray::Axis(0))
+        .unwrap();
+    let feature_stds = train_features
+        .features
+        .std_axis(scirs2_core::ndarray::Axis(0), 0.0);
 
     println!(
         "Mean of first 5 features: {:?}",

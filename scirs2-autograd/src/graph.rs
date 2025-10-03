@@ -407,7 +407,7 @@ impl<'graph, 'env, F: Float> Context<'env, F> {
     /// Use [Evaluator::feed] and [Feeder::push] in order to assign ArrayViews to placeholders.
     ///    ```
     /// use scirs2_autograd as ag;
-    /// use ag::ndarray::array;
+    /// use scirs2_core::ndarray::array;
     ///
     /// ag::run(|ctx| {
     ///     // be aware that x1 and x3 represent the same value

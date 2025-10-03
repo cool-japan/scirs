@@ -11,9 +11,9 @@
 
 use std::collections::HashMap;
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
-use scirs2_core::random::rand_distributions::Uniform;
+use scirs2_core::random::{Distribution, Uniform};
 use serde::{Deserialize, Serialize};
 
 use crate::cache::DatasetCache;
@@ -116,7 +116,7 @@ pub mod astronomy {
         }
 
         fn load_synthetic_stellar_data(&self, catalog: &str, nstars: usize) -> Result<Dataset> {
-            use rand_distr::{Distribution, Normal};
+            use scirs2_core::random::{Distribution, Normal};
 
             let mut rng = thread_rng();
 
@@ -125,8 +125,8 @@ pub mod astronomy {
             let mut spectral_classes = Vec::with_capacity(nstars);
 
             // Distributions for stellar parameters
-            let ra_dist = rand_distr::Uniform::new(0.0, 360.0).unwrap();
-            let dec_dist = rand_distr::Uniform::new(-90.0, 90.0).unwrap();
+            let ra_dist = scirs2_core::random::Uniform::new(0.0, 360.0).unwrap();
+            let dec_dist = scirs2_core::random::Uniform::new(-90.0, 90.0).unwrap();
             let magnitude_dist = Normal::new(8.0, 3.0).unwrap();
             let color_dist = Normal::new(0.5, 0.3).unwrap();
             let parallax_dist = Normal::new(10.0, 5.0).unwrap();
@@ -210,7 +210,7 @@ pub mod astronomy {
         }
 
         fn load_synthetic_exoplanet_data(&self, nplanets: usize) -> Result<Dataset> {
-            use rand_distr::{Distribution, LogNormal, Normal};
+            use scirs2_core::random::{Distribution, LogNormal, Normal};
 
             let mut rng = thread_rng();
 
@@ -291,7 +291,7 @@ pub mod astronomy {
         }
 
         fn load_synthetic_supernova_data(&self, nsupernovae: usize) -> Result<Dataset> {
-            use rand_distr::{Distribution, Normal};
+            use scirs2_core::random::{Distribution, Normal};
 
             let mut rng = thread_rng();
 
@@ -417,7 +417,7 @@ pub mod genomics {
 
         /// Load synthetic gene expression data
         pub fn load_gene_expression(&self, n_samples: usize, ngenes: usize) -> Result<Dataset> {
-            use rand_distr::{Distribution, LogNormal, Normal};
+            use scirs2_core::random::{Distribution, LogNormal, Normal};
 
             let mut rng = thread_rng();
 
@@ -671,7 +671,7 @@ pub mod climate {
             n_stations: usize,
             n_years: usize,
         ) -> Result<Dataset> {
-            use rand_distr::{Distribution, Normal};
+            use scirs2_core::random::{Distribution, Normal};
 
             let mut rng = thread_rng();
             let days_per_year = 365;
@@ -800,7 +800,7 @@ pub mod climate {
 
         /// Load atmospheric chemistry data
         pub fn load_atmospheric_chemistry(&self, nmeasurements: usize) -> Result<Dataset> {
-            use rand_distr::{Distribution, LogNormal, Normal};
+            use scirs2_core::random::{Distribution, LogNormal, Normal};
 
             let mut rng = thread_rng();
 
@@ -982,7 +982,7 @@ pub mod convenience {
 #[cfg(test)]
 mod tests {
     use super::convenience::*;
-    use rand_distr::Uniform;
+    use scirs2_core::random::Uniform;
 
     #[test]
     fn test_load_stellar_classification() {

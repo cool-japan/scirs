@@ -6,9 +6,9 @@
 use crate::error::SignalResult;
 use crate::parametric::{ar_spectrum, estimate_ar, ARMethod};
 use crate::parametric_arma::{estimate_arma, ArmaMethod, ArmaModel};
-use ndarray::Array1;
-use num_complex::Complex64;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::random::Rng;
 use std::time::Instant;
 
 #[allow(unused_imports)]
@@ -433,7 +433,7 @@ fn test_numerical_stability(config: &ValidationConfig) -> SignalResult<Stability
     // Test robustness to outliers
     let mut contaminated = signal.clone();
     let n_outliers = (n as f64 * 0.05) as usize; // 5% outliers
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..n_outliers {
         let idx = rng.gen_range(0..n);
@@ -522,7 +522,7 @@ fn generate_ar_process(
     snr_db: f64,
 ) -> SignalResult<Array1<f64>> {
     let mut signal = Array1::zeros(n);
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let order = ar_coeffs.len() - 1;
 
     // Initialize with random values
@@ -573,7 +573,7 @@ fn generate_arma_process(
 ) -> SignalResult<Array1<f64>> {
     let mut signal = Array1::zeros(n);
     let mut innovations = Array1::zeros(n);
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let p = ar.len() - 1;
     let q = ma.len() - 1;
@@ -611,7 +611,7 @@ fn add_noise(_signal: &Array1<f64>, snrdb: f64) -> SignalResult<Array1<f64>> {
     let noise_std = noise_power.sqrt();
 
     let mut noisy = signal.clone();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for val in noisy.iter_mut() {
         *val += rng.gen_range(-1.0..1.0) * noise_std;

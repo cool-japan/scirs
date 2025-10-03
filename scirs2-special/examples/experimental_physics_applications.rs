@@ -16,7 +16,7 @@
 //!
 //! Run with: cargo run --example experimental_physics_applications
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_special::*;
 use std::f64::consts::PI;

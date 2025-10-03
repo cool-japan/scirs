@@ -1,7 +1,7 @@
 //! Tests for fractional matrix functions
 
 use super::super::fractional::*;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_fractional_power_half() {

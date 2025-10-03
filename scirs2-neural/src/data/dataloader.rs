@@ -2,12 +2,12 @@
 
 use crate::data::Dataset;
 use crate::error::Result;
-use ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
 use num_integer::div_ceil;
-use num_traits::{Float, FromPrimitive};
-// use rand::rngs::SmallRng;
-use rand::seq::SliceRandom;
-// use rand::SeedableRng;
+use scirs2_core::numeric::{Float, FromPrimitive};
+// use scirs2_core::random::rngs::SmallRng;
+use scirs2_core::random::seq::SliceRandom;
+// use scirs2_core::random::SeedableRng;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 /// Type alias for batch result
@@ -110,9 +110,9 @@ impl<
         for (i, &idx) in indices.iter().enumerate() {
             let (x, y) = self.dataset.get(idx)?;
             // Copy data into batch arrays
-            let mut batch_x_slice = batch_x.slice_mut(ndarray::s![i, ..]);
+            let mut batch_x_slice = batch_x.slice_mut(scirs2_core::ndarray::s![i, ..]);
             batch_x_slice.assign(&x);
-            let mut batch_y_slice = batch_y.slice_mut(ndarray::s![i, ..]);
+            let mut batch_y_slice = batch_y.slice_mut(scirs2_core::ndarray::s![i, ..]);
             batch_y_slice.assign(&y);
         Ok((batch_x, batch_y))
     > Iterator for DataLoader<F, D>

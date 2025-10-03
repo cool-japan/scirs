@@ -4,8 +4,8 @@
 //! synthetic point matches and intensity-based methods.
 
 use image::{DynamicImage, ImageBuffer, Luma};
-use ndarray::Array2;
-use rand::prelude::*;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::prelude::*;
 use scirs2_vision::error::Result;
 use scirs2_vision::registration::{
     intensity::{register_images_intensity, IntensityRegistrationConfig, SimilarityMetric},
@@ -238,7 +238,7 @@ fn add_rectangle(
 #[allow(dead_code)]
 fn create_synthetic_matches(_num_matches: usize, truetransform: &Array2<f64>) -> Vec<PointMatch> {
     let mut _matches = Vec::new();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Create good _matches with known transformation
     for _ in 0..(_num_matches * 9 / 10) {

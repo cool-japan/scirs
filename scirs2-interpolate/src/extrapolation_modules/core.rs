@@ -3,8 +3,8 @@
 //! This module contains the main Extrapolator struct and its core implementation
 //! for performing extrapolation using various methods.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::error::{InterpolateError, InterpolateResult};
 

@@ -4,7 +4,7 @@
 //! testing with simple ODE systems that have predictable event conditions.
 
 use approx::assert_relative_eq;
-use ndarray::{array, ArrayView1};
+use scirs2_core::ndarray::{array, ArrayView1};
 use scirs2_integrate::error::IntegrateResult;
 use scirs2_integrate::ode::{
     solve_ivp_with_events, EventAction, EventDirection, EventSpec, ODEMethod, ODEOptions,

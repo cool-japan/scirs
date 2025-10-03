@@ -3,8 +3,8 @@
 //! This module provides methods for selecting relevant features from datasets,
 //! which can help reduce dimensionality and improve model performance.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 
 use crate::error::{Result, TransformError};
 use statrs::statistics::Statistics;
@@ -71,7 +71,7 @@ impl VarianceThreshold {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -129,7 +129,7 @@ impl VarianceThreshold {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -602,7 +602,7 @@ impl MutualInfoSelector {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_variance_threshold_basic() {
@@ -760,11 +760,11 @@ mod tests {
         for i in 0..n_samples {
             let x1 = i as f64 / n_samples as f64;
             let x2 = (i as f64 / n_samples as f64).sin();
-            let x3 = rand::random::<f64>(); // Noise
+            let x3 = scirs2_core::random::random::<f64>(); // Noise
             let x4 = 2.0 * x1; // Highly correlated with target
 
             data_vec.extend_from_slice(&[x1, x2, x3, x4]);
-            target_vec.push(3.0 * x1 + x4 + 0.1 * rand::random::<f64>());
+            target_vec.push(3.0 * x1 + x4 + 0.1 * scirs2_core::random::random::<f64>());
         }
 
         let x = Array::from_shape_vec((n_samples, 4), data_vec).unwrap();
@@ -808,7 +808,7 @@ mod tests {
             // Feature 0: Strongly related to target
             let x0 = t;
             // Feature 1: Noise
-            let x1 = rand::random::<f64>();
+            let x1 = scirs2_core::random::random::<f64>();
             // Feature 2: Non-linearly related
             let x2 = t.sin();
 

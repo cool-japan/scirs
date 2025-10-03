@@ -5,7 +5,7 @@
 
 use crate::error::{NeuralError, Result};
 use crate::federated::{AggregationStrategy, ClientUpdate};
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 /// SCAFFOLD algorithm - stochastic controlled averaging for federated learning
 pub struct SCAFFOLD {

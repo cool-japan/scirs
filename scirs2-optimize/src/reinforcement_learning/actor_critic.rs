@@ -9,8 +9,8 @@ use super::{
 };
 use crate::error::{OptimizeError, OptimizeResult};
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayView1};
-use rand::{rng, Rng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::random::{rng, Rng};
 // use std::collections::VecDeque; // Unused import
 
 /// Actor network for policy learning
@@ -130,11 +130,11 @@ impl ActorNetwork {
 
         Self {
             hidden_weights: Array2::from_shape_fn((hidden_size, input_size), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 2.0 * xavier_scale
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 2.0 * xavier_scale
             }),
             hidden_bias: Array1::zeros(hidden_size),
             output_weights: Array2::from_shape_fn((output_size, hidden_size), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 2.0 * xavier_scale
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 2.0 * xavier_scale
             }),
             output_bias: Array1::zeros(output_size),
             _input_size: input_size,
@@ -236,11 +236,11 @@ impl CriticNetwork {
 
         Self {
             hidden_weights: Array2::from_shape_fn((hidden_size, input_size), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 2.0 * xavier_scale
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 2.0 * xavier_scale
             }),
             hidden_bias: Array1::zeros(hidden_size),
             output_weights: Array1::from_shape_fn(hidden_size, |_| {
-                (rand::rng().random::<f64>() - 0.5) * 2.0 * xavier_scale
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 2.0 * xavier_scale
             }),
             output_bias: 0.0,
             _input_size: input_size,
@@ -459,8 +459,8 @@ impl AdvantageActorCriticOptimizer {
             0.01
         };
 
-        let noisy_output =
-            policy_output.mapv(|x| x + (rand::rng().random::<f64>() - 0.5) * exploration_noise);
+        let noisy_output = policy_output
+            .mapv(|x| x + (scirs2_core::random::rng().random::<f64>() - 0.5) * exploration_noise);
         let action_probs = self
             .actor
             .action_probabilities(&noisy_output.view(), self.temperature);
@@ -474,7 +474,7 @@ impl AdvantageActorCriticOptimizer {
             })
             .collect();
 
-        let rand_val = rand::rng().random::<f64>();
+        let rand_val = scirs2_core::random::rng().random::<f64>();
         let action_idx = cumulative_probs
             .iter()
             .position(|&cp| rand_val <= cp)

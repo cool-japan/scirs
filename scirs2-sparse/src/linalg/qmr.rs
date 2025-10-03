@@ -1,6 +1,6 @@
 use crate::error::{SparseError, SparseResult};
 use crate::linalg::interface::LinearOperator;
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::Display;
 use std::iter::Sum;
 

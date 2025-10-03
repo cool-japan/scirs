@@ -1,7 +1,7 @@
 //! Rank-based filtering functions for n-dimensional arrays
 
-use ndarray::{Array, Array1, Array2, ArrayView, Dimension};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array, Array1, Array2, ArrayView, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::{parallel_ops, CoreError};
 use std::fmt::Debug;
 
@@ -387,7 +387,7 @@ where
             };
 
             // Check if this footprint position is active
-            let is_active = footprint_dyn[ndarray::IxDyn(&footprint_coords)];
+            let is_active = footprint_dyn[scirs2_core::ndarray::IxDyn(&footprint_coords)];
 
             if is_active {
                 // Calculate the corresponding position in the padded input
@@ -399,7 +399,7 @@ where
 
                 // Get the value from the padded input using dynamic indexing
                 let padded_dyn = padded_input.view().into_dyn();
-                let value = padded_dyn[ndarray::IxDyn(&input_coords)];
+                let value = padded_dyn[scirs2_core::ndarray::IxDyn(&input_coords)];
                 values.push(value);
             }
         }
@@ -408,7 +408,7 @@ where
         if !values.is_empty() {
             values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
             let selected_value = values[rank.min(values.len() - 1)];
-            output_dyn[ndarray::IxDyn(&output_coords)] = selected_value;
+            output_dyn[scirs2_core::ndarray::IxDyn(&output_coords)] = selected_value;
         }
     }
 
@@ -487,7 +487,7 @@ where
             // Handle 1D array
             let input_1d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
@@ -502,7 +502,7 @@ where
             // Handle 2D array
             let input_2d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 2D array".into())
                 })?;
@@ -517,7 +517,7 @@ where
             // For higher dimensions, convert to IxDyn, process, and convert back
             let input_dyn = input
                 .to_owned()
-                .into_dimensionality::<ndarray::IxDyn>()
+                .into_dimensionality::<scirs2_core::ndarray::IxDyn>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to dynamic array".into())
                 })?;
@@ -948,11 +948,11 @@ where
 /// Apply a rank filter to an n-dimensional IxDyn array (3D and higher)
 #[allow(dead_code)]
 fn rank_filter_nd<T>(
-    input: &Array<T, ndarray::IxDyn>,
+    input: &Array<T, scirs2_core::ndarray::IxDyn>,
     rank: usize,
     size: &[usize],
     mode: &BorderMode,
-) -> NdimageResult<Array<T, ndarray::IxDyn>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::IxDyn>>
 where
     T: Float + FromPrimitive + Debug + PartialOrd + Clone + Send + Sync + 'static,
 {
@@ -975,7 +975,7 @@ where
     // Use sequential processing with a reused buffer
     let mut window = Vec::with_capacity(window_size);
 
-    for idx in ndarray::indices(shape) {
+    for idx in scirs2_core::ndarray::indices(shape) {
         let idx_vec: Vec<_> = idx.slice().to_vec();
         window.clear();
 
@@ -1023,7 +1023,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_maximum_filter_1d() {
@@ -1204,7 +1204,7 @@ mod tests {
 
     #[test]
     fn test_rank_filter_3d() {
-        use ndarray::Array3;
+        use scirs2_core::ndarray::Array3;
 
         // Create a 3D test array
         let mut array = Array3::zeros((4, 4, 4));
@@ -1235,7 +1235,7 @@ mod tests {
 
     #[test]
     fn test_minimum_filter_3d() {
-        use ndarray::Array3;
+        use scirs2_core::ndarray::Array3;
 
         // Create a 3D test array with all ones except one zero
         let mut array = Array3::ones((4, 4, 4));
@@ -1263,7 +1263,7 @@ mod tests {
 
     #[test]
     fn test_percentile_filter_3d() {
-        use ndarray::Array3;
+        use scirs2_core::ndarray::Array3;
 
         // Create a 3D test array
         let array = Array3::from_shape_fn((3, 3, 3), |(i, j, k)| {

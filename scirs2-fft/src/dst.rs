@@ -4,8 +4,8 @@
 //! and its inverse (IDST).
 
 use crate::error::{FFTError, FFTResult};
-use ndarray::{Array, Array2, ArrayView, ArrayView2, Axis, IxDyn};
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array, Array2, ArrayView, ArrayView2, Axis, IxDyn};
+use scirs2_core::numeric::NumCast;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -61,7 +61,7 @@ where
     let input: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .ok_or_else(|| FFTError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect::<FFTResult<Vec<_>>>()?;
@@ -117,7 +117,7 @@ where
     let input: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .ok_or_else(|| FFTError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect::<FFTResult<Vec<_>>>()?;
@@ -150,7 +150,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{dst2, DSTType};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create a 2x2 array
 /// let signal = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
@@ -173,7 +173,7 @@ where
     // First, perform DST along rows
     let mut result = Array2::zeros((n_rows, n_cols));
     for r in 0..n_rows {
-        let row_slice = x.slice(ndarray::s![r, ..]);
+        let row_slice = x.slice(scirs2_core::ndarray::s![r, ..]);
         let row_vec: Vec<T> = row_slice.iter().cloned().collect();
         let row_dst = dst(&row_vec, Some(type_val), norm)?;
 
@@ -185,7 +185,7 @@ where
     // Next, perform DST along columns
     let mut final_result = Array2::zeros((n_rows, n_cols));
     for c in 0..n_cols {
-        let col_slice = result.slice(ndarray::s![.., c]);
+        let col_slice = result.slice(scirs2_core::ndarray::s![.., c]);
         let col_vec: Vec<f64> = col_slice.iter().cloned().collect();
         let col_dst = dst(&col_vec, Some(type_val), norm)?;
 
@@ -213,7 +213,7 @@ where
 ///
 /// ```
 /// use scirs2_fft::{dst2, idst2, DSTType};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create a 2x2 array
 /// let signal = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
@@ -250,7 +250,7 @@ where
     // First, perform IDST along rows
     let mut result = Array2::zeros((n_rows, n_cols));
     for r in 0..n_rows {
-        let row_slice = x.slice(ndarray::s![r, ..]);
+        let row_slice = x.slice(scirs2_core::ndarray::s![r, ..]);
         let row_vec: Vec<T> = row_slice.iter().cloned().collect();
         let row_idst = idst(&row_vec, Some(type_val), norm)?;
 
@@ -262,7 +262,7 @@ where
     // Next, perform IDST along columns
     let mut final_result = Array2::zeros((n_rows, n_cols));
     for c in 0..n_cols {
-        let col_slice = result.slice(ndarray::s![.., c]);
+        let col_slice = result.slice(scirs2_core::ndarray::s![.., c]);
         let col_vec: Vec<f64> = col_slice.iter().cloned().collect();
         let col_idst = idst(&col_vec, Some(type_val), norm)?;
 
@@ -314,7 +314,7 @@ where
     // Create an initial copy of the input array as float
     let mut result = Array::from_shape_fn(IxDyn(&xshape), |idx| {
         let val = x[idx];
-        num_traits::cast::cast::<T, f64>(val).unwrap_or(0.0)
+        NumCast::from(val).unwrap_or(0.0)
     });
 
     // Transform along each axis
@@ -385,7 +385,7 @@ where
     // Create an initial copy of the input array as float
     let mut result = Array::from_shape_fn(IxDyn(&xshape), |idx| {
         let val = x[idx];
-        num_traits::cast::cast::<T, f64>(val).unwrap_or(0.0)
+        NumCast::from(val).unwrap_or(0.0)
     });
 
     // Transform along each axis
@@ -722,98 +722,6 @@ fn idst4(x: &[f64], norm: Option<&str>) -> FFTResult<Vec<f64>> {
     dst4(&input, None)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use approx::assert_relative_eq;
-    use ndarray::arr2; // 2次元配列リテラル用
-
-    #[test]
-    fn test_dst_and_idst() {
-        // Simple test case
-        let signal = vec![1.0, 2.0, 3.0, 4.0];
-
-        // DST-II with orthogonal normalization
-        let dst_coeffs = dst(&signal, Some(DSTType::Type2), Some("ortho")).unwrap();
-
-        // IDST-II should recover the original signal
-        let recovered = idst(&dst_coeffs, Some(DSTType::Type2), Some("ortho")).unwrap();
-
-        // Check recovered signal
-        for i in 0..signal.len() {
-            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
-        }
-    }
-
-    #[test]
-    fn test_dst_types() {
-        // Test different DST types
-        let signal = vec![1.0, 2.0, 3.0, 4.0];
-
-        // Test DST-I / IDST-I
-        let dst1_coeffs = dst(&signal, Some(DSTType::Type1), Some("ortho")).unwrap();
-        let recovered = idst(&dst1_coeffs, Some(DSTType::Type1), Some("ortho")).unwrap();
-        for i in 0..signal.len() {
-            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
-        }
-
-        // Test DST-II / IDST-II
-        let dst2_coeffs = dst(&signal, Some(DSTType::Type2), Some("ortho")).unwrap();
-        let recovered = idst(&dst2_coeffs, Some(DSTType::Type2), Some("ortho")).unwrap();
-        for i in 0..signal.len() {
-            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
-        }
-
-        // Test DST-III / IDST-III
-        let dst3_coeffs = dst(&signal, Some(DSTType::Type3), Some("ortho")).unwrap();
-        let recovered = idst(&dst3_coeffs, Some(DSTType::Type3), Some("ortho")).unwrap();
-        for i in 0..signal.len() {
-            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
-        }
-
-        // Test DST-IV / IDST-IV
-        let dst4_coeffs = dst(&signal, Some(DSTType::Type4), Some("ortho")).unwrap();
-        let recovered = idst(&dst4_coeffs, Some(DSTType::Type4), Some("ortho")).unwrap();
-        for i in 0..signal.len() {
-            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
-        }
-    }
-
-    #[test]
-    fn test_dst2_and_idst2() {
-        // Create a 2x2 test array
-        let arr = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
-
-        // Compute 2D DST-II with orthogonal normalization
-        let dst2_coeffs = dst2(&arr.view(), Some(DSTType::Type2), Some("ortho")).unwrap();
-
-        // Inverse DST-II should recover the original array
-        let recovered = idst2(&dst2_coeffs.view(), Some(DSTType::Type2), Some("ortho")).unwrap();
-
-        // Check recovered array
-        for i in 0..2 {
-            for j in 0..2 {
-                assert_relative_eq!(recovered[[i, j]], arr[[i, j]], epsilon = 1e-10);
-            }
-        }
-    }
-
-    #[test]
-    fn test_linear_signal() {
-        // A linear signal should transform and then recover properly
-        let signal = vec![1.0, 2.0, 3.0, 4.0];
-
-        // DST-II
-        let dst2_coeffs = dst(&signal, Some(DSTType::Type2), Some("ortho")).unwrap();
-
-        // Test that we can recover the signal
-        let recovered = idst(&dst2_coeffs, Some(DSTType::Type2), Some("ortho")).unwrap();
-        for i in 0..signal.len() {
-            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
-        }
-    }
-}
-
 /// Bandwidth-saturated SIMD implementation of Discrete Sine Transform
 ///
 /// This ultra-optimized implementation targets 80-90% memory bandwidth utilization
@@ -849,7 +757,7 @@ where
     let input: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .ok_or_else(|| FFTError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect::<FFTResult<Vec<_>>>()?;
@@ -1143,7 +1051,7 @@ fn dst3_bandwidth_saturated_simd(x: &[f64], norm: Option<&str>) -> FFTResult<Vec
         let x_last = x[n - 1] as f32;
         for (i, &k_val) in k_indices.iter().enumerate() {
             let k_int = k_val as usize;
-            special_terms[i] = x_last * if k_int % 2 == 0 { 1.0 } else { -1.0 };
+            special_terms[i] = x_last * if k_int.is_multiple_of(2) { 1.0 } else { -1.0 };
         }
 
         // Process regular sum for m = 0 to n-2
@@ -1439,7 +1347,7 @@ where
     let mut intermediate = Array2::zeros((n_rows, n_cols));
 
     for r in 0..n_rows {
-        let row_slice = x.slice(ndarray::s![r, ..]);
+        let row_slice = x.slice(scirs2_core::ndarray::s![r, ..]);
         let row_vec: Vec<T> = row_slice.iter().cloned().collect();
 
         // Use bandwidth-saturated SIMD for row processing
@@ -1454,7 +1362,7 @@ where
     let mut final_result = Array2::zeros((n_rows, n_cols));
 
     for c in 0..n_cols {
-        let col_slice = intermediate.slice(ndarray::s![.., c]);
+        let col_slice = intermediate.slice(scirs2_core::ndarray::s![.., c]);
         let col_vec: Vec<f64> = col_slice.iter().cloned().collect();
 
         // Use bandwidth-saturated SIMD for column processing
@@ -1466,4 +1374,96 @@ where
     }
 
     Ok(final_result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_relative_eq;
+    use scirs2_core::ndarray::arr2; // 2次元配列リテラル用
+
+    #[test]
+    fn test_dst_and_idst() {
+        // Simple test case
+        let signal = vec![1.0, 2.0, 3.0, 4.0];
+
+        // DST-II with orthogonal normalization
+        let dst_coeffs = dst(&signal, Some(DSTType::Type2), Some("ortho")).unwrap();
+
+        // IDST-II should recover the original signal
+        let recovered = idst(&dst_coeffs, Some(DSTType::Type2), Some("ortho")).unwrap();
+
+        // Check recovered signal
+        for i in 0..signal.len() {
+            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_dst_types() {
+        // Test different DST types
+        let signal = vec![1.0, 2.0, 3.0, 4.0];
+
+        // Test DST-I / IDST-I
+        let dst1_coeffs = dst(&signal, Some(DSTType::Type1), Some("ortho")).unwrap();
+        let recovered = idst(&dst1_coeffs, Some(DSTType::Type1), Some("ortho")).unwrap();
+        for i in 0..signal.len() {
+            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
+        }
+
+        // Test DST-II / IDST-II
+        let dst2_coeffs = dst(&signal, Some(DSTType::Type2), Some("ortho")).unwrap();
+        let recovered = idst(&dst2_coeffs, Some(DSTType::Type2), Some("ortho")).unwrap();
+        for i in 0..signal.len() {
+            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
+        }
+
+        // Test DST-III / IDST-III
+        let dst3_coeffs = dst(&signal, Some(DSTType::Type3), Some("ortho")).unwrap();
+        let recovered = idst(&dst3_coeffs, Some(DSTType::Type3), Some("ortho")).unwrap();
+        for i in 0..signal.len() {
+            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
+        }
+
+        // Test DST-IV / IDST-IV
+        let dst4_coeffs = dst(&signal, Some(DSTType::Type4), Some("ortho")).unwrap();
+        let recovered = idst(&dst4_coeffs, Some(DSTType::Type4), Some("ortho")).unwrap();
+        for i in 0..signal.len() {
+            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
+        }
+    }
+
+    #[test]
+    fn test_dst2_and_idst2() {
+        // Create a 2x2 test array
+        let arr = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
+
+        // Compute 2D DST-II with orthogonal normalization
+        let dst2_coeffs = dst2(&arr.view(), Some(DSTType::Type2), Some("ortho")).unwrap();
+
+        // Inverse DST-II should recover the original array
+        let recovered = idst2(&dst2_coeffs.view(), Some(DSTType::Type2), Some("ortho")).unwrap();
+
+        // Check recovered array
+        for i in 0..2 {
+            for j in 0..2 {
+                assert_relative_eq!(recovered[[i, j]], arr[[i, j]], epsilon = 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_linear_signal() {
+        // A linear signal should transform and then recover properly
+        let signal = vec![1.0, 2.0, 3.0, 4.0];
+
+        // DST-II
+        let dst2_coeffs = dst(&signal, Some(DSTType::Type2), Some("ortho")).unwrap();
+
+        // Test that we can recover the signal
+        let recovered = idst(&dst2_coeffs, Some(DSTType::Type2), Some("ortho")).unwrap();
+        for i in 0..signal.len() {
+            assert_relative_eq!(recovered[i], signal[i], epsilon = 1e-10);
+        }
+    }
 }

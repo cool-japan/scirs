@@ -5,9 +5,9 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::fft::ifft;
-use ndarray::{Array, Array2, ArrayView, ArrayView2, IxDyn};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array, Array2, ArrayView, ArrayView2, IxDyn};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
 
 use super::symmetric::{enforce_hermitian_symmetry, enforce_hermitian_symmetry_nd};
@@ -94,7 +94,7 @@ where
         }
 
         // Try direct conversion to f64
-        if let Some(val_f64) = num_traits::cast::cast::<T, f64>(val) {
+        if let Some(val_f64) = NumCast::from(val) {
             real_input.push(val_f64);
             continue;
         }
@@ -195,7 +195,7 @@ where
     let mut real_input = Array2::zeros((n_rows, n_cols));
     for r in 0..n_rows {
         for c in 0..n_cols {
-            if let Some(val_f64) = num_traits::cast::cast::<T, f64>(x[[r, c]]) {
+            if let Some(val_f64) = NumCast::from(x[[r, c]]) {
                 real_input[[r, c]] = val_f64;
                 continue;
             }
@@ -335,7 +335,7 @@ where
         let val = x[idx.clone()];
 
         // Try direct conversion to f64
-        if let Some(val_f64) = num_traits::cast::cast::<T, f64>(val) {
+        if let Some(val_f64) = NumCast::from(val) {
             return val_f64;
         }
 

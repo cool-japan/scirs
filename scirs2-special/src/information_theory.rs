@@ -155,8 +155,8 @@
 
 use crate::error::{SpecialError, SpecialResult};
 use crate::validation::{check_finite, check_non_negative};
-use ndarray::{Array1, ArrayView1, ArrayViewMut1};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayViewMut1};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::{Debug, Display};
 
 /// Shannon entropy function
@@ -471,7 +471,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_entr() {

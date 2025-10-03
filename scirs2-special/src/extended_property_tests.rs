@@ -4,9 +4,9 @@
 //! to verify mathematical properties, identities, and invariants across
 //! all special functions in the module.
 
-use num_complex::{Complex64, ComplexFloat};
 use quickcheck::{Arbitrary, Gen, TestResult};
 use quickcheck_macros::quickcheck;
+use scirs2_core::numeric::{Complex64, ComplexFloat};
 use std::f64;
 
 // Custom arbitrary types for constrained inputs

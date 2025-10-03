@@ -3,6 +3,8 @@
 //! This benchmark suite compares the performance of scirs2-stats distributions
 //! against reference implementations and theoretical expectations.
 
+#![allow(unused_must_use)]
+
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::Array1;
 use scirs2_stats::distributions::{

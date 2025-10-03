@@ -1,12 +1,59 @@
-//! Numeric traits and utilities for ``SciRS2``
+//! Numeric traits and utilities for SciRS2
 //!
-//! This module provides traits and utilities for working with numeric types
-//! in scientific computing contexts.
+//! This module provides unified access to numeric traits and complex numbers.
+//!
+//! # SciRS2 POLICY Compliance
+//!
+//! This is the **only** module in the SciRS2 ecosystem that should directly
+//! import external numeric libraries. All other crates must use this module.
+//!
+//! # Re-exports
+//!
+//! - `num_traits`: All numeric traits (Float, Zero, One, etc.)
+//! - `num_complex`: Complex number types
+//! - `num_integer`: Integer-specific functions (gcd, lcm, etc.)
 
 use crate::error::{CoreError, CoreResult, ErrorContext};
-use num_traits::{Float, Num, NumCast, One, Zero};
 use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+
+// ============================================================================
+// Complete Re-exports for SciRS2 POLICY Compliance
+// ============================================================================
+
+/// Complete re-export of num-traits for SciRS2 ecosystem
+pub use num_traits::{
+    self,
+    bounds::Bounded,
+    cast::{AsPrimitive, FromPrimitive, NumCast, ToPrimitive},
+    float::{Float, FloatConst},
+    identities::{One, Zero},
+    int::PrimInt,
+    ops::{
+        checked::*,
+        inv::Inv,
+        mul_add::{MulAdd, MulAddAssign},
+        saturating::*,
+        wrapping::*,
+    },
+    pow::{checked_pow, Pow},
+    real::Real,
+    sign::{Signed, Unsigned},
+    Num, NumAssign, NumAssignOps, NumAssignRef, NumOps, NumRef,
+};
+
+/// Complete re-export of num-complex for SciRS2 ecosystem
+pub use num_complex::{self, Complex, Complex32, Complex64, ComplexFloat};
+
+/// Complete re-export of num-integer for SciRS2 ecosystem
+pub use num_integer::{
+    self, div_ceil, div_floor, div_mod_floor, gcd, gcd_lcm, lcm, Average, ExtendedGcd, Integer,
+    Roots,
+};
+
+// ============================================================================
+// SciRS2 Custom Traits and Utilities
+// ============================================================================
 
 /// A trait for numeric types that can be used in scientific calculations
 ///
@@ -1206,7 +1253,7 @@ mod tests {
         assert_eq!(a.min(b), 3.0);
         assert!(a.is_finite());
         assert_eq!(a.to_f64(), Some(3.0));
-        assert_eq!(f32::from_f64(3.5), Some(3.5));
+        assert_eq!(<f32 as ScientificNumber>::from_f64(3.5), Some(3.5));
     }
 
     #[test]
@@ -1221,7 +1268,7 @@ mod tests {
         assert_eq!(a.min(b), 3.0);
         assert!(a.is_finite());
         assert_eq!(a.to_f64(), Some(3.0));
-        assert_eq!(f64::from_f64(3.5), Some(3.5));
+        assert_eq!(<f64 as ScientificNumber>::from_f64(3.5), Some(3.5));
     }
 
     #[test]

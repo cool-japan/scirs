@@ -3,8 +3,8 @@
 //! This module contains the main processing pipeline and core functions
 //! for the AI-driven adaptive processing system.
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 
 use crate::error::{NdimageError, NdimageResult};

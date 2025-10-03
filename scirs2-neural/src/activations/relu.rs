@@ -2,8 +2,8 @@
 
 use crate::activations::Activation;
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, Zip};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Zip};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Rectified Linear Unit (ReLU) activation function.
 ///
@@ -13,7 +13,7 @@ use std::fmt::Debug;
 /// ```
 /// use scirs2_neural::activations::ReLU;
 /// use scirs2_neural::activations::Activation;
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// let relu = ReLU::new();
 /// let input = Array::from_vec(vec![1.0, -1.0, 2.0, -2.0]).into_dyn();
 /// let output = relu.forward(&input).unwrap();
@@ -43,7 +43,7 @@ impl Default for ReLU {
 }
 
 impl<F: Float + Debug> Activation<F> for ReLU {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let alpha = F::from(self.alpha).ok_or_else(|| {
             NeuralError::InferenceError(
                 "Could not convert alpha to the required float type".to_string(),
@@ -61,9 +61,9 @@ impl<F: Float + Debug> Activation<F> for ReLU {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let one = F::one();
         let zero = F::zero();
         let alpha = F::from(self.alpha).ok_or_else(|| {
@@ -117,7 +117,7 @@ impl Default for LeakyReLU {
 }
 
 impl<F: Float + Debug> Activation<F> for LeakyReLU {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Use ReLU implementation with the alpha parameter
         let relu = ReLU::leaky(self.alpha);
         relu.forward(input)
@@ -125,9 +125,9 @@ impl<F: Float + Debug> Activation<F> for LeakyReLU {
 
     fn backward(
         &self,
-        grad_output: &Array<F, ndarray::IxDyn>,
-        output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+        output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Use ReLU implementation with the alpha parameter
         let relu = ReLU::leaky(self.alpha);
         relu.backward(grad_output_output)

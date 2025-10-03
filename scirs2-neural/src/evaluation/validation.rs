@@ -6,8 +6,8 @@ use super::{EvaluationConfig, Evaluator, MetricType};
 use crate::data::Dataset;
 use crate::error::{Error, Result};
 use crate::layers::Layer;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 /// Configuration for validation

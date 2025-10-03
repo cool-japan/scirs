@@ -4,9 +4,9 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use ndarray::{Array1, ArrayBase, Data, Ix1};
-use rand_distr::{Distribution, Gamma as RandGamma};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution, Gamma as RandGamma};
 use std::fmt::Debug;
 
 /// Implementation of the natural logarithm of the gamma function
@@ -98,7 +98,7 @@ impl Dirichlet {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::dirichlet::Dirichlet;
     ///
     /// // Create a 3D Dirichlet distribution with symmetric parameters (equivalent to a uniform distribution over the simplex)
@@ -155,7 +155,7 @@ impl Dirichlet {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::dirichlet::Dirichlet;
     ///
     /// let alpha = array![1.0, 1.0, 1.0];
@@ -208,7 +208,7 @@ impl Dirichlet {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::dirichlet::Dirichlet;
     ///
     /// let alpha = array![1.0, 1.0, 1.0];
@@ -262,7 +262,7 @@ impl Dirichlet {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::dirichlet::Dirichlet;
     ///
     /// let alpha = array![1.0, 2.0, 3.0];
@@ -312,7 +312,7 @@ impl Dirichlet {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::dirichlet::Dirichlet;
     ///
     /// let alpha = array![1.0, 2.0, 3.0];
@@ -343,7 +343,7 @@ impl Dirichlet {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distributions::multivariate;
 ///
 /// let alpha = array![1.0, 1.0, 1.0];
@@ -370,7 +370,7 @@ impl SampleableDistribution<Array1<f64>> for Dirichlet {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_dirichlet_creation() {

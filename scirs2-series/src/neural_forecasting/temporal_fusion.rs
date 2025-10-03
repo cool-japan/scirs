@@ -3,8 +3,8 @@
 //! This module implements Temporal Fusion Transformer architecture specialized
 //! for time series forecasting with variable selection and gated residual networks.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::lstm::LSTMCell;

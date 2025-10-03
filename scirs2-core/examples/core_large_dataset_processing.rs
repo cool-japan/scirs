@@ -18,7 +18,7 @@ fn load_dataset_chunk(chunk_size: usize, nfeatures: usize) -> Array2<f64> {
 fn normalize_chunk(chunk: &Array2<f64>) -> Array2<f64> {
     let mut normalized = chunk.clone();
     for col in 0..chunk.shape()[1] {
-        let column = chunk.slice(ndarray::s![.., col]);
+        let column = chunk.slice(scirs2_core::ndarray::s![.., col]);
         let mean = column.mean().unwrap_or(0.0);
         let std_dev = column.std(0.0);
 
@@ -36,12 +36,12 @@ fn normalize_chunk(chunk: &Array2<f64>) -> Array2<f64> {
 fn mask_outliers(
     chunk: &Array2<f64>,
     threshold: f64,
-) -> MaskedArray<f64, ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>> {
+) -> MaskedArray<f64, scirs2_core::ndarray::OwnedRepr<f64>, ndarray::Dim<[usize; 2]>> {
     // For each feature, mask values that are more than threshold standard deviations from the mean
     let mut mask = Array2::from_elem(chunk.raw_dim(), false);
 
     for col in 0..chunk.shape()[1] {
-        let column = chunk.slice(ndarray::s![.., col]);
+        let column = chunk.slice(scirs2_core::ndarray::s![.., col]);
         let mean = column.mean().unwrap_or(0.0);
         let std_dev = column.std(0.0);
 
@@ -66,8 +66,8 @@ fn compute_correlation(data: &Array2<f64>) -> Array2<f64> {
 
     for i in 0..n_features {
         for j in 0..n_features {
-            let col_i = data.slice(ndarray::s![.., i]);
-            let col_j = data.slice(ndarray::s![.., j]);
+            let col_i = data.slice(scirs2_core::ndarray::s![.., i]);
+            let col_j = data.slice(scirs2_core::ndarray::s![.., j]);
 
             let mean_i = col_i.mean().unwrap_or(0.0);
             let mean_j = col_j.mean().unwrap_or(0.0);

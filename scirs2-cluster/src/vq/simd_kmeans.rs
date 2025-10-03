@@ -5,9 +5,9 @@
 //! the same interface as the standard K-means implementation but with optimized
 //! distance calculations, centroid updates, and distortion computations.
 
-use ndarray::{s, Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 
 use super::simd_optimizations::{
@@ -42,7 +42,7 @@ use scirs2_core::validation::clustering::*;
 ///
 /// ```no_run
 /// // This doctest is marked as no_run due to stack overflow in test environment
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::vq::{kmeans_simd, KMeansOptions, SimdOptimizationConfig};
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -343,7 +343,7 @@ where
     let mut centroids = kmeans_init(data, k, Some(opts.init_method), opts.random_seed)?;
     let mut counts = Array1::<usize>::zeros(k);
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for iteration in 0..opts.max_iter {
         // Sample a mini-batch
@@ -458,7 +458,7 @@ where
         )));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut centroids = Array2::zeros((k, n_features));
 
     // Choose the first centroid randomly
@@ -587,7 +587,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     #[ignore = "timeout"]

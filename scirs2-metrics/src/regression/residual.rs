@@ -3,8 +3,8 @@
 //! This module provides functions for analyzing residuals of regression models,
 //! including histograms, Q-Q plots, and comprehensive residual analysis.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Dimension};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use std::cmp::Ordering;
 
 use super::check_sameshape;
@@ -40,7 +40,7 @@ pub struct ErrorHistogram<F: Float> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::error_histogram;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0, 5.0, 8.0, 1.0, 4.0];
@@ -156,7 +156,7 @@ pub struct QQPlotData<F: Float> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::qq_plot_data;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0, 5.0, 8.0, 1.0, 4.0];
@@ -359,7 +359,7 @@ pub struct ResidualAnalysis<F: Float> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::regression::residual_analysis;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0, 5.0, 8.0, 1.0, 4.0];
@@ -623,7 +623,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::test_heteroscedasticity;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0, 5.0, 8.0, 1.0, 4.0];
@@ -695,7 +695,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::test_autocorrelation;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0, 5.0, 8.0, 1.0, 4.0];
@@ -767,7 +767,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::test_normality;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0, 5.0, 8.0, 1.0, 4.0];

@@ -4,8 +4,8 @@
 //! following SciPy's `stats.contingency` module.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array2, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 
 /// Chi-square test of independence
 ///
@@ -22,7 +22,7 @@ use num_traits::Float;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::contingency::chi2_contingency;
 ///
 /// // Create a 2x2 contingency table
@@ -171,7 +171,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::contingency::fisher_exact;
 ///
 /// // Create a 2x2 contingency table
@@ -330,7 +330,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::contingency::association;
 ///
 /// // Create a 2x2 contingency table
@@ -422,7 +422,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::contingency::relative_risk;
 ///
 /// // Create a 2x2 contingency table
@@ -539,7 +539,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::contingency::odds_ratio;
 ///
 /// // Create a 2x2 contingency table

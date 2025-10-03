@@ -7,8 +7,8 @@
 //! problems, and singular value decomposition.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{array, Array1, Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{array, Array1, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 /// LU decomposition structure
@@ -60,7 +60,7 @@ pub struct EigDecomposition<F: Float> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::lapack::lu_factor;
 ///
 /// let a = array![[2.0, 1.0, 1.0], [4.0, 3.0, 3.0], [8.0, 7.0, 9.0]];
@@ -160,7 +160,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::lapack::qr_factor;
 ///
 /// let a = array![[2.0, 1.0], [4.0, 3.0], [8.0, 7.0]];
@@ -202,7 +202,7 @@ where
     // Householder reflections
     for k in 0..m.min(n) {
         // Extract the k-th column from k-th row to bottom
-        let x = r.slice(ndarray::s![k.., k]).to_owned();
+        let x = r.slice(scirs2_core::ndarray::s![k.., k]).to_owned();
 
         // Compute the Householder vector
         let mut v = x.clone();
@@ -221,7 +221,7 @@ where
 
                 // Apply Householder reflection to R
                 for j in k..m {
-                    let column = r.slice(ndarray::s![k.., j]).to_owned();
+                    let column = r.slice(scirs2_core::ndarray::s![k.., j]).to_owned();
                     let dot_product = v
                         .iter()
                         .zip(column.iter())
@@ -235,7 +235,7 @@ where
 
                 // Apply Householder reflection to Q
                 for j in 0..n {
-                    let column = q.slice(ndarray::s![.., j]).to_owned();
+                    let column = q.slice(scirs2_core::ndarray::s![.., j]).to_owned();
                     let dot_product = (k..n)
                         .map(|i| v[i - k] * column[i])
                         .fold(F::zero(), |acc, val| acc + val);
@@ -268,7 +268,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::lapack::svd;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
@@ -280,7 +280,13 @@ where
 #[allow(dead_code)]
 pub fn svd<F>(a: &ArrayView2<F>, fullmatrices: bool) -> LinalgResult<SVDDecomposition<F>>
 where
-    F: Float + NumAssign + ndarray::ScalarOperand + std::iter::Sum + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + std::iter::Sum
+        + Send
+        + Sync
+        + 'static,
 {
     let n = a.nrows();
     let m = a.ncols();
@@ -476,7 +482,13 @@ where
 #[allow(dead_code)]
 fn modified_gram_schmidt<F>(matrix: &mut Array2<F>)
 where
-    F: Float + NumAssign + ndarray::ScalarOperand + std::iter::Sum + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + std::iter::Sum
+        + Send
+        + Sync
+        + 'static,
 {
     let n_cols = matrix.ncols();
 
@@ -504,7 +516,13 @@ where
 #[allow(dead_code)]
 fn extend_to_orthogonal_basis<F>(matrix: Array2<F>, targetsize: usize) -> Array2<F>
 where
-    F: Float + NumAssign + ndarray::ScalarOperand + std::iter::Sum + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + std::iter::Sum
+        + Send
+        + Sync
+        + 'static,
 {
     let current_cols = matrix.ncols();
     if current_cols >= targetsize {
@@ -514,7 +532,7 @@ where
     let n_rows = matrix.nrows();
     let mut extended = Array2::<F>::zeros((n_rows, targetsize));
     extended
-        .slice_mut(ndarray::s![.., 0..current_cols])
+        .slice_mut(scirs2_core::ndarray::s![.., 0..current_cols])
         .assign(&matrix);
 
     // Add orthogonal vectors using QR decomposition approach
@@ -563,7 +581,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::lapack::eig;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -626,7 +644,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::lapack::cholesky;
 ///
 /// let a = array![[4.0, 2.0], [2.0, 5.0]];
@@ -689,7 +707,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_lu_factor() {

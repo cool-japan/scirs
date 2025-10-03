@@ -8,7 +8,7 @@
 //! - Poisson's equation: ∇²u = f(x, y)
 //! - Laplace's equation: ∇²u = 0
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::time::Instant;
 
 use crate::pde::finite_difference::FiniteDifferenceScheme;

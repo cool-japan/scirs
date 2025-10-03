@@ -5,8 +5,8 @@
 //! for different GPU backends while maintaining a unified interface.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::fmt::Debug;
 
 pub mod acceleration;

@@ -8,8 +8,8 @@
 // non-uniform spacing or for "zooming in" on specific frequency ranges.
 
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
 use std::fmt::Debug;
 
@@ -132,7 +132,7 @@ where
     let x_complex: Vec<Complex64> = x
         .iter()
         .map(|&val| {
-            let val_f64 = num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            let val_f64 = NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })?;
             Ok(Complex64::new(val_f64, 0.0))
@@ -257,7 +257,7 @@ fn fft(x: &[Complex64]) -> SignalResult<Vec<Complex64>> {
     // Perform the FFT
     fft.process(&mut buffer);
 
-    // Convert back to num_complex::Complex64
+    // Convert back to scirs2_core::numeric::Complex64
     let result: Vec<Complex64> = buffer
         .into_iter()
         .map(|c| Complex64::new(c.re, c.im))
@@ -288,7 +288,7 @@ fn ifft(x: &[Complex64]) -> SignalResult<Vec<Complex64>> {
     // Perform the IFFT
     ifft.process(&mut buffer);
 
-    // Convert back to num_complex::Complex64 and normalize
+    // Convert back to scirs2_core::numeric::Complex64 and normalize
     let inv_n = 1.0 / n as f64;
     let result: Vec<Complex64> = buffer
         .into_iter()

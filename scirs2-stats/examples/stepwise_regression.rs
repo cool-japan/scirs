@@ -1,4 +1,4 @@
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_stats::{stepwise_regression, StepwiseCriterion, StepwiseDirection};
 
 #[allow(dead_code)]
@@ -21,7 +21,7 @@ fn main() {
     let y = array![10.1, 11.2, 12.8, 14.3, 9.5, 8.1, 7.2, 6.6, 5.3, 4.9];
 
     // Feature names (for display purposes only)
-    let feature_names = vec![
+    let feature_names = [
         "Feature A".to_string(),
         "Feature B".to_string(),
         "Feature C".to_string(),

@@ -2,7 +2,7 @@
 //!
 //! This module provides functions for measuring properties of labeled arrays.
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 mod extrema;

@@ -26,8 +26,8 @@
 #![allow(dead_code)]
 
 use crate::{orthogonal, SpecialError, SpecialResult};
-use ndarray::{Array1, Array2, ArrayView1};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 /// Ellipsoidal harmonic functions E_n^m(h²)
@@ -364,7 +364,7 @@ pub fn ellip_normal(h2: f64, k2: f64, n: usize, p: usize) -> SpecialResult<f64> 
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_special::ellip_harm_array;
 ///
 /// let h2 = 0.1;
@@ -485,7 +485,7 @@ pub fn ellip_harm_coefficients(
 /// # Examples
 ///
 /// ```
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 /// use scirs2_special::ellip_harm_complex;
 ///
 /// let h2 = Complex64::new(0.1, 0.02);
@@ -667,7 +667,7 @@ mod tests {
         assert_eq!(coeffs.dim(), (6, 4)); // (max_n+1, max_p+1)
 
         // Check that coefficients are finite
-        for row in coeffs.axis_iter(ndarray::Axis(0)) {
+        for row in coeffs.axis_iter(scirs2_core::ndarray::Axis(0)) {
             for &coeff in row.iter() {
                 assert!(coeff.is_finite());
             }

@@ -2,7 +2,7 @@
 
 use super::types::*;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::{HashMap, VecDeque};
 
 /// NUMA topology optimizer

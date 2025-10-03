@@ -4,8 +4,8 @@
 //! density characteristics of the clusters. These metrics help assess how
 //! well clusters represent dense regions in the data space.
 
-use ndarray::{ArrayBase, Data, Dimension, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::ops::{AddAssign, DivAssign};
 
@@ -29,7 +29,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::density::local_density_factor;
 ///
 /// // Create a simple dataset with 2 clusters
@@ -49,7 +49,12 @@ pub fn local_density_factor<F, S1, S2, D>(
     k: Option<usize>,
 ) -> Result<HashMap<usize, F>>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + AddAssign + DivAssign,
+    F: Float
+        + NumCast
+        + std::fmt::Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + AddAssign
+        + DivAssign,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -185,7 +190,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::density::relative_density_index;
 ///
 /// // Create a simple dataset with 2 clusters
@@ -205,7 +210,12 @@ pub fn relative_density_index<F, S1, S2, D>(
     k: Option<usize>,
 ) -> Result<F>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + AddAssign + DivAssign,
+    F: Float
+        + NumCast
+        + std::fmt::Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + AddAssign
+        + DivAssign,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -336,7 +346,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::density::density_based_cluster_validity;
 ///
 /// // Create a simple dataset with 2 clusters
@@ -356,7 +366,12 @@ pub fn density_based_cluster_validity<F, S1, S2, D>(
     k: Option<usize>,
 ) -> Result<F>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + AddAssign + DivAssign,
+    F: Float
+        + NumCast
+        + std::fmt::Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + AddAssign
+        + DivAssign,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -563,7 +578,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_local_density_factor() {
@@ -576,7 +591,7 @@ mod tests {
         )
         .unwrap();
 
-        let labels = ndarray::array![0, 0, 0, 1, 1, 1];
+        let labels = scirs2_core::ndarray::array![0, 0, 0, 1, 1, 1];
 
         // Calculate LDF with k=2 (small enough for this test case)
         let factors = local_density_factor(&well_separated, &labels, Some(2)).unwrap();
@@ -596,7 +611,7 @@ mod tests {
         )
         .unwrap();
 
-        let labels = ndarray::array![0, 0, 0, 1, 1, 1];
+        let labels = scirs2_core::ndarray::array![0, 0, 0, 1, 1, 1];
 
         // Calculate LDF with k=2
         let factors = local_density_factor(&varying_density, &labels, Some(2)).unwrap();
@@ -616,7 +631,7 @@ mod tests {
         )
         .unwrap();
 
-        let labels = ndarray::array![0, 0, 0, 1, 1, 1];
+        let labels = scirs2_core::ndarray::array![0, 0, 0, 1, 1, 1];
 
         // Calculate RDI with k=2
         let rdi = relative_density_index(&well_separated, &labels, Some(2)).unwrap();
@@ -631,7 +646,7 @@ mod tests {
         )
         .unwrap();
 
-        let labels = ndarray::array![0, 0, 0, 1, 1, 1];
+        let labels = scirs2_core::ndarray::array![0, 0, 0, 1, 1, 1];
 
         // Calculate RDI for overlapping clusters
         let rdi_overlapping = relative_density_index(&overlapping, &labels, Some(2)).unwrap();
@@ -651,7 +666,7 @@ mod tests {
         )
         .unwrap();
 
-        let labels = ndarray::array![0, 0, 0, 1, 1, 1];
+        let labels = scirs2_core::ndarray::array![0, 0, 0, 1, 1, 1];
 
         // Calculate DBCV with k=2
         let dbcv = density_based_cluster_validity(&well_separated, &labels, Some(2)).unwrap();
@@ -667,7 +682,7 @@ mod tests {
         .unwrap();
 
         // Labels not matching the natural clusters
-        let bad_labels = ndarray::array![0, 0, 0, 1, 1, 1];
+        let bad_labels = scirs2_core::ndarray::array![0, 0, 0, 1, 1, 1];
 
         // Calculate DBCV for poor clustering
         let bad_dbcv =

@@ -10,7 +10,7 @@
 //! These techniques are essential for large-scale scientific computing,
 //! finite element methods, integral equations, and machine learning.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::hierarchical::{adaptive_block_lowrank, HMatrix, HSSMatrix};
 
 #[allow(dead_code)]

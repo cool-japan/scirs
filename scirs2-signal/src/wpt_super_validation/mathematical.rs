@@ -10,7 +10,7 @@ use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use crate::wpt::{reconstruct_from_nodes, wp_decompose, WaveletPacketTree};
 use crate::wpt_validation::OrthogonalityMetrics;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::collections::HashMap;
 
 /// Comprehensive mathematical property validation

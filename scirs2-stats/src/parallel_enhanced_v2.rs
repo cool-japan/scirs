@@ -7,8 +7,8 @@
 //! - Task-based parallelism
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, ArrayView1, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::{num_threads, par_chunks, IntoParallelIterator, ParallelIterator};
 use scirs2_core::validation::check_not_empty;
 use std::sync::Arc;
@@ -155,11 +155,10 @@ where
 
     // Parallel Welford's algorithm
     let chunksize = config.get_chunksize(n);
-    let n_chunks = (n + chunksize - 1) / chunksize;
+    let n_chunks = n.div_ceil(chunksize);
 
     // Each chunk computes local mean and M2
     let chunk_stats: Vec<(F, F, usize)> = (0..n_chunks)
-        .into_iter()
         .collect::<Vec<_>>()
         .into_par_iter()
         .map(|chunk_idx| {
@@ -211,7 +210,6 @@ where
 
     // Compute means for each feature in parallel
     let means: Vec<F> = (0..n_features)
-        .into_iter()
         .collect::<Vec<_>>()
         .into_par_iter()
         .map(|j| {
@@ -275,12 +273,11 @@ where
 
     // Generate bootstrap statistics in parallel
     let stats: Vec<F> = (0..n_samples_)
-        .into_iter()
         .collect::<Vec<_>>()
         .into_par_iter()
         .map(|sample_idx| {
-            use rand::rngs::StdRng;
-            use rand::{Rng, SeedableRng};
+            use scirs2_core::random::rngs::StdRng;
+            use scirs2_core::random::{Rng, SeedableRng};
 
             // Create deterministic RNG for reproducibility
             let mut rng = StdRng::seed_from_u64(sample_idx as u64);
@@ -321,10 +318,9 @@ where
 {
     let n = arr.len();
     let chunksize = config.get_chunksize(n);
-    let n_chunks = (n + chunksize - 1) / chunksize;
+    let n_chunks = n.div_ceil(chunksize);
 
     (0..n_chunks)
-        .into_iter()
         .collect::<Vec<_>>()
         .into_par_iter()
         .map(|chunk_idx| {
@@ -410,7 +406,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_parallel_config() {

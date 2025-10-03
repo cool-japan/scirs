@@ -1,7 +1,7 @@
 //! Moment calculation functions for arrays
 
-use ndarray::{Array, Array1, Array2, Dimension};
-use num_traits::{Float, FromPrimitive, NumAssign};
+use scirs2_core::ndarray::{Array, Array1, Array2, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -26,7 +26,7 @@ use crate::utils::safe_usize_to_float;
 ///
 /// ## Basic 1D center of mass
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_ndimage::measurements::center_of_mass;
 ///
 /// // Simple 1D signal with peak at position 2
@@ -39,7 +39,7 @@ use crate::utils::safe_usize_to_float;
 ///
 /// ## 2D object localization
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::center_of_mass;
 ///
 /// // Create a 2D object (bright square in upper-left)
@@ -58,7 +58,7 @@ use crate::utils::safe_usize_to_float;
 ///
 /// ## Intensity-weighted centroid
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::center_of_mass;
 ///
 /// // Create object with non-uniform intensity distribution
@@ -76,7 +76,7 @@ use crate::utils::safe_usize_to_float;
 ///
 /// ## 3D volume center of mass
 /// ```
-/// use ndarray::Array3;
+/// use scirs2_core::ndarray::Array3;
 /// use scirs2_ndimage::measurements::center_of_mass;
 ///
 /// // Create a 3D volume with a bright cube in one corner
@@ -96,7 +96,7 @@ use crate::utils::safe_usize_to_float;
 ///
 /// ## Binary object analysis
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::center_of_mass;
 ///
 /// // Binary image (0.0 and 1.0 values only)
@@ -185,9 +185,11 @@ where
 ///
 /// # Returns
 ///
-/// * `Result<Array<T, ndarray::Ix2>>` - Moment of inertia tensor
+/// * `Result<Array<T, scirs2_core::ndarray::Ix2>>` - Moment of inertia tensor
 #[allow(dead_code)]
-pub fn moments_inertia_tensor<T, D>(input: &Array<T, D>) -> NdimageResult<Array<T, ndarray::Ix2>>
+pub fn moments_inertia_tensor<T, D>(
+    input: &Array<T, D>,
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + NumAssign + std::ops::DivAssign + 'static,
     D: Dimension + 'static,
@@ -213,9 +215,12 @@ where
 ///
 /// # Returns
 ///
-/// * `Result<Array<T, ndarray::Ix1>>` - Array of moments
+/// * `Result<Array<T, scirs2_core::ndarray::Ix1>>` - Array of moments
 #[allow(dead_code)]
-pub fn moments<T, D>(input: &Array<T, D>, order: usize) -> NdimageResult<Array<T, ndarray::Ix1>>
+pub fn moments<T, D>(
+    input: &Array<T, D>,
+    order: usize,
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix1>>
 where
     T: Float + FromPrimitive + Debug + NumAssign + std::ops::DivAssign + 'static,
     D: Dimension + 'static,
@@ -237,7 +242,7 @@ where
         let mut moments_vec = Vec::new();
         let input_2d = input
             .clone()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Expected 2D array for 2D moments".into()))?;
 
         // Calculate moments M_pq for p, q from 0 to order
@@ -245,7 +250,7 @@ where
             for q in 0..=order {
                 let mut moment = T::zero();
 
-                for (row, col) in ndarray::indices(input_2d.dim()) {
+                for (row, col) in scirs2_core::ndarray::indices(input_2d.dim()) {
                     let value = input_2d[[row, col]];
                     if value != T::zero() {
                         let x = safe_usize_to_float::<T>(col)?;
@@ -306,13 +311,13 @@ where
 ///
 /// # Returns
 ///
-/// * `Result<Array<T, ndarray::Ix1>>` - Array of central moments
+/// * `Result<Array<T, scirs2_core::ndarray::Ix1>>` - Array of central moments
 #[allow(dead_code)]
 pub fn central_moments<T, D>(
     input: &Array<T, D>,
     order: usize,
     center: Option<&[T]>,
-) -> NdimageResult<Array<T, ndarray::Ix1>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix1>>
 where
     T: Float + FromPrimitive + Debug + NumAssign + std::ops::DivAssign + 'static,
     D: Dimension + 'static,
@@ -348,7 +353,7 @@ where
         let mut central_moments_vec = Vec::new();
         let input_2d = input
             .clone()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| {
                 NdimageError::DimensionError("Expected 2D array for 2D central moments".into())
             })?;
@@ -361,7 +366,7 @@ where
             for q in 0..=order {
                 let mut moment = T::zero();
 
-                for (row, col) in ndarray::indices(input_2d.dim()) {
+                for (row, col) in scirs2_core::ndarray::indices(input_2d.dim()) {
                     let value = input_2d[[row, col]];
                     if value != T::zero() {
                         let x = safe_usize_to_float::<T>(col)?;
@@ -449,12 +454,12 @@ where
 ///
 /// # Returns
 ///
-/// * `Result<Array<T, ndarray::Ix1>>` - Array of normalized moments
+/// * `Result<Array<T, scirs2_core::ndarray::Ix1>>` - Array of normalized moments
 #[allow(dead_code)]
 pub fn normalized_moments<T, D>(
     input: &Array<T, D>,
     order: usize,
-) -> NdimageResult<Array<T, ndarray::Ix1>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix1>>
 where
     T: Float + FromPrimitive + Debug + NumAssign + std::ops::DivAssign + 'static,
     D: Dimension + 'static,
@@ -567,7 +572,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_center_of_mass() {

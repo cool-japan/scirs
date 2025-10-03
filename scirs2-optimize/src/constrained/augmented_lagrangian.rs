@@ -7,7 +7,7 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::{minimize, Method, Options};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Options for augmented Lagrangian method
 #[derive(Debug, Clone)]
@@ -421,7 +421,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_augmented_lagrangian_equality_constraint() {

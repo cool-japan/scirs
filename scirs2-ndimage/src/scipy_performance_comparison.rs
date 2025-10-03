@@ -10,7 +10,7 @@ use crate::filters::*;
 use crate::interpolation::*;
 use crate::measurements::*;
 use crate::morphology::*;
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -669,7 +669,7 @@ pub fn validate_api_compatibility(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     #[ignore = "timeout"]

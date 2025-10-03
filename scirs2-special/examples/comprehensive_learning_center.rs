@@ -23,7 +23,7 @@
 //!
 //! Run with: cargo run --example comprehensive_learningcenter
 
-use rand::Rng;
+use scirs2_core::random::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::io::{self, Write};
@@ -1002,10 +1002,8 @@ fn display_dashboard(_learningcenter: &LearningCenter) -> Result<(), Box<dyn std
             progress * 100.0
         );
         println!(
-            "   {} | {} | {:.0} hours",
-            track.description,
-            format!("{:?}", track.difficulty_level),
-            track.estimated_hours
+            "   {} | {:?} | {:.0} hours",
+            track.description, track.difficulty_level, track.estimated_hours
         );
 
         if let Some(username) = &_learningcenter.current_user {
@@ -1101,7 +1099,7 @@ fn explore_resources(_learningcenter: &LearningCenter) -> Result<(), Box<dyn std
     println!("{}", "=".repeat(30));
 
     println!("\n🖥️  Interactive Examples:");
-    for (_id, resource) in &_learningcenter.resource_catalog.examples {
+    for resource in _learningcenter.resource_catalog.examples.values() {
         println!("  • {} - {}", resource.title, resource.description);
         println!(
             "    Topics: {} | Runtime: {:.0}min",
@@ -1111,7 +1109,7 @@ fn explore_resources(_learningcenter: &LearningCenter) -> Result<(), Box<dyn std
     }
 
     println!("\n📖 Documentation:");
-    for (_id, doc) in &_learningcenter.resource_catalog.documentation {
+    for doc in _learningcenter.resource_catalog.documentation.values() {
         println!("  • {} ({})", doc.title, doc.section);
         println!(
             "    Topics: {} | Depth: {:?}",
@@ -1121,7 +1119,7 @@ fn explore_resources(_learningcenter: &LearningCenter) -> Result<(), Box<dyn std
     }
 
     println!("\n🌐 External Resources:");
-    for (_id, ext) in &_learningcenter.resource_catalog.external_links {
+    for ext in _learningcenter.resource_catalog.external_links.values() {
         println!("  • {} - {}", ext.title, ext.description);
         println!(
             "    URL: {} | Reliability: {:.0}%",
@@ -1404,7 +1402,7 @@ fn simulate_assessment(assessment: &Assessment) -> Result<f64, Box<dyn std::erro
     std::thread::sleep(Duration::from_secs(1));
 
     // Simulate a score (in real implementation, this would be actual assessment)
-    let score = 0.7 + (0.3 * rand::random::<f64>()); // Random score between 70-100%
+    let score = 0.7 + (0.3 * scirs2_core::random::random::<f64>()); // Random score between 70-100%
 
     println!("📊 Your score: {:.1}%", score * 100.0);
 

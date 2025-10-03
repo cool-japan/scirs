@@ -4,7 +4,7 @@
 //! Currently implements the Black-Scholes model with support for European call
 //! and put options.
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 
 use super::utils::normal_cdf;
 use crate::error::{Result, TimeSeriesError};

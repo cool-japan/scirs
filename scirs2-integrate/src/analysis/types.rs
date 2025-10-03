@@ -4,8 +4,8 @@
 //! stability assessment, and related dynamical systems analysis.
 
 use crate::error::{IntegrateError, IntegrateResult, Result};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use std::collections::HashMap;
 
 /// Bifurcation point information

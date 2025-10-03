@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::manual_memcpy)]
 //! Spectral Analysis Application using SIMD-accelerated FFT
 //!
 //! This example demonstrates a scientific computing application
@@ -162,8 +164,8 @@ fn generate_largesignal(size: usize) -> Vec<f64> {
 // Generate normally distributed random numbers using Box-Muller transform
 #[allow(dead_code)]
 fn rand_normal(mean: f64, stddev: f64) -> f64 {
-    let x: f64 = rand::random::<f64>();
-    let y: f64 = rand::random::<f64>();
+    let x: f64 = scirs2_core::random::random::<f64>();
+    let y: f64 = scirs2_core::random::random::<f64>();
 
     let normal = (-2.0 * x.ln()).sqrt() * (2.0 * PI * y).cos();
     mean + stddev * normal

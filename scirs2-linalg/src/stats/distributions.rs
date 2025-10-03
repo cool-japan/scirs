@@ -4,8 +4,8 @@
 //! on matrices, including the Wishart distribution, matrix normal distribution,
 //! and inverse Wishart distribution.
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::f64::consts::PI;
 
 use crate::basic::{det, inv};
@@ -128,9 +128,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -190,9 +190,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -260,9 +260,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -305,9 +305,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -356,7 +356,7 @@ where
 #[allow(dead_code)]
 fn multivariate_log_gamma<F>(x: F, p: usize) -> LinalgResult<F>
 where
-    F: Float + Zero + One + Copy + std::fmt::Debug + num_traits::FromPrimitive,
+    F: Float + Zero + One + Copy + std::fmt::Debug + scirs2_core::numeric::FromPrimitive,
 {
     let log_pi = F::from(PI).unwrap().ln();
     let mut result = F::from(p * (p - 1)).unwrap() * F::from(0.25).unwrap() * log_pi;
@@ -380,7 +380,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn testmatrix_normal_params() {
@@ -497,12 +497,12 @@ where
         + Copy
         + std::fmt::Debug
         + std::fmt::Display
-        + num_traits::NumAssign
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + 'static
         + Send
         + Sync
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let p = F::from(x.nrows()).unwrap();
     let nu = params.dof;
@@ -626,12 +626,12 @@ where
         + Copy
         + std::fmt::Debug
         + std::fmt::Display
-        + num_traits::NumAssign
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + 'static
         + Send
         + Sync
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let (n, p) = (x.nrows(), x.ncols());
     let nu = params.dof;
@@ -674,7 +674,7 @@ where
 #[cfg(test)]
 mod extended_tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_inverse_wishart_params() {

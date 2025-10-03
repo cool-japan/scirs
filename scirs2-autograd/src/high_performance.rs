@@ -83,7 +83,7 @@ pub mod high_performance {
     /// // let gradients = parallel_gradient_computation(&outputs, &inputs, &env)?;
     /// ```
     pub fn parallel_gradient_computation<F: Float + Send + Sync>(
-        outputs: &[&impl AutogradTensor<F>],
+        outputs: &[&(impl AutogradTensor<F> + Sync)],
         inputs: &[VariableID],
         env: &SafeVariableEnvironment<F>,
     ) -> Result<Vec<NdArray<F>>, Box<dyn Error + Send + Sync>> {
@@ -133,7 +133,7 @@ pub mod high_performance {
     /// // let result = ultra_backward_pass(&outputs, &inputs, &env)?;
     /// ```
     pub fn ultra_backward_pass<F: Float + Send + Sync>(
-        outputs: &[&impl AutogradTensor<F>],
+        outputs: &[&(impl AutogradTensor<F> + Sync)],
         inputs: &[VariableID],
         env: &SafeVariableEnvironment<F>,
     ) -> Result<Vec<NdArray<F>>, Box<dyn Error + Send + Sync>> {
@@ -186,7 +186,7 @@ pub mod high_performance {
 
     #[cfg(feature = "parallel")]
     fn parallel_gradient_computation_impl<F: Float + Send + Sync>(
-        outputs: &[&impl AutogradTensor<F>],
+        outputs: &[&(impl AutogradTensor<F> + Sync)],
         inputs: &[VariableID],
         env: &SafeVariableEnvironment<F>,
     ) -> Result<Vec<NdArray<F>>, Box<dyn Error + Send + Sync>> {
@@ -197,7 +197,7 @@ pub mod high_performance {
 
         // Parallel backward pass for all outputs
         let errors_clone = errors.clone();
-        parallel_for(0..outputs.len(), |i| {
+        (0..outputs.len()).into_par_iter().for_each(|i| {
             if let Err(e) = outputs[i].backward() {
                 let mut error_vec = errors_clone.lock().unwrap();
                 error_vec.push(e);
@@ -215,11 +215,11 @@ pub mod high_performance {
         }
 
         // Collect gradients in parallel
-        let gradients = Arc::new(Mutex::new(vec![None; inputs.len()]));
+        let gradients = Arc::new(Mutex::new(vec![None::<NdArray<F>>; inputs.len()]));
         let gradients_clone = gradients.clone();
         let env_clone = env.clone();
 
-        parallel_for(0..inputs.len(), move |i| {
+        (0..inputs.len()).into_par_iter().for_each(move |i| {
             if let Ok(grad) = env_clone.get_variable(inputs[i]) {
                 let mut grad_vec = gradients_clone.lock().unwrap();
                 grad_vec[i] = Some(grad);
@@ -244,7 +244,7 @@ pub mod high_performance {
 
     #[cfg(all(feature = "simd", feature = "parallel"))]
     fn ultra_backward_pass_impl<F: Float + Send + Sync>(
-        outputs: &[&impl AutogradTensor<F>],
+        outputs: &[&(impl AutogradTensor<F> + Sync)],
         inputs: &[VariableID],
         env: &SafeVariableEnvironment<F>,
         caps: PlatformCapabilities,
@@ -262,7 +262,7 @@ pub mod high_performance {
 
         // Parallel chunked backward pass
         let errors_clone = errors.clone();
-        parallel_for_chunked(outputs, chunk_size, |chunk| {
+        outputs.par_chunks(chunk_size).for_each(|chunk| {
             for output in chunk {
                 if let Err(e) = output.backward() {
                     let mut error_vec = errors_clone.lock().unwrap();
@@ -295,12 +295,12 @@ pub mod high_performance {
         let simd_chunk_size = if caps.has_avx2() { 8 } else { 4 };
         let num_chunks = (inputs.len() + simd_chunk_size - 1) / simd_chunk_size;
 
-        let results = Arc::new(Mutex::new(vec![None; inputs.len()]));
+        let results = Arc::new(Mutex::new(vec![None::<NdArray<F>>; inputs.len()]));
         let results_clone = results.clone();
         let env_clone = env.clone();
 
         // Process gradients in SIMD-friendly chunks
-        parallel_for(0..num_chunks, move |chunk_idx| {
+        (0..num_chunks).into_par_iter().for_each(move |chunk_idx| {
             let start = chunk_idx * simd_chunk_size;
             let end = std::cmp::min(start + simd_chunk_size, inputs.len());
 

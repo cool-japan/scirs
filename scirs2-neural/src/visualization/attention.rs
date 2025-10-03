@@ -6,8 +6,8 @@
 use super::config::{ImageFormat, VisualizationConfig};
 use crate::error::{NeuralError, Result};
 use crate::models::sequential::Sequential;
-use ndarray::{Array2, ArrayD, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array2, ArrayD, ScalarOperand};
+use scirs2_core::numeric::Float;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -206,7 +206,7 @@ impl<
         F: Float
             + Debug
             + 'static
-            + num_traits::FromPrimitive
+            + scirs2_core::numeric::FromPrimitive
             + ScalarOperand
             + Send
             + Sync
@@ -1070,10 +1070,10 @@ impl Default for CompressionSettings {
 mod tests {
     use super::*;
     use crate::layers::Dense;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_attention_visualizer_creation() {
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let mut model = Sequential::<f32>::new();
         model.add_layer(Dense::new(10, 5, Some("relu"), &mut rng).unwrap());
         let config = VisualizationConfig::default();

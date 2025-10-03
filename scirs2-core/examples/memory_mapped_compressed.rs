@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let start = Instant::now();
 
             // Create compressed array from standard memory-mapped array
-            let array = mmap.readonlyarray::<ndarray::Ix1>()?;
+            let array = mmap.readonlyarray::<scirs2_core::ndarray::Ix1>()?;
             let cmm = builder.create(&array, &output_path)?;
 
             let elapsed = start.elapsed();
@@ -128,7 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut _sum = 0.0;
     for i in 0..1000 {
         let idx = (i * 10000) % size; // Random-ish access
-        let val = mmap.readonlyarray::<ndarray::Ix1>()?[idx];
+        let val = mmap.readonlyarray::<scirs2_core::ndarray::Ix1>()?[idx];
         _sum += val;
     }
     let elapsed = start.elapsed();
@@ -173,7 +173,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test sequential access performance (memory-mapped)
     let start = Instant::now();
-    let mmap_array = mmap.readonlyarray::<ndarray::Ix1>()?;
+    let mmap_array = mmap.readonlyarray::<scirs2_core::ndarray::Ix1>()?;
     let mmap_sum: f64 = mmap_array.iter().sum();
     let elapsed = start.elapsed();
     println!(
@@ -222,8 +222,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let end_idx = (start_idx + block_size).min(size);
 
         let block = mmap
-            .readonlyarray::<ndarray::Ix1>()?
-            .slice(ndarray::s![start_idx..end_idx])
+            .readonlyarray::<scirs2_core::ndarray::Ix1>()?
+            .slice(scirs2_core::ndarray::s![start_idx..end_idx])
             .to_owned();
 
         mmap_sum += block.iter().sum::<f64>();

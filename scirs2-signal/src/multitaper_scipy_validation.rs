@@ -8,8 +8,8 @@ use crate::error::{SignalError, SignalResult};
 use crate::multitaper::windows::dpss;
 use crate::multitaper::{enhanced_pmtm, MultitaperConfig};
 use crate::waveforms::{brown_noise, chirp};
-use ndarray::Array1;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -613,7 +613,7 @@ fn test_signal_processing(signal: &Array1<f64>) -> SignalResult<()> {
 /// Generate test signal based on configuration
 #[allow(dead_code)]
 fn generate_test_signal(config: &EnhancedTestSignalConfig) -> SignalResult<Array1<f64>> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let dt = 1.0 / config.fs;
     let t: Array1<f64> = Array1::from_shape_fn(_config.n_samples, |i| i as f64 * dt);
 

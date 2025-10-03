@@ -8,7 +8,7 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::error::Result;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use serde::{Deserialize, Serialize};
 use statrs::statistics::Statistics;
@@ -919,7 +919,7 @@ impl ReinforcementLearningAgent {
             total_actions: self.action_history.len(),
             average_reward: avg_reward,
             exploration_rate: self.exploration_rate,
-            q_table_size: self.q_table.iter().map(|(_, actions)| actions.len()).sum(),
+            q_table_size: self.q_table.values().map(|actions| actions.len()).sum(),
         }
     }
 }

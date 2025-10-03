@@ -112,7 +112,7 @@ mod tests {
     use super::*;
     use crate::activity_recognition::*;
     use crate::streaming::{Frame, FrameMetadata};
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     use std::collections::HashMap;
     use std::time::Instant;
 
@@ -186,7 +186,7 @@ mod tests {
 
     #[test]
     fn test_advanced_input_data() {
-        let vision_data = ndarray::Array3::zeros((240, 320, 3));
+        let vision_data = scirs2_core::ndarray::Array3::zeros((240, 320, 3));
         let input_data = AdvancedInputData::with_vision_data(vision_data);
 
         assert!(input_data.has_data());

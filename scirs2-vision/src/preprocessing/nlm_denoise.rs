@@ -6,7 +6,7 @@
 //! entire image and uses their weighted average for denoising.
 
 use crate::error::Result;
-use ndarray::{s, Array2, Array3};
+use scirs2_core::ndarray::{s, Array2, Array3};
 use scirs2_core::parallel_ops::*;
 use std::sync::Mutex;
 
@@ -26,7 +26,7 @@ use std::sync::Mutex;
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_vision::preprocessing::nlm_denoise;
 ///
 /// # fn main() -> scirs2_vision::error::Result<()> {
@@ -45,13 +45,13 @@ pub fn nlm_denoise(
     let (height, width) = input.dim();
 
     // Ensure odd window sizes
-    let template_size = if template_window_size % 2 == 0 {
+    let template_size = if template_window_size.is_multiple_of(2) {
         template_window_size + 1
     } else {
         template_window_size
     };
 
-    let search_size = if search_window_size % 2 == 0 {
+    let search_size = if search_window_size.is_multiple_of(2) {
         search_window_size + 1
     } else {
         search_window_size
@@ -197,13 +197,13 @@ pub fn nlm_denoise_parallel(
     let (height, width) = input.dim();
 
     // Ensure odd window sizes
-    let template_size = if template_window_size % 2 == 0 {
+    let template_size = if template_window_size.is_multiple_of(2) {
         template_window_size + 1
     } else {
         template_window_size
     };
 
-    let search_size = if search_window_size % 2 == 0 {
+    let search_size = if search_window_size.is_multiple_of(2) {
         search_window_size + 1
     } else {
         search_window_size
@@ -346,7 +346,7 @@ fn pad_reflect(array: &Array2<f32>, padsize: usize) -> Array2<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_pad_reflect() {

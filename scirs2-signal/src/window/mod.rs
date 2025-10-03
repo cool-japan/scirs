@@ -235,35 +235,35 @@ pub fn get_window_with_params(
     match window_type.to_lowercase().as_str() {
         // Parameterized windows
         "kaiser" => {
-            let beta = parameters.get(0).copied().unwrap_or(8.6);
+            let beta = parameters.first().copied().unwrap_or(8.6);
             families::exponential::kaiser(length, beta, symmetric)
         }
         "gaussian" => {
-            let std = parameters.get(0).copied().unwrap_or(1.0);
+            let std = parameters.first().copied().unwrap_or(1.0);
             families::exponential::gaussian(length, std, symmetric)
         }
         "tukey" => {
-            let alpha = parameters.get(0).copied().unwrap_or(0.5);
+            let alpha = parameters.first().copied().unwrap_or(0.5);
             families::exponential::tukey(length, alpha, symmetric)
         }
         "exponential" => {
-            let tau = parameters.get(0).copied().unwrap_or(2.0);
+            let tau = parameters.first().copied().unwrap_or(2.0);
             families::exponential::exponential(length, tau, symmetric)
         }
         "poisson" => {
-            let alpha = parameters.get(0).copied().unwrap_or(1.0);
+            let alpha = parameters.first().copied().unwrap_or(1.0);
             families::specialized::poisson(length, alpha, symmetric)
         }
         "dpss" | "slepian" => {
-            let nw = parameters.get(0).copied().unwrap_or(3.0);
+            let nw = parameters.first().copied().unwrap_or(3.0);
             families::specialized::dpss_approximation(length, nw, symmetric)
         }
         "lanczos" => {
-            let a = parameters.get(0).copied().unwrap_or(2.0);
+            let a = parameters.first().copied().unwrap_or(2.0);
             families::exponential::lanczos(length, a, symmetric)
         }
         "triangular_general" => {
-            let slope_factor = parameters.get(0).copied().unwrap_or(1.0);
+            let slope_factor = parameters.first().copied().unwrap_or(1.0);
             let zero_endpoints = parameters.get(1).copied().unwrap_or(0.0) > 0.5;
             families::triangular::generalized_triangular(
                 length,
@@ -273,7 +273,7 @@ pub fn get_window_with_params(
             )
         }
         "exponential_general" => {
-            let decay_left = parameters.get(0).copied().unwrap_or(2.0);
+            let decay_left = parameters.first().copied().unwrap_or(2.0);
             let decay_right = parameters.get(1).copied().unwrap_or(2.0);
             let peak_position = parameters.get(2).copied().unwrap_or(0.5);
             families::exponential::generalized_exponential(

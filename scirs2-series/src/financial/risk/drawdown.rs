@@ -39,7 +39,7 @@
 //! ## Basic Drawdown Analysis
 //! ```rust
 //! use scirs2_series::financial::risk::drawdown::{max_drawdown, calculate_drawdown_series};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // Portfolio value over time
 //! let portfolio_values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0, 1150.0, 1300.0];
@@ -56,7 +56,7 @@
 //! ## Advanced Drawdown Metrics
 //! ```rust
 //! use scirs2_series::financial::risk::drawdown::{pain_index, ulcer_index, calmar_ratio};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let portfolio_values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0, 1150.0, 1300.0];
 //! let returns = array![0.10, -0.05, -0.10, 0.26, -0.04, 0.13]; // Corresponding returns
@@ -74,7 +74,7 @@
 //! ## Drawdown Recovery Analysis
 //! ```rust
 //! use scirs2_series::financial::risk::drawdown::{drawdown_recovery_analysis, DrawdownPeriod};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let portfolio_values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0, 1150.0, 1300.0];
 //!
@@ -86,8 +86,8 @@
 //! }
 //! ```
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -130,7 +130,7 @@ pub struct DrawdownPeriod<F: Float> {
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::drawdown::max_drawdown;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let portfolio_values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0];
 /// let mdd = max_drawdown(&portfolio_values).unwrap();
@@ -177,7 +177,7 @@ pub fn max_drawdown<F: Float + Clone>(values: &Array1<F>) -> Result<F> {
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::drawdown::calculate_drawdown_series;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0];
 /// let drawdowns = calculate_drawdown_series(&values).unwrap();
@@ -220,7 +220,7 @@ pub fn calculate_drawdown_series<F: Float + Clone>(values: &Array1<F>) -> Result
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::drawdown::pain_index;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0];
 /// let pain = pain_index(&values).unwrap();
@@ -251,7 +251,7 @@ pub fn pain_index<F: Float + Clone>(values: &Array1<F>) -> Result<F> {
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::drawdown::ulcer_index;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0];
 /// let ulcer = ulcer_index(&values).unwrap();
@@ -284,7 +284,7 @@ pub fn ulcer_index<F: Float + Clone>(values: &Array1<F>) -> Result<F> {
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::drawdown::calmar_ratio;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![0.10, -0.05, -0.10, 0.26, -0.04, 0.13];
 /// let values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0, 1150.0, 1300.0];
@@ -333,7 +333,7 @@ pub fn calmar_ratio<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::drawdown::drawdown_recovery_analysis;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let values = array![1000.0, 1100.0, 1050.0, 950.0, 1200.0, 1150.0, 1300.0];
 /// let analysis = drawdown_recovery_analysis(&values).unwrap();
@@ -503,18 +503,13 @@ fn find_recovery_index<F: Float + Clone>(
     start_search: usize,
     target_peak: F,
 ) -> Option<usize> {
-    for i in start_search..values.len() {
-        if values[i] >= target_peak {
-            return Some(i);
-        }
-    }
-    None
+    (start_search..values.len()).find(|&i| values[i] >= target_peak)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_max_drawdown() {

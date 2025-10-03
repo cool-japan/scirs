@@ -3,7 +3,7 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array2, Ix2};
+use scirs2_core::ndarray::{Array2, Ix2};
 use std::cmp::min;
 
 /// Matrix Rank Operation
@@ -74,7 +74,7 @@ impl<F: Float> Op<F> for RankOp<F> {
         let rank = singular_values.iter().filter(|&&sv| sv > tol).count();
 
         let rank_value = F::from(rank).unwrap();
-        let result = ndarray::arr0(rank_value);
+        let result = scirs2_core::ndarray::arr0(rank_value);
 
         ctx.append_output(result.into_dyn());
         Ok(())
@@ -207,7 +207,7 @@ pub enum ConditionType {
     Fro, // Frobenius norm
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for CondOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for CondOp {
     fn name(&self) -> &'static str {
         "Cond"
     }
@@ -309,7 +309,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for CondOp {
             }
         };
 
-        let result = ndarray::arr0(cond_value);
+        let result = scirs2_core::ndarray::arr0(cond_value);
         ctx.append_output(result.into_dyn());
         Ok(())
     }
@@ -332,7 +332,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for CondOp {
         if shape.len() == 2 && shape[0] == shape[1] {
             // Square matrix - use scaled identity
             let n = shape[0];
-            let eye = ndarray::Array2::<F>::eye(n);
+            let eye = scirs2_core::ndarray::Array2::<F>::eye(n);
             let scaled_eye = eye * F::from(0.01).unwrap(); // Small scaling factor
             let grad_tensor = crate::tensor_ops::convert_to_tensor(scaled_eye, g);
             ctx.append_input_grad(0, Some(grad_tensor));
@@ -345,7 +345,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for CondOp {
 
 /// Compute the condition number of a matrix
 #[allow(dead_code)]
-pub fn cond<'g, F: Float + ndarray::ScalarOperand>(
+pub fn cond<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
     p: Option<ConditionType>,
 ) -> Tensor<'g, F> {
@@ -359,25 +359,33 @@ pub fn cond<'g, F: Float + ndarray::ScalarOperand>(
 
 /// Compute 1-norm condition number
 #[allow(dead_code)]
-pub fn cond_1<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
+pub fn cond_1<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &Tensor<'g, F>,
+) -> Tensor<'g, F> {
     cond(matrix, Some(ConditionType::One))
 }
 
 /// Compute 2-norm condition number (default)
 #[allow(dead_code)]
-pub fn cond_2<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
+pub fn cond_2<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &Tensor<'g, F>,
+) -> Tensor<'g, F> {
     cond(matrix, Some(ConditionType::Two))
 }
 
 /// Compute infinity-norm condition number
 #[allow(dead_code)]
-pub fn cond_inf<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
+pub fn cond_inf<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &Tensor<'g, F>,
+) -> Tensor<'g, F> {
     cond(matrix, Some(ConditionType::Inf))
 }
 
 /// Compute Frobenius norm condition number
 #[allow(dead_code)]
-pub fn cond_fro<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
+pub fn cond_fro<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &Tensor<'g, F>,
+) -> Tensor<'g, F> {
     cond(matrix, Some(ConditionType::Fro))
 }
 
@@ -460,7 +468,7 @@ impl<F: Float> Op<F> for LogDetOp {
             }
         }
 
-        let result = ndarray::arr0(log_det);
+        let result = scirs2_core::ndarray::arr0(log_det);
         ctx.append_output(result.into_dyn());
         Ok(())
     }
@@ -654,8 +662,8 @@ impl<F: Float> Op<F> for SLogDetOp {
         }
 
         // Output both sign and log|det|
-        let sign_arr = ndarray::arr0(sign);
-        let logdet_arr = ndarray::arr0(log_det);
+        let sign_arr = scirs2_core::ndarray::arr0(sign);
+        let logdet_arr = scirs2_core::ndarray::arr0(log_det);
 
         ctx.append_output(sign_arr.into_dyn());
         ctx.append_output(logdet_arr.into_dyn());
@@ -718,8 +726,8 @@ impl<F: Float> Op<F> for SLogDetExtractOp {
         }
 
         match self.component {
-            0 => ctx.append_output(ndarray::arr0(sign).into_dyn()),
-            1 => ctx.append_output(ndarray::arr0(log_det).into_dyn()),
+            0 => ctx.append_output(scirs2_core::ndarray::arr0(sign).into_dyn()),
+            1 => ctx.append_output(scirs2_core::ndarray::arr0(log_det).into_dyn()),
             _ => return Err(OpError::IncompatibleShape("Invalid component".into())),
         }
 
@@ -753,7 +761,7 @@ pub fn slogdet<'g, F: Float>(matrix: &Tensor<'g, F>) -> (Tensor<'g, F>, Tensor<'
 mod tests {
     use super::*;
     use crate::tensor_ops::convert_to_tensor;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_matrix_rank() {

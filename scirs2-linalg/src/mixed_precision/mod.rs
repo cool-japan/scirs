@@ -22,8 +22,8 @@
 //! - [`f64_ops`] - F64-optimized operations with advanced algorithms
 //! - [`adaptive`] - Adaptive algorithms with iterative refinement and decompositions
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, NumCast, ToPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, NumCast, ToPrimitive, Zero};
 use std::fmt::Debug;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -81,7 +81,7 @@ pub use adaptive::{
 ///
 /// # Examples
 /// ```
-/// use ndarray::{array, ArrayView1, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView1, ArrayView2};
 /// use scirs2_linalg::mixed_precision::mixed_precision_matvec;
 ///
 /// let a_f32 = array![[1.0f32, 2.0f32], [3.0f32, 4.0f32]];
@@ -134,7 +134,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::mixed_precision::mixed_precision_matmul;
 ///
 /// let a_f32 = array![[1.0f32, 2.0f32], [3.0f32, 4.0f32]];
@@ -200,7 +200,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::mixed_precision::mixed_precision_dot;
 ///
 /// // Create two vectors with elements of vastly different magnitudes
@@ -426,7 +426,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mixed_precision_matvec() {

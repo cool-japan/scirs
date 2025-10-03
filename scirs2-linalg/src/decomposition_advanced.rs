@@ -6,8 +6,8 @@
 use crate::decomposition::svd;
 use crate::error::{LinalgError, LinalgResult};
 use crate::norm::matrix_norm;
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::{Debug, Display};
 
 /// Jacobi SVD for small matrices with higher accuracy
@@ -26,7 +26,7 @@ use std::fmt::{Debug, Display};
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::decomposition_advanced::jacobi_svd;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -43,7 +43,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + Send
         + Sync
@@ -183,7 +183,7 @@ where
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::decomposition_advanced::polar_decomposition;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -200,7 +200,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + Send
         + Sync
@@ -255,7 +255,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + Send
         + Sync
@@ -330,7 +330,7 @@ where
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::decomposition_advanced::qr_with_column_pivoting;
 ///
 /// let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
@@ -349,7 +349,7 @@ where
         + NumAssign
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + Send
         + Sync
@@ -379,7 +379,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_jacobi_svd_2x2() {

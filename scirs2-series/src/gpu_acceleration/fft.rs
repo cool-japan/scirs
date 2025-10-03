@@ -3,8 +3,8 @@
 //! This module provides Fast Fourier Transform implementations optimized for GPU
 //! execution, including forward/inverse FFT, power spectral density, and spectrogram.
 
-use ndarray::{s, Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 

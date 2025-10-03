@@ -4,8 +4,8 @@
 // confidence intervals and standard errors for multitaper spectral estimates.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::validation::checkshape;
 use statrs::distribution::{ContinuousCDF, StudentsT};
 
@@ -282,8 +282,8 @@ pub fn weighted_jackknife(
 /// * `phase_ci` - Confidence intervals for phase
 #[allow(dead_code)]
 pub fn cross_spectrum_jackknife(
-    eigenspectra_x: &Array2<num_complex::Complex64>,
-    eigenspectra_y: &Array2<num_complex::Complex64>,
+    eigenspectra_x: &Array2<scirs2_core::numeric::Complex64>,
+    eigenspectra_y: &Array2<scirs2_core::numeric::Complex64>,
     eigenvalues: &Array1<f64>,
     confidence: Option<f64>,
 ) -> SignalResult<(
@@ -309,7 +309,7 @@ pub fn cross_spectrum_jackknife(
     for j in 0..n_freq {
         let mut sxx = 0.0;
         let mut syy = 0.0;
-        let mut sxy = num_complex::Complex64::new(0.0, 0.0);
+        let mut sxy = scirs2_core::numeric::Complex64::new(0.0, 0.0);
         let mut weight_sum = 0.0;
 
         for i in 0..k {
@@ -338,7 +338,7 @@ pub fn cross_spectrum_jackknife(
         for j in 0..n_freq {
             let mut sxx = 0.0;
             let mut syy = 0.0;
-            let mut sxy = num_complex::Complex64::new(0.0, 0.0);
+            let mut sxy = scirs2_core::numeric::Complex64::new(0.0, 0.0);
             let mut weight_sum = 0.0;
 
             for i in 0..k {

@@ -5,7 +5,7 @@
 
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::validation::{check_finite, check_positive};
 
 /// Validate denoising configuration
@@ -131,7 +131,7 @@ pub fn adaptive_noise_estimation(coeffs: &crate::dwt::DecompositionResult) -> Si
     let mut abs_coeffs: Vec<f64> = finest_detail.iter().map(|&x| x.abs()).collect();
     abs_coeffs.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-    let median = if abs_coeffs.len() % 2 == 0 {
+    let median = if abs_coeffs.len().is_multiple_of(2) {
         (abs_coeffs[abs_coeffs.len() / 2 - 1] + abs_coeffs[abs_coeffs.len() / 2]) / 2.0
     } else {
         abs_coeffs[abs_coeffs.len() / 2]
@@ -169,7 +169,9 @@ pub fn memory_optimized_denoise_1d(
 
     for start in (0..n).step_by(block_size - overlap) {
         let end = (start + block_size).min(n);
-        let block = signal.slice(ndarray::s![start..end]).to_owned();
+        let block = signal
+            .slice(scirs2_core::ndarray::s![start..end])
+            .to_owned();
 
         // Denoise block
         let block_result = crate::denoise_enhanced::wavelet::denoise_wavelet_1d(&block, config)?;
@@ -180,7 +182,9 @@ pub fn memory_optimized_denoise_1d(
 
         for (i, &val) in block_result
             .signal
-            .slice(ndarray::s![actual_start - start..actual_end - start])
+            .slice(scirs2_core::ndarray::s![
+                actual_start - start..actual_end - start
+            ])
             .iter()
             .enumerate()
         {

@@ -17,7 +17,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_interpolate::adaptive_learning::{ActiveLearner, SamplingStrategy};
 //! use scirs2_interpolate::multiscale::MultiscaleBSpline;
 //!
@@ -43,8 +43,8 @@
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::multiscale::MultiscaleBSpline;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
@@ -858,7 +858,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_active_learner_creation() {

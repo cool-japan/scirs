@@ -120,10 +120,7 @@ impl GpuMemoryPool {
     /// Return a block to the pool for reuse
     fn return_block(&self, block: GpuMemoryBlock) {
         let mut pools = self.pools.lock().unwrap();
-        pools
-            .entry(block.size)
-            .or_insert_with(VecDeque::new)
-            .push_back(block);
+        pools.entry(block.size).or_default().push_back(block);
     }
 
     /// Perform garbage collection to free unused memory
@@ -291,9 +288,7 @@ impl Drop for GpuWorkspace {
         // Return all blocks to the pool
         let mut pool = self.pool.lock().unwrap();
         for block in self.blocks.drain(..) {
-            pool.entry(block.size)
-                .or_insert_with(VecDeque::new)
-                .push_back(block);
+            pool.entry(block.size).or_default().push_back(block);
         }
     }
 }

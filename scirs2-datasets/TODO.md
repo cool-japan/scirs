@@ -2,9 +2,9 @@
 
 This module provides comprehensive dataset loading utilities similar to scikit-learn's datasets module and SciPy's datasets module.
 
-## Production Status - 0.1.0-beta.4
+## Production Status - 0.1.0-rc.1
 
-This beta 3 release features SciRS2 POLICY implementation and enhanced random generation capabilities. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), all core functionality is implemented and tested with ecosystem consistency.
+This Release Candidate 1 features SciRS2 POLICY implementation and comprehensive platform testing. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), all core functionality is implemented and tested with ecosystem consistency.
 
 ### ✅ Production-Ready Features
 

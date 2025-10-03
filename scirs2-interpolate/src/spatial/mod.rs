@@ -33,7 +33,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_interpolate::spatial::kdtree::KdTree;
 //!
 //! // Create sample 2D points

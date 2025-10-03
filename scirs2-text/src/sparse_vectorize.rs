@@ -7,7 +7,7 @@ use crate::error::{Result, TextError};
 use crate::sparse::{CsrMatrix, SparseMatrixBuilder, SparseVector};
 use crate::tokenize::{Tokenizer, WordTokenizer};
 use crate::vocabulary::Vocabulary;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::collections::HashMap;
 
 /// Sparse count vectorizer using CSR matrix representation

@@ -12,8 +12,8 @@
 //!   incorrectly ordered label pairs
 //! - `label_ranking_average_precision_score`: Computes the average precision score for label ranking
 
-use ndarray::{ArrayBase, Data, Ix1, Ix2};
-use num_traits::real::Real;
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::numeric::Float;
 use std::cmp::Ordering;
 
 use crate::error::{MetricsError, Result};
@@ -36,7 +36,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::label::coverage_error;
 ///
 /// // 1 indicates a relevant label
@@ -55,7 +55,7 @@ pub fn coverage_error<T, S, R>(
     y_score: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -137,7 +137,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_metrics::ranking::label::coverage_error_multiple;
 ///
 /// // Example: 3 samples, 5 possible labels
@@ -165,7 +165,7 @@ pub fn coverage_error_multiple<T, S, R>(
     y_score: &ArrayBase<R, Ix2>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -193,8 +193,8 @@ where
     // Process each sample
     for i in 0..n_samples {
         // Extract one sample's _true labels and scores
-        let sample_true = y_true.slice(ndarray::s![i, ..]);
-        let sample_score = y_score.slice(ndarray::s![i, ..]);
+        let sample_true = y_true.slice(scirs2_core::ndarray::s![i, ..]);
+        let sample_score = y_score.slice(scirs2_core::ndarray::s![i, ..]);
 
         // Count _true labels for this sample
         let true_count = sample_true.iter().filter(|&&x| x > T::zero()).count();
@@ -254,7 +254,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::ranking::label::label_ranking_loss;
 ///
 /// // Example: 3 samples, 5 possible labels
@@ -282,7 +282,7 @@ pub fn label_ranking_loss<T, S, R>(
     y_score: &ArrayBase<R, Ix2>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -311,8 +311,8 @@ where
     // Process each sample
     for i in 0..n_samples {
         // Extract one sample's _true labels and scores
-        let sample_true = y_true.slice(ndarray::s![i, ..]);
-        let sample_score = y_score.slice(ndarray::s![i, ..]);
+        let sample_true = y_true.slice(scirs2_core::ndarray::s![i, ..]);
+        let sample_score = y_score.slice(scirs2_core::ndarray::s![i, ..]);
 
         // Get relevant and irrelevant label indices
         let mut relevant_labels = Vec::new();
@@ -376,7 +376,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_metrics::ranking::label::label_ranking_average_precision_score;
 ///
 /// // Example: 3 samples, 5 possible labels
@@ -404,7 +404,7 @@ pub fn label_ranking_average_precision_score<T, S, R>(
     y_score: &ArrayBase<R, Ix2>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -433,8 +433,8 @@ where
     // Process each sample
     for i in 0..n_samples {
         // Extract one sample's _true labels and scores
-        let sample_true = y_true.slice(ndarray::s![i, ..]);
-        let sample_score = y_score.slice(ndarray::s![i, ..]);
+        let sample_true = y_true.slice(scirs2_core::ndarray::s![i, ..]);
+        let sample_score = y_score.slice(scirs2_core::ndarray::s![i, ..]);
 
         // Count relevant labels for this sample
         let relevant_count = sample_true.iter().filter(|&&x| x > zero).count();

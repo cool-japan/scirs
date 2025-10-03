@@ -1,7 +1,7 @@
 use ag::tensor_ops::linear_algebra::*;
 use ag::tensor_ops::*;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 #[allow(dead_code)]
 fn main() {
@@ -20,10 +20,22 @@ fn main() {
         let ninf = norminf(&a).eval(g).unwrap();
         let nfro = normfro(&a).eval(g).unwrap();
 
-        println!("  1-norm (max column sum): {}", n1[ndarray::IxDyn(&[])]);
-        println!("  2-norm (spectral norm): {}", n2[ndarray::IxDyn(&[])]);
-        println!("  ∞-norm (max row sum): {}", ninf[ndarray::IxDyn(&[])]);
-        println!("  Frobenius norm: {}", nfro[ndarray::IxDyn(&[])]);
+        println!(
+            "  1-norm (max column sum): {}",
+            n1[scirs2_core::ndarray::IxDyn(&[])]
+        );
+        println!(
+            "  2-norm (spectral norm): {}",
+            n2[scirs2_core::ndarray::IxDyn(&[])]
+        );
+        println!(
+            "  ∞-norm (max row sum): {}",
+            ninf[scirs2_core::ndarray::IxDyn(&[])]
+        );
+        println!(
+            "  Frobenius norm: {}",
+            nfro[scirs2_core::ndarray::IxDyn(&[])]
+        );
 
         // 2. Symmetric Eigendecomposition
         println!("\n2. Symmetric Matrix Eigendecomposition:");
@@ -70,7 +82,7 @@ fn main() {
         // Verify: A*x = b
         let ax = matmul(
             pd_matrix,
-            convert_to_tensor(x.clone().insert_axis(ndarray::Axis(1)), g),
+            convert_to_tensor(x.clone().insert_axis(scirs2_core::ndarray::Axis(1)), g),
         );
         let ax_flat = ax.eval(g).unwrap();
         println!(

@@ -1,4 +1,6 @@
 #![allow(deprecated)]
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::needless_range_loop)]
 //! # SciRS2 Graph - Graph Algorithms and Network Analysis
 //!
 //! **scirs2-graph** provides comprehensive graph algorithms and data structures for network analysis,
@@ -29,7 +31,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-graph = "0.1.0-beta.4"
+//! scirs2-graph = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust,no_run
@@ -42,7 +44,7 @@
 //! g.add_edge(0, 1, 1.0);
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 //!
 //! ## API Stability and Versioning
 //!

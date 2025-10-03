@@ -1,4 +1,4 @@
-use ndarray::{Array1, Axis};
+use scirs2_core::ndarray::{Array1, Axis};
 use scirs2_interpolate::local::mls::PolynomialBasis;
 use scirs2_interpolate::local::polynomial::{
     make_loess, make_robust_loess, LocalPolynomialConfig, LocalPolynomialRegression,
@@ -18,7 +18,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     for (i, &x) in x_array.iter().enumerate() {
         // Generate y = sin(x) + noise
         let y_true = f64::sin(x);
-        let noise = (rand::random::<f64>() - 0.5) * 0.2; // Noise with ±0.1 amplitude
+        let noise = (scirs2_core::random::random::<f64>() - 0.5) * 0.2; // Noise with ±0.1 amplitude
         y_array[i] = y_true + noise;
     }
 

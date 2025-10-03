@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Advanced system identification methods
 //
 // This module provides complete implementations of advanced system
@@ -8,8 +8,8 @@ use ndarray::s;
 use crate::error::{SignalError, SignalResult};
 use crate::lti::StateSpace;
 use crate::sysid_enhanced::{NonlinearFunction, ParameterEstimate, SystemModel};
-use ndarray::{Array1, Array2, Axis};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::Rng;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::checkshape;
 use scirs2_linalg::solve;
@@ -837,7 +837,7 @@ fn simulate_bj_model(
     let mut filtered_noise = Array1::zeros(n);
 
     // Generate innovations (would be estimated in practice)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for i in 0..n {
         noise[i] = rng.gen_range(-0.1..0.1);
     }
@@ -1221,7 +1221,7 @@ mod tests {
         let mut output = Array1::zeros(n);
 
         // Generate test data
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         for i in 2..n {
             input[i] = rng.gen_range(-1.0..1.0);
             output[i] = 0.7 * output[i - 1] - 0.2 * output[i - 2]

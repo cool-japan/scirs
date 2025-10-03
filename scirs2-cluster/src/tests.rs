@@ -4,7 +4,7 @@
 mod test {
     use crate::metrics::silhouette_score;
     use crate::vq::{kmeans2, whiten, MinitMethod, MissingMethod};
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_whiten() {

@@ -1,6 +1,6 @@
 // Example file demonstrating the use of quantile-based functions
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::{
     boxplot_stats, deciles, percentile, quantile, quartiles, quintiles, winsorized_mean,
     winsorized_variance, QuantileInterpolation,

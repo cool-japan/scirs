@@ -42,8 +42,8 @@ pub use depth_mapping::{
 /// # Returns
 ///
 /// * Tuple of (X, Y) coordinate grids
-pub fn create_mesh_grid(width: u32, height: u32) -> (ndarray::Array2<f64>, ndarray::Array2<f64>) {
-    use ndarray::Array2;
+pub fn create_mesh_grid(width: u32, height: u32) -> (scirs2_core::ndarray::Array2<f64>, scirs2_core::ndarray::Array2<f64>) {
+    use scirs2_core::ndarray::Array2;
 
     let mut x_grid = Array2::zeros((height as usize, width as usize));
     let mut y_grid = Array2::zeros((height as usize, width as usize));
@@ -70,12 +70,12 @@ pub fn create_mesh_grid(width: u32, height: u32) -> (ndarray::Array2<f64>, ndarr
 ///
 /// * Result containing corrected coordinate grids
 pub fn perspective_correct(
-    x_grid: &ndarray::Array2<f64>,
-    y_grid: &ndarray::Array2<f64>,
+    x_grid: &scirs2_core::ndarray::Array2<f64>,
+    y_grid: &scirs2_core::ndarray::Array2<f64>,
     transform: &crate::registration::TransformMatrix,
-) -> crate::error::Result<(ndarray::Array2<f64>, ndarray::Array2<f64>)> {
+) -> crate::error::Result<(scirs2_core::ndarray::Array2<f64>, scirs2_core::ndarray::Array2<f64>)> {
     use crate::error::{Result, VisionError};
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     let (height, width) = x_grid.dim();
     let mut corrected_x = Array2::zeros((height, width));

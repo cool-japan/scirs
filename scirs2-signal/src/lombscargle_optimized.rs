@@ -7,10 +7,10 @@
 use crate::error::SignalResult;
 use crate::lombscargle::lombscargle;
 use crate::lombscargle_simd::simd_lombscargle;
-use ndarray::s;
-use ndarray::Array1;
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -409,7 +409,7 @@ fn validate_comprehensive_accuracy() -> SignalResult<ComprehensiveAccuracyResult
 fn generate_comprehensive_test_signals(
 ) -> SignalResult<HashMap<String, (Array1<f64>, Array1<f64>, Vec<f64>, Vec<f64>)>> {
     let mut signals = HashMap::new();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // 1. Single tone signal
     let n = 200;
@@ -543,8 +543,8 @@ fn validate_phase_coherence(
         let start = i * segment_size;
         let end = (i + 1) * segment_size;
 
-        let t_seg = t.slice(ndarray::s![start..end]).to_owned();
-        let y_seg = y.slice(ndarray::s![start..end]).to_owned();
+        let t_seg = t.slice(scirs2_core::ndarray::s![start..end]).to_owned();
+        let y_seg = y.slice(scirs2_core::ndarray::s![start..end]).to_owned();
 
         let (_, power_seg) = lombscargle(
             &t_seg,
@@ -731,7 +731,7 @@ fn perform_scipy_comparison() -> SignalResult<ScipyComparisonResult> {
 #[allow(dead_code)]
 fn generate_scipy_test_signals() -> SignalResult<Vec<(Array1<f64>, Array1<f64>)>> {
     let mut signals = Vec::new();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Signal 1: Simple sinusoid with irregular sampling
     let n = 100;
@@ -783,7 +783,7 @@ fn simulate_scipy_lombscargle(
     )?;
 
     // Add small random perturbations to simulate SciPy differences
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for p in power.iter_mut() {
         *p *= 1.0 + 0.001 * rng.gen_range(-1.0..1.0); // 0.1% random variation
     }
@@ -798,7 +798,7 @@ fn validate_simd_implementation_complete() -> SignalResult<CompleteSimdValidatio
 
     // Generate test data
     let n = 1024;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let t: Array1<f64> =
         Array1::from_shape_fn(n, |i| i as f64 * 0.01 + 0.001 * rng.gen_range(-1.0..1.0));
     let y: Array1<f64> =
@@ -925,7 +925,7 @@ fn validate_false_alarm_probability() -> SignalResult<FalseAlarmValidation> {
     let mut false_alarms = 0;
     let threshold = 10.0; // Arbitrary threshold
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..n_trials {
         let t = Array1::linspace(0.0, 10.0, n_samples);
@@ -962,7 +962,7 @@ fn validate_false_alarm_probability() -> SignalResult<FalseAlarmValidation> {
 fn compare_with_theoretical_psd() -> SignalResult<PsdTheoreticalComparison> {
     // Test with white noise (flat PSD)
     let n = 512;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let t = Array1::linspace(0.0, 10.0, n);
     let white_noise: Array1<f64> = Array1::from_shape_fn(n, |_| rng.gen_range(-1.0..1.0));
 
@@ -1126,8 +1126,8 @@ fn generate_optimization_recommendations(
 #[allow(dead_code)]
 fn compute_correlation(a: &Array1<f64>, b: &Array1<f64>) -> f64 {
     let n = a.len().min(b.len());
-    let mean_a = a.slice(ndarray::s![..n]).mean().unwrap();
-    let mean_b = b.slice(ndarray::s![..n]).mean().unwrap();
+    let mean_a = a.slice(scirs2_core::ndarray::s![..n]).mean().unwrap();
+    let mean_b = b.slice(scirs2_core::ndarray::s![..n]).mean().unwrap();
 
     let mut numerator = 0.0;
     let mut sum_sq_a = 0.0;

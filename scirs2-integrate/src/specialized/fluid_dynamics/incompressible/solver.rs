@@ -4,7 +4,7 @@
 //! the projection method to enforce the divergence-free constraint.
 
 use crate::error::{IntegrateError, IntegrateResult as Result};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 use super::super::core::{FluidBoundaryCondition, FluidState, NavierStokesParams};
 use super::boundary_handling::{apply_boundary_conditions_2d, apply_pressure_boundary_conditions};

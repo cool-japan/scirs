@@ -2,7 +2,7 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops;
 use crate::Float;
-use ndarray::{Array2, ArrayView2, Ix2};
+use scirs2_core::ndarray::{Array2, ArrayView2, Ix2};
 
 /// Matrix 1-norm (maximum column sum)
 pub struct Matrix1NormOp;
@@ -28,7 +28,7 @@ impl<F: Float> Op<F> for Matrix1NormOp {
             .map_err(|_| OpError::IncompatibleShape("Failed to convert to 2D array".into()))?;
 
         let norm = compute_matrix_1_norm(&matrix);
-        ctx.append_output(ndarray::arr0(norm).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(norm).into_dyn());
         Ok(())
     }
 
@@ -90,7 +90,7 @@ impl<F: Float> Op<F> for MatrixInfNormOp {
             .map_err(|_| OpError::IncompatibleShape("Failed to convert to 2D array".into()))?;
 
         let norm = compute_matrix_inf_norm(&matrix);
-        ctx.append_output(ndarray::arr0(norm).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(norm).into_dyn());
         Ok(())
     }
 
@@ -132,7 +132,7 @@ impl<F: Float> Op<F> for MatrixInfNormOp {
 /// This is an alias for spectral norm with consistent naming
 pub struct Matrix2NormOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for Matrix2NormOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for Matrix2NormOp {
     fn name(&self) -> &'static str {
         "Matrix2Norm"
     }
@@ -153,7 +153,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for Matrix2NormOp {
             .map_err(|_| OpError::IncompatibleShape("Failed to convert to 2D array".into()))?;
 
         let norm = compute_matrix_2_norm(&matrix);
-        ctx.append_output(ndarray::arr0(norm).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(norm).into_dyn());
         Ok(())
     }
 
@@ -307,7 +307,9 @@ fn compute_matrix_inf_norm_gradient<F: Float>(matrix: &ArrayView2<F>, grad_scala
 
 /// Compute matrix 2-norm (largest singular value)
 #[allow(dead_code)]
-fn compute_matrix_2_norm<F: Float + ndarray::ScalarOperand>(matrix: &ArrayView2<F>) -> F {
+fn compute_matrix_2_norm<F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &ArrayView2<F>,
+) -> F {
     // Use power iteration to find the largest singular value
     let (_, sigma_max) = power_iteration_2norm(matrix, 50, F::from(1e-8).unwrap());
     sigma_max
@@ -315,15 +317,15 @@ fn compute_matrix_2_norm<F: Float + ndarray::ScalarOperand>(matrix: &ArrayView2<
 
 /// Power iteration for 2-norm computation
 #[allow(dead_code)]
-fn power_iteration_2norm<F: Float + ndarray::ScalarOperand>(
+fn power_iteration_2norm<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
     max_iter: usize,
     tol: F,
-) -> (ndarray::Array1<F>, F) {
+) -> (scirs2_core::ndarray::Array1<F>, F) {
     let (m, n) = matrix.dim();
 
     // Initialize with normalized vector
-    let mut u = ndarray::Array1::<F>::zeros(m);
+    let mut u = scirs2_core::ndarray::Array1::<F>::zeros(m);
     u[0] = F::one();
 
     // Add some perturbation to avoid getting stuck
@@ -377,7 +379,7 @@ fn power_iteration_2norm<F: Float + ndarray::ScalarOperand>(
 
 /// Compute gradient for matrix 2-norm
 #[allow(dead_code)]
-fn compute_matrix_2_norm_gradient<F: Float + ndarray::ScalarOperand>(
+fn compute_matrix_2_norm_gradient<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
     grad_scalar: F,
 ) -> Array2<F> {
@@ -390,7 +392,7 @@ fn compute_matrix_2_norm_gradient<F: Float + ndarray::ScalarOperand>(
     let v = if sigma > F::epsilon() {
         matrix.t().dot(&u) / sigma
     } else {
-        ndarray::Array1::zeros(n)
+        scirs2_core::ndarray::Array1::zeros(n)
     };
 
     // Create outer product u * v^T
@@ -417,7 +419,9 @@ pub fn norm1<'g, F: Float>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
 
 /// Compute the 2-norm of a matrix (largest singular value)
 #[allow(dead_code)]
-pub fn norm2<'g, F: Float + ndarray::ScalarOperand>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
+pub fn norm2<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &Tensor<'g, F>,
+) -> Tensor<'g, F> {
     let g = matrix.graph();
     Tensor::builder(g)
         .append_input(matrix, false)

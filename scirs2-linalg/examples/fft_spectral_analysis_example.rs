@@ -15,7 +15,7 @@
 //! These techniques are fundamental to modern signal processing and provide
 //! O(n log n) complexity for frequency domain computations.
 
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 // Commented out as it's not used in this example
 // use scirs2_core::Complex;
 use scirs2_linalg::fft::{
@@ -289,7 +289,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let t = i as f64 / fs;
         let signal = (2.0 * PI * 50.0 * t).sin() +     // 50 Hz
                      0.5 * (2.0 * PI * 120.0 * t).sin(); // 120 Hz
-        let noise = (rand::random::<f64>() - 0.5) * noise_level;
+        let noise = (scirs2_core::random::random::<f64>() - 0.5) * noise_level;
         signal + noise
     });
 

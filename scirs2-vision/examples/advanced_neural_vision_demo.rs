@@ -19,7 +19,7 @@
 //! cargo run --example advanced_neural_vision_demo --features="simd,parallel,gpu"
 //! ```
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_vision::{
     error::Result,
     feature::{
@@ -465,7 +465,7 @@ fn add_gaussian_noise(image: &Array2<f32>, noisestd: f32) -> Result<Array2<f32>>
     let mut noisy = image.clone();
 
     for pixel in noisy.iter_mut() {
-        let noise = (rand::random::<f32>() - 0.5) * noisestd * 2.0;
+        let noise = (scirs2_core::random::random::<f32>() - 0.5) * noisestd * 2.0;
         *pixel = (*pixel + noise).clamp(0.0, 1.0);
     }
 

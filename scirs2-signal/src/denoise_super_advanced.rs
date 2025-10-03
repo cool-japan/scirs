@@ -11,10 +11,10 @@
 
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_traits::Float;
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_finite;
 use statrs::statistics::Statistics;
@@ -320,14 +320,14 @@ impl Default for AdvancedAdvancedDenoisingConfig {
 ///
 /// ```
 /// use scirs2_signal::denoise_advanced_advanced::{advanced_advanced_denoise, AdvancedAdvancedDenoisingConfig, AdvancedAdvancedMethod};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 ///
 /// // Generate noisy signal
 /// let n = 1000;
 /// let t: Array1<f64> = Array1::linspace(0.0, 1.0, n);
-/// use rand::prelude::*;
-/// let mut rng = rand::rng();
+/// use scirs2_core::random::prelude::*;
+/// let mut rng = scirs2_core::random::rng();
 ///
 /// let clean_signal: Array1<f64> = t.mapv(|ti| {
 ///     (2.0 * PI * 5.0 * ti).sin() + 0.3 * (2.0 * PI * 20.0 * ti).sin()
@@ -1158,7 +1158,7 @@ mod tests {
         let clean_signal: Array1<f64> = t.mapv(|ti| (2.0 * PI * 5.0 * ti).sin());
 
         // Add noise
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let noisy_signal: Array1<f64> =
             clean_signal.mapv(|x| x + 0.1 * rng.gen_range(-1.0..1.0));
 

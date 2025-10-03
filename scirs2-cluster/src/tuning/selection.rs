@@ -3,8 +3,8 @@
 //! This module provides automatic algorithm selection capabilities and
 //! predefined search spaces for different clustering algorithms.
 
-use ndarray::ArrayView2;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -69,7 +69,7 @@ impl<
             + std::fmt::Display
             + Send
             + Sync
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + std::ops::AddAssign
             + std::ops::SubAssign
             + std::ops::MulAssign
@@ -735,7 +735,7 @@ pub fn auto_select_clustering_algorithm<
         + std::fmt::Display
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::ops::AddAssign
         + std::ops::SubAssign
         + std::ops::MulAssign
@@ -769,7 +769,7 @@ pub fn quick_algorithm_selection<
         + std::fmt::Display
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::ops::AddAssign
         + std::ops::SubAssign
         + std::ops::MulAssign

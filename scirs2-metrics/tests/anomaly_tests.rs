@@ -1,5 +1,5 @@
 use approx::assert_abs_diff_eq;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_metrics::anomaly::{
     anomaly_auc_score, anomaly_average_precision_score, detection_accuracy, false_alarm_rate,
     js_divergence, kl_divergence, maximum_mean_discrepancy, miss_detection_rate, nab_score,
@@ -35,8 +35,8 @@ fn test_detection_accuracy() {
     assert!(detection_accuracy(&y_true_4, &y_pred_4).is_err());
 
     // Test case 5: Empty arrays
-    let y_true_5: ndarray::Array1<f64> = array![];
-    let y_pred_5: ndarray::Array1<f64> = array![];
+    let y_true_5: scirs2_core::ndarray::Array1<f64> = array![];
+    let y_pred_5: scirs2_core::ndarray::Array1<f64> = array![];
     assert!(detection_accuracy(&y_true_5, &y_pred_5).is_err());
 }
 
@@ -252,8 +252,8 @@ fn test_wasserstein_distance() {
     }
 
     // Test case 5: Empty arrays
-    let u_5: ndarray::Array1<f64> = array![];
-    let v_5: ndarray::Array1<f64> = array![];
+    let u_5: scirs2_core::ndarray::Array1<f64> = array![];
+    let v_5: scirs2_core::ndarray::Array1<f64> = array![];
     assert!(wasserstein_distance(&u_5, &v_5).is_err());
 }
 
@@ -271,7 +271,7 @@ fn test_edge_cases() {
     assert!(anomaly_average_precision_score(&a1, &a2).is_err());
 
     // Empty arrays
-    let empty: ndarray::Array1<f64> = array![];
+    let empty: scirs2_core::ndarray::Array1<f64> = array![];
 
     assert!(detection_accuracy(&empty, &empty).is_err());
     assert!(false_alarm_rate(&empty, &empty).is_err());
@@ -495,12 +495,12 @@ fn test_nab_score() {
     let mut y_true_1 = vec![0.0; 20];
     y_true_1[5] = 1.0;
     y_true_1[15] = 1.0;
-    let y_true_1 = ndarray::Array::from(y_true_1);
+    let y_true_1 = scirs2_core::ndarray::Array::from(y_true_1);
 
     let mut y_pred_1 = vec![0.0; 20];
     y_pred_1[5] = 1.0;
     y_pred_1[15] = 1.0;
-    let y_pred_1 = ndarray::Array::from(y_pred_1);
+    let y_pred_1 = scirs2_core::ndarray::Array::from(y_pred_1);
 
     let score_1 = nab_score(&y_true_1, &y_pred_1, None, None, None).unwrap();
     // Perfect detection should get a high score (might not be exactly 100.0 due to implementation details)
@@ -509,11 +509,11 @@ fn test_nab_score() {
     // Test case 2: Early prediction (before the anomaly points)
     let mut y_true_2 = vec![0.0; 20];
     y_true_2[10] = 1.0;
-    let y_true_2 = ndarray::Array::from(y_true_2);
+    let y_true_2 = scirs2_core::ndarray::Array::from(y_true_2);
 
     let mut y_pred_2 = vec![0.0; 20];
     y_pred_2[8] = 1.0; // Early detection
-    let y_pred_2 = ndarray::Array::from(y_pred_2);
+    let y_pred_2 = scirs2_core::ndarray::Array::from(y_pred_2);
 
     let score_2 = nab_score(&y_true_2, &y_pred_2, Some(5), None, None).unwrap();
     // Early detection should get a high score (though not perfect)
@@ -522,11 +522,11 @@ fn test_nab_score() {
     // Test case 3: Late prediction (after the anomaly points)
     let mut y_true_3 = vec![0.0; 20];
     y_true_3[10] = 1.0;
-    let y_true_3 = ndarray::Array::from(y_true_3);
+    let y_true_3 = scirs2_core::ndarray::Array::from(y_true_3);
 
     let mut y_pred_3 = vec![0.0; 20];
     y_pred_3[12] = 1.0; // Late detection
-    let y_pred_3 = ndarray::Array::from(y_pred_3);
+    let y_pred_3 = scirs2_core::ndarray::Array::from(y_pred_3);
 
     let score_3 = nab_score(&y_true_3, &y_pred_3, Some(5), None, None).unwrap();
     // Late detection should get a moderate score
@@ -535,13 +535,13 @@ fn test_nab_score() {
     // Test case 4: False positives
     let mut y_true_4 = vec![0.0; 20];
     y_true_4[10] = 1.0;
-    let y_true_4 = ndarray::Array::from(y_true_4);
+    let y_true_4 = scirs2_core::ndarray::Array::from(y_true_4);
 
     let mut y_pred_4 = vec![0.0; 20];
     y_pred_4[10] = 1.0; // Correct detection
     y_pred_4[5] = 1.0; // False positive
     y_pred_4[15] = 1.0; // False positive
-    let y_pred_4 = ndarray::Array::from(y_pred_4);
+    let y_pred_4 = scirs2_core::ndarray::Array::from(y_pred_4);
 
     let score_4 = nab_score(&y_true_4, &y_pred_4, None, None, None).unwrap();
     // False positives should reduce the score
@@ -551,12 +551,12 @@ fn test_nab_score() {
     let mut y_true_5 = vec![0.0; 20];
     y_true_5[5] = 1.0;
     y_true_5[15] = 1.0;
-    let y_true_5 = ndarray::Array::from(y_true_5);
+    let y_true_5 = scirs2_core::ndarray::Array::from(y_true_5);
 
     let mut y_pred_5 = vec![0.0; 20];
     y_pred_5[5] = 1.0; // Detected first anomaly
                        // Second anomaly is missed
-    let y_pred_5 = ndarray::Array::from(y_pred_5);
+    let y_pred_5 = scirs2_core::ndarray::Array::from(y_pred_5);
 
     let score_5 = nab_score(&y_true_5, &y_pred_5, None, None, None).unwrap();
     // Missed anomalies should reduce the score
@@ -565,12 +565,12 @@ fn test_nab_score() {
     // Test case 6: Custom weights
     let mut y_true_6 = vec![0.0; 20];
     y_true_6[10] = 1.0;
-    let y_true_6 = ndarray::Array::from(y_true_6);
+    let y_true_6 = scirs2_core::ndarray::Array::from(y_true_6);
 
     let mut y_pred_6 = vec![0.0; 20];
     y_pred_6[10] = 1.0; // Correct detection
     y_pred_6[5] = 1.0; // False positive
-    let y_pred_6 = ndarray::Array::from(y_pred_6);
+    let y_pred_6 = scirs2_core::ndarray::Array::from(y_pred_6);
 
     // Higher penalty for false positives
     let score_6a = nab_score(&y_true_6, &y_pred_6, None, None, Some(-1.0)).unwrap();
@@ -581,20 +581,20 @@ fn test_nab_score() {
     assert!(score_6a < score_6b);
 
     // Test case 7: No anomalies in ground truth
-    let y_true_7 = ndarray::Array::from(vec![0.0; 20]);
-    let y_pred_7 = ndarray::Array::from(vec![0.0; 20]);
+    let y_true_7 = scirs2_core::ndarray::Array::from(vec![0.0; 20]);
+    let y_pred_7 = scirs2_core::ndarray::Array::from(vec![0.0; 20]);
 
     let score_7 = nab_score(&y_true_7, &y_pred_7, None, None, None).unwrap();
     // Perfect prediction of no anomalies should get a perfect score
     assert_abs_diff_eq!(score_7, 100.0, epsilon = 1e-10);
 
     // Test case 8: False positives with no true anomalies
-    let y_true_8 = ndarray::Array::from(vec![0.0; 20]);
+    let y_true_8 = scirs2_core::ndarray::Array::from(vec![0.0; 20]);
 
     let mut y_pred_8 = vec![0.0; 20];
     y_pred_8[5] = 1.0;
     y_pred_8[15] = 1.0;
-    let y_pred_8 = ndarray::Array::from(y_pred_8);
+    let y_pred_8 = scirs2_core::ndarray::Array::from(y_pred_8);
 
     let score_8 = nab_score(&y_true_8, &y_pred_8, None, None, None).unwrap();
     // All false positives should get a minimum score

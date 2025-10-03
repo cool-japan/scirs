@@ -42,7 +42,7 @@
 //! - Common variations
 //! - Troubleshooting tips
 
-use ndarray::{s, Array2, Array3, ArrayView2};
+use scirs2_core::ndarray::{s, Array2, Array3, ArrayView2};
 use scirs2_ndimage::{
     error::NdimageResult, features::*, filters::*, interpolation::*, measurements::*,
     morphology::*, segmentation::*,
@@ -291,7 +291,7 @@ fn object_detection_recipes() -> NdimageResult<()> {
     println!(
         "use scirs2_ndimage::{{morphology::distance_transform_edt, segmentation::watershed}};"
     );
-    println!("use ndarray::IxDyn;");
+    println!("use scirs2_core::ndarray::IxDyn;");
     println!();
     println!("// Step 1: Create binary mask");
     println!("let binary = threshold_binary(&image.view(), 0.5)?;");
@@ -299,7 +299,9 @@ fn object_detection_recipes() -> NdimageResult<()> {
     println!("// Step 2: Distance transform to find object centers");
     println!("let binary_dyn = binary.clone().into_dimensionality::<IxDyn>().unwrap();");
     println!("let (distances_) = distance_transform_edt(&binary_dyn, None, true, false)?;");
-    println!("let distances_2d = distances.into_dimensionality::<ndarray::Ix2>().unwrap();");
+    println!(
+        "let distances_2d = distances.into_dimensionality::<scirs2_core::ndarray::Ix2>().unwrap();"
+    );
     println!();
     println!("// Step 3: Find peaks as markers");
     println!("let markers = find_local_maxima(&distances_2d, 2.0);");
@@ -1207,8 +1209,8 @@ fn hot_colormap(value: f64) -> (f64, f64, f64) {
 fn viridis_colormap(value: f64) -> (f64, f64, f64) {
     let v = value.clamp(0.0, 1.0);
     // Simplified viridis approximation
-    let r = (0.267 + v * (0.975 - 0.267)).max(0.0).min(1.0);
-    let g = (0.005 + v * (0.906 - 0.005)).max(0.0).min(1.0);
-    let b = (0.329 + v * (0.110 - 0.329)).max(0.0).min(1.0);
+    let r = (0.267 + v * (0.975 - 0.267)).clamp(0.0, 1.0);
+    let g = (0.005 + v * (0.906 - 0.005)).clamp(0.0, 1.0);
+    let b = (0.329 + v * (0.110 - 0.329)).clamp(0.0, 1.0);
     (r, g, b)
 }

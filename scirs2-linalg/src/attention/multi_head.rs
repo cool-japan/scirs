@@ -3,8 +3,8 @@
 //! This module provides the multi-head attention mechanism that computes
 //! multiple attention heads in parallel and concatenates the results.
 
-use ndarray::{Array3, ArrayView2, ArrayView3};
-use num_traits::{Float, NumAssignOps, Zero};
+use scirs2_core::ndarray::{Array3, ArrayView2, ArrayView3};
+use scirs2_core::numeric::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
 use super::utils::{attention, AttentionConfig, AttentionMask};
@@ -153,9 +153,21 @@ where
         let start_idx = h * head_dim;
         let _end_idx = start_idx + head_dim; // Used for debugging/clarity
 
-        let q_head = q_proj.slice(ndarray::s![.., .., start_idx..(start_idx + head_dim)]);
-        let k_head = k_proj.slice(ndarray::s![.., .., start_idx..(start_idx + head_dim)]);
-        let v_head = v_proj.slice(ndarray::s![.., .., start_idx..(start_idx + head_dim)]);
+        let q_head = q_proj.slice(scirs2_core::ndarray::s![
+            ..,
+            ..,
+            start_idx..(start_idx + head_dim)
+        ]);
+        let k_head = k_proj.slice(scirs2_core::ndarray::s![
+            ..,
+            ..,
+            start_idx..(start_idx + head_dim)
+        ]);
+        let v_head = v_proj.slice(scirs2_core::ndarray::s![
+            ..,
+            ..,
+            start_idx..(start_idx + head_dim)
+        ]);
 
         // Compute attention for this head
         let head_output = attention(&q_head, &k_head, &v_head, mask, scale)?;
@@ -241,13 +253,13 @@ where
     let seq_len_k = key.shape()[1];
 
     // Validate kv head configuration
-    if num_heads % num_kv_heads != 0 {
+    if !num_heads.is_multiple_of(num_kv_heads) {
         return Err(LinalgError::ValueError(format!(
             "Number of query heads ({num_heads}) must be divisible by number of KV heads ({num_kv_heads})"
         )));
     }
 
-    if num_heads % num_kv_heads != 0 {
+    if !num_heads.is_multiple_of(num_kv_heads) {
         return Err(LinalgError::ValueError(format!(
             "Number of heads ({num_heads}) must be divisible by number of key-value heads ({num_kv_heads})"
         )));
@@ -323,11 +335,11 @@ where
         let kv_end = kv_start + head_dim;
 
         // Extract query head
-        let q_head = q_proj.slice(ndarray::s![.., .., q_start..q_end]);
+        let q_head = q_proj.slice(scirs2_core::ndarray::s![.., .., q_start..q_end]);
 
         // Extract key and value heads (shared across multiple query heads)
-        let k_head = k_proj.slice(ndarray::s![.., .., kv_start..kv_end]);
-        let v_head = v_proj.slice(ndarray::s![.., .., kv_start..kv_end]);
+        let k_head = k_proj.slice(scirs2_core::ndarray::s![.., .., kv_start..kv_end]);
+        let v_head = v_proj.slice(scirs2_core::ndarray::s![.., .., kv_start..kv_end]);
 
         // Compute attention for this head
         let head_output = attention(&q_head, &k_head, &v_head, mask, scale)?;

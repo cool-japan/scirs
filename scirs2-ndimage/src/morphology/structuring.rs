@@ -1,6 +1,6 @@
 //! Functions for creating and manipulating structuring elements
 
-use ndarray::{Array, Dimension, IxDyn};
+use scirs2_core::ndarray::{Array, Dimension, IxDyn};
 
 use super::Connectivity;
 use crate::error::{NdimageError, NdimageResult};
@@ -301,7 +301,7 @@ pub(crate) fn generate_binary_structure_dyn(rank: usize) -> NdimageResult<Array<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_iterate_structure() {

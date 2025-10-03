@@ -6,7 +6,7 @@
 use super::dual::{Dual, DualVector};
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Forward mode automatic differentiation engine
 pub struct ForwardAD<F: IntegrateFloat> {

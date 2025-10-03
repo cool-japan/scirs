@@ -5,7 +5,7 @@
 //! of computationally expensive problems across compute clusters.
 
 use crate::error::{ScirsError, ScirsResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::Rng;
 use statrs::statistics::Statistics;
 
@@ -501,7 +501,7 @@ pub mod algorithms {
             local_size: usize,
             bounds: &[(f64, f64)],
         ) -> ScirsResult<Array2<f64>> {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
 
             let dims = bounds.len();
             let mut population = Array2::zeros((local_size, dims));
@@ -561,7 +561,7 @@ pub mod algorithms {
         }
 
         fn generate_trial_population(&self, population: &Array2<f64>) -> ScirsResult<Array2<f64>> {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
 
             let (pop_size, dims) = population.dim();
             let mut trial_population = Array2::zeros((pop_size, dims));
@@ -767,7 +767,7 @@ pub mod algorithms {
             local_size: usize,
             bounds: &[(f64, f64)],
         ) -> ScirsResult<Array2<f64>> {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
 
             let dims = bounds.len();
             let mut positions = Array2::zeros((local_size, dims));
@@ -829,7 +829,7 @@ pub mod algorithms {
             global_best: &Array1<f64>,
             bounds: &[(f64, f64)],
         ) -> ScirsResult<()> {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
 
             let (swarm_size, dims) = positions.dim();
 

@@ -9,7 +9,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::serialization::{SerializableModel, EnhancedModel};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Pretend we trained a KMeans and have centroids
 //! let centroids = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]).unwrap();
@@ -27,7 +27,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::serialization::{AdvancedExport, ExportFormat, ModelMetadata};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_cluster::serialization::utils::create_default_metadata;
 //!
 //! // Export model in different formats
@@ -74,7 +74,7 @@ pub mod export;
 pub mod models;
 pub mod workflow;
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 // Re-export main types for convenience
 pub use core::{
@@ -137,11 +137,11 @@ pub use compatibility::*;
 
 /// Convenience function to create a serializable K-means model
 pub fn create_kmeans_model(
-    centroids: ndarray::Array2<f64>,
+    centroids: scirs2_core::ndarray::Array2<f64>,
     n_clusters: usize,
     n_iter: usize,
     inertia: f64,
-    labels: Option<ndarray::Array1<usize>>,
+    labels: Option<scirs2_core::ndarray::Array1<usize>>,
 ) -> KMeansModel {
     KMeansModel::new(centroids, n_clusters, n_iter, inertia, labels)
 }
@@ -149,8 +149,8 @@ pub fn create_kmeans_model(
 /// Convenience function to create a serializable DBSCAN model
 pub fn create_dbscan_model(
     core_sample_indices: Vec<usize>,
-    components: ndarray::Array2<f64>,
-    labels: ndarray::Array1<i32>,
+    components: scirs2_core::ndarray::Array2<f64>,
+    labels: scirs2_core::ndarray::Array1<i32>,
     eps: f64,
     min_samples: usize,
 ) -> DBSCANModel {
@@ -165,8 +165,8 @@ pub fn create_dbscan_model(
 /// Convenience function to create a serializable hierarchical clustering model
 pub fn create_hierarchical_model(
     n_clusters: usize,
-    labels: ndarray::Array1<usize>,
-    linkage_matrix: ndarray::Array2<f64>,
+    labels: scirs2_core::ndarray::Array1<usize>,
+    linkage_matrix: scirs2_core::ndarray::Array2<f64>,
     distances: Vec<f64>,
 ) -> HierarchicalModel {
     HierarchicalModel::new(linkage_matrix, n_clusters, "ward".to_string(), None)
@@ -251,7 +251,7 @@ pub fn batch_export_models<T: AdvancedExport>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_create_kmeans_model() {
@@ -266,7 +266,7 @@ mod tests {
         let core_samples = vec![0, 1, 2];
         let components =
             Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 1.0, 2.0, 2.0]).unwrap();
-        let labels = ndarray::Array1::from_vec(vec![0, 0, 1]);
+        let labels = scirs2_core::ndarray::Array1::from_vec(vec![0, 0, 1]);
         let model = create_dbscan_model(core_samples, components, labels, 0.5, 2);
         assert_eq!(model.eps, 0.5);
         assert_eq!(model.min_samples, 2);

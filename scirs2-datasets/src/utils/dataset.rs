@@ -5,7 +5,7 @@
 //! basic properties.
 
 use crate::utils::serialization;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -18,7 +18,7 @@ use std::collections::HashMap;
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_datasets::utils::Dataset;
 ///
 /// let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
@@ -77,7 +77,7 @@ impl Dataset {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     /// use scirs2_datasets::utils::Dataset;
     ///
     /// let data = Array2::zeros((100, 5));
@@ -299,7 +299,7 @@ impl Dataset {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_dataset_creation() {

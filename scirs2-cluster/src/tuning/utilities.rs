@@ -3,7 +3,7 @@
 //! This module contains helper functions for scoring, early stopping,
 //! statistics calculation, and other common operations.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 use crate::error::Result;
@@ -255,7 +255,10 @@ pub fn calculate_sample_silhouette(
 }
 
 /// Calculate Euclidean distance between two vectors
-pub fn euclidean_distance(a: &ndarray::ArrayView1<f64>, b: &ndarray::ArrayView1<f64>) -> f64 {
+pub fn euclidean_distance(
+    a: &scirs2_core::ndarray::ArrayView1<f64>,
+    b: &scirs2_core::ndarray::ArrayView1<f64>,
+) -> f64 {
     a.iter()
         .zip(b.iter())
         .map(|(x, y)| (x - y).powi(2))
@@ -264,7 +267,10 @@ pub fn euclidean_distance(a: &ndarray::ArrayView1<f64>, b: &ndarray::ArrayView1<
 }
 
 /// Calculate Manhattan distance between two vectors
-pub fn manhattan_distance(a: &ndarray::ArrayView1<f64>, b: &ndarray::ArrayView1<f64>) -> f64 {
+pub fn manhattan_distance(
+    a: &scirs2_core::ndarray::ArrayView1<f64>,
+    b: &scirs2_core::ndarray::ArrayView1<f64>,
+) -> f64 {
     a.iter()
         .zip(b.iter())
         .map(|(x, y)| (x - y).abs())
@@ -272,7 +278,10 @@ pub fn manhattan_distance(a: &ndarray::ArrayView1<f64>, b: &ndarray::ArrayView1<
 }
 
 /// Calculate Cosine similarity between two vectors
-pub fn cosine_similarity(a: &ndarray::ArrayView1<f64>, b: &ndarray::ArrayView1<f64>) -> f64 {
+pub fn cosine_similarity(
+    a: &scirs2_core::ndarray::ArrayView1<f64>,
+    b: &scirs2_core::ndarray::ArrayView1<f64>,
+) -> f64 {
     let dot_product: f64 = a.iter().zip(b.iter()).map(|(x, y)| x * y).sum();
     let norm_a: f64 = a.iter().map(|x| x * x).sum::<f64>().sqrt();
     let norm_b: f64 = b.iter().map(|x| x * x).sum::<f64>().sqrt();
@@ -415,7 +424,7 @@ mod tests {
 
     #[test]
     fn test_euclidean_distance() {
-        use ndarray::Array1;
+        use scirs2_core::ndarray::Array1;
         let a = Array1::from_vec(vec![0.0, 0.0]);
         let b = Array1::from_vec(vec![3.0, 4.0]);
         let distance = euclidean_distance(&a.view(), &b.view());

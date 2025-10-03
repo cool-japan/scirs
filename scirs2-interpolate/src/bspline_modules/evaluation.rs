@@ -3,8 +3,8 @@
 //! This module contains optimized evaluation algorithms and specialized
 //! evaluation methods for B-splines.
 
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, RemAssign, Sub, SubAssign};
 
@@ -111,7 +111,7 @@ where
         let mut temp = vec![T::zero(); self.k + 1];
 
         // Find the starting coefficient index (same as de_boor_eval)
-        let mut idx = if span >= self.k { span - self.k } else { 0 };
+        let mut idx = span.saturating_sub(self.k);
 
         if idx > self.c.len() - self.k - 1 {
             idx = self.c.len() - self.k - 1;
@@ -264,7 +264,7 @@ where
             basis = temp;
         }
 
-        let starting_index = if span >= self.k { span - self.k } else { 0 };
+        let starting_index = span.saturating_sub(self.k);
         Ok((starting_index, basis))
     }
 
@@ -288,7 +288,7 @@ where
     ) -> InterpolateResult<(usize, Vec<Array1<T>>)> {
         let max_order = std::cmp::min(n, self.k);
         let span = self.find_span_fast(x);
-        let starting_index = if span >= self.k { span - self.k } else { 0 };
+        let starting_index = span.saturating_sub(self.k);
 
         // Initialize arrays for basis function values and derivatives
         let mut derivatives = vec![Array1::zeros(self.k + 1); max_order + 1];
@@ -441,7 +441,7 @@ where
         use scirs2_core::parallel_ops::*;
 
         let chunks: Result<Vec<_>, _> = xs
-            .axis_chunks_iter(ndarray::Axis(0), chunk_size)
+            .axis_chunks_iter(scirs2_core::ndarray::Axis(0), chunk_size)
             .par_bridge()
             .map(|chunk| {
                 let mut results = Array1::zeros(chunk.len());
@@ -460,7 +460,7 @@ where
         for chunk_result in chunk_results {
             let chunk_len = chunk_result.len();
             result
-                .slice_mut(ndarray::s![offset..offset + chunk_len])
+                .slice_mut(scirs2_core::ndarray::s![offset..offset + chunk_len])
                 .assign(&chunk_result);
             offset += chunk_len;
         }

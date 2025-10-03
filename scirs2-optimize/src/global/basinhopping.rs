@@ -6,9 +6,9 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::{minimize, Bounds, Method, OptimizeResult, Options};
-use ndarray::{Array1, ArrayView1};
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Rng, SeedableRng};
 
 /// Enforce bounds using reflection method for better exploration
 #[allow(dead_code)]
@@ -161,7 +161,7 @@ where
         let ndim = x0.len();
         let seed = options
             .seed
-            .unwrap_or_else(|| rand::rng().random_range(0..u64::MAX));
+            .unwrap_or_else(|| scirs2_core::random::rng().random_range(0..u64::MAX));
         let mut rng = StdRng::seed_from_u64(seed);
 
         // Default accept _test is Metropolis criterion
@@ -171,7 +171,7 @@ where
                     true
                 } else {
                     let delta = (f_old - f_new) / temp;
-                    delta > 0.0 && rand::rng().random_range(0.0..1.0) < delta.exp()
+                    delta > 0.0 && scirs2_core::random::rng().random_range(0.0..1.0) < delta.exp()
                 }
             })
         });
@@ -182,7 +182,7 @@ where
             let bounds = options.bounds.clone();
             let seed = options
                 .seed
-                .unwrap_or_else(|| rand::rng().random_range(0..u64::MAX));
+                .unwrap_or_else(|| scirs2_core::random::rng().random_range(0..u64::MAX));
             Box::new(move |x: &Array1<f64>| {
                 let mut local_rng = StdRng::seed_from_u64(seed + x.len() as u64);
                 let mut x_new = x.clone();

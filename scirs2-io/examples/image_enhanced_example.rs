@@ -7,7 +7,7 @@
 //! - Efficient batch processing with enhanced compression
 //! - Quality-preserving image operations
 
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 use scirs2_io::image::enhanced::{
     batch_convert_with_compression, create_image_pyramid, save_high_quality, save_lossless,
     CompressionOptions, CompressionQuality, EnhancedImageProcessor, InterpolationMethod,

@@ -1,6 +1,6 @@
-use ndarray::Array2;
 use scirs2_cluster::metrics::{silhouette_samples, silhouette_score};
 use scirs2_cluster::vq::{kmeans2, MinitMethod, MissingMethod};
+use scirs2_core::ndarray::Array2;
 
 #[allow(dead_code)]
 fn main() {

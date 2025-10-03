@@ -1,4 +1,8 @@
 #![allow(deprecated)]
+#![allow(clippy::manual_strip)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::cloned_ref_to_slice_refs)]
 #![allow(dead_code)]
 //! # SciRS2 Text - Natural Language Processing
 //!
@@ -31,7 +35,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-text = "0.1.0-beta.4"
+//! scirs2-text = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust,no_run
@@ -47,7 +51,7 @@
 //! let matrix = vectorizer.fit_transform(&docs).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 //!
 //! ## Quick Start
 //!

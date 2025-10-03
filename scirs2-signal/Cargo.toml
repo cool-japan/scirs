@@ -14,10 +14,7 @@ workspace = true
 
 [dependencies]
 # Core dependencies
-scirs2-core = { workspace = true, features = ["parallel"] }
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
+scirs2-core = { workspace = true, features = ["array", "random", "parallel"] }
 num-integer = { workspace = true }
 thiserror = { workspace = true }
 # BLAS dependencies handled through scirs2-core
@@ -27,8 +24,6 @@ rustfft = { workspace = true }
 scirs2-fft = { workspace = true }
 scirs2-linalg = { workspace = true }
 scirs2-special = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
 rand_chacha = { workspace = true }
 plotly = { workspace = true }
 statrs = { workspace = true }

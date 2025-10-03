@@ -20,7 +20,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::{Array1, Array2};
+//! use scirs2_core::ndarray::{Array1, Array2};
 //! use scirs2_interpolate::structured_matrix::{BandMatrix, solve_band_system};
 //!
 //! // Create a tridiagonal matrix for cubic spline interpolation
@@ -44,8 +44,8 @@
 //! ```
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::Debug;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, RemAssign, Sub, SubAssign};
 
@@ -472,7 +472,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_interpolate::structured_matrix::{BandMatrix, solve_band_system};
 ///
 /// // Create a simple tridiagonal system
@@ -924,7 +924,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_band_matrix_operations() {

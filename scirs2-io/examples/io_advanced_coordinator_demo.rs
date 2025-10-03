@@ -666,17 +666,13 @@ fn generate_benchmark_dataset(size: usize) -> Vec<u8> {
 #[allow(dead_code)]
 fn generate_cpu_intensive_data(size: usize) -> Vec<u8> {
     (0..size)
-        .map(|i| {
-            let complex_calc =
-                ((i as f32).sqrt().sin() * (i as f32).ln().cos() * 127.0 + 128.0) as u8;
-            complex_calc
-        })
+        .map(|i| ((i as f32).sqrt().sin() * (i as f32).ln().cos() * 127.0 + 128.0) as u8)
         .collect()
 }
 
 #[allow(dead_code)]
 fn generate_memory_heavy_data(size: usize) -> Vec<u8> {
-    let pattern = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let pattern = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     (0..size).map(|i| pattern[i % pattern.len()]).collect()
 }
 
@@ -760,8 +756,8 @@ fn generate_fractal_pattern_data(size: usize) -> Vec<u8> {
     (0..size)
         .map(|i| {
             let x = (i as f32) / (size as f32) * 4.0 - 2.0;
-            let fractal = ((x * x - 1.0).sin() * 127.0 + 128.0) as u8;
-            fractal
+
+            ((x * x - 1.0).sin() * 127.0 + 128.0) as u8
         })
         .collect()
 }
@@ -803,12 +799,11 @@ fn generate_adaptive_pattern_data(size: usize) -> Vec<u8> {
 fn generate_evolution_trigger_data(size: usize) -> Vec<u8> {
     (0..size)
         .map(|i| {
-            let evolution = if i % 1000 < 100 {
+            if i % 1000 < 100 {
                 255 // Trigger event
             } else {
                 ((i as f32 * 0.01).sin() * 127.0 + 128.0) as u8
-            };
-            evolution
+            }
         })
         .collect()
 }

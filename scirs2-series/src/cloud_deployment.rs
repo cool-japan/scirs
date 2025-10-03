@@ -212,12 +212,19 @@ pub struct DeploymentState {
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DeploymentStatus {
+    /// Deployment is being initialized
     Initializing,
+    /// Deployment is in progress
     Deploying,
+    /// Deployment is running and operational
     Running,
+    /// Deployment is scaling up or down
     Scaling,
+    /// Deployment is being stopped
     Stopping,
+    /// Deployment has been stopped
     Stopped,
+    /// Deployment encountered an error
     Error(String),
 }
 

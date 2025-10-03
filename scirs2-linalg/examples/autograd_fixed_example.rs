@@ -84,7 +84,7 @@ fn demomatrix_operations() {
 
         // Trace equivalent using sum of diagonal
         let diag_sum = T::extract_diag(c);
-        let trace_c = T::sum_all(&diag_sum);
+        let trace_c = T::sum_all(diag_sum);
 
         // Gradient of trace w.r.t. A and B
         let grads = T::grad(&[trace_c], &[a, b]);
@@ -106,7 +106,7 @@ fn demomatrix_operations() {
 
         // Frobenius norm squared
         let c_flat = T::flatten(c);
-        let norm_squared = T::sum_all(&T::square(c_flat));
+        let norm_squared = T::sum_all(T::square(c_flat));
         let norm_grads = T::grad(&[norm_squared], &[a, b]);
 
         let norm_grad_results = ctx
@@ -139,7 +139,7 @@ fn demo_linalg_ops() {
 
         // Compute trace
         let diag = T::extract_diag(ata);
-        let trace_ata = T::sum_all(&diag);
+        let trace_ata = T::sum_all(diag);
 
         // Gradient
         let grad_trace = &T::grad(&[trace_ata], &[a])[0];
@@ -158,7 +158,7 @@ fn demo_linalg_ops() {
 
         // Another example: matrix norm
         let a_flat = T::flatten(a);
-        let a_norm = T::sqrt(T::sum_all(&T::square(a_flat)));
+        let a_norm = T::sqrt(T::sum_all(T::square(a_flat)));
         let grad_norm = &T::grad(&[a_norm], &[a])[0];
 
         let norm_result = ctx
@@ -176,7 +176,7 @@ fn demo_linalg_ops() {
         let exp_approx = i + a + T::scalar_mul(a_sq, 0.5);
 
         // Sum all elements
-        let exp_sum = T::sum_all(&T::flatten(exp_approx));
+        let exp_sum = T::sum_all(T::flatten(exp_approx));
         let grad_exp = &T::grad(&[exp_sum], &[a])[0];
 
         let exp_result = ctx

@@ -1,7 +1,7 @@
 //! Denoising and enhancement examples
 
 use image::{DynamicImage, ImageBuffer, Luma};
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_vision::error::Result;
 use scirs2_vision::preprocessing::{
     adaptive_gamma_correction, auto_gamma_correction, gamma_correction, nlm_denoise,
@@ -196,9 +196,9 @@ fn demonstrate_gamma_correction(img: &DynamicImage) -> Result<()> {
 /// Add Gaussian noise to an image
 #[allow(dead_code)]
 fn add_gaussian_noise(img: &DynamicImage, noiselevel: f32) -> DynamicImage {
-    use rand_distr::{Distribution, Normal};
+    use scirs2_core::random::{Distribution, Normal};
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let normal = Normal::new(0.0, noiselevel).unwrap();
 
     match img {

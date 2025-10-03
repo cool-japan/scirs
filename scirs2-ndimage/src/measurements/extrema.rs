@@ -1,7 +1,7 @@
 //! Functions for finding extrema in arrays
 
-use ndarray::{Array, Dimension, IntoDimension};
-use num_traits::{Float, FromPrimitive, NumAssign};
+use scirs2_core::ndarray::{Array, Dimension, IntoDimension};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -43,7 +43,7 @@ fn generate_offsets(offsets: &mut Vec<Vec<isize>>, sizes: &[usize], current: &[i
 ///
 /// ## 1D Array
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::extrema;
 ///
 /// let data = array![1.0, 3.0, 2.0, 5.0, 1.5];
@@ -57,7 +57,7 @@ fn generate_offsets(offsets: &mut Vec<Vec<isize>>, sizes: &[usize], current: &[i
 ///
 /// ## 2D Array
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::extrema;
 ///
 /// let data = array![[1.0, 8.0, 3.0],
@@ -73,7 +73,7 @@ fn generate_offsets(offsets: &mut Vec<Vec<isize>>, sizes: &[usize], current: &[i
 ///
 /// ## 3D Array
 /// ```rust
-/// use ndarray::Array3;
+/// use scirs2_core::ndarray::Array3;
 /// use scirs2_ndimage::extrema;
 ///
 /// let mut data = Array3::<f64>::zeros((2, 2, 2));
@@ -186,7 +186,7 @@ where
 ///
 /// ## 1D Array - Finding Peaks and Valleys
 /// ```rust,ignore
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::local_extrema;
 ///
 /// // Signal with peaks and valleys
@@ -200,7 +200,7 @@ where
 ///
 /// ## 2D Array - Finding Local Extrema in Images
 /// ```rust,ignore
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::local_extrema;
 ///
 /// let image = array![[1.0, 2.0, 1.0],
@@ -216,7 +216,7 @@ where
 ///
 /// ## Custom Neighborhood Size
 /// ```rust,ignore
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::local_extrema;
 ///
 /// let data = Array2::<f64>::from_shape_vec((5, 5), (0..25).map(|x| x as f64).collect()).unwrap().into_dyn();
@@ -262,9 +262,7 @@ pub fn local_extrema<T, D>(
 where
     T: Float + FromPrimitive + Debug + NumAssign + PartialOrd + std::ops::DivAssign + 'static,
     D: Dimension + 'static,
-    <D as ndarray::Dimension>::Pattern: IntoIterator + ndarray::NdIndex<D> + Clone,
-    <<D as ndarray::Dimension>::Pattern as IntoIterator>::Item: Copy + Into<usize>,
-    for<'a> &'a [usize]: ndarray::NdIndex<D>,
+    for<'a> &'a [usize]: scirs2_core::ndarray::NdIndex<D>,
 {
     // Validate inputs
     if input.ndim() == 0 {
@@ -313,10 +311,32 @@ where
 
     // Create neighborhood offsets for n-dimensional case
     let mut offsets = Vec::new();
-    generate_offsets(&mut offsets, neighborhood_size, &vec![0; input.ndim()], 0);
+    generate_offsets(&mut offsets, neighborhood_size, &vec![], 0);
 
-    // Process each point in the array
-    for (idx, &center_value) in input.indexed_iter() {
+    // Convert input shape to Vec for easier indexing
+    let shape = input.shape().to_vec();
+    let ndim = shape.len();
+
+    // Process each point by iterating over all possible indices
+    let total_elements: usize = shape.iter().product();
+
+    // Pre-compute strides for row-major (C-order) indexing
+    let mut strides = vec![1; ndim];
+    for d in (0..ndim - 1).rev() {
+        strides[d] = strides[d + 1] * shape[d + 1];
+    }
+
+    for flat_idx in 0..total_elements {
+        // Convert flat index to multi-dimensional index using pre-computed strides
+        let mut center_idx = vec![0; ndim];
+        let mut remaining = flat_idx;
+
+        for d in 0..ndim {
+            center_idx[d] = remaining / strides[d];
+            remaining %= strides[d];
+        }
+
+        let center_value = input[&*center_idx];
         let mut is_min = true;
         let mut is_max = true;
         let mut has_neighbors = false;
@@ -332,11 +352,11 @@ where
             let mut neighbor_idx = Vec::new();
             let mut valid_neighbor = true;
 
-            for (i, (center_coord, &offset_val)) in
-                idx.clone().into_iter().zip(offset.iter()).enumerate()
+            for (i, (&center_coord, &offset_val)) in
+                center_idx.iter().zip(offset.iter()).enumerate()
             {
-                let coord = Into::<usize>::into(center_coord) as isize + offset_val;
-                if coord < 0 || coord >= input.shape()[i] as isize {
+                let coord = center_coord as isize + offset_val;
+                if coord < 0 || coord >= shape[i] as isize {
                     valid_neighbor = false;
                     break;
                 }
@@ -369,14 +389,14 @@ where
         if has_neighbors {
             match m {
                 "min" => {
-                    minima[idx.clone()] = is_min;
+                    minima[&*center_idx] = is_min;
                 }
                 "max" => {
-                    maxima[idx.clone()] = is_max;
+                    maxima[&*center_idx] = is_max;
                 }
                 "both" => {
-                    minima[idx.clone()] = is_min;
-                    maxima[idx.clone()] = is_max;
+                    minima[&*center_idx] = is_min;
+                    maxima[&*center_idx] = is_max;
                 }
                 _ => unreachable!(), // Already validated above
             }
@@ -411,7 +431,7 @@ where
 ///
 /// ## Basic Peak Prominence
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::peak_prominences;
 ///
 /// // Signal with peaks of different prominence
@@ -424,7 +444,7 @@ where
 ///
 /// ## Finding Significant Peaks
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_ndimage::peak_prominences;
 ///
 /// // Create a signal with noise and clear peaks
@@ -446,7 +466,7 @@ where
 ///
 /// ## Workflow with Peak Detection
 /// ```rust,no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::{local_extrema, peak_prominences};
 ///
 /// let signal = array![0.0, 2.0, 1.0, 4.0, 0.5, 3.0, 0.2];
@@ -493,7 +513,7 @@ where
 /// Full prominence calculation algorithm needs to be implemented.
 #[allow(dead_code)]
 pub fn peak_prominences<T>(
-    input: &Array<T, ndarray::Ix1>,
+    input: &Array<T, scirs2_core::ndarray::Ix1>,
     peaks: &[usize],
     _wlen: Option<usize>,
 ) -> NdimageResult<Vec<T>>
@@ -556,7 +576,7 @@ pub type PeakWidthsResult<T> = (Vec<T>, Vec<T>, Vec<T>, Vec<T>);
 ///
 /// ## Full Width at Half Maximum (FWHM)
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_ndimage::peak_widths;
 ///
 /// // Gaussian-like peak
@@ -572,7 +592,7 @@ pub type PeakWidthsResult<T> = (Vec<T>, Vec<T>, Vec<T>, Vec<T>);
 ///
 /// ## Multiple Peaks with Different Widths  
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::peak_widths;
 ///
 /// // Signal with narrow and wide peaks
@@ -588,7 +608,7 @@ pub type PeakWidthsResult<T> = (Vec<T>, Vec<T>, Vec<T>, Vec<T>);
 ///
 /// ## Custom Height Measurements
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::peak_widths;
 ///
 /// let signal = array![0.0, 1.0, 2.0, 3.0, 2.0, 1.0, 0.0];
@@ -607,7 +627,7 @@ pub type PeakWidthsResult<T> = (Vec<T>, Vec<T>, Vec<T>, Vec<T>);
 ///
 /// ## Peak Characterization Workflow
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_ndimage::{local_extrema, peak_widths, peak_prominences};
 ///
 /// // Generate test signal with known peak
@@ -667,7 +687,7 @@ pub type PeakWidthsResult<T> = (Vec<T>, Vec<T>, Vec<T>, Vec<T>);
 /// Full width calculation with interpolation needs to be implemented.
 #[allow(dead_code)]
 pub fn peak_widths<T>(
-    input: &Array<T, ndarray::Ix1>,
+    input: &Array<T, scirs2_core::ndarray::Ix1>,
     peaks: &[usize],
     rel_height: Option<T>,
 ) -> NdimageResult<PeakWidthsResult<T>>
@@ -713,7 +733,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_extrema() {
@@ -726,14 +746,19 @@ mod tests {
 
     #[test]
     fn test_local_extrema() {
-        // Note: local_extrema function has trait implementation issues
-        // Skipping test for now to allow compilation
+        // Test with dynamic array (IxDyn)
         let input_2d: Array2<f64> = Array2::eye(3);
-        assert_eq!(input_2d.dim(), (3, 3));
-        // TODO: Fix local_extrema function implementation
-        // let input = input_2d.clone().into_dyn();
-        // let (minima, maxima) = local_extrema(&input, None, None).unwrap();
-        // assert_eq!(minima.shape(), input.shape());
-        // assert_eq!(maxima.shape(), input.shape());
+        let input = input_2d.into_dyn();
+        assert_eq!(input.ndim(), 2);
+        let (minima, maxima) = local_extrema(&input, None, None).unwrap();
+        assert_eq!(minima.shape(), input.shape());
+        assert_eq!(maxima.shape(), input.shape());
+
+        // Test with a simple peak in the center
+        let mut data_2d = Array2::<f64>::zeros((5, 5));
+        data_2d[[2, 2]] = 10.0; // Peak in center
+        let data = data_2d.into_dyn();
+        let (minima, maxima) = local_extrema(&data, None, None).unwrap();
+        assert!(maxima[vec![2, 2].as_slice()]); // Center should be a maximum
     }
 }

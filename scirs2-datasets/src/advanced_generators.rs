@@ -6,9 +6,9 @@
 
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2, Axis};
-use rand_distr::Uniform;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::Uniform;
 
 /// Configuration for adversarial example generation
 #[derive(Debug, Clone)]
@@ -288,15 +288,17 @@ impl AdvancedGenerator {
         // Combine data
         let mut combined_data = Array2::zeros((n_samples, n_features));
         combined_data
-            .slice_mut(ndarray::s![..n_normal, ..])
+            .slice_mut(scirs2_core::ndarray::s![..n_normal, ..])
             .assign(&normal_data);
         combined_data
-            .slice_mut(ndarray::s![n_normal.., ..])
+            .slice_mut(scirs2_core::ndarray::s![n_normal.., ..])
             .assign(&anomalous_data);
 
         // Create labels (0 = normal, 1 = anomaly)
         let mut target = Array1::zeros(n_samples);
-        target.slice_mut(ndarray::s![n_normal..]).fill(1.0);
+        target
+            .slice_mut(scirs2_core::ndarray::s![n_normal..])
+            .fill(1.0);
 
         // Shuffle the data
         let shuffled_indices = self.generate_shuffle_indices(n_samples)?;
@@ -624,7 +626,7 @@ impl AdvancedGenerator {
         normal_data: &Array2<f64>,
         config: &AnomalyConfig,
     ) -> Result<Array2<f64>> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         match config.anomaly_type {
@@ -692,7 +694,7 @@ impl AdvancedGenerator {
     }
 
     fn generate_shuffle_indices(&self, n_samples: usize) -> Result<Vec<usize>> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
         let mut indices: Vec<usize> = (0..n_samples).collect();
 
@@ -749,10 +751,10 @@ impl AdvancedGenerator {
         let mut combined = Array2::zeros((n_samples, total_features));
 
         combined
-            .slice_mut(ndarray::s![.., ..shared.ncols()])
+            .slice_mut(scirs2_core::ndarray::s![.., ..shared.ncols()])
             .assign(shared);
         combined
-            .slice_mut(ndarray::s![.., shared.ncols()..])
+            .slice_mut(scirs2_core::ndarray::s![.., shared.ncols()..])
             .assign(task_specific);
 
         combined

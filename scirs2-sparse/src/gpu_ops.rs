@@ -207,8 +207,8 @@ pub struct OptimizedGpuOps {
 // Legacy function names for backward compatibility
 use crate::csr_array::CsrArray;
 use crate::error::SparseResult;
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 // GpuDataType is already defined above in this module
@@ -390,7 +390,7 @@ impl<T: GpuDataType> GpuBufferExt<T> for GpuBuffer<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_backward_compatibility_gpu_sparse_matvec() {

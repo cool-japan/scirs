@@ -3,15 +3,15 @@
 //! This module implements meta-optimization techniques including learned optimizers
 //! that can adaptively optimize neural network parameters based on the optimization history.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::Result;
 
 /// Meta-Optimizer using LSTM to generate parameter updates
 #[derive(Debug)]
-pub struct MetaOptimizer<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct MetaOptimizer<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// LSTM parameters for the optimizer
     #[allow(dead_code)]
     lstm_params: Array2<F>,
@@ -25,7 +25,9 @@ pub struct MetaOptimizer<F: Float + Debug + ndarray::ScalarOperand> {
     cell_state: Array1<F>,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MetaOptimizer<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
+    MetaOptimizer<F>
+{
     /// Create new meta-optimizer
     pub fn new(input_dim: usize, hidden_size: usize) -> Self {
         // Initialize LSTM parameters

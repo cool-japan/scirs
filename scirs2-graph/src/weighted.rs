@@ -141,7 +141,7 @@ where
         + Into<f64>
         + From<f64>
         + PartialOrd
-        + num_traits::Zero
+        + scirs2_core::numeric::Zero
         + std::ops::Add<Output = E>
         + std::ops::Div<f64, Output = E>
         + std::ops::Mul<f64, Output = E>,
@@ -284,7 +284,7 @@ where
             NormalizationMethod::Robust => {
                 let mut sorted_weights = weights.clone();
                 sorted_weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                let median = if sorted_weights.len() % 2 == 0 {
+                let median = if sorted_weights.len().is_multiple_of(2) {
                     (sorted_weights[sorted_weights.len() / 2 - 1]
                         + sorted_weights[sorted_weights.len() / 2])
                         / 2.0
@@ -294,7 +294,7 @@ where
                 let mad: Vec<f64> = sorted_weights.iter().map(|w| (w - median).abs()).collect();
                 let mut sorted_mad = mad.clone();
                 sorted_mad.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                let mad_median = if sorted_mad.len() % 2 == 0 {
+                let mad_median = if sorted_mad.len().is_multiple_of(2) {
                     (sorted_mad[sorted_mad.len() / 2 - 1] + sorted_mad[sorted_mad.len() / 2]) / 2.0
                 } else {
                     sorted_mad[sorted_mad.len() / 2]
@@ -448,7 +448,7 @@ where
         + Into<f64>
         + From<f64>
         + PartialOrd
-        + num_traits::Zero
+        + scirs2_core::numeric::Zero
         + std::ops::Add<Output = E>
         + std::ops::Div<f64, Output = E>
         + std::ops::Mul<f64, Output = E>,
@@ -591,7 +591,7 @@ where
             NormalizationMethod::Robust => {
                 let mut sorted_weights = weights.clone();
                 sorted_weights.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                let median = if sorted_weights.len() % 2 == 0 {
+                let median = if sorted_weights.len().is_multiple_of(2) {
                     (sorted_weights[sorted_weights.len() / 2 - 1]
                         + sorted_weights[sorted_weights.len() / 2])
                         / 2.0
@@ -601,7 +601,7 @@ where
                 let mad: Vec<f64> = sorted_weights.iter().map(|w| (w - median).abs()).collect();
                 let mut sorted_mad = mad.clone();
                 sorted_mad.sort_by(|a, b| a.partial_cmp(b).unwrap());
-                let mad_median = if sorted_mad.len() % 2 == 0 {
+                let mad_median = if sorted_mad.len().is_multiple_of(2) {
                     (sorted_mad[sorted_mad.len() / 2 - 1] + sorted_mad[sorted_mad.len() / 2]) / 2.0
                 } else {
                     sorted_mad[sorted_mad.len() / 2]
@@ -783,7 +783,11 @@ pub mod utils {
     ) -> Result<Graph<N, E>>
     where
         N: Node + Clone + std::fmt::Debug,
-        E: EdgeWeight + Clone + std::fmt::Debug + num_traits::Zero + std::ops::Add<Output = E>,
+        E: EdgeWeight
+            + Clone
+            + std::fmt::Debug
+            + scirs2_core::numeric::Zero
+            + std::ops::Add<Output = E>,
     {
         let mut merged = Graph::new();
 

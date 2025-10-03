@@ -5,9 +5,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Layer, ParamLayer};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
@@ -231,15 +231,15 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Laye
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for LayerNorm<F> {
-    fn get_parameters(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_parameters(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![self.gamma.clone(), self.beta.clone()]
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![]
     }
 
-    fn set_parameters(&mut self, params: Vec<Array<F, ndarray::IxDyn>>) -> Result<()> {
+    fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
         if params.len() != 2 {
             return Err(NeuralError::InvalidArchitecture(format!(
                 "Expected 2 parameters, got {}",
@@ -367,15 +367,15 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Batc
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for BatchNorm<F> {
-    fn get_parameters(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_parameters(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![self.gamma.clone(), self.beta.clone()]
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![]
     }
 
-    fn set_parameters(&mut self, params: Vec<Array<F, ndarray::IxDyn>>) -> Result<()> {
+    fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
         if params.len() != 2 {
             return Err(NeuralError::InvalidArchitecture(format!(
                 "Expected 2 parameters, got {}",

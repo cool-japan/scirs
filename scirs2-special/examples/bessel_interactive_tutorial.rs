@@ -5,7 +5,7 @@
 //!
 //! Run with: cargo run --example bessel_interactive_tutorial
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::bessel::*;
 use scirs2_special::{j0_zeros, j1_zeros};
 use std::io::{self, Write};
@@ -467,8 +467,8 @@ fn explore_spherical_bessel() {
         let yn_val = spherical_yn(n, x);
 
         let elementary = match n {
-            0 => format!("sin(x)/x, -cos(x)/x"),
-            1 => format!("sin(x)/x² - cos(x)/x, -cos(x)/x² - sin(x)/x"),
+            0 => "sin(x)/x, -cos(x)/x".to_string(),
+            1 => "sin(x)/x² - cos(x)/x, -cos(x)/x² - sin(x)/x".to_string(),
             _ => "Complex expression".to_string(),
         };
 
@@ -518,7 +518,7 @@ fn practical_applications() {
         2 => heat_conduction_demo(),
         3 => waveguide_demo(),
         4 => quantum_mechanics_demo(),
-        5 => return,
+        5 => (),
         _ => println!("Invalid choice."),
     }
 }
@@ -630,7 +630,7 @@ fn heat_conduction_demo() {
         }
 
         let mut temp_ratio = 0.0;
-        for (_n, &zero) in zeros.iter().enumerate() {
+        for &zero in zeros.iter() {
             let coeff = 2.0 / (zero * j1(zero));
             let exponential = (-zero.powi(2) * kappa * t / radius.powi(2)).exp();
             temp_ratio += coeff * exponential;

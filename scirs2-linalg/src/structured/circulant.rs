@@ -13,9 +13,9 @@
 //!
 //! The entire matrix is determined by just its first row.
 
-use ndarray::ScalarOperand;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::{fmt::Debug, iter::Sum};
 
 use super::StructuredMatrix;
@@ -95,7 +95,7 @@ where
     /// # Returns
     ///
     /// An ArrayView1 of the first row
-    pub fn first_row(&self) -> ndarray::ArrayView1<A> {
+    pub fn first_row(&self) -> scirs2_core::ndarray::ArrayView1<A> {
         self.first_row.view()
     }
 
@@ -205,7 +205,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_circulant_creation() {

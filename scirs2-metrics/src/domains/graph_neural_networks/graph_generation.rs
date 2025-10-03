@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 
 /// Graph generation evaluation metrics
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GraphGenerationMetrics {
     /// Structural similarity metrics
     pub structural_similarity: StructuralSimilarityMetrics,
@@ -40,7 +40,7 @@ pub struct StructuralSimilarityMetrics {
 }
 
 /// Statistical similarity metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct StatisticalSimilarityMetrics {
     /// Node count statistics
     pub node_count_stats: DistributionStatistics,
@@ -74,17 +74,6 @@ pub struct GenerationDiversityMetrics {
     pub coverage_score: f64,
 }
 
-impl Default for GraphGenerationMetrics {
-    fn default() -> Self {
-        Self {
-            structural_similarity: StructuralSimilarityMetrics::default(),
-            statistical_similarity: StatisticalSimilarityMetrics::default(),
-            spectral_similarity: SpectralSimilarityMetrics::default(),
-            diversity_metrics: GenerationDiversityMetrics::default(),
-        }
-    }
-}
-
 impl Default for StructuralSimilarityMetrics {
     fn default() -> Self {
         Self {
@@ -93,16 +82,6 @@ impl Default for StructuralSimilarityMetrics {
             path_length_diff: 0.0,
             components_similarity: 0.0,
             motif_similarity: 0.0,
-        }
-    }
-}
-
-impl Default for StatisticalSimilarityMetrics {
-    fn default() -> Self {
-        Self {
-            node_count_stats: DistributionStatistics::default(),
-            edge_count_stats: DistributionStatistics::default(),
-            density_stats: DistributionStatistics::default(),
         }
     }
 }

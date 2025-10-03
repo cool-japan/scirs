@@ -12,8 +12,8 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle::lombscargle;
 use crate::lombscargle_enhanced::{lombscargle_enhanced, LombScargleConfig};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use scirs2_core::validation::{check_finite, check_positive};
 use std::time::Instant;
 
@@ -111,7 +111,7 @@ pub fn validate_bootstrap_confidence_intervals(
         ));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let n = signal.len();
     let mut successful_iterations = 0;
     let mut bootstrap_powers = Vec::new();
@@ -282,7 +282,7 @@ pub fn analyze_memory_performance(
 
     for &size in signal_sizes {
         // Generate test signal
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let signal: Vec<f64> = (0..size).map(|_| rng.gen_range(-1.0..1.0)).collect();
         let time: Vec<f64> = (0..size).map(|i| i as f64).collect();
 
@@ -358,7 +358,7 @@ pub fn analyze_statistical_power(
     let mut power_curve = Vec::new();
     let mut type_i_errors = 0;
     let mut type_ii_errors = 0;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for &snr_db in snr_range_db {
         let snr_linear = 10.0_f64.powf(snr_db / 10.0);

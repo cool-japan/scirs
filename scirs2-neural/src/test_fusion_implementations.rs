@@ -4,12 +4,12 @@
 mod tests {
     use crate::models::architectures::fusion::*;
     use crate::layers::Layer;
-    use ndarray::Array;
-    use rand::rngs::SmallRng;
-    use rand::SeedableRng;
+    use scirs2_core::ndarray::Array;
+    use scirs2_core::random::rngs::SmallRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_feature_alignment_backward_update() -> crate::error::Result<()> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut alignment: FeatureAlignment<f32> = FeatureAlignment::new(10, 8, Some("test"))?;
         
         // Test forward pass

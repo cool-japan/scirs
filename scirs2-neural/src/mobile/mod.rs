@@ -30,7 +30,7 @@ mod tests {
     use super::*;
     use crate::layers::Dense;
     use crate::models::sequential::Sequential;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     use std::collections::HashMap;
     use tempfile::TempDir;
     #[test]
@@ -78,7 +78,7 @@ mod tests {
         assert_eq!(config.power.power_mode, PowerMode::Balanced);
     fn test_mobile_deployment_generator_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let mut model: Sequential<f32> = Sequential::new();
         let dense = Dense::new(10, 1, Some("relu"), &mut rng).unwrap();
         model.add_layer(dense);

@@ -7,7 +7,7 @@
 use crate::bvp::{BVPOptions, BVPResult};
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Boundary condition types for extended BVP solver
 #[derive(Debug, Clone)]

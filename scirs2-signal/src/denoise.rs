@@ -5,8 +5,8 @@
 
 use crate::dwt::{wavedec, waverec, Wavelet};
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::PlatformCapabilities;
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
@@ -113,7 +113,7 @@ where
     let signal: Vec<f64> = data
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -537,7 +537,7 @@ mod tests {
         // a signal of the correct length
 
         // Add noise with a fixed seed for reproducibility
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut noisy_signal = clean_signal.clone();
         for val in noisy_signal.iter_mut() {
             *val += 0.2 * rng.gen_range(-1.0..1.0);

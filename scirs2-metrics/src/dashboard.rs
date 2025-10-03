@@ -24,7 +24,7 @@
 //! ```
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -333,7 +333,7 @@ impl InteractiveDashboard {
             );
             println!("Dashboard title: {}", self.config.title);
             println!("Refresh interval: {} seconds", self.config.refresh_interval);
-            println!("Real-time updates: {}", self.config.enable_realtime);
+            println!("Float-time updates: {}", self.config.enable_realtime);
             println!("To use the real HTTP server, enable the 'dashboard_server' feature");
 
             // Return mock server when feature is not enabled

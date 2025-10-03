@@ -4,7 +4,7 @@
 //! solving a large sparse differential algebraic equation (DAE) system.
 //! The example models a 2D heat equation on a grid with constraints.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::f64::consts::PI;
 // use plotters::prelude::*;
 use scirs2_integrate::{

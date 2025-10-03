@@ -1,7 +1,7 @@
 //! Advanced filtering examples demonstrating guided filter and oriented gradients
 
 use image::{DynamicImage, ImageBuffer, Luma, Rgb};
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_vision::error::Result;
 use scirs2_vision::feature::{
     compute_gradients, sobel_edges_oriented, visualize_gradient_orientation,

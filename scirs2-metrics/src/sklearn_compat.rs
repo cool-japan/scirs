@@ -5,7 +5,7 @@
 //! results where possible.
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use std::collections::HashMap;
 use std::collections::HashSet;
 
@@ -73,9 +73,9 @@ impl ClassificationMetrics {
     /// Compute classification metrics
     pub fn compute(
         &mut self,
-        y_true: ndarray::ArrayView1<i32>,
-        y_pred: ndarray::ArrayView1<i32>,
-        y_scores: Option<ndarray::Array2<f64>>,
+        y_true: scirs2_core::ndarray::ArrayView1<i32>,
+        y_pred: scirs2_core::ndarray::ArrayView1<i32>,
+        y_scores: Option<scirs2_core::ndarray::Array2<f64>>,
     ) -> Result<ClassificationResults> {
         if y_true.len() != y_pred.len() {
             return Err(MetricsError::InvalidInput(
@@ -93,7 +93,7 @@ impl ClassificationMetrics {
         let auc_roc = if let Some(_scores) = y_scores {
             // Convert to appropriate types for roc_auc_score
             let y_true_u32: Vec<u32> = y_true.iter().map(|&x| x as u32).collect();
-            let y_true_u32_array = ndarray::Array1::from(y_true_u32);
+            let y_true_u32_array = scirs2_core::ndarray::Array1::from(y_true_u32);
             let scores_f64 = _scores.column(1).to_owned();
             crate::classification::roc_auc_score(&y_true_u32_array, &scores_f64)?
         } else {
@@ -112,8 +112,8 @@ impl ClassificationMetrics {
     /// Calculate binary classification metrics
     fn calculate_binary_metrics(
         &self,
-        y_true: &ndarray::ArrayView1<i32>,
-        y_pred: &ndarray::ArrayView1<i32>,
+        y_true: &scirs2_core::ndarray::ArrayView1<i32>,
+        y_pred: &scirs2_core::ndarray::ArrayView1<i32>,
     ) -> Result<(f64, f64, f64)> {
         let mut tp = 0;
         let mut fp = 0;
@@ -864,7 +864,7 @@ pub fn zero_one_loss_sklearn(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_classification_report_sklearn() {

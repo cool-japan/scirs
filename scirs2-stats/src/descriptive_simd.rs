@@ -5,8 +5,8 @@
 
 use crate::error::StatsResult;
 use crate::error_standardization::ErrorMessages;
-use ndarray::{ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
 
 /// Calculate the mean of an array using SIMD operations when available
@@ -27,7 +27,7 @@ use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps}
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::mean_simd;
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -95,7 +95,7 @@ where
 
     let sum_sq_dev = if optimizer.should_use_simd(n) {
         // Create a constant array filled with mean for SIMD subtraction
-        let mean_array = ndarray::Array1::from_elem(x.len(), mean);
+        let mean_array = scirs2_core::ndarray::Array1::from_elem(x.len(), mean);
 
         // Compute (x - mean)
         let deviations = F::simd_sub(&x.view(), &mean_array.view());
@@ -173,7 +173,7 @@ where
         let max = F::simd_max_element(&x.view());
 
         // Variance calculation
-        let mean_array = ndarray::Array1::from_elem(x.len(), mean);
+        let mean_array = scirs2_core::ndarray::Array1::from_elem(x.len(), mean);
         let deviations = F::simd_sub(&x.view(), &mean_array.view());
         let squared_devs = F::simd_mul(&deviations.view(), &deviations.view());
         let sum_sq_dev = F::simd_sum(&squared_devs.view());
@@ -209,7 +209,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mean_simd() {

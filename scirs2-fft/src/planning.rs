@@ -17,8 +17,8 @@ use crate::backend::BackendContext;
 use crate::error::{FFTError, FFTResult};
 use crate::plan_serialization::{PlanMetrics, PlanSerializationManager};
 
-use ndarray::{ArrayBase, Data, Dimension};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::numeric::Complex64;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
@@ -698,7 +698,7 @@ pub fn plan_ahead_of_time(sizes: &[usize], dbpath: Option<&str>) -> FFTResult<()
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use tempfile::tempdir;
 
     #[test]

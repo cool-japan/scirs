@@ -5,9 +5,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{AttentionConfig, Layer, LayerNorm, ParamLayer, SelfAttention};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
@@ -286,11 +286,11 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps> 
                 *elem = *elem - lr;
         Ok(())
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps> ParamLayer<F>
-    fn get_parameters(&self) -> Vec<&Array<F, ndarray::IxDyn>> {
+    fn get_parameters(&self) -> Vec<&Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![&self.w1, &self.b1, &self.w2, &self.b2]
-    fn get_gradients(&self) -> Vec<&Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<&Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![&self.dw1, &self.db1, &self.dw2, &self.db2]
-    fn set_parameters(&mut self, params: Vec<Array<F, ndarray::IxDyn>>) -> Result<()> {
+    fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
         if params.len() != 4 {
             return Err(NeuralError::InvalidArchitecture(format!(
                 "Expected 4 parameters, got {}",
@@ -430,13 +430,13 @@ pub struct TransformerEncoder<F: Float + Debug + Send + Sync + SimdUnifiedOps> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array3;
-    use rand::rngs::SmallRng;
-    use rand::SeedableRng;
+    use scirs2_core::ndarray::Array3;
+    use scirs2_core::random::rngs::SmallRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_feed_forwardshape() {
         // Set up feed-forward network
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let d_model = 64;
         let d_ff = 256;
         let ff = FeedForward::<f64>::new(d_model, d_ff, 0.1, &mut rng).unwrap();

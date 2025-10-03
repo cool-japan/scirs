@@ -6,7 +6,7 @@
 use crate::error::{NeuralError, Result};
 use crate::models::sequential::Sequential;
 use crate::serving::PackageMetadata;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::fs;
 use super::build_system::BuildSystemGenerator;
@@ -15,7 +15,7 @@ use super::examples_docs::ExamplesDocsGenerator;
 use super::header_generation::HeaderGenerator;
 use super::source_generation::SourceGenerator;
 /// C/C++ binding generator
-pub struct BindingGenerator<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct BindingGenerator<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Model to generate bindings for
     #[allow(dead_code)]
     model: Sequential<F>,
@@ -27,7 +27,7 @@ pub struct BindingGenerator<F: Float + Debug + ndarray::ScalarOperand> {
     output_dir: PathBuf,
 }
 impl<
-        F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOperand + Send + Sync,
+        F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_core::ndarray::ScalarOperand + Send + Sync,
     > BindingGenerator<F>
 {
     /// Create a new binding generator
@@ -99,7 +99,7 @@ impl<
 mod tests {
     use super::*;
     use crate::layers::Dense;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     use tempfile::TempDir;
     #[test]
     fn test_binding_generator_creation() {
@@ -128,7 +128,7 @@ mod tests {
             timestamp: "2024-01-01T00:00:00Z".to_string(),
             checksum: "test_checksum".to_string(),
         // Create a simple sequential model for testing
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let mut model = Sequential::<f32>::new();
         model.add_layer(Dense::new(10, 5, Some("relu"), &mut rng).unwrap());
         model.add_layer(Dense::new(5, 2, None, &mut rng).unwrap());

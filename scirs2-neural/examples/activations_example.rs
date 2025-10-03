@@ -1,4 +1,4 @@
-use ndarray::{Array, Array1, Array2};
+use scirs2_core::ndarray::{Array, Array1, Array2};
 use scirs2_neural::activations_minimal::{Activation, ReLU, Sigmoid, Tanh, GELU};
 
 #[allow(dead_code)]
@@ -153,6 +153,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 #[allow(dead_code)]
-fn convert_to_vec<F: Clone>(array: &Array<F, ndarray::IxDyn>) -> Vec<F> {
+fn convert_to_vec<F: Clone>(array: &Array<F, scirs2_core::ndarray::IxDyn>) -> Vec<F> {
     array.iter().cloned().collect()
 }

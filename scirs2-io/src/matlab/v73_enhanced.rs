@@ -6,7 +6,7 @@
 use crate::error::{IoError, Result};
 use crate::matlab::MatType;
 #[allow(unused_imports)]
-use ndarray::{ArrayD, IxDyn};
+use scirs2_core::ndarray::{ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -67,9 +67,9 @@ pub enum ExtendedMatType {
     /// MATLAB object
     Object(MatlabObject),
     /// Complex double array
-    ComplexDouble(ArrayD<num_complex::Complex<f64>>),
+    ComplexDouble(ArrayD<scirs2_core::numeric::Complex<f64>>),
     /// Complex single array
-    ComplexSingle(ArrayD<num_complex::Complex<f32>>),
+    ComplexSingle(ArrayD<scirs2_core::numeric::Complex<f32>>),
 }
 
 /// MATLAB table representation
@@ -242,7 +242,7 @@ impl V73MatFile {
             .flat_map(|s| s.encode_utf16())
             .collect();
         // Convert Vec to ArrayD and use create_dataset_from_array
-        let var_names_array = ndarray::Array1::from_vec(var_names_data).into_dyn();
+        let var_names_array = scirs2_core::ndarray::Array1::from_vec(var_names_data).into_dyn();
         file.create_dataset_from_array(
             &format!("{}/varnames", name),
             &var_names_array,
@@ -259,7 +259,7 @@ impl V73MatFile {
         if let Some(ref row_names) = table.row_names {
             let row_names_data: Vec<u16> =
                 row_names.iter().flat_map(|s| s.encode_utf16()).collect();
-            let row_names_array = ndarray::Array1::from_vec(row_names_data).into_dyn();
+            let row_names_array = scirs2_core::ndarray::Array1::from_vec(row_names_data).into_dyn();
             file.create_dataset_from_array(
                 &format!("{}/rownames", name),
                 &row_names_array,
@@ -301,7 +301,7 @@ impl V73MatFile {
             .iter()
             .flat_map(|s| s.encode_utf16())
             .collect();
-        let cats_array = ndarray::Array1::from_vec(cats_data).into_dyn();
+        let cats_array = scirs2_core::ndarray::Array1::from_vec(cats_data).into_dyn();
         file.create_dataset_from_array(
             &format!("{}/categories", name),
             &cats_array,
@@ -379,7 +379,7 @@ impl V73MatFile {
         // Write each string as a separate dataset
         for (i, string) in strings.iter().enumerate() {
             let string_data: Vec<u16> = string.encode_utf16().collect();
-            let string_array = ndarray::Array1::from_vec(string_data).into_dyn();
+            let string_array = scirs2_core::ndarray::Array1::from_vec(string_data).into_dyn();
             file.create_dataset_from_array(
                 &format!("{}/string_{}", name, i),
                 &string_array,
@@ -415,7 +415,7 @@ impl V73MatFile {
 
         // Write function string
         let func_data: Vec<u16> = func_handle.function.encode_utf16().collect();
-        let func_array = ndarray::Array1::from_vec(func_data).into_dyn();
+        let func_array = scirs2_core::ndarray::Array1::from_vec(func_data).into_dyn();
         file.create_dataset_from_array(
             &format!("{}/function", name),
             &func_array,
@@ -479,7 +479,7 @@ impl V73MatFile {
         &self,
         file: &mut HDF5File,
         name: &str,
-        array: &ArrayD<num_complex::Complex<f64>>,
+        array: &ArrayD<scirs2_core::numeric::Complex<f64>>,
     ) -> Result<()> {
         // Split into real and imaginary parts
         let real_part = array.mapv(|x| x.re);
@@ -521,7 +521,7 @@ impl V73MatFile {
         &self,
         file: &mut HDF5File,
         name: &str,
-        array: &ArrayD<num_complex::Complex<f32>>,
+        array: &ArrayD<scirs2_core::numeric::Complex<f32>>,
     ) -> Result<()> {
         // Split into real and imaginary parts
         let real_part = array.mapv(|x| x.re);

@@ -3,7 +3,7 @@
 //! This example shows the performance benefits of the optimized
 //! N-dimensional FFT implementation with better memory access patterns.
 
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 use scirs2_fft::{fftn, fftn_memory_efficient, fftn_optimized};
 use std::time::Instant;
 
@@ -133,7 +133,7 @@ fn main() {
     let max_diff = result_standard
         .iter()
         .zip(result_optimized.iter())
-        .map(|(a, b)| ((a.re - b.re).abs() + (a.im - b.im).abs()))
+        .map(|(a, b)| (a.re - b.re).abs() + (a.im - b.im).abs())
         .fold(0.0, f64::max);
 
     println!("Maximum difference between standard and optimized: {max_diff:.2e}");

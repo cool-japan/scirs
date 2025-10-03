@@ -34,9 +34,9 @@ pub use replay_buffer::{PrioritizedReplayBuffer, ReplayBuffer, ReplayBufferTrait
 pub use trpo::{TRPOConfig, TRPO};
 pub use value::{DoubleDQN, QNetwork, ValueNetwork, DQN};
 use crate::error::Result;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::sync::Arc;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// Configuration for reinforcement learning
 #[derive(Debug, Clone)]
 pub struct RLConfig {

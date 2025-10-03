@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::{bessel, erf, gamma, SpecialResult};
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::f64;
 
 /// Test configuration for edge cases

@@ -112,7 +112,7 @@ where
 
                 if weighted {
                     // For weighted format: neighbor1 weight1 neighbor2 weight2 ...
-                    if tokens.len() % 2 != 0 {
+                    if !tokens.len().is_multiple_of(2) {
                         return Err(GraphError::Other(format!(
                             "Weighted adjacency list must have even number of tokens (neighbor weight pairs) on line {}",
                             line_num + 1
@@ -239,7 +239,7 @@ where
 
                 if weighted {
                     // For weighted format: neighbor1 weight1 neighbor2 weight2 ...
-                    if tokens.len() % 2 != 0 {
+                    if !tokens.len().is_multiple_of(2) {
                         return Err(GraphError::Other(format!(
                             "Weighted adjacency list must have even number of tokens (neighbor weight pairs) on line {}",
                             line_num + 1

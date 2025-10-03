@@ -15,8 +15,8 @@
 use super::analysis::{ControllabilityAnalysis, ObservabilityAnalysis};
 use crate::error::{SignalError, SignalResult};
 use crate::lti::systems::StateSpace;
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_finite;
 use std::collections::HashMap;
@@ -356,16 +356,16 @@ pub fn robust_control_observability_analysis(
 ) -> SignalResult<RobustControlObservabilityAnalysis> {
     // Check finite values in all matrices
     for (i, &val) in ss.a.iter().enumerate() {
-        check_finite(val, &format!("A matrix element {}", i))?;
+        check_finite(val, format!("A matrix element {}", i))?;
     }
     for (i, &val) in ss.b.iter().enumerate() {
-        check_finite(val, &format!("B matrix element {}", i))?;
+        check_finite(val, format!("B matrix element {}", i))?;
     }
     for (i, &val) in ss.c.iter().enumerate() {
-        check_finite(val, &format!("C matrix element {}", i))?;
+        check_finite(val, format!("C matrix element {}", i))?;
     }
     for (i, &val) in ss.d.iter().enumerate() {
-        check_finite(val, &format!("D matrix element {}", i))?;
+        check_finite(val, format!("D matrix element {}", i))?;
     }
 
     let n = ss.n_states;
@@ -1346,7 +1346,7 @@ fn identify_robustness_issues(
 mod tests {
     use super::*;
     use crate::lti::{RobustAnalysisConfig, StateSpace};
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     #[test]
     fn test_robust_controllability_analysis() {
         // Create a simple controllable system

@@ -3,7 +3,7 @@
 use crate::error::IntegrateResult;
 use crate::specialized::finance::models::{JumpProcess, StochasticProcess, VolatilityModel};
 use crate::specialized::finance::types::{FinanceMethod, FinancialOption, OptionType};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Solver for stochastic PDEs in finance
 pub struct StochasticPDESolver {

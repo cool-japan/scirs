@@ -27,8 +27,8 @@
 //! - `stepwise_regression`: Variable selection using stepwise methods (forward, backward, or both)
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Float;
 
 // Re-export all regression functionality
 pub use self::linear::{linear_regression, linregress, multilinear_regression, odr};
@@ -109,7 +109,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_stats::linear_regression;
     ///
     /// // Fit a model

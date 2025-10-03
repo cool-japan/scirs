@@ -4,6 +4,14 @@
 #![allow(clippy::useless_vec)]
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
+#![allow(clippy::multiple_bound_locations)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::should_implement_trait)]
+#![allow(clippy::field_reassign_with_default)]
+#![allow(clippy::unnecessary_unwrap)]
+#![allow(clippy::unnecessary_sort_by)]
+#![allow(clippy::collapsible_match)]
 //! # SciRS2 Metrics - Machine Learning Evaluation Metrics
 //!
 //! **scirs2-metrics** provides comprehensive evaluation metrics for machine learning models,
@@ -32,7 +40,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-metrics = "0.1.0-beta.4"
+//! scirs2-metrics = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust,no_run
@@ -51,14 +59,14 @@
 //! let mse = mean_squared_error(&y_true_reg, &y_pred_reg).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 //!
 //! # Classification Metrics
 //!
 //! Classification metrics evaluate the performance of classification models:
 //!
 //! ```ignore
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::classification::{accuracy_score, precision_score, f1_score};
 //!
 //! let y_true = array![0, 1, 2, 0, 1, 2];
@@ -80,7 +88,7 @@
 //! Regression metrics evaluate the performance of regression models:
 //!
 //! ```ignore
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::regression::{mean_squared_error, r2_score};
 //!
 //! let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -95,7 +103,7 @@
 //! Clustering metrics evaluate the performance of clustering algorithms:
 //!
 //! ```ignore
-//! use ndarray::{array, Array2};
+//! use scirs2_core::ndarray::{array, Array2};
 //! use scirs2_metrics::clustering::silhouette_score;
 //!
 //! // Create a small dataset with 2 clusters
@@ -118,7 +126,7 @@
 //! Ranking metrics evaluate the performance of ranking and recommendation models:
 //!
 //! ```ignore
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::ranking::{
 //!     mean_reciprocal_rank, ndcg_score, mean_average_precision,
 //!     precision_at_k, recall_at_k, map_at_k, click_through_rate
@@ -155,7 +163,7 @@
 //! For evaluating correlation between rankings:
 //!
 //! ```ignore
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::ranking::{kendalls_tau, spearmans_rho};
 //!
 //! // Compare two different ranking methods
@@ -172,7 +180,7 @@
 //! For multi-label ranking problems:
 //!
 //! ```ignore
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_metrics::ranking::label::{
 //!     coverage_error_multiple, label_ranking_loss, label_ranking_average_precision_score
 //! };
@@ -206,7 +214,7 @@
 //! Metrics for evaluating anomaly detection systems:
 //!
 //! ```ignore
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::anomaly::{
 //!     detection_accuracy, false_alarm_rate, miss_detection_rate,
 //!     anomaly_auc_score, anomaly_average_precision_score
@@ -240,7 +248,7 @@
 //! ## Distribution Metrics
 //!
 //! ```ignore
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::anomaly::{
 //!     kl_divergence, js_divergence, wasserstein_distance, maximum_mean_discrepancy
 //! };
@@ -271,7 +279,7 @@
 //! Metrics for evaluating fairness and bias in machine learning models:
 //!
 //! ```ignore
-//! use ndarray::{array, Array2};
+//! use scirs2_core::ndarray::{array, Array2};
 //! use scirs2_metrics::fairness::{
 //!     demographic_parity_difference, equalized_odds_difference, equal_opportunity_difference,
 //!     disparate_impact, consistency_score
@@ -332,8 +340,8 @@
 //!     &predictions,
 //!     |y_t, y_p| {
 //!         // Convert Vec<f64> to Array1<f64> for accuracy_score
-//!         let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-//!         let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+//!         let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+//!         let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
 //!         accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
 //!     }
 //! ).unwrap();
@@ -369,8 +377,8 @@
 //!     &attr_names,
 //!     |y_t, y_p| {
 //!         // Convert Vec<f64> to Array1<f64> for accuracy_score
-//!         let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-//!         let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+//!         let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+//!         let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
 //!         accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
 //!     }
 //! ).unwrap();
@@ -381,7 +389,7 @@
 //! Utilities for model evaluation like cross-validation:
 //!
 //! ```ignore
-//! use ndarray::{Array, Ix1};
+//! use scirs2_core::ndarray::{Array, Ix1};
 //! use scirs2_metrics::evaluation::train_test_split;
 //!
 //! let x = Array::<f64, Ix1>::linspace(0., 9., 10).into_shape(Ix1(10)).unwrap();
@@ -395,7 +403,7 @@
 //! Optimized metrics computation for better performance and memory efficiency:
 //!
 //! ```ignore
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::optimization::parallel::ParallelConfig;
 //! use scirs2_metrics::optimization::memory::{ChunkedMetrics, StreamingMetric};
 //! use scirs2_metrics::optimization::numeric::StableMetrics;
@@ -415,8 +423,8 @@
 //!
 //! // Define metrics functions to compute
 //! // Note: We need to specify concrete types for these closures
-//! let metrics: Vec<Box<dyn Fn(&ndarray::ArrayBase<ndarray::OwnedRepr<i32>, ndarray::Dim<[usize; 1]>>,
-//!                            &ndarray::ArrayBase<ndarray::OwnedRepr<i32>, ndarray::Dim<[usize; 1]>>)
+//! let metrics: Vec<Box<dyn Fn(&scirs2_core::ndarray::ArrayBase<scirs2_core::ndarray::OwnedRepr<i32>, scirs2_core::ndarray::Dim<[usize; 1]>>,
+//!                            &scirs2_core::ndarray::ArrayBase<scirs2_core::ndarray::OwnedRepr<i32>, scirs2_core::ndarray::Dim<[usize; 1]>>)
 //!                            -> Result<f64> + Send + Sync>> = vec![
 //!     Box::new(|y_t, y_p| accuracy_score(y_t, y_p)),
 //!     Box::new(|y_t, y_p| precision_score(y_t, y_p, 1)),
@@ -472,7 +480,7 @@
 //! Visualization utilities for metrics results:
 //!
 //! ```ignore
-//! use ndarray::{array, Array2};
+//! use scirs2_core::ndarray::{array, Array2};
 //! use scirs2_metrics::classification::confusion_matrix;
 //! use scirs2_metrics::classification::curves::{roc_curve, precision_recall_curve, calibration_curve};
 //! use scirs2_metrics::visualization::{
@@ -550,7 +558,7 @@
 //! of metrics via web interfaces:
 //!
 //! ```ignore
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::classification::curves::roc_curve;
 //! use scirs2_metrics::visualization::{
 //!     helpers, InteractiveOptions,

@@ -8,7 +8,7 @@
 //! - Memory efficiency comparisons
 //! - Scalability analysis across different image sizes
 
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_ndimage::{
     error::NdimageResult,
     profiling::{
@@ -340,6 +340,7 @@ fn benchmark_edge_detection(
     // Compare with standard edge detection methods
     #[cfg(feature = "simd")]
     {
+        #[allow(clippy::type_complexity)]
         let edge_methods: [(&str, fn(&Array2<f64>) -> NdimageResult<Array2<f64>>); 2] = [
             ("Standard Sobel", benchmark_standard_sobel),
             ("Standard Canny", benchmark_standard_canny),

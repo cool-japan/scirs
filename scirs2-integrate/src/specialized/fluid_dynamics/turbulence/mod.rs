@@ -38,7 +38,7 @@
 //! use scirs2_integrate::specialized::fluid_dynamics::turbulence::{
 //!     LESolver, SGSModel, FluidState3D
 //! };
-//! use ndarray::Array3;
+//! use scirs2_core::ndarray::Array3;
 //!
 //! // Create LES solver
 //! let solver = LESolver::new(32, 32, 32, 0.1, 0.1, 0.1, SGSModel::Smagorinsky);
@@ -67,7 +67,7 @@
 //! use scirs2_integrate::specialized::fluid_dynamics::turbulence::{
 //!     AdvancedTurbulenceModel, TurbulenceModelType
 //! };
-//! use ndarray::Array3;
+//! use scirs2_core::ndarray::Array3;
 //!
 //! // Create advanced k-ε model
 //! let model = AdvancedTurbulenceModel::new(TurbulenceModelType::KEpsilon, 16, 16, 16);
@@ -106,7 +106,7 @@ pub use rans::{RANSModel, RANSSolver, RANSState};
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array3;
+    use scirs2_core::ndarray::Array3;
 
     #[test]
     fn test_turbulence_module_exports() {

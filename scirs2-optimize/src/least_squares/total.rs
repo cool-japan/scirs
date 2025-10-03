@@ -6,7 +6,7 @@
 //! # Example
 //!
 //! ```
-//! use ndarray::{array, Array1, Array2};
+//! use scirs2_core::ndarray::{array, Array1, Array2};
 //! use scirs2_optimize::least_squares::total::{total_least_squares, TotalLeastSquaresOptions};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -33,7 +33,7 @@
 //! ```
 
 use crate::error::OptimizeResult;
-use ndarray::{array, s, Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{array, s, Array1, Array2, ArrayBase, Data, Ix1};
 use statrs::statistics::Statistics;
 
 /// Options for total least squares
@@ -546,7 +546,7 @@ fn eigen_2x2(matrix: &Array2<f64>) -> (Array1<f64>, Array2<f64>) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_total_least_squares_simple() {
@@ -618,10 +618,10 @@ mod tests {
         options_iter.method = TLSMethod::Iterative;
 
         let result_svd = total_least_squares::<
-            ndarray::OwnedRepr<f64>,
-            ndarray::OwnedRepr<f64>,
-            ndarray::OwnedRepr<f64>,
-            ndarray::OwnedRepr<f64>,
+            scirs2_core::ndarray::OwnedRepr<f64>,
+            scirs2_core::ndarray::OwnedRepr<f64>,
+            scirs2_core::ndarray::OwnedRepr<f64>,
+            scirs2_core::ndarray::OwnedRepr<f64>,
         >(
             &x_measured,
             &y_measured,
@@ -632,10 +632,10 @@ mod tests {
         .unwrap();
 
         let result_iter = total_least_squares::<
-            ndarray::OwnedRepr<f64>,
-            ndarray::OwnedRepr<f64>,
-            ndarray::OwnedRepr<f64>,
-            ndarray::OwnedRepr<f64>,
+            scirs2_core::ndarray::OwnedRepr<f64>,
+            scirs2_core::ndarray::OwnedRepr<f64>,
+            scirs2_core::ndarray::OwnedRepr<f64>,
+            scirs2_core::ndarray::OwnedRepr<f64>,
         >(
             &x_measured,
             &y_measured,

@@ -3,8 +3,8 @@
 //! This module provides basic building blocks and utility functions
 //! used by various attention implementations.
 
-use ndarray::{Array2, Array3, ArrayView3};
-use num_traits::{Float, NumAssignOps, Zero};
+use scirs2_core::ndarray::{Array2, Array3, ArrayView3};
+use scirs2_core::numeric::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
 use crate::error::{check_dimensions, LinalgError, LinalgResult};
@@ -111,9 +111,9 @@ where
 
     for b in 0..batchsize {
         // Calculate attention scores: QK^T [seq_len_q, seq_len_k]
-        let q_b = query.slice(ndarray::s![b, .., ..]);
-        let k_b = key.slice(ndarray::s![b, .., ..]);
-        let v_b = value.slice(ndarray::s![b, .., ..]);
+        let q_b = query.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let k_b = key.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let v_b = value.slice(scirs2_core::ndarray::s![b, .., ..]);
 
         // Compute scores as matrix multiplication: query @ key.transpose()
         let mut scores = Array2::<F>::zeros((seq_len_q, seq_len_k));
@@ -135,7 +135,7 @@ where
 
         // Apply softmax along the last dimension
         for i in 0..seq_len_q {
-            let mut row = scores.slice_mut(ndarray::s![i, ..]);
+            let mut row = scores.slice_mut(scirs2_core::ndarray::s![i, ..]);
 
             // Compute softmax manually for numerical stability
             // First find the maximum value for numerical stability
@@ -171,7 +171,9 @@ where
         }
 
         // Store the result for this batch
-        result.slice_mut(ndarray::s![b, .., ..]).assign(&output);
+        result
+            .slice_mut(scirs2_core::ndarray::s![b, .., ..])
+            .assign(&output);
     }
 
     Ok(result)
@@ -203,7 +205,7 @@ where
                 )));
             }
 
-            let mask_slice = mask_tensor.slice(ndarray::s![mask_idx, .., ..]);
+            let mask_slice = mask_tensor.slice(scirs2_core::ndarray::s![mask_idx, .., ..]);
 
             for i in 0..seq_len_q {
                 for j in 0..seq_len_k {
@@ -227,7 +229,7 @@ where
                 )));
             }
 
-            let mask_slice = mask_tensor.slice(ndarray::s![mask_idx, .., ..]);
+            let mask_slice = mask_tensor.slice(scirs2_core::ndarray::s![mask_idx, .., ..]);
 
             for i in 0..seq_len_q {
                 for j in 0..seq_len_k {
@@ -251,7 +253,7 @@ where
                 )));
             }
 
-            let mask_slice = mask_tensor.slice(ndarray::s![mask_idx, .., ..]);
+            let mask_slice = mask_tensor.slice(scirs2_core::ndarray::s![mask_idx, .., ..]);
 
             for i in 0..seq_len_q {
                 for j in 0..seq_len_k {

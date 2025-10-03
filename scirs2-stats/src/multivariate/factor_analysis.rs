@@ -4,8 +4,8 @@
 //! that explain the correlations among observed variables.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2, ArrayView2, Axis};
-use rand::{rngs::StdRng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::random::{rngs::StdRng, SeedableRng};
 use scirs2_core::validation::*;
 
 /// Factor Analysis model
@@ -200,7 +200,7 @@ impl FactorAnalysis {
         let (n_samples, n_features) = data.dim();
 
         // Initialize using SVD of data
-        use ndarray_linalg::SVD;
+        use scirs2_core::ndarray::ndarray_linalg::SVD;
         let (u, s, vt) = data.svd(false, true).map_err(|e| {
             StatsError::ComputationError(format!("SVD initialization failed: {}", e))
         })?;
@@ -575,7 +575,7 @@ pub mod efa {
         for _ in 0..n_simulations {
             // Generate random normal data with same dimensions
             let mut randomdata = Array2::zeros((n_samples, n_features));
-            use rand_distr::{Distribution, Normal};
+            use scirs2_core::random::{Distribution, Normal};
             let normal = Normal::new(0.0, 1.0).map_err(|e| {
                 StatsError::ComputationError(format!("Failed to create normal distribution: {}", e))
             })?;
@@ -638,9 +638,9 @@ pub mod efa {
         }
 
         // Compute eigenvalues
-        use ndarray_linalg::Eigh;
+        use scirs2_core::ndarray::ndarray_linalg::Eigh;
         let eigenvalues = corr
-            .eigh(ndarray_linalg::UPLO::Upper)
+            .eigh(scirs2_core::ndarray::ndarray_linalg::UPLO::Upper)
             .map_err(|e| {
                 StatsError::ComputationError(format!("Eigenvalue decomposition failed: {}", e))
             })?

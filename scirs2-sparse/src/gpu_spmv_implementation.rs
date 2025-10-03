@@ -4,8 +4,8 @@
 //! with proper error handling, memory management, and multi-backend support.
 
 use crate::error::{SparseError, SparseResult};
-use num_traits::{Float, NumAssign};
 use scirs2_core::gpu::{GpuBackend, GpuContext, GpuDataType};
+use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 
@@ -190,7 +190,11 @@ impl GpuSpMV {
             )?;
 
             let gpu_handler = GpuSpMatVec::with_backend(self.backend)?;
-            let result = gpu_handler.spmv(&csr_matrix, &ndarray::ArrayView1::from(x), None)?;
+            let result = gpu_handler.spmv(
+                &csr_matrix,
+                &scirs2_core::ndarray::ArrayView1::from(x),
+                None,
+            )?;
             Ok(result.to_vec())
         }
 
@@ -240,7 +244,11 @@ impl GpuSpMV {
             )?;
 
             let gpu_handler = GpuSpMatVec::with_backend(self.backend)?;
-            let result = gpu_handler.spmv(&csr_matrix, &ndarray::ArrayView1::from(x), None)?;
+            let result = gpu_handler.spmv(
+                &csr_matrix,
+                &scirs2_core::ndarray::ArrayView1::from(x),
+                None,
+            )?;
             Ok(result.to_vec())
         }
 
@@ -297,7 +305,11 @@ impl GpuSpMV {
             )?;
 
             let gpu_handler = GpuSpMatVec::with_backend(self.backend)?;
-            let result = gpu_handler.spmv(&csr_matrix, &ndarray::ArrayView1::from(x), None)?;
+            let result = gpu_handler.spmv(
+                &csr_matrix,
+                &scirs2_core::ndarray::ArrayView1::from(x),
+                None,
+            )?;
             Ok(result.to_vec())
         }
 

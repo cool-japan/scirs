@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Enhanced LTI system analysis with controllability and observability
 //
 // This module provides comprehensive analysis tools for linear time-invariant
@@ -7,10 +7,10 @@ use ndarray::s;
 
 use crate::error::{SignalError, SignalResult};
 use crate::lti::StateSpace;
-use ndarray::{array, Array1, Array2};
-use num_complex::Complex64;
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::ndarray::{array, Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 use scirs2_core::validation::{check_finite, checkshape};
 use scirs2_linalg::{eig, eigh, inv, matrix_norm, solve, svd};
 
@@ -1645,7 +1645,7 @@ fn analyze_controllability_uncertainty(
     config: &RobustAnalysisConfig,
 ) -> SignalResult<UncertaintyBounds> {
     let mut measures = Vec::new();
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..config.mc_samples {
         // Add random perturbations to system matrices
@@ -1729,7 +1729,7 @@ fn analyze_observability_uncertainty(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     
     #[test]
     fn test_controllability_analysis() {

@@ -4,7 +4,7 @@
 //! efficient for row operations, matrix-vector multiplication, and more.
 
 use crate::error::{SparseError, SparseResult};
-use num_traits::{Float, Zero};
+use scirs2_core::numeric::{Float, Zero};
 use scirs2_core::GpuDataType;
 use std::cmp::PartialEq;
 
@@ -334,7 +334,7 @@ impl<
             + std::ops::MulAssign
             + std::cmp::PartialEq
             + std::fmt::Debug
-            + num_traits::Zero
+            + scirs2_core::numeric::Zero
             + std::ops::Add<Output = T>
             + std::ops::Mul<Output = T>,
     > CsrMatrix<T>
@@ -569,7 +569,14 @@ impl CsrMatrix<f64> {
 
 impl<T> CsrMatrix<T>
 where
-    T: num_traits::Float + std::fmt::Debug + Copy + Default + GpuDataType + Send + Sync + 'static,
+    T: scirs2_core::numeric::Float
+        + std::fmt::Debug
+        + Copy
+        + Default
+        + GpuDataType
+        + Send
+        + Sync
+        + 'static,
 {
     /// GPU-accelerated matrix-vector multiplication for generic floating-point types
     ///

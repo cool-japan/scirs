@@ -4,8 +4,8 @@
 //! performance for the most compute-intensive ndimage operations. These implementations
 //! use advanced vectorization techniques and platform-specific optimizations.
 
-use ndarray::{Array, Array1, ArrayView1, ArrayView2, Dimension, Ix2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array, Array1, ArrayView1, ArrayView2, Dimension, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::cmp::Ordering;
 use std::fmt::Debug;
@@ -796,7 +796,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_simd_convolution_3x3() {

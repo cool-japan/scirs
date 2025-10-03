@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 use std::f64::consts::PI;
 
-use rand::Rng;
+use scirs2_core::random::Rng;
 
 use crate::base::{EdgeWeight, Graph, Node};
 use crate::error::Result;
@@ -88,7 +88,7 @@ where
 
     // Initialize with random positions
     let mut positions = vec![Position::new(0.0, 0.0); n];
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for pos in &mut positions {
         pos.x = rng.random::<f64>() * area_width - area_width / 2.0;
@@ -245,7 +245,12 @@ where
 pub fn spectral_layout<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<HashMap<N, Position>>
 where
     N: Node + Clone + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + num_traits::Zero + num_traits::One + PartialOrd + Copy,
+    E: EdgeWeight
+        + Into<f64>
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
+        + PartialOrd
+        + Copy,
     Ix: petgraph::graph::IndexType,
 {
     use crate::spectral::{laplacian, LaplacianType};

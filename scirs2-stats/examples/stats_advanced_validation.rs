@@ -1,7 +1,7 @@
 //! Simple validation script for basic stats functionality
 //! This script performs basic functionality checks without heavy dependencies
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_stats::{mean, std, var};
 
 #[allow(dead_code)]

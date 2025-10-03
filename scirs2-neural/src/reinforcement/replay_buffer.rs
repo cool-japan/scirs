@@ -2,8 +2,8 @@
 
 use crate::error::Result;
 use crate::reinforcement::ExperienceBatch;
-use ndarray::prelude::*;
-use rand::seq::SliceRandom;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::random::seq::SliceRandom;
 use std::collections::VecDeque;
 /// Trait for experience replay buffers
 pub trait ReplayBufferTrait: Send + Sync {
@@ -183,8 +183,8 @@ impl PrioritizedReplayBuffer {
         priorities.iter().map(|&p| p / sum).collect()
     /// Sample indices based on probabilities
     fn sample_indices(&self, probs: &[f32], batchsize: usize) -> Result<Vec<usize>> {
-        use rand::prelude::*;
-        use rand_distr::weighted::WeightedIndex;
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::weighted::WeightedIndex;
         let dist = WeightedIndex::new(probs).map_err(|e| {
             crate::error::NeuralError::InvalidArgument(format!("Invalid weights: {}", e))
         })?;

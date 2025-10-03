@@ -12,7 +12,7 @@
 //! - Fast transforms using FFT
 //! - High accuracy for smooth solutions
 
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::f64::consts::PI;
 use std::time::Instant;
 
@@ -362,7 +362,7 @@ fn legendre_polynomial_derivative(n: usize, x: f64) -> f64 {
             return n as f64 * (n + 1) as f64 / 2.0;
         } else {
             // At x = -1, use P'ₙ(-1) = (-1)^(n+1) * n(n+1)/2
-            return if n % 2 == 0 { -1.0 } else { 1.0 } * n as f64 * (n + 1) as f64 / 2.0;
+            return if n.is_multiple_of(2) { -1.0 } else { 1.0 } * n as f64 * (n + 1) as f64 / 2.0;
         }
     }
 
@@ -575,14 +575,15 @@ impl FourierSpectralSolver1D {
         }
 
         // Solve in frequency domain: -k²û = f̂ => û = -f̂/k²
-        let mut u_hat = Array1::from_elem(f_hat.len(), num_complex::Complex::new(0.0, 0.0));
+        let mut u_hat =
+            Array1::from_elem(f_hat.len(), scirs2_core::numeric::Complex::new(0.0, 0.0));
 
         for i in 0..n_freq {
             if i == 0 {
                 // k=0 mode corresponds to the constant/mean of the solution
                 // For Poisson's equation, this is determined by the source term's mean
                 // Typically, we set it to zero (solution is determined up to a constant)
-                u_hat[i] = num_complex::Complex::new(0.0, 0.0);
+                u_hat[i] = scirs2_core::numeric::Complex::new(0.0, 0.0);
             } else {
                 // For all other modes, solve using the inverse Laplacian
                 u_hat[i] = -f_hat[i] / (k[i] * k[i]);
@@ -593,7 +594,7 @@ impl FourierSpectralSolver1D {
         if self.options.use_dealiasing {
             let cutoff = 2 * n / 3;
             for i in cutoff..n_freq {
-                u_hat[i] = num_complex::Complex::new(0.0, 0.0);
+                u_hat[i] = scirs2_core::numeric::Complex::new(0.0, 0.0);
             }
         }
 
@@ -1336,11 +1337,11 @@ impl From<SpectralResult> for PDESolution<f64> {
 /// # Returns
 /// * A complex-valued array containing the FFT result
 #[allow(dead_code)]
-fn fft(x: &Array1<f64>) -> Array1<num_complex::Complex<f64>> {
+fn fft(x: &Array1<f64>) -> Array1<scirs2_core::numeric::Complex<f64>> {
     // Convert to _complex array
-    let mut input: Vec<num_complex::Complex<f64>> = x
+    let mut input: Vec<scirs2_core::numeric::Complex<f64>> = x
         .iter()
-        .map(|&val| num_complex::Complex::new(val, 0.0))
+        .map(|&val| scirs2_core::numeric::Complex::new(val, 0.0))
         .collect();
 
     // Perform FFT
@@ -1352,7 +1353,7 @@ fn fft(x: &Array1<f64>) -> Array1<num_complex::Complex<f64>> {
 
 /// Cooley-Tukey FFT algorithm for complex input (in-place)
 #[allow(dead_code)]
-fn fft_complex(x: &mut [num_complex::Complex<f64>]) {
+fn fft_complex(x: &mut [scirs2_core::numeric::Complex<f64>]) {
     let n = x.len();
 
     if n <= 1 {
@@ -1370,7 +1371,7 @@ fn fft_complex(x: &mut [num_complex::Complex<f64>]) {
 
 /// Radix-2 Cooley-Tukey FFT for power-of-2 lengths
 #[allow(dead_code)]
-fn fft_radix2(x: &mut [num_complex::Complex<f64>]) {
+fn fft_radix2(x: &mut [scirs2_core::numeric::Complex<f64>]) {
     let n = x.len();
 
     if n <= 1 {
@@ -1396,10 +1397,10 @@ fn fft_radix2(x: &mut [num_complex::Complex<f64>]) {
     let mut length = 2;
     while length <= n {
         let angle = -2.0 * PI / (length as f64);
-        let wlen = num_complex::Complex::new(angle.cos(), angle.sin());
+        let wlen = scirs2_core::numeric::Complex::new(angle.cos(), angle.sin());
 
         for i in (0..n).step_by(length) {
-            let mut w = num_complex::Complex::new(1.0, 0.0);
+            let mut w = scirs2_core::numeric::Complex::new(1.0, 0.0);
 
             for j in 0..length / 2 {
                 let u = x[i + j];
@@ -1418,17 +1419,17 @@ fn fft_radix2(x: &mut [num_complex::Complex<f64>]) {
 
 /// Mixed-radix FFT for non-power-of-2 lengths
 #[allow(dead_code)]
-fn fft_mixed_radix(x: &mut [num_complex::Complex<f64>]) {
+fn fft_mixed_radix(x: &mut [scirs2_core::numeric::Complex<f64>]) {
     let n = x.len();
 
     // Simple DFT for small sizes or non-power-of-2
     if n < 32 || !n.is_power_of_two() {
         let input = x.to_vec();
         for k in 0..n {
-            let mut sum = num_complex::Complex::new(0.0, 0.0);
+            let mut sum = scirs2_core::numeric::Complex::new(0.0, 0.0);
             for j in 0..n {
                 let angle = -2.0 * PI * (j as f64) * (k as f64) / (n as f64);
-                let factor = num_complex::Complex::new(angle.cos(), angle.sin());
+                let factor = scirs2_core::numeric::Complex::new(angle.cos(), angle.sin());
                 sum += factor * input[j];
             }
             x[k] = sum;
@@ -1446,9 +1447,11 @@ fn fft_mixed_radix(x: &mut [num_complex::Complex<f64>]) {
 /// # Returns
 /// * A complex-valued array containing the IFFT result
 #[allow(dead_code)]
-fn ifft(x: &Array1<num_complex::Complex<f64>>) -> Array1<num_complex::Complex<f64>> {
+fn ifft(
+    x: &Array1<scirs2_core::numeric::Complex<f64>>,
+) -> Array1<scirs2_core::numeric::Complex<f64>> {
     let n = x.len();
-    let mut input: Vec<num_complex::Complex<f64>> = x.to_vec();
+    let mut input: Vec<scirs2_core::numeric::Complex<f64>> = x.to_vec();
 
     // Take _complex conjugate
     for val in &mut input {
@@ -1475,7 +1478,7 @@ fn ifft(x: &Array1<num_complex::Complex<f64>>) -> Array1<num_complex::Complex<f6
 /// # Returns
 /// * A complex-valued array containing the RFFT result (only positive frequencies)
 #[allow(dead_code)]
-fn rfft(x: &Array1<f64>) -> Array1<num_complex::Complex<f64>> {
+fn rfft(x: &Array1<f64>) -> Array1<scirs2_core::numeric::Complex<f64>> {
     let n = x.len();
     let full_fft = fft(x);
 
@@ -1500,7 +1503,7 @@ fn rfft(x: &Array1<f64>) -> Array1<num_complex::Complex<f64>> {
 /// # Returns
 /// * A real-valued array containing the IRFFT result
 #[allow(dead_code)]
-fn irfft_with_size(x: &Array1<num_complex::Complex<f64>>, n: usize) -> Array1<f64> {
+fn irfft_with_size(x: &Array1<scirs2_core::numeric::Complex<f64>>, n: usize) -> Array1<f64> {
     // Reconstruct the full _complex spectrum using Hermitian symmetry
     let mut full_spectrum = Array1::zeros(n);
     let rfft_size = x.len();
@@ -1535,7 +1538,7 @@ fn irfft_with_size(x: &Array1<num_complex::Complex<f64>>, n: usize) -> Array1<f6
 /// # Returns
 /// * A real-valued array containing the IRFFT result
 #[allow(dead_code)]
-fn irfft(x: &Array1<num_complex::Complex<f64>>) -> Array1<f64> {
+fn irfft(x: &Array1<scirs2_core::numeric::Complex<f64>>) -> Array1<f64> {
     // Infer the output size from the input size
     // For RFFT output of size k, the original input was size 2*(k-1)
     let n = 2 * (x.len() - 1);

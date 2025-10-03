@@ -11,8 +11,8 @@
 //! - **Memristive Networks**: Hardware-aware plastic synaptic connections
 //! - **Neuromorphic Chips Simulation**: Intel Loihi and IBM TrueNorth-style processing
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
@@ -986,7 +986,7 @@ pub struct MemristorState<F: Float> {
     pub params: MemristorParams<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive> Default for MemristorState<F> {
+impl<F: Float + scirs2_core::numeric::FromPrimitive> Default for MemristorState<F> {
     fn default() -> Self {
         let resistance = F::from(1000.0).unwrap(); // 1kΩ default
         Self {
@@ -1011,7 +1011,7 @@ pub struct MemristorParams<F: Float> {
     pub beta: F,
 }
 
-impl<F: Float + num_traits::FromPrimitive> Default for MemristorParams<F> {
+impl<F: Float + scirs2_core::numeric::FromPrimitive> Default for MemristorParams<F> {
     fn default() -> Self {
         Self {
             r_min: F::from(100.0).unwrap(),   // 100Ω minimum

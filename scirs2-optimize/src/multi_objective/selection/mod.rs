@@ -3,8 +3,8 @@
 //! Methods for selecting individuals from populations.
 
 use crate::multi_objective::solutions::Solution;
-use rand::seq::SliceRandom;
-use rand::Rng;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::Rng;
 
 /// Trait for selection operators
 pub trait SelectionOperator {
@@ -24,7 +24,7 @@ impl TournamentSelection {
     }
 
     fn binary_tournament(&self, population: &[Solution]) -> Solution {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let idx1 = rng.gen_range(0..population.len());
         let idx2 = rng.gen_range(0..population.len());
 
@@ -63,6 +63,12 @@ impl SelectionOperator for TournamentSelection {
 #[derive(Debug, Clone)]
 pub struct RandomSelection;
 
+impl Default for RandomSelection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RandomSelection {
     pub fn new() -> Self {
         Self
@@ -71,7 +77,7 @@ impl RandomSelection {
 
 impl SelectionOperator for RandomSelection {
     fn select(&self, population: &[Solution], n_select: usize) -> Vec<Solution> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut selected = Vec::with_capacity(n_select);
         for _ in 0..n_select.min(population.len()) {
             let idx = rng.gen_range(0..population.len());
@@ -85,6 +91,12 @@ impl SelectionOperator for RandomSelection {
 #[derive(Debug, Clone)]
 pub struct RouletteWheelSelection;
 
+impl Default for RouletteWheelSelection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RouletteWheelSelection {
     pub fn new() -> Self {
         Self
@@ -93,7 +105,7 @@ impl RouletteWheelSelection {
 
 impl SelectionOperator for RouletteWheelSelection {
     fn select(&self, population: &[Solution], n_select: usize) -> Vec<Solution> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut selected = Vec::with_capacity(n_select);
 
         // Calculate fitness scores (inverse of rank for maximization)
@@ -125,6 +137,12 @@ impl SelectionOperator for RouletteWheelSelection {
 /// Truncation selection - select best individuals
 #[derive(Debug, Clone)]
 pub struct TruncationSelection;
+
+impl Default for TruncationSelection {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl TruncationSelection {
     pub fn new() -> Self {

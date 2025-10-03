@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 //! Specialized Hardware Accelerator Example
 //!
 //! This example demonstrates the use of specialized hardware accelerators
@@ -275,8 +276,8 @@ fn create_test_signal(n: usize) -> Vec<f64> {
     }
 
     // Add some noise
-    use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::{Rng, SeedableRng};
     let mut rng = StdRng::seed_from_u64(12345);
 
     for sample in &mut signal {

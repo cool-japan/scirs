@@ -101,10 +101,10 @@ pub fn simd_enhanced_convolution(
     config: &SimdConfig,
 ) -> SignalResult<()> {
     for (i, &value) in signal.iter().enumerate() {
-        check_finite(value, &format!("signal value at index {}", i))?;
+        check_finite(value, format!("signal value at index {}", i))?;
     }
     for (i, &value) in kernel.iter().enumerate() {
-        check_finite(value, &format!("kernel value at index {}", i))?;
+        check_finite(value, format!("kernel value at index {}", i))?;
     }
 
     let signal_len = signal.len();

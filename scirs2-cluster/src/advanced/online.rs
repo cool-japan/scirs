@@ -4,8 +4,8 @@
 //! automatically adapt to changing data distributions, create new clusters when
 //! needed, merge similar clusters, and detect concept drift in streaming data.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Zip};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Zip};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::fmt::Debug;
@@ -153,12 +153,12 @@ impl<F: Float + FromPrimitive + Debug> AdaptiveOnlineClustering<F> {
         }
 
         // Detect concept drift
-        if self.samples_processed % 100 == 0 {
+        if self.samples_processed.is_multiple_of(100) {
             self.detect_concept_drift()?;
         }
 
         // Periodic maintenance
-        if self.samples_processed % 1000 == 0 {
+        if self.samples_processed.is_multiple_of(1000) {
             self.merge_similar_clusters()?;
             self.remove_old_clusters()?;
         }
@@ -414,7 +414,7 @@ pub fn adaptive_online_clustering<F: Float + FromPrimitive + Debug>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_adaptive_online_config_default() {

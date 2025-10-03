@@ -4,7 +4,7 @@
 //! This is useful for quantization-aware training (QAT).
 
 use crate::quantization::{fake_quantize, fake_quantize_vector, QuantizationMethod};
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_fake_quantize() {

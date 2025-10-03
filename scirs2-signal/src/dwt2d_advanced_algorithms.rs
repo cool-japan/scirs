@@ -12,8 +12,8 @@
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::dwt2d_enhanced::{Dwt2dConfig, EnhancedDwt2dResult};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array2, Array3};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array2, Array3};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;

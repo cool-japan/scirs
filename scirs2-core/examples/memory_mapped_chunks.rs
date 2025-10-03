@@ -189,7 +189,7 @@ fn performance_comparison(tempdir: &Path) -> Result<(), Box<dyn std::error::Erro
     println!("\nMethod 1: Process without chunking (whole array in memory)");
     let start = Instant::now();
 
-    let array = mmap.as_array::<ndarray::Ix1>()?;
+    let array = mmap.as_array::<scirs2_core::ndarray::Ix1>()?;
     let sum_no_chunks: f32 = array.sum();
     let min_no_chunks = *array
         .iter()

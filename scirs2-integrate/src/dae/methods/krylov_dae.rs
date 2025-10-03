@@ -11,7 +11,7 @@ use crate::common::IntegrateFloat;
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEMethod;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Type alias for GMRES result
 type GMRESResult<F> = (Array2<F>, Vec<Array1<F>>, F, usize);
@@ -291,8 +291,8 @@ where
                 let mut result = Array1::<F>::zeros(n_total);
 
                 // Extract the x and y components of the input vector
-                let v_x = v.slice(ndarray::s![0..n_x]).to_owned();
-                let v_y = v.slice(ndarray::s![n_x..]).to_owned();
+                let v_x = v.slice(scirs2_core::ndarray::s![0..n_x]).to_owned();
+                let v_y = v.slice(scirs2_core::ndarray::s![n_x..]).to_owned();
 
                 // Compute the product for the x-x block: [I - h * β * ∂f/∂x] * v_x
                 for i in 0..n_x {
@@ -378,8 +378,8 @@ where
             n_krylov_iters += gmres_iterations;
 
             // Extract the x and y components of the solution
-            let delta_x = delta_z.slice(ndarray::s![0..n_x]).to_owned();
-            let delta_y = delta_z.slice(ndarray::s![n_x..]).to_owned();
+            let delta_x = delta_z.slice(scirs2_core::ndarray::s![0..n_x]).to_owned();
+            let delta_y = delta_z.slice(scirs2_core::ndarray::s![n_x..]).to_owned();
 
             // Apply the Newton step with damping if needed
             let mut alpha_damp = F::one();

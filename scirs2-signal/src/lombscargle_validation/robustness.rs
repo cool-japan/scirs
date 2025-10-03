@@ -8,9 +8,9 @@ use crate::error::{SignalError, SignalResult};
 use crate::lombscargle::lombscargle;
 use crate::lombscargle_enhanced::{lombscargle_enhanced, LombScargleConfig, WindowType};
 use super::types::{RobustnessValidationResult, SingleTestResult};
-use rand::prelude::*;
-use rand::seq::SliceRandom;
-use rand::Rng;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::Rng;
 use std::time::Instant;
 
 // Define PI constant for compatibility

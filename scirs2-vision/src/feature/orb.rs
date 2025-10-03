@@ -18,7 +18,7 @@
 use crate::error::Result;
 use crate::feature::{image_to_array, KeyPoint};
 use image::DynamicImage;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 // Using this in several places in the code
 // PI is used in compute_orientation but this approach uses consts directly
 
@@ -390,8 +390,8 @@ fn generate_brief_pattern() -> Vec<(i32, i32, i32, i32)> {
     let mut pattern = Vec::new();
     let max_offset = 12i32;
 
-    use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::{Rng, SeedableRng};
 
     let mut rng = StdRng::seed_from_u64(42); // Fixed seed for reproducibility
 

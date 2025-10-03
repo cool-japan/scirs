@@ -1480,7 +1480,7 @@ impl TensorCoreClustering {
         let mut centroids = Array2::zeros((self._numclusters, ndims));
 
         // k-means++ initialization
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Choose first centroid randomly
         let first_idx = rng.gen_range(0..npoints);
@@ -1510,7 +1510,7 @@ impl TensorCoreClustering {
             // Choose next centroid with probability proportional to squared distance
             let total_dist: f64 = distances.sum();
             let mut cumulative = 0.0;
-            let random_val = rand::random::<f64>() * total_dist;
+            let random_val = scirs2_core::random::random::<f64>() * total_dist;
 
             for i in 0..npoints {
                 cumulative += distances[i];

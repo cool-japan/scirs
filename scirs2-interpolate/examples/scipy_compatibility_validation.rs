@@ -154,10 +154,8 @@ fn main() -> InterpolateResult<()> {
         println!("\n   Failed Behavior Tests:");
         for failure in &report.behavior_validation.failed_tests {
             println!(
-                "     {}: {:.2e} error ({})",
-                failure.test_name,
-                failure.relative_error,
-                format!("{:?}", failure.error_type)
+                "     {}: {:.2e} error ({:?})",
+                failure.test_name, failure.relative_error, failure.error_type
             );
         }
     }

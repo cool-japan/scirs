@@ -11,7 +11,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::{ODEMethod, ODEResult};
-use ndarray::{s, Array1, ArrayView1};
+use scirs2_core::ndarray::{s, Array1, ArrayView1};
 use std::collections::VecDeque;
 
 /// Multirate ODE system with fast and slow components

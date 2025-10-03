@@ -10,7 +10,7 @@ use crate::denoise_cutting_edge::{denoise_dictionary_learning, DictionaryDenoise
 use crate::denoise_super_advanced::{advanced_advanced_denoise, AdvancedAdvancedDenoisingConfig};
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use serde::{Deserialize, Serialize};
 use statrs::statistics::Statistics;
 
@@ -150,7 +150,7 @@ pub struct QualityMetrics {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::denoise_unified::{denoise_unified, UnifiedDenoisingConfig, DenoisingMethod};
 /// use scirs2_signal::denoise::{ThresholdMethod, ThresholdSelect};
 /// use scirs2_signal::dwt::Wavelet;

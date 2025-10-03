@@ -51,16 +51,16 @@ fn sse_cross_correlation(
 #[cfg(target_arch = "x86_64")]
 #[allow(dead_code)]
 unsafe fn sse_complex_butterfly(
-    data: &mut [num_complex::Complex<f64>],
-    twiddles: &[num_complex::Complex<f64>],
+    data: &mut [scirs2_core::numeric::Complex<f64>],
+    twiddles: &[scirs2_core::numeric::Complex<f64>],
 ) -> SignalResult<()> {
     super::scalar_complex_butterfly(data, twiddles)
 }
 
 #[cfg(not(target_arch = "x86_64"))]
 fn sse_complex_butterfly(
-    data: &mut [num_complex::Complex<f64>],
-    twiddles: &[num_complex::Complex<f64>],
+    data: &mut [scirs2_core::numeric::Complex<f64>],
+    twiddles: &[scirs2_core::numeric::Complex<f64>],
 ) -> SignalResult<()> {
     super::scalar_complex_butterfly(data, twiddles)
 }

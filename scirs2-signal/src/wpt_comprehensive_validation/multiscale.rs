@@ -6,7 +6,7 @@
 use super::types::*;
 use super::utils::generate_test_signal;
 use crate::error::SignalResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Validate multi-scale properties of wavelet packet decompositions
 pub fn validate_multiscale_properties(

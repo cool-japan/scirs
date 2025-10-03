@@ -7,8 +7,8 @@
 //! - Decision explanation tools
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, ArrayD, Dimension, IxDyn};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ArrayD, Dimension, IxDyn};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -280,8 +280,8 @@ pub struct ModelInterpreter<
     F: Float
         + Debug
         + 'static
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
         + Sum
         + Clone
         + Copy,
@@ -307,8 +307,8 @@ impl<
         F: Float
             + Debug
             + 'static
-            + ndarray::ScalarOperand
-            + num_traits::FromPrimitive
+            + scirs2_core::ndarray::ScalarOperand
+            + scirs2_core::numeric::FromPrimitive
             + Sum
             + Clone
             + Copy,
@@ -435,18 +435,18 @@ impl<
         let mut weights = Vec::new();
         let num_channels = activations.shape()[1];
         for c in 0..num_channels {
-            let channel_grad = gradients.index_axis(ndarray::Axis(1), c);
+            let channel_grad = gradients.index_axis(scirs2_core::ndarray::Axis(1), c);
             let weight = channel_grad.mean().unwrap_or(F::zero());
             weights.push(weight);
         // Compute weighted combination of activation maps
         let first_channel = activations
-            .index_axis(ndarray::Axis(1), 0)
+            .index_axis(scirs2_core::ndarray::Axis(1), 0)
             .to_owned()
             .into_dyn();
         let mut gradcam = Array::zeros(first_channel.raw_dim());
         for (c, &weight) in weights.iter().enumerate().take(num_channels) {
             let channel_activation = activations
-                .index_axis(ndarray::Axis(1), c)
+                .index_axis(scirs2_core::ndarray::Axis(1), c)
                 .to_owned()
                 .into_dyn();
             let weighted_activation = channel_activation * weight;
@@ -471,7 +471,7 @@ impl<
         let mut total_attribution = Array::zeros(input.raw_dim());
         for _ in 0..num_samples {
             let coalition_mask = input.mapv(|_| {
-                if rand::random::<f64>() > 0.5 {
+                if scirs2_core::random::random::<f64>() > 0.5 {
                     F::one()
                 } else {
                     F::zero()
@@ -510,7 +510,7 @@ impl<
         let mut accumulated_attribution = Array::zeros(input.raw_dim());
         let noise_scale = F::from(noise_std).unwrap();
             let noisy_input = input.mapv(|x| {
-                let noise = F::from(rand::random::<f64>() - 0.5).unwrap() * noise_scale;
+                let noise = F::from(scirs2_core::random::random::<f64>() - 0.5).unwrap() * noise_scale;
                 x + noise
             let attribution = self.compute_attribution(base_method, &noisy_input, target_class)?;
             accumulated_attribution = accumulated_attribution + attribution;
@@ -520,7 +520,7 @@ impl<
             Ok(input.clone())
     fn compute_expected_gradients_attribution(
         for _ in 0..num_references {
-            let reference = input.mapv(|_| F::from(rand::random::<f64>()).unwrap());
+            let reference = input.mapv(|_| F::from(scirs2_core::random::random::<f64>()).unwrap());
             let baseline =
                 BaselineMethod::Custom(reference.mapv(|x| x.to_f64().unwrap_or(0.0) as f32));
             let attribution =
@@ -530,7 +530,7 @@ impl<
     fn create_baseline(&self, input: &ArrayD<F>, method: &BaselineMethod) -> Result<ArrayD<F>> {
             BaselineMethod::Zero => Ok(Array::zeros(input.raw_dim())),
             BaselineMethod::Random { seed: _ } => {
-                Ok(input.mapv(|_| F::from(rand::random::<f64>()).unwrap())), BaselineMethod::GaussianBlur { sigma: _ } => {
+                Ok(input.mapv(|_| F::from(scirs2_core::random::random::<f64>()).unwrap())), BaselineMethod::GaussianBlur { sigma: _ } => {
                 let blurred = input.mapv(|x| x * F::from(0.5).unwrap());
                 Ok(blurred)
             BaselineMethod::TrainingMean => Ok(Array::zeros(input.raw_dim())),
@@ -754,7 +754,7 @@ impl<F: Float + Debug> + std::fmt::Display for InterpretationReport<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     #[test]
     fn test_model_interpreter_creation() {
         let interpreter = ModelInterpreter::<f64>::new();

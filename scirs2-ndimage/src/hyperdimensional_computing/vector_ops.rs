@@ -4,8 +4,8 @@
 //! including creation, similarity computation, bundling, binding, and other
 //! fundamental operations that form the basis of HDC computations.
 
-use ndarray::{Array1, ArrayView1};
-use rand::prelude::*;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::error::{NdimageError, NdimageResult};
@@ -25,7 +25,7 @@ impl Hypervector {
     pub fn random(dim: usize, sparsity: f64) -> Self {
         let num_nonzero = (dim as f64 * sparsity) as usize;
         let mut sparse_data = Vec::new();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut used_indices = HashSet::new();
 
         while sparse_data.len() < num_nonzero {
@@ -513,7 +513,7 @@ pub mod vector_utils {
     /// A random permutation vector
     pub fn random_permutation(size: usize) -> Vec<usize> {
         let mut perm: Vec<usize> = (0..size).collect();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         perm.shuffle(&mut rng);
         perm
     }
@@ -594,7 +594,7 @@ mod tests {
         let hv = Hypervector::from_dense(&dense, 0.1);
 
         assert_eq!(hv.dimension, 5);
-        assert!(hv.sparse_data.len() > 0);
+        assert!(!hv.sparse_data.is_empty());
         assert!(hv.norm > 0.0);
     }
 
@@ -678,7 +678,7 @@ mod tests {
 
         let bound = hv1.bind(&hv2).unwrap();
         assert_eq!(bound.dimension, 10);
-        assert!(bound.sparse_data.len() > 0);
+        assert!(!bound.sparse_data.is_empty());
         assert!(bound.norm > 0.0);
     }
 

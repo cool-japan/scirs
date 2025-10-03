@@ -383,7 +383,7 @@ fn calculate_verification_stats(
     let sample_size = mmap.size.min(1_000_000); // Max 1 million elements
     let stride = (mmap.size / sample_size).max(1);
 
-    let array = mmap.as_array::<ndarray::Ix1>()?;
+    let array = mmap.as_array::<scirs2_core::ndarray::Ix1>()?;
     let mut stats = OnlineStats::new();
 
     for i in (0..mmap.size).step_by(stride) {

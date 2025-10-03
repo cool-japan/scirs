@@ -1,10 +1,10 @@
 //! Example demonstrating the Leader clustering algorithm
 
-use ndarray::array;
 use scirs2_cluster::{
     euclidean_distance, leader_clustering, manhattan_distance, LeaderClustering, LeaderNode,
     LeaderTree,
 };
+use scirs2_core::ndarray::array;
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -141,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[allow(dead_code)]
-fn print_tree_node<F: num_traits::Float + std::fmt::Display>(
+fn print_tree_node<F: scirs2_core::numeric::Float + std::fmt::Display>(
     node: &LeaderNode<F>,
     depth: usize,
     index: usize,

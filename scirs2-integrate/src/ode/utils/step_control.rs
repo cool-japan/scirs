@@ -4,7 +4,7 @@
 //! in adaptive ODE solvers.
 
 use crate::IntegrateFloat;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Calculate the error norm based on relative and absolute tolerances
 ///

@@ -3,7 +3,7 @@
 //! This example demonstrates the hardware-specific optimizations available
 //! in scirs2-linalg, including SIMD acceleration and GPU foundations.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::{
     error::LinalgResult,
     simd_ops::{hardware_optimized_dot, hardware_optimized_matvec, HardwareCapabilities},
@@ -61,7 +61,7 @@ fn main() -> LinalgResult<()> {
     println!("   Result shape: {:?}", matvec_result.shape());
     println!(
         "   First 5 elements: {:?}",
-        &matvec_result.slice(ndarray::s![0..5]).to_vec()
+        &matvec_result.slice(scirs2_core::ndarray::s![0..5]).to_vec()
     );
     println!("   Time: {:?}", matvec_time);
     println!();

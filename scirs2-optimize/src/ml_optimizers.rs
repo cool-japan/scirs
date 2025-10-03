@@ -6,9 +6,9 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::result::OptimizeResult;
-use ndarray::{Array1, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::Float;
-use rand::seq::SliceRandom;
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::seq::SliceRandom;
 use std::collections::HashMap;
 
 /// L1 regularization (Lasso) optimizer using proximal gradient descent
@@ -496,9 +496,9 @@ impl<F: Float + ScalarOperand> CoordinateDescentOptimizer<F> {
 
             // Choose coordinate order
             let coords: Vec<usize> = if self.random {
-                use rand::{rng, seq::SliceRandom};
+                use scirs2_core::random::{rng, seq::SliceRandom};
                 let mut coords: Vec<usize> = (0..n).collect();
-                coords.shuffle(&mut rand::rng());
+                coords.shuffle(&mut scirs2_core::random::rng());
                 coords
             } else {
                 (0..n).collect()
@@ -611,7 +611,7 @@ pub mod ml_problems {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_lasso_soft_threshold() {

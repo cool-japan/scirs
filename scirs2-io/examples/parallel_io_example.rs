@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the thread pool for high-performance
 //! I/O operations across different file formats.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_io::{
     csv,
     error::IoError,
@@ -107,7 +107,9 @@ fn demonstrate_parallel_file_processing(
                 None
             };
             let data_only = if array_data.nrows() > 1 {
-                array_data.slice(ndarray::s![1.., ..]).to_owned()
+                array_data
+                    .slice(scirs2_core::ndarray::s![1.., ..])
+                    .to_owned()
             } else {
                 Array2::from_shape_vec((0, cols), Vec::new())
                     .map_err(|e| IoError::FormatError(e.to_string()))?
@@ -226,7 +228,9 @@ fn demonstrate_concurrent_format_conversion(
                 None
             };
             let data_only = if array_data.nrows() > 1 {
-                array_data.slice(ndarray::s![1.., ..]).to_owned()
+                array_data
+                    .slice(scirs2_core::ndarray::s![1.., ..])
+                    .to_owned()
             } else {
                 Array2::from_shape_vec((0, cols), Vec::new())
                     .map_err(|e| IoError::FormatError(e.to_string()))?
@@ -261,11 +265,11 @@ fn demonstrate_concurrent_format_conversion(
             serialize::write_array_messagepack(&msgpack_file, &array_clone.clone().into_dyn())?;
 
             // Verify round-trip
-            let json_read: ndarray::Array<f64, ndarray::IxDyn> =
+            let json_read: scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::IxDyn> =
                 serialize::read_array_json(&json_file)?;
-            let binary_read: ndarray::Array<f64, ndarray::IxDyn> =
+            let binary_read: scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::IxDyn> =
                 serialize::read_array_binary(&binary_file)?;
-            let msgpack_read: ndarray::Array<f64, ndarray::IxDyn> =
+            let msgpack_read: scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::IxDyn> =
                 serialize::read_array_messagepack(&msgpack_file)?;
 
             // Quick verification
@@ -311,7 +315,9 @@ fn demonstrate_concurrent_format_conversion(
                 None
             };
             let data_only = if array_data.nrows() > 1 {
-                array_data.slice(ndarray::s![1.., ..]).to_owned()
+                array_data
+                    .slice(scirs2_core::ndarray::s![1.., ..])
+                    .to_owned()
             } else {
                 Array2::from_shape_vec((0, cols), Vec::new())
                     .map_err(|e| IoError::FormatError(e.to_string()))?
@@ -393,7 +399,7 @@ fn demonstrate_batch_operations(
             serialize::write_array_json(&file_path, &array.clone().into_dyn())?;
 
             // Read back and verify
-            let read_array: ndarray::Array<f64, ndarray::IxDyn> =
+            let read_array: scirs2_core::ndarray::Array<f64, scirs2_core::ndarray::IxDyn> =
                 serialize::read_array_json(&file_path)?;
             assert_eq!(array.shape(), read_array.shape());
 
@@ -511,7 +517,9 @@ fn demonstrate_pipeline_processing(
                     None
                 };
                 let data_only = if array_data.nrows() > 1 {
-                    array_data.slice(ndarray::s![1.., ..]).to_owned()
+                    array_data
+                        .slice(scirs2_core::ndarray::s![1.., ..])
+                        .to_owned()
                 } else {
                     Array2::from_shape_vec((0, cols), Vec::new())
                         .map_err(|e| IoError::FormatError(e.to_string()))?

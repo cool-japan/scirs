@@ -3,8 +3,8 @@
 //! This module contains helper functions used by the FFT implementation.
 
 use crate::error::{FFTError, FFTResult};
-use ndarray::{Array, ArrayD, IxDyn};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array, ArrayD, IxDyn};
+use scirs2_core::numeric::Complex64;
 use std::fmt::Debug;
 
 /// Try to convert a value to Complex64
@@ -191,7 +191,7 @@ pub fn zeros_like_complex(shape: &[usize]) -> ArrayD<Complex64> {
 #[allow(dead_code)]
 pub fn real_to_complex<D>(_realarray: &Array<f64, D>) -> Array<Complex64, D>
 where
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     _realarray.mapv(|x| Complex64::new(x, 0.0))
 }
@@ -208,7 +208,7 @@ where
 #[allow(dead_code)]
 pub fn complex_to_real<D>(_complexarray: &Array<Complex64, D>) -> Array<f64, D>
 where
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     _complexarray.mapv(|x| x.re)
 }
@@ -225,7 +225,7 @@ where
 #[allow(dead_code)]
 pub fn complex_magnitude<D>(_complexarray: &Array<Complex64, D>) -> Array<f64, D>
 where
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     _complexarray.mapv(|x| x.norm())
 }
@@ -242,7 +242,7 @@ where
 #[allow(dead_code)]
 pub fn complex_angle<D>(_complexarray: &Array<Complex64, D>) -> Array<f64, D>
 where
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     _complexarray.mapv(|x| x.arg())
 }
@@ -259,7 +259,7 @@ where
 #[allow(dead_code)]
 pub fn power_spectrum<D>(_complexarray: &Array<Complex64, D>) -> Array<f64, D>
 where
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     _complexarray.mapv(|x| x.norm_sqr())
 }

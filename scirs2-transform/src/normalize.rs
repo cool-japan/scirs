@@ -3,8 +3,8 @@
 //! This module provides functions for normalizing and standardizing data,
 //! which is often a preprocessing step for machine learning algorithms.
 
-use ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Axis, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 
 use crate::error::{Result, TransformError};
 
@@ -42,7 +42,7 @@ pub enum NormalizationMethod {
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_transform::normalize::{normalize_array, NormalizationMethod};
 ///
 /// let data = array![[1.0, 2.0, 3.0],
@@ -62,7 +62,7 @@ where
     S: Data,
     S::Elem: Float + NumCast,
 {
-    let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+    let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     if !array_f64.is_standard_layout() {
         return Err(TransformError::InvalidInput(
@@ -287,7 +287,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_transform::normalize::{normalize_vector, NormalizationMethod};
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -304,7 +304,7 @@ where
     S: Data,
     S::Elem: Float + NumCast,
 {
-    let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+    let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     if array_f64.is_empty() {
         return Err(TransformError::InvalidInput(
@@ -396,7 +396,7 @@ where
             let n = data.len();
 
             // Calculate median
-            let median = if n % 2 == 0 {
+            let median = if n.is_multiple_of(2) {
                 (data[n / 2 - 1] + data[n / 2]) / 2.0
             } else {
                 data[n / 2]
@@ -534,7 +534,7 @@ impl Normalizer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         if !array_f64.is_standard_layout() {
             return Err(TransformError::InvalidInput(
@@ -658,7 +658,7 @@ impl Normalizer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         if !array_f64.is_standard_layout() {
             return Err(TransformError::InvalidInput(
@@ -817,7 +817,7 @@ impl Normalizer {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_normalize_vector_minmax() {

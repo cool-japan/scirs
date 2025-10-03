@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 //! Multi-GPU Device Enumeration and Management Example
 //!
 //! This example demonstrates device enumeration, selection, and workload
@@ -293,8 +294,8 @@ fn create_test_signal(n: usize) -> Vec<f64> {
     }
 
     // Add some noise
-    use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::{Rng, SeedableRng};
     let mut rng = StdRng::seed_from_u64(42);
 
     for sample in &mut signal {

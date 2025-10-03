@@ -113,8 +113,8 @@ pub fn shortest_path<N, E, Ix>(
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + std::marker::Copy
@@ -244,8 +244,8 @@ pub fn dijkstra_path<N, E, Ix>(
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + std::marker::Copy
@@ -276,8 +276,8 @@ pub fn shortest_path_digraph<N, E, Ix>(
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + std::marker::Copy
@@ -394,8 +394,8 @@ pub fn dijkstra_path_digraph<N, E, Ix>(
 where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + std::marker::Copy
@@ -430,20 +430,22 @@ where
 /// after completion. It works correctly with negative edge weights but not with
 /// negative cycles.
 #[allow(dead_code)]
-pub fn floyd_warshall<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<ndarray::Array2<f64>>
+pub fn floyd_warshall<N, E, Ix>(
+    graph: &Graph<N, E, Ix>,
+) -> Result<scirs2_core::ndarray::Array2<f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + num_traits::Zero + Copy,
+    E: EdgeWeight + Into<f64> + scirs2_core::numeric::Zero + Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
 
     if n == 0 {
-        return Ok(ndarray::Array2::zeros((0, 0)));
+        return Ok(scirs2_core::ndarray::Array2::zeros((0, 0)));
     }
 
     // Initialize distance matrix
-    let mut dist = ndarray::Array2::from_elem((n, n), f64::INFINITY);
+    let mut dist = scirs2_core::ndarray::Array2::from_elem((n, n), f64::INFINITY);
 
     // Set diagonal to 0 (distance from a node to itself)
     for i in 0..n {
@@ -478,20 +480,22 @@ where
 
 /// Computes all-pairs shortest paths for a directed graph using Floyd-Warshall
 #[allow(dead_code)]
-pub fn floyd_warshall_digraph<N, E, Ix>(graph: &DiGraph<N, E, Ix>) -> Result<ndarray::Array2<f64>>
+pub fn floyd_warshall_digraph<N, E, Ix>(
+    graph: &DiGraph<N, E, Ix>,
+) -> Result<scirs2_core::ndarray::Array2<f64>>
 where
     N: Node + std::fmt::Debug,
-    E: EdgeWeight + Into<f64> + num_traits::Zero + Copy,
+    E: EdgeWeight + Into<f64> + scirs2_core::numeric::Zero + Copy,
     Ix: petgraph::graph::IndexType,
 {
     let n = graph.node_count();
 
     if n == 0 {
-        return Ok(ndarray::Array2::zeros((0, 0)));
+        return Ok(scirs2_core::ndarray::Array2::zeros((0, 0)));
     }
 
     // Initialize distance matrix
-    let mut dist = ndarray::Array2::from_elem((n, n), f64::INFINITY);
+    let mut dist = scirs2_core::ndarray::Array2::from_elem((n, n), f64::INFINITY);
 
     // Set diagonal to 0 (distance from a node to itself)
     for i in 0..n {
@@ -555,7 +559,12 @@ pub fn astar_search<N, E, Ix, H>(
 ) -> Result<AStarResult<N, E>>
 where
     N: Node + std::fmt::Debug + Clone + Hash + Eq,
-    E: EdgeWeight + Clone + std::ops::Add<Output = E> + num_traits::Zero + PartialOrd + Copy,
+    E: EdgeWeight
+        + Clone
+        + std::ops::Add<Output = E>
+        + scirs2_core::numeric::Zero
+        + PartialOrd
+        + Copy,
     Ix: petgraph::graph::IndexType,
     H: Fn(&N) -> E,
 {
@@ -631,7 +640,12 @@ pub fn astar_search_digraph<N, E, Ix, H>(
 ) -> Result<AStarResult<N, E>>
 where
     N: Node + std::fmt::Debug + Clone + Hash + Eq,
-    E: EdgeWeight + Clone + std::ops::Add<Output = E> + num_traits::Zero + PartialOrd + Copy,
+    E: EdgeWeight
+        + Clone
+        + std::ops::Add<Output = E>
+        + scirs2_core::numeric::Zero
+        + PartialOrd
+        + Copy,
     Ix: petgraph::graph::IndexType,
     H: Fn(&N) -> E,
 {
@@ -713,8 +727,8 @@ where
     E: EdgeWeight
         + Into<f64>
         + Clone
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + std::marker::Copy

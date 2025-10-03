@@ -5,8 +5,8 @@
 // and total harmonic distortion (THD).
 
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -45,7 +45,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -93,7 +93,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -144,7 +144,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -177,13 +177,13 @@ where
 ///
 /// ```
 /// use scirs2_signal::measurements::snr;
-/// use rand::Rng;  // Import the Rng trait to access gen_range
+/// use scirs2_core::random::Rng;  // Import the Rng trait to access gen_range
 ///
 /// // Create a clean signal
 /// let clean = (0..100).map(|i| (i as f64 * 0.1).sin()).collect::<Vec<_>>();
 ///
 /// // Add noise to create signal_plusnoise
-/// let mut rng = rand::rng();
+/// let mut rng = scirs2_core::random::rng();
 /// let noisy: Vec<f64> = clean.iter()
 ///     .map(|&x| x + rng.gen_range(-0.1f64..0.1f64))
 ///     .collect();
@@ -215,7 +215,7 @@ where
     let signal_f64: Vec<f64> = signal
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -224,7 +224,7 @@ where
     let signal_plusnoise_f64: Vec<f64> = signal_plusnoise
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -324,7 +324,7 @@ where
     let signal_f64: Vec<f64> = _signal
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -406,7 +406,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use rand::Rng;
+    use scirs2_core::random::Rng;
     use std::f64::consts::PI;
     #[test]
     fn test_rms() {
@@ -465,7 +465,7 @@ mod tests {
         // Add noise with known power
         let noise_amplitude = 0.1; // -20 dB relative to signal
                                    // Using rand API that's compatible with 0.9.0
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let noisy: Vec<f64> = clean
             .iter()
             .map(|&x| x + noise_amplitude * (2.0 * PI * rng.gen_range(0.0..1.0)).sin())

@@ -324,8 +324,8 @@ impl ReedsSheppPlanner {
                     best_length = path_length;
                     let path_type = ReedsSheppPlanner::determine_path_type(&segments);
                     best_path = Some(ReedsSheppPath::new(
-                        start.clone(),
-                        goal.clone(),
+                        *start,
+                        goal,
                         self.turning_radius,
                         path_type,
                         segments,

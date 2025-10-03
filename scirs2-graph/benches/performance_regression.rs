@@ -425,12 +425,7 @@ fn bench_memory_operations(c: &mut Criterion) {
     for (graph_name, graph) in &graph_configs {
         group.throughput(Throughput::Elements(graph.node_count() as u64));
 
-        // Graph cloning
-        group.bench_with_input(
-            BenchmarkId::new("graph_clone", graph_name),
-            &graph,
-            |b, g| b.iter(|| black_box(g.clone())),
-        );
+        // Note: Graph cloning benchmark removed as Graph doesn't implement Clone
 
         // Subgraph creation
         let nodes: std::collections::HashSet<_> = graph

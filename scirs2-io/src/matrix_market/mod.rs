@@ -13,7 +13,7 @@
 //! - Real and complex number support
 //! - Different matrix types (general, symmetric, hermitian, skew-symmetric)
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;

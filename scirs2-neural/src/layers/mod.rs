@@ -5,8 +5,8 @@
 //! Layers are the fundamental building blocks of neural networks.
 
 use crate::error::Result;
-use ndarray::{Array, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Base trait for neural network layers
@@ -18,7 +18,10 @@ pub trait Layer<F: Float + Debug + ScalarOperand>: Send + Sync {
     /// Forward pass of the layer
     ///
     /// Computes the output of the layer given an input tensor.
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>>;
+    fn forward(
+        &self,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
 
     /// Backward pass of the layer to compute gradients
     ///
@@ -26,9 +29,9 @@ pub trait Layer<F: Float + Debug + ScalarOperand>: Send + Sync {
     /// for backpropagation.
     fn backward(
         &self,
-        input: &Array<F, ndarray::IxDyn>,
-        grad_output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>>;
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>>;
 
     /// Update the layer parameters with the given learning rate
     fn update(&mut self, learningrate: F) -> Result<()>;
@@ -40,22 +43,25 @@ pub trait Layer<F: Float + Debug + ScalarOperand>: Send + Sync {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 
     /// Get the parameters of the layer
-    fn params(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn params(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         Vec::new()
     }
 
     /// Get the gradients of the layer parameters
-    fn gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         Vec::new()
     }
 
     /// Set the gradients of the layer parameters
-    fn set_gradients(&mut self, _gradients: &[Array<F, ndarray::IxDyn>]) -> Result<()> {
+    fn set_gradients(
+        &mut self,
+        _gradients: &[Array<F, scirs2_core::ndarray::IxDyn>],
+    ) -> Result<()> {
         Ok(())
     }
 
     /// Set the parameters of the layer
-    fn set_params(&mut self, _params: &[Array<F, ndarray::IxDyn>]) -> Result<()> {
+    fn set_params(&mut self, _params: &[Array<F, scirs2_core::ndarray::IxDyn>]) -> Result<()> {
         Ok(())
     }
 
@@ -103,13 +109,13 @@ pub trait Layer<F: Float + Debug + ScalarOperand>: Send + Sync {
 /// Trait for layers with parameters (weights, biases)
 pub trait ParamLayer<F: Float + Debug + ScalarOperand>: Layer<F> {
     /// Get the parameters of the layer as a vector of arrays
-    fn get_parameters(&self) -> Vec<Array<F, ndarray::IxDyn>>;
+    fn get_parameters(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>>;
 
     /// Get the gradients of the parameters
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>>;
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>>;
 
     /// Set the parameters
-    fn set_parameters(&mut self, params: Vec<Array<F, ndarray::IxDyn>>) -> Result<()>;
+    fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()>;
 }
 
 /// Information about a layer for visualization purposes
@@ -214,7 +220,10 @@ impl<F: Float + Debug + ScalarOperand> Sequential<F> {
 }
 
 impl<F: Float + Debug + ScalarOperand> Layer<F> for Sequential<F> {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(
+        &self,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut output = input.clone();
         for layer in &self.layers {
             output = layer.forward(&output)?;
@@ -224,9 +233,9 @@ impl<F: Float + Debug + ScalarOperand> Layer<F> for Sequential<F> {
 
     fn backward(
         &self,
-        _input: &Array<F, ndarray::IxDyn>,
-        grad_output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        _input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // For simplicity, we'll just return the grad_output as-is
         // A real implementation would propagate through the layers in reverse
         Ok(grad_output.clone())
@@ -239,7 +248,7 @@ impl<F: Float + Debug + ScalarOperand> Layer<F> for Sequential<F> {
         Ok(())
     }
 
-    fn params(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn params(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut params = Vec::new();
         for layer in &self.layers {
             params.extend(layer.params());

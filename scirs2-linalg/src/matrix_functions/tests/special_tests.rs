@@ -1,7 +1,7 @@
 //! Tests for special matrix functions
 
 use super::super::special::*;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_sigmoid_basic() {

@@ -48,20 +48,20 @@ pub use algorithms::{
 };
 
 // For backward compatibility, also re-export everything at the module level
-use ndarray::{s, Array1};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
 
 // Re-export commonly used imports for convenience
-pub use ndarray;
-pub use num_traits;
+pub use scirs2_core::ndarray;
+pub use scirs2_core::numeric;
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_gpu_config_default() {

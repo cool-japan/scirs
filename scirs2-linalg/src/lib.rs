@@ -1,4 +1,17 @@
 #![allow(deprecated)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::manual_slice_size_calculation)]
+#![allow(clippy::unwrap_or_default)]
+#![allow(clippy::single_char_add_str)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::manual_is_multiple_of)]
+#![allow(clippy::extend_with_drain)]
+#![allow(clippy::vec_init_then_push)]
+#![allow(clippy::match_like_matches_macro)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::for_kv_map)]
+#![allow(clippy::derivable_impls)]
 //! # SciRS2 Linear Algebra - High-Performance Matrix Operations
 //!
 //! **scirs2-linalg** provides comprehensive linear algebra operations with SciPy/NumPy-compatible
@@ -36,9 +49,9 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-linalg = "0.1.0-beta.4"
+//! scirs2-linalg = "0.1.0-rc.1"
 //! # Optional features
-//! scirs2-linalg = { version = "0.1.0-beta.4", features = ["simd", "parallel", "gpu"] }
+//! scirs2-linalg = { version = "0.1.0-rc.1", features = ["simd", "parallel", "gpu"] }
 //! ```
 //!
 //! ### Basic Matrix Operations
@@ -197,8 +210,8 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.1.0-beta.4
-//! - **Release Date**: October 01, 2025
+//! - **Version**: 0.1.0-rc.1
+//! - **Release Date**: October 03, 2025
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-linalg](https://docs.rs/scirs2-linalg)
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
@@ -652,7 +665,7 @@ pub mod prelude {
         //! # Examples
         //!
         //! ```
-        //! use ndarray::array;
+        //! use scirs2_core::ndarray::array;
         //! use scirs2_linalg::prelude::scipy_compat;
         //!
         //! let a = array![[4.0, 2.0], [2.0, 3.0]];

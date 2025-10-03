@@ -190,7 +190,7 @@ mod tests {
 
         let multiscale = MultiscaleValidationMetrics {
             scale_energy_distribution: vec![0.8, 0.2],
-            inter_scale_correlations: ndarray::Array2::zeros((2, 2)),
+            inter_scale_correlations: scirs2_core::ndarray::Array2::zeros((2, 2)),
             scale_consistency: 0.95,
             frequency_localization: 0.9,
             time_localization: 0.9,

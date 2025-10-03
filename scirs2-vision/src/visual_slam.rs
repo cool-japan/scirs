@@ -13,7 +13,7 @@
 
 use crate::error::{Result, VisionError};
 use crate::scene_understanding::SceneAnalysisResult;
-use ndarray::{Array1, Array2, Array3, ArrayView3};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView3};
 use std::collections::HashMap;
 
 /// Advanced-advanced Visual SLAM system with multi-modal capabilities

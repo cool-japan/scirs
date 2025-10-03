@@ -1,7 +1,7 @@
 //! Iterative solvers for linear systems
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -28,7 +28,7 @@ use crate::validation::validate_linear_system;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::conjugate_gradient;
 ///
 /// let a = array![[4.0_f64, 1.0], [1.0, 3.0]]; // Symmetric positive definite
@@ -188,7 +188,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::jacobi_method;
 ///
 /// let a = array![[3.0_f64, -1.0], [-1.0, 2.0]]; // Diagonally dominant
@@ -305,7 +305,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::gauss_seidel;
 ///
 /// let a = array![[3.0_f64, -1.0], [-1.0, 2.0]]; // Diagonally dominant
@@ -427,7 +427,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::successive_over_relaxation;
 ///
 /// let a = array![[3.0_f64, -1.0], [-1.0, 2.0]]; // Diagonally dominant
@@ -553,7 +553,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_linalg::geometric_multigrid;
 ///
 /// // Create a matrix from a 1D Poisson equation with Dirichlet boundary conditions
@@ -860,7 +860,7 @@ where
 ///
 /// ```ignore
 /// // Note: This is the old bicgstab API. Use the new API from solvers::iterative instead.
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let a = array![[4.0_f64, 1.0], [2.0, 3.0]]; // Non-symmetric
 /// let b = array![1.0_f64, 2.0];
@@ -1059,7 +1059,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::minres;
 ///
 /// // For the doctests, we'll use a positive definite matrix which works better with MINRES
@@ -1326,13 +1326,13 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Array1, Array2};
-    use num_traits::One;
+    use scirs2_core::ndarray::{array, Array1, Array2};
+    use scirs2_core::numeric::One;
 
     // Helper function to check solution
     fn check_solution<F>(a: &ArrayView2<F>, x: &ArrayView1<F>, b: &ArrayView1<F>, tol: F) -> bool
     where
-        F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand,
+        F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand,
     {
         let n = a.nrows();
         let mut ax = Array1::<F>::zeros(n);

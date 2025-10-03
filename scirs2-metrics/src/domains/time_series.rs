@@ -6,7 +6,7 @@
 use crate::domains::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
 use crate::regression::{mean_absolute_error, mean_squared_error, r2_score};
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -948,7 +948,7 @@ impl DomainMetrics for TimeSeriesSuite {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     #[ignore = "timeout"]

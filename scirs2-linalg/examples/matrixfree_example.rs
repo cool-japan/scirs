@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_linalg::{
     block_diagonal_operator, jacobi_preconditioner, matrix_free_conjugate_gradient,
     matrix_free_gmres, matrix_free_preconditioned_conjugate_gradient, LinearOperator, MatrixFreeOp,

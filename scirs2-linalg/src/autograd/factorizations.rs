@@ -3,8 +3,8 @@
 //! This module provides differentiable implementations of matrix factorizations
 //! like LU, QR, and Cholesky decompositions.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use scirs2_autograd::error::Result as AutogradResult;
@@ -98,7 +98,7 @@ pub fn lu<F: Float + Debug + Send + Sync + 'static>(
         // We'll implement a simplified version that only computes gradients for U
         let backward_u = if requires_grad {
             Some(
-                Box::new(move |gradu: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |gradu: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Simplified gradient approximation for small matrices
                     // For a proper implementation, see https://people.maths.ox.ac.uk/gilesm/files/NA-08-01.pdf
 
@@ -107,7 +107,7 @@ pub fn lu<F: Float + Debug + Send + Sync + 'static>(
                     let grad_u_2d = grad_u.clone().intoshape((n, n)).unwrap();
                     Ok(grad_u_2d.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -174,7 +174,7 @@ pub fn qr<F: Float + Debug + Send + Sync + 'static>(
 
     if m >= 1 && n >= 1 {
         // First column Householder reflection
-        let x = r.slice(ndarray::s![.., 0]).to_ownedj].iter())
+        let x = r.slice(scirs2_core::ndarray::s![.., 0]).to_ownedj].iter())
                     .fold(F::zero(), |acc, (&u_i, &r_i)| acc + u_i * r_i);
 
                 for i in 0..m {
@@ -207,7 +207,7 @@ pub fn qr<F: Float + Debug + Send + Sync + 'static>(
         // This is a simplified implementation
         let backward_r = if requires_grad {
             Some(
-                Box::new(move |gradr: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |gradr: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Simplified gradient approximation
                     // dA = dQ * R^T + Q * dR^T
                     // Here we're assuming dQ = 0 for simplicity
@@ -230,7 +230,7 @@ pub fn qr<F: Float + Debug + Send + Sync + 'static>(
 
                     Ok(grad_a.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -335,7 +335,7 @@ pub fn cholesky<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for gradient computation
         let backward = if requires_grad {
             Some(
-                Box::new(move |gradl: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |gradl: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Gradient of Cholesky decomposition
                     // See "Matrix Differential Calculus with Applications in Statistics and Econometrics"
 
@@ -369,7 +369,7 @@ pub fn cholesky<F: Float + Debug + Send + Sync + 'static>(
 
                     Ok(grad_a.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None

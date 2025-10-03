@@ -4,7 +4,7 @@
 //! to automatically select between serial and parallel implementations
 //! based on matrix size and worker configuration.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_linalg::parallel::set_global_workers;
 use scirs2_linalg::parallel_dispatch::{ParallelDecomposition, ParallelOperations, ParallelSolver};
 

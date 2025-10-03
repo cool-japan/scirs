@@ -1,9 +1,9 @@
 //! Weight initialization strategies for neural networks
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, Dimension, IxDyn};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, Dimension, IxDyn};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 /// Initialization strategies for neural network weights
 #[derive(Debug, Clone, Copy)]
@@ -171,6 +171,6 @@ pub fn xavier_uniform<F: Float + Debug>(shape: IxDyn) -> Result<Array<F, IxDyn>>
         1 => 1,
         _ => shape[1],
     };
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     Initializer::Xavier.initialize(shape, fan_in, fan_out, &mut rng)
 }

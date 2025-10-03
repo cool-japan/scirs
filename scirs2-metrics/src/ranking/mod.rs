@@ -17,7 +17,7 @@
 //! and Label Ranking Average Precision Score.
 //!
 //! ```
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_metrics::ranking::label::{
 //!     coverage_error_multiple, label_ranking_loss, label_ranking_average_precision_score
 //! };
@@ -43,7 +43,7 @@
 //! ```
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::ranking::{mean_reciprocal_rank, ndcg_score,
 //!     mean_average_precision, precision_at_k, recall_at_k};
 //!
@@ -74,8 +74,8 @@
 //! let recall = recall_at_k(&y_true, &y_score, 3).unwrap();
 //! ```
 
-use ndarray::{ArrayBase, Data, Ix1};
-use num_traits::real::Real;
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::numeric::Float;
 use std::cmp::{Ord, Ordering};
 
 use crate::error::{MetricsError, Result};
@@ -101,7 +101,7 @@ pub mod label;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::mean_reciprocal_rank;
 ///
 /// // Example: search engine results where each array is a different query
@@ -128,7 +128,7 @@ pub fn mean_reciprocal_rank<T, S, R>(
     y_score: &[ArrayBase<R, Ix1>],
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -194,7 +194,7 @@ where
 #[allow(dead_code)]
 fn dcg<T>(_relevancescores: &[T], k: Option<usize>) -> f64
 where
-    T: Real + Clone,
+    T: Float + Clone,
 {
     let limit = k
         .unwrap_or(_relevancescores.len())
@@ -230,7 +230,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::ndcg_score;
 ///
 /// let y_true = vec![
@@ -252,7 +252,7 @@ pub fn ndcg_score<T, S, R>(
     k: Option<usize>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -327,7 +327,7 @@ where
 #[allow(dead_code)]
 fn average_precision<T>(y_truesorted: &[T], k: Option<usize>) -> f64
 where
-    T: Real + Clone,
+    T: Float + Clone,
 {
     let zero = T::zero();
     let k = k.unwrap_or(y_truesorted.len());
@@ -375,7 +375,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::mean_average_precision;
 ///
 /// // Example: search engine results where each array is a different query
@@ -399,7 +399,7 @@ pub fn mean_average_precision<T, S, R>(
     k: Option<usize>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -470,7 +470,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::precision_at_k;
 ///
 /// // Example: search engine results where each array is a different query
@@ -494,7 +494,7 @@ pub fn precision_at_k<T, S, R>(
     k: usize,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -577,7 +577,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::recall_at_k;
 ///
 /// // Example: search engine results where each array is a different query
@@ -601,7 +601,7 @@ pub fn recall_at_k<T, S, R>(
     k: usize,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -694,7 +694,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::kendalls_tau;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -707,7 +707,7 @@ where
 #[allow(dead_code)]
 pub fn kendalls_tau<T, S, R>(x: &ArrayBase<S, Ix1>, y: &ArrayBase<R, Ix1>) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -784,7 +784,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::spearmans_rho;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -797,7 +797,7 @@ where
 #[allow(dead_code)]
 pub fn spearmans_rho<T, S, R>(x: &ArrayBase<S, Ix1>, y: &ArrayBase<R, Ix1>) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -839,7 +839,7 @@ where
 #[allow(dead_code)]
 fn rank_data<T, S>(x: &ArrayBase<S, Ix1>) -> Result<Vec<f64>>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
 {
     let n = x.len();
@@ -905,7 +905,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::map_at_k;
 ///
 /// // Example: search engine results where each array is a different query
@@ -929,7 +929,7 @@ pub fn map_at_k<T, S, R>(
     k: usize,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -963,7 +963,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::ranking::click_through_rate;
 ///
 /// // Example: search engine results where each array is a different query
@@ -987,7 +987,7 @@ pub fn click_through_rate<T, S, R>(
     k: usize,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {

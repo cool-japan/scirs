@@ -10,7 +10,7 @@ mod tests {
         AdvancedNeuromorphicProcessor, AdvancedQuantumOptimizer, NeuromorphicTransformationSystem,
         QuantumTransformationOptimizer, TransformationType,
     };
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_advanced_neuromorphic_creation() {
@@ -180,8 +180,8 @@ mod tests {
 
     #[allow(dead_code)]
     fn create_test_dataset(_n_samples: usize, nfeatures: usize) -> Array2<f64> {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
         let mut data = Array2::zeros((_n_samples, nfeatures));
 
         for i in 0.._n_samples {

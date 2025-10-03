@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use crate::domains::{DomainEvaluationResult, DomainMetrics};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::iter::Sum;
 
@@ -31,15 +31,19 @@ pub struct GenerativeAISuite<F: Float> {
     pub multimodal_metrics: MultimodalMetrics<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> Default
-    for GenerativeAISuite<F>
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > Default for GenerativeAISuite<F>
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> GenerativeAISuite<F> {
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > GenerativeAISuite<F>
+{
     /// Create new generative AI metrics suite
     pub fn new() -> Self {
         Self {
@@ -77,8 +81,9 @@ impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> Genera
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> DomainMetrics
-    for GenerativeAISuite<F>
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > DomainMetrics for GenerativeAISuite<F>
 {
     type Result = DomainEvaluationResult;
 

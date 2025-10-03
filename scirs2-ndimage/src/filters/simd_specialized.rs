@@ -3,8 +3,8 @@
 //! This module provides highly optimized SIMD implementations for
 //! specialized filtering operations that benefit from vectorization.
 
-use ndarray::{s, Array, Array1, ArrayView2, ArrayViewMut1, Axis, Ix2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array, Array1, ArrayView2, ArrayViewMut1, Axis, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 
@@ -660,7 +660,7 @@ where
         + Send
         + Sync
         + SimdUnifiedOps
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let (height, width) = input.dim();
     if guide.dim() != (height, width) {
@@ -1102,7 +1102,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_bilateral_filter() {

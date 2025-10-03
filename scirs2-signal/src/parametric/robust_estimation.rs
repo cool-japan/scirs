@@ -15,7 +15,7 @@
 //! # Example
 //! ```
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_signal::parametric::{robust_ar_estimation, RobustEstimationOptions};
 //!
 //! // Create a simple AR(2) process with known stable parameters
@@ -34,7 +34,7 @@
 //! ```
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use statrs::statistics::Statistics;
 
 // Import types from the parent module

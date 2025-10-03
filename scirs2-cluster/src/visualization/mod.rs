@@ -17,11 +17,11 @@
 //!
 //! ## Basic 2D Visualization
 //! ```
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //! use scirs2_cluster::visualization::{create_scatter_plot_2d, VisualizationConfig};
 //!
 //! let data = Array2::from_shape_vec((4, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]).unwrap();
-//! let labels = ndarray::Array1::from_vec(vec![0, 0, 1, 1]);
+//! let labels = scirs2_core::ndarray::Array1::from_vec(vec![0, 0, 1, 1]);
 //! let config = VisualizationConfig::default();
 //!
 //! let plot = create_scatter_plot_2d(data.view(), &labels, None, &config).unwrap();
@@ -45,8 +45,8 @@
 //! // Record frames during algorithm iterations
 //! ```
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -659,10 +659,10 @@ fn generate_cluster_colors(labels: &[i32], scheme: ColorScheme) -> HashMap<i32, 
     };
 
     for (i, &label) in labels.iter().enumerate() {
-        if !colors.contains_key(&label) {
+        colors.entry(label).or_insert_with(|| {
             let color_index = i % color_palette.len();
-            colors.insert(label, color_palette[color_index].to_string());
-        }
+            color_palette[color_index].to_string()
+        });
     }
 
     colors
@@ -771,7 +771,7 @@ fn create_legend(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_create_scatter_plot_2d() {

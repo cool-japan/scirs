@@ -1,5 +1,5 @@
 use approx::assert_abs_diff_eq;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_metrics::ranking::{
     click_through_rate, kendalls_tau, map_at_k, mean_average_precision, mean_reciprocal_rank,
     ndcg_score, precision_at_k, recall_at_k, spearmans_rho,
@@ -124,8 +124,8 @@ fn test_ndcg_score() {
 #[allow(dead_code)]
 fn test_metrics_edge_cases() {
     // Empty arrays should return error
-    let empty_true: Vec<ndarray::Array1<f64>> = vec![];
-    let empty_score: Vec<ndarray::Array1<f64>> = vec![];
+    let empty_true: Vec<scirs2_core::ndarray::Array1<f64>> = vec![];
+    let empty_score: Vec<scirs2_core::ndarray::Array1<f64>> = vec![];
 
     assert!(mean_reciprocal_rank(&empty_true, &empty_score).is_err());
     assert!(ndcg_score(&empty_true, &empty_score, None).is_err());
@@ -375,8 +375,8 @@ fn test_kendalls_tau() {
     assert!(kendalls_tau(&x_5, &y_5).is_err());
 
     // Test case 6: Empty arrays
-    let x_6: ndarray::Array1<f64> = array![];
-    let y_6: ndarray::Array1<f64> = array![];
+    let x_6: scirs2_core::ndarray::Array1<f64> = array![];
+    let y_6: scirs2_core::ndarray::Array1<f64> = array![];
     assert!(kendalls_tau(&x_6, &y_6).is_err());
 }
 
@@ -413,8 +413,8 @@ fn test_spearmans_rho() {
     assert!(spearmans_rho(&x_5, &y_5).is_err());
 
     // Test case 6: Empty arrays
-    let x_6: ndarray::Array1<f64> = array![];
-    let y_6: ndarray::Array1<f64> = array![];
+    let x_6: scirs2_core::ndarray::Array1<f64> = array![];
+    let y_6: scirs2_core::ndarray::Array1<f64> = array![];
     assert!(spearmans_rho(&x_6, &y_6).is_err());
 }
 

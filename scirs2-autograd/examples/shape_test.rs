@@ -14,7 +14,7 @@ fn main() {
 
         // 2. Create a variable from array
         println!("\n=== 2. Testing variable creation ===");
-        let test_array = ndarray::array![[1.0, 2.0], [3.0, 4.0]];
+        let test_array = scirs2_core::ndarray::array![[1.0, 2.0], [3.0, 4.0]];
         println!("Original array shape: {:?}", test_array.shape());
         let v = ag::tensor_ops::variable(test_array.clone(), g);
         let v_eval = v.eval(g).unwrap();

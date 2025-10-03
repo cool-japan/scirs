@@ -17,7 +17,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_io::out_of_core::{OutOfCoreArray, ChunkProcessor};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create an out-of-core array
 //! let array = OutOfCoreArray::<f64>::create("large_array.ooc", &[1_000_000, 100_000])?;
@@ -38,7 +38,7 @@ use crate::compression::{compress_data, decompress_data, CompressionAlgorithm};
 use crate::error::{IoError, Result};
 use byteorder::{ByteOrder, LittleEndian};
 use memmap2::{Mmap, MmapMut, MmapOptions};
-use ndarray::{Array, ArrayView, Dimension, IxDyn};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension, IxDyn};
 use scirs2_core::numeric::ScientificNumber;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};

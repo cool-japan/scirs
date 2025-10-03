@@ -27,7 +27,7 @@ mod tests {
     fn test_trace() {
         ag::run(|ctx| {
             let matrix = ag::tensor_ops::convert_to_tensor(
-                ndarray::array![[1., 2.], [3., 4.]].into_dyn(),
+                scirs2_core::ndarray::array![[1., 2.], [3., 4.]].into_dyn(),
                 ctx,
             );
 
@@ -43,8 +43,10 @@ mod tests {
     fn test_diag_operations() {
         ag::run(|ctx| {
             // Test diag creation
-            let vector =
-                ag::tensor_ops::convert_to_tensor(ndarray::array![1., 2., 3.].into_dyn(), ctx);
+            let vector = ag::tensor_ops::convert_to_tensor(
+                scirs2_core::ndarray::array![1., 2., 3.].into_dyn(),
+                ctx,
+            );
 
             let diag_matrix = diag(vector);
             let result = diag_matrix.eval(ctx).unwrap();

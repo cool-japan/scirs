@@ -67,8 +67,8 @@
 use crate::distance::{Distance, EuclideanDistance};
 use crate::error::{SpatialError, SpatialResult};
 use crate::safe_conversions::*;
-use num_traits::Float;
 use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Float;
 use std::cmp::Ordering;
 
 // Rayon parallel processing currently not used in this module

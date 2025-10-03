@@ -5,8 +5,8 @@
 
 use crate::error::OptimizeError;
 use crate::stochastic::{StochasticMethod, StochasticOptions};
-use ndarray::{s, Array1, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 /// Neural network parameter container

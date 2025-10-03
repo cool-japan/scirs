@@ -1,13 +1,13 @@
 # scirs2-spatial Production Status
 
-**Version:** 0.1.0-beta.4 (SciRS2 POLICY & Enhanced Performance)
-**Status:** PRODUCTION READY ✅ with SciRS2 POLICY implementation
+**Version:** 0.1.0-rc.1 (Release Candidate 1 - Platform Testing)
+**Status:** PRODUCTION READY ✅ with comprehensive platform testing
 **Test Results:** 272 tests passing with enhanced SIMD performance validation
 **Build Status:** All functionality stable with ecosystem consistency
 
 ## 🎯 Production Release Summary
 
-This document tracks the production-ready status of scirs2-spatial for the beta.3 release (0.1.0-beta.4). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module features enhanced SIMD performance validation and ecosystem consistency.
+This document tracks the production-ready status of scirs2-spatial for the RC.1 release (0.1.0-rc.1). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module features comprehensive platform testing and ecosystem consistency.
 
 ## ✅ Completed Implementation
 
@@ -102,7 +102,7 @@ Cores: Multi-core utilization verified (8 cores tested)
 
 ## 🚀 Release Readiness
 
-### **Beta 4 Release (0.1.0-beta.4)** ✅
+### **Beta 4 Release (0.1.0-rc.1)** ✅
 This is the **final alpha release** with all major functionality complete:
 
 - **Feature Complete**: All planned functionality implemented

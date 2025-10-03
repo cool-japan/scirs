@@ -3,7 +3,7 @@
 //! This example demonstrates solving chemical kinetics problems using ODE methods.
 //! It includes simple reactions, enzyme kinetics, and reaction-diffusion systems.
 
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 
 /// Simple reversible reaction: A ⇌ B

@@ -36,8 +36,8 @@ pub use crate::bspline_modules::{
 pub use crate::bspline_modules::prelude::*;
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
 
@@ -58,7 +58,7 @@ where
         + std::ops::Sub<Output = T>
         + std::ops::Mul<Output = T>
         + std::ops::Div<Output = T>
-        + num_traits::Zero
+        + scirs2_core::numeric::Zero
         + AddAssign
         + SubAssign
         + MulAssign
@@ -81,7 +81,7 @@ where
         + std::ops::Sub<Output = T>
         + std::ops::Mul<Output = T>
         + std::ops::Div<Output = T>
-        + num_traits::Zero
+        + scirs2_core::numeric::Zero
         + AddAssign
         + SubAssign
         + MulAssign
@@ -276,7 +276,7 @@ where
 mod tests {
     use super::*;
     use crate::traits::Interpolator;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_linear_bspline() {

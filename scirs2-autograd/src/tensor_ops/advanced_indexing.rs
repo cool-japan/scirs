@@ -6,7 +6,7 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array, Axis, Ix1, IxDyn};
+use scirs2_core::ndarray::{Array, Axis, Ix1, IxDyn};
 
 /// Boolean masking operation
 ///

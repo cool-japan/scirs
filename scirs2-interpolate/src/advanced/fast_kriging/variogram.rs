@@ -5,8 +5,8 @@
 
 use crate::advanced::enhanced_kriging::AnisotropicCovariance;
 use crate::error::InterpolateResult;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -62,7 +62,7 @@ pub struct VariogramBin<F: Float> {
 /// # Example
 ///
 /// ```
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::variogram::compute_empirical_variogram;
 ///
 /// // Create a simple 2D dataset
@@ -218,7 +218,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::variogram::{
 ///     compute_empirical_variogram, fit_variogram_model, VariogramModel
 /// };

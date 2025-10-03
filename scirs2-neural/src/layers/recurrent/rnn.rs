@@ -2,9 +2,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Layer, ParamLayer};
-use ndarray::{Array, ArrayView, Ix2, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, ArrayView, Ix2, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 /// Activation function types for recurrent layers
@@ -60,11 +60,11 @@ impl RecurrentActivation {
 /// # Examples
 /// ```
 /// use scirs2_neural::layers::{Layer, recurrent::{RNN, rnn::RecurrentActivation}};
-/// use ndarray::{Array, Array3};
-/// use rand::rngs::SmallRng;
-/// use rand::SeedableRng;
+/// use scirs2_core::ndarray::{Array, Array3};
+/// use scirs2_core::random::rngs::SmallRng;
+/// use scirs2_core::random::SeedableRng;
 /// // Create an RNN layer with 10 input features and 20 hidden units
-/// let mut rng = rand::rng();
+/// let mut rng = scirs2_core::random::rng();
 /// let rnn = RNN::new(10, 20, RecurrentActivation::Tanh, &mut rng).unwrap();
 /// // Forward pass with a batch of 2 samples, sequence length 5, and 10 features
 /// let batch_size = 2;
@@ -273,7 +273,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for RNN<
         // Process each time step
         for t in 0..seq_len {
             // Extract input at time t
-            let x_t = input.slice(ndarray::s![.., t, ..]);
+            let x_t = input.slice(scirs2_core::ndarray::s![.., t, ..]);
             // Process one step
             let x_t_view = x_t.view().into_dyn();
             let h_view = h.view().into_dyn();
@@ -357,7 +357,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for RNN<
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for RNN<F> {
-    fn get_parameters(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_parameters(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![
             self.weight_ih.clone(),
             self.weight_hh.clone(),
@@ -366,7 +366,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for
         ]
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![
             self.dweight_ih.clone(),
             self.dweight_hh.clone(),
@@ -374,7 +374,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for
             self.dbias_hh.clone(),
         ]
     }
-    fn set_parameters(&mut self, params: Vec<Array<F, ndarray::IxDyn>>) -> Result<()> {
+    fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
         if params.len() != 4 {
             return Err(NeuralError::InvalidArchitecture(format!(
                 "Expected 4 parameters, got {}",
@@ -423,12 +423,12 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array3;
-    use rand::SeedableRng;
+    use scirs2_core::ndarray::Array3;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_rnnshape() {
         // Create an RNN layer
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let rnn = RNN::<f64>::new(
             10,                        // input_size
             20,                        // hidden_size

@@ -54,7 +54,7 @@ pub enum StatsError {
 // The #[from] attribute in the CoreError variant handles the conversion automatically
 
 // NOTE: rand, distr: uniform::Error API has changed, commenting out for now
-// impl From<rand_distr::uniform::Error> for StatsError {
+// impl From<scirs2_core::random::uniform::Error> for StatsError {
 //     fn from(err: rand, distr: uniform::Error) -> Self {
 //         StatsError::DistributionError(format!("Uniform distribution error: {}", err))
 //     }

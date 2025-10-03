@@ -50,8 +50,8 @@ impl From<scirs2_fft::FFTError> for SignalError {
 }
 
 // Conversion from ndarray shape errors
-impl From<ndarray::ShapeError> for SignalError {
-    fn from(err: ndarray::ShapeError) -> Self {
+impl From<scirs2_core::ndarray::ShapeError> for SignalError {
+    fn from(err: scirs2_core::ndarray::ShapeError) -> Self {
         SignalError::ShapeMismatch(format!("Shape error: {err}"))
     }
 }

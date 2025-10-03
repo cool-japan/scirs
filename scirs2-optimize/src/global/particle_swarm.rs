@@ -7,9 +7,9 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::OptimizeResult;
-use ndarray::{Array1, ArrayView1};
-use rand::rngs::StdRng;
-use rand::{rng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{rng, Rng, SeedableRng};
 
 /// Options for Particle Swarm Optimization
 #[derive(Debug, Clone)]

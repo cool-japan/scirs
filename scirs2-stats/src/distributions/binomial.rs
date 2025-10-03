@@ -4,8 +4,8 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use num_traits::{Float, NumCast};
-use rand_distr::{Binomial as RandBinomial, Distribution};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::{Binomial as RandBinomial, Distribution};
 use statrs::function::gamma::ln_gamma;
 
 /// Binomial distribution structure
@@ -50,7 +50,7 @@ impl<F: Float + NumCast + std::fmt::Display> Binomial<F> {
         }
 
         // Create RNG for Binomial distribution
-        let p_f64 = <f64 as num_traits::NumCast>::from(p).unwrap();
+        let p_f64 = <f64 as scirs2_core::numeric::NumCast>::from(p).unwrap();
         let rand_distr = match RandBinomial::new(n as u64, p_f64) {
             Ok(distr) => distr,
             Err(_) => {
@@ -300,7 +300,7 @@ impl<F: Float + NumCast + std::fmt::Display> Binomial<F> {
     /// assert_eq!(samples.len(), 5);
     /// ```
     pub fn rvs(&self, size: usize) -> StatsResult<Vec<F>> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut samples = Vec::with_capacity(size);
 
         for _ in 0..size {

@@ -327,23 +327,20 @@ impl ModelValidator {
             }
 
             // Check for precision loss warnings
-            match (
+            if let (MLFramework::PyTorch, MLFramework::CoreML, DataType::Float64) = (
                 &self.source_framework,
                 &self.target_framework,
                 &tensor.metadata.dtype,
             ) {
-                (MLFramework::PyTorch, MLFramework::CoreML, DataType::Float64) => {
-                    warnings.push(ValidationWarning {
-                        category: WarningCategory::Precision,
-                        message: format!(
-                            "Tensor '{}' uses Float64 which may be converted to Float32 in CoreML",
-                            tensor_name
-                        ),
-                        location: Some(tensor_name.clone()),
-                        impact: WarningImpact::Medium,
-                    });
-                }
-                _ => {}
+                warnings.push(ValidationWarning {
+                    category: WarningCategory::Precision,
+                    message: format!(
+                        "Tensor '{}' uses Float64 which may be converted to Float32 in CoreML",
+                        tensor_name
+                    ),
+                    location: Some(tensor_name.clone()),
+                    impact: WarningImpact::Medium,
+                });
             }
         }
 
@@ -384,7 +381,7 @@ impl ModelValidator {
             }
 
             // Check for dynamic shapes (represented as 0 dimensions)
-            if shape.iter().any(|&dim| dim == 0) {
+            if shape.contains(&0) {
                 warnings.push(ValidationWarning {
                     category: WarningCategory::Compatibility,
                     message: format!(

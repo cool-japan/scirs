@@ -3,8 +3,8 @@
 //! This example shows how to use different extrapolation methods to handle
 //! queries outside the convex hull of the input data points.
 
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use scirs2_interpolate::voronoi::{
     constant_value_extrapolation, inverse_distance_extrapolation, linear_gradient_extrapolation,
     make_sibson_interpolator, nearest_neighbor_extrapolation,
@@ -16,7 +16,7 @@ use std::error::Error;
 fn main() -> Result<(), Box<dyn Error>> {
     // Generate scattered data points in a unit square
     let n_points = 50;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Create points in a specific region (unit square)
     let mut points_vec = Vec::with_capacity(n_points * 2);

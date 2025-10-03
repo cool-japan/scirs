@@ -5,7 +5,7 @@
 //! as A = Z * T * Z^T, where Z is orthogonal and T is upper triangular
 //! (or quasi-triangular for real matrices).
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_linalg::compat;
 
 #[allow(dead_code)]
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Verify Z is orthogonal: Z * Z^T = I
     let ztzi = z.dot(&z.t());
-    let identity = ndarray::Array2::<f64>::eye(2);
+    let identity = scirs2_core::ndarray::Array2::<f64>::eye(2);
     println!("Z * Z^T = \n{:8.6}", ztzi);
     let ortho_error = (&ztzi - &identity)
         .iter()
@@ -119,8 +119,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lambda1 = t_eig[[0, 0]];
     let lambda2 = t_eig[[1, 1]];
 
-    let a_minus_lambda1_i = &eigmatrix - &(ndarray::Array2::<f64>::eye(2) * lambda1);
-    let a_minus_lambda2_i = &eigmatrix - &(ndarray::Array2::<f64>::eye(2) * lambda2);
+    let a_minus_lambda1_i = &eigmatrix - &(scirs2_core::ndarray::Array2::<f64>::eye(2) * lambda1);
+    let a_minus_lambda2_i = &eigmatrix - &(scirs2_core::ndarray::Array2::<f64>::eye(2) * lambda2);
 
     // Calculate determinants (should be close to zero)
     let det1 = a_minus_lambda1_i[[0, 0]] * a_minus_lambda1_i[[1, 1]]

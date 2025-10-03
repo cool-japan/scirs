@@ -1,4 +1,4 @@
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_interpolate::{BivariateInterpolator, RectBivariateSpline};
 
 #[allow(dead_code)]

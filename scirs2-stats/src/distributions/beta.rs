@@ -5,9 +5,9 @@
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution as ScirsDist};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand_distr::{Beta as RandBeta, Distribution};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::{Beta as RandBeta, Distribution};
 use std::fmt::Debug;
 
 /// Beta distribution structure
@@ -21,7 +21,7 @@ pub struct Beta<F: Float> {
     /// Scale parameter
     pub scale: F,
     /// Random number generator for this distribution
-    rand_distr: RandBeta<f64>,
+    rand_distr: RandBeta,
 }
 
 impl<F: Float + NumCast + Debug + std::fmt::Display> Beta<F> {
@@ -329,7 +329,7 @@ impl<F: Float + NumCast + Debug + std::fmt::Display> Beta<F> {
     /// assert_eq!(samples.len(), 1000);
     /// ```
     pub fn rvs_vec(&self, size: usize) -> StatsResult<Vec<F>> {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut samples = Vec::with_capacity(size);
 
         for _ in 0..size {

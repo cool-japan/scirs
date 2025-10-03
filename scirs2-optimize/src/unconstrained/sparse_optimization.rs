@@ -10,8 +10,8 @@ use crate::unconstrained::line_search::backtracking_line_search;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::utils::check_convergence;
 use crate::unconstrained::Options;
-use ndarray::{Array1, Array2, ArrayView1, Axis};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, Axis};
+use scirs2_core::random::Rng;
 use scirs2_sparse::{csr_array::CsrArray, sparray::SparseArray};
 
 /// Options for sparse optimization algorithms
@@ -418,7 +418,7 @@ where
         // Create a small random perturbation
         let mut x_pert = x.to_owned();
         for i in 0..n {
-            x_pert[i] += 1e-6 * rand::rng().random_range(-0.5..0.5);
+            x_pert[i] += 1e-6 * scirs2_core::random::rng().random_range(-0.5..0.5);
         }
 
         // Compute gradient at this point

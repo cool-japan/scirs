@@ -31,7 +31,7 @@ pub use solutions::{
 };
 
 use crate::error::OptimizeError;
-use ndarray::{s, Array1, ArrayView1};
+use scirs2_core::ndarray::{s, Array1, ArrayView1};
 
 /// Convenience function to optimize using NSGA-II
 pub fn nsga2<F>(
@@ -94,7 +94,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     // Simple test problem (ZDT1)
     fn zdt1(x: &ArrayView1<f64>) -> Array1<f64> {

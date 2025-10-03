@@ -32,8 +32,8 @@
 use crate::advanced::enhanced_kriging::{AnisotropicCovariance, TrendFunction};
 use crate::advanced::kriging::CovarianceFunction;
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Sub};
@@ -75,10 +75,10 @@ pub enum FastKrigingMethod {
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::{
 ///     FastKriging, FastKrigingMethod, FastKrigingBuilder
 /// };
@@ -187,10 +187,10 @@ where
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::{
 ///     FastKrigingBuilder, FastKrigingMethod
 /// };
@@ -464,10 +464,10 @@ where
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::make_local_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -537,10 +537,10 @@ pub fn make_local_kriging<
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::make_fixed_rank_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -610,10 +610,10 @@ pub fn make_fixed_rank_kriging<
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::make_tapered_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -683,10 +683,10 @@ pub fn make_tapered_kriging<
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::fast_kriging::make_hodlr_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///

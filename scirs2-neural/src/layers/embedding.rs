@@ -3,9 +3,9 @@
 //! This module provides implementations of various embedding layers
 //! such as word embeddings, positional embeddings, and patch embeddings for vision.
 
-use ndarray::{Array, ArrayBase, Data, Dimension, Ix1, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, ArrayBase, Data, Dimension, Ix1, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 use crate::error::{Error, Result};
@@ -84,7 +84,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Embedding<F> {
         // Initialize gradients with zeros
         let weight_grad = Array::zeros(weightshape.clone());
         // Set padding_idx embeddings to zero if specified
-            let mut slice = weight.slice_mut(ndarray::s![idx, ..]);
+            let mut slice = weight.slice_mut(scirs2_core::ndarray::s![idx, ..]);
             for item in slice.iter_mut() {
                 *item = F::zero();
         // Initialize frequency counter if needed
@@ -135,7 +135,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Embedding<F> {
         for item in self.weight.iter_mut() {
             *item = F::from(rng.random::<f64>()).unwrap();
         if let Some(idx) = self.config.padding_idx {
-            let mut slice = self.weight.slice_mut(ndarray::s![idx, ..]);
+            let mut slice = self.weight.slice_mut(scirs2_core::ndarray::s![idx, ..]);
         // Reset gradients
         self.weight_grad.fill(F::zero());
         // Reset frequency counter if needed
@@ -340,7 +340,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Layer<F> for PositionalEmbe
                 .weight
                 .as_ref()
                 .unwrap()
-                .slice(ndarray::s![0..seq_length, ..]);
+                .slice(scirs2_core::ndarray::s![0..seq_length, ..]);
             // Add positional embeddings to input
             // Need to broadcast positional embeddings to match input shape
             let mut output = input.clone();
@@ -598,8 +598,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Layer<F> for PatchEmbedding
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
-    use rand::Rng;
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::random::Rng;
     #[test]
     fn test_embedding_creation() {
         // Create embedding layer

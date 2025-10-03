@@ -4,8 +4,8 @@
 //! to reduce memory usage and enable processing of arrays that don't fit
 //! in memory.
 
-use ndarray::{Array, ArrayView, Dimension, IxDyn};
-use num_traits::{Float, FromPrimitive, NumCast, Zero};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast, Zero};
 use std::fmt::Debug;
 use std::sync::Mutex;
 
@@ -259,7 +259,7 @@ where
     T: Clone,
     D: Dimension,
 {
-    use ndarray::SliceInfoElem;
+    use scirs2_core::ndarray::SliceInfoElem;
 
     // Always use dynamic slicing for any dimension
     let slice_info: Vec<SliceInfoElem> = position
@@ -342,7 +342,7 @@ where
 
         // Copy chunks into output, handling overlap
         for (chunk_result, position) in results {
-            use ndarray::SliceInfoElem;
+            use scirs2_core::ndarray::SliceInfoElem;
 
             // Calculate the region to copy (excluding overlap at boundaries)
             let mut copy_start = Vec::new();
@@ -416,7 +416,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_calculate_chunk_sizes() {
@@ -473,7 +473,7 @@ mod tests {
             results: Vec<(Array<T, D>, ChunkPosition)>,
             outputshape: &[usize],
         ) -> NdimageResult<Array<T, D>> {
-            use ndarray::SliceInfoElem;
+            use scirs2_core::ndarray::SliceInfoElem;
 
             let mut output = Array::zeros(IxDyn(outputshape));
 

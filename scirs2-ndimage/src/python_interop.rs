@@ -6,7 +6,7 @@
 //! Note: This module provides the foundation but requires PyO3 dependency to create
 //! actual Python bindings. See the documentation for setup instructions.
 
-use ndarray::Dimension;
+use scirs2_core::ndarray::Dimension;
 use std::collections::HashMap;
 
 use crate::error::NdimageError;
@@ -104,7 +104,7 @@ pub mod array_conversion {
 
     /// Convert array metadata to Python-compatible format
     pub fn array_to_py_info<T, D>(
-        array: &ndarray::ArrayBase<ndarray::OwnedRepr<T>, D>,
+        array: &scirs2_core::ndarray::ArrayBase<scirs2_core::ndarray::OwnedRepr<T>, D>,
     ) -> PyArrayInfo
     where
         T: 'static,
@@ -593,7 +593,7 @@ for many `scipy.ndimage` functions with improved performance.
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_array_to_py_info() {

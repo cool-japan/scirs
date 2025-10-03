@@ -6,7 +6,7 @@
 use super::{IntegrationConfig, IntegrationError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array, ArrayD, IxDyn};
+use scirs2_core::ndarray::{Array, ArrayD, IxDyn};
 use std::collections::HashMap;
 
 /// Tensor metadata for conversion operations
@@ -257,7 +257,7 @@ impl TensorConverter {
         graph: &'graph crate::Graph<F>,
     ) -> Result<Tensor<'graph, F>, IntegrationError> {
         let element_size = std::mem::size_of::<f64>();
-        if data.len() % element_size != 0 {
+        if !data.len().is_multiple_of(element_size) {
             return Err(IntegrationError::TensorConversion(
                 "Invalid data size for tensor deserialization".to_string(),
             ));
@@ -448,7 +448,8 @@ mod tests {
             let converter = TensorConverter::new();
             // Use constant tensor which properly preserves shape
             let tensor = convert_to_tensor(
-                ndarray::Array::from_shape_vec((2, 2), vec![1.0f32, 2.0, 3.0, 4.0]).unwrap(),
+                scirs2_core::ndarray::Array::from_shape_vec((2, 2), vec![1.0f32, 2.0, 3.0, 4.0])
+                    .unwrap(),
                 g,
             );
 
@@ -470,7 +471,8 @@ mod tests {
         crate::run(|g| {
             let converter = TensorConverter::new();
             let tensor_f32 = convert_to_tensor(
-                ndarray::Array::from_shape_vec((2, 2), vec![1.0f32, 2.0, 3.0, 4.0]).unwrap(),
+                scirs2_core::ndarray::Array::from_shape_vec((2, 2), vec![1.0f32, 2.0, 3.0, 4.0])
+                    .unwrap(),
                 g,
             );
 
@@ -485,7 +487,8 @@ mod tests {
     fn test_tensor_view() {
         crate::run(|g| {
             let tensor = convert_to_tensor(
-                ndarray::Array::from_shape_vec((2, 2), vec![1.0f32, 2.0, 3.0, 4.0]).unwrap(),
+                scirs2_core::ndarray::Array::from_shape_vec((2, 2), vec![1.0f32, 2.0, 3.0, 4.0])
+                    .unwrap(),
                 g,
             );
             let converter = TensorConverter::new();
@@ -503,7 +506,7 @@ mod tests {
             let data = vec![1.0f32, 2.0, 3.0, 4.0];
             let shape = [2, 2];
             let tensor = convert_to_tensor(
-                ndarray::Array::from_shape_vec((2, 2), data.clone()).unwrap(),
+                scirs2_core::ndarray::Array::from_shape_vec((2, 2), data.clone()).unwrap(),
                 g,
             );
 

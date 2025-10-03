@@ -8,7 +8,7 @@ use crate::automatic_differentiation::tape::{
     BinaryOpType, ComputationTape, TapeNode, UnaryOpType, Variable,
 };
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Options for reverse-mode automatic differentiation
 #[derive(Debug, Clone)]

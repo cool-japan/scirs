@@ -3,7 +3,7 @@
 //! This example demonstrates how scirs2-metrics can be integrated with
 //! external optimizers and schedulers without circular dependencies.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_metrics::classification::{accuracy_score, f1_score, precision_score, recall_score};
 use scirs2_metrics::integration::optim::{MetricOptimizer, SchedulerConfig};
 use scirs2_metrics::regression::{mean_squared_error, r2_score};

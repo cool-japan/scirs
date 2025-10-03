@@ -6,8 +6,8 @@
 
 use crate::dwt::Wavelet;
 use crate::error::SignalResult;
-use ndarray::Array2;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::{Rng, SeedableRng};
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -777,7 +777,7 @@ fn simulate_reconstruction_test(
 ) -> SignalResult<f64> {
     // Simulate perfect reconstruction test
     // In real implementation, this would perform actual DWT and IDWT
-    let error = 1e-14 * (1.0 + rand::rng().random_range(0.0..1.0));
+    let error = 1e-14 * (1.0 + scirs2_core::random::rng().random_range(0.0..1.0));
     Ok(error)
 }
 

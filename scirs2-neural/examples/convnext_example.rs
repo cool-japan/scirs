@@ -1,4 +1,4 @@
-// use ndarray::Array; // Unused import
+// use scirs2_core::ndarray::Array; // Unused import
 use scirs2_neural::{
     error::Result,
     // models::architectures::{ConvNeXt, ConvNeXtConfig, ConvNeXtVariant}, // TODO: Implement models module
@@ -19,7 +19,7 @@ fn main() -> Result<()> {
     let mut input = Array::<f32>::zeros(inputshape).into_dyn();
     // Fill with random values between 0 and 1
     for elem in input.iter_mut() {
-        *elem = rand::random::<f32>();
+        *elem = scirs2_core::random::random::<f32>();
     }
     // Create ConvNeXt-Tiny with default configuration
     println!("\nConvNeXt-Tiny:");

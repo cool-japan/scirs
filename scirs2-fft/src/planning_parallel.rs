@@ -9,7 +9,7 @@ use crate::planning::{
 };
 use crate::worker_pool::WorkerPool;
 
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 

@@ -3,8 +3,8 @@
 // This module provides the CSC (Compressed Sparse Column) array format,
 // which is efficient for column-wise operations.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::{self, Debug};
 use std::ops::{Add, Div, Mul, Sub};
 

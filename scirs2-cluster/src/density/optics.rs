@@ -8,8 +8,8 @@
 //! of points that is a compact representation of the cluster structure, along with
 //! a reachability plot that can be used to extract clusters at different density levels.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::fmt::Debug;
@@ -137,7 +137,7 @@ pub fn extract_dbscan_clustering(_opticsresult: &OPTICSResult, eps: f64) -> Arra
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, ArrayView2};
+/// use scirs2_core::ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::density::{optics, DistanceMetric};
 ///
 /// // Example data with two clusters of different densities
@@ -529,7 +529,7 @@ fn find_steep_areas(reachability: &[f64], xi: f64) -> Vec<(String, usize)> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_optics_basic() {

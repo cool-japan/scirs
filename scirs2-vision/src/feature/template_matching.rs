@@ -5,7 +5,7 @@
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GenericImageView, GrayImage, Rgb, RgbImage};
-use ndarray::{s, Array2};
+use scirs2_core::ndarray::{s, Array2};
 use scirs2_core::parallel_ops::*;
 use statrs::statistics::Statistics;
 
@@ -486,7 +486,7 @@ fn image_to_array(img: &GrayImage) -> Array2<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_template_match_basic() {

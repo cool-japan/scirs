@@ -1,7 +1,7 @@
 //! Matrix and vector norms
 
-use ndarray::{ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::decomposition::svd;
@@ -30,7 +30,7 @@ use crate::validation::{
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::matrix_norm;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -40,7 +40,7 @@ use crate::validation::{
 #[allow(dead_code)]
 pub fn matrix_norm<F>(a: &ArrayView2<F>, ord: &str, workers: Option<usize>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     // Parameter validation using validation helpers
     validate_not_emptymatrix(a, "Matrix norm computation")?;
@@ -114,7 +114,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::vector_norm;
 ///
 /// let x = array![3.0_f64, 4.0];
@@ -124,7 +124,7 @@ where
 #[allow(dead_code)]
 pub fn vector_norm<F>(x: &ArrayView1<F>, ord: usize) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Parameter validation using validation helpers
     validate_not_empty_vector(x, "Vector norm computation")?;
@@ -179,7 +179,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::vector_norm_parallel;
 ///
 /// let x = array![3.0_f64, 4.0];
@@ -261,7 +261,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::cond;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
@@ -271,7 +271,7 @@ where
 #[allow(dead_code)]
 pub fn cond<F>(a: &ArrayView2<F>, p: Option<&str>, workers: Option<usize>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     // Parameter validation using validation helpers
     use crate::validation::validate_squarematrix;
@@ -355,7 +355,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{array, ScalarOperand};
+/// use scirs2_core::ndarray::{array, ScalarOperand};
 /// use scirs2_linalg::matrix_rank;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 1.0]];
@@ -369,7 +369,7 @@ pub fn matrix_rank<F>(
     workers: Option<usize>,
 ) -> LinalgResult<usize>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     // Parameter validation using validation helpers
     if a.is_empty() {
@@ -420,7 +420,7 @@ where
 #[allow(dead_code)]
 pub fn matrix_norm_default<F>(a: &ArrayView2<F>, ord: &str) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     matrix_norm(a, ord, None)
 }
@@ -430,7 +430,7 @@ where
 #[allow(dead_code)]
 pub fn cond_default<F>(a: &ArrayView2<F>, p: Option<&str>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     cond(a, p, None)
 }
@@ -443,7 +443,7 @@ where
 #[allow(dead_code)]
 pub fn matrix_rank_default<F>(a: &ArrayView2<F>, tol: Option<F>) -> LinalgResult<usize>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     matrix_rank(a, tol, None)
 }
@@ -452,7 +452,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn testmatrix_norm_frobenius() {

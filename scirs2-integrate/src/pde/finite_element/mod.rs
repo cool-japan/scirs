@@ -15,7 +15,7 @@ pub mod higher_order;
 #[cfg(test)]
 mod higher_order_tests;
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::time::Instant;
 

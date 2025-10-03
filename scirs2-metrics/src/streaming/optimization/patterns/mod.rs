@@ -17,7 +17,7 @@ pub use buffering::*;
 pub use partitioning::*;
 
 use crate::error::{MetricsError, Result};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 use std::time::{Duration, Instant, SystemTime};

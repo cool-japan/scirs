@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("  Saved distorted image to output/perspective_distorted.png");
 
     // Convert distorted image to Array2<f64> for perspective correction
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     let (dist_width, dist_height) = distorted.dimensions();
     let mut distorted_array = Array2::zeros((dist_height as usize, dist_width as usize));
 

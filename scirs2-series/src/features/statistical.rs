@@ -4,8 +4,8 @@
 //! basic descriptives, higher-order moments, robust statistics, distribution
 //! characteristics, and normality tests.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::utils::{
@@ -390,7 +390,7 @@ pub fn calculate_expanded_statistical_features<F>(
     basic_max: F,
 ) -> Result<ExpandedStatisticalFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + Debug + Clone + scirs2_core::ndarray::ScalarOperand,
 {
     let n = ts.len();
     let n_f = F::from(n).unwrap();

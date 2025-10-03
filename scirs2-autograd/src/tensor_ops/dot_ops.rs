@@ -3,11 +3,11 @@ use crate::ndarray_ext::NdArray;
 use crate::same_type;
 use crate::tensor::Tensor;
 
+use crate::ndarray;
 use crate::Float;
 use crate::NdArrayView;
 use crate::{op, NdArrayViewMut};
-use ndarray;
-use ndarray::{ArrayView2, ArrayViewMut2};
+use scirs2_core::ndarray::{ArrayView2, ArrayViewMut2};
 
 // Read pointer to type `A` as type `B`.
 //
@@ -162,7 +162,7 @@ fn batch_mat_mul_impl_slow<F: Float>(
 
 #[inline]
 #[allow(dead_code)]
-fn batch_mat_mul_requires_copy(stride: &[ndarray::Ixs]) -> bool {
+fn batch_mat_mul_requires_copy(stride: &[scirs2_core::ndarray::Ixs]) -> bool {
     let rank = stride.len();
     // unwrap is ok since stride.len() > 2
     let min_str = *stride[0..rank - 2].iter().min().unwrap();
@@ -184,7 +184,7 @@ fn dotshape_error(m: usize, k: usize, k2: usize, n: usize) -> String {
 
 // ========= Op impls =========
 
-use ndarray::ShapeBuilder;
+use scirs2_core::ndarray::ShapeBuilder;
 
 pub struct MatMul {
     pub transpose_a: bool,
@@ -212,27 +212,27 @@ impl<T: Float> op::Op<T> for MatMul {
         let input_b = ctx.input(1);
 
         // Create owned arrays for our inputs, handling different dimensionalities
-        let a_owned: ndarray::Array2<T>;
-        let b_owned: ndarray::Array2<T>;
+        let a_owned: scirs2_core::ndarray::Array2<T>;
+        let b_owned: scirs2_core::ndarray::Array2<T>;
 
         // Handle left-hand side input
         if input_a.ndim() == 0 {
             // For scalar inputs to MatMul, we need to reshape them as 1x1 matrices
-            let scalar_value = input_a[ndarray::IxDyn(&[])];
-            a_owned = ndarray::Array2::from_elem((1, 1), scalar_value);
+            let scalar_value = input_a[scirs2_core::ndarray::IxDyn(&[])];
+            a_owned = scirs2_core::ndarray::Array2::from_elem((1, 1), scalar_value);
         } else if input_a.ndim() == 1 {
             // For 1D inputs, reshape to 2D (as row vector)
             let dim = input_a.shape()[0];
-            let mut arr = ndarray::Array2::zeros((1, dim));
+            let mut arr = scirs2_core::ndarray::Array2::zeros((1, dim));
             for i in 0..dim {
-                arr[[0, i]] = input_a[ndarray::IxDyn(&[i])];
+                arr[[0, i]] = input_a[scirs2_core::ndarray::IxDyn(&[i])];
             }
             a_owned = arr;
         } else if input_a.ndim() == 2 {
             // Normal 2D case - convert to owned array
             a_owned = input_a
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     op::OpError::IncompatibleShape(format!(
                         "Cannot convert input array to 2D matrix, shape: {:?}",
@@ -249,21 +249,21 @@ impl<T: Float> op::Op<T> for MatMul {
         // Handle right-hand side input
         if input_b.ndim() == 0 {
             // For scalar inputs to MatMul, we need to reshape them as 1x1 matrices
-            let scalar_value = input_b[ndarray::IxDyn(&[])];
-            b_owned = ndarray::Array2::from_elem((1, 1), scalar_value);
+            let scalar_value = input_b[scirs2_core::ndarray::IxDyn(&[])];
+            b_owned = scirs2_core::ndarray::Array2::from_elem((1, 1), scalar_value);
         } else if input_b.ndim() == 1 {
             // For 1D inputs, reshape to 2D (as column vector)
             let dim = input_b.shape()[0];
-            let mut arr = ndarray::Array2::zeros((dim, 1));
+            let mut arr = scirs2_core::ndarray::Array2::zeros((dim, 1));
             for i in 0..dim {
-                arr[[i, 0]] = input_b[ndarray::IxDyn(&[i])];
+                arr[[i, 0]] = input_b[scirs2_core::ndarray::IxDyn(&[i])];
             }
             b_owned = arr;
         } else if input_b.ndim() == 2 {
             // Normal 2D case - convert to owned array
             b_owned = input_b
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     op::OpError::IncompatibleShape(format!(
                         "Cannot convert input array to 2D matrix, shape: {:?}",
@@ -306,7 +306,10 @@ impl<T: Float> op::Op<T> for MatMul {
         let mut c;
         unsafe {
             v.set_len(m * n);
-            c = ndarray::Array::from_shape_vec_unchecked((m, n).set_f(column_major), v);
+            c = scirs2_core::ndarray::Array::from_shape_vec_unchecked(
+                (m, n).set_f(column_major),
+                v,
+            );
         }
 
         // Perform matrix multiplication
@@ -389,7 +392,7 @@ impl<T: Float> op::Op<T> for BatchMatMul {
         unsafe {
             v.set_len(size);
             // BatchMatMul's ret val is a c-order array.
-            c = ndarray::Array::from_shape_vec_unchecked(retshape, v);
+            c = scirs2_core::ndarray::Array::from_shape_vec_unchecked(retshape, v);
         }
         batch_mat_mul_impl_slow(T::one(), &x0, &x1, T::zero(), &mut c.view_mut());
 
@@ -481,11 +484,19 @@ impl<T: Float> op::Op<T> for TensordotPreprocess {
         let (perm1, newshape1, free_dims1) = tensordot_preprocess(x1.shape(), &axes1, true);
         free_dims0.extend(free_dims1);
 
-        let r0 = NdArray::from_shape_vec(ndarray::IxDyn(&[free_dims0.len()]), free_dims0).unwrap();
-        let r1 = NdArray::from_shape_vec(ndarray::IxDyn(&[perm0.len()]), perm0).unwrap();
-        let r2 = NdArray::from_shape_vec(ndarray::IxDyn(&[perm1.len()]), perm1).unwrap();
-        let r3 = NdArray::from_shape_vec(ndarray::IxDyn(&[newshape0.len()]), newshape0).unwrap();
-        let r4 = NdArray::from_shape_vec(ndarray::IxDyn(&[newshape1.len()]), newshape1).unwrap();
+        let r0 =
+            NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[free_dims0.len()]), free_dims0)
+                .unwrap();
+        let r1 =
+            NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[perm0.len()]), perm0).unwrap();
+        let r2 =
+            NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[perm1.len()]), perm1).unwrap();
+        let r3 =
+            NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[newshape0.len()]), newshape0)
+                .unwrap();
+        let r4 =
+            NdArray::from_shape_vec(scirs2_core::ndarray::IxDyn(&[newshape1.len()]), newshape1)
+                .unwrap();
 
         ctx.append_output(r0);
         ctx.append_output(r1);

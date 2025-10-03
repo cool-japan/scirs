@@ -9,10 +9,10 @@
 
 use std::collections::HashMap;
 
-use ndarray::{Array1, Array2, Axis};
-use rand_distr::Uniform;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::SliceRandomExt;
+use scirs2_core::random::Uniform;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{DatasetsError, Result};
@@ -442,8 +442,8 @@ impl MLPipeline {
     }
 
     fn random_oversample(&self, dataset: &Dataset, randomstate: Option<u64>) -> Result<Dataset> {
-        use rand::prelude::*;
-        use rand::{rngs::StdRng, RngCore, SeedableRng};
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::{rngs::StdRng, RngCore, SeedableRng};
         use std::collections::HashMap;
 
         let target = dataset.target.as_ref().ok_or_else(|| {
@@ -560,7 +560,7 @@ impl MLPipeline {
     }
 
     fn fit_scaler(
-        column: &ndarray::ArrayView1<f64>,
+        column: &scirs2_core::ndarray::ArrayView1<f64>,
         method: ScalingMethod,
     ) -> Result<ScalerParams> {
         let values: Vec<f64> = column.iter().copied().filter(|x| !x.is_nan()).collect();
@@ -638,7 +638,7 @@ impl MLPipeline {
     }
 
     fn apply_scaler_to_column(
-        column: &mut ndarray::ArrayViewMut1<f64>,
+        column: &mut scirs2_core::ndarray::ArrayViewMut1<f64>,
         params: &ScalerParams,
     ) -> Result<()> {
         match params.method {
@@ -886,7 +886,7 @@ pub mod convenience {
 mod tests {
     use super::*;
     use crate::generators::make_classification;
-    use rand_distr::Uniform;
+    use scirs2_core::random::Uniform;
 
     #[test]
     fn test_ml_pipeline_creation() {

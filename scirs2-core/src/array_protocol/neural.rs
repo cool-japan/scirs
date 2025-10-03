@@ -845,7 +845,7 @@ impl MultiHeadAttention {
     pub fn with_params(name: &str, num_heads: usize, dmodel: usize) -> Self {
         // Check if dmodel is divisible by num_heads
         assert!(
-            dmodel % num_heads == 0,
+            dmodel.is_multiple_of(num_heads),
             "dmodel must be divisible by num_heads"
         );
 

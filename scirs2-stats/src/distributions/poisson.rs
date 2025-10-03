@@ -5,10 +5,10 @@
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use crate::traits::{DiscreteDistribution, Distribution};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand_distr::{Distribution as RandDistribution, Poisson as RandPoisson};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution as RandDistribution, Poisson as RandPoisson};
 
 /// Poisson distribution structure
 pub struct Poisson<F: Float> {

@@ -3,8 +3,8 @@
 //! This module provides comprehensive fault tolerance mechanisms including
 //! worker failure detection, recovery strategies, and health monitoring.
 
-use ndarray::Array2;
-use num_traits::Float;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -216,16 +216,16 @@ impl<F: Float + Debug> FaultToleranceCoordinator<F> {
         for (&workerid, health) in &mut self.worker_health {
             let time_since_heartbeat = current_time.saturating_sub(health.last_heartbeat);
 
-            if time_since_heartbeat > self.fault_config.worker_timeout_ms {
-                if health.status != WorkerStatus::Failed {
-                    health.status = WorkerStatus::Failed;
-                    health.consecutive_failures += 1;
-                    health.total_failures += 1;
-                    newly_failed_workers.push(workerid);
+            if time_since_heartbeat > self.fault_config.worker_timeout_ms
+                && health.status != WorkerStatus::Failed
+            {
+                health.status = WorkerStatus::Failed;
+                health.consecutive_failures += 1;
+                health.total_failures += 1;
+                newly_failed_workers.push(workerid);
 
-                    if !self.failed_workers.contains(&workerid) {
-                        self.failed_workers.push(workerid);
-                    }
+                if !self.failed_workers.contains(&workerid) {
+                    self.failed_workers.push(workerid);
                 }
             }
         }
@@ -467,13 +467,13 @@ impl<F: Float + Debug> FaultToleranceCoordinator<F> {
             return;
         }
 
-        if iteration % self.fault_config.checkpoint_interval != 0 {
+        if !iteration.is_multiple_of(self.fault_config.checkpoint_interval) {
             return;
         }
 
         let checkpoint = ClusteringCheckpoint {
             iteration,
-            centroids: centroids.map(|c| c.clone()),
+            centroids: centroids.cloned(),
             global_inertia,
             convergence_history: convergence_history.to_vec(),
             worker_assignments: worker_assignments.clone(),

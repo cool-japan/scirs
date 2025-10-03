@@ -5,8 +5,8 @@
 
 use crate::error::LinalgResult;
 use crate::{decomposition, solve};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 /// Backward compatibility wrapper for cholesky decomposition

@@ -3,10 +3,10 @@
 //! This module provides methods to analyze clustering stability through various
 //! resampling techniques including bootstrap, subsampling, and noise perturbation.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
-use rand::seq::SliceRandom;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 
@@ -81,7 +81,7 @@ pub struct StabilityResult<F: Float> {
 ///
 /// # Example
 /// ```rust
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_cluster::metrics::bootstrap_confidence_interval;
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 1.0, 1.0, 10.0, 10.0, 11.0, 11.0]).unwrap();
@@ -106,7 +106,7 @@ where
     }
 
     let n_samples = data.shape()[0];
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut bootstrap_scores = Vec::new();
 
     // Perform bootstrap resampling
@@ -121,7 +121,7 @@ where
             .collect();
 
         // Extract bootstrap sample
-        let bootstrap_data = data.select(ndarray::Axis(0), &bootstrap_indices);
+        let bootstrap_data = data.select(scirs2_core::ndarray::Axis(0), &bootstrap_indices);
         let bootstrap_labels: Vec<i32> = bootstrap_indices.iter().map(|&i| labels[i]).collect();
         let bootstrap_labels_array = Array1::from_vec(bootstrap_labels);
 
@@ -187,7 +187,7 @@ where
         ));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut bootstrap_scores = Vec::new();
     let mut subsample_scores = Vec::new();
     let mut noise_scores = Vec::new();
@@ -199,7 +199,7 @@ where
             .map(|_| rng.random_range(0..n_samples))
             .collect();
 
-        let bootstrap_data = data.select(ndarray::Axis(0), &bootstrap_indices);
+        let bootstrap_data = data.select(scirs2_core::ndarray::Axis(0), &bootstrap_indices);
 
         // Perform clustering (simplified k-means approach)
         if let Ok(labels) = simple_kmeans(bootstrap_data.view(), n_clusters) {
@@ -216,7 +216,7 @@ where
         indices.shuffle(&mut rng);
         indices.truncate(subsample_size);
 
-        let subsample_data = data.select(ndarray::Axis(0), &indices);
+        let subsample_data = data.select(scirs2_core::ndarray::Axis(0), &indices);
 
         if let Ok(labels) = simple_kmeans(subsample_data.view(), n_clusters) {
             if let Ok(score) = silhouette_score(subsample_data.view(), labels.view()) {
@@ -254,7 +254,7 @@ where
             feature_indices.shuffle(&mut rng);
             feature_indices.truncate(feature_subset_size);
 
-            let feature_subset_data = data.select(ndarray::Axis(1), &feature_indices);
+            let feature_subset_data = data.select(scirs2_core::ndarray::Axis(1), &feature_indices);
 
             if let Ok(labels) = simple_kmeans(feature_subset_data.view(), n_clusters) {
                 if let Ok(score) = silhouette_score(feature_subset_data.view(), labels.view()) {
@@ -350,7 +350,7 @@ where
         ));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut centroids = Array2::zeros((n_clusters, n_features));
 
     // Initialize centroids randomly
@@ -423,7 +423,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_bootstrap_confidence_interval() {

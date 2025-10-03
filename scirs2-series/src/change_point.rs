@@ -4,8 +4,8 @@
 //! including PELT (Pruned Exact Linear Time), Binary Segmentation, CUSUM methods,
 //! and Bayesian online change point detection.
 
-use ndarray::{s, Array1};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -109,7 +109,7 @@ pub struct ChangePointResult {
 /// # Example
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::change_point::{detect_change_points, ChangePointOptions, ChangePointMethod};
 ///
 /// // Create a time series with a change point at index 50
@@ -630,7 +630,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_pelt_basic() {

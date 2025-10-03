@@ -4,7 +4,7 @@
 //! the performance of machine learning algorithms. It includes standard normalization
 //! (z-score), min-max scaling, and robust scaling that is resistant to outliers.
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use statrs::statistics::Statistics;
 
 /// Helper function to normalize data (zero mean, unit variance)
@@ -20,7 +20,7 @@ use statrs::statistics::Statistics;
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_datasets::utils::normalize;
 ///
 /// let mut data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
@@ -65,7 +65,7 @@ pub fn normalize(data: &mut Array2<f64>) {
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_datasets::utils::min_max_scale;
 ///
 /// let mut data = Array2::from_shape_vec((3, 2), vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0]).unwrap();
@@ -107,7 +107,7 @@ pub fn min_max_scale(_data: &mut Array2<f64>, featurerange: (f64, f64)) {
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_datasets::utils::robust_scale;
 ///
 /// let mut data = Array2::from_shape_vec((5, 2), vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0, 4.0, 40.0, 100.0, 500.0]).unwrap();
@@ -126,7 +126,7 @@ pub fn robust_scale(data: &mut Array2<f64>) {
         }
 
         // Calculate median
-        let median = if n % 2 == 0 {
+        let median = if n.is_multiple_of(2) {
             (column_values[n / 2 - 1] + column_values[n / 2]) / 2.0
         } else {
             column_values[n / 2]
@@ -163,7 +163,7 @@ pub trait StatsExt {
     fn standard_deviation(&self, ddof: f64) -> f64;
 }
 
-impl StatsExt for ndarray::ArrayView1<'_, f64> {
+impl StatsExt for scirs2_core::ndarray::ArrayView1<'_, f64> {
     /// Calculate the mean of the array
     ///
     /// # Returns
@@ -218,7 +218,7 @@ impl StatsExt for ndarray::ArrayView1<'_, f64> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array, Array1};
+    use scirs2_core::ndarray::{array, Array1};
 
     #[test]
     fn test_normalize() {

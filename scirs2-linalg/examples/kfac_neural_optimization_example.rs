@@ -14,7 +14,7 @@
 //! K-FAC enables neural networks to converge faster and more robustly by using
 //! curvature information, making it particularly valuable for large-scale training.
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_linalg::kronecker::{advanced_kfac_step, KFACOptimizer};
 use std::time::Instant;
 

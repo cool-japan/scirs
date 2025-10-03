@@ -8,8 +8,8 @@
 //! The technique is popular in computer graphics, mesh processing, and scientific computing
 //! for its ability to handle irregularly spaced data and provide smooth results.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
@@ -59,7 +59,7 @@ pub enum PolynomialBasis {
 /// ```
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::local::mls::{MovingLeastSquares, WeightFunction, PolynomialBasis};
 ///
 /// // Create some 2D scattered data
@@ -262,7 +262,7 @@ where
 
         // Evaluate at each point
         for i in 0..n_points {
-            let point = points.slice(ndarray::s![i, ..]);
+            let point = points.slice(scirs2_core::ndarray::s![i, ..]);
             results[i] = self.evaluate(&point)?;
         }
 
@@ -603,7 +603,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mls_constant_basis() {

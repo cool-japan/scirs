@@ -1,7 +1,7 @@
 //! Integration tests for global optimization algorithms
 
-use ndarray::array;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::array;
+use scirs2_core::ndarray::ArrayView1;
 use scirs2_optimize::global::{
     basinhopping, differential_evolution, dual_annealing, BasinHoppingOptions,
     DifferentialEvolutionOptions, DualAnnealingOptions,
@@ -11,7 +11,7 @@ use scirs2_optimize::global::{
 #[allow(dead_code)]
 fn test_global_optimization_on_rosenbrock() {
     // Test all three global optimization algorithms on the Rosenbrock function
-    let rosenbrock = |x: &ndarray::ArrayView1<f64>| {
+    let rosenbrock = |x: &scirs2_core::ndarray::ArrayView1<f64>| {
         let a = 1.0;
         let b = 100.0;
         let x0 = x[0];
@@ -62,7 +62,8 @@ fn test_global_optimization_on_rosenbrock() {
 #[test]
 fn test_global_optimization_with_constraints() {
     // Test global optimization on a function with bounded constraints
-    let func = |x: &ndarray::ArrayView1<f64>| (x[0] + 1.0).powi(2) + (x[1] + 1.0).powi(2);
+    let func =
+        |x: &scirs2_core::ndarray::ArrayView1<f64>| (x[0] + 1.0).powi(2) + (x[1] + 1.0).powi(2);
 
     // Without bounds, minimum is at (-1, -1)
     // With bounds [0, 2] x [0, 2], minimum should be at (0, 0)
@@ -109,7 +110,7 @@ fn test_global_optimization_with_constraints() {
 #[allow(dead_code)]
 fn test_global_optimization_multimodal() {
     // Test on a multimodal function with many local minima
-    let ackley = |x: &ndarray::ArrayView1<f64>| {
+    let ackley = |x: &scirs2_core::ndarray::ArrayView1<f64>| {
         let n = x.len() as f64;
         let a = 20.0;
         let b = 0.2;

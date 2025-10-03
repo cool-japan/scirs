@@ -7,7 +7,7 @@
 #![allow(missing_docs)]
 
 use crate::error::{IoError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1};
 // use scirs2_core::parallel_ops::*; // Removed for now as we're using sequential operations
 use scirs2_core::simd_ops::PlatformCapabilities;
 
@@ -292,7 +292,7 @@ pub mod compression_simd {
 /// Advanced SIMD operations for matrix I/O with cache optimization
 pub mod matrix_simd {
     use super::*;
-    use ndarray::{Array2, ArrayView2, ArrayViewMut2};
+    use scirs2_core::ndarray::{Array2, ArrayView2, ArrayViewMut2};
 
     /// Cache-optimized matrix processor with advanced SIMD operations
     pub struct CacheOptimizedMatrixProcessor {
@@ -1308,7 +1308,7 @@ impl SimdIoAccelerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_convert_f64_to_f32() {

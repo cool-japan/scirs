@@ -6,7 +6,7 @@ use crate::global::{
     MultiStartOptions, ParticleSwarmOptions, SimulatedAnnealingOptions, StartingPointStrategy,
 };
 use crate::parallel::ParallelOptions;
-use ndarray::{array, ArrayView1};
+use scirs2_core::ndarray::{array, ArrayView1};
 
 #[test]
 #[allow(dead_code)]

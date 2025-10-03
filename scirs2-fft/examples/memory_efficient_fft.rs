@@ -3,7 +3,7 @@
 //! This example demonstrates how to use memory-efficient FFT operations
 //! for handling large arrays.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_core::Complex64;
 use scirs2_fft::{
     fft,

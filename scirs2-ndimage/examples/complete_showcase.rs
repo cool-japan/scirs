@@ -13,7 +13,7 @@
 //! - **Real-time Performance Analysis**: Comprehensive monitoring and optimization
 //! - **Multi-level Validation**: Quality assurance at every processing stage
 
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use std::time::Instant;
 
 use scirs2_ndimage::{
@@ -487,7 +487,7 @@ fn create_comprehensive_testimage(height: usize, width: usize) -> Array2<f64> {
 #[allow(dead_code)]
 fn validate_adaptive_output<T>(output: &Array2<T>, configname: &str) -> NdimageResult<()>
 where
-    T: num_traits::Float + Copy,
+    T: scirs2_core::numeric::Float + Copy,
 {
     // Check _output properties specific to adaptive learning
     let total_pixels = output.len();
@@ -513,7 +513,7 @@ where
 #[allow(dead_code)]
 fn validate_quantum_output<T>(output: &Array2<T>, threshold: f64) -> NdimageResult<()>
 where
-    T: num_traits::Float + Copy,
+    T: scirs2_core::numeric::Float + Copy,
 {
     // Validate quantum coherence properties
     let variance = calculate_variance(output);
@@ -534,7 +534,7 @@ where
 #[allow(dead_code)]
 fn validate_neuromorphic_output<T>(output: &Array2<T>, plasticity: f64) -> NdimageResult<()>
 where
-    T: num_traits::Float + Copy,
+    T: scirs2_core::numeric::Float + Copy,
 {
     // Validate neuromorphic adaptation properties
     let edge_strength = calculate_edge_strength(output);
@@ -554,7 +554,7 @@ where
 #[allow(dead_code)]
 fn validate_intensity_output<T>(output: &Array2<T>, intensity: f64) -> NdimageResult<()>
 where
-    T: num_traits::Float + Copy,
+    T: scirs2_core::numeric::Float + Copy,
 {
     // Validate processing intensity effects
     let detail_preservation = calculate_detail_preservation(output);
@@ -574,7 +574,7 @@ where
 #[allow(dead_code)]
 fn validate_comprehensive_output<T>(output: &Array2<T>) -> NdimageResult<()>
 where
-    T: num_traits::Float + Copy,
+    T: scirs2_core::numeric::Float + Copy,
 {
     // Comprehensive validation of all aspects
     let variance = calculate_variance(output);
@@ -601,7 +601,7 @@ where
 #[allow(dead_code)]
 fn calculate_variance<T>(array: &Array2<T>) -> f64
 where
-    T: num_traits::Float + Copy,
+    T: scirs2_core::numeric::Float + Copy,
 {
     let mean = array
         .iter()
@@ -619,7 +619,7 @@ where
 #[allow(dead_code)]
 fn calculate_edge_strength<T>(array: &Array2<T>) -> f64
 where
-    T: num_traits::Float + Copy,
+    T: scirs2_core::numeric::Float + Copy,
 {
     let (height, width) = array.dim();
     let mut edge_sum = 0.0;
@@ -652,7 +652,7 @@ where
 #[allow(dead_code)]
 fn calculate_detail_preservation<T>(array: &Array2<T>) -> f64
 where
-    T: num_traits::Float + Copy,
+    T: scirs2_core::numeric::Float + Copy,
 {
     let (height, width) = array.dim();
     let mut detail_sum = 0.0;

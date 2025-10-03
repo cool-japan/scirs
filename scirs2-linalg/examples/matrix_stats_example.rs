@@ -3,7 +3,7 @@
 //! This example demonstrates statistical functions for matrices,
 //! such as covariance and correlation computation.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::error::LinalgResult;
 use scirs2_linalg::stats::covariance::mahalanobis_distance;
 use scirs2_linalg::stats::{correlationmatrix, covariancematrix};

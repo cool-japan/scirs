@@ -11,7 +11,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::f64::consts::PI;
 use std::marker::PhantomData;
 
@@ -134,7 +134,7 @@ pub fn position_verlet<F: IntegrateFloat>(
 mod tests {
     use super::*;
     use crate::symplectic::potential::SeparableHamiltonian;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     /// Test with simple harmonic oscillator
     #[test]
@@ -155,7 +155,7 @@ mod tests {
 
         // Integrate for a full period
         let period = 2.0 * PI;
-        let steps = ((period / dt) as f64).round() as usize;
+        let steps = (period / dt).round() as usize;
 
         let integrator = StormerVerlet::new();
         let mut q = q0.clone();
@@ -193,7 +193,7 @@ mod tests {
 
         // Integrate for one period
         let period = 2.0 * PI;
-        let steps = ((period / dt) as f64).round() as usize;
+        let steps = (period / dt).round() as usize;
 
         // Test StörmerVerlet
         let mut q1 = q0.clone();

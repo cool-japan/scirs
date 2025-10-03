@@ -4,7 +4,7 @@
 //! in the scirs2-special crate, including mathematical properties,
 //! numerical precision, and performance optimizations.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::*;
 use std::f64::consts::PI;
 

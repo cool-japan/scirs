@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use crate::vectorize::{TfidfVectorizer, Vectorizer};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Feature extraction pipeline
 #[derive(Debug)]

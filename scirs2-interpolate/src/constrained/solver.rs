@@ -10,8 +10,8 @@ use crate::numerical_stability::{
     assess_matrix_condition, solve_with_enhanced_monitoring, solve_with_stability_monitoring,
     StabilityLevel,
 };
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use super::types::{Constraint, ConstraintType};

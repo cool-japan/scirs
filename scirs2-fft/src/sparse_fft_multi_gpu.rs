@@ -10,8 +10,8 @@ use crate::sparse_fft_gpu_memory::{
     init_cuda_device, init_hip_device, init_sycl_device, is_cuda_available, is_hip_available,
     is_sycl_available,
 };
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::collections::HashMap;
@@ -785,7 +785,7 @@ mod tests {
         if caps.cuda_available || caps.gpu_available {
             eprintln!("GPU available, checking for GPU devices in enumeration");
             // May have GPU devices
-            assert!(devices.len() >= 1);
+            assert!(!devices.is_empty());
         } else {
             eprintln!("GPU not available, verifying only CPU fallback present");
             assert_eq!(devices.len(), 1);

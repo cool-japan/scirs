@@ -15,8 +15,8 @@
 
 use super::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 /// Comprehensive financial metrics suite
@@ -251,7 +251,7 @@ impl RiskManagementMetrics {
         holding_period: usize,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd + Clone + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd + Clone + std::iter::Sum,
     {
         if returns.is_empty() {
             return Err(MetricsError::InvalidInput(
@@ -281,7 +281,7 @@ impl RiskManagementMetrics {
     /// Calculate Conditional Value at Risk (Expected Shortfall)
     pub fn conditional_var<F>(&self, returns: &Array1<F>, confidencelevel: F) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd + Clone + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd + Clone + std::iter::Sum,
     {
         if returns.is_empty() {
             return Err(MetricsError::InvalidInput(
@@ -312,7 +312,7 @@ impl RiskManagementMetrics {
     /// Calculate Maximum Drawdown
     pub fn maximum_drawdown<F>(&self, prices: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd,
     {
         if prices.len() < 2 {
             return Ok(F::zero());
@@ -338,7 +338,7 @@ impl RiskManagementMetrics {
     /// Calculate portfolio beta
     pub fn beta<F>(&self, portfolioreturns: &Array1<F>, marketreturns: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if portfolioreturns.len() != marketreturns.len() {
             return Err(MetricsError::InvalidInput(
@@ -398,7 +398,7 @@ impl PortfolioMetrics {
     /// Calculate Sharpe Ratio
     pub fn sharpe_ratio<F>(&self, portfolioreturns: &Array1<F>, risk_freerate: F) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if portfolioreturns.is_empty() {
             return Ok(F::zero());
@@ -426,7 +426,7 @@ impl PortfolioMetrics {
     /// Calculate Sortino Ratio (downside risk-adjusted return)
     pub fn sortino_ratio<F>(&self, portfolioreturns: &Array1<F>, targetreturn: F) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if portfolioreturns.is_empty() {
             return Ok(F::zero());
@@ -466,7 +466,7 @@ impl PortfolioMetrics {
         benchmark_returns: &Array1<F>,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if portfolioreturns.len() != benchmark_returns.len() {
             return Err(MetricsError::InvalidInput(
@@ -504,7 +504,7 @@ impl PortfolioMetrics {
     /// Calculate Calmar Ratio
     pub fn calmar_ratio<F>(&self, portfolioreturns: &Array1<F>, prices: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd + std::iter::Sum,
     {
         let annualized_return = self.annualized_return(portfolioreturns)?;
 
@@ -521,7 +521,7 @@ impl PortfolioMetrics {
     /// Calculate annualized return
     fn annualized_return<F>(&self, returns: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         if returns.is_empty() {
             return Ok(F::zero());
@@ -566,7 +566,7 @@ impl CreditRiskMetrics {
         actual_defaults: &Array1<bool>,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd,
     {
         if predicted_scores.len() != actual_defaults.len() {
             return Err(MetricsError::InvalidInput(
@@ -616,7 +616,7 @@ impl CreditRiskMetrics {
         actual_defaults: &Array1<bool>,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd,
     {
         if predicted_scores.len() != actual_defaults.len() {
             return Err(MetricsError::InvalidInput(
@@ -672,7 +672,7 @@ impl CreditRiskMetrics {
         num_buckets: usize,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd + Clone + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd + Clone + std::iter::Sum,
     {
         if num_buckets == 0 {
             return Err(MetricsError::InvalidInput(
@@ -760,7 +760,7 @@ impl MarketRiskMetrics {
     /// Calculate correlation matrix between multiple assets
     pub fn correlation_matrix<F>(&self, returnsmatrix: &Array2<F>) -> Result<Array2<F>>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let (n_periods, n_assets) = returnsmatrix.dim();
         let mut correlation_matrix = Array2::zeros((n_assets, n_assets));
@@ -801,7 +801,7 @@ impl MarketRiskMetrics {
         mean2: F,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
     {
         let n = F::from(returns1.len()).unwrap();
 
@@ -852,7 +852,7 @@ impl TradingStrategyMetrics {
     /// Calculate hit ratio (percentage of profitable trades)
     pub fn hit_ratio<F>(&self, tradereturns: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd,
     {
         if tradereturns.is_empty() {
             return Ok(F::zero());
@@ -866,7 +866,7 @@ impl TradingStrategyMetrics {
     /// Calculate profit factor (gross profit / gross loss)
     pub fn profit_factor<F>(&self, tradereturns: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd + std::iter::Sum,
     {
         let gross_profit = tradereturns
             .iter()
@@ -893,7 +893,7 @@ impl TradingStrategyMetrics {
     /// Calculate recovery factor
     pub fn recovery_factor<F>(&self, tradereturns: &Array1<F>, prices: &Array1<F>) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive + PartialOrd + std::iter::Sum,
+        F: Float + scirs2_core::numeric::FromPrimitive + PartialOrd + std::iter::Sum,
     {
         let total_return = tradereturns.iter().cloned().sum::<F>();
 
@@ -1064,7 +1064,7 @@ impl ESGMetrics {
         weights: Option<(F, F, F)>,
     ) -> Result<F>
     where
-        F: Float + num_traits::FromPrimitive,
+        F: Float + scirs2_core::numeric::FromPrimitive,
     {
         let (env_weight, social_weight, gov_weight) = weights.unwrap_or((
             F::from(1.0).unwrap() / F::from(3.0).unwrap(),
@@ -1101,7 +1101,7 @@ impl Default for ESGMetrics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_financial_suite_creation() {

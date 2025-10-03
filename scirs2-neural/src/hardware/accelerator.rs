@@ -1,9 +1,9 @@
 //! Generic hardware accelerator interface
 
 use crate::error::{NeuralError, Result};
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 #[allow(unused_imports)]
-use ndarray::{ArrayView, Zip};
+use scirs2_core::ndarray::{ArrayView, Zip};
 use scirs2_core::parallel_ops::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};

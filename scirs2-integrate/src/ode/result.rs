@@ -1,6 +1,6 @@
 //! Result types for ODE solvers.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Result of an ODE solver.
 #[derive(Debug, Clone)]

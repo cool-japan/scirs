@@ -9,7 +9,7 @@
 //! - Runtime performance profiling and adaptive optimization
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView2, ArrayViewMut2};
+use scirs2_core::ndarray::{Array2, ArrayView2, ArrayViewMut2};
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -865,7 +865,7 @@ impl Default for AdaptiveVectorizationEngine {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_cache_awarematrix_operations() {
@@ -904,13 +904,11 @@ mod tests {
         let analyzer = MemoryAccessPatternAnalyzer::new();
 
         let strategy = analyzer.analyze_and_recommend_prefetch((1000, 1000));
-        match strategy {
-            PrefetchStrategy::Aggressive {
-                prefetch_distance, ..
-            } => {
-                assert!(prefetch_distance > 0);
-            }
-            _ => {}
+        if let PrefetchStrategy::Aggressive {
+            prefetch_distance, ..
+        } = strategy
+        {
+            assert!(prefetch_distance > 0);
         }
     }
 
@@ -978,6 +976,6 @@ mod tests {
         // Test auto-tuning functionality
         engine.set_auto_tuning(false);
         let performance_report = engine.get_performance_report();
-        assert!(performance_report.len() > 0);
+        assert!(!performance_report.is_empty());
     }
 }

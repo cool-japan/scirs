@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // SIMD Memory Optimization for Signal Processing
 //
 // This module provides advanced SIMD-accelerated memory optimizations for
@@ -6,8 +6,8 @@ use ndarray::s;
 // vectorized operations, and memory-efficient data structures.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2};
-use num_traits::{Float, NumCast, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2};
+use scirs2_core::numeric::{Float, NumCast, Zero};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::time::Instant;
@@ -203,7 +203,7 @@ where
 pub fn simd_memory_efficient_fft<T>(
     signal: &ArrayView1<T>,
     config: &SimdMemoryConfig,
-) -> SignalResult<Array1<num_complex::Complex<T>>>
+) -> SignalResult<Array1<scirs2_core::numeric::Complex<T>>>
 where
     T: Float + NumCast + Send + Sync + std::fmt::Debug,
 {
@@ -217,9 +217,9 @@ where
     }
 
     // Convert to _complex
-    let mut complex_signal: Array1<num_complex::Complex<T>> = signal
+    let mut complex_signal: Array1<scirs2_core::numeric::Complex<T>> = signal
         .iter()
-        .map(|&x| num_complex::Complex::new(x, T::zero()))
+        .map(|&x| scirs2_core::numeric::Complex::new(x, T::zero()))
         .collect();
 
     if config.enable_simd {
@@ -253,7 +253,7 @@ where
     // Process in cache-friendly blocks
     for block_start in (0..signal_len).step_by(block_size) {
         let block_end = (block_start + block_size).min(signal_len);
-        let signal_block = signal.slice(ndarray::s![block_start..block_end]);
+        let signal_block = signal.slice(scirs2_core::ndarray::s![block_start..block_end]);
 
         // SIMD convolution for this block
         for (i, &s_val) in signal_block.iter().enumerate() {
@@ -294,12 +294,12 @@ where
 
         if chunk_size == vector_size {
             // Full SIMD vector operation
-            let kernel_chunk = kernel.slice(ndarray::s![chunk_start..chunk_end]);
+            let kernel_chunk = kernel.slice(scirs2_core::ndarray::s![chunk_start..chunk_end]);
             let output_start = output_offset + chunk_start;
             let output_end = output_start + chunk_size;
 
             if output_end <= output.len() {
-                let mut output_chunk = output.slice_mut(ndarray::s![output_start..output_end]);
+                let mut output_chunk = output.slice_mut(scirs2_core::ndarray::s![output_start..output_end]);
 
                 // Use SIMD multiplication
                 simd_multiply_add(&kernel_chunk, signal_val, &mut output_chunk)?;
@@ -398,7 +398,7 @@ where
     // Use parallel processing for chunks - collect results but don't use them for now
     let _results: Vec<()> = parallel_map(chunks.into_iter(), |chunk_start| {
         let chunk_end = (chunk_start + chunk_size).min(signal_len);
-        let signal_chunk = signal.slice(ndarray::s![chunk_start..chunk_end]);
+        let signal_chunk = signal.slice(scirs2_core::ndarray::s![chunk_start..chunk_end]);
 
         // Process this chunk with SIMD
         for (i, &sample) in signal_chunk.iter().enumerate() {
@@ -550,7 +550,7 @@ where
 /// SIMD-accelerated in-place FFT
 #[allow(dead_code)]
 fn simd_fft_inplace<T>(
-    _data: ArrayViewMut1<num_complex::Complex<T>>,
+    _data: ArrayViewMut1<scirs2_core::numeric::Complex<T>>,
     _config: &SimdMemoryConfig,
 ) -> SignalResult<()>
 where
@@ -563,7 +563,7 @@ where
 
 /// Standard FFT fallback
 #[allow(dead_code)]
-fn standard_fft_inplace<T>(data: ArrayViewMut1<num_complex::Complex<T>>) -> SignalResult<()>
+fn standard_fft_inplace<T>(data: ArrayViewMut1<scirs2_core::numeric::Complex<T>>) -> SignalResult<()>
 where
     T: Float + NumCast + Send + Sync + std::fmt::Debug,
 {

@@ -1,4 +1,4 @@
-use ndarray::{array, s, Array2};
+use scirs2_core::ndarray::{array, s, Array2};
 use scirs2_stats::distributions::multivariate;
 use statrs::statistics::Statistics;
 
@@ -70,7 +70,7 @@ fn main() {
         println!("[{:.1}, {:.1}]", point[[1, 0]], point[[1, 1]]);
         println!("PDF: {:.10e}", wishart_correlated.pdf(point));
         println!("Log PDF: {:.6}", wishart_correlated.logpdf(point));
-        println!("");
+        println!();
     }
 
     // --- Example 3: Random Sampling and Statistics ---

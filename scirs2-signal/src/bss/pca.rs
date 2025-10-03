@@ -1,11 +1,11 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Principal Component Analysis (PCA) for blind source separation
 //
 // This module implements PCA techniques for signal processing.
 
 use super::BssConfig;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array2, Axis};
+use scirs2_core::ndarray::{Array2, Axis};
 use scirs2_linalg::eigh;
 
 #[allow(unused_imports)]

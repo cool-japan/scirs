@@ -12,8 +12,8 @@
 //! - Advanced fault tolerance and recovery mechanisms
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{s, Array1, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{s, Array1, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -1000,7 +1000,7 @@ pub mod production_extensions {
             thread::spawn(move || {
                 while is_active.load(Ordering::Relaxed) {
                     if let Ok(acc) = accelerator.lock() {
-                        let health_result = Self::perform_health_check(&*acc, &thresholds);
+                        let health_result = Self::perform_health_check(&acc, &thresholds);
 
                         // Store result
                         if let Ok(mut history) = health_history.lock() {
@@ -1411,7 +1411,7 @@ pub mod production_extensions {
         pub fn record_performance(&mut self, device_id: usize, datapoint: PerformanceDataPoint) {
             self.device_performance_history
                 .entry(device_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(datapoint);
 
             // Keep only recent history (last 100 data points)

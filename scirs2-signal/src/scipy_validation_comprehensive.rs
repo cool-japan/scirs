@@ -15,9 +15,9 @@ use crate::error::{SignalError, SignalResult};
 use crate::filter::butter;
 use crate::parametric::{estimate_ar, ARMethod};
 use crate::spectral::welch;
-use ndarray::Array1;
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::collections::HashMap;
 use std::time::Instant;
@@ -798,7 +798,7 @@ fn validate_sysid_implementations() -> SignalResult<SysIdValidationResult> {
     let n = 256;
     let true_ar_coeffs = vec![1.0, -0.8, 0.15]; // AR(2) system
     let mut signal = vec![0.0; n];
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Generate AR(2) process
     for i in 2..n {

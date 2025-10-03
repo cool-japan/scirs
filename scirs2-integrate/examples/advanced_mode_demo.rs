@@ -3,7 +3,7 @@
 //! This example shows how to use the Advanced mode coordinator
 //! for enhanced ODE solving performance.
 
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_integrate::{
     mode_coordinator::{AdvancedModeConfig, AdvancedModeCoordinator},
     IntegrateResult,

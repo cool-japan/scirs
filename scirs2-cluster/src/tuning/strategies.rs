@@ -3,9 +3,9 @@
 //! This module contains implementations of various search strategies including
 //! grid search, random search, Bayesian optimization, and evolutionary algorithms.
 
-use ndarray::Array2;
-use num_traits::{Float, FromPrimitive};
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::{Rng, SeedableRng};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -200,8 +200,8 @@ where
     ) -> Result<Vec<HashMap<String, f64>>> {
         let mut combinations = Vec::new();
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
         for _ in 0..n_trials {
@@ -330,11 +330,11 @@ where
 
         // Shuffle to mix different strategies
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
-        use rand::seq::SliceRandom;
+        use scirs2_core::random::seq::SliceRandom;
         all_combinations.shuffle(&mut rng);
 
         Ok(all_combinations)
@@ -350,8 +350,8 @@ where
         crossover_rate: f64,
     ) -> Result<Vec<HashMap<String, f64>>> {
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
         // Initialize population
@@ -412,7 +412,7 @@ where
     fn tournament_selection(
         &self,
         population: &[HashMap<String, f64>],
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<HashMap<String, f64>> {
         let tournament_size = 3.min(population.len());
         let mut best_individual = None;
@@ -437,7 +437,7 @@ where
         parent1: &HashMap<String, f64>,
         parent2: &HashMap<String, f64>,
         search_space: &SearchSpace,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<(HashMap<String, f64>, HashMap<String, f64>)> {
         let mut child1 = HashMap::new();
         let mut child2 = HashMap::new();
@@ -464,7 +464,7 @@ where
         &self,
         individual: &mut HashMap<String, f64>,
         search_space: &SearchSpace,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<()> {
         for (param_name, param_spec) in &search_space.parameters {
             if rng.gen_range(0.0..1.0) < 0.1 {
@@ -477,7 +477,7 @@ where
     }
 
     /// Sample a value from a parameter specification
-    fn sample_parameter(&self, param_spec: &HyperParameter, rng: &mut rand::rngs::StdRng) -> f64 {
+    fn sample_parameter(&self, param_spec: &HyperParameter, rng: &mut scirs2_core::random::rngs::StdRng) -> f64 {
         match param_spec {
             HyperParameter::Integer { min, max } => rng.gen_range(*min..=*max) as f64,
             HyperParameter::Float { min, max } => rng.gen_range(*min..=*max),
@@ -649,7 +649,7 @@ where
             }
             AcquisitionFunction::ThompsonSampling => {
                 // Sample from posterior
-                let mut rng = rand::thread_rng();
+                let mut rng = scirs2_core::random::thread_rng();
                 let sample: f64 = rng.gen_range(0.0..1.0);
                 mean + std_dev * self.inverse_normal_cdf(sample)
             }

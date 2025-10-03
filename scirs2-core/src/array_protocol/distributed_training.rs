@@ -630,7 +630,7 @@ impl TrainingCallback for ParameterSyncCallback {
         self.batch_counter += 1;
 
         // Synchronize parameters if needed
-        if self.batch_counter % self.syncinterval == 0 {
+        if self.batch_counter.is_multiple_of(self.syncinterval) {
             // This is a simplified implementation for demonstration purposes.
             // In a real implementation, this would call channel.all_reduce() for each parameter.
 

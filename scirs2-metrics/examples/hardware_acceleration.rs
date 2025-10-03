@@ -3,7 +3,7 @@
 //! This example demonstrates how to use SIMD vectorization and other hardware
 //! acceleration features for improved metrics computation performance.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_metrics::error::Result;
 use scirs2_metrics::optimization::hardware::*;
 use statrs::statistics::Statistics;
@@ -279,7 +279,7 @@ fn hardware_matrix_example() -> Result<()> {
     println!("  Matrix-vector result length: {}", result.len());
     println!(
         "  First few result values: {:?}",
-        &result.slice(ndarray::s![0..5]).to_vec()
+        &result.slice(scirs2_core::ndarray::s![0..5]).to_vec()
     );
 
     // Test pairwise distance computation

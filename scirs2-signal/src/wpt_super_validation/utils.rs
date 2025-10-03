@@ -6,8 +6,8 @@
 
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::Rng;
 use std::f64::consts::PI;
 
 /// Generate test signal based on configuration
@@ -35,14 +35,14 @@ pub fn generate_test_signal(config: &TestSignalConfig) -> SignalResult<Array1<f6
         }
         TestSignalType::WhiteNoise => {
             let amplitude = config.parameters.get("amplitude").unwrap_or(&1.0);
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             for i in 0..length {
                 signal[i] = amplitude * rng.gen_range(-1.0..1.0);
             }
         }
         TestSignalType::PinkNoise => {
             let amplitude = config.parameters.get("amplitude").unwrap_or(&1.0);
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             // Simplified pink noise generation
             for i in 0..length {
                 signal[i] = amplitude * rng.gen_range(-1.0..1.0) * (1.0 / (i + 1) as f64).sqrt();
@@ -83,7 +83,7 @@ pub fn generate_test_signal(config: &TestSignalConfig) -> SignalResult<Array1<f6
             let amplitude = config.parameters.get("amplitude").unwrap_or(&1.0);
             let hurst = config.parameters.get("hurst").unwrap_or(&0.5);
             // Simplified fractal noise
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             for i in 0..length {
                 signal[i] = amplitude * rng.gen_range(-1.0..1.0) * ((i + 1) as f64).powf(-hurst);
             }
@@ -91,7 +91,7 @@ pub fn generate_test_signal(config: &TestSignalConfig) -> SignalResult<Array1<f6
         TestSignalType::Composite => {
             let amplitude = config.parameters.get("amplitude").unwrap_or(&1.0);
             // Composite of sinusoid and noise
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             for (i, &ti) in t.iter().enumerate() {
                 let sinusoid = (2.0 * PI * 0.1 * ti / length as f64).sin();
                 let noise = 0.1 * rng.gen_range(-1.0..1.0);
@@ -235,7 +235,7 @@ pub fn trim_signal(signal: &Array1<f64>, target_length: usize) -> Array1<f64> {
         return signal.clone();
     }
 
-    signal.slice(ndarray::s![..target_length]).to_owned()
+    signal.slice(scirs2_core::ndarray::s![..target_length]).to_owned()
 }
 
 /// Calculate the energy of a signal
@@ -261,9 +261,9 @@ pub fn is_signal_valid(signal: &Array1<f64>) -> bool {
 /// Generate a random signal with specified properties
 pub fn generate_random_signal(length: usize, amplitude: f64, seed: Option<u64>) -> Array1<f64> {
     let mut rng = if let Some(s) = seed {
-        rand::rng()
+        scirs2_core::random::rng()
     } else {
-        rand::rng()
+        scirs2_core::random::rng()
     };
 
     let mut signal = Array1::zeros(length);

@@ -5,8 +5,8 @@
 //! performance across all supported platforms.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::{PlatformCapabilities, SimdUnifiedOps},
@@ -147,7 +147,7 @@ where
         + Send
         + Sync
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Create new advanced-comprehensive SIMD processor
     pub fn new() -> Self {
@@ -278,7 +278,7 @@ where
         for chunk_idx in 0..n_chunks {
             let start = chunk_idx * chunksize;
             let end = start + chunksize;
-            let chunk = data.slice(ndarray::s![start..end]);
+            let chunk = data.slice(scirs2_core::ndarray::s![start..end]);
 
             // Use scirs2-core's unified SIMD operations
             let chunk_sum = F::simd_sum(&chunk);
@@ -339,7 +339,7 @@ where
         for chunk_idx in 0..n_chunks {
             let start = chunk_idx * chunksize;
             let end = start + chunksize;
-            let sub_chunk = chunk.slice(ndarray::s![start..end]);
+            let sub_chunk = chunk.slice(scirs2_core::ndarray::s![start..end]);
 
             // Vectorized cube operation: val * val * val
             let squares = F::simd_multiply(&sub_chunk, &sub_chunk);
@@ -373,7 +373,7 @@ where
         for chunk_idx in 0..n_chunks {
             let start = chunk_idx * chunksize;
             let end = start + chunksize;
-            let sub_chunk = chunk.slice(ndarray::s![start..end]);
+            let sub_chunk = chunk.slice(scirs2_core::ndarray::s![start..end]);
 
             // Vectorized fourth power: (val * val) * (val * val)
             let squares = F::simd_multiply(&sub_chunk, &sub_chunk);
@@ -438,7 +438,7 @@ where
         let q3_idx = 3 * n / 4;
 
         let q1 = sorteddata[q1_idx];
-        let median = if n % 2 == 0 && median_idx > 0 {
+        let median = if n.is_multiple_of(2) && median_idx > 0 {
             (sorteddata[median_idx - 1] + sorteddata[median_idx]) / F::from(2.0).unwrap()
         } else {
             sorteddata[median_idx]
@@ -512,7 +512,7 @@ where
             ));
         }
 
-        let trimmed = sorteddata.slice(ndarray::s![trim_count..n - trim_count]);
+        let trimmed = sorteddata.slice(scirs2_core::ndarray::s![trim_count..n - trim_count]);
         Ok(F::simd_mean(&trimmed))
     }
 
@@ -594,7 +594,7 @@ where
                     (thread_id + 1) * chunksize
                 };
 
-                let chunk = data.slice(ndarray::s![start..end]);
+                let chunk = data.slice(scirs2_core::ndarray::s![start..end]);
                 self.compute_comprehensive_stats_simd(&chunk)
             })
             .collect::<Result<Vec<_>, _>>()?;
@@ -1040,7 +1040,7 @@ where
         + Send
         + Sync
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     fn default() -> Self {
         Self::new()
@@ -1061,7 +1061,7 @@ where
         + Send
         + Sync
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     AdvancedComprehensiveSimdProcessor::new()
 }
@@ -1081,7 +1081,7 @@ where
         + Send
         + Sync
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     AdvancedComprehensiveSimdProcessor::with_config(config)
 }
@@ -1089,7 +1089,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_simd_processor_creation() {

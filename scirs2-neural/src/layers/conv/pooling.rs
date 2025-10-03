@@ -2,8 +2,8 @@
 
 use crate::error::Result;
 use crate::layers::Layer;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
@@ -57,9 +57,9 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + Default> Layer<F> for MaxP
 
     fn backward(
         &self,
-        _input: &Array<F, ndarray::IxDyn>,
-        grad_output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        _input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Placeholder implementation - return gradient as-is
         Ok(grad_output.clone())
     }
@@ -341,9 +341,9 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + Default> Layer<F> for Adap
 
     fn backward(
         &self,
-        _input: &Array<F, ndarray::IxDyn>,
-        grad_output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        _input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Placeholder implementation - return gradient as-is
         Ok(grad_output.clone())
     }
@@ -370,7 +370,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + Default> ParamLayer<F> for
         vec![]
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![]
     }
 
@@ -386,7 +386,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + Default> ParamLayer<F>
         vec![]
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![]
     }
 
@@ -402,7 +402,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + Default> ParamLayer<F>
         vec![]
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![]
     }
 
@@ -418,7 +418,7 @@ impl<F: Float + Debug + Send + Sync + ScalarOperand + Default> ParamLayer<F>
         vec![]
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![]
     }
 

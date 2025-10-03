@@ -1,9 +1,13 @@
-use ndarray::array;
-use num_traits::float::Float;
+use scirs2_core::ndarray::array;
+use scirs2_core::numeric::Signed;
 use scirs2_linalg::compat;
 
 #[allow(dead_code)]
-fn arrays_consistent(a: &ndarray::Array2<f64>, b: &ndarray::Array2<f64>, tol: f64) -> bool {
+fn arrays_consistent(
+    a: &scirs2_core::ndarray::Array2<f64>,
+    b: &scirs2_core::ndarray::Array2<f64>,
+    tol: f64,
+) -> bool {
     if a.shape() != b.shape() {
         return false;
     }
@@ -40,7 +44,9 @@ fn main() {
 
                 // Test A*V = V*Λ
                 let av = symmetricmatrix.dot(&eigenvecs);
-                let vl = eigenvecs.dot(&ndarray::Array2::from_diag(&eigenvals_with_vecs));
+                let vl = eigenvecs.dot(&scirs2_core::ndarray::Array2::from_diag(
+                    &eigenvals_with_vecs,
+                ));
                 println!("A*V: {:?}", av);
                 println!("V*Λ: {:?}", vl);
                 let diff = &av - &vl;
@@ -63,7 +69,7 @@ fn main() {
 
                 // Check orthogonality: V^T * V = I
                 let vtv = eigenvecs.t().dot(&eigenvecs);
-                let identity = ndarray::Array2::<f64>::eye(3);
+                let identity = scirs2_core::ndarray::Array2::<f64>::eye(3);
                 println!("V^T * V: {:?}", vtv);
                 println!("Identity: {:?}", identity);
                 let orth_diff = &vtv - &identity;

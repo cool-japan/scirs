@@ -4,8 +4,8 @@
 //! Hermitian symmetry is a property where a complex array satisfies a[i] = conj(a[-i])
 //! for all indices i. This property is important for algorithms like HFFT and IHFFT.
 
-use ndarray::{Array, Array2, Dimension, IxDyn};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array, Array2, Dimension, IxDyn};
+use scirs2_core::numeric::Complex64;
 use std::ops::Not;
 
 /// Enforce Hermitian symmetry on a 2D complex array.
@@ -104,7 +104,10 @@ pub fn enforce_hermitian_symmetry_nd(array: &mut Array<Complex64, IxDyn>) {
         }
         2 => {
             // Convert to 2D view for easier access
-            if let Ok(mut array2) = array.clone().into_dimensionality::<ndarray::Ix2>() {
+            if let Ok(mut array2) = array
+                .clone()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            {
                 // Apply 2D symmetry (same as in enforce_hermitian_symmetry)
                 enforce_hermitian_symmetry(&mut array2);
 
@@ -122,11 +125,14 @@ pub fn enforce_hermitian_symmetry_nd(array: &mut Array<Complex64, IxDyn>) {
             // but covers the most important ones
 
             // For each 2D plane along the first two dimensions, apply 2D symmetry
-            if let Ok(mut view) = array.view_mut().into_dimensionality::<ndarray::Ix3>() {
+            if let Ok(mut view) = array
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix3>()
+            {
                 let (dim1, dim2, _) = view.dim();
 
                 for k in 0..view.dim().2 {
-                    let mut slice = view.slice_mut(ndarray::s![.., .., k]);
+                    let mut slice = view.slice_mut(scirs2_core::ndarray::s![.., .., k]);
                     let mut array2 = Array2::zeros((dim1, dim2));
 
                     // Copy data to a temporary 2D _array
@@ -211,7 +217,7 @@ where
         // Check the _array using direct indexing for 2D
         let array2 = array
             .to_owned()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .unwrap();
 
         // Check first row
@@ -262,7 +268,7 @@ pub fn create_hermitian_symmetric_signal(
     amplitudes: &[f64],
     randomize_phases: bool,
 ) -> Vec<Complex64> {
-    use rand::Rng;
+    use scirs2_core::random::Rng;
 
     let n = amplitudes.len();
     let mut result = Vec::with_capacity(n);
@@ -270,7 +276,7 @@ pub fn create_hermitian_symmetric_signal(
     // DC component is always real
     result.push(Complex64::new(amplitudes[0], 0.0));
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // For each frequency component (excluding DC and Nyquist)
     for (_i, &amp) in amplitudes.iter().enumerate().skip(1).take(n / 2 - 1) {
@@ -290,7 +296,7 @@ pub fn create_hermitian_symmetric_signal(
     }
 
     // If n is even, add Nyquist frequency component (must be real)
-    if n % 2 == 0 && n > 0 {
+    if n.is_multiple_of(2) && n > 0 {
         result.push(Complex64::new(amplitudes[n / 2], 0.0));
     }
 

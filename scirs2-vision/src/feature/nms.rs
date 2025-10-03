@@ -3,7 +3,7 @@
 //! This module provides various non-maximum suppression techniques
 //! commonly used in computer vision for peak detection and object detection.
 
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use std::cmp::Ordering;
 
 /// Bounding box representation

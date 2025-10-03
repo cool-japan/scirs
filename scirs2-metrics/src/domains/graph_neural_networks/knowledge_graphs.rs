@@ -58,7 +58,7 @@ impl TripleClassificationMetrics {
 }
 
 /// Knowledge graph link prediction metrics
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct KgLinkPredictionMetrics {
     /// Head entity prediction metrics
     pub head_prediction: RankingMetrics,
@@ -66,16 +66,6 @@ pub struct KgLinkPredictionMetrics {
     pub tail_prediction: RankingMetrics,
     /// Relation prediction metrics
     pub relation_prediction: RankingMetrics,
-}
-
-impl Default for KgLinkPredictionMetrics {
-    fn default() -> Self {
-        Self {
-            head_prediction: RankingMetrics::default(),
-            tail_prediction: RankingMetrics::default(),
-            relation_prediction: RankingMetrics::default(),
-        }
-    }
 }
 
 impl KgLinkPredictionMetrics {
@@ -249,7 +239,7 @@ impl KnowledgeGraphMetrics {
         for (e1, e2, sim) in entity_similarities {
             entity_rankings
                 .entry(e1.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((e2.clone(), *sim));
         }
 

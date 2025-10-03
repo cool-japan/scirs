@@ -1,7 +1,7 @@
 //! Utility functions for FFT module examples
 
-use ndarray::ArrayD;
-use num_complex::Complex;
+use scirs2_core::ndarray::ArrayD;
+use scirs2_core::numeric::Complex;
 
 /// Print the first few values of a dynamic array
 #[allow(dead_code)]

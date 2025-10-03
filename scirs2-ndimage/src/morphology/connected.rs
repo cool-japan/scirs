@@ -1,6 +1,6 @@
 //! Connected component operations for binary and labeled arrays
 
-use ndarray::{Array, Dimension, IxDyn};
+use scirs2_core::ndarray::{Array, Dimension, IxDyn};
 use std::collections::HashMap;
 
 use super::Connectivity;
@@ -215,7 +215,8 @@ fn unravel_index(_flatindex: usize, shape: &[usize]) -> Vec<usize> {
     let mut indices = vec![0; shape.len()];
     let mut remaining = _flatindex;
 
-    for i in (0..shape.len()).rev() {
+    // Process dimensions in forward order for row-major (C-order) layout
+    for i in 0..shape.len() {
         let stride: usize = shape[(i + 1)..].iter().product();
         indices[i] = remaining / stride;
         remaining %= stride;
@@ -578,7 +579,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     #[ignore]

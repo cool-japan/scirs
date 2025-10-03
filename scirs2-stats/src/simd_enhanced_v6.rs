@@ -5,8 +5,8 @@
 //! strategies and platform-specific optimizations.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::Rng;
 use scirs2_core::{
     simd_ops::{PlatformCapabilities, SimdUnifiedOps},
@@ -130,7 +130,7 @@ where
         for i in 0..n_chunks {
             let start = i * chunksize;
             let end = start + chunksize;
-            let chunk = data.slice(ndarray::s![start..end]);
+            let chunk = data.slice(scirs2_core::ndarray::s![start..end]);
 
             // Use SIMD operations from scirs2-core
             let chunk_sum = F::simd_sum(&chunk);
@@ -589,7 +589,7 @@ where
 /// Create RNG with optional seed
 #[allow(dead_code)]
 fn create_rng(seed: Option<u64>) -> impl Rng {
-    use rand::{rngs::StdRng, SeedableRng};
+    use scirs2_core::random::{rngs::StdRng, SeedableRng};
     match seed {
         Some(s) => StdRng::seed_from_u64(s),
         None => {

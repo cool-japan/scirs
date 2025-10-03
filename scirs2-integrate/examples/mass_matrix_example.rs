@@ -7,7 +7,7 @@
 //!
 //! where M is a (possibly state-dependent) matrix.
 
-use ndarray::{array, Array2, ArrayView1};
+use scirs2_core::ndarray::{array, Array2, ArrayView1};
 use scirs2_integrate::error::IntegrateResult;
 use scirs2_integrate::ode::{solve_ivp, MassMatrix, ODEMethod, ODEOptions};
 

@@ -260,7 +260,7 @@ mod tests {
         assert!(metrics.timestamp > 0);
 
         let health_score = metrics.health_score();
-        assert!(health_score >= 0.0 && health_score <= 1.0);
+        assert!((0.0..=1.0).contains(&health_score));
     }
 
     #[test]

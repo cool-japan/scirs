@@ -22,10 +22,10 @@
 //! - Memory-efficient iterative solvers
 //! - Parallel sparse matrix operations
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_complex::Complex;
-use num_traits::{Float, NumAssign};
-use rand::prelude::*;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, NumAssign};
+use scirs2_core::random::prelude::*;
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -120,7 +120,7 @@ where
     let mut v_next = Array1::<F>::zeros(n);
 
     // Random initial vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for i in 0..n {
         v_curr[i] = F::from(rng.random::<f64>()).unwrap();
     }
@@ -477,7 +477,7 @@ where
     let mut hmatrix = Array2::<F>::zeros((m + 1, m));
 
     // Random initial vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for i in 0..n {
         v_vectors[0][i] = F::from(rng.random::<f64>()).unwrap();
     }
@@ -931,7 +931,7 @@ where
 /// # Examples
 ///
 /// ```rust,ignore
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::eigen::sparse::dense_to_sparse;
 ///
 /// // This is a placeholder example - actual implementation pending

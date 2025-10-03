@@ -6,12 +6,12 @@
 //! - Lattice graphs
 //! - Small-world networks
 
-use rand::prelude::*;
+use scirs2_core::random::prelude::*;
 use std::collections::HashSet;
 
 use crate::base::{DiGraph, Graph};
 use crate::error::{GraphError, Result};
-use rand::seq::SliceRandom;
+use scirs2_core::random::seq::SliceRandom;
 
 /// Create a new empty undirected graph
 #[allow(dead_code)]
@@ -701,7 +701,7 @@ pub fn watts_strogatz_graph<R: Rng>(
     p: f64,
     rng: &mut R,
 ) -> Result<Graph<usize, f64>> {
-    if k >= n || k % 2 != 0 {
+    if k >= n || !k.is_multiple_of(2) {
         return Err(GraphError::InvalidGraph(
             "k must be even and less than n".to_string(),
         ));
@@ -898,7 +898,7 @@ pub fn planted_partition_model<R: Rng>(
     p_out: f64,
     rng: &mut R,
 ) -> Result<Graph<usize, f64>> {
-    if n % k != 0 {
+    if !n.is_multiple_of(k) {
         return Err(GraphError::InvalidGraph(
             "Number of nodes must be divisible by number of communities".to_string(),
         ));
@@ -946,7 +946,7 @@ pub fn configuration_model<R: Rng>(
 
     // Check that sum of degrees is even
     let total_degree: usize = degree_sequence.iter().sum();
-    if total_degree % 2 != 0 {
+    if !total_degree.is_multiple_of(2) {
         return Err(GraphError::InvalidGraph(
             "Sum of degrees must be even".to_string(),
         ));
@@ -1009,7 +1009,7 @@ pub fn simple_configuration_model<R: Rng>(
 
     // Check that sum of degrees is even
     let total_degree: usize = degree_sequence.iter().sum();
-    if total_degree % 2 != 0 {
+    if !total_degree.is_multiple_of(2) {
         return Err(GraphError::InvalidGraph(
             "Sum of degrees must be even".to_string(),
         ));

@@ -7,7 +7,7 @@
 //! - Regression with ARIMA errors
 
 use crate::error::TimeSeriesError;
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::validation::checkarray_finite;
 
 /// Result type for regression models
@@ -1250,7 +1250,7 @@ struct ECMResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_distributed_lag_model() {
@@ -1261,7 +1261,10 @@ mod tests {
         // Generate test data with distributed lag relationship
         for i in 2..n {
             x[i] = (i as f64 * 0.1).sin();
-            y[i] = 0.5 * x[i] + 0.3 * x[i - 1] + 0.1 * x[i - 2] + 0.1 * rand::random::<f64>();
+            y[i] = 0.5 * x[i]
+                + 0.3 * x[i - 1]
+                + 0.1 * x[i - 2]
+                + 0.1 * scirs2_core::random::random::<f64>();
         }
 
         let regression = TimeSeriesRegression::new();
@@ -1287,7 +1290,10 @@ mod tests {
         // Generate test data with ARDL relationship
         for i in 2..n {
             x[i] = (i as f64 * 0.1).sin();
-            y[i] = 0.3 * y[i - 1] + 0.5 * x[i] + 0.2 * x[i - 1] + 0.1 * rand::random::<f64>();
+            y[i] = 0.3 * y[i - 1]
+                + 0.5 * x[i]
+                + 0.2 * x[i - 1]
+                + 0.1 * scirs2_core::random::random::<f64>();
         }
 
         let regression = TimeSeriesRegression::new();
@@ -1313,7 +1319,7 @@ mod tests {
         let n = 30;
         let y = Array1::from_vec(
             (0..n)
-                .map(|i| i as f64 + 0.1 * rand::random::<f64>())
+                .map(|i| i as f64 + 0.1 * scirs2_core::random::random::<f64>())
                 .collect(),
         );
         let x = Array2::from_shape_vec((n, 1), (0..n).map(|i| (i as f64).sin()).collect()).unwrap();

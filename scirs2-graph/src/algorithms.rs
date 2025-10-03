@@ -127,10 +127,10 @@ pub use traversal::*;
 
 use crate::base::{DiGraph, EdgeWeight, Graph, IndexType, Node};
 use crate::error::{GraphError, Result};
-use ndarray::{Array1, Array2};
 use petgraph::algo::toposort as petgraph_toposort;
 use petgraph::visit::EdgeRef;
 use petgraph::Direction;
+use scirs2_core::ndarray::{Array1, Array2};
 use std::cmp::Ordering;
 use std::collections::{HashMap, VecDeque};
 
@@ -420,8 +420,8 @@ where
     N: Node + std::fmt::Debug,
     E: EdgeWeight
         + Into<f64>
-        + num_traits::Zero
-        + num_traits::One
+        + scirs2_core::numeric::Zero
+        + scirs2_core::numeric::One
         + std::ops::Add<Output = E>
         + PartialOrd
         + std::marker::Copy

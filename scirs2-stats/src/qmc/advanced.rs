@@ -6,8 +6,8 @@
 use crate::error::{StatsError, StatsResult as Result};
 use crate::error_handling_v2::ErrorCode;
 use crate::unified_error_handling::global_error_handler;
-use ndarray::{Array1, Array2};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 use scirs2_core::validation::*;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -384,7 +384,7 @@ impl AdvancedQMCGenerator {
     fn init_optimal_lhs_state(dimension: usize, seed: Option<u64>) -> Result<OptimalLHSState> {
         let rng = match seed {
             Some(s) => StdRng::seed_from_u64(s),
-            None => StdRng::from_rng(&mut rand::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         Ok(OptimalLHSState {
@@ -540,7 +540,7 @@ impl AdvancedQMCGenerator {
 
             let mut uniform = Array1::zeros(dimension);
             for i in 0..dimension {
-                uniform[i] = rand::thread_rng().random::<f64>();
+                uniform[i] = scirs2_core::random::thread_rng().random::<f64>();
             }
 
             // Apply inverse normal transformation and correlation
@@ -548,10 +548,16 @@ impl AdvancedQMCGenerator {
                 // Inverse normal using Box-Muller approximation
                 if u <= 0.5 {
                     -(-2.0 * u.ln()).sqrt()
-                        * (2.0 * std::f64::consts::PI * rand::thread_rng().random::<f64>()).cos()
+                        * (2.0
+                            * std::f64::consts::PI
+                            * scirs2_core::random::thread_rng().random::<f64>())
+                        .cos()
                 } else {
                     (-2.0 * (1.0 - u).ln()).sqrt()
-                        * (2.0 * std::f64::consts::PI * rand::thread_rng().random::<f64>()).cos()
+                        * (2.0
+                            * std::f64::consts::PI
+                            * scirs2_core::random::thread_rng().random::<f64>())
+                        .cos()
                 }
             });
 
@@ -565,7 +571,7 @@ impl AdvancedQMCGenerator {
             // Standard LHS
             for i in 0..dimension {
                 let stratum = current_index % 1000; // Simplified stratification
-                let u = rand::thread_rng().random::<f64>();
+                let u = scirs2_core::random::thread_rng().random::<f64>();
                 point[i] = (stratum as f64 + u) / 1000.0;
             }
         }
@@ -632,7 +638,7 @@ impl AdvancedQMCGenerator {
     ) -> Result<Vec<Array2<u32>>> {
         let mut rng = match seed {
             Some(s) => StdRng::seed_from_u64(s),
-            None => StdRng::from_rng(&mut rand::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         let mut matrices = Vec::with_capacity(dimension);
@@ -677,7 +683,7 @@ impl AdvancedQMCGenerator {
     ) -> Result<Vec<Vec<u32>>> {
         let mut rng = match seed {
             Some(s) => StdRng::seed_from_u64(s),
-            None => StdRng::from_rng(&mut rand::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         let mut permutations = Vec::with_capacity(bases.len());
@@ -719,7 +725,7 @@ impl AdvancedQMCGenerator {
     ) -> Result<Vec<Vec<u32>>> {
         let mut rng = match seed {
             Some(s) => StdRng::seed_from_u64(s),
-            None => StdRng::from_rng(&mut rand::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         let mut permutations = Vec::with_capacity(bases.len());
@@ -815,13 +821,13 @@ impl AdvancedQMCGenerator {
         if n == 2 {
             return true;
         }
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             return false;
         }
 
         let sqrt_n = (n as f64).sqrt() as u32;
         for i in (3..=sqrt_n).step_by(2) {
-            if n % i == 0 {
+            if n.is_multiple_of(i) {
                 return false;
             }
         }
@@ -967,7 +973,7 @@ impl AdvancedQMCGenerator {
     ) -> Result<Vec<Array2<u32>>> {
         let mut rng = match seed {
             Some(s) => StdRng::seed_from_u64(s),
-            None => StdRng::from_rng(&mut rand::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         let mut matrices = Vec::with_capacity(dimension);
@@ -1042,7 +1048,7 @@ impl StratifiedSampler {
 
         let mut rng = match seed {
             Some(s) => StdRng::seed_from_u64(s),
-            None => StdRng::from_rng(&mut rand::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         // Generate samples for each stratum

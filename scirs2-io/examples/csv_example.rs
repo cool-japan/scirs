@@ -1,4 +1,4 @@
-use ndarray::{array, Array1};
+use scirs2_core::ndarray::{array, Array1};
 use scirs2_io::csv::{
     read_csv, write_csv, write_csv_columns, CsvReaderConfig, CsvWriterConfig, LineEnding,
 };

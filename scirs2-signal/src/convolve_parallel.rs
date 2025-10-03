@@ -4,8 +4,8 @@
 // operations for improved performance on multi-core systems.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{
     simd_add_f32_adaptive, simd_dot_f32_ultra, simd_fma_f32_ultra, simd_mul_f32_hyperoptimized,
@@ -24,7 +24,7 @@ fn par_iter_with_setup<I, IT, S, F, R, RF, E>(
 where
     I: IntoIterator<Item = IT>,
     IT: Copy,
-    S: Fn() -> (),
+    S: Fn(),
     F: Fn((), IT) -> Result<R, E>,
     RF: Fn(&mut Vec<R>, Result<R, E>) -> Result<(), E>,
     E: std::fmt::Debug,
@@ -396,7 +396,7 @@ fn parallel_overlap_save_conv(a: &[f64], v: &[f64], nfull: usize) -> Vec<f64> {
     let step = chunk_size - overlap;
 
     // Number of chunks
-    let n_chunks = (na + step - 1) / step;
+    let n_chunks = na.div_ceil(step);
 
     // Process chunks in parallel
     let chunkresults: Vec<Vec<f64>> = par_iter_with_setup(

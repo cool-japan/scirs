@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Median Filtering module
 //
 // This module implements median filtering techniques for signal and image processing.
@@ -14,7 +14,7 @@ use ndarray::s;
 //
 // # Example
 // ```
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2signal::median::{median_filter_1d, MedianConfig};
 //
 // // Create a test signal with impulse noise
@@ -27,7 +27,7 @@ use ndarray::s;
 // ```
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Array3, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Array3, Axis};
 
 #[allow(unused_imports)]
 /// Edge handling mode for median filtering
@@ -96,7 +96,7 @@ impl Default for MedianConfig {
 ///
 /// # Example
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::median::{median_filter_1d, MedianConfig};
 ///
 /// let signal = Array1::from_vec(vec![1.0, 1.2, 5.0, 1.1, 1.3, 0.0, 1.2]);
@@ -317,7 +317,7 @@ fn adaptive_median_filter_1d(
 ///
 /// # Example
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::median::{median_filter_2d, MedianConfig};
 ///
 /// let image = Array2::from_shape_fn((5, 5), |(i, j)| {

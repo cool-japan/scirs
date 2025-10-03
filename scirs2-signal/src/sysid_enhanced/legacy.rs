@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Enhanced System Identification with advanced algorithms
 //
 // This module provides advanced system identification methods including:
@@ -10,10 +10,10 @@ use ndarray::s;
 
 use crate::error::{SignalError, SignalResult};
 use crate::lti::{StateSpace, TransferFunction};
-use ndarray::{Array1, Array2, Axis};
-use num_complex::Complex64;
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 use scirs2_core::validation::checkshape;
 use statrs::statistics::Statistics;
 
@@ -627,8 +627,8 @@ fn identify_arx(
     let params = solve_regularized_ls(&phi_t_phi, &phi_t_y)?;
 
     // Split parameters
-    let a = params.slice(ndarray::s![0..na]).to_owned();
-    let b = params.slice(ndarray::s![na..]).to_owned();
+    let a = params.slice(scirs2_core::ndarray::s![0..na]).to_owned();
+    let b = params.slice(scirs2_core::ndarray::s![na..]).to_owned();
 
     // Compute parameter statistics
     let residuals = &y - &phi.dot(&params);
@@ -741,7 +741,7 @@ fn select_arx_orders(
 /// Solve regularized least squares with enhanced numerical stability
 #[allow(dead_code)]
 fn solve_regularized_ls(a: &Array2<f64>, b: &Array1<f64>) -> SignalResult<Array1<f64>> {
-    // use ndarray_linalg::{Norm, Solve, SVD}; // TODO: Add ndarray-linalg dependency
+    use scirs2_core::ndarray_linalg::{Norm, Solve};
 
     // Check condition number
     let cond = compute_matrix_condition_number(a)?;
@@ -764,7 +764,7 @@ fn solve_regularized_ls(a: &Array2<f64>, b: &Array1<f64>) -> SignalResult<Array1
 /// Solve using SVD decomposition for numerical stability
 #[allow(dead_code)]
 fn solve_using_svd(a: &Array2<f64>, b: &Array1<f64>) -> SignalResult<Array1<f64>> {
-    // use ndarray_linalg::SVD; // TODO: Add ndarray-linalg dependency
+    use scirs2_core::ndarray_linalg::SVD;
 
     let (u, s, vt) = a
         .svd(true, true)
@@ -794,7 +794,7 @@ fn solve_using_svd(a: &Array2<f64>, b: &Array1<f64>) -> SignalResult<Array1<f64>
 /// Compute matrix condition number
 #[allow(dead_code)]
 fn compute_matrix_condition_number(matrix: &Array2<f64>) -> SignalResult<f64> {
-    // use ndarray_linalg::{Norm, SVD}; // TODO: Add ndarray-linalg dependency
+    use scirs2_core::ndarray_linalg::SVD;
 
     let (_, s_) = matrix.svd(false, false).map_err(|e| {
         SignalError::ComputationError(format!("SVD for condition number failed: {}", e))
@@ -993,8 +993,8 @@ fn cross_validate_model(
         };
 
         // Evaluate on test data
-        let test_input = input.slice(ndarray::s![test_start..test_end]).to_owned();
-        let test_output = output.slice(ndarray::s![test_start..test_end]).to_owned();
+        let test_input = input.slice(scirs2_core::ndarray::s![test_start..test_end]).to_owned();
+        let test_output = output.slice(scirs2_core::ndarray::s![test_start..test_end]).to_owned();
 
         let y_pred = simulate_model(&cv_model, &test_input)?;
 
@@ -1209,7 +1209,7 @@ fn compute_stability_margin(model: &SystemModel) -> SignalResult<f64> {
         }
         SystemModel::StateSpace(ss) => {
             // Check eigenvalues of A matrix
-            // use ndarray_linalg::Eig; // TODO: Add ndarray-linalg dependency
+            use scirs2_core::ndarray_linalg::Eig;
             let eigenvalues = ss.a.eig().map_err(|e| {
                 SignalError::ComputationError(format!("Eigenvalue computation failed: {}", e))
             })?;
@@ -1251,7 +1251,7 @@ fn compute_polynomial_roots(coeffs: &Array1<f64>) -> SignalResult<Vec<Complex64>
     }
 
     // Compute eigenvalues (roots)
-    // use ndarray_linalg::Eig; // TODO: Add ndarray-linalg dependency
+    use scirs2_core::ndarray_linalg::Eig;
     match companion.eig() {
         Ok((eigenvals, _)) => Ok(eigenvals.to_vec()),
         Err(_) => {
@@ -1298,7 +1298,7 @@ fn simulate_model(model: &SystemModel, input: &Array1<f64>) -> SignalResult<Arra
             let mut noise = Array1::zeros(n);
 
             // Generate white noise for simulation (in practice, this would be estimated)
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             for i in 0..n {
                 noise[i] = rng.gen_range(-1.0..1.0) * 0.1; // Small noise
             }
@@ -1360,7 +1360,7 @@ fn simulate_model(model: &SystemModel, input: &Array1<f64>) -> SignalResult<Arra
             let mut filtered_noise = Array1::zeros(n);
 
             // Generate white noise for simulation
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             for i in 0..n {
                 noise[i] = rng.gen_range(-1.0..1.0) * 0.1;
             }
@@ -1683,8 +1683,8 @@ fn parallel_block_identification(
             let start = i * (block_size - overlap);
             let end = (start + block_size).min(n);
 
-            let block_input = input.slice(ndarray::s![start..end]).to_owned();
-            let block_output = output.slice(ndarray::s![start..end]).to_owned();
+            let block_input = input.slice(scirs2_core::ndarray::s![start..end]).to_owned();
+            let block_output = output.slice(scirs2_core::ndarray::s![start..end]).to_owned();
 
             enhanced_system_identification(&block_input, &block_output, config)
         })
@@ -1973,7 +1973,7 @@ impl AdaptiveIdentifier {
 /// Compute condition number
 #[allow(dead_code)]
 fn compute_condition_number(params: &ParameterEstimate) -> f64 {
-    // use ndarray_linalg::Norm; // TODO: Add ndarray-linalg dependency
+    use scirs2_core::ndarray_linalg::Norm;
 
     if let Ok(inv) = params.covariance.inv() {
         params.covariance.norm() * inv.norm()
@@ -2158,14 +2158,14 @@ mod tests {
         }
 
         // Update with first half
-        let input1 = input.slice(ndarray::s![..50]).to_owned();
-        let output1 = output.slice(ndarray::s![..50]).to_owned();
+        let input1 = input.slice(scirs2_core::ndarray::s![..50]).to_owned();
+        let output1 = output.slice(scirs2_core::ndarray::s![..50]).to_owned();
         let adapted1 = identifier.update_model(&input1, &output1).unwrap();
         assert!(adapted1); // Should adapt (first model)
 
         // Update with second half
-        let input2 = input.slice(ndarray::s![50..]).to_owned();
-        let output2 = output.slice(ndarray::s![50..]).to_owned();
+        let input2 = input.slice(scirs2_core::ndarray::s![50..]).to_owned();
+        let output2 = output.slice(scirs2_core::ndarray::s![50..]).to_owned();
         let _adapted2 = identifier.update_model(&input2, &output2).unwrap();
 
         assert!(identifier.get_current_model().is_some());

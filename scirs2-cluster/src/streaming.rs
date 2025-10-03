@@ -4,8 +4,8 @@
 //! large datasets that don't fit entirely in memory, using streaming and
 //! progressive processing techniques.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::fs::{File, OpenOptions};
@@ -454,7 +454,7 @@ impl<F: Float + FromPrimitive> ChunkedDistanceMatrix<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_streaming_kmeans() {
@@ -918,7 +918,7 @@ pub mod advanced_streaming {
             self.update_count += 1;
 
             // Update learning rate with decay
-            if self.update_count % 100 == 0 {
+            if self.update_count.is_multiple_of(100) {
                 self.learning_rate = self.learning_rate * self.decay_factor;
             }
 
@@ -1146,7 +1146,7 @@ pub mod intelligent_loading {
                 }
                 MissingValueStrategy::FillMean => {
                     if let Some(ref mean) = self.running_mean {
-                        for (_i, mut row) in data.rows_mut().into_iter().enumerate() {
+                        for mut row in data.rows_mut().into_iter() {
                             for (j, elem) in row.iter_mut().enumerate() {
                                 if !elem.is_finite() && j < mean.len() {
                                     *elem = mean[j];
@@ -1164,7 +1164,7 @@ pub mod intelligent_loading {
         fn apply_normalization(&self, data: &mut Array2<F>) -> Result<()> {
             if let (Some(ref mean), Some(ref var)) = (&self.running_mean, &self.running_var) {
                 if self.sample_count > 1 {
-                    for (_i, mut row) in data.rows_mut().into_iter().enumerate() {
+                    for mut row in data.rows_mut().into_iter() {
                         for (j, elem) in row.iter_mut().enumerate() {
                             if j < mean.len() && var[j] > F::zero() {
                                 let std_dev =

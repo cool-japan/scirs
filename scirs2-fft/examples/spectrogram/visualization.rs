@@ -3,7 +3,7 @@
 //! This example demonstrates various ways to visualize time-frequency data
 //! including spectrograms and waterfall plots.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::Complex64;
 use scirs2_fft::{
     apply_colormap, fft, spectrogram, spectrogram_normalized, waterfall_3d, waterfall_lines,

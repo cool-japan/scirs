@@ -4,8 +4,8 @@
 //! shape-preserving interpolants that maintain monotonicity in the data.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// PCHIP (Piecewise Cubic Hermite Interpolating Polynomial) interpolator
@@ -58,7 +58,7 @@ impl<F: Float + FromPrimitive + Debug> PchipInterpolator<F> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::interp1d::pchip::PchipInterpolator;
     ///
     /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -370,7 +370,7 @@ impl<F: Float + FromPrimitive + Debug> PchipInterpolator<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::pchip_interpolate;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -394,7 +394,7 @@ pub fn pchip_interpolate<F: crate::traits::InterpolationFloat>(
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_pchip_interpolation_basic() {

@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array2, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 use std::iter::Sum;
 
 use super::results::{InceptionScoreResult, KIDResult};
@@ -26,15 +26,19 @@ pub struct GANEvaluationMetrics<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> Default
-    for GANEvaluationMetrics<F>
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > Default for GANEvaluationMetrics<F>
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> GANEvaluationMetrics<F> {
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > GANEvaluationMetrics<F>
+{
     /// Create new GAN evaluation metrics
     pub fn new() -> Self {
         Self {
@@ -94,7 +98,7 @@ impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> GANEva
                 (i + 1) * split_size
             };
 
-            let split_features = features.slice(ndarray::s![start_idx..end_idx, ..]);
+            let split_features = features.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
 
             // Convert features to probabilities (assuming they're logits)
             let probabilities = split_features.mapv(|x| F::one() / (F::one() + (-x).exp()));
@@ -222,8 +226,8 @@ impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> GANEva
         let n_fake = fake_features.nrows().min(self.n_kid_samples);
 
         // Subsample for efficiency
-        let real_sub = real_features.slice(ndarray::s![0..n_real, ..]);
-        let fake_sub = fake_features.slice(ndarray::s![0..n_fake, ..]);
+        let real_sub = real_features.slice(scirs2_core::ndarray::s![0..n_real, ..]);
+        let fake_sub = fake_features.slice(scirs2_core::ndarray::s![0..n_fake, ..]);
 
         // Compute polynomial kernel matrices
         let gamma_val = gamma.unwrap_or_else(|| F::one() / F::from(real_features.ncols()).unwrap());

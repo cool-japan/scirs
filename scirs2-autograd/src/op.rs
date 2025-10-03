@@ -5,12 +5,12 @@
 //! See also [crate::tensor::TensorBuilder].
 //!
 //! ```
-//! use ndarray;
+//! use scirs2_core::ndarray;
 //! use scirs2_autograd as ag;
 //! use ag::error::OpError;
 //! use ag::tensor_ops::*;
 //!
-//! type NdArray<T: ag::Float> = ndarray::Array<T, ndarray::IxDyn>;
+//! type NdArray<T: ag::Float> = scirs2_core::ndarray::Array<T, scirs2_core::ndarray::IxDyn>;
 //!
 //! // Implements `Op` trait for `Sigmoid`.
 //! struct Sigmoid;
@@ -21,7 +21,7 @@
 //!         ctx: &mut ag::op::ComputeContext<T>,
 //!     ) -> Result<(), OpError> {
 //!         let x: &ag::NdArrayView<_> = &ctx.input(0);
-//!         // Use `ndarray::Array::mapv` for element-wise computation.
+//!         // Use `scirs2_core::ndarray::Array::mapv` for element-wise computation.
 //!         let half = T::from(0.5).unwrap();
 //!         let y = x.mapv(move |a| ((a * half).tanh() * half) + half);
 //!         ctx.append_output(y);
@@ -146,8 +146,14 @@ impl<F: Float> ComputeContext<F> {
             #[allow(clippy::transmute_ptr_to_ref)]
             unsafe {
                 std::mem::transmute::<
-                    ndarray::ArrayBase<ndarray::ViewRepr<&f32>, ndarray::Dim<ndarray::IxDynImpl>>,
-                    ndarray::ArrayBase<ndarray::ViewRepr<&F>, ndarray::Dim<ndarray::IxDynImpl>>,
+                    scirs2_core::ndarray::ArrayBase<
+                        scirs2_core::ndarray::ViewRepr<&f32>,
+                        scirs2_core::ndarray::Dim<scirs2_core::ndarray::IxDynImpl>,
+                    >,
+                    scirs2_core::ndarray::ArrayBase<
+                        scirs2_core::ndarray::ViewRepr<&F>,
+                        scirs2_core::ndarray::Dim<scirs2_core::ndarray::IxDynImpl>,
+                    >,
                 >(DUMMY_ARRAY.view())
             }
         } else if i < self.inputs.len() {
@@ -163,8 +169,14 @@ impl<F: Float> ComputeContext<F> {
             #[allow(clippy::transmute_ptr_to_ref)]
             unsafe {
                 std::mem::transmute::<
-                    ndarray::ArrayBase<ndarray::ViewRepr<&f32>, ndarray::Dim<ndarray::IxDynImpl>>,
-                    ndarray::ArrayBase<ndarray::ViewRepr<&F>, ndarray::Dim<ndarray::IxDynImpl>>,
+                    scirs2_core::ndarray::ArrayBase<
+                        scirs2_core::ndarray::ViewRepr<&f32>,
+                        scirs2_core::ndarray::Dim<scirs2_core::ndarray::IxDynImpl>,
+                    >,
+                    scirs2_core::ndarray::ArrayBase<
+                        scirs2_core::ndarray::ViewRepr<&F>,
+                        scirs2_core::ndarray::Dim<scirs2_core::ndarray::IxDynImpl>,
+                    >,
                 >(DUMMY_ARRAY.view())
             }
         }

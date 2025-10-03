@@ -36,7 +36,7 @@
 use super::platform_ops::avx2_peak_detection;
 use super::SimdConfig;
 use crate::error::{SignalError, SignalResult};
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_finite;
 
@@ -92,7 +92,7 @@ pub fn simd_peak_detection(
     config: &SimdConfig,
 ) -> SignalResult<Vec<usize>> {
     for (i, &value) in signal.iter().enumerate() {
-        check_finite(value, &format!("signal value at index {}", i))?;
+        check_finite(value, format!("signal value at index {}", i))?;
     }
 
     let n = signal.len();

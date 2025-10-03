@@ -1,7 +1,7 @@
 //! Special matrix functions including sigmoid, softmax, and sign functions
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -24,7 +24,7 @@ use crate::validation::validate_decomposition;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::softmax;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -33,7 +33,7 @@ use crate::validation::validate_decomposition;
 #[allow(dead_code)]
 pub fn softmax<F>(a: &ArrayView2<F>, axis: Option<usize>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (nrows, ncols) = a.dim();
 
@@ -151,7 +151,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::sigmoid;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -160,7 +160,7 @@ where
 #[allow(dead_code)]
 pub fn sigmoid<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (nrows, ncols) = a.dim();
     let mut result = Array2::<F>::zeros((nrows, ncols));
@@ -205,7 +205,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::signm;
 ///
 /// let a = array![[2.0_f64, 0.0], [0.0, -3.0]];
@@ -215,7 +215,7 @@ where
 #[allow(dead_code)]
 pub fn signm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::eigen::eig;
     use crate::solve::solve_multiple;

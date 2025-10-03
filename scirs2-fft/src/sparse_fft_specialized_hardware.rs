@@ -5,8 +5,8 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::sparse_fft::{SparseFFTConfig, SparseFFTResult};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};

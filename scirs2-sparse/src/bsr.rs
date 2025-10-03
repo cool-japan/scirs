@@ -4,7 +4,7 @@
 //! efficient for block-structured matrices.
 
 use crate::error::{SparseError, SparseResult};
-use num_traits::Zero;
+use scirs2_core::numeric::Zero;
 
 /// Block Sparse Row (BSR) matrix
 ///

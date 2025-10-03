@@ -4,7 +4,7 @@
 //! against known reference values and edge cases that test floating-point arithmetic.
 
 use approx::{assert_abs_diff_eq, assert_relative_eq};
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_metrics::{
     anomaly::wasserstein_distance,
     classification::{accuracy_score, f1_score, precision_score, recall_score},

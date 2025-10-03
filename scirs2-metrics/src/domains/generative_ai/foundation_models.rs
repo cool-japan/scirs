@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::iter::Sum;
 
 use super::results::FewShotResult;
@@ -22,16 +22,18 @@ pub struct FoundationModelMetrics<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> Default
-    for FoundationModelMetrics<F>
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > Default for FoundationModelMetrics<F>
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand>
-    FoundationModelMetrics<F>
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > FoundationModelMetrics<F>
 {
     /// Create new foundation model metrics
     pub fn new() -> Self {

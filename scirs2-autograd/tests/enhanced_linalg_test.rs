@@ -4,8 +4,8 @@ mod enhanced_linalg_tests {
     use ag::tensor_ops::*;
     #[allow(unused_imports)]
     use approx::assert_relative_eq;
-    use ndarray::array;
     use scirs2_autograd as ag;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_matrix_norms() {
@@ -21,7 +21,11 @@ mod enhanced_linalg_tests {
             assert_eq!(n1_val.shape(), &[] as &[usize]);
             // Column sums: |1|+|-4|+|7| = 12, |-2|+|5|+|-8| = 15, |3|+|-6|+|9| = 18
             // Maximum is 18
-            assert_relative_eq!(n1_val[ndarray::IxDyn(&[])], 18.0, epsilon = 1e-5);
+            assert_relative_eq!(
+                n1_val[scirs2_core::ndarray::IxDyn(&[])],
+                18.0,
+                epsilon = 1e-5
+            );
 
             // Test infinity-norm (maximum row sum)
             let ninf = norminf(&a);
@@ -29,7 +33,11 @@ mod enhanced_linalg_tests {
             assert_eq!(ninf_val.shape(), &[] as &[usize]);
             // Row sums: |1|+|-2|+|3| = 6, |-4|+|5|+|-6| = 15, |7|+|-8|+|9| = 24
             // Maximum is 24
-            assert_relative_eq!(ninf_val[ndarray::IxDyn(&[])], 24.0, epsilon = 1e-5);
+            assert_relative_eq!(
+                ninf_val[scirs2_core::ndarray::IxDyn(&[])],
+                24.0,
+                epsilon = 1e-5
+            );
 
             // Test Frobenius norm
             let nfro = normfro(&a);
@@ -38,7 +46,7 @@ mod enhanced_linalg_tests {
             // sqrt(1^2 + 2^2 + 3^2 + 4^2 + 5^2 + 6^2 + 7^2 + 8^2 + 9^2)
             // = sqrt(1 + 4 + 9 + 16 + 25 + 36 + 49 + 64 + 81) = sqrt(285)
             assert_relative_eq!(
-                nfro_val[ndarray::IxDyn(&[])],
+                nfro_val[scirs2_core::ndarray::IxDyn(&[])],
                 285.0_f32.sqrt(),
                 epsilon = 1e-5
             );
@@ -47,7 +55,7 @@ mod enhanced_linalg_tests {
             let n2 = norm2(&a);
             let n2_val = n2.eval(g).unwrap();
             assert_eq!(n2_val.shape(), &[] as &[usize]);
-            assert!(n2_val[ndarray::IxDyn(&[])] > 0.0);
+            assert!(n2_val[scirs2_core::ndarray::IxDyn(&[])] > 0.0);
         });
     }
 
@@ -274,7 +282,11 @@ mod enhanced_linalg_tests {
             let dot = einsum("i,i->", &[&v1, &v2]);
             let dot_val = dot.eval(g).unwrap();
             assert_eq!(dot_val.shape(), &[] as &[usize]);
-            assert_relative_eq!(dot_val[ndarray::IxDyn(&[])], 32.0, epsilon = 1e-5);
+            assert_relative_eq!(
+                dot_val[scirs2_core::ndarray::IxDyn(&[])],
+                32.0,
+                epsilon = 1e-5
+            );
             // 1*4 + 2*5 + 3*6
         });
     }

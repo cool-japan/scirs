@@ -9,7 +9,7 @@
 use super::core::AlertSeverity;
 use super::window_management::StreamingStatistics;
 use crate::error::Result;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 

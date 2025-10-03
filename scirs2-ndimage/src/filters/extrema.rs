@@ -3,8 +3,8 @@
 //! This module provides functions for applying minimum and maximum filters
 //! to n-dimensional arrays.
 
-use ndarray::{Array, Array1, Array2, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Array1, Array2, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::validation::{check_1d, check_2d, check_positive};
 use std::fmt::Debug;
 
@@ -31,7 +31,7 @@ use crate::error::{NdimageError, NdimageResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::filters::{minimum_filter, BorderMode};
 ///
 /// let input = array![[1.0, 2.0, 3.0],
@@ -83,7 +83,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::filters::{maximum_filter, BorderMode};
 ///
 /// let input = array![[1.0, 2.0, 3.0],
@@ -202,7 +202,7 @@ where
             // Handle 1D array
             let input_1d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
@@ -221,7 +221,7 @@ where
             // Handle 2D array
             let input_2d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 2D array".into())
                 })?;
@@ -403,7 +403,7 @@ where
             // 1D case - direct iteration
             let input_1d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
@@ -411,7 +411,7 @@ where
             let padded_input = pad_array(&input_1d, &pad_width, mode, None)?;
             let mut output_1d = output
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix1>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix1>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 1D array".into())
                 })?;
@@ -451,7 +451,7 @@ where
             // 2D case - direct access with (i,j) indexing
             let input_2d = input
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 2D array".into())
                 })?;
@@ -459,7 +459,7 @@ where
             let padded_input = pad_array(&input_2d, &pad_width, mode, None)?;
             let mut output_2d = output
                 .to_owned()
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| {
                     NdimageError::DimensionError("Failed to convert to 2D array".into())
                 })?;
@@ -602,7 +602,7 @@ where
         // Initialize extrema with the first element in the window
         let extrema_coords = coords.clone();
         let padded_dyn = padded_input.view().into_dyn();
-        let mut extrema = padded_dyn[ndarray::IxDyn(&extrema_coords)];
+        let mut extrema = padded_dyn[scirs2_core::ndarray::IxDyn(&extrema_coords)];
 
         // Generate all window coordinates around this position
         let mut window_coords = vec![0; ndim];
@@ -616,7 +616,7 @@ where
             }
 
             // Get value at this window position
-            let val = padded_dyn[ndarray::IxDyn(&actual_coords)];
+            let val = padded_dyn[scirs2_core::ndarray::IxDyn(&actual_coords)];
 
             // Update extrema based on filter _type
             match filter_type {
@@ -649,7 +649,7 @@ where
 
         // Set the extrema value in the output
         let mut output_dyn = output.view_mut().into_dyn();
-        output_dyn[ndarray::IxDyn(&coords)] = extrema;
+        output_dyn[scirs2_core::ndarray::IxDyn(&coords)] = extrema;
     }
 
     Ok(output.clone())
@@ -791,7 +791,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array, Array3};
+    use scirs2_core::ndarray::{array, Array3};
 
     // NOTE: 1D tests are currently disabled due to stack overflow issues
     // We'll need to optimize the implementation before re-enabling them
@@ -859,7 +859,7 @@ mod tests {
     #[test]
     fn test_extrema_filter_4d() {
         // Test 4D arrays to ensure general n-dimensional support
-        let input = ndarray::Array4::<f64>::from_elem((2, 2, 2, 2), 3.0);
+        let input = scirs2_core::ndarray::Array4::<f64>::from_elem((2, 2, 2, 2), 3.0);
 
         let min_result = minimum_filter(&input, &[2, 2, 2, 2], None, None).unwrap();
         let max_result = maximum_filter(&input, &[2, 2, 2, 2], None, None).unwrap();

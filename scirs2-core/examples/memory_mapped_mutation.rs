@@ -65,10 +65,10 @@ fn basic_mutation_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Erro
 
     // Get a view of the initial data
     {
-        let array_view = mmap.as_array::<ndarray::Ix1>()?;
+        let array_view = mmap.as_array::<scirs2_core::ndarray::Ix1>()?;
         println!(
             "Before mutation (first 10 elements): {:?}",
-            array_view.slice(ndarray::s![0..10])
+            array_view.slice(scirs2_core::ndarray::s![0..10])
         );
     }
 
@@ -87,10 +87,10 @@ fn basic_mutation_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Erro
 
     // View the array after mutation
     {
-        let array_view = mmap.as_array::<ndarray::Ix1>()?;
+        let array_view = mmap.as_array::<scirs2_core::ndarray::Ix1>()?;
         println!(
             "After mutation (first 10 elements): {:?}",
-            array_view.slice(ndarray::s![0..10])
+            array_view.slice(scirs2_core::ndarray::s![0..10])
         );
         println!("Modified positions: 0, 10, 20, ..., 90");
     }
@@ -98,11 +98,11 @@ fn basic_mutation_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Erro
 
     // Reopen the file to verify changes were saved
     let mmap_reopened = create_mmap(&data, &file_path, AccessMode::ReadOnly, 0)?;
-    let array_reopened = mmap_reopened.as_array::<ndarray::Ix1>()?;
+    let array_reopened = mmap_reopened.as_array::<scirs2_core::ndarray::Ix1>()?;
 
     println!(
         "Reopened array (first 10 elements): {:?}",
-        array_reopened.slice(ndarray::s![0..10])
+        array_reopened.slice(scirs2_core::ndarray::s![0..10])
     );
     println!("Verification of selected elements:");
     for i in 0..10 {
@@ -176,7 +176,7 @@ fn chunked_mutation_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Er
     // Verify some key points in the array
     println!("Verifying modifications at key points:");
 
-    let array_reopened = mmap_reopened.as_array::<ndarray::Ix1>()?;
+    let array_reopened = mmap_reopened.as_array::<scirs2_core::ndarray::Ix1>()?;
 
     for check_idx in 0..num_chunks {
         let pos = check_idx * chunk_size;

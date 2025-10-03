@@ -2,8 +2,8 @@
 //!
 //! This module provides implementations for forecasting future values of time series.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::decomposition::{common::DecompositionModel, exponential::exponential_decomposition};
@@ -112,7 +112,7 @@ impl Default for ExpSmoothingParams {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::moving_average_forecast;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -224,7 +224,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::exponential_smoothing_forecast;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -336,7 +336,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::{holt_winters_forecast, ExpSmoothingParams};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 9.0, 8.0];
@@ -628,7 +628,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::{arima_forecast, ArimaParams};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -878,7 +878,7 @@ struct ModelFitMetrics<F> {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::auto_arima;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -928,7 +928,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::{auto_arima_with_options, AutoArimaOptions};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -1336,7 +1336,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::forecasting::auto_ets;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -1560,8 +1560,8 @@ fn min<T: Ord>(a: T, b: T) -> T {
 /// Ensemble forecasting methods
 pub mod ensemble {
     use super::*;
-    use ndarray::Array1;
-    use num_traits::{Float, FromPrimitive};
+    use scirs2_core::ndarray::Array1;
+    use scirs2_core::numeric::{Float, FromPrimitive};
     use std::fmt::Debug;
 
     /// Configuration for ensemble forecasting
@@ -1766,8 +1766,12 @@ pub mod ensemble {
 
         // Split data for training and validation
         let split_point = data.len() - config.horizon;
-        let train_data = data.slice(ndarray::s![..split_point]).to_owned();
-        let validation_data = data.slice(ndarray::s![split_point..]).to_owned();
+        let train_data = data
+            .slice(scirs2_core::ndarray::s![..split_point])
+            .to_owned();
+        let validation_data = data
+            .slice(scirs2_core::ndarray::s![split_point..])
+            .to_owned();
 
         let mut individual_forecasts = Vec::new();
         let mut model_names = Vec::new();
@@ -2002,21 +2006,25 @@ pub mod ensemble {
             }
 
             let train_data = if test_start == 0 {
-                data.slice(ndarray::s![test_end..]).to_owned()
+                data.slice(scirs2_core::ndarray::s![test_end..]).to_owned()
             } else {
-                let train_part1 = data.slice(ndarray::s![..test_start]).to_owned();
-                let train_part2 = data.slice(ndarray::s![test_end..]).to_owned();
+                let train_part1 = data
+                    .slice(scirs2_core::ndarray::s![..test_start])
+                    .to_owned();
+                let train_part2 = data.slice(scirs2_core::ndarray::s![test_end..]).to_owned();
                 let mut combined = Array1::zeros(train_part1.len() + train_part2.len());
                 combined
-                    .slice_mut(ndarray::s![..train_part1.len()])
+                    .slice_mut(scirs2_core::ndarray::s![..train_part1.len()])
                     .assign(&train_part1);
                 combined
-                    .slice_mut(ndarray::s![train_part1.len()..])
+                    .slice_mut(scirs2_core::ndarray::s![train_part1.len()..])
                     .assign(&train_part2);
                 combined
             };
 
-            let test_data = data.slice(ndarray::s![test_start..test_end]).to_owned();
+            let test_data = data
+                .slice(scirs2_core::ndarray::s![test_start..test_end])
+                .to_owned();
             let horizon = test_data.len();
 
             if train_data.len() < 10 {

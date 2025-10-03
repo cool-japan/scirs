@@ -1,9 +1,9 @@
 //! Basic undirected graph implementation
 
-use ndarray::{Array1, Array2};
 use petgraph::graph::{Graph as PetGraph, NodeIndex};
 use petgraph::visit::EdgeRef;
 use petgraph::Undirected;
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 use super::types::{Edge, EdgeWeight, Node};
@@ -54,7 +54,7 @@ impl<N: Node + std::fmt::Debug, E: EdgeWeight, Ix: IndexType> Graph<N, E, Ix> {
     /// Get the adjacency matrix representation of the graph
     pub fn adjacency_matrix(&self) -> Array2<E>
     where
-        E: num_traits::Zero + num_traits::One + Copy,
+        E: scirs2_core::numeric::Zero + scirs2_core::numeric::One + Copy,
     {
         let n = self.graph.node_count();
         let mut adj_mat = Array2::zeros((n, n));

@@ -4,7 +4,7 @@
 //! along with their implementations for handling quantized matrix data.
 
 use half::{bf16, f16};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 use super::types::QuantizedDataType;
 

@@ -5,8 +5,8 @@
 
 use super::{basic_operations::gpu_convolve_2d, context::GpuVisionContext};
 use crate::error::{Result, VisionError};
-use ndarray::{Array2, ArrayView2};
 use scirs2_core::gpu::GpuBackend;
+use scirs2_core::ndarray::{Array2, ArrayView2};
 
 /// GPU-accelerated batch processing
 ///

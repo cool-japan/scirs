@@ -29,8 +29,8 @@ pub use concrete_gpu_backends::OpenCLContext;
 // pub use concrete_gpu_backends::MetalContext;
 
 use crate::error::{NdimageError, NdimageResult};
-use ndarray::{Array, ArrayView, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -299,7 +299,7 @@ where
     if input.ndim() == 2 {
         let input_2d = input
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| NdimageError::DimensionError("Failed to convert to 2D array".into()))?;
 
         if sigma.len() >= 2 {
@@ -372,7 +372,7 @@ pub fn auto_backend() -> NdimageResult<BackendExecutor> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_backend_selection() {

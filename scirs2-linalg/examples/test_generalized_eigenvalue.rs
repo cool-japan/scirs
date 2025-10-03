@@ -3,7 +3,7 @@
 //! This example demonstrates the usage of the newly implemented generalized
 //! eigenvalue functions: eig_gen, eigh_gen, eigvals_gen, and eigvalsh_gen.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::{eig_gen, eigh_gen, eigvals_gen, eigvalsh_gen};
 
 #[allow(dead_code)]

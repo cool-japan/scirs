@@ -6,8 +6,8 @@
 use crate::error::{SignalError, SignalResult};
 use crate::lombscargle::lombscargle;
 use crate::lombscargle_enhanced::{lombscargle_enhanced, LombScargleConfig};
-use rand::seq::SliceRandom;
-use rand::{Rng, SeedableRng};
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::{Rng, SeedableRng};
 use std::f64::consts::PI;
 
 use super::config::{CrossValidationResults, StatisticalSignificanceResults};
@@ -60,7 +60,7 @@ pub fn test_enhanced_statistical_significance(
 
     let mut max_powers = Vec::new();
     let mut p_values = Vec::new();
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::thread_rng();
 
     // Multiple noise realizations for statistical validation
     for _ in 0..n_trials {
@@ -139,7 +139,7 @@ pub fn kolmogorov_smirnov_uniformity_test(p_values: &[f64]) -> f64 {
 pub fn estimate_statistical_power(implementation: &str, times: &[f64]) -> SignalResult<f64> {
     let mut detections = 0;
     let n_trials = 50; // Reduced for performance
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::thread_rng();
 
     for _ in 0..n_trials {
         // Inject known signal with noise
@@ -188,7 +188,7 @@ pub fn test_significance_calibration(implementation: &str, times: &[f64]) -> Sig
     for &alpha in &significance_levels {
         let n_trials = 100; // Reduced for performance
         let mut false_positives = 0;
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
 
         for _ in 0..n_trials {
             // Pure noise
@@ -219,7 +219,7 @@ pub fn test_significance_calibration(implementation: &str, times: &[f64]) -> Sig
 pub fn test_enhanced_bootstrap_coverage(times: &[f64]) -> SignalResult<f64> {
     let n_tests = 20; // Reduced for performance
     let mut coverage_scores = Vec::new();
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::thread_rng();
 
     for _ in 0..n_tests {
         // Generate known signal with noise
@@ -290,7 +290,7 @@ pub fn test_cross_validation(
     let n = 200;
     let t: Vec<f64> = (0..n).map(|i| i as f64 * 0.01).collect();
     let f_true = 8.0;
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::thread_rng();
     let signal: Vec<f64> = t
         .iter()
         .map(|&ti| (2.0 * PI * f_true * ti).sin() + 0.1 * rng.gen_range(-1.0..1.0))
@@ -395,7 +395,7 @@ pub fn perform_bootstrap_validation(
 ) -> SignalResult<f64> {
     let mut scores = Vec::new();
     let n = t.len();
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::thread_rng();
 
     for _ in 0..n_bootstrap {
         // Bootstrap sample

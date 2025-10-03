@@ -4,7 +4,7 @@
 //! - Concept drift detection using statistical tests
 //! - Adaptive windowing strategies
 //! - Online anomaly detection
-//! - Real-time performance monitoring
+//! - Float-time performance monitoring
 //! - Ensemble-based drift detection
 
 pub mod alerts;
@@ -40,7 +40,7 @@ pub use window_management::{
 };
 
 use crate::error::{MetricsError, Result};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 

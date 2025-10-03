@@ -81,7 +81,7 @@ fn bench_quantiles(c: &mut Criterion) {
             |b, data| {
                 b.iter(|| {
                     for &q in &quantiles_to_test {
-                        black_box(quantile(&data.view(), q, QuantileInterpolation::Linear));
+                        let _ = black_box(quantile(&data.view(), q, QuantileInterpolation::Linear));
                     }
                 });
             },
@@ -189,7 +189,7 @@ fn bench_parallel_operations(c: &mut Criterion) {
     group.bench_function("multiple_means", |b| {
         b.iter(|| {
             for data in &datasets {
-                black_box(mean(&data.view()));
+                let _ = black_box(mean(&data.view()));
             }
         });
     });

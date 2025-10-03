@@ -10,7 +10,7 @@ use crate::registration::{
     RegistrationResult, TransformType,
 };
 use image::{DynamicImage, GrayImage};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Feature-based registration configuration
 #[derive(Debug, Clone)]

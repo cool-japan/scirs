@@ -1,5 +1,5 @@
-use ndarray::{array, Array2};
 use plotters::prelude::*;
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_stats::{huber_regression, ransac, theilslopes};
 
 #[allow(dead_code)]
@@ -141,7 +141,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &RED,
         ))?
         .label("Theil-Sen")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
 
     // Plot RANSAC regression line
     chart
@@ -154,7 +154,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &GREEN,
         ))?
         .label("RANSAC")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
 
     // Plot Huber regression line
     chart
@@ -167,7 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &MAGENTA,
         ))?
         .label("Huber")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &MAGENTA));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], MAGENTA));
 
     // Plot OLS regression line
     chart
@@ -180,12 +180,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &CYAN,
         ))?
         .label("OLS")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &CYAN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], CYAN));
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     println!("Plot saved as 'robust_regression_comparison.png'");
@@ -230,7 +230,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &BLACK,
         ))?
         .label("True Line (y = 2x)")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &BLACK));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], BLACK));
 
     // Plot all regression lines
     chart
@@ -243,7 +243,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &RED,
         ))?
         .label("Theil-Sen")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
 
     chart
         .draw_series(LineSeries::new(
@@ -255,7 +255,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &GREEN,
         ))?
         .label("RANSAC")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
 
     chart
         .draw_series(LineSeries::new(
@@ -267,7 +267,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &MAGENTA,
         ))?
         .label("Huber")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &MAGENTA));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], MAGENTA));
 
     chart
         .draw_series(LineSeries::new(
@@ -279,12 +279,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &CYAN,
         ))?
         .label("OLS")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &CYAN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], CYAN));
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     println!("Zoomed plot saved as 'robust_regression_comparison_zoom.png'");

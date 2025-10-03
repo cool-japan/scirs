@@ -5,9 +5,9 @@
 //! ensuring the FFT size has small prime factors.
 
 use crate::{next_fast_len, FFTResult};
-use ndarray::{s, Array1, ArrayBase, ArrayD, Data, Dimension};
-use num_complex::Complex;
-use num_traits::Zero;
+use scirs2_core::ndarray::{s, Array1, ArrayBase, ArrayD, Data, Dimension};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::Zero;
 
 /// Padding mode for FFT operations
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -421,7 +421,12 @@ where
             };
             padded
                 .slice_mut(s![start0..start0 + shape[0], start1..start1 + shape[1]])
-                .assign(&x_dyn.view().into_dimensionality::<ndarray::Ix2>().unwrap());
+                .assign(
+                    &x_dyn
+                        .view()
+                        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                        .unwrap(),
+                );
         }
         _ => {
             // For higher dimensions, just copy to origin

@@ -3,7 +3,7 @@
 //! This module provides the fundamental data structures and configurations
 //! used throughout the ensemble clustering system.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -160,7 +160,7 @@ impl ClusteringResult {
     ) -> Self {
         let n_clusters = labels
             .iter()
-            .map(|&x| x)
+            .copied()
             .filter(|&x| x >= 0)
             .max()
             .map(|x| x as usize + 1)
@@ -249,7 +249,7 @@ impl EnsembleResult {
     pub fn n_consensus_clusters(&self) -> usize {
         self.consensus_labels
             .iter()
-            .map(|&x| x)
+            .copied()
             .filter(|&x| x >= 0)
             .max()
             .map(|x| x as usize + 1)
@@ -429,7 +429,7 @@ impl DiversityMetrics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_ensemble_config_default() {

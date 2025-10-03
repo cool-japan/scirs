@@ -23,7 +23,7 @@ pub use model_partitioning::{
 pub use partial_reconfiguration::{
     DPRManager, PartialBitstream, PartialRegion, ReconfigurationState,
 use crate::error::Result;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::sync::Arc;
 /// Hardware acceleration configuration
 #[derive(Debug, Clone)]

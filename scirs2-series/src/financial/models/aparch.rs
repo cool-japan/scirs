@@ -43,7 +43,7 @@
 //! ## Basic APARCH(1,1) Model
 //! ```rust
 //! use scirs2_series::financial::models::aparch::AparchModel;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = AparchModel::new();
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -58,7 +58,7 @@
 //! ## Model Interpretation
 //! ```rust
 //! use scirs2_series::financial::models::aparch::AparchModel;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = AparchModel::new();
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -82,8 +82,8 @@
 //! }
 //! ```
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -182,7 +182,7 @@ impl<F: Float + Debug + Clone + std::iter::Sum> AparchModel<F> {
     /// # Examples
     /// ```rust
     /// use scirs2_series::financial::models::aparch::AparchModel;
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     ///
     /// let mut model = AparchModel::<f64>::new();
     /// let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.003, 0.007, -0.001, 0.004];
@@ -462,7 +462,7 @@ impl<F: Float + Debug + Clone + std::iter::Sum> AparchModel<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_aparch_basic() {

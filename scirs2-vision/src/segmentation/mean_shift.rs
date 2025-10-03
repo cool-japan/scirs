@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, Rgb, RgbImage};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::parallel_ops::*;
 use std::collections::HashMap;
 
@@ -99,7 +99,7 @@ pub fn mean_shift(img: &DynamicImage, params: &MeanShiftParams) -> Result<Array2
         let updates: Vec<_> = (0..n_pixels)
             .into_par_iter()
             .map(|idx| {
-                let current_mode = modes.slice(ndarray::s![idx, ..]).to_owned();
+                let current_mode = modes.slice(scirs2_core::ndarray::s![idx, ..]).to_owned();
                 compute_mean_shift(
                     &features,
                     &current_mode,
@@ -111,15 +111,17 @@ pub fn mean_shift(img: &DynamicImage, params: &MeanShiftParams) -> Result<Array2
 
         // Update modes
         for (idx, new_mode) in updates.into_iter().enumerate() {
-            modes.slice_mut(ndarray::s![idx, ..]).assign(&new_mode);
+            modes
+                .slice_mut(scirs2_core::ndarray::s![idx, ..])
+                .assign(&new_mode);
         }
 
         // Check convergence
         let mut max_shift = 0.0f32;
         for i in 0..n_pixels {
             let shift = euclidean_distance(
-                &modes.slice(ndarray::s![i, ..]).to_owned(),
-                &old_modes.slice(ndarray::s![i, ..]).to_owned(),
+                &modes.slice(scirs2_core::ndarray::s![i, ..]).to_owned(),
+                &old_modes.slice(scirs2_core::ndarray::s![i, ..]).to_owned(),
             );
             if shift > max_shift {
                 max_shift = shift;
@@ -182,7 +184,7 @@ fn compute_mean_shift(
     let mut weight_sum = 0.0f32;
 
     for i in 0..n_points {
-        let feature = features.slice(ndarray::s![i, ..]);
+        let feature = features.slice(scirs2_core::ndarray::s![i, ..]);
 
         // Compute spatial distance
         let spatial_dist =
@@ -234,8 +236,8 @@ fn cluster_modes(modes: &Array2<f32>, spatial_bandwidth: f32, colorbandwidth: f3
                 continue;
             }
 
-            let mode_i = modes.slice(ndarray::s![i, ..]);
-            let mode_j = modes.slice(ndarray::s![j, ..]);
+            let mode_i = modes.slice(scirs2_core::ndarray::s![i, ..]);
+            let mode_j = modes.slice(scirs2_core::ndarray::s![j, ..]);
 
             // Check if _modes are close enough
             let spatial_dist =

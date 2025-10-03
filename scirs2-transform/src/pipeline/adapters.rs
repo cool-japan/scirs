@@ -1,6 +1,6 @@
 //! Adapter implementations for existing transformers to work with pipelines
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::any::Any;
 
 use crate::{

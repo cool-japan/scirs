@@ -13,8 +13,8 @@ use crate::error::{NeuralError, Result};
 use crate::jit::{JITCompiler, JITOperation};
 use crate::performance::{PerformanceOptimizer, PerformanceStats};
 use crate::tpu::{TPUOperation, TPURuntime};
-use ndarray::ArrayD;
-use num_traits::Float;
+use scirs2_core::ndarray::ArrayD;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -569,7 +569,7 @@ impl UnifiedPerformanceManager {
         if k != b.shape()[0] {
             return Err(NeuralError::DimensionMismatch(
                 "Matrix dimensions don't match for multiplication".to_string(),
-        let mut result = ndarray::Array::zeros((m, n));
+        let mut result = scirs2_core::ndarray::Array::zeros((m, n));
         for i in 0..m {
             for j in 0..n {
                 let mut sum = F::zero();
@@ -594,7 +594,7 @@ impl UnifiedPerformanceManager {
     /// Simple serial reduction sum
     fn serial_reduce_sum<F: Float + Debug + Sum>(&self, input: &ArrayD<F>) -> ArrayD<F> {
         let sum_value = input.iter().copied().sum();
-        ndarray::arr0(sum_value).into_dyn()
+        scirs2_core::ndarray::arr0(sum_value).into_dyn()
     /// Simple serial reduction mean
     fn serial_reduce_mean<F: Float + Debug + Sum + Div<Output = F>>(
         input: &ArrayD<F>,
@@ -602,7 +602,7 @@ impl UnifiedPerformanceManager {
         let sum_value: F = input.iter().copied().sum();
         let count = F::from(input.len()).unwrap_or_else(|| F::one());
         let mean_value = sum_value / count;
-        ndarray::arr0(mean_value).into_dyn()
+        scirs2_core::ndarray::arr0(mean_value).into_dyn()
     /// Helper functions for caching and monitoring
     fn create_operation_key<F: Float + Debug>(
     ) -> OperationKey {
@@ -868,7 +868,7 @@ impl std::fmt::Display for OptimizationChoice {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
     #[test]
     fn test_unified_performance_manager_creation() {
         let manager = UnifiedPerformanceManager::new();

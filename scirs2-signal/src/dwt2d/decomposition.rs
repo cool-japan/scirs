@@ -6,9 +6,9 @@
 use super::types::{Dwt2dConfig, Dwt2dResult, MemoryPool};
 use crate::dwt::{self, Wavelet};
 use crate::error::{SignalError, SignalResult};
-use ndarray::s;
-use ndarray::Array2;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_positive;
@@ -94,7 +94,7 @@ fn return_temp_buffer(buffer: Vec<f64>) {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::decomposition::dwt2d_decompose;
 ///
@@ -155,7 +155,7 @@ where
     let mut extreme_count = 0;
 
     for ((i, j), &val) in data.indexed_iter() {
-        match num_traits::cast::cast::<T, f64>(val) {
+        match NumCast::from(val) {
             Some(converted) => {
                 // Check for NaN, infinity, and extreme values
                 if converted.is_nan() {
@@ -252,7 +252,7 @@ where
         let row_results: Result<Vec<(usize, Vec<f64>, Vec<f64>)>, SignalError> = (0..rows)
             .into_par_iter()
             .map(|i| {
-                let row = data_f64.slice(ndarray::s![i, ..]).to_vec();
+                let row = data_f64.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
                 let (approx, detail) = dwt::dwt_decompose(&row, wavelet, mode).map_err(|e| {
                     SignalError::ComputationError(format!("Row transform failed: {}", e))
                 })?;
@@ -277,7 +277,7 @@ where
     #[cfg(not(feature = "parallel"))]
     {
         for i in 0..rows {
-            let row = data_f64.slice(ndarray::s![i, ..]).to_vec();
+            let row = data_f64.slice(scirs2_core::ndarray::s![i, ..]).to_vec();
             let (approx, detail) = dwt::dwt_decompose(&row, wavelet, mode)?;
 
             for j in 0..approx.len() {
@@ -298,7 +298,7 @@ where
             .into_par_iter()
             .map(|j| {
                 // Process low-pass filtered rows
-                let col_lo = rows_lo.slice(ndarray::s![.., j]).to_vec();
+                let col_lo = rows_lo.slice(scirs2_core::ndarray::s![.., j]).to_vec();
                 let (approx_lo, detail_lo) =
                     dwt::dwt_decompose(&col_lo, wavelet, mode).map_err(|e| {
                         SignalError::ComputationError(format!(
@@ -308,7 +308,7 @@ where
                     })?;
 
                 // Process high-pass filtered rows
-                let col_hi = rows_hi.slice(ndarray::s![.., j]).to_vec();
+                let col_hi = rows_hi.slice(scirs2_core::ndarray::s![.., j]).to_vec();
                 let (approx_hi, detail_hi) =
                     dwt::dwt_decompose(&col_hi, wavelet, mode).map_err(|e| {
                         SignalError::ComputationError(format!(
@@ -346,7 +346,7 @@ where
     {
         for j in 0..output_cols {
             // Process low-pass filtered rows
-            let col_lo = rows_lo.slice(ndarray::s![.., j]).to_vec();
+            let col_lo = rows_lo.slice(scirs2_core::ndarray::s![.., j]).to_vec();
             let (approx, detail) = dwt::dwt_decompose(&col_lo, wavelet, mode)?;
 
             for i in 0..approx.len() {
@@ -358,7 +358,7 @@ where
             }
 
             // Process high-pass filtered rows
-            let col_hi = rows_hi.slice(ndarray::s![.., j]).to_vec();
+            let col_hi = rows_hi.slice(scirs2_core::ndarray::s![.., j]).to_vec();
             let (approx, detail) = dwt::dwt_decompose(&col_hi, wavelet, mode)?;
 
             for i in 0..approx.len() {
@@ -399,7 +399,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose_optimized, Dwt2dConfig};
 ///
@@ -452,7 +452,7 @@ where
 
     // Copy and convert data efficiently
     for ((i, j), &val) in data.indexed_iter() {
-        match num_traits::cast::cast::<T, f64>(val) {
+        match NumCast::from(val) {
             Some(converted) => data_buffer[i * cols + j] = converted,
             None => {
                 return Err(SignalError::ValueError(
@@ -654,7 +654,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::decomposition::wavedec2;
 ///

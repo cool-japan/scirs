@@ -17,7 +17,7 @@
 //!
 //! ```
 //! use scirs2_metrics::custom::{ClassificationMetric, MetricResult};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! struct CustomAccuracy;
 //!
@@ -49,7 +49,7 @@
 //!
 //! ```
 //! use scirs2_metrics::custom::{RegressionMetric, MetricResult};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! struct LogCoshError;
 //!
@@ -81,8 +81,8 @@
 //! ```
 
 use crate::error::Result as MetricsResult;
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt;
 
 /// Result type for custom metric computations
@@ -394,8 +394,8 @@ macro_rules! classification_metric {
 
             fn compute(
                 &self,
-                y_true: &ndarray::Array1<i32>,
-                ypred: &ndarray::Array1<i32>,
+                y_true: &scirs2_core::ndarray::Array1<i32>,
+                ypred: &scirs2_core::ndarray::Array1<i32>,
             ) -> $crate::custom::MetricResult<f64> {
                 $compute(y_true, ypred)
             }
@@ -420,8 +420,8 @@ macro_rules! regression_metric {
 
             fn compute(
                 &self,
-                y_true: &ndarray::Array1<f64>,
-                ypred: &ndarray::Array1<f64>,
+                y_true: &scirs2_core::ndarray::Array1<f64>,
+                ypred: &scirs2_core::ndarray::Array1<f64>,
             ) -> $crate::custom::MetricResult<f64> {
                 $compute(y_true, ypred)
             }
@@ -436,7 +436,7 @@ macro_rules! regression_metric {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     struct TestAccuracy;
 

@@ -3,6 +3,8 @@
 //! This module contains predefined regex patterns for extracting
 //! common entities and information from text.
 
+#![allow(missing_docs)]
+
 use lazy_static::lazy_static;
 use regex::Regex;
 

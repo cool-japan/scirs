@@ -40,7 +40,7 @@ pub use auto_perspective_correction as correct_perspective;
 
 /// Detect quadrilateral in an image (simplified wrapper around auto_perspective_correction)
 pub fn detect_quad(
-    image: &ndarray::Array2<f64>,
+    image: &scirs2_core::ndarray::Array2<f64>,
     edge_threshold: f64,
     min_quad_area: f64,
 ) -> crate::error::Result<[(f64, f64); 4]> {
@@ -62,7 +62,7 @@ pub fn detect_quad(
 mod tests {
     use super::*;
     use image::{DynamicImage, GenericImageView, Pixel, Rgb, RgbImage, Rgba};
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_perspective_identity() {

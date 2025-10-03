@@ -1,4 +1,3 @@
-#![cfg(feature = "gpu")]
 //! GPU-accelerated I/O operations with comprehensive backend support
 //!
 //! This module provides a complete GPU acceleration framework for I/O operations
@@ -22,8 +21,8 @@ pub use memory_management::{
 };
 
 use crate::error::Result;
-use ndarray::{Array1, ArrayView1};
 use scirs2_core::gpu::{GpuBackend, GpuDataType, GpuDevice};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Unified GPU I/O interface combining all GPU acceleration capabilities
 #[derive(Debug)]
@@ -233,14 +232,23 @@ impl Default for UnifiedGpuProcessor {
 /// Comprehensive GPU capabilities information
 #[derive(Debug, Clone)]
 pub struct GpuCapabilities {
+    /// GPU backend type
     pub backend: GpuBackend,
+    /// Total memory in gigabytes
     pub memory_gb: f64,
+    /// Number of compute units
     pub compute_units: usize,
+    /// Whether FP64 operations are supported
     pub supports_fp64: bool,
+    /// Whether FP16 operations are supported
     pub supports_fp16: bool,
+    /// Compression throughput in GB/s
     pub compression_throughput_gbps: f64,
+    /// Number of memory pools
     pub memory_pools: usize,
+    /// Total size of all pools
     pub total_pool_size: usize,
+    /// Overall performance score (0.0-1.0)
     pub performance_score: f64,
 }
 
@@ -285,16 +293,22 @@ impl GpuCapabilities {
 /// Unified GPU performance statistics
 #[derive(Debug, Clone)]
 pub struct UnifiedGpuStats {
+    /// GPU backend type
     pub backend: GpuBackend,
+    /// Compression performance statistics
     pub compression_stats: CompressionStats,
+    /// Memory pool statistics
     pub memory_stats: GlobalPoolStats,
+    /// Overall efficiency score (0.0-1.0)
     pub overall_efficiency: f64,
 }
 
 /// Maintenance operation report
 #[derive(Debug)]
 pub struct MaintenanceReport {
+    /// Number of buffers freed during maintenance
     pub freed_buffers: usize,
+    /// Timestamp of maintenance operation
     pub timestamp: std::time::Instant,
 }
 
@@ -351,10 +365,15 @@ pub mod utils {
 /// GPU benchmark results
 #[derive(Debug, Clone)]
 pub struct GpuBenchmarkResults {
+    /// GPU backend type
     pub backend: GpuBackend,
+    /// Memory bandwidth in GB/s
     pub memory_bandwidth_gbps: f64,
+    /// Compute throughput (arbitrary units)
     pub compute_throughput: f64,
+    /// Compression throughput in GB/s
     pub compression_throughput: f64,
+    /// Overall performance score (0.0-1.0)
     pub overall_score: f64,
 }
 
@@ -380,7 +399,7 @@ mod tests {
     #[test]
     fn test_gpu_availability_check() {
         // Should always return true due to CPU fallback
-        assert!(true); // Always pass since CPU is available
+        // Test passes if it doesn't panic (CPU is always available)
     }
 
     #[test]

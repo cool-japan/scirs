@@ -119,13 +119,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 #[allow(dead_code)]
 fn simulate_epoch_training(current_val_loss: f64, learningrate: f64) -> (f64, f64) {
     // Simulate training loss
-    let train_loss = current_val_loss * (0.8 + rand::random::<f64>() * 0.2);
+    let train_loss = current_val_loss * (0.8 + scirs2_core::random::random::<f64>() * 0.2);
 
     // Calculate new validation loss
     let base_improvement = if current_val_loss > 0.2 {
-        0.05 + rand::random::<f64>() * 0.05
+        0.05 + scirs2_core::random::random::<f64>() * 0.05
     } else {
-        0.01 + rand::random::<f64>() * 0.01
+        0.01 + scirs2_core::random::random::<f64>() * 0.01
     };
 
     // Learning rate effect:

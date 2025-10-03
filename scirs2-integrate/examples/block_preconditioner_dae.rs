@@ -9,7 +9,7 @@
 //!    - With diagonal preconditioning
 //!    - With block-structured preconditioning
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_integrate::dae::{krylov_bdf_semi_explicit_dae, DAEIndex, DAEOptions, DAEType};
 use std::time::Instant;
 

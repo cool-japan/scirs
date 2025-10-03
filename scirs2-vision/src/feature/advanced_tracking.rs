@@ -23,7 +23,7 @@
 
 use crate::error::{Result, VisionError};
 use crate::gpu_ops::GpuVisionContext;
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::VecDeque;
 use std::time::Instant;
 
@@ -1175,7 +1175,7 @@ mod tests {
         let associator = HungarianAssociation::new();
 
         // Create a simple 2x2 cost matrix
-        let costmatrix = ndarray::arr2(&[[0.1, 0.9], [0.8, 0.2]]);
+        let costmatrix = scirs2_core::ndarray::arr2(&[[0.1, 0.9], [0.8, 0.2]]);
 
         let assignments = associator.solve(&costmatrix).unwrap();
         assert!(!assignments.is_empty());

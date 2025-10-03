@@ -118,7 +118,7 @@
 //! 4. **Recurrence relations** for computing derivatives
 //! 5. **Connection formulas** to extend the domain of validity
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 // Lookup tables for Airy functions at specific points for interpolation
@@ -465,7 +465,7 @@ pub fn bip<F: Float + FromPrimitive + Debug>(x: F) -> F {
 
 /// Complex number support for Airy functions
 pub mod complex {
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use std::f64::consts::PI;
 
     /// Complex Airy function of the first kind, Ai(z)
@@ -486,7 +486,7 @@ pub mod complex {
     ///
     /// ```
     /// use scirs2_special::ai_complex;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// let z = Complex64::new(1.0, 0.0);
     /// let result = ai_complex(z);
@@ -529,7 +529,7 @@ pub mod complex {
     ///
     /// ```
     /// use scirs2_special::aip_complex;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// let z = Complex64::new(1.0, 0.0);
     /// let result = aip_complex(z);
@@ -572,7 +572,7 @@ pub mod complex {
     ///
     /// ```
     /// use scirs2_special::bi_complex;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// let z = Complex64::new(1.0, 0.0);
     /// let result = bi_complex(z);
@@ -615,7 +615,7 @@ pub mod complex {
     ///
     /// ```
     /// use scirs2_special::bip_complex;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// let z = Complex64::new(1.0, 0.0);
     /// let result = bip_complex(z);
@@ -1062,11 +1062,11 @@ pub fn ai_zeros<F: Float + FromPrimitive + Debug>(k: usize) -> crate::SpecialRes
 
     // Use known values for the first few zeros for better accuracy
     if let Some(known_zero) = match k {
-        1 => Some(-2.33810741045976703849),
-        2 => Some(-4.08794944413097061664),
-        3 => Some(-5.52055982809555105913),
-        4 => Some(-6.78670809007175899878),
-        5 => Some(-7.94413358712085312314),
+        1 => Some(-2.338_107_410_459_767),
+        2 => Some(-4.087_949_444_130_97),
+        3 => Some(-5.520_559_828_095_551),
+        4 => Some(-6.786_708_090_071_759),
+        5 => Some(-7.944_133_587_120_853),
         _ => None,
     } {
         return Ok(F::from_f64(known_zero).unwrap());
@@ -1125,11 +1125,11 @@ pub fn bi_zeros<F: Float + FromPrimitive + Debug>(k: usize) -> crate::SpecialRes
 
     // Use known values for the first few zeros for better accuracy
     if let Some(known_zero) = match k {
-        1 => Some(-1.17371322270912792491),
-        2 => Some(-3.27109330283635271568),
-        3 => Some(-4.83073784166201593267),
-        4 => Some(-6.16985212831289398589),
-        5 => Some(-7.37676207936776371359),
+        1 => Some(-1.173_713_222_709_128),
+        2 => Some(-3.271_093_302_836_353),
+        3 => Some(-4.830_737_841_662_016),
+        4 => Some(-6.169_852_128_312_894),
+        5 => Some(-7.376_762_079_367_763),
         _ => None,
     } {
         return Ok(F::from_f64(known_zero).unwrap());

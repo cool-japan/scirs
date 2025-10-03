@@ -3,8 +3,8 @@
 //! This module provides adaptive machine learning algorithms that can learn
 //! from streaming data, including adaptive linear regression and ARIMA models.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 

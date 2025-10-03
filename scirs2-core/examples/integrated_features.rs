@@ -51,8 +51,8 @@ fn main() {
 ))]
 #[allow(dead_code)]
 fn run_integrated_example() {
-    use ndarray::IxDyn;
-    use rand_distr::Normal;
+    use scirs2_core::ndarray::IxDyn;
+    use scirs2_core::random::Normal;
 
     // Initialize logging
     scirs2_core::logging::set_level(LogLevel::Debug);

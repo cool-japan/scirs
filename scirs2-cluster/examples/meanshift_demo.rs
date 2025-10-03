@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..cluster1_size {
         for j in 0..n_features {
             // Generate random normal values with mean 0.0 and std 1.0
-            cluster1[[i, j]] = rng.gen::<f64>() * 1.0 + 0.0;
+            cluster1[[i, j]] = rng.random::<f64>() * 1.0 + 0.0;
         }
     }
 
@@ -63,7 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..cluster2_size {
         for j in 0..n_features {
             // Generate random normal values with mean 5.0 and std 1.0
-            cluster2[[i, j]] = rng.gen::<f64>() * 1.0 + 5.0;
+            cluster2[[i, j]] = rng.random::<f64>() * 1.0 + 5.0;
         }
     }
 
@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..cluster3_size {
         for j in 0..n_features {
             // Generate random normal values with mean 0.0 and std 1.0
-            cluster3[[i, j]] = rng.gen::<f64>() * 1.0 + 0.0;
+            cluster3[[i, j]] = rng.random::<f64>() * 1.0 + 0.0;
         }
     }
 
@@ -153,7 +153,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..noise_size {
         for j in 0..n_features {
             // Generate uniform random values between -10.0 and 20.0
-            noise[[i, j]] = rng.gen::<f64>() * 30.0 - 10.0;
+            noise[[i, j]] = rng.random::<f64>() * 30.0 - 10.0;
         }
     }
 

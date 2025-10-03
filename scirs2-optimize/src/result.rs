@@ -2,8 +2,8 @@
 //!
 //! This module defines the common result structures for optimization algorithms.
 
-use ndarray::Array1;
-use num_traits::Zero;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Zero;
 use std::fmt;
 
 /// A structure that contains the results of an optimization.

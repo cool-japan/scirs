@@ -5,7 +5,7 @@
 
 use crate::error::InterpolateResult;
 use crate::traits::InterpolationFloat;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Generate large test data with sine wave pattern
 pub fn create_large_test_data<T: InterpolationFloat>(
@@ -148,7 +148,7 @@ pub fn create_noisy_data<T: InterpolationFloat>(
     // Add noise (simplified - real implementation would use proper random number generation)
     for (i, yi) in y.iter_mut().enumerate() {
         let noise = T::from_f64(noise_level * ((i as f64 * 12345.0).sin() * 0.1)).unwrap();
-        *yi = *yi + noise;
+        *yi += noise;
     }
 
     Ok((x, y))

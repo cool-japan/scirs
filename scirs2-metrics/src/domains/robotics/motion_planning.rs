@@ -8,8 +8,8 @@
 
 use super::core::{TrajectoryPoint, Pose, ErrorStatistics, RealTimePerformanceMetrics};
 use crate::error::Result;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 

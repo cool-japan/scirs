@@ -1,11 +1,11 @@
 //! Test enhanced Advanced clustering functionality
 //! This test focuses only on the cluster module without dependencies on other modules
 
-use ndarray::Array2;
 use scirs2_cluster::advanced_clustering::AdvancedClusterer;
 use scirs2_cluster::advanced_visualization::{
     AdvancedVisualizationConfig, AdvancedVisualizer, QuantumColorScheme, VisualizationExportFormat,
 };
+use scirs2_core::ndarray::Array2;
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -367,7 +367,7 @@ fn test_full_enhanced_advanced(data: &Array2<f64>) -> Result<(), Box<dyn std::er
     // Verify cluster structure makes sense
     let num_clusters = result.centroids.nrows();
     assert!(
-        num_clusters >= 2 && num_clusters <= 8,
+        (2..=8).contains(&num_clusters),
         "Reasonable number of clusters"
     );
     assert_eq!(

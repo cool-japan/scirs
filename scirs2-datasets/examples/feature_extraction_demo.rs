@@ -3,7 +3,7 @@
 //! This example demonstrates the use of feature extraction and transformation utilities
 //! for preprocessing datasets before machine learning model training.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_datasets::{
     create_binned_features, load_iris, min_max_scale, polynomial_features, robust_scale,
     statistical_features, BinningStrategy,
@@ -126,8 +126,13 @@ fn main() {
     println!("  Binned features: {}", binned_iris.ncols());
 
     // Step 4: Extract statistical features
-    let stats_iris =
-        statistical_features(&iris.data.slice(ndarray::s![0..20, ..]).to_owned()).unwrap();
+    let stats_iris = statistical_features(
+        &iris
+            .data
+            .slice(scirs2_core::ndarray::s![0..20, ..])
+            .to_owned(),
+    )
+    .unwrap();
     println!("Step 4: Extracted statistical features (from first 20 samples)");
     println!("  Statistical features: {}", stats_iris.ncols());
     println!();

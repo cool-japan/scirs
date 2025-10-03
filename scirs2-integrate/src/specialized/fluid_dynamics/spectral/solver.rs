@@ -4,8 +4,8 @@
 //! in periodic domains using FFT-based approaches.
 
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, Array3};
-use num_complex::Complex;
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::Complex;
 
 use super::dealiasing::DealiasingStrategy;
 use super::fft_operations::{FFTOperations, FFTResult};

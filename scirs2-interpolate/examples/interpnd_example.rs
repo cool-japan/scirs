@@ -1,4 +1,4 @@
-use ndarray::{Array, Array1, Array2, IxDyn}; // arrayとDimは使用していない
+use scirs2_core::ndarray::{Array, Array1, Array2, IxDyn}; // arrayとDimは使用していない
 use scirs2_interpolate::interpnd::{
     make_interp_nd, make_interp_scattered, map_coordinates, ExtrapolateMode, InterpolationMethod,
     ScatteredInterpolationMethod, ScatteredInterpolatorParams,

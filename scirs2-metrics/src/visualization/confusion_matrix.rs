@@ -2,7 +2,7 @@
 //!
 //! This module provides tools for visualizing confusion matrices.
 
-use ndarray::{Array2, ArrayBase, Data, Ix2};
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Ix2};
 use std::error::Error;
 
 use super::{ColorMap, MetricVisualizer, PlotType, VisualizationData, VisualizationMetadata};
@@ -15,7 +15,7 @@ use crate::error::Result;
 #[derive(Debug, Clone)]
 pub struct ConfusionMatrixVisualizer<'a, T, S>
 where
-    T: Clone + PartialEq + std::fmt::Debug + std::hash::Hash + Ord + num_traits::NumCast,
+    T: Clone + PartialEq + std::fmt::Debug + std::hash::Hash + Ord + scirs2_core::numeric::NumCast,
     S: Data<Elem = T>,
 {
     /// Confusion matrix data
@@ -38,7 +38,13 @@ where
 
 impl<'a, T, S> ConfusionMatrixVisualizer<'a, T, S>
 where
-    T: Clone + PartialEq + std::fmt::Debug + std::hash::Hash + Ord + num_traits::NumCast + 'static,
+    T: Clone
+        + PartialEq
+        + std::fmt::Debug
+        + std::hash::Hash
+        + Ord
+        + scirs2_core::numeric::NumCast
+        + 'static,
     S: Data<Elem = T>,
 {
     /// Create a new ConfusionMatrixVisualizer from a confusion matrix
@@ -207,7 +213,13 @@ where
 
 impl<T, S> MetricVisualizer for ConfusionMatrixVisualizer<'_, T, S>
 where
-    T: Clone + PartialEq + std::fmt::Debug + std::hash::Hash + Ord + num_traits::NumCast + 'static,
+    T: Clone
+        + PartialEq
+        + std::fmt::Debug
+        + std::hash::Hash
+        + Ord
+        + scirs2_core::numeric::NumCast
+        + 'static,
     S: Data<Elem = T>,
 {
     fn prepare_data(&self) -> std::result::Result<VisualizationData, Box<dyn Error>> {
@@ -396,7 +408,13 @@ pub fn confusion_matrix_from_labels<'a, T, S>(
     normalize: bool,
 ) -> Result<Box<dyn MetricVisualizer + 'a>>
 where
-    T: Clone + PartialEq + std::fmt::Debug + std::hash::Hash + Ord + num_traits::NumCast + 'static,
+    T: Clone
+        + PartialEq
+        + std::fmt::Debug
+        + std::hash::Hash
+        + Ord
+        + scirs2_core::numeric::NumCast
+        + 'static,
     S: Data<Elem = T>,
 {
     let visualizer = ConfusionMatrixVisualizer::from_labels(y_true, y_pred, labels)?;

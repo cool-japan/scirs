@@ -5,8 +5,8 @@
 //! multi-threaded queries, and adaptive indexing.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
@@ -226,7 +226,7 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::Array2;
+    /// use scirs2_core::ndarray::Array2;
     /// use scirs2_interpolate::spatial::enhanced_search::{
     ///     EnhancedNearestNeighborSearcher, IndexType, SearchConfig
     /// };
@@ -332,7 +332,7 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     /// use scirs2_interpolate::spatial::enhanced_search::{
     ///     EnhancedNearestNeighborSearcher, IndexType, SearchConfig
     /// };
@@ -500,7 +500,7 @@ where
             // Sequential processing for small batches
             let mut results = Vec::with_capacity(n_queries);
             for i in 0..n_queries {
-                let query = queries.slice(ndarray::s![i, ..]);
+                let query = queries.slice(scirs2_core::ndarray::s![i, ..]);
                 results.push(self.k_nearest_neighbors(&query, k)?);
             }
             Ok(results)
@@ -527,7 +527,7 @@ where
                 (0..queries_owned.nrows())
                     .into_par_iter()
                     .map(|i| {
-                        let query = queries_owned.slice(ndarray::s![i, ..]);
+                        let query = queries_owned.slice(scirs2_core::ndarray::s![i, ..]);
                         Self::parallel_brute_force_knn(&query, k, points)
                     })
                     .collect()
@@ -536,7 +536,7 @@ where
                 (0..queries_owned.nrows())
                     .into_par_iter()
                     .map(|i| {
-                        let query = queries_owned.slice(ndarray::s![i, ..]);
+                        let query = queries_owned.slice(scirs2_core::ndarray::s![i, ..]);
                         Self::parallel_brute_force_knn(&query, k, points)
                     })
                     .collect()
@@ -1293,12 +1293,12 @@ impl<F: Float + FromPrimitive> LSHIndex<F> {
         };
 
         // Build hash tables by inserting all _points
-        for (point_idx, point) in points.axis_iter(ndarray::Axis(0)).enumerate() {
+        for (point_idx, point) in points.axis_iter(scirs2_core::ndarray::Axis(0)).enumerate() {
             for table_idx in 0..num_tables {
                 let hash_key = index.compute_hash(&point, table_idx)?;
                 index.hash_tables[table_idx]
                     .entry(hash_key)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(point_idx);
             }
         }
@@ -1312,7 +1312,7 @@ impl<F: Float + FromPrimitive> LSHIndex<F> {
         let mut hash_key = 0u64;
 
         for hash_func_idx in 0..self.hash_functions_per_table {
-            let projection_row = projection.slice(ndarray::s![hash_func_idx, ..]);
+            let projection_row = projection.slice(scirs2_core::ndarray::s![hash_func_idx, ..]);
 
             // Compute dot product
             let dot_product = point
@@ -1379,7 +1379,7 @@ impl<F: Float + FromPrimitive> LSHIndex<F> {
         let mut neighbors = BinaryHeap::new();
 
         for &candidate_idx in &candidates {
-            let point = points.slice(ndarray::s![candidate_idx, ..]);
+            let point = points.slice(scirs2_core::ndarray::s![candidate_idx, ..]);
             let distance_squared = query
                 .iter()
                 .zip(point.iter())
@@ -1444,7 +1444,7 @@ impl<F: Float + FromPrimitive> LSHIndex<F> {
         let mut neighbors = Vec::new();
 
         for &candidate_idx in &candidates {
-            let point = points.slice(ndarray::s![candidate_idx, ..]);
+            let point = points.slice(scirs2_core::ndarray::s![candidate_idx, ..]);
             let distance_squared = query
                 .iter()
                 .zip(point.iter())
@@ -1483,7 +1483,7 @@ impl<F: Float + FromPrimitive> LSHIndex<F> {
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_interpolate::spatial::enhanced_search::{
 ///     make_enhanced_searcher, SearchConfig
 /// };
@@ -1547,7 +1547,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_enhanced_searcher_creation() {

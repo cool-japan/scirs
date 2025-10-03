@@ -10,9 +10,9 @@
 
 use crate::analysis::types::*;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::random::Rng;
 use std::collections::HashSet;
 
 /// Poincaré section analysis for periodic orbit detection
@@ -309,7 +309,7 @@ impl LyapunovCalculator {
         let mut vectors = Array2::zeros((dim, self.n_exponents));
 
         // Initialize with random vectors
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         for i in 0..self.n_exponents {
             for j in 0..dim {
                 vectors[[j, i]] = rng.random::<f64>() - 0.5;
@@ -540,7 +540,7 @@ impl LyapunovCalculator {
         let mut all_exponents = Array2::zeros((n_trials, n_exponents));
 
         // Calculate Lyapunov exponents multiple times with slightly different initial conditions
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for trial in 0..n_trials {
             // Add small random perturbation to initial state
@@ -1616,7 +1616,6 @@ pub enum PeriodicStabilityType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand;
 
     #[test]
     fn test_poincare_analyzer() {
@@ -1667,7 +1666,7 @@ mod tests {
     fn test_fractal_analyzer() {
         // Create a simple 2D filled area for testing - should have dimension close to 2
         let mut points = Vec::new();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Generate points uniformly distributed in a square with some noise
         for _i in 0..500 {

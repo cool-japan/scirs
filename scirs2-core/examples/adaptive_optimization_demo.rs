@@ -357,7 +357,8 @@ fn demo_basic_adaptive_optimization() -> CoreResult<()> {
         for (workload, metrics) in &scenarios {
             for (metricname, base_value) in metrics {
                 // Add some variation and potential degradation
-                let variation = (iteration as f64 * 0.1) + (rand::random::<f64>() - 0.5) * 0.2;
+                let variation =
+                    (iteration as f64 * 0.1) + (scirs2_core::random::random::<f64>() - 0.5) * 0.2;
                 let value = base_value * (1.0 + variation);
 
                 optimizer.record_metric(workload, metricname, value)?;
@@ -593,7 +594,7 @@ fn demo_real_time_adaptation() -> CoreResult<()> {
 
         // Record metrics for several iterations to establish trend
         for iteration in 0..3 {
-            let jitter = (rand::random::<f64>() - 0.5) * 0.2;
+            let jitter = (scirs2_core::random::random::<f64>() - 0.5) * 0.2;
 
             optimizer.record_metric(
                 "real_time_processing",

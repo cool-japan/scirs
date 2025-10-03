@@ -2,7 +2,7 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops::convert_to_tensor;
 use crate::Float;
-use ndarray::{Array2, ArrayView2, Ix2};
+use scirs2_core::ndarray::{Array2, ArrayView2, Ix2};
 
 /// Polar decomposition: A = UP where U is unitary and P is positive semidefinite
 pub struct PolarDecompositionOp;
@@ -12,7 +12,7 @@ pub struct PolarExtractOp {
     pub component: usize, // 0 for U (unitary), 1 for P (positive)
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for PolarDecompositionOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for PolarDecompositionOp {
     fn name(&self) -> &'static str {
         "PolarDecomposition"
     }
@@ -57,7 +57,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for PolarDecompositionOp {
     }
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for PolarExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for PolarExtractOp {
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let input = ctx.input(0);
         let shape = input.shape();
@@ -106,7 +106,7 @@ pub struct SchurExtractOp {
     pub component: usize, // 0 for Q (orthogonal), 1 for T (quasi-triangular)
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for SchurDecompositionOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SchurDecompositionOp {
     fn name(&self) -> &'static str {
         "SchurDecomposition"
     }
@@ -151,7 +151,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SchurDecompositionOp {
     }
 }
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for SchurExtractOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SchurExtractOp {
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError> {
         let input = ctx.input(0);
         let shape = input.shape();
@@ -196,7 +196,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SchurExtractOp {
 
 /// Compute polar decomposition A = UP
 #[allow(dead_code)]
-fn compute_polar_decomposition<F: Float + ndarray::ScalarOperand>(
+fn compute_polar_decomposition<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
 ) -> Result<(Array2<F>, Array2<F>), OpError> {
     let (m, n) = matrix.dim();
@@ -251,7 +251,7 @@ fn compute_polar_decomposition<F: Float + ndarray::ScalarOperand>(
 
 /// Compute Schur decomposition A = QTQ^T
 #[allow(dead_code)]
-fn compute_schur_decomposition<F: Float + ndarray::ScalarOperand>(
+fn compute_schur_decomposition<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
 ) -> Result<(Array2<F>, Array2<F>), OpError> {
     let n = matrix.shape()[0];
@@ -353,7 +353,7 @@ fn compute_qr<F: Float>(matrix: &ArrayView2<F>) -> Result<(Array2<F>, Array2<F>)
 
 /// Matrix square root using eigendecomposition (simplified)
 #[allow(dead_code)]
-fn matrix_sqrt<F: Float + ndarray::ScalarOperand>(
+fn matrix_sqrt<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
 ) -> Result<Array2<F>, OpError> {
     let n = matrix.shape()[0];
@@ -520,15 +520,15 @@ fn is_invertible<F: Float>(matrix: &ArrayView2<F>) -> bool {
 
 /// Power iteration for dominant singular value
 #[allow(dead_code)]
-fn power_iteration_svd<F: Float + ndarray::ScalarOperand>(
+fn power_iteration_svd<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
     max_iter: usize,
     tol: F,
-) -> (ndarray::Array1<F>, F) {
+) -> (scirs2_core::ndarray::Array1<F>, F) {
     let (m, n) = matrix.dim();
 
     // Initialize with random unit vector
-    let mut u = ndarray::Array1::<F>::zeros(m);
+    let mut u = scirs2_core::ndarray::Array1::<F>::zeros(m);
     u[0] = F::one();
 
     // Add perturbation
@@ -584,7 +584,7 @@ fn power_iteration_svd<F: Float + ndarray::ScalarOperand>(
 /// Compute polar decomposition A = UP
 /// where U is unitary and P is positive semidefinite
 #[allow(dead_code)]
-pub fn polar<'g, F: Float + ndarray::ScalarOperand>(
+pub fn polar<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
 ) -> (Tensor<'g, F>, Tensor<'g, F>) {
     let g = matrix.graph();
@@ -603,7 +603,7 @@ pub fn polar<'g, F: Float + ndarray::ScalarOperand>(
 /// Compute Schur decomposition A = QTQ^T
 /// where Q is orthogonal and T is quasi-upper triangular
 #[allow(dead_code)]
-pub fn schur<'g, F: Float + ndarray::ScalarOperand>(
+pub fn schur<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
 ) -> (Tensor<'g, F>, Tensor<'g, F>) {
     let g = matrix.graph();

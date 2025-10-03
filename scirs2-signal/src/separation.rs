@@ -7,7 +7,7 @@
 //
 // # Example
 // ```
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::separation::{multiband_separation, harmonic_percussive_separation};
 //
 // // Multi-band separation
@@ -20,7 +20,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use crate::filter::{butter, lfilter, FilterType};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 #[allow(unused_imports)]
 /// Configuration for multi-band separation
@@ -90,7 +90,7 @@ impl Default for HarmonicPercussiveConfig {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::separation::multiband_separation;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 0.5, -0.3, 0.8, -0.2, 0.1, -0.6, 0.4]);
@@ -189,7 +189,7 @@ pub fn multiband_separation(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::separation::harmonic_percussive_separation;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 0.5, -0.3, 0.8, -0.2, 0.1, -0.6, 0.4]);

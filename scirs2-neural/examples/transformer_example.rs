@@ -3,8 +3,8 @@
 //! This example demonstrates how to create and use a transformer model
 //! with the scirs2-neural crate.
 
-// use ndarray::Array3; // Unused import
-// use rand::rngs::SmallRng; // Unused import
+// use scirs2_core::ndarray::Array3; // Unused import
+// use scirs2_core::random::rngs::SmallRng; // Unused import
 // use rand::SeedableRng; // Unused import
 // use scirs2_neural::layers::Layer; // Unused import
 // use scirs2_neural::transformer::{Transformer, TransformerConfig};

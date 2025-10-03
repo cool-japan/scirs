@@ -10,8 +10,8 @@
 
 #![allow(dead_code)]
 
-use ndarray::{array, Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 // use plotters::prelude::*;
 use scirs2_integrate::{
     bdf_semi_explicit_dae, solve_ivp, solve_semi_explicit_dae, DAEIndex, DAEOptions, DAEType,

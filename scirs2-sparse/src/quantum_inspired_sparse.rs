@@ -5,8 +5,8 @@
 //! and novel computational strategies.
 
 use crate::error::SparseResult;
-use num_traits::{Float, NumAssign};
-use rand::Rng;
+use scirs2_core::numeric::{Float, NumAssign, NumCast};
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -281,7 +281,7 @@ impl QuantumSparseProcessor {
                     }
 
                     // Collapse quantum state to classical result
-                    y[row] = num_traits::cast(quantum_sum).unwrap_or(T::zero());
+                    y[row] = NumCast::from(quantum_sum).unwrap_or(T::zero());
                 }
             }
 
@@ -339,7 +339,7 @@ impl QuantumSparseProcessor {
                         sum += (1.0 + correlation) * data_val * x_val;
                     }
 
-                    y[entangled_row] = num_traits::cast(sum).unwrap_or(T::zero());
+                    y[entangled_row] = NumCast::from(sum).unwrap_or(T::zero());
                     processed[entangled_row] = true;
                 }
             }
@@ -384,7 +384,7 @@ impl QuantumSparseProcessor {
                         let x_val: f64 = x[col].into();
                         sum += data_val * x_val;
                     }
-                    y[row] = num_traits::cast(sum).unwrap_or(T::zero());
+                    y[row] = NumCast::from(sum).unwrap_or(T::zero());
                 }
             } else {
                 // Standard computation for non-barrier rows
@@ -395,7 +395,7 @@ impl QuantumSparseProcessor {
                     let x_val: f64 = x[col].into();
                     sum += data_val * x_val;
                 }
-                y[row] = num_traits::cast(sum).unwrap_or(T::zero());
+                y[row] = NumCast::from(sum).unwrap_or(T::zero());
             }
         }
 
@@ -445,7 +445,7 @@ impl QuantumSparseProcessor {
                 (-delta_energy / current_temperature).exp()
             };
 
-            if rand::rng().random::<f64>() < acceptance_probability {
+            if scirs2_core::random::rng().random::<f64>() < acceptance_probability {
                 processing_order = new_order;
             }
 
@@ -465,7 +465,7 @@ impl QuantumSparseProcessor {
                 let x_val: f64 = x[col].into();
                 sum += data_val * x_val;
             }
-            y[row] = num_traits::cast(sum).unwrap_or(T::zero());
+            y[row] = NumCast::from(sum).unwrap_or(T::zero());
         }
 
         Ok(())
@@ -658,7 +658,7 @@ impl QuantumSparseProcessor {
         let next_val: f64 = y[next_row].into();
         let interpolated = (prev_val + next_val) / 2.0;
 
-        num_traits::cast(interpolated).unwrap_or(T::zero())
+        NumCast::from(interpolated).unwrap_or(T::zero())
     }
 
     fn calculate_processing_energy(&self, order: &[usize], indptr: &[usize]) -> f64 {
@@ -701,7 +701,7 @@ impl QuantumSparseProcessor {
             NoiseModel::PhaseDamping => {
                 let gamma = self.config.decoherence_rate * 0.1;
                 for (i, phase) in self.quantum_state.phases.iter_mut().enumerate() {
-                    let random_phase = (rand::rng().random::<f64>() - 0.5) * gamma;
+                    let random_phase = (scirs2_core::random::rng().random::<f64>() - 0.5) * gamma;
                     *phase += random_phase;
                     // Apply phase noise to amplitude
                     if i < self.quantum_state.amplitudes.len() {
@@ -712,7 +712,7 @@ impl QuantumSparseProcessor {
             NoiseModel::Depolarizing => {
                 let p = self.config.decoherence_rate * 0.05;
                 for amplitude in &mut self.quantum_state.amplitudes {
-                    if rand::rng().random::<f64>() < p {
+                    if scirs2_core::random::rng().random::<f64>() < p {
                         *amplitude *= 0.5; // Depolarizing effect
                     }
                 }
@@ -725,7 +725,8 @@ impl QuantumSparseProcessor {
                 for (i, amplitude) in self.quantum_state.amplitudes.iter_mut().enumerate() {
                     *amplitude *= (1.0 - gamma_amp).sqrt();
                     if i < self.quantum_state.phases.len() {
-                        let random_phase = (rand::rng().random::<f64>() - 0.5) * gamma_phase;
+                        let random_phase =
+                            (scirs2_core::random::rng().random::<f64>() - 0.5) * gamma_phase;
                         self.quantum_state.phases[i] += random_phase;
                     }
                 }
@@ -810,7 +811,7 @@ impl QuantumSparseProcessor {
         if syndrome_strength > 0.8 {
             QuantumError::BitPhaseFlip
         } else if syndrome_strength > 0.5 {
-            if rand::rng().random::<f64>() > 0.5 {
+            if scirs2_core::random::rng().random::<f64>() > 0.5 {
                 QuantumError::BitFlip
             } else {
                 QuantumError::PhaseFlip

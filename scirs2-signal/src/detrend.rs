@@ -5,8 +5,8 @@
 // spectral analysis or other signal processing operations.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{array, Array1, Array2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{array, Array1, Array2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -80,7 +80,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .ok_or_else(|| SignalError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect::<SignalResult<Vec<_>>>()?;
@@ -151,7 +151,7 @@ where
 ///
 /// ```
 /// use scirs2_signal::detrend_axis;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// // Create a 2D array with a trend along columns
 /// let mut x = array![
@@ -319,7 +319,7 @@ where
     let y: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .ok_or_else(|| SignalError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect::<SignalResult<Vec<_>>>()?;

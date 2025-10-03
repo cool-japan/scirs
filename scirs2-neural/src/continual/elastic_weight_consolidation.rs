@@ -5,8 +5,8 @@
 
 use crate::error::Result;
 use crate::models::sequential::Sequential;
-use ndarray::prelude::*;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::ndarray::ArrayView1;
 /// EWC configuration
 #[derive(Debug, Clone)]
 pub struct EWCConfig {

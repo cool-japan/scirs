@@ -494,8 +494,11 @@ fn calculate_anomaly_separation(dataset: &scirs2_datasets::Dataset) -> f64 {
 }
 
 #[allow(dead_code)]
-fn calculate_centroid(data: &ndarray::Array2<f64>, indices: &[usize]) -> ndarray::Array1<f64> {
-    let mut centroid = ndarray::Array1::zeros(data.ncols());
+fn calculate_centroid(
+    data: &scirs2_core::ndarray::Array2<f64>,
+    indices: &[usize],
+) -> scirs2_core::ndarray::Array1<f64> {
+    let mut centroid = scirs2_core::ndarray::Array1::zeros(data.ncols());
     for &idx in indices {
         centroid = centroid + data.row(idx);
     }
@@ -514,7 +517,7 @@ fn get_recommended_anomaly_algorithms(_anomalytype: &AnomalyType) -> &'static st
 }
 
 #[allow(dead_code)]
-fn analyze_classification_target(target: &ndarray::Array1<f64>) -> usize {
+fn analyze_classification_target(target: &scirs2_core::ndarray::Array1<f64>) -> usize {
     let mut classes = std::collections::HashSet::new();
     for &label in target.iter() {
         classes.insert(label as i32);
@@ -523,14 +526,14 @@ fn analyze_classification_target(target: &ndarray::Array1<f64>) -> usize {
 }
 
 #[allow(dead_code)]
-fn analyze_regression_target(target: &ndarray::Array1<f64>) -> (f64, f64) {
+fn analyze_regression_target(target: &scirs2_core::ndarray::Array1<f64>) -> (f64, f64) {
     let mean = target.mean().unwrap_or(0.0);
     let std = target.std(0.0);
     (mean, std)
 }
 
 #[allow(dead_code)]
-fn analyze_ordinal_target(target: &ndarray::Array1<f64>) -> usize {
+fn analyze_ordinal_target(target: &scirs2_core::ndarray::Array1<f64>) -> usize {
     let max_level = target.iter().fold(0.0f64, |a, &b| a.max(b)) as usize;
     max_level + 1
 }
@@ -558,7 +561,7 @@ fn analyze_task_relationships(multitaskdataset: &MultiTaskDataset) {
 }
 
 #[allow(dead_code)]
-fn analyze_class_distribution(target: &ndarray::Array1<f64>) -> HashMap<i32, usize> {
+fn analyze_class_distribution(target: &scirs2_core::ndarray::Array1<f64>) -> HashMap<i32, usize> {
     let mut distribution = HashMap::new();
     for &label in target.iter() {
         *distribution.entry(label as i32).or_insert(0) += 1;
@@ -567,7 +570,7 @@ fn analyze_class_distribution(target: &ndarray::Array1<f64>) -> HashMap<i32, usi
 }
 
 #[allow(dead_code)]
-fn calculate_domain_statistics(data: &ndarray::Array2<f64>) -> (f64, f64) {
+fn calculate_domain_statistics(data: &scirs2_core::ndarray::Array2<f64>) -> (f64, f64) {
     let mean = data.mean().unwrap_or(0.0);
     let std = data.std(0.0);
     (mean, std)
@@ -595,7 +598,7 @@ fn analyze_domain_shifts(domaindataset: &DomainAdaptationDataset) {
 }
 
 #[allow(dead_code)]
-fn calculate_class_balance(target: &ndarray::Array1<f64>, nclasses: usize) -> f64 {
+fn calculate_class_balance(target: &scirs2_core::ndarray::Array1<f64>, nclasses: usize) -> f64 {
     let mut class_counts = vec![0; nclasses];
     for &label in target.iter() {
         let class_idx = label as usize;

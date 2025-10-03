@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::optimizers::Optimizer;
-use ndarray::{Array, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// RMSprop optimizer
 ///
@@ -15,7 +15,7 @@ use std::fmt::Debug;
 /// param_t = param_{t-1} - learningrate * g_t / (sqrt(v_t) + epsilon)
 /// # Examples
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_neural::optimizers::{RMSprop, Optimizer};
 /// // Create a simple RMSprop optimizer
 /// let mut rmsprop = RMSprop::<f64>::new(0.001).unwrap();
@@ -32,7 +32,7 @@ pub struct RMSprop<F: Float + ScalarOperand + Debug> {
     /// Weight decay factor (L2 regularization)
     weight_decay: F,
     /// Moving average of squared gradients for each parameter array
-    v: Vec<Array<F, ndarray::IxDyn>>,
+    v: Vec<Array<F, scirs2_core::ndarray::IxDyn>>,
 }
 impl<F: Float + ScalarOperand + Debug> RMSprop<F> {
     /// Creates a new RMSprop optimizer with the given learning rate and default parameters
@@ -88,8 +88,8 @@ impl<F: Float + ScalarOperand + Debug> RMSprop<F> {
 impl<F: Float + ScalarOperand + Debug> Optimizer<F> for RMSprop<F> {
     fn update(
         &mut self,
-        params: &mut [Array<F, ndarray::IxDyn>],
-        grads: &[Array<F, ndarray::IxDyn>],
+        params: &mut [Array<F, scirs2_core::ndarray::IxDyn>],
+        grads: &[Array<F, scirs2_core::ndarray::IxDyn>],
     ) -> Result<()> {
         if params.len() != grads.len() {
             return Err(NeuralError::TrainingError(format!(

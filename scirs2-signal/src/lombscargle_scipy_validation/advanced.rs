@@ -8,9 +8,9 @@ use super::types::*;
 use super::utils::find_peaks;
 use crate::error::SignalResult;
 use crate::lombscargle::{lombscargle, AutoFreqMethod};
-use ndarray::Array1;
-use rand::seq::SliceRandom;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::Rng;
 use std::f64::consts::PI;
 
 /// Run advanced Lomb-Scargle validation with extended testing
@@ -79,7 +79,7 @@ pub fn test_numerical_conditioning(
 ) -> SignalResult<ConditioningTestResult> {
     // Generate test data with known conditioning properties
     let n = 1000;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Create time series with irregular sampling
     let mut times: Vec<f64> = (0..n).map(|_| rng.random::<f64>() * 100.0).collect();
@@ -129,7 +129,7 @@ pub fn test_numerical_conditioning(
 /// Test aliasing effects in Lomb-Scargle
 #[allow(dead_code)]
 pub fn test_aliasing_effects(config: &ScipyValidationConfig) -> SignalResult<AliasingTestResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Test 1: Nyquist aliasing detection
     let nyquist_detection = test_nyquist_aliasing_detection(&mut rng)?;
@@ -156,7 +156,7 @@ pub fn test_aliasing_effects(config: &ScipyValidationConfig) -> SignalResult<Ali
 pub fn test_astronomical_scenarios(
     config: &ScipyValidationConfig,
 ) -> SignalResult<AstronomicalTestResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Test 1: Variable star simulation
     let variable_star_detection = test_variable_star_simulation(&mut rng)?;
@@ -181,7 +181,7 @@ pub fn test_astronomical_scenarios(
 /// Test phase coherence preservation
 #[allow(dead_code)]
 pub fn test_phase_coherence(config: &ScipyValidationConfig) -> SignalResult<PhaseCoherenceResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Generate complex signal with known phase relationships
     let n = 500;
@@ -220,7 +220,7 @@ pub fn quantify_uncertainty(
     config: &ScipyValidationConfig,
     n_bootstrap: usize,
 ) -> SignalResult<UncertaintyResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Generate base dataset
     let n = 200;
@@ -303,7 +303,7 @@ pub fn quantify_uncertainty(
 pub fn test_frequency_resolution(
     config: &ScipyValidationConfig,
 ) -> SignalResult<FrequencyResolutionResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Test minimum resolvable frequency separation
     let min_frequency_separation = test_min_frequency_separation(&mut rng)?;
@@ -365,7 +365,7 @@ fn estimate_sampling_irregularity(times: &[f64]) -> f64 {
 fn test_perturbation_stability(times: &[f64], values: &[f64], freqs: &[f64]) -> SignalResult<f64> {
     // Test stability under small perturbations to the data
     let perturbation_level = 1e-8;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Original periodogram
     let original = lombscargle(times, values, Some(freqs), None, None, None, None, None)?;

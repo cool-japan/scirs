@@ -3,8 +3,8 @@
 // This module provides functions for serializing and deserializing sparse arrays,
 // including npz format compatible with SciPy's sparse.save_npz and sparse.load_npz.
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};

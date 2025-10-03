@@ -6,10 +6,10 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::OptimizeResult;
-use ndarray::{Array1, ArrayView1};
-use rand::prelude::SliceRandom;
-use rand::rngs::StdRng;
-use rand::{rng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::prelude::SliceRandom;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{rng, Rng, SeedableRng};
 
 /// Options for Simulated Annealing
 #[derive(Debug, Clone)]
@@ -220,7 +220,7 @@ where
                 break;
             }
 
-            if self.options.verbose && self.nit % 100 == 0 {
+            if self.options.verbose && self.nit.is_multiple_of(100) {
                 println!(
                     "Iteration {}: T = {:.6}..best = {:.6}",
                     self.nit, self.temperature, self.best_value

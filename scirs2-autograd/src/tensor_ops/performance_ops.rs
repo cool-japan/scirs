@@ -6,7 +6,7 @@
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::Axis;
+use scirs2_core::ndarray::Axis;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Global flag to enable/disable SIMD optimizations
@@ -142,7 +142,7 @@ impl<F: Float> Op<F> for ParallelReductionOp {
         let dyn_result = if result.ndim() == 0 {
             // Convert 0D scalar to 1D array with single element
             let scalar_val = result.iter().next().copied().unwrap_or(F::zero());
-            ndarray::arr1(&[scalar_val]).into_dyn()
+            scirs2_core::ndarray::arr1(&[scalar_val]).into_dyn()
         } else {
             result.into_dyn()
         };

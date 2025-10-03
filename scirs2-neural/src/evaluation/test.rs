@@ -6,8 +6,8 @@ use super::{EvaluationConfig, Evaluator, MetricType};
 use crate::data::Dataset;
 use crate::error::{Error, Result};
 use crate::layers::Layer;
-use ndarray::{s, Array, Axis, Ix2, IxDyn, ScalarOperand, Slice};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array, Axis, Ix2, IxDyn, ScalarOperand, Slice};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 /// Configuration for test set evaluation
@@ -149,9 +149,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
             for (i, &idx) in batch_indices.iter().enumerate() {
                 let (x, y) = dataset.get(idx)?;
                 // Copy data into batch arrays
-                let mut batch_x_slice = batch_x.slice_mut(ndarray::s![i, ..]);
+                let mut batch_x_slice = batch_x.slice_mut(scirs2_core::ndarray::s![i, ..]);
                 batch_x_slice.assign(&x);
-                let mut batch_y_slice = batch_y.slice_mut(ndarray::s![i, ..]);
+                let mut batch_y_slice = batch_y.slice_mut(scirs2_core::ndarray::s![i, ..]);
                 batch_y_slice.assign(&y);
             }
             // Forward pass

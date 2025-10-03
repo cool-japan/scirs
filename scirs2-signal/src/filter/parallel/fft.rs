@@ -17,7 +17,7 @@ fn par_iter_with_setup<I, IT, S, F, R, RF, E>(
 where
     I: IntoIterator<Item = IT>,
     IT: Copy,
-    S: Fn() -> (),
+    S: Fn(),
     F: Fn((), IT) -> Result<R, E>,
     RF: Fn(&mut Vec<R>, Result<R, E>) -> Result<(), E>,
     E: std::fmt::Debug,
@@ -75,7 +75,7 @@ pub fn parallel_fft_filter(
     fft.process(&mut ir_fft);
 
     // Calculate number of chunks needed
-    let n_chunks = (signal.len() + useful_size - 1) / useful_size;
+    let n_chunks = signal.len().div_ceil(useful_size);
 
     // Process chunks in parallel
     let chunk_results: Vec<Vec<f64>> = par_iter_with_setup(
@@ -219,7 +219,7 @@ pub fn parallel_overlap_add_convolution(
     fft.process(&mut kernel_fft);
 
     // Calculate number of chunks
-    let n_chunks = (signal.len() + useful_size - 1) / useful_size;
+    let n_chunks = signal.len().div_ceil(useful_size);
 
     // Process chunks in parallel
     let chunk_results: Vec<Vec<f64>> = par_iter_with_setup(
@@ -315,7 +315,7 @@ pub fn parallel_overlap_save_convolution(
     fft.process(&mut kernel_fft);
 
     // Calculate number of chunks
-    let n_chunks = (signal.len() + useful_size - 1) / useful_size;
+    let n_chunks = signal.len().div_ceil(useful_size);
 
     // Process chunks in parallel
     let chunk_results: Vec<Vec<f64>> = par_iter_with_setup(

@@ -5,7 +5,7 @@
 //! to maximize performance in distributed linear algebra operations.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array2, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -505,7 +505,7 @@ impl MatrixPartitioner {
         
         // Extract local partition
         let IndexRange { rows, columns } = &distribution.owned_indices;
-        let localmatrix = matrix.slice(ndarray::s![rows.0..rows.1, columns.0..columns.1]);
+        let localmatrix = matrix.slice(scirs2_core::ndarray::s![rows.0..rows.1, columns.0..columns.1]);
         
         Ok(localmatrix.to_owned())
     }
@@ -524,7 +524,7 @@ impl MatrixPartitioner {
         for (&node_rank, partition) in partitions {
             // Find this node's index range (simplified)
             if let Some(range) = Self::get_node_range(node_rank, distribution) {
-                let target_slice = globalmatrix.slice_mut(ndarray::s![
+                let target_slice = globalmatrix.slice_mut(scirs2_core::ndarray::s![
                     range.rows.0..range.rows.1,
                     range.columns.0..range.columns.1
                 ]);

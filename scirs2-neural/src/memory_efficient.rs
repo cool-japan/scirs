@@ -9,8 +9,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use ndarray::{Array, ArrayD, ArrayView, IxDyn};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ArrayD, ArrayView, IxDyn};
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex, RwLock};
@@ -164,7 +164,7 @@ pub struct GradientCheckpointing<F: Float + Debug> {
     memory_threshold_mb: f64,
     /// Current memory usage tracker
     memory_usage: Arc<RwLock<MemoryUsage>>,
-impl<F: Float + Debug + Clone + 'static + ndarray::ScalarOperand> GradientCheckpointing<F> {
+impl<F: Float + Debug + Clone + 'static + scirs2_core::ndarray::ScalarOperand> GradientCheckpointing<F> {
     /// Create a new gradient checkpointing manager
     pub fn new(_memory_thresholdmb: f64) -> Self {
             checkpoint_layers: Vec::new(),
@@ -252,7 +252,7 @@ impl InPlaceOperations {
     pub fn scale_inplace<F: Float + Debug>(array: &mut ArrayD<F>, factor: F) {
         array.mapv_inplace(|x| x * factor);
     /// In-place normalization (subtract mean, divide by std)
-    pub fn normalize_inplace<F: Float + Debug + Clone + num_traits::FromPrimitive>(
+    pub fn normalize_inplace<F: Float + Debug + Clone + scirs2_core::numeric::FromPrimitive>(
         array: &mut ArrayD<F>,
     ) -> Result<()> {
         let mean = array.mean().unwrap_or(F::zero());
@@ -273,7 +273,7 @@ impl InPlaceOperations {
         let keep_prob = 1.0 - dropout_rate;
         let scale_factor = F::from(1.0 / keep_prob).unwrap();
         for element in array.iter_mut() {
-            if rand::random::<f64>() < dropout_rate {
+            if scirs2_core::random::random::<f64>() < dropout_rate {
                 *element = F::zero();
             } else {
                 *element = *element * scale_factor;
@@ -313,7 +313,7 @@ impl<F: Float + Debug + Clone + 'static> MemoryAwareBatchProcessor<F> {
                 self.max_batch_size
             };
             let end_idx = (start_idx + batch_size).min(total_samples);
-            let batch = input.slice(ndarray::s![start_idx..end_idx, ..]).into_dyn();
+            let batch = input.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]).into_dyn();
             // Process the batch
             let result = process_fn(&batch)?;
             results.push(result);
@@ -357,7 +357,7 @@ pub struct MemoryEfficientLayer {
     #[allow(dead_code)]
     weights: ArrayD<f32>,
     /// Bias vector
-    bias: ndarray::Array1<f32>,
+    bias: scirs2_core::ndarray::Array1<f32>,
     /// Chunk size for processing
     chunk_size: usize,
     // Memory management handled through BufferPool
@@ -374,7 +374,7 @@ impl MemoryEfficientLayer {
         let default_chunk_size = chunk_size.unwrap_or(1024);
         #[cfg(feature = "memory_efficient")]
         let weights = ArrayD::zeros(IxDyn(&_weightsshape));
-        let bias = ndarray::Array1::zeros(output_size);
+        let bias = scirs2_core::ndarray::Array1::zeros(output_size);
         // Buffer pool handles memory management
         #[cfg(feature = "memory_management")]
         let buffer_pool = Arc::new(
@@ -416,18 +416,18 @@ impl MemoryEfficientLayer {
             let end_idx = std::cmp::min(start_idx + self.chunk_size, batch_size);
             let _chunk_batch_size = end_idx - start_idx;
             // Extract input chunk
-            let input_chunk = input.slice(ndarray::s![start_idx..end_idx, ..]);
+            let input_chunk = input.slice(scirs2_core::ndarray::s![start_idx..end_idx, ..]);
             // Compute matrix multiplication for this chunk
             let chunk_output = self.forward_chunk(&input_chunk.into_dyn())?;
             #[cfg(not(feature = "memory_efficient"))]
             let chunk_output = self.forward_chunk_fallback(&input_chunk.into_dyn())?;
             // Copy result to output array
             output
-                .slice_mut(ndarray::s![start_idx..end_idx, ..])
+                .slice_mut(scirs2_core::ndarray::s![start_idx..end_idx, ..])
                 .assign(&chunk_output);
         Ok(output.into_dyn())
     /// Memory-efficient forward pass for a single chunk
-    fn forward_chunk(&self, inputchunk: &ArrayView<f32, IxDyn>) -> Result<ndarray::Array2<f32>> {
+    fn forward_chunk(&self, inputchunk: &ArrayView<f32, IxDyn>) -> Result<scirs2_core::ndarray::Array2<f32>> {
         let chunkshape = input_chunk.shape();
         let chunk_batch_size = chunkshape[0];
         // Use chunk-wise operation for memory efficiency
@@ -450,7 +450,7 @@ impl MemoryEfficientLayer {
             // Fallback - simple matrix multiplication
             input_chunk.to_owned()
         // Add bias
-        let mut output = ndarray::Array2::zeros((chunk_batch_size, output_size));
+        let mut output = scirs2_core::ndarray::Array2::zeros((chunk_batch_size, output_size));
         for (mut row, bias_val) in output.rows_mut().into_iter().zip(self.bias.iter().cycle()) {
             for (out_val, result_val) in row.iter_mut().zip(result.iter()) {
                 *out_val = result_val + bias_val;
@@ -459,14 +459,14 @@ impl MemoryEfficientLayer {
     #[cfg(not(feature = "memory_efficient"))]
     fn forward_chunk_fallback(
         input_chunk: &ArrayView<f32, IxDyn>,
-    ) -> Result<ndarray::Array2<f32>> {
+    ) -> Result<scirs2_core::ndarray::Array2<f32>> {
         // Simple fallback using regular ndarray operations
         let input_2d = input_chunk
             .view()
-            .into_dimensionality::<ndarray::Ix2>(), NeuralError::DimensionMismatch(format!("Failed to convert to 2D: {}", e))
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>(), NeuralError::DimensionMismatch(format!("Failed to convert to 2D: {}", e))
         // For fallback, create a simple weight matrix
         let (_chunk_batch_size, input_size) = input_2d.dim();
-        let weights_2d = ndarray::Array2::<f32>::zeros((input_size, output_size));
+        let weights_2d = scirs2_core::ndarray::Array2::<f32>::zeros((input_size, output_size));
         // Use ndarray's built-in dot operation for matrix multiplication
         let mut result = input_2d.dot(&weights_2d);
         for mut row in result.rows_mut() {
@@ -484,12 +484,12 @@ impl MemoryEfficientLayer {
 #[allow(dead_code)]
 struct ChunkForwardProcessor<'a> {
     weights: &'a ArrayD<f32>,
-    bias: &'a ndarray::Array1<f32>,
+    bias: &'a scirs2_core::ndarray::Array1<f32>,
 // ChunkForwardProcessor functionality is now handled directly in the chunk_wise_op closure
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     #[test]
     fn test_memory_pool() {
         let mut pool = MemoryPool::<f32>::new(10); // 10MB max

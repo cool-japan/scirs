@@ -5,8 +5,8 @@
 //! It combines machine learning, hardware profiling, and adaptive algorithms
 //! to achieve optimal performance for any workload.
 
-use ndarray::{Array1, Dimension};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Dimension};
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};

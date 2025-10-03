@@ -2,10 +2,10 @@
 
 use crate::error::Result;
 use crate::models::sequential::Sequential;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 use std::time::Instant;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// Evaluation metrics type
 pub type EvaluationMetrics = HashMap<String, f64>;
 /// Architecture evaluator
@@ -159,7 +159,7 @@ impl ArchitectureEvaluator {
         for _ in 0..batch_size {
             let mut probs = vec![0.1; num_classes];
             // Make one class more likely
-            use rand::Rng;
+            use scirs2_core::random::Rng;
             let idx = rng().random_range(0..num_classes);
             probs[idx] = 0.9;
             // Normalize

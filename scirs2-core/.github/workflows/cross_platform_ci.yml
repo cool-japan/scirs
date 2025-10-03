@@ -26,7 +26,7 @@ jobs:
           "no-default-features"
         ]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
@@ -70,7 +70,7 @@ jobs:
           "memory_efficient,simd,parallel,accelerate"
         ]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
@@ -99,7 +99,7 @@ jobs:
           "memory_efficient,simd,parallel"
         ]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master
@@ -121,7 +121,7 @@ jobs:
   wasm:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -144,7 +144,7 @@ jobs:
           "x86_64-pc-windows-gnu"
         ]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@stable
@@ -174,7 +174,7 @@ jobs:
           - os: windows-latest
             features: "default"
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     
     - name: Install Rust
       uses: dtolnay/rust-toolchain@master

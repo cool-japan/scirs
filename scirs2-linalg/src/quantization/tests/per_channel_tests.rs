@@ -7,7 +7,7 @@ use crate::quantization::{
     dequantize_matrix, quantize_matrix, quantize_matrix_per_channel, quantize_vector,
     quantized_matmul, quantized_matvec, QuantizationMethod,
 };
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_per_channel_quantization_symmetric() {

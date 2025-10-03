@@ -3,8 +3,8 @@
 //! This module implements various parameter generation strategies including
 //! grid search, random search, Bayesian optimization, and evolutionary approaches.
 
-use ndarray::Array2;
-use rand::{rng, Rng, SeedableRng};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::{rng, Rng, SeedableRng};
 use std::collections::HashMap;
 
 use crate::error::{ClusteringError, Result};
@@ -177,8 +177,8 @@ impl ParameterGenerator {
     ) -> Result<Vec<HashMap<String, f64>>> {
         let mut combinations = Vec::new();
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
         for _ in 0..n_trials {
@@ -282,11 +282,11 @@ impl ParameterGenerator {
         }
 
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
-        use rand::seq::SliceRandom;
+        use scirs2_core::random::seq::SliceRandom;
         all_combinations.shuffle(&mut rng);
 
         Ok(all_combinations)
@@ -303,8 +303,8 @@ impl ParameterGenerator {
     ) -> Result<Vec<HashMap<String, f64>>> {
         let mut all_combinations = Vec::new();
         let mut rng = match self.config.random_seed {
-            Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-            None => rand::rngs::StdRng::seed_from_u64(42),
+            Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+            None => scirs2_core::random::rngs::StdRng::seed_from_u64(42),
         };
 
         // Generate initial population
@@ -346,7 +346,7 @@ impl ParameterGenerator {
     fn tournament_selection(
         &self,
         population: &[HashMap<String, f64>],
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> HashMap<String, f64> {
         let tournament_size = 3.min(population.len());
         let mut best = &population[rng.random_range(0..population.len())];
@@ -366,7 +366,7 @@ impl ParameterGenerator {
         &self,
         parent1: &HashMap<String, f64>,
         parent2: &HashMap<String, f64>,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> HashMap<String, f64> {
         let mut offspring = HashMap::new();
 
@@ -392,7 +392,7 @@ impl ParameterGenerator {
         &self,
         individual: &mut HashMap<String, f64>,
         search_space: &SearchSpace,
-        rng: &mut rand::rngs::StdRng,
+        rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<()> {
         for (param_name, param_def) in &search_space.parameters {
             if let Some(value) = individual.get_mut(param_name) {
@@ -494,12 +494,12 @@ impl ParameterGenerator {
 
             let suggested_value = match param_def {
                 HyperParameter::Float { min, max } => {
-                    let mut rng = rand::rng();
+                    let mut rng = scirs2_core::random::rng();
                     let noise = rng.random_range(-variance.sqrt()..variance.sqrt());
                     (mean + noise).clamp(*min, *max)
                 }
                 HyperParameter::Integer { min, max } => {
-                    let mut rng = rand::rng();
+                    let mut rng = scirs2_core::random::rng();
                     rng.random_range(*min..=*max) as f64
                 }
                 _ => mean,

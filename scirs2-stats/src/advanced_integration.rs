@@ -4,7 +4,7 @@
 //! statistical methods for comprehensive data analysis workflows.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::validation::*;
 
 use crate::bayesian::{BayesianLinearRegression, BayesianRegressionResult};
@@ -142,7 +142,7 @@ impl BayesianAnalysisWorkflow {
         regression: &BayesianRegressionResult,
         _n_features: usize,
     ) -> Result<Array2<f64>> {
-        use rand::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::{rngs::StdRng, SeedableRng};
 
         let mut rng = match self.random_seed {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -181,8 +181,8 @@ impl BayesianAnalysisWorkflow {
         regression: &BayesianRegressionResult,
         x_test: ArrayView2<f64>,
     ) -> Result<Array2<f64>> {
-        use rand::{rngs::StdRng, SeedableRng};
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{rngs::StdRng, SeedableRng};
+        use scirs2_core::random::{Distribution, Normal};
 
         let mut rng = match self.random_seed {
             Some(seed) => StdRng::seed_from_u64(seed),
@@ -467,7 +467,7 @@ impl DimensionalityAnalysisWorkflow {
         let explained_variance_ratio = if let Some(ref pca_result) = pca {
             pca_result
                 .explained_variance_ratio
-                .slice(ndarray::s![..optimal_pca_components])
+                .slice(scirs2_core::ndarray::s![..optimal_pca_components])
                 .sum()
         } else {
             0.0
@@ -485,7 +485,7 @@ impl DimensionalityAnalysisWorkflow {
         use crate::multivariate::efa::{bartlett_test, kmo_test};
 
         // Compute covariance matrix for eigenvalues
-        let mean = data.mean_axis(ndarray::Axis(0)).unwrap();
+        let mean = data.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
         let mut centered = data.to_owned();
         for mut row in centered.rows_mut() {
             row -= &mean;
@@ -494,9 +494,9 @@ impl DimensionalityAnalysisWorkflow {
         let cov = centered.t().dot(&centered) / (data.nrows() - 1) as f64;
 
         // Compute eigenvalues
-        use ndarray_linalg::Eigh;
+        use scirs2_core::ndarray::ndarray_linalg::Eigh;
         let eigenvalues = cov
-            .eigh(ndarray_linalg::UPLO::Upper)
+            .eigh(scirs2_core::ndarray::ndarray_linalg::UPLO::Upper)
             .map_err(|e| {
                 StatsError::ComputationError(format!("Eigenvalue decomposition failed: {}", e))
             })?

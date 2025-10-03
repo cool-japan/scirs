@@ -7,7 +7,7 @@ use super::infomax::{extended_infomax_ica, infomax_ica};
 use super::jade::jade_ica;
 use super::{whiten_signals, BssConfig, IcaMethod, NonlinearityFunction};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array2, Axis};
+use scirs2_core::ndarray::{Array2, Axis};
 use scirs2_linalg::solve_multiple;
 
 #[allow(unused_imports)]

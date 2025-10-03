@@ -23,18 +23,18 @@ fn main() {
         let gy_result = gy.eval(ctx).unwrap();
         println!(
             "dz/dy = {:?} (expected: 3.0)",
-            gy_result[ndarray::IxDyn(&[])]
+            gy_result[scirs2_core::ndarray::IxDyn(&[])]
         );
 
         // Evaluate dz/dx at x=2 (should be 2*2*x = 8)
         let gx_result = ctx
             .evaluator()
             .push(&gx)
-            .feed(x, ndarray::arr0(2.).view().into_dyn())
+            .feed(x, scirs2_core::ndarray::arr0(2.).view().into_dyn())
             .run();
         println!(
             "dz/dx at x=2 = {:?} (expected: 8.0)",
-            gx_result[0].as_ref().unwrap()[ndarray::IxDyn(&[])]
+            gx_result[0].as_ref().unwrap()[scirs2_core::ndarray::IxDyn(&[])]
         );
 
         // Let's also trace the intermediate values
@@ -44,7 +44,7 @@ fn main() {
         let g_three_y = T::grad(&[three_y], &[y])[0];
         println!(
             "d(3y)/dy = {:?} (expected: 3.0)",
-            g_three_y.eval(ctx).unwrap()[ndarray::IxDyn(&[])]
+            g_three_y.eval(ctx).unwrap()[scirs2_core::ndarray::IxDyn(&[])]
         );
 
         // Test gradient of x^2
@@ -52,11 +52,11 @@ fn main() {
         let g_x_squared_at_2 = ctx
             .evaluator()
             .push(&g_x_squared)
-            .feed(x, ndarray::arr0(2.).view().into_dyn())
+            .feed(x, scirs2_core::ndarray::arr0(2.).view().into_dyn())
             .run();
         println!(
             "d(x^2)/dx at x=2 = {:?} (expected: 4.0)",
-            g_x_squared_at_2[0].as_ref().unwrap()[ndarray::IxDyn(&[])]
+            g_x_squared_at_2[0].as_ref().unwrap()[scirs2_core::ndarray::IxDyn(&[])]
         );
 
         // Test gradient of 2*x^2
@@ -64,11 +64,11 @@ fn main() {
         let g_two_x_squared_at_2 = ctx
             .evaluator()
             .push(&g_two_x_squared)
-            .feed(x, ndarray::arr0(2.).view().into_dyn())
+            .feed(x, scirs2_core::ndarray::arr0(2.).view().into_dyn())
             .run();
         println!(
             "d(2x^2)/dx at x=2 = {:?} (expected: 8.0)",
-            g_two_x_squared_at_2[0].as_ref().unwrap()[ndarray::IxDyn(&[])]
+            g_two_x_squared_at_2[0].as_ref().unwrap()[scirs2_core::ndarray::IxDyn(&[])]
         );
     });
 }

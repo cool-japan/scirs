@@ -1,7 +1,7 @@
 //! Quantization-aware training for reduced model size and faster inference
 
 use crate::error::Result;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use statrs::statistics::Statistics;
 /// Quantization configuration
 #[derive(Debug, Clone)]

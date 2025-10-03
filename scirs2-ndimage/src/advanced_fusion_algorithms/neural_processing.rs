@@ -24,8 +24,8 @@
 //! 5. **Learning**: Apply self-organization learning rules
 //! 6. **Global Update**: Update network-wide properties
 
-use ndarray::{Array2, Array5};
-use num_complex::Complex;
+use scirs2_core::ndarray::{Array2, Array5};
+use scirs2_core::numeric::Complex;
 use std::collections::HashMap;
 use std::f64::consts::PI;
 use std::sync::{Arc, RwLock};
@@ -63,7 +63,7 @@ use crate::error::NdimageResult;
 /// # Example
 ///
 /// ```rust,ignore
-/// use ndarray::Array5;
+/// use scirs2_core::ndarray::Array5;
 /// use scirs2_ndimage::advanced_fusion_algorithms::neural_processing::*;
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -537,7 +537,7 @@ fn apply_self_organization_learning(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array5;
+    use scirs2_core::ndarray::Array5;
 
     #[test]
     fn test_activation_functions() {
@@ -576,8 +576,8 @@ mod tests {
 
     // Helper function to create test state
     fn create_test_state() -> AdvancedState {
-        use ndarray::{Array1, Array4};
-        use num_complex::Complex64;
+        use scirs2_core::ndarray::{Array1, Array4};
+        use scirs2_core::numeric::Complex64;
         use std::collections::{BTreeMap, VecDeque};
 
         // Create minimal network topology for testing

@@ -3,8 +3,8 @@
 //! This module implements the core mathematics for evaluating tensor-product
 //! B-splines in two dimensions.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Finds the interval where point x falls in the knot vector
@@ -254,7 +254,7 @@ pub fn evaluate_bispline<F: crate::traits::InterpolationFloat>(
         for j in 0..=ky {
             let idx = (span_x - kx + i) * n_y + (span_y - ky + j);
             if idx < coeffs.len() {
-                sum = sum + basis_x[i] * basis_y[j] * coeffs[idx];
+                sum += basis_x[i] * basis_y[j] * coeffs[idx];
             }
         }
     }
@@ -330,7 +330,7 @@ pub fn evaluate_bispline_derivative<F: crate::traits::InterpolationFloat>(
 
             let idx = (span_x - kx + i) * n_y + (span_y - ky + j);
             if idx < coeffs.len() {
-                sum = sum + derivs_x[[dx, i]] * derivs_y[[dy, j]] * coeffs[idx];
+                sum += derivs_x[[dx, i]] * derivs_y[[dy, j]] * coeffs[idx];
             }
         }
     }
@@ -394,7 +394,7 @@ pub fn integrate_bispline<F: crate::traits::InterpolationFloat>(
             let value = evaluate_bispline(_x, _y, knots_x, knots_y, coeffs, kx, ky);
 
             // Add to the sum with appropriate weight
-            sum = sum + value * weights[i] * weights[j];
+            sum += value * weights[i] * weights[j];
         }
     }
 
@@ -476,7 +476,7 @@ fn gauss_legendre_quadrature<F: Float + FromPrimitive + Debug>(n: usize) -> (Vec
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_find_span() {

@@ -2,7 +2,7 @@
 
 use super::types::CommunityResult;
 use crate::base::{EdgeWeight, Graph, IndexType, Node};
-use rand::seq::SliceRandom;
+use scirs2_core::random::seq::SliceRandom;
 use std::collections::HashMap;
 use std::hash::Hash;
 
@@ -32,7 +32,7 @@ where
         .map(|(i, n)| (n.clone(), i))
         .collect();
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut changed = true;
     let mut _iterations = 0;
 
@@ -72,7 +72,7 @@ where
                 .collect();
 
             // Choose randomly among ties
-            use rand::Rng;
+            use scirs2_core::random::Rng;
             let new_label = best_labels[rng.gen_range(0..best_labels.len())];
 
             if labels[i] != new_label {

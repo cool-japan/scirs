@@ -4,9 +4,9 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use num_traits::{Float, NumCast};
-use rand_distr::{Bernoulli as RandBernoulli, Distribution};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Bernoulli as RandBernoulli, Distribution};
 use scirs2_core::validation::check_probability;
 
 /// Bernoulli distribution structure
@@ -45,7 +45,7 @@ impl<F: Float + NumCast + std::fmt::Display> Bernoulli<F> {
         let _ = check_probability(p, "Success probability").map_err(StatsError::from)?;
 
         // Create RNG for Bernoulli distribution
-        let p_f64 = <f64 as num_traits::NumCast>::from(p).ok_or_else(|| {
+        let p_f64 = <f64 as scirs2_core::numeric::NumCast>::from(p).ok_or_else(|| {
             StatsError::ComputationError("Failed to convert p to f64".to_string())
         })?;
         let rand_distr = match RandBernoulli::new(p_f64) {

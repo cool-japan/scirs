@@ -10,8 +10,8 @@
 //! - Real-time performance monitoring and optimization
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::ArrayView2;
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::ArrayView2;
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::{PlatformCapabilities, SimdUnifiedOps},
@@ -262,7 +262,8 @@ impl AdvancedParallelConfig {
 
         // Fallback: Estimate based on available threads (rough heuristic)
         let num_cores = num_threads().max(1);
-        let estimated_ram = if num_cores >= 16 {
+
+        if num_cores >= 16 {
             32 * 1024 * 1024 * 1024 // 32GB for high-end systems
         } else if num_cores >= 8 {
             16 * 1024 * 1024 * 1024 // 16GB for mid-range systems
@@ -270,9 +271,7 @@ impl AdvancedParallelConfig {
             8 * 1024 * 1024 * 1024 // 8GB for entry-level systems
         } else {
             4 * 1024 * 1024 * 1024 // 4GB for minimal systems
-        };
-
-        estimated_ram
+        }
     }
 
     /// Detect NUMA topology
@@ -630,7 +629,7 @@ where
         + Sync
         + 'static
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Create new advanced-parallel processor
     pub fn new() -> Self {
@@ -712,7 +711,7 @@ where
     {
         let (rows, cols) = data.dim();
         let num_threads = self.config.hardware.cpu_cores;
-        let chunksize = (rows + num_threads - 1) / num_threads;
+        let chunksize = rows.div_ceil(num_threads);
 
         // Process in parallel chunks
         let results: Vec<_> = (0..num_threads)
@@ -722,7 +721,7 @@ where
                 let end_row = ((thread_id + 1) * chunksize).min(rows);
 
                 if start_row < rows {
-                    let chunk = data.slice(ndarray::s![start_row..end_row, ..]);
+                    let chunk = data.slice(scirs2_core::ndarray::s![start_row..end_row, ..]);
                     operation(&chunk)
                 } else {
                     // Empty chunk - return appropriate default
@@ -881,7 +880,7 @@ where
         + Sync
         + 'static
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     fn default() -> Self {
         Self::new()
@@ -907,7 +906,7 @@ where
         + Sync
         + 'static
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     AdvancedParallelProcessor::new()
 }
@@ -928,7 +927,7 @@ where
         + Sync
         + 'static
         + std::fmt::Display
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     AdvancedParallelProcessor::with_config(config)
 }
@@ -940,7 +939,7 @@ unsafe impl Sync for MemoryPool {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_advanced_parallel_config_default() {

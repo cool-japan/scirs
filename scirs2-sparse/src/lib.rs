@@ -1,4 +1,13 @@
 #![allow(deprecated)]
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::manual_ok_err)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::while_let_loop)]
+#![allow(clippy::vec_init_then_push)]
+#![allow(clippy::should_implement_trait)]
+#![allow(clippy::only_used_in_recursion)]
+#![allow(clippy::manual_slice_fill)]
 #![allow(dead_code)]
 //! # SciRS2 Sparse - Sparse Matrix Operations
 //!
@@ -31,7 +40,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-sparse = "0.1.0-beta.4"
+//! scirs2-sparse = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust
@@ -44,7 +53,7 @@
 //! let sparse = CsrArray::from_triplets(&rows, &cols, &data, (3, 3), false).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 //!
 //! ## Matrix vs. Array API
 //!
@@ -418,7 +427,7 @@ pub struct SparseWarning;
 #[allow(dead_code)]
 pub fn is_sparse_array<T>(obj: &dyn SparseArray<T>) -> bool
 where
-    T: num_traits::Float
+    T: scirs2_core::numeric::Float
         + std::fmt::Debug
         + Copy
         + std::ops::Add<Output = T>
@@ -434,7 +443,7 @@ where
 #[allow(dead_code)]
 pub fn is_sym_sparse_array<T>(obj: &dyn SymSparseArray<T>) -> bool
 where
-    T: num_traits::Float
+    T: scirs2_core::numeric::Float
         + std::fmt::Debug
         + Copy
         + std::ops::Add<Output = T>
@@ -561,7 +570,7 @@ mod tests {
 
     #[test]
     fn test_dia_array() {
-        use ndarray::Array1;
+        use scirs2_core::ndarray::Array1;
 
         // Create a 3x3 diagonal matrix with main diagonal + upper diagonal
         let data = vec![

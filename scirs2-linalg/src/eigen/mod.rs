@@ -15,7 +15,7 @@
 //! which provide the same API as the original implementation:
 //!
 //! ```rust
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_linalg::eigen::{eig, eigh, eigvals};
 //!
 //! // General eigenvalue decomposition
@@ -35,7 +35,7 @@
 //! For advanced applications, use the specialized modules:
 //!
 //! ```rust
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_linalg::eigen::generalized::{eig_gen, eigh_gen};
 //!
 //! // Generalized eigenvalue problem Ax = λBx
@@ -54,8 +54,8 @@ use crate::error::{LinalgError, LinalgResult};
 pub use standard::EigenResult;
 
 // Import all the main functions from submodules
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 // Re-export main functions for backward compatibility
@@ -82,7 +82,7 @@ pub use sparse::{arnoldi, eigs_gen, lanczos, svds};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::eigvalsh;
 ///
 /// let a = array![[2.0_f64, 1.0], [1.0, 3.0]];
@@ -119,7 +119,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::advanced_precision_eig;
 ///
 /// let a = array![[1.0000000001_f64, 0.9999999999], [0.9999999999, 1.0000000001]];
@@ -136,7 +136,7 @@ pub fn advanced_precision_eig<F>(
     tolerance: F,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Implement advanced-precision algorithms using extended precision and iterative refinement
 
@@ -358,7 +358,7 @@ fn advanced_precision_general_eigensolver<F>(
     tolerance: F,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // For non-symmetric matrices, this is a simplified implementation
     // In a full implementation, this would use advanced QR algorithm with shifts
@@ -461,7 +461,7 @@ where
 #[allow(dead_code)]
 fn newton_eigenvalue_correction<F>(a: &ArrayView2<F>, v: &Array1<F>, lambda: F, tolerance: F) -> F
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let max_newton_iterations = 5;
     let mut correction = F::zero();
@@ -502,7 +502,7 @@ fn enhanced_inverse_iteration<F>(
     tolerance: F,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
     let mut refined_v = v.clone();
@@ -575,7 +575,7 @@ fn verify_eigenvalue_accuracy<F>(
     tolerance: F,
 ) -> bool
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = eigenvalues.len();
 
@@ -645,7 +645,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::estimate_condition_number;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 1e-12]];
@@ -655,7 +655,7 @@ where
 #[allow(dead_code)]
 pub fn estimate_condition_number<F>(a: &ArrayView2<F>) -> F
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
     if n == 0 {
@@ -828,7 +828,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_backward_compatibility() {

@@ -1,6 +1,6 @@
 //! Example demonstrating MDCT and MDST usage for audio processing
 
-use ndarray::{array, Array1};
+use scirs2_core::ndarray::{array, Array1};
 use scirs2_fft::mdct::{imdct, imdst, mdct, mdct_overlap_add, mdst};
 use scirs2_fft::window::Window;
 use std::f64::consts::PI;
@@ -53,7 +53,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let end = start + blocksize;
 
         if end <= signal_len {
-            let block = long_signal.slice(ndarray::s![start..end]).to_owned();
+            let block = long_signal
+                .slice(scirs2_core::ndarray::s![start..end])
+                .to_owned();
             let mdct_block = mdct(&block, blocksize, Some(Window::Hann))?;
             blocks.push(mdct_block);
         }
@@ -136,7 +138,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let end = (start + blocksize).min(signal_len);
 
         if end - start == blocksize {
-            let block = audio_signal.slice(ndarray::s![start..end]).to_owned();
+            let block = audio_signal
+                .slice(scirs2_core::ndarray::s![start..end])
+                .to_owned();
             let mdct_block = mdct(&block, blocksize, Some(Window::Hann))?;
 
             // Simulate quantization (lossy compression)
@@ -150,8 +154,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Calculate SNR
     let signal_power: f64 = audio_signal.mapv(|x| x * x).sum() / signal_len as f64;
-    let noise =
-        &audio_signal.slice(ndarray::s![..reconstructed_audio.len()]) - &reconstructed_audio;
+    let noise = &audio_signal.slice(scirs2_core::ndarray::s![..reconstructed_audio.len()])
+        - &reconstructed_audio;
     let noise_power: f64 = noise.mapv(|x| x * x).sum() / noise.len() as f64;
     let snr_db = 10.0 * (signal_power / noise_power).log10();
 

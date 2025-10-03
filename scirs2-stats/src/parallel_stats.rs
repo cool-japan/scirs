@@ -6,8 +6,8 @@
 use crate::error::{StatsError, StatsResult};
 use crate::error_standardization::ErrorMessages;
 use crate::{mean, quantile, var, QuantileInterpolation};
-use ndarray::{s, Array1, ArrayBase, ArrayView1, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{s, Array1, ArrayBase, ArrayView1, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::{num_threads, par_chunks, parallel_map, ParallelIterator};
 
 /// Threshold for using parallel operations (number of elements)
@@ -248,7 +248,9 @@ where
 ///
 /// Correlation matrix
 #[allow(dead_code)]
-pub fn corrcoef_parallel<F, D>(data: &ArrayBase<D, Ix2>) -> StatsResult<ndarray::Array2<F>>
+pub fn corrcoef_parallel<F, D>(
+    data: &ArrayBase<D, Ix2>,
+) -> StatsResult<scirs2_core::ndarray::Array2<F>>
 where
     F: Float
         + NumCast
@@ -269,7 +271,7 @@ where
         return crate::corrcoef(&data.view(), "pearson");
     }
 
-    let mut corr_matrix = ndarray::Array2::zeros((n_vars, n_vars));
+    let mut corr_matrix = scirs2_core::ndarray::Array2::zeros((n_vars, n_vars));
 
     // Generate all pairs (i, j) where i < j
     let pairs: Vec<(usize, usize)> = (0..n_vars)
@@ -322,7 +324,7 @@ pub fn bootstrap_parallel<F, S>(
 ) -> StatsResult<Array1<F>>
 where
     F: Float + NumCast + Send + Sync,
-    S: Fn(&ArrayBase<ndarray::ViewRepr<&F>, Ix1>) -> StatsResult<F>
+    S: Fn(&ArrayBase<scirs2_core::ndarray::ViewRepr<&F>, Ix1>) -> StatsResult<F>
         + Send
         + Sync
         + std::fmt::Display,

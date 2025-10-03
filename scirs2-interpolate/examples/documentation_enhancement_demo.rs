@@ -252,7 +252,7 @@ fn analyze_by_audience_level(report: &DocumentationReport) {
     }
 
     // Identify gaps
-    let all_audiences = vec!["Beginner", "Intermediate", "Advanced", "DomainExpert"];
+    let all_audiences = ["Beginner", "Intermediate", "Advanced", "DomainExpert"];
     let missing_audiences: Vec<_> = all_audiences
         .iter()
         .filter(|&audience| !audience_content.contains_key(*audience))

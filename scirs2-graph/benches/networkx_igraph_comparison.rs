@@ -70,6 +70,12 @@ pub struct ExternalBenchmarkRunner {
     temp_dir: String,
 }
 
+impl Default for ExternalBenchmarkRunner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ExternalBenchmarkRunner {
     pub fn new() -> Self {
         Self {
@@ -618,7 +624,6 @@ fn measure_scirs2_algorithm_with_advanced<N: Node + std::fmt::Debug, E: EdgeWeig
     graph: &Graph<N, E, Ix>,
 ) -> f64
 where
-    N: Clone + std::hash::Hash + Eq,
     Ix: petgraph::graph::IndexType,
 {
     use scirs2_graph::advanced::{
@@ -678,7 +683,6 @@ fn measure_scirs2_algorithm_standard<N: Node + std::fmt::Debug, E: EdgeWeight, I
     graph: &Graph<N, E, Ix>,
 ) -> f64
 where
-    N: Clone + std::hash::Hash + Eq,
     Ix: petgraph::graph::IndexType,
 {
     let start = Instant::now();

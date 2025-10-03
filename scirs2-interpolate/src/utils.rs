@@ -3,8 +3,8 @@
 //! This module provides helper functions for interpolation tasks.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::safe_ops::{safe_divide, safe_sqrt};
 use std::fmt::{Debug, Display};
 
@@ -28,7 +28,7 @@ use std::fmt::{Debug, Display};
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::{Array1, ArrayView1};
+/// use scirs2_core::ndarray::{Array1, ArrayView1};
 /// use scirs2_interpolate::utils::error_estimate;
 /// use scirs2_interpolate::error::InterpolateResult;
 ///
@@ -293,7 +293,7 @@ where
         ));
     }
 
-    if n % 2 != 0 {
+    if !n.is_multiple_of(2) {
         return Err(InterpolateError::InvalidValue(
             "number of intervals must be even".to_string(),
         ));
@@ -508,7 +508,7 @@ where
 mod tests {
     use super::*;
     // interpolation functions
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_error_estimate() {

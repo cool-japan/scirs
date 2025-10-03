@@ -3,7 +3,7 @@
 //! This module contains all the foundational data types and enums used throughout
 //! the numerical stability system.
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::ops::{AddAssign, SubAssign};
@@ -385,7 +385,7 @@ where
 pub fn machine_epsilon<F: Float + FromPrimitive>() -> F {
     match std::mem::size_of::<F>() {
         4 => F::from_f64(f32::EPSILON as f64).unwrap_or_else(|| {
-            F::from(f32::EPSILON as f32).unwrap_or_else(|| {
+            F::from(f32::EPSILON).unwrap_or_else(|| {
                 F::from_f64(1.19e-7).unwrap_or_else(|| F::from(1.19e-7).unwrap())
             })
         }), // f32

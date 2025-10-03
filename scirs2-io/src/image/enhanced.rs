@@ -9,7 +9,7 @@
 
 use crate::error::{IoError, Result};
 use crate::image::{ColorMode, ImageData, ImageFormat};
-use ndarray::{Array3, ArrayView1};
+use scirs2_core::ndarray::{Array3, ArrayView1};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::HashMap;
 use std::path::Path;
@@ -634,7 +634,7 @@ pub fn batch_convert_with_compression<P1: AsRef<Path>, P2: AsRef<Path>>(
 mod tests {
     use super::*;
     use crate::image::ImageMetadata;
-    use ndarray::Array3;
+    use scirs2_core::ndarray::Array3;
 
     fn create_test_image() -> ImageData {
         let data = Array3::zeros((100, 100, 3));

@@ -6,7 +6,7 @@
 use crate::error::{Result, TextError};
 use crate::tokenize::{Tokenizer, WordTokenizer};
 use crate::vocabulary::Vocabulary;
-use ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::parallel_ops;
 use std::collections::HashMap;
 

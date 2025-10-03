@@ -7,11 +7,11 @@
 //! in compliance with the project-wide SIMD policy. Direct use of SIMD intrinsics is FORBIDDEN.
 
 use crate::error::{NeuralError, Result};
-use ndarray::{ArrayD, ArrayView, ArrayViewMut, IxDyn};
+use scirs2_core::ndarray::{ArrayD, ArrayView, ArrayViewMut, IxDyn};
 #[allow(unused_imports)]
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 #[cfg(feature = "simd")]
-use ndarray::Array;
+use scirs2_core::ndarray::Array;
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
 /// SIMD-accelerated operations for neural networks
 pub struct SIMDOperations;
@@ -141,10 +141,10 @@ impl SIMDOperations {
             ));
         let mut result = Array::zeros(input.raw_dim());
         // Process along the specified axis
-        for lane in input.axis_iter(ndarray::Axis(axis)) {
+        for lane in input.axis_iter(scirs2_core::ndarray::Axis(axis)) {
             if let (Some(input_slice), Some(mut result_slice)) = (
                 lane.as_slice(),
-                result.axis_iter_mut(ndarray::Axis(axis)).next(),
+                result.axis_iter_mut(scirs2_core::ndarray::Axis(axis)).next(),
             ) {
                 if let Some(result_slice_mut) = result_slice.as_slice_mut() {
                     Self::simd_softmax_f32_slice(input_slice, result_slice_mut);
@@ -227,7 +227,7 @@ impl SIMDOperations {
             for j in 0..n {
                 let mut sum = 0.0f32;
                 // SIMD-accelerated dot product
-                let a_row_view = a.slice(ndarray::s![i, ..]);
+                let a_row_view = a.slice(scirs2_core::ndarray::s![i, ..]);
                 let a_row_slice = if a.is_standard_layout() {
                     a_row_view.as_slice()
                 } else {

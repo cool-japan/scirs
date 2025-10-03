@@ -6,7 +6,7 @@
 
 use crate::error::SpecialResult;
 use crate::orthogonal::legendre_assoc;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::f64;
 use std::f64::consts::PI;
 use std::fmt::Debug;

@@ -2,8 +2,8 @@ use crate::op::*;
 use crate::tensor::Tensor;
 use crate::tensor_ops::convert_to_tensor;
 use crate::Float;
-use ndarray::Array2;
-use ndarray::ScalarOperand;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::ndarray::ScalarOperand;
 // BLAS dependencies removed - using core abstractions
 // use ndarray_linalg::{Lapack, UPLO};
 
@@ -27,7 +27,7 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
         // Get ndarray data directly
         let matrix = input
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| OpError::Other("Failed to convert to 2D array".into()))?;
 
         // TODO: Replace with scirs2-core linear algebra when available
@@ -81,7 +81,7 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
         };
 
         // Convert to 2D arrays
-        let l = match y_array.into_dimensionality::<ndarray::Ix2>() {
+        let l = match y_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
             Ok(arr) => arr,
             Err(_) => {
                 println!("Failed to convert Cholesky output to 2D array");
@@ -90,7 +90,7 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
             }
         };
 
-        let gy_2d = match gy_array.into_dimensionality::<ndarray::Ix2>() {
+        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
             Ok(arr) => arr,
             Err(_) => {
                 println!("Failed to convert Cholesky gradient to 2D array");
@@ -192,7 +192,7 @@ impl<F: Float + ScalarOperand> Op<F> for SymmetrizeOp {
         // Get ndarray data directly
         let matrix = input
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| OpError::Other("Failed to convert to 2D array".into()))?;
 
         // Symmetrize manually: (A + A^T) / 2
@@ -223,7 +223,7 @@ impl<F: Float + ScalarOperand> Op<F> for SymmetrizeOp {
         };
 
         // Convert to 2D array
-        let gy_2d = match gy_array.into_dimensionality::<ndarray::Ix2>() {
+        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
             Ok(arr) => arr,
             Err(_) => {
                 ctx.append_input_grad(0, None);
@@ -276,7 +276,7 @@ impl<F: Float> Op<F> for LowerTriangularOp {
         // Get ndarray data directly
         let matrix = input
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| OpError::Other("Failed to convert to 2D array".into()))?;
 
         let mut lower = matrix.to_owned();
@@ -314,7 +314,7 @@ impl<F: Float> Op<F> for LowerTriangularOp {
         };
 
         // Convert to 2D array
-        let gy_2d = match gy_array.into_dimensionality::<ndarray::Ix2>() {
+        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
             Ok(arr) => arr,
             Err(_) => {
                 ctx.append_input_grad(0, None);
@@ -369,7 +369,7 @@ impl<F: Float> Op<F> for UpperTriangularOp {
         // Get ndarray data directly
         let matrix = input
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| OpError::Other("Failed to convert to 2D array".into()))?;
 
         let mut upper = matrix.to_owned();
@@ -407,7 +407,7 @@ impl<F: Float> Op<F> for UpperTriangularOp {
         };
 
         // Convert to 2D array
-        let gy_2d = match gy_array.into_dimensionality::<ndarray::Ix2>() {
+        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
             Ok(arr) => arr,
             Err(_) => {
                 ctx.append_input_grad(0, None);
@@ -463,7 +463,7 @@ impl<F: Float> Op<F> for BandMatrixOp {
         // Get ndarray data directly
         let matrix = input
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| OpError::Other("Failed to convert to 2D array".into()))?;
 
         let mut band = matrix.to_owned();
@@ -502,7 +502,7 @@ impl<F: Float> Op<F> for BandMatrixOp {
         };
 
         // Convert to 2D array
-        let gy_2d = match gy_array.into_dimensionality::<ndarray::Ix2>() {
+        let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
             Ok(arr) => arr,
             Err(_) => {
                 ctx.append_input_grad(0, None);

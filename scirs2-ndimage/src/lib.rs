@@ -1,4 +1,55 @@
 #![allow(deprecated)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::excessive_precision)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::assign_op_pattern)]
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::manual_is_multiple_of)]
+#![allow(clippy::clone_on_copy)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::needless_question_mark)]
+#![allow(clippy::inconsistent_digit_grouping)]
+#![allow(clippy::unnecessary_cast)]
+#![allow(clippy::doc_overindented_list_items)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::manual_slice_size_calculation)]
+#![allow(clippy::unwrap_or_default)]
+#![allow(clippy::single_char_add_str)]
+#![allow(clippy::map_flatten)]
+#![allow(clippy::collapsible_if)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::should_implement_trait)]
+#![allow(clippy::option_as_ref_deref)]
+#![allow(clippy::derivable_impls)]
+#![allow(clippy::unnecessary_lazy_evaluations)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::nonminimal_bool)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::let_and_return)]
+#![allow(clippy::if_same_then_else)]
+#![allow(clippy::collapsible_else_if)]
+#![allow(clippy::bool_comparison)]
+#![allow(clippy::vec_init_then_push)]
+#![allow(clippy::useless_format)]
+#![allow(clippy::unnecessary_map_or)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::map_entry)]
+#![allow(clippy::map_clone)]
+#![allow(clippy::manual_range_contains)]
+#![allow(clippy::manual_map)]
+#![allow(clippy::manual_dangling_ptr)]
+#![allow(clippy::manual_contains)]
+#![allow(clippy::manual_c_str_literals)]
+#![allow(clippy::implicit_saturating_sub)]
+#![allow(clippy::format_in_format_args)]
+#![allow(clippy::for_kv_map)]
+#![allow(clippy::extra_unused_type_parameters)]
+#![allow(clippy::explicit_counter_loop)]
+#![allow(clippy::explicit_auto_deref)]
+#![allow(clippy::empty_line_after_outer_attr)]
+#![allow(clippy::empty_line_after_doc_comments)]
+#![allow(clippy::doc_lazy_continuation)]
 #![allow(unreachable_code)]
 #![allow(unused_mut)]
 #![allow(missing_docs)]
@@ -39,7 +90,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-ndimage = "0.1.0-beta.4"
+//! scirs2-ndimage = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust,no_run
@@ -51,7 +102,7 @@
 //! let filtered = filters::gaussian_filter(&image, 2.0, None, None).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 
 // Public modules
 pub mod adaptive_image_optimizer;

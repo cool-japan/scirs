@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Advanced 2D Wavelet Denoising Methods for Advanced Mode
 //
 // This module provides state-of-the-art 2D wavelet denoising techniques
@@ -10,9 +10,9 @@ use crate::dwt::Wavelet;
 use crate::dwt2d::{dwt2d_decompose, dwt2d_reconstruct};
 use crate::dwt2d_boundary_enhanced::{dwt2d_decompose_enhanced, BoundaryMode2D};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use scirs2_core::Rng as CoreRng;
@@ -370,7 +370,7 @@ fn simd_normalize_coefficients(coeffs: &mut Array2<f64>) -> SignalResult<()> {
 /// SIMD mean calculation
 #[allow(dead_code)]
 fn simd_calculate_mean(data: &[f64]) -> SignalResult<f64> {
-    let data_view = ndarray::ArrayView1::from(_data);
+    let data_view = scirs2_core::ndarray::ArrayView1::from(_data);
     let sum = f64::simd_sum(&data_view);
     Ok(sum / data.len() as f64)
 }
@@ -379,8 +379,8 @@ fn simd_calculate_mean(data: &[f64]) -> SignalResult<f64> {
 #[allow(dead_code)]
 fn simd_calculate_std_dev(data: &[f64], mean: f64) -> SignalResult<f64> {
     let mean_array = vec![mean; data.len()];
-    let data_view = ndarray::ArrayView1::from(_data);
-    let mean_view = ndarray::ArrayView1::from(&mean_array);
+    let data_view = scirs2_core::ndarray::ArrayView1::from(_data);
+    let mean_view = scirs2_core::ndarray::ArrayView1::from(&mean_array);
 
     let diff = f64::simd_sub(&data_view, &mean_view);
     let squared_diff = f64::simd_mul(&diff.view(), &diff.view());
@@ -395,9 +395,9 @@ fn simd_normalize_data(_data: &mut [f64], mean: f64, stddev: f64) -> SignalResul
     let mean_array = vec![mean; data.len()];
     let std_array = vec![std_dev; data.len()];
 
-    let data_view = ndarray::ArrayView1::from(&*_data);
-    let mean_view = ndarray::ArrayView1::from(&mean_array);
-    let std_view = ndarray::ArrayView1::from(&std_array);
+    let data_view = scirs2_core::ndarray::ArrayView1::from(&*_data);
+    let mean_view = scirs2_core::ndarray::ArrayView1::from(&mean_array);
+    let std_view = scirs2_core::ndarray::ArrayView1::from(&std_array);
 
     let centered = f64::simd_sub(&data_view, &mean_view);
     let normalized = f64::simd_div(&centered.view(), &std_view);
@@ -487,7 +487,7 @@ fn quantum_annealing_optimization(
     let mut best_threshold = current_threshold;
     let mut best_energy = evaluate_threshold_energy(current_threshold, energy_states)?;
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for iteration in 0..iterations {
         // Simulated quantum temperature
         let temperature = 1.0 / (1.0 + iteration as f64 / 10.0);
@@ -683,7 +683,7 @@ fn simd_hard_threshold(data: &mut [f64], threshold: f64) -> SignalResult<()> {
 /// Quantum probabilistic thresholding
 #[allow(dead_code)]
 fn quantum_probabilistic_threshold(data: &mut [f64], threshold: f64) -> SignalResult<()> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for val in data.iter_mut() {
         let abs_val = val.abs();
         if abs_val < threshold {

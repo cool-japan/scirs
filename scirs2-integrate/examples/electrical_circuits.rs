@@ -3,7 +3,7 @@
 //! This example demonstrates solving various electrical circuit problems using ODE methods.
 //! It includes RC/RL circuits, RLC oscillators, and nonlinear circuits with diodes.
 
-use ndarray::{array, Array1, ArrayView1};
+use scirs2_core::ndarray::{array, Array1, ArrayView1};
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 use std::f64::consts::PI;
 

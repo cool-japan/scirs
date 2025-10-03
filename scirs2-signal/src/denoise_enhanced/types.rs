@@ -4,7 +4,7 @@
 //! used across the enhanced denoising algorithms.
 
 use crate::dwt::Wavelet;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Enhanced denoising configuration
 #[derive(Debug, Clone)]

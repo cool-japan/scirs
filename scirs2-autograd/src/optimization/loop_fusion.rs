@@ -6,7 +6,7 @@
 use crate::graph::{Graph, TensorID};
 use crate::op::OpError;
 use crate::Float;
-use ndarray::{Array, IxDyn, Zip};
+use scirs2_core::ndarray::{Array, IxDyn, Zip};
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
 
@@ -631,7 +631,7 @@ pub fn is_fusion_enabled() -> bool {
 mod tests {
     use super::*;
     #[allow(unused_imports)]
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_fusion_chain_creation() {

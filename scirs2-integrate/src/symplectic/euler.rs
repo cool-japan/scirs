@@ -13,7 +13,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::marker::PhantomData;
 
 /// Symplectic Euler Method A - updates position first, then momentum
@@ -151,7 +151,7 @@ pub fn symplectic_euler_b<F: IntegrateFloat>(
 mod tests {
     use super::*;
     use crate::symplectic::potential::SeparableHamiltonian;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     /// Test with simple harmonic oscillator
     #[test]

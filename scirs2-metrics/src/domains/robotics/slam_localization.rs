@@ -83,7 +83,7 @@ pub struct LoopClosureMetrics {
 /// SLAM computational performance metrics
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SlamComputationalMetrics {
-    /// Real-time performance
+    /// Float-time performance
     pub real_time_performance: RealTimePerformanceMetrics,
     /// Memory usage for maps
     pub map_memory_usage: f64,

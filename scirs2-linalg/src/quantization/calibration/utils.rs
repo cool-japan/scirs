@@ -6,7 +6,7 @@
 
 use super::super::{QuantizationMethod, QuantizationParams};
 use crate::error::LinalgResult;
-use ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 use std::fmt::Debug;
 
 // -------------------------------------------------------------------------
@@ -17,7 +17,7 @@ use std::fmt::Debug;
 #[allow(dead_code)]
 pub fn find_min_max<F>(matrix: &ArrayView2<F>) -> (f32, f32)
 where
-    F: num_traits::Float + num_traits::AsPrimitive<f32>,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::AsPrimitive<f32>,
 {
     let mut min_val = f32::MAX;
     let mut max_val = f32::MIN;
@@ -48,7 +48,7 @@ where
 #[allow(dead_code)]
 pub fn find_min_max_vec<F>(vector: &ArrayView1<F>) -> (f32, f32)
 where
-    F: num_traits::Float + num_traits::AsPrimitive<f32>,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::AsPrimitive<f32>,
 {
     let mut min_val = f32::MAX;
     let mut max_val = f32::MIN;
@@ -84,7 +84,7 @@ pub fn create_histogram<F>(
     num_bins: usize,
 ) -> Vec<usize>
 where
-    F: num_traits::Float + num_traits::AsPrimitive<f32>,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::AsPrimitive<f32>,
 {
     let mut histogram = vec![0; num_bins];
     let bin_width = (max_val - min_val) / num_bins as f32;
@@ -116,7 +116,7 @@ pub fn create_histogram_vec<F>(
     num_bins: usize,
 ) -> Vec<usize>
 where
-    F: num_traits::Float + num_traits::AsPrimitive<f32>,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::AsPrimitive<f32>,
 {
     let mut histogram = vec![0; num_bins];
     let bin_width = (max_val - min_val) / num_bins as f32;
@@ -350,8 +350,11 @@ fn calculate_kl_divergence_asymmetric(
 #[allow(dead_code)]
 pub fn optimize_symmetric_scale<F>(matrix: &ArrayView2<F>, bits: u8, basescale: f32) -> f32
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let num_trials = 20;
     let scales: Vec<f32> = (0..num_trials)
@@ -412,8 +415,11 @@ where
 #[allow(dead_code)]
 pub fn optimize_symmetric_scale_vec<F>(_vector: &ArrayView1<F>, bits: u8, basescale: f32) -> f32
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let num_trials = 20;
     let scales: Vec<f32> = (0..num_trials)
@@ -479,8 +485,11 @@ pub fn optimize_affine_params<F>(
     base_zero_point: i32,
 ) -> (f32, i32)
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let num_scale_trials = 10;
     let num_zp_trials = 5;
@@ -566,8 +575,11 @@ pub fn optimize_affine_params_vec<F>(
     base_zero_point: i32,
 ) -> (f32, i32)
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     let num_scale_trials = 10;
     let num_zp_trials = 5;
@@ -693,7 +705,7 @@ pub fn determine_data_type(bits: u8) -> super::super::QuantizedDataType {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_find_min_max() {

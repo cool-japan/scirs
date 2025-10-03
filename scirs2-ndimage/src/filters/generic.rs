@@ -3,8 +3,8 @@
 //! This module provides generic filtering functionality that allows users to apply
 //! custom functions to local neighborhoods in arrays.
 
-use ndarray::{s, Array, Array1, Array2, Dimension, Ix1, Ix2, IxDyn};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array, Array1, Array2, Dimension, Ix1, Ix2, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 #[cfg(feature = "simd")]
@@ -47,7 +47,7 @@ fn safe_to_float<T: Float + FromPrimitive>(value: f64) -> T {
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::filters::generic_filter;
 ///
 /// // Define a custom function that calculates the range (max - min)
@@ -405,7 +405,7 @@ fn extract_neighborhood_nd<T>(
 
 /// Common filter functions that can be used with generic_filter
 pub mod filter_functions {
-    use num_traits::{Float, FromPrimitive};
+    use scirs2_core::numeric::{Float, FromPrimitive};
 
     /// Calculate the mean of values
     pub fn mean<T: Float + FromPrimitive>(values: &[T]) -> T {
@@ -495,7 +495,7 @@ pub mod filter_functions {
 /// SIMD-optimized filter functions for f32
 #[cfg(feature = "simd")]
 pub mod simd_filter_functions_f32 {
-    use ndarray::{Array1, ArrayView1};
+    use scirs2_core::ndarray::{Array1, ArrayView1};
     // SIMD functions for f32 imported when needed
 
     /// SIMD-optimized mean calculation for f32
@@ -528,7 +528,7 @@ pub mod simd_filter_functions_f32 {
 /// SIMD-optimized filter functions for f64
 #[cfg(feature = "simd")]
 pub mod simd_filter_functions_f64 {
-    use ndarray::{Array1, ArrayView1};
+    use scirs2_core::ndarray::{Array1, ArrayView1};
     // SIMD functions for f64 imported when needed
 
     /// SIMD-optimized mean calculation for f64
@@ -562,7 +562,7 @@ pub mod simd_filter_functions_f64 {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_generic_filter_mean() {

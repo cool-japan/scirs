@@ -18,8 +18,8 @@
 
 use crate::error::InterpolateResult;
 use crate::streaming::StreamingInterpolator;
-use num_traits::{Float, FromPrimitive};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
@@ -358,7 +358,7 @@ impl<T: crate::traits::InterpolationFloat + std::fmt::LowerExp> InterpolationBen
             // SIMD distance matrix computation
             if crate::simd_optimized::is_simd_available() {
                 self.benchmark_method("simd_distance_matrix", size, || {
-                    let x_2d = x.clone().insert_axis(ndarray::Axis(1));
+                    let x_2d = x.clone().insert_axis(scirs2_core::ndarray::Axis(1));
                     crate::simd_optimized::simd_distance_matrix(&x_2d.view(), &x_2d.view())
                 })?;
             }

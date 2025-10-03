@@ -94,14 +94,14 @@ fn test_gpu_array() {
             // First check if we can downcast to IxDyn
             if let Some(wrapped) = cpu_array
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>()
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::IxDyn>>()
             {
                 assert_eq!(wrapped.as_array().shape(), arr.shape());
             }
             // If not, try to downcast to Ix2 which might be used instead
             else if let Some(wrapped) = cpu_array
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
             {
                 assert_eq!(wrapped.as_array().shape(), arr.shape());
             } else {
@@ -274,22 +274,22 @@ fn test_array_interoperability() {
             // based on the array types. For this test, we'll use a simplified implementation.
             let a_array = a
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>();
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::IxDyn>>();
             let b_array = b
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>();
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::IxDyn>>();
 
             if let (Some(a), Some(b)) = (a_array, b_array) {
                 // Cast to a specific dimension to avoid ambiguity
                 let a_arr = a
                     .as_array()
                     .to_owned()
-                    .into_dimensionality::<ndarray::Ix2>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                     .unwrap();
                 let b_arr = b
                     .as_array()
                     .to_owned()
-                    .into_dimensionality::<ndarray::Ix2>()
+                    .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                     .unwrap();
                 let result = a_arr.dot(&b_arr);
                 Ok(Box::new(NdarrayWrapper::new(result)))
@@ -310,7 +310,7 @@ fn test_array_interoperability() {
               kwargs: &std::collections::HashMap<String, Box<dyn std::any::Any>>| {
             // In a real implementation, we would extract the arguments properly
             // For this test, we just return a fixed result - a dummy NdarrayWrapper
-            let dummy_array = ndarray::Array2::<f64>::eye(3);
+            let dummy_array = scirs2_core::ndarray::Array2::<f64>::eye(3);
             let wrapped = NdarrayWrapper::new(dummy_array);
             Ok(Box::new(wrapped) as Box<dyn std::any::Any>)
         },
@@ -367,7 +367,7 @@ fn test_array_operations() {
         Ok(result) => {
             if let Some(result_array) = result
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
             {
                 assert_eq!(result_array.as_array(), &a.dot(&b));
             } else {
@@ -384,7 +384,7 @@ fn test_array_operations() {
         Ok(result) => {
             if let Some(result_array) = result
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
             {
                 assert_eq!(result_array.as_array(), &(a.clone() + b.clone()));
             } else {
@@ -401,7 +401,7 @@ fn test_array_operations() {
         Ok(result) => {
             if let Some(result_array) = result
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
             {
                 assert_eq!(result_array.as_array(), &(a.clone() * b.clone()));
             } else {
@@ -432,7 +432,7 @@ fn test_array_operations() {
         Ok(result) => {
             if let Some(result_array) = result
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
             {
                 assert_eq!(result_array.as_array(), &a.t().to_owned());
             } else {
@@ -462,11 +462,11 @@ fn test_array_operations() {
             assert!(
                 result
                     .as_any()
-                    .downcast_ref::<GPUNdarray<f64, ndarray::IxDyn>>()
+                    .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::IxDyn>>()
                     .is_some()
                     || result
                         .as_any()
-                        .downcast_ref::<GPUNdarray<f64, ndarray::Ix2>>()
+                        .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::Ix2>>()
                         .is_some()
             );
         }
@@ -481,11 +481,11 @@ fn test_array_operations() {
             assert!(
                 result
                     .as_any()
-                    .downcast_ref::<GPUNdarray<f64, ndarray::IxDyn>>()
+                    .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::IxDyn>>()
                     .is_some()
                     || result
                         .as_any()
-                        .downcast_ref::<GPUNdarray<f64, ndarray::Ix2>>()
+                        .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::Ix2>>()
                         .is_some()
             );
         }
@@ -533,7 +533,7 @@ fn test_mixed_array_types() {
               kwargs: &std::collections::HashMap<String, Box<dyn std::any::Any>>| {
             // In a real implementation, we would extract and handle arguments properly
             // For this test, we just return a fixed result
-            let dummy_array = ndarray::Array2::<f64>::ones((3, 3));
+            let dummy_array = scirs2_core::ndarray::Array2::<f64>::ones((3, 3));
             let wrapped = NdarrayWrapper::new(dummy_array);
             Ok(Box::new(wrapped) as Box<dyn std::any::Any>)
         },
@@ -557,19 +557,19 @@ fn test_mixed_array_types() {
             // Check for several possible result types
             let is_valid_type = result
                 .as_any()
-                .downcast_ref::<GPUNdarray<f64, ndarray::IxDyn>>()
+                .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::IxDyn>>()
                 .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>()
+                    .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::IxDyn>>()
                     .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<GPUNdarray<f64, ndarray::Ix2>>()
+                    .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::Ix2>>()
                     .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                    .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
                     .is_some();
 
             assert!(
@@ -589,19 +589,19 @@ fn test_mixed_array_types() {
             // Check for several possible result types
             let is_valid_type = result
                 .as_any()
-                .downcast_ref::<GPUNdarray<f64, ndarray::IxDyn>>()
+                .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::IxDyn>>()
                 .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<DistributedNdarray<f64, ndarray::IxDyn>>()
+                    .downcast_ref::<DistributedNdarray<f64, scirs2_core::ndarray::IxDyn>>()
                     .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<GPUNdarray<f64, ndarray::Ix2>>()
+                    .downcast_ref::<GPUNdarray<f64, scirs2_core::ndarray::Ix2>>()
                     .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<DistributedNdarray<f64, ndarray::Ix2>>()
+                    .downcast_ref::<DistributedNdarray<f64, scirs2_core::ndarray::Ix2>>()
                     .is_some();
 
             assert!(
@@ -621,19 +621,19 @@ fn test_mixed_array_types() {
             // Check for several possible result types
             let is_valid_type = result
                 .as_any()
-                .downcast_ref::<NdarrayWrapper<f64, ndarray::IxDyn>>()
+                .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::IxDyn>>()
                 .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<DistributedNdarray<f64, ndarray::IxDyn>>()
+                    .downcast_ref::<DistributedNdarray<f64, scirs2_core::ndarray::IxDyn>>()
                     .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                    .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
                     .is_some()
                 || result
                     .as_any()
-                    .downcast_ref::<DistributedNdarray<f64, ndarray::Ix2>>()
+                    .downcast_ref::<DistributedNdarray<f64, scirs2_core::ndarray::Ix2>>()
                     .is_some();
 
             assert!(

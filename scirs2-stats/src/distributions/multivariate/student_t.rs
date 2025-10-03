@@ -4,9 +4,11 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix1, Ix2};
-use rand_distr::{ChiSquared, Distribution, Normal as RandNormal};
+use scirs2_core::ndarray::{
+    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix1, Ix2,
+};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{ChiSquared, Distribution, Normal as RandNormal};
 use std::fmt::Debug;
 
 // Import the helper functions used by MultivariateNormal
@@ -110,7 +112,7 @@ impl MultivariateT {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::student_t::MultivariateT;
     ///
     /// // Create a 2D multivariate Student's t-distribution with 5 degrees of freedom
@@ -191,7 +193,7 @@ impl MultivariateT {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::student_t::MultivariateT;
     ///
     /// let mean = array![0.0, 0.0];
@@ -248,7 +250,7 @@ impl MultivariateT {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::student_t::MultivariateT;
     ///
     /// let mean = array![0.0, 0.0];
@@ -304,7 +306,7 @@ impl MultivariateT {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::student_t::MultivariateT;
     ///
     /// let mean = array![0.0, 0.0];
@@ -332,7 +334,7 @@ impl MultivariateT {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::student_t::MultivariateT;
     ///
     /// let mean = array![0.0, 0.0];
@@ -408,7 +410,7 @@ impl MultivariateT {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distributions::multivariate;
 ///
 /// let mean = array![0.0, 0.0];
@@ -448,7 +450,7 @@ impl SampleableDistribution<Array1<f64>> for MultivariateT {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Axis};
+    use scirs2_core::ndarray::{array, Axis};
 
     #[test]
     fn test_mvt_creation() {

@@ -4,7 +4,7 @@
 //! These methods are useful when you need to integrate a function that
 //! returns arrays rather than scalar values.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::cmp::Ordering;
 use std::collections::BinaryHeap;
 use std::f64::consts::PI;
@@ -181,7 +181,7 @@ fn compute_norm(array: &Array1<f64>, normtype: NormType) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array1, arr1};
+/// use scirs2_core::ndarray::{Array1, arr1};
 /// use scirs2_integrate::quad_vec::{quad_vec, QuadVecOptions};
 ///
 /// // Integrate a function that returns a 2D vector
@@ -381,7 +381,7 @@ where
 fn get_total<F, T>(heap: &BinaryHeap<Subinterval>, extra: &Subinterval, extract: F) -> Array1<T>
 where
     F: Fn(&Subinterval) -> &Array1<T>,
-    T: Clone + num_traits::Zero,
+    T: Clone + scirs2_core::numeric::Zero,
 {
     let mut result = extract(extra).clone();
 
@@ -635,7 +635,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_simple_integral() {

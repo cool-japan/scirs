@@ -3,7 +3,7 @@
 //! This example showcases the Advanced MODE implementations in scirs2-transform,
 //! including neuromorphic adaptation and quantum-inspired optimization.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_transform::{
     auto_feature_engineering::DatasetMetaFeatures, error::Result, AdvancedNeuromorphicProcessor,
     AdvancedQuantumOptimizer,

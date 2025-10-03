@@ -5,8 +5,8 @@
 //! with full vectorization and platform-specific optimizations.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::{PlatformCapabilities, SimdUnifiedOps},
@@ -339,42 +339,42 @@ where
             let chunksize_actual = end_col - start_col;
 
             // Extract data chunks for batch processing
-            let group1_chunk = group1.slice(ndarray::s![.., start_col..end_col]);
-            let group2_chunk = group2.slice(ndarray::s![.., start_col..end_col]);
+            let group1_chunk = group1.slice(scirs2_core::ndarray::s![.., start_col..end_col]);
+            let group2_chunk = group2.slice(scirs2_core::ndarray::s![.., start_col..end_col]);
 
             match test_type {
                 StatisticalTestType::TTest => {
                     let (stats, pvals, effects, cis, power, crit) = 
                         self.simd_batch_t_tests(&group1_chunk, &group2_chunk)?;
                     
-                    test_statistics.slice_mut(ndarray::s![start_col..end_col]).assign(&stats);
-                    p_values.slice_mut(ndarray::s![start_col..end_col]).assign(&pvals);
-                    effectsizes.slice_mut(ndarray::s![start_col..end_col]).assign(&effects);
-                    confidence_intervals.slice_mut(ndarray::s![start_col..end_col, ..]).assign(&cis);
-                    power_estimates.slice_mut(ndarray::s![start_col..end_col]).assign(&power);
-                    critical_values.slice_mut(ndarray::s![start_col..end_col]).assign(&crit);
+                    test_statistics.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&stats);
+                    p_values.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&pvals);
+                    effectsizes.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&effects);
+                    confidence_intervals.slice_mut(scirs2_core::ndarray::s![start_col..end_col, ..]).assign(&cis);
+                    power_estimates.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&power);
+                    critical_values.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&crit);
                 }
                 StatisticalTestType::MannWhitney => {
                     let (stats, pvals, effects, cis, power, crit) = 
                         self.simd_batch_mann_whitney_tests(&group1_chunk, &group2_chunk)?;
                     
-                    test_statistics.slice_mut(ndarray::s![start_col..end_col]).assign(&stats);
-                    p_values.slice_mut(ndarray::s![start_col..end_col]).assign(&pvals);
-                    effectsizes.slice_mut(ndarray::s![start_col..end_col]).assign(&effects);
-                    confidence_intervals.slice_mut(ndarray::s![start_col..end_col, ..]).assign(&cis);
-                    power_estimates.slice_mut(ndarray::s![start_col..end_col]).assign(&power);
-                    critical_values.slice_mut(ndarray::s![start_col..end_col]).assign(&crit);
+                    test_statistics.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&stats);
+                    p_values.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&pvals);
+                    effectsizes.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&effects);
+                    confidence_intervals.slice_mut(scirs2_core::ndarray::s![start_col..end_col, ..]).assign(&cis);
+                    power_estimates.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&power);
+                    critical_values.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&crit);
                 }
                 StatisticalTestType::KolmogorovSmirnov => {
                     let (stats, pvals, effects, cis, power, crit) = 
                         self.simd_batch_ks_tests(&group1_chunk, &group2_chunk)?;
                     
-                    test_statistics.slice_mut(ndarray::s![start_col..end_col]).assign(&stats);
-                    p_values.slice_mut(ndarray::s![start_col..end_col]).assign(&pvals);
-                    effectsizes.slice_mut(ndarray::s![start_col..end_col]).assign(&effects);
-                    confidence_intervals.slice_mut(ndarray::s![start_col..end_col, ..]).assign(&cis);
-                    power_estimates.slice_mut(ndarray::s![start_col..end_col]).assign(&power);
-                    critical_values.slice_mut(ndarray::s![start_col..end_col]).assign(&crit);
+                    test_statistics.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&stats);
+                    p_values.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&pvals);
+                    effectsizes.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&effects);
+                    confidence_intervals.slice_mut(scirs2_core::ndarray::s![start_col..end_col, ..]).assign(&cis);
+                    power_estimates.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&power);
+                    critical_values.slice_mut(scirs2_core::ndarray::s![start_col..end_col]).assign(&crit);
                 }
             }
         }
@@ -478,8 +478,8 @@ where
                                 let k_start = k_block + chunk * self.config.vector_width.optimal_chunk;
                                 let k_chunk_end = k_start + self.config.vector_width.optimal_chunk;
                                 
-                                let a_chunk = a.slice(ndarray::s![i, k_start..k_chunk_end]);
-                                let b_chunk = b.slice(ndarray::s![j, k_start..k_chunk_end]);
+                                let a_chunk = a.slice(scirs2_core::ndarray::s![i, k_start..k_chunk_end]);
+                                let b_chunk = b.slice(scirs2_core::ndarray::s![j, k_start..k_chunk_end]);
                                 
                                 sum = sum + F::simd_dot_product(&a_chunk, &b_chunk);
                             }
@@ -925,7 +925,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_advanced_simd_config() {

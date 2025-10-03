@@ -2,8 +2,8 @@
 
 use crate::data::{Dataset, Transform};
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::path::Path;
@@ -60,8 +60,8 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> Dataset<F> 
                 self.len()
             )));
         // Get slices of the data and convert to owned arrays
-        let x_slice = self.features.slice(ndarray::s![index, ..]);
-        let y_slice = self.labels.slice(ndarray::s![index, ..]);
+        let x_slice = self.features.slice(scirs2_core::ndarray::s![index, ..]);
+        let y_slice = self.labels.slice(scirs2_core::ndarray::s![index, ..]);
         // Convert to dynamic dimension arrays
         let xshape = x_slice.shape().to_vec();
         let yshape = y_slice.shape().to_vec();

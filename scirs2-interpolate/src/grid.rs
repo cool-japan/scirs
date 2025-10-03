@@ -5,8 +5,8 @@
 
 use crate::advanced::rbf::{RBFInterpolator, RBFKernel};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayD, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayD, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::Debug;
 
 /// Grid transformation methods
@@ -342,14 +342,14 @@ fn increment_indices(indices: &mut [usize], shape: &[usize]) -> bool {
 #[allow(dead_code)]
 pub fn resample_grid_to_grid<F, D>(
     src_coords: &[Array1<F>],
-    src_values: &ndarray::ArrayView<F, D>,
+    src_values: &scirs2_core::ndarray::ArrayView<F, D>,
     dst_coords: &[Array1<F>],
     method: GridTransformMethod,
     fill_value: F,
 ) -> InterpolateResult<ArrayD<F>>
 where
     F: Float + FromPrimitive + Debug + Clone + PartialOrd + Zero + 'static,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     if src_coords.len() != dst_coords.len() {
         return Err(InterpolateError::invalid_input(
@@ -425,14 +425,14 @@ fn ravel_multi_index(indices: &[usize], shape: &[usize]) -> usize {
 #[allow(dead_code)]
 fn grid_to_grid_nearest<F, D>(
     src_coords: &[Array1<F>],
-    src_values: &ndarray::ArrayView<F, D>,
+    src_values: &scirs2_core::ndarray::ArrayView<F, D>,
     dst_coords: &[Array1<F>],
     dst_values: &mut ArrayD<F>,
     fill_value: F,
 ) -> InterpolateResult<()>
 where
     F: Float + FromPrimitive + Debug + Clone + PartialOrd + Zero,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     let n_dims = src_coords.len();
     let dstshape: Vec<usize> = dst_coords.iter().map(|coord| coord.len()).collect();
@@ -471,7 +471,7 @@ where
         // Get the source _value and assign to destination
         if valid {
             // Use linear indexing for all cases to avoid generic dimension issues
-            let linear_idx = ravel_multi_index(&src_indices, &src_values.shape());
+            let linear_idx = ravel_multi_index(&src_indices, src_values.shape());
             let src_value = src_values.as_slice().unwrap()[linear_idx];
             let dst_linear_idx = ravel_multi_index(&indices, &dstshape);
             dst_values.as_slice_mut().unwrap()[dst_linear_idx] = src_value;
@@ -493,14 +493,14 @@ where
 #[allow(dead_code)]
 fn grid_to_grid_linear<F, D>(
     src_coords: &[Array1<F>],
-    src_values: &ndarray::ArrayView<F, D>,
+    src_values: &scirs2_core::ndarray::ArrayView<F, D>,
     dst_coords: &[Array1<F>],
     dst_values: &mut ArrayD<F>,
     fill_value: F,
 ) -> InterpolateResult<()>
 where
     F: Float + FromPrimitive + Debug + Clone + PartialOrd + Zero,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     let n_dims = src_coords.len();
     let dstshape: Vec<usize> = dst_coords.iter().map(|coord| coord.len()).collect();
@@ -532,13 +532,13 @@ where
 #[allow(dead_code)]
 fn multilinear_interpolate<F, D>(
     coords: &[Array1<F>],
-    values: &ndarray::ArrayView<F, D>,
+    values: &scirs2_core::ndarray::ArrayView<F, D>,
     point: &[F],
     fill_value: F,
 ) -> InterpolateResult<F>
 where
     F: Float + FromPrimitive + Debug + Clone + PartialOrd + Zero,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     let n_dims = coords.len();
 
@@ -596,7 +596,7 @@ where
         }
 
         // Get _value at this corner using linear indexing
-        let linear_idx = ravel_multi_index(&corner_indices, &values.shape());
+        let linear_idx = ravel_multi_index(&corner_indices, values.shape());
         let corner_value = values.as_slice().unwrap()[linear_idx];
         result = result + corner_weight * corner_value;
     }
@@ -620,14 +620,14 @@ where
 #[allow(dead_code)]
 pub fn map_grid_to_points<F, D>(
     grid_coords: &[Array1<F>],
-    grid_values: &ndarray::ArrayView<F, D>,
+    grid_values: &scirs2_core::ndarray::ArrayView<F, D>,
     query_points: &ArrayView2<F>,
     method: GridTransformMethod,
     fill_value: F,
 ) -> InterpolateResult<Array1<F>>
 where
     F: Float + FromPrimitive + Debug + Clone + PartialOrd + Zero + 'static,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     let n_points = query_points.nrows();
     let n_dims = query_points.ncols();
@@ -676,13 +676,13 @@ where
 #[allow(dead_code)]
 fn grid_nearest_neighbor<F, D>(
     grid_coords: &[Array1<F>],
-    grid_values: &ndarray::ArrayView<F, D>,
+    grid_values: &scirs2_core::ndarray::ArrayView<F, D>,
     query_point: &[F],
     _fill_value: F,
 ) -> InterpolateResult<F>
 where
     F: Float + FromPrimitive + Debug + Clone + PartialOrd + Zero,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     let n_dims = grid_coords.len();
     let mut nearest_indices = vec![0; n_dims];
@@ -706,7 +706,7 @@ where
         nearest_indices[dim] = best_idx;
     }
 
-    let linear_idx = ravel_multi_index(&nearest_indices, &grid_values.shape());
+    let linear_idx = ravel_multi_index(&nearest_indices, grid_values.shape());
     Ok(grid_values.as_slice().unwrap()[linear_idx])
 }
 

@@ -3,9 +3,9 @@
 //! This module provides various load balancing strategies to optimize
 //! resource utilization and performance across worker nodes.
 
-use ndarray::Array1;
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -502,7 +502,7 @@ impl LoadBalancingCoordinator {
         let mut new_assignments = current_assignments.clone();
 
         // ε-greedy exploration strategy
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for (&worker_id, &current_assignment) in current_assignments {
             if rng.random::<f64>() < exploration_rate {
@@ -556,7 +556,7 @@ impl LoadBalancingCoordinator {
             let mut remaining_data = datasize;
 
             // Random assignment generation
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             for (i, &worker_id) in worker_ids.iter().enumerate() {
                 let assignment = if i == worker_ids.len() - 1 {
                     remaining_data

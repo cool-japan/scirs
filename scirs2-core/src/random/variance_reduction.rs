@@ -365,6 +365,6 @@ mod tests {
         let prob =
             splitting.estimate_probability(100, |rng| rng.sample(Uniform::new(0.0, 1.0).unwrap()));
 
-        assert!(prob >= 0.0 && prob <= 1.0);
+        assert!((0.0..=1.0).contains(&prob));
     }
 }

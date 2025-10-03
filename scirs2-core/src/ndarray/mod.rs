@@ -160,13 +160,13 @@ pub use ndarray_rand::{rand_distr as distributions, RandomExt, SamplingStrategy}
 #[cfg(feature = "linalg")]
 pub use ndarray_linalg;
 
-#[cfg(feature = "stats")]
+#[cfg(feature = "array_stats")]
 pub use ndarray_stats::{
     errors as stats_errors, interpolate, CorrelationExt, DeviationExt, MaybeNan, QuantileExt,
     Sort1dExt, SummaryStatisticsExt,
 };
 
-#[cfg(feature = "npy")]
+#[cfg(feature = "array_io")]
 pub use ndarray_npy::{
     NpzReader, NpzWriter, ReadNpyExt, ReadNpzError, ViewMutNpyExt, ViewNpyExt, WriteNpyError,
     WriteNpyExt,
@@ -361,7 +361,7 @@ pub mod prelude {
 // EXAMPLES MODULE
 // ========================================
 
-#[cfg(all(test, feature = "doctest"))]
+#[cfg(test)]
 pub mod examples {
     //! Examples demonstrating unified ndarray access through scirs2-core
 
@@ -421,7 +421,6 @@ pub mod examples {
 // MIGRATION GUIDE
 // ========================================
 
-/// Documentation module for migration from fragmented imports
 pub mod migration_guide {
     //! # Migration Guide: From Fragmented to Unified ndarray Access
     //!

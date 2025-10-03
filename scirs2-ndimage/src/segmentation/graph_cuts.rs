@@ -3,8 +3,8 @@
 //! This module implements the graph cuts segmentation algorithm, which formulates
 //! image segmentation as a min-cut/max-flow problem on a graph.
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
@@ -466,7 +466,7 @@ impl GraphCutsParams {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_graph_cuts_simple() {

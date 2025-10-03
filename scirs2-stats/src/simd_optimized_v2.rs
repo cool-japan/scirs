@@ -7,8 +7,8 @@
 //! - Support multiple data types
 
 use crate::error::StatsResult;
-use ndarray::{ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use scirs2_core::validation::check_not_empty;
 
@@ -148,7 +148,7 @@ where
 
     for chunk_idx in 0..chunks {
         let start = chunk_idx * simd_width;
-        let chunk = x.slice(ndarray::s![start..start + simd_width]);
+        let chunk = x.slice(scirs2_core::ndarray::s![start..start + simd_width]);
 
         // Process chunk with SIMD
         let chunk_sum = F::simd_sum(&chunk);
@@ -184,7 +184,7 @@ where
     // Compute central moments in second pass
     for chunk_idx in 0..chunks {
         let start = chunk_idx * simd_width;
-        let chunk = x.slice(ndarray::s![start..start + simd_width]);
+        let chunk = x.slice(scirs2_core::ndarray::s![start..start + simd_width]);
 
         // Compute deviations and powers using SIMD
         for &val in chunk.iter() {
@@ -252,7 +252,7 @@ where
     // Handle any remaining elements
     let processed = (x.len() / CHUNK_SIZE) * CHUNK_SIZE;
     if processed < x.len() {
-        let remainder = x.slice(ndarray::s![processed..]);
+        let remainder = x.slice(scirs2_core::ndarray::s![processed..]);
         let remainder_sum = F::simd_sum(&remainder);
         total_sum = total_sum + remainder_sum;
     }
@@ -379,7 +379,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mean_simd_optimized() {

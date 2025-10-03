@@ -2,8 +2,8 @@
 //!
 //! Implements various hypothesis tests for time series
 
-use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -348,12 +348,12 @@ fn build_regression_matrix<S, F>(
     lags: usize,
     data: &ArrayBase<S, Ix1>,
     regression: ADFRegression,
-) -> Result<(ndarray::Array2<F>, Array1<F>)>
+) -> Result<(scirs2_core::ndarray::Array2<F>, Array1<F>)>
 where
     S: Data<Elem = F>,
     F: Float + FromPrimitive,
 {
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     let n = y_diff.len() - lags;
     let mut n_cols = 1 + lags; // _lag1 + _diff lags
@@ -410,7 +410,7 @@ where
 
 /// Simple OLS regression using pseudoinverse
 #[allow(dead_code)]
-fn ols_regression<F>(x: &ndarray::Array2<F>, y: &Array1<F>) -> Result<Array1<F>>
+fn ols_regression<F>(x: &scirs2_core::ndarray::Array2<F>, y: &Array1<F>) -> Result<Array1<F>>
 where
     F: Float + FromPrimitive + ScalarOperand,
 {
@@ -497,7 +497,7 @@ where
     S: Data<Elem = F>,
     F: Float + FromPrimitive + ScalarOperand,
 {
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     let n = data.len();
     let mut x_mat = Array2::zeros((n, 2));
@@ -520,7 +520,7 @@ where
 fn newey_west_variance<S, F>(residuals: &ArrayBase<S, Ix1>, lags: usize) -> Result<F>
 where
     S: Data<Elem = F>,
-    F: Float + FromPrimitive + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + scirs2_core::ndarray::ScalarOperand,
 {
     let n = residuals.len();
     let residuals_owned = residuals.to_owned();
@@ -708,7 +708,7 @@ where
 #[cfg(test)]
 mod unit_tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_adf_stationary() {

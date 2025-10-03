@@ -4,8 +4,8 @@
 //! statistics using scirs2-core's unified SIMD operations.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{ArrayBase, Data, DataMut, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, DataMut, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{AutoOptimizer, SimdUnifiedOps};
 
 /// SIMD-optimized quickselect algorithm for finding the k-th smallest element
@@ -211,7 +211,7 @@ where
                     Ok(upper_val)
                 }
             }
-            _ => Err(StatsError::invalid_argument(&format!(
+            _ => Err(StatsError::invalid_argument(format!(
                 "Unknown interpolation method: {}",
                 method
             ))),
@@ -237,7 +237,7 @@ pub fn quantiles_simd<F, D1, D2>(
     x: &mut ArrayBase<D1, Ix1>,
     quantiles: &ArrayBase<D2, Ix1>,
     method: &str,
-) -> StatsResult<ndarray::Array1<F>>
+) -> StatsResult<scirs2_core::ndarray::Array1<F>>
 where
     F: Float + NumCast + SimdUnifiedOps + std::fmt::Display,
     D1: DataMut<Elem = F>,
@@ -259,7 +259,7 @@ where
         }
     }
 
-    let mut results = ndarray::Array1::zeros(quantiles.len());
+    let mut results = scirs2_core::ndarray::Array1::zeros(quantiles.len());
 
     // Sort the array once if we have multiple quantiles
     if quantiles.len() > 1 {
@@ -435,7 +435,7 @@ where
                     Ok(upper_val)
                 }
             }
-            _ => Err(StatsError::invalid_argument(&format!(
+            _ => Err(StatsError::invalid_argument(format!(
                 "Unknown interpolation method: {}",
                 method
             ))),
@@ -477,7 +477,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_quickselect_simd() {

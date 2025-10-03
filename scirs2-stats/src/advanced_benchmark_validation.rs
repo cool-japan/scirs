@@ -11,7 +11,7 @@ use crate::error::{StatsError, StatsResult};
 use crate::unified_processor::{
     OptimizationMode, AdvancedProcessorConfig, AdvancedUnifiedProcessor,
 };
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -414,10 +414,10 @@ impl AdvancedBenchmarkValidator {
 
     /// Generate test data for validation
     fn generate_testdata(&self, size: usize) -> Array1<f64> {
-        use rand::SeedableRng;
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::SeedableRng;
+        use scirs2_core::random::{Distribution, Normal};
 
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42); // Fixed seed for reproducibility
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42); // Fixed seed for reproducibility
         let normal = Normal::new(0.0, 1.0).unwrap();
 
         Array1::from_vec((0..size).map(|_| normal.sample(&mut rng)).collect())
@@ -425,10 +425,10 @@ impl AdvancedBenchmarkValidator {
 
     /// Generate test matrix data for validation
     fn generate_test_matrix(&self, rows: usize, cols: usize) -> Array2<f64> {
-        use rand::SeedableRng;
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::SeedableRng;
+        use scirs2_core::random::{Distribution, Normal};
 
-        let mut rng = rand::rngs::StdRng::seed_from_u64(42); // Fixed seed for reproducibility
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42); // Fixed seed for reproducibility
         let normal = Normal::new(0.0, 1.0).unwrap();
 
         Array2::from_shape_vec(

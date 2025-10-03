@@ -7,10 +7,10 @@
 //! - Power iteration for dominant eigenvalues
 //! - QR algorithm for general cases
 
-use ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
-use num_complex::Complex;
-use num_traits::{Float, NumAssign};
-use rand::prelude::*;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, NumAssign};
+use scirs2_core::random::prelude::*;
 use std::iter::Sum;
 
 use crate::decomposition::qr;
@@ -38,7 +38,7 @@ pub type EigenResult<F> = LinalgResult<(Array1<Complex<F>>, Array2<Complex<F>>)>
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::standard::eig;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
@@ -54,7 +54,7 @@ pub type EigenResult<F> = LinalgResult<(Array1<Complex<F>>, Array2<Complex<F>>)>
 #[allow(dead_code)]
 pub fn eig<F>(a: &ArrayView2<F>, workers: Option<usize>) -> EigenResult<F>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -94,7 +94,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::standard::eigvals;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
@@ -110,7 +110,7 @@ where
 #[allow(dead_code)]
 pub fn eigvals<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<Array1<Complex<F>>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // For efficiency, we can compute just the eigenvalues
     // But for now, we'll use the full function and discard the eigenvectors
@@ -136,7 +136,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::standard::power_iteration;
 ///
 /// let a = array![[2.0_f64, 1.0], [1.0, 3.0]];
@@ -164,7 +164,7 @@ where
     let n = a.nrows();
 
     // Start with a random vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut b = Array1::zeros(n);
     for i in 0..n {
         b[i] = F::from(rng.gen_range(-1.0..=1.0)).unwrap_or(F::zero());
@@ -227,7 +227,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen::standard::eigh;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
@@ -243,7 +243,7 @@ where
 #[allow(dead_code)]
 pub fn eigh<F>(a: &ArrayView2<F>, workers: Option<usize>) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -318,7 +318,7 @@ pub fn advanced_precision_eig<F>(
     workers: Option<usize>,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
 
@@ -360,7 +360,7 @@ where
 #[allow(dead_code)]
 fn estimate_condition_number<F>(a: &ArrayView2<F>) -> LinalgResult<F>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
 
@@ -405,7 +405,7 @@ fn advanced_precise_smallmatrix_eig<F>(
     precision_target: F,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
 
@@ -431,7 +431,7 @@ fn advanced_precise_2x2_eig<F>(
     _precision_target: F,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let a11 = a[[0, 0]];
     let a12 = a[[0, 1]];
@@ -479,7 +479,7 @@ fn advanced_precise_3x3_eig<F>(
     precision_target: F,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Enhanced cubic equation solver with numerical stability improvements
     let characteristic_poly = compute_characteristic_polynomial_3x3(a)?;
@@ -500,7 +500,7 @@ fn advanced_precise_4x4_eig<F>(
     precision_target: F,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Use enhanced QR iteration with double shifting and deflation
     advanced_precise_qr_iteration(a, precision_target, 1000)
@@ -529,7 +529,7 @@ where
 #[allow(dead_code)]
 fn compute_characteristic_polynomial_3x3<F>(a: &ArrayView2<F>) -> LinalgResult<[F; 4]>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let a00 = a[[0, 0]];
     let a01 = a[[0, 1]];
@@ -569,7 +569,7 @@ fn solve_cubic_equation_advanced_precise<F>(
     precision_target: F,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let [c0, c1, c2, c3] = *coeffs;
 
@@ -689,7 +689,7 @@ fn compute_advanced_precise_eigenvectors_2x2<F>(
     eigenvalues: &Array1<F>,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let mut eigenvectors = Array2::zeros((2, 2));
 
@@ -745,7 +745,7 @@ fn compute_advanced_precise_eigenvectors_3x3<F>(
     precision_target: F,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let mut eigenvectors = Array2::zeros((3, 3));
 
@@ -776,7 +776,7 @@ fn enhanced_null_space_computation<F>(
     precision_target: F,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = matrix.nrows();
     let mut v = Array1::zeros(n);
@@ -787,7 +787,7 @@ where
 
     for _trial in 0..5 {
         // Random initialization
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         for i in 0..n {
             v[i] = F::from(rng.gen_range(-1.0..=1.0)).unwrap_or(F::zero());
         }
@@ -833,7 +833,7 @@ where
 #[allow(dead_code)]
 fn gram_schmidt_orthogonalization<F>(matrix: &mut Array2<F>) -> LinalgResult<()>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = matrix.nrows();
     let m = matrix.ncols();
@@ -882,7 +882,7 @@ fn advanced_precise_iterative_eig<F>(
     _workers: Option<usize>,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Enhanced QR iteration with multiple convergence criteria
     advanced_precise_qr_iteration(a, precision_target, 2000)
@@ -896,7 +896,7 @@ fn advanced_precise_qr_iteration<F>(
     max_iter: usize,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
     let mut h = a.to_owned(); // Hessenberg form would be better, but simplified here
@@ -966,7 +966,7 @@ where
 #[allow(dead_code)]
 fn enhanced_qr_decomposition<F>(a: &ArrayView2<F>) -> LinalgResult<(Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = a.dim();
     let mut q = Array2::eye(m);
@@ -1564,7 +1564,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_1x1matrix() {

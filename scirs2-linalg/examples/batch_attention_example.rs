@@ -1,4 +1,4 @@
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_linalg::attention::{AttentionConfig, AttentionMask};
 use scirs2_linalg::batch::attention::{
     batch_flash_attention, batch_multi_head_attention, batch_multi_query_attention,

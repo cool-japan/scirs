@@ -9,8 +9,8 @@ use std::collections::HashMap;
 #[cfg(any(feature = "cuda", feature = "opencl"))]
 use std::sync::{Arc, Mutex};
 
-use ndarray::{Array, ArrayView2, Ix2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView2, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 #[cfg(any(feature = "cuda", feature = "opencl"))]
 #[allow(unused_imports)]
@@ -911,49 +911,6 @@ impl GpuBackend for OpenCLBackend {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use ndarray::array;
-
-    #[test]
-    fn test_gpu_backend_creation() {
-        let result = create_gpu_backend();
-        // This test may fail on systems without GPU support, which is expected
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[cfg(feature = "cuda")]
-    #[test]
-    fn test_cuda_backend_creation() {
-        let result = CudaBackend::new();
-        // This may fail without actual CUDA drivers
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[cfg(feature = "opencl")]
-    #[test]
-    fn test_opencl_backend_creation() {
-        let result = OpenCLBackend::new();
-        // This may fail without actual OpenCL drivers
-        assert!(result.is_ok() || result.is_err());
-    }
-
-    #[test]
-    fn test_convolution_execution() {
-        // Test with small arrays
-        let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
-
-        let kernel = array![[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]];
-
-        if let Ok(backend) = create_gpu_backend() {
-            let result = backend.execute_convolution_2d_f64(input.view(), kernel.view());
-            // Should either succeed or fail gracefully
-            assert!(result.is_ok() || result.is_err());
-        }
-    }
-}
-
 #[cfg(feature = "cuda")]
 impl crate::backend::GpuContext for CudaContext {
     fn name(&self) -> &str {
@@ -993,5 +950,48 @@ impl crate::backend::GpuContext for OpenCLContext {
     fn memory_info(&self) -> (usize, usize) {
         // Placeholder implementation
         (0, 1024 * 1024 * 1024) // 1GB total, 0 used
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_gpu_backend_creation() {
+        let result = create_gpu_backend();
+        // This test may fail on systems without GPU support, which is expected
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[cfg(feature = "cuda")]
+    #[test]
+    fn test_cuda_backend_creation() {
+        let result = CudaBackend::new();
+        // This may fail without actual CUDA drivers
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[cfg(feature = "opencl")]
+    #[test]
+    fn test_opencl_backend_creation() {
+        let result = OpenCLBackend::new();
+        // This may fail without actual OpenCL drivers
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_convolution_execution() {
+        // Test with small arrays
+        let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+
+        let kernel = array![[1.0, 0.0, -1.0], [2.0, 0.0, -2.0], [1.0, 0.0, -1.0]];
+
+        if let Ok(backend) = create_gpu_backend() {
+            let result = backend.execute_convolution_2d_f64(input.view(), kernel.view());
+            // Should either succeed or fail gracefully
+            assert!(result.is_ok() || result.is_err());
+        }
     }
 }

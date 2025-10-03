@@ -1,7 +1,7 @@
 //! Common types and utilities for time series decomposition
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};

@@ -7,7 +7,7 @@ use crate::error::Result;
 use crate::feature::image_to_array;
 use crate::simd_ops;
 use image::{DynamicImage, GrayImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::f32::consts::PI;
 

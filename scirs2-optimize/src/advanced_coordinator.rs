@@ -25,7 +25,7 @@ use crate::learned_optimizers::{
 use crate::neuromorphic::{BasicNeuromorphicOptimizer, NeuromorphicConfig, NeuromorphicOptimizer};
 use crate::quantum_inspired::{QuantumInspiredOptimizer, QuantumOptimizationStats};
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::prelude::*;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};

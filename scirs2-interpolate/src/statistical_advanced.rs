@@ -8,9 +8,9 @@
 //! - Multi-output Gaussian Processes
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 
@@ -67,7 +67,7 @@ where
         + std::iter::Sum
         + 'static
         + std::ops::AddAssign
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::ops::SubAssign
         + std::ops::DivAssign,
 {
@@ -449,7 +449,7 @@ where
         + FromPrimitive
         + Debug
         + Display
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::ops::AddAssign
         + std::ops::SubAssign
         + std::ops::MulAssign
@@ -796,7 +796,7 @@ where
         rng: &mut StdRng,
     ) -> InterpolateResult<(Array1<F>, Array1<F>)> {
         let n = x.len();
-        let n_blocks = (n + self.block_size - 1) / self.block_size;
+        let n_blocks = n.div_ceil(self.block_size);
 
         let mut x_boot = Vec::new();
         let mut y_boot = Vec::new();
@@ -1032,7 +1032,7 @@ where
         polynomial_order: usize,
         derivative_order: usize,
     ) -> InterpolateResult<Self> {
-        if window_length % 2 == 0 {
+        if window_length.is_multiple_of(2) {
             return Err(InterpolateError::InvalidValue(
                 "Window _length must be odd".to_string(),
             ));
@@ -1198,7 +1198,7 @@ where
         let mut rng = match self.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => {
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
                 StdRng::from_rng(&mut rng)
             }
         };

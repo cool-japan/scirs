@@ -6,7 +6,7 @@
 
 use crate::error::{IoError, Result};
 use byteorder::{BigEndian, LittleEndian, ReadBytesExt, WriteBytesExt};
-use ndarray::{Array, ArrayD, IxDyn};
+use scirs2_core::ndarray::{Array, ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
@@ -28,7 +28,7 @@ pub enum IdlType {
     /// 64-bit floating point
     Double(ArrayD<f64>),
     /// Complex (32-bit real + 32-bit imaginary)
-    Complex(ArrayD<num_complex::Complex<f32>>),
+    Complex(ArrayD<scirs2_core::numeric::Complex<f32>>),
     /// String
     String(String),
     /// String array
@@ -36,7 +36,7 @@ pub enum IdlType {
     /// Structure
     Structure(IdlStructure),
     /// Double complex (64-bit real + 64-bit imaginary)
-    DoubleComplex(ArrayD<num_complex::Complex<f64>>),
+    DoubleComplex(ArrayD<scirs2_core::numeric::Complex<f64>>),
     /// Pointer (heap variable)
     Pointer(Box<IdlType>),
     /// Object reference
@@ -390,7 +390,7 @@ impl IdlReader {
         for _ in 0..total_size {
             let real = self.read_f32()?;
             let imag = self.read_f32()?;
-            data.push(num_complex::Complex::new(real, imag));
+            data.push(scirs2_core::numeric::Complex::new(real, imag));
         }
 
         let shape = IxDyn(&dims);
@@ -409,7 +409,7 @@ impl IdlReader {
         for _ in 0..total_size {
             let real = self.read_f64()?;
             let imag = self.read_f64()?;
-            data.push(num_complex::Complex::new(real, imag));
+            data.push(scirs2_core::numeric::Complex::new(real, imag));
         }
 
         let shape = IxDyn(&dims);
@@ -957,7 +957,7 @@ pub fn write_idl<P: AsRef<Path>>(path: P, variables: &HashMap<String, IdlType>) 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_idl_type_creation() {
@@ -965,14 +965,14 @@ mod tests {
         if let IdlType::Byte(array) = byte_array {
             assert_eq!(array.len(), 4);
         } else {
-            assert!(false, "Expected IdlType::Byte, got {:?}", byte_array);
+            panic!("Expected IdlType::Byte, got {:?}", byte_array);
         }
 
         let double_array = IdlType::Double(arr1(&[1.0, 2.0, 3.0]).into_dyn());
         if let IdlType::Double(array) = double_array {
             assert_eq!(array.len(), 3);
         } else {
-            assert!(false, "Expected IdlType::Double, got {:?}", double_array);
+            panic!("Expected IdlType::Double, got {:?}", double_array);
         }
     }
 

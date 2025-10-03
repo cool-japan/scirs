@@ -87,6 +87,7 @@ impl SummarizationPipeline {
         self.max_length = max_length;
     }
 
+    /// Set the minimum length for generated summaries
     pub fn set_min_length(&mut self, min_length: usize) {
         self.min_length = min_length;
     }

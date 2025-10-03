@@ -19,7 +19,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_interpolate::physics_informed::{
 //!     PhysicsInformedInterpolator, PhysicalConstraint, ConservationLaw
 //! };
@@ -47,8 +47,8 @@
 
 use crate::constrained::{ConstrainedSpline, Constraint, ConstraintType};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive, ToPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, LowerExp};
 use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
@@ -929,7 +929,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_physics_informed_creation() {

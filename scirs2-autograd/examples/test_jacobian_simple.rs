@@ -7,8 +7,8 @@ fn main() {
     let mut env = ag::VariableEnvironment::new();
 
     // Create simple arrays directly with ndarray
-    let a_array = ndarray::arr2(&[[1.0f32, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]]);
-    let b_array = ndarray::arr2(&[[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]]);
+    let a_array = scirs2_core::ndarray::arr2(&[[1.0f32, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]]);
+    let b_array = scirs2_core::ndarray::arr2(&[[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]]);
 
     println!("Original arrays:");
     println!("a_array shape: {:?}", a_array.shape());

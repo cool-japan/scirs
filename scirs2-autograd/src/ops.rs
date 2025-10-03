@@ -3,8 +3,8 @@
 //! This module provides implementations of forward and backward passes
 //! for various mathematical operations used in neural networks.
 
-use ndarray::{Array, Axis, IxDyn};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, Axis, IxDyn};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use crate::error::{AutogradError, Result};

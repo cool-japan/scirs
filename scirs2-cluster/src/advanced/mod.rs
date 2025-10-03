@@ -11,7 +11,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::advanced::quantum::{quantum_kmeans, QuantumConfig};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let data = Array2::from_shape_vec((10, 2), (0..20).map(|x| x as f64).collect()).unwrap();
 //! let config = QuantumConfig::default();
@@ -22,7 +22,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::advanced::online::{adaptive_online_clustering, AdaptiveOnlineConfig};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! let data = Array2::from_shape_vec((20, 3), (0..60).map(|x| x as f64).collect()).unwrap();
 //! let config = AdaptiveOnlineConfig::default();
@@ -61,21 +61,27 @@ pub fn default_adaptive_online_config() -> AdaptiveOnlineConfig {
 
 /// Convenience function for quick quantum clustering with default parameters
 pub fn quick_quantum_clustering<F>(
-    data: ndarray::ArrayView2<F>,
+    data: scirs2_core::ndarray::ArrayView2<F>,
     n_clusters: usize,
-) -> crate::error::Result<(ndarray::Array2<F>, ndarray::Array1<usize>)>
+) -> crate::error::Result<(
+    scirs2_core::ndarray::Array2<F>,
+    scirs2_core::ndarray::Array1<usize>,
+)>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::FromPrimitive + std::fmt::Debug,
 {
     quantum_kmeans(data, n_clusters, None)
 }
 
 /// Convenience function for quick online clustering with default parameters
 pub fn quick_online_clustering<F>(
-    data: ndarray::ArrayView2<F>,
-) -> crate::error::Result<(ndarray::Array2<F>, ndarray::Array1<usize>)>
+    data: scirs2_core::ndarray::ArrayView2<F>,
+) -> crate::error::Result<(
+    scirs2_core::ndarray::Array2<F>,
+    scirs2_core::ndarray::Array1<usize>,
+)>
 where
-    F: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug,
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::FromPrimitive + std::fmt::Debug,
 {
     adaptive_online_clustering(data, None)
 }
@@ -83,7 +89,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_default_quantum_config() {

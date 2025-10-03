@@ -3,7 +3,7 @@
 //! This module contains configuration structures, models, and core data types
 //! used throughout the biological vision inspired processing system.
 
-use ndarray::{Array1, Array2, Array3, Array4};
+use scirs2_core::ndarray::{Array1, Array2, Array3, Array4};
 use std::collections::{HashMap, VecDeque};
 
 /// Configuration for biological vision algorithms

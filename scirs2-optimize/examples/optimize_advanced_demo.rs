@@ -4,7 +4,7 @@
 //! demonstrating how it intelligently combines quantum-inspired optimization,
 //! neuromorphic computing, and meta-learning approaches for superior optimization performance.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_optimize::prelude::*;
 
 /// Complex multi-modal test function for demonstrating Advanced capabilities

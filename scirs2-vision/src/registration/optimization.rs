@@ -1,7 +1,7 @@
 //! Optimization algorithms for registration
 
 use crate::error::Result;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Optimization result
 #[derive(Debug, Clone)]
@@ -26,7 +26,7 @@ pub fn gradient_descent_optimize(
     maxiterations: usize,
     tolerance: f64,
 ) -> Result<OptimizationResult> {
-    use ndarray::Zip;
+    use scirs2_core::ndarray::Zip;
 
     let mut params = initialparams.clone();
     let mut prev_cost = cost_function(&params)?;
@@ -80,7 +80,7 @@ pub fn powell_optimize(
 ) -> Result<OptimizationResult> {
     let n = initialparams.len();
     let mut params = initialparams.clone();
-    let mut directions = ndarray::Array2::eye(n);
+    let mut directions = scirs2_core::ndarray::Array2::eye(n);
     let mut converged = false;
     let mut iterations = 0;
     let mut prev_cost = cost_function(&params)?;

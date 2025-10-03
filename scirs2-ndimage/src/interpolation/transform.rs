@@ -1,7 +1,7 @@
 //! Transformation-based interpolation functions
 
-use ndarray::{Array, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::utils::{interpolate_linear, interpolate_nearest};
@@ -37,7 +37,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Basic 2D rotation
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::interpolation::{affine_transform, InterpolationOrder};
 /// use std::f64::consts::PI;
 ///
@@ -68,7 +68,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Scaling and translation combined
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::interpolation::affine_transform;
 ///
 /// let input = Array2::from_shape_fn((10, 10), |(i, j)| (i + j) as f64);
@@ -90,7 +90,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Shearing transformation
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::interpolation::affine_transform;
 ///
 /// let squareimage = Array2::from_shape_fn((20, 20), |(i, j)| {
@@ -112,7 +112,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## Image rectification with different output size
 /// ```
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::interpolation::{affine_transform, BoundaryMode};
 ///
 /// let distorted = Array2::from_shape_fn((30, 40), |(i, j)| {
@@ -143,7 +143,7 @@ use crate::error::{NdimageError, NdimageResult};
 ///
 /// ## 3D volume transformation
 /// ```
-/// use ndarray::{Array3, Array2};
+/// use scirs2_core::ndarray::{Array3, Array2};
 /// use scirs2_ndimage::interpolation::affine_transform;
 ///
 /// let volume = Array3::from_shape_fn((20, 20, 20), |(i, j, k)| {
@@ -178,8 +178,8 @@ use crate::error::{NdimageError, NdimageResult};
 #[allow(dead_code)]
 pub fn affine_transform<T, D>(
     input: &Array<T, D>,
-    matrix: &Array<T, ndarray::Ix2>,
-    offset: Option<&Array<T, ndarray::Ix1>>,
+    matrix: &Array<T, scirs2_core::ndarray::Ix2>,
+    offset: Option<&Array<T, scirs2_core::ndarray::Ix1>>,
     outputshape: Option<&[usize]>,
     order: Option<InterpolationOrder>,
     mode: Option<BoundaryMode>,
@@ -239,12 +239,12 @@ where
     };
 
     // Create output array
-    let output = Array::zeros(ndarray::IxDyn(&outshape));
+    let output = Array::zeros(scirs2_core::ndarray::IxDyn(&outshape));
     let mut result_dyn = output.into_dyn();
     let input_dyn = input.clone().into_dyn();
 
     // Create default offset if not provided
-    let zero_offset: Array<T, ndarray::Ix1> = Array::zeros(input.ndim());
+    let zero_offset: Array<T, scirs2_core::ndarray::Ix1> = Array::zeros(input.ndim());
     let offset_vec = offset.unwrap_or(&zero_offset);
 
     // For each output pixel, calculate corresponding input coordinates
@@ -375,7 +375,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_affine_transform() {

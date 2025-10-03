@@ -6,8 +6,8 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::error_standardization::ErrorMessages;
-use ndarray::{s, Array2, ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast, Zero};
+use scirs2_core::ndarray::{s, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast, Zero};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::{PlatformCapabilities, SimdUnifiedOps},
@@ -915,11 +915,10 @@ impl AdvancedSimdOptimizer {
         D2: Data<Elem = F>,
     {
         // For simplicity, analyze x and extend to bivariate
-        let x_chars = self.analyzedata_characteristics(x);
 
         // In a real implementation, would analyze correlation structure,
         // joint sparsity patterns, etc.
-        x_chars
+        self.analyzedata_characteristics(x)
     }
 
     /// Analyze matrix characteristics
@@ -1325,11 +1324,11 @@ impl AdvancedSimdOptimizer {
             return self.execute_mean_algorithm(x, simd_choice);
         }
 
-        let chunksize = (x.len() + thread_count - 1) / thread_count;
+        let chunksize = x.len().div_ceil(thread_count);
 
         // Parallel computation using rayon
         let sum: F = x
-            .axis_chunks_iter(ndarray::Axis(0), chunksize)
+            .axis_chunks_iter(scirs2_core::ndarray::Axis(0), chunksize)
             .into_par_iter()
             .map(|chunk| F::simd_sum(&chunk))
             .sum();
@@ -1634,7 +1633,7 @@ pub fn create_advanced_simd_optimizer(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_simd_optimizer_creation() {

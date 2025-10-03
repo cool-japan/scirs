@@ -13,7 +13,7 @@
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use crate::wpt_validation::{OrthogonalityMetrics, PerformanceMetrics, WptValidationResult};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
 use std::collections::HashMap;

@@ -9,7 +9,7 @@ use super::utils::{compute_arma_psd, compute_arma_residuals, generate_frequency_
 use crate::error::{SignalError, SignalResult};
 use crate::parametric::compute_parameter_change;
 use crate::sysid::{detect_outliers, estimate_robust_scale};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::validation::check_positive;
 
 /// Robust parametric spectral estimation with outlier rejection

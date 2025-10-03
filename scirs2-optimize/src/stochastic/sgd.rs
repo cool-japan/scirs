@@ -9,7 +9,7 @@ use crate::stochastic::{
     LearningRateSchedule, StochasticGradientFunction,
 };
 use crate::unconstrained::result::OptimizeResult;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::random::prelude::*;
 
 /// Options for SGD optimization
@@ -349,7 +349,7 @@ where
 
         // Shuffle data indices for this epoch
         let mut all_indices: Vec<usize> = (0..num_samples).collect();
-        use rand::seq::SliceRandom;
+        use scirs2_core::random::seq::SliceRandom;
         all_indices.shuffle(&mut thread_rng());
 
         let mut _epoch_loss = 0.0;
@@ -458,7 +458,7 @@ mod tests {
     use super::*;
     use crate::stochastic::InMemoryDataProvider;
     use approx::assert_abs_diff_eq;
-    use ndarray::ArrayView1;
+    use scirs2_core::ndarray::ArrayView1;
 
     // Simple quadratic function for testing
     struct QuadraticFunction;

@@ -5,7 +5,7 @@
 
 use super::core::find_nearest_valid_index;
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 #[allow(unused_imports)]
 /// Applies linear interpolation to fill missing values in a signal
@@ -25,7 +25,7 @@ use ndarray::Array1;
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::basic::linear_interpolate;
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);
@@ -136,7 +136,7 @@ pub fn linear_interpolate(signal: &Array1<f64>) -> SignalResult<Array1<f64>> {
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::basic::nearest_neighbor_interpolate;
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 5.0]);

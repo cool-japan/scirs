@@ -5,8 +5,8 @@
 
 use super::{adaptive, WorkerConfig};
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use scirs2_core::parallel_ops::*;
 use std::iter::Sum;
 
@@ -77,7 +77,15 @@ pub fn parallel_power_iteration<F>(
     config: &WorkerConfig,
 ) -> LinalgResult<(F, Array1<F>)>
 where
-    F: Float + Send + Sync + Zero + Sum + NumAssign + One + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + NumAssign
+        + One
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {
@@ -234,7 +242,7 @@ pub fn parallel_gemm<F>(
     a: &ArrayView2<F>,
     b: &ArrayView2<F>,
     config: &WorkerConfig,
-) -> LinalgResult<ndarray::Array2<F>>
+) -> LinalgResult<scirs2_core::ndarray::Array2<F>>
 where
     F: Float + Send + Sync + Zero + Sum + NumAssign + 'static,
 {
@@ -257,7 +265,7 @@ where
     // Block size for cache-friendly computation
     let blocksize = config.chunksize;
 
-    let mut result = ndarray::Array2::zeros((m, n));
+    let mut result = scirs2_core::ndarray::Array2::zeros((m, n));
 
     // Parallel computation using blocks
     result
@@ -287,9 +295,20 @@ where
 pub fn parallel_qr<F>(
     matrix: &ArrayView2<F>,
     config: &WorkerConfig,
-) -> LinalgResult<(ndarray::Array2<F>, ndarray::Array2<F>)>
+) -> LinalgResult<(
+    scirs2_core::ndarray::Array2<F>,
+    scirs2_core::ndarray::Array2<F>,
+)>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + One
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     let datasize = m * n;
@@ -301,12 +320,12 @@ where
     config.apply();
 
     let mut a = matrix.to_owned();
-    let mut q = ndarray::Array2::eye(m);
+    let mut q = scirs2_core::ndarray::Array2::eye(m);
     let min_dim = std::cmp::min(m, n);
 
     for k in 0..min_dim {
         // Extract column vector for Householder reflection
-        let x = a.slice(ndarray::s![k.., k]).to_owned();
+        let x = a.slice(scirs2_core::ndarray::s![k.., k]).to_owned();
         let alpha = if x[0] >= F::zero() {
             -x.iter().map(|&xi| xi * xi).sum::<F>().sqrt()
         } else {
@@ -329,7 +348,7 @@ where
         let remaining_cols = n - k;
         if remaining_cols > 1 {
             for j in k..n {
-                let col = a.slice(ndarray::s![k.., j]).to_owned();
+                let col = a.slice(scirs2_core::ndarray::s![k.., j]).to_owned();
                 let dot_product = v
                     .iter()
                     .zip(col.iter())
@@ -345,7 +364,7 @@ where
 
         // Update Q matrix (serial for simplicity)
         for i in 0..m {
-            let row = q.slice(ndarray::s![i, k..]).to_owned();
+            let row = q.slice(scirs2_core::ndarray::s![i, k..]).to_owned();
             let dot_product = v
                 .iter()
                 .zip(row.iter())
@@ -359,7 +378,7 @@ where
         }
     }
 
-    let r = a.slice(ndarray::s![..min_dim, ..]).to_owned();
+    let r = a.slice(scirs2_core::ndarray::s![..min_dim, ..]).to_owned();
     Ok((q, r))
 }
 
@@ -370,9 +389,17 @@ where
 pub fn parallel_cholesky<F>(
     matrix: &ArrayView2<F>,
     config: &WorkerConfig,
-) -> LinalgResult<ndarray::Array2<F>>
+) -> LinalgResult<scirs2_core::ndarray::Array2<F>>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + One
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {
@@ -388,7 +415,7 @@ where
 
     config.apply();
 
-    let mut l = ndarray::Array2::zeros((n, n));
+    let mut l = scirs2_core::ndarray::Array2::zeros((n, n));
     let blocksize = config.chunksize;
 
     for k in (0..n).step_by(blocksize) {
@@ -442,9 +469,21 @@ where
 pub fn parallel_lu<F>(
     matrix: &ArrayView2<F>,
     config: &WorkerConfig,
-) -> LinalgResult<(ndarray::Array2<F>, ndarray::Array2<F>, ndarray::Array2<F>)>
+) -> LinalgResult<(
+    scirs2_core::ndarray::Array2<F>,
+    scirs2_core::ndarray::Array2<F>,
+    scirs2_core::ndarray::Array2<F>,
+)>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + One
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     let datasize = m * n;
@@ -501,14 +540,14 @@ where
     }
 
     // Create permutation matrix P
-    let mut p = ndarray::Array2::zeros((m, m));
+    let mut p = scirs2_core::ndarray::Array2::zeros((m, m));
     for (i, &piv) in perm_vec.iter().enumerate() {
         p[[i, piv]] = F::one();
     }
 
     // Extract L and U matrices
-    let mut l = ndarray::Array2::eye(m);
-    let mut u = ndarray::Array2::zeros((m, n));
+    let mut l = scirs2_core::ndarray::Array2::eye(m);
+    let mut u = scirs2_core::ndarray::Array2::zeros((m, n));
 
     for i in 0..m {
         for j in 0..n {
@@ -535,7 +574,15 @@ pub fn parallel_conjugate_gradient<F>(
     config: &WorkerConfig,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + One
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {
@@ -601,9 +648,21 @@ where
 pub fn parallel_svd<F>(
     matrix: &ArrayView2<F>,
     config: &WorkerConfig,
-) -> LinalgResult<(ndarray::Array2<F>, ndarray::Array1<F>, ndarray::Array2<F>)>
+) -> LinalgResult<(
+    scirs2_core::ndarray::Array2<F>,
+    scirs2_core::ndarray::Array1<F>,
+    scirs2_core::ndarray::Array2<F>,
+)>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + One
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     let datasize = m * n;
@@ -647,7 +706,7 @@ where
         + Sum
         + One
         + NumAssign
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Debug
         + std::fmt::Display
         + 'static,
@@ -694,7 +753,7 @@ where
 
         // Initialize Krylov subspace
         let mut v = vec![r / beta];
-        let mut h = ndarray::Array2::<F>::zeros((restart + 1, restart));
+        let mut h = scirs2_core::ndarray::Array2::<F>::zeros((restart + 1, restart));
 
         // Arnoldi iteration
         for j in 0..restart {
@@ -719,7 +778,7 @@ where
 
         // Solve least squares problem (serial for numerical stability)
         let k = v.len() - 1;
-        let h_sub = h.slice(ndarray::s![..=k, ..k]).to_owned();
+        let h_sub = h.slice(scirs2_core::ndarray::s![..=k, ..k]).to_owned();
         let mut g = Array1::zeros(k + 1);
         g[0] = beta;
 
@@ -764,7 +823,15 @@ pub fn parallel_bicgstab<F>(
     config: &WorkerConfig,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + One
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {
@@ -879,7 +946,15 @@ pub fn parallel_jacobi<F>(
     config: &WorkerConfig,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + One
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {
@@ -966,7 +1041,15 @@ pub fn parallel_sor<F>(
     config: &WorkerConfig,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + Send + Sync + Zero + Sum + One + NumAssign + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Send
+        + Sync
+        + Zero
+        + Sum
+        + One
+        + NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let (m, n) = matrix.dim();
     if m != n {

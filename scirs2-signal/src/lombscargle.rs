@@ -4,9 +4,9 @@
 // using the Lomb-Scargle periodogram technique.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -35,13 +35,13 @@ use std::fmt::Debug;
 ///
 /// ```
 /// use scirs2_signal::lombscargle::{lombscargle, AutoFreqMethod};
-/// use ndarray::Array1;
-/// use rand::prelude::*;
+/// use scirs2_core::ndarray::Array1;
+/// use scirs2_core::random::prelude::*;
 /// use std::f64::consts::PI;
 ///
 /// // Generate unevenly sampled data with a 1 Hz sinusoid
 /// let n = 100;
-/// let mut rng = rand::rng();
+/// let mut rng = scirs2_core::random::rng();
 /// let mut t = Array1::linspace(0.0, 10.0, n);
 /// // Add some random noise to make sampling uneven
 /// for i in 0..n {

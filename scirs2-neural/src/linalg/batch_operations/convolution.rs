@@ -4,8 +4,8 @@
 //! and related functions like pooling, im2col/col2im transformations
 //! used in convolutional neural networks.
 
-use ndarray::{Array1, Array2, Array4, ArrayView1, ArrayView2, ArrayView4};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, Array4, ArrayView1, ArrayView2, ArrayView4};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use crate::error::{NeuralError, Result};
 /// Performs 2D convolution operation for convolutional neural networks.
@@ -20,7 +20,7 @@ use crate::error::{NeuralError, Result};
 /// * Output tensor with shape [batch_size, out_channels, output_height, output_width]
 /// # Examples
 /// ```
-/// use ndarray::{Array, Array1, Array4};
+/// use scirs2_core::ndarray::{Array, Array1, Array4};
 /// use scirs2_neural::linalg::conv2d;
 /// // Create sample inputs
 /// let batch_size = 2;
@@ -129,7 +129,7 @@ where
 /// * Tuple of (output, indices) where:
 ///   - output has shape [batch_size, channels, output_height, output_width]
 ///   - indices stores the positions of maximum values for backpropagation
-/// use ndarray::{Array, Array4};
+/// use scirs2_core::ndarray::{Array, Array4};
 /// use scirs2_neural::linalg::max_pool2d;
 /// // Create sample input
 /// let channels = 3;
@@ -225,7 +225,7 @@ pub fn im2col<F>(
 /// * `height` - Height of the input image
 /// * `width` - Width of the input image
 /// * Rearranged data in image format
-/// use ndarray::{Array, Array2, Array4};
+/// use scirs2_core::ndarray::{Array, Array2, Array4};
 /// use scirs2_neural::linalg::{im2col, col2im};
 /// // Convert to column format
 /// // Convert back to image format

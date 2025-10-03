@@ -49,8 +49,8 @@ impl RandomSelection {
 impl ClientSelection for RandomSelection {
         _client_info: &HashMap<usize, ClientInfo>,
     ) -> Result<Vec<usize>> {
-        use rand::prelude::*;
-use rand::seq::SliceRandom;
+        use scirs2_core::random::prelude::*;
+use scirs2_core::random::seq::SliceRandom;
         let mut rng = if let Some(seed) = self.seed {
             StdRng::seed_from_u64(seed)
         } else {

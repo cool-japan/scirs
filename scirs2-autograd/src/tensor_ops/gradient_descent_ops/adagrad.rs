@@ -19,12 +19,12 @@ impl<F: Float> crate::op::Op<F> for AdaGradOp<F> {
         // Update parameters
         let mut param = ctx.input_mut(0);
         let eps = F::from(1e-7).unwrap();
-        ndarray::Zip::from(&mut param)
+        scirs2_core::ndarray::Zip::from(&mut param)
             .and(&grad)
             .and(&h_clone)
             .for_each(move |p, &g, &h| *p -= self.lr * g / (h.sqrt() + eps));
 
-        ctx.append_output(ndarray::Array::zeros(vec![]).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::Array::zeros(vec![]).into_dyn());
         Ok(())
     }
 

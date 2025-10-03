@@ -16,8 +16,8 @@
 //! - **Compositional data**: Interpolation for constrained positive data (simplex)
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Type alias for basis function vectors to reduce complexity
@@ -1106,7 +1106,7 @@ pub fn make_piecewise_polynomial_interpolator<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_fda_interpolator() {

@@ -4,8 +4,8 @@
 //! the Lance-Williams update formula and efficient data structures to reduce
 //! computational complexity from O(n³) to O(n² log n).
 
-use ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::BinaryHeap;
 use std::fmt::Debug;
 
@@ -132,7 +132,7 @@ impl<F: Float + FromPrimitive + ScalarOperand + 'static> WardCluster<F> {
 /// # Example
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::hierarchy::{optimized_ward_linkage, Metric};
 ///
 /// let data = Array2::from_shape_vec((4, 2), vec![
@@ -347,7 +347,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_optimized_ward_simple() {

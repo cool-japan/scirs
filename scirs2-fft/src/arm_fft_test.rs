@@ -9,7 +9,7 @@
 mod tests {
     use crate::error::FFTResult;
     use crate::simd_fft::{fft2_adaptive, fft_adaptive, fftn_adaptive, ifft_adaptive};
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use std::f64::consts::PI;
 
     /// Test 1D FFT on ARM platforms

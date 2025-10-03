@@ -1,13 +1,13 @@
 # scirs2-series TODO
 
-**Current Version**: 0.1.0-beta.4 (Released October 01, 2025)
+**Current Version**: 0.1.0-rc.1 (Released October 03, 2025)
 **Status**: Production Ready - Comprehensive time series analysis for scientific computing
 
 This module provides comprehensive time series analysis functionality with feature parity to pandas and statsmodels. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module uses scirs2-core abstractions for consistent ecosystem integration.
 
 ---
 
-## 🎯 Current Release: Beta 4 (October 2025)
+## 🎯 Current Release: RC.1 (October 2025)
 
 ### ✅ Production Status: COMPLETE
 
@@ -89,7 +89,7 @@ This module provides comprehensive time series analysis functionality with featu
 
 ## 🚀 Future Plans
 
-### Beta 5: Performance and Integration (Q1 2026)
+### v0.2.0: Performance and Integration (Q1 2026)
 
 #### P0: Performance Enhancements
 - [ ] **Enhanced GPU Acceleration**
@@ -113,7 +113,7 @@ This module provides comprehensive time series analysis functionality with featu
   - [ ] Multi-task learning frameworks
   - [ ] Transfer learning capabilities
 
-### Beta 6: Ecosystem and Interoperability (Q2 2026)
+### v0.3.0: Ecosystem and Interoperability (Q2 2026)
 
 #### External Integration
 - [ ] **Enhanced Python Integration**
@@ -229,7 +229,7 @@ This module provides comprehensive time series analysis functionality with featu
 - Out-of-core processing
 - Streaming analysis
 
-### 🔄 Future Extensions (Post-Beta 5)
+### 🔄 Future Extensions (Post-0.1.0)
 - Enhanced causal inference
 - Advanced neural architectures
 - Extended cloud deployment
@@ -239,7 +239,7 @@ This module provides comprehensive time series analysis functionality with featu
 
 ## 🎯 Production Release Summary
 
-**v0.1.0-beta.4 delivers:**
+**v0.1.0-rc.1 delivers:**
 - ✅ **Comprehensive Functionality**: Feature parity with pandas/statsmodels
 - ✅ **Production Stability**: 188 tests with 100% pass rate
 - ✅ **Advanced Analytics**: Neural models, AutoML, ensemble methods
@@ -261,13 +261,12 @@ This release is suitable for:
 
 ## 🗺️ Roadmap
 
-- **✅ 0.1.0-beta.4** (2025-10-01): **CURRENT** - Production-ready with comprehensive features
-- **🎯 0.1.0-beta.5** (2026-Q1): Performance and integration enhancements
-- **🎯 0.1.0-beta.6** (2026-Q2): Ecosystem and interoperability improvements
-- **🎯 0.1.0** (2026-Q4): First stable release with API guarantees
+- **✅ 0.1.0-rc.1** (2025-10-03): **CURRENT** - Production-ready with comprehensive features
+- **🎯 0.1.0** (2026-Q4): First stable release with full feature parity and API guarantees
+- **🎯 0.2.0** (2027+): Ecosystem integration and advanced features
 
 ---
 
 **Built with ❤️ for the time series analysis community**
 
-*Version: 0.1.0-beta.4 | Released: October 01, 2025 | Next: Beta 5 (Q1 2026)*
+*Version: 0.1.0-rc.1 | Released: October 03, 2025 | Next: 0.1.0 (Q4 2026)*

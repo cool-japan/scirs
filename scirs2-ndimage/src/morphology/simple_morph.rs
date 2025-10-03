@@ -19,7 +19,7 @@
 //! # Example
 //!
 //! ```
-//! use ndarray::{Array2, array};
+//! use scirs2_core::ndarray::{Array2, array};
 //! use scirs2_ndimage::morphology::simple_morph::{binary_dilation_2d, binary_erosion_2d};
 //!
 //! // Create a simple binary image
@@ -40,8 +40,8 @@
 //!     .unwrap();
 //! ```
 
-use ndarray::Array2;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::NdimageResult;
@@ -749,7 +749,7 @@ pub fn binary_closing_2d(
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{s, Array2};
+    use scirs2_core::ndarray::{s, Array2};
 
     #[test]
     fn test_grey_erosion_2d() {

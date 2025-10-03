@@ -3,7 +3,7 @@
 //! This example demonstrates the advanced visualization capabilities of scirs2-ndimage,
 //! including interactive HTML visualizations, export utilities, and comparison views.
 
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_ndimage::{
     error::NdimageResult,
     filters::gaussian_filter,
@@ -110,7 +110,7 @@ fn main() -> NdimageResult<()> {
 
     // Histogram of flattened data
     let flat_data = originalimage.iter().cloned().collect::<Vec<_>>();
-    let flat_array = ndarray::Array1::from_vec(flat_data);
+    let flat_array = scirs2_core::ndarray::Array1::from_vec(flat_data);
 
     let histogram_config = PlotConfig {
         title: "Data Distribution Histogram".to_string(),
@@ -190,8 +190,8 @@ fn create_sampleimage(size: usize) -> Array2<f64> {
 
 #[allow(dead_code)]
 fn add_noise(image: &Array2<f64>) -> Array2<f64> {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
     image.mapv(|x| x + (rng.random::<f64>() - 0.5) * 0.1)
 }
 

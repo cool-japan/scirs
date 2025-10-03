@@ -20,7 +20,7 @@
 
 use super::types::SimdConfig;
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 
 #[cfg(target_arch = "x86_64")]
 use std::arch::x86_64::*;

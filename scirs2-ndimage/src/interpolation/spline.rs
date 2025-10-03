@@ -1,7 +1,7 @@
 //! Spline-based interpolation functions
 
-use ndarray::{Array, Array1, Axis, Dimension};
-use num_traits::{Float, FromPrimitive, One, Zero};
+use scirs2_core::ndarray::{Array, Array1, Axis, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, One, Zero};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -117,8 +117,8 @@ fn apply_anti_causal_filter<T: Float + FromPrimitive>(coeffs: &mut [T], pole: T,
 pub fn spline_filter<T, D>(input: &Array<T, D>, order: Option<usize>) -> NdimageResult<Array<T, D>>
 where
     T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + 'static,
-    D: Dimension + ndarray::RemoveAxis + 'static,
-    usize: ndarray::NdIndex<<D as ndarray::Dimension>::Smaller>,
+    D: Dimension + scirs2_core::ndarray::RemoveAxis + 'static,
+    usize: scirs2_core::ndarray::NdIndex<<D as scirs2_core::ndarray::Dimension>::Smaller>,
 {
     // Validate inputs
     if input.ndim() == 0 {
@@ -171,8 +171,8 @@ pub fn spline_filter1d<T, D>(
 ) -> NdimageResult<Array<T, D>>
 where
     T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + 'static,
-    D: Dimension + ndarray::RemoveAxis + 'static,
-    usize: ndarray::NdIndex<<D as ndarray::Dimension>::Smaller>,
+    D: Dimension + scirs2_core::ndarray::RemoveAxis + 'static,
+    usize: scirs2_core::ndarray::NdIndex<<D as scirs2_core::ndarray::Dimension>::Smaller>,
 {
     // Validate inputs
     if input.ndim() == 0 {
@@ -223,13 +223,13 @@ where
 ///
 /// # Returns
 ///
-/// * `Result<Array<T, ndarray::Ix1>>` - B-spline values
+/// * `Result<Array<T, scirs2_core::ndarray::Ix1>>` - B-spline values
 #[allow(dead_code)]
 pub fn bspline<T>(
-    positions: &Array<T, ndarray::Ix1>,
+    positions: &Array<T, scirs2_core::ndarray::Ix1>,
     order: Option<usize>,
     derivative: Option<usize>,
-) -> NdimageResult<Array<T, ndarray::Ix1>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix1>>
 where
     T: Float + FromPrimitive + Debug,
 {
@@ -266,8 +266,8 @@ where
 fn spline_filter_axis<T, D>(data: &mut Array<T, D>, order: usize, axis: usize) -> NdimageResult<()>
 where
     T: Float + FromPrimitive + Clone,
-    D: Dimension + ndarray::RemoveAxis,
-    usize: ndarray::NdIndex<<D as ndarray::Dimension>::Smaller>,
+    D: Dimension + scirs2_core::ndarray::RemoveAxis,
+    usize: scirs2_core::ndarray::NdIndex<<D as scirs2_core::ndarray::Dimension>::Smaller>,
 {
     let poles = get_spline_poles::<T>(order);
     if poles.is_empty() {
@@ -389,7 +389,7 @@ fn evaluate_bspline_basis<T: Float + FromPrimitive>(x: T, order: usize, derivati
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_spline_filter() {

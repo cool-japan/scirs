@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```
-//! use ndarray::{array, Array2};
+//! use scirs2_core::ndarray::{array, Array2};
 //! use scirs2_interpolate::griddata::{griddata, GriddataMethod};
 //!
 //! // Scattered data points
@@ -25,8 +25,8 @@
 
 use crate::advanced::rbf::{RBFInterpolator, RBFKernel};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::AddAssign;
 
@@ -74,7 +74,7 @@ pub enum GriddataMethod {
 ///
 /// ## Basic usage with scattered 2D data
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::griddata::{griddata, GriddataMethod};
 ///
 /// // Scattered data: z = x² + y²
@@ -94,7 +94,7 @@ pub enum GriddataMethod {
 ///
 /// ## Using different interpolation methods
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::griddata::{griddata, GriddataMethod};
 ///
 /// let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];
@@ -214,7 +214,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_interpolate::griddata::{griddata_parallel, GriddataMethod};
 ///
 /// // Large dataset interpolation
@@ -337,7 +337,7 @@ where
         .into_par_iter()
         .with_min_len(chunk_size)
         .map(|i| {
-            let query_point = xi.slice(ndarray::s![i, ..]);
+            let query_point = xi.slice(scirs2_core::ndarray::s![i, ..]);
             interpolate_single_linear(points, values, &query_point, fill_value)
         })
         .collect();
@@ -366,7 +366,7 @@ where
         .into_par_iter()
         .with_min_len(chunk_size)
         .map(|i| {
-            let query_point = xi.slice(ndarray::s![i, ..]);
+            let query_point = xi.slice(scirs2_core::ndarray::s![i, ..]);
             interpolate_single_nearest(points, values, &query_point, fill_value)
         })
         .collect();
@@ -395,7 +395,7 @@ where
         .into_par_iter()
         .with_min_len(chunk_size)
         .map(|i| {
-            let query_point = xi.slice(ndarray::s![i, ..]);
+            let query_point = xi.slice(scirs2_core::ndarray::s![i, ..]);
             interpolate_single_cubic(points, values, &query_point, fill_value)
         })
         .collect();
@@ -446,7 +446,7 @@ where
         .into_par_iter()
         .with_min_len(chunk_size)
         .map(|i| {
-            let query_point = xi.slice(ndarray::s![i, ..]);
+            let query_point = xi.slice(scirs2_core::ndarray::s![i, ..]);
             let query_2d = query_point.to_shape((1, query_point.len())).unwrap();
 
             match rbf_interpolator.interpolate(&query_2d.view()) {
@@ -464,7 +464,7 @@ where
 fn interpolate_single_linear<F>(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
-    query: &ndarray::ArrayView1<F>,
+    query: &scirs2_core::ndarray::ArrayView1<F>,
     fill_value: Option<F>,
 ) -> Result<F, InterpolateError>
 where
@@ -480,7 +480,7 @@ where
 fn interpolate_single_nearest<F>(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
-    query: &ndarray::ArrayView1<F>,
+    query: &scirs2_core::ndarray::ArrayView1<F>,
     _fill_value: Option<F>,
 ) -> Result<F, InterpolateError>
 where
@@ -489,7 +489,7 @@ where
     let mut min_distance = F::infinity();
     let mut nearest_idx = 0;
 
-    for (i, point) in points.axis_iter(ndarray::Axis(0)).enumerate() {
+    for (i, point) in points.axis_iter(scirs2_core::ndarray::Axis(0)).enumerate() {
         let distance: F = point
             .iter()
             .zip(query.iter())
@@ -510,7 +510,7 @@ where
 fn interpolate_single_cubic<F>(
     points: &ArrayView2<F>,
     values: &ArrayView1<F>,
-    query: &ndarray::ArrayView1<F>,
+    query: &scirs2_core::ndarray::ArrayView1<F>,
     fill_value: Option<F>,
 ) -> Result<F, InterpolateError>
 where
@@ -624,13 +624,13 @@ where
     let default_fill = fill_value.unwrap_or_else(|| F::nan());
 
     for i in 0..n_queries {
-        let query = xi.slice(ndarray::s![i, ..]);
+        let query = xi.slice(scirs2_core::ndarray::s![i, ..]);
         let mut min_dist = F::infinity();
         let mut nearest_idx = 0;
 
         // Find nearest neighbor
         for j in 0..n_points {
-            let point = points.slice(ndarray::s![j, ..]);
+            let point = points.slice(scirs2_core::ndarray::s![j, ..]);
             let mut dist_sq = F::zero();
 
             for k in 0..query.len() {
@@ -1197,8 +1197,8 @@ where
         // Weight decreases as 1/r^3 for cubic behavior
         let weight = F::one() / (dist_sq * dist_sq.sqrt() + eps);
 
-        sum_weights = sum_weights + weight;
-        sum_weighted_values = sum_weighted_values + weight * local_value;
+        sum_weights += weight;
+        sum_weighted_values += weight * local_value;
     }
 
     if sum_weights > F::zero() {
@@ -1231,7 +1231,7 @@ where
         for j in 0..n {
             let mut sum = F::zero();
             for k in 0..m {
-                sum = sum + a[[k, i]] * a[[k, j]];
+                sum += a[[k, i]] * a[[k, j]];
             }
             ata[[i, j]] = sum;
         }
@@ -1242,7 +1242,7 @@ where
     for i in 0..n {
         let mut sum = F::zero();
         for k in 0..m {
-            sum = sum + a[[k, i]] * b[k];
+            sum += a[[k, i]] * b[k];
         }
         atb[i] = sum;
     }
@@ -1321,14 +1321,14 @@ where
     for i in 0..n_points.min(100) {
         // Sample for efficiency
         let mut min_dist = F::infinity();
-        let point_i = points.slice(ndarray::s![i, ..]);
+        let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
 
         for j in 0..n_points {
             if i == j {
                 continue;
             }
 
-            let point_j = points.slice(ndarray::s![j, ..]);
+            let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
             let mut dist_sq = F::zero();
 
             for k in 0..point_i.len() {
@@ -1433,7 +1433,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_griddata_nearest() -> InterpolateResult<()> {

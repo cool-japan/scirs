@@ -4,8 +4,8 @@
 //! for various image processing operations. The kernels are written
 //! in a way that can be translated to CUDA, OpenCL, or Metal.
 
-use ndarray::{Array, ArrayView, ArrayView2, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView, ArrayView2, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -814,7 +814,7 @@ pub fn gpu_gaussian_filter_2d<T>(
     input: &ArrayView2<T>,
     sigma: [T; 2],
     executor: &dyn GpuKernelExecutor<T>,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
 {
@@ -861,7 +861,7 @@ pub fn gpu_convolve_2d<T>(
     input: &ArrayView2<T>,
     kernel: &ArrayView2<T>,
     executor: &dyn GpuKernelExecutor<T>,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
 {
@@ -909,7 +909,7 @@ pub fn gpu_median_filter_2d<T>(
     input: &ArrayView2<T>,
     size: [usize; 2],
     executor: &dyn GpuKernelExecutor<T>,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
 {
@@ -955,7 +955,7 @@ pub fn gpu_erosion_2d<T>(
     input: &ArrayView2<T>,
     structure: &ArrayView2<bool>,
     executor: &dyn GpuKernelExecutor<T>,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
 {
@@ -1009,7 +1009,7 @@ pub fn gpu_separable_gaussian_filter_2d<T>(
     input: &ArrayView2<T>,
     sigma: [T; 2],
     executor: &dyn GpuKernelExecutor<T>,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
 {
@@ -1111,7 +1111,7 @@ pub fn gpu_bilateral_filter_2d<T>(
     sigma_intensity: T,
     radius: usize,
     executor: &dyn GpuKernelExecutor<T>,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
 {
@@ -1158,9 +1158,9 @@ pub fn gpu_sobel_filter_2d<T>(
     input: &ArrayView2<T>,
     executor: &dyn GpuKernelExecutor<T>,
 ) -> NdimageResult<(
-    Array<T, ndarray::Ix2>,
-    Array<T, ndarray::Ix2>,
-    Array<T, ndarray::Ix2>,
+    Array<T, scirs2_core::ndarray::Ix2>,
+    Array<T, scirs2_core::ndarray::Ix2>,
+    Array<T, scirs2_core::ndarray::Ix2>,
 )>
 where
     T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
@@ -1217,7 +1217,7 @@ pub fn gpu_laplacian_filter_2d<T>(
     input: &ArrayView2<T>,
     connectivity: usize,
     executor: &dyn GpuKernelExecutor<T>,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + Clone + Default + Send + Sync + 'static,
 {

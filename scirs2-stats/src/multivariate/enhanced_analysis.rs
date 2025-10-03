@@ -9,8 +9,8 @@
 //! - Multidimensional Scaling (MDS)
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, One, Zero};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use statrs::statistics::Statistics;
 use std::marker::PhantomData;
@@ -274,8 +274,10 @@ where
             .map_err(|e| StatsError::ComputationError(format!("SVD failed: {}", e)))?;
 
         // Extract components and singular values
-        let singular_values = s.slice(ndarray::s![..n_components]).to_owned();
-        let components = vt.slice(ndarray::s![..n_components, ..]).to_owned();
+        let singular_values = s.slice(scirs2_core::ndarray::s![..n_components]).to_owned();
+        let components = vt
+            .slice(scirs2_core::ndarray::s![..n_components, ..])
+            .to_owned();
 
         // Compute explained variance
         let total_variance_f64 = s.mapv(|x| x * x).sum() / (n_samples - 1) as f64;
@@ -334,7 +336,7 @@ where
             })?;
 
         // Sort eigenvalues and eigenvectors in descending order
-        let mut eigen_pairs: Vec<(f64, ndarray::ArrayView1<f64>)> = eigenvalues
+        let mut eigen_pairs: Vec<(f64, scirs2_core::ndarray::ArrayView1<f64>)> = eigenvalues
             .iter()
             .zip(eigenvectors.columns())
             .map(|(&val, vec)| (val, vec))
@@ -768,7 +770,7 @@ where
             })?;
 
         // Sort in descending order and take top n_factors
-        let mut eigen_pairs: Vec<(f64, ndarray::ArrayView1<f64>)> = eigenvalues
+        let mut eigen_pairs: Vec<(f64, scirs2_core::ndarray::ArrayView1<f64>)> = eigenvalues
             .iter()
             .zip(eigenvectors.columns())
             .map(|(&val, vec)| (val, vec))

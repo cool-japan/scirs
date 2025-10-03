@@ -4,7 +4,7 @@
 //! morphology module. Distance transforms are useful for measuring the distance from
 //! each foreground pixel to the nearest background pixel in a binary image.
 
-use ndarray::{Array2, IxDyn};
+use scirs2_core::ndarray::{Array2, IxDyn};
 use scirs2_ndimage::morphology::{
     distance_transform_bf, distance_transform_cdt, distance_transform_edt,
 };
@@ -32,7 +32,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         distance_transform_edt(&input_dyn, None, true, false).expect("Distance transform failed");
     let edt = edt_result
         .unwrap()
-        .into_dimensionality::<ndarray::Ix2>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .unwrap();
 
     println!(
@@ -45,7 +45,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("City block distance transform failed");
     let cdt = cdt_result
         .unwrap()
-        .into_dimensionality::<ndarray::Ix2>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .unwrap();
 
     println!("\nCity Block (Manhattan) Distance Transform:");
@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Chessboard distance transform failed");
     let chess = chess_result
         .unwrap()
-        .into_dimensionality::<ndarray::Ix2>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .unwrap();
 
     println!("\nChessboard Distance Transform:");
@@ -67,7 +67,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Brute force distance transform failed");
     let bf_edt = bf_edt_result
         .unwrap()
-        .into_dimensionality::<ndarray::Ix2>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .unwrap();
 
     println!("\nBrute Force Euclidean Distance Transform:");
@@ -92,7 +92,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .expect("Custom sampling distance transform failed");
     let custom_edt = custom_edt_result
         .unwrap()
-        .into_dimensionality::<ndarray::Ix2>()
+        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .unwrap();
 
     println!("\nEuclidean Distance Transform with Custom Sampling [1.0, 0.5]:");
@@ -147,7 +147,10 @@ fn print_integer_distance_2d(arr: &Array2<i32>) {
 
 // Helper function to print indices from a distance transform
 #[allow(dead_code)]
-fn print_indices_2d(indices: &ndarray::ArrayBase<ndarray::OwnedRepr<i32>, IxDyn>, dim: usize) {
+fn print_indices_2d(
+    indices: &scirs2_core::ndarray::ArrayBase<scirs2_core::ndarray::OwnedRepr<i32>, IxDyn>,
+    dim: usize,
+) {
     // The indices array has an extra dimension: [dimension, rows, columns]
     for i in 0..indices.shape()[1] {
         for j in 0..indices.shape()[2] {

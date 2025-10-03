@@ -1,7 +1,7 @@
 //! Digamma function (Psi function) implementations
 
 use crate::error::{SpecialError, SpecialResult};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::validation::check_finite;
 use std::fmt::{Debug, Display};
 

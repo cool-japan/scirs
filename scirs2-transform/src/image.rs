@@ -3,7 +3,7 @@
 //! This module provides utilities for extracting features from images,
 //! including patch extraction, HOG features, and image normalization.
 
-use ndarray::{par_azip, s, Array1, Array2, Array3, Array4};
+use scirs2_core::ndarray::{par_azip, s, Array1, Array2, Array3, Array4};
 use std::f64::consts::PI;
 
 use crate::error::{Result, TransformError};
@@ -75,13 +75,13 @@ impl PatchExtractor {
             }
         } else {
             // Random patch selection
-            use rand::rngs::StdRng;
-            use rand::{Rng, SeedableRng};
+            use scirs2_core::random::rngs::StdRng;
+            use scirs2_core::random::{Rng, SeedableRng};
 
             let mut rng = if let Some(seed) = self.random_state {
                 StdRng::seed_from_u64(seed)
             } else {
-                StdRng::seed_from_u64(rand::random::<u64>())
+                StdRng::seed_from_u64(scirs2_core::random::random::<u64>())
             };
 
             for patch_idx in 0..n_patches {

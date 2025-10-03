@@ -5,9 +5,9 @@
 //! algorithms can be significantly faster than general-purpose eigenvalue solvers.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, One, Zero};
-use rand::{self, Rng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
+use scirs2_core::random::{self, Rng};
 use std::iter::Sum;
 
 // Compatibility wrapper functions for the compat module
@@ -148,7 +148,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::eigen_specialized::tridiagonal_eigen;
 ///
 /// let diagonal = array![4.0, 4.0, 4.0];
@@ -381,7 +381,7 @@ where
 #[allow(dead_code)]
 pub fn circulant_eigenvalues<F>(
     first_column: &ArrayView1<F>,
-) -> LinalgResult<Array1<num_complex::Complex<F>>>
+) -> LinalgResult<Array1<scirs2_core::numeric::Complex<F>>>
 where
     F: Float + NumAssign + Zero + One + Sum + Send + Sync + ScalarOperand + 'static,
 {
@@ -396,14 +396,14 @@ where
     let mut eigenvals = Array1::zeros(n);
 
     for k in 0..n {
-        let mut sum = num_complex::Complex::new(F::zero(), F::zero());
+        let mut sum = scirs2_core::numeric::Complex::new(F::zero(), F::zero());
         for j in 0..n {
             let theta = F::from(-2.0 * std::f64::consts::PI).unwrap()
                 * F::from(k).unwrap()
                 * F::from(j).unwrap()
                 / F::from(n).unwrap();
-            let complex_exp = num_complex::Complex::new(theta.cos(), theta.sin());
-            sum += num_complex::Complex::new(first_column[j], F::zero()) * complex_exp;
+            let complex_exp = scirs2_core::numeric::Complex::new(theta.cos(), theta.sin());
+            sum += scirs2_core::numeric::Complex::new(first_column[j], F::zero()) * complex_exp;
         }
         eigenvals[k] = sum;
     }
@@ -507,7 +507,7 @@ where
     let mut beta = Array1::zeros(m);
 
     // Initialize with random vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     for i in 0..n {
         qmatrix[[i, 0]] = F::from(rng.random_range(-1.0..=1.0)).unwrap();
     }
@@ -713,7 +713,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_tridiagonal_eigen_simple() {

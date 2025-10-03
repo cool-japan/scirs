@@ -4,8 +4,8 @@
 //! Ax = b, particularly suited for large sparse systems where direct methods are impractical.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::{Debug, Display};
 
 /// Options for iterative solvers
@@ -57,7 +57,7 @@ pub struct IterativeSolverResult<A> {
 ///
 /// # Example
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::solvers::iterative::{conjugate_gradient, IterativeSolverOptions};
 ///
 /// let a = array![[4.0, 1.0], [1.0, 3.0]];
@@ -75,7 +75,7 @@ pub fn conjugate_gradient<A>(
     options: &IterativeSolverOptions<A>,
 ) -> LinalgResult<IterativeSolverResult<A>>
 where
-    A: Float + NumAssign + Debug + Display + ndarray::ScalarOperand + 'static,
+    A: Float + NumAssign + Debug + Display + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.shape()[0];
 
@@ -200,7 +200,7 @@ pub fn preconditioned_conjugate_gradient<A, F>(
     options: &IterativeSolverOptions<A>,
 ) -> LinalgResult<IterativeSolverResult<A>>
 where
-    A: Float + NumAssign + Debug + Display + ndarray::ScalarOperand + 'static,
+    A: Float + NumAssign + Debug + Display + scirs2_core::ndarray::ScalarOperand + 'static,
     F: FnMut(&ArrayView1<A>) -> Array1<A>,
 {
     let n = a.shape()[0];
@@ -324,7 +324,7 @@ pub fn gmres<A>(
     options: &IterativeSolverOptions<A>,
 ) -> LinalgResult<IterativeSolverResult<A>>
 where
-    A: Float + NumAssign + Debug + Display + ndarray::ScalarOperand + 'static,
+    A: Float + NumAssign + Debug + Display + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.shape()[0];
 
@@ -412,7 +412,7 @@ where
 
         // Solve least squares problem min ||beta*e1 - H*y||
         // where H is the (j+1) x j Hessenberg matrix
-        let y = solve_least_squares_gmres(&h.slice(ndarray::s![..j + 1, ..j]), beta)?;
+        let y = solve_least_squares_gmres(&h.slice(scirs2_core::ndarray::s![..j + 1, ..j]), beta)?;
 
         // Update solution: x = x0 + V * y
         for (i, yi) in y.iter().enumerate() {
@@ -466,7 +466,7 @@ pub fn bicgstab<A>(
     options: &IterativeSolverOptions<A>,
 ) -> LinalgResult<IterativeSolverResult<A>>
 where
-    A: Float + NumAssign + Debug + Display + ndarray::ScalarOperand + 'static,
+    A: Float + NumAssign + Debug + Display + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.shape()[0];
 
@@ -605,7 +605,7 @@ where
 #[allow(dead_code)]
 fn solve_least_squares_gmres<A>(h: &ArrayView2<A>, beta: A) -> LinalgResult<Array1<A>>
 where
-    A: Float + NumAssign + Debug + Display + ndarray::ScalarOperand + 'static,
+    A: Float + NumAssign + Debug + Display + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let (m, n) = h.dim();
     if m <= n {
@@ -669,7 +669,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_conjugate_gradient() {

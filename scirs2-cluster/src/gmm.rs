@@ -3,9 +3,9 @@
 //! This module implements Gaussian Mixture Models, a probabilistic model that assumes
 //! data is generated from a mixture of a finite number of Gaussian distributions.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, Axis, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::random::{Rng, SeedableRng};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -212,8 +212,10 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum + std::borrow::Borro
             GMMInit::Random => {
                 // Random selection from data points
                 let mut rng = match self.options.random_seed {
-                    Some(seed) => rand::rngs::StdRng::seed_from_u64(seed),
-                    None => rand::rngs::StdRng::seed_from_u64(rand::rng().random::<u64>()),
+                    Some(seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(seed),
+                    None => scirs2_core::random::rngs::StdRng::seed_from_u64(
+                        scirs2_core::random::rng().random::<u64>(),
+                    ),
                 };
 
                 let mut means = Array2::zeros((n_components, n_features));
@@ -514,7 +516,7 @@ impl<F: Float + FromPrimitive + Debug + ScalarOperand + Sum + std::borrow::Borro
 /// # Example
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::gmm::{gaussian_mixture, GMMOptions};
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -546,7 +548,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_gmm_simple() {

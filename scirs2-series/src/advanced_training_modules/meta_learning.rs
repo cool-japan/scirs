@@ -3,8 +3,8 @@
 //! This module implements Model-Agnostic Meta-Learning (MAML) and related
 //! meta-learning algorithms for rapid adaptation to new time series tasks.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::TaskData;
@@ -12,7 +12,7 @@ use crate::error::Result;
 
 /// Model-Agnostic Meta-Learning (MAML) for few-shot time series forecasting
 #[derive(Debug)]
-pub struct MAML<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct MAML<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Base model parameters
     parameters: Array2<F>,
     /// Meta-learning rate
@@ -27,7 +27,7 @@ pub struct MAML<F: Float + Debug + ndarray::ScalarOperand> {
     output_dim: usize,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> MAML<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand> MAML<F> {
     /// Create new MAML instance
     pub fn new(
         input_dim: usize,

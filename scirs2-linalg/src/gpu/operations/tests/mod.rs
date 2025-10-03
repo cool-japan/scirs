@@ -1,7 +1,7 @@
 //! Tests for GPU operations
 
 use super::*;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[test]
 fn test_gpu_operation_dispatcher() {

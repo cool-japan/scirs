@@ -4,8 +4,8 @@
 //! including quaternions, rotation matrices, Euler angles, and axis-angle representations.
 
 use crate::error::{SpatialError, SpatialResult};
-use num_traits::Float;
 use scirs2_core::ndarray::{array, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::f64::consts::PI;
 use std::fmt;
 
@@ -880,7 +880,7 @@ impl Rotation {
     /// ```
     pub fn random() -> Rotation {
         use scirs2_core::random::Rng;
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Generate random quaternion using method from:
         // http://planning.cs.uiuc.edu/node198.html

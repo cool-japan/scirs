@@ -3,7 +3,7 @@
 //! This module implements the Method of Lines (MOL) approach for solving
 //! hyperbolic PDEs, such as the wave equation.
 
-use ndarray::{s, Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1};
 use std::sync::Arc;
 use std::time::Instant;
 

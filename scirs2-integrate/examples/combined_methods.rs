@@ -1,4 +1,4 @@
-use ndarray::{Array2, ArrayView1};
+use scirs2_core::ndarray::{Array2, ArrayView1};
 use scirs2_integrate::{
     gaussian::gauss_legendre,
     monte_carlo::{monte_carlo, MonteCarloOptions},

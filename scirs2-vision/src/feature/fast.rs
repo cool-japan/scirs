@@ -11,7 +11,7 @@
 use crate::error::Result;
 use crate::feature::image_to_array;
 use image::{DynamicImage, GrayImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// FAST corner detection
 ///

@@ -7,7 +7,7 @@
 use super::expression::{simplify, SymbolicExpression, Variable};
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::HashMap;
 use SymbolicExpression::{Add, Constant, Cos, Div, Exp, Ln, Mul, Neg, Pow, Sin, Sqrt, Sub, Var};
 
@@ -106,7 +106,7 @@ fn detect_hamiltonian_conservation<F: IntegrateFloat>(
     let n = expressions.len();
 
     // For Hamiltonian systems, we need even dimension
-    if n % 2 != 0 {
+    if !n.is_multiple_of(2) {
         return Ok(None);
     }
 
@@ -689,7 +689,7 @@ mod tests {
         SymbolicExpression::{Add, Constant, Pow, Var},
         Variable,
     };
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_conservation_evaluation() {

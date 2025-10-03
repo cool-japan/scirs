@@ -1166,7 +1166,7 @@ impl RegistrableModel for crate::transformer::TransformerModel {
             data.weights.get("token_embeddings"),
             data.shapes.get("token_embeddings"),
         ) {
-            let embed_array = ndarray::Array::from_shape_vec(
+            let embed_array = scirs2_core::ndarray::Array::from_shape_vec(
                 (embedshape[0], embedshape[1]),
                 embed_weights.clone(),
             )
@@ -1179,7 +1179,7 @@ impl RegistrableModel for crate::transformer::TransformerModel {
             data.weights.get("positional_embeddings"),
             data.shapes.get("positional_embeddings"),
         ) {
-            let _pos_embed_array = ndarray::Array::from_shape_vec(
+            let _pos_embed_array = scirs2_core::ndarray::Array::from_shape_vec(
                 (pos_embedshape[0], pos_embedshape[1]),
                 pos_embed_weights.clone(),
             )
@@ -1215,18 +1215,26 @@ impl RegistrableModel for crate::transformer::TransformerModel {
                 data.weights.get(&format!("encoder_{i}_attention_wo")),
                 data.shapes.get(&format!("encoder_{i}_attention_wo")),
             ) {
-                let w_q =
-                    ndarray::Array::from_shape_vec((wqshape[0], wqshape[1]), wq_weights.clone())
-                        .map_err(|e| TextError::InvalidInput(format!("Invalid wq shape: {e}")))?;
-                let w_k =
-                    ndarray::Array::from_shape_vec((wkshape[0], wkshape[1]), wk_weights.clone())
-                        .map_err(|e| TextError::InvalidInput(format!("Invalid wk shape: {e}")))?;
-                let w_v =
-                    ndarray::Array::from_shape_vec((wvshape[0], wvshape[1]), wv_weights.clone())
-                        .map_err(|e| TextError::InvalidInput(format!("Invalid wv shape: {e}")))?;
-                let w_o =
-                    ndarray::Array::from_shape_vec((woshape[0], woshape[1]), wo_weights.clone())
-                        .map_err(|e| TextError::InvalidInput(format!("Invalid wo shape: {e}")))?;
+                let w_q = scirs2_core::ndarray::Array::from_shape_vec(
+                    (wqshape[0], wqshape[1]),
+                    wq_weights.clone(),
+                )
+                .map_err(|e| TextError::InvalidInput(format!("Invalid wq shape: {e}")))?;
+                let w_k = scirs2_core::ndarray::Array::from_shape_vec(
+                    (wkshape[0], wkshape[1]),
+                    wk_weights.clone(),
+                )
+                .map_err(|e| TextError::InvalidInput(format!("Invalid wk shape: {e}")))?;
+                let w_v = scirs2_core::ndarray::Array::from_shape_vec(
+                    (wvshape[0], wvshape[1]),
+                    wv_weights.clone(),
+                )
+                .map_err(|e| TextError::InvalidInput(format!("Invalid wv shape: {e}")))?;
+                let w_o = scirs2_core::ndarray::Array::from_shape_vec(
+                    (woshape[0], woshape[1]),
+                    wo_weights.clone(),
+                )
+                .map_err(|e| TextError::InvalidInput(format!("Invalid wo shape: {e}")))?;
 
                 attention.set_weights(w_q, w_k, w_v, w_o)?;
             }
@@ -1247,14 +1255,18 @@ impl RegistrableModel for crate::transformer::TransformerModel {
                 data.weights.get(&format!("encoder_{i}_ff_b1")),
                 data.weights.get(&format!("encoder_{i}_ff_b2")),
             ) {
-                let w1 =
-                    ndarray::Array::from_shape_vec((w1shape[0], w1shape[1]), w1_weights.clone())
-                        .map_err(|e| TextError::InvalidInput(format!("Invalid w1 shape: {e}")))?;
-                let w2 =
-                    ndarray::Array::from_shape_vec((w2shape[0], w2shape[1]), w2_weights.clone())
-                        .map_err(|e| TextError::InvalidInput(format!("Invalid w2 shape: {e}")))?;
-                let b1 = ndarray::Array::from_vec(b1_weights.clone());
-                let b2 = ndarray::Array::from_vec(b2_weights.clone());
+                let w1 = scirs2_core::ndarray::Array::from_shape_vec(
+                    (w1shape[0], w1shape[1]),
+                    w1_weights.clone(),
+                )
+                .map_err(|e| TextError::InvalidInput(format!("Invalid w1 shape: {e}")))?;
+                let w2 = scirs2_core::ndarray::Array::from_shape_vec(
+                    (w2shape[0], w2shape[1]),
+                    w2_weights.clone(),
+                )
+                .map_err(|e| TextError::InvalidInput(format!("Invalid w2 shape: {e}")))?;
+                let b1 = scirs2_core::ndarray::Array::from_vec(b1_weights.clone());
+                let b2 = scirs2_core::ndarray::Array::from_vec(b2_weights.clone());
 
                 ff.set_weights(w1, w2, b1, b2)?;
             }
@@ -1264,8 +1276,8 @@ impl RegistrableModel for crate::transformer::TransformerModel {
                 data.weights.get(&format!("encoder_{i}_ln1_gamma")),
                 data.weights.get(&format!("encoder_{i}_ln1_beta")),
             ) {
-                let gamma1 = ndarray::Array::from_vec(gamma1_weights.clone());
-                let beta1 = ndarray::Array::from_vec(beta1_weights.clone());
+                let gamma1 = scirs2_core::ndarray::Array::from_vec(gamma1_weights.clone());
+                let beta1 = scirs2_core::ndarray::Array::from_vec(beta1_weights.clone());
                 ln1.set_params(gamma1, beta1)?;
             }
 
@@ -1273,8 +1285,8 @@ impl RegistrableModel for crate::transformer::TransformerModel {
                 data.weights.get(&format!("encoder_{i}_ln2_gamma")),
                 data.weights.get(&format!("encoder_{i}_ln2_beta")),
             ) {
-                let gamma2 = ndarray::Array::from_vec(gamma2_weights.clone());
-                let beta2 = ndarray::Array::from_vec(beta2_weights.clone());
+                let gamma2 = scirs2_core::ndarray::Array::from_vec(gamma2_weights.clone());
+                let beta2 = scirs2_core::ndarray::Array::from_vec(beta2_weights.clone());
                 ln2.set_params(gamma2, beta2)?;
             }
         }
@@ -1290,11 +1302,13 @@ impl RegistrableModel for crate::transformer::TransformerModel {
             data.weights.get("output_projection"),
             data.shapes.get("output_projection"),
         ) {
-            let _output_array =
-                ndarray::Array::from_shape_vec(ndarray::IxDyn(outputshape), output_weights.clone())
-                    .map_err(|e| {
-                        TextError::InvalidInput(format!("Invalid output projection shape: {e}"))
-                    })?;
+            let _output_array = scirs2_core::ndarray::Array::from_shape_vec(
+                scirs2_core::ndarray::IxDyn(outputshape),
+                output_weights.clone(),
+            )
+            .map_err(|e| {
+                TextError::InvalidInput(format!("Invalid output projection shape: {e}"))
+            })?;
             // model.output_projection.set_weights(output_array)?;
         }
 
@@ -1430,7 +1444,7 @@ impl RegistrableModel for crate::embeddings::Word2Vec {
             data.shapes.get("embeddings"),
         ) {
             // Restore the full model state from serialized data
-            let _embedding_matrix = ndarray::Array::from_shape_vec(
+            let _embedding_matrix = scirs2_core::ndarray::Array::from_shape_vec(
                 (embedshape[0], embedshape[1]),
                 embed_weights.clone(),
             )

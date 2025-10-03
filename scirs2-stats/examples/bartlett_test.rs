@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::bartlett;
 
 #[allow(dead_code)]
@@ -93,7 +93,7 @@ fn main() {
 
 // Simple variance calculation for the example
 #[allow(dead_code)]
-fn variance(data: &ndarray::Array1<f64>) -> f64 {
+fn variance(data: &scirs2_core::ndarray::Array1<f64>) -> f64 {
     let n = data.len() as f64;
     let mean = data.sum() / n;
     let sum_squared_diff = data.iter().map(|&x| (x - mean).powi(2)).sum::<f64>();

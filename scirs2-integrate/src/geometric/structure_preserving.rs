@@ -4,7 +4,7 @@
 //! such as energy, momentum, symplectic structure, and other invariants.
 
 use crate::error::{IntegrateResult, IntegrateResult as Result};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 // Type aliases for complex function types
 type HamiltonianFn = Box<dyn Fn(&ArrayView1<f64>, &ArrayView1<f64>) -> f64>;
@@ -586,7 +586,7 @@ impl ConstrainedIntegrator {
     /// Simple linear system solver (for small systems)
     fn solve_linear_system(
         &self,
-        a: &ndarray::Array2<f64>,
+        a: &scirs2_core::ndarray::Array2<f64>,
         b: &Array1<f64>,
     ) -> IntegrateResult<Array1<f64>> {
         // LU decomposition would be more robust
@@ -638,8 +638,8 @@ pub struct MultiSymplecticIntegrator {
     #[allow(dead_code)]
     n_fields: usize,
     /// Symplectic structure matrices
-    k: ndarray::Array2<f64>,
-    l: ndarray::Array2<f64>,
+    k: scirs2_core::ndarray::Array2<f64>,
+    l: scirs2_core::ndarray::Array2<f64>,
 }
 
 impl MultiSymplecticIntegrator {
@@ -647,8 +647,8 @@ impl MultiSymplecticIntegrator {
     pub fn new(
         spatial_dim: usize,
         n_fields: usize,
-        k: ndarray::Array2<f64>,
-        l: ndarray::Array2<f64>,
+        k: scirs2_core::ndarray::Array2<f64>,
+        l: scirs2_core::ndarray::Array2<f64>,
     ) -> Self {
         Self {
             spatial_dim,
@@ -661,11 +661,11 @@ impl MultiSymplecticIntegrator {
     /// Preissman box scheme
     pub fn preissman_step(
         &self,
-        z: &ndarray::Array2<f64>,
+        z: &scirs2_core::ndarray::Array2<f64>,
         s: &GradientFn,
         dt: f64,
         dx: f64,
-    ) -> IntegrateResult<ndarray::Array2<f64>> {
+    ) -> IntegrateResult<scirs2_core::ndarray::Array2<f64>> {
         let (nx_, _) = z.dim();
         let mut z_new = z.clone();
 
@@ -780,7 +780,7 @@ mod tests {
     use super::*;
     use crate::{EnergyPreservingMethod, MomentumPreservingMethod};
     use approx::assert_relative_eq;
-    use ndarray::{Array1, ArrayView1};
+    use scirs2_core::ndarray::{Array1, ArrayView1};
 
     #[test]
     fn test_energy_preservation() {

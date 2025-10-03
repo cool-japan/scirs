@@ -1,6 +1,6 @@
 //! Time series specific feature selection methods
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 use super::wrapper::WrapperMethods;
@@ -30,7 +30,7 @@ impl TimeSeriesMethods {
     /// # Example
     ///
     /// ```
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     /// use scirs2_series::feature_selection::TimeSeriesMethods;
     ///
     /// let features = Array2::from_shape_vec((100, 5), (0..500).map(|x| x as f64).collect()).unwrap();
@@ -71,8 +71,9 @@ impl TimeSeriesMethods {
             // Test correlations at different lags
             for lag in 1..=max_lag {
                 if n_samples > lag {
-                    let lagged_feature = feature_col.slice(ndarray::s![..n_samples - lag]);
-                    let future_target = target.slice(ndarray::s![lag..]);
+                    let lagged_feature =
+                        feature_col.slice(scirs2_core::ndarray::s![..n_samples - lag]);
+                    let future_target = target.slice(scirs2_core::ndarray::s![lag..]);
 
                     let correlation =
                         Self::calculate_correlation_arrays(&lagged_feature, &future_target)?;
@@ -313,8 +314,8 @@ impl TimeSeriesMethods {
     // Helper methods
 
     fn calculate_correlation_arrays(
-        x: &ndarray::ArrayView1<f64>,
-        y: &ndarray::ArrayView1<f64>,
+        x: &scirs2_core::ndarray::ArrayView1<f64>,
+        y: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> Result<f64> {
         let n = x.len().min(y.len());
 

@@ -3,7 +3,7 @@
 //! This example demonstrates the enhanced fluent API with method chaining,
 //! intelligent optimization, and streamlined statistical analysis workflows.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_stats::{
     api_standardization_enhanced::{
         quick_correlation, quick_descriptive, stats, AutoOptimizationLevel, CorrelationMethod,

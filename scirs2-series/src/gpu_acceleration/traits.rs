@@ -3,8 +3,8 @@
 //! This module defines the core traits for GPU-accelerated time series processing,
 //! including data transfer, forecasting, decomposition, and feature extraction.
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use super::config::GpuConfig;

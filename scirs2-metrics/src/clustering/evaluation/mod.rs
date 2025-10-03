@@ -3,8 +3,8 @@
 //! This module provides utilities for evaluating clustering results, including
 //! metrics like Dunn index and elbow method for determining optimal number of clusters.
 
-use ndarray::{ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 
 use super::{calculate_distance, group_by_labels, pairwise_distances};
 use crate::error::{MetricsError, Result};
@@ -29,7 +29,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// // This function is not re-exported at the top level
 /// use scirs2_metrics::clustering::evaluation::dunn_index_enhanced;
 ///
@@ -57,7 +57,7 @@ where
     F: Float + NumCast + std::fmt::Debug,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
-    D: ndarray::Dimension,
+    D: scirs2_core::ndarray::Dimension,
 {
     // Check dimensions
     let n_samples = x.shape()[0];
@@ -136,7 +136,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_metrics::clustering::elbow_method;
 ///
 /// // Create a dataset
@@ -203,7 +203,7 @@ where
 mod tests {
     use super::*;
     use crate::clustering::dunn_index;
-    use ndarray::{array, Array2};
+    use scirs2_core::ndarray::{array, Array2};
 
     #[test]
     fn test_dunn_index() {

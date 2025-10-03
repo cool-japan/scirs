@@ -269,8 +269,8 @@ impl AdaptiveExecutor {
     /// Execute an FFT with adaptive planning
     pub fn execute(
         &self,
-        input: &[num_complex::Complex64],
-        output: &mut [num_complex::Complex64],
+        input: &[scirs2_core::numeric::Complex64],
+        output: &mut [scirs2_core::numeric::Complex64],
     ) -> FFTResult<()> {
         let start = Instant::now();
 
@@ -313,7 +313,7 @@ impl AdaptiveExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
 
     #[test]
     fn test_adaptive_planner_basics() {

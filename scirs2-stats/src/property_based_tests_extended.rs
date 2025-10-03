@@ -18,7 +18,7 @@ use crate::{
     moments_simd::{kurtosis_simd, skewness_simd},
     pearson_r,
 };
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Test data generator for property-based tests
 #[derive(Clone, Debug)]
@@ -730,8 +730,8 @@ pub struct FuzzingTester;
 impl FuzzingTester {
     /// Generate random data with various characteristics for stress testing
     pub fn generate_randomdata(size: usize, seed: u64) -> StatisticalTestData {
-        use rand::rngs::StdRng;
-        use rand::{Rng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::{Rng, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(seed);
         let data: Vec<f64> = (0..size)
@@ -746,8 +746,8 @@ impl FuzzingTester {
         skew_direction: f64,
         seed: u64,
     ) -> StatisticalTestData {
-        use rand::rngs::StdRng;
-        use rand::{Rng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::{Rng, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(seed);
         let mut data: Vec<f64> = (0..size).map(|_| rng.gen_range(0.0..1.0)).collect();
@@ -771,8 +771,8 @@ impl FuzzingTester {
         outlier_fraction: f64,
         seed: u64,
     ) -> StatisticalTestData {
-        use rand::rngs::StdRng;
-        use rand::{Rng, SeedableRng};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::{Rng, SeedableRng};
 
         let mut rng = StdRng::seed_from_u64(seed);
         let mut data: Vec<f64> = (0..size).map(|_| rng.gen_range(-1.0..1.0)).collect();

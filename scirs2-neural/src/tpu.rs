@@ -9,8 +9,8 @@
 //! - Performance profiling and optimization
 
 use crate::error::{NeuralError, Result};
-use ndarray::{ArrayD, Dimension};
-use num_traits::Float;
+use scirs2_core::ndarray::{ArrayD, Dimension};
+use scirs2_core::numeric::Float;
 use regex;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;

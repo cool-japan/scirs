@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use super::core::DataPoint;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 

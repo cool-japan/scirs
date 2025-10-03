@@ -9,7 +9,7 @@
 use super::kernels::{ElementType, GpuOperationType, TensorShape};
 use super::memory::{MemoryAccessPattern, TensorCorePrecision};
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::VecDeque;
 use std::time::Instant;
 

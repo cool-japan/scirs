@@ -382,7 +382,7 @@ impl BenchmarkResults {
             "  Target Accuracy: {:.2e}\n",
             self.config.target_accuracy
         ));
-        report.push_str("\n");
+        report.push('\n');
 
         // Overall summary
         report.push_str("Overall Summary:\n");
@@ -399,7 +399,7 @@ impl BenchmarkResults {
             "  Average Runtime: {:.3}s\n",
             self.summary.average_runtime.as_secs_f64()
         ));
-        report.push_str("\n");
+        report.push('\n');
 
         // Algorithm rankings
         report.push_str("Algorithm Rankings:\n");
@@ -424,7 +424,7 @@ impl BenchmarkResults {
                 ranking.average_runtime.as_secs_f64()
             ));
         }
-        report.push_str("\n");
+        report.push('\n');
 
         // Problem-specific results
         report.push_str("Problem-Specific Results:\n");

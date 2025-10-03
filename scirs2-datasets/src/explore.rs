@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::io::{self, Write};
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use serde::{Deserialize, Serialize};
 
 use crate::error::{DatasetsError, Result};
@@ -385,7 +385,7 @@ impl DatasetExplorer {
         &self,
         name: &str,
         index: usize,
-        column: &ndarray::ArrayView1<f64>,
+        column: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> Result<FeatureStats> {
         let values: Vec<f64> = column.iter().copied().collect();
         let count = values.len();
@@ -522,8 +522,8 @@ impl DatasetExplorer {
 
     fn compute_correlation(
         &self,
-        x: &ndarray::ArrayView1<f64>,
-        y: &ndarray::ArrayView1<f64>,
+        x: &scirs2_core::ndarray::ArrayView1<f64>,
+        y: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> f64 {
         let x_vals: Vec<f64> = x.iter().copied().filter(|v| !v.is_nan()).collect();
         let y_vals: Vec<f64> = y.iter().copied().filter(|v| !v.is_nan()).collect();

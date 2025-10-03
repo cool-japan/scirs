@@ -3,8 +3,8 @@
 //! This module implements biological motion prediction mechanisms for robust
 //! object tracking and motion extrapolation.
 
-use ndarray::ArrayView2;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::VecDeque;
 
 use super::config::{BiologicalVisionConfig, MotionTrack};

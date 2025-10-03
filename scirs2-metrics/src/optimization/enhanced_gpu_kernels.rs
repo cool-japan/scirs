@@ -10,8 +10,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -1584,9 +1584,9 @@ impl GpuBackend for CudaBackend {
     fn allocate_memory(&self, size: usize) -> Result<GpuMemoryHandle> {
         // Simulate CUDA memory allocation
         Ok(GpuMemoryHandle {
-            id: rand::random(),
+            id: scirs2_core::random::random(),
             size,
-            backend_handle: rand::random(),
+            backend_handle: scirs2_core::random::random(),
             allocated_at: Instant::now(),
         })
     }
@@ -1612,11 +1612,11 @@ impl GpuBackend for CudaBackend {
     fn create_kernel(&self, source: &str, entrypoint: &str) -> Result<ComputeKernel> {
         // Simulate kernel compilation
         Ok(ComputeKernel {
-            id: rand::random(),
+            id: scirs2_core::random::random(),
             name: entrypoint.to_string(),
             source: source.to_string(),
             entrypoint: entrypoint.to_string(),
-            backend_kernel: rand::random(),
+            backend_kernel: scirs2_core::random::random(),
             local_work_size: [256, 1, 1],
             global_work_size: [1024, 1, 1],
             parameters: Vec::new(),
@@ -1686,9 +1686,9 @@ impl GpuBackend for OpenClBackend {
 
     fn allocate_memory(&self, size: usize) -> Result<GpuMemoryHandle> {
         Ok(GpuMemoryHandle {
-            id: rand::random(),
+            id: scirs2_core::random::random(),
             size,
-            backend_handle: rand::random(),
+            backend_handle: scirs2_core::random::random(),
             allocated_at: Instant::now(),
         })
     }
@@ -1710,11 +1710,11 @@ impl GpuBackend for OpenClBackend {
 
     fn create_kernel(&self, source: &str, entrypoint: &str) -> Result<ComputeKernel> {
         Ok(ComputeKernel {
-            id: rand::random(),
+            id: scirs2_core::random::random(),
             name: entrypoint.to_string(),
             source: source.to_string(),
             entrypoint: entrypoint.to_string(),
-            backend_kernel: rand::random(),
+            backend_kernel: scirs2_core::random::random(),
             local_work_size: [256, 1, 1],
             global_work_size: [1024, 1, 1],
             parameters: Vec::new(),
@@ -1780,9 +1780,9 @@ impl GpuBackend for WebGpuBackend {
 
     fn allocate_memory(&self, size: usize) -> Result<GpuMemoryHandle> {
         Ok(GpuMemoryHandle {
-            id: rand::random(),
+            id: scirs2_core::random::random(),
             size,
-            backend_handle: rand::random(),
+            backend_handle: scirs2_core::random::random(),
             allocated_at: Instant::now(),
         })
     }
@@ -1804,11 +1804,11 @@ impl GpuBackend for WebGpuBackend {
 
     fn create_kernel(&self, source: &str, entrypoint: &str) -> Result<ComputeKernel> {
         Ok(ComputeKernel {
-            id: rand::random(),
+            id: scirs2_core::random::random(),
             name: entrypoint.to_string(),
             source: source.to_string(),
             entrypoint: entrypoint.to_string(),
-            backend_kernel: rand::random(),
+            backend_kernel: scirs2_core::random::random(),
             local_work_size: [64, 1, 1],
             global_work_size: [1024, 1, 1],
             parameters: Vec::new(),
@@ -1832,7 +1832,7 @@ impl GpuBackend for WebGpuBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_enhanced_gpu_engine_creation() {

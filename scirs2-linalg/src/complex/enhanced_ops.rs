@@ -2,9 +2,9 @@
 //!
 //! This module provides advanced operations for complex matrices.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use scirs2_core::validation::{check_2d, check_square};
@@ -25,8 +25,8 @@ use crate::error::{LinalgError, LinalgResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::trace;
 ///
 /// let a = array![
@@ -67,8 +67,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::det;
 ///
 /// let a = array![
@@ -181,8 +181,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::matvec;
 ///
 /// let a = array![
@@ -267,8 +267,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::inner_product;
 ///
 /// let x = array![Complex::new(1.0, 2.0), Complex::new(3.0, 4.0)];
@@ -344,8 +344,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::is_hermitian;
 ///
 /// // Create a Hermitian matrix
@@ -405,8 +405,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::is_unitary;
 ///
 /// // Create a simple unitary matrix (scaled identity)
@@ -474,8 +474,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::power_method;
 ///
 /// // Create a Hermitian matrix with eigenvalues 1 and 3
@@ -573,8 +573,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::rank;
 ///
 /// // Create a rank-1 matrix
@@ -673,8 +673,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::{hermitian_part, is_hermitian};
 ///
 /// let a = array![
@@ -725,8 +725,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::skew_hermitian_part;
 ///
 /// let a = array![
@@ -782,8 +782,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::frobenius_norm;
 ///
 /// let a = array![
@@ -830,8 +830,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::{polar_decomposition, is_unitary};
 ///
 /// let a = array![
@@ -950,8 +950,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::matrix_exp;
 ///
 /// // Simple example: exp(0) = I
@@ -1044,8 +1044,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::complex::enhanced_ops::schur;
 /// use scirs2_linalg::complex::enhanced_ops::is_unitary;
 ///
@@ -1175,8 +1175,8 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
-    use num_complex::Complex64;
+    use scirs2_core::ndarray::array;
+    use scirs2_core::numeric::Complex64;
 
     #[test]
     fn test_trace() {

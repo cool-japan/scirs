@@ -5,8 +5,8 @@
 //! high-dimensional tensor as a sequence of low-dimensional tensors.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array, Array2, Array3, ArrayD, ArrayView, Dimension};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array, Array2, Array3, ArrayD, ArrayView, Dimension};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -43,7 +43,7 @@ where
         + Debug
         + Sum
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -142,7 +142,8 @@ where
         let n_dims = self.shape.len();
 
         // Start with the first core reshaped to remove the leading dimension of 1
-        let mut result = ArrayD::zeros(ndarray::IxDyn(&[self.shape[0], self.ranks[1]]));
+        let mut result =
+            ArrayD::zeros(scirs2_core::ndarray::IxDyn(&[self.shape[0], self.ranks[1]]));
 
         // Copy the first core data
         for i in 0..self.shape[0] {
@@ -173,7 +174,7 @@ where
             newshape.push(self.ranks[i + 1]);
 
             // Compute the contraction manually
-            let mut result_contracted = Array::zeros(ndarray::IxDyn(&newshape));
+            let mut result_contracted = Array::zeros(scirs2_core::ndarray::IxDyn(&newshape));
 
             // Handle different dimensionality cases
             match newshape.len() - 2 {
@@ -295,7 +296,7 @@ where
                                 idx_full.push(l);
 
                                 // Convert to dynamic index
-                                result_contracted[ndarray::IxDyn(&idx_full)] = sum;
+                                result_contracted[scirs2_core::ndarray::IxDyn(&idx_full)] = sum;
                             }
                         }
                     };
@@ -308,7 +309,7 @@ where
         }
 
         // Convert to the final tensor with the original shape
-        let mut final_result = ArrayD::zeros(ndarray::IxDyn(self.shape.as_slice()));
+        let mut final_result = ArrayD::zeros(scirs2_core::ndarray::IxDyn(self.shape.as_slice()));
 
         // Special case if we only have 1 final rank dimension
         if self.ranks[n_dims] == 1 {
@@ -388,12 +389,12 @@ where
 
         // Start with the first core slice at the first index
         let mut result = self.cores[0]
-            .slice(ndarray::s![0, indices[0], ..])
+            .slice(scirs2_core::ndarray::s![0, indices[0], ..])
             .to_owned();
 
         // Multiply by each core slice in sequence
         for i in 1..self.shape.len() {
-            let core_slice = self.cores[i].slice(ndarray::s![.., indices[i], ..]);
+            let core_slice = self.cores[i].slice(scirs2_core::ndarray::s![.., indices[i], ..]);
 
             // Matrix multiplication: result (1 x r_i) * core_slice (r_i x r_{i+1})
             let mut new_result = Array::zeros((1, core_slice.shape()[1]));
@@ -551,11 +552,11 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayD, IxDyn};
+/// use scirs2_core::ndarray::{array, ArrayD, IxDyn};
 /// use scirs2_linalg::tensor_contraction::tensor_train::tensor_train_decomposition;
 ///
 /// // Create a 2x3x2 tensor
-/// let tensor = array![[[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+/// let tensor = array![[[1.0_f64, 2.0], [3.0, 4.0], [5.0, 6.0]],
 ///                      [[7.0, 8.0], [9.0, 10.0], [11.0, 12.0]]];
 ///
 /// // Decompose into tensor train format with maximum rank 2
@@ -588,7 +589,7 @@ where
         + Debug
         + Sum
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
     D: Dimension,
@@ -684,7 +685,7 @@ where
         + Debug
         + Sum
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -709,7 +710,7 @@ where
         + Debug
         + Sum
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -736,9 +737,9 @@ where
     rank = rank.max(1);
 
     // Truncate the matrices
-    let u_trunc = u.slice(ndarray::s![.., ..rank]).to_owned();
-    let s_trunc = s.slice(ndarray::s![..rank]).to_owned();
-    let vt_trunc = vt.slice(ndarray::s![..rank, ..]).to_owned();
+    let u_trunc = u.slice(scirs2_core::ndarray::s![.., ..rank]).to_owned();
+    let s_trunc = s.slice(scirs2_core::ndarray::s![..rank]).to_owned();
+    let vt_trunc = vt.slice(scirs2_core::ndarray::s![..rank, ..]).to_owned();
 
     Ok((u_trunc, s_trunc, vt_trunc))
 }
@@ -757,7 +758,7 @@ where
         + Debug
         + Sum
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -767,9 +768,9 @@ where
     let rank = max_rank.min(s.len());
 
     // Truncate the matrices
-    let u_trunc = u.slice(ndarray::s![.., ..rank]).to_owned();
-    let s_trunc = s.slice(ndarray::s![..rank]).to_owned();
-    let vt_trunc = vt.slice(ndarray::s![..rank, ..]).to_owned();
+    let u_trunc = u.slice(scirs2_core::ndarray::s![.., ..rank]).to_owned();
+    let s_trunc = s.slice(scirs2_core::ndarray::s![..rank]).to_owned();
+    let vt_trunc = vt.slice(scirs2_core::ndarray::s![..rank, ..]).to_owned();
 
     Ok((u_trunc, s_trunc, vt_trunc))
 }
@@ -789,7 +790,7 @@ where
         + Debug
         + Sum
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -819,9 +820,9 @@ where
     rank = rank.min(max_rank);
 
     // Truncate the matrices
-    let u_trunc = u.slice(ndarray::s![.., ..rank]).to_owned();
-    let s_trunc = s.slice(ndarray::s![..rank]).to_owned();
-    let vt_trunc = vt.slice(ndarray::s![..rank, ..]).to_owned();
+    let u_trunc = u.slice(scirs2_core::ndarray::s![.., ..rank]).to_owned();
+    let s_trunc = s.slice(scirs2_core::ndarray::s![..rank]).to_owned();
+    let vt_trunc = vt.slice(scirs2_core::ndarray::s![..rank, ..]).to_owned();
 
     Ok((u_trunc, s_trunc, vt_trunc))
 }
@@ -837,7 +838,7 @@ where
         + Debug
         + Sum
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -850,13 +851,13 @@ where
 }
 
 /// Helper type for more convenient type definition
-pub type Array1<A> = Array<A, ndarray::Ix1>;
+pub type Array1<A> = Array<A, scirs2_core::ndarray::Ix1>;
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_tensor_train_decomposition_3d() {
@@ -907,7 +908,7 @@ mod tests {
     #[ignore = "SVD fails for small matrices due to unimplemented eigendecomposition"]
     fn test_tensor_train_decomposition_with_truncation() {
         // Create a 4x3x2x2 tensor with some structure
-        let mut tensor = ArrayD::<f64>::zeros(ndarray::IxDyn(&[4, 3, 2, 2]));
+        let mut tensor = ArrayD::<f64>::zeros(scirs2_core::ndarray::IxDyn(&[4, 3, 2, 2]));
 
         // Fill with some values (outer product-like pattern for simplicity)
         for i in 0..4 {
@@ -974,7 +975,7 @@ mod tests {
     #[ignore = "SVD fails for small matrices due to unimplemented eigendecomposition"]
     fn test_round_tensor_train() {
         // Create a 3x4x3x2 tensor
-        let mut tensor = ArrayD::<f64>::zeros(ndarray::IxDyn(&[3, 4, 3, 2]));
+        let mut tensor = ArrayD::<f64>::zeros(scirs2_core::ndarray::IxDyn(&[3, 4, 3, 2]));
 
         // Fill with values
         for i in 0..3 {

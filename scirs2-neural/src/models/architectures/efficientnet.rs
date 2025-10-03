@@ -7,9 +7,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{BatchNorm, Conv2D, Dense, Dropout, Layer, PaddingMode};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::{rngs::SmallRng, SeedableRng};
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::{rngs::SmallRng, SeedableRng};
 use std::fmt::Debug;
 /// Swish activation function used in EfficientNet
 #[allow(dead_code)]
@@ -322,7 +322,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> MBConvBlock<F> {
             project_bn,
             drop_connect_rate,
     /// Apply drop connection (stochastic depth)
-    fn drop_connect<R: rand::Rng>(&self, input: &Array<F, IxDyn>, rng: &mut R) -> Array<F, IxDyn> {
+    fn drop_connect<R: scirs2_core::random::Rng>(&self, input: &Array<F, IxDyn>, rng: &mut R) -> Array<F, IxDyn> {
         if self.drop_connect_rate <= F::zero() || !self.has_skip_connection {
             return input.clone();
         // Generate a random tensor for binary mask

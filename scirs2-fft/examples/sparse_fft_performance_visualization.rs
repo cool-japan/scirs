@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 use plotly::{
     common::{Mode, Title},
     Layout, Plot, Scatter,
@@ -237,9 +238,9 @@ fn benchmark_accuracy() {
 
             // Add noise
             if noise_level > 0.0 {
-                use rand_distr::{Distribution, Normal};
+                use scirs2_core::random::{Distribution, Normal};
 
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
                 let normal = Normal::new(0.0, noise_level).unwrap();
 
                 for sample in &mut signal {

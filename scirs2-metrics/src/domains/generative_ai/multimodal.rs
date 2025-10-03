@@ -7,8 +7,8 @@
 #![allow(dead_code)]
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::iter::Sum;
 
@@ -23,15 +23,19 @@ pub struct MultimodalMetrics<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> Default
-    for MultimodalMetrics<F>
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > Default for MultimodalMetrics<F>
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + Sum + ndarray::ScalarOperand> MultimodalMetrics<F> {
+impl<
+        F: Float + scirs2_core::numeric::FromPrimitive + Sum + scirs2_core::ndarray::ScalarOperand,
+    > MultimodalMetrics<F>
+{
     /// Create new multimodal metrics
     pub fn new() -> Self {
         Self {

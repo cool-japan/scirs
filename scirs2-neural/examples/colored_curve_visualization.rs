@@ -1,7 +1,7 @@
-use ndarray::{Array1, Array2};
-use ndarray_rand::rand::prelude::*;
-use ndarray_rand::rand::rngs::SmallRng;
-use ndarray_rand::rand_distr::StandardNormal;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::rngs::SmallRng;
+use scirs2_core::random::StandardNormal;
 use scirs2_neural::utils::colors::ColorOptions;
 use scirs2_neural::utils::evaluation::{LearningCurve, ROCCurve};
 
@@ -15,7 +15,7 @@ fn main() {
     let n_samples = 200;
     // Generate true labels: 0 or 1
     let y_true: Vec<usize> = (0..n_samples)
-        .map(|_| if rng.gen::<f64>() > 0.5 { 1 } else { 0 })
+        .map(|_| if rng.random::<f64>() > 0.5 { 1 } else { 0 })
         .collect();
     // Generate scores with some separability
     let y_score: Vec<f64> = y_true

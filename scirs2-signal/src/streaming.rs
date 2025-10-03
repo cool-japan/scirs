@@ -17,7 +17,7 @@
 // ## Example Usage
 //
 // ```rust
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::streaming::{StreamingProcessor, StreamingConfig};
 // # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //
@@ -48,8 +48,8 @@ use crate::streaming_stft::{StreamingStft, StreamingStftConfig};
 use crate::utilities::spectral::spectral_centroid;
 use crate::utilities::spectral::spectral_flux;
 use crate::utilities::spectral::spectral_rolloff;
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;

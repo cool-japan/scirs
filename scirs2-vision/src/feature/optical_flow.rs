@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma, Rgb, RgbImage};
-use ndarray::{s, Array2};
+use scirs2_core::ndarray::{s, Array2};
 
 /// Optical flow vector at a point
 #[derive(Debug, Clone, Copy)]

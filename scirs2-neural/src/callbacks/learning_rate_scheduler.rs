@@ -2,8 +2,8 @@
 
 use crate::callbacks::{Callback, CallbackContext, CallbackTiming};
 use crate::error::Result;
-use ndarray::ScalarOperand;
-use num_traits::Float;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 /// Enumeration of scheduling methods for learning rate.

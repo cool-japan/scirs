@@ -6,7 +6,7 @@
 
 use crate::advanced_clustering::{AdvancedClusterer, AdvancedClusteringResult};
 use crate::error::{ClusteringError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -493,7 +493,9 @@ impl DistributedAdvancedClusterer {
                 (i + 1) * samples_per_worker
             };
 
-            let partition = data.slice(ndarray::s![start_idx..end_idx, ..]).to_owned();
+            let partition = data
+                .slice(scirs2_core::ndarray::s![start_idx..end_idx, ..])
+                .to_owned();
             partitions.push(partition);
         }
 
@@ -803,6 +805,12 @@ pub struct GpuPerformanceMonitor {
     durations: HashMap<String, f64>,
 }
 
+impl Default for GpuPerformanceMonitor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GpuPerformanceMonitor {
     pub fn new() -> Self {
         Self {
@@ -863,6 +871,12 @@ impl DistributedLoadBalancer {
 #[derive(Debug)]
 pub struct ClusteringCommunicationProtocol;
 
+impl Default for ClusteringCommunicationProtocol {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClusteringCommunicationProtocol {
     pub fn new() -> Self {
         Self
@@ -880,6 +894,12 @@ impl ClusteringCommunicationProtocol {
 
 #[derive(Debug)]
 pub struct FaultToleranceManager;
+
+impl Default for FaultToleranceManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl FaultToleranceManager {
     pub fn new() -> Self {

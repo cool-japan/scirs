@@ -28,8 +28,8 @@
 //! - Consistent behavior near data endpoints
 
 use crate::error::InterpolateResult;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 /// Perform nearest neighbor interpolation between two data points
 ///
@@ -59,7 +59,7 @@ use num_traits::{Float, FromPrimitive};
 /// # Example
 ///
 /// ```rust
-/// # use ndarray::array;
+/// # use scirs2_core::ndarray::array;
 /// # use scirs2_interpolate::interp1d::nearest_interpolate;
 /// let x = array![1.0, 2.0, 3.0];
 /// let y = array![10.0, 20.0, 30.0];
@@ -127,7 +127,7 @@ pub(crate) fn nearest_interp<F: Float>(
 /// # Example
 ///
 /// ```rust
-/// # use ndarray::array;
+/// # use scirs2_core::ndarray::array;
 /// # use scirs2_interpolate::interp1d::linear_interpolate;
 /// let x = array![1.0, 2.0, 3.0];
 /// let y = array![10.0, 20.0, 30.0];
@@ -215,7 +215,7 @@ pub(crate) fn linear_interp<F: Float>(
 /// # Example
 ///
 /// ```rust
-/// # use ndarray::array;
+/// # use scirs2_core::ndarray::array;
 /// # use scirs2_interpolate::interp1d::cubic_interpolate;
 /// let x = array![0.0f64, 1.0, 2.0, 3.0, 4.0];
 /// let y = array![0.0f64, 1.0, 8.0, 27.0, 64.0]; // y = x³
@@ -320,7 +320,7 @@ pub(crate) fn cubic_interp<F: Float + FromPrimitive>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::nearest_interpolate;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -362,7 +362,7 @@ pub fn nearest_interpolate<F: crate::traits::InterpolationFloat>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::linear_interpolate;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -404,7 +404,7 @@ pub fn linear_interpolate<F: crate::traits::InterpolationFloat>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::cubic_interpolate;
 ///
 /// let x = array![0.0f64, 1.0, 2.0, 3.0];
@@ -437,7 +437,7 @@ mod tests {
     use super::super::{ExtrapolateMode, Interp1d, InterpolationMethod};
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_nearest_interpolation() {

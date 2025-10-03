@@ -535,7 +535,7 @@ fn main() {
     let y2 = vec![
         3.2, 3.8, 4.5, 5.4, 5.9, 16.0, 7.7, 8.1, -1.0, 10.2, 10.9, 11.5, 22.0, 14.1, 2.0,
     ];
-    let _true_outliers = vec![
+    let _true_outliers = [
         false, false, false, false, false, true, false, false, true, false, false, false, true,
         false, true,
     ];

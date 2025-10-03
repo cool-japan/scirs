@@ -1,6 +1,6 @@
 // This is a standalone example that demonstrates robust regression concepts
 // without requiring the main library implementation
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 
 /// A simplified version of TheilSlopes for demonstration
 struct SimpleTheilSlopes {

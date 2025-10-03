@@ -1,7 +1,7 @@
-use ndarray::Array2;
 use scirs2_cluster::vq::{
     kmeans_with_options, parallel_kmeans, KMeansOptions, ParallelKMeansOptions,
 };
+use scirs2_core::ndarray::Array2;
 use std::time::Instant;
 
 #[allow(dead_code)]
@@ -144,7 +144,7 @@ fn generate_clustered_data(n_samples: usize, n_features: usize, nclusters: usize
             let base = (cluster * 10) as f64;
 
             // Add some noise
-            let noise = (rand::random::<f64>() - 0.5) * 2.0;
+            let noise = (scirs2_core::random::random::<f64>() - 0.5) * 2.0;
 
             data.push(base + noise);
         }
@@ -155,8 +155,8 @@ fn generate_clustered_data(n_samples: usize, n_features: usize, nclusters: usize
 
 #[allow(dead_code)]
 fn calculate_cluster_agreement(
-    labels1: &ndarray::Array1<usize>,
-    labels2: &ndarray::Array1<usize>,
+    labels1: &scirs2_core::ndarray::Array1<usize>,
+    labels2: &scirs2_core::ndarray::Array1<usize>,
 ) -> f64 {
     let n_samples = labels1.len();
 
@@ -204,7 +204,7 @@ fn calculate_cluster_agreement(
 #[allow(dead_code)]
 fn calculate_inertia(
     data: &Array2<f64>,
-    labels: &ndarray::Array1<usize>,
+    labels: &scirs2_core::ndarray::Array1<usize>,
     centroids: &Array2<f64>,
 ) -> f64 {
     let mut inertia = 0.0;

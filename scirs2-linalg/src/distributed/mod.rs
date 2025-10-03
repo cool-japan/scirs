@@ -27,7 +27,7 @@
 //!
 //! ```rust
 //! use scirs2_linalg::distributed::{DistributedConfig, DistributedMatrix};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create a distributed matrix
 //! let matrix = Array2::from_shape_fn((1000, 1000), |(i, j)| (i + j) as f64);

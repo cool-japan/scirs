@@ -6,8 +6,8 @@
 //! - Memory footprint optimization
 //! - Buffer reuse strategies
 
-use ndarray::{Array, Array2, ArrayBase, ArrayView, ArrayViewMut, Data, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Array2, ArrayBase, ArrayView, ArrayViewMut, Data, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::mem;
@@ -297,7 +297,7 @@ where
 
 /// Zero-copy transpose for 2D arrays
 #[allow(dead_code)]
-pub fn transpose_view<T, S>(array: &ArrayBase<S, ndarray::Ix2>) -> Array2<T>
+pub fn transpose_view<T, S>(array: &ArrayBase<S, scirs2_core::ndarray::Ix2>) -> Array2<T>
 where
     T: Float + Copy,
     S: Data<Elem = T>,
@@ -308,14 +308,14 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_buffer_pool() {
-        let mut pool: BufferPool<f64, ndarray::Ix2> = BufferPool::new(5);
+        let mut pool: BufferPool<f64, scirs2_core::ndarray::Ix2> = BufferPool::new(5);
 
         // Get a buffer
-        let buf1 = pool.get_buffer(ndarray::Ix2(10, 10));
+        let buf1 = pool.get_buffer(scirs2_core::ndarray::Ix2(10, 10));
         assert_eq!(buf1.shape(), &[10, 10]);
         assert_eq!(pool.len(), 0);
 
@@ -324,7 +324,7 @@ mod tests {
         assert_eq!(pool.len(), 1);
 
         // Get it again - should reuse
-        let buf2 = pool.get_buffer(ndarray::Ix2(10, 10));
+        let buf2 = pool.get_buffer(scirs2_core::ndarray::Ix2(10, 10));
         assert_eq!(buf2.shape(), &[10, 10]);
         assert_eq!(pool.len(), 0);
     }
@@ -352,10 +352,15 @@ mod tests {
     #[test]
     fn test_memory_limit_check() {
         // Check that small array passes
-        assert!(check_memory_limit::<f64, ndarray::Ix2>(&[10, 10], Some(1000)).is_ok());
+        assert!(
+            check_memory_limit::<f64, scirs2_core::ndarray::Ix2>(&[10, 10], Some(1000)).is_ok()
+        );
 
         // Check that large array fails
-        assert!(check_memory_limit::<f64, ndarray::Ix2>(&[1000, 1000], Some(1000)).is_err());
+        assert!(
+            check_memory_limit::<f64, scirs2_core::ndarray::Ix2>(&[1000, 1000], Some(1000))
+                .is_err()
+        );
     }
 
     #[test]

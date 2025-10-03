@@ -4,8 +4,8 @@
 //! a normal distribution.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast};
 
 /// Performs the Shapiro-Wilk test for normality.
 ///
@@ -26,7 +26,7 @@ use num_traits::{Float, NumCast};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::shapiro_wilk;
 ///
 /// // Create some normally distributed data
@@ -336,7 +336,7 @@ fn approx_normal_cdf(z: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::anderson_darling;
 ///
 /// // Create some normally distributed data
@@ -476,7 +476,7 @@ fn calculate_anderson_darling_p_value<F: Float + NumCast>(_asquared: F) -> F {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::dagostino_k2;
 ///
 /// // Create some data to test (at least 20 samples are required)
@@ -705,7 +705,7 @@ fn gamma_function(x: f64) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::ks_2samp;
 ///
 /// // Create two samples

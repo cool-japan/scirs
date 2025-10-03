@@ -4,7 +4,7 @@
 //! all convolutional and pooling layer implementations including padding modes,
 //! type aliases for caching, and common validation functions.
 
-use ndarray::{Array, IxDyn};
+use scirs2_core::ndarray::{Array, IxDyn};
 use std::sync::{Arc, RwLock};
 
 /// Type alias for caching max indices in 2D pooling operations

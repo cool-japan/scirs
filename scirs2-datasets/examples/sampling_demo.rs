@@ -3,7 +3,7 @@
 //! This example demonstrates the use of random sampling and stratified sampling
 //! utilities provided by scirs2-datasets.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_datasets::{load_iris, random_sample, stratified_sample, Dataset};
 
 #[allow(dead_code)]
@@ -35,11 +35,13 @@ fn main() {
     );
 
     // Create a subset dataset
-    let sampledata = iris.data.select(ndarray::Axis(0), &random_indices);
+    let sampledata = iris
+        .data
+        .select(scirs2_core::ndarray::Axis(0), &random_indices);
     let sample_target = iris
         .target
         .as_ref()
-        .map(|t| t.select(ndarray::Axis(0), &random_indices));
+        .map(|t| t.select(scirs2_core::ndarray::Axis(0), &random_indices));
     let sampledataset = Dataset::new(sampledata, sample_target)
         .with_description("Random sample from Iris dataset".to_string());
 
@@ -86,8 +88,10 @@ fn main() {
         println!("Stratified sampled {stratifiedsize} indices maintaining class proportions");
 
         // Create stratified subset
-        let stratifieddata = iris.data.select(ndarray::Axis(0), &stratified_indices);
-        let stratified_target = target.select(ndarray::Axis(0), &stratified_indices);
+        let stratifieddata = iris
+            .data
+            .select(scirs2_core::ndarray::Axis(0), &stratified_indices);
+        let stratified_target = target.select(scirs2_core::ndarray::Axis(0), &stratified_indices);
         let stratifieddataset = Dataset::new(stratifieddata, Some(stratified_target))
             .with_description("Stratified sample from Iris dataset".to_string());
 

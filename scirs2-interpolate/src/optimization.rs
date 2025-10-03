@@ -17,7 +17,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_interpolate::optimization::{
 //!     CrossValidator, ModelSelector, OptimizationConfig, ValidationMetric
 //! };
@@ -44,8 +44,8 @@
 use crate::advanced::rbf::{RBFInterpolator, RBFKernel};
 use crate::bspline::BSpline;
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use num_traits::{Float, FromPrimitive, ToPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display, LowerExp};
 use std::ops::{AddAssign, DivAssign, MulAssign, RemAssign, SubAssign};
@@ -1043,7 +1043,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_cross_validator_creation() {

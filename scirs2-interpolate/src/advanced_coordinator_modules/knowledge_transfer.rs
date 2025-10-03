@@ -4,7 +4,7 @@
 //! interpolation methods to learn from experience across different domains and
 //! data types, improving performance through accumulated knowledge.
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -254,7 +254,7 @@ impl<F: Float + std::default::Default> InterpolationKnowledgeBase<F> {
 
         for domain_knowledge in self.domain_knowledge.values() {
             for method in &domain_knowledge.optimal_methods {
-                let score = method_scores.entry(method.clone()).or_insert(0.0);
+                let score = method_scores.entry(*method).or_insert(0.0);
                 *score += domain_knowledge
                     .performance_profile
                     .accuracy_profile
@@ -546,7 +546,7 @@ impl<F: Float> TransferLearningModel<F> {
             let confidence = self.transfer_weights.get(source_domain).unwrap_or(&0.5);
 
             recommendations.push(TransferRecommendation {
-                method: method.clone(),
+                method: *method,
                 confidence: *confidence,
                 reasoning: format!(
                     "Method {:?} showed good performance in source domain {}",

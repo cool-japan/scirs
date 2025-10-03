@@ -11,8 +11,8 @@
 //! - Column-based I/O operations
 
 use chrono::{NaiveDate, NaiveDateTime, NaiveTime};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
@@ -707,7 +707,7 @@ fn convert_value(
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_io::csv::{write_csv, CsvWriterConfig};
 ///
 /// let data = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
@@ -925,7 +925,7 @@ pub fn read_csv_typed<P: AsRef<Path>>(
 ///
 /// ```no_run
 /// use scirs2_io::csv::{read_csv_chunked, CsvReaderConfig};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// let config = CsvReaderConfig::default();
 /// let mut total_rows = 0;
@@ -1189,7 +1189,7 @@ pub fn write_csv_typed<P: AsRef<Path>>(
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array1, array};
+/// use scirs2_core::ndarray::{Array1, array};
 /// use scirs2_io::csv::{write_csv_columns, CsvWriterConfig};
 ///
 /// let col1 = array![1.0, 2.0, 3.0];

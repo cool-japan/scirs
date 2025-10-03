@@ -6,7 +6,7 @@
 use super::transform::{dwt_decompose, dwt_reconstruct};
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]

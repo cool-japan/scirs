@@ -1,11 +1,11 @@
+use crate::ndarray;
 use crate::ndarray_ext::{NdArray, NdArrayView};
 use crate::op;
 use crate::tensor::Tensor;
 use crate::tensor_ops::*;
 use crate::tensor_ops::{vdAdd, vdExp, vdLn, vsAdd, vsExp, vsLn, BlasIF};
 use crate::{same_type, Float};
-use ndarray;
-use ndarray::Zip;
+use scirs2_core::ndarray::Zip;
 
 pub struct Sin;
 pub struct Cos;
@@ -106,13 +106,13 @@ macro_rules! impl_cmp_op {
                 let x1_is_scalar = crate::ndarray_ext::is_scalarshape(shape1);
 
                 let ret = if x0_is_scalar && x1_is_scalar {
-                    let x1_elem = x1[ndarray::IxDyn(&[])];
+                    let x1_elem = x1[scirs2_core::ndarray::IxDyn(&[])];
                     x0.mapv(move |a| $assign(a, x1_elem))
                 } else if x0_is_scalar && !x1_is_scalar {
-                    let x0_elem = x0[ndarray::IxDyn(&[])];
+                    let x0_elem = x0[scirs2_core::ndarray::IxDyn(&[])];
                     x1.mapv(move |a| $assign(x0_elem, a))
                 } else if !x0_is_scalar && x1_is_scalar {
-                    let x1_elem = x1[ndarray::IxDyn(&[])];
+                    let x1_elem = x1[scirs2_core::ndarray::IxDyn(&[])];
                     x0.mapv(move |a| $assign(a, x1_elem))
                 } else {
                     // case that scalar is not involved
@@ -228,6 +228,7 @@ fn min_max_grad<'g, T: Float>(
 }
 
 #[cfg(feature = "blas")]
+#[allow(unused_macros)]
 macro_rules! elem_wise_vm_or_std {
     ($vms_op:ident, $vmd_op:ident, $closure:expr, $ctx:expr) => {
         let x = $ctx.input(0);
@@ -259,6 +260,7 @@ macro_rules! elem_wise_vm_or_std {
 }
 
 #[cfg(feature = "blas")]
+#[allow(unused_macros)]
 macro_rules! elem_wise_vm_with_param_or_std {
     ($vms_op:ident, $vmd_op:ident, $std_name:ident, $param:expr, $ctx:expr) => {
         let x = $ctx.input(0);
@@ -525,8 +527,10 @@ pub fn logsumexp_forward<T: Float>(x: &NdArrayView<T>, axis: isize, keepdims: bo
     let max_fn = T::max;
     let min_val = T::min_value();
     let max = &x
-        .fold_axis(ndarray::Axis(axis), min_val, move |&a, &b| max_fn(a, b))
-        .into_shape_with_order(ndarray::IxDyn(reducedshape))
+        .fold_axis(scirs2_core::ndarray::Axis(axis), min_val, move |&a, &b| {
+            max_fn(a, b)
+        })
+        .into_shape_with_order(scirs2_core::ndarray::IxDyn(reducedshape))
         .unwrap();
 
     let exp = {
@@ -545,8 +549,8 @@ pub fn logsumexp_forward<T: Float>(x: &NdArrayView<T>, axis: isize, keepdims: bo
 
     // unwrap is safe
     let mut sum = exp
-        .sum_axis(ndarray::Axis(axis))
-        .into_shape_with_order(ndarray::IxDyn(reducedshape))
+        .sum_axis(scirs2_core::ndarray::Axis(axis))
+        .into_shape_with_order(scirs2_core::ndarray::IxDyn(reducedshape))
         .unwrap();
 
     #[cfg(feature = "blas")]

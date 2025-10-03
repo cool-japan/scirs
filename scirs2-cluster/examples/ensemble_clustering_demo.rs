@@ -4,7 +4,6 @@
 //! including majority voting, weighted consensus, graph-based consensus,
 //! and advanced techniques like meta-learning and Bayesian averaging.
 
-use ndarray::Array2;
 use scirs2_cluster::{
     ensemble::{
         advanced::*, convenience, ClusteringAlgorithm, ConsensusMethod, DiversityStrategy,
@@ -12,6 +11,7 @@ use scirs2_cluster::{
     },
     preprocess::standardize,
 };
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 
 #[allow(dead_code)]
@@ -68,20 +68,20 @@ fn generate_testdata() -> Array2<f64> {
 
     // Cluster 1: centered at (2, 2)
     for _ in 0..30 {
-        data.push(2.0 + (rand::random::<f64>() - 0.5) * 1.0);
-        data.push(2.0 + (rand::random::<f64>() - 0.5) * 1.0);
+        data.push(2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.0);
+        data.push(2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.0);
     }
 
     // Cluster 2: centered at (-2, 2)
     for _ in 0..30 {
-        data.push(-2.0 + (rand::random::<f64>() - 0.5) * 1.0);
-        data.push(2.0 + (rand::random::<f64>() - 0.5) * 1.0);
+        data.push(-2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.0);
+        data.push(2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.0);
     }
 
     // Cluster 3: centered at (0, -2)
     for _ in 0..30 {
-        data.push(0.0 + (rand::random::<f64>() - 0.5) * 1.0);
-        data.push(-2.0 + (rand::random::<f64>() - 0.5) * 1.0);
+        data.push(0.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.0);
+        data.push(-2.0 + (scirs2_core::random::random::<f64>() - 0.5) * 1.0);
     }
 
     Array2::from_shape_vec((90, 2), data).unwrap()
@@ -391,7 +391,7 @@ fn demonstrate_advanced_ensemble_techniques(
 
 /// Count unique labels in consensus result
 #[allow(dead_code)]
-fn count_unique_labels(labels: &ndarray::Array1<i32>) -> usize {
+fn count_unique_labels(labels: &scirs2_core::ndarray::Array1<i32>) -> usize {
     use std::collections::HashSet;
     let unique_labels: HashSet<i32> = labels.iter().cloned().collect();
     unique_labels.len()

@@ -4,8 +4,8 @@
 //! utilities and provide domain-specific error messages for special functions.
 
 use crate::error::{SpecialError, SpecialResult};
-use ndarray::{ArrayBase, Dimension};
-use num_traits::{Float, Zero};
+use scirs2_core::ndarray::{ArrayBase, Dimension};
+use scirs2_core::numeric::{Float, Zero};
 use scirs2_core::validation;
 
 /// Check if a value is positive (> 0)
@@ -63,7 +63,7 @@ where
 #[allow(dead_code)]
 pub fn check_array_finite<S, D>(array: &ArrayBase<S, D>, name: &str) -> SpecialResult<()>
 where
-    S: ndarray::Data,
+    S: scirs2_core::ndarray::Data,
     D: Dimension,
     S::Elem: Float + std::fmt::Display,
 {
@@ -75,7 +75,7 @@ where
 #[allow(dead_code)]
 pub fn check_not_empty<S, D>(array: &ArrayBase<S, D>, name: &str) -> SpecialResult<()>
 where
-    S: ndarray::Data,
+    S: scirs2_core::ndarray::Data,
     D: Dimension,
 {
     validation::check_not_empty(array, name)
@@ -91,8 +91,8 @@ pub fn check_sameshape<S1, S2, D1, D2>(
     b_name: &str,
 ) -> SpecialResult<()>
 where
-    S1: ndarray::Data,
-    S2: ndarray::Data,
+    S1: scirs2_core::ndarray::Data,
+    S2: scirs2_core::ndarray::Data,
     D1: Dimension,
     D2: Dimension,
 {
@@ -167,7 +167,7 @@ pub fn not_implemented(feature: &str) -> SpecialError {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, arr2};
+    use scirs2_core::ndarray::{arr1, arr2};
 
     #[test]
     fn test_check_positive() {

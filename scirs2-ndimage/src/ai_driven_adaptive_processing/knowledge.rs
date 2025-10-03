@@ -3,7 +3,7 @@
 //! This module handles multi-modal knowledge bases, cross-modal associations,
 //! and contextual knowledge for the AI-driven adaptive processing system.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 use super::config::{AlgorithmType, PatternType};

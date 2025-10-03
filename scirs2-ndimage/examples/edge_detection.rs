@@ -6,7 +6,7 @@
 //! - Laplace filter
 //! - Gradient magnitude
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_ndimage::filters::{gradient_magnitude, laplace, prewitt, roberts, scharr, sobel};
 
 #[allow(dead_code)]

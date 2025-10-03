@@ -5,8 +5,8 @@
 
 use crate::error::{ClusteringError, Result};
 use crate::leader::{LeaderNode, LeaderTree};
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -148,7 +148,7 @@ impl HierarchicalModel {
         self.validate_linkage_matrix()?;
         self.build_newick_recursive(nnodes + self.n_observations - 1, &mut newick)?;
 
-        newick.push_str(";");
+        newick.push(';');
         Ok(newick)
     }
 
@@ -416,7 +416,36 @@ impl ClusteringModel for KMeansModel {
     }
 
     fn predict(&self, data: ArrayView2<f64>) -> Result<Array1<usize>> {
-        self.predict(data)
+        // Find nearest centroid for each data point
+        let n_samples = data.nrows();
+        let mut labels = Array1::zeros(n_samples);
+
+        for (i, sample) in data.axis_iter(scirs2_core::ndarray::Axis(0)).enumerate() {
+            let mut min_dist = f64::INFINITY;
+            let mut best_cluster = 0;
+
+            for (j, centroid) in self
+                .centroids
+                .axis_iter(scirs2_core::ndarray::Axis(0))
+                .enumerate()
+            {
+                let dist: f64 = sample
+                    .iter()
+                    .zip(centroid.iter())
+                    .map(|(a, b)| (a - b).powi(2))
+                    .sum::<f64>()
+                    .sqrt();
+
+                if dist < min_dist {
+                    min_dist = dist;
+                    best_cluster = j;
+                }
+            }
+
+            labels[i] = best_cluster;
+        }
+
+        Ok(labels)
     }
 
     fn summary(&self) -> Result<serde_json::Value> {
@@ -442,8 +471,11 @@ impl ClusteringModel for DBSCANModel {
             .unwrap_or(0)
     }
 
-    fn predict(&self, data: ArrayView2<f64>) -> Result<Array1<usize>> {
-        self.predict(data)
+    fn predict(&self, _data: ArrayView2<f64>) -> Result<Array1<usize>> {
+        // DBSCAN doesn't support prediction on new data without re-running the algorithm
+        Err(ClusteringError::InvalidInput(
+            "DBSCAN does not support prediction on new data. Use fit() instead.".to_string(),
+        ))
     }
 
     fn summary(&self) -> Result<serde_json::Value> {
@@ -983,7 +1015,7 @@ pub fn save_spectral_clustering<P: AsRef<std::path::Path>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_kmeans_model_predict() {

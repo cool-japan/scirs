@@ -7,7 +7,7 @@ use super::basic::linear_interpolate;
 use super::core::{enforce_monotonicity, smooth_signal};
 use crate::error::{SignalError, SignalResult};
 use crate::interpolate::core::InterpolationConfig;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::solve;
 
 #[allow(unused_imports)]
@@ -29,7 +29,7 @@ use scirs2_linalg::solve;
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::{spline::cubic_spline_interpolate, core::InterpolationConfig};
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, f64::NAN, 4.0, f64::NAN, 6.0]);
@@ -206,7 +206,7 @@ pub fn cubic_spline_interpolate(
 /// # Example
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::interpolate::{spline::cubic_hermite_interpolate, core::InterpolationConfig};
 ///
 /// let mut signal = Array1::from_vec(vec![1.0, f64::NAN, 3.0, f64::NAN, 2.0]);

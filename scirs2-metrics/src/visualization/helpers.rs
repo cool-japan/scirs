@@ -3,7 +3,7 @@
 //! This module provides helper functions for creating visualizations for common
 //! metrics result types.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::error::Error;
 
 use crate::visualization::interactive::InteractiveOptions;
@@ -162,7 +162,7 @@ where
     // Create an owned ROC curve visualizer using raw data
     let mut visualizer = crate::visualization::interactive::roc_curve::InteractiveROCVisualizer::<
         f64,
-        ndarray::OwnedRepr<f64>,
+        scirs2_core::ndarray::OwnedRepr<f64>,
     >::new(fpr.to_vec(), tpr.to_vec(), None, Some(auc));
 
     if let Some(_options) = interactive_options {

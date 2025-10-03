@@ -1,6 +1,6 @@
 //! Filter-based feature selection methods
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 use super::FeatureSelectionResult;
@@ -27,7 +27,7 @@ impl FilterMethods {
     /// # Example
     ///
     /// ```
-    /// use ndarray::Array2;
+    /// use scirs2_core::ndarray::Array2;
     /// use scirs2_series::feature_selection::FilterMethods;
     ///
     /// let features = Array2::from_shape_vec((100, 5), (0..500).map(|x| x as f64).collect()).unwrap();
@@ -321,7 +321,7 @@ impl FilterMethods {
             let max_acf = match autocorrelation(&feature_col, Some(max_lag)) {
                 Ok(acf) => {
                     // Score is the maximum significant autocorrelation
-                    acf.slice(ndarray::s![1..])
+                    acf.slice(scirs2_core::ndarray::s![1..])
                         .iter()
                         .map(|&x| x.abs())
                         .fold(0.0f64, |a, b| a.max(b))
@@ -355,7 +355,7 @@ impl FilterMethods {
     // Helper methods
 
     fn calculate_correlation(
-        x: &ndarray::ArrayView1<f64>,
+        x: &scirs2_core::ndarray::ArrayView1<f64>,
         y: &Array1<f64>,
         x_mean: f64,
         y_mean: f64,
@@ -385,7 +385,7 @@ impl FilterMethods {
     }
 
     fn calculate_mutual_information(
-        x: &ndarray::ArrayView1<f64>,
+        x: &scirs2_core::ndarray::ArrayView1<f64>,
         y: &Array1<f64>,
         n_bins: usize,
     ) -> Result<f64> {
@@ -440,7 +440,7 @@ impl FilterMethods {
     }
 
     fn calculate_f_statistic(
-        x: &ndarray::ArrayView1<f64>,
+        x: &scirs2_core::ndarray::ArrayView1<f64>,
         y: &Array1<f64>,
         y_mean: f64,
         sst: f64,

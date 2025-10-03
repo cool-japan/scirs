@@ -3,8 +3,8 @@
 //! This module provides a sequential model implementation that chains
 //! layers together in a linear sequence.
 
-use ndarray::{Array, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use crate::error::{NeuralError, Result};
 use crate::layers::{Layer, ParamLayer};
@@ -14,8 +14,8 @@ use crate::optimizers::Optimizer;
 /// A sequential model that chains layers together in a linear sequence
 pub struct Sequential<F: Float + Debug + ScalarOperand + 'static> {
     layers: Vec<Box<dyn Layer<F> + Send + Sync>>,
-    layer_outputs: Vec<Array<F, ndarray::IxDyn>>,
-    input: Option<Array<F, ndarray::IxDyn>>,
+    layer_outputs: Vec<Array<F, scirs2_core::ndarray::IxDyn>>,
+    input: Option<Array<F, scirs2_core::ndarray::IxDyn>>,
     history: History<F>,
 }
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Default
@@ -84,16 +84,16 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Seque
     /// Predict on batched input data
     pub fn predict_batched(
         &self,
-        inputs: &Array<F, ndarray::IxDyn>,
+        inputs: &Array<F, scirs2_core::ndarray::IxDyn>,
         batch_size: usize,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let inputshape = inputs.shape();
         let num_samples = inputshape[0];
         let mut outputs = Vec::new();
         for i in (0..num_samples).step_by(batch_size) {
             let end_idx = std::cmp::min(i + batch_size, num_samples);
             let batch = inputs
-                .slice(ndarray::s![i..end_idx, ..])
+                .slice(scirs2_core::ndarray::s![i..end_idx, ..])
                 .to_owned()
                 .into_dyn();
             let batch_output = self.forward(&batch)?;
@@ -105,14 +105,14 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Seque
             // For multiple batches, concatenate along the first axis
             let mut concatenated = outputs[0].clone();
             for output in outputs.into_iter().skip(1) {
-                concatenated = ndarray::concatenate![ndarray::Axis(0), concatenated, output];
+                concatenated = scirs2_core::ndarray::concatenate![scirs2_core::ndarray::Axis(0), concatenated, output];
             }
             Ok(concatenated)
     /// Fit the model to training data
     pub fn fit(
         &mut self,
-        x_train: &Array<F, ndarray::IxDyn>,
-        y_train: &Array<F, ndarray::IxDyn>,
+        x_train: &Array<F, scirs2_core::ndarray::IxDyn>,
+        y_train: &Array<F, scirs2_core::ndarray::IxDyn>,
         config: &TrainingConfig,
         loss_fn: &dyn Loss<F>,
         optimizer: &mut dyn Optimizer<F>,
@@ -125,9 +125,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Seque
         // Split data into training and validation sets
         let (x_train_split, x_val) = if config.validation_split > 0.0 {
             let x_train_split = x_train
-                .slice(ndarray::s![0..val_split_idx, ..])
+                .slice(scirs2_core::ndarray::s![0..val_split_idx, ..])
             let x_val = x_train
-                .slice(ndarray::s![val_split_idx.., ..])
+                .slice(scirs2_core::ndarray::s![val_split_idx.., ..])
             (x_train_split, Some(x_val))
             (x_train.clone(), None)
         let (y_train_split, y_val) = if config.validation_split > 0.0 {
@@ -145,7 +145,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Seque
                 let end_idx =
                     std::cmp::min(start_idx + config.batch_size, x_train_split.shape()[0]);
                 let batch_x = x_train_split
-                    .slice(ndarray::s![start_idx..end_idx, ..])
+                    .slice(scirs2_core::ndarray::s![start_idx..end_idx, ..])
                     .to_owned()
                     .into_dyn();
                 let batch_y = y_train_split
@@ -170,14 +170,14 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Seque
                 );
         Ok(())
 impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Model<F>
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         let mut current_output = input.clone();
         for layer in &self.layers {
             current_output = layer.forward(&current_output)?;
         Ok(current_output)
     fn backward(
-        input: &Array<F, ndarray::IxDyn>,
-        grad_output: &Array<F, ndarray::IxDyn>,
+        input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
         if self.layer_outputs.is_empty() {
             return Err(NeuralError::InferenceError(
                 "No forward pass performed before backward pass".to_string(),
@@ -199,7 +199,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Model
         for layer in &mut self.layers {
             layer.update(learningrate)?;
     fn train_batch(
-        targets: &Array<F, ndarray::IxDyn>,
+        targets: &Array<F, scirs2_core::ndarray::IxDyn>,
     ) -> Result<F> {
         // Forward pass
         let mut layer_outputs = Vec::with_capacity(self.layers.len());
@@ -250,7 +250,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Model
                     param_layer.set_parameters(layer_params)?;
                     param_idx += num_params;
         Ok(loss)
-    fn predict(&self, inputs: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn predict(&self, inputs: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         self.forward(inputs)
     fn evaluate(
         let predictions = self.forward(inputs)?;
@@ -262,9 +262,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Display + 'static> Model
 //     use crate::losses::MeanSquaredError;
 //     use crate::models::TrainingConfig;
 //     use crate::optimizers::SGD;
-//     use ndarray::Array2;
-//     use rand::rngs::StdRng;
-//     use rand::SeedableRng;
+//     use scirs2_core::ndarray::Array2;
+//     use scirs2_core::random::rngs::StdRng;
+//     use scirs2_core::random::SeedableRng;
 //
 //     // Note: Tests temporarily disabled due to rand version conflicts
 //     // TODO: Fix rand version compatibility issues

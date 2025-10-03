@@ -6,8 +6,8 @@ use super::lanczos::{EigenResult, LanczosOptions};
 use super::symmetric;
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -39,7 +39,7 @@ use std::ops::{Add, Div, Mul, Sub};
 /// ```
 /// use scirs2_sparse::linalg::eigs;
 /// use scirs2_sparse::csr_array::CsrArray;
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Create a general sparse matrix
 /// let data = Array1::from(vec![1.0, 2.0, 3.0, 4.0]);
@@ -70,7 +70,7 @@ where
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
     S: SparseArray<T>,
 {
     let opts = options.unwrap_or_default();
@@ -180,7 +180,7 @@ where
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
     S: SparseArray<T>,
 {
     let (n, _) = matrix.shape();
@@ -258,7 +258,9 @@ where
 
     // Solve the reduced Hessenberg eigenvalue problem
     let (eigenvalues, eigenvectors) = solve_hessenberg_eigenproblem(
-        &h_matrix.slice(ndarray::s![..iter + 1, ..iter]).to_owned(),
+        &h_matrix
+            .slice(scirs2_core::ndarray::s![..iter + 1, ..iter])
+            .to_owned(),
         num_eigenvalues,
         which,
     )?;

@@ -7,7 +7,7 @@
 //! - Causal impact analysis
 
 use crate::error::TimeSeriesError;
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::validation::checkarray_finite;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -885,8 +885,8 @@ impl CausalityTester {
 
     fn euclidean_distance(
         &self,
-        a: &ndarray::ArrayView1<f64>,
-        b: &ndarray::ArrayView1<f64>,
+        a: &scirs2_core::ndarray::ArrayView1<f64>,
+        b: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> f64 {
         a.iter()
             .zip(b.iter())
@@ -1079,12 +1079,12 @@ impl CausalityTester {
         } else if p <= p_high {
             let q = p - 0.5;
             let r = q * q;
-            return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q
-                / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1.0);
+            (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q
+                / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1.0)
         } else {
             let q = (-2.0 * (1.0 - p).ln()).sqrt();
-            return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
-                / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0);
+            -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
+                / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0)
         }
     }
 
@@ -1138,7 +1138,7 @@ impl Default for CausalityTester {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_granger_causality() {
@@ -1148,8 +1148,8 @@ mod tests {
 
         // Generate test data where x causes y
         for i in 1..n {
-            x[i] = 0.5 * x[i - 1] + rand::random::<f64>();
-            y[i] = 0.3 * y[i - 1] + 0.4 * x[i - 1] + rand::random::<f64>();
+            x[i] = 0.5 * x[i - 1] + scirs2_core::random::random::<f64>();
+            y[i] = 0.3 * y[i - 1] + 0.4 * x[i - 1] + scirs2_core::random::random::<f64>();
         }
 
         let tester = CausalityTester::new();
@@ -1191,9 +1191,9 @@ mod tests {
             (0..n)
                 .map(|i| {
                     if i < intervention_point {
-                        i as f64 + rand::random::<f64>()
+                        i as f64 + scirs2_core::random::random::<f64>()
                     } else {
-                        i as f64 + 10.0 + rand::random::<f64>() // Effect after intervention
+                        i as f64 + 10.0 + scirs2_core::random::random::<f64>() // Effect after intervention
                     }
                 })
                 .collect(),

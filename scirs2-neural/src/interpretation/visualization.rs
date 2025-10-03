@@ -4,8 +4,8 @@
 //! behavior including attention visualization, feature visualization, and network dissection.
 
 use crate::error::{NeuralError, Result};
-use ndarray::ArrayD;
-use num_traits::Float;
+use scirs2_core::ndarray::ArrayD;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -93,8 +93,8 @@ where
     F: Float
         + Debug
         + 'static
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
         + Sum
         + Clone
         + Copy,
@@ -132,7 +132,7 @@ where
             AttentionAggregation::Average => {
                 // Average across head dimension (assuming shape: [batch, heads, seq, seq])
                 if attentionweights.ndim() >= 4 {
-                    Ok(attentionweights.mean_axis(ndarray::Axis(1)).unwrap())
+                    Ok(attentionweights.mean_axis(scirs2_core::ndarray::Axis(1)).unwrap())
                 } else {
                     Ok(attentionweights.clone())
                 }
@@ -140,7 +140,7 @@ where
             AttentionAggregation::Maximum => {
                 // Maximum across head dimension
                     let max_attention = attentionweights.fold_axis(
-                        ndarray::Axis(1),
+                        scirs2_core::ndarray::Axis(1),
                         F::neg_infinity(),
                         |&acc, &x| acc.max(x),
                     );
@@ -149,7 +149,7 @@ where
                 // Select specific head
                 if attentionweights.ndim() >= 4 && *head_idx < self.num_heads {
                     Ok(attention_weights
-                        .index_axis(ndarray::Axis(1), *head_idx)
+                        .index_axis(scirs2_core::ndarray::Axis(1), *head_idx)
                         .to_owned())
                     Err(NeuralError::InvalidArchitecture(format!(
                         "Invalid head index {} for {} heads",
@@ -162,11 +162,11 @@ where
                         "Number of weights must match number of heads".to_string(),
                     ));
                     let mut weighted_attention =
-                        attentionweights.index_axis(ndarray::Axis(1), 0).to_owned()
+                        attentionweights.index_axis(scirs2_core::ndarray::Axis(1), 0).to_owned()
                             * F::from(weights[0]).unwrap();
                     for (i, &weight) in weights.iter().enumerate().skip(1) {
                         let head_attention =
-                            attentionweights.index_axis(ndarray::Axis(1), i).to_owned();
+                            attentionweights.index_axis(scirs2_core::ndarray::Axis(1), i).to_owned();
                         weighted_attention =
                             weighted_attention + head_attention * F::from(weight).unwrap();
                     }
@@ -192,7 +192,7 @@ where
         for &token_idx in token_indices {
             if token_idx < self.sequence_length {
                 // Compute attention flow for this token
-                let token_attention = attention.index_axis(ndarray::Axis(1), token_idx);
+                let token_attention = attention.index_axis(scirs2_core::ndarray::Axis(1), token_idx);
                 let flow_score = token_attention.sum().to_f64().unwrap_or(0.0);
                 flow_scores.push(flow_score);
             } else {
@@ -212,11 +212,11 @@ pub fn generate_feature_visualization<F>(
             learning_rate,
         } => {
             // Simplified activation maximization
-            let mut optimized_input = ndarray::Array::zeros(inputshape).into_dyn();
+            let mut optimized_input = scirs2_core::ndarray::Array::zeros(inputshape).into_dyn();
             for _iter in 0..*num_iterations {
                 // Apply gradient ascent (simplified)
                 optimized_input = optimized_input
-                    .mapv(|x| x + F::from(*learning_rate * rand::random::<f64>()).unwrap());
+                    .mapv(|x| x + F::from(*learning_rate * scirs2_core::random::random::<f64>()).unwrap());
             let mut metadata = HashMap::new();
             metadata.insert("target_layer".to_string(), target_layer.clone());
             metadata.insert("iterations".to_string(), num_iterations.to_string());
@@ -231,11 +231,11 @@ pub fn generate_feature_visualization<F>(
         VisualizationMethod::DeepDream {
             amplify_factor,
             // Simplified deep dream implementation
-            let mut dream_input = ndarray::Array::ones(inputshape).into_dyn();
+            let mut dream_input = scirs2_core::ndarray::Array::ones(inputshape).into_dyn();
                 // Amplify activations (simplified)
                 dream_input = dream_input.mapv(|x| {
                     x * F::from(*amplify_factor).unwrap()
-                        + F::from(*learning_rate * rand::random::<f64>()).unwrap()
+                        + F::from(*learning_rate * scirs2_core::random::random::<f64>()).unwrap()
                 });
             metadata.insert("amplify_factor".to_string(), amplify_factor.to_string());
                 visualization_data: dream_input,
@@ -243,7 +243,7 @@ pub fn generate_feature_visualization<F>(
         VisualizationMethod::FeatureInversion {
             regularization_weight,
             // Simplified feature inversion
-            let inverted_input = ndarray::Array::zeros(inputshape).into_dyn();
+            let inverted_input = scirs2_core::ndarray::Array::zeros(inputshape).into_dyn();
             metadata.insert(
                 "regularization".to_string(),
                 regularization_weight.to_string(),
@@ -253,7 +253,7 @@ pub fn generate_feature_visualization<F>(
         VisualizationMethod::ClassActivationMapping {
             target_class,
             // Simplified CAM
-            let cam_result = ndarray::Array::ones(inputshape).into_dyn();
+            let cam_result = scirs2_core::ndarray::Array::ones(inputshape).into_dyn();
             metadata.insert("target_class".to_string(), target_class.to_string());
                 visualization_data: cam_result,
                 quality_score: 0.85,
@@ -261,7 +261,7 @@ pub fn generate_feature_visualization<F>(
             concept_data,
             concept_labels,
             // Simplified network dissection
-            let dissection_result = ndarray::Array::zeros(inputshape).into_dyn();
+            let dissection_result = scirs2_core::ndarray::Array::zeros(inputshape).into_dyn();
             metadata.insert("num_concepts".to_string(), concept_labels.len().to_string());
             metadata.insert("num_examples".to_string(), concept_data.len().to_string());
                 visualization_data: dissection_result,
@@ -337,7 +337,7 @@ pub fn create_attention_heatmap<F>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
     #[test]
     fn test_attention_visualizer_creation() {
         let visualizer = AttentionVisualizer::<f64>::new(

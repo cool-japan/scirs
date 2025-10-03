@@ -7,9 +7,9 @@
 
 #[allow(unused_imports)]
 use crate::gpu_ops::{GpuBackend, GpuBuffer, GpuBufferExt, GpuDevice, GpuError, GpuKernelHandle};
-use num_traits::Float;
 #[cfg(feature = "gpu")]
 use scirs2_core::gpu::GpuContext;
+use scirs2_core::numeric::Float;
 use scirs2_core::GpuDataType;
 use std::fmt::Debug;
 

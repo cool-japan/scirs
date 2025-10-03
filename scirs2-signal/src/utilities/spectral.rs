@@ -5,8 +5,8 @@
 // and advanced spectral processing techniques for signal characterization.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -57,7 +57,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -109,7 +109,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -181,7 +181,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -190,7 +190,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -270,7 +270,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -279,7 +279,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -369,7 +369,7 @@ where
     let psd_f64: Vec<f64> = psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -378,7 +378,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -483,7 +483,7 @@ where
     let psd_f64: Vec<f64> = psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -492,7 +492,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -582,7 +582,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -671,7 +671,7 @@ where
     let psd1_f64: Vec<f64> = _psd1
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -680,7 +680,7 @@ where
     let psd2_f64: Vec<f64> = psd2
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -775,7 +775,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -784,7 +784,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -857,7 +857,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -929,7 +929,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -938,7 +938,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1019,7 +1019,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1028,7 +1028,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1126,7 +1126,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1135,7 +1135,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1252,7 +1252,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1261,7 +1261,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1359,7 +1359,7 @@ where
     let psd_f64: Vec<f64> = _psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1368,7 +1368,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1453,7 +1453,7 @@ where
     let psd_f64: Vec<f64> = psd
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -1462,7 +1462,7 @@ where
     let freqs_f64: Vec<f64> = freqs
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<U, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })

@@ -5,9 +5,9 @@
 
 use crate::auto_feature_engineering::{TransformationConfig, TransformationType};
 use crate::error::{Result, TransformError};
-use ndarray::{Array1, Array2, ArrayView2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::parallel_ops::*;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::validation::check_not_empty;
 use std::collections::HashMap;
@@ -65,7 +65,7 @@ impl QuantumInspiredOptimizer {
             ));
         }
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut particles = Vec::with_capacity(population_size);
 
         // Initialize quantum particles
@@ -104,7 +104,7 @@ impl QuantumInspiredOptimizer {
     where
         F: Fn(&Array1<f64>) -> f64,
     {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for iteration in 0..self.maxiterations {
             // Update quantum states and evaluate fitness
@@ -208,7 +208,7 @@ impl QuantumInspiredOptimizer {
 
     /// Quantum collapse operation
     fn quantum_collapse(&mut self) -> Result<()> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for particle in &mut self.particles {
             // Collapse superposition with probability
@@ -736,7 +736,7 @@ impl AdvancedQuantumOptimizer {
             ));
         }
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let mut particles = Vec::with_capacity(population_size);
         let parallel_chunks = num_cpus::get().min(8);
 
@@ -921,7 +921,7 @@ impl AdvancedQuantumOptimizer {
             let social_component = &self.global_best_position - &particle.position;
 
             // Update velocity with quantum-inspired modifications
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             let c1 = 2.0 * particle.entanglement; // Cognitive coefficient
             let c2 = 2.0 * (1.0 - particle.entanglement); // Social coefficient
             let w = 0.9 - 0.5 * (i as f64 / num_particles as f64); // Inertia weight
@@ -966,7 +966,9 @@ impl AdvancedQuantumOptimizer {
         let progress = iteration as f64 / maxiterations as f64;
 
         // ✅ Advanced OPTIMIZATION: Adaptive quantum collapse
-        if rand::rng().random_range(0.0..1.0) < self.adaptive_params.collapse_probability {
+        if scirs2_core::random::rng().random_range(0.0..1.0)
+            < self.adaptive_params.collapse_probability
+        {
             self.quantum_collapse_advanced()?;
         }
 
@@ -1012,7 +1014,7 @@ impl AdvancedQuantumOptimizer {
 
     /// ✅ Advanced MODE: Advanced quantum collapse with selective decoherence
     fn quantum_collapse_advanced(&mut self) -> Result<()> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for particle in &mut self.particles {
             // ✅ Advanced OPTIMIZATION: Selective collapse based on fitness

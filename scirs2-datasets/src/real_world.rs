@@ -8,9 +8,9 @@ use crate::cache::{CacheKey, CacheManager};
 use crate::error::{DatasetsError, Result};
 use crate::registry::{DatasetMetadata, DatasetRegistry};
 use crate::utils::Dataset;
-use ndarray::{Array1, Array2};
-use rand_distr::Uniform;
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::Uniform;
 
 /// Configuration for real-world dataset loading
 #[derive(Debug, Clone)]
@@ -1116,7 +1116,7 @@ impl RealWorldDatasets {
 
         // Convert to numerical data
         let n_samples = rows.len();
-        let n_features = if let Some(_) = target_col {
+        let n_features = if target_col.is_some() {
             columns.len() - 1
         } else {
             columns.len()
@@ -1143,8 +1143,7 @@ impl RealWorldDatasets {
                             Ok(v) => v,
                             Err(_) => {
                                 // Handle _categorical target
-                                let category_map =
-                                    category_maps.entry(col_idx).or_insert_with(HashMap::new);
+                                let category_map = category_maps.entry(col_idx).or_default();
                                 let next_id = category_map.len() as f64;
                                 *category_map.entry(value.clone()).or_insert(next_id)
                             }
@@ -1157,8 +1156,7 @@ impl RealWorldDatasets {
                         Ok(v) => v,
                         Err(_) => {
                             // Handle _categorical features
-                            let category_map =
-                                category_maps.entry(col_idx).or_insert_with(HashMap::new);
+                            let category_map = category_maps.entry(col_idx).or_default();
                             let next_id = category_map.len() as f64;
                             *category_map.entry(value.clone()).or_insert(next_id)
                         }
@@ -1201,7 +1199,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1224,7 +1222,7 @@ impl RealWorldDatasets {
 
     #[allow(dead_code)]
     fn create_synthetic_credit_approval_data(&self) -> Result<Dataset> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let n_samples = 690; // Based on the actual UCI credit approval dataset size
@@ -1322,7 +1320,7 @@ impl RealWorldDatasets {
 
     #[allow(dead_code)]
     fn create_synthetic_mushroom_data(&self) -> Result<Dataset> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let n_samples = 8124; // Based on the actual UCI mushroom dataset size
@@ -1454,7 +1452,7 @@ impl RealWorldDatasets {
 
     #[allow(dead_code)]
     fn create_synthetic_spam_data(&self) -> Result<Dataset> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let n_samples = 4601; // Based on the actual spam dataset size
@@ -1595,7 +1593,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1633,7 +1631,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1656,7 +1654,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1696,7 +1694,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1734,7 +1732,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1757,7 +1755,7 @@ impl RealWorldDatasets {
         &self,
         n_timesteps: usize,
     ) -> Result<(Array2<f64>, Option<Array1<f64>>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
         let mut data = Array2::zeros((n_timesteps, 1));
 
@@ -1777,7 +1775,7 @@ impl RealWorldDatasets {
         &self,
         n_timesteps: usize,
     ) -> Result<(Array2<f64>, Option<Array1<f64>>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_timesteps, 6));
@@ -1808,7 +1806,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1848,7 +1846,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1872,7 +1870,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1909,7 +1907,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1951,7 +1949,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -1990,7 +1988,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2027,7 +2025,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2060,7 +2058,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2104,7 +2102,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2173,7 +2171,7 @@ impl RealWorldDatasets {
         n_features: usize,
         has_categorical: bool,
     ) -> Result<(Array2<f64>, Option<Array1<f64>>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2206,7 +2204,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2234,7 +2232,7 @@ impl RealWorldDatasets {
 
                 // Add noise and variation
                 data[[i, j]] = base_intensity + rng.gen_range(-0.3f64..0.3f64);
-                data[[i, j]] = (data[[i, j]] as f64).clamp(0.0f64, 1.0f64); // Clamp to [0, 1]
+                data[[i, j]] = data[[i, j]].clamp(0.0f64, 1.0f64); // Clamp to [0, 1]
             }
         }
 
@@ -2246,7 +2244,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2275,7 +2273,7 @@ impl RealWorldDatasets {
                 // Add texture and noise
                 let texture_noise = rng.gen_range(-0.2f64..0.2f64);
                 data[[i, j]] = base_intensity + texture_noise;
-                data[[i, j]] = (data[[i, j]] as f64).clamp(0.0f64, 1.0f64); // Clamp to [0, 1]
+                data[[i, j]] = data[[i, j]].clamp(0.0f64, 1.0f64); // Clamp to [0, 1]
             }
         }
 
@@ -2287,7 +2285,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2332,7 +2330,7 @@ impl RealWorldDatasets {
         n_samples: usize,
         n_features: usize,
     ) -> Result<(Array2<f64>, Array1<f64>)> {
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let mut rng = thread_rng();
 
         let mut data = Array2::zeros((n_samples, n_features));
@@ -2417,7 +2415,7 @@ pub fn list_real_world_datasets() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rand_distr::Uniform;
+    use scirs2_core::random::Uniform;
 
     #[test]
     fn test_load_titanic() {

@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::{pearson_r, pearsonr};
 
 #[allow(dead_code)]

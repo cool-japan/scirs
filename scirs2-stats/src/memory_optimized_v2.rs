@@ -7,8 +7,8 @@
 //! - Cache-aware algorithms
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::rc::Rc;
@@ -423,7 +423,7 @@ impl MemoryMappedStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_memory_pool() {

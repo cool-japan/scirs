@@ -5,8 +5,8 @@
 
 use super::WorkerConfig;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use scirs2_core::parallel_ops::*;
 use std::sync::{Arc, Mutex};
 
@@ -160,7 +160,10 @@ where
                 return Vec::new();
             }
 
-            let nodematrix = matrix.slice(ndarray::s![start_row..start_row + node_rows, ..]);
+            let nodematrix = matrix.slice(scirs2_core::ndarray::s![
+                start_row..start_row + node_rows,
+                ..
+            ]);
 
             // Compute local result for this NUMA node
             (0..node_rows)
@@ -238,8 +241,8 @@ where
                         return None;
                     }
 
-                    let a_block = a.slice(ndarray::s![i_start..i_end, ..]);
-                    let b_block = b.slice(ndarray::s![.., j_start..j_end]);
+                    let a_block = a.slice(scirs2_core::ndarray::s![i_start..i_end, ..]);
+                    let b_block = b.slice(scirs2_core::ndarray::s![.., j_start..j_end]);
                     let block_result = a_block.dot(&b_block);
 
                     Some(((i_start, j_start), block_result))
@@ -269,7 +272,7 @@ where
                         start_row + rows_per_node
                     };
 
-                    let a_partition = a.slice(ndarray::s![start_row..end_row, ..]);
+                    let a_partition = a.slice(scirs2_core::ndarray::s![start_row..end_row, ..]);
                     a_partition.dot(b)
                 })
                 .collect();
@@ -415,7 +418,7 @@ where
         + Zero
         + One
         + NumAssign
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + std::iter::Sum
         + 'static,
 {

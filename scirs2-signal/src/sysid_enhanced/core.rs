@@ -5,7 +5,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use super::types::*;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::validation::checkshape;
 use statrs::statistics::Statistics;
 
@@ -37,7 +37,7 @@ use statrs::statistics::Statistics;
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::sysid_enhanced::{enhanced_system_identification, EnhancedSysIdConfig};
 ///
 /// // Generate example data

@@ -79,9 +79,7 @@ impl HfHub {
 
         let filtered_models: Vec<String> = models
             .into_iter()
-            .filter(|model| {
-                filter.map_or(true, |f| model.to_lowercase().contains(&f.to_lowercase()))
-            })
+            .filter(|model| filter.is_none_or(|f| model.to_lowercase().contains(&f.to_lowercase())))
             .map(|s| s.to_string())
             .collect();
 

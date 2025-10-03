@@ -15,7 +15,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::metrics::information_theoretic::*;
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! let true_labels = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
 //! let pred_labels = Array1::from_vec(vec![0, 0, 1, 1, 1, 2]);

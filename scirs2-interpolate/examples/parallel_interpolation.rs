@@ -1,4 +1,4 @@
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_interpolate::local::mls::{MovingLeastSquares, PolynomialBasis, WeightFunction};
 use scirs2_interpolate::local::polynomial::{LocalPolynomialConfig, LocalPolynomialRegression};
 use scirs2_interpolate::parallel::{
@@ -22,9 +22,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     for i in 0..n_points {
         // Generate grid-like points with some noise
-        let x = (i / 100) as f64 / 100.0 + rand::random::<f64>() * 0.005;
-        let y = (i % 100) as f64 / 100.0 + rand::random::<f64>() * 0.005;
-        let z = (i % 10) as f64 / 10.0 + rand::random::<f64>() * 0.005;
+        let x = (i / 100) as f64 / 100.0 + scirs2_core::random::random::<f64>() * 0.005;
+        let y = (i % 100) as f64 / 100.0 + scirs2_core::random::random::<f64>() * 0.005;
+        let z = (i % 10) as f64 / 10.0 + scirs2_core::random::random::<f64>() * 0.005;
 
         points_vec.push(x);
         points_vec.push(y);
@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     for _ in 0..n_queries {
         for _ in 0..n_dims {
-            query_vec.push(rand::random::<f64>());
+            query_vec.push(scirs2_core::random::random::<f64>());
         }
     }
 
@@ -143,7 +143,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Use a smaller subset of query points for LOESS to keep runtime reasonable
     let subset_size = 100;
     let query_subset = query_points
-        .slice(ndarray::s![0..subset_size, ..])
+        .slice(scirs2_core::ndarray::s![0..subset_size, ..])
         .to_owned();
 
     // Sequential interpolation
@@ -191,7 +191,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Use the same datasets, but with a smaller subset of query points
     let n_test = 50;
-    let test_points = query_points.slice(ndarray::s![0..n_test, ..]).to_owned();
+    let test_points = query_points
+        .slice(scirs2_core::ndarray::s![0..n_test, ..])
+        .to_owned();
 
     println!(
         "Testing with {} points dataset, {} query points",

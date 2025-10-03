@@ -4,7 +4,7 @@
 //! Robin boundary conditions (a*u + b*u' = c) and other advanced boundary
 //! condition types.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_integrate::{
     bvp::BVPOptions,
     bvp_extended::{

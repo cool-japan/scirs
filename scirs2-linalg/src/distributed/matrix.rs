@@ -5,8 +5,8 @@
 //! load balancing, and distributed operations.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, Zero};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -478,7 +478,7 @@ where
         let distribution = VectorDistribution::new(global_length, config.num_nodes, config.node_rank);
         
         // Extract local partition
-        let local_data = local_vector.slice(ndarray::s![distribution.start_index..distribution.end_index]).to_owned();
+        let local_data = local_vector.slice(scirs2_core::ndarray::s![distribution.start_index..distribution.end_index]).to_owned();
         
         let communicator = Arc::new(DistributedCommunicator::new(&config)?);
         
@@ -562,7 +562,7 @@ where
                 for (rank, matrix) in parts.into_iter().enumerate() {
                     let dist = VectorDistribution::new(self.global_length, self.config.num_nodes, rank);
                     let vector = matrix.index_axis(Axis(0), 0);
-                    result.slice_mut(ndarray::s![dist.start_index..dist.end_index]).assign(&vector);
+                    result.slice_mut(scirs2_core::ndarray::s![dist.start_index..dist.end_index]).assign(&vector);
                 }
                 Ok(Some(result))
             } else {

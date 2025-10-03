@@ -4,7 +4,7 @@
 //! neural networks, synaptic plasticity, and bio-inspired adaptation mechanisms.
 
 use crate::error::{IoError, Result};
-use rand::Rng;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 use super::config::NeuromorphicConfig;
@@ -103,7 +103,7 @@ impl NeuromorphicOptimizer {
         problem: &NeuromorphicOptimizationProblem,
     ) -> Result<Vec<SpikePattern>> {
         let mut patterns = Vec::new();
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
 
         // Generate multiple spike patterns representing different aspects of the problem
         for _ in 0..10 {
@@ -184,7 +184,7 @@ impl SpikingNeuralNetwork {
 
         // Create random connections
         let mut connections = (0..num_neurons).map(|_| Vec::new()).collect::<Vec<_>>();
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
 
         for i in 0..num_neurons {
             let num_connections = rng.gen_range(5..20);
@@ -375,7 +375,7 @@ impl SynapticConnection {
             source,
             target,
             weight,
-            delay: rand::thread_rng().gen_range(0.5..2.0), // Random delay
+            delay: scirs2_core::random::thread_rng().gen_range(0.5..2.0), // Random delay
         }
     }
 }
@@ -589,7 +589,7 @@ pub struct NeuromorphicSolution {
 
 impl NeuromorphicSolution {
     pub fn random(dimensions: usize) -> Self {
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let variables = (0..dimensions)
             .map(|id| OptimizationVariable {
                 id,

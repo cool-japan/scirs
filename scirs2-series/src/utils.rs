@@ -1,7 +1,7 @@
 //! Utility functions for time series analysis
 
-use ndarray::{s, Array1, Array2, ArrayBase, Data, Ix1, Ix2, ScalarOperand};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Data, Ix1, Ix2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -48,7 +48,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::is_stationary;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -87,8 +87,8 @@ where
     let diff_ts = Array1::from(diff_ts);
 
     // Create lagged series for regression
-    let _y = diff_ts.slice(ndarray::s![max_lags..]);
-    let x_level = ts.slice(ndarray::s![max_lags..diff_ts.len()]);
+    let _y = diff_ts.slice(scirs2_core::ndarray::s![max_lags..]);
+    let x_level = ts.slice(scirs2_core::ndarray::s![max_lags..diff_ts.len()]);
 
     // Create lag features for regression
     let mut x_data = Vec::with_capacity(diff_ts.len() - max_lags);
@@ -135,7 +135,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::transform_to_stationary;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -231,7 +231,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::moving_average;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
@@ -260,7 +260,7 @@ where
     let mut result = Array1::zeros(_ts.len());
 
     // For even-sized windows, handle the special case
-    let is_even = windowsize % 2 == 0;
+    let is_even = windowsize.is_multiple_of(2);
 
     // Calculate the centered moving averages
     for i in 0.._ts.len() {
@@ -308,7 +308,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::autocorrelation;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -372,7 +372,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::cross_correlation;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -435,7 +435,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::partial_autocorrelation;
 ///
 /// let ts = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -524,7 +524,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::detrend;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -692,7 +692,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::resample;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -761,7 +761,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::decimate;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
@@ -933,7 +933,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::utils::create_time_series;
 ///
 /// let values = array![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0];
@@ -1137,7 +1137,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_detrend_constant() {

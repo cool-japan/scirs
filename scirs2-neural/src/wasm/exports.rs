@@ -12,7 +12,7 @@ use super::memory::{CachingConfig, ParallelConfig, ProgressiveLoadingConfig, Was
 use crate::error::{NeuralError, Result};
 use crate::models::sequential::Sequential;
 use crate::serving::PackageMetadata;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -310,7 +310,7 @@ pub struct WorkerPoolConfig {
     /// Task queue size
     pub queue_size: usize,
 /// WebAssembly compiler and deployment manager
-pub struct WasmCompiler<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct WasmCompiler<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Model to compile
     #[allow(dead_code)]
     model: Sequential<F>,
@@ -347,7 +347,7 @@ pub struct BundleInfo {
     /// Load time estimation in milliseconds
     pub estimated_load_time_ms: u64,
 impl<
-        F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOperand + Send + Sync,
+        F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_core::ndarray::ScalarOperand + Send + Sync,
     > WasmCompiler<F>
 {
     /// Create a new WASM compiler
@@ -859,7 +859,7 @@ impl Default for WebIntegrationConfig {
 mod tests {
     use super::*;
     use crate::layers::Dense;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     use std::collections::HashMap;
     use tempfile::TempDir;
     #[test]
@@ -875,7 +875,7 @@ mod tests {
         assert_eq!(config.workers.pool.max_workers, 4);
     fn test_wasm_compiler_creation() {
         let temp_dir = TempDir::new().unwrap();
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let mut model: Sequential<f32> = Sequential::new();
         let dense = Dense::new(10, 1, Some("relu"), &mut rng).unwrap();
         model.add_layer(dense);

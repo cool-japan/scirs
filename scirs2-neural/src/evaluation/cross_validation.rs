@@ -6,9 +6,9 @@ use super::{EvaluationConfig, Evaluator, MetricType, ModelBuilder};
 use crate::data::Dataset;
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use rand::SeedableRng;
-use ndarray::ScalarOperand;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::random::SeedableRng;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 /// Cross-validation strategy
@@ -104,9 +104,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 let mut indices: Vec<usize> = (0..n_samples).collect();
                 // Shuffle if required
                 if self.config.shuffle {
-                    use rand::seq::SliceRandom;
+                    use scirs2_core::random::seq::SliceRandom;
                     if let Some(seed) = self.config.random_seed {
-                        let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
                         indices.shuffle(&mut rng);
                     } else {
                         let mut rng = rng();
@@ -171,9 +171,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 for (_, mut indices) in class_indices {
                     // Shuffle indices within class
                     if self.config.shuffle {
-                        use rand::seq::SliceRandom;
+                        use scirs2_core::random::seq::SliceRandom;
                         if let Some(seed) = self.config.random_seed {
-                            let mut rng = rand::rngs::StdRng::seed_from_u64(seed);
+                            let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
                             indices.shuffle(&mut rng);
                         } else {
                             let mut rng = rng();
@@ -224,7 +224,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 let rng_with_seed = self
                     .config
                     .random_seed
-                    .map(rand::rngs::StdRng::from_seed);
+                    .map(scirs2_core::random::rngs::StdRng::from_seed);
                 for _ in 0..n_splits {
                     // Shuffle indices
                     let mut shuffled = indices.clone();
@@ -270,7 +270,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
             // Instead of using a DatasetView with references, we'll create an owned version
             struct DatasetSubset<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> {
                 data: Vec<(
-                    ndarray::Array<F, ndarray::IxDyn>,
+                    scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>,
                 )>,
             impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> DatasetSubset<F> {
                 fn new(dataset: &dyn Dataset<F>, indices: &[usize]) -> Result<Self> {

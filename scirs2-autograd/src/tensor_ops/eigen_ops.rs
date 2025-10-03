@@ -2,9 +2,9 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops::convert_to_tensor;
 use crate::Float;
-use ndarray::ScalarOperand;
-use ndarray::{Array1, Array2, Ix2};
-use num_traits::FromPrimitive;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{Array1, Array2, Ix2};
+use scirs2_core::numeric::FromPrimitive;
 
 /// Eigenvalue decomposition operation
 pub struct EigenOp;
@@ -98,20 +98,20 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenOp {
         let vectors_start = values_size;
 
         // Extract eigenvalues and eigenvectors
-        let eigen_vals = y_array.slice(ndarray::s![0..values_size]);
-        let eigen_vecs = y_array.slice(ndarray::s![vectors_start..]);
+        let eigen_vals = y_array.slice(scirs2_core::ndarray::s![0..values_size]);
+        let eigen_vecs = y_array.slice(scirs2_core::ndarray::s![vectors_start..]);
 
         let eigen_vals_1d = eigen_vals.to_shape(n).unwrap().to_owned();
         let eigen_vecs_2d = eigen_vecs.to_shape((n, n)).unwrap().to_owned();
 
         // Get gradients
         let grad_vals = gy_array
-            .slice(ndarray::s![0..values_size])
+            .slice(scirs2_core::ndarray::s![0..values_size])
             .to_shape(n)
             .unwrap()
             .to_owned();
         let grad_vecs = gy_array
-            .slice(ndarray::s![vectors_start..])
+            .slice(scirs2_core::ndarray::s![vectors_start..])
             .to_shape((n, n))
             .unwrap()
             .to_owned();
@@ -164,7 +164,7 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenvaluesOp {
             );
 
             // Create a new array with the correct shape
-            let mut reshaped_vals = ndarray::Array1::<F>::zeros(n);
+            let mut reshaped_vals = scirs2_core::ndarray::Array1::<F>::zeros(n);
 
             // Copy as much data as fits
             let min_len = n.min(eigenvalues.len());
@@ -232,7 +232,7 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenvaluesOp {
 
 // Helper functions
 #[allow(dead_code)]
-fn is_symmetric_matrix<F: Float>(matrix: &ndarray::ArrayView2<F>) -> bool {
+fn is_symmetric_matrix<F: Float>(matrix: &scirs2_core::ndarray::ArrayView2<F>) -> bool {
     let n = matrix.shape()[0];
     for i in 0..n {
         for j in i + 1..n {
@@ -246,7 +246,7 @@ fn is_symmetric_matrix<F: Float>(matrix: &ndarray::ArrayView2<F>) -> bool {
 
 #[allow(dead_code)]
 fn compute_symmetric_eigen<F: Float + ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<(Array1<F>, Array2<F>), OpError> {
     let n = matrix.shape()[0];
 
@@ -282,9 +282,9 @@ fn compute_symmetric_eigen<F: Float + ScalarOperand + FromPrimitive>(
         let apq = a[[p, q]];
 
         let theta: F = if app == aqq {
-            num_traits::FromPrimitive::from_f64(0.25 * std::f64::consts::PI).unwrap()
+            scirs2_core::numeric::FromPrimitive::from_f64(0.25 * std::f64::consts::PI).unwrap()
         } else {
-            num_traits::FromPrimitive::from_f64(
+            scirs2_core::numeric::FromPrimitive::from_f64(
                 0.5 * (aqq - app)
                     .to_f64()
                     .unwrap()
@@ -338,7 +338,7 @@ fn compute_symmetric_eigen<F: Float + ScalarOperand + FromPrimitive>(
 
 #[allow(dead_code)]
 fn compute_general_eigen<F: Float + ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<(Array1<F>, Array2<F>), OpError> {
     // For general matrices, we'll use the QR algorithm
     // This is a more robust implementation for non-symmetric matrices
@@ -357,7 +357,7 @@ fn compute_general_eigen<F: Float + ScalarOperand + FromPrimitive>(
         for i in 0..n {
             for j in 0..n {
                 sym_matrix[[i, j]] = (matrix[[i, j]] + matrix[[j, i]])
-                    * num_traits::FromPrimitive::from_f64(0.5).unwrap();
+                    * scirs2_core::numeric::FromPrimitive::from_f64(0.5).unwrap();
             }
         }
         return compute_symmetric_eigen(&sym_matrix.view());
@@ -464,7 +464,10 @@ fn compute_general_eigen<F: Float + ScalarOperand + FromPrimitive>(
 
 // Helper function to check if a matrix is nearly symmetric
 #[allow(dead_code)]
-fn is_nearly_symmetric_matrix<F: Float>(matrix: &ndarray::ArrayView2<F>, tol: F) -> bool {
+fn is_nearly_symmetric_matrix<F: Float>(
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
+    tol: F,
+) -> bool {
     let n = matrix.shape()[0];
     for i in 0..n {
         for j in i + 1..n {
@@ -569,7 +572,7 @@ fn compute_qr_decomposition<F: Float + ScalarOperand + FromPrimitive>(
 
 #[allow(dead_code)]
 fn compute_eigenvalues_only<F: Float + ScalarOperand + FromPrimitive>(
-    matrix: &ndarray::ArrayView2<F>,
+    matrix: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Result<Array1<F>, OpError> {
     // Simplified implementation - use full eigen decomposition but return only values
     let (values_, _vectors) = if is_symmetric_matrix(matrix) {
@@ -583,10 +586,10 @@ fn compute_eigenvalues_only<F: Float + ScalarOperand + FromPrimitive>(
 
 #[allow(dead_code)]
 fn eigendecomposition_gradient<F: Float + ScalarOperand + FromPrimitive>(
-    eigenvalues: &ndarray::ArrayView1<F>,
-    eigenvectors: &ndarray::ArrayView2<F>,
-    grad_vals: &ndarray::ArrayView1<F>,
-    grad_vecs: &ndarray::ArrayView2<F>,
+    eigenvalues: &scirs2_core::ndarray::ArrayView1<F>,
+    eigenvectors: &scirs2_core::ndarray::ArrayView2<F>,
+    grad_vals: &scirs2_core::ndarray::ArrayView1<F>,
+    grad_vecs: &scirs2_core::ndarray::ArrayView2<F>,
 ) -> Array2<F> {
     let n = eigenvalues.len();
     let mut grad = Array2::<F>::zeros((n, n));
@@ -596,7 +599,7 @@ fn eigendecomposition_gradient<F: Float + ScalarOperand + FromPrimitive>(
     // Gradient for eigenvalues part
     // For each eigenvalue, we add the corresponding component to the gradient
     for i in 0..n {
-        let vi = eigenvectors.slice(ndarray::s![.., i]);
+        let vi = eigenvectors.slice(scirs2_core::ndarray::s![.., i]);
         for j in 0..n {
             for k in 0..n {
                 grad[[j, k]] += grad_vals[i] * vi[j] * vi[k];
@@ -627,8 +630,8 @@ fn eigendecomposition_gradient<F: Float + ScalarOperand + FromPrimitive>(
                     // Use a more stable approach for degenerate eigenvalues
                     // This is a simplification - a full implementation would need
                     // to compute the generalized eigenvectors
-                    let vi = eigenvectors.slice(ndarray::s![.., i]);
-                    let vj = eigenvectors.slice(ndarray::s![.., j]);
+                    let vi = eigenvectors.slice(scirs2_core::ndarray::s![.., i]);
+                    let vj = eigenvectors.slice(scirs2_core::ndarray::s![.., j]);
 
                     // Compute the component perpendicular to vi
                     let mut dot_product = F::zero();
@@ -660,7 +663,7 @@ fn eigendecomposition_gradient<F: Float + ScalarOperand + FromPrimitive>(
     // Handle the case where eigenvector gradient is with respect to itself
     // This is the projection of the gradient onto the orthogonal complement
     for i in 0..n {
-        let vi = eigenvectors.slice(ndarray::s![.., i]);
+        let vi = eigenvectors.slice(scirs2_core::ndarray::s![.., i]);
 
         // Compute norm of vi for normalization gradient
         let mut vi_norm_squared = F::zero();

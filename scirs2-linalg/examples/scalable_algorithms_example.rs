@@ -14,7 +14,7 @@
 //! These algorithms are crucial for big data applications where matrices
 //! have millions of rows or columns but extreme aspect ratios.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::scalable::{
     adaptive_decomposition, blocked_matmul, classify_aspect_ratio, lq_decomposition,
     randomized_svd, tsqr, AspectRatio, ScalableConfig,

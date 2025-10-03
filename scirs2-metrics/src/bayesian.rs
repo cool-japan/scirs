@@ -5,7 +5,7 @@
 //! and Bayesian model averaging metrics.
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use statrs::statistics::Statistics;
 
 /// Results from Bayesian model comparison
@@ -1396,7 +1396,7 @@ impl CredibleIntervalCalculator {
 
         // Posterior statistics
         let posterior_mean = posterior_samples.mean().unwrap_or(0.0);
-        let posterior_median = if n % 2 == 0 {
+        let posterior_median = if n.is_multiple_of(2) {
             (sortedsamples[n / 2 - 1] + sortedsamples[n / 2]) / 2.0
         } else {
             sortedsamples[n / 2]
@@ -1632,7 +1632,7 @@ impl BayesianModelAveraging {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_bayesian_model_comparison() {

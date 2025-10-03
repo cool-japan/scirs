@@ -4,8 +4,8 @@
 //! including local extrema detection, directional change analysis, momentum features,
 //! trend reversals, pattern detection, and multi-scale analysis.
 
-use ndarray::{s, Array1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::TurningPointsConfig;
@@ -352,7 +352,7 @@ pub fn calculate_turning_points_features<F>(
     config: &TurningPointsConfig,
 ) -> Result<TurningPointsFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + std::iter::Sum + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + Debug + Clone + std::iter::Sum + scirs2_core::ndarray::ScalarOperand,
     for<'a> F: std::iter::Sum<&'a F>,
 {
     let n = ts.len();
@@ -854,7 +854,7 @@ fn analyze_temporal_patterns<F>(
     config: &TurningPointsConfig,
 ) -> Result<TurningPointTemporalFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + std::iter::Sum + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + Debug + Clone + std::iter::Sum + scirs2_core::ndarray::ScalarOperand,
 {
     if turning_points.len() < 3 {
         return Ok(TurningPointTemporalFeatures::default());
@@ -1096,7 +1096,7 @@ fn analyze_multiscale_turning_points<F>(
     config: &TurningPointsConfig,
 ) -> Result<MultiscaleTurningPointFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + std::iter::Sum + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + Debug + Clone + std::iter::Sum + scirs2_core::ndarray::ScalarOperand,
 {
     let mut multiscale_turning_points = Vec::new();
     let mut scale_consistencies = Vec::new();

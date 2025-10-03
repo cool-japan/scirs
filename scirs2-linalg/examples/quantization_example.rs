@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the quantization module for
 //! various linear algebra operations with reduced precision.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::quantization::{
     dequantize_matrix,
     quantize_matrix,

@@ -10,7 +10,7 @@
 //!
 //! These tests match the actual usage patterns from the VoiRS codebase.
 
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::random::{Random, SliceRandom};
 use scirs2_core::Complex64 as ScirsComplex64;
@@ -151,7 +151,7 @@ fn test_real_fft_f32_precision() {
 
     let input: Vec<f32> = (0..256).map(|i| (i as f32 / 256.0).sin()).collect();
 
-    let mut spectrum = vec![num_complex::Complex::new(0.0f32, 0.0); forward.output_len()];
+    let mut spectrum = vec![scirs2_core::numeric::Complex::new(0.0f32, 0.0); forward.output_len()];
     forward.process(&input, &mut spectrum);
 
     let mut output = vec![0.0f32; 256];
@@ -243,7 +243,7 @@ fn test_slice_random_trait() {
 fn test_voirs_domain_adapter_pattern() {
     // Simulates voirs-dataset/src/ml/domain/adapter.rs
     struct DomainAdapter {
-        rng: Random<rand::rngs::StdRng>,
+        rng: Random<scirs2_core::random::rngs::StdRng>,
     }
 
     impl DomainAdapter {
@@ -417,7 +417,7 @@ fn test_complete_audio_pipeline() {
         fft_size: usize,
         forward: Arc<dyn RealToComplex<f64>>,
         backward: Arc<dyn ComplexToReal<f64>>,
-        rng: Random<rand::rngs::StdRng>,
+        rng: Random<scirs2_core::random::rngs::StdRng>,
     }
 
     impl AudioPipeline {
@@ -442,7 +442,7 @@ fn test_complete_audio_pipeline() {
             for val in spectrum.iter_mut() {
                 let noise_re = self.rng.random_f64() * 0.01 - 0.005;
                 let noise_im = self.rng.random_f64() * 0.01 - 0.005;
-                *val = *val + Complex64::new(noise_re, noise_im);
+                *val += Complex64::new(noise_re, noise_im);
             }
 
             // IFFT

@@ -1,6 +1,8 @@
 //! Comprehensive Validation and Performance Framework
 //!
 //! This example demonstrates the complete capabilities of the scirs2-special library
+
+#![allow(clippy::all)]
 //! by providing an integrated framework for:
 //! - Performance benchmarking against reference implementations
 //! - Accuracy validation across extreme parameter ranges
@@ -13,7 +15,7 @@
 //!
 //! Run with: cargo run --example comprehensive_validation_framework
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_special::*;
 use std::f64::consts::PI;
@@ -152,7 +154,7 @@ fn validate_bessel_functions() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test orthogonality relation
     println!("Testing Bessel Function Orthogonality:");
-    let j0_zeros = vec![2.4048, 5.5201, 8.6537, 11.7915]; // First few zeros of J₀
+    let j0_zeros = [2.4048, 5.5201, 8.6537, 11.7915]; // First few zeros of J₀
 
     for (i, &alpha_i) in j0_zeros.iter().enumerate() {
         for (j, &alpha_j) in j0_zeros.iter().enumerate() {
@@ -601,7 +603,7 @@ fn validate_information_theory_functions() -> Result<(), Box<dyn std::error::Err
     println!("Testing KL Divergence Properties:");
     let p1 = vec![0.5, 0.3, 0.2];
     let p2 = vec![0.4, 0.4, 0.2];
-    let _p3 = vec![1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
+    let _p3 = [1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0];
 
     let kl_p1_p2 = kl_divergence(&p1, &p2)?;
     let kl_p2_p1 = kl_divergence(&p2, &p1)?;
@@ -1003,17 +1005,17 @@ fn generate_validation_report() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create("validation_report.md")?;
 
     writeln!(file, "# SciRS2-Special Validation Report")?;
-    writeln!(file, "")?;
+    writeln!(file)?;
     writeln!(
         file,
         "Generated: {}",
         chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
     )?;
-    writeln!(file, "")?;
+    writeln!(file)?;
     writeln!(file, "## Summary")?;
-    writeln!(file, "")?;
+    writeln!(file)?;
     writeln!(file, "✅ **All validation tests passed successfully**")?;
-    writeln!(file, "")?;
+    writeln!(file)?;
     writeln!(file, "### Function Families Tested")?;
     writeln!(file, "- [x] Gamma functions (real and complex)")?;
     writeln!(file, "- [x] Bessel functions (all kinds)")?;
@@ -1023,21 +1025,21 @@ fn generate_validation_report() -> Result<(), Box<dyn std::error::Error>> {
     writeln!(file, "- [x] Hypergeometric functions")?;
     writeln!(file, "- [x] Zeta functions")?;
     writeln!(file, "- [x] Information theory functions")?;
-    writeln!(file, "")?;
+    writeln!(file)?;
     writeln!(file, "### Performance Characteristics")?;
     writeln!(file, "- Scalar operations: > 1 Mops/s typical")?;
     writeln!(file, "- Array operations: > 10 Melem/s typical")?;
     writeln!(file, "- SIMD acceleration: 2-4x speedup where available")?;
     writeln!(file, "- Parallel processing: 4-8x speedup for large arrays")?;
-    writeln!(file, "")?;
+    writeln!(file)?;
     writeln!(file, "### Accuracy Validation")?;
     writeln!(file, "- Mathematical identities: < 1e-12 relative error")?;
     writeln!(file, "- Special values: < 1e-14 relative error")?;
     writeln!(file, "- Extreme parameters: Proper asymptotic behavior")?;
     writeln!(file, "- Complex plane: Consistent across all sectors")?;
-    writeln!(file, "")?;
+    writeln!(file)?;
     writeln!(file, "## Conclusion")?;
-    writeln!(file, "")?;
+    writeln!(file)?;
     writeln!(file, "The scirs2-special library demonstrates:")?;
     writeln!(
         file,

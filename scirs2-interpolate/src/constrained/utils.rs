@@ -6,12 +6,12 @@
 
 use crate::bspline::BSpline;
 use crate::error::InterpolateResult;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use super::builder::FittingMethod;
 use super::types::{ConstrainedSpline, Constraint, ConstraintType};
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 
 impl<T> ConstrainedSpline<T>
 where
@@ -45,7 +45,7 @@ where
     /// ```
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -79,8 +79,8 @@ where
     /// Array of values of the spline at the given x coordinates
     pub fn evaluate_array(
         &self,
-        x: &ndarray::ArrayView1<T>,
-    ) -> InterpolateResult<ndarray::Array1<T>> {
+        x: &scirs2_core::ndarray::ArrayView1<T>,
+    ) -> InterpolateResult<scirs2_core::ndarray::Array1<T>> {
         self.bspline.evaluate_array(x)
     }
 
@@ -183,7 +183,7 @@ where
     /// ```
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -205,10 +205,10 @@ where
     /// ```
     pub fn derivative_array(
         &self,
-        x: &ndarray::ArrayView1<T>,
+        x: &scirs2_core::ndarray::ArrayView1<T>,
         order: usize,
-    ) -> InterpolateResult<ndarray::Array1<T>> {
-        let mut result = ndarray::Array1::zeros(x.len());
+    ) -> InterpolateResult<scirs2_core::ndarray::Array1<T>> {
+        let mut result = scirs2_core::ndarray::Array1::zeros(x.len());
         for (i, &xi) in x.iter().enumerate() {
             result[i] = self.bspline.derivative(xi, order)?;
         }
@@ -235,7 +235,7 @@ where
     /// ```
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -288,10 +288,10 @@ where
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -337,7 +337,7 @@ where
     /// ```
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -382,7 +382,7 @@ where
     /// ```
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -426,7 +426,7 @@ where
     /// ```
     /// # #[cfg(feature = "linalg")]
     /// # {
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::constrained::{ConstrainedSpline, Constraint};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///

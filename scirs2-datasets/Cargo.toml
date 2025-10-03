@@ -13,11 +13,8 @@ categories = ["science", "data-structures", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core dependencies
-ndarray = { workspace = true }
-scirs2-core = { workspace = true, features = ["cache", "random", "gpu", "parallel"] }
-rand = { workspace = true }
-rand_distr = { workspace = true }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["cache", "random", "gpu", "parallel", "array"] }
 thiserror = { workspace = true }
 num_cpus = { workspace = true }
 

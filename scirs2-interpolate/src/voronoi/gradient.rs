@@ -3,8 +3,8 @@
 //! This module provides implementations for computing gradients of functions
 //! interpolated using natural neighbor interpolation.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::natural::{InterpolationMethod, NaturalNeighborInterpolator};
@@ -20,7 +20,7 @@ impl<
         F: Float
             + FromPrimitive
             + Debug
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + 'static
             + std::cmp::PartialOrd
             + ordered_float::FloatCore,
@@ -58,7 +58,7 @@ impl<
         F: Float
             + FromPrimitive
             + Debug
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + 'static
             + for<'a> std::iter::Sum<&'a F>
             + std::cmp::PartialOrd
@@ -130,13 +130,13 @@ impl<
                     // Compute distance from query to neighbor
                     let mut distance = F::zero();
                     for d in 0..dim {
-                        distance =
-                            distance + num_traits::Float::powi(neighbor_point[d] - query[d], 2);
+                        distance = distance
+                            + scirs2_core::numeric::Float::powi(neighbor_point[d] - query[d], 2);
                     }
                     distance = distance.sqrt();
 
                     // Skip very close points to avoid numerical issues
-                    if distance < <F as num_traits::Float>::epsilon() {
+                    if distance < <F as scirs2_core::numeric::Float>::epsilon() {
                         continue;
                     }
 
@@ -311,7 +311,7 @@ impl<
         F: Float
             + FromPrimitive
             + Debug
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + 'static
             + for<'a> std::iter::Sum<&'a F>
             + std::cmp::PartialOrd

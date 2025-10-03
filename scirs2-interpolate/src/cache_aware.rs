@@ -23,7 +23,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::{Array1, Array2};
+//! use scirs2_core::ndarray::{Array1, Array2};
 //! use scirs2_interpolate::cache_aware::{
 //!     CacheAwareRBF, CacheOptimizedConfig
 //! };
@@ -39,8 +39,8 @@
 use crate::advanced::rbf::RBFKernel;
 use crate::cache::CacheConfig;
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 /// Configuration for cache-optimized algorithms
@@ -630,7 +630,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_cache_aware_rbf_creation() {

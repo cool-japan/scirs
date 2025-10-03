@@ -9,7 +9,7 @@ use super::pattern_memory::{MatrixFingerprint, OptimizationStrategy, PatternMemo
 use super::reinforcement_learning::{Experience, ExperienceBuffer, PerformanceMetrics, RLAgent};
 use super::transformer::TransformerModel;
 use crate::error::SparseResult;
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};

@@ -148,12 +148,13 @@ pub struct AccessPatternSummary {
 }
 
 /// Type of access pattern
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AccessPatternType {
     Sequential,
     Random,
     Clustered,
     Mixed,
+    #[default]
     Unknown,
 }
 
@@ -584,12 +585,6 @@ impl AccessPatternInfo {
         } else {
             AccessPatternType::Mixed
         }
-    }
-}
-
-impl Default for AccessPatternType {
-    fn default() -> Self {
-        AccessPatternType::Unknown
     }
 }
 

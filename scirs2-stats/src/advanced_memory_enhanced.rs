@@ -6,8 +6,8 @@
 //! efficiency in large-scale statistical computing operations.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array2, ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use std::alloc::{alloc, dealloc, Layout};
 use std::collections::{HashMap, VecDeque};
 use std::ptr::NonNull;
@@ -1600,7 +1600,7 @@ impl RealTimeMemoryMetrics {
     }
 }
 
-pub struct OptimizedStreamingBuffer<F, D: ndarray::RawData> {
+pub struct OptimizedStreamingBuffer<F, D: scirs2_core::ndarray::RawData> {
     data: VecDeque<ArrayBase<D, Ix1>>,
     maxsize: usize,
     current_memory_usage: usize, _phantom: std::marker::PhantomData<F>,
@@ -1609,7 +1609,7 @@ pub struct OptimizedStreamingBuffer<F, D: ndarray::RawData> {
 impl<F, D> OptimizedStreamingBuffer<F, D>
 where
     F: Float + NumCast + Copy + Send + Sync,
-    D: ndarray::RawData<Elem = F> + Data<Elem = F> + Sync
+    D: scirs2_core::ndarray::RawData<Elem = F> + Data<Elem = F> + Sync
         + std::fmt::Display,
 {
     pub fn new(_maxsize: usize) -> Self {
@@ -1722,7 +1722,7 @@ pub fn create_streaming_memory_manager() -> AdvancedMemoryManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     #[ignore = "timeout"]

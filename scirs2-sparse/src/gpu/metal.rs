@@ -6,8 +6,8 @@
 use crate::csr_array::CsrArray;
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 #[cfg(feature = "gpu")]
@@ -563,12 +563,14 @@ impl MetalDeviceInfo {
 
     fn detect_apple_silicon() -> bool {
         // Simple detection based on architecture
-        #[cfg(target_arch = "aarch64")]
+        #[cfg(all(target_arch = "aarch64", target_os = "macos"))]
         {
-            #[cfg(target_os = "macos")]
-            return true;
+            true
         }
-        false
+        #[cfg(not(all(target_arch = "aarch64", target_os = "macos")))]
+        {
+            return false;
+        }
     }
 
     fn detect_neural_engine() -> bool {
@@ -755,6 +757,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn test_shader_sources() {
         assert!(!METAL_SPMV_SHADER_SOURCE.is_empty());
         assert!(!METAL_APPLE_SILICON_SHADER_SOURCE.is_empty());

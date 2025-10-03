@@ -16,7 +16,7 @@
 //! use scirs2_cluster::hierarchy::visualization::{
 //!     create_dendrogramplot, DendrogramConfig, ColorScheme
 //! };
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create a linkage matrix (from hierarchical clustering)
 //! let linkage = Array2::from_shape_vec((3, 4), vec![

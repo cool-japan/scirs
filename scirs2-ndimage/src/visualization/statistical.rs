@@ -4,8 +4,8 @@
 //! comparative studies, and multi-dataset visualization. These functions are designed
 //! to support statistical research and data analysis workflows.
 
-use ndarray::{ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, ToPrimitive, Zero};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive, Zero};
 use std::fmt::{Debug, Write};
 
 use crate::error::{NdimageError, NdimageResult};
@@ -30,7 +30,7 @@ use statrs::statistics::Statistics;
 /// # Examples
 ///
 /// ```rust,ignore
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::visualization::{PlotConfig, ReportFormat, create_image_montage};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -228,7 +228,7 @@ where
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_ndimage::visualization::{PlotConfig, ReportFormat, plot_statistical_comparison};
 ///
 /// let control = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
@@ -557,7 +557,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_create_image_montage() {
@@ -652,7 +652,7 @@ mod tests {
 
     #[test]
     fn test_empty_image_montage() {
-        let images: Vec<ndarray::ArrayView2<f64>> = vec![];
+        let images: Vec<scirs2_core::ndarray::ArrayView2<f64>> = vec![];
         let config = PlotConfig::new();
 
         let result = create_image_montage(&images, 2, &config);

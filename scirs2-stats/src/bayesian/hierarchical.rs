@@ -4,8 +4,8 @@
 //! for group-level variation and borrowing of strength across groups.
 
 use crate::error::{StatsError, StatsResult as Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use rand_distr::{Distribution, Gamma, Normal};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::random::{Distribution, Gamma, Normal};
 use scirs2_core::validation::*;
 use scirs2_core::Rng;
 use statrs::statistics::Statistics;
@@ -191,7 +191,7 @@ impl HierarchicalLinearModel {
     }
 
     /// Update random effects for each group using Gibbs sampling
-    fn update_random_effects<R: rand::Rng + ?Sized>(
+    fn update_random_effects<R: scirs2_core::random::Rng + ?Sized>(
         &self,
         y: &ArrayView1<f64>,
         x_level1: &ArrayView2<f64>,
@@ -369,7 +369,7 @@ impl HierarchicalLinearModel {
     }
 
     /// Update random effects covariance matrix using inverse Wishart
-    fn update_random_effects_covariance<R: rand::Rng + ?Sized>(
+    fn update_random_effects_covariance<R: scirs2_core::random::Rng + ?Sized>(
         &mut self,
         random_effects: &Array2<f64>,
         rng: &mut R,

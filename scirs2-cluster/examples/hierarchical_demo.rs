@@ -1,5 +1,5 @@
-use ndarray::Array2;
 use scirs2_cluster::hierarchy::{fcluster, linkage, ClusterCriterion, LinkageMethod, Metric};
+use scirs2_core::ndarray::Array2;
 
 #[allow(dead_code)]
 fn main() {

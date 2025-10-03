@@ -4,7 +4,7 @@
 //! ndarray Array1 and Array2 types with serde, enabling JSON and other format
 //! compatibility for dataset structures.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::vec::Vec;
 
@@ -220,7 +220,7 @@ pub mod optional_array1 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_array2_serialization_roundtrip() {

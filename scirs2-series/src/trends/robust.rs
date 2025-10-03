@@ -4,8 +4,8 @@
 //! including Hodrick-Prescott filter, L1 trend filter, and Whittaker smoother.
 //! These methods are designed to be robust to outliers and can handle non-stationary data.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::{
@@ -31,7 +31,7 @@ use crate::error::{Result, TimeSeriesError};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::trends::{robust_trend_filter, RobustFilterOptions, RobustFilterMethod, WeightFunction};
 ///
 /// // Create a sample time series with a trend, noise, and outliers
@@ -107,7 +107,7 @@ where
 
     let n = abs_residuals.len();
     let median_idx = n / 2;
-    let mad = if n % 2 == 0 {
+    let mad = if n.is_multiple_of(2) {
         (abs_residuals[median_idx - 1] + abs_residuals[median_idx]) / F::from_f64(2.0).unwrap()
     } else {
         abs_residuals[median_idx]

@@ -6,7 +6,7 @@
 use crate::error::{NeuralError, Result};
 use crate::federated::{AggregationStrategy, ClientUpdate};
 use crate::models::sequential::Sequential;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 /// Personalization strategy
 #[derive(Debug, Clone)]
@@ -306,8 +306,8 @@ impl PersonalizedFL {
     fn kmeans_clustering_parameters(
         client_ids: &[usize],
         // Simple k-means on label distributions
-        use rand::prelude::*;
-use ndarray::ArrayView1;
+        use scirs2_core::random::prelude::*;
+use scirs2_core::ndarray::ArrayView1;
         let mut rng = rng();
         // Initialize cluster assignments randomly
         for &client_id in client_ids {

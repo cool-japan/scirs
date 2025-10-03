@@ -8,7 +8,7 @@ use crate::dae::index_reduction::{DAEStructure, ProjectionMethod};
 use crate::dae::methods::bdf_dae::{bdf_implicit_dae, bdf_semi_explicit_dae};
 use crate::dae::types::{DAEIndex, DAEOptions, DAEResult, DAEType};
 use crate::error::IntegrateResult;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// BDF method with index reduction for higher-index semi-explicit DAE systems
 ///
@@ -162,7 +162,7 @@ where
     // For the extended system, we need to extract only the original variables
     for i in 0..result.x.len() {
         // Extract only the first n components (original variables)
-        let original_vars = result.x[i].slice(ndarray::s![..n]).to_owned();
+        let original_vars = result.x[i].slice(scirs2_core::ndarray::s![..n]).to_owned();
         result.x[i] = original_vars;
     }
 
@@ -224,9 +224,11 @@ where
     let mut extended_y_prime0 = Array1::zeros(extended_size);
 
     // Set initial conditions for original variables
-    extended_y0.slice_mut(ndarray::s![..n]).assign(y0);
+    extended_y0
+        .slice_mut(scirs2_core::ndarray::s![..n])
+        .assign(y0);
     extended_y_prime0
-        .slice_mut(ndarray::s![..n])
+        .slice_mut(scirs2_core::ndarray::s![..n])
         .assign(y_prime0);
 
     // For higher derivatives, we need to solve for consistent initial conditions
@@ -257,12 +259,14 @@ where
             let mut residual = Array1::zeros(extended_size);
 
             // Extract components
-            let y = y_ext.slice(ndarray::s![..n]);
-            let y_prime = y_prime_ext.slice(ndarray::s![..n]);
+            let y = y_ext.slice(scirs2_core::ndarray::s![..n]);
+            let y_prime = y_prime_ext.slice(scirs2_core::ndarray::s![..n]);
 
             // Original constraint
             let f_val = f(t, y, y_prime);
-            residual.slice_mut(ndarray::s![..n]).assign(&f_val);
+            residual
+                .slice_mut(scirs2_core::ndarray::s![..n])
+                .assign(&f_val);
 
             // Differentiated constraints for index reduction
             for level in 1..index_level {

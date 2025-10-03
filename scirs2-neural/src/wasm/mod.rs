@@ -41,14 +41,14 @@ mod tests {
     use crate::layers::Dense;
     use crate::models::sequential::Sequential;
     use crate::serving::PackageMetadata;
-    use rand::SeedableRng;
+    use scirs2_core::random::SeedableRng;
     use std::collections::HashMap;
     use tempfile::TempDir;
     #[test]
     fn test_wasm_module_integration() {
         // Test that all modules work together
         let temp_dir = TempDir::new().unwrap();
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         // Create a simple model
         let mut model: Sequential<f32> = Sequential::new();
         let dense = Dense::new(10, 1, Some("relu"), &mut rng).unwrap();

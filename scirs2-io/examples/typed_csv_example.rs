@@ -1,4 +1,4 @@
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_io::csv::{
     read_csv_chunked, read_csv_typed, write_csv_typed, ColumnType, DataValue, MissingValueOptions,
 };

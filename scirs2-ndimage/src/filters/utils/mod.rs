@@ -30,8 +30,8 @@ pub use window::apply_window_function;
 
 // Re-export helper function from kernel module
 // (This was previously defined in the main utils.rs file)
-use ndarray::{Array, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::BorderMode;

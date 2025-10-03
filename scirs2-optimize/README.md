@@ -4,7 +4,7 @@
 [[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)]](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-optimize)](https://docs.rs/scirs2-optimize)
 
-`scirs2-optimize` (v0.1.0-beta.4) is a production-ready optimization library providing comprehensive algorithms for unconstrained and constrained optimization, least-squares problems, root finding, and global optimization. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), it provides a high-performance Rust implementation of SciPy's optimization functionality with an ergonomic API, advanced features, excellent performance, and ecosystem consistency through scirs2-core abstractions.
+`scirs2-optimize` (v0.1.0-rc.1) is a production-ready optimization library providing comprehensive algorithms for unconstrained and constrained optimization, least-squares problems, root finding, and global optimization. Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), it provides a high-performance Rust implementation of SciPy's optimization functionality with an ergonomic API, advanced features, excellent performance, and ecosystem consistency through scirs2-core abstractions.
 
 ## Features
 
@@ -85,14 +85,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.1.0-beta.4"
+scirs2-optimize = "0.1.0-rc.1"
 ```
 
 For advanced features, enable optional feature flags:
 
 ```toml
 [dependencies]
-scirs2-optimize = { version = "0.1.0-beta.4", features = ["async"] }
+scirs2-optimize = { version = "0.1.0-rc.1", features = ["async"] }
 ```
 
 ## Quick Start

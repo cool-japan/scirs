@@ -9,7 +9,7 @@ use crate::quantization::{
     dequantize_matrix, get_quantizedmatrix_2d_i8, QuantizationMethod, QuantizationParams,
     QuantizedData2D, QuantizedMatrix,
 };
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::fmt::Debug;
 
 /// Fused quantized matrix multiplication chain
@@ -196,8 +196,11 @@ pub fn fused_quantized_matvec_sequence<F>(
     output_quantize: bool,
 ) -> LinalgResult<Array1<F>>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Validate input
     if matrices.is_empty() {
@@ -259,10 +262,10 @@ where
         if output_quantize {
             // In a complete implementation, we would _quantize the result to the same bit depth
             // But for simplicity, just convert back to the original type
-            Ok(result_f32.mapv(|x| num_traits::FromPrimitive::from_f32(x).unwrap()))
+            Ok(result_f32.mapv(|x| scirs2_core::numeric::FromPrimitive::from_f32(x).unwrap()))
         } else {
             // Return as float directly
-            Ok(result_f32.mapv(|x| num_traits::FromPrimitive::from_f32(x).unwrap()))
+            Ok(result_f32.mapv(|x| scirs2_core::numeric::FromPrimitive::from_f32(x).unwrap()))
         }
     } else {
         // Fallback path: dequantize all matrices and perform regular matmul
@@ -276,7 +279,7 @@ where
         let vector_f32 = vector.mapv(|x| x.as_());
 
         // Create a column vector from the 1D array
-        let mut result_f32 = vector_f32.insert_axis(ndarray::Axis(1));
+        let mut result_f32 = vector_f32.insert_axis(scirs2_core::ndarray::Axis(1));
 
         // Apply matrices in reverse order (rightmost first)
         for mat in dequantized_matrices.iter().rev() {
@@ -284,10 +287,11 @@ where
         }
 
         // Convert back to 1D array and then to original type
-        let result_1d_f32 = result_f32.remove_axis(ndarray::Axis(1));
+        let result_1d_f32 = result_f32.remove_axis(scirs2_core::ndarray::Axis(1));
 
         // Convert back to the original type
-        let result_f = result_1d_f32.mapv(|x| num_traits::FromPrimitive::from_f32(x).unwrap());
+        let result_f =
+            result_1d_f32.mapv(|x| scirs2_core::numeric::FromPrimitive::from_f32(x).unwrap());
 
         Ok(result_f)
     }
@@ -374,7 +378,7 @@ fn fused_quantized_matvec_sequence_int8(
         }
 
         // Create a column vector for matrix operations
-        let vector_2d = vector.to_owned().insert_axis(ndarray::Axis(1));
+        let vector_2d = vector.to_owned().insert_axis(scirs2_core::ndarray::Axis(1));
 
         // Apply matrices in reverse order
         let mut result_2d = vector_2d;
@@ -383,7 +387,7 @@ fn fused_quantized_matvec_sequence_int8(
         }
 
         // Extract the column back to 1D
-        result = result_2d.remove_axis(ndarray::Axis(1));
+        result = result_2d.remove_axis(scirs2_core::ndarray::Axis(1));
     }
 
     Ok(result)
@@ -394,7 +398,7 @@ mod tests {
     use super::*;
     use crate::quantization::{quantize_matrix, QuantizationMethod};
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_fused_matmul_chain() {

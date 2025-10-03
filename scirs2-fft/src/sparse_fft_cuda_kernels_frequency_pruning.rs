@@ -6,7 +6,7 @@
 use crate::error::{FFTError, FFTResult};
 use crate::gpu_kernel_stub::MIGRATION_MESSAGE;
 use crate::sparse_fft::SparseFFTResult;
-use num_traits::NumCast;
+use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
 
 // ============ sparse_fft_cuda_kernels_frequency_pruning.rs stubs ============

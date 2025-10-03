@@ -4,8 +4,8 @@
 //! real-time manipulation, dynamic clustering updates, multi-view perspectives,
 //! and immersive exploration tools for complex clustering scenarios.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -505,7 +505,7 @@ impl InteractiveVisualizer {
                 avg_distance_to_centroid: avg_distance,
                 density,
                 bounding_box,
-                color: format!("#{:06x}", (cluster_id.abs() as u32 * 123456) % 0xFFFFFF),
+                color: format!("#{:06x}", (cluster_id.unsigned_abs() * 123456) % 0xFFFFFF),
             };
 
             self.cluster_stats.insert(cluster_id, stats);
@@ -606,8 +606,8 @@ impl InteractiveVisualizer {
         };
 
         let bounding_box = (
-            min_coords.get(0).copied().unwrap_or(0.0),
-            max_coords.get(0).copied().unwrap_or(0.0),
+            min_coords.first().copied().unwrap_or(0.0),
+            max_coords.first().copied().unwrap_or(0.0),
             min_coords.get(1).copied().unwrap_or(0.0),
             max_coords.get(1).copied().unwrap_or(0.0),
             min_coords.get(2).copied().unwrap_or(0.0),
@@ -645,8 +645,8 @@ impl InteractiveVisualizer {
         }
 
         self.state.view_bounds = (
-            min_vals.get(0).copied().unwrap_or(-10.0),
-            max_vals.get(0).copied().unwrap_or(10.0),
+            min_vals.first().copied().unwrap_or(-10.0),
+            max_vals.first().copied().unwrap_or(10.0),
             min_vals.get(1).copied().unwrap_or(-10.0),
             max_vals.get(1).copied().unwrap_or(10.0),
             min_vals.get(2).copied().unwrap_or(-10.0),
@@ -776,7 +776,7 @@ struct InteractiveViewExport {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_interactive_visualizer_creation() {

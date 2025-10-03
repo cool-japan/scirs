@@ -39,7 +39,7 @@
 //!
 //! {
 //!     let data = serde_json::json!({
-//!         name: "Test Dataset",
+//!         "name": "Test Dataset",
 //!         "age": 25,
 //!         "data": [[1.0, 2.0], [3.0, 4.0]]
 //!     });
@@ -60,7 +60,7 @@
 //! The validation system now supports composite constraints using logical operators:
 //!
 //! ```rust
-//! use scirs2_core::validation::data::{Constraint, ConstraintBuilder, ValidationSchema};
+//! use scirs2_core::validation::data::{Constraint, ConstraintBuilder, ValidationSchema, DataType};
 //!
 //! // Create complex constraints using the builder
 //! let age_constraint = ConstraintBuilder::new()

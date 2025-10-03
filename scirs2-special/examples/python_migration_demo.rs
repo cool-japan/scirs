@@ -3,7 +3,7 @@
 //! This example shows how to use the migration tools to help port
 //! SciPy special functions code to SciRS2.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::python_interop::{codegen, compat, examples, MigrationGuide};
 
 #[allow(dead_code)]

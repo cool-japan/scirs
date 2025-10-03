@@ -4,7 +4,7 @@
 //! detect hardware characteristics and optimize algorithm parameters for best
 //! performance on the current system.
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_integrate::{
     autotuning::{AlgorithmTuner, AutoTuner, HardwareDetector, TuningProfile},
     memory::{CacheAwareAlgorithms, CacheFriendlyMatrix, MatrixLayout},

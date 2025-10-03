@@ -4,7 +4,7 @@
 //! posterior distributions over model parameters and predictions.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::validation::*;
 use scirs2_linalg;
 use statrs::statistics::Statistics;
@@ -369,6 +369,12 @@ pub struct ARDBayesianRegression {
     pub beta_init: f64,
     /// Whether to fit intercept
     pub fit_intercept: bool,
+}
+
+impl Default for ARDBayesianRegression {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ARDBayesianRegression {

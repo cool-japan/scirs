@@ -3,14 +3,14 @@
 //! This module provides enhanced SIMD operations that complement the existing
 //! optimized_search.rs functionality with more specialized optimizations.
 
-use ndarray::{Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, Zero};
 
 #[cfg(all(feature = "simd", test))]
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 #[cfg(feature = "simd")]
-use num_traits::FromPrimitive;
+use scirs2_core::numeric::FromPrimitive;
 
 #[cfg(feature = "simd")]
 use std::fmt::Debug;
@@ -498,7 +498,7 @@ impl SimdBenchmark {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_simd_distance_computation() {

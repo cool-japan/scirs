@@ -7,7 +7,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Compute Jacobian matrix using automatic differentiation
 ///

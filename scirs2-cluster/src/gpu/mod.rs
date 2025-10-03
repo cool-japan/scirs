@@ -35,7 +35,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::gpu::{GpuDistanceMatrix, DistanceMetric, GpuConfig};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create sample data
 //! let data = Array2::from_shape_vec((1000, 10), (0..10000).map(|x| x as f64).collect()).unwrap();
@@ -158,7 +158,7 @@ pub fn benchmark_gpu_vs_cpu(
     n_features: usize,
     metric: DistanceMetric,
 ) -> Result<BenchmarkResult, crate::error::ClusteringError> {
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     use std::time::Instant;
 
     // Generate test data

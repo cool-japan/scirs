@@ -6,7 +6,7 @@
 use super::StabilityError;
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array, IxDyn};
+use scirs2_core::ndarray::{Array, IxDyn};
 
 /// Configuration for finite difference computations
 #[derive(Debug, Clone)]
@@ -142,7 +142,7 @@ impl<F: Float> FiniteDifferenceComputer<F> {
 
         let f_x = function(input)?;
         let inputshape = input.shape();
-        let mut gradient = Array::zeros(ndarray::IxDyn(&inputshape));
+        let mut gradient = Array::zeros(scirs2_core::ndarray::IxDyn(&inputshape));
 
         // Compute partial derivatives
         for (i, input_perturbed) in self.create_perturbed_inputs(input, step).enumerate() {
@@ -172,7 +172,7 @@ impl<F: Float> FiniteDifferenceComputer<F> {
         let step = F::from(self.config.step_size).unwrap();
         let f_x = function(input)?;
         let inputshape = input.shape();
-        let mut gradient = Array::zeros(ndarray::IxDyn(&inputshape));
+        let mut gradient = Array::zeros(scirs2_core::ndarray::IxDyn(&inputshape));
 
         // Compute partial derivatives using backward differences
         for (i, input_perturbed) in self.create_perturbed_inputs(input, -step).enumerate() {
@@ -200,7 +200,7 @@ impl<F: Float> FiniteDifferenceComputer<F> {
     {
         let step = F::from(self.config.step_size).unwrap();
         let inputshape = input.shape();
-        let mut gradient = Array::zeros(ndarray::IxDyn(&inputshape));
+        let mut gradient = Array::zeros(scirs2_core::ndarray::IxDyn(&inputshape));
 
         // Compute partial derivatives using central differences
         for (i, (input_plus, input_minus)) in self
@@ -233,7 +233,7 @@ impl<F: Float> FiniteDifferenceComputer<F> {
     {
         let step = F::from(self.config.step_size).unwrap();
         let inputshape = input.shape();
-        let mut gradient = Array::zeros(ndarray::IxDyn(&inputshape));
+        let mut gradient = Array::zeros(scirs2_core::ndarray::IxDyn(&inputshape));
 
         // Use 5-point stencil: (-2h, -h, 0, h, 2h)
         for i in 0..inputshape.iter().product() {

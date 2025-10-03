@@ -18,7 +18,7 @@
 
 use crate::error::{SpecialError, SpecialResult};
 use crate::lambert::{lambert_w, lambert_w_real};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 // Using f64 constants directly without imports
 // Define some common values
@@ -55,7 +55,7 @@ const EULER_MASCHERONI: f64 = 0.577_215_664_901_532_9;
 /// # Examples
 ///
 /// ```
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 /// use scirs2_special::wright_omega;
 ///
 /// let z = Complex64::new(0.0, 0.0);
@@ -354,7 +354,7 @@ pub fn wright_omega_real_optimized(x: f64, tol: Option<f64>) -> SpecialResult<f6
 ///
 /// ```
 /// use scirs2_special::wright_omega_optimized;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 /// use approx::assert_relative_eq;
 ///
 /// let z = Complex64::new(0.0, 0.0);
@@ -771,7 +771,7 @@ mod tests {
 
     #[test]
     fn test_wright_omega_complex() {
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
 
         // Test some known values
         let z = Complex64::new(0.0, 0.0);
@@ -847,7 +847,7 @@ mod tests {
 
     #[test]
     fn test_wright_omega_optimized() {
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
 
         // Test some known values
         let z = Complex64::new(0.0, 0.0);
@@ -884,7 +884,7 @@ mod tests {
         assert_relative_eq!(omega_standard, omega_opt, epsilon = 1e-8);
 
         // For complex case, also test just at z=0 where we have a known value
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
         let z = Complex64::new(0.0, 0.0);
         let omega_standard = wright_omega(z, None).unwrap();
         let omega_opt = wright_omega_optimized(z, None).unwrap();
@@ -906,7 +906,7 @@ mod tests {
         }
 
         // Test just a few complex points
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
         let complex_points = vec![Complex64::new(0.0, 0.0), Complex64::new(1.0, 0.0)];
 
         for &z in &complex_points {

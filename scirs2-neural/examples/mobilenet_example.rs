@@ -1,4 +1,4 @@
-// use ndarray::Array;
+// use scirs2_core::ndarray::Array;
 // use scirs2_neural::error::Result;
 // use scirs2_neural::layers::Layer;
 // use scirs2_neural::models::architectures::{MobileNet, MobileNetConfig};

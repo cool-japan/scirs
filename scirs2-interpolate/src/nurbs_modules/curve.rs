@@ -5,7 +5,7 @@
 //! knot insertion, and curve analysis.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use super::types::{NurbsCurve, NurbsFloat};
 
 impl<T: NurbsFloat> NurbsCurve<T> {
@@ -26,7 +26,7 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::nurbs::NurbsCurve;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -100,7 +100,7 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::nurbs::NurbsCurve;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -149,7 +149,7 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::nurbs::NurbsCurve;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -291,7 +291,7 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::nurbs::NurbsCurve;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -355,7 +355,7 @@ impl<T: NurbsFloat> NurbsCurve<T> {
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::nurbs::NurbsCurve;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///

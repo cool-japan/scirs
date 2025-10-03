@@ -3,8 +3,8 @@
 //! This module provides a parallel implementation of the K-means clustering algorithm
 //! that leverages multiple CPU cores for improved performance on large datasets.
 
-use ndarray::{s, Array1, Array2, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 use std::sync::Mutex;
@@ -62,7 +62,7 @@ impl<F: Float + FromPrimitive> Default for ParallelKMeansOptions<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::vq::parallel_kmeans;
 ///
 /// let data = Array2::from_shape_vec((1000, 2),
@@ -328,7 +328,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_parallel_kmeans_simple() {

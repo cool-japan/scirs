@@ -3,8 +3,8 @@
 //! This module provides high-performance implementations of edge detection filters
 //! using SIMD instructions and parallel processing for improved performance.
 
-use ndarray::{Array2, ArrayView1, ArrayView2, Axis, Zip};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2, Axis, Zip};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
@@ -609,10 +609,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_sobel_optimized() {
         let input = array![
             [0.0, 0.0, 0.0, 0.0],
@@ -621,13 +620,15 @@ mod tests {
             [0.0, 0.0, 0.0, 0.0]
         ];
 
-        // Test x-gradient
-        let grad_x = sobel_2d_optimized(&input.view(), 1, None)
+        // Test x-gradient with Constant border mode (default 0) to detect edges properly
+        let grad_x = sobel_2d_optimized(&input.view(), 1, Some(BorderMode::Constant))
             .expect("sobel_2d_optimized should succeed for test");
 
         // Edges should be detected at the boundaries of the square
-        assert!(grad_x[[1, 0]].abs() > 0.0);
-        assert!(grad_x[[1, 3]].abs() > 0.0);
+        // At [1, 1], there's a transition from 0 to 1, so gradient should be positive
+        assert!(grad_x[[1, 1]] > 0.0);
+        // At [1, 2], there's a transition from 1 to 0, so gradient should be negative
+        assert!(grad_x[[1, 2]] < 0.0);
     }
 
     #[test]
@@ -643,7 +644,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_gradient_magnitude() {
         let grad_x = array![[1.0, 0.0], [0.0, 1.0]];
         let grad_y = array![[0.0, 1.0], [1.0, 0.0]];
@@ -651,9 +651,14 @@ mod tests {
         let magnitude = gradient_magnitude_optimized(&grad_x.view(), &grad_y.view())
             .expect("gradient_magnitude_optimized should succeed for test");
 
-        // All values should be sqrt(2)
-        let expected = 2.0_f64.sqrt();
-        assert!((magnitude[[0, 0]] - expected).abs() < 1e-6);
-        assert!((magnitude[[1, 1]] - expected).abs() < 1e-6);
+        // Magnitude = sqrt(grad_x^2 + grad_y^2)
+        // [0,0]: sqrt(1^2 + 0^2) = 1.0
+        // [0,1]: sqrt(0^2 + 1^2) = 1.0
+        // [1,0]: sqrt(0^2 + 1^2) = 1.0
+        // [1,1]: sqrt(1^2 + 0^2) = 1.0
+        assert!((magnitude[[0, 0]] - 1.0).abs() < 1e-6);
+        assert!((magnitude[[0, 1]] - 1.0).abs() < 1e-6);
+        assert!((magnitude[[1, 0]] - 1.0).abs() < 1e-6);
+        assert!((magnitude[[1, 1]] - 1.0).abs() < 1e-6);
     }
 }

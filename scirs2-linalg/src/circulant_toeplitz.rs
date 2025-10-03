@@ -44,9 +44,9 @@
 //! - Golub, G. H., & Van Loan, C. F. (2013). "Matrix Computations"
 //! - Bunch, J. R. (1985). "Stability of methods for solving Toeplitz systems"
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_complex::Complex64;
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -68,7 +68,15 @@ pub struct CirculantMatrix<F> {
 
 impl<F> CirculantMatrix<F>
 where
-    F: Float + NumAssign + Sum + Clone + Into<f64> + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + NumAssign
+        + Sum
+        + Clone
+        + Into<f64>
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     /// Create a new circulant matrix from its first row
     ///
@@ -83,7 +91,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_linalg::circulant_toeplitz::CirculantMatrix;
     ///
     /// let first_row = array![1.0, 2.0, 3.0, 4.0];
@@ -185,7 +193,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_linalg::circulant_toeplitz::CirculantMatrix;
     ///
     /// let first_row = array![2.0, -1.0, 0.0, -1.0]; // Typical finite difference matrix
@@ -366,7 +374,15 @@ pub struct ToeplitzMatrix<F> {
 
 impl<F> ToeplitzMatrix<F>
 where
-    F: Float + NumAssign + Sum + Clone + Into<f64> + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + NumAssign
+        + Sum
+        + Clone
+        + Into<f64>
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     /// Create a new Toeplitz matrix from its first row and first column
     ///
@@ -382,7 +398,7 @@ where
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_linalg::circulant_toeplitz::ToeplitzMatrix;
     ///
     /// let first_row = array![1.0, 2.0, 3.0];
@@ -650,7 +666,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_circulantmatrix_creation() {

@@ -3,8 +3,8 @@
 //! This module provides implementations of special matrix operations and
 //! functions with gradient tracking.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use scirs2_autograd::error::Result as AutogradResult;
@@ -204,7 +204,7 @@ pub fn pinv<F: Float + Debug + Send + Sync + 'static>(
         // This is a simplified approximation of the true gradient of pseudo-inverse
         let backward = if requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Simplified gradient approximation
                     // For a proper implementation, see the paper:
                     // "Matrix Backpropagation for Deep Networks with Structured Layers"
@@ -228,7 +228,7 @@ pub fn pinv<F: Float + Debug + Send + Sync + 'static>(
 
                     Ok(result.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -412,7 +412,7 @@ pub fn sqrtm<F: Float + Debug + Send + Sync + 'static>(a: &Tensor<F>) -> Autogra
         // Backward function for gradient computation
         let backward = if requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // For sqrtm, the gradient involves solving a Sylvester equation
                     // For simplicity, we'll use a crude approximation
                     let grad_2d = grad.clone().intoshape((n, n)).unwrap();
@@ -475,7 +475,7 @@ pub fn sqrtm<F: Float + Debug + Send + Sync + 'static>(a: &Tensor<F>) -> Autogra
 
                     Ok(result.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -661,7 +661,7 @@ pub fn logm<F: Float + Debug + Send + Sync + 'static>(a: &Tensor<F>) -> Autograd
         // The gradient of matrix logarithm is complex and involves the Fréchet derivative
         let backward = if requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // For simplicity, we'll use a crude approximation for small matrices
                     let grad_2d = grad.clone().intoshape((n, n)).unwrap();
 
@@ -703,7 +703,7 @@ pub fn logm<F: Float + Debug + Send + Sync + 'static>(a: &Tensor<F>) -> Autograd
 
                     Ok(result.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None

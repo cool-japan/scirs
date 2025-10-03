@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-cluster)](https://docs.rs/scirs2-cluster)
 
-A comprehensive clustering module for the SciRS2 scientific computing library in Rust (v0.1.0-beta.4). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this crate provides production-ready implementations of various clustering algorithms with a focus on performance, SciPy compatibility, ecosystem consistency, and idiomatic Rust code.
+A comprehensive clustering module for the SciRS2 scientific computing library in Rust (v0.1.0-rc.1). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this crate provides production-ready implementations of various clustering algorithms with a focus on performance, SciPy compatibility, ecosystem consistency, and idiomatic Rust code.
 
 ## Production Readiness - Beta 4 Release
 
-🎯 **Version 0.1.0-beta.4** (SciRS2 POLICY & Enhanced Performance) is ready for production use with:
+🎯 **Version 0.1.0-rc.1** (SciRS2 POLICY & Enhanced Performance) is ready for production use with:
 - **189+ comprehensive tests** covering all algorithms and edge cases
 - **Zero warnings policy** enforced across all code and examples  
 - **Full SciPy API compatibility** maintained for seamless migration
@@ -78,7 +78,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-cluster = "0.1.0-beta.4"
+scirs2-cluster = "0.1.0-rc.1"
 ndarray = "0.15"
 ```
 
@@ -86,7 +86,7 @@ To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-cluster = { version = "0.1.0-beta.4", features = ["parallel", "simd"] }
+scirs2-cluster = { version = "0.1.0-rc.1", features = ["parallel", "simd"] }
 ```
 
 ## Usage

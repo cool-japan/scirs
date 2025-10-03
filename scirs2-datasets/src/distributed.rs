@@ -11,7 +11,7 @@ use std::sync::mpsc;
 use std::sync::Arc;
 use std::thread;
 
-use ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use serde::{Deserialize, Serialize};
 
 use crate::cache::DatasetCache;
@@ -231,14 +231,14 @@ impl DistributedProcessor {
         let mut indices: Vec<usize> = (0..n_samples).collect();
 
         if shuffle {
-            use rand::seq::SliceRandom;
-            use rand::SeedableRng;
+            use scirs2_core::random::seq::SliceRandom;
+            use scirs2_core::random::SeedableRng;
 
             let mut rng = if let Some(seed) = random_state {
-                rand::rngs::StdRng::seed_from_u64(seed)
+                scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
             } else {
                 // For deterministic testing, use a fixed seed when no seed provided
-                rand::rngs::StdRng::seed_from_u64(42)
+                scirs2_core::random::rngs::StdRng::seed_from_u64(42)
             };
 
             indices.shuffle(&mut rng);
@@ -418,14 +418,14 @@ impl DistributedProcessor {
             return Ok(chunk.clone());
         }
 
-        use rand::seq::SliceRandom;
-        use rand::SeedableRng;
+        use scirs2_core::random::seq::SliceRandom;
+        use scirs2_core::random::SeedableRng;
 
         let mut rng = if let Some(seed) = random_state {
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         } else {
             // For deterministic testing, use a fixed seed when no seed provided
-            rand::rngs::StdRng::seed_from_u64(42)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(42)
         };
 
         let mut indices: Vec<usize> = (0..chunk.n_samples()).collect();
@@ -444,14 +444,14 @@ impl DistributedProcessor {
             return Ok(indices.to_vec());
         }
 
-        use rand::seq::SliceRandom;
-        use rand::SeedableRng;
+        use scirs2_core::random::seq::SliceRandom;
+        use scirs2_core::random::SeedableRng;
 
         let mut rng = if let Some(seed) = random_state {
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         } else {
             // For deterministic testing, use a fixed seed when no seed provided
-            rand::rngs::StdRng::seed_from_u64(42)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(42)
         };
 
         let mut sampled = indices.to_vec();
@@ -726,7 +726,7 @@ impl ScalingParameters {
 }
 
 // Add missing import for array slicing syntax
-use ndarray::s;
+use scirs2_core::ndarray::s;
 
 #[cfg(test)]
 mod tests {

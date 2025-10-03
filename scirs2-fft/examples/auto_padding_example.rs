@@ -3,7 +3,7 @@
 //! This example shows how to use automatic padding to improve
 //! FFT performance by ensuring optimal input sizes.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex;
 use scirs2_fft::{auto_pad_complex, fft, remove_padding_1d, AutoPadConfig, PaddingMode};
 use std::time::Instant;

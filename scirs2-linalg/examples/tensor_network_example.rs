@@ -8,7 +8,7 @@
 #[cfg(feature = "tensor_contraction")]
 #[allow(dead_code)]
 fn main() -> scirs2_linalg::error::LinalgResult<()> {
-    use ndarray::{ArrayD, IxDyn};
+    use scirs2_core::ndarray::{ArrayD, IxDyn};
     use scirs2_linalg::tensor_contraction::tensor_network::{TensorNetwork, TensorNode};
 
     println!("Tensor Network Example");

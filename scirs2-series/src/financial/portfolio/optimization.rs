@@ -4,8 +4,8 @@
 //! Modern Portfolio Theory (MPT) and alternative approaches. These algorithms
 //! help construct optimal portfolios under different risk and return objectives.
 
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -29,7 +29,7 @@ use crate::error::{Result, TimeSeriesError};
 ///
 /// ```rust
 /// use scirs2_series::financial::portfolio::optimization::calculate_efficient_portfolio;
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 ///
 /// let expected_returns = array![0.10, 0.12, 0.08];
 /// let cov_matrix = Array2::from_shape_vec((3, 3),
@@ -130,7 +130,7 @@ pub fn calculate_efficient_portfolio<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::portfolio::optimization::risk_parity_portfolio;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// let cov_matrix = Array2::from_shape_vec((2, 2), vec![0.01, 0.002, 0.002, 0.015]).unwrap();
 /// let weights = risk_parity_portfolio(&cov_matrix).unwrap();
@@ -197,7 +197,7 @@ pub fn risk_parity_portfolio<F: Float + Clone>(covariance_matrix: &Array2<F>) ->
 ///
 /// ```rust
 /// use scirs2_series::financial::portfolio::optimization::minimum_variance_portfolio;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// let cov_matrix = Array2::from_shape_vec((2, 2), vec![0.01, 0.002, 0.002, 0.015]).unwrap();
 /// let weights = minimum_variance_portfolio(&cov_matrix).unwrap();
@@ -490,7 +490,7 @@ fn calculate_portfolio_sharpe_ratio<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::portfolio::optimization::calculate_correlation_matrix;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// let returns = Array2::from_shape_vec((5, 2),
 ///     vec![0.01, 0.02, -0.01, 0.005, 0.015, -0.008, 0.005, 0.012, -0.002, 0.008]).unwrap();
@@ -558,7 +558,7 @@ pub fn calculate_correlation_matrix<F: Float + Clone>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, Array2};
+    use scirs2_core::ndarray::{arr1, Array2};
 
     #[test]
     fn test_efficient_portfolio() {

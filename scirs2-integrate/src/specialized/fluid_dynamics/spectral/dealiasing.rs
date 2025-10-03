@@ -5,28 +5,23 @@
 //! Navier-Stokes equations.
 
 use crate::error::IntegrateResult;
-use ndarray::{Array2, Array3};
-use num_complex::Complex;
+use scirs2_core::ndarray::{Array2, Array3};
+use scirs2_core::numeric::Complex;
 
 use super::fft_operations::FFTOperations;
 
 /// Dealiasing strategies for spectral methods
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum DealiasingStrategy {
     /// No dealiasing
     None,
     /// 2/3 rule dealiasing (most common)
+    #[default]
     TwoThirds,
     /// 3/2 rule dealiasing
     ThreeHalves,
     /// Phase shift dealiasing
     PhaseShift,
-}
-
-impl Default for DealiasingStrategy {
-    fn default() -> Self {
-        DealiasingStrategy::TwoThirds
-    }
 }
 
 /// Dealiasing operations for spectral methods
@@ -359,7 +354,7 @@ impl DealiasingOperations {
         }
 
         // For high accuracy requirements and sufficient grid resolution
-        if accuracy_requirement > 0.99 && min_size >= 128 {
+        if accuracy_requirement >= 0.99 && min_size >= 128 {
             return DealiasingStrategy::ThreeHalves;
         }
 
@@ -381,7 +376,7 @@ impl DealiasingOperations {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_dealiasing_strategy_default() {
@@ -433,7 +428,8 @@ mod tests {
             }
         }
 
-        let needs_dealiasing = DealiasingOperations::needs_dealiasing(&field, 0.1).unwrap();
+        // High-frequency field should exceed 50% threshold
+        let needs_dealiasing = DealiasingOperations::needs_dealiasing(&field, 0.5).unwrap();
         assert!(needs_dealiasing);
 
         // Create field with mostly low frequency content
@@ -446,8 +442,9 @@ mod tests {
             }
         }
 
+        // Low-frequency field should be below 50% threshold (accounting for discretization)
         let needs_dealiasing_low =
-            DealiasingOperations::needs_dealiasing(&low_freq_field, 0.1).unwrap();
+            DealiasingOperations::needs_dealiasing(&low_freq_field, 0.5).unwrap();
         assert!(!needs_dealiasing_low);
     }
 

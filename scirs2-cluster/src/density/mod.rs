@@ -12,11 +12,11 @@
 pub mod hdbscan;
 pub mod optics;
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 // Directly implement distance functions
 mod distance {
-    use num_traits::Float;
+    use scirs2_core::numeric::Float;
 
     /// Calculates the Euclidean distance (L2 norm) between two vectors
     pub fn euclidean<F: Float>(a: &[F], b: &[F]) -> F {
@@ -104,7 +104,7 @@ pub enum DistanceMetric {
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, ArrayView2};
+/// use scirs2_core::ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::density::{dbscan, DistanceMetric};
 ///
 /// // Example data with two clusters and noise

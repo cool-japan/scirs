@@ -11,7 +11,7 @@ use crate::denoise::{threshold_coefficients, ThresholdMethod};
 use crate::dwt::{wavedec, waverec, DecompositionResult, Wavelet};
 use crate::error::{SignalError, SignalResult};
 use crate::wpt::wp_decompose;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::parallel_ops::*;
 use std::sync::Arc;
 

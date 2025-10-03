@@ -8,7 +8,7 @@ use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::ode::types::{ODEOptions, ODEResult};
 use crate::ode::utils::common::{estimate_initial_step, ODEState, StepResult};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 #[cfg(feature = "simd")]
 use crate::ode::utils::simd_ops::{SimdOdeOps};
@@ -418,7 +418,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_error_tolerance_computation() {

@@ -22,7 +22,7 @@ use scirs2_linalg::quantization::{
 /// Create a random matrix with specified dimensions
 #[allow(dead_code)]
 fn create_randomarray2_f32(rows: usize, cols: usize) -> Array2<f32> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut matrix = Array2::zeros((rows, cols));
 
     for i in 0..rows {

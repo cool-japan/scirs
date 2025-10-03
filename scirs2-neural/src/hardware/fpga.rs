@@ -1,7 +1,7 @@
 //! FPGA-specific hardware acceleration support
 
 use crate::error::Result;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 /// FPGA device configuration
 #[derive(Debug, Clone)]

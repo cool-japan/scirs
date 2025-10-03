@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates the use of complex matrix operations.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_core::Complex;
 use scirs2_linalg::complex::{complex_matmul, complex_norm_frobenius, hermitian_transpose};
 use scirs2_linalg::error::LinalgResult;

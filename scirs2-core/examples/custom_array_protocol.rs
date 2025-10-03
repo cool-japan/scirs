@@ -127,7 +127,7 @@ impl ArrayProtocol for SparseArray {
                         sparse_array
                     } else if let Some(ndarray_wrapper) = sparse
                         .as_any()
-                        .downcast_ref::<NdarrayWrapper<f64, ndarray::Ix2>>()
+                        .downcast_ref::<NdarrayWrapper<f64, scirs2_core::ndarray::Ix2>>()
                     {
                         // Convert ndarray to sparse array (simplified for example)
                         return Ok(Box::new(SparseArray::array(ndarray_wrapper.as_array())));
@@ -191,7 +191,7 @@ impl ArrayProtocol for SparseArray {
                     if let Some(axis) = axis_box.downcast_ref::<usize>() {
                         // For the example, we'll just convert to dense and use ndarray's sum
                         let dense = self.to_dense();
-                        let result = dense.sum_axis(ndarray::Axis(*axis));
+                        let result = dense.sum_axis(scirs2_core::ndarray::Axis(*axis));
                         let sparse_result =
                             SparseArray::array(&result.into_dimensionality().unwrap());
                         return Ok(Box::new(sparse_result));

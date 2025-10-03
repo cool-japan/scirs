@@ -6,7 +6,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::{HashMap, HashSet};
 
 /// Advanced AMR manager with multiple refinement strategies
@@ -240,7 +240,7 @@ impl<F: IntegrateFloat> AdvancedAMRManager<F> {
         self.current_step += 1;
 
         // Skip adaptation if not at adaptation frequency
-        if self.current_step % self.adaptation_frequency != 0 {
+        if !self.current_step.is_multiple_of(self.adaptation_frequency) {
             return Ok(AMRAdaptationResult {
                 cells_refined: 0,
                 cells_coarsened: 0,

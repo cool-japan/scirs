@@ -6,8 +6,8 @@
 //! - Stationarity tests (ADF, KPSS)
 //! - Dimensionality reduction techniques
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -98,7 +98,7 @@ pub enum StationarityTestType {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::transformations::box_cox_transform;
 ///
 /// let ts = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
@@ -263,7 +263,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::transformations::difference_transform;
 ///
 /// let ts = Array1::from_vec(vec![1.0, 3.0, 6.0, 10.0, 15.0]);
@@ -419,7 +419,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_series::transformations::{normalize_transform, NormalizationMethod};
 ///
 /// let ts = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
@@ -502,7 +502,7 @@ where
             let mut sorted_values: Vec<F> = ts.iter().cloned().collect();
             sorted_values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            let median = if n % 2 == 0 {
+            let median = if n.is_multiple_of(2) {
                 (sorted_values[n / 2 - 1] + sorted_values[n / 2]) / F::from(2.0).unwrap()
             } else {
                 sorted_values[n / 2]
@@ -1064,7 +1064,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_box_cox_transform() {

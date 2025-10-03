@@ -11,8 +11,8 @@
 //! - Topological time series analysis
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use scirs2_linalg::parallel_dispatch::ParallelConfig;
 use std::collections::HashMap;
@@ -983,11 +983,7 @@ where
                     .get(dim)
                     .map(|s| s.len())
                     .unwrap_or(0);
-                betti_numbers[[step, dim]] = if step * 10 < num_simplices {
-                    num_simplices - step * 10
-                } else {
-                    0
-                };
+                betti_numbers[[step, dim]] = num_simplices.saturating_sub(step * 10);
             }
         }
 
@@ -1380,7 +1376,7 @@ where
         _labels: Option<&ArrayView1<F>>,
     ) -> StatsResult<TopologicalMLResult<F>> {
         // Extract topological features for machine learning
-        let topological_features = (&*self).extract_topological_features(data)?;
+        let topological_features = (*self).extract_topological_features(data)?;
 
         // Create simplified feature matrix from topological features
         let feature_matrix = Array2::zeros((data.nrows(), 10)); // Simplified feature representation
@@ -2334,7 +2330,7 @@ pub struct TopologicalClusteringResult<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_topological_analyzer_creation() {

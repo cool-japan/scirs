@@ -6,7 +6,7 @@
 //! ## Example
 //!
 //! ```
-//! use ndarray::{array, Array1, Array2};
+//! use scirs2_core::ndarray::{array, Array1, Array2};
 //! use scirs2_optimize::least_squares::{least_squares, Method};
 //!
 //! // Define a function that returns the residuals
@@ -39,7 +39,7 @@
 
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
 use std::fmt;
 
 /// Optimization methods for least squares problems.
@@ -125,7 +125,7 @@ impl Default for Options {
 /// # Example
 ///
 /// ```
-/// use ndarray::{array, Array1, Array2};
+/// use scirs2_core::ndarray::{array, Array1, Array2};
 /// use scirs2_optimize::least_squares::{least_squares, Method};
 ///
 /// // Define a function that returns the residuals
@@ -1036,7 +1036,7 @@ fn bound_step(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     fn residual(x: &[f64], _: &[f64]) -> Array1<f64> {
         let y = array![x[0] + 2.0 * x[1] - 2.0, x[0] + x[1] - 1.0];

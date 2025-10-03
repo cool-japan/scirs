@@ -4,8 +4,10 @@
 //! for data transformation tasks, including data validation, memory optimization,
 //! and performance helpers.
 
-use ndarray::{par_azip, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2, Zip};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{
+    par_azip, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix2, Zip,
+};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_not_empty;
 use std::collections::HashMap;
@@ -98,11 +100,11 @@ impl TypeConverter {
             if array.len() > 10000 {
                 let mut result = Array2::zeros(array.raw_dim());
                 Zip::from(&mut result).and(array).par_for_each(|out, &inp| {
-                    *out = num_traits::cast::<T, f64>(inp).unwrap_or(0.0);
+                    *out = NumCast::from(inp).unwrap_or(0.0);
                 });
                 result
             } else {
-                array.mapv(|x| num_traits::cast::<T, f64>(x).unwrap_or(0.0))
+                array.mapv(|x| NumCast::from(x).unwrap_or(0.0))
             }
         } else {
             // Handle non-standard layout
@@ -110,7 +112,7 @@ impl TypeConverter {
             let mut result = Array2::zeros((shape[0], shape[1]));
 
             par_azip!((out in result.view_mut(), &inp in array) {
-                *out = num_traits::cast::<T, f64>(inp).unwrap_or(0.0);
+                *out = NumCast::from(inp).unwrap_or(0.0);
             });
 
             result
@@ -199,7 +201,7 @@ impl StatUtils {
         sorted_data.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let n = sorted_data.len();
-        let median = if n % 2 == 0 {
+        let median = if n.is_multiple_of(2) {
             (sorted_data[n / 2 - 1] + sorted_data[n / 2]) / 2.0
         } else {
             sorted_data[n / 2]
@@ -209,7 +211,7 @@ impl StatUtils {
         let mut deviations: Vec<f64> = sorted_data.iter().map(|&x| (x - median).abs()).collect();
         deviations.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-        let mad = if n % 2 == 0 {
+        let mad = if n.is_multiple_of(2) {
             (deviations[n / 2 - 1] + deviations[n / 2]) / 2.0
         } else {
             deviations[n / 2]
@@ -612,7 +614,7 @@ pub enum ProcessingStrategy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_data_chunker() {

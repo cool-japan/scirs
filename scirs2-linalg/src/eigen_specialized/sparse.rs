@@ -3,9 +3,9 @@
 //! This module provides specialized solvers for large sparse matrices where we might
 //! only need a few eigenvalues/eigenvectors, not the full spectrum.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, NumAssign};
-use rand::{self, Rng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
+use scirs2_core::random::{self, Rng};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -32,7 +32,7 @@ use crate::norm::vector_norm;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::largest_k_eigh;
 ///
 /// let a = array![[4.0_f64, 1.0, 0.0], [1.0, 3.0, 0.0], [0.0, 0.0, 2.0]];
@@ -143,7 +143,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::smallest_k_eigh;
 ///
 /// let a = array![[4.0_f64, 1.0, 0.0], [1.0, 3.0, 0.0], [0.0, 0.0, 2.0]];
@@ -263,7 +263,7 @@ where
     let n = a.nrows();
 
     // Start with a random vector
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut b = Array1::zeros(n);
     for i in 0..n {
         b[i] = F::from(rng.random_range(-1.0..1.0)).unwrap_or(F::zero());
@@ -363,7 +363,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_largest_k_eigh_simple() {

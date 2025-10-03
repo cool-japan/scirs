@@ -4,8 +4,8 @@
 //! Discrete Wavelet Transform (DWT), Continuous Wavelet Transform (CWT),
 //! multi-resolution analysis, time-frequency analysis, and wavelet-based denoising.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::{DenoisingMethod, WaveletConfig, WaveletFamily};
@@ -224,7 +224,7 @@ pub fn calculate_wavelet_features<F>(
     config: &WaveletConfig,
 ) -> Result<WaveletFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Clone + ndarray::ScalarOperand,
+    F: Float + FromPrimitive + Debug + Clone + scirs2_core::ndarray::ScalarOperand,
 {
     let n = ts.len();
     if n < 8 {
@@ -1128,7 +1128,7 @@ where
     sorted_coeffs.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
     let median_idx = sorted_coeffs.len() / 2;
-    let mad = if sorted_coeffs.len() % 2 == 0 {
+    let mad = if sorted_coeffs.len().is_multiple_of(2) {
         (sorted_coeffs[median_idx - 1] + sorted_coeffs[median_idx]) / F::from(2.0).unwrap()
     } else {
         sorted_coeffs[median_idx]

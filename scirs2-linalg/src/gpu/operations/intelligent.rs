@@ -3,7 +3,7 @@
 use super::super::GpuDeviceInfo;
 use super::metrics::{MultiDimensionalMetrics, RunningStats};
 use crate::error::{LinalgError, LinalgResult};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex, RwLock};

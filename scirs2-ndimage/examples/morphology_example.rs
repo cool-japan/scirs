@@ -1,4 +1,4 @@
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_ndimage::morphology::{
     binary_closing, binary_dilation, binary_erosion, binary_opening, generate_binary_structure,
     Connectivity,
@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let structure = generate_binary_structure(2, Connectivity::Face)?;
 
     println!("\nStructuring element (face connectivity):");
-    print_binary_image(&structure.into_dimensionality::<ndarray::Ix2>()?);
+    print_binary_image(&structure.into_dimensionality::<scirs2_core::ndarray::Ix2>()?);
 
     // Perform erosion
     let eroded = binary_erosion(&image, None, None, None, None, None, None)?;

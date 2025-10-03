@@ -1,4 +1,6 @@
 #![allow(deprecated)]
+#![allow(clippy::doc_nested_refdefs)]
+#![allow(unused_parens)]
 #![recursion_limit = "1024"]
 #![allow(clippy::new_without_default)]
 #![allow(clippy::field_reassign_with_default)]
@@ -49,7 +51,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-integrate = "0.1.0-beta.4"
+//! scirs2-integrate = "0.1.0-rc.1"
 //! ```
 
 //!
@@ -87,7 +89,7 @@
 //!
 //! ```
 //! use scirs2_integrate::monte_carlo::{monte_carlo, MonteCarloOptions};
-//! use ndarray::ArrayView1;
+//! use scirs2_core::ndarray::ArrayView1;
 //!
 //! // Integrate f(x) = x² from 0 to 1 (exact result: 1/3)
 //! let options = MonteCarloOptions {
@@ -109,7 +111,7 @@
 //! ### ODE Solving (Initial Value Problem)
 //!
 //! ```
-//! use ndarray::{array, ArrayView1};
+//! use scirs2_core::ndarray::{array, ArrayView1};
 //! use scirs2_integrate::ode::{solve_ivp, ODEOptions, ODEMethod};
 //!
 //! // Solve y'(t) = -y with initial condition y(0) = 1
@@ -231,8 +233,8 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.1.0-beta.4
-//! - **Release Date**: October 01, 2025
+//! - **Version**: 0.1.0-rc.1
+//! - **Release Date**: October 03, 2025
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-integrate](https://docs.rs/scirs2-integrate)
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)

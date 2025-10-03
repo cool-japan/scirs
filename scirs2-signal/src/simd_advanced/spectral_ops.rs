@@ -22,9 +22,9 @@
 use super::basic_ops::simd_apply_window;
 use super::types::{BatchSpectralResult, BatchSpectralStats, SimdConfig, SingleSpectralResult};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array2, ArrayView1, ArrayViewMut1};
-use num_complex::Complex64;
 use rustfft::FftPlanner;
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayViewMut1};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 #[cfg(target_arch = "x86_64")]
@@ -475,12 +475,29 @@ pub fn simd_complex_multiply(
 
     let caps = PlatformCapabilities::detect();
 
-    if caps.avx2_available && config.use_advanced {
-        unsafe { avx2_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag) }
-    } else if caps.simd_available {
-        unsafe { sse_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag) }
-    } else {
-        scalar_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag)
+    #[cfg(target_arch = "x86_64")]
+    {
+        if caps.avx2_available && config.use_advanced {
+            unsafe {
+                avx2_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag)
+            }
+        } else if caps.simd_available {
+            unsafe {
+                sse_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag)
+            }
+        } else {
+            scalar_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag)
+        }
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        if caps.avx2_available && config.use_advanced {
+            avx2_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag)
+        } else if caps.simd_available {
+            sse_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag)
+        } else {
+            scalar_complex_multiply(a_real, a_imag, b_real, b_imag, result_real, result_imag)
+        }
     }
 }
 
@@ -510,12 +527,25 @@ pub fn simd_power_spectrum(
 
     let caps = PlatformCapabilities::detect();
 
-    if caps.avx2_available && config.use_advanced {
-        unsafe { avx2_power_spectrum(real, imag, power) }
-    } else if caps.simd_available {
-        unsafe { sse_power_spectrum(real, imag, power) }
-    } else {
-        scalar_power_spectrum(real, imag, power)
+    #[cfg(target_arch = "x86_64")]
+    {
+        if caps.avx2_available && config.use_advanced {
+            unsafe { avx2_power_spectrum(real, imag, power) }
+        } else if caps.simd_available {
+            unsafe { sse_power_spectrum(real, imag, power) }
+        } else {
+            scalar_power_spectrum(real, imag, power)
+        }
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        if caps.avx2_available && config.use_advanced {
+            avx2_power_spectrum(real, imag, power)
+        } else if caps.simd_available {
+            sse_power_spectrum(real, imag, power)
+        } else {
+            scalar_power_spectrum(real, imag, power)
+        }
     }
 }
 
@@ -564,12 +594,25 @@ pub fn simd_weighted_average_spectra(
 
     let caps = PlatformCapabilities::detect();
 
-    if caps.avx2_available && config.use_advanced {
-        unsafe { avx2_weighted_average_spectra(spectra, weights, result) }
-    } else if caps.simd_available {
-        unsafe { sse_weighted_average_spectra(spectra, weights, result) }
-    } else {
-        scalar_weighted_average_spectra(spectra, weights, result)
+    #[cfg(target_arch = "x86_64")]
+    {
+        if caps.avx2_available && config.use_advanced {
+            unsafe { avx2_weighted_average_spectra(spectra, weights, result) }
+        } else if caps.simd_available {
+            unsafe { sse_weighted_average_spectra(spectra, weights, result) }
+        } else {
+            scalar_weighted_average_spectra(spectra, weights, result)
+        }
+    }
+    #[cfg(not(target_arch = "x86_64"))]
+    {
+        if caps.avx2_available && config.use_advanced {
+            avx2_weighted_average_spectra(spectra, weights, result)
+        } else if caps.simd_available {
+            sse_weighted_average_spectra(spectra, weights, result)
+        } else {
+            scalar_weighted_average_spectra(spectra, weights, result)
+        }
     }
 }
 

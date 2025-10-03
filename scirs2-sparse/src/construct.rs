@@ -7,10 +7,10 @@
 #![allow(unused_assignments)]
 #![allow(unused_mut)]
 
-use ndarray::Array1;
-use num_traits::Float;
-use rand::seq::SliceRandom;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::{Rng, SeedableRng};
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -201,7 +201,7 @@ where
 ///
 /// ```
 /// use scirs2_sparse::construct::diags_array;
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// let diags = vec![
 ///     Array1::from_vec(vec![1.0, 2.0, 3.0]), // main diagonal
@@ -371,11 +371,11 @@ where
 
     // Create RNG
     let mut rng = if let Some(seed_value) = seed {
-        rand::rngs::StdRng::seed_from_u64(seed_value)
+        scirs2_core::random::rngs::StdRng::seed_from_u64(seed_value)
     } else {
         // For a random seed, use rng
-        let seed = rand::random::<u64>();
-        rand::rngs::StdRng::seed_from_u64(seed)
+        let seed = scirs2_core::random::random::<u64>();
+        scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
     };
 
     // Generate random elements
@@ -556,7 +556,7 @@ where
 
         // Use a different seed for each chunk to ensure good randomization
         let chunk_seed = seed.unwrap_or(42) + *chunk_idx as u64 * 1000007; // Large prime offset
-        let mut rng = rand::rngs::StdRng::seed_from_u64(chunk_seed);
+        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(chunk_seed);
 
         for &row in row_chunk.iter() {
             // Determine how many elements to generate for this row

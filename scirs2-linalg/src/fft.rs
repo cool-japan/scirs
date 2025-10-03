@@ -36,9 +36,9 @@
 //! - Frigo, M., & Johnson, S. G. (2005). "The design and implementation of FFTW3"
 //! - Oppenheim, A. V., & Schafer, R. W. (2009). "Discrete-Time Signal Processing"
 
-use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3};
-use num_complex::Complex;
-use num_traits::{Float, FloatConst};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, ArrayView3};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, FloatConst};
 use std::f64::consts::PI;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -209,8 +209,8 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::array;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::fft::fft_1d;
 ///
 /// let input = array![
@@ -435,7 +435,7 @@ fn ifft_power_of_2(input: &ArrayView1<Complex64>) -> LinalgResult<Array1<Complex
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::fft::rfft_1d;
 ///
 /// let input = array![1.0, 0.0, 0.0, 0.0];
@@ -483,7 +483,7 @@ pub fn rfft_1d(input: &ArrayView1<f64>) -> LinalgResult<Array1<Complex64>> {
 /// * Real time-domain signal
 #[allow(dead_code)]
 pub fn irfft_1d(input: &ArrayView1<Complex64>, outputsize: usize) -> LinalgResult<Array1<f64>> {
-    if outputsize % 2 != 0 {
+    if !outputsize.is_multiple_of(2) {
         return Err(LinalgError::ShapeError(
             "Output size must be even for IRFFT".to_string(),
         ));
@@ -542,8 +542,8 @@ pub fn irfft_1d(input: &ArrayView1<Complex64>, outputsize: usize) -> LinalgResul
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
-/// use num_complex::Complex;
+/// use scirs2_core::ndarray::Array2;
+/// use scirs2_core::numeric::Complex;
 /// use scirs2_linalg::fft::fft_2d;
 ///
 /// let input = Array2::from_shape_fn((4, 4), |(i, j)| {
@@ -925,7 +925,7 @@ pub fn periodogram_psd(
     }
 
     // Handle DC and Nyquist components for real signals
-    if fftsize % 2 == 0 && fft_result.len() > 1 {
+    if fftsize.is_multiple_of(2) && fft_result.len() > 1 {
         // Double all except DC and Nyquist
         for i in 1..fft_result.len() - 1 {
             psd[i] *= 2.0;
@@ -1031,7 +1031,7 @@ pub fn welch_psd(
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::fft::hadamard_transform;
 ///
 /// let input = array![1.0, 1.0, 1.0, 1.0];
@@ -1219,7 +1219,7 @@ pub fn fft_frequencies(n: usize, sample_rate: f64, realfft: bool) -> Array1<f64>
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_fft_plan_creation() {

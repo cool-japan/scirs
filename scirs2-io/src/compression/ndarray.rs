@@ -9,7 +9,7 @@ use std::path::Path;
 
 use ::serde::{Deserialize, Serialize};
 use bincode::{config, serde as bincode_serde};
-use ndarray::{ArrayBase, Data, Dimension, IxDyn, OwnedRepr};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension, IxDyn, OwnedRepr};
 
 use super::{compress_data, decompress_data, CompressionAlgorithm};
 use crate::error::{IoError, Result};
@@ -464,7 +464,7 @@ pub fn compress_array_zero_copy<A, S>(
 ) -> Result<CompressedArray>
 where
     A: Serialize + Clone + bytemuck::Pod,
-    S: ndarray::Data<Elem = A>,
+    S: scirs2_core::ndarray::Data<Elem = A>,
 {
     if !array.is_standard_layout() {
         return Err(IoError::FormatError(
@@ -587,7 +587,7 @@ where
 #[allow(dead_code)]
 pub fn decompress_array_zero_copy<A>(
     compressed: &CompressedArray,
-) -> Result<ndarray::Array<A, IxDyn>>
+) -> Result<scirs2_core::ndarray::Array<A, IxDyn>>
 where
     A: for<'de> Deserialize<'de> + Clone + bytemuck::Pod,
 {
@@ -688,6 +688,9 @@ where
     };
 
     // Create array from the decompressed data without additional copying
-    ndarray::Array::from_shape_vec(IxDyn(&compressed.metadata.shape), decompressed_data)
-        .map_err(|e| IoError::DeserializationError(e.to_string()))
+    scirs2_core::ndarray::Array::from_shape_vec(
+        IxDyn(&compressed.metadata.shape),
+        decompressed_data,
+    )
+    .map_err(|e| IoError::DeserializationError(e.to_string()))
 }

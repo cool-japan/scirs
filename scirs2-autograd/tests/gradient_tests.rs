@@ -29,7 +29,7 @@ mod tests {
         // Just test that the gradient has the expected shape
         ag::run(|g| {
             // Create a tensor with shape [2, 2]
-            let data = ndarray::array![[1.0, 2.0], [3.0, 4.0]].into_dyn();
+            let data = scirs2_core::ndarray::array![[1.0, 2.0], [3.0, 4.0]].into_dyn();
             let x = T::convert_to_tensor(data.clone(), g);
 
             // Compute y = add(x, scalar)

@@ -4,7 +4,7 @@
 //! that provides a foundation for GPU acceleration while currently using
 //! optimized CPU implementations.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_neural::error::Result;
 // use scirs2_neural::gpu::{create_neural_ops, create_neural_ops_with_backend}; // GPU module disabled
 

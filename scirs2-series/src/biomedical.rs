@@ -5,7 +5,7 @@
 //! other physiological signals.
 
 use crate::error::{Result, TimeSeriesError};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -79,8 +79,10 @@ impl ECGAnalysis {
         let mut integrated = Array1::zeros(squared.len() - window_size + 1);
 
         for i in 0..integrated.len() {
-            integrated[i] =
-                squared.slice(ndarray::s![i..i + window_size]).sum() / window_size as f64;
+            integrated[i] = squared
+                .slice(scirs2_core::ndarray::s![i..i + window_size])
+                .sum()
+                / window_size as f64;
         }
 
         // Peak detection with adaptive thresholding
@@ -92,7 +94,7 @@ impl ECGAnalysis {
 
         // Initialize thresholds
         if integrated.len() > 100 {
-            signal_level = integrated.slice(ndarray::s![0..100]).mean() * 4.0;
+            signal_level = integrated.slice(scirs2_core::ndarray::s![0..100]).mean() * 4.0;
             noise_level = signal_level / 4.0;
             threshold1 = noise_level + 0.25 * (signal_level - noise_level);
             threshold2 = 0.5 * threshold1;
@@ -298,9 +300,9 @@ impl ECGAnalysis {
         }
 
         for i in effective_window..filtered.len() - effective_window {
-            let window = self
-                .signal
-                .slice(ndarray::s![i - effective_window..i + effective_window]);
+            let window = self.signal.slice(scirs2_core::ndarray::s![
+                i - effective_window..i + effective_window
+            ]);
             filtered[i] = window.mean();
         }
 
@@ -386,7 +388,7 @@ impl EEGAnalysis {
             for w in 0..n_windows {
                 let start_idx = w * window_size;
                 let end_idx = (start_idx + window_size).min(channel_signal.len());
-                let window = channel_signal.slice(ndarray::s![start_idx..end_idx]);
+                let window = channel_signal.slice(scirs2_core::ndarray::s![start_idx..end_idx]);
 
                 // Combine multiple seizure indicators
                 let variance = window.variance();
@@ -542,7 +544,7 @@ impl EMGAnalysis {
         let mut envelope = Array1::zeros(rectified.len() - windowsize + 1);
 
         for i in 0..envelope.len() {
-            let slice = rectified.slice(ndarray::s![i..i + windowsize]);
+            let slice = rectified.slice(scirs2_core::ndarray::s![i..i + windowsize]);
             envelope[i] = slice.mean();
         }
 
@@ -572,7 +574,9 @@ impl EMGAnalysis {
         for w in 0..n_windows {
             let start_idx = w * window_size;
             let end_idx = (start_idx + window_size).min(self.signal.len());
-            let window = self.signal.slice(ndarray::s![start_idx..end_idx]);
+            let window = self
+                .signal
+                .slice(scirs2_core::ndarray::s![start_idx..end_idx]);
 
             // Simplified median frequency calculation
             median_freqs[w] = window.variance(); // Proxy for median frequency
@@ -599,7 +603,9 @@ impl EMGAnalysis {
 
         let baseline =
             envelope.iter().take(envelope.len() / 10).sum::<f64>() / (envelope.len() / 10) as f64;
-        let std_baseline = envelope.slice(ndarray::s![0..envelope.len() / 10]).std(0.0);
+        let std_baseline = envelope
+            .slice(scirs2_core::ndarray::s![0..envelope.len() / 10])
+            .std(0.0);
 
         let threshold = baseline + thresholdfactor * std_baseline;
 
@@ -798,7 +804,7 @@ impl Default for BiomedicalAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_ecg_analysis() {

@@ -4,8 +4,8 @@
 //! including 3D animations, convergence animations, real-time streaming visualizations,
 //! and export capabilities for creating videos and interactive presentations.
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
@@ -174,7 +174,10 @@ impl IterativeAnimationRecorder {
         centroids: Option<&Array2<F>>,
         inertia: Option<f64>,
     ) -> Result<()> {
-        if self.current_iteration % self.config.capture_frequency != 0 {
+        if !self
+            .current_iteration
+            .is_multiple_of(self.config.capture_frequency)
+        {
             self.current_iteration += 1;
             return Ok(());
         }
@@ -651,7 +654,7 @@ fn apply_easing(t: f64, easing: EasingFunction) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_animation_recorder() {

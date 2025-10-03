@@ -5,7 +5,7 @@
 
 use crate::traits::*;
 use crate::{InterpolateError, InterpolateResult};
-use ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 
 /// Standard factory function pattern
 ///
@@ -256,7 +256,7 @@ pub mod error_handling {
 /// Comprehensive validation utilities for consistent input checking
 pub mod input_validation {
     use crate::{traits::InterpolationFloat, InterpolateError, InterpolateResult};
-    use ndarray::{ArrayView1, ArrayView2};
+    use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 
     /// Validate that data points are finite and well-formed
     pub fn validate_finite_data<T: InterpolationFloat>(

@@ -5,7 +5,7 @@
 //! and comprehensive GPU memory management.
 
 use crate::error::{Error, Result};
-use ndarray::{s, Array, Array1, Array2, ArrayD};
+use scirs2_core::ndarray::{s, Array, Array1, Array2, ArrayD};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -370,7 +370,7 @@ impl NeuralOps {
             let mut result_slice = result.slice_mut(s![i, .., ..]);
             // Convert to 2D for matrix multiplication
             let a_2d = a_slice
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|e| Error::ComputationError(format!("Failed to convert to 2D: {}", e)))?;
             let b_2d = b_slice
             result_slice.assign(&a_2d.dot(&b_2d));
@@ -386,7 +386,7 @@ impl NeuralOps {
     ) -> Result<ArrayD<f32>> {
         if input.shape() != grad_output.shape() {
                 "Input and gradient shapes must match for ReLU backward".to_string(),
-        Ok(ndarray::Zip::from(input)
+        Ok(scirs2_core::ndarray::Zip::from(input)
             .and(grad_output)
             .map_collect(|&x, &grad| if x > 0.0 { grad } else { 0.0 }))
     /// Sigmoid activation function
@@ -397,7 +397,7 @@ impl NeuralOps {
         output: &ArrayD<f32>,
         if output.shape() != grad_output.shape() {
                 "Output and gradient shapes must match for sigmoid backward".to_string(),
-        Ok(ndarray::Zip::from(output)
+        Ok(scirs2_core::ndarray::Zip::from(output)
             .map_collect(|&sigmoid_out, &grad| grad * sigmoid_out * (1.0 - sigmoid_out)))
     /// Batch normalization forward pass
     pub fn batch_normalize(
@@ -434,7 +434,7 @@ impl NeuralOps {
         let mut output = input.clone();
         let _last_axis = inputshape.len() - 1;
         // Apply softmax along the last axis (features)
-        for mut row in output.axis_iter_mut(ndarray::Axis(0)) {
+        for mut row in output.axis_iter_mut(scirs2_core::ndarray::Axis(0)) {
             // Find max for numerical stability
             let max_val = row.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
             // Subtract max and compute exp
@@ -595,7 +595,7 @@ pub fn create_neural_ops_with_backend(backend: &str) -> Result<NeuralOps> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     #[test]
     fn test_matrix_multiply() {
         let ops = create_neural_ops().unwrap();
@@ -648,7 +648,7 @@ mod tests {
         let input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]].into_dyn();
         let result = ops.softmax_forward(&input).unwrap();
         // Check that each row sums to 1
-        for row in result.axis_iter(ndarray::Axis(0)) {
+        for row in result.axis_iter(scirs2_core::ndarray::Axis(0)) {
             let sum: f64 = row.iter().map(|&x| x as f64).sum();
             assert!((sum - 1.0).abs() < 1e-6);
         }

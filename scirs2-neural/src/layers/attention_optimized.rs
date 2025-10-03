@@ -5,9 +5,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Layer, ParamLayer};
-use ndarray::{Array, ArrayView, IxDyn, ScalarOperand, s, Array2, Axis};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{Array, ArrayView, IxDyn, ScalarOperand, s, Array2, Axis};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::sync::RwLock;
 use std::fmt::Debug;
 // SIMD optimizations using scirs2-core
@@ -26,7 +26,7 @@ pub fn optimized_attention_forward<F>(
     scale: F,
 ) -> Result<Array<F, IxDyn>>
 where
-    F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps + ndarray::LinalgScalar,
+    F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps + scirs2_core::ndarray::LinalgScalar,
 {
     // Check input shape
     if input.ndim() < 3 {
@@ -58,15 +58,15 @@ where
             NeuralError::InferenceError(format!("Failed to reshape input for matmul: {}", e))
         })?;
     // Convert weights to 2D arrays
-    let w_query_2d = w_query.view().into_dimensionality::<ndarray::Ix2>()
+    let w_query_2d = w_query.view().into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NeuralError::InferenceError("Failed to convert query weights to 2D".to_string()))?;
-    let w_key_2d = w_key.view().into_dimensionality::<ndarray::Ix2>()
+    let w_key_2d = w_key.view().into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NeuralError::InferenceError("Failed to convert key weights to 2D".to_string()))?;
-    let w_value_2d = w_value.view().into_dimensionality::<ndarray::Ix2>()
+    let w_value_2d = w_value.view().into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NeuralError::InferenceError("Failed to convert value weights to 2D".to_string()))?;
-    let w_output_2d = w_output.view().into_dimensionality::<ndarray::Ix2>()
+    let w_output_2d = w_output.view().into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NeuralError::InferenceError("Failed to convert output weights to 2D".to_string()))?;
-    let input_2d_view = input_2d.view().into_dimensionality::<ndarray::Ix2>()
+    let input_2d_view = input_2d.view().into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NeuralError::InferenceError("Failed to convert input to 2D view".to_string()))?;
     // Efficient Q, K, V projections using matrix multiplication
     let q_proj_2d = input_2d_view.dot(&w_query_2d);
@@ -98,9 +98,9 @@ where
     let mut attention_scores = Array::zeros((batch_size, num_heads, seq_len, seq_len));
     for b in 0..batch_size {
         for h in 0..num_heads {
-            let q_slice = q_transposed.slice(s![b, h, .., ..]).into_dimensionality::<ndarray::Ix2>()
+            let q_slice = q_transposed.slice(s![b, h, .., ..]).into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NeuralError::InferenceError("Failed to get Q slice".to_string()))?;
-            let k_slice = k_transposed.slice(s![b, h, .., ..]).into_dimensionality::<ndarray::Ix2>()
+            let k_slice = k_transposed.slice(s![b, h, .., ..]).into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NeuralError::InferenceError("Failed to get K slice".to_string()))?;
             
             // Q @ K^T
@@ -136,9 +136,9 @@ where
                         attention_weights[[b, h, i, j]] = attention_weights[[b, h, i, j]] / sum;
     // Apply attention weights to values: attention_weights @ V
     let mut attention_output = Array::zeros((batch_size, num_heads, seq_len, head_dim));
-            let attn_slice = attentionweights.slice(s![b, h, .., ..]).into_dimensionality::<ndarray::Ix2>()
+            let attn_slice = attentionweights.slice(s![b, h, .., ..]).into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NeuralError::InferenceError("Failed to get attention slice".to_string()))?;
-            let v_slice = v_transposed.slice(s![b, h, .., ..]).into_dimensionality::<ndarray::Ix2>()
+            let v_slice = v_transposed.slice(s![b, h, .., ..]).into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .map_err(|_| NeuralError::InferenceError("Failed to get V slice".to_string()))?;
             // attention_weights @ V
             let output = attn_slice.dot(&v_slice);
@@ -151,7 +151,7 @@ where
     // Apply output projection using efficient matrix multiplication
     let attention_output_2d = attention_output_reshaped.view()
         .map_err(|e| NeuralError::InferenceError(format!("Failed to reshape for output projection: {}", e)))?;
-    let attention_output_2d_view = attention_output_2d.into_dimensionality::<ndarray::Ix2>()
+    let attention_output_2d_view = attention_output_2d.into_dimensionality::<scirs2_core::ndarray::Ix2>()
         .map_err(|_| NeuralError::InferenceError("Failed to convert attention output to 2D view".to_string()))?;
     let output_2d = attention_output_2d_view.dot(&w_output_2d);
     let output = output_2d.into_shape((batch_size, seq_len, d_model))

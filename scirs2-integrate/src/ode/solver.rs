@@ -15,7 +15,7 @@ use crate::ode::utils::events::{
 };
 use crate::ode::utils::interpolation::ContinuousOutputMethod;
 use crate::ode::utils::mass_matrix;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Solve an initial value problem (IVP) for a system of ODEs.
 ///
@@ -36,7 +36,7 @@ use ndarray::{Array1, ArrayView1};
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView1};
+/// use scirs2_core::ndarray::{array, ArrayView1};
 /// use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
 ///
 /// // Define ODE system: dy/dt = -y
@@ -67,7 +67,7 @@ use ndarray::{Array1, ArrayView1};
 /// in the options. For example:
 ///
 /// ```
-/// use ndarray::{array, Array2, ArrayView1};
+/// use scirs2_core::ndarray::{array, Array2, ArrayView1};
 /// use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions, MassMatrix};
 ///
 /// // Define a constant mass matrix for the ODE system
@@ -393,7 +393,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView1};
+/// use scirs2_core::ndarray::{array, ArrayView1};
 /// use scirs2_integrate::ode::{
 ///     solve_ivp_with_events, ODEMethod, ODEOptions
 /// };

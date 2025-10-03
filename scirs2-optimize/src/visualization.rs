@@ -5,8 +5,8 @@
 //! surface visualization.
 
 use crate::error::{ScirsError, ScirsResult};
-use ndarray::{Array1, ArrayView1}; // Unused import: Array2, ArrayView2
 use scirs2_core::error_context;
+use scirs2_core::ndarray::{Array1, ArrayView1}; // Unused import: Array2, ArrayView2
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
@@ -73,7 +73,7 @@ impl OptimizationTrajectory {
     pub fn add_custom_metric(&mut self, name: &str, value: f64) {
         self.custom_metrics
             .entry(name.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(value);
     }
 
@@ -854,13 +854,13 @@ impl OptimizationVisualizer {
             if i < trajectory.gradient_norms.len() {
                 row.push_str(&format!(",{}", trajectory.gradient_norms[i]));
             } else if !trajectory.gradient_norms.is_empty() {
-                row.push_str(",");
+                row.push(',');
             }
 
             if i < trajectory.step_sizes.len() {
                 row.push_str(&format!(",{}", trajectory.step_sizes[i]));
             } else if !trajectory.step_sizes.is_empty() {
-                row.push_str(",");
+                row.push(',');
             }
 
             // Parameters
@@ -876,7 +876,7 @@ impl OptimizationVisualizer {
                     if i < values.len() {
                         row.push_str(&format!(",{}", values[i]));
                     } else {
-                        row.push_str(",");
+                        row.push(',');
                     }
                 }
             }
@@ -906,7 +906,7 @@ impl Default for OptimizationVisualizer {
 /// Utility functions for creating trajectory trackers
 pub mod tracking {
     use super::OptimizationTrajectory;
-    use ndarray::ArrayView1;
+    use scirs2_core::ndarray::ArrayView1;
     use std::time::Instant;
 
     /// A callback-based trajectory tracker for use with optimization algorithms
@@ -967,7 +967,7 @@ pub mod tracking {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_trajectory_creation() {

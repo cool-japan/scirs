@@ -3,8 +3,8 @@
 //! This module provides implementations of metrics that are designed to be
 //! numerically stable, particularly for edge cases and extreme values.
 
-use ndarray::{ArrayBase, Data, Dimension};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::numeric::{Float, NumCast};
 
 use crate::error::{MetricsError, Result};
 

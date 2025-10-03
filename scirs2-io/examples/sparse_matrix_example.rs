@@ -8,7 +8,7 @@
 //! - Performance statistics and analysis
 //! - Memory usage optimization
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_io::sparse::{ops, SparseMatrix};
 use std::f64::consts::PI;
 use std::time::Instant;
@@ -319,7 +319,7 @@ fn demonstrate_performance_analysis() -> Result<(), Box<dyn std::error::Error>> 
     let mut sparse = SparseMatrix::new(100, 50);
 
     // Add diagonal elements
-    for i in 0..50.min(100) {
+    for i in 0..50 {
         sparse.push(i, i, 1.0)?;
     }
 

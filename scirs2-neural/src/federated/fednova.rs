@@ -6,8 +6,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::federated::{AggregationStrategy, ClientUpdate};
-use ndarray::prelude::*;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::ndarray::ArrayView1;
 /// FedNova aggregation strategy
 pub struct FedNova {
     /// Momentum parameter for server optimizer

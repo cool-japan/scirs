@@ -4,8 +4,8 @@
 // all filter design and application modules including IIR, FIR, and specialized filters.
 
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -141,8 +141,8 @@ pub enum FilterStability {
 pub mod validation {
     use crate::error::{SignalError, SignalResult};
     use crate::filter::{FilterType, FilterTypeParam};
-    use num_complex::Complex64;
-    use num_traits::{Float, NumCast};
+    use scirs2_core::numeric::Complex64;
+    use scirs2_core::numeric::{Float, NumCast};
     use std::fmt::Debug;
 
     /// Validate filter order
@@ -160,7 +160,7 @@ pub mod validation {
     where
         T: Float + NumCast + Debug,
     {
-        let wn = num_traits::cast::cast::<T, f64>(cutoff).ok_or_else(|| {
+        let wn = NumCast::from(cutoff).ok_or_else(|| {
             SignalError::ValueError(format!("Could not convert {:?} to f64", cutoff))
         })?;
 
@@ -195,7 +195,7 @@ pub mod validation {
 /// Common mathematical operations for filter design
 pub mod math {
     use crate::filter::FilterType;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use std::f64::consts::PI;
 
     /// Pre-warp frequency for bilinear transform

@@ -4,8 +4,8 @@
 //! function values, and boundary conditions to detect potential numerical
 //! issues in interpolation problems.
 
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use statrs::statistics::Statistics;
 use std::fmt::{Debug, Display};
 use std::ops::{AddAssign, SubAssign};
@@ -255,13 +255,13 @@ where
 }
 
 /// Compute Gram matrix G = X^T X for dependency analysis
-fn compute_gram_matrix<F>(points: &ArrayView2<F>) -> ndarray::Array2<F>
+fn compute_gram_matrix<F>(points: &ArrayView2<F>) -> scirs2_core::ndarray::Array2<F>
 where
     F: Float + FromPrimitive + AddAssign,
 {
     let n = points.nrows();
     let dim = points.ncols();
-    let mut gram = ndarray::Array2::zeros((n, n));
+    let mut gram = scirs2_core::ndarray::Array2::zeros((n, n));
 
     for i in 0..n {
         for j in 0..n {
@@ -733,7 +733,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2};
+    use scirs2_core::ndarray::{Array1, Array2};
 
     #[test]
     fn test_analyze_well_distributed_points() {

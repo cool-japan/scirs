@@ -3,7 +3,7 @@
 //! This example demonstrates how to define custom metrics and integrate them
 //! with the scirs2-metrics framework.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_metrics::custom::{
     ClassificationMetric, CustomMetricSuite, MetricResult, RegressionMetric,
 };
@@ -18,8 +18,8 @@ impl ClassificationMetric<f64> for BalancedAccuracy {
 
     fn compute(
         &self,
-        y_true: &ndarray::Array1<i32>,
-        y_pred: &ndarray::Array1<i32>,
+        y_true: &scirs2_core::ndarray::Array1<i32>,
+        y_pred: &scirs2_core::ndarray::Array1<i32>,
     ) -> MetricResult<f64> {
         if y_true.len() != y_pred.len() {
             return Err("Arrays must have the same length".into());
@@ -78,8 +78,8 @@ impl RegressionMetric<f64> for Smape {
 
     fn compute(
         &self,
-        y_true: &ndarray::Array1<f64>,
-        y_pred: &ndarray::Array1<f64>,
+        y_true: &scirs2_core::ndarray::Array1<f64>,
+        y_pred: &scirs2_core::ndarray::Array1<f64>,
     ) -> MetricResult<f64> {
         if y_true.len() != y_pred.len() {
             return Err("Arrays must have the same length".into());
@@ -139,8 +139,8 @@ impl RegressionMetric<f64> for Mase {
 
     fn compute(
         &self,
-        y_true: &ndarray::Array1<f64>,
-        y_pred: &ndarray::Array1<f64>,
+        y_true: &scirs2_core::ndarray::Array1<f64>,
+        y_pred: &scirs2_core::ndarray::Array1<f64>,
     ) -> MetricResult<f64> {
         if y_true.len() != y_pred.len() {
             return Err("Arrays must have the same length".into());

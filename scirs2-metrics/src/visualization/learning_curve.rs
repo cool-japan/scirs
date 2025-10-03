@@ -7,8 +7,8 @@ use std::error::Error;
 
 use super::{MetricVisualizer, PlotType, VisualizationData, VisualizationMetadata};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
-use rand::prelude::*;
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::random::prelude::*;
 
 /// Learning curve data
 ///
@@ -341,8 +341,8 @@ where
     S1: Data<Elem = T>,
     S2: Data<Elem = T>,
 {
-    use rand::Rng;
-    let mut rng = rand::rng();
+    use scirs2_core::random::Rng;
+    let mut rng = scirs2_core::random::rng();
 
     let n_sizes = train_sizes.len();
     let mut train_scores = Vec::with_capacity(n_sizes);
@@ -450,7 +450,7 @@ pub fn learning_curve<T, S1, S2>(
 where
     T: Clone
         + 'static
-        + num_traits::Float
+        + scirs2_core::numeric::Float
         + Send
         + Sync
         + std::fmt::Debug
@@ -488,7 +488,7 @@ where
     let mut validation_scores = Vec::new();
 
     use scirs2_core::simd_ops::SimdUnifiedOps;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Create cross-validation folds
     let fold_size = x.nrows() / cv;
@@ -569,7 +569,7 @@ pub trait ModelPredictor<T> {
 #[allow(dead_code)]
 fn extract_rows<T, S>(arr: &ArrayBase<S, Ix2>, indices: &[usize]) -> Array2<T>
 where
-    T: Clone + num_traits::Zero,
+    T: Clone + scirs2_core::numeric::Zero,
     S: Data<Elem = T>,
 {
     let mut result = Array2::zeros((indices.len(), arr.ncols()));
@@ -583,7 +583,7 @@ where
 #[allow(dead_code)]
 fn extract_elements<T, S>(arr: &ArrayBase<S, Ix1>, indices: &[usize]) -> Array1<T>
 where
-    T: Clone + num_traits::Zero,
+    T: Clone + scirs2_core::numeric::Zero,
     S: Data<Elem = T>,
 {
     let mut result = Array1::zeros(indices.len());
@@ -597,7 +597,12 @@ where
 #[allow(dead_code)]
 fn evaluate_predictions<T>(y_true: &Array1<T>, ypred: &Array1<T>, scoring: &str) -> Result<f64>
 where
-    T: Clone + num_traits::Float + Send + Sync + std::fmt::Debug + std::ops::Sub<Output = T>,
+    T: Clone
+        + scirs2_core::numeric::Float
+        + Send
+        + Sync
+        + std::fmt::Debug
+        + std::ops::Sub<Output = T>,
     for<'a> &'a T: std::ops::Sub<&'a T, Output = T>,
 {
     match scoring.to_lowercase().as_str() {

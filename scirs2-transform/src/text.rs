@@ -4,8 +4,8 @@
 //! suitable for machine learning algorithms.
 
 use ahash::AHasher;
-use ndarray::{Array1, Array2};
 use regex::Regex;
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 

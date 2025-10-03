@@ -3,8 +3,8 @@
 //! This module contains common configuration structures, enums, and utility types
 //! used across all neural forecasting architectures.
 
-use ndarray::{Array1, Array2, Array3};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};

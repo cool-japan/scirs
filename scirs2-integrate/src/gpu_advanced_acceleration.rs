@@ -17,9 +17,9 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, ArrayView1};
 use num_cpus;
 use scirs2_core::gpu::{self, DynamicKernelArg, GpuBackend, GpuDataType};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

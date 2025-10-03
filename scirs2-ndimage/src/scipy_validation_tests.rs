@@ -11,7 +11,7 @@ mod tests {
     use crate::measurements::*;
     use crate::morphology::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Array2, Array3};
+    use scirs2_core::ndarray::{array, Array2, Array3};
 
     /// Test Gaussian filter against known SciPy reference values
     #[test]
@@ -299,7 +299,9 @@ mod tests {
         // Apply Gaussian filter to each slice of 3D volume
         let mut consistent = true;
         for k in 0..5 {
-            let slice = volume_3d.slice(ndarray::s![.., .., k]).to_owned();
+            let slice = volume_3d
+                .slice(scirs2_core::ndarray::s![.., .., k])
+                .to_owned();
             let filtered_slice = gaussian_filter(&slice, 1.0, None, None)
                 .expect("gaussian_filter should succeed for 3D slice");
 

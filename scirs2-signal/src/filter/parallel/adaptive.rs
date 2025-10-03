@@ -49,7 +49,7 @@ pub fn parallel_adaptive_lms_filter(
     let mut delay_line = vec![0.0; filter_length];
 
     // Process in chunks for parallel efficiency
-    let n_chunks = (n + chunk - 1) / chunk;
+    let n_chunks = n.div_ceil(chunk);
 
     for chunk_idx in 0..n_chunks {
         let start = chunk_idx * chunk;
@@ -127,7 +127,7 @@ pub fn parallel_adaptive_nlms_filter(
     let mut delay_line = vec![0.0; filter_length];
 
     // Process in chunks for parallel efficiency
-    let n_chunks = (n + chunk - 1) / chunk;
+    let n_chunks = n.div_ceil(chunk);
 
     for chunk_idx in 0..n_chunks {
         let start = chunk_idx * chunk;
@@ -204,7 +204,7 @@ pub fn parallel_block_lms_filter(
     let mut error = vec![0.0; n];
 
     // Process signal in blocks
-    let n_blocks = (n + block_size - 1) / block_size;
+    let n_blocks = n.div_ceil(block_size);
 
     for block_idx in 0..n_blocks {
         let start = block_idx * block_size;

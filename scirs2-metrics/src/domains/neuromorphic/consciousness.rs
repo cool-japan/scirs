@@ -7,7 +7,7 @@
 #![allow(dead_code)]
 
 use crate::error::Result;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 /// Consciousness simulation module

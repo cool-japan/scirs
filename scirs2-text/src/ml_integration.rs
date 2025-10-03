@@ -11,7 +11,7 @@ use crate::multilingual::{Language, LanguageDetector};
 use crate::sentiment::LexiconSentimentAnalyzer;
 use crate::topic_modeling::LatentDirichletAllocation;
 use crate::vectorize::{TfidfVectorizer, Vectorizer};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 /// Feature extraction mode for machine learning

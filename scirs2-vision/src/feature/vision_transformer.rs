@@ -24,7 +24,7 @@
 use crate::error::{Result, VisionError};
 use crate::feature::KeyPoint;
 use crate::gpu_ops::GpuVisionContext;
-use ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, Axis};
 use statrs::statistics::Statistics;
 
 /// Type alias for feature matches (index, confidence score)
@@ -178,8 +178,9 @@ impl VisionTransformer {
         // Initialize components
         let patch_embedding = PatchEmbedding::new(&config)?;
         let pos_embedding = Self::initialize_positional_embeddings(seq_length, config.hiddendim);
-        let cls_token =
-            Array1::from_shape_fn(config.hiddendim, |_| rand::random::<f32>() * 0.02 - 0.01);
+        let cls_token = Array1::from_shape_fn(config.hiddendim, |_| {
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
+        });
 
         let mut layers = Vec::with_capacity(config.num_layers);
         for _ in 0..config.num_layers {
@@ -356,14 +357,14 @@ impl PatchEmbedding {
         // Initialize convolution weights (out_channels, in_channels, kernel_h, kernel_w)
         let conv_weights = Array4::from_shape_fn(
             (out_channels, in_channels, kernel_size, kernel_size),
-            |_| rand::random::<f32>() * 0.02 - 0.01,
+            |_| scirs2_core::random::random::<f32>() * 0.02 - 0.01,
         );
 
         let bias = Array1::zeros(out_channels);
 
         // Linear projection weights
         let proj_weights = Array2::from_shape_fn((out_channels, out_channels), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
         let proj_bias = Array1::zeros(out_channels);
 
@@ -490,7 +491,7 @@ impl MultiHeadAttention {
         let num_heads = config.num_heads;
         let head_dim = hiddendim / num_heads;
 
-        if hiddendim % num_heads != 0 {
+        if !hiddendim.is_multiple_of(num_heads) {
             return Err(VisionError::InvalidInput(
                 "Hidden dimension must be divisible by number of heads".to_string(),
             ));
@@ -500,16 +501,16 @@ impl MultiHeadAttention {
 
         // Initialize projection weights
         let q_proj = Array2::from_shape_fn((hiddendim, hiddendim), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
         let k_proj = Array2::from_shape_fn((hiddendim, hiddendim), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
         let v_proj = Array2::from_shape_fn((hiddendim, hiddendim), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
         let out_proj = Array2::from_shape_fn((hiddendim, hiddendim), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
 
         Ok(Self {
@@ -569,9 +570,9 @@ impl MultiHeadAttention {
     /// Scaled dot-product attention
     fn scaled_dot_product_attention(
         &self,
-        q: &ndarray::ArrayView2<f32>,
-        k: &ndarray::ArrayView2<f32>,
-        v: &ndarray::ArrayView2<f32>,
+        q: &scirs2_core::ndarray::ArrayView2<f32>,
+        k: &scirs2_core::ndarray::ArrayView2<f32>,
+        v: &scirs2_core::ndarray::ArrayView2<f32>,
     ) -> Result<Array2<f32>> {
         // Compute attention scores: Q @ K^T
         let scores = q.dot(&k.t()) * self.scale;
@@ -624,11 +625,11 @@ impl MLP {
         let mlp_dim = config.mlp_dim;
 
         let fc1_weights = Array2::from_shape_fn((hiddendim, mlp_dim), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
         let fc1_bias = Array1::zeros(mlp_dim);
         let fc2_weights = Array2::from_shape_fn((mlp_dim, hiddendim), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
         let fc2_bias = Array1::zeros(hiddendim);
 
@@ -692,7 +693,7 @@ impl ClassificationHead {
     /// Create new classification head
     fn new(_hidden_dim: usize, numclasses: usize) -> Self {
         let weights = Array2::from_shape_fn((_hidden_dim, numclasses), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
         let bias = Array1::zeros(numclasses);
 
@@ -704,7 +705,7 @@ impl ClassificationHead {
     }
 
     /// Forward pass through classification head
-    fn forward(&self, input: &ndarray::ArrayView1<f32>) -> Result<Array1<f32>> {
+    fn forward(&self, input: &scirs2_core::ndarray::ArrayView1<f32>) -> Result<Array1<f32>> {
         let output = input.dot(&self.weights) + &self.bias;
         Ok(output)
     }
@@ -947,7 +948,7 @@ impl PatchMerging {
     /// Create new patch merging layer
     fn new(hiddendim: usize) -> Result<Self> {
         let reduction = Array2::from_shape_fn((4 * hiddendim, 2 * hiddendim), |_| {
-            rand::random::<f32>() * 0.02 - 0.01
+            scirs2_core::random::random::<f32>() * 0.02 - 0.01
         });
         let norm = LayerNorm::new(4 * hiddendim);
 
@@ -1232,7 +1233,7 @@ impl CrossAttentionLayer {
     ) -> Result<Array2<f32>> {
         // Simplified cross-attention - reuse self-attention but with different inputs
         // In a full implementation, we'd have separate Q, K, V projections
-        let combined = ndarray::stack![Axis(0), q_input.view(), k_input.view()];
+        let combined = scirs2_core::ndarray::stack![Axis(0), q_input.view(), k_input.view()];
         let combined_2d = combined
             .to_shape((
                 combined.shape()[0] * combined.shape()[1],

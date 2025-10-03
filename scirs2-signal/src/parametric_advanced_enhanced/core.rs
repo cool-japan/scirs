@@ -5,8 +5,8 @@
 
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, ArrayView1, ArrayViewMut1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayViewMut1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use scirs2_core::validation::check_positive;
@@ -42,15 +42,15 @@ use super::utils::{
 ///
 /// ```
 /// use scirs2_signal::parametric_advanced_enhanced::{advanced_enhanced_arma, AdvancedEnhancedConfig};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use std::f64::consts::PI;
 ///
 /// // Generate test signal with two sinusoids plus noise
 /// let n = 1024;
 /// let fs = 100.0;
 /// let t: Array1<f64> = Array1::linspace(0.0, (n-1) as f64 / fs, n);
-/// use rand::prelude::*;
-/// let mut rng = rand::rng();
+/// use scirs2_core::random::prelude::*;
+/// let mut rng = scirs2_core::random::rng();
 ///
 /// let signal: Array1<f64> = t.mapv(|ti| {
 ///     (2.0 * PI * 5.0 * ti).sin() +
@@ -88,7 +88,7 @@ where
         .iter()
         .map(|&val| {
             NumCast::from(val).ok_or_else(|| {
-                SignalError::ValueError(format!("Could not convert signal value to f64"))
+                SignalError::ValueError("Could not convert signal value to f64".to_string())
             })
         })
         .collect::<SignalResult<Array1<f64>>>()?;

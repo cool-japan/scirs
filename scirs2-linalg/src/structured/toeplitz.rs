@@ -13,9 +13,9 @@
 //!
 //! The entire matrix is determined by its first row and first column.
 
-use ndarray::ScalarOperand;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::{fmt::Debug, iter::Sum};
 
 use super::StructuredMatrix;
@@ -267,7 +267,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_toeplitz_creation() {

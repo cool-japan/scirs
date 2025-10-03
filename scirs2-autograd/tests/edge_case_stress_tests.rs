@@ -9,7 +9,6 @@
 //! - SIMD operations with edge values
 //! - Memory optimization under stress
 
-use ndarray::{Array, IxDyn};
 use scirs2_autograd as ag;
 use scirs2_autograd::optimization::{
     memory_optimization::{MemoryOptimizationConfig, MemoryOptimizer},
@@ -22,6 +21,7 @@ use scirs2_autograd::parallel::{
 };
 use scirs2_autograd::tensor_ops as T;
 use scirs2_autograd::visualization::{GraphVisualizer, OutputFormat, VisualizationConfig};
+use scirs2_core::ndarray::{Array, IxDyn};
 use std::f32;
 
 /// Test graph visualization with extremely large graphs

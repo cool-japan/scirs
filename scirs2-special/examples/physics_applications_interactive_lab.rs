@@ -15,7 +15,7 @@
 //!
 //! Run with: cargo run --example physics_applications_interactive_lab
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_special::*;
 use std::collections::HashMap;
 use std::f64::consts::{PI, TAU};
@@ -1045,7 +1045,7 @@ fn run_experiment(
         println!();
 
         let input = get_user_input("Enter action: ")?;
-        let parts: Vec<&str> = input.trim().split_whitespace().collect();
+        let parts: Vec<&str> = input.split_whitespace().collect();
 
         match parts.as_slice() {
             ["back"] => break,
@@ -1075,7 +1075,7 @@ fn run_experiment(
 #[allow(dead_code)]
 fn display_current_parameters(parameters: &HashMap<String, ExperimentParameter>) {
     println!("🎛️  **Current Parameters:**");
-    for (_, param) in parameters {
+    for param in parameters.values() {
         println!(
             "  {} ({}) = {} {} - {}",
             param.name, param.symbol, param.current_value, param.units, param.physical_meaning

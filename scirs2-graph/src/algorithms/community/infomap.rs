@@ -83,7 +83,7 @@ where
     let mut best_communities = communities.clone();
     let mut best_code_length = current_code_length;
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _iteration in 0..max_iterations {
         let mut improved = false;

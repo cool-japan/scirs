@@ -4,8 +4,8 @@
 //! capabilities for time series forecasting, including model selection, hyperparameter
 //! optimization, and ensemble combination strategies.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 
@@ -1209,7 +1209,7 @@ impl<F: Float + Debug + Clone + FromPrimitive + std::iter::Sum + 'static> Ensemb
                         .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
                     let median_idx = step_predictions.len() / 2;
-                    ensemble_forecast[step] = if step_predictions.len() % 2 == 0 {
+                    ensemble_forecast[step] = if step_predictions.len().is_multiple_of(2) {
                         (step_predictions[median_idx - 1] + step_predictions[median_idx])
                             / F::from(2).unwrap()
                     } else {

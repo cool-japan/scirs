@@ -85,7 +85,7 @@ fn bench_fft_2d(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("fftn", size),
             &data_2d,
-            |b, data: &ndarray::Array2<f64>| {
+            |b, data: &scirs2_core::ndarray::Array2<f64>| {
                 b.iter(|| {
                     fftn(
                         black_box(&data.clone().into_dyn()),
@@ -185,7 +185,7 @@ fn bench_memory_efficient(c: &mut Criterion) {
         group.bench_with_input(
             BenchmarkId::new("fft2_efficient", size),
             &data_2d,
-            |b, data: &ndarray::Array2<f64>| {
+            |b, data: &scirs2_core::ndarray::Array2<f64>| {
                 b.iter(|| {
                     use scirs2_fft::memory_efficient::{fft2_efficient, FftMode};
                     fft2_efficient(black_box(&data.view()), None, FftMode::Forward, false)

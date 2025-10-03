@@ -5,8 +5,8 @@
 //! interpolation process, particularly for large datasets or when evaluating
 //! at many query points.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -26,7 +26,7 @@ use crate::spatial::kdtree::KdTree;
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::parallel::{ParallelMovingLeastSquares, ParallelConfig, ParallelEvaluate};
 /// use scirs2_interpolate::local::mls::{WeightFunction, PolynomialBasis};
 ///
@@ -248,7 +248,7 @@ where
                 let mut chunk_results = Vec::with_capacity(chunk.shape()[0]);
 
                 for i in 0..chunk.shape()[0] {
-                    let query = chunk.slice(ndarray::s![i, ..]);
+                    let query = chunk.slice(scirs2_core::ndarray::s![i, ..]);
 
                     // Find nearest neighbors using KD-tree
                     let neighbors = match self
@@ -392,7 +392,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_parallel_mls_matches_sequential() {

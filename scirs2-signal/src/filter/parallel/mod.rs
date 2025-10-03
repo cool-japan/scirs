@@ -103,7 +103,7 @@ pub fn parallel_filter_advanced(
     match filter_type {
         ParallelFilterType::FIR { coeffs } => {
             let dummy_denom = vec![1.0];
-            let signal_array = ndarray::Array1::from(signal.to_vec());
+            let signal_array = scirs2_core::ndarray::Array1::from(signal.to_vec());
             parallel_filter_overlap_save(coeffs, &dummy_denom, &signal_array, config.chunk_size)
                 .map(|result| result.to_vec())
         }
@@ -112,7 +112,7 @@ pub fn parallel_filter_advanced(
             numerator,
             denominator,
         } => {
-            let signal_array = ndarray::Array1::from(signal.to_vec());
+            let signal_array = scirs2_core::ndarray::Array1::from(signal.to_vec());
             parallel_filter_overlap_save(numerator, denominator, &signal_array, config.chunk_size)
                 .map(|result| result.to_vec())
         }

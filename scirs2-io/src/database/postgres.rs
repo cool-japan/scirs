@@ -42,7 +42,7 @@ impl DatabaseConnection for PostgreSQLConnection {
     fn insert_array(
         &self,
         _table: &str,
-        _data: ndarray::ArrayView2<f64>,
+        _data: scirs2_core::ndarray::ArrayView2<f64>,
         _columns: &[&str],
     ) -> Result<usize> {
         Err(IoError::UnsupportedFormat(

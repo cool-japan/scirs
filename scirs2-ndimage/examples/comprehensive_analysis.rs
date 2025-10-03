@@ -8,7 +8,7 @@
 //! - Advanced filtering with wavelets and Gabor filters
 //! - GPU backend device detection
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_ndimage::{
     // Analysis functions
     analysis::{
@@ -180,7 +180,7 @@ fn create_testimage() -> Array2<f64> {
             value += 0.4 * (-blob_dist * blob_dist * 50.0).exp();
 
             // Add some noise
-            value += 0.05 * rand::random::<f64>() - 0.025;
+            value += 0.05 * scirs2_core::random::random::<f64>() - 0.025;
 
             image[[i, j]] = value.clamp(0.0, 1.0);
         }
@@ -195,7 +195,8 @@ fn demonstrate_quality_assessment(image: &Array2<f64>) -> NdimageResult<()> {
     println!("------------------------------------");
 
     // Create a slightly modified version for comparison
-    let noisyimage = image.mapv(|x| (x + 0.02 * rand::random::<f64>()).clamp(0.0, 1.0));
+    let noisyimage =
+        image.mapv(|x| (x + 0.02 * scirs2_core::random::random::<f64>()).clamp(0.0, 1.0));
 
     // Compute comprehensive quality metrics
     let metrics = image_quality_assessment(&image.view(), &noisyimage.view())?;
@@ -337,7 +338,7 @@ fn demonstrate_advanced_filtering(image: &Array2<f64>) -> NdimageResult<()> {
     );
 
     // Standard filters for comparison
-    let gaussian_result = gaussian_filter(&image, 2.0, None, None)?;
+    let gaussian_result = gaussian_filter(image, 2.0, None, None)?;
     println!("  Gaussian filter: Applied (sigma: 2.0)");
     println!(
         "    Output range: [{:.3}, {:.3}]",
@@ -351,7 +352,7 @@ fn demonstrate_advanced_filtering(image: &Array2<f64>) -> NdimageResult<()> {
             .fold(f64::NEG_INFINITY, f64::max)
     );
 
-    let sobel_result = sobel(&image, 0, None)?;
+    let sobel_result = sobel(image, 0, None)?;
     println!("  Sobel edge detection: Applied");
     println!(
         "    Output range: [{:.3}, {:.3}]",
@@ -372,7 +373,8 @@ fn demonstrate_wavelet_analysis(image: &Array2<f64>) -> NdimageResult<()> {
     println!("----------------------------------");
 
     // Add noise for denoising demonstration
-    let noisyimage = image.mapv(|x| (x + 0.05 * rand::random::<f64>()).clamp(0.0, 1.0));
+    let noisyimage =
+        image.mapv(|x| (x + 0.05 * scirs2_core::random::random::<f64>()).clamp(0.0, 1.0));
 
     // Test different wavelet families
     let wavelets = [
@@ -526,12 +528,12 @@ fn demonstrate_performance_comparison(image: &Array2<f64>) -> NdimageResult<()> 
 
     // Gaussian filter timing
     let start = Instant::now();
-    let _gaussian = gaussian_filter(&image, 2.0, None, None)?;
+    let _gaussian = gaussian_filter(image, 2.0, None, None)?;
     let gaussian_time = start.elapsed();
 
     // Sobel filter timing
     let start = Instant::now();
-    let _sobel = sobel(&image, 0, None)?;
+    let _sobel = sobel(image, 0, None)?;
     let sobel_time = start.elapsed();
 
     // Gabor filter timing
@@ -563,4 +565,3 @@ fn demonstrate_performance_comparison(image: &Array2<f64>) -> NdimageResult<()> 
 }
 
 // Include rand for the random number generation in the example
-extern crate rand;

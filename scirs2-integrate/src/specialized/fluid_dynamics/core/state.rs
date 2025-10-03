@@ -1,6 +1,6 @@
 //! Fluid state representations for 2D and 3D computational fluid dynamics.
 
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 
 /// Fluid state representation for 2D fluid dynamics
 #[derive(Debug, Clone)]

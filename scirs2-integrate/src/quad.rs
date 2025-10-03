@@ -123,7 +123,7 @@ where
         return Ok(F::zero());
     }
 
-    if n % 2 != 0 {
+    if !n.is_multiple_of(2) {
         return Err(IntegrateError::ValueError(
             "Number of intervals must be even".to_string(),
         ));
@@ -308,7 +308,7 @@ where
         return Ok(F::zero());
     }
 
-    if n % 2 != 0 {
+    if !n.is_multiple_of(2) {
         return Err(IntegrateError::ValueError(
             "Number of intervals must be even".to_string(),
         ));

@@ -59,7 +59,7 @@
 //!     volatility::realized_volatility,
 //!     technical_indicators::{sma, ema, rsi},
 //! };
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! // Prepare price and return data (extend for RSI calculation)
 //! let prices = array![100.0, 102.0, 101.5, 103.0, 102.5, 104.0, 105.5, 104.0, 106.0, 107.0,
@@ -88,7 +88,7 @@
 //! let extended_returns = (0..100).map(|i| {
 //!     0.01 * (i as f64 * 0.1).sin() + 0.005 * ((i as f64 * 0.05).cos() - 1.0)
 //! }).collect::<Vec<f64>>();
-//! let returns_array = ndarray::Array1::from_vec(extended_returns);
+//! let returns_array = scirs2_core::ndarray::Array1::from_vec(extended_returns);
 //!
 //! // Fit GARCH model for volatility forecasting
 //! let mut garch_model = GarchModel::new(GarchConfig::default());
@@ -112,7 +112,7 @@
 //! };
 //!
 //! // Calculate VaR and Expected Shortfall (use extended returns)
-//! let returns_array = ndarray::array![0.02, -0.0049, 0.0148, -0.0049, 0.0146, 0.0144];
+//! let returns_array = scirs2_core::ndarray::array![0.02, -0.0049, 0.0148, -0.0049, 0.0146, 0.0144];
 //! let var_95 = var_historical(&returns_array, 0.95).unwrap();
 //! let es_95 = expected_shortfall(&returns_array, 0.95).unwrap();
 //! println!("95% VaR: {:.4}, 95% ES: {:.4}", var_95, es_95);
@@ -129,7 +129,7 @@
 //!     *price *= 1.0 + return_val;
 //!     Some(*price)
 //! }).collect::<Vec<f64>>();
-//! let prices_array = ndarray::Array1::from_vec(extended_prices);
+//! let prices_array = scirs2_core::ndarray::Array1::from_vec(extended_prices);
 //! let max_dd = max_drawdown(&prices_array).unwrap();
 //! let calmar = calmar_ratio(&returns_array, &prices_array, periods_per_year).unwrap();
 //!
@@ -143,7 +143,7 @@
 //!     Portfolio, risk_parity_portfolio, minimum_variance_portfolio,
 //!     calculate_portfolio_returns, calculate_portfolio_metrics,
 //! };
-//! use ndarray::{Array2, array};
+//! use scirs2_core::ndarray::{Array2, array};
 //!
 //! // Multi-asset portfolio optimization
 //! let asset_names = vec!["AAPL".to_string(), "GOOGL".to_string(), "MSFT".to_string()];
@@ -203,7 +203,7 @@
 //! };
 //!
 //! // Advanced technical indicators (use extended prices)
-//! let prices_array = ndarray::array![100.0, 101.0, 102.0, 101.5, 103.0, 102.5, 104.0, 103.5, 105.0, 104.5, 106.0];
+//! let prices_array = scirs2_core::ndarray::array![100.0, 101.0, 102.0, 101.5, 103.0, 102.5, 104.0, 103.5, 105.0, 104.5, 106.0];
 //! let bb_conf = BollingerBandsConfig { period: 5, std_dev_multiplier: 2.0, ma_type: MovingAverageType::Simple };
 //! let bb_result = advanced_bollinger_bands(&prices_array, &bb_conf).unwrap();
 //! println!("Bollinger Bands - Upper: {:.2}, Lower: {:.2}", bb_result.upper_band[0], bb_result.lower_band[0]);

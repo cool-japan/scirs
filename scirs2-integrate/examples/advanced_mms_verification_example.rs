@@ -3,7 +3,7 @@
 //! This example demonstrates the enhanced MMS toolkit with new solution types,
 //! 3D support, and automated verification workflows.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_integrate::{
     ode::{solve_ivp, ODEMethod, ODEOptions},
     verification::{
@@ -13,7 +13,7 @@ use scirs2_integrate::{
     },
 };
 
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use scirs2_integrate::IntegrateError;
 use std::f64::consts::PI;
 
@@ -65,8 +65,9 @@ fn exponential_ode_verification() -> Result<(), Box<dyn std::error::Error>> {
 
     for &h in &step_sizes {
         // Solve the manufactured ODE with implicit method
-        let manufactured_rhs =
-            |t: f64, _y: ndarray::ArrayView1<f64>| Array1::from_vec(vec![problem.source_term(t)]);
+        let manufactured_rhs = |t: f64, _y: scirs2_core::ndarray::ArrayView1<f64>| {
+            Array1::from_vec(vec![problem.source_term(t)])
+        };
 
         let options = ODEOptions {
             method: ODEMethod::Radau, // Good for stiff exponential decay

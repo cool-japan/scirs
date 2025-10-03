@@ -4,11 +4,11 @@
 //! data for neural network training and evaluation.
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, Axis, IxDyn, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
-// use rand::rngs::SmallRng;
-use rand::seq::SliceRandom;
-// use rand::SeedableRng;
+use scirs2_core::ndarray::{Array, Axis, IxDyn, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
+// use scirs2_core::random::rngs::SmallRng;
+use scirs2_core::random::seq::SliceRandom;
+// use scirs2_core::random::SeedableRng;
 use std::fmt::Debug;
 mod augmentation;
 mod dataloader;
@@ -97,8 +97,8 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> InMemoryDat
                 index,
                 self.len()
         // Get slices and convert to dynamic dimension arrays
-        let x_slice = self.features.slice(ndarray::s![index, ..]);
-        let y_slice = self.labels.slice(ndarray::s![index, ..]);
+        let x_slice = self.features.slice(scirs2_core::ndarray::s![index, ..]);
+        let y_slice = self.labels.slice(scirs2_core::ndarray::s![index, ..]);
         let xshape = x_slice.shape().to_vec();
         let yshape = y_slice.shape().to_vec();
         let x = x_slice

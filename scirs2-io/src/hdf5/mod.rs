@@ -16,7 +16,7 @@
 //! - Performance optimizations for large datasets
 
 use crate::error::{IoError, Result};
-use ndarray::{ArrayBase, ArrayD, IxDyn};
+use scirs2_core::ndarray::{ArrayBase, ArrayD, IxDyn};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::path::Path;
@@ -1096,9 +1096,9 @@ impl HDF5File {
         options: Option<DatasetOptions>,
     ) -> Result<()>
     where
-        A: ndarray::Data,
+        A: scirs2_core::ndarray::Data,
         A::Elem: Clone + std::fmt::Debug,
-        D: ndarray::Dimension,
+        D: scirs2_core::ndarray::Dimension,
     {
         let parts: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
         if parts.is_empty() {
@@ -1160,7 +1160,7 @@ impl HDF5File {
             })
             .collect();
 
-        ArrayD::from_shape_vec(ndarray::IxDyn(&shape), converted)
+        ArrayD::from_shape_vec(scirs2_core::ndarray::IxDyn(&shape), converted)
             .map_err(|e| IoError::FormatError(format!("Failed to create typed array: {}", e)))
     }
 
@@ -1500,7 +1500,7 @@ impl HDF5File {
     }
 
     fn list_items_recursive(&self, group: &Group, prefix: &str, items: &mut Vec<String>) {
-        for (name, _) in &group.datasets {
+        for name in group.datasets.keys() {
             let path = if prefix.is_empty() {
                 format!("/{}", name)
             } else {
@@ -1570,7 +1570,7 @@ pub fn read_hdf5<P: AsRef<Path>>(path: P) -> Result<Group> {
 ///
 /// # Example
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use std::collections::HashMap;
 /// use scirs2_io::hdf5::write_hdf5;
 ///
@@ -1603,7 +1603,7 @@ pub fn write_hdf5<P: AsRef<Path>>(path: P, datasets: HashMap<String, ArrayD<f64>
 /// # Example
 /// ```no_run
 /// use scirs2_io::hdf5::{create_hdf5_with_structure, AttributeValue};
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// create_hdf5_with_structure("structured.h5", |file| {
 ///     let root = file.root_mut();

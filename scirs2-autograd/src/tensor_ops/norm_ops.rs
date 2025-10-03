@@ -2,7 +2,7 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops;
 use crate::Float;
-use ndarray::{Array1, Array2, ArrayView2, Ix2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Ix2};
 
 /// Frobenius norm operation with improved gradient computation
 pub struct FrobeniusNormOp;
@@ -22,7 +22,7 @@ impl<F: Float> Op<F> for FrobeniusNormOp {
         }
 
         let norm = sum_squared.sqrt();
-        ctx.append_output(ndarray::arr0(norm).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(norm).into_dyn());
         Ok(())
     }
 
@@ -74,7 +74,7 @@ impl<F: Float> Op<F> for FrobeniusNormOp {
 /// Spectral norm operation with proper gradient computation
 pub struct SpectralNormOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for SpectralNormOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SpectralNormOp {
     fn name(&self) -> &'static str {
         "SpectralNorm"
     }
@@ -98,7 +98,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SpectralNormOp {
         // Use power iteration to find the largest singular value
         let (_, sigma_max) = power_iteration_spectral(&matrix, 50, F::from(1e-8).unwrap());
 
-        ctx.append_output(ndarray::arr0(sigma_max).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(sigma_max).into_dyn());
         Ok(())
     }
 
@@ -141,7 +141,7 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for SpectralNormOp {
 /// Nuclear norm operation with proper gradient computation
 pub struct NuclearNormOp;
 
-impl<F: Float + ndarray::ScalarOperand> Op<F> for NuclearNormOp {
+impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for NuclearNormOp {
     fn name(&self) -> &'static str {
         "NuclearNorm"
     }
@@ -165,14 +165,14 @@ impl<F: Float + ndarray::ScalarOperand> Op<F> for NuclearNormOp {
         // Check for diagonal matrix special case
         if is_diagonal_matrix(&matrix) {
             let nuclear_norm = compute_diagonal_nuclear_norm(&matrix);
-            ctx.append_output(ndarray::arr0(nuclear_norm).into_dyn());
+            ctx.append_output(scirs2_core::ndarray::arr0(nuclear_norm).into_dyn());
             return Ok(());
         }
 
         // For general matrices, compute nuclear norm as sum of singular values
         let nuclear_norm = compute_nuclear_norm_improved(&matrix);
 
-        ctx.append_output(ndarray::arr0(nuclear_norm).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(nuclear_norm).into_dyn());
         Ok(())
     }
 
@@ -244,7 +244,7 @@ fn compute_diagonal_nuclear_norm<F: Float>(matrix: &ArrayView2<F>) -> F {
 
 #[allow(dead_code)]
 /// Compute nuclear norm using power iteration approximation
-fn compute_nuclear_norm_approximation<F: Float + ndarray::ScalarOperand>(
+fn compute_nuclear_norm_approximation<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
 ) -> F {
     let (m, n) = matrix.dim();
@@ -293,7 +293,7 @@ fn compute_nuclear_norm_approximation<F: Float + ndarray::ScalarOperand>(
 
 /// Power iteration for spectral norm
 #[allow(dead_code)]
-fn power_iteration_spectral<F: Float + ndarray::ScalarOperand>(
+fn power_iteration_spectral<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
     max_iter: usize,
     tol: F,
@@ -355,7 +355,7 @@ fn power_iteration_spectral<F: Float + ndarray::ScalarOperand>(
 
 /// Compute gradient for spectral norm
 #[allow(dead_code)]
-fn compute_spectral_norm_gradient<F: Float + ndarray::ScalarOperand>(
+fn compute_spectral_norm_gradient<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
     grad_scalar: F,
 ) -> Array2<F> {
@@ -406,7 +406,7 @@ fn compute_spectral_norm_gradient<F: Float + ndarray::ScalarOperand>(
 
 #[allow(dead_code)]
 /// Compute gradient for nuclear norm
-fn compute_nuclear_norm_gradient<F: Float + ndarray::ScalarOperand>(
+fn compute_nuclear_norm_gradient<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
     grad_scalar: F,
 ) -> Array2<F> {
@@ -445,7 +445,9 @@ fn compute_nuclear_norm_gradient<F: Float + ndarray::ScalarOperand>(
 
 /// Improved nuclear norm computation using better SVD approximation
 #[allow(dead_code)]
-fn compute_nuclear_norm_improved<F: Float + ndarray::ScalarOperand>(matrix: &ArrayView2<F>) -> F {
+fn compute_nuclear_norm_improved<F: Float + scirs2_core::ndarray::ScalarOperand>(
+    matrix: &ArrayView2<F>,
+) -> F {
     let (m, n) = matrix.dim();
     let min_dim = m.min(n);
 
@@ -491,7 +493,7 @@ fn compute_nuclear_norm_improved<F: Float + ndarray::ScalarOperand>(matrix: &Arr
 
 /// Improved nuclear norm gradient computation
 #[allow(dead_code)]
-fn compute_nuclear_norm_gradient_improved<F: Float + ndarray::ScalarOperand>(
+fn compute_nuclear_norm_gradient_improved<F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &ArrayView2<F>,
     grad_scalar: F,
 ) -> Array2<F> {
@@ -568,7 +570,7 @@ pub fn frobenius_norm<'g, F: Float>(matrix: &Tensor<'g, F>) -> Tensor<'g, F> {
 }
 
 #[allow(dead_code)]
-pub fn spectral_norm<'g, F: Float + ndarray::ScalarOperand>(
+pub fn spectral_norm<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();
@@ -578,7 +580,7 @@ pub fn spectral_norm<'g, F: Float + ndarray::ScalarOperand>(
 }
 
 #[allow(dead_code)]
-pub fn nuclear_norm<'g, F: Float + ndarray::ScalarOperand>(
+pub fn nuclear_norm<'g, F: Float + scirs2_core::ndarray::ScalarOperand>(
     matrix: &Tensor<'g, F>,
 ) -> Tensor<'g, F> {
     let g = matrix.graph();

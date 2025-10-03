@@ -117,8 +117,8 @@ impl<F: Float> Op<F> for CheckpointOp {
                     // For now with our temporary gradient fix, we'll use a simple ones tensor
                     // with the same shape as the input
                     let shape_tensor = crate::tensor_ops::convert_to_tensor(
-                        ndarray::Array::from_shape_vec(
-                            ndarray::IxDyn(&[inputshape.len()]),
+                        scirs2_core::ndarray::Array::from_shape_vec(
+                            scirs2_core::ndarray::IxDyn(&[inputshape.len()]),
                             inputshape
                                 .iter()
                                 .map(|&x| F::from(x).unwrap())

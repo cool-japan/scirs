@@ -11,8 +11,8 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::simd_enhanced_v6::AdvancedSimdOps;
-use ndarray::ArrayView1;
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     simd_ops::{PlatformCapabilities, SimdUnifiedOps},
     validation::*,
@@ -128,6 +128,26 @@ pub struct CacheAwareVectorProcessor {
     l2_blocksize: usize,
     vector_width: usize,
     prefetch_distance: usize,
+}
+
+impl<F> Default for AdvancedSimdProcessor<F>
+where
+    F: Float
+        + NumCast
+        + SimdUnifiedOps
+        + Zero
+        + One
+        + PartialOrd
+        + Copy
+        + Send
+        + Sync
+        + std::fmt::Display
+        + std::iter::Sum<F>
+        + AdvancedSimdOps<F>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F> AdvancedSimdProcessor<F>
@@ -279,7 +299,7 @@ where
                 let end = (start + vector_width).min(n);
 
                 if start < n {
-                    let chunk = data.slice(ndarray::s![start..end]);
+                    let chunk = data.slice(scirs2_core::ndarray::s![start..end]);
 
                     // Use advanced-optimized SIMD operations
                     let (sum, sum_sq, sum_cube, sum_quad, min_val, max_val) =
@@ -440,7 +460,7 @@ where
                 let end = start + vector_width;
 
                 if end <= n {
-                    let chunk = data.slice(ndarray::s![start..end]);
+                    let chunk = data.slice(scirs2_core::ndarray::s![start..end]);
                     let (sum, sum_sq, sum_cube, sum_quad, chunk_min, chunk_max) =
                         self.compute_vector_moments(&chunk)?;
 
@@ -539,7 +559,7 @@ where
         for block_idx in 0..n_blocks {
             let start = block_idx * blocksize;
             let end = start + blocksize;
-            let block = data.slice(ndarray::s![start..end]);
+            let block = data.slice(scirs2_core::ndarray::s![start..end]);
 
             // Process block with SIMD, ensuring it stays in cache
             let block_result = self.process_cache_block(&block)?;
@@ -561,7 +581,7 @@ where
         // Handle remainder
         if remainder > 0 {
             let start = n_blocks * blocksize;
-            let remainder_block = data.slice(ndarray::s![start..]);
+            let remainder_block = data.slice(scirs2_core::ndarray::s![start..]);
             let remainder_result = self.process_cache_block(&remainder_block)?;
 
             sum_acc = sum_acc + remainder_result.sum;
@@ -636,7 +656,7 @@ where
         for i in 0..n_vectors {
             let start = i * vector_width;
             let end = start + vector_width;
-            let chunk = data.slice(ndarray::s![start..end]);
+            let chunk = data.slice(scirs2_core::ndarray::s![start..end]);
 
             let chunk_sum = F::simd_sum(&chunk);
             let chunk_sum_sq = F::simd_sum_squares(&chunk);
@@ -719,7 +739,7 @@ where
         for i in 0..n_vectors {
             let start = i * vector_width;
             let end = start + vector_width;
-            let chunk = block.slice(ndarray::s![start..end]);
+            let chunk = block.slice(scirs2_core::ndarray::s![start..end]);
 
             let (chunk_sum, chunk_sum_sq, chunk_sum_cube, chunk_sum_quad, chunk_min, chunk_max) =
                 self.compute_vector_moments(&chunk)?;
@@ -874,7 +894,7 @@ pub fn advanced_mean_f64(data: &ArrayView1<f64>) -> StatsResult<AdvancedStatsRes
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_stats::advanced_mean_f32;
 ///
 /// let data = Array1::from_vec(vec![1.0f32, 2.0, 3.0, 4.0, 5.0]);
@@ -889,7 +909,7 @@ pub fn advanced_mean_f32(data: &ArrayView1<f32>) -> StatsResult<AdvancedStatsRes
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array, Array1};
+    use scirs2_core::ndarray::{array, Array1};
 
     #[test]
     #[ignore = "timeout"]

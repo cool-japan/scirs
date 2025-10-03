@@ -11,9 +11,9 @@
 //! - Tensor network methods for high-dimensional statistics
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
+use scirs2_core::random::Rng;
 use scirs2_core::{parallel_ops::*, simd_ops::SimdUnifiedOps, validation::*};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -661,7 +661,7 @@ where
         }
 
         // Check if data is suitable for quantum encoding
-        if self.validate_quantum_encoding_feasibility(data)? == false {
+        if !(self.validate_quantum_encoding_feasibility(data)?) {
             return Err(StatsError::ComputationError(
                 "Data not suitable for quantum encoding - consider preprocessing".to_string(),
             ));
@@ -1143,7 +1143,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_quantum_analyzer_creation() {
@@ -1188,7 +1188,7 @@ where
         + Sync
         + std::fmt::Display
         + std::iter::Sum<F>
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     /// Quantum-inspired Monte Carlo with variance reduction
     pub fn quantum_monte_carlo_integration(
@@ -1978,7 +1978,7 @@ impl<F: Float + NumCast + std::fmt::Display> AdvancedQuantumAnalyzer<F> {
     fn generate_quantum_noise(&self) -> F {
         // Simulate quantum noise from environmental decoherence
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let noise: f64 = rng.gen_range(-0.01..0.01);
         F::from(noise).unwrap()
     }

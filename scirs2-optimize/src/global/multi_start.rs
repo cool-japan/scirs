@@ -7,11 +7,11 @@ use crate::error::OptimizeError;
 use crate::unconstrained::{
     minimize, Bounds as UnconstrainedBounds, Method as UnconstrainedMethod, OptimizeResult, Options,
 };
-use ndarray::{Array1, ArrayView1};
-use rand::prelude::SliceRandom;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::parallel_ops::*;
+use scirs2_core::random::prelude::SliceRandom;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Rng, SeedableRng};
 
 /// Options for multi-start optimization
 #[derive(Debug, Clone)]
@@ -79,7 +79,7 @@ where
         let ndim = bounds.len();
         let seed = options
             .seed
-            .unwrap_or_else(|| rand::rng().random_range(0..u64::MAX));
+            .unwrap_or_else(|| scirs2_core::random::rng().random_range(0..u64::MAX));
         let rng = StdRng::seed_from_u64(seed);
 
         Self {

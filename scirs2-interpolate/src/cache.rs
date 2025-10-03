@@ -17,7 +17,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //! use scirs2_interpolate::cache::{CachedBSpline, BSplineCache};
 //! use scirs2_interpolate::bspline::ExtrapolateMode;
 //!
@@ -41,8 +41,8 @@
 
 use crate::bspline::{BSpline, ExtrapolateMode};
 use crate::error::InterpolateResult;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
@@ -652,7 +652,7 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     /// use scirs2_interpolate::cache::{CachedBSpline, BSplineCache, CacheConfig};
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -703,7 +703,7 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     /// use scirs2_interpolate::cache::make_cached_bspline;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -944,7 +944,7 @@ where
     /// # Examples
     ///
     /// ```rust
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     /// use scirs2_interpolate::cache::make_cached_bspline;
     /// use scirs2_interpolate::bspline::ExtrapolateMode;
     ///
@@ -1150,7 +1150,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore] // FIXME: Test failing - needs investigation
@@ -1225,7 +1225,8 @@ mod tests {
             let mut distances = Array2::zeros((n, n));
             for i in 0..n {
                 for j in 0..n {
-                    let diff = &pts.slice(ndarray::s![i, ..]) - &pts.slice(ndarray::s![j, ..]);
+                    let diff = &pts.slice(scirs2_core::ndarray::s![i, ..])
+                        - &pts.slice(scirs2_core::ndarray::s![j, ..]);
                     distances[[i, j]] = diff.iter().map(|&x| x * x).sum::<f64>().sqrt();
                 }
             }

@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::eigh;
 
 #[test]
@@ -10,7 +10,7 @@ fn test_3x3_eigenvalue_precision() {
 
     // Check A * V = V * Λ with high precision
     let av = symmetricmatrix.dot(&eigenvecs);
-    let vl = eigenvecs.dot(&ndarray::Array2::from_diag(&eigenvals));
+    let vl = eigenvecs.dot(&scirs2_core::ndarray::Array2::from_diag(&eigenvals));
 
     let mut max_error = 0.0f64;
     for i in 0..3 {
@@ -28,7 +28,7 @@ fn test_3x3_eigenvalue_precision() {
 
     // Check orthogonality
     let vtv = eigenvecs.t().dot(&eigenvecs);
-    let identity = ndarray::Array2::<f64>::eye(3);
+    let identity = scirs2_core::ndarray::Array2::<f64>::eye(3);
 
     let mut max_ortho_error = 0.0f64;
     for i in 0..3 {

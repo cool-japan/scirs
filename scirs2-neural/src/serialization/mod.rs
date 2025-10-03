@@ -4,10 +4,10 @@ use crate::activations::*;
 use crate::error::{NeuralError, Result};
 use crate::layers::*;
 use crate::models::sequential::Sequential;
-use ndarray::{Array, ScalarOperand};
-use num_traits::Float;
-use num_traits::ToPrimitive;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::numeric::ToPrimitive;
+use scirs2_core::random::SeedableRng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -215,7 +215,7 @@ fn serialize_model<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
 /// Extract parameters from layer
 #[allow(dead_code)]
 fn extract_parameters<F: Float + Debug + ScalarOperand + Send + Sync>(
-    params: Vec<&Array<F, ndarray::IxDyn>>,
+    params: Vec<&Array<F, scirs2_core::ndarray::IxDyn>>,
 ) -> Result<Vec<Vec<f64>>> {
     let mut result = Vec::new();
     for param in params.iter() {
@@ -265,7 +265,7 @@ fn deserialize_model<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
             bound_layers.push(Box::new(conv.clone()));
         } else if let Some(bn) = layer_ref.as_any().downcast_ref::<BatchNorm<F>>() {
             // Create a new instance rather than cloning to avoid RefCell issues
-            let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+            let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
             let new_bn = BatchNorm::new(
                 bn.num_features(),
                 bn.momentum().to_f64().unwrap(),
@@ -295,7 +295,7 @@ fn create_dense_layer<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
     config: &DenseConfig,
     params: &[Vec<f64>],
 ) -> Result<Dense<F>> {
-    let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+    let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
     let mut layer = Dense::new(
         config.input_dim,
         config.output_dim,
@@ -392,7 +392,7 @@ fn create_maxpool2d<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
 fn array_from_vec<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
     vec: &[f64],
     shape: &[usize],
-) -> Result<Array<F, ndarray::IxDyn>> {
+) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
     let shape_size: usize = shape.iter().product();
     if vec.len() != shape_size {
         return Err(NeuralError::SerializationError(format!(
@@ -407,7 +407,7 @@ fn array_from_vec<F: Float + Debug + ScalarOperand + Send + Sync + 'static>(
                 NeuralError::SerializationError(format!("Cannot convert {} to target type", x))
         })
         .collect::<Result<Vec<F>>>()?;
-    let shape_ix = ndarray::IxDyn(shape);
+    let shape_ix = scirs2_core::ndarray::IxDyn(shape);
     Ok(Array::from_shape_vec(shape_ix, f_vec)?)
 /// Serializable activation function
 pub enum ActivationFunction {

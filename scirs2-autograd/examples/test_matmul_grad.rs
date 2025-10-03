@@ -7,8 +7,9 @@ fn main() {
     let mut env = ag::VariableEnvironment::new();
 
     // Create matrices
-    let a_array = ndarray::arr2(&[[1.0f32, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]]).into_dyn();
-    let b_array = ndarray::arr2(&[[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]]).into_dyn();
+    let a_array =
+        scirs2_core::ndarray::arr2(&[[1.0f32, 2.0], [3.0, 4.0], [5.0, 6.0], [7.0, 8.0]]).into_dyn();
+    let b_array = scirs2_core::ndarray::arr2(&[[1.0f32, 2.0, 3.0], [4.0, 5.0, 6.0]]).into_dyn();
 
     let a_id = env.set(a_array);
     let b_id = env.set(b_array);

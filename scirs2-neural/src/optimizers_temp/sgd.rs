@@ -2,8 +2,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::optimizers::Optimizer;
-use ndarray::Array;
-use num_traits::Float;
+use scirs2_core::ndarray::Array;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 // Import from scirs2-optim
 use scirs2_optim::optimizers as optim_optimizers;
@@ -18,7 +18,7 @@ use scirs2_optim::optimizers as optim_optimizers;
 /// ```
 /// use scirs2_neural::optimizers::SGD;
 /// use scirs2_neural::optimizers::Optimizer;
-/// use ndarray::Array;
+/// use scirs2_core::ndarray::Array;
 /// // Create SGD optimizer with learning rate 0.01 and momentum 0.9
 /// let mut sgd = SGD::new(0.01, Some(0.9));
 /// // Initialize parameters and gradients
@@ -72,8 +72,8 @@ impl<F: Float + Debug> SGD<F> {
         self.weight_decay = weight_decay;
         self.inner.set_weight_decay(weight_decay);
 impl<F: Float + Debug> Optimizer<F> for SGD<F> {
-    fn update(&mut self, params: &mut [Array<F, ndarray::IxDyn>], 
-              grads: &[Array<F, ndarray::IxDyn>]) -> Result<()> {
+    fn update(&mut self, params: &mut [Array<F, scirs2_core::ndarray::IxDyn>], 
+              grads: &[Array<F, scirs2_core::ndarray::IxDyn>]) -> Result<()> {
         if params.len() != grads.len() {
             return Err(NeuralError::TrainingError(format!(
                 "Parameter and gradient counts do not match: {} vs {}",

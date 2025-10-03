@@ -3,8 +3,8 @@
 //! This module provides memory-efficient versions of filters that can process
 //! large arrays by dividing them into chunks.
 
-use ndarray::{Array, ArrayView, Dimension, IxDyn};
-use num_traits::{Float, FromPrimitive, NumCast, Zero};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast, Zero};
 use std::fmt::Debug;
 
 use crate::chunked::{process_chunked, ChunkConfig, ChunkPosition, ChunkProcessor};
@@ -52,8 +52,14 @@ where
     }
 
     fn required_overlap(&self) -> usize {
-        // Uniform filter needs overlap of half the filter size
-        self.size.iter().max().copied().unwrap_or(1) / 2
+        // Uniform filter needs overlap of (filter_size - 1) to ensure proper border handling
+        // For a NxN filter, we need N-1 pixels of overlap
+        self.size
+            .iter()
+            .max()
+            .copied()
+            .unwrap_or(1)
+            .saturating_sub(1)
     }
 
     fn combine_chunks(
@@ -108,8 +114,14 @@ where
     }
 
     fn required_overlap(&self) -> usize {
-        // Median filter needs overlap of half the filter size
-        self.size.iter().max().copied().unwrap_or(1) / 2
+        // Median filter needs overlap of (filter_size - 1) to ensure proper border handling
+        // For a NxN filter, we need N-1 pixels of overlap
+        self.size
+            .iter()
+            .max()
+            .copied()
+            .unwrap_or(1)
+            .saturating_sub(1)
     }
 
     fn combine_chunks(
@@ -247,7 +259,7 @@ where
     T: Clone + Zero,
     D: Dimension + 'static,
 {
-    use ndarray::SliceInfoElem;
+    use scirs2_core::ndarray::SliceInfoElem;
 
     // Create output array
     let mut output = Array::<T, IxDyn>::zeros(IxDyn(outputshape));
@@ -326,10 +338,9 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_uniform_filter_chunked() {
         let input = Array2::<f64>::ones((100, 100));
         let size = vec![3, 3];
@@ -378,7 +389,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_chunked_vs_regular() {
         let input = Array2::<f64>::from_shape_fn((50, 50), |(i, j)| {
             (i as f64 * 0.1).sin() + (j as f64 * 0.1).cos()

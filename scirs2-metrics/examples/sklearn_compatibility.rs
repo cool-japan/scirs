@@ -3,7 +3,7 @@
 //! This example demonstrates the scikit-learn equivalent implementations
 //! and shows how they produce identical results to their scikit-learn counterparts.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_metrics::error::Result;
 use scirs2_metrics::sklearn_compat::*;
 

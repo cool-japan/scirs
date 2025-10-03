@@ -10,8 +10,8 @@
 #![allow(dead_code)]
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, One, Zero};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use std::marker::PhantomData;
 
@@ -475,9 +475,8 @@ where
 
                     for k in 0..p {
                         for l in 0..p {
-                            hessian[[k, l]] = hessian[[k, l]]
-                                - (risk_hess_normalized[[k, l]]
-                                    - risk_grad_normalized[k] * risk_grad_normalized[l]);
+                            hessian[[k, l]] -= risk_hess_normalized[[k, l]]
+                                - risk_grad_normalized[k] * risk_grad_normalized[l];
                         }
                     }
                 }
@@ -534,11 +533,11 @@ where
     // Combine data with group indicators
     let mut combineddata = Vec::new();
 
-    for (_i, (&duration, &observed)) in durations1.iter().zip(event_observed1.iter()).enumerate() {
+    for (&duration, &observed) in durations1.iter().zip(event_observed1.iter()) {
         combineddata.push((duration, observed, 0)); // Group 0
     }
 
-    for (_i, (&duration, &observed)) in durations2.iter().zip(event_observed2.iter()).enumerate() {
+    for (&duration, &observed) in durations2.iter().zip(event_observed2.iter()) {
         combineddata.push((duration, observed, 1)); // Group 1
     }
 
@@ -571,12 +570,10 @@ where
                 } else {
                     censored1 += 1;
                 }
+            } else if observed {
+                events2 += 1;
             } else {
-                if observed {
-                    events2 += 1;
-                } else {
-                    censored2 += 1;
-                }
+                censored2 += 1;
             }
 
             i += 1;

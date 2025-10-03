@@ -4,8 +4,8 @@
 //! (Clustering Feature tree) to summarize the data and then applies a global clustering
 //! algorithm on the leaf nodes.
 
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -553,7 +553,7 @@ pub struct BirchStatistics<F: Float> {
 /// # Example
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::birch::{birch, BirchOptions};
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![
@@ -587,7 +587,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_clustering_feature() {

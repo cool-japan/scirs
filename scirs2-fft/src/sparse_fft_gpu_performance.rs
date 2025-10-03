@@ -9,8 +9,8 @@ use crate::sparse_fft::{SparseFFTAlgorithm, WindowFunction};
 use crate::sparse_fft_gpu_kernels::{
     KernelConfig, KernelFactory, KernelImplementation, KernelLauncher, KernelStats
 };
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 
@@ -339,8 +339,8 @@ impl SparseFftAutoTuner {
         let accuracy = precision_factor * algorithm_factor * window_factor;
         
         // Add some randomness to simulate real-world conditions
-        let mut rng = rand::rng();
-        use rand::Rng;
+        let mut rng = scirs2_core::random::rng();
+        use scirs2_core::random::Rng;
         let randomness = rng.gen_range(0.98..1.0);
         
         Ok(accuracy * randomness)

@@ -9,9 +9,9 @@ use crate::multi_objective::crossover::{CrossoverOperator, SimulatedBinaryCrosso
 use crate::multi_objective::mutation::{MutationOperator, PolynomialMutation};
 use crate::multi_objective::selection::{SelectionOperator, TournamentSelection};
 use crate::multi_objective::solutions::{MultiObjectiveResult, MultiObjectiveSolution, Population};
-use ndarray::{s, Array1, ArrayView1};
-use rand::rngs::StdRng;
-use rand::{prelude::*, SeedableRng};
+use scirs2_core::ndarray::{s, Array1, ArrayView1};
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{prelude::*, SeedableRng};
 
 /// NSGA-II (Non-dominated Sorting Genetic Algorithm II) implementation
 pub struct NSGAII {
@@ -226,11 +226,11 @@ impl MultiObjectiveOptimizer for NSGAII {
 
         // Extract final results
         let pareto_front = self.population.extract_pareto_front();
-        let hypervolume = if let Some(ref_point) = &self.config.reference_point {
-            Some(utils::calculate_hypervolume(&pareto_front, ref_point))
-        } else {
-            None
-        };
+        let hypervolume = self
+            .config
+            .reference_point
+            .as_ref()
+            .map(|ref_point| utils::calculate_hypervolume(&pareto_front, ref_point));
 
         let mut result = MultiObjectiveResult::new(
             pareto_front,
@@ -322,7 +322,7 @@ impl MultiObjectiveOptimizer for NSGAII {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     // Simple test problem (ZDT1)
     fn zdt1(x: &ArrayView1<f64>) -> Array1<f64> {

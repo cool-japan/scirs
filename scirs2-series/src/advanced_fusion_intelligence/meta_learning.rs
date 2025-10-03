@@ -4,8 +4,8 @@
 //! for the advanced fusion intelligence system, including optimization models,
 //! learning strategies, adaptation mechanisms, and knowledge transfer systems.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -220,7 +220,8 @@ impl<F: Float + Debug + Clone + FromPrimitive> MetaOptimizationModel<F> {
         // Simple mutation-based evolution
         for param in &mut self.model_parameters {
             let mutation = F::from_f64(0.01).unwrap()
-                * (F::from_f64(rand::random::<f64>()).unwrap() - F::from_f64(0.5).unwrap());
+                * (F::from_f64(scirs2_core::random::random::<f64>()).unwrap()
+                    - F::from_f64(0.5).unwrap());
             *param = *param + mutation;
         }
         Ok(())
@@ -268,6 +269,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> MetaOptimizationModel<F> {
             *param = *param + learning_rate * reward * discount_factor;
         }
         Ok(())
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for LearningStrategyLibrary<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -429,6 +436,12 @@ impl<F: Float + Debug + Clone + FromPrimitive> LearningEvaluationSystem<F> {
     }
 }
 
+impl<F: Float + Debug + Clone + FromPrimitive> Default for MetaAdaptationMechanism<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + Clone + FromPrimitive> MetaAdaptationMechanism<F> {
     /// Create new meta-adaptation mechanism
     pub fn new() -> Self {
@@ -484,15 +497,18 @@ impl<F: Float + Debug + Clone + FromPrimitive> MetaAdaptationMechanism<F> {
 
                 // Update adaptation history
                 let history_key = format!("rule_{}", rule.rule_id);
-                let history_entry = self
-                    .adaptation_history
-                    .entry(history_key)
-                    .or_insert_with(Vec::new);
+                let history_entry = self.adaptation_history.entry(history_key).or_default();
                 history_entry.push(rule.priority);
             }
         }
 
         applied_actions
+    }
+}
+
+impl<F: Float + Debug + Clone + FromPrimitive> Default for KnowledgeTransferSystem<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

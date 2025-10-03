@@ -1,8 +1,9 @@
 #![allow(deprecated)]
+#![allow(clippy::all)]
 #![allow(unreachable_code)]
 #![allow(unused_mut)]
 #![allow(missing_docs)]
-#![allow(clippy::for_loops_over_fallibles)]
+#![allow(for_loops_over_fallibles)]
 #![allow(unused_parens)]
 #![allow(unexpected_cfgs)]
 #![allow(unused_attributes)]
@@ -37,7 +38,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-cluster = "0.1.0-beta.4"
+//! scirs2-cluster = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust
@@ -53,7 +54,7 @@
 //! let (centroids, labels) = kmeans(data.view(), 2, None, None, None, None).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 //!
 //! ## Features
 //!
@@ -69,7 +70,7 @@
 //! ## Examples
 //!
 //! ```
-//! use ndarray::{Array2, ArrayView2};
+//! use scirs2_core::ndarray::{Array2, ArrayView2};
 //! use scirs2_cluster::vq::kmeans;
 //! use scirs2_cluster::preprocess::standardize;
 //!

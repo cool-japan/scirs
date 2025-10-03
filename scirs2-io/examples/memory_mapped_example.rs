@@ -3,7 +3,7 @@
 //! This example demonstrates the memory-mapped array functionality for
 //! efficient handling of large datasets without loading them entirely into memory.
 
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_io::mmap::{create_mmap_array, read_mmap_array, MmapArray, MmapArrayMut};
 use std::time::Instant;
 use tempfile::tempdir;
@@ -68,7 +68,7 @@ fn demonstrate_basic_memory_mapping() -> Result<(), Box<dyn std::error::Error>> 
     }
 
     // Verify data integrity
-    let read_back: ndarray::ArrayD<f64> = read_mmap_array(&file_path)?;
+    let read_back: scirs2_core::ndarray::ArrayD<f64> = read_mmap_array(&file_path)?;
     assert_eq!(read_back.len(), data.len());
     println!("  ✅ Data integrity verified!");
 
@@ -178,7 +178,7 @@ fn demonstrate_mutable_memory_mapping() -> Result<(), Box<dyn std::error::Error>
     mmap_array.flush()?;
 
     // Verify changes by reading back
-    let modified_data: ndarray::ArrayD<f64> = read_mmap_array(&file_path)?;
+    let modified_data: scirs2_core::ndarray::ArrayD<f64> = read_mmap_array(&file_path)?;
     let modified_slice = modified_data.as_slice().unwrap();
 
     println!("  🔍 Verifying modifications:");
@@ -230,7 +230,7 @@ fn demonstrate_performance_benefits() -> Result<(), Box<dyn std::error::Error>> 
 
     // Method 1: Full array read (loads everything into memory)
     let full_read_start = Instant::now();
-    let _full_array: ndarray::ArrayD<f64> = read_mmap_array(&file_path)?;
+    let _full_array: scirs2_core::ndarray::ArrayD<f64> = read_mmap_array(&file_path)?;
     let full_read_time = full_read_start.elapsed();
     println!(
         "    Full read time: {:.2}ms",

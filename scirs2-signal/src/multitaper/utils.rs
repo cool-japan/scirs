@@ -3,10 +3,10 @@
 use super::windows::dpss;
 use crate::error::{SignalError, SignalResult};
 use crate::filter::filtfilt;
-use ndarray::Array2;
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -41,8 +41,8 @@ use std::fmt::Debug;
 /// let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
 ///
 /// // Signal 1: 10 Hz sine
-/// use rand::Rng;
-/// let mut rng = rand::rng();
+/// use scirs2_core::random::Rng;
+/// let mut rng = scirs2_core::random::rng();
 /// let signal1: Vec<f64> = t.iter()
 ///     .map(|&ti| (2.0 * PI * 10.0 * ti).sin() + 0.1 * rng.gen_range(0.0..1.0))
 ///     .collect();
@@ -261,7 +261,7 @@ where
 /// let fs = 1000.0;
 /// let t: Vec<f64> = (0..n).map(|i| i as f64 / fs).collect();
 /// let signal: Vec<f64> = t.iter()
-///     .map(|&ti| (2.0 * PI * 50.0 * ti).sin() + 0.5 * (2.0 * PI * 120.0 * ti).sin() + 0.2 * rand::random::<f64>())
+///     .map(|&ti| (2.0 * PI * 50.0 * ti).sin() + 0.5 * (2.0 * PI * 120.0 * ti).sin() + 0.2 * scirs2_core::random::random::<f64>())
 ///     .collect();
 ///
 /// // Create a lowpass filter

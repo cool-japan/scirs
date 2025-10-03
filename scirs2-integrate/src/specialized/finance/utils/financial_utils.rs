@@ -240,17 +240,17 @@ impl USFederalCalendar {
 
         // Floating holidays (simplified - actual rules more complex)
         // Martin Luther King Day - 3rd Monday of January
-        if month == 1 && day >= 15 && day <= 21 && day_of_week(date) == 1 {
+        if month == 1 && (15..=21).contains(&day) && day_of_week(date) == 1 {
             return true;
         }
 
         // Presidents Day - 3rd Monday of February
-        if month == 2 && day >= 15 && day <= 21 && day_of_week(date) == 1 {
+        if month == 2 && (15..=21).contains(&day) && day_of_week(date) == 1 {
             return true;
         }
 
         // Memorial Day - Last Monday of May
-        if month == 5 && day >= 25 && day <= 31 && day_of_week(date) == 1 {
+        if month == 5 && (25..=31).contains(&day) && day_of_week(date) == 1 {
             return true;
         }
 
@@ -260,7 +260,7 @@ impl USFederalCalendar {
         }
 
         // Thanksgiving - 4th Thursday of November
-        if month == 11 && day >= 22 && day <= 28 && day_of_week(date) == 4 {
+        if month == 11 && (22..=28).contains(&day) && day_of_week(date) == 4 {
             return true;
         }
 
@@ -347,7 +347,7 @@ fn days_between(start: (i32, u32, u32), end: (i32, u32, u32)) -> f64 {
 fn date_to_days(date: (i32, u32, u32)) -> i32 {
     let (y, m, d) = date;
     let a = (14 - m) / 12;
-    let y_adj = y as i32 + 4800 - a as i32;
+    let y_adj = y + 4800 - a as i32;
     let m_adj = m + 12 * a - 3;
 
     d as i32 + (153 * m_adj + 2) as i32 / 5 + 365 * y_adj + y_adj / 4 - y_adj / 100 + y_adj / 400
@@ -371,7 +371,7 @@ fn days_to_date(julian: i32) -> (i32, u32, u32) {
 
     let day = (e - (153 * m + 2) / 5 + 1) as u32;
     let month = (m + 3 - 12 * (m / 10)) as u32;
-    let year = (100 * b + d - 4800 + m / 10) as i32;
+    let year = (100 * b + d - 4800 + m / 10);
 
     (year, month, day)
 }
@@ -391,7 +391,7 @@ fn day_of_week(date: (i32, u32, u32)) -> u32 {
 pub fn validate_date(date: (i32, u32, u32)) -> Result<()> {
     let (year, month, day) = date;
 
-    if month < 1 || month > 12 {
+    if !(1..=12).contains(&month) {
         return Err(IntegrateError::ValueError(format!(
             "Invalid month: {}",
             month

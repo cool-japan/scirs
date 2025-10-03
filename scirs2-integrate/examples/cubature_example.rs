@@ -7,7 +7,7 @@
 //! - Higher-dimensional integration
 //! - Using nquad as a simpler interface
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_integrate::cubature::{cubature, nquad, Bound, CubatureOptions};
 use std::f64::consts::PI;
 

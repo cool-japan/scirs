@@ -521,7 +521,7 @@ mod tests {
 
         // Nodes should be in [-1, 1]
         for &node in nodes.iter() {
-            assert!(node >= -1.0 && node <= 1.0);
+            assert!((-1.0..=1.0).contains(&node));
         }
 
         // First and last nodes should be -1 and 1

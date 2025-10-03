@@ -6,7 +6,7 @@
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::traits::InterpolationFloat;
-use ndarray::{ArrayView1, Array1};
+use scirs2_core::ndarray::{ArrayView1, Array1};
 use super::core::CubicSpline;
 use super::types::SplineBoundaryCondition;
 
@@ -43,7 +43,7 @@ use super::types::SplineBoundaryCondition;
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::spline::cubic_spline_scipy;
 ///
 /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -123,7 +123,7 @@ pub fn cubic_spline_scipy<F: InterpolationFloat>(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::spline::make_interp_spline;
 ///
 /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -199,7 +199,7 @@ pub fn make_interp_spline<F: InterpolationFloat>(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::spline::interp1d_scipy;
 ///
 /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -267,7 +267,7 @@ pub fn interp1d_scipy<F: InterpolationFloat>(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::spline::cubic_spline_second_derivative;
 ///
 /// let x = array![0.0, 1.0, 2.0, 3.0];
@@ -306,7 +306,7 @@ pub fn cubic_spline_second_derivative<F: InterpolationFloat>(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_interpolate::spline::cubic_spline_parabolic_runout;
 ///
 /// let x = array![0.0, 1.0, 2.0, 3.0];

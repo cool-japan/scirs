@@ -1,7 +1,7 @@
 # SciRS2 Development Roadmap
 
-**Current Version**: 0.1.0-beta.4 (Released October 01, 2025)
-**Focus**: Production readiness, ecosystem stability, and comprehensive documentation
+**Current Version**: 0.1.0-rc.1 (Released October 03, 2025)
+**Focus**: Release Candidate 1 - Final testing before stable release
 
 This document outlines the development plan for the SciRS2 project, a scientific computing and machine learning ecosystem in Rust. For detailed module-specific plans, see individual module TODO.md files.
 
@@ -41,7 +41,7 @@ This document outlines the development plan for the SciRS2 project, a scientific
 
 ---
 
-## 🎯 Current Release: Beta 4 (October 2025)
+## 🎯 Current Release: RC.1 (October 2025)
 
 ### ✅ Major Achievements
 
@@ -112,7 +112,7 @@ This document outlines the development plan for the SciRS2 project, a scientific
 - ✅ Memory safety verification with thread-safe implementations
 - ✅ Cross-platform compatibility (Linux, macOS, Windows)
 
-### 🔧 Beta 4 Active Work
+### 🔧 RC.1 Active Work
 
 #### SciRS2 POLICY Implementation (ONGOING)
 - [x] Framework established and documented
@@ -140,7 +140,7 @@ This document outlines the development plan for the SciRS2 project, a scientific
 
 ## 🚀 Future Plans
 
-### Beta 5: Performance and Scale (Q1 2026)
+### v0.2.0: Performance and Scale (Q1 2026)
 
 #### P0: Performance Enhancements
 - [ ] **SIMD Operations for Remaining Modules**
@@ -188,7 +188,7 @@ This document outlines the development plan for the SciRS2 project, a scientific
   - [ ] Support for multi-node computation
   - [ ] Resource management across compute clusters
 
-### Beta 6: Ecosystem and Interoperability (Q2 2026)
+### v0.3.0: Ecosystem and Interoperability (Q2 2026)
 
 #### External Ecosystem Integration
 - [ ] **Python Bindings** (PyO3)
@@ -220,7 +220,7 @@ This document outlines the development plan for the SciRS2 project, a scientific
   - [ ] Track documentation coverage
   - [ ] Track critical bug count (target: 0)
 
-### Beta 7: Advanced Features and ML Pipeline (Q3 2026)
+### v0.4.0: Advanced Features and ML Pipeline (Q3 2026)
 
 #### ML Pipeline APIs
 - [ ] **High-Level ML Pipeline** (scirs2-core)
@@ -359,14 +359,12 @@ This document outlines the development plan for the SciRS2 project, a scientific
 - **✅ 0.1.0-beta.1** (2025): Initial beta with advanced core features
 - **✅ 0.1.0-beta.2** (2025): Parallel processing and arbitrary precision
 - **✅ 0.1.0-beta.3** (2025): Numerical stability improvements
-- **✅ 0.1.0-beta.4** (2025-10-01): **CURRENT** - SciRS2 POLICY, bug fixes, ultra-performance SIMD
-- **🎯 0.1.0-beta.5** (2026-Q1): Performance and scale enhancements
-- **🎯 0.1.0-beta.6** (2026-Q2): Ecosystem and interoperability
-- **🎯 0.1.0-beta.7** (2026-Q3): Advanced features and ML pipeline
-- **🎯 0.1.0** (2026-Q4): First stable release with full SciPy feature parity
-- **🎯 0.2.0** (2027): Enhanced performance and feature integration
-- **🎯 1.0.0** (2027): Complete implementation with Rust-specific optimizations
-- **🎯 2.0.0** (2028+): All major modules with advanced features
+- **✅ 0.1.0-beta.4** (2025-10-01): SciRS2 POLICY, bug fixes, ultra-performance SIMD
+- **✅ 0.1.0-rc.1** (2025-10-03): **CURRENT** - Release Candidate 1 with platform testing
+- **🎯 0.1.0** (2026-Q4): First stable release with full SciPy feature parity and API guarantees
+- **🎯 0.2.0** (2026): Enhanced performance and feature integration
+- **🎯 1.0.0** (2026): Complete implementation with Rust-specific optimizations
+- **🎯 2.0.0** (2027+): All major modules with advanced features
 
 ---
 
@@ -490,5 +488,5 @@ This document outlines the development plan for the SciRS2 project, a scientific
 
 ---
 
-**Last Updated**: October 01, 2025
-**Status**: Beta 4 Released - Production readiness focus with ecosystem stability
+**Last Updated**: October 03, 2025
+**Status**: RC.1 Released - Release Candidate with comprehensive platform testing

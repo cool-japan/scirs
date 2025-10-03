@@ -205,7 +205,7 @@ fn generate_random_points_on_sphere(
     use scirs2_core::ndarray::Array2;
     use scirs2_core::random::Rng;
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut points = Array2::zeros((n, 3));
 
     for i in 0..n {

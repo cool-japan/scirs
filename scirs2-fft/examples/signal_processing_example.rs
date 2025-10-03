@@ -45,7 +45,7 @@ fn main() {
             10.0 * (2.0 * PI * 50.0 * ti).sin()     // 50 Hz
                 + 5.0 * (2.0 * PI * 120.0 * ti).sin()  // 120 Hz
                 + 2.0 * (2.0 * PI * 200.0 * ti).sin()  // 200 Hz
-                + 0.5 * rand::random::<f64>()          // Noise
+                + 0.5 * scirs2_core::random::random::<f64>()          // Noise
         })
         .collect();
 

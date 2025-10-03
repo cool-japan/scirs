@@ -5,8 +5,8 @@
 //! abstractions to provide high-performance computing capabilities.
 
 use crate::error::{ScirsError, ScirsResult};
-use ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::gpu::{GpuBackend, GpuBuffer, GpuContext};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use statrs::statistics::Statistics;
 use std::sync::Arc;
 
@@ -376,8 +376,8 @@ pub mod algorithms {
         }
 
         fn initialize_population_gpu(&self, bounds: &[(f64, f64)]) -> ScirsResult<Array2<f64>> {
-            use rand::Rng;
-            let mut rng = rand::rng();
+            use scirs2_core::random::Rng;
+            let mut rng = scirs2_core::random::rng();
 
             let dims = bounds.len();
             let mut population = Array2::zeros((self.population_size, dims));
@@ -409,8 +409,8 @@ pub mod algorithms {
         ) -> ScirsResult<Array2<f64>> {
             // For now, implement on CPU and transfer to GPU
             // In a full implementation, this would use GPU kernels
-            use rand::Rng;
-            let mut rng = rand::rng();
+            use scirs2_core::random::Rng;
+            let mut rng = scirs2_core::random::rng();
 
             let (pop_size, dims) = population.dim();
             let mut trial_population = Array2::zeros((pop_size, dims));
@@ -580,8 +580,8 @@ pub mod algorithms {
         }
 
         fn initialize_positions_gpu(&self, bounds: &[(f64, f64)]) -> ScirsResult<Array2<f64>> {
-            use rand::Rng;
-            let mut rng = rand::rng();
+            use scirs2_core::random::Rng;
+            let mut rng = scirs2_core::random::rng();
 
             let dims = bounds.len();
             let mut positions = Array2::zeros((self.swarm_size, dims));
@@ -615,8 +615,8 @@ pub mod algorithms {
             global_best: &Array1<f64>,
             bounds: &[(f64, f64)],
         ) -> ScirsResult<()> {
-            use rand::Rng;
-            let mut rng = rand::rng();
+            use scirs2_core::random::Rng;
+            let mut rng = scirs2_core::random::rng();
 
             let (swarm_size, dims) = positions.dim();
 

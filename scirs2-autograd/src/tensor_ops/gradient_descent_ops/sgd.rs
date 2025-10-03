@@ -17,7 +17,7 @@ impl<F: Float> crate::op::Op<F> for SGDOp<F> {
         let update = ctx.input(1).to_owned();
         let mut var = ctx.input_mut(0);
         var.zip_mut_with(&update, move |l, &r| *l -= self.alpha * r);
-        ctx.append_output(ndarray::Array::zeros(vec![]).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::Array::zeros(vec![]).into_dyn());
         Ok(())
     }
 
@@ -43,7 +43,7 @@ impl<T: Float> crate::op::Op<T> for MomentumSGDOp<T> {
         let mut param = ctx.input_mut(0);
         param.zip_mut_with(&v_clone, move |p, &v| *p += v);
 
-        ctx.append_output(ndarray::Array::zeros(vec![]).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::Array::zeros(vec![]).into_dyn());
         Ok(())
     }
 

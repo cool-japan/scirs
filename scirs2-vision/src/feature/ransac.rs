@@ -16,8 +16,8 @@
 //! - Fischler, M.A. and Bolles, R.C., 1981. Random sample consensus: a paradigm for model fitting with applications to image analysis and automated cartography. Communications of the ACM, 24(6), pp.381-395.
 
 use crate::error::Result;
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 
 /// Configuration for RANSAC algorithm
 #[derive(Debug, Clone)]
@@ -107,7 +107,7 @@ pub fn run_ransac<M: RansacModel>(
     }
 
     // Create RNG (using default generator since we don't need precise control for this application)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let n_points = data.len();
     let min_samples = M::min_samples();
@@ -457,7 +457,7 @@ impl Homography {
             let norm = v.iter().map(|&x| x * x).sum::<f64>().sqrt();
             if norm < 1e-10 {
                 // If we get a zero vector, restart with random
-                let mut rng = rand::rng();
+                let mut rng = scirs2_core::random::rng();
                 for i in 0..n {
                     v[i] = rng.random::<f64>();
                 }

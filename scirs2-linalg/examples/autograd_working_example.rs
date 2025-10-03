@@ -85,7 +85,7 @@ fn demomatrix_operations() {
         // Trace using reduce_sum over diagonal
         let eyematrix = eye(2, ctx);
         let diag_mask = c * eyematrix;
-        let trace_c = sum_all(&diag_mask);
+        let trace_c = sum_all(diag_mask);
 
         // Gradient of trace w.r.t. A and B
         let grads = grad(&[trace_c], &[a, b]);
@@ -107,7 +107,7 @@ fn demomatrix_operations() {
 
         // Frobenius norm squared
         let c_flat = flatten(c);
-        let norm_squared = sum_all(&square(c_flat));
+        let norm_squared = sum_all(square(c_flat));
         let norm_grads = grad(&[norm_squared], &[a, b]);
 
         let norm_grad_results = ctx
@@ -141,7 +141,7 @@ fn demo_linalg_ops() {
         // Compute trace using sum of diagonal
         let eyematrix = eye(2, ctx);
         let diag = ata * eyematrix;
-        let trace_ata = sum_all(&diag);
+        let trace_ata = sum_all(diag);
 
         // Gradient
         let grad_trace = &grad(&[trace_ata], &[a])[0];
@@ -160,7 +160,7 @@ fn demo_linalg_ops() {
 
         // Another example: matrix norm
         let a_flat = flatten(a);
-        let a_norm = sqrt(sum_all(&square(a_flat)));
+        let a_norm = sqrt(sum_all(square(a_flat)));
         let grad_norm = &grad(&[a_norm], &[a])[0];
 
         let norm_result = ctx
@@ -175,10 +175,10 @@ fn demo_linalg_ops() {
         // Matrix exponential approximation (first 3 terms of Taylor series)
         let i = eye(2, ctx);
         let a_sq = matmul(a, a);
-        let exp_approx = i + a + scalar_mul(&a_sq, 0.5);
+        let exp_approx = i + a + scalar_mul(a_sq, 0.5);
 
         // Sum all elements
-        let exp_sum = sum_all(&exp_approx);
+        let exp_sum = sum_all(exp_approx);
         let grad_exp = &grad(&[exp_sum], &[a])[0];
 
         let exp_result = ctx

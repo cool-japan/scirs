@@ -4,7 +4,7 @@
 //! the parallel filtering modules.
 
 use crate::error::{SignalError, SignalResult};
-use rand::Rng;
+use scirs2_core::random::Rng;
 
 /// Generate a test signal for filter testing
 ///
@@ -77,7 +77,7 @@ fn generate_gaussian_noise(noise_level: f64) -> f64 {
 
         HAVE_SPARE = true;
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let u = rng.gen::<f64>();
         let v = rng.gen::<f64>();
 
@@ -298,7 +298,7 @@ pub fn cross_correlation(x: &[f64], y: &[f64], mode: &str) -> SignalResult<Vec<f
 
             for i in 0..output_len {
                 let mut sum = 0.0;
-                let start_j = if i >= n - 1 { i - (n - 1) } else { 0 };
+                let start_j = i.saturating_sub(n - 1);
                 let end_j = (i + 1).min(m);
 
                 for j in start_j..end_j {
@@ -408,7 +408,7 @@ pub fn welch_psd_estimate(
         ));
     }
 
-    if overlap_factor < 0.0 || overlap_factor >= 1.0 {
+    if !(0.0..1.0).contains(&overlap_factor) {
         return Err(SignalError::ValueError(
             "Overlap factor must be between 0.0 and 1.0".to_string(),
         ));

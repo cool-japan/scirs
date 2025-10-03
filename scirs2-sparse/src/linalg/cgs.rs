@@ -1,7 +1,7 @@
 use crate::error::{SparseError, SparseResult};
 use crate::linalg::interface::LinearOperator;
 use crate::linalg::iterative::{dot, norm2, BiCGOptions, IterationResult};
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 /// Options for CGS solver

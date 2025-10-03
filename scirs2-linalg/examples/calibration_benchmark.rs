@@ -128,7 +128,7 @@ fn generate_bimodal_data(size: usize) -> Array2<f32> {
     for i in 0..size {
         for j in 0..size {
             // 50% chance of coming from each distribution
-            if rng.gen::<bool>() {
+            if rng.random::<bool>() {
                 data[[i, j]] = normal1.sample(&mut rng);
             } else {
                 data[[i, j]] = normal2.sample(&mut rng);
@@ -152,28 +152,28 @@ fn generate_mixed_scale_data(size: usize) -> Array2<f32> {
     // Region 1: small values around 0.1
     for i in 0..regionsize {
         for j in 0..size {
-            data[[i, j]] = 0.1 + 0.05 * rng.gen::<f32>();
+            data[[i, j]] = 0.1 + 0.05 * rng.random::<f32>();
         }
     }
 
     // Region 2: medium values around 1.0
     for i in regionsize..(2 * regionsize) {
         for j in 0..size {
-            data[[i, j]] = 1.0 + 0.5 * rng.gen::<f32>();
+            data[[i, j]] = 1.0 + 0.5 * rng.random::<f32>();
         }
     }
 
     // Region 3: large values around 10.0
     for i in (2 * regionsize)..(3 * regionsize) {
         for j in 0..size {
-            data[[i, j]] = 10.0 + 5.0 * rng.gen::<f32>();
+            data[[i, j]] = 10.0 + 5.0 * rng.random::<f32>();
         }
     }
 
     // Region 4: very large values around 100.0
     for i in (3 * regionsize)..size {
         for j in 0..size {
-            data[[i, j]] = 100.0 + 50.0 * rng.gen::<f32>();
+            data[[i, j]] = 100.0 + 50.0 * rng.random::<f32>();
         }
     }
 

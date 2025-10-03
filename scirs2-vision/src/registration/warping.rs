@@ -9,7 +9,7 @@
 use crate::error::{Result, VisionError};
 use crate::registration::{identity_transform, transform_point, Point2D, TransformMatrix};
 use image::{DynamicImage, GenericImageView, GrayImage, Luma, Rgb, RgbImage};
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use std::time::{Duration, Instant};
 
 // Import the modular implementation
@@ -157,7 +157,7 @@ fn invert_3x3_matrix(matrix: &TransformMatrix) -> Result<TransformMatrix> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_interpolation_method() {
@@ -169,8 +169,8 @@ mod tests {
     fn test_boundary_method() {
         let boundary = BoundaryMethod::Zero;
         match boundary {
-            BoundaryMethod::Zero => assert!(true),
-            _ => assert!(false),
+            BoundaryMethod::Zero => {} // Expected case
+            _ => unreachable!(),
         }
     }
 

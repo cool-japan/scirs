@@ -3,8 +3,8 @@
 //! This module contains the core functionality for creating and positioning
 //! dendrogram plots from linkage matrices.
 
-use ndarray::ArrayView2;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -71,7 +71,7 @@ impl<F: Float + std::fmt::Display> TreeNode<F> {
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::hierarchy::visualization::{create_dendrogramplot, DendrogramConfig};
 ///
 /// let linkage = Array2::from_shape_vec((3, 4), vec![
@@ -400,7 +400,7 @@ fn calculate_auto_threshold<F: Float + FromPrimitive + PartialOrd>(
     let target = target_clusters.unwrap_or(4);
     let n_merges = linkage_matrix.shape()[0];
 
-    if target >= n_merges + 1 {
+    if target > n_merges {
         return Ok(F::zero());
     }
 
@@ -414,7 +414,7 @@ fn calculate_auto_threshold<F: Float + FromPrimitive + PartialOrd>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_tree_node_creation() {

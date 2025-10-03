@@ -7,8 +7,8 @@
 //! - Optimized memory access patterns
 //! - SIMD operations where applicable
 
-use ndarray::{Array2, Array3, Axis, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, Array3, Axis, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 
@@ -242,8 +242,10 @@ where
 
         for chunk_start in (0..batch_size).step_by(chunk_size) {
             let chunk_end = (chunk_start + chunk_size).min(batch_size);
-            let chunk_slice =
-                batch.slice_axis(Axis(0), ndarray::Slice::from(chunk_start..chunk_end));
+            let chunk_slice = batch.slice_axis(
+                Axis(0),
+                scirs2_core::ndarray::Slice::from(chunk_start..chunk_end),
+            );
 
             let chunk_result =
                 process_batch_chunk(&chunk_slice.to_owned(), kernel, mode, cval, &config)?;
@@ -525,10 +527,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr3;
+    use scirs2_core::ndarray::arr3;
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_gaussian_filter_batch() {
         // Create a batch of 3 simple 3x3 images
         let batch = arr3(&[
@@ -537,7 +538,8 @@ mod tests {
             [[2.0, 2.0, 2.0], [2.0, 2.0, 2.0], [2.0, 2.0, 2.0]],
         ]);
 
-        let result = gaussian_filter_batch(&batch, 1.0, BorderMode::Constant, Some(0.0), None)
+        // Use BorderMode::Nearest to preserve uniform values at edges
+        let result = gaussian_filter_batch(&batch, 1.0, BorderMode::Nearest, None, None)
             .expect("gaussian_filter_batch should succeed");
 
         assert_eq!(result.shape(), batch.shape());
@@ -550,7 +552,7 @@ mod tests {
         assert!(result[[1, 1, 1]] < 10.0);
         assert!(result[[1, 1, 1]] > 0.0);
 
-        // Third image should remain relatively unchanged
+        // Third image (uniform 2.0) should remain close to 2.0 with Nearest border mode
         assert!((result[[2, 1, 1]] - 2.0).abs() < 0.1);
     }
 

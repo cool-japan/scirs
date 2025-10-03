@@ -212,7 +212,7 @@ impl LinalgBridge {
         density: f64,
         seed: u64,
     ) -> Result<Vec<(usize, usize, f64)>, String> {
-        if density < 0.0 || density > 1.0 {
+        if !(0.0..=1.0).contains(&density) {
             return Err("Density must be between 0 and 1".to_string());
         }
 
@@ -900,7 +900,7 @@ mod tests {
         for individual in &population {
             assert_eq!(individual.len(), 5);
             for &gene in individual {
-                assert!(gene >= 0.0 && gene <= 1.0);
+                assert!((0.0..=1.0).contains(&gene));
             }
         }
     }

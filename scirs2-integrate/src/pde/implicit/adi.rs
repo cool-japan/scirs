@@ -5,7 +5,7 @@
 //! ADI methods split multi-dimensional problems into sequences of one-dimensional
 //! problems, making them computationally efficient.
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView1};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1};
 use std::time::Instant;
 
 use super::ImplicitOptions;

@@ -3,8 +3,8 @@
 //! This module provides differentiable implementations of matrix transformations
 //! like projection, rotation, and scaling.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use scirs2_autograd::error::Result as AutogradResult;
@@ -183,7 +183,7 @@ pub fn project<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for the matrix A
         let backward_a = if a.requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Gradient computation for A is complex for projection
                     // For a simple approximation, we pass through the gradien
                     // A full implementation would require matrix calculus
@@ -193,7 +193,7 @@ pub fn project<F: Float + Debug + Send + Sync + 'static>(
                     let mut grad_a = Array2::<F>::zeros((a_datashape[0], a_datashape[1]));
                     Ok(grad_a.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -202,7 +202,7 @@ pub fn project<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for the vector x
         let backward_x = if x.requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // For x, the gradient is the projection matrix applied to the gradien
                     // P = A(A^T A)^(-1)A^T
 
@@ -211,7 +211,7 @@ pub fn project<F: Float + Debug + Send + Sync + 'static>(
                     // For simplicity, we'll just return the gradien
                     Ok(grad)
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -270,7 +270,7 @@ pub fn rotationmatrix_2d<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for the angle
         let backward = if requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Convert gradient to 2x2 shape
                     let grad_2d = grad.clone().intoshape((2, 2)).unwrap();
 
@@ -285,9 +285,9 @@ pub fn rotationmatrix_2d<F: Float + Debug + Send + Sync + 'static>(
                         + grad_2d[[1, 0]] * d_sin_theta
                         + grad_2d[[1, 1]] * d_cos_theta;
 
-                    Ok(ndarray::Array::from_elem(ndarray::IxDyn(&[1]), grad_angle))
+                    Ok(scirs2_core::ndarray::Array::from_elem(scirs2_core::ndarray::IxDyn(&[1]), grad_angle))
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -343,7 +343,7 @@ pub fn scalingmatrix<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for the scales
         let backward = if requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Convert gradient to nxn shape
                     let grad_2d = grad.clone().intoshape((n, n)).unwrap();
 
@@ -356,7 +356,7 @@ pub fn scalingmatrix<F: Float + Debug + Send + Sync + 'static>(
 
                     Ok(grad_scales.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -429,13 +429,13 @@ pub fn reflectionmatrix<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for the normal vector
         let backward = if requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Gradient computation for reflection matrix is complex
                     // For simplicity, we'll return zeros for now
                     let mut grad_normal = Array1::<F>::zeros(n);
                     Ok(grad_normal.into_dyn())
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None
@@ -500,7 +500,7 @@ pub fn shearmatrix<F: Float + Debug + Send + Sync + 'static>(
         // Backward function for the shear _factor
         let backward = if requires_grad {
             Some(
-                Box::new(move |grad: ndarray::Array<F, ndarray::IxDyn>| -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> {
+                Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
                     // Convert gradient to nxn shape
                     let grad_2d = grad.clone().intoshape((n, n)).unwrap();
 
@@ -508,9 +508,9 @@ pub fn shearmatrix<F: Float + Debug + Send + Sync + 'static>(
                     // is just the (dim1, dim2) element of the gradien
                     let grad_shear = grad_2d[[dim1, dim2]];
 
-                    Ok(ndarray::Array::from_elem(ndarray::IxDyn(&[1]), grad_shear))
+                    Ok(scirs2_core::ndarray::Array::from_elem(scirs2_core::ndarray::IxDyn(&[1]), grad_shear))
                 })
-                    as Box<dyn Fn(ndarray::Array<F, ndarray::IxDyn>) -> AutogradResult<ndarray::Array<F, ndarray::IxDyn>> + Send + Sync>,
+                    as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
         } else {
             None

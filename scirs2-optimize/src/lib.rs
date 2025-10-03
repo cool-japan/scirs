@@ -1,4 +1,5 @@
 #![allow(deprecated)]
+#![allow(clippy::all)]
 #![allow(dead_code)]
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
@@ -43,14 +44,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-optimize = "0.1.0-beta.4"
+//! scirs2-optimize = "0.1.0-rc.1"
 //! ```
 //!
 //! ### Unconstrained Minimization (Rosenbrock Function)
 //!
 //! ```rust
 //! use scirs2_optimize::unconstrained::{minimize, Method};
-//! use ndarray::ArrayView1;
+//! use scirs2_core::ndarray::ArrayView1;
 //!
 //! // Rosenbrock function: (1-x)² + 100(y-x²)²
 //! fn rosenbrock(x: &ArrayView1<f64>) -> f64 {
@@ -76,7 +77,7 @@
 //!
 //! ```rust
 //! use scirs2_optimize::{Bounds, unconstrained::{minimize, Method, Options}};
-//! use ndarray::ArrayView1;
+//! use scirs2_core::ndarray::ArrayView1;
 //!
 //! fn objective(x: &ArrayView1<f64>) -> f64 {
 //!     (x[0] + 1.0).powi(2) + (x[1] + 1.0).powi(2)
@@ -104,7 +105,7 @@
 //!
 //! ```rust
 //! use scirs2_optimize::least_squares::{robust_least_squares, HuberLoss};
-//! use ndarray::{array, Array1};
+//! use scirs2_core::ndarray::{array, Array1};
 //!
 //! // Linear model residual: y - (a + b*x)
 //! fn residual(params: &[f64], data: &[f64]) -> Array1<f64> {
@@ -126,7 +127,7 @@
 //! let huber = HuberLoss::new(1.0);  // Robust to outliers
 //! let x0 = array![0.0, 0.0];
 //! let result = robust_least_squares(
-//!     residual, &x0, huber, None::<fn(&[f64], &[f64]) -> ndarray::Array2<f64>>, &data, None
+//!     residual, &x0, huber, None::<fn(&[f64], &[f64]) -> scirs2_core::ndarray::Array2<f64>>, &data, None
 //! )?;
 //!
 //! println!("Robust fit: y = {:.3} + {:.3}x", result.x[0], result.x[1]);
@@ -140,7 +141,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_optimize::global::{differential_evolution, DifferentialEvolutionOptions};
-//! use ndarray::ArrayView1;
+//! use scirs2_core::ndarray::ArrayView1;
 //!
 //! // Rastrigin function (multiple local minima)
 //! fn rastrigin(x: &ArrayView1<f64>) -> f64 {
@@ -164,7 +165,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_optimize::roots::{root, Method};
-//! use ndarray::{array, Array1};
+//! use scirs2_core::ndarray::{array, Array1};
 //!
 //! // Find root of x² - 2 = 0 (i.e., √2)
 //! fn f(x: &[f64]) -> Array1<f64> {
@@ -173,7 +174,7 @@
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let x0 = array![1.5];  // Initial guess
-//! let result = root(f, &x0, Method::Hybr, None::<fn(&[f64]) -> ndarray::Array2<f64>>, None)?;
+//! let result = root(f, &x0, Method::Hybr, None::<fn(&[f64]) -> scirs2_core::ndarray::Array2<f64>>, None)?;
 //! println!("√2 ≈ {:.10}", result.x[0]);  // 1.4142135624
 //! # Ok(())
 //! # }
@@ -242,7 +243,7 @@
 //!
 //! ```
 //! // Example of minimizing a function using BFGS
-//! use ndarray::{array, ArrayView1};
+//! use scirs2_core::ndarray::{array, ArrayView1};
 //! use scirs2_optimize::unconstrained::{minimize, Method};
 //!
 //! fn rosenbrock(x: &ArrayView1<f64>) -> f64 {
@@ -269,7 +270,7 @@
 //!
 //! ```
 //! // Example of minimizing a function with bounds constraints
-//! use ndarray::{array, ArrayView1};
+//! use scirs2_core::ndarray::{array, ArrayView1};
 //! use scirs2_optimize::{Bounds, unconstrained::{minimize, Method, Options}};
 //!
 //! // A function with minimum at (-1, -1)
@@ -319,7 +320,7 @@
 //! ### Robust Least Squares Example
 //!
 //! ```
-//! use ndarray::{array, Array1, Array2};
+//! use scirs2_core::ndarray::{array, Array1, Array2};
 //! use scirs2_optimize::least_squares::{robust_least_squares, HuberLoss};
 //!
 //! // Define residual function for linear regression

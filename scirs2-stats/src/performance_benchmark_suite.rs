@@ -9,7 +9,8 @@
 use crate::benchmark_suite::{BenchmarkConfig, BenchmarkMetrics};
 use crate::error::StatsResult;
 // use crate::advanced_error_enhancements_v2::CompatibilityImpact; // Commented out temporarily
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::{Distribution, Exponential, LogNormal, Normal, Pareto, Uniform};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -631,10 +632,10 @@ impl AdvancedBenchmarkSuite {
         size: usize,
         distribution: &DataDistribution,
     ) -> StatsResult<Array1<f64>> {
-        use rand::prelude::*;
-        use rand_distr::{Exp, LogNormal, Normal, Pareto, Uniform};
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::{Exponential, LogNormal, Normal, Pareto, Uniform};
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let mut data = Array1::zeros(size);
 
         match distribution {
@@ -657,7 +658,7 @@ impl AdvancedBenchmarkSuite {
                 }
             }
             DataDistribution::Exponential => {
-                let exp = Exp::new(1.0).unwrap();
+                let exp = Exponential::new(1.0).unwrap();
                 for val in data.iter_mut() {
                     *val = exp.sample(&mut rng);
                 }
@@ -1077,7 +1078,7 @@ impl AdvancedBenchmarkSuite {
         for metric in metrics {
             function_metrics
                 .entry(metric.base_metrics.function_name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(metric);
         }
 

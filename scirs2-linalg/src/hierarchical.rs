@@ -27,8 +27,8 @@
 //! - Chandrasekaran, S. et al. (2006). "Some fast algorithms for sequentially semiseparable representations"
 //! - Xia, J. et al. (2010). "Fast algorithms for hierarchically semiseparable matrices"
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::decomposition::svd;
@@ -141,7 +141,7 @@ impl ClusterNode {
 
 impl<F> HMatrix<F>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + 'static + Send + Sync,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + 'static + Send + Sync,
 {
     /// Create H-matrix from dense matrix using adaptive rank compression
     ///
@@ -159,7 +159,7 @@ where
     /// # Examples
     ///
     /// ```ignore
-    /// use ndarray::Array2;
+    /// use scirs2_core::ndarray::Array2;
     /// use scirs2_linalg::hierarchical::HMatrix;
     ///
     /// let matrix = Array2::from_shape_fn((100, 100), |(i, j)| {
@@ -214,7 +214,7 @@ where
         let colsize = col_cluster.end - col_cluster.start;
 
         // Extract submatrix
-        let submatrix = matrix.slice(ndarray::s![
+        let submatrix = matrix.slice(scirs2_core::ndarray::s![
             row_cluster.start..row_cluster.end,
             col_cluster.start..col_cluster.end
         ]);
@@ -357,15 +357,15 @@ where
         &self,
         block: &HMatrixBlock<F>,
         x: &ArrayView1<F>,
-        result: &mut ndarray::ArrayViewMut1<F>,
+        result: &mut scirs2_core::ndarray::ArrayViewMut1<F>,
     ) -> LinalgResult<()> {
         let row_start = block.row_cluster.start;
         let row_end = block.row_cluster.end;
         let col_start = block.col_cluster.start;
         let col_end = block.col_cluster.end;
 
-        let x_sub = x.slice(ndarray::s![col_start..col_end]);
-        let mut result_sub = result.slice_mut(ndarray::s![row_start..row_end]);
+        let x_sub = x.slice(scirs2_core::ndarray::s![col_start..col_end]);
+        let mut result_sub = result.slice_mut(scirs2_core::ndarray::s![row_start..row_end]);
 
         match &block.block_type {
             BlockType::Dense(matrix) => {
@@ -475,7 +475,7 @@ pub struct HMatrixMemoryInfo {
 
 impl<F> HSSMatrix<F>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + 'static + Send + Sync,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + 'static + Send + Sync,
 {
     /// Create HSS matrix from dense matrix
     ///
@@ -519,7 +519,9 @@ where
 
         if size <= 32 {
             // Leaf node
-            let diagonal_block = matrix.slice(ndarray::s![start..end, start..end]).to_owned();
+            let diagonal_block = matrix
+                .slice(scirs2_core::ndarray::s![start..end, start..end])
+                .to_owned();
             return Ok(HSSNode {
                 u_generators: Vec::new(),
                 v_generators: Vec::new(),
@@ -540,8 +542,8 @@ where
         let leftsize = mid - start;
         let rightsize = end - mid;
 
-        let upper_right = matrix.slice(ndarray::s![start..mid, mid..end]);
-        let _lower_left = matrix.slice(ndarray::s![mid..end, start..mid]);
+        let upper_right = matrix.slice(scirs2_core::ndarray::s![start..mid, mid..end]);
+        let _lower_left = matrix.slice(scirs2_core::ndarray::s![mid..end, start..mid]);
 
         // Compute generators using SVD
         let mut u_generators = Vec::new();
@@ -613,12 +615,12 @@ where
         &self,
         node: &HSSNode<F>,
         x: &ArrayView1<F>,
-        result: &mut ndarray::ArrayViewMut1<F>,
+        result: &mut scirs2_core::ndarray::ArrayViewMut1<F>,
     ) -> LinalgResult<()> {
         if let Some(ref diag_block) = node.diagonal_block {
             // Leaf node: direct multiplication
-            let x_sub = x.slice(ndarray::s![node.start..node.end]);
-            let mut result_sub = result.slice_mut(ndarray::s![node.start..node.end]);
+            let x_sub = x.slice(scirs2_core::ndarray::s![node.start..node.end]);
+            let mut result_sub = result.slice_mut(scirs2_core::ndarray::s![node.start..node.end]);
             let y = diag_block.dot(&x_sub);
 
             for (i, &val) in y.iter().enumerate() {
@@ -638,11 +640,11 @@ where
                 let u_start = node.children[0].start;
                 let u_end = node.children[0].end;
 
-                let x_v = x.slice(ndarray::s![v_start..v_end]);
+                let x_v = x.slice(scirs2_core::ndarray::s![v_start..v_end]);
                 let vt_x = v_gen.t().dot(&x_v);
                 let u_vt_x = u_gen.dot(&vt_x);
 
-                let mut result_u = result.slice_mut(ndarray::s![u_start..u_end]);
+                let mut result_u = result.slice_mut(scirs2_core::ndarray::s![u_start..u_end]);
                 for (i, &val) in u_vt_x.iter().enumerate() {
                     result_u[i] += val;
                 }
@@ -689,7 +691,7 @@ pub fn adaptive_block_lowrank<F>(
     max_rank: usize,
 ) -> LinalgResult<Option<(Array2<F>, Array2<F>)>>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + 'static + Send + Sync,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + 'static + Send + Sync,
 {
     let (m, n) = matrix.dim();
     let target_rank = max_rank.min(m.min(n));
@@ -745,7 +747,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_cluster_tree_construction() {

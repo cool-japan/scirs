@@ -10,7 +10,7 @@
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
 use crate::symplectic::{HamiltonianFn, SymplecticIntegrator};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::f64::consts::PI;
 use std::marker::PhantomData;
 
@@ -287,7 +287,7 @@ mod tests {
     use super::*;
     use crate::symplectic::leapfrog::StormerVerlet;
     use crate::symplectic::potential::SeparableHamiltonian;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     /// Test accuracy of high-order methods
     #[test]

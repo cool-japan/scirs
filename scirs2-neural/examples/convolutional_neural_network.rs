@@ -6,11 +6,11 @@
 
 #![allow(dead_code)]
 
-use ndarray::{s, Array, Array1, Array2, Array4, ArrayView1, Axis};
-use ndarray_rand::rand::distributions::{Distribution, Uniform};
-use ndarray_rand::rand::prelude::SliceRandom;
-use ndarray_rand::rand::rngs::SmallRng;
-use ndarray_rand::rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{s, Array, Array1, Array2, Array4, ArrayView1, Axis};
+use scirs2_core::random::prelude::SliceRandom;
+use scirs2_core::random::rngs::SmallRng;
+use scirs2_core::random::{Distribution, Uniform};
+use scirs2_core::random::{Rng, SeedableRng};
 use scirs2_neural::error::Result;
 // use serde::{Deserialize, Serialize};
 use std::f32;
@@ -33,7 +33,7 @@ impl ActivationFunction {
     /// Apply the activation function to an array
     fn apply<D>(&self, x: &Array<f32, D>) -> Array<f32, D>
     where
-        D: ndarray::Dimension,
+        D: scirs2_core::ndarray::Dimension,
     {
         match self {
             ActivationFunction::ReLU => x.mapv(|v| v.max(0.0)),
@@ -45,7 +45,7 @@ impl ActivationFunction {
     /// Compute the derivative of the activation function
     fn derivative<D>(&self, x: &Array<f32, D>) -> Array<f32, D>
     where
-        D: ndarray::Dimension,
+        D: scirs2_core::ndarray::Dimension,
     {
         match self {
             ActivationFunction::ReLU => x.mapv(|v| if v > 0.0 { 1.0 } else { 0.0 }),
@@ -186,7 +186,7 @@ impl Conv2D {
         // He/Kaiming initialization for weights
         let fan_in = input_channels * kernel_size.0 * kernel_size.1;
         let std_dev = (2.0 / fan_in as f32).sqrt();
-        let dist = Uniform::new_inclusive(-std_dev, std_dev);
+        let dist = Uniform::new_inclusive(-std_dev, std_dev).unwrap();
         // Initialize weights: [filters, input_channels, kernel_h, kernel_w]
         let weights = Array4::from_shape_fn(
             [filters, input_channels, kernel_size.0, kernel_size.1],
@@ -706,7 +706,7 @@ impl Dense {
         rng: &mut SmallRng,
     ) -> Self {
         let std_dev = (2.0 / input_size as f32).sqrt();
-        let dist = Uniform::new_inclusive(-std_dev, std_dev);
+        let dist = Uniform::new_inclusive(-std_dev, std_dev).unwrap();
         // Initialize weights and biases
         let weights = Array2::from_shape_fn((input_size, output_size), |_| dist.sample(rng));
         let biases = Array1::zeros(output_size);
@@ -991,27 +991,23 @@ fn create_synthetic_dataset(
     // Create synthetic patterns for each class
     let mut class_patterns = Vec::with_capacity(num_classes);
     for _ in 0..num_classes {
-        let pattern =
-            Array2::from_shape_fn(
-                image_size,
-                |_| {
-                    if rng.gen::<f32>() > 0.7 {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                },
-            );
+        let pattern = Array2::from_shape_fn(image_size, |_| {
+            if rng.random::<f32>() > 0.7 {
+                1.0
+            } else {
+                0.0
+            }
+        });
         class_patterns.push(pattern);
     }
     // Generate _samples with noise
     for i in 0..num_samples {
         // Assign a random class
-        let class = rng.gen_range(0..num_classes);
+        let class = rng.random_range(0..num_classes);
         // Add the class pattern with noise
         for h in 0..image_size.0 {
             for w in 0..image_size.1 {
-                let noise = rng.gen::<f32>() * 0.3;
+                let noise = rng.random::<f32>() * 0.3;
                 let pixel = (class_patterns[class][[h, w]] + noise).min(1.0);
                 images[[i, 0, h, w]] = pixel;
             }
@@ -1132,7 +1128,7 @@ fn train_cnn_example() -> Result<()> {
     // Make some example predictions
     println!("\nExample predictions:");
     for i in 0..5 {
-        let idx = rng.gen_range(0..test_size);
+        let idx = rng.random_range(0..test_size);
         let true_class = argmax(test_labels.row(idx));
         let predicted_class = argmax(predictions.row(idx));
         println!(

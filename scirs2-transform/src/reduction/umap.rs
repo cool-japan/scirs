@@ -3,9 +3,9 @@
 //! UMAP is a non-linear dimensionality reduction technique that can be used for
 //! visualization similarly to t-SNE, but also for general non-linear dimension reduction.
 
-use ndarray::{Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
-use rand::Rng;
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::Rng;
 use scirs2_core::validation::{check_positive, checkshape};
 use std::collections::BinaryHeap;
 
@@ -141,8 +141,8 @@ impl UMAP {
             for j in i + 1..nsamples {
                 let mut dist = 0.0;
                 for k in 0..x.shape()[1] {
-                    let diff = num_traits::cast::<S::Elem, f64>(x[[i, k]]).unwrap_or(0.0)
-                        - num_traits::cast::<S::Elem, f64>(x[[j, k]]).unwrap_or(0.0);
+                    let diff = NumCast::from(x[[i, k]]).unwrap_or(0.0)
+                        - NumCast::from(x[[j, k]]).unwrap_or(0.0);
                     dist += diff * diff;
                 }
                 dist = dist.sqrt();
@@ -238,7 +238,7 @@ impl UMAP {
 
     /// Initialize the low dimensional embedding
     fn initialize_embedding(&self, nsamples: usize) -> Array2<f64> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Initialize with small random values
         let mut embedding = Array2::zeros((nsamples, self.n_components));
@@ -259,7 +259,7 @@ impl UMAP {
         n_epochs: usize,
     ) {
         let nsamples = embedding.shape()[0];
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Create edge list from graph
         let mut edges = Vec::new();
@@ -362,7 +362,7 @@ impl UMAP {
 
         // Store training data for out-of-sample extension
         let training_data = Array2::from_shape_fn((nsamples, n_features), |(i, j)| {
-            num_traits::cast::<S::Elem, f64>(x[[i, j]]).unwrap_or(0.0)
+            NumCast::from(x[[i, j]]).unwrap_or(0.0)
         });
         self.training_data = Some(training_data);
 
@@ -462,7 +462,7 @@ impl UMAP {
         let (nsamples, n_features) = x.dim();
         for i in 0..nsamples {
             for j in 0..n_features {
-                let x_val = num_traits::cast::<S::Elem, f64>(x[[i, j]]).unwrap_or(0.0);
+                let x_val = NumCast::from(x[[i, j]]).unwrap_or(0.0);
                 if (x_val - trainingdata[[i, j]]).abs() > 1e-10 {
                     return false;
                 }
@@ -492,7 +492,7 @@ impl UMAP {
             for j in 0..n_training_samples_ {
                 let mut dist_sq = 0.0;
                 for k in 0..x.ncols() {
-                    let x_val = num_traits::cast::<S::Elem, f64>(x[[i, k]]).unwrap_or(0.0);
+                    let x_val = NumCast::from(x[[i, k]]).unwrap_or(0.0);
                     let train_val = training_data[[j, k]];
                     let diff = x_val - train_val;
                     dist_sq += diff * diff;
@@ -536,7 +536,7 @@ impl UMAP {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_umap_basic() {

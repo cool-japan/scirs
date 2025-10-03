@@ -3,10 +3,10 @@
 //! This example shows how to use the new native plotting features in scirs2-cluster
 //! to create static plots with plotters and interactive visualizations with egui.
 
-use ndarray::Array2;
 use scirs2_cluster::preprocess::standardize;
 use scirs2_cluster::vq::{kmeans, kmeans2, vq};
 use scirs2_cluster::{BoundaryType, ColorScheme, DimensionalityReduction};
+use scirs2_core::ndarray::Array2;
 
 #[cfg(feature = "plotters")]
 use scirs2_cluster::{save_clustering_plot, PlotFormat, PlotOutput};
@@ -158,8 +158,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// Generate sample data with 3 well-separated clusters
 #[allow(dead_code)]
 fn generate_sample_data() -> Vec<f64> {
-    use rand::prelude::*;
-    use rand_distr::Normal;
+    use scirs2_core::random::prelude::*;
+    use scirs2_core::random::Normal;
 
     let mut rng = StdRng::seed_from_u64(42);
     let mut data = Vec::with_capacity(600); // 300 points * 2 features

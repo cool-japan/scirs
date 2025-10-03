@@ -1,4 +1,4 @@
-use ndarray::{s, Array2};
+use scirs2_core::ndarray::{s, Array2};
 use scirs2_linalg::prelude::*;
 use scirs2_linalg::{largest_k_eigh, smallest_k_eigh};
 

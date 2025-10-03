@@ -195,7 +195,7 @@ impl NeuralAdaptiveConfig {
             return Err("Transformer layers must be greater than 0".to_string());
         }
 
-        if self.modeldim % self.attention_heads != 0 {
+        if !self.modeldim.is_multiple_of(self.attention_heads) {
             return Err(
                 "Model dimension must be divisible by number of attention heads".to_string(),
             );

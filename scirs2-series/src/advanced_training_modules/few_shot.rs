@@ -4,8 +4,8 @@
 //! Prototypical Networks and REPTILE for rapid adaptation to new tasks
 //! with minimal training data.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::TaskData;
@@ -13,7 +13,7 @@ use crate::error::Result;
 
 /// Prototypical Networks for Few-Shot Learning
 #[derive(Debug)]
-pub struct PrototypicalNetworks<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct PrototypicalNetworks<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Feature extraction network parameters
     feature_extractor: Array2<F>,
     /// Input dimension
@@ -24,7 +24,9 @@ pub struct PrototypicalNetworks<F: Float + Debug + ndarray::ScalarOperand> {
     hidden_dims: Vec<usize>,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> PrototypicalNetworks<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
+    PrototypicalNetworks<F>
+{
     /// Create new Prototypical Networks model
     pub fn new(input_dim: usize, feature_dim: usize, hidden_dims: Vec<usize>) -> Self {
         // Calculate total parameters for feature extractor
@@ -313,7 +315,7 @@ impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> Prototyp
     }
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> Clone
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand> Clone
     for PrototypicalNetworks<F>
 {
     fn clone(&self) -> Self {
@@ -385,7 +387,7 @@ impl<F: Float + Debug> FewShotEpisode<F> {
 
 /// REPTILE Algorithm for Meta-Learning
 #[derive(Debug)]
-pub struct REPTILE<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct REPTILE<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Base model parameters
     parameters: Array2<F>,
     /// Meta-learning rate
@@ -400,7 +402,7 @@ pub struct REPTILE<F: Float + Debug + ndarray::ScalarOperand> {
     output_dim: usize,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> REPTILE<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand> REPTILE<F> {
     /// Create new REPTILE instance
     pub fn new(
         input_dim: usize,

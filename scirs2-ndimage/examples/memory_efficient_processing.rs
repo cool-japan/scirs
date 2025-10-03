@@ -3,8 +3,8 @@
 //! This example shows how to process large images that don't fit in RAM using
 //! memory-mapped arrays, chunked processing, and other memory-efficient techniques.
 
-use ndarray::{s, Array2, Array3};
 use scirs2_core::memory_efficient::{AccessMode, ChunkingStrategy};
+use scirs2_core::ndarray::{s, Array2, Array3};
 use scirs2_ndimage::{
     chunked_v2::{convolve_chunked_v2, uniform_filter_chunked_v2, ChunkConfigBuilder},
     filters::{gaussian_filter, BorderMode},
@@ -103,8 +103,12 @@ fn example_2_memory_mapped_processing() -> Result<(), Box<dyn std::error::Error>
 
     // Load the image as memory-mapped
     println!("Loading image as memory-mapped array...");
-    let loaded_mmap =
-        loadimage_mmap::<f64, ndarray::Ix2, _>(&image_path, &shape, 0, AccessMode::ReadOnly)?;
+    let loaded_mmap = loadimage_mmap::<f64, scirs2_core::ndarray::Ix2, _>(
+        &image_path,
+        &shape,
+        0,
+        AccessMode::ReadOnly,
+    )?;
     println!("  ✓ Loaded with shape: {:?}", loaded_mmap.shape);
 
     // Process the memory-mapped image in chunks
@@ -191,7 +195,7 @@ fn example_4image_sequence_processing() -> Result<(), Box<dyn std::error::Error>
     let sequence_path = temp_dir.path().join("sequence.bin");
 
     // Calculate total size for the sequence
-    let totalshape = vec![num_frames, frameshape.0, frameshape.1];
+    let totalshape = [num_frames, frameshape.0, frameshape.1];
     let sequence_array = Array3::<f32>::zeros((num_frames, frameshape.0, frameshape.1));
 
     // Save as memory-mapped sequence

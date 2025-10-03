@@ -3,10 +3,10 @@
 //! This module provides optimized FFT operations for arrays with
 //! arbitrary memory layouts and striding patterns.
 
-use ndarray::{ArrayBase, Data, Dimension};
-use num_complex::Complex64;
-use num_traits::NumCast;
 use rustfft::FftPlanner;
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::sync::Arc;
 
 use crate::error::{FFTError, FFTResult};
@@ -17,7 +17,7 @@ use crate::plan_cache::get_global_cache;
 pub fn fft_strided<S, D>(
     input: &ArrayBase<S, D>,
     axis: usize,
-) -> FFTResult<ndarray::Array<Complex64, D>>
+) -> FFTResult<scirs2_core::ndarray::Array<Complex64, D>>
 where
     S: Data,
     D: Dimension,
@@ -33,7 +33,7 @@ where
     }
 
     // Create output array with same shape
-    let mut output = ndarray::Array::zeros(input.raw_dim());
+    let mut output = scirs2_core::ndarray::Array::zeros(input.raw_dim());
 
     // Get FFT plan from cache
     let axis_len = input.shape()[axis];
@@ -50,7 +50,7 @@ where
 #[allow(dead_code)]
 fn process_strided_fft<S, D>(
     input: &ArrayBase<S, D>,
-    output: &mut ndarray::Array<Complex64, D>,
+    output: &mut scirs2_core::ndarray::Array<Complex64, D>,
     axis: usize,
     fft_plan: Arc<dyn rustfft::Fft<f64>>,
 ) -> FFTResult<()>
@@ -66,9 +66,9 @@ where
 
     // Process each lane along the given axis
     for (i_lane, mut o_lane) in input
-        .lanes(ndarray::Axis(axis))
+        .lanes(scirs2_core::ndarray::Axis(axis))
         .into_iter()
-        .zip(output.lanes_mut(ndarray::Axis(axis)))
+        .zip(output.lanes_mut(scirs2_core::ndarray::Axis(axis)))
     {
         // Copy data to input buffer with proper conversion
         for (i, &val) in i_lane.iter().enumerate() {
@@ -95,7 +95,7 @@ where
 pub fn fft_strided_complex<S, D>(
     input: &ArrayBase<S, D>,
     axis: usize,
-) -> FFTResult<ndarray::Array<Complex64, D>>
+) -> FFTResult<scirs2_core::ndarray::Array<Complex64, D>>
 where
     S: Data,
     D: Dimension,
@@ -111,7 +111,7 @@ where
     }
 
     // Create output array with same shape
-    let mut output = ndarray::Array::zeros(input.raw_dim());
+    let mut output = scirs2_core::ndarray::Array::zeros(input.raw_dim());
 
     // Get FFT plan from cache
     let axis_len = input.shape()[axis];
@@ -128,7 +128,7 @@ where
 #[allow(dead_code)]
 fn process_strided_complex_fft<S, D>(
     input: &ArrayBase<S, D>,
-    output: &mut ndarray::Array<Complex64, D>,
+    output: &mut scirs2_core::ndarray::Array<Complex64, D>,
     axis: usize,
     fft_plan: Arc<dyn rustfft::Fft<f64>>,
 ) -> FFTResult<()>
@@ -144,9 +144,9 @@ where
 
     // Process each lane along the given axis
     for (i_lane, mut o_lane) in input
-        .lanes(ndarray::Axis(axis))
+        .lanes(scirs2_core::ndarray::Axis(axis))
         .into_iter()
-        .zip(output.lanes_mut(ndarray::Axis(axis)))
+        .zip(output.lanes_mut(scirs2_core::ndarray::Axis(axis)))
     {
         // Copy data to input buffer with proper conversion
         for (i, &val) in i_lane.iter().enumerate() {
@@ -170,7 +170,7 @@ where
 pub fn ifft_strided<S, D>(
     input: &ArrayBase<S, D>,
     axis: usize,
-) -> FFTResult<ndarray::Array<Complex64, D>>
+) -> FFTResult<scirs2_core::ndarray::Array<Complex64, D>>
 where
     S: Data,
     D: Dimension,
@@ -186,7 +186,7 @@ where
     }
 
     // Create output array with same shape
-    let mut output = ndarray::Array::zeros(input.raw_dim());
+    let mut output = scirs2_core::ndarray::Array::zeros(input.raw_dim());
 
     // Get inverse FFT plan from cache
     let axis_len = input.shape()[axis];
@@ -207,7 +207,7 @@ where
 #[allow(dead_code)]
 fn process_strided_inverse_fft<S, D>(
     input: &ArrayBase<S, D>,
-    output: &mut ndarray::Array<Complex64, D>,
+    output: &mut scirs2_core::ndarray::Array<Complex64, D>,
     axis: usize,
     ifft_plan: Arc<dyn rustfft::Fft<f64>>,
 ) -> FFTResult<()>
@@ -223,9 +223,9 @@ where
 
     // Process each lane along the given axis
     for (i_lane, mut o_lane) in input
-        .lanes(ndarray::Axis(axis))
+        .lanes(scirs2_core::ndarray::Axis(axis))
         .into_iter()
-        .zip(output.lanes_mut(ndarray::Axis(axis)))
+        .zip(output.lanes_mut(scirs2_core::ndarray::Axis(axis)))
     {
         // Copy data to input buffer with proper conversion
         for (i, &val) in i_lane.iter().enumerate() {
@@ -247,13 +247,13 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_fft_strided_1d() {
         // Create a test signal
         let n = 8;
-        let mut input = ndarray::Array1::zeros(n);
+        let mut input = scirs2_core::ndarray::Array1::zeros(n);
         for i in 0..n {
             input[i] = i as f64;
         }
@@ -289,7 +289,7 @@ mod tests {
     fn test_ifft_strided() {
         // Create a complex test signal
         let n = 8;
-        let mut input = ndarray::Array1::zeros(n);
+        let mut input = scirs2_core::ndarray::Array1::zeros(n);
         for i in 0..n {
             input[i] = Complex64::new(i as f64, (i * 2) as f64);
         }

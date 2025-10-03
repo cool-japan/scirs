@@ -44,7 +44,7 @@
 //! ## Comparing Models on the Same Data
 //! ```rust
 //! use scirs2_series::financial::models::*;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.003, 0.007, -0.001, 0.004,
 //!                      0.008, -0.005, 0.011, -0.002, 0.009, 0.003, -0.007, 0.013, -0.004, 0.006,

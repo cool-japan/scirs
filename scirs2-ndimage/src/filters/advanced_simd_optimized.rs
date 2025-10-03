@@ -3,8 +3,8 @@
 //! This module provides the most advanced SIMD optimizations using
 //! vectorized instructions and advanced algorithms for maximum performance.
 
-use ndarray::{s, Array, Array1, ArrayView2, ArrayViewMut2, Axis, Ix2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array, Array1, ArrayView2, ArrayViewMut2, Axis, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::cmp;
 use std::fmt::Debug;
@@ -188,7 +188,7 @@ where
 #[allow(dead_code)]
 fn advanced_simd_erosion_row<T>(
     input: &ArrayView2<T>,
-    output_row: &mut ndarray::ArrayViewMut1<T>,
+    output_row: &mut scirs2_core::ndarray::ArrayViewMut1<T>,
     y: usize,
     structure: &ArrayView2<bool>,
     sh_half: usize,
@@ -376,7 +376,7 @@ where
 fn advanced_simd_template_match_row<T>(
     image: &ArrayView2<T>,
     template: &ArrayView2<T>,
-    output_row: &mut ndarray::ArrayViewMut1<T>,
+    output_row: &mut scirs2_core::ndarray::ArrayViewMut1<T>,
     y: usize,
     template_mean: T,
     template_norm: T,
@@ -764,7 +764,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_simd_separable_convolution() {

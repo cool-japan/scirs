@@ -33,9 +33,9 @@
 #![allow(dead_code)]
 
 use crate::{faddeeva_complex, SpecialError, SpecialResult};
-use ndarray::{Array1, ArrayView1};
-use num_complex::Complex64;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::validation::{check_finite, check_positive};
 use std::fmt::{Debug, Display};
 
@@ -193,7 +193,7 @@ where
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_special::voigt_profile_array;
 ///
 /// let x = array![-2.0f64, -1.0, 0.0, 1.0, 2.0];
@@ -306,7 +306,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use std::f64::consts::PI;
 
     #[test]

@@ -8,8 +8,8 @@
 //! * Optimization-related derivatives
 //! * Automatic differentiation support
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use scirs2_core::validation::{check_1d, check_2d, check_sameshape};
@@ -37,12 +37,12 @@ use crate::matrix_calculus::gradient;
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView1};
+/// use scirs2_core::ndarray::{array, ArrayView1};
 /// use scirs2_linalg::matrix_calculus::enhanced::jacobian_vector_product;
 /// use scirs2_linalg::error::LinalgResult;
 ///
 /// // Define a function f(x) = [x[0]^2, x[1]^3]
-/// let f = |x: &ArrayView1<f64>| -> LinalgResult<ndarray::Array1<f64>> {
+/// let f = |x: &ArrayView1<f64>| -> LinalgResult<scirs2_core::ndarray::Array1<f64>> {
 ///     let result = array![x[0] * x[0], x[1] * x[1] * x[1]];
 ///     Ok(result)
 /// };
@@ -113,12 +113,12 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView1};
+/// use scirs2_core::ndarray::{array, ArrayView1};
 /// use scirs2_linalg::matrix_calculus::enhanced::vector_jacobian_product;
 /// use scirs2_linalg::error::LinalgResult;
 ///
 /// // Define a function f(x) = [x[0]^2, x[1]^3]
-/// let f = |x: &ArrayView1<f64>| -> LinalgResult<ndarray::Array1<f64>> {
+/// let f = |x: &ArrayView1<f64>| -> LinalgResult<scirs2_core::ndarray::Array1<f64>> {
 ///     let result = array![x[0] * x[0], x[1] * x[1] * x[1]];
 ///     Ok(result)
 /// };
@@ -202,7 +202,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView1};
+/// use scirs2_core::ndarray::{array, ArrayView1};
 /// use scirs2_linalg::matrix_calculus::enhanced::hessian_vector_product;
 /// use scirs2_linalg::error::LinalgResult;
 ///
@@ -279,7 +279,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::matrix_calculus::enhanced::matrix_gradient;
 /// use scirs2_linalg::error::LinalgResult;
 ///
@@ -354,12 +354,12 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView2};
+/// use scirs2_core::ndarray::{array, ArrayView2};
 /// use scirs2_linalg::matrix_calculus::enhanced::matrix_jacobian;
 /// use scirs2_linalg::error::LinalgResult;
 ///
 /// // Define a function f(X) = [sum(X), sum(X^2)]
-/// let f = |x: &ArrayView2<f64>| -> LinalgResult<ndarray::Array1<f64>> {
+/// let f = |x: &ArrayView2<f64>| -> LinalgResult<scirs2_core::ndarray::Array1<f64>> {
 ///     let sum = x.sum();
 ///     let sum_of_squares = x.iter().fold(0.0_f64, |acc, &val| acc + val * val);
 ///     Ok(array![sum, sum_of_squares])
@@ -385,7 +385,7 @@ pub fn matrix_jacobian<F>(
     f: impl Fn(&ArrayView2<F>) -> LinalgResult<Array1<F>>,
     x: &ArrayView2<F>,
     epsilon: Option<F>,
-) -> LinalgResult<ndarray::Array3<F>>
+) -> LinalgResult<scirs2_core::ndarray::Array3<F>>
 where
     F: Float + Zero + One + Copy + Debug,
 {
@@ -401,7 +401,7 @@ where
     let p = f_x.len();
 
     // Create a 3D tensor for the Jacobian
-    let mut jac = ndarray::Array3::zeros((p, rows, cols));
+    let mut jac = scirs2_core::ndarray::Array3::zeros((p, rows, cols));
 
     for i in 0..rows {
         for j in 0..cols {
@@ -442,7 +442,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView1};
+/// use scirs2_core::ndarray::{array, ArrayView1};
 /// use scirs2_linalg::matrix_calculus::enhanced::taylor_approximation;
 /// use scirs2_linalg::error::LinalgResult;
 ///
@@ -582,7 +582,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, ArrayView1};
+/// use scirs2_core::ndarray::{array, ArrayView1};
 /// use scirs2_linalg::matrix_calculus::enhanced::find_critical_points;
 /// use scirs2_linalg::error::LinalgResult;
 ///
@@ -709,7 +709,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_jacobian_vector_product() {

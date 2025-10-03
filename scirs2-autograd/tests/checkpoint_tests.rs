@@ -1,6 +1,6 @@
 use ag::tensor_ops as T;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 #[test]
 #[allow(dead_code)]
@@ -66,7 +66,7 @@ fn test_detach() {
         // Gradient should be zeros since we detached
         let grad_2d = grad_result
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .unwrap();
         for i in 0..2 {
             for j in 0..2 {
@@ -258,22 +258,36 @@ fn test_checkpoint_group() {
         let d2_val = d2.eval(ctx).unwrap();
 
         // Compare c1 and c2
-        let c1_2d = c1_val.view().into_dimensionality::<ndarray::Ix2>().unwrap();
-        let c2_2d = c2_val.view().into_dimensionality::<ndarray::Ix2>().unwrap();
+        let c1_2d = c1_val
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .unwrap();
+        let c2_2d = c2_val
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .unwrap();
 
         for i in 0..2 {
             for j in 0..2 {
-                assert!((c1_2d[[i, j]] - c2_2d[[i, j]] as f64).abs() < 1e-10_f64);
+                let diff: f64 = c1_2d[[i, j]] - c2_2d[[i, j]];
+                assert!(diff.abs() < 1e-10_f64);
             }
         }
 
         // Compare d1 and d2
-        let d1_2d = d1_val.view().into_dimensionality::<ndarray::Ix2>().unwrap();
-        let d2_2d = d2_val.view().into_dimensionality::<ndarray::Ix2>().unwrap();
+        let d1_2d = d1_val
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .unwrap();
+        let d2_2d = d2_val
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .unwrap();
 
         for i in 0..2 {
             for j in 0..2 {
-                assert!((d1_2d[[i, j]] - d2_2d[[i, j]] as f64).abs() < 1e-10_f64);
+                let diff: f64 = d1_2d[[i, j]] - d2_2d[[i, j]];
+                assert!(diff.abs() < 1e-10_f64);
             }
         }
 
@@ -322,7 +336,7 @@ fn test_stop_gradient() {
 
         let grad_2d = grad_val
             .view()
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .unwrap();
         for i in 0..2 {
             for j in 0..2 {

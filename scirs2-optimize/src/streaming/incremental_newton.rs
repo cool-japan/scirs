@@ -10,9 +10,9 @@ use super::{
     StreamingStats,
 };
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 // Unused import
-// use ndarray::ArrayView2;
+// use scirs2_core::ndarray::ArrayView2;
 // Unused import
 // use scirs2_core::error::CoreResult;
 // Unused import
@@ -125,7 +125,7 @@ impl LBFGSHistory {
         if let (Some(s), Some(y)) = (self.s_vectors.last(), self.y_vectors.last()) {
             let gamma = s.dot(y) / y.dot(y);
             if gamma > 0.0 && gamma.is_finite() {
-                q = q * gamma;
+                q *= gamma;
             }
         }
 

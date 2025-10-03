@@ -3,9 +3,9 @@ use crate::op;
 
 use crate::tensor::Tensor;
 
+use crate::ndarray;
 use crate::tensor_ops::*;
 use crate::Float;
-use ndarray;
 
 pub struct Elu<T> {
     pub alpha: T,
@@ -58,18 +58,20 @@ pub fn softmax_impl<T: Float>(x: &NdArrayView<T>, axis: isize) -> NdArray<T> {
     let max_fn = T::max;
     // unwrap is safe
     let max = &x
-        .fold_axis(ndarray::Axis(axis), T::min_value(), move |&a, &b| {
-            max_fn(a, b)
-        })
-        .into_shape_with_order(ndarray::IxDyn(reducedshape))
+        .fold_axis(
+            scirs2_core::ndarray::Axis(axis),
+            T::min_value(),
+            move |&a, &b| max_fn(a, b),
+        )
+        .into_shape_with_order(scirs2_core::ndarray::IxDyn(reducedshape))
         .unwrap();
     // subtract `max` to prevent overflow
     let mut tmp = x - max;
     tmp.mapv_inplace(move |a| a.exp());
     // unwrap is safe
     let sum = tmp
-        .sum_axis(ndarray::Axis(axis))
-        .into_shape_with_order(ndarray::IxDyn(reducedshape))
+        .sum_axis(scirs2_core::ndarray::Axis(axis))
+        .into_shape_with_order(scirs2_core::ndarray::IxDyn(reducedshape))
         .unwrap();
     tmp /= &sum;
     tmp

@@ -10,9 +10,9 @@
 
 use crate::error::{FFTError, FFTResult};
 use crate::window::{get_window, Window};
-use ndarray::{Array2, Axis};
-use num_complex::Complex64;
-use num_traits::NumCast;
+use scirs2_core::ndarray::{Array2, Axis};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::f64::consts::PI;
 
 /// Compute the Short-Time Fourier Transform (STFT) of a signal.
@@ -128,7 +128,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 FFTError::ValueError(format!("Could not convert value to f64: {val:?}"))
             })
         })
@@ -451,7 +451,7 @@ where
 /// ).unwrap();
 ///
 /// // Values should be normalized to [0, 1]
-/// for row in sxx_norm.axis_iter(ndarray::Axis(0)) {
+/// for row in sxx_norm.axis_iter(scirs2_core::ndarray::Axis(0)) {
 ///     for &val in row {
 ///         assert!((0.0..=1.0).contains(&val));
 ///     }

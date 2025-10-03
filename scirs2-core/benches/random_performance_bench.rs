@@ -3,6 +3,8 @@
 //! This benchmark suite validates that our scientific computing random number generation
 //! implementations meet or exceed performance of standard Rust libraries while providing
 //! enhanced functionality for scientific computing workflows.
+
+#![allow(deprecated)]
 //!
 //! # Benchmark Categories
 //!
@@ -54,11 +56,11 @@ fn bench_core_rng(c: &mut Criterion) {
     });
 
     group.bench_function("std_rand_f64", |b| {
-        b.iter(|| black_box(std_rng.gen::<f64>()))
+        b.iter(|| black_box(std_rng.random::<f64>()))
     });
 
     group.bench_function("thread_rng_f64", |b| {
-        b.iter(|| black_box(thread_rng.gen::<f64>()))
+        b.iter(|| black_box(thread_rng.random::<f64>()))
     });
 
     // Batch generation (1000 numbers)
@@ -79,7 +81,7 @@ fn bench_core_rng(c: &mut Criterion) {
         b.iter(|| {
             let mut vec = Vec::with_capacity(batch_size);
             for _ in 0..batch_size {
-                vec.push(std_rng.gen::<f64>());
+                vec.push(std_rng.random::<f64>());
             }
             black_box(vec)
         })

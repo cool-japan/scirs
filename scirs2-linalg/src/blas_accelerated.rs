@@ -3,8 +3,8 @@
 //! This module provides optimized BLAS operations using ndarray-linalg bindings to native BLAS libraries.
 //! These functions are significantly faster for large matrices compared to pure Rust implementations.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
 
 use crate::error::{LinalgError, LinalgResult};
 
@@ -22,7 +22,7 @@ use crate::error::{LinalgError, LinalgResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::blas_accelerated::dot;
 ///
 /// let x = array![1.0_f64, 2.0, 3.0];
@@ -60,7 +60,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::blas_accelerated::norm;
 ///
 /// let x = array![3.0_f64, 4.0];
@@ -105,7 +105,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array1};
+/// use scirs2_core::ndarray::{array, Array1};
 /// use scirs2_linalg::blas_accelerated::gemv;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -177,7 +177,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_linalg::blas_accelerated::gemm;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -250,7 +250,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::blas_accelerated::matmul;
 ///
 /// let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
@@ -292,7 +292,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::blas_accelerated::solve;
 ///
 /// let a = array![[3.0_f64, 1.0], [1.0, 2.0]];
@@ -401,7 +401,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::blas_accelerated::inv;
 ///
 /// let a = array![[4.0_f64, 7.0], [2.0, 6.0]];
@@ -499,7 +499,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Array1, Array2};
+    use scirs2_core::ndarray::{array, Array1, Array2};
 
     #[test]
     fn test_dot() {

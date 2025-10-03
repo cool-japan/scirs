@@ -3,7 +3,7 @@
 //! This module contains all the fundamental types and configurations
 //! used for visualizing hierarchical clustering results.
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use serde::{Deserialize, Serialize};
 
 /// Color scheme options for dendrogram visualization

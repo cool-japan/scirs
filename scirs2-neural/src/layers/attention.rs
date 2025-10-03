@@ -6,9 +6,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Layer, ParamLayer};
-use ndarray::{s, Array, ArrayView, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::{s, Array, ArrayView, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::fmt::Debug;
 use std::sync::RwLock;
 // SIMD optimizations using scirs2-core
@@ -58,11 +58,11 @@ impl Default for AttentionConfig {
 /// ```
 /// use scirs2_neural::layers::{MultiHeadAttention, Layer};
 /// use scirs2_neural::layers::AttentionConfig;
-/// use ndarray::Array3;
-/// use rand::rngs::SmallRng;
-/// use rand::SeedableRng;
+/// use scirs2_core::ndarray::Array3;
+/// use scirs2_core::random::rngs::SmallRng;
+/// use scirs2_core::random::SeedableRng;
 /// // Create multi-head attention with 2 heads and 64-dim embeddings
-/// let mut rng = rand::rng();
+/// let mut rng = scirs2_core::random::rng();
 /// let config = AttentionConfig {
 ///     num_heads: 2,
 ///     head_dim: 32,
@@ -618,16 +618,16 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps> 
             for elem in weight_matrix.iter_mut() {
                 *elem = elem.max(-clip_value).min(clip_value);
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps> ParamLayer<F>
-    fn get_parameters(&self) -> Vec<&Array<F, ndarray::IxDyn>> {
+    fn get_parameters(&self) -> Vec<&Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![&self.w_query, &self.w_key, &self.w_value, &self.w_output]
-    fn get_gradients(&self) -> Vec<&Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<&Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![
             &self.dw_query,
             &self.dw_key,
             &self.dw_value,
             &self.dw_output,
         ]
-    fn set_parameters(&mut self, params: Vec<Array<F, ndarray::IxDyn>>) -> Result<()> {
+    fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
         if params.len() != 4 {
                 "Expected 4 parameters, got {}",
                 params.len()
@@ -669,13 +669,13 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + SimdUnifiedOps> 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array3;
-    use rand::rngs::SmallRng;
-    use rand::SeedableRng;
+    use scirs2_core::ndarray::Array3;
+    use scirs2_core::random::rngs::SmallRng;
+    use scirs2_core::random::SeedableRng;
     #[test]
     fn test_multi_head_attentionshape() {
         // Set up MHA with 2 heads
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let config = AttentionConfig {
             num_heads: 2,
             head_dim: 32,

@@ -1,4 +1,4 @@
-use ndarray::{s, Array2};
+use scirs2_core::ndarray::{s, Array2};
 use scirs2_core::Complex64;
 use scirs2_fft::{fft, fft_strided, fft_strided_complex, ifft_strided};
 use std::time::Instant;

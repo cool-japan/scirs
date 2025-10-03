@@ -3,8 +3,8 @@
 //! This module provides efficient boundary handling that avoids unnecessary array copies
 //! by using virtual indexing and on-the-fly boundary value computation.
 
-use ndarray::{Array, ArrayView, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::BorderMode;
@@ -140,7 +140,7 @@ where
             Some(valid_indices) => {
                 // Use dynamic indexing
                 let array_dyn = self.array.view().into_dyn();
-                let dyn_indices = ndarray::IxDyn(&valid_indices);
+                let dyn_indices = scirs2_core::ndarray::IxDyn(&valid_indices);
                 array_dyn[dyn_indices]
             }
             None => {
@@ -221,7 +221,7 @@ where
 
         // Convert output to dynamic for assignment
         let mut output_dyn = output.view_mut().into_dyn();
-        let dyn_indices = ndarray::IxDyn(&indices);
+        let dyn_indices = scirs2_core::ndarray::IxDyn(&indices);
         output_dyn[dyn_indices] = value;
 
         // Move to next position
@@ -291,7 +291,7 @@ where
                     flipped_indices[i] = kernelshape[i] - kernel_indices[i] - 1;
                 }
                 let kernel_dyn = kernel_clone.view().into_dyn();
-                let kernel_val = kernel_dyn[ndarray::IxDyn(&flipped_indices)];
+                let kernel_val = kernel_dyn[scirs2_core::ndarray::IxDyn(&flipped_indices)];
 
                 sum = sum + input_val * kernel_val;
 
@@ -309,7 +309,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_virtual_boundary_handler_constant() {

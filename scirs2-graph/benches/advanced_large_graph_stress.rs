@@ -49,8 +49,8 @@ fn generate_large_random_graph(num_nodes: usize, edge_probability: f64) -> Graph
     println!("  🔗 Adding approximately {} edges...", target_edges);
 
     while edges_added < target_edges {
-        let source = rng.gen_range(0..num_nodes);
-        let target = rng.gen_range(0..num_nodes);
+        let source = rng.random_range(0..num_nodes);
+        let target = rng.random_range(0..num_nodes);
 
         if source != target {
             let weight = rng.random::<f64>();
@@ -108,7 +108,7 @@ fn generate_scale_free_graph(num_nodes: usize, initial_edges: usize) -> Graph<us
             // Select target node based on degree probability
             let mut target = 0;
             if degree_sum > 0 {
-                let random_degree = rng.gen_range(0..degree_sum);
+                let random_degree = rng.random_range(0..degree_sum);
                 let mut cumulative_degree = 0;
 
                 for (&node, &degree) in &node_degrees {
@@ -119,7 +119,7 @@ fn generate_scale_free_graph(num_nodes: usize, initial_edges: usize) -> Graph<us
                     }
                 }
             } else {
-                target = rng.gen_range(0..i);
+                target = rng.random_range(0..i);
             }
 
             let weight = rng.random::<f64>();
@@ -159,13 +159,13 @@ fn generate_memory_efficient_graph(num_nodes: usize) -> Graph<usize, f64> {
         // Add edges within and between batches with locality
         for i in batch_start..batch_end {
             // Connect to nearby _nodes for spatial locality
-            let num_local_connections = rng.gen_range(2..5);
+            let num_local_connections = rng.random_range(2..5);
             for _ in 0..num_local_connections {
                 if i > 0 {
                     let local_start = (i.saturating_sub(1000)).max(0);
                     let local_end = i.saturating_sub(1);
                     if local_start <= local_end {
-                        let target = rng.gen_range(local_start..=local_end);
+                        let target = rng.random_range(local_start..=local_end);
                         let weight = rng.random::<f64>();
                         let _ = graph.add_edge(i, target, weight);
                     }
@@ -173,10 +173,10 @@ fn generate_memory_efficient_graph(num_nodes: usize) -> Graph<usize, f64> {
             }
 
             // Connect to some random distant _nodes
-            let num_random_connections = rng.gen_range(1..3);
+            let num_random_connections = rng.random_range(1..3);
             for _ in 0..num_random_connections {
                 if i > 100 {
-                    let target = rng.gen_range(0..i.saturating_sub(100));
+                    let target = rng.random_range(0..i.saturating_sub(100));
                     let weight = rng.random::<f64>();
                     let _ = graph.add_edge(i, target, weight);
                 }
@@ -278,8 +278,8 @@ fn generate_social_network(num_nodes: usize) -> Graph<usize, f64> {
         if cluster_id > 0 {
             for _ in 0..5 {
                 // 5 inter-cluster connections per cluster
-                let source = rng.gen_range(cluster_start..cluster_end);
-                let target_cluster = rng.gen_range(0..cluster_id);
+                let source = rng.random_range(cluster_start..cluster_end);
+                let target_cluster = rng.random_range(0..cluster_id);
                 let target = rng.random_range(
                     target_cluster * CLUSTER_SIZE..(target_cluster + 1) * CLUSTER_SIZE,
                 );
@@ -481,7 +481,7 @@ fn extreme_stress_test(
         let result = execute_with_enhanced_advanced(graph, |_g| {
             // Skip pagerank for regular graphs as it requires DiGraph
             // Just return a dummy value for benchmarking purposes
-            Ok(format!("Skipped PageRank (requires DiGraph, got Graph)"))
+            Ok("Skipped PageRank (requires DiGraph, got Graph)".to_string())
         });
         let elapsed = start.elapsed();
         let memory_after = get_memory_usage();
@@ -712,7 +712,7 @@ fn concurrent_processor_stress_test(
                 execute_with_enhanced_advanced(&graph, |g| {
                     use scirs2_graph::algorithms::pagerank;
                     // Skip pagerank for regular graphs as it requires DiGraph
-                    return Ok(format!("Skipped PageRank (requires DiGraph)"));
+                    Ok("Skipped PageRank (requires DiGraph)".to_string())
                 })
             } else {
                 Ok("Skipped PageRank for very large graphs".to_string()) // Skip PageRank for very large graphs
@@ -1073,13 +1073,13 @@ fn bench_memory_usage_analysis(c: &mut Criterion) {
                         // Random access simulation
                         let mut rng = thread_rng();
                         for _ in 0..1000 {
-                            let idx = rng.gen_range(0..memory_data.len());
+                            let idx = rng.random_range(0..memory_data.len());
                             memory_data[idx] *= 1.1;
                         }
 
                         Ok(memory_data.len())
                     });
-                    black_box(result);
+                    let _ = black_box(result);
                 }
                 start.elapsed()
             })
@@ -1112,7 +1112,7 @@ fn bench_scaling_analysis(c: &mut Criterion) {
                         use scirs2_graph::algorithms::connectivity::connected_components;
                         Ok(connected_components(g))
                     });
-                    black_box(result);
+                    let _ = black_box(result);
                 }
                 start.elapsed()
             })
@@ -1128,7 +1128,7 @@ fn bench_scaling_analysis(c: &mut Criterion) {
                         let edge_count = g.edge_count();
                         Ok(node_count + edge_count) // Return a simple metric instead
                     });
-                    black_box(result);
+                    let _ = black_box(result);
                 }
                 start.elapsed()
             })

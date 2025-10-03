@@ -5,7 +5,7 @@
 //! generation, statistical validation, and performance regression detection.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
@@ -808,9 +808,9 @@ print(json.dumps(info))
 
     /// Generate test data for benchmarking
     fn generate_testdata(&self, size: usize) -> StatsResult<TestData> {
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
 
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let normal = Normal::new(0.0, 1.0).map_err(|e| {
             StatsError::ComputationError(format!("Failed to create normal distribution: {}", e))
         })?;

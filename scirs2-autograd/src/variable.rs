@@ -292,7 +292,10 @@ pub trait NamespaceTrait<F: Float> {
 #[allow(clippy::needless_lifetimes)]
 impl<'ns, 'env, F: Float, S: Into<String>> NamedVariableSlot<'ns, 'env, F, S> {
     /// Registers the given name and array with the specified namespace.
-    pub fn set<D: ndarray::Dimension>(self, v: ndarray::Array<F, D>) -> VariableID {
+    pub fn set<D: scirs2_core::ndarray::Dimension>(
+        self,
+        v: scirs2_core::ndarray::Array<F, D>,
+    ) -> VariableID {
         register_variable(
             v,
             self.namespace.namespace_id,
@@ -304,7 +307,10 @@ impl<'ns, 'env, F: Float, S: Into<String>> NamedVariableSlot<'ns, 'env, F, S> {
 
 impl<'env, F: Float> DefaultVariableSlot<'env, F> {
     /// Registers the given array with the *default* namespace.
-    pub fn set<D: ndarray::Dimension>(self, v: ndarray::Array<F, D>) -> VariableID {
+    pub fn set<D: scirs2_core::ndarray::Dimension>(
+        self,
+        v: scirs2_core::ndarray::Array<F, D>,
+    ) -> VariableID {
         register_variable(
             v,
             DEFAULT_NAMESPACE_ID,
@@ -325,14 +331,20 @@ impl<'env, F: Float> DefaultVariableSlot<'env, F> {
 #[allow(clippy::needless_lifetimes)]
 impl<'env, F: Float, S: Into<String>> NamedDefaultVariableSlot<'env, F, S> {
     /// Registers the given name and array with the specified namespace.
-    pub fn set<D: ndarray::Dimension>(self, v: ndarray::Array<F, D>) -> VariableID {
+    pub fn set<D: scirs2_core::ndarray::Dimension>(
+        self,
+        v: scirs2_core::ndarray::Array<F, D>,
+    ) -> VariableID {
         register_variable(v, DEFAULT_NAMESPACE_ID, self.name.into(), self.env)
     }
 }
 
 impl<'ns, 'env, F: Float> VariableSlot<'ns, 'env, F> {
     /// Registers the given array with the specified namespace.
-    pub fn set<D: ndarray::Dimension>(self, v: ndarray::Array<F, D>) -> VariableID {
+    pub fn set<D: scirs2_core::ndarray::Dimension>(
+        self,
+        v: scirs2_core::ndarray::Array<F, D>,
+    ) -> VariableID {
         register_variable(
             v,
             self.namespace.namespace_id,
@@ -351,8 +363,8 @@ impl<'ns, 'env, F: Float> VariableSlot<'ns, 'env, F> {
 }
 
 #[allow(dead_code)]
-fn register_variable<F: Float, D: ndarray::Dimension, S: Into<String>>(
-    v: ndarray::Array<F, D>,
+fn register_variable<F: Float, D: scirs2_core::ndarray::Dimension, S: Into<String>>(
+    v: scirs2_core::ndarray::Array<F, D>,
     namespace_id: &'static str,
     variable_name: S,
     env: &mut VariableEnvironment<F>,
@@ -636,7 +648,10 @@ impl<'env, F: Float> VariableEnvironment<F> {
     }
 
     /// Registers the given array with the *default* namespace.
-    pub fn set<D: ndarray::Dimension>(&'env mut self, v: ndarray::Array<F, D>) -> VariableID {
+    pub fn set<D: scirs2_core::ndarray::Dimension>(
+        &'env mut self,
+        v: scirs2_core::ndarray::Array<F, D>,
+    ) -> VariableID {
         register_variable(v, DEFAULT_NAMESPACE_ID, Uuid::new_v4().to_string(), self)
     }
 
@@ -923,7 +938,7 @@ fn save_and_init() {
 ///
 /// // Thread-safe operations
 /// let env = SafeVariableEnvironment::new();
-/// let arr = ndarray::arr2(&[[1.0, 2.0], [3.0, 4.0]]).into_dyn();
+/// let arr = scirs2_core::ndarray::arr2(&[[1.0, 2.0], [3.0, 4.0]]).into_dyn();
 /// let var_id = env.set_variable(arr).unwrap();
 /// env.backward(var_id).unwrap();
 /// ```

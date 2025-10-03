@@ -3,8 +3,8 @@
 //! This module provides convenient factory functions for creating extrapolators
 //! with specific configurations for common use cases.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::default::Default;
 use std::ops::AddAssign;
 

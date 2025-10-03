@@ -11,9 +11,9 @@ use crate::quantization::calibration::determine_data_type;
 use crate::quantization::quantized_matrixfree::QuantizedMatrixFreeOp;
 use crate::quantization::solvers::quantized_conjugate_gradient;
 use crate::quantization::{QuantizationMethod, QuantizationParams};
-use ndarray::ScalarOperand;
-use ndarray::{s, Array1, ArrayView1, ArrayView2};
-use num_traits::{AsPrimitive, Float, FromPrimitive, NumAssign, One, Zero};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{s, Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{AsPrimitive, Float, FromPrimitive, NumAssign, One, Zero};
 use std::fmt::Debug;
 use std::fs::{File, OpenOptions};
 use std::io::{BufReader, BufWriter, Read, Seek, SeekFrom, Write};
@@ -745,7 +745,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use std::env::temp_dir;
     use std::path::PathBuf;
 

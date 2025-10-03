@@ -72,7 +72,7 @@ pub mod math {
     pub const LN10: f64 = std::f64::consts::LN_10;
 
     /// Natural logarithm of π
-    pub const LNPI: f64 = 1.144_729_885_849_400;
+    pub const LNPI: f64 = 1.144_729_885_849_4;
 
     /// Natural logarithm of 2π
     pub const LN2PI: f64 = 1.837_877_066_409_345;
@@ -81,7 +81,7 @@ pub mod math {
     pub const SQRT3: f64 = 1.732_050_807_568_877;
 
     /// Square root of 5
-    pub const SQRT5: f64 = 2.236_067_977_499_790;
+    pub const SQRT5: f64 = 2.236_067_977_499_79;
 
     /// Square root of e
     pub const SQRTE: f64 = 1.648_721_270_700_128;
@@ -99,7 +99,7 @@ pub mod math {
     pub const TWO_TO_PI: f64 = 8.824_977_827_076_287;
 
     /// π to the power of e
-    pub const PI_TO_E: f64 = 22.459_157_718_361_047;
+    pub const PI_TO_E: f64 = 22.459_157_718_361_05;
 
     /// Catalan's constant
     pub const CATALAN: f64 = 0.915_965_594_177_219;
@@ -138,13 +138,13 @@ pub mod math {
     pub const LENGYEL: f64 = 1.098_684_196_345_534;
 
     /// Viswanath's constant
-    pub const VISWANATH: f64 = 1.131_988_924_341_060;
+    pub const VISWANATH: f64 = 1.131_988_924_341_06;
 
     /// Fransén-Robinson constant
     pub const FRANSEN_ROBINSON: f64 = 2.807_770_242_028_519;
 
     /// Feigenbaum's first constant (δ)
-    pub const FEIGENBAUM_DELTA: f64 = 4.669_201_609_102_990;
+    pub const FEIGENBAUM_DELTA: f64 = 4.669_201_609_102_99;
 
     /// Feigenbaum's second constant (α)
     pub const FEIGENBAUM_ALPHA: f64 = 2.502_907_875_095_893;
@@ -339,13 +339,13 @@ pub mod physical {
     pub const JUPITER_MASS: f64 = 1.898_13e27;
 
     /// Electron classical radius (m)
-    pub const ELECTRON_RADIUS: f64 = 2.817_940_3262e-15;
+    pub const ELECTRON_RADIUS: f64 = 2.817_940_326_2e-15;
 
     /// Bohr radius (m)
     pub const BOHR_RADIUS: f64 = 5.291_772_109_03e-11;
 
     /// Thomson scattering cross section (m²)
-    pub const THOMSON_CROSS_SECTION: f64 = 6.652_458_7321e-29;
+    pub const THOMSON_CROSS_SECTION: f64 = 6.652_458_732_1e-29;
 
     /// Wien frequency displacement law constant (Hz/K)
     pub const WIEN_FREQUENCY: f64 = 5.878_925_757e10;
@@ -426,7 +426,7 @@ pub mod physical {
     pub const COMPTON_WAVELENGTH: f64 = 2.426_310_238_67e-12;
 
     /// Reduced Compton wavelength (m)
-    pub const REDUCED_COMPTON_WAVELENGTH: f64 = 3.861_592_6796e-13;
+    pub const REDUCED_COMPTON_WAVELENGTH: f64 = 3.861_592_679_6e-13;
 }
 
 /// SI prefixes and binary prefixes
@@ -1175,7 +1175,7 @@ pub mod chemistry {
     pub const HARTREE_J: f64 = 4.359_744_722_071_3e-18;
 
     /// Bohr magneton in eV/T
-    pub const BOHR_MAGNETON_EV_T: f64 = 5.788_381_8012e-5;
+    pub const BOHR_MAGNETON_EV_T: f64 = 5.788_381_801_2e-5;
 
     /// Nuclear magneton in eV/T
     pub const NUCLEAR_MAGNETON_EV_T: f64 = 3.152_451_259_4e-8;

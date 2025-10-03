@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("   Feature mean: {:.4}", features.mean().unwrap_or(0.0));
     println!(
         "   Feature std: {:.4}",
-        features.std_axis(ndarray::Axis(0), 0.0)
+        features.std_axis(scirs2_core::ndarray::Axis(0), 0.0)
     );
 
     // Compare textures in different regions
@@ -70,7 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 /// Compute entropy of a histogram
 #[allow(dead_code)]
-fn compute_entropy(hist: &ndarray::Array1<f32>) -> f32 {
+fn compute_entropy(hist: &scirs2_core::ndarray::Array1<f32>) -> f32 {
     let mut entropy = 0.0;
     for &p in hist.iter() {
         if p > 0.0 {
@@ -133,7 +133,10 @@ fn compare_regions(img: &DynamicImage) -> Result<(), Box<dyn Error>> {
 
 /// Compute chi-square distance between histograms
 #[allow(dead_code)]
-fn chi_square_distance(hist1: &ndarray::Array1<f32>, hist2: &ndarray::Array1<f32>) -> f32 {
+fn chi_square_distance(
+    hist1: &scirs2_core::ndarray::Array1<f32>,
+    hist2: &scirs2_core::ndarray::Array1<f32>,
+) -> f32 {
     let mut distance = 0.0;
     for i in 0..hist1.len() {
         let sum = hist1[i] + hist2[i];

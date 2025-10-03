@@ -3,7 +3,8 @@
 //! This module provides implementations of special mathematical functions
 //! that mirror SciPy's special module.
 
-use num_traits::{Float, FloatConst, FromPrimitive};
+// SCIRS2 POLICY: Use scirs2_core re-exports
+use scirs2_core::numeric::{Float, FloatConst, FromPrimitive};
 
 use crate::error::{SciRS2Error, SciRS2Result, check_domain};
 

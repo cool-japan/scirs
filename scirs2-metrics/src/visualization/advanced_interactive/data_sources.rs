@@ -442,12 +442,12 @@ impl DataSourceManager {
     where
         F: Fn(DataUpdate) + Send + Sync + 'static,
     {
-        let subscription_id = format!("{}_{}", source_id, rand::random::<u64>());
+        let subscription_id = format!("{}_{}", source_id, scirs2_core::random::random::<u64>());
         self.subscriptions
             .lock()
             .unwrap()
             .entry(source_id.to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(Box::new(callback));
         Ok(subscription_id)
     }

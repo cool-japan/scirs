@@ -3,7 +3,7 @@
 //! This example demonstrates how to create and use an interactive dashboard
 //! for real-time metrics monitoring and visualization.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_metrics::dashboard::utils::*;
 use scirs2_metrics::dashboard::*;
 use scirs2_metrics::error::Result;

@@ -295,8 +295,8 @@ fn convert_scientific_data_with_units(output_dir: &str) -> Result<(), Box<dyn Er
         }
 
         // Add remaining columns unchanged
-        for i in 5..row.len() {
-            new_row.push(row[i].clone());
+        for item in row.iter().skip(5) {
+            new_row.push(item.clone());
         }
 
         converted_data.push(new_row);

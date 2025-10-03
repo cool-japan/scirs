@@ -3,9 +3,9 @@
 //! This example shows how different calibration methods can be used
 //! to select optimal quantization parameters for various data distributions.
 
-use ndarray::Array2;
-use rand::{rng, Rng};
-use rand_distr::{Distribution, Normal, Uniform};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::{rng, Rng};
+use scirs2_core::random::{Distribution, Normal, Uniform};
 use scirs2_linalg::quantization::calibration::{
     calibrate_matrix, CalibrationConfig, CalibrationMethod,
 };
@@ -45,7 +45,7 @@ fn main() {
 /// Create a matrix with uniform distribution
 #[allow(dead_code)]
 fn create_uniformdata() -> Array2<f32> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let uniform = Uniform::new(-1.0, 1.0).unwrap();
 
     let mut data = Array2::zeros((10, 10));
@@ -61,7 +61,7 @@ fn create_uniformdata() -> Array2<f32> {
 /// Create a matrix with normal distribution
 #[allow(dead_code)]
 fn create_normaldata() -> Array2<f32> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let normal = Normal::new(0.0, 1.0).unwrap();
 
     let mut data = Array2::zeros((10, 10));
@@ -77,7 +77,7 @@ fn create_normaldata() -> Array2<f32> {
 /// Create a matrix with bimodal distribution
 #[allow(dead_code)]
 fn create_bimodaldata() -> Array2<f32> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let normal1 = Normal::new(-2.0, 0.5).unwrap();
     let normal2 = Normal::new(2.0, 0.5).unwrap();
 
@@ -99,7 +99,7 @@ fn create_bimodaldata() -> Array2<f32> {
 /// Create a matrix with mixed scales in different columns
 #[allow(dead_code)]
 fn create_mixed_scaledata() -> Array2<f32> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     let mut data = Array2::zeros((10, 3));
 

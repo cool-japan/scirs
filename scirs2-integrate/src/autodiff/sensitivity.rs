@@ -6,8 +6,8 @@
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::{solve_ivp, ODEOptions};
-use ndarray::{Array1, Array2, ArrayView1};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 // Type alias for complex return type
@@ -143,16 +143,18 @@ where
         let mut y0_aug = Array1::zeros(augmented_dim);
 
         // Initial conditions: y(0) and S(0) = 0
-        y0_aug.slice_mut(ndarray::s![0..n_states]).assign(&y0);
+        y0_aug
+            .slice_mut(scirs2_core::ndarray::s![0..n_states])
+            .assign(&y0);
 
         let system_clone = system.clone();
         let params = nominal_params.to_owned();
 
         // Augmented system: [dy/dt; dS/dt]
         let augmented_system = move |t: F, y_aug: ArrayView1<F>| -> Array1<F> {
-            let y = y_aug.slice(ndarray::s![0..n_states]);
+            let y = y_aug.slice(scirs2_core::ndarray::s![0..n_states]);
             let s = y_aug
-                .slice(ndarray::s![n_states..])
+                .slice(scirs2_core::ndarray::s![n_states..])
                 .to_owned()
                 .into_shape_with_order((n_states,))
                 .unwrap();
@@ -185,8 +187,12 @@ where
 
             // Combine derivatives
             let mut result = Array1::zeros(augmented_dim);
-            result.slice_mut(ndarray::s![0..n_states]).assign(&f);
-            result.slice_mut(ndarray::s![n_states..]).assign(&ds_dt);
+            result
+                .slice_mut(scirs2_core::ndarray::s![0..n_states])
+                .assign(&f);
+            result
+                .slice_mut(scirs2_core::ndarray::s![n_states..])
+                .assign(&ds_dt);
 
             result
         };
@@ -205,7 +211,7 @@ where
         let aug_time = aug_result.t.len();
         let mut sensitivity = Array2::zeros((aug_time, n_states));
         for (i, sol) in aug_result.y.iter().enumerate() {
-            let s = sol.slice(ndarray::s![n_states..]);
+            let s = sol.slice(scirs2_core::ndarray::s![n_states..]);
             sensitivity.row_mut(i).assign(&s);
         }
 
@@ -649,8 +655,8 @@ impl<F: IntegrateFloat + std::default::Default> SobolSensitivity<F> {
 
     /// Generate Sobol sample matrices
     pub fn generate_samples(&self) -> (Array2<F>, Array2<F>) {
-        use rand::Rng;
-        let mut rng = rand::rng();
+        use scirs2_core::random::Rng;
+        let mut rng = scirs2_core::random::rng();
 
         // Generate base sample matrix A
         let mut a_matrix = Array2::zeros((self.n_samples, self.n_params));
@@ -738,8 +744,8 @@ impl<F: IntegrateFloat + std::default::Default> SobolSensitivity<F> {
         }
 
         // Compute variance of outputs
-        let _mean_y = y_a.mean_axis(ndarray::Axis(0)).unwrap();
-        let var_y = y_a.var_axis(ndarray::Axis(0), F::zero());
+        let _mean_y = y_a.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
+        let var_y = y_a.var_axis(scirs2_core::ndarray::Axis(0), F::zero());
 
         let mut first_order_indices = HashMap::new();
         let mut total_indices = HashMap::new();
@@ -847,8 +853,8 @@ impl<F: IntegrateFloat> MorrisScreening<F> {
 
     /// Generate Morris trajectories
     pub fn generate_trajectories(&self) -> Vec<Array2<F>> {
-        use rand::seq::SliceRandom;
-        let mut rng = rand::rng();
+        use scirs2_core::random::seq::SliceRandom;
+        let mut rng = scirs2_core::random::rng();
 
         let mut trajectories = Vec::new();
 

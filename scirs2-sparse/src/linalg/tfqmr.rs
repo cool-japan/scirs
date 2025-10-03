@@ -10,8 +10,8 @@
 
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Options for the TFQMR solver
@@ -75,7 +75,7 @@ pub struct TFQMRResult<T> {
 /// ```rust
 /// use scirs2_sparse::csr_array::CsrArray;
 /// use scirs2_sparse::linalg::{tfqmr, TFQMROptions};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Create a simple matrix
 /// let rows = vec![0, 0, 1, 1, 2, 2];

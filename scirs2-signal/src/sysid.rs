@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // System Identification Module
 //
 // This module provides comprehensive system identification functionality for
@@ -33,7 +33,7 @@ use ndarray::s;
 // ## Example Usage
 //
 // ```rust
-// use ndarray::Array1;
+// use scirs2_core::ndarray::Array1;
 // use scirs2_signal::sysid::{estimate_transfer_function, TfEstimationMethod, ModelValidation};
 // use scirs2_signal::waveforms::chirp;
 // # fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -72,8 +72,8 @@ use crate::lti::{LtiSystem, TransferFunction};
 use crate::parametric::{estimate_ar, estimate_arma, ARMethod, OrderSelection};
 use crate::spectral::welch;
 use crate::window::get_window;
-use ndarray::{Array1, Array2, Axis};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::numeric::Complex64;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 
@@ -222,7 +222,7 @@ pub struct ModelValidation {
 ///
 /// # Example
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::sysid::{estimate_transfer_function, TfEstimationMethod};
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///
@@ -355,7 +355,7 @@ fn estimate_tf_least_squares(
     // Calculate error variance
     let residuals = &y_vec - &y_pred;
     let sq = residuals.mapv(|x| x * x);
-    let error_variance = if sq.len() > 0 {
+    let error_variance = if !sq.is_empty() {
         sq.sum() / sq.len() as f64
     } else {
         0.0
@@ -475,7 +475,7 @@ fn estimate_tf_instrumental_variable(
     let fit_percentage = calculate_fit_percentage(&y_vec, &y_pred);
     let residuals = &y_vec - &y_pred;
     let sq = residuals.mapv(|x| x * x);
-    let error_variance = if sq.len() > 0 {
+    let error_variance = if !sq.is_empty() {
         sq.sum() / sq.len() as f64
     } else {
         0.0
@@ -642,15 +642,21 @@ fn cross_spectral_density_welch(
         }
 
         // Extract segments and apply window
-        let x_seg = x.slice(ndarray::s![start..start + nfft]).to_owned() * &window_array;
-        let y_seg = y.slice(ndarray::s![start..start + nfft]).to_owned() * &window_array;
+        let x_seg = x
+            .slice(scirs2_core::ndarray::s![start..start + nfft])
+            .to_owned()
+            * &window_array;
+        let y_seg = y
+            .slice(scirs2_core::ndarray::s![start..start + nfft])
+            .to_owned()
+            * &window_array;
 
         // Compute FFTs
         let x_fft = compute_fft(&x_seg);
         let y_fft = compute_fft(&y_seg);
 
         // Compute cross-spectral density for this segment
-        let max_freq_bin = if nfft % 2 == 0 {
+        let max_freq_bin = if nfft.is_multiple_of(2) {
             nfft / 2
         } else {
             (nfft - 1) / 2
@@ -693,8 +699,12 @@ fn estimate_freq_response_periodogram(
     let mut input_padded = Array1::<f64>::zeros(nfft);
     let mut output_padded = Array1::<f64>::zeros(nfft);
 
-    input_padded.slice_mut(ndarray::s![0..n]).assign(input);
-    output_padded.slice_mut(ndarray::s![0..n]).assign(output);
+    input_padded
+        .slice_mut(scirs2_core::ndarray::s![0..n])
+        .assign(input);
+    output_padded
+        .slice_mut(scirs2_core::ndarray::s![0..n])
+        .assign(output);
 
     let input_fft = compute_fft(&input_padded);
     let output_fft = compute_fft(&output_padded);
@@ -1029,7 +1039,7 @@ pub fn validate_model(
 
     // Mean squared error
     let sq = residuals.mapv(|x| x * x);
-    let mse = if sq.len() > 0 {
+    let mse = if !sq.is_empty() {
         sq.sum() / sq.len() as f64
     } else {
         0.0
@@ -1215,7 +1225,7 @@ impl RecursiveLeastSquares {
 /// Helper function to calculate model fit percentage
 #[allow(dead_code)]
 fn calculate_fit_percentage(actual: &Array1<f64>, predicted: &Array1<f64>) -> f64 {
-    let mean_actual = if actual.len() > 0 {
+    let mean_actual = if !actual.is_empty() {
         actual.iter().copied().sum::<f64>() / actual.len() as f64
     } else {
         0.0
@@ -1694,7 +1704,7 @@ pub fn estimate_robust_scale(
 
     // Median absolute deviation (MAD)
     let median_idx = abs_residuals.len() / 2;
-    let mad = if abs_residuals.len() % 2 == 0 {
+    let mad = if abs_residuals.len().is_multiple_of(2) {
         (abs_residuals[median_idx - 1] + abs_residuals[median_idx]) / 2.0
     } else {
         abs_residuals[median_idx]
@@ -1745,7 +1755,7 @@ fn calculate_median(data: &Array1<f64>) -> f64 {
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
     let n = sorted.len();
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
     } else {
         sorted[n / 2]

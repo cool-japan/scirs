@@ -1,9 +1,9 @@
-use ndarray::{Array1, Array2};
 use scirs2_cluster::metrics::{
     adjusted_rand_index, calinski_harabasz_score, davies_bouldin_score,
     homogeneity_completeness_v_measure, normalized_mutual_info, silhouette_score,
 };
 use scirs2_cluster::vq::{kmeans2, MinitMethod, MissingMethod};
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[allow(dead_code)]
 fn main() {
@@ -155,8 +155,8 @@ fn generate_data_with_ground_truth() -> (Array2<f64>, Array1<i32>) {
 
     // Class 0: centered at (0, 0)
     for _ in 0..30 {
-        let x = rand::random::<f64>() * 2.0 - 1.0;
-        let y = rand::random::<f64>() * 2.0 - 1.0;
+        let x = scirs2_core::random::random::<f64>() * 2.0 - 1.0;
+        let y = scirs2_core::random::random::<f64>() * 2.0 - 1.0;
         data.push(x);
         data.push(y);
         labels.push(0);
@@ -164,8 +164,8 @@ fn generate_data_with_ground_truth() -> (Array2<f64>, Array1<i32>) {
 
     // Class 1: centered at (5, 0)
     for _ in 0..25 {
-        let x = 5.0 + rand::random::<f64>() * 2.0 - 1.0;
-        let y = rand::random::<f64>() * 2.0 - 1.0;
+        let x = 5.0 + scirs2_core::random::random::<f64>() * 2.0 - 1.0;
+        let y = scirs2_core::random::random::<f64>() * 2.0 - 1.0;
         data.push(x);
         data.push(y);
         labels.push(1);
@@ -173,8 +173,8 @@ fn generate_data_with_ground_truth() -> (Array2<f64>, Array1<i32>) {
 
     // Class 2: centered at (2.5, 4)
     for _ in 0..20 {
-        let x = 2.5 + rand::random::<f64>() * 2.0 - 1.0;
-        let y = 4.0 + rand::random::<f64>() * 2.0 - 1.0;
+        let x = 2.5 + scirs2_core::random::random::<f64>() * 2.0 - 1.0;
+        let y = 4.0 + scirs2_core::random::random::<f64>() * 2.0 - 1.0;
         data.push(x);
         data.push(y);
         labels.push(2);

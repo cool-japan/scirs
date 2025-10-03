@@ -4,8 +4,8 @@
 //! including Intel AVX/AVX2/AVX-512 and ARM Neon instruction sets.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use scirs2_core::parallel_ops::*;
 
 /// Hardware capabilities detection
@@ -622,7 +622,10 @@ where
     // Assemble results
     for (i, (start_row, _)) in chunks.iter().enumerate() {
         let block_result = &results[i];
-        for (row_idx, row) in block_result.axis_iter(ndarray::Axis(0)).enumerate() {
+        for (row_idx, row) in block_result
+            .axis_iter(scirs2_core::ndarray::Axis(0))
+            .enumerate()
+        {
             for (col_idx, &val) in row.iter().enumerate() {
                 result[[start_row + row_idx, col_idx]] = val;
             }
@@ -719,7 +722,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_hardware_capabilities_detection() {

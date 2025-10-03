@@ -7,7 +7,7 @@ use crate::coo::CooMatrix;
 use crate::csc::CscMatrix;
 use crate::csr::CsrMatrix;
 use crate::error::SparseResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Convert a dense matrix to CSR format
 ///
@@ -22,7 +22,7 @@ use ndarray::Array2;
 /// # Example
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_sparse::convert::dense_to_csr;
 ///
 /// let dense = Array2::from_shape_vec((3, 3), vec![
@@ -328,7 +328,7 @@ pub fn coo_to_csc(coo: &CooMatrix<f64>) -> CscMatrix<f64> {
 #[allow(dead_code)]
 pub fn csr_to_csc<F>(csr: &CsrMatrix<F>) -> SparseResult<CscMatrix<F>>
 where
-    F: Clone + Copy + std::fmt::Debug + PartialEq + num_traits::Zero,
+    F: Clone + Copy + std::fmt::Debug + PartialEq + scirs2_core::numeric::Zero,
 {
     // Start with CSR in triplet format
     let (rows, cols) = csr.shape();
@@ -361,7 +361,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_dense_to_csr_to_dense() {

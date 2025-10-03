@@ -1,6 +1,6 @@
 extern crate scirs2_autograd as ag;
 use ag::tensor_ops as T;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[allow(dead_code)]
 fn main() {

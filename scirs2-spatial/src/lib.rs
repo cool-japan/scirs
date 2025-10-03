@@ -2,11 +2,22 @@
 #![allow(unreachable_code)]
 #![allow(unused_mut)]
 #![allow(missing_docs)]
-#![allow(clippy::for_loops_over_fallibles)]
+#![allow(for_loops_over_fallibles)]
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(unused_variables)]
 #![allow(private_interfaces)]
+#![allow(clippy::must_use_unit)]
+#![allow(clippy::len_without_is_empty)]
+#![allow(clippy::missing_safety_doc)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::doc_lazy_continuation)]
+#![allow(clippy::borrowed_box)]
+#![allow(clippy::unused_must_use)]
+#![allow(clippy::should_implement_trait)]
+#![allow(clippy::doc_list_overindent)]
+#![allow(clippy::doc_overindented_list_items)]
+#![allow(unused_must_use)]
 //! # SciRS2 Spatial - Spatial Algorithms and Data Structures
 //!
 //! **scirs2-spatial** provides comprehensive spatial algorithms modeled after SciPy's `spatial` module,
@@ -39,7 +50,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-spatial = "0.1.0-beta.4"
+//! scirs2-spatial = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust
@@ -55,7 +66,7 @@
 //! let d = distance::euclidean(&[1.0, 2.0], &[4.0, 6.0]);
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 //
 // ## Features
 //

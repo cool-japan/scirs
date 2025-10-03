@@ -1,5 +1,5 @@
 use approx::assert_abs_diff_eq;
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_metrics::fairness::{
     consistency_score, demographic_parity_difference, disparate_impact,
     equal_opportunity_difference, equalized_odds_difference,
@@ -33,8 +33,8 @@ fn test_demographic_parity_difference() {
     assert!(demographic_parity_difference(&y_pred_4, &protected_4).is_err());
 
     // Test case 5: Empty arrays
-    let y_pred_5: ndarray::Array1<f64> = array![];
-    let protected_5: ndarray::Array1<f64> = array![];
+    let y_pred_5: scirs2_core::ndarray::Array1<f64> = array![];
+    let protected_5: scirs2_core::ndarray::Array1<f64> = array![];
     assert!(demographic_parity_difference(&y_pred_5, &protected_5).is_err());
 
     // Test case 6: Non-binary predictions (treated as binary)

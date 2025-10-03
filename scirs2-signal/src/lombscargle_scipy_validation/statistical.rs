@@ -6,8 +6,8 @@
 use super::types::*;
 use crate::error::SignalResult;
 use crate::lombscargle::{lombscargle, AutoFreqMethod};
-use ndarray::Array1;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::Rng;
 use std::f64::consts::PI;
 
 /// Validate statistical properties
@@ -37,7 +37,7 @@ pub fn estimate_false_alarm_rate(config: &ScipyValidationConfig) -> SignalResult
 
     for _ in 0..trials {
         // Generate pure noise
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let n = 100;
         let t: Vec<f64> = (0..n).map(|i| i as f64 / 10.0).collect();
         let signal: Vec<f64> = (0..n).map(|_| rng.gen_range(-1.0..1.0)).collect();
@@ -72,7 +72,7 @@ pub fn estimate_detection_power(config: &ScipyValidationConfig) -> SignalResult<
 
     for _ in 0..trials {
         // Generate signal with known frequency
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let n = 100;
         let fs = 10.0;
         let signal_freq = 1.0;

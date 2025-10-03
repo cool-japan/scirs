@@ -19,7 +19,7 @@ use crate::{
     utils::*,
 };
 #[cfg(feature = "r")]
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Error codes for R integration
 #[cfg(feature = "r")]

@@ -4,9 +4,9 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use num_traits::{Float, NumCast};
-use rand_distr::Distribution;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::Distribution;
 use statrs::function::gamma::ln_gamma;
 
 /// Negative Binomial distribution structure
@@ -133,14 +133,14 @@ impl<F: Float + NumCast + std::fmt::Display> NegativeBinomial<F> {
         // Use F::one() directly in the code
 
         // Convert k to f64 for gamma function
-        let k_f64 = <f64 as num_traits::NumCast>::from(k).unwrap_or(0.0);
-        let r_f64 = <f64 as num_traits::NumCast>::from(self.r).unwrap_or(1.0);
+        let k_f64 = <f64 as scirs2_core::numeric::NumCast>::from(k).unwrap_or(0.0);
+        let r_f64 = <f64 as scirs2_core::numeric::NumCast>::from(self.r).unwrap_or(1.0);
 
         // Calculate ln(Gamma(r+k)/(Gamma(r)*k!))
         let ln_coef = ln_gamma(r_f64 + k_f64) - ln_gamma(r_f64) - ln_gamma(k_f64 + 1.0);
 
         // Calculate ln(p^r * (1-p)^k)
-        let p_f64 = <f64 as num_traits::NumCast>::from(self.p).unwrap_or(0.5);
+        let p_f64 = <f64 as scirs2_core::numeric::NumCast>::from(self.p).unwrap_or(0.5);
         let ln_prob = r_f64 * p_f64.ln() + k_f64 * (1.0 - p_f64).ln();
 
         // Combine and convert back to F
@@ -219,14 +219,14 @@ impl<F: Float + NumCast + std::fmt::Display> NegativeBinomial<F> {
         // Use F::one() directly in the code
 
         // Convert k to f64 for gamma function
-        let k_f64 = <f64 as num_traits::NumCast>::from(k).unwrap_or(0.0);
-        let r_f64 = <f64 as num_traits::NumCast>::from(self.r).unwrap_or(1.0);
+        let k_f64 = <f64 as scirs2_core::numeric::NumCast>::from(k).unwrap_or(0.0);
+        let r_f64 = <f64 as scirs2_core::numeric::NumCast>::from(self.r).unwrap_or(1.0);
 
         // Calculate ln(Gamma(r+k)/(Gamma(r)*k!))
         let ln_coef = ln_gamma(r_f64 + k_f64) - ln_gamma(r_f64) - ln_gamma(k_f64 + 1.0);
 
         // Calculate ln(p^r * (1-p)^k)
-        let p_f64 = <f64 as num_traits::NumCast>::from(self.p).unwrap_or(0.5);
+        let p_f64 = <f64 as scirs2_core::numeric::NumCast>::from(self.p).unwrap_or(0.5);
         let ln_prob = r_f64 * p_f64.ln() + k_f64 * (1.0 - p_f64).ln();
 
         // Convert back to F
@@ -376,7 +376,7 @@ impl<F: Float + NumCast + std::fmt::Display> NegativeBinomial<F> {
                 for _ in 0..r_usize {
                     // Generate geometric random variable (# failures before first success)
                     let u: f64 = rng.gen_range(0.0..1.0);
-                    let p_f64 = <f64 as num_traits::NumCast>::from(self.p).unwrap_or(0.5);
+                    let p_f64 = <f64 as scirs2_core::numeric::NumCast>::from(self.p).unwrap_or(0.5);
                     let geom_sample = (u.ln()
                         / (F::from(1.0).unwrap().to_f64().unwrap() - p_f64).ln())
                     .floor() as usize;
@@ -386,13 +386,13 @@ impl<F: Float + NumCast + std::fmt::Display> NegativeBinomial<F> {
             }
         } else {
             // For non-integer r..use gamma-Poisson mixture
-            let r_f64 = <f64 as num_traits::NumCast>::from(self.r).unwrap_or(1.0);
-            let p_f64 = <f64 as num_traits::NumCast>::from(self.p).unwrap_or(0.5);
+            let r_f64 = <f64 as scirs2_core::numeric::NumCast>::from(self.r).unwrap_or(1.0);
+            let p_f64 = <f64 as scirs2_core::numeric::NumCast>::from(self.p).unwrap_or(0.5);
 
             for _ in 0..size {
                 // Generate gamma random variable with shape r and scale (1-p)/p
-                let gamma_distr =
-                    rand_distr::Gamma::new(r_f64, (1.0 - p_f64) / p_f64).map_err(|_| {
+                let gamma_distr = scirs2_core::random::Gamma::new(r_f64, (1.0 - p_f64) / p_f64)
+                    .map_err(|_| {
                         StatsError::ComputationError(
                             "Failed to create gamma distribution".to_string(),
                         )
@@ -400,11 +400,12 @@ impl<F: Float + NumCast + std::fmt::Display> NegativeBinomial<F> {
                 let gamma_sample: f64 = gamma_distr.sample(&mut rng);
 
                 // Generate Poisson random variable with mean gamma_sample
-                let poisson_distr = rand_distr::Poisson::new(gamma_sample).map_err(|_| {
-                    StatsError::ComputationError(
-                        "Failed to create Poisson distribution".to_string(),
-                    )
-                })?;
+                let poisson_distr =
+                    scirs2_core::random::Poisson::new(gamma_sample).map_err(|_| {
+                        StatsError::ComputationError(
+                            "Failed to create Poisson distribution".to_string(),
+                        )
+                    })?;
                 let poisson_sample = poisson_distr.sample(&mut rng);
 
                 samples.push(F::from(poisson_sample).unwrap());

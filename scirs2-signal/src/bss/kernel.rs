@@ -1,13 +1,13 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Kernel ICA for nonlinear blind source separation
 //
 // This module implements kernel-based ICA methods.
 
 use super::{pca, BssConfig};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Axis};
-use rand::SeedableRng;
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::SeedableRng;
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_linalg::{eigh, svd};
 use statrs::statistics::Statistics;
 
@@ -50,11 +50,11 @@ pub fn kernel_ica(
 
     // Initialize random unmixing matrix
     let mut rng = if let Some(seed) = config.random_seed {
-        rand::rngs::StdRng::seed_from_u64([seed as u8; 32])
+        scirs2_core::random::rngs::StdRng::seed_from_u64([seed as u8; 32])
     } else {
         {
             // In rand 0.9, from_rng doesn't return Result but directly returns the PRNG
-            rand::rngs::StdRng::from_rng(&mut rand::rng())
+            scirs2_core::random::rngs::StdRng::from_rng(&mut scirs2_core::random::rng())
         }
     };
 

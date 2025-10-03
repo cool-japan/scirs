@@ -6,12 +6,12 @@
 use crate::classification::confusion_matrix;
 use crate::visualization::confusion_matrix::confusion_matrix_visualization;
 use crate::visualization::MetricVisualizer;
-use ndarray::{Array, Ix1, IxDyn};
+use scirs2_core::ndarray::{Array, Ix1, IxDyn};
 use std::error::Error;
 
 /// Create a confusion matrix visualizer from neural network predictions and targets
 #[allow(dead_code)]
-pub fn neural_confusion_matrix_visualization<F: num_traits::Float + std::fmt::Debug>(
+pub fn neural_confusion_matrix_visualization<F: scirs2_core::numeric::Float + std::fmt::Debug>(
     y_true: &Array<F, IxDyn>,
     y_pred: &Array<F, IxDyn>,
     labels: Option<Vec<String>>,

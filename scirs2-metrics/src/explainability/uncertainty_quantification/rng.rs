@@ -6,13 +6,13 @@
 #![allow(clippy::too_many_arguments)]
 #![allow(dead_code)]
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::f64::consts::PI;
 
 /// Trait for random number generators
 pub trait RandomNumberGeneratorTrait {
-    fn uniform_01<F: Float + num_traits::FromPrimitive>(&mut self) -> F;
-    fn normal<F: Float + num_traits::FromPrimitive>(&mut self) -> F;
+    fn uniform_01<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F;
+    fn normal<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F;
     fn seed(&mut self, seed: u64);
 }
 
@@ -28,12 +28,12 @@ impl LcgRng {
 }
 
 impl RandomNumberGeneratorTrait for LcgRng {
-    fn uniform_01<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
+    fn uniform_01<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F {
         self.state = self.state.wrapping_mul(1103515245).wrapping_add(12345);
         F::from((self.state >> 16) as f64 / (1u64 << 32) as f64).unwrap()
     }
 
-    fn normal<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
+    fn normal<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F {
         // Box-Muller transform
         let u1 = self.uniform_01::<F>();
         let u2 = self.uniform_01::<F>();
@@ -60,14 +60,14 @@ impl XorshiftRng {
 }
 
 impl RandomNumberGeneratorTrait for XorshiftRng {
-    fn uniform_01<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
+    fn uniform_01<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F {
         self.state ^= self.state << 13;
         self.state ^= self.state >> 7;
         self.state ^= self.state << 17;
         F::from(self.state as f64 / u64::MAX as f64).unwrap()
     }
 
-    fn normal<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
+    fn normal<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F {
         // Box-Muller transform
         let u1 = self.uniform_01::<F>();
         let u2 = self.uniform_01::<F>();
@@ -96,7 +96,7 @@ impl PcgRng {
 }
 
 impl RandomNumberGeneratorTrait for PcgRng {
-    fn uniform_01<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
+    fn uniform_01<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F {
         let oldstate = self.state;
         self.state = oldstate
             .wrapping_mul(6364136223846793005)
@@ -107,7 +107,7 @@ impl RandomNumberGeneratorTrait for PcgRng {
         F::from(output as f64 / u32::MAX as f64).unwrap()
     }
 
-    fn normal<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
+    fn normal<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F {
         // Box-Muller transform
         let u1 = self.uniform_01::<F>();
         let u2 = self.uniform_01::<F>();
@@ -136,14 +136,14 @@ impl ChaChaRng {
 }
 
 impl RandomNumberGeneratorTrait for ChaChaRng {
-    fn uniform_01<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
+    fn uniform_01<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F {
         // Simplified ChaCha implementation
         self.counter = self.counter.wrapping_add(1);
         let output = self.state[0].wrapping_add(self.counter as u32);
         F::from(output as f64 / u32::MAX as f64).unwrap()
     }
 
-    fn normal<F: Float + num_traits::FromPrimitive>(&mut self) -> F {
+    fn normal<F: Float + scirs2_core::numeric::FromPrimitive>(&mut self) -> F {
         // Box-Muller transform
         let u1 = self.uniform_01::<F>();
         let u2 = self.uniform_01::<F>();

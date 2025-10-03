@@ -13,9 +13,9 @@
 //!
 //! The entire matrix is determined by its first column and last row.
 
-use ndarray::ScalarOperand;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::{fmt::Debug, iter::Sum};
 
 use super::StructuredMatrix;
@@ -106,9 +106,13 @@ where
             )));
         }
 
-        let first_col = sequence.slice(ndarray::s![0..n_rows]).to_owned();
+        let first_col = sequence
+            .slice(scirs2_core::ndarray::s![0..n_rows])
+            .to_owned();
         let last_row = sequence
-            .slice(ndarray::s![(n_rows - 1)..(n_rows + n_cols - 1)])
+            .slice(scirs2_core::ndarray::s![
+                (n_rows - 1)..(n_rows + n_cols - 1)
+            ])
             .to_owned();
 
         Ok(HankelMatrix {
@@ -204,7 +208,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_hankel_creation() {

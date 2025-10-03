@@ -8,9 +8,9 @@
 //! - Performance profiling and analysis
 
 use crate::error::{NeuralError, Result};
-use ndarray::{Array, ArrayD};
-use num_traits::Float;
-use num_traits::FromPrimitive;
+use scirs2_core::ndarray::{Array, ArrayD};
+use scirs2_core::numeric::Float;
+use scirs2_core::numeric::FromPrimitive;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -551,7 +551,7 @@ impl<F: Float + Debug + 'static + Sum + Clone + Copy + FromPrimitive> Evaluation
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
     #[test]
     fn test_model_evaluator_creation() {
         let evaluator = ModelEvaluator::<f64>::new();

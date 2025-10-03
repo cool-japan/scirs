@@ -6,8 +6,8 @@
 
 use crate::error::StatsResult;
 use crate::error_standardization::ErrorMessages;
-use ndarray::{s, Array1, ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{s, Array1, ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
 
 /// Enhanced SIMD-optimized mean calculation with adaptive algorithms
@@ -28,7 +28,7 @@ use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps}
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::simd_enhanced_core::mean_enhanced;
 ///
 /// let data = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
@@ -458,7 +458,7 @@ where
         if chunk_len == chunk_size {
             // Extract chunk data for ultra-optimized SIMD processing
             let chunk_data: Array1<f32> = x
-                .slice(ndarray::s![chunk_start..chunk_end])
+                .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                 .iter()
                 .map(|&val| val.to_f64().unwrap() as f32)
                 .collect();
@@ -498,7 +498,7 @@ where
         if chunk_len == chunk_size {
             // Extract and convert chunk data
             let chunk_data: Array1<f32> = x
-                .slice(ndarray::s![chunk_start..chunk_end])
+                .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                 .iter()
                 .map(|&val| val.to_f64().unwrap() as f32)
                 .collect();
@@ -554,7 +554,7 @@ where
         if chunk_len == chunk_size {
             // Extract chunk data
             let chunk_data: Array1<f32> = x
-                .slice(ndarray::s![chunk_start..chunk_end])
+                .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                 .iter()
                 .map(|&val| val.to_f64().unwrap() as f32)
                 .collect();
@@ -619,12 +619,12 @@ where
         if chunk_len == chunk_size {
             // Extract chunk data
             let x_chunk: Array1<f32> = x
-                .slice(ndarray::s![chunk_start..chunk_end])
+                .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                 .iter()
                 .map(|&val| val.to_f64().unwrap() as f32)
                 .collect();
             let y_chunk: Array1<f32> = y
-                .slice(ndarray::s![chunk_start..chunk_end])
+                .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                 .iter()
                 .map(|&val| val.to_f64().unwrap() as f32)
                 .collect();
@@ -714,7 +714,7 @@ where
         if chunk_len == chunk_size {
             // Extract chunk data
             let chunk_data: Array1<f32> = x
-                .slice(ndarray::s![chunk_start..chunk_end])
+                .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                 .iter()
                 .map(|&val| val.to_f64().unwrap() as f32)
                 .collect();
@@ -822,7 +822,7 @@ where
     for i in 0..full_chunks {
         let start = i * SIMD_CHUNK;
         let end = (i + 1) * SIMD_CHUNK;
-        let chunk = x.slice(ndarray::s![start..end]);
+        let chunk = x.slice(scirs2_core::ndarray::s![start..end]);
 
         // Update mean and M2 using vectorized operations
         for (j, &val) in chunk.iter().enumerate() {

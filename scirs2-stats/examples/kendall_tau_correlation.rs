@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::{kendall_tau, kendalltau};
 
 #[allow(dead_code)]

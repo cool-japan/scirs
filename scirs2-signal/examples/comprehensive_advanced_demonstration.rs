@@ -71,10 +71,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn print_header() {
     println!("🎯 SciRS2 Signal Processing - Comprehensive Advanced Mode Demonstration");
     println!("========================================================================");
-    println!("");
+    println!();
     println!("This demonstration showcases the most comprehensive validation system");
     println!("for signal processing algorithms ever implemented in Rust, featuring:");
-    println!("");
+    println!();
     println!("✅ Mathematical correctness validation");
     println!("✅ Numerical stability analysis");
     println!("✅ Performance benchmarking");
@@ -82,13 +82,13 @@ fn print_header() {
     println!("✅ Memory efficiency analysis");
     println!("✅ SIMD and parallel processing validation");
     println!("✅ Real-world application testing");
-    println!("");
+    println!();
 }
 
 #[allow(dead_code)]
 fn showcase_validation_overview() -> Result<(), Box<dyn std::error::Error>> {
     println!("The Advanced validation suite includes:");
-    println!("");
+    println!();
 
     println!("🧮 Mathematical Validation:");
     println!("  • Perfect reconstruction verification");
@@ -96,7 +96,7 @@ fn showcase_validation_overview() -> Result<(), Box<dyn std::error::Error>> {
     println!("  • Energy conservation checks");
     println!("  • Parseval's theorem verification");
     println!("  • Analytical solution comparisons");
-    println!("");
+    println!();
 
     println!("🔢 Numerical Stability:");
     println!("  • Condition number analysis");
@@ -104,7 +104,7 @@ fn showcase_validation_overview() -> Result<(), Box<dyn std::error::Error>> {
     println!("  • Extreme input robustness testing");
     println!("  • Floating-point precision validation");
     println!("  • Overflow/underflow handling");
-    println!("");
+    println!();
 
     println!("📈 Performance Analysis:");
     println!("  • Algorithmic complexity verification");
@@ -112,7 +112,7 @@ fn showcase_validation_overview() -> Result<(), Box<dyn std::error::Error>> {
     println!("  • Memory usage optimization");
     println!("  • Cache efficiency measurement");
     println!("  • Parallel processing effectiveness");
-    println!("");
+    println!();
 
     println!("🎯 Quality Assurance:");
     println!("  • Cross-platform consistency");
@@ -127,7 +127,7 @@ fn showcase_validation_overview() -> Result<(), Box<dyn std::error::Error>> {
 #[allow(dead_code)]
 fn demonstrate_multitaper_validation() -> Result<(), Box<dyn std::error::Error>> {
     println!("Enhanced multitaper spectral estimation validation includes:");
-    println!("");
+    println!();
 
     // Simulate multitaper validation results
     let start_time = Instant::now();
@@ -192,7 +192,7 @@ fn simulate_performance_benchmarking() {
 #[allow(dead_code)]
 fn demonstrate_lombscargle_validation() -> Result<(), Box<dyn std::error::Error>> {
     println!("Comprehensive Lomb-Scargle periodogram testing includes:");
-    println!("");
+    println!();
 
     let start_time = Instant::now();
 
@@ -256,7 +256,7 @@ fn simulate_false_alarm_control() {
 #[allow(dead_code)]
 fn demonstrate_wavelet2d_validation() -> Result<(), Box<dyn std::error::Error>> {
     println!("2D wavelet transform validation and refinement includes:");
-    println!("");
+    println!();
 
     let start_time = Instant::now();
 
@@ -320,7 +320,7 @@ fn simulate_compression_testing() {
 #[allow(dead_code)]
 fn demonstrate_wavelet_packet_validation() -> Result<(), Box<dyn std::error::Error>> {
     println!("Wavelet packet transform validation includes:");
-    println!("");
+    println!();
 
     let start_time = Instant::now();
 
@@ -384,7 +384,7 @@ fn simulate_adaptive_compression() {
 #[allow(dead_code)]
 fn demonstrate_performance_optimization() -> Result<(), Box<dyn std::error::Error>> {
     println!("Performance optimization and SIMD validation includes:");
-    println!("");
+    println!();
 
     let start_time = Instant::now();
 
@@ -449,7 +449,7 @@ fn simulate_platform_consistency() {
 fn print_summary_and_recommendations() {
     println!("📋 VALIDATION SUMMARY AND RECOMMENDATIONS");
     println!("==========================================");
-    println!("");
+    println!();
 
     println!("🎯 Overall Implementation Quality:");
     println!("  ✅ Mathematical Correctness: 97.3%");
@@ -457,7 +457,7 @@ fn print_summary_and_recommendations() {
     println!("  ✅ Performance Optimization: 89.2%");
     println!("  ✅ Code Quality: 96.1%");
     println!("  ✅ Cross-Platform Consistency: 99.5%");
-    println!("");
+    println!();
 
     println!("🏆 Achievements:");
     println!("  • Production-ready signal processing library");
@@ -465,7 +465,7 @@ fn print_summary_and_recommendations() {
     println!("  • State-of-the-art performance optimization");
     println!("  • Robust numerical algorithms");
     println!("  • Extensive test coverage");
-    println!("");
+    println!();
 
     println!("💡 Recommendations for Further Development:");
     println!("  1. Consider GPU acceleration for large-scale computations");
@@ -473,7 +473,7 @@ fn print_summary_and_recommendations() {
     println!("  3. Add support for complex-valued signals throughout");
     println!("  4. Develop domain-specific optimization profiles");
     println!("  5. Create interactive visualization tools");
-    println!("");
+    println!();
 
     println!("🚀 Future Directions:");
     println!("  • Real-time signal processing capabilities");
@@ -481,14 +481,14 @@ fn print_summary_and_recommendations() {
     println!("  • Advanced time-frequency analysis methods");
     println!("  • Quantum-inspired signal processing algorithms");
     println!("  • Neuromorphic computing adaptations");
-    println!("");
+    println!();
 
     println!("🎊 Conclusion:");
     println!("The scirs2-signal library demonstrates exceptional quality and");
     println!("performance, with comprehensive validation ensuring production");
     println!("readiness. The Advanced validation mode provides unprecedented");
     println!("confidence in the correctness and efficiency of all algorithms.");
-    println!("");
+    println!();
 
     println!("🌟 Ready for production use! 🌟");
 }

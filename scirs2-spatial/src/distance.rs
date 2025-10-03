@@ -28,8 +28,8 @@
 //! ```
 
 use crate::error::{SpatialError, SpatialResult};
-use num_traits::Float;
 use scirs2_core::ndarray::{Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -1754,15 +1754,7 @@ pub fn pdist_memory_aware_f64(points: &Array2<f64>) -> Vec<f64> {
                             let j_l1_end = (j_l1 + L1_TILE_SIZE).min(j_l2_end);
 
                             // Innermost loop: Process hot L1 tile
-                            process_l1_tile(
-                                &points,
-                                &mut matrix,
-                                i_l1,
-                                i_l1_end,
-                                j_l1,
-                                j_l1_end,
-                                n,
-                            );
+                            process_l1_tile(points, &mut matrix, i_l1, i_l1_end, j_l1, j_l1_end, n);
                         }
                     }
                 }
@@ -2005,7 +1997,7 @@ pub fn pdist_lockfree_f64(points: &Array2<f64>) -> Vec<f64> {
         .map(|p| p.get())
         .unwrap_or(1);
     let total_pairs = n * (n - 1) / 2;
-    let work_per_cpu = (total_pairs + num_cpus - 1) / num_cpus;
+    let work_per_cpu = total_pairs.div_ceil(num_cpus);
 
     // Create CPU-local work queues to minimize cache misses
     let work_queues: Vec<Vec<(usize, usize)>> = (0..num_cpus)
@@ -2113,7 +2105,7 @@ pub fn pdist_adaptive_lockfree_f64(points: &Array2<f64>, precision_threshold: f6
 
     // For very large datasets, use hierarchical approach
     let cache_block_size = if n > 10000 { 256 } else { 128 };
-    let num_blocks = (n + cache_block_size - 1) / cache_block_size;
+    let num_blocks = n.div_ceil(cache_block_size);
 
     // Create hierarchical work distribution
     let block_pairs: Vec<(usize, usize)> = (0..num_blocks)

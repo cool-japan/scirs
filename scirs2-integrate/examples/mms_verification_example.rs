@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the MMS toolkit to verify the order
 //! of accuracy of numerical methods by comparing against known exact solutions.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_integrate::{
     ode::{solve_ivp, ODEMethod, ODEOptions},
     verification::{
@@ -50,8 +50,9 @@ fn ode_verification_example() -> Result<(), Box<dyn std::error::Error>> {
 
     for &h in &step_sizes {
         // Solve the manufactured ODE: y' = 2 + 6t
-        let manufactured_rhs =
-            |t: f64, _y: ndarray::ArrayView1<f64>| Array1::from_vec(vec![problem.source_term(t)]);
+        let manufactured_rhs = |t: f64, _y: scirs2_core::ndarray::ArrayView1<f64>| {
+            Array1::from_vec(vec![problem.source_term(t)])
+        };
 
         let options = ODEOptions {
             method: ODEMethod::RK45,

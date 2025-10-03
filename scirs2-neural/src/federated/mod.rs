@@ -26,7 +26,7 @@ pub use server::{FederatedServer, ServerConfig};
 pub use strategies::{ClientSelection, SamplingStrategy};
 use crate::error::Result;
 use crate::models::sequential::Sequential;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 /// Configuration for federated learning
 #[derive(Debug, Clone)]
@@ -165,9 +165,9 @@ impl FederatedLearning {
         Ok(())
     /// Select clients for a round
     fn select_clients(&self) -> Result<Vec<usize>> {
-        use rand::prelude::*;
-use ndarray::ArrayView1;
-use rand::seq::SliceRandom;
+        use scirs2_core::random::prelude::*;
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::random::seq::SliceRandom;
         let mut rng = rng();
         match self.config.client_selection.as_str() {
             "random" => {

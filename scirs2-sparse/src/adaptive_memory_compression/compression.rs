@@ -8,7 +8,7 @@ use super::compressed_data::{BlockType, CompressedBlock};
 use super::config::CompressionAlgorithm;
 use super::stats::SparsityPatternAnalysis;
 use crate::error::{SparseError, SparseResult};
-use num_traits::{Float, NumAssign};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::collections::HashMap;
 
 /// Compression engine that handles all compression algorithms
@@ -36,13 +36,13 @@ pub(crate) struct CompressionStrategy {
 
 /// Algorithm performance metrics
 #[derive(Debug, Clone)]
-struct AlgorithmMetrics {
-    total_operations: usize,
-    total_compression_time: f64,
-    total_decompression_time: f64,
-    total_original_size: usize,
-    total_compressed_size: usize,
-    success_count: usize,
+pub struct AlgorithmMetrics {
+    pub total_operations: usize,
+    pub total_compression_time: f64,
+    pub total_decompression_time: f64,
+    pub total_original_size: usize,
+    pub total_compressed_size: usize,
+    pub success_count: usize,
 }
 
 /// Compression result with metadata
@@ -224,7 +224,7 @@ impl CompressionEngine {
 
     /// Run-Length Encoding decompression
     fn decompress_rle(&self, compressed_data: &[u8]) -> SparseResult<Vec<u8>> {
-        if compressed_data.len() % 2 != 0 {
+        if !compressed_data.len().is_multiple_of(2) {
             return Err(SparseError::ComputationError(
                 "Invalid RLE data".to_string(),
             ));
@@ -235,7 +235,7 @@ impl CompressionEngine {
         for chunk in compressed_data.chunks(2) {
             let count = chunk[0] as usize;
             let byte = chunk[1];
-            decompressed.extend(std::iter::repeat(byte).take(count));
+            decompressed.extend(std::iter::repeat_n(byte, count));
         }
 
         Ok(decompressed)

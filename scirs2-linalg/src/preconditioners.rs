@@ -35,8 +35,8 @@
 //! - Briggs, W. L., et al. (2000). "A Multigrid Tutorial"
 //! - Toselli, A., & Widlund, O. (2004). "Domain Decomposition Methods"
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::iter::Sum;
 
 use crate::decomposition::{cholesky, lu};
@@ -204,7 +204,15 @@ pub struct DiagonalPreconditioner<F> {
 
 impl<F> DiagonalPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create a diagonal preconditioner from matrix diagonal
     pub fn new(matrix: &ArrayView2<F>) -> LinalgResult<Self> {
@@ -232,7 +240,15 @@ where
 
 impl<F> PreconditionerOp<F> for DiagonalPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     fn apply(&self, x: &ArrayView1<F>) -> LinalgResult<Array1<F>> {
         Ok(&self.inverse_diagonal * x)
@@ -256,7 +272,15 @@ pub struct IncompleteLUPreconditioner<F> {
 
 impl<F> IncompleteLUPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create incomplete LU preconditioner with specified fill level
     pub fn new(matrix: &ArrayView2<F>, config: &PreconditionerConfig) -> LinalgResult<Self> {
@@ -351,7 +375,15 @@ where
 
 impl<F> PreconditionerOp<F> for IncompleteLUPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     fn apply(&self, x: &ArrayView1<F>) -> LinalgResult<Array1<F>> {
         // Solve Ly = x, then Uz = y
@@ -379,7 +411,15 @@ pub struct IncompleteCholeskyPreconditioner<F> {
 
 impl<F> IncompleteCholeskyPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create incomplete Cholesky preconditioner
     pub fn new(matrix: &ArrayView2<F>, config: &PreconditionerConfig) -> LinalgResult<Self> {
@@ -460,7 +500,15 @@ where
 
 impl<F> PreconditionerOp<F> for IncompleteCholeskyPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     fn apply(&self, x: &ArrayView1<F>) -> LinalgResult<Array1<F>> {
         // Solve Ly = x, then Lᵀz = y
@@ -486,7 +534,15 @@ pub struct BlockJacobiPreconditioner<F> {
 
 impl<F> BlockJacobiPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create block Jacobi preconditioner with specified block size
     pub fn new(matrix: &ArrayView2<F>, config: &PreconditionerConfig) -> LinalgResult<Self> {
@@ -508,7 +564,10 @@ where
             let current_blocksize = end_idx - start_idx;
 
             // Extract diagonal block
-            let block = matrix.slice(ndarray::s![start_idx..end_idx, start_idx..end_idx]);
+            let block = matrix.slice(scirs2_core::ndarray::s![
+                start_idx..end_idx,
+                start_idx..end_idx
+            ]);
 
             // Compute block inverse (using LU decomposition for robustness)
             let (p, l, u) = lu(&block, None)?;
@@ -563,7 +622,15 @@ where
 
 impl<F> PreconditionerOp<F> for BlockJacobiPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     fn apply(&self, x: &ArrayView1<F>) -> LinalgResult<Array1<F>> {
         let mut result = Array1::zeros(self.size);
@@ -571,7 +638,7 @@ where
 
         for (block_inv, &blocksize) in self.inverse_blocks.iter().zip(&self.blocksizes) {
             let end_idx = current_idx + blocksize;
-            let x_block = x.slice(ndarray::s![current_idx..end_idx]);
+            let x_block = x.slice(scirs2_core::ndarray::s![current_idx..end_idx]);
             let y_block = block_inv.dot(&x_block);
 
             for (i, &val) in y_block.iter().enumerate() {
@@ -604,7 +671,15 @@ pub struct PolynomialPreconditioner<F> {
 
 impl<F> PolynomialPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create polynomial preconditioner using Neumann series
     pub fn new(matrix: &ArrayView2<F>, config: &PreconditionerConfig) -> LinalgResult<Self> {
@@ -630,7 +705,15 @@ where
 
 impl<F> PreconditionerOp<F> for PolynomialPreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     fn apply(&self, x: &ArrayView1<F>) -> LinalgResult<Array1<F>> {
         // Neumann series: M⁻¹ ≈ α(I + (I - αA) + (I - αA)² + ... + (I - αA)ᵏ)
@@ -671,7 +754,15 @@ pub enum AdaptivePreconditioner<F> {
 
 impl<F> AdaptivePreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     /// Create adaptive preconditioner based on matrix properties
     pub fn new(matrix: &ArrayView2<F>, config: &PreconditionerConfig) -> LinalgResult<Self> {
@@ -782,7 +873,15 @@ where
 
 impl<F> PreconditionerOp<F> for AdaptivePreconditioner<F>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     fn apply(&self, x: &ArrayView1<F>) -> LinalgResult<Array1<F>> {
         match self {
@@ -832,7 +931,15 @@ pub fn create_preconditioner<F>(
     config: &PreconditionerConfig,
 ) -> LinalgResult<Box<dyn PreconditionerOp<F>>>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     match config.preconditioner_type {
         PreconditionerType::Identity => {
@@ -882,7 +989,15 @@ pub fn preconditioned_conjugate_gradient<F>(
     initial_guess: Option<&ArrayView1<F>>,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     let n = matrix.nrows();
     if matrix.ncols() != n || rhs.len() != n {
@@ -943,7 +1058,15 @@ pub fn preconditioned_gmres<F>(
     initial_guess: Option<&ArrayView1<F>>,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     let n = matrix.nrows();
     if matrix.ncols() != n || rhs.len() != n {
@@ -1048,7 +1171,15 @@ pub fn analyze_preconditioner<F>(
     _preconditioner: &dyn PreconditionerOp<F>,
 ) -> LinalgResult<PreconditionerAnalysis>
 where
-    F: Float + NumAssign + Zero + One + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + One
+        + Sum
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync
+        + 'static,
 {
     let n = matrix.nrows();
 
@@ -1074,7 +1205,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_diagonal_preconditioner() {

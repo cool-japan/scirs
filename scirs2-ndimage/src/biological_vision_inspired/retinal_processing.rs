@@ -3,8 +3,8 @@
 //! This module implements biological retinal processing including center-surround
 //! receptive fields, temporal dynamics, and edge enhancement.
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use super::config::{BiologicalVisionConfig, RetinaModel};
 use crate::error::{NdimageError, NdimageResult};

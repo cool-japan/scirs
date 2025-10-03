@@ -3,7 +3,7 @@
 //! This example demonstrates the core statistical operations
 //! that are available in the scirs2-stats library.
 
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_stats::{mean, regression::linear_regression, std, tests::ttest::ttest_1samp, var};
 
 #[allow(dead_code)]

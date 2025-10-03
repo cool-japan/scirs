@@ -6,7 +6,7 @@ use crate::error::Result;
 use crate::feature::{image_to_array, KeyPoint};
 use crate::preprocessing::gaussian_blur;
 use image::DynamicImage;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Configuration for BRIEF descriptor
 #[derive(Debug, Clone)]
@@ -159,8 +159,8 @@ fn generate_test_pattern(
     descriptor_size: usize,
     patch_size: usize,
 ) -> Vec<(isize, isize, isize, isize)> {
-    use rand::rngs::StdRng;
-    use rand::{Rng, SeedableRng};
+    use scirs2_core::random::rngs::StdRng;
+    use scirs2_core::random::{Rng, SeedableRng};
 
     let mut pattern = Vec::new();
 

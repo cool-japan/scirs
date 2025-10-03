@@ -9,7 +9,7 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::tensor_ops;
 use crate::Float;
-use ndarray::{Array, IxDyn};
+use scirs2_core::ndarray::{Array, IxDyn};
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 

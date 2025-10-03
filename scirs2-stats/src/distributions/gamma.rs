@@ -5,9 +5,9 @@
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use crate::traits::{ContinuousCDF, ContinuousDistribution, Distribution as ScirsDist};
-use ndarray::Array1;
-use num_traits::{Float, NumCast};
-use rand_distr::{Distribution, Gamma as RandGamma};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::{Distribution, Gamma as RandGamma};
 use std::fmt::Debug;
 
 /// Gamma distribution structure
@@ -303,7 +303,7 @@ impl<F: Float + NumCast + Debug + Send + Sync + 'static + std::fmt::Display> Gam
     pub fn rvs_vec(&self, size: usize) -> StatsResult<Vec<F>> {
         // For small sample sizes, use the serial implementation
         if size < 1000 {
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             let mut samples = Vec::with_capacity(size);
 
             for _ in 0..size {
@@ -327,7 +327,7 @@ impl<F: Float + NumCast + Debug + Send + Sync + 'static + std::fmt::Display> Gam
 
         // Generate samples in parallel
         let samples = parallel_map(&indices, move |_| {
-            let mut rng = rand::thread_rng();
+            let mut rng = scirs2_core::random::thread_rng();
             // FIXED: Pass scale_f64 directly, not 1.0/scale_f64 (rate)
             let rand_distr = RandGamma::new(shape_f64, scale_f64).unwrap();
             let sample = rand_distr.sample(&mut rng);

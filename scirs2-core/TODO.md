@@ -1,4 +1,4 @@
-# scirs2-core TODO - Version 0.1.0-beta.4 (Beta 4)
+# scirs2-core TODO - Version 0.1.0-rc.1 (Release Candidate 1)
 
 Core utilities and foundation for the SciRS2 scientific computing library in Rust.
 
@@ -419,5 +419,5 @@ pub static GLOBAL_RNG: Lazy<Mutex<Random>>;
 
 ---
 
-*Last Updated: 2025-09-29 | Version: 0.1.0-beta.4 → 1.0 Preparation*  
+*Last Updated: 2025-09-29 | Version: 0.1.0-rc.1 → 1.0 Preparation*  
 *Next Milestone: 1.0 Stable - Production Ready Release*

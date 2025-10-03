@@ -4,7 +4,7 @@
 //! used throughout the advanced-refined 2D wavelet transform implementation.
 
 use crate::dwt2d_enhanced::Dwt2dConfig;
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 
 /// Advanced-refined 2D wavelet packet decomposition result
 #[derive(Debug, Clone)]

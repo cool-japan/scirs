@@ -4,8 +4,8 @@
 //! variational inference, hierarchical models, and robust Bayesian regression.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, FromPrimitive, NumAssign, One, ToPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign, One, ToPrimitive, Zero};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use std::marker::PhantomData;
 
@@ -368,9 +368,9 @@ where
 
     /// MCMC inference using Gibbs sampling
     fn fit_mcmc(&self) -> StatsResult<BayesianRegressionResult<F>> {
-        use rand::rngs::StdRng;
-        use rand::SeedableRng;
-        use rand_distr::{Distribution, Gamma};
+        use scirs2_core::random::rngs::StdRng;
+        use scirs2_core::random::SeedableRng;
+        use scirs2_core::random::{Distribution, Gamma};
 
         let x = &self.design_matrix;
         let y = &self.response;
@@ -384,7 +384,7 @@ where
         let mut rng = match self.config.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
             None => {
-                let mut rng = rand::thread_rng();
+                let mut rng = scirs2_core::random::thread_rng();
                 StdRng::from_rng(&mut rng)
             }
         };
@@ -439,7 +439,7 @@ where
             noise_precision = F::from(gamma_dist.sample(&mut rng)).unwrap();
 
             // Store samples after burn-in
-            if iter >= n_burnin && (iter - n_burnin) % n_thin == 0 {
+            if iter >= n_burnin && (iter - n_burnin).is_multiple_of(n_thin) {
                 beta_samples.push(beta.clone());
                 noise_precision_samples_.push(noise_precision);
             }
@@ -462,9 +462,9 @@ where
         // Posterior mean of beta
         let mut posterior_beta_mean = Array1::zeros(p);
         for sample in &beta_samples {
-            posterior_beta_mean = posterior_beta_mean + sample;
+            posterior_beta_mean += sample;
         }
-        posterior_beta_mean = posterior_beta_mean / F::from(n_kept_samples).unwrap();
+        posterior_beta_mean /= F::from(n_kept_samples).unwrap();
 
         // Posterior covariance of beta
         let mut posterior_beta_cov = Array2::zeros((p, p));
@@ -472,13 +472,11 @@ where
             let centered = sample - &posterior_beta_mean;
             for i in 0..p {
                 for j in 0..p {
-                    posterior_beta_cov[[i, j]] =
-                        posterior_beta_cov[[i, j]] + centered[i] * centered[j];
+                    posterior_beta_cov[[i, j]] += centered[i] * centered[j];
                 }
             }
         }
-        posterior_beta_cov =
-            posterior_beta_cov / F::from(n_kept_samples.saturating_sub(1).max(1)).unwrap();
+        posterior_beta_cov /= F::from(n_kept_samples.saturating_sub(1).max(1)).unwrap();
 
         // Posterior statistics for noise precision
         let noise_precision_mean = noise_precision_samples_
@@ -603,13 +601,13 @@ where
     }
 
     /// Sample from multivariate normal distribution
-    fn sample_multivariate_normal<R: rand::Rng>(
+    fn sample_multivariate_normal<R: scirs2_core::random::Rng>(
         &self,
         mean: &Array1<f64>,
         covariance: &Array2<f64>,
         rng: &mut R,
     ) -> StatsResult<Array1<F>> {
-        use rand_distr::{Distribution, StandardNormal};
+        use scirs2_core::random::{Distribution, StandardNormal};
 
         let d = mean.len();
 
@@ -719,8 +717,8 @@ where
         for i in 0..n - 1 {
             let x_i = samples[i] - mean;
             let x_i1 = samples[i + 1] - mean;
-            numerator = numerator + x_i * x_i1;
-            denominator = denominator + x_i * x_i;
+            numerator += x_i * x_i1;
+            denominator += x_i * x_i;
         }
 
         let autocorr = if denominator > F::from(1e-10).unwrap() {

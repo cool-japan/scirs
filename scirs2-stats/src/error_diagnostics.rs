@@ -265,7 +265,7 @@ impl ErrorMonitor {
             recent_error_rate,
             uptime,
             error_distribution,
-            top_errors: top_errors.into_iter().map(|(k, v)| (k, v)).collect(),
+            top_errors: top_errors.into_iter().collect(),
             active_patterns: self.detect_active_patterns(),
         }
     }
@@ -749,7 +749,7 @@ static GLOBAL_MONITOR: std::sync::OnceLock<ErrorMonitor> = std::sync::OnceLock::
 /// Get the global error monitor instance
 #[allow(dead_code)]
 pub fn global_monitor() -> &'static ErrorMonitor {
-    GLOBAL_MONITOR.get_or_init(|| ErrorMonitor::new())
+    GLOBAL_MONITOR.get_or_init(ErrorMonitor::new)
 }
 
 /// Convenience function to record an error globally

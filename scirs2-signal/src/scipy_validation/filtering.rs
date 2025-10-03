@@ -10,7 +10,7 @@ use super::reference::{
 use super::utils::calculate_errors;
 use crate::error::{SignalError, SignalResult};
 use crate::filter::{butter, cheby1, cheby2, lfilter, FilterType};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 /// Validate filtering operations against SciPy reference
 pub fn validate_filtering(config: &ValidationConfig) -> SignalResult<ValidationResults> {

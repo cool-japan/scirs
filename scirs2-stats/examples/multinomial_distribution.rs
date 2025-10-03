@@ -1,4 +1,4 @@
-use ndarray::{array, Array1};
+use scirs2_core::ndarray::{array, Array1};
 use scirs2_stats::distributions::multivariate::multinomial::Multinomial;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;

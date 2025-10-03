@@ -5,7 +5,7 @@
 // and intelligent load balancing for optimal performance.
 
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use scirs2_core::validation::check_positive;
@@ -87,7 +87,7 @@ where
     let use_memory_optimized = config.memory_optimized
         || config
             .memory_limit_mb
-            .map_or(false, |limit| estimated_memory_mb > limit);
+            .is_some_and(|limit| estimated_memory_mb > limit);
 
     if use_memory_optimized && signal_len > 100_000 {
         enhanced_filtfilt_memory_optimized(b, a, x, config)
@@ -468,7 +468,7 @@ fn calculate_memory_optimal_chunk_size(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use std::f64::consts::PI;
 
     #[test]

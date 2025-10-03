@@ -23,9 +23,9 @@
 //! - **Cross-Domain Knowledge Transfer**: Learning from diverse signal processing tasks
 
 use crate::error::{FFTError, FFTResult};
-use ndarray::{Array1, Array2, ArrayBase, ArrayD, Data, Dimension};
-use num_complex::Complex;
-use num_traits::{Float, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, ArrayD, Data, Dimension};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, Zero};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex, RwLock};
@@ -2375,7 +2375,7 @@ pub fn create_advanced_fft_coordinator_with_config<F: Float + Debug + std::ops::
 
 #[allow(dead_code)]
 fn example_usage() -> FFTResult<()> {
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
 
     // Create coordinator
     let coordinator = create_advanced_fft_coordinator::<f64>()?;

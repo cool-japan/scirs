@@ -5,8 +5,8 @@
 //! balancing, work stealing, and heterogeneous computing support.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::SimdUnifiedOps,
@@ -641,7 +641,7 @@ where
             let mut chunk_results = Vec::with_capacity(end_idx - start_idx);
             
             // Use thread-local RNG for better performance
-            use rand::{rngs::StdRng, SeedableRng, Rng};
+            use scirs2_core::random::{rngs::StdRng, SeedableRng, Rng};
             let mut rng = StdRng::seed_from_u64((chunk_id as u64).wrapping_mul(12345));
             
             for _ in start_idx..end_idx {
@@ -693,7 +693,7 @@ where
             let end_idx = (start_idx + chunksize).min(n_bootstrap);
             let mut chunk_results = Vec::with_capacity(end_idx - start_idx);
             
-            use rand::{rngs::StdRng, SeedableRng, Rng};
+            use scirs2_core::random::{rngs::StdRng, SeedableRng, Rng};
             let mut rng = StdRng::seed_from_u64((chunk_id as u64).wrapping_mul(54321));
             
             for _ in start_idx..end_idx {
@@ -738,8 +738,8 @@ where
             let end_idx = (start_idx + chunksize).min(n_bootstrap);
             let mut chunk_results = Vec::with_capacity(end_idx - start_idx);
             
-            use rand::{rngs::StdRng, SeedableRng};
-            use rand_distr::{Gamma, Distribution};
+            use scirs2_core::random::{rngs::StdRng, SeedableRng};
+            use scirs2_core::random::{Gamma, Distribution};
             let mut rng = StdRng::seed_from_u64((chunk_id as u64).wrapping_mul(98765));
             
             for _ in start_idx..end_idx {
@@ -806,7 +806,7 @@ where
                 samples_per_thread
             };
             
-            use rand::{rngs::StdRng, SeedableRng, Rng};
+            use scirs2_core::random::{rngs::StdRng, SeedableRng, Rng};
             let mut rng = StdRng::seed_from_u64((thread_id as u64).wrapping_mul(13579));
             
             let mut sum = F::zero();
@@ -910,13 +910,13 @@ where
             }
             
             // Extract train and test data (simplified - would use proper indexing)
-            let traindata = data.slice(ndarray::s![0..train_indices.len(), ..]);
-            let train_labels = labels.slice(ndarray::s![0..train_indices.len()]);
-            let testdata = data.slice(ndarray::s![test_start..test_end, ..]);
+            let traindata = data.slice(scirs2_core::ndarray::s![0..train_indices.len(), ..]);
+            let train_labels = labels.slice(scirs2_core::ndarray::s![0..train_indices.len()]);
+            let testdata = data.slice(scirs2_core::ndarray::s![test_start..test_end, ..]);
             
             // Train and evaluate model
             if let Ok(predictions) = model_fn(&traindata, &train_labels, &testdata) {
-                let test_labels = labels.slice(ndarray::s![test_start..test_end]);
+                let test_labels = labels.slice(scirs2_core::ndarray::s![test_start..test_end]);
                 let mse = self.compute_mse(&predictions.view(), &test_labels)?;
                 scores.push(mse);
             }
@@ -1017,7 +1017,7 @@ where
         let evals_per_thread = max_evaluations / num_cpus::get;
         
         parallel_for(0..num_cpus::get, |thread_id| {
-            use rand::{rngs::StdRng, SeedableRng, Rng};
+            use scirs2_core::random::{rngs::StdRng, SeedableRng, Rng};
             let mut rng = StdRng::seed_from_u64((thread_id as u64).wrapping_mul(24681));
             
             for _ in 0..evals_per_thread {
@@ -1238,7 +1238,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[ignore = "timeout"]

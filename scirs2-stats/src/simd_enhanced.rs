@@ -9,8 +9,8 @@
 //! - Hybrid scalar-vector implementations for edge cases
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::ArrayView1;
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

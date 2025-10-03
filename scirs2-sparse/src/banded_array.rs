@@ -6,8 +6,8 @@
 
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::{Debug, Display};
 
 /// Banded array format for sparse matrices

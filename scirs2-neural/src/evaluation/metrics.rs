@@ -4,8 +4,8 @@
 //! during training and testing.
 
 use super::Metric;
-use ndarray::{Array, Axis, Ix1, Ix2, IxDyn, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Axis, Ix1, Ix2, IxDyn, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 /// Loss metric for tracking model loss

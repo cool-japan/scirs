@@ -234,15 +234,18 @@ pub mod spherical;
 ///
 /// ```
 /// use scirs2_special::hankel1;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let result = hankel1(1.0, 1.0);
 /// // H₁⁽¹⁾₁(1) = J₁(1) + i*Y₁(1)
 /// ```
 #[allow(dead_code)]
-pub fn hankel1<T>(v: T, z: T) -> num_complex::Complex<T>
+pub fn hankel1<T>(v: T, z: T) -> scirs2_core::numeric::Complex<T>
 where
-    T: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + std::ops::AddAssign,
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
+        + std::fmt::Debug
+        + std::ops::AddAssign,
 {
     use crate::bessel::{
         jv,
@@ -270,7 +273,7 @@ where
         T::nan()
     };
 
-    num_complex::Complex::new(j_val, y_val)
+    scirs2_core::numeric::Complex::new(j_val, y_val)
 }
 
 /// Hankel functions of the second kind H₂⁽²⁾(v, z)  
@@ -294,15 +297,18 @@ where
 ///
 /// ```
 /// use scirs2_special::hankel2;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// let result = hankel2(1.0, 1.0);
 /// // H₂⁽²⁾₁(1) = J₁(1) - i*Y₁(1)
 /// ```
 #[allow(dead_code)]
-pub fn hankel2<T>(v: T, z: T) -> num_complex::Complex<T>
+pub fn hankel2<T>(v: T, z: T) -> scirs2_core::numeric::Complex<T>
 where
-    T: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + std::ops::AddAssign,
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
+        + std::fmt::Debug
+        + std::ops::AddAssign,
 {
     use crate::bessel::{
         jv,
@@ -330,7 +336,7 @@ where
         T::nan()
     };
 
-    num_complex::Complex::new(j_val, -y_val)
+    scirs2_core::numeric::Complex::new(j_val, -y_val)
 }
 
 /// Exponentially scaled Hankel function of the first kind H₁⁽¹⁾(v, z) * exp(-i*z)
@@ -357,12 +363,15 @@ where
 /// // Scaled version for numerical stability
 /// ```
 #[allow(dead_code)]
-pub fn hankel1e<T>(v: T, z: T) -> num_complex::Complex<T>
+pub fn hankel1e<T>(v: T, z: T) -> scirs2_core::numeric::Complex<T>
 where
-    T: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + std::ops::AddAssign,
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
+        + std::fmt::Debug
+        + std::ops::AddAssign,
 {
     let h1 = hankel1(v, z);
-    let scale_factor = num_complex::Complex::new(T::zero(), -z).exp();
+    let scale_factor = scirs2_core::numeric::Complex::new(T::zero(), -z).exp();
     h1 * scale_factor
 }
 
@@ -390,12 +399,15 @@ where
 /// // Scaled version for numerical stability
 /// ```
 #[allow(dead_code)]
-pub fn hankel2e<T>(v: T, z: T) -> num_complex::Complex<T>
+pub fn hankel2e<T>(v: T, z: T) -> scirs2_core::numeric::Complex<T>
 where
-    T: num_traits::Float + num_traits::FromPrimitive + std::fmt::Debug + std::ops::AddAssign,
+    T: scirs2_core::numeric::Float
+        + scirs2_core::numeric::FromPrimitive
+        + std::fmt::Debug
+        + std::ops::AddAssign,
 {
     let h2 = hankel2(v, z);
-    let scale_factor = num_complex::Complex::new(T::zero(), z).exp();
+    let scale_factor = scirs2_core::numeric::Complex::new(T::zero(), z).exp();
     h2 * scale_factor
 }
 

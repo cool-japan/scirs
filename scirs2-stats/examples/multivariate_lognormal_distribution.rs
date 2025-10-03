@@ -1,4 +1,4 @@
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_stats::distributions::multivariate::multivariate_lognormal::MultivariateLognormal;
 use statrs::statistics::Statistics;
 
@@ -144,7 +144,7 @@ fn calculate_median(samples: &Array2<f64>, nsamples: usize) -> Array1<f64> {
         let mut values: Vec<f64> = samples.column(j).to_vec();
         values.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-        if nsamples % 2 == 0 {
+        if nsamples.is_multiple_of(2) {
             // Even number of samples, take average of middle two
             median[j] = (values[nsamples / 2 - 1] + values[nsamples / 2]) / 2.0;
         } else {

@@ -5,8 +5,8 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::error_standardization::ErrorMessages;
-use ndarray::{Array1, ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     simd_ops::{AutoOptimizer, SimdUnifiedOps},
     validation::*,
@@ -29,7 +29,7 @@ use scirs2_core::{
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::moments_simd::skewness_simd;
 ///
 /// let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -690,7 +690,7 @@ where
         if chunk_len == chunk_size {
             // Extract chunk data for ultra-optimized SIMD processing
             let chunk_data: Array1<f32> = x
-                .slice(ndarray::s![chunk_start..chunk_end])
+                .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                 .iter()
                 .map(|&val| val.to_f64().unwrap() as f32)
                 .collect();
@@ -782,7 +782,7 @@ where
         if chunk_len == chunk_size {
             // Extract chunk data
             let chunk_data: Array1<f32> = x
-                .slice(ndarray::s![chunk_start..chunk_end])
+                .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                 .iter()
                 .map(|&val| val.to_f64().unwrap() as f32)
                 .collect();
@@ -892,7 +892,7 @@ where
 
             if chunk_len == chunk_size {
                 let chunk_data: Array1<f32> = x
-                    .slice(ndarray::s![chunk_start..chunk_end])
+                    .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                     .iter()
                     .map(|&val| val.to_f64().unwrap() as f32)
                     .collect();
@@ -918,7 +918,7 @@ where
 
             if chunk_len == chunk_size {
                 let chunk_data: Array1<f32> = x
-                    .slice(ndarray::s![chunk_start..chunk_end])
+                    .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                     .iter()
                     .map(|&val| val.to_f64().unwrap() as f32)
                     .collect();
@@ -1006,7 +1006,7 @@ where
 
             if chunk_len == chunk_size {
                 let chunk_data: Array1<f32> = x
-                    .slice(ndarray::s![chunk_start..chunk_end])
+                    .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                     .iter()
                     .map(|&val| val.to_f64().unwrap() as f32)
                     .collect();
@@ -1103,7 +1103,7 @@ where
 
             if chunk_len == chunk_size {
                 let chunk_data: Array1<f32> = x
-                    .slice(ndarray::s![chunk_start..chunk_end])
+                    .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                     .iter()
                     .map(|&val| val.to_f64().unwrap() as f32)
                     .collect();
@@ -1130,7 +1130,7 @@ where
 
             if chunk_len == chunk_size {
                 let chunk_data: Array1<f32> = x
-                    .slice(ndarray::s![chunk_start..chunk_end])
+                    .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                     .iter()
                     .map(|&val| val.to_f64().unwrap() as f32)
                     .collect();
@@ -1203,7 +1203,7 @@ where
 
             if chunk_len == chunk_size {
                 let chunk_data: Array1<f32> = x
-                    .slice(ndarray::s![chunk_start..chunk_end])
+                    .slice(scirs2_core::ndarray::s![chunk_start..chunk_end])
                     .iter()
                     .map(|&val| val.to_f64().unwrap() as f32)
                     .collect();
@@ -1265,7 +1265,7 @@ where
 mod tests {
     use super::*;
     use crate::descriptive::{kurtosis, moment, skew};
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_skewness_simd_consistency() {

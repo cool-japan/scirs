@@ -5,10 +5,10 @@
 //! These methods are particularly useful for large-scale data analysis, dimensionality reduction,
 //! and machine learning applications.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, NumAssign};
-use rand::prelude::*;
-use rand_distr::Normal;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution, Normal};
 use std::iter::Sum;
 
 use crate::decomposition::{qr, svd};
@@ -47,7 +47,7 @@ type CURResult<F> = LinalgResult<(Array2<F>, Array2<F>, Array2<F>, Vec<usize>, V
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::lowrank::randomized_svd;
 ///
 /// let mut a = Array2::eye(5);
@@ -78,7 +78,7 @@ pub fn randomized_svd<F>(
     workers: Option<usize>,
 ) -> LinalgResult<(Array2<F>, Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     let (m, n) = a.dim();
     let oversampling = oversampling.unwrap_or(10);
@@ -111,7 +111,7 @@ where
     }
 
     // Step 1: Generate random matrix Ω (n × l)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let normal = Normal::new(0.0, 1.0)
         .map_err(|_| LinalgError::ShapeError("Failed to create normal distribution".to_string()))?;
 
@@ -145,9 +145,9 @@ where
     let u = q.dot(&u_tilde);
 
     // Truncate to desired rank k
-    let u_k = u.slice(ndarray::s![.., ..k]).to_owned();
-    let s_k = s.slice(ndarray::s![..k]).to_owned();
-    let vt_k = vt.slice(ndarray::s![..k, ..]).to_owned();
+    let u_k = u.slice(scirs2_core::ndarray::s![.., ..k]).to_owned();
+    let s_k = s.slice(scirs2_core::ndarray::s![..k]).to_owned();
+    let vt_k = vt.slice(scirs2_core::ndarray::s![..k, ..]).to_owned();
 
     Ok((u_k, s_k, vt_k))
 }
@@ -173,7 +173,7 @@ pub fn truncated_svd<F>(
     workers: Option<usize>,
 ) -> LinalgResult<(Array2<F>, Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     let (m, n) = a.dim();
 
@@ -195,9 +195,9 @@ where
     let (u, s, vt) = svd(a, false, workers)?;
 
     // Truncate to k components
-    let u_k = u.slice(ndarray::s![.., ..k]).to_owned();
-    let s_k = s.slice(ndarray::s![..k]).to_owned();
-    let vt_k = vt.slice(ndarray::s![..k, ..]).to_owned();
+    let u_k = u.slice(scirs2_core::ndarray::s![.., ..k]).to_owned();
+    let s_k = s.slice(scirs2_core::ndarray::s![..k]).to_owned();
+    let vt_k = vt.slice(scirs2_core::ndarray::s![..k, ..]).to_owned();
 
     Ok((u_k, s_k, vt_k))
 }
@@ -227,7 +227,7 @@ pub fn pca<F>(
     workers: Option<usize>,
 ) -> LinalgResult<(Array2<F>, Array1<F>, Array1<F>)>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     let (n_samples, n_features) = data.dim();
 
@@ -309,7 +309,7 @@ pub fn nmf<F>(
     workers: Option<usize>,
 ) -> LinalgResult<(Array2<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     let (m, n) = a.dim();
     let max_iter = max_iter.unwrap_or(100);
@@ -344,7 +344,7 @@ where
     }
 
     // Initialize W and H with random positive values
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut w = Array2::zeros((m, k));
     let mut h = Array2::zeros((k, n));
 
@@ -439,7 +439,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::lowrank::cur_decomposition;
 ///
 /// let mut a = Array2::eye(10);
@@ -471,7 +471,7 @@ pub fn cur_decomposition<F>(
     workers: Option<usize>,
 ) -> CURResult<F>
 where
-    F: Float + NumAssign + Sum + ndarray::ScalarOperand + Send + Sync + 'static,
+    F: Float + NumAssign + Sum + scirs2_core::ndarray::ScalarOperand + Send + Sync + 'static,
 {
     let (m, n) = a.dim();
     let oversampling = oversampling.unwrap_or(5);
@@ -519,7 +519,7 @@ where
     col_leverage_scores.mapv_inplace(|x| x / total_leverage);
 
     // Step 2: Sample columns according to leverage scores
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut selected_cols = Vec::new();
     let mut col_indices = Vec::new();
 
@@ -653,7 +653,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_randomized_svd_basic() {

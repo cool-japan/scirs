@@ -1,8 +1,8 @@
 //! Local explanation methods for individual predictions
 
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 /// Local explanation generator
@@ -15,13 +15,15 @@ pub struct LocalExplainer<F: Float> {
     pub random_seed: Option<u64>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> Default for LocalExplainer<F> {
+impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> Default
+    for LocalExplainer<F>
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> LocalExplainer<F> {
+impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> LocalExplainer<F> {
     /// Create new local explainer
     pub fn new() -> Self {
         Self {
@@ -511,7 +513,7 @@ pub struct AnchorRule<F: Float> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     // Mock model for testing
     fn mock_model(x: &ArrayView2<f64>) -> Array1<f64> {

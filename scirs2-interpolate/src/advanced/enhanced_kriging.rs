@@ -3,8 +3,8 @@
 
 use crate::advanced::kriging::{CovarianceFunction, PredictionResult};
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::marker::PhantomData;
 use std::ops::{Add, Div, Mul, Sub};
@@ -476,8 +476,8 @@ where
                     cov_matrix[[i, j]] = anisotropic_cov.sigma_sq + anisotropic_cov.nugget;
                 } else {
                     let dist = Self::compute_anisotropic_distance(
-                        &points.slice(ndarray::s![i, ..]),
-                        &points.slice(ndarray::s![j, ..]),
+                        &points.slice(scirs2_core::ndarray::s![i, ..]),
+                        &points.slice(scirs2_core::ndarray::s![j, ..]),
                         &anisotropic_cov,
                     );
                     cov_matrix[[i, j]] = Self::evaluate_covariance(dist, &anisotropic_cov);
@@ -518,9 +518,15 @@ where
         let (cholesky_factor, solution) = Self::solve_kriging_system(&augmented_matrix, &rhs)?;
 
         // Extract weights (alpha) and trend coefficients (beta)
-        let weights = solution.slice(ndarray::s![0..n_points]).to_owned();
+        let weights = solution
+            .slice(scirs2_core::ndarray::s![0..n_points])
+            .to_owned();
         let trend_coeffs = if n_basis > 0 {
-            Some(solution.slice(ndarray::s![n_points..]).to_owned())
+            Some(
+                solution
+                    .slice(scirs2_core::ndarray::s![n_points..])
+                    .to_owned(),
+            )
         } else {
             None
         };
@@ -594,7 +600,7 @@ where
 
         let mut trend_matrix = Array2::zeros((n_points, n_basis));
         for i in 0..n_points {
-            let point = points.slice(ndarray::s![i, ..]);
+            let point = points.slice(scirs2_core::ndarray::s![i, ..]);
             let basis_vals = basis_fn(&point);
             for j in 0..n_basis {
                 trend_matrix[[i, j]] = basis_vals[j];
@@ -1007,8 +1013,8 @@ where
                     cov_matrix[[i, j]] = sigma_sq + nugget;
                 } else {
                     let dist = EnhancedKrigingBuilder::compute_anisotropic_distance(
-                        &points.slice(ndarray::s![i, ..]),
-                        &points.slice(ndarray::s![j, ..]),
+                        &points.slice(scirs2_core::ndarray::s![i, ..]),
+                        &points.slice(scirs2_core::ndarray::s![j, ..]),
                         &anisotropic_cov,
                     );
                     cov_matrix[[i, j]] =
@@ -1188,12 +1194,12 @@ where
         let mut variances = Array1::zeros(n_query);
 
         for i in 0..n_query {
-            let query_point = querypoints.slice(ndarray::s![i, ..]);
+            let query_point = querypoints.slice(scirs2_core::ndarray::s![i, ..]);
 
             // Compute covariance vector k* between query point and training _points
             let mut k_star = Array1::zeros(n_points);
             for j in 0..n_points {
-                let sample_point = self.points.slice(ndarray::s![j, ..]);
+                let sample_point = self.points.slice(scirs2_core::ndarray::s![j, ..]);
                 let dist = EnhancedKrigingBuilder::compute_anisotropic_distance(
                     &query_point,
                     &sample_point,
@@ -1407,7 +1413,7 @@ where
 /// # Examples
 ///
 /// ```rust,no_run
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::enhanced_kriging::make_enhanced_kriging;
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -1483,7 +1489,7 @@ where
 /// # Examples
 ///
 /// ```rust,no_run
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::enhanced_kriging::{make_universal_kriging, TrendFunction};
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///
@@ -1561,7 +1567,7 @@ where
 /// # Examples
 ///
 /// ```rust,no_run
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_interpolate::advanced::enhanced_kriging::{make_bayesian_kriging, KrigingPriors, ParameterPrior};
 /// use scirs2_interpolate::advanced::kriging::CovarianceFunction;
 ///

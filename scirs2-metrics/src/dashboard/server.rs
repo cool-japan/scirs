@@ -636,7 +636,7 @@ async fn generate_dashboard_html(dashboard: &Arc<InteractiveDashboard>) -> Strin
     <div class="container">
         <div class="header">
             <h1>{}</h1>
-            <p>Real-time Machine Learning Metrics Dashboard</p>
+            <p>Float-time Machine Learning Metrics Dashboard</p>
         </div>
         
         <div class="stats-grid">

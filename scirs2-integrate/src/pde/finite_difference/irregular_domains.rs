@@ -7,7 +7,7 @@
 //! to maintain the accuracy of finite difference stencils near complex boundaries.
 
 use crate::pde::{PDEError, PDEResult};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::sync::Arc;
 

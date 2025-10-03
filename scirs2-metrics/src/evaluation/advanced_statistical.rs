@@ -4,8 +4,8 @@
 //! including Bayesian model comparison, effect size calculations, and advanced
 //! hypothesis testing techniques.
 
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 
 use crate::error::{MetricsError, Result};
@@ -86,7 +86,7 @@ pub struct AdvancedStatisticalAnalyzer<F: Float> {
     _phantom: std::marker::PhantomData<F>,
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> Default
+impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> Default
     for AdvancedStatisticalAnalyzer<F>
 {
     fn default() -> Self {
@@ -94,7 +94,9 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> Default
     }
 }
 
-impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> AdvancedStatisticalAnalyzer<F> {
+impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
+    AdvancedStatisticalAnalyzer<F>
+{
     /// Create a new advanced statistical analyzer
     pub fn new() -> Self {
         Self {
@@ -596,7 +598,9 @@ impl<F: Float + num_traits::FromPrimitive + std::iter::Sum> AdvancedStatisticalA
 
 /// Multi-dimensional effect size calculation
 #[allow(dead_code)]
-pub fn multi_dimensional_effect_size<F: Float + num_traits::FromPrimitive + std::iter::Sum>(
+pub fn multi_dimensional_effect_size<
+    F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum,
+>(
     metrics_a: &HashMap<String, Array1<F>>,
     metrics_b: &HashMap<String, Array1<F>>,
 ) -> Result<F> {
@@ -633,7 +637,7 @@ pub fn multi_dimensional_effect_size<F: Float + num_traits::FromPrimitive + std:
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_cohens_d_calculation() {

@@ -12,8 +12,8 @@
 // - Zero-copy operations where possible
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{arr2, Array1, Array2};
-use num_traits::{Float, NumCast, Zero};
+use scirs2_core::ndarray::{arr2, Array1, Array2};
+use scirs2_core::numeric::{Float, NumCast, Zero};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
 use std::collections::VecDeque;
@@ -232,7 +232,7 @@ impl StreamingProcessor {
     pub fn memory_optimized_fft(
         &mut self,
         signal: &[f64],
-    ) -> SignalResult<Vec<num_complex::Complex<f64>>> {
+    ) -> SignalResult<Vec<scirs2_core::numeric::Complex<f64>>> {
         check_positive(signal.len(), "signal length")?;
 
         // For large signals, use chunked FFT with overlap-add
@@ -251,9 +251,9 @@ impl StreamingProcessor {
             padded_chunk[..chunk.len()].copy_from_slice(chunk);
 
             // Convert to _complex and perform FFT
-            let complex_chunk: Vec<num_complex::Complex<f64>> = padded_chunk
+            let complex_chunk: Vec<scirs2_core::numeric::Complex<f64>> = padded_chunk
                 .iter()
-                .map(|&x| num_complex::Complex::new(x, 0.0))
+                .map(|&x| scirs2_core::numeric::Complex::new(x, 0.0))
                 .collect();
 
             // Simple DFT for demonstration (replace with efficient FFT)
@@ -371,14 +371,14 @@ pub struct MemoryStats {
 
 /// Simple DFT implementation for demonstration
 #[allow(dead_code)]
-fn simple_dft(input: &[num_complex::Complex<f64>]) -> Vec<num_complex::Complex<f64>> {
+fn simple_dft(input: &[scirs2_core::numeric::Complex<f64>]) -> Vec<scirs2_core::numeric::Complex<f64>> {
     let n = input.len();
-    let mut output = vec![num_complex::Complex::zero(); n];
+    let mut output = vec![scirs2_core::numeric::Complex::zero(); n];
 
     for k in 0..n {
         for (j, &x_j) in input.iter().enumerate() {
             let angle = -2.0 * std::f64::consts::PI * (k * j) as f64 / n as f64;
-            let twiddle = num_complex::Complex::new(angle.cos(), angle.sin());
+            let twiddle = scirs2_core::numeric::Complex::new(angle.cos(), angle.sin());
             output[k] += x_j * twiddle;
         }
     }

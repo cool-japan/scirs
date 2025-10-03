@@ -1,7 +1,7 @@
 //! Region property measurement functions
 
-use ndarray::{Array, Dimension, Ix2};
-use num_traits::{Float, FromPrimitive, NumAssign};
+use scirs2_core::ndarray::{Array, Dimension, Ix2};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::fmt::Debug;
 
 use super::RegionProperties;
@@ -48,7 +48,7 @@ fn pattern_to_coords<D: Dimension>(pattern: &D::Pattern, shape: &[usize]) -> Vec
 ///
 /// ## Basic region analysis
 /// ```rust
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::region_properties;
 ///
 /// // Image with different regions
@@ -76,7 +76,7 @@ fn pattern_to_coords<D: Dimension>(pattern: &D::Pattern, shape: &[usize]) -> Vec
 ///
 /// ## Cell morphology analysis
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::region_properties;
 ///
 /// // Simulate segmented cell image
@@ -113,7 +113,7 @@ fn pattern_to_coords<D: Dimension>(pattern: &D::Pattern, shape: &[usize]) -> Vec
 ///
 /// ## Selective property extraction
 /// ```rust
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::measurements::region_properties;
 ///
 /// let data = array![
@@ -137,7 +137,7 @@ fn pattern_to_coords<D: Dimension>(pattern: &D::Pattern, shape: &[usize]) -> Vec
 ///
 /// ## Materials analysis workflow
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::region_properties;
 ///
 /// // Simulate microscopy image of material grains
@@ -178,7 +178,7 @@ fn pattern_to_coords<D: Dimension>(pattern: &D::Pattern, shape: &[usize]) -> Vec
 ///
 /// ## Medical imaging: lesion characterization
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::region_properties;
 ///
 /// // Simulate medical image with lesions
@@ -379,7 +379,7 @@ where
 ///
 /// ## Basic object detection in 2D
 /// ```rust
-/// use ndarray::{Array2, array};
+/// use scirs2_core::ndarray::{Array2, array};
 /// use scirs2_ndimage::measurements::find_objects;
 ///
 /// let labeledimage = array![
@@ -399,7 +399,7 @@ where
 ///
 /// ## Cell detection and extraction workflow
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::find_objects;
 ///
 /// // Simulate cell segmentation result
@@ -436,7 +436,7 @@ where
 ///
 /// ## 3D object detection
 /// ```rust
-/// use ndarray::Array3;
+/// use scirs2_core::ndarray::Array3;
 /// use scirs2_ndimage::measurements::find_objects;
 ///
 /// // Create 3D labeled volume
@@ -466,7 +466,7 @@ where
 ///
 /// ## Object extraction and cropping
 /// ```rust
-/// use ndarray::{Array2, s};
+/// use scirs2_core::ndarray::{Array2, s};
 /// use scirs2_ndimage::measurements::find_objects;
 ///
 /// let segmentedimage = Array2::from_shape_fn((60, 60), |(i, j)| {
@@ -500,7 +500,7 @@ where
 ///
 /// ## Quality control: filter objects by size
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_ndimage::measurements::find_objects;
 ///
 /// let detection_result = Array2::from_shape_fn((100, 100), |(i, j)| {
@@ -634,7 +634,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_region_properties() {

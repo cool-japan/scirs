@@ -18,7 +18,7 @@
 //! ```
 //! use scirs2_signal::dwt2d_super_refined::{advanced_refined_wavelet_packet_2d, AdvancedRefinedConfig};
 //! use scirs2_signal::dwt::Wavelet;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create test image
 //! let image = Array2::from_shape_fn((128, 128), |(i, j)| {
@@ -37,13 +37,13 @@
 //! ```
 //! use scirs2_signal::dwt2d_super_refined::{advanced_refined_denoise_2d, AdvancedRefinedDenoisingConfig, ThresholdMethod};
 //! use scirs2_signal::dwt::Wavelet;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create noisy image
 //! let clean_image = Array2::from_shape_fn((64, 64), |(i, j)| {
 //!     ((i as f64 / 4.0).sin() * (j as f64 / 4.0).cos() + 1.0) / 2.0
 //! });
-//! let noisy_image = clean_image.mapv(|x| x + 0.1 * (rand::random::<f64>() - 0.5));
+//! let noisy_image = clean_image.mapv(|x| x + 0.1 * (scirs2_core::random::random::<f64>() - 0.5));
 //!
 //! let denoising_config = AdvancedRefinedDenoisingConfig {
 //!     noise_variance: Some(0.01),
@@ -104,8 +104,8 @@ pub use reconstruction::{
 mod tests {
     use super::*;
     use crate::dwt::Wavelet;
-    use ndarray::Array2;
-    use rand::Rng;
+    use scirs2_core::ndarray::Array2;
+    use scirs2_core::random::Rng;
 
     #[test]
     fn test_advanced_refined_wavelet_packet_2d() {
@@ -147,7 +147,8 @@ mod tests {
         });
 
         // Add noise
-        let noisy_image = clean_image.mapv(|x| x + 0.1 * (rand::random::<f64>() - 0.5));
+        let noisy_image =
+            clean_image.mapv(|x| x + 0.1 * (scirs2_core::random::random::<f64>() - 0.5));
 
         let denoising_config = AdvancedRefinedDenoisingConfig {
             noise_variance: Some(0.01),
@@ -271,7 +272,7 @@ mod tests {
         });
 
         // Add noise
-        let noisy_image = image.mapv(|x| x + 0.2 * (rand::random::<f64>() - 0.5));
+        let noisy_image = image.mapv(|x| x + 0.2 * (scirs2_core::random::random::<f64>() - 0.5));
 
         let denoising_config = AdvancedRefinedDenoisingConfig {
             noise_variance: Some(0.04),

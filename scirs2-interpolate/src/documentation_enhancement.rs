@@ -937,7 +937,7 @@ scirs2-interpolate = "0.1.0""#
                     title: "Create Sample Data".to_string(),
                     instructions: "Create some sample data points to interpolate".to_string(),
                     code: Some(
-                        r#"use ndarray::Array1;
+                        r#"use scirs2_core::ndarray::Array1;
 use scirs2_interpolate::*;
 
 let x = Array1::from_vec(vec![0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -1107,7 +1107,7 @@ println!("Interpolated values: {:?}", y_new);"#
         CodeExample {
             title: "Basic Linear Interpolation".to_string(),
             code: r#"use scirs2_interpolate::*;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 let x = Array1::from_vec(vec![0.0, 1.0, 2.0]);
 let y = Array1::from_vec(vec![0.0, 2.0, 4.0]);

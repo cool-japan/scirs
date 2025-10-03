@@ -4,8 +4,8 @@
 //! transforming raw data into features that better represent the underlying problem
 //! to predictive models.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 
 use crate::error::{Result, TransformError};
@@ -103,7 +103,7 @@ impl PolynomialFeatures {
             ));
         }
 
-        let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         // Validate for NaN or infinite values
         for &val in array_f64.iter() {
@@ -298,7 +298,7 @@ impl PolynomialFeatures {
 ///
 /// # Examples
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_transform::features::binarize;
 ///
 /// let data = array![[1.0, -1.0, 2.0],
@@ -326,7 +326,7 @@ where
         ));
     }
 
-    let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+    let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     // Validate for NaN or infinite values
     for &val in array_f64.iter() {
@@ -379,7 +379,7 @@ where
     S: Data,
     S::Elem: Float + NumCast,
 {
-    let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+    let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     if n_quantiles < 2 {
         return Err(TransformError::InvalidInput(
@@ -441,7 +441,7 @@ where
     S: Data,
     S::Elem: Float + NumCast,
 {
-    let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+    let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     if !array_f64.is_standard_layout() {
         return Err(TransformError::InvalidInput(
@@ -586,7 +586,7 @@ where
     S: Data,
     S::Elem: Float + NumCast,
 {
-    let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+    let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     if !array_f64.is_standard_layout() {
         return Err(TransformError::InvalidInput(
@@ -691,7 +691,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_transform::features::power_transform;
 ///
 /// let data = array![[1.0, 2.0, 3.0],
@@ -710,7 +710,7 @@ where
     S: Data,
     S::Elem: Float + NumCast,
 {
-    let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+    let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     if !array_f64.is_standard_layout() {
         return Err(TransformError::InvalidInput(
@@ -1072,7 +1072,7 @@ impl PowerTransformer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         if !x_f64.is_standard_layout() {
             return Err(TransformError::InvalidInput(
@@ -1167,7 +1167,7 @@ impl PowerTransformer {
             ));
         }
 
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         if !x_f64.is_standard_layout() {
             return Err(TransformError::InvalidInput(
@@ -1267,7 +1267,7 @@ impl PowerTransformer {
             ));
         }
 
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         if !x_f64.is_standard_layout() {
             return Err(TransformError::InvalidInput(
@@ -1504,7 +1504,7 @@ where
     S: Data,
     S::Elem: Float + NumCast,
 {
-    let array_f64 = array.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+    let array_f64 = array.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
     if !array_f64.is_standard_layout() {
         return Err(TransformError::InvalidInput(
@@ -1533,7 +1533,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_polynomial_features() {

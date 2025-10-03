@@ -1,4 +1,4 @@
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_linalg::attention::{
     causal_attention, flash_attention, linear_attention, multi_head_attention, rotary_embedding,
     scaled_dot_product_attention, sparse_attention, AttentionConfig,

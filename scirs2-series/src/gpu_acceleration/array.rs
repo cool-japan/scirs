@@ -3,8 +3,8 @@
 //! This module provides the GpuArray structure for managing data transfers
 //! between CPU and GPU memory, with support for various optimization strategies.
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use super::config::GpuConfig;

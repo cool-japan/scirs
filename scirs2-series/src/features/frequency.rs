@@ -4,8 +4,8 @@
 //! FFT analysis, power spectral density estimation, spectral peak detection,
 //! frequency band analysis, and advanced periodogram methods.
 
-use ndarray::{s, Array1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::config::{EnhancedPeriodogramConfig, SpectralAnalysisConfig};
@@ -533,7 +533,12 @@ pub fn calculate_frequency_features<F>(
     config: &SpectralAnalysisConfig,
 ) -> Result<FrequencyFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + std::iter::Sum + Default,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + std::iter::Sum
+        + Default,
     for<'a> F: std::iter::Sum<&'a F>,
 {
     let n = ts.len();
@@ -607,7 +612,12 @@ pub fn calculate_enhanced_periodogram_features<F>(
     config: &EnhancedPeriodogramConfig,
 ) -> Result<EnhancedPeriodogramFeatures<F>>
 where
-    F: Float + FromPrimitive + Debug + Default + ndarray::ScalarOperand + std::iter::Sum,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + Default
+        + scirs2_core::ndarray::ScalarOperand
+        + std::iter::Sum,
     for<'a> F: std::iter::Sum<&'a F>,
 {
     let n = ts.len();

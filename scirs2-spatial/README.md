@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-spatial)](https://docs.rs/scirs2-spatial)
 
-**Production-ready** spatial algorithms and data structures for the SciRS2 scientific computing library (v0.1.0-beta.4). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module provides high-performance tools for spatial queries, distance calculations, and geometric algorithms with **validated performance**, **comprehensive test coverage**, and enhanced SIMD performance validation through scirs2-core abstractions.
+**Production-ready** spatial algorithms and data structures for the SciRS2 scientific computing library (v0.1.0-rc.1). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module provides high-performance tools for spatial queries, distance calculations, and geometric algorithms with **validated performance**, **comprehensive test coverage**, and enhanced SIMD performance validation through scirs2-core abstractions.
 
 ## Features
 
@@ -36,14 +36,14 @@ Add the following to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-spatial = "0.1.0-beta.4"
+scirs2-spatial = "0.1.0-rc.1"
 ```
 
 To enable optimizations through the core module, add feature flags:
 
 ```toml
 [dependencies]
-scirs2-spatial = { version = "0.1.0-beta.4", features = ["parallel"] }
+scirs2-spatial = { version = "0.1.0-rc.1", features = ["parallel"] }
 ```
 
 ## Usage
@@ -461,7 +461,7 @@ let tree = KDTree::build_with_distance(&points, MyCustomDistance {}).unwrap();
 
 ## Production Status ✅
 
-**scirs2-spatial v0.1.0-beta.4** is production-ready with:
+**scirs2-spatial v0.1.0-rc.1** is production-ready with:
 
 - **✅ 272 passing tests** with zero failures
 - **✅ Zero compilation warnings** in release mode

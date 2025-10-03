@@ -24,7 +24,7 @@
 use crate::optimizations::{exponential_integral_e1_pade, exponential_integral_pade, get_constant};
 use crate::validation::check_positive;
 use crate::{SpecialError, SpecialResult};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 // Constants
@@ -136,7 +136,7 @@ pub fn li(x: f64) -> SpecialResult<f64> {
 ///
 /// ```
 /// use scirs2_special::li_complex;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Test with real value
 /// let z = Complex64::new(3.0, 0.0);
@@ -959,7 +959,7 @@ pub fn spence(x: f64) -> SpecialResult<f64> {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
 
     #[test]
     fn test_logarithmic_integral_real() {

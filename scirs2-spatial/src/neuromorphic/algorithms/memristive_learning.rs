@@ -699,24 +699,23 @@ impl AdvancedMemristiveLearning {
             if mechanism.enabled {
                 match mechanism.mechanism_type {
                     PlasticityType::STDP => {
-                        self.apply_stdp_plasticity(input, output, &mechanism)
-                            .await?;
+                        self.apply_stdp_plasticity(input, output, mechanism).await?;
                     }
                     PlasticityType::HomeostaticScaling => {
-                        self.apply_homeostatic_scaling(input, output, &mechanism)
+                        self.apply_homeostatic_scaling(input, output, mechanism)
                             .await?;
                     }
                     PlasticityType::CalciumDependent => {
-                        self.apply_calcium_dependent_plasticity(input, output, target, &mechanism)
+                        self.apply_calcium_dependent_plasticity(input, output, target, mechanism)
                             .await?;
                     }
                     PlasticityType::VoltageDependent => {
-                        self.apply_voltage_dependent_plasticity(input, error, &mechanism)
+                        self.apply_voltage_dependent_plasticity(input, error, mechanism)
                             .await?;
                     }
                     _ => {
                         // Default plasticity rule
-                        self.apply_error_based_plasticity(input, error, &mechanism)
+                        self.apply_error_based_plasticity(input, error, mechanism)
                             .await?;
                     }
                 }
@@ -942,7 +941,7 @@ impl AdvancedMemristiveLearning {
     /// Apply device-to-device variability
     fn apply_device_variability(&mut self, row: usize, col: usize) {
         let variability = self.crossbar_array.device_variability[[row, col]];
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let noise = (rng.gen_range(0.0..1.0) - 0.5) * variability;
 
         self.crossbar_array.conductances[[row, col]] += noise;
@@ -1186,7 +1185,7 @@ impl AdvancedMemristiveLearning {
     /// Check if memory consolidation should be triggered
     fn should_trigger_consolidation(&self, epoch: usize) -> bool {
         // Trigger consolidation every 100 epochs or when performance is high
-        epoch % 100 == 0
+        epoch.is_multiple_of(100)
             || self
                 .learning_history
                 .performance_metrics
@@ -1302,7 +1301,7 @@ impl AdvancedMemristiveLearning {
 impl MemristiveCrossbar {
     /// Create new memristive crossbar
     pub fn new(rows: usize, cols: usize, device_type: MemristiveDeviceType) -> Self {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let conductances = Array2::from_shape_fn((rows, cols), |_| rng.gen_range(0.0..0.1));
         let resistances = conductances.mapv(|g| if g > 1e-12 { 1.0 / g } else { 1e12 });
         let switching_thresholds = Array2::from_elem((rows, cols), 0.5);
@@ -1584,7 +1583,7 @@ mod tests {
         let result = learning_system.forward_pass(&input.view()).await;
         assert!(result.is_ok());
         let output = result.unwrap();
-        assert!(output >= 0.0 && output <= 1.0); // Sigmoid output
+        assert!((0.0..=1.0).contains(&output)); // Sigmoid output
     }
 
     #[test]
@@ -1671,7 +1670,7 @@ mod tests {
         let post_variability = learning_system.crossbar_array.conductances[[0, 0]];
 
         // Variability should cause some change (might be very small)
-        assert!(post_variability >= 0.0 && post_variability <= 1.0);
+        assert!((0.0..=1.0).contains(&post_variability));
     }
 
     #[test]

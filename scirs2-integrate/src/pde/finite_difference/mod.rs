@@ -12,7 +12,7 @@
 pub mod irregular_domains;
 
 use crate::pde::{PDEError, PDEResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 // Re-export important types from irregular_domains
 pub use irregular_domains::{

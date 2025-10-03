@@ -5,7 +5,7 @@
 
 use crate::error::{Result, TextError};
 use crate::tokenize::{Tokenizer, WordTokenizer};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::{HashMap, HashSet};
 
 /// Compute the Levenshtein edit distance between two strings
@@ -387,7 +387,7 @@ fn jaro_similarity(s1: &str, s2: &str) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_levenshtein_distance() {

@@ -3,8 +3,8 @@
 //! This module provides utilities for applying functions to sliding windows
 //! across arrays with various border handling modes.
 
-use ndarray::{Array, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use super::super::BorderMode;

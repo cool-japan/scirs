@@ -1,6 +1,6 @@
 #![recursion_limit = "512"]
 
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_integrate::error::{IntegrateError, IntegrateResult};
 use scirs2_integrate::gaussian::GaussLegendreQuadrature;
 use std::collections::VecDeque;

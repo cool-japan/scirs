@@ -3,8 +3,8 @@
 //! This module provides data structures and operations for working with Voronoi cells,
 //! which are the building blocks for Voronoi-based interpolation methods.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -33,7 +33,7 @@ pub struct VoronoiCell<F: Float + FromPrimitive + Debug> {
     pub value: F,
 }
 
-impl<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand> VoronoiCell<F> {
+impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand> VoronoiCell<F> {
     /// Creates a new Voronoi cell with the given site and value
     pub fn new(site: Array1<F>, value: F) -> Self {
         VoronoiCell {
@@ -418,7 +418,9 @@ fn compute_bounding_box<F: Float + Debug>(points: ArrayView2<F>) -> (Array1<F>, 
 
 /// A collection of Voronoi cells forming a Voronoi diagram
 #[derive(Debug, Clone)]
-pub struct VoronoiDiagram<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static> {
+pub struct VoronoiDiagram<
+    F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 'static,
+> {
     /// The cells that make up the Voronoi diagram
     pub cells: Vec<VoronoiCell<F>>,
 
@@ -429,7 +431,9 @@ pub struct VoronoiDiagram<F: Float + FromPrimitive + Debug + ndarray::ScalarOper
     pub bounds: Array1<F>,
 }
 
-impl<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static> VoronoiDiagram<F> {
+impl<F: Float + FromPrimitive + Debug + scirs2_core::ndarray::ScalarOperand + 'static>
+    VoronoiDiagram<F>
+{
     /// Creates a new Voronoi diagram from sites and values
     pub fn new(
         sites: ArrayView2<F>,
@@ -948,7 +952,8 @@ impl<F: Float + FromPrimitive + Debug + ndarray::ScalarOperand + 'static> Vorono
                     // Compute distance
                     let mut dist_sq = F::zero();
                     for j in 0..dim {
-                        dist_sq = dist_sq + num_traits::Float::powi(site[j] - query_point[j], 2);
+                        dist_sq = dist_sq
+                            + scirs2_core::numeric::Float::powi(site[j] - query_point[j], 2);
                     }
                     let dist = dist_sq.sqrt();
 

@@ -3,14 +3,13 @@
 use super::types::RandomWalk;
 use crate::base::{EdgeWeight, Graph, Node};
 use crate::error::{GraphError, Result};
-use rand::prelude::IndexedRandom;
-use rand::seq::SliceRandom;
-use rand::Rng;
+use scirs2_core::random::rand_prelude::IndexedRandom;
+use scirs2_core::random::Rng;
 
 /// Random walk generator for graphs
 pub struct RandomWalkGenerator<N: Node> {
     /// Random number generator
-    rng: rand::rngs::ThreadRng,
+    rng: scirs2_core::random::rngs::ThreadRng,
     /// Phantom marker for node type
     _phantom: std::marker::PhantomData<N>,
 }
@@ -25,7 +24,7 @@ impl<N: Node> RandomWalkGenerator<N> {
     /// Create a new random walk generator
     pub fn new() -> Self {
         RandomWalkGenerator {
-            rng: rand::rng(),
+            rng: scirs2_core::random::rng(),
             _phantom: std::marker::PhantomData,
         }
     }

@@ -16,7 +16,7 @@
 use crate::dwt::{dwt_decompose, dwt_reconstruct, Wavelet};
 use crate::error::{SignalError, SignalResult};
 use approx::assert_abs_diff_eq;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -211,7 +211,7 @@ impl WaveletPacketTree {
         let signal: Vec<f64> = _data
             .iter()
             .map(|&val| {
-                num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+                NumCast::from(val).ok_or_else(|| {
                     SignalError::ValueError(format!("Could not convert {:?} to f64", val))
                 })
             })

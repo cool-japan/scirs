@@ -3,8 +3,8 @@
 //! This module provides methods for encoding categorical data into numerical
 //! formats suitable for machine learning algorithms.
 
-use ndarray::{Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 
 use crate::error::{Result, TransformError};
@@ -155,7 +155,7 @@ impl OneHotEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -194,7 +194,7 @@ impl OneHotEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -503,7 +503,7 @@ impl OrdinalEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -542,7 +542,7 @@ impl OrdinalEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -631,7 +631,7 @@ impl OrdinalEncoder {
 ///
 /// # Examples
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_transform::encoding::TargetEncoder;
 ///
 /// let x = Array2::from_shape_vec((6, 1), vec![0.0, 1.0, 2.0, 0.0, 1.0, 2.0]).unwrap();
@@ -727,7 +727,7 @@ impl TargetEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -830,7 +830,7 @@ impl TargetEncoder {
         }
 
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -928,7 +928,7 @@ impl TargetEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -1119,7 +1119,7 @@ impl BinaryEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -1193,7 +1193,7 @@ impl BinaryEncoder {
         let n_binary_features = self.n_binary_features_.as_ref().unwrap();
 
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -1366,7 +1366,7 @@ impl FrequencyEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -1427,7 +1427,7 @@ impl FrequencyEncoder {
         let frequency_maps = self.frequency_maps_.as_ref().unwrap();
 
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -1583,7 +1583,7 @@ impl WOEEncoder {
         S::Elem: Float + NumCast,
     {
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -1698,7 +1698,7 @@ impl WOEEncoder {
         let woe_maps = self.woe_maps_.as_ref().unwrap();
 
         let x_u64 = x.mapv(|x| {
-            let val_f64 = num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0);
+            let val_f64 = NumCast::from(x).unwrap_or(0.0);
             val_f64 as u64
         });
 
@@ -1806,7 +1806,7 @@ impl WOEEncoder {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_one_hot_encoder_basic() {

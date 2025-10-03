@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// Advanced distributed cluster configuration
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct AdvancedClusterConfig {
     /// Basic cluster settings
     pub basic_config: super::super::distributed::DistributedConfig,
@@ -29,20 +29,6 @@ pub struct AdvancedClusterConfig {
     pub locality_config: LocalityConfig,
     /// Performance optimization settings
     pub optimization_config: OptimizationConfig,
-}
-
-impl Default for AdvancedClusterConfig {
-    fn default() -> Self {
-        Self {
-            basic_config: Default::default(),
-            consensus_config: Default::default(),
-            sharding_config: Default::default(),
-            fault_tolerance: Default::default(),
-            auto_scaling: Default::default(),
-            locality_config: Default::default(),
-            optimization_config: Default::default(),
-        }
-    }
 }
 
 /// Consensus algorithm configuration
@@ -346,21 +332,12 @@ pub enum LocalityStrategy {
 }
 
 /// Network topology representation
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct NetworkTopology {
     /// Topology levels (e.g., rack, datacenter, region)
     pub levels: Vec<TopologyLevel>,
     /// Node locations
     pub node_locations: std::collections::HashMap<String, Location>,
-}
-
-impl Default for NetworkTopology {
-    fn default() -> Self {
-        Self {
-            levels: vec![],
-            node_locations: std::collections::HashMap::new(),
-        }
-    }
 }
 
 /// Location in network topology

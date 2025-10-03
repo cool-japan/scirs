@@ -3,7 +3,7 @@
 //! This example demonstrates the new advanced matrix functions added to scirs2-linalg,
 //! including spectral analysis, polar decomposition, geometric means, and regularization.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::matrix_functions::{
     geometric_mean_spd, nuclear_norm, polar_decomposition, spectral_condition_number,
     spectral_radius, tikhonov_regularization,

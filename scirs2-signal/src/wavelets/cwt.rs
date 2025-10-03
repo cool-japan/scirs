@@ -1,6 +1,6 @@
 // Continuous wavelet transform implementation details
 
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 
 /// Helper function to convolve real signal with complex filter using 'same' mode
 ///

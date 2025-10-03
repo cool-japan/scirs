@@ -8,7 +8,7 @@ use crate::error::{Result, TextError};
 use crate::sentiment::SentimentResult;
 use crate::topic_modeling::Topic;
 use crate::vectorize::{CountVectorizer, TfidfVectorizer, Vectorizer};
-use ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;

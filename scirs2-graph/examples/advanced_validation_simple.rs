@@ -48,7 +48,7 @@ fn main() -> Result<()> {
     let nodes: Vec<_> = graph.nodes().into_iter().collect();
     if nodes.len() >= 2 {
         let start = Instant::now();
-        let _path_result = dijkstra_path(&graph, &nodes[0], &nodes[1])?;
+        let _path_result = dijkstra_path(&graph, nodes[0], nodes[1])?;
         let duration = start.elapsed();
         println!("   ✅ Completed in {:?}", duration);
     }

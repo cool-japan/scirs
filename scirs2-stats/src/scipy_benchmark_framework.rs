@@ -13,7 +13,7 @@
 //! - Detailed reporting and visualization
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
@@ -345,11 +345,9 @@ impl ScipyBenchmarkFramework {
         };
 
         // Calculate performance ratio
-        let performance_ratio = if let Some(ref scipy_stats) = scipy_timing {
-            Some(scirs2_timing.mean.as_secs_f64() / scipy_stats.mean.as_secs_f64())
-        } else {
-            None
-        };
+        let performance_ratio = scipy_timing
+            .as_ref()
+            .map(|scipy_stats| scirs2_timing.mean.as_secs_f64() / scipy_stats.mean.as_secs_f64());
 
         let performance_grade = self.grade_performance(performance_ratio);
 
@@ -527,8 +525,8 @@ impl TestDataGenerator {
 
     /// Generate 1D test data
     pub fn generate_1ddata(&self, size: usize) -> StatsResult<Array1<f64>> {
-        use rand::prelude::*;
-        use rand_distr::{Distribution, Normal, Uniform as UniformDist};
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::{Distribution, Normal, Uniform as UniformDist};
 
         let mut rng = StdRng::seed_from_u64(self.config.seed);
         let mut data = Array1::zeros(size);
@@ -578,8 +576,8 @@ impl TestDataGenerator {
 
     /// Generate 2D test data
     pub fn generate_2ddata(&self, rows: usize, cols: usize) -> StatsResult<Array2<f64>> {
-        use rand::prelude::*;
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::{Distribution, Normal};
 
         let mut rng = StdRng::seed_from_u64(self.config.seed);
         let mut data = Array2::zeros((rows, cols));

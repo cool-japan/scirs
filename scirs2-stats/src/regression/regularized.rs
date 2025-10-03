@@ -3,8 +3,8 @@
 use crate::error::{StatsError, StatsResult};
 use crate::regression::utils::*;
 use crate::regression::RegressionResults;
-use ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use scirs2_linalg::{inv, lstsq};
 use std::collections::HashSet;
 
@@ -34,7 +34,7 @@ type PreprocessingResult<F> = (Array2<F>, F, Array1<F>, Array1<F>);
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::ridge_regression;
 ///
 /// // Create a design matrix with 3 variables
@@ -74,9 +74,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -138,7 +138,7 @@ where
     }
 
     // Add sqrt(alpha)I to the bottom part
-    let sqrt_alpha = num_traits::Float::sqrt(alpha);
+    let sqrt_alpha = scirs2_core::numeric::Float::sqrt(alpha);
     for i in 0..ridgesize {
         let j = if fit_intercept { i + 1 } else { i }; // Skip _intercept if present
         x_ridge[[n + i, j]] = sqrt_alpha;
@@ -185,7 +185,7 @@ where
 
     // Calculate mean squared error and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Calculate standard errors for coefficients (approximate)
     let std_errors = match calculate_ridge_std_errors(
@@ -262,9 +262,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -312,9 +312,9 @@ where
             if normalize {
                 let mut ss = F::zero();
                 for &val in col {
-                    ss = ss + num_traits::Float::powi(val - mean, 2);
+                    ss = ss + scirs2_core::numeric::Float::powi(val - mean, 2);
                 }
-                let std_dev = num_traits::Float::sqrt(ss / F::from(n).unwrap());
+                let std_dev = scirs2_core::numeric::Float::sqrt(ss / F::from(n).unwrap());
                 x_std[j] = if std_dev > F::epsilon() {
                     std_dev
                 } else {
@@ -411,9 +411,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -421,7 +421,7 @@ where
     // Calculate the mean squared error of the residuals
     let mse = residuals
         .iter()
-        .map(|&r| num_traits::Float::powi(r, 2))
+        .map(|&r| scirs2_core::numeric::Float::powi(r, 2))
         .sum::<F>()
         / F::from(df).unwrap();
 
@@ -449,7 +449,7 @@ where
     // The diagonal elements of (X'X + alpha*I)^-1 * X'X * (X'X + alpha*I)^-1 * MSE are the variances
     let std_errors = (xtx_reg_inv.dot(&xtx).dot(&xtx_reg_inv))
         .diag()
-        .mapv(|v| num_traits::Float::sqrt(v * mse));
+        .mapv(|v| scirs2_core::numeric::Float::sqrt(v * mse));
 
     Ok(std_errors)
 }
@@ -477,7 +477,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::lasso_regression;
 ///
 /// // Create a design matrix with 5 variables, where only the first 2 are relevant
@@ -524,9 +524,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -627,10 +627,10 @@ where
 
         // Check for convergence
         let coef_diff = (&coefficients - &old_coefs)
-            .mapv(|x| num_traits::Float::abs(x))
+            .mapv(|x| scirs2_core::numeric::Float::abs(x))
             .sum();
         let coef_norm = old_coefs
-            .mapv(|x| num_traits::Float::abs(x))
+            .mapv(|x| scirs2_core::numeric::Float::abs(x))
             .sum()
             .max(F::epsilon());
 
@@ -678,7 +678,7 @@ where
 
     // Calculate mean squared error and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Calculate standard errors for coefficients (approximate)
     let std_errors = match calculate_lasso_std_errors(
@@ -755,9 +755,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -765,7 +765,7 @@ where
     // Calculate the mean squared error of the residuals
     let mse = residuals
         .iter()
-        .map(|&r| num_traits::Float::powi(r, 2))
+        .map(|&r| scirs2_core::numeric::Float::powi(r, 2))
         .sum::<F>()
         / F::from(df).unwrap();
 
@@ -810,7 +810,7 @@ where
     let mut std_errors = Array1::<F>::zeros(p);
 
     for (i, &idx) in active_set.iter().enumerate() {
-        std_errors[idx] = num_traits::Float::sqrt(xtx_active_inv[[i, i]] * mse);
+        std_errors[idx] = scirs2_core::numeric::Float::sqrt(xtx_active_inv[[i, i]] * mse);
     }
 
     Ok(std_errors)
@@ -840,7 +840,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::elastic_net;
 ///
 /// // Create a design matrix with 5 variables
@@ -886,9 +886,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -1029,10 +1029,10 @@ where
 
         // Check for convergence
         let coef_diff = (&coefficients - &old_coefs)
-            .mapv(|x| num_traits::Float::abs(x))
+            .mapv(|x| scirs2_core::numeric::Float::abs(x))
             .sum();
         let coef_norm = old_coefs
-            .mapv(|x| num_traits::Float::abs(x))
+            .mapv(|x| scirs2_core::numeric::Float::abs(x))
             .sum()
             .max(F::epsilon());
 
@@ -1080,7 +1080,7 @@ where
 
     // Calculate mean squared error and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Calculate standard errors for coefficients (approximate)
     let std_errors = match calculate_elastic_net_std_errors(
@@ -1159,9 +1159,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -1169,7 +1169,7 @@ where
     // Calculate the mean squared error of the residuals
     let mse = residuals
         .iter()
-        .map(|&r| num_traits::Float::powi(r, 2))
+        .map(|&r| scirs2_core::numeric::Float::powi(r, 2))
         .sum::<F>()
         / F::from(df).unwrap();
 
@@ -1219,7 +1219,7 @@ where
     let mut std_errors = Array1::<F>::zeros(p);
 
     for (i, &idx) in active_set.iter().enumerate() {
-        std_errors[idx] = num_traits::Float::sqrt(xtx_active_inv[[i, i]] * mse);
+        std_errors[idx] = scirs2_core::numeric::Float::sqrt(xtx_active_inv[[i, i]] * mse);
     }
 
     Ok(std_errors)
@@ -1249,7 +1249,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_stats::group_lasso;
 ///
 /// // Create a design matrix with 6 variables in 2 groups
@@ -1300,9 +1300,9 @@ where
         + std::fmt::Debug
         + std::fmt::Display
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + Send
         + Sync,
 {
@@ -1431,9 +1431,9 @@ where
             let xtx = x_group.t().dot(&x_group);
 
             // Calculate the group norm of X_g'r
-            let xtr_norm = num_traits::Float::sqrt(
+            let xtr_norm = scirs2_core::numeric::Float::sqrt(
                 xtr.iter()
-                    .map(|&x| num_traits::Float::powi(x, 2))
+                    .map(|&x| scirs2_core::numeric::Float::powi(x, 2))
                     .sum::<F>(),
             );
 
@@ -1452,10 +1452,10 @@ where
             };
 
             // Apply group shrinkage
-            let beta_norm = num_traits::Float::sqrt(
+            let beta_norm = scirs2_core::numeric::Float::sqrt(
                 beta_group
                     .iter()
-                    .map(|&x| num_traits::Float::powi(x, 2))
+                    .map(|&x| scirs2_core::numeric::Float::powi(x, 2))
                     .sum::<F>(),
             );
             if beta_norm > F::epsilon() {
@@ -1473,10 +1473,10 @@ where
 
         // Check for convergence
         let coef_diff = (&coefficients - &old_coefs)
-            .mapv(|x| num_traits::Float::abs(x))
+            .mapv(|x| scirs2_core::numeric::Float::abs(x))
             .sum();
         let coef_norm = old_coefs
-            .mapv(|x| num_traits::Float::abs(x))
+            .mapv(|x| scirs2_core::numeric::Float::abs(x))
             .sum()
             .max(F::epsilon());
 
@@ -1541,7 +1541,7 @@ where
 
     // Calculate mean squared error and residual standard error
     let mse = ss_residual / F::from(df_residuals).unwrap();
-    let residual_std_error = num_traits::Float::sqrt(mse);
+    let residual_std_error = scirs2_core::numeric::Float::sqrt(mse);
 
     // Calculate standard errors for coefficients (approximate)
     let std_errors = match calculate_group_lasso_std_errors(
@@ -1621,9 +1621,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -1664,10 +1664,10 @@ where
 
         // Check for convergence
         let beta_diff = (&beta - &old_beta)
-            .mapv(|x| num_traits::Float::abs(x))
+            .mapv(|x| scirs2_core::numeric::Float::abs(x))
             .sum();
         let beta_norm = old_beta
-            .mapv(|x| num_traits::Float::abs(x))
+            .mapv(|x| scirs2_core::numeric::Float::abs(x))
             .sum()
             .max(F::epsilon());
 
@@ -1696,9 +1696,9 @@ where
         + std::iter::Sum<F>
         + std::ops::Div<Output = F>
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -1706,7 +1706,7 @@ where
     // Calculate the mean squared error of the residuals
     let mse = residuals
         .iter()
-        .map(|&r| num_traits::Float::powi(r, 2))
+        .map(|&r| scirs2_core::numeric::Float::powi(r, 2))
         .sum::<F>()
         / F::from(df).unwrap();
 
@@ -1766,7 +1766,7 @@ where
     let mut std_errors = Array1::<F>::zeros(p);
 
     for (i, &idx) in active_set.iter().enumerate() {
-        std_errors[idx] = num_traits::Float::sqrt(xtx_active_inv[[i, i]] * mse);
+        std_errors[idx] = scirs2_core::numeric::Float::sqrt(xtx_active_inv[[i, i]] * mse);
     }
 
     Ok(std_errors)

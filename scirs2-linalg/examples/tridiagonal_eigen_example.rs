@@ -2,7 +2,7 @@
 //!
 //! This example demonstrates the specialized eigenvalue solver for tridiagonal matrices.
 
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::error::LinalgResult;
 use scirs2_linalg::{tridiagonal_eigh, tridiagonal_eigvalsh};
 

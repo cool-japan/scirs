@@ -7,9 +7,9 @@ use super::types::TestSignalType;
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use crate::wpt::{reconstruct_from_nodes, wp_decompose};
-use ndarray::Array2;
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::rngs::StdRng;
+use scirs2_core::random::{Rng, SeedableRng};
 
 /// Generate test signal of specified type and length
 pub fn generate_test_signal(

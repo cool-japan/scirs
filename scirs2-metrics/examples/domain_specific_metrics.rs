@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the specialized metric suites for
 //! different machine learning domains.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_metrics::domains::*;
 
 #[allow(dead_code)]

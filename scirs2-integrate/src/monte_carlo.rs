@@ -5,10 +5,10 @@
 
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::IntegrateFloat;
-use ndarray::{Array1, ArrayView1};
-use rand::prelude::*;
-use rand_distr::uniform::SampleUniform;
-use rand_distr::{Distribution, Uniform};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::uniform::SampleUniform;
+use scirs2_core::random::{Distribution, Uniform};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -76,7 +76,7 @@ pub struct MonteCarloResult<F: IntegrateFloat> {
 ///
 /// ```
 /// use scirs2_integrate::monte_carlo::{monte_carlo, MonteCarloOptions};
-/// use ndarray::ArrayView1;
+/// use scirs2_core::ndarray::ArrayView1;
 /// use std::marker::PhantomData;
 ///
 /// // Integrate f(x,y) = x²+y² over [0,1]×[0,1] (exact result: 2/3)
@@ -104,7 +104,7 @@ pub fn monte_carlo<F, Func>(
 where
     F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     let opts = options.unwrap_or_default();
     let n_dims = ranges.len();
@@ -132,8 +132,8 @@ where
         StdRng::seed_from_u64(seed)
     } else {
         // In rand 0.9.0, from_entropy is replaced by building from OsRng
-        // Note: rand::rng() was renamed to rand::rng() in rand 0.9.0
-        let mut rng = rand::rng();
+        // Note: scirs2_core::random::rng() was renamed to scirs2_core::random::rng() in rand 0.9.0
+        let mut rng = scirs2_core::random::rng();
         StdRng::from_rng(&mut rng)
     };
 
@@ -244,8 +244,8 @@ where
 ///
 /// ```
 /// use scirs2_integrate::monte_carlo::{importance_sampling, MonteCarloOptions};
-/// use ndarray::{Array1, ArrayView1};
-/// use rand::prelude::*;
+/// use scirs2_core::ndarray::{Array1, ArrayView1};
+/// use scirs2_core::random::prelude::*;
 ///
 /// // Simple example: integrate x² from 0 to 1 using uniform importance sampling
 /// // (which is the same as regular Monte Carlo in this case)
@@ -300,7 +300,7 @@ where
     Func: Fn(ArrayView1<F>) -> F + Sync,
     Pdf: Fn(ArrayView1<F>) -> F + Sync,
     Sampler: Fn(&mut StdRng, usize) -> Array1<F> + Sync,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     let opts = options.unwrap_or_default();
     let n_dims = ranges.len();
@@ -322,8 +322,8 @@ where
         StdRng::seed_from_u64(seed)
     } else {
         // In rand 0.9.0, from_entropy is replaced by building from OsRng
-        // Note: rand::rng() was renamed to rand::rng() in rand 0.9.0
-        let mut rng = rand::rng();
+        // Note: scirs2_core::random::rng() was renamed to scirs2_core::random::rng() in rand 0.9.0
+        let mut rng = scirs2_core::random::rng();
         StdRng::from_rng(&mut rng)
     };
 
@@ -419,7 +419,7 @@ where
 ///
 /// ```rust
 /// use scirs2_integrate::monte_carlo::{monte_carlo_parallel, MonteCarloOptions};
-/// use ndarray::ArrayView1;
+/// use scirs2_core::ndarray::ArrayView1;
 /// use std::marker::PhantomData;
 ///
 /// // Integrate an expensive function f(x,y) = sin(x*y) * exp(-x²-y²) over [-2,2]×[-2,2]
@@ -445,7 +445,7 @@ pub fn monte_carlo_parallel<F, Func>(
 where
     F: IntegrateFloat + Send + Sync + SampleUniform,
     Func: Fn(ArrayView1<F>) -> F + Sync + Send,
-    rand_distr::StandardNormal: Distribution<F>,
+    scirs2_core::random::StandardNormal: Distribution<F>,
 {
     // If parallel feature is enabled and workers parameter is specified, use parallel processing
     #[cfg(feature = "parallel")]
@@ -477,9 +477,9 @@ where
 #[cfg(test)]
 mod tests {
     use crate::{importance_sampling, monte_carlo, monte_carlo_parallel, MonteCarloOptions};
-    use ndarray::{Array1, ArrayView1};
-    use rand::rngs::StdRng;
-    use rand_distr::Distribution;
+    use scirs2_core::ndarray::{Array1, ArrayView1};
+    use scirs2_core::random::prelude::StdRng;
+    use scirs2_core::random::Distribution;
     use std::f64::consts::PI;
     use std::marker::PhantomData;
 
@@ -553,7 +553,7 @@ mod tests {
         let sampler = |rng: &mut StdRng, dims: usize| {
             let mut point = Array1::zeros(dims);
             // Use a normal distribution centered at 0 with std dev 1
-            let normal = rand_distr::Normal::new(0.0, 1.0).unwrap();
+            let normal = scirs2_core::random::Normal::new(0.0, 1.0).unwrap();
 
             for i in 0..dims {
                 // Sample and truncate to the integration range [0, 3]

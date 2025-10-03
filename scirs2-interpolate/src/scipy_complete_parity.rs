@@ -17,7 +17,7 @@ use crate::error::{InterpolateError, InterpolateResult};
 use crate::extrapolation::ExtrapolationMethod;
 use crate::spline::CubicSpline;
 use crate::traits::InterpolationFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -895,7 +895,7 @@ pub fn create_scipy_interface<T: InterpolationFloat>() -> SciPyCompatInterface<T
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_scipy_cubic_spline_compatibility() {

@@ -4,7 +4,7 @@
 //! the quality of image alignment during registration.
 
 use crate::error::{Result, VisionError};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 
 /// Available similarity metrics for registration
@@ -597,7 +597,7 @@ fn compute_gradient_magnitude(image: &Array2<f32>) -> Result<Array2<f32>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     fn create_test_images() -> (Array2<f32>, Array2<f32>) {
         let mut reference = Array2::zeros((50, 50));

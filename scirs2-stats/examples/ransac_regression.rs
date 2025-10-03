@@ -1,5 +1,5 @@
-use ndarray::array;
 use plotters::prelude::*;
+use scirs2_core::ndarray::array;
 use scirs2_stats::ransac;
 
 #[allow(dead_code)]
@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut y = array![2.0, 4.0, 6.0, 8.0, 10.0, 12.0, 14.0, 16.0, 18.0, 20.0];
 
     // Convert to 2D array for RANSAC
-    let mut x = ndarray::Array2::zeros((x_values.len(), 1));
+    let mut x = scirs2_core::ndarray::Array2::zeros((x_values.len(), 1));
     for i in 0..x_values.len() {
         x[[i, 0]] = x_values[i];
     }
@@ -106,7 +106,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &RED,
         ))?
         .label("RANSAC")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &RED));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], RED));
 
     // Plot OLS regression line
     chart
@@ -119,7 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &GREEN,
         ))?
         .label("OLS")
-        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], &GREEN));
+        .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 20, y)], GREEN));
 
     // Plot inlier/outlier boundaries for RANSAC
     let threshold = 3.0; // Same as the residual_threshold parameter
@@ -143,8 +143,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     chart
         .configure_series_labels()
-        .background_style(&WHITE.mix(0.8))
-        .border_style(&BLACK)
+        .background_style(WHITE.mix(0.8))
+        .border_style(BLACK)
         .draw()?;
 
     println!("Plot saved as 'ransac_regression.png'");

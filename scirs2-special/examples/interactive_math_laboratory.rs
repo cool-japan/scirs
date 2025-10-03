@@ -3,6 +3,8 @@
 //! This module provides a comprehensive mathematical exploration environment featuring:
 //! - Real-time mathematical expression evaluation
 //! - Interactive theorem exploration and proof assistance
+
+#![allow(clippy::all)]
 //! - Dynamic mathematical visualization and graphing
 //! - Computational experimentation workspace
 //! - Mathematical discovery tools and guided exploration
@@ -11,7 +13,7 @@
 //!
 //! Run with: cargo run --example interactive_mathlaboratory
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_special::*;
 use std::collections::{HashMap, VecDeque};

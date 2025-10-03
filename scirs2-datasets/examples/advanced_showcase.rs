@@ -221,7 +221,9 @@ fn demonstrate_adaptive_streaming(dataset: &Dataset) -> Result<(), Box<dyn std::
         let end_row = (start_row + chunksize).min(data.nrows());
 
         // Create chunk from dataset slice
-        let chunkdata = data.slice(ndarray::s![start_row..end_row, ..]).to_owned();
+        let chunkdata = data
+            .slice(scirs2_core::ndarray::s![start_row..end_row, ..])
+            .to_owned();
 
         let chunk = StreamChunk {
             data: chunkdata,

@@ -11,9 +11,9 @@
 
 use crate::error::SignalResult;
 use crate::lombscargle::lombscargle;
-use ndarray::Array1;
-use num_traits::Float;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::Rng;
 use std::time::Instant;
 
 #[allow(unused_imports)]
@@ -171,7 +171,7 @@ pub fn run_advanced_edge_case_validation() -> SignalResult<AdvancedEdgeCaseValid
 /// Validate sparse sampling scenarios
 #[allow(dead_code)]
 fn validate_sparse_sampling() -> SignalResult<SparseSamplingResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let true_freq = 0.1; // Low frequency to test with sparse sampling
     let amplitude = 1.0;
     let total_duration = 100.0;
@@ -254,7 +254,7 @@ fn validate_sparse_sampling() -> SignalResult<SparseSamplingResult> {
 /// Validate non-uniform grid handling
 #[allow(dead_code)]
 fn validate_non_uniform_grids() -> SignalResult<NonUniformGridResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let true_freq = 0.2;
     let amplitude = 1.0;
 
@@ -394,7 +394,7 @@ fn validate_non_uniform_grids() -> SignalResult<NonUniformGridResult> {
 /// Validate noise tolerance
 #[allow(dead_code)]
 fn validate_noise_tolerance() -> SignalResult<NoiseToleranceResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let true_freq = 0.15;
     let amplitude = 1.0;
     let n_samples = 200;
@@ -536,7 +536,7 @@ fn validate_noise_tolerance() -> SignalResult<NoiseToleranceResult> {
 /// Validate aliasing detection
 #[allow(dead_code)]
 fn validate_aliasing_detection() -> SignalResult<AliasingDetectionResult> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let n_samples = 100;
 
     // Test 1: Nyquist frequency handling

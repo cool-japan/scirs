@@ -5,10 +5,10 @@
 //! advanced quantum computational methods.
 
 use crate::error::{IntegrateError, IntegrateResult as Result};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use rand::Rng;
 use scirs2_core::constants::PI;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Quantum annealing solver for optimization problems
@@ -49,7 +49,7 @@ impl QuantumAnnealer {
         j_matrix: &Array2<f64>,
         h_fields: &Array1<f64>,
     ) -> Result<(Array1<i8>, f64)> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Initialize random spin configuration
         let mut spins: Array1<i8> = Array1::zeros(self.n_qubits);
@@ -167,7 +167,7 @@ impl VariationalQuantumEigensolver {
 
     /// Find ground state energy using VQE
     pub fn find_ground_state(&self, hamiltonian: &Array2<Complex64>) -> Result<(f64, Array1<f64>)> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Initialize random variational parameters
         let n_params = self.n_qubits * self.circuit_depth * 3; // 3 angles per layer per qubit
@@ -542,7 +542,7 @@ impl QuantumErrorCorrection {
 
         // Simplified syndrome measurement
         let mut syndromes = Array1::zeros(n_syndromes);
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for syndrome in syndromes.iter_mut() {
             *syndrome = if rng.random::<f64>() < self.noise_parameters.measurement_error_rate {
@@ -680,6 +680,6 @@ mod tests {
         assert!(error_prob.is_ok());
 
         let error_rate = qec.estimate_logical_error_rate();
-        assert!(error_rate >= 0.0 && error_rate <= 1.0);
+        assert!((0.0..=1.0).contains(&error_rate));
     }
 }

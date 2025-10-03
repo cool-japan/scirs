@@ -7,7 +7,7 @@ use crate::common::IntegrateFloat;
 use crate::dae::utils::linear_solvers::solve_linear_system;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{MassMatrix, MassMatrixType};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 
 /// Solve a linear system with mass matrix: M·x = b
 ///

@@ -3,11 +3,11 @@
 //! This module provides a compatibility layer that mirrors SciPy's ndimage API,
 //! making it easier to migrate existing Python code to Rust.
 
-use ndarray::{
+use scirs2_core::ndarray::{
     Array, Array1, Array2, ArrayBase, ArrayView, ArrayView2, ArrayViewMut, Data, DataMut,
     Dimension, Ix1, Ix2, IxDyn,
 };
-use num_traits::{Float, FromPrimitive, NumAssign};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -98,7 +98,7 @@ impl Mode {
 ///
 /// # Example
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::scipy_compat::gaussian_filter;
 ///
 /// let input = array![[1.0, 2.0], [3.0, 4.0]];
@@ -326,7 +326,7 @@ pub fn label<T, D>(
     structure: Option<&ArrayBase<impl Data<Elem = bool>, D>>,
 ) -> NdimageResult<(Array<i32, D>, usize)>
 where
-    T: PartialOrd + Clone + num_traits::Zero,
+    T: PartialOrd + Clone + scirs2_core::numeric::Zero,
     D: Dimension + 'static,
 {
     // Convert input to bool array for label function
@@ -419,7 +419,7 @@ pub fn distance_transform_edt<T, D>(
     return_indices: Option<bool>,
 ) -> NdimageResult<(Option<Array<f64, D>>, Option<Array<usize, D>>)>
 where
-    T: PartialEq + num_traits::Zero + Clone,
+    T: PartialEq + scirs2_core::numeric::Zero + Clone,
     D: Dimension + 'static,
 {
     // This function requires dimension-specific implementations due to ndarray constraints
@@ -446,7 +446,7 @@ pub fn map_coordinates<T, D>(
     mode: Option<&str>,
     cval: Option<T>,
     prefilter: Option<bool>,
-) -> NdimageResult<Array<T, ndarray::Ix1>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix1>>
 where
     T: Float + FromPrimitive + Debug + Clone + NumAssign + Send + Sync + 'static,
     D: Dimension + 'static,
@@ -531,7 +531,7 @@ pub fn rotate<T>(
     order: Option<usize>,
     mode: Option<&str>,
     cval: Option<T>,
-) -> NdimageResult<Array<T, ndarray::Ix2>>
+) -> NdimageResult<Array<T, scirs2_core::ndarray::Ix2>>
 where
     T: Float + FromPrimitive + Debug + Clone + NumAssign + Send + Sync + 'static,
 {
@@ -1042,7 +1042,7 @@ pub mod verification {
 
     /// Verify numerical compatibility with reference values
     pub fn verify_numerical_compatibility() -> bool {
-        use ndarray::array;
+        use scirs2_core::ndarray::array;
 
         // Test basic Gaussian filter compatibility
         let test_input = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
@@ -1103,7 +1103,7 @@ pub mod verification {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_scipy_compat_gaussian() {
@@ -1126,9 +1126,9 @@ mod tests {
         let input = array![[true, false], [false, true]];
         let result = binary_erosion(
             &input,
-            None::<&ndarray::Array2<bool>>,
+            None::<&scirs2_core::ndarray::Array2<bool>>,
             None::<usize>,
-            None::<&ndarray::Array2<bool>>,
+            None::<&scirs2_core::ndarray::Array2<bool>>,
             None::<bool>,
         )
         .unwrap();
@@ -1169,7 +1169,7 @@ mod tests {
         let result = maximum_filter(
             &input,
             Some(vec![3, 3]),
-            None::<&ndarray::Array2<bool>>,
+            None::<&scirs2_core::ndarray::Array2<bool>>,
             None,
             None,
             None,
@@ -1187,7 +1187,7 @@ mod tests {
             &input,
             mean_func,
             Some(vec![3, 3]),
-            None::<&ndarray::Array2<bool>>,
+            None::<&scirs2_core::ndarray::Array2<bool>>,
             None,
             None,
             None,

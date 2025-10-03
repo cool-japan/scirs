@@ -7,9 +7,9 @@
 //! - GPU-accelerated HMC (when available)
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ScalarOperand};
-use num_traits::{Float, NumAssign};
-use rand_distr::{Distribution, Normal};
+use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
+use scirs2_core::random::{Distribution, Normal};
 use scirs2_core::Rng;
 use scirs2_core::{simd_ops::SimdUnifiedOps, validation::*};
 use std::fmt::Display;
@@ -434,7 +434,7 @@ where
     fn kinetic_energy(&self, momentum: &Array1<F>) -> F {
         let mut energy = F::zero();
         for i in 0..momentum.len() {
-            energy = energy + momentum[i] * momentum[i] * self.mass_inv[[i, i]];
+            energy += momentum[i] * momentum[i] * self.mass_inv[[i, i]];
         }
         energy * F::from(0.5).unwrap()
     }
@@ -578,16 +578,16 @@ where
             let centered = sample - &mean;
             for i in 0..dim {
                 for j in 0..dim {
-                    covariance[[i, j]] = covariance[[i, j]] + centered[i] * centered[j];
+                    covariance[[i, j]] += centered[i] * centered[j];
                 }
             }
         }
 
-        covariance = covariance / F::from(n.saturating_sub(1).max(1)).unwrap();
+        covariance /= F::from(n.saturating_sub(1).max(1)).unwrap();
 
         // Add small regularization to diagonal
         for i in 0..dim {
-            covariance[[i, i]] = covariance[[i, i]] + F::from(1e-6).unwrap();
+            covariance[[i, i]] += F::from(1e-6).unwrap();
         }
 
         Ok(covariance)

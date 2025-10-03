@@ -4,8 +4,8 @@
 //! image encoding, pattern recognition, feature detection, and sequence processing
 //! for computer vision applications.
 
-use ndarray::{s, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, HashSet};
 
 use crate::error::{NdimageError, NdimageResult};
@@ -636,7 +636,7 @@ where
 mod tests {
     use super::*;
     use crate::hyperdimensional_computing::calculate_overlap;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_image_hdc_encoder_creation() {
@@ -713,7 +713,7 @@ mod tests {
 
         // Should create patches from (0,0), (0,2), (0,4), (0,6), (2,0), etc.
         // With 10x10 image, 3x3 patches, and stride 2, we get several patches
-        assert!(patches.len() > 0);
+        assert!(!patches.is_empty());
 
         for patch in &patches {
             assert_eq!(patch.dim(), (3, 3));

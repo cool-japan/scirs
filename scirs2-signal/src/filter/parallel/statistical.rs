@@ -17,7 +17,7 @@ fn par_iter_with_setup<I, IT, S, F, R, RF, E>(
 where
     I: IntoIterator<Item = IT>,
     IT: Copy,
-    S: Fn() -> (),
+    S: Fn(),
     F: Fn((), IT) -> Result<R, E>,
     RF: Fn(&mut Vec<R>, Result<R, E>) -> Result<(), E>,
     E: std::fmt::Debug,
@@ -49,7 +49,7 @@ pub fn parallel_median_filter(
     kernel_size: usize,
     chunk_size: Option<usize>,
 ) -> SignalResult<Vec<f64>> {
-    if kernel_size % 2 == 0 {
+    if kernel_size.is_multiple_of(2) {
         return Err(SignalError::ValueError(
             "Kernel size must be odd".to_string(),
         ));
@@ -62,7 +62,7 @@ pub fn parallel_median_filter(
 
     // Process signal in overlapping chunks (safe arithmetic to prevent overflow)
     let effective_chunk = chunk.saturating_sub(overlap).max(1); // Ensure at least size 1
-    let n_chunks = (n + effective_chunk - 1) / effective_chunk;
+    let n_chunks = n.div_ceil(effective_chunk);
     let results = par_iter_with_setup(
         0..n_chunks,
         || {},
@@ -145,7 +145,7 @@ pub fn parallel_rank_order_filter(
 
     // Process signal in overlapping chunks (safe arithmetic to prevent overflow)
     let effective_chunk = chunk.saturating_sub(overlap).max(1); // Ensure at least size 1
-    let n_chunks = (n + effective_chunk - 1) / effective_chunk;
+    let n_chunks = n.div_ceil(effective_chunk);
 
     let results = par_iter_with_setup(
         0..n_chunks,
@@ -239,7 +239,7 @@ pub fn parallel_bilateral_filter(
     let n_chunks = if effective_chunk_size >= n {
         1
     } else {
-        (n + effective_chunk_size - 1) / effective_chunk_size
+        n.div_ceil(effective_chunk_size)
     };
 
     let results = par_iter_with_setup(
@@ -337,7 +337,7 @@ pub fn parallel_percentile_filter(
     percentile: f64,
     chunk_size: Option<usize>,
 ) -> SignalResult<Vec<f64>> {
-    if percentile < 0.0 || percentile > 100.0 {
+    if !(0.0..=100.0).contains(&percentile) {
         return Err(SignalError::ValueError(
             "Percentile must be between 0.0 and 100.0".to_string(),
         ));
@@ -350,7 +350,7 @@ pub fn parallel_percentile_filter(
 
     // Process signal in overlapping chunks
     let effective_chunk = chunk.saturating_sub(overlap).max(1);
-    let n_chunks = (n + effective_chunk - 1) / effective_chunk;
+    let n_chunks = n.div_ceil(effective_chunk);
 
     let results = par_iter_with_setup(
         0..n_chunks,
@@ -423,7 +423,7 @@ pub fn parallel_trimmed_mean_filter(
     trim_fraction: f64,
     chunk_size: Option<usize>,
 ) -> SignalResult<Vec<f64>> {
-    if trim_fraction < 0.0 || trim_fraction > 0.5 {
+    if !(0.0..=0.5).contains(&trim_fraction) {
         return Err(SignalError::ValueError(
             "Trim fraction must be between 0.0 and 0.5".to_string(),
         ));
@@ -436,7 +436,7 @@ pub fn parallel_trimmed_mean_filter(
 
     // Process signal in overlapping chunks
     let effective_chunk = chunk.saturating_sub(overlap).max(1);
-    let n_chunks = (n + effective_chunk - 1) / effective_chunk;
+    let n_chunks = n.div_ceil(effective_chunk);
 
     let results = par_iter_with_setup(
         0..n_chunks,

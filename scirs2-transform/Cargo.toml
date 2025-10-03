@@ -17,19 +17,13 @@ harness = false
 workspace = true
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true, features = ["validation", "parallel", "simd"] }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["validation", "parallel", "simd", "array", "random"] }
 scirs2-linalg = { workspace = true }
 # scirs2-stats = { workspace = true }  # Temporarily disabled due to compilation errors
 scirs2-fft = { workspace = true }
-ndarray = { workspace = true }
-ndarray-rand = { workspace = true }
-ndarray-stats = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
 approx = { workspace = true }
-rand = { workspace = true }
 num_cpus = { workspace = true }
 regex = { workspace = true }
 ahash = { workspace = true }

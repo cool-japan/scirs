@@ -5,8 +5,8 @@
 //! changes. It includes parameter mapping, behavior matching, and compatibility
 //! warnings for any differences.
 
-use ndarray::{Array, ArrayView2, Ix2, Ix3};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView2, Ix2, Ix3};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::error::{NdimageError, NdimageResult};
 use crate::filters::{gaussian_filter as internal_gaussian_filter, BorderMode};
@@ -472,7 +472,7 @@ impl SciPyCompatLayer {
 
         // Convert back to original type and convert to 2D
         let result_2d = _distances
-            .into_dimensionality::<ndarray::Ix2>()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| {
                 NdimageError::ComputationError("Failed to convert distances back to 2D".to_string())
             })?;
@@ -507,7 +507,7 @@ impl SciPyCompatLayer {
             + Sync
             + std::fmt::Debug
             + std::ops::DivAssign
-            + num_traits::NumAssign
+            + scirs2_core::numeric::NumAssign
             + 'static,
     {
         if labels.is_some() {
@@ -859,7 +859,7 @@ where
         + Sync
         + std::fmt::Debug
         + std::ops::DivAssign
-        + num_traits::NumAssign
+        + scirs2_core::numeric::NumAssign
         + 'static,
 {
     get_scipy_compat().center_of_mass(input, labels, index)
@@ -923,7 +923,7 @@ For full scirs2 performance, consider using the native APIs in other modules.
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_scipy_compat_creation() {

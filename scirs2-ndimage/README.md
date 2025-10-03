@@ -5,11 +5,11 @@
 [![Documentation](https://img.shields.io/docsrs/scirs2-ndimage)](https://docs.rs/scirs2-ndimage)
 [![Tests](https://img.shields.io/badge/tests-142%20passing-brightgreen.svg)]()
 
-**Production-ready multidimensional image processing** for the SciRS2 scientific computing ecosystem (v0.1.0-beta.4). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module delivers a comprehensive, high-performance toolkit for n-dimensional image processing with full SciPy ndimage API compatibility, ecosystem consistency, and optimization for enterprise and research applications.
+**Production-ready multidimensional image processing** for the SciRS2 scientific computing ecosystem (v0.1.0-rc.1). Following the [SciRS2 POLICY](../SCIRS2_POLICY.md), this module delivers a comprehensive, high-performance toolkit for n-dimensional image processing with full SciPy ndimage API compatibility, ecosystem consistency, and optimization for enterprise and research applications.
 
 ## 🚀 Production Status
 
-**Version 0.1.0-beta.4** (SciRS2 POLICY & Enhanced Performance) - Production-grade stability with ecosystem consistency:
+**Version 0.1.0-rc.1** (SciRS2 POLICY & Enhanced Performance) - Production-grade stability with ecosystem consistency:
 - ✅ **142 unit tests + 39 doctests** - 100% passing
 - ✅ **Zero warnings** - Strict code quality standards
 - ✅ **Performance optimized** - SIMD and parallel processing
@@ -43,7 +43,7 @@
 ### Basic Installation
 ```toml
 [dependencies]
-scirs2-ndimage = "0.1.0-beta.4"
+scirs2-ndimage = "0.1.0-rc.1"
 ```
 
 ### Production Configuration (Recommended)
@@ -51,7 +51,7 @@ For maximum performance in production environments:
 
 ```toml
 [dependencies]
-scirs2-ndimage = { version = "0.1.0-beta.4", features = ["parallel", "simd"] }
+scirs2-ndimage = { version = "0.1.0-rc.1", features = ["parallel", "simd"] }
 ndarray = "0.16"  # Required for array operations
 ```
 

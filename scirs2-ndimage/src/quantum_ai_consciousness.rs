@@ -16,7 +16,8 @@
 //! This module has been refactored into focused components for better maintainability.
 //! See the submodules for specific functionality.
 
-// Re-export all module components for backward compatibility
+// Re-export all module components for backward compatibility - may have name conflicts between modules
+#[allow(ambiguous_glob_reexports)]
 pub use self::{config::*, consciousness_simulation::*, processing::*, quantum_core::*};
 
 // Module declarations
@@ -29,8 +30,8 @@ pub mod quantum_core;
 #[allow(dead_code)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2, Array3, Array4};
-    use num_complex::Complex;
+    use scirs2_core::ndarray::{Array1, Array2, Array3, Array4};
+    use scirs2_core::numeric::Complex;
     use std::collections::{HashMap, VecDeque};
 
     #[test]

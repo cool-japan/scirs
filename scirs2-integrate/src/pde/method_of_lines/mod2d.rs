@@ -3,7 +3,7 @@
 //! This module implements the Method of Lines (MOL) approach for solving
 //! 2D parabolic PDEs, such as the 2D heat equation and 2D advection-diffusion.
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -292,7 +292,7 @@ impl MOLParabolicSolver2D {
                             None,
                             None,
                             Some(ny),
-                            &solver,
+                            solver,
                         );
                     }
                     (0, BoundaryLocation::Upper) => {
@@ -309,7 +309,7 @@ impl MOLParabolicSolver2D {
                             None,
                             None,
                             Some(ny),
-                            &solver,
+                            solver,
                         );
                     }
                     // Y-direction boundaries
@@ -327,7 +327,7 @@ impl MOLParabolicSolver2D {
                             Some(0),
                             Some(nx),
                             None,
-                            &solver,
+                            solver,
                         );
                     }
                     (1, BoundaryLocation::Upper) => {
@@ -344,7 +344,7 @@ impl MOLParabolicSolver2D {
                             Some(ny - 1),
                             Some(nx),
                             None,
-                            &solver,
+                            solver,
                         );
                     }
                     _ => {

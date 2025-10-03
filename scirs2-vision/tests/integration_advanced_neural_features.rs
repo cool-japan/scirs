@@ -3,7 +3,7 @@
 //! These tests verify that all advanced neural vision components work together
 //! seamlessly and maintain consistent performance characteristics.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_vision::{
     error::Result,
     feature::{
@@ -41,7 +41,9 @@ fn test_neural_features_tracking_integration() -> Result<()> {
     for (i, kp) in keypoints.iter().take(5).enumerate() {
         let bbox =
             TrackingBoundingBox::new(kp.x - 25.0, kp.y - 25.0, 50.0, 50.0, kp.response, i as i32);
-        let feature = descriptors.slice(ndarray::s![i, ..]).to_owned();
+        let feature = descriptors
+            .slice(scirs2_core::ndarray::s![i, ..])
+            .to_owned();
         detections.push(Detection::with_feature(bbox, feature));
     }
 
@@ -267,7 +269,7 @@ fn test_neural_features_performance() -> Result<()> {
 
         // Descriptors should be properly normalized
         for i in 0..descriptors.shape()[0] {
-            let desc = descriptors.slice(ndarray::s![i, ..]);
+            let desc = descriptors.slice(scirs2_core::ndarray::s![i, ..]);
             let norm = desc.dot(&desc).sqrt();
             assert!(
                 (norm - 1.0).abs() < 0.1,
@@ -366,7 +368,7 @@ fn create_transformed_image(image: &Array2<f32>) -> Result<Array2<f32>> {
 #[allow(dead_code)]
 fn add_noise(image: &Array2<f32>, noiselevel: f32) -> Array2<f32> {
     image.mapv(|x| {
-        let noise = (rand::random::<f32>() - 0.5) * noiselevel;
+        let noise = (scirs2_core::random::random::<f32>() - 0.5) * noiselevel;
         (x + noise).clamp(0.0, 1.0)
     })
 }

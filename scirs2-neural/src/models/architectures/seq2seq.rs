@@ -22,9 +22,9 @@ use crate::layers::{
     ThreadSafeRNN,
     ThreadSafeRecurrentActivation,
 };
-use rand::SeedableRng;
-use ndarray::{Array, Axis, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::random::SeedableRng;
+use scirs2_core::ndarray::{Array, Axis, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 /// Type alias for encoder forward output
 type EncoderOutput<F> = (Array<F, IxDyn>, Vec<Array<F, IxDyn>>);
 /// Type alias for attention forward output
@@ -114,7 +114,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Attention<F> {
         bidirectional_encoder: bool,
     ) -> Result<Self> {
         // Create a random number generator for initialization
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         // Create projections based on attention type
         let decoder_projection = Dense::<F>::new(decoder_dim, attention_dim, None, &mut rng)?;
         // For additive attention, we need to project encoder outputs
@@ -197,9 +197,9 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Attention<F> {
                 // Batched dot product
                 let mut scores = Array::<F>::zeros((batch_size, seq_len));
                 for b in 0..batch_size {
-                    let decoder_slice = expanded_decoder.slice(ndarray::s![b, 0, ..]);
+                    let decoder_slice = expanded_decoder.slice(scirs2_core::ndarray::s![b, 0, ..]);
                     for s in 0..seq_len {
-                        let encoder_slice = encoder_outputs.slice(ndarray::s![b, s, ..]);
+                        let encoder_slice = encoder_outputs.slice(scirs2_core::ndarray::s![b, s, ..]);
                         // Manually calculate dot product to avoid ambiguity
                         let mut dot_product = F::zero();
                         for i in 0..decoder_slice.len() {
@@ -213,14 +213,14 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Attention<F> {
                 // Project decoder state once (used as a weight matrix)
                 let weight_matrix = decoder_projected.to_owned();
                 // Batched matrix multiply
-                    let weight = weight_matrix.slice(ndarray::s![b, ..]);
+                    let weight = weight_matrix.slice(scirs2_core::ndarray::s![b, ..]);
                         for i in 0..weight.len() {
                             dot_product = dot_product + weight[i] * encoder_slice[i];
         // Apply softmax to get attention weights
         let mut attention_weights = Array::<F>::zeros(attention_scores.raw_dim());
         // Manual softmax implementation
         for b in 0..batch_size {
-            let mut row = attention_scores.slice(ndarray::s![b, ..]).to_owned();
+            let mut row = attention_scores.slice(scirs2_core::ndarray::s![b, ..]).to_owned();
             // Find max for numerical stability
             let max_val = row.fold(F::neg_infinity(), |m, &v| m.max(v));
             // Compute exp and sum
@@ -248,7 +248,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Attention<F> {
         // Concatenate context and decoder state - ensure both are in the same format for stacking
         let decoder_state_dyn = decoder_state.to_owned().into_dyn();
         let decoder_and_context =
-            ndarray::stack(Axis(1), &[context.view(), decoder_state_dyn.view()])?;
+            scirs2_core::ndarray::stack(Axis(1), &[context.view(), decoder_state_dyn.view()])?;
         let flattened = decoder_and_context
             .into_shape_with_order((batch_size, context.shape()[1] + decoder_state.shape()[1]))?;
         // Project combined vector - convert to IxDyn for Layer trait
@@ -351,7 +351,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Seq2SeqEncoder<F> {
             // Create the appropriate RNN layer based on cell type
             let rnn: Box<dyn Layer<F> + Send + Sync> = match cell_type {
                 RNNCellType::SimpleRNN => {
-                    let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+                    let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
                     let config = RNNConfig {
                         input_size,
                         hidden_size: hidden_dim,
@@ -383,7 +383,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Seq2SeqEncoder<F> {
         // Create dropout layer if needed
         let dropout = if let Some(rate) = dropout_rate {
             if rate > 0.0 {
-                let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+                let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
                 Some(Dropout::<F>::new(rate, &mut rng)?)
                 None
             embedding,
@@ -409,7 +409,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Seq2SeqEncoder<F> {
             if self.bidirectional {
                 // Extract sequences (first element) and states
                 let sequences = output
-                    .slice_axis(Axis(1), ndarray::Slice::from(0..1))
+                    .slice_axis(Axis(1), scirs2_core::ndarray::Slice::from(0..1))
                     .into_shape_with_order((
                         output.shape()[0],
                         output.shape()[2],
@@ -417,7 +417,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Seq2SeqEncoder<F> {
                     ))?
                     .to_owned(); // Convert to owned array
                 let state = output
-                    .slice_axis(Axis(1), ndarray::Slice::from(1..2))
+                    .slice_axis(Axis(1), scirs2_core::ndarray::Slice::from(1..2))
                     .into_shape_with_order((output.shape()[0], output.shape()[3]))?
                 x = sequences.into_dyn();
                 states.push(state.into_dyn());
@@ -482,7 +482,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Seq2SeqDecoder<F> {
                 encoder_bidirectional,
             )?)
         // Create output projection with activation function
-        let mut rng_clone = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng_clone = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let output_projection = Dense::<F>::new(
             vocab_size,
             None, // No custom activation function
@@ -510,16 +510,16 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Seq2SeqDecoder<F> {
                 let x_dyn = x.to_owned().into_dyn();
                 let initial_state_dyn = initial_state.to_owned().into_dyn();
                 let combined_input =
-                    ndarray::stack(Axis(1), &[x_dyn.view(), initial_state_dyn.view()])?;
+                    scirs2_core::ndarray::stack(Axis(1), &[x_dyn.view(), initial_state_dyn.view()])?;
                 layer.forward(&combined_input.to_owned().into_dyn())?
                 layer.forward(&x.to_owned().into_dyn())?
             // Extract sequences (first element) and state (second element)
             let sequences = output
-                .slice_axis(Axis(1), ndarray::Slice::from(0..1))
+                .slice_axis(Axis(1), scirs2_core::ndarray::Slice::from(0..1))
                 .into_shape_with_order((output.shape()[0], output.shape()[2], output.shape()[3]))?
                 .to_owned();
             let state = output
-                .slice_axis(Axis(1), ndarray::Slice::from(1..2))
+                .slice_axis(Axis(1), scirs2_core::ndarray::Slice::from(1..2))
                 .into_shape_with_order((output.shape()[0], output.shape()[3]))?
             x = sequences.into_dyn();
             states_out.push(state.into_dyn());
@@ -561,7 +561,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> Seq2SeqDecoder<F> {
         for t in 0..seq_len {
             // Extract tokens for this time step
             let tokens_t = input_tokens
-                .slice_axis(Axis(1), ndarray::Slice::from(t..t + 1))
+                .slice_axis(Axis(1), scirs2_core::ndarray::Slice::from(t..t + 1))
             // Decode one step
             let (output_t, new_states) = self.forward_step(&tokens_t, &states, encoder_outputs)?;
             // Store output

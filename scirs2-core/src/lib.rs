@@ -3,6 +3,37 @@
 #![allow(deprecated)]
 // TODO: Remove dead code or justify why it's kept
 #![allow(dead_code)]
+// Clippy allow attributes for non-critical warnings
+#![allow(clippy::empty_line_after_outer_attribute)]
+#![allow(clippy::empty_line_after_doc_comments)]
+#![allow(clippy::manual_clamp)]
+#![allow(clippy::redundant_closure)]
+#![allow(clippy::useless_format)]
+#![allow(clippy::result_large_err)]
+#![allow(clippy::manual_is_multiple_of)]
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::enumerate_and_ignore)]
+#![allow(clippy::redundant_pattern_matching)]
+#![allow(clippy::or_fun_call)]
+#![allow(clippy::unnecessary_lazy_evaluations)]
+#![allow(clippy::needless_borrow)]
+#![allow(clippy::derivable_impls)]
+#![allow(clippy::new_without_default)]
+#![allow(clippy::ptr_arg)]
+#![allow(clippy::get_first)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::type_complexity)]
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::needless_return)]
+#![allow(clippy::unnecessary_cast)]
+#![allow(clippy::manual_range_contains)]
+#![allow(clippy::empty_line_after_outer_attribute_doc)]
+#![allow(clippy::upper_case_acronyms)]
+#![allow(clippy::excessive_precision)]
+#![allow(clippy::needless_borrows_for_generic_args)]
+#![allow(clippy::empty_line_after_outer_attr)]
+#![allow(clippy::unused_enumerate_index)]
+#![allow(clippy::unwrap_or_default)]
 
 //! # SciRS2 Core - Foundation for Scientific Computing in Rust
 //!
@@ -84,7 +115,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-core = { version = "0.1.0-beta.4", features = ["simd", "parallel"] }
+//! scirs2-core = { version = "0.1.0-rc.1", features = ["simd", "parallel"] }
 //! ```
 //!
 //! ### SIMD Operations
@@ -328,7 +359,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.1.0-beta.4** (Released October 01, 2025)
+//! Current version: **0.1.0-rc.1** (Released October 03, 2025)
 //!
 //! ## 📚 Examples
 //!

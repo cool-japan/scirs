@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 /// Type alias for complex work item types used in QR decomposition
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 pub type QRWorkItem<F> = super::WorkItem<(usize, Array1<F>, Array2<F>)>;
 
 /// Type alias for complex work item types used in band matrix solving

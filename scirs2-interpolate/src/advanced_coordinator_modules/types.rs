@@ -3,7 +3,7 @@
 //! This module contains all the foundational data types used throughout
 //! the advanced interpolation coordinator system.
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 use std::time::Instant;

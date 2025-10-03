@@ -480,7 +480,7 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
         graph: &'a mut crate::Context<F>,
     ) -> Tensor<'a, F> {
         use crate::tensor_ops as T;
-        use ndarray::{Array, IxDyn};
+        use scirs2_core::ndarray::{Array, IxDyn};
 
         let size: usize = shape.iter().product();
         let data: Vec<F> = (0..size)
@@ -498,11 +498,11 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
         graph: &'a mut crate::Context<F>,
     ) -> Tensor<'a, F> {
         use crate::tensor_ops as T;
-        use ndarray::{Array, IxDyn};
-        use rand::Rng;
+        use scirs2_core::ndarray::{Array, IxDyn};
+        use scirs2_core::random::Rng;
 
         let size: usize = shape.iter().product();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let data: Vec<F> = (0..size)
             .map(|_| {
                 let random_val = rng.random_range(-1.0..1.0);
@@ -520,7 +520,7 @@ impl<'a, F: Float> StabilityTestSuite<'a, F> {
         graph: &'a mut crate::Context<F>,
     ) -> Tensor<'a, F> {
         use crate::tensor_ops as T;
-        use ndarray::{Array, IxDyn};
+        use scirs2_core::ndarray::{Array, IxDyn};
 
         let shape = vec![values.len()];
         let data: Vec<F> = values.into_iter().map(|v| F::from(v).unwrap()).collect();

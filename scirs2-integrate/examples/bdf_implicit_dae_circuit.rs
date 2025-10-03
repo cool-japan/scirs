@@ -10,9 +10,9 @@
 //! C*v' + i + v/R = 0
 //! L*i' - v + v_source(t) = 0
 
-use ndarray::{array, ArrayView1};
-use num_traits::Float;
 use plotters::prelude::*;
+use scirs2_core::ndarray::{array, ArrayView1};
+use scirs2_core::numeric::Float;
 use scirs2_integrate::{bdf_implicit_dae, DAEIndex, DAEOptions, DAEType};
 
 #[allow(dead_code)]

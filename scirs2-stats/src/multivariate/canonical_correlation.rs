@@ -6,7 +6,7 @@
 use crate::error::{StatsError, StatsResult as Result};
 use crate::error_handling_v2::ErrorCode;
 use crate::{unified_error_handling::global_error_handler, validate_or_error};
-use ndarray::{s, Array1, Array2, ArrayView2, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, Axis};
 use statrs::statistics::Statistics;
 
 /// Canonical Correlation Analysis
@@ -278,7 +278,7 @@ impl CanonicalCorrelationAnalysis {
         cxy: &Array2<f64>,
         n_components: usize,
     ) -> Result<(Array2<f64>, Array2<f64>, Array1<f64>)> {
-        use ndarray_linalg::SVD;
+        use scirs2_core::ndarray::ndarray_linalg::SVD;
 
         // Regularized versions of covariance matrices
         let cxx_reg = self.regularize_covariance(cxx)?;
@@ -301,9 +301,12 @@ impl CanonicalCorrelationAnalysis {
 
         // Extract the desired number of _components
         let n_comp = n_components.min(s.len());
-        let correlations = s.slice(ndarray::s![..n_comp]).to_owned();
-        let u_comp = u.slice(ndarray::s![.., ..n_comp]).to_owned();
-        let v_comp = vt.slice(ndarray::s![..n_comp, ..]).t().to_owned();
+        let correlations = s.slice(scirs2_core::ndarray::s![..n_comp]).to_owned();
+        let u_comp = u.slice(scirs2_core::ndarray::s![.., ..n_comp]).to_owned();
+        let v_comp = vt
+            .slice(scirs2_core::ndarray::s![..n_comp, ..])
+            .t()
+            .to_owned();
 
         // Transform back to original space
         let x_weights = cxx_inv_sqrt.dot(&u_comp);
@@ -327,10 +330,11 @@ impl CanonicalCorrelationAnalysis {
 
     /// Compute inverse square root of a symmetric positive definite matrix
     fn compute_inverse_sqrt(&self, matrix: &Array2<f64>) -> Result<Array2<f64>> {
-        use ndarray_linalg::Eigh;
+        use scirs2_core::ndarray::ndarray_linalg::Eigh;
 
-        let (eigenvalues, eigenvectors) =
-            matrix.eigh(ndarray_linalg::UPLO::Upper).map_err(|e| {
+        let (eigenvalues, eigenvectors) = matrix
+            .eigh(scirs2_core::ndarray::ndarray_linalg::UPLO::Upper)
+            .map_err(|e| {
                 StatsError::ComputationError(format!("Eigenvalue decomposition failed: {}", e))
             })?;
 
@@ -721,14 +725,14 @@ impl PLSCanonical {
                 .view()
                 .insert_axis(Axis(1))
                 .dot(&p.view().insert_axis(Axis(0)));
-            x_current = x_current - outer_product;
+            x_current -= outer_product;
 
             let _uu = Array1::from_vec(vec![u.dot(&u)]);
             let outer_product_y = &u
                 .view()
                 .insert_axis(Axis(1))
                 .dot(&q.view().insert_axis(Axis(0)));
-            y_current = y_current - outer_product_y;
+            y_current -= outer_product_y;
         }
 
         // Slice matrices to actual components extracted
@@ -824,7 +828,7 @@ impl PLSCanonical {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_cca_basic() {

@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 use std::f64::consts::PI;
 // Advanced parametric spectral estimation methods
 //
@@ -11,9 +11,9 @@ use std::f64::consts::PI;
 // - Cross-spectral density estimation for multi-channel signals
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Axis};
-use num_complex::Complex64;
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::{check_finite, checkshape};
 
@@ -137,7 +137,7 @@ pub fn estimate_var_model(
     // Check for finite values
     for i in 0..n_vars {
         for j in 0..n_obs {
-            check_finite(data[[i, j]], &format!("data[{}, {}]", i, j))?;
+            check_finite(data[[i, j]], format!("data[{}, {}]", i, j))?;
         }
     }
 

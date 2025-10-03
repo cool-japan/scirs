@@ -3,7 +3,7 @@
 //! This example demonstrates the use of mixed-precision operations
 //! to balance accuracy and performance in scientific computing.
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_linalg::mixed_precision::conversions::convert;
 use scirs2_linalg::mixed_precision::*;
 

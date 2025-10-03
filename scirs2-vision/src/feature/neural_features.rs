@@ -20,7 +20,7 @@
 use crate::error::{Result, VisionError};
 use crate::feature::KeyPoint;
 use crate::gpu_ops::GpuVisionContext;
-use ndarray::{s, Array1, Array2, Array3, ArrayView2};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2};
 use statrs::statistics::Statistics;
 
 /// Neural network model for feature detection and description
@@ -541,10 +541,16 @@ impl SuperPointNet {
         // For demonstration, create synthetic weights
 
         let conv_weights = vec![
-            Array3::from_shape_fn((64, 1, 3), |___| rand::random::<f32>() * 0.1),
-            Array3::from_shape_fn((64, 64, 3), |___| rand::random::<f32>() * 0.1),
-            Array3::from_shape_fn((128, 64, 3), |___| rand::random::<f32>() * 0.1),
-            Array3::from_shape_fn((128, 128, 3), |___| rand::random::<f32>() * 0.1),
+            Array3::from_shape_fn((64, 1, 3), |___| scirs2_core::random::random::<f32>() * 0.1),
+            Array3::from_shape_fn((64, 64, 3), |___| {
+                scirs2_core::random::random::<f32>() * 0.1
+            }),
+            Array3::from_shape_fn((128, 64, 3), |___| {
+                scirs2_core::random::random::<f32>() * 0.1
+            }),
+            Array3::from_shape_fn((128, 128, 3), |___| {
+                scirs2_core::random::random::<f32>() * 0.1
+            }),
         ];
 
         let conv_biases = vec![
@@ -570,7 +576,7 @@ impl SuperPointNet {
 
         // Detection head
         let fc_weights = vec![Array2::from_shape_fn((65, 128), |_| {
-            rand::random::<f32>() * 0.1
+            scirs2_core::random::random::<f32>() * 0.1
         })];
 
         let fc_biases = vec![
@@ -591,7 +597,7 @@ impl SuperPointNet {
     fn create_descriptor_weights(config: &NeuralFeatureConfig) -> Result<ModelWeights> {
         // Descriptor head weights
         let fc_weights = vec![Array2::from_shape_fn((config.descriptor_dim, 128), |_| {
-            rand::random::<f32>() * 0.1
+            scirs2_core::random::random::<f32>() * 0.1
         })];
 
         let fc_biases = vec![Array1::zeros(config.descriptor_dim)];
@@ -1251,7 +1257,7 @@ impl LearnedSIFT {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_superpoint_creation() {
@@ -1368,8 +1374,8 @@ mod tests {
             },
         ];
 
-        let desc1 = Array2::from_shape_fn((2, 64), |__| rand::random::<f32>());
-        let desc2 = Array2::from_shape_fn((2, 64), |__| rand::random::<f32>());
+        let desc1 = Array2::from_shape_fn((2, 64), |__| scirs2_core::random::random::<f32>());
+        let desc2 = Array2::from_shape_fn((2, 64), |__| scirs2_core::random::random::<f32>());
 
         let result =
             matcher.match_with_attention(&keypoints1, &desc1.view(), &keypoints2, &desc2.view());

@@ -9,8 +9,8 @@
 
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -682,8 +682,16 @@ where
 
     // Simplified implementation - in practice, use LAPACK or similar
     let singular_values = Array1::from_elem(rank, T::one());
-    let u = Some(Array2::eye(m).slice(ndarray::s![.., ..rank]).to_owned());
-    let vt = Some(Array2::eye(n).slice(ndarray::s![..rank, ..]).to_owned());
+    let u = Some(
+        Array2::eye(m)
+            .slice(scirs2_core::ndarray::s![.., ..rank])
+            .to_owned(),
+    );
+    let vt = Some(
+        Array2::eye(n)
+            .slice(scirs2_core::ndarray::s![..rank, ..])
+            .to_owned(),
+    );
 
     Ok(SVDResult {
         u,

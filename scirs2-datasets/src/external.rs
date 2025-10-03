@@ -11,7 +11,7 @@ use std::io::Read;
 use std::path::Path;
 use std::time::Duration;
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 
 use crate::cache::DatasetCache;
@@ -226,10 +226,7 @@ impl ExternalClient {
             match request
                 .try_clone()
                 .ok_or_else(|| {
-                    DatasetsError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        "Failed to clone request",
-                    ))
+                    DatasetsError::IoError(std::io::Error::other("Failed to clone request"))
                 })?
                 .send()
                 .await
@@ -238,21 +235,15 @@ impl ExternalClient {
                     if response.status().is_success() {
                         return Ok(response);
                     } else {
-                        last_error = Some(DatasetsError::IoError(std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            format!(
-                                "HTTP {}: {}",
-                                response.status(),
-                                response.status().canonical_reason().unwrap_or("Unknown")
-                            ),
-                        )));
+                        last_error = Some(DatasetsError::IoError(std::io::Error::other(format!(
+                            "HTTP {}: {}",
+                            response.status(),
+                            response.status().canonical_reason().unwrap_or("Unknown")
+                        ))));
                     }
                 }
                 Err(e) => {
-                    last_error = Some(DatasetsError::IoError(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        e,
-                    )));
+                    last_error = Some(DatasetsError::IoError(std::io::Error::other(e)));
                 }
             }
 

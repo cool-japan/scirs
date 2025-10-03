@@ -3,11 +3,11 @@
 //! This module provides cutting-edge SIMD optimizations for operations that
 //! were not yet optimized or can benefit from additional vectorization techniques.
 
-use ndarray::{
+use scirs2_core::ndarray::{
     s, Array, Array1, ArrayView, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Axis,
     Dimension, Ix2, Zip,
 };
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
 
@@ -186,7 +186,7 @@ pub fn simd_histogram<T>(
     input: ArrayView2<T>,
     bins: usize,
     range: Option<(T, T)>,
-) -> NdimageResult<Array<u32, ndarray::Ix1>>
+) -> NdimageResult<Array<u32, scirs2_core::ndarray::Ix1>>
 where
     T: Float + FromPrimitive + Debug + Clone + Send + Sync + SimdUnifiedOps + PartialOrd,
 {
@@ -678,7 +678,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_simd_gradient_magnitude() {

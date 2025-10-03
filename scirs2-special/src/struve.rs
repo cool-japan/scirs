@@ -8,7 +8,7 @@
 //! using series expansions for small arguments and asymptotic forms for large arguments.
 
 use std::f64::consts::{FRAC_2_PI, PI};
-// use num_traits::Float;
+// use scirs2_core::numeric::Float;
 
 use crate::bessel::{j0, j1, y0, y1, yn};
 use crate::error::{SpecialError, SpecialResult};

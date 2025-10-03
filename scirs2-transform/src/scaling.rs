@@ -3,8 +3,8 @@
 //! This module provides sophisticated scaling methods that go beyond basic normalization,
 //! including quantile transformations and robust scaling methods.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 
 use crate::error::{Result, TransformError};
 
@@ -72,7 +72,7 @@ impl QuantileTransformer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -138,7 +138,7 @@ impl QuantileTransformer {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -340,7 +340,7 @@ impl MaxAbsScaler {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -389,7 +389,7 @@ impl MaxAbsScaler {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -450,7 +450,7 @@ impl MaxAbsScaler {
         S: Data,
         S::Elem: Float + NumCast,
     {
-        let x_f64 = x.mapv(|x| num_traits::cast::<S::Elem, f64>(x).unwrap_or(0.0));
+        let x_f64 = x.mapv(|x| NumCast::from(x).unwrap_or(0.0));
 
         let n_samples = x_f64.shape()[0];
         let n_features = x_f64.shape()[1];
@@ -510,7 +510,7 @@ impl Default for MaxAbsScaler {
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_quantile_transformer_uniform() {

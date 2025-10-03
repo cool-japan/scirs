@@ -17,7 +17,7 @@
 //! for maximum performance on multi-core systems.
 
 use crate::error::Result;
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 
 /// SIMD-accelerated 2D convolution
@@ -57,7 +57,7 @@ pub fn simd_convolve_2d(image: &ArrayView2<f32>, kernel: &ArrayView2<f32>) -> Re
 
     // Flatten kernel for SIMD operations (pre-compute once)
     let kernel_flat: Vec<f32> = kernel.iter().copied().collect();
-    let kernel_arr = ndarray::arr1(&kernel_flat);
+    let kernel_arr = scirs2_core::ndarray::arr1(&kernel_flat);
 
     // Use heap allocation for large kernels to prevent stack overflow
     let patch_size = k_height * k_width;
@@ -80,7 +80,7 @@ pub fn simd_convolve_2d(image: &ArrayView2<f32>, kernel: &ArrayView2<f32>) -> Re
                 }
 
                 // Use SIMD for element-wise multiplication and sum
-                let patch_arr = ndarray::arr1(&patch[..patch_size]);
+                let patch_arr = scirs2_core::ndarray::arr1(&patch[..patch_size]);
 
                 // SIMD multiplication
                 let products = f32::simd_mul(&patch_arr.view(), &kernel_arr.view());
@@ -108,7 +108,7 @@ pub fn simd_convolve_2d(image: &ArrayView2<f32>, kernel: &ArrayView2<f32>) -> Re
                 }
 
                 // Use SIMD for element-wise multiplication and sum
-                let patch_arr = ndarray::arr1(&patch);
+                let patch_arr = scirs2_core::ndarray::arr1(&patch);
 
                 // SIMD multiplication
                 let products = f32::simd_mul(&patch_arr.view(), &kernel_arr.view());
@@ -144,9 +144,11 @@ pub fn simd_sobel_gradients(
     let (height, width) = image.dim();
 
     // Sobel kernels as flat arrays for SIMD
-    let sobel_x = ndarray::arr2(&[[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]]);
+    let sobel_x =
+        scirs2_core::ndarray::arr2(&[[-1.0, 0.0, 1.0], [-2.0, 0.0, 2.0], [-1.0, 0.0, 1.0]]);
 
-    let sobel_y = ndarray::arr2(&[[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]]);
+    let sobel_y =
+        scirs2_core::ndarray::arr2(&[[-1.0, -2.0, -1.0], [0.0, 0.0, 0.0], [1.0, 2.0, 1.0]]);
 
     // Compute gradients using SIMD convolution
     let grad_x = simd_convolve_2d(image, &sobel_x.view())?;
@@ -226,7 +228,7 @@ pub fn simd_gaussian_blur(image: &ArrayView2<f32>, sigma: f32) -> Result<Array2<
         for val in &mut kernel_1d {
             *val /= sum;
         }
-        let kernel_arr = ndarray::arr1(&kernel_1d);
+        let kernel_arr = scirs2_core::ndarray::arr1(&kernel_1d);
         (kernel_1d, kernel_arr)
     } else {
         let mut kernel_1d = vec![0.0f32; kernel_size];
@@ -243,7 +245,7 @@ pub fn simd_gaussian_blur(image: &ArrayView2<f32>, sigma: f32) -> Result<Array2<
         for val in &mut kernel_1d {
             *val /= sum;
         }
-        let kernel_arr = ndarray::arr1(&kernel_1d);
+        let kernel_arr = scirs2_core::ndarray::arr1(&kernel_1d);
         (kernel_1d, kernel_arr)
     };
 
@@ -284,7 +286,7 @@ pub fn simd_gaussian_blur(image: &ArrayView2<f32>, sigma: f32) -> Result<Array2<
         for x in kernel_half..(width - kernel_half) {
             let window_start = x - kernel_half;
             let window_end = x + kernel_half + 1;
-            let window = row.slice(ndarray::s![window_start..window_end]);
+            let window = row.slice(scirs2_core::ndarray::s![window_start..window_end]);
 
             // SIMD multiplication and sum
             let products = f32::simd_mul(&window, &kernel_arr.view());
@@ -320,7 +322,7 @@ pub fn simd_gaussian_blur(image: &ArrayView2<f32>, sigma: f32) -> Result<Array2<
         for y in kernel_half..(height - kernel_half) {
             let window_start = y - kernel_half;
             let window_end = y + kernel_half + 1;
-            let window = col.slice(ndarray::s![window_start..window_end]);
+            let window = col.slice(scirs2_core::ndarray::s![window_start..window_end]);
 
             // SIMD multiplication and sum
             let products = f32::simd_mul(&window, &kernel_arr.view());
@@ -392,7 +394,7 @@ pub fn simd_normalize_image(image: &ArrayView2<f32>) -> Result<Array2<f32>> {
     }
 
     // Normalize using SIMD
-    let min_arr = ndarray::Array1::from_elem(width, min_val);
+    let min_arr = scirs2_core::ndarray::Array1::from_elem(width, min_val);
     let scale = 1.0 / range;
 
     for (y, row) in image.rows().into_iter().enumerate() {
@@ -454,7 +456,9 @@ pub fn simd_histogram_equalization(
             equalized_row.push(cdf[bin]);
         }
 
-        output.row_mut(y).assign(&ndarray::arr1(&equalized_row));
+        output
+            .row_mut(y)
+            .assign(&scirs2_core::ndarray::arr1(&equalized_row));
     }
 
     Ok(output)
@@ -538,7 +542,7 @@ pub fn simd_convolve_2d_blocked(
 
     // Pre-compute kernel data
     let kernel_flat: Vec<f32> = kernel.iter().copied().collect();
-    let kernel_arr = ndarray::arr1(&kernel_flat);
+    let kernel_arr = scirs2_core::ndarray::arr1(&kernel_flat);
 
     // Pre-allocate patch buffer using memory pool for large kernels
     let patch_size = k_height * k_width;
@@ -574,7 +578,7 @@ pub fn simd_convolve_2d_blocked(
                     }
 
                     // SIMD convolution
-                    let patch_arr = ndarray::arr1(&patch);
+                    let patch_arr = scirs2_core::ndarray::arr1(&patch);
                     let products = f32::simd_mul(&patch_arr.view(), &kernel_arr.view());
                     output[[y, x]] = f32::simd_sum(&products.view());
                 }
@@ -622,7 +626,7 @@ pub fn simd_convolve_2d_parallel(
 
     // Pre-compute kernel data
     let kernel_flat: Vec<f32> = kernel.iter().copied().collect();
-    let kernel_arr = ndarray::arr1(&kernel_flat);
+    let kernel_arr = scirs2_core::ndarray::arr1(&kernel_flat);
 
     // Process rows in parallel with SIMD using row chunks for thread safety
     let valid_height = height - 2 * k_half_h;
@@ -653,7 +657,7 @@ pub fn simd_convolve_2d_parallel(
                     }
 
                     // SIMD convolution
-                    let patch_arr = ndarray::arr1(&patch);
+                    let patch_arr = scirs2_core::ndarray::arr1(&patch);
                     let products = f32::simd_mul(&patch_arr.view(), &kernel_arr.view());
                     row_values.push(f32::simd_sum(&products.view()));
                 }
@@ -864,7 +868,7 @@ pub fn simd_resize_lanczos_advanced(
 
             let sum = if weights.len() >= 8 {
                 // SIMD-accelerated weighted sum for longer kernels
-                let weights_arr = ndarray::arr1(weights);
+                let weights_arr = scirs2_core::ndarray::arr1(weights);
                 let mut values = get_temp_buffer(weights.len());
                 values.resize(weights.len(), 0.0);
 
@@ -872,7 +876,7 @@ pub fn simd_resize_lanczos_advanced(
                     values[i] = image[[y, idx]];
                 }
 
-                let values_arr = ndarray::arr1(&values);
+                let values_arr = scirs2_core::ndarray::arr1(&values);
                 let products = f32::simd_mul(&values_arr.view(), &weights_arr.view());
                 let result = f32::simd_sum(&products.view());
 
@@ -920,7 +924,7 @@ pub fn simd_resize_lanczos_advanced(
 
         // Process entire row at once for better cache utilization
         if weights.len() >= 4 {
-            let weights_arr = ndarray::arr1(&weights);
+            let weights_arr = scirs2_core::ndarray::arr1(&weights);
 
             for x in 0..new_width {
                 let mut values = get_temp_buffer(weights.len());
@@ -930,7 +934,7 @@ pub fn simd_resize_lanczos_advanced(
                     values[i] = temp[[idx, x]];
                 }
 
-                let values_arr = ndarray::arr1(&values);
+                let values_arr = scirs2_core::ndarray::arr1(&values);
                 let products = f32::simd_mul(&values_arr.view(), &weights_arr.view());
                 let sum = f32::simd_sum(&products.view());
 
@@ -1016,9 +1020,9 @@ pub fn simd_matmul_attention_advanced(
 
                 // Micro-kernel optimization for small blocks
                 advanced_matmul_micro_kernel(
-                    &a.slice(ndarray::s![i_block..i_end, k_block..k_end]),
-                    &b.slice(ndarray::s![k_block..k_end, j_block..j_end]),
-                    &mut c.slice_mut(ndarray::s![i_block..i_end, j_block..j_end]),
+                    &a.slice(scirs2_core::ndarray::s![i_block..i_end, k_block..k_end]),
+                    &b.slice(scirs2_core::ndarray::s![k_block..k_end, j_block..j_end]),
+                    &mut c.slice_mut(scirs2_core::ndarray::s![i_block..i_end, j_block..j_end]),
                 )?;
             }
         }
@@ -1032,7 +1036,7 @@ pub fn simd_matmul_attention_advanced(
 fn advanced_matmul_micro_kernel(
     a: &ArrayView2<f32>,
     b: &ArrayView2<f32>,
-    c: &mut ndarray::ArrayViewMut2<f32>,
+    c: &mut scirs2_core::ndarray::ArrayViewMut2<f32>,
 ) -> Result<()> {
     let (m, k) = a.dim();
     let (_, n) = b.dim();
@@ -1053,12 +1057,12 @@ fn advanced_matmul_micro_kernel(
                         let chunk_size = k / 8 * 8;
 
                         for kk in (0..chunk_size).step_by(8) {
-                            let a_chunk = a.slice(ndarray::s![ii, kk..kk + 8]);
+                            let a_chunk = a.slice(scirs2_core::ndarray::s![ii, kk..kk + 8]);
                             let mut b_vals = vec![0.0f32; 8];
                             for (idx, k_idx) in (kk..kk + 8).enumerate() {
                                 b_vals[idx] = b[[k_idx, jj]];
                             }
-                            let b_chunk = ndarray::arr1(&b_vals);
+                            let b_chunk = scirs2_core::ndarray::arr1(&b_vals);
 
                             let products = f32::simd_mul(&a_chunk, &b_chunk.view());
                             sum += f32::simd_sum(&products.view());
@@ -1116,7 +1120,7 @@ pub fn simd_non_maximum_suppression_advanced(
 
         // SIMD threshold filtering
         let threshold_vec = vec![threshold; width];
-        let threshold_arr = ndarray::arr1(&threshold_vec);
+        let threshold_arr = scirs2_core::ndarray::arr1(&threshold_vec);
         let above_threshold_mask: Vec<bool> = current_row
             .iter()
             .zip(threshold_arr.iter())
@@ -1403,7 +1407,7 @@ pub fn simd_feature_matching_advanced(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     #[ignore = "timeout"]

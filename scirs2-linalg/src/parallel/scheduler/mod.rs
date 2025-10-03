@@ -131,7 +131,12 @@ impl WorkStealingScheduler {
     ///
     /// Specialized version for matrix operations that takes into account
     /// cache line sizes and memory access patterns.
-    pub fn executematrix<R, F>(&self, rows: usize, cols: usize, f: F) -> ndarray::Array2<R>
+    pub fn executematrix<R, F>(
+        &self,
+        rows: usize,
+        cols: usize,
+        f: F,
+    ) -> scirs2_core::ndarray::Array2<R>
     where
         R: Send + Default + Clone,
         F: Fn(usize, usize) -> R + Send + Sync,
@@ -191,7 +196,7 @@ impl WorkStealingScheduler {
         });
 
         // Create result matrix from collected results
-        let mut result = ndarray::Array2::default((rows, cols));
+        let mut result = scirs2_core::ndarray::Array2::default((rows, cols));
         let results = Arc::try_unwrap(results_vec)
             .unwrap_or_else(|_| panic!("Failed to extract results"))
             .into_inner()

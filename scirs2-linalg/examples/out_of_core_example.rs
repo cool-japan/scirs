@@ -3,8 +3,8 @@
 //! This example shows how to use the out-of-core functionality to work with
 //! matrices that are too large to fit in memory, even when quantized.
 
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use scirs2_linalg::quantization::{out_of_core::ChunkedQuantizedMatrix, QuantizationMethod};
 use std::env;
 use std::path::{Path, PathBuf};
@@ -250,7 +250,7 @@ fn example_largematrix_performance(file_path: &Path) {
 #[allow(dead_code)]
 fn create_random_spdmatrix(size: usize) -> Array2<f32> {
     // Create a random matrix with values in the range [-1.0, 1.0)
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut matrix = Array2::zeros((size, size));
 
     for i in 0..size {

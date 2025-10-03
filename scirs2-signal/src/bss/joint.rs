@@ -1,11 +1,11 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Joint Blind Source Separation and Joint Diagonalization
 //
 // This module implements Joint BSS techniques for multi-dataset blind source separation.
 
 use super::{BssConfig, JadeMultiResult};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array2, Axis};
+use scirs2_core::ndarray::{Array2, Axis};
 use scirs2_linalg::{eigh, svd};
 
 #[allow(unused_imports)]

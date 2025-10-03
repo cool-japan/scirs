@@ -3,8 +3,8 @@
 //! This module provides streaming forecasting algorithms including exponential smoothing
 //! with trend and seasonal components for real-time time series forecasting.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::VecDeque;
 use std::fmt::Debug;
 

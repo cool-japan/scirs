@@ -4,7 +4,7 @@
 //! including timing measurements, memory usage tracking, performance analysis, backend
 //! comparison, and automatic optimization recommendations.
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::cmp;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Display};
@@ -1160,7 +1160,7 @@ use std::sync::atomic::AtomicBool;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_profiling_scope() {

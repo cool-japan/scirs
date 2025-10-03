@@ -13,8 +13,8 @@
 //! - `forecasting` - Real-time forecasting with exponential smoothing
 //! - `memory_management` - Memory-efficient utilities, anomaly detection, and pattern matching
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
@@ -223,12 +223,16 @@ impl<F: Float + Debug + Clone + FromPrimitive> StreamingAnalyzer<F> {
     }
 }
 
-// Re-export the adaptive module types (maintaining backward compatibility)
+/// Adaptive learning models for streaming data
+///
+/// Re-exports adaptive model types (maintaining backward compatibility)
 pub mod adaptive {
     pub use super::online_learning::{AdaptiveARIMA, AdaptiveLinearRegression};
 }
 
-// Re-export the advanced module types (maintaining backward compatibility)
+/// Advanced streaming analytics and forecasting
+///
+/// Re-exports advanced model types (maintaining backward compatibility)
 pub mod advanced {
     pub use super::forecasting::{ModelState, StreamingForecaster};
     pub use super::memory_management::{

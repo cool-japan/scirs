@@ -3,7 +3,7 @@
 use crate::error::OptimizeError;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::{Bounds, Options};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// Implements Powell's method for unconstrained optimization with optional bounds support
 #[allow(dead_code)]

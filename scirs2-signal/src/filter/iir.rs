@@ -7,8 +7,8 @@
 
 use crate::error::{SignalError, SignalResult};
 use crate::lti::TransferFunction;
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -288,7 +288,7 @@ where
 
     // Calculate Chebyshev Type I analog prototype poles
     let mut poles = Vec::with_capacity(order);
-    let a = ((1.0 / epsilon + (1.0 / epsilon / epsilon + 1.0) as f64).sqrt()).ln() / order as f64;
+    let a = ((1.0 / epsilon + (1.0 / epsilon / epsilon + 1.0)).sqrt()).ln() / order as f64;
 
     for k in 0..order {
         let theta = std::f64::consts::PI * (2.0 * k as f64 + 1.0) / (2.0 * order as f64);
@@ -400,7 +400,7 @@ where
 
     // Calculate Chebyshev Type I analog prototype poles
     let mut prototype_poles = Vec::with_capacity(order);
-    let a = ((1.0 / epsilon + (1.0 / epsilon / epsilon + 1.0) as f64).sqrt()).ln() / order as f64;
+    let a = ((1.0 / epsilon + (1.0 / epsilon / epsilon + 1.0)).sqrt()).ln() / order as f64;
 
     for k in 0..order {
         let theta = std::f64::consts::PI * (2.0 * k as f64 + 1.0) / (2.0 * order as f64);
@@ -538,7 +538,7 @@ where
     let mut zeros = Vec::with_capacity(order);
 
     // Calculate the parameter related to ripple
-    let a = ((epsilon + (epsilon * epsilon + 1.0) as f64).sqrt()).ln() / order as f64;
+    let a = ((epsilon + (epsilon * epsilon + 1.0)).sqrt()).ln() / order as f64;
 
     // Generate poles for Type II (inverse Chebyshev)
     for k in 0..order {
@@ -699,7 +699,7 @@ where
         if k < order / 2 {
             let zero_freq = 1.5 + 0.5 * k as f64 / (order as f64 / 2.0);
             zeros.push(Complex64::new(0.0, zero_freq));
-            if order % 2 == 0 || k < order / 2 - 1 {
+            if order.is_multiple_of(2) || k < order / 2 - 1 {
                 zeros.push(Complex64::new(0.0, -zero_freq));
             }
         }
@@ -828,14 +828,14 @@ where
             Complex64::new(-0.9195339081664588, 0.0),
             Complex64::new(-0.8800029341523374, 0.2789585460830486),
             Complex64::new(-0.8800029341523374, -0.2789585460830486),
-            Complex64::new(-0.7527355434093214, 0.6504696305522550),
-            Complex64::new(-0.7527355434093214, -0.6504696305522550),
+            Complex64::new(-0.7527355434093214, 0.650_469_630_552_255),
+            Complex64::new(-0.7527355434093214, -0.650_469_630_552_255),
             Complex64::new(-0.4966917256672316, 1.0025085824351491),
             Complex64::new(-0.4966917256672316, -1.0025085824351491),
         ],
         8 => vec![
-            Complex64::new(-0.9096831546652910, 0.1412437976671422),
-            Complex64::new(-0.9096831546652910, -0.1412437976671422),
+            Complex64::new(-0.909_683_154_665_291, 0.1412437976671422),
+            Complex64::new(-0.909_683_154_665_291, -0.1412437976671422),
             Complex64::new(-0.8473250802359334, 0.4259700895773585),
             Complex64::new(-0.8473250802359334, -0.4259700895773585),
             Complex64::new(-0.7111381808485399, 0.7186517314014426),

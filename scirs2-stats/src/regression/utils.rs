@@ -1,8 +1,8 @@
 //! Utilities for regression analysis
 
 use crate::error::StatsResult;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use scirs2_linalg::inv;
 
 /// Helper functions for working with Float trait to avoid method ambiguity
@@ -12,7 +12,7 @@ pub(crate) fn float_abs<F>(x: F) -> F
 where
     F: Float + 'static + std::fmt::Display,
 {
-    num_traits::Float::abs(x)
+    scirs2_core::numeric::Float::abs(x)
 }
 
 /// Returns the maximum of two Float values
@@ -21,7 +21,7 @@ pub(crate) fn _float_max<F>(a: F, b: F) -> F
 where
     F: Float + 'static + std::fmt::Display,
 {
-    num_traits::Float::max(a, b)
+    scirs2_core::numeric::Float::max(a, b)
 }
 
 /// Returns the minimum of two Float values
@@ -30,7 +30,7 @@ pub(crate) fn _float_min<F>(a: F, b: F) -> F
 where
     F: Float + 'static + std::fmt::Display,
 {
-    num_traits::Float::min(a, b)
+    scirs2_core::numeric::Float::min(a, b)
 }
 
 /// Returns the natural logarithm of a Float
@@ -39,7 +39,7 @@ pub(crate) fn float_ln<F>(x: F) -> F
 where
     F: Float + 'static + std::fmt::Display,
 {
-    num_traits::Float::ln(x)
+    scirs2_core::numeric::Float::ln(x)
 }
 
 /// Raises a Float to an integer power
@@ -48,7 +48,7 @@ pub(crate) fn float_powi<F>(x: F, n: i32) -> F
 where
     F: Float + 'static + std::fmt::Display,
 {
-    num_traits::Float::powi(x, n)
+    scirs2_core::numeric::Float::powi(x, n)
 }
 
 /// Returns the square root of a Float
@@ -57,7 +57,7 @@ pub(crate) fn float_sqrt<F>(x: F) -> F
 where
     F: Float + 'static + std::fmt::Display,
 {
-    num_traits::Float::sqrt(x)
+    scirs2_core::numeric::Float::sqrt(x)
 }
 
 /// Calculate the standard errors for regression coefficients
@@ -72,9 +72,9 @@ where
         + std::ops::Div<Output = F>
         + std::fmt::Debug
         + 'static
-        + num_traits::NumAssign
-        + num_traits::One
-        + ndarray::ScalarOperand
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
         + std::fmt::Display
         + Send
         + Sync,
@@ -82,7 +82,7 @@ where
     // Calculate the mean squared error of the residuals
     let mse = residuals
         .iter()
-        .map(|&r| num_traits::Float::powi(r, 2))
+        .map(|&r| scirs2_core::numeric::Float::powi(r, 2))
         .sum::<F>()
         / F::from(df).unwrap();
 
@@ -99,7 +99,9 @@ where
     };
 
     // The diagonal elements of (X'X)^-1 * MSE are the variances of the coefficients
-    let std_errors = xtx_inv.diag().mapv(|v| num_traits::Float::sqrt(v * mse));
+    let std_errors = xtx_inv
+        .diag()
+        .mapv(|v| scirs2_core::numeric::Float::sqrt(v * mse));
 
     Ok(std_errors)
 }
@@ -225,15 +227,17 @@ where
     } else {
         F::one() - p
     };
-    let t = num_traits::Float::sqrt(-F::from(2.0).unwrap() * num_traits::Float::ln(p_adj));
+    let t = scirs2_core::numeric::Float::sqrt(
+        -F::from(2.0).unwrap() * scirs2_core::numeric::Float::ln(p_adj),
+    );
 
     // Apply Abramowitz and Stegun approximation
     let v = t
-        - (a[0] + a[1] * t + a[2] * num_traits::Float::powi(t, 2))
+        - (a[0] + a[1] * t + a[2] * scirs2_core::numeric::Float::powi(t, 2))
             / (F::one()
                 + b[0] * t
-                + b[1] * num_traits::Float::powi(t, 2)
-                + b[2] * num_traits::Float::powi(t, 3));
+                + b[1] * scirs2_core::numeric::Float::powi(t, 2)
+                + b[2] * scirs2_core::numeric::Float::powi(t, 3));
 
     // Adjust sign for p > 0.5
     if p <= F::from(0.5).unwrap() {
@@ -261,7 +265,7 @@ where
     }
 
     let mid = n / 2;
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         (sorted_abs_x[mid - 1] + sorted_abs_x[mid]) / F::from(2.0).unwrap()
     } else {
         sorted_abs_x[mid]
@@ -315,13 +319,13 @@ where
     // Total sum of squares
     let ss_total = y
         .iter()
-        .map(|&yi| num_traits::Float::powi(yi - y_mean, 2))
+        .map(|&yi| scirs2_core::numeric::Float::powi(yi - y_mean, 2))
         .sum::<F>();
 
     // Residual sum of squares
     let ss_residual = residuals
         .iter()
-        .map(|&ri| num_traits::Float::powi(ri, 2))
+        .map(|&ri| scirs2_core::numeric::Float::powi(ri, 2))
         .sum::<F>();
 
     // Explained sum of squares

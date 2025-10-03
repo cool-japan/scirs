@@ -1,6 +1,6 @@
 //! Example demonstrating window analysis and comparison
 
-// use ndarray::Array1;  // Unused import
+// use scirs2_core::ndarray::Array1;  // Unused import
 use scirs2_fft::window::{get_window, Window};
 use scirs2_fft::window_extended::{
     analyze_window, compare_windows, get_extended_window, ExtendedWindow,

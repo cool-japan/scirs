@@ -62,7 +62,7 @@ impl CompetitiveNeuralClusterer {
     pub fn new(num_clusters: usize, input_dims: usize) -> Self {
         let mut neurons = Vec::new();
         let mut learning_rates = Vec::new();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Initialize neurons with random weights
         for _ in 0..num_clusters {
@@ -260,7 +260,7 @@ impl CompetitiveNeuralClusterer {
 
     /// Reset the clusterer to initial state
     pub fn reset(&mut self) {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let input_dims = self.neurons[0].len();
 
         // Reinitialize neuron weights
@@ -531,7 +531,7 @@ impl HomeostaticNeuralClusterer {
 
     /// Initialize weights randomly
     fn initialize_weights(&mut self) -> SpatialResult<()> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for mut row in self.weights.outer_iter_mut() {
             for weight in row.iter_mut() {
@@ -633,6 +633,12 @@ pub struct HomeostaticNeuron {
     pub membrane_tau: f64,
     /// Last spike time
     pub last_spike_time: f64,
+}
+
+impl Default for HomeostaticNeuron {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl HomeostaticNeuron {
@@ -858,6 +864,12 @@ pub struct MultiTimescaleAdaptation {
     slow_adaptation: AdaptationScale,
     /// Current timescale weights
     timescale_weights: Array1<f64>,
+}
+
+impl Default for MultiTimescaleAdaptation {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MultiTimescaleAdaptation {

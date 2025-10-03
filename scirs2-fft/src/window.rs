@@ -7,8 +7,8 @@
 //! data to reduce the spectral leakage effect in FFT processing.
 
 use crate::error::{FFTError, FFTResult};
-use ndarray::{Array1, ArrayBase, Data, Ix1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 use std::str::FromStr;
@@ -231,7 +231,7 @@ fn bartlett(n: usize, sym: bool) -> FFTResult<Array1<f64>> {
 
     if !sym {
         // Remove last element for asymmetric case
-        let w_slice = w.slice(ndarray::s![0..n - 1]).to_owned();
+        let w_slice = w.slice(scirs2_core::ndarray::s![0..n - 1]).to_owned();
         Ok(w_slice)
     } else {
         Ok(w)
@@ -286,7 +286,7 @@ fn parzen(n: usize, sym: bool) -> FFTResult<Array1<f64>> {
 
     if !sym {
         // Remove last element for asymmetric case
-        let w_slice = w.slice(ndarray::s![0..n - 1]).to_owned();
+        let w_slice = w.slice(scirs2_core::ndarray::s![0..n - 1]).to_owned();
         Ok(w_slice)
     } else {
         Ok(w)
@@ -361,7 +361,7 @@ fn barthann(n: usize, sym: bool) -> FFTResult<Array1<f64>> {
 
     if !sym {
         // Remove last element for asymmetric case
-        let w_slice = w.slice(ndarray::s![0..n - 1]).to_owned();
+        let w_slice = w.slice(scirs2_core::ndarray::s![0..n - 1]).to_owned();
         Ok(w_slice)
     } else {
         Ok(w)
@@ -510,7 +510,7 @@ fn kaiser(n: usize, sym: bool, beta: f64) -> FFTResult<Array1<f64>> {
 
     if !sym {
         // Remove last element for asymmetric case
-        let w_slice = w.slice(ndarray::s![0..n - 1]).to_owned();
+        let w_slice = w.slice(scirs2_core::ndarray::s![0..n - 1]).to_owned();
         Ok(w_slice)
     } else {
         Ok(w)
@@ -635,7 +635,7 @@ fn bessel_i0(x: f64) -> f64 {
 ///
 /// ```
 /// use scirs2_fft::window::{Window, apply_window};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// let signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 /// let window = Window::Hann;

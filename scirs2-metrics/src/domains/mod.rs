@@ -24,7 +24,7 @@
 //!
 //! ```
 //! use scirs2_metrics::domains::computer_vision::ObjectDetectionMetrics;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut cv_metrics = ObjectDetectionMetrics::new();
 //!

@@ -7,7 +7,7 @@
 use crate::error::{ClusteringError, Result};
 use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
 use crate::advanced_visualization::{AdvancedVisualizationOutput, QuantumCoherencePlot, NeuromorphicAdaptationPlot};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use std::collections::HashMap;
 
 
@@ -578,7 +578,7 @@ impl AdvancedNativePlotter {
         } else if data.ncols() == 2 {
             // Add a third dimension with quantum enhancement
             let mut points_3d = Array2::zeros((data.nrows(), 3));
-            points_3d.slice_mut(ndarray::s![.., 0..2]).assign(data);
+            points_3d.slice_mut(scirs2_core::ndarray::s![.., 0..2]).assign(data);
             
             // Calculate third dimension based on quantum properties
             for i in 0..data.nrows() {
@@ -603,10 +603,10 @@ impl AdvancedNativePlotter {
 
         // Calculate 3D centroids
         let centroids_3d = if result.centroids.ncols() >= 3 {
-            result.centroids.slice(ndarray::s![.., 0..3]).to_owned()
+            result.centroids.slice(scirs2_core::ndarray::s![.., 0..3]).to_owned()
         } else {
             let mut centroids_3d = Array2::zeros((result.centroids.nrows(), 3));
-            centroids_3d.slice_mut(ndarray::s![.., 0..result.centroids.ncols()]).assign(&result.centroids);
+            centroids_3d.slice_mut(scirs2_core::ndarray::s![.., 0..result.centroids.ncols()]).assign(&result.centroids);
             centroids_3d
         };
 

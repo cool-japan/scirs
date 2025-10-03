@@ -2,7 +2,7 @@
 
 use crate::error::{IoError, Result};
 use crate::ml_framework::{DataType, MLModel, MLTensor, TensorMetadata};
-use ndarray::{ArrayD, IxDyn};
+use scirs2_core::ndarray::{ArrayD, IxDyn};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;

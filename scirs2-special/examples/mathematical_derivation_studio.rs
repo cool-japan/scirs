@@ -9,7 +9,7 @@
 //!
 //! Run with: cargo run --example mathematical_derivation_studio
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_special::*;
 use std::f64::consts::{E, PI};
@@ -320,7 +320,7 @@ fn bessel_orthogonality_proof() -> Result<(), Box<dyn std::error::Error>> {
     println!("NUMERICAL VERIFICATION:");
     println!("Testing orthogonality for J₀ with first few zeros:");
 
-    let j0_zeros = vec![2.4048, 5.5201, 8.6537]; // Approximate zeros of J₀
+    let j0_zeros = [2.4048, 5.5201, 8.6537]; // Approximate zeros of J₀
 
     for (i, &alpha_i) in j0_zeros.iter().enumerate() {
         for (j, &alpha_j) in j0_zeros.iter().enumerate() {

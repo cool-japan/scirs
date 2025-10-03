@@ -19,7 +19,7 @@
 //!
 //! ```rust
 //! use scirs2_cluster::distributed::{DistributedKMeans, DistributedKMeansConfig};
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create sample data
 //! let data = Array2::from_shape_vec((1000, 2), (0..2000).map(|x| x as f64).collect()).unwrap();

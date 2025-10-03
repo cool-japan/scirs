@@ -1090,7 +1090,7 @@ impl AdaptiveSampler {
 
     fn adjust_samplingrate(&self) -> f64 {
         let total = self.total_count.load(Ordering::Relaxed);
-        if total % self.adjustment_window == 0 && total > 0 {
+        if total.is_multiple_of(self.adjustment_window) && total > 0 {
             if let Ok(mut last) = self.last_adjustment.try_lock() {
                 let now = Instant::now();
                 let elapsed = now.duration_since(*last).as_secs_f64();

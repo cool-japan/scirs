@@ -9,7 +9,7 @@
 //! - Denoising method enumerations
 
 use crate::dwt::Wavelet;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Enhanced 2D DWT decomposition result
 ///

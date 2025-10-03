@@ -3,7 +3,7 @@
 //! This module provides online algorithms for computing statistics on streaming data,
 //! including Welford's algorithm for variance and exponentially weighted moving averages.
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};

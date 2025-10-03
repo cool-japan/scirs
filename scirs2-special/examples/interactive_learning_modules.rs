@@ -703,7 +703,7 @@ fn series_approximation_demo() -> Result<(), Box<dyn std::error::Error>> {
     let coeff = 2.0 / PI.sqrt();
 
     for n in 0..10 {
-        let term = (-1.0_f64).powi(n as i32) * x.powi(2 * n as i32 + 1)
+        let term = (-1.0_f64).powi(n) * x.powi(2 * n + 1)
             / ((2 * n + 1) as f64 * factorial(n as u32) as f64);
         partial_sum += coeff * term;
 

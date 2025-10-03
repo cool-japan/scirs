@@ -3,7 +3,7 @@
 //! This module contains tests that validate the numerical accuracy of SciPy-compatible
 //! functions by comparing against known reference values and mathematical properties.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_linalg::compat;
 use std::f64::consts::PI;
 

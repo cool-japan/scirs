@@ -7,7 +7,7 @@
 use crate::error::{NeuralError, Result};
 use crate::models::sequential::Sequential;
 use crate::serving::PackageMetadata;
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -16,7 +16,7 @@ use super::platform::{
     QuantizationStrategy,
 };
 /// Mobile deployment generator
-pub struct MobileDeploymentGenerator<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct MobileDeploymentGenerator<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Model to deploy
     model: Sequential<F>,
     /// Target platform
@@ -185,7 +185,7 @@ pub struct ThermalMetrics {
     /// Time to thermal limit (seconds)
     pub time_to_limit_s: f32,
 impl<
-        F: Float + Debug + 'static + num_traits::FromPrimitive + ndarray::ScalarOperand + Send + Sync,
+        F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_core::ndarray::ScalarOperand + Send + Sync,
     > MobileDeploymentGenerator<F>
 {
     /// Create a new mobile deployment generator

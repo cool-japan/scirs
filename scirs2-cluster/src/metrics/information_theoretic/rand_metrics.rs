@@ -4,8 +4,8 @@
 //! for evaluating clustering quality. These metrics compare pairs of points
 //! and measure agreement between true and predicted clusterings.
 
-use ndarray::ArrayView1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -26,7 +26,7 @@ use crate::error::{ClusteringError, Result};
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::information_theoretic::rand_score;
 ///
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1]);
@@ -86,7 +86,7 @@ where
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::adjusted_rand_score;
 ///
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
@@ -338,7 +338,7 @@ fn combination(n: usize, k: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_rand_score_identical() {

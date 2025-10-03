@@ -3,8 +3,8 @@
 //! This module provides convolution and correlation operations optimized for GPU
 //! execution, including 1D convolution, cross-correlation, and sliding window operations.
 
-use ndarray::{s, Array1};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use super::{fft, GpuConfig};

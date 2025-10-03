@@ -6,8 +6,8 @@
 use crate::callbacks::LearningRateScheduler;
 use crate::error::Result;
 use crate::optimizers::Optimizer;
-use ndarray::{Array, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Wrapper around an optimizer that integrates with a learning rate scheduler
 ///
@@ -72,8 +72,8 @@ impl<O, S, F> LRSchedulerOptimizer<O, S, F>
 impl<O, S, F> Optimizer<F> for LRSchedulerOptimizer<O, S, F>
     fn update(
         &mut self,
-        params: &mut [Array<F, ndarray::IxDyn>],
-        grads: &[Array<F, ndarray::IxDyn>],
+        params: &mut [Array<F, scirs2_core::ndarray::IxDyn>],
+        grads: &[Array<F, scirs2_core::ndarray::IxDyn>],
     ) -> Result<()> {
         // Calculate progress as a value between 0.0 and 1.0
         let progress = if self.total_steps == 0 {

@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the HDF5 module to create and read
 //! HDF5 files with groups, datasets, and attributes.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_io::hdf5::{
     create_hdf5_with_structure, read_hdf5, write_hdf5, AttributeValue, CompressionOptions,
     DatasetOptions, FileMode, HDF5File,
@@ -149,18 +149,22 @@ fn compression_example() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create large dataset
     let large_data: Array2<f64> = Array2::from_shape_fn((1000, 500), |(i, j)| {
-        (i as f64).sin() * (j as f64).cos() + 0.1 * rand::random::<f64>()
+        (i as f64).sin() * (j as f64).cos() + 0.1 * scirs2_core::random::random::<f64>()
     });
 
     // Set up compression options
-    let mut compression = CompressionOptions::default();
-    compression.gzip = Some(6); // Compression level 6
-    compression.shuffle = true; // Enable shuffle filter for better compression
+    let compression = CompressionOptions {
+        gzip: Some(6), // Compression level 6
+        shuffle: true, // Enable shuffle filter for better compression
+        ..Default::default()
+    };
 
-    let mut options = DatasetOptions::default();
-    options.compression = compression;
-    options.chunk_size = Some(vec![100, 50]); // Chunk the data
-    options.fletcher32 = true; // Enable checksum
+    let options = DatasetOptions {
+        compression,
+        chunk_size: Some(vec![100, 50]), // Chunk the data
+        fletcher32: true,                // Enable checksum
+        ..Default::default()
+    };
 
     // Create compressed dataset
     file.create_dataset_from_array("compressed/data", &large_data, Some(options.clone()))?;
@@ -252,7 +256,7 @@ fn scientific_data_example() -> Result<(), Box<dyn std::error::Error>> {
         let temp_data: Array2<f64> = Array2::from_shape_fn((12, 10), |(month, year)| {
             15.0 + 10.0 * (2.0 * std::f64::consts::PI * month as f64 / 12.0).sin()
                 + 0.5 * year as f64
-                + rand::random::<f64>()
+                + scirs2_core::random::random::<f64>()
         });
 
         file.create_dataset_from_array("climate_data/temperature", &temp_data, None)?;
@@ -261,7 +265,7 @@ fn scientific_data_example() -> Result<(), Box<dyn std::error::Error>> {
         let precip_data: Array2<f64> = Array2::from_shape_fn((12, 10), |(month, year)| {
             50.0 + 30.0 * (2.0 * std::f64::consts::PI * (month + 6) as f64 / 12.0).sin()
                 + 2.0 * year as f64
-                + 5.0 * rand::random::<f64>()
+                + 5.0 * scirs2_core::random::random::<f64>()
         });
 
         file.create_dataset_from_array("climate_data/precipitation", &precip_data, None)?;
@@ -283,11 +287,13 @@ fn scientific_data_example() -> Result<(), Box<dyn std::error::Error>> {
         file.create_dataset_from_array("model_parameters/coefficients", &coefficients, None)?;
 
         // Quality control flags
-        let qc_flags: Array2<i64> =
-            Array2::from_shape_fn(
-                (12, 10),
-                |(__)| if rand::random::<f64>() > 0.95 { 1 } else { 0 },
-            );
+        let qc_flags: Array2<i64> = Array2::from_shape_fn((12, 10), |__| {
+            if scirs2_core::random::random::<f64>() > 0.95 {
+                1
+            } else {
+                0
+            }
+        });
 
         // Convert to ArrayD<f64> for our API
         let qc_flags_f64 = qc_flags.mapv(|x| x as f64);
@@ -321,6 +327,4 @@ fn scientific_data_example() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-// Add dependency on rand for example data generation
-use rand;
 use statrs::statistics::Statistics;

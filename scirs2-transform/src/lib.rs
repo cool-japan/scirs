@@ -1,4 +1,5 @@
 #![allow(deprecated)]
+#![allow(clippy::all)]
 //! # SciRS2 Transform - Data Transformation and Preprocessing
 //!
 //! **scirs2-transform** provides comprehensive data transformation utilities for machine learning,
@@ -30,7 +31,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-transform = "0.1.0-beta.4"
+//! scirs2-transform = "0.1.0-rc.1"
 //! ```
 //!
 //! ```rust,no_run
@@ -42,7 +43,7 @@
 //! let normalized = normalize_array(&data, NormalizationMethod::ZScore, 0).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.1.0-beta.4 (October 01, 2025)
+//! ## 🔒 Version: 0.1.0-rc.1 (October 03, 2025)
 
 #![warn(missing_docs)]
 #![allow(clippy::too_many_arguments)]

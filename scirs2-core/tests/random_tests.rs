@@ -13,9 +13,9 @@ mod random_tests {
     use ndarray::{Array, Ix2};
     use rand::seq::SliceRandom;
     use rand::Rng;
-    use rand_distr::{Distribution, Normal, Uniform};
     use scirs2_core::random::optimized_arrays::*;
     use scirs2_core::random::*;
+    use scirs2_core::random::{Distribution, Normal, Uniform};
 
     #[test]
     fn test_sobol_sequence() {
@@ -151,8 +151,8 @@ mod random_tests {
         use rand::SeedableRng;
 
         // Test SeedableRng trait implementation
-        let rng1 = Random::<rand::rngs::StdRng>::seed_from_u64(42);
-        let rng2 = Random::<rand::rngs::StdRng>::seed_from_u64(42);
+        let rng1 = Random::<scirs2_core::random::rngs::StdRng>::seed_from_u64(42);
+        let rng2 = Random::<scirs2_core::random::rngs::StdRng>::seed_from_u64(42);
 
         // Same seed should produce same first value
         let mut rng1 = rng1;
@@ -183,7 +183,7 @@ mod random_tests {
 
     #[test]
     fn test_slice_random_ext() {
-        let mut data = vec![1, 2, 3, 4, 5];
+        let mut data = [1, 2, 3, 4, 5];
         let mut rng = CoreRandom::default();
 
         // Test shuffle - Note: Using SciRS2-Core shuffle extension
@@ -193,16 +193,15 @@ mod random_tests {
         assert!(data.contains(&5));
 
         // Test choose - Note: Manual implementation for now, will use SciRS2-Core in POLICY refactor
-        let original = vec![1, 2, 3, 4, 5];
-        let index = rng.gen_range(0..original.len());
-        let choice = Some(&original[index]);
-        assert!(choice.is_some());
-        assert!(original.contains(choice.unwrap()));
+        let original = [1, 2, 3, 4, 5];
+        let index = rng.random_range(0..original.len());
+        let choice = &original[index];
+        assert!(original.contains(choice));
 
         // Test choose_multiple - Note: Manual implementation for now, will use SciRS2-Core in POLICY refactor
         let mut indices: Vec<usize> = (0..original.len()).collect();
         for i in 0..3.min(original.len()) {
-            let j = rng.gen_range(i..original.len());
+            let j = rng.random_range(i..original.len());
             indices.swap(i, j);
         }
         let choices: Vec<&i32> = indices.iter().take(3).map(|&i| &original[i]).collect();

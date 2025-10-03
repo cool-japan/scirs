@@ -1,7 +1,7 @@
 //! Sparse training for reduced model size and computation
 
 use crate::error::Result;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashSet;
 /// Sparse training configuration
 pub struct SparseTrainer {
@@ -71,7 +71,7 @@ impl SparseTrainer {
         self.magnitude_pruning(weights, sparsity)
     /// Random pruning
     fn random_pruning(
-        use rand::seq::SliceRandom;
+        use scirs2_core::random::seq::SliceRandom;
         let mut rng = rng();
         // Get all indices
         let mut indices: Vec<(usize, usize)> = weights
@@ -217,7 +217,7 @@ impl DynamicSparseNetwork {
         zero_indices.shuffle(&mut rng);
         for i in 0..num_to_grow.min(zero_indices.len()) {
             let (row, col) = zero_indices[i];
-            weights[[row, col]] = 0.001 * rand::random::<f32>(); // Small random initialization
+            weights[[row, col]] = 0.001 * scirs2_core::random::random::<f32>(); // Small random initialization
     /// Gradient-based growth
     fn gradient_based_growth(
         let mut gradient_magnitudes: Vec<(f32, (usize, usize))> = weights

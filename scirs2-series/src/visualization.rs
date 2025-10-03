@@ -19,7 +19,7 @@
 //!
 //! ```rust,no_run
 //! use scirs2_series::visualization::{TimeSeriesPlot, PlotStyle, ExportFormat};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! let data = Array1::linspace(0.0, 10.0, 100);
 //! let ts_data = data.mapv(|x| (x * 2.0 * std::f64::consts::PI).sin());
@@ -30,7 +30,7 @@
 //! ```
 
 use crate::error::{Result, TimeSeriesError};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -866,7 +866,9 @@ impl SpecializedPlots {
         }
 
         // Add mean seasonal pattern
-        let mean_seasonal: Array1<f64> = seasonal_data.mean_axis(ndarray::Axis(1)).unwrap();
+        let mean_seasonal: Array1<f64> = seasonal_data
+            .mean_axis(scirs2_core::ndarray::Axis(1))
+            .unwrap();
         let mean_style = PlotStyle {
             color: "#d62728".to_string(), // Red
             line_width: 3.0,
@@ -1138,7 +1140,7 @@ pub mod quick_plots {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_plot_creation() {

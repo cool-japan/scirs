@@ -7,7 +7,7 @@
 #[cfg(feature = "simd")]
 use crate::error::{LinalgError, LinalgResult};
 #[cfg(feature = "simd")]
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 #[cfg(feature = "simd")]
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
@@ -322,7 +322,7 @@ pub fn simd_gemv_f64(
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[cfg(feature = "simd")]

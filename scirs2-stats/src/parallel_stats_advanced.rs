@@ -5,8 +5,8 @@
 //! balancing, NUMA-aware processing, and hybrid CPU-GPU computation strategies.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{s, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, Zero};
+use scirs2_core::ndarray::{s, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, Zero};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
@@ -1295,7 +1295,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_parallel_config() {

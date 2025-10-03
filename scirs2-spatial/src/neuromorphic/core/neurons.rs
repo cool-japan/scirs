@@ -468,11 +468,11 @@ mod tests {
         let neuron1 = SpikingNeuron::new(vec![0.0, 0.0]);
         let neuron2 = SpikingNeuron::new(vec![1.0, 1.0]);
 
-        let influence = neuron1.calculate_influence(&neuron2.position());
+        let influence = neuron1.calculate_influence(neuron2.position());
         assert!(influence > 0.0 && influence <= 1.0);
 
         // Self-influence should be 1.0
-        let self_influence = neuron1.calculate_influence(&neuron1.position());
+        let self_influence = neuron1.calculate_influence(neuron1.position());
         assert!((self_influence - 1.0).abs() < 1e-10);
     }
 

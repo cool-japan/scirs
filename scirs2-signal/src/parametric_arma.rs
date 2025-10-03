@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // ARMA (Autoregressive Moving Average) model estimation and analysis
 //
 // This module implements ARMA model estimation methods including:
@@ -8,9 +8,9 @@ use ndarray::s;
 // - Spectral analysis for ARMA models
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Float;
 use scirs2_core::validation::check_finite;
 use statrs::statistics::Statistics;
 
@@ -996,8 +996,8 @@ fn kalman_filter_estimation(signal: &Array1<f64>, p: usize, q: usize) -> SignalR
                 let identity = Array2::eye(state_dim);
                 state_covariance = (&identity
                     - &kalman_gain
-                        .insert_axis(ndarray::Axis(1))
-                        .dot(&observation_vector.insert_axis(ndarray::Axis(0))))
+                        .insert_axis(scirs2_core::ndarray::Axis(1))
+                        .dot(&observation_vector.insert_axis(scirs2_core::ndarray::Axis(0))))
                     .dot(&predicted_covariance);
 
                 // Update log-likelihood

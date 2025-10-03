@@ -5,8 +5,8 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::{kendall_tau, pearson_r, spearman_r};
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1, Ix2};
-use num_traits::{Float, NumCast, One, Zero};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Data, Ix1, Ix2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
 use scirs2_core::{
     simd_ops::{AutoOptimizer, SimdUnifiedOps},
     validation::*,
@@ -56,7 +56,7 @@ impl Default for ParallelCorrelationConfig {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::{corrcoef_parallel_enhanced, ParallelCorrelationConfig};
 ///
 /// let data = array![
@@ -519,7 +519,7 @@ where
 mod tests {
     use super::*;
     use crate::corrcoef;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_corrcoef_parallel_enhanced_consistency() {

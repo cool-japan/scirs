@@ -55,8 +55,8 @@
 //! ```
 
 use crate::error::SpatialResult;
-use num_complex::Complex64;
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
+use scirs2_core::numeric::Complex64;
 use scirs2_core::random::quick::random_f64;
 use std::collections::VecDeque;
 use std::f64::consts::PI;

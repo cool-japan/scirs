@@ -7,7 +7,7 @@
 use crate::error::Result;
 use crate::feature::{array_to_image, image_to_array};
 use image::{DynamicImage, GrayImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Apply Prewitt edge detection
 ///

@@ -4,9 +4,9 @@ use crate::error::Result;
 use crate::reinforcement::environments::Environment;
 use crate::reinforcement::replay_buffer::{PrioritizedReplayBuffer, ReplayBuffer, ReplayBufferTrait};
 use crate::reinforcement::{ExperienceBatch, LossInfo, RLAgent};
-use ndarray::prelude::*;
-use rand::Rng;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayView1;
 /// Training configuration for RL algorithms
 #[derive(Debug, Clone)]
 pub struct TrainingConfig {

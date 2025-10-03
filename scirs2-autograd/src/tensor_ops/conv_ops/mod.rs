@@ -1,3 +1,4 @@
+use crate::ndarray;
 use crate::ndarray_ext;
 use crate::ndarray_ext::{NdArray, NdArrayView};
 use crate::op;
@@ -5,7 +6,6 @@ use crate::same_type;
 use crate::tensor_ops::*;
 use crate::Float;
 use crate::Tensor;
-use ndarray;
 use scirs2_core::parallel_ops::*;
 use std::f32;
 use std::slice;

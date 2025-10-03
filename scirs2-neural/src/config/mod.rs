@@ -139,8 +139,8 @@ impl ModelConfig {
     pub fn create_model<
         F: num_traits:: Float
             + std::fmt::Debug
-            + num_traits::NumAssign
-            + ndarray::ScalarOperand
+            + scirs2_core::numeric::NumAssign
+            + scirs2_core::ndarray::ScalarOperand
             + Send
             + Sync
             + 'static

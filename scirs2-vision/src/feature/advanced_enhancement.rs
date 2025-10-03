@@ -25,7 +25,7 @@
 
 use crate::error::{Result, VisionError};
 use crate::gpu_ops::GpuVisionContext;
-use ndarray::{s, Array1, Array2, Array3, ArrayView2, Axis};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2, Axis};
 
 /// High Dynamic Range (HDR) processor
 pub struct HDRProcessor {
@@ -758,19 +758,22 @@ impl SuperResolutionProcessor {
 
         // Feature extraction layer (64 filters)
         let feature_layer = Array3::from_shape_fn((64, kernel_size, kernel_size), |___| {
-            rand::random::<f32>() * 0.01 - 0.005
+            scirs2_core::random::random::<f32>() * 0.01 - 0.005
         });
 
         // Mapping layers (32 filters each)
-        let mapping_layer1 =
-            Array3::from_shape_fn((32, 1, 1), |___| rand::random::<f32>() * 0.01 - 0.005);
+        let mapping_layer1 = Array3::from_shape_fn((32, 1, 1), |___| {
+            scirs2_core::random::random::<f32>() * 0.01 - 0.005
+        });
 
-        let mapping_layer2 =
-            Array3::from_shape_fn((32, 3, 3), |___| rand::random::<f32>() * 0.01 - 0.005);
+        let mapping_layer2 = Array3::from_shape_fn((32, 3, 3), |___| {
+            scirs2_core::random::random::<f32>() * 0.01 - 0.005
+        });
 
         // Reconstruction layer
-        let reconstruction_layer =
-            Array3::from_shape_fn((1, 5, 5), |___| rand::random::<f32>() * 0.01 - 0.005);
+        let reconstruction_layer = Array3::from_shape_fn((1, 5, 5), |___| {
+            scirs2_core::random::random::<f32>() * 0.01 - 0.005
+        });
 
         // Bias terms
         let biases = vec![
@@ -1278,7 +1281,7 @@ impl AdvancedDenoiser {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_hdr_processor_creation() {

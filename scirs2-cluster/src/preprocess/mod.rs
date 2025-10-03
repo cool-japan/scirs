@@ -6,8 +6,8 @@
 //! - Normalization: Scaling data to a specific range or norm
 //! - Standardization: Transforming data to have zero mean and unit variance
 
-use ndarray::{Array1, Array2, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -30,7 +30,7 @@ use crate::error::{ClusteringError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::preprocess::whiten;
 ///
 /// // Example data with 3 features
@@ -104,7 +104,7 @@ pub fn whiten<F: Float + FromPrimitive + Debug>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::preprocess::standardize;
 ///
 /// // Example data with 3 features
@@ -184,7 +184,7 @@ pub fn standardize<F: Float + FromPrimitive + Debug>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::preprocess::{normalize, NormType};
 ///
 /// // Example data with 3 features
@@ -291,7 +291,7 @@ pub fn normalize<F: Float + FromPrimitive + Debug>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::preprocess::min_max_scale;
 ///
 /// // Example data with 3 features
@@ -458,7 +458,7 @@ fn standard_deviation<F: Float + FromPrimitive + Debug>(
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_whiten() {

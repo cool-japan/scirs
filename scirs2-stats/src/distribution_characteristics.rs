@@ -4,8 +4,8 @@
 //! including modes, entropy measures, and confidence intervals for skewness and kurtosis.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::ArrayView1;
-use num_traits::Float;
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -45,7 +45,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distribution_characteristics::{mode, ModeMethod};
 ///
 /// // Unimodal data
@@ -130,7 +130,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distribution_characteristics::entropy;
 ///
 /// // Uniform distribution (maximum entropy)
@@ -195,7 +195,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distribution_characteristics::kl_divergence;
 ///
 /// // Create two probability distributions
@@ -280,7 +280,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distribution_characteristics::cross_entropy;
 ///
 /// // Create two probability distributions
@@ -378,7 +378,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distribution_characteristics::skewness_ci;
 ///
 /// // Calculate skewness with 95% confidence interval
@@ -438,7 +438,7 @@ where
     let mut bootstrap_skew = Vec::with_capacity(n_boot);
 
     for i in 0..n_boot {
-        let sample_view = samples.slice(ndarray::s![i, ..]).to_owned();
+        let sample_view = samples.slice(scirs2_core::ndarray::s![i, ..]).to_owned();
         if let Ok(sk) = skew(&sample_view.view(), bias, None) {
             bootstrap_skew.push(sk);
         }
@@ -486,7 +486,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distribution_characteristics::kurtosis_ci;
 ///
 /// // Calculate kurtosis with 95% confidence interval
@@ -547,7 +547,7 @@ where
     let mut bootstrap_kurt = Vec::with_capacity(n_boot);
 
     for i in 0..n_boot {
-        let sample_view = samples.slice(ndarray::s![i, ..]).to_owned();
+        let sample_view = samples.slice(scirs2_core::ndarray::s![i, ..]).to_owned();
         if let Ok(k) = kurtosis(&sample_view.view(), fisher, bias, None) {
             bootstrap_kurt.push(k);
         }
@@ -582,7 +582,7 @@ mod tests {
     use super::*;
     use crate::{kurtosis, skew};
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_mode_unimodal() {

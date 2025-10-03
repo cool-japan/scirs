@@ -5,8 +5,8 @@
 
 use crate::error::{NeuralError, Result};
 use crate::interpretation::ConceptActivationVector;
-use ndarray::{ArrayD, IxDyn};
-use num_traits::Float;
+use scirs2_core::ndarray::{ArrayD, IxDyn};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -77,8 +77,8 @@ where
     F: Float
         + Debug
         + 'static
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
         + Sum
         + Clone
         + Copy,
@@ -494,7 +494,7 @@ impl<F: Float + Debug> + std::fmt::Display for ComprehensiveInterpretationReport
 /// Compute concept activation for a given input and concept vector
 #[allow(dead_code)]
 fn compute_concept_activation<F>(_input: &ArrayD<F>, conceptvector: &ConceptActivationVector<F>) -> f64
-    F: Float + Debug + 'static + ndarray::ScalarOperand + num_traits::FromPrimitive + Sum + Clone + Copy,
+    F: Float + Debug + 'static + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive + Sum + Clone + Copy,
     // Simplified concept activation computation
     // In practice, this would be based on the specific concept vector implementation
     let flattened_input: Vec<F> = input.iter().cloned().collect();
@@ -540,7 +540,7 @@ fn compute_activation_variance<F>(input: &ArrayD<F>) -> f64
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
     #[test]
     fn test_confidence_estimates() {
         use super::super::analysis::AttributionStatistics;

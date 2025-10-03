@@ -59,7 +59,7 @@ fn basic_example(tempdir: &Path) -> Result<(), Box<dyn std::error::Error>> {
     // let's just verify the data we've written directly from the original memory-mapped array
 
     // Read the data from the original mmap
-    let loaded_data = mmap.as_array::<ndarray::Ix1>()?;
+    let loaded_data = mmap.as_array::<scirs2_core::ndarray::Ix1>()?;
 
     // Verify some values
     println!(

@@ -7,7 +7,7 @@ use super::types::*;
 use crate::dwt::{Wavelet, WaveletFilters};
 use crate::dwt2d_enhanced::enhanced_dwt2d_decompose;
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, Array3, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::collections::HashMap;
@@ -115,7 +115,9 @@ pub fn process_image_tiled(
             }
 
             // Extract tile
-            let tile = image.slice(ndarray::s![y..y_end, x..x_end]).to_owned();
+            let tile = image
+                .slice(scirs2_core::ndarray::s![y..y_end, x..x_end])
+                .to_owned();
 
             // Track memory for tile
             memory_tracker.track_allocation(
@@ -175,8 +177,11 @@ pub fn process_image_whole(
         let level_width = level_result.shape()[1];
 
         if level_height <= height && level_width <= width {
-            let mut level_slice =
-                coefficients.slice_mut(ndarray::s![level, 0..level_height, 0..level_width]);
+            let mut level_slice = coefficients.slice_mut(scirs2_core::ndarray::s![
+                level,
+                0..level_height,
+                0..level_width
+            ]);
             level_slice.assign(&level_result);
 
             // Update working image for next level (use approximation coefficients)
@@ -221,8 +226,11 @@ fn process_tile(
         let level_width = level_result.shape()[1];
 
         if level_height <= height && level_width <= width {
-            let mut level_slice =
-                coefficients.slice_mut(ndarray::s![level, 0..level_height, 0..level_width]);
+            let mut level_slice = coefficients.slice_mut(scirs2_core::ndarray::s![
+                level,
+                0..level_height,
+                0..level_width
+            ]);
             level_slice.assign(&level_result);
 
             // Update working tile
@@ -449,7 +457,7 @@ fn extract_approximation_coefficients(coefficients: &Array2<f64>) -> SignalResul
     }
 
     Ok(coefficients
-        .slice(ndarray::s![0..new_height, 0..new_width])
+        .slice(scirs2_core::ndarray::s![0..new_height, 0..new_width])
         .to_owned())
 }
 

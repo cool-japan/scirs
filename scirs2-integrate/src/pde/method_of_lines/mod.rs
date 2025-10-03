@@ -23,7 +23,7 @@ pub use mod3d::{MOL3DResult, MOLParabolicSolver3D};
 pub mod hyperbolic;
 pub use hyperbolic::{MOLHyperbolicResult, MOLWaveEquation1D};
 
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::sync::Arc;
 use std::time::Instant;
 

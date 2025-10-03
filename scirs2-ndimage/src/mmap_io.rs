@@ -3,8 +3,8 @@
 //! This module provides functions for loading and saving large images using
 //! memory-mapped arrays, enabling processing of datasets that don't fit in RAM.
 
-use ndarray::{Array, ArrayView, Dimension, Ix1, Ix2, IxDyn};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension, Ix1, Ix2, IxDyn};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use std::fs;
 use std::path::Path;
 
@@ -293,7 +293,7 @@ where
     }
 
     // Create the array with the specified shape
-    let raw_dim = D::from_dimension(&ndarray::IxDyn(shape))
+    let raw_dim = D::from_dimension(&scirs2_core::ndarray::IxDyn(shape))
         .ok_or_else(|| NdimageError::DimensionError("Invalid shape for dimension type".into()))?;
 
     let array = Array::from_shape_vec(raw_dim, data)
@@ -410,7 +410,7 @@ pub fn process_largeimage_example<P: AsRef<Path>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
     use tempfile::tempdir;
 
     #[test]

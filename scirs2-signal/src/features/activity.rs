@@ -1,7 +1,7 @@
 use crate::error::SignalResult;
 use crate::features::batch::extract_features;
 use crate::features::options::FeatureOptions;
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::fmt::Debug;
 

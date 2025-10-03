@@ -7,10 +7,10 @@ use crate::activations::Activation;
 use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Layer};
 use crate::reinforcement::environments::Environment;
-use ndarray::concatenate;
-use ndarray::prelude::*;
-use rand::seq::SliceRandom;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::concatenate;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::ndarray::ArrayView1;
 /// Dynamics model for predicting environment transitions
 pub struct DynamicsModel {
     state_dim: usize,
@@ -141,7 +141,7 @@ impl MPC {
         Ok(best_action_sequence[0].clone())
     /// Sample a random action sequence
     fn sample_action_sequence(&self) -> Result<Vec<Array1<f32>>> {
-        use rand_distr::{Distribution, Uniform};
+        use scirs2_core::random::{Distribution, Uniform};
         let mut rng = rng();
         let mut sequence = Vec::with_capacity(self.horizon);
         for _ in 0..self.horizon {
@@ -153,7 +153,7 @@ impl MPC {
                 }
             } else {
                 // Sample from standard normal
-                    let dist = rand_distr::Normal::new(0.0, 1.0).map_err(|e| {
+                    let dist = scirs2_core::random::Normal::new(0.0, 1.0).map_err(|e| {
                         NeuralError::InvalidArgument(format!("Invalid normal distribution: {}", e))
                     })?;
             sequence.push(action);
@@ -279,7 +279,7 @@ impl ModelBuffer {
     fn sample_single(&self) -> Result<(Array1<f32>, Array1<f32>, f32, Array1<f32>)> {
         if self.is_empty() {
             return Err(NeuralError::InvalidArgument("Buffer is empty".to_string()));
-        let idx = rand::random::<usize>() % self.len();
+        let idx = scirs2_core::random::random::<usize>() % self.len();
         Ok((
             self.states[idx].clone(),
             self.actions[idx].clone(),

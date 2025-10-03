@@ -3,15 +3,15 @@
 //! This module implements Neural ODEs which model continuous-time dynamics
 //! using neural networks to define the derivative function in an ODE.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::Result;
 
 /// Neural Ordinary Differential Equation (NODE) implementation
 #[derive(Debug)]
-pub struct NeuralODE<F: Float + Debug + ndarray::ScalarOperand> {
+pub struct NeuralODE<F: Float + Debug + scirs2_core::ndarray::ScalarOperand> {
     /// Network parameters
     parameters: Array2<F>,
     /// Integration time steps
@@ -47,7 +47,7 @@ pub enum IntegrationMethod {
     RKF45,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> NeuralODE<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand> NeuralODE<F> {
     /// Create new Neural ODE
     pub fn new(
         input_dim: usize,

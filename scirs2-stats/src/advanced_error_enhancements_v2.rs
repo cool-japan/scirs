@@ -742,12 +742,12 @@ impl AdvancedErrorEngine {
                     code_example: Some(
                         r#"
 // Example: Bootstrap resampling for data augmentation
-use ndarray::Array1;
-use rand::{rng, seq::SliceRandom};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::{rng, seq::SliceRandom};
 
 #[allow(dead_code)]
 fn bootstrap_augment(data: &Array1<f64>, targetsize: usize) -> Array1<f64> {
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::thread_rng();
     let mut augmented = Vec::with_capacity(targetsize);
     
     for _ in 0..targetsize {

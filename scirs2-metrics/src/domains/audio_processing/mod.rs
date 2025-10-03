@@ -14,8 +14,8 @@
 
 use super::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, ArrayView1, ArrayView2};
-use num_traits::{Float, ToPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, ToPrimitive};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -569,7 +569,7 @@ impl DomainMetrics for AudioProcessingMetrics {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_audio_processing_metrics_creation() {

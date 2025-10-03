@@ -29,8 +29,8 @@ pub use self::tridiagonal::*;
 // Export specific functions from block_tridiagonal for benchmark compatibility
 pub use self::block_tridiagonal::block_tridiagonal_lu;
 
-use ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
-use num_traits::{Float, NumAssign, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 

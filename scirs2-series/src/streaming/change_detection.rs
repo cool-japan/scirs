@@ -3,7 +3,7 @@
 //! This module provides algorithms for detecting changes in streaming time series data,
 //! including CUSUM (Cumulative Sum) control charts for real-time change detection.
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::time::Instant;
 

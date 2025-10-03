@@ -21,9 +21,9 @@
 //! * Matrix rank estimation
 //! * Power method for eigenvalues
 
-use ndarray::{Array2, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 
 use scirs2_core::validation::check_square;

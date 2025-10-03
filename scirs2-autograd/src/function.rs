@@ -3,8 +3,8 @@
 //! This module provides a functional interface to autograd operations,
 //! making it easier to use the computational graph with a Pythonic style.
 
-use ndarray::{Array, IxDyn};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use crate::error::{AutogradError, Result};
@@ -271,7 +271,7 @@ pub fn sum<F: Float + Debug + Send + Sync + 'static>(
             )));
         }
 
-        x.data.sum_axis(ndarray::Axis(axis)).into_dyn()
+        x.data.sum_axis(scirs2_core::ndarray::Axis(axis)).into_dyn()
     } else {
         // Sum all elements
         let sum_val = x.data.sum();
@@ -311,7 +311,7 @@ pub fn mean<F: Float + Debug + Send + Sync + 'static>(
             )));
         }
 
-        let sum = x.data.sum_axis(ndarray::Axis(axis));
+        let sum = x.data.sum_axis(scirs2_core::ndarray::Axis(axis));
         let count = F::from(x.shape()[axis]).unwrap();
         let mean = sum.mapv(|v| v / count);
         mean.into_dyn()
@@ -546,14 +546,14 @@ pub fn softmax<F: Float + Debug + Send + Sync + 'static>(
     }
 
     // Compute max for numerical stability
-    let max_vals = x.data.map_axis(ndarray::Axis(dim), |view| {
+    let max_vals = x.data.map_axis(scirs2_core::ndarray::Axis(dim), |view| {
         view.fold(F::neg_infinity(), |a, &b| if a > b { a } else { b })
     });
 
     // Subtract max and compute exp
     let mut exp_vals = x.data.clone();
     for (mut row, &max) in exp_vals
-        .lanes_mut(ndarray::Axis(dim))
+        .lanes_mut(scirs2_core::ndarray::Axis(dim))
         .into_iter()
         .zip(max_vals.iter())
     {
@@ -561,12 +561,12 @@ pub fn softmax<F: Float + Debug + Send + Sync + 'static>(
     }
 
     // Compute sum of exps
-    let sum_vals = exp_vals.map_axis(ndarray::Axis(dim), |view| view.sum());
+    let sum_vals = exp_vals.map_axis(scirs2_core::ndarray::Axis(dim), |view| view.sum());
 
     // Normalize by sum
     let mut result_data = exp_vals.clone();
     for (mut row, &sum) in result_data
-        .lanes_mut(ndarray::Axis(dim))
+        .lanes_mut(scirs2_core::ndarray::Axis(dim))
         .into_iter()
         .zip(sum_vals.iter())
     {
@@ -616,16 +616,16 @@ pub fn softmax<F: Float + Debug + Send + Sync + 'static>(
                 let mut result = s_times_gy.clone();
                 
                 // For each batch element
-                for idx in ndarray::indices(result_data_clone.shape()[..last_dim].iter().cloned()) {
+                for idx in scirs2_core::ndarray::indices(result_data_clone.shape()[..last_dim].iter().cloned()) {
                     // Get the batch item's softmax outputs and gradients
-                    let s_batch = result_data_clone.index_axis(ndarray::Axis(last_dim-1), idx[last_dim-1]);
-                    let gy_batch = dx.index_axis(ndarray::Axis(last_dim-1), idx[last_dim-1]);
+                    let s_batch = result_data_clone.index_axis(scirs2_core::ndarray::Axis(last_dim-1), idx[last_dim-1]);
+                    let gy_batch = dx.index_axis(scirs2_core::ndarray::Axis(last_dim-1), idx[last_dim-1]);
                     
                     // Compute sum(S_i * gy_i) for this batch item
                     let dot_s_gy = (&s_batch * &gy_batch).sum();
                     
                     // Update the result for this batch item
-                    let mut view = result.index_axis_mut(ndarray::Axis(last_dim-1), idx[last_dim-1]);
+                    let mut view = result.index_axis_mut(scirs2_core::ndarray::Axis(last_dim-1), idx[last_dim-1]);
                     view -= &(&s_batch * dot_s_gy);
                 }
                 
@@ -714,11 +714,11 @@ pub fn cat<F: Float + Debug + Send + Sync + 'static>(
         let size_along_dim = tensor.shape()[dim];
         
         // Create a view into the result array where this tensor's data will go
-        let mut indices: Vec<ndarray::SliceInfo<_, ndarray::SliceArg>> = 
+        let mut indices: Vec<scirs2_core::ndarray::SliceInfo<_, scirs2_core::ndarray::SliceArg>> = 
             (0..ndim).map(|d| if d == dim {
-                ndarray::s![offset..offset + size_along_dim]
+                scirs2_core::ndarray::s![offset..offset + size_along_dim]
             } else {
-                ndarray::s![..]
+                scirs2_core::ndarray::s![..]
             }).collect();
         
         // Get a mutable slice view and assign tensor data
@@ -759,11 +759,11 @@ pub fn cat<F: Float + Debug + Send + Sync + 'static>(
                         let size_along_dim = tensorshape[dim];
                         
                         // Create a slice of the gradient corresponding to this tensor
-                        let mut indices: Vec<ndarray::SliceInfo<_, ndarray::SliceArg>> = 
+                        let mut indices: Vec<scirs2_core::ndarray::SliceInfo<_, scirs2_core::ndarray::SliceArg>> = 
                             (0..grad.ndim()).map(|d| if d == dim {
-                                ndarray::s![offset..offset + size_along_dim]
+                                scirs2_core::ndarray::s![offset..offset + size_along_dim]
                             } else {
-                                ndarray::s![..]
+                                scirs2_core::ndarray::s![..]
                             }).collect();
                         
                         // Extract the slice view

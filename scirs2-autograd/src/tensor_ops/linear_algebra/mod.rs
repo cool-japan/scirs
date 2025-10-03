@@ -237,7 +237,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::extract_diag;
 ///
@@ -264,14 +264,14 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::trace;
 ///
 /// ag::run(|g| {
 ///    let x = ag::tensor_ops::convert_to_tensor(array![[1., 2.], [3., 4.]], g);
 ///    let tr = trace(x);
-///    assert_eq!(tr.eval(g), Ok(ndarray::arr0(5.).into_dyn()));
+///    assert_eq!(tr.eval(g), Ok(scirs2_core::ndarray::arr0(5.).into_dyn()));
 /// });
 /// ```
 #[allow(dead_code)]
@@ -313,7 +313,7 @@ pub fn eye<F: Float>(size: usize, graph: &impl AsGraph<F>) -> Tensor<'_, F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::diag;
 ///
@@ -344,7 +344,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::qr;
 ///
@@ -370,7 +370,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::svd;
 ///
@@ -384,7 +384,7 @@ where
 /// });
 /// ```
 #[allow(dead_code)]
-pub fn svd<'graph, A, F: Float + ndarray::ScalarOperand>(
+pub fn svd<'graph, A, F: Float + scirs2_core::ndarray::ScalarOperand>(
     x: A,
 ) -> (Tensor<'graph, F>, Tensor<'graph, F>, Tensor<'graph, F>)
 where
@@ -399,7 +399,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::eigenvalues;
 ///
@@ -410,7 +410,11 @@ where
 /// });
 /// ```
 #[allow(dead_code)]
-pub fn eigenvalues<'graph, A, F: Float + ndarray::ScalarOperand + num_traits::FromPrimitive>(
+pub fn eigenvalues<
+    'graph,
+    A,
+    F: Float + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive,
+>(
     x: A,
 ) -> Tensor<'graph, F>
 where
@@ -428,7 +432,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::eigen;
 ///
@@ -440,7 +444,11 @@ where
 /// });
 /// ```
 #[allow(dead_code)]
-pub fn eigen<'graph, A, F: Float + ndarray::ScalarOperand + num_traits::FromPrimitive>(
+pub fn eigen<
+    'graph,
+    A,
+    F: Float + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive,
+>(
     x: A,
 ) -> (Tensor<'graph, F>, Tensor<'graph, F>)
 where
@@ -455,18 +463,20 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::determinant;
 ///
 /// ag::run(|g| {
 ///    let a = ag::tensor_ops::convert_to_tensor(array![[1., 2.], [3., 4.]], g);
 ///    let det = determinant(a);
-///    assert_eq!(det.eval(g), Ok(ndarray::arr0(-2.).into_dyn()));
+///    assert_eq!(det.eval(g), Ok(scirs2_core::ndarray::arr0(-2.).into_dyn()));
 /// });
 /// ```
 #[allow(dead_code)]
-pub fn determinant<'graph, A, F: Float + ndarray::ScalarOperand>(x: A) -> Tensor<'graph, F>
+pub fn determinant<'graph, A, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    x: A,
+) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
 {
@@ -482,7 +492,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::matrix_inverse;
 ///
@@ -509,7 +519,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::solve;
 ///
@@ -521,7 +531,10 @@ where
 /// });
 /// ```
 #[allow(dead_code)]
-pub fn solve<'graph, A, B, F: Float + ndarray::ScalarOperand>(a: A, b: B) -> Tensor<'graph, F>
+pub fn solve<'graph, A, B, F: Float + scirs2_core::ndarray::ScalarOperand>(
+    a: A,
+    b: B,
+) -> Tensor<'graph, F>
 where
     A: AsRef<Tensor<'graph, F>> + Copy,
     B: AsRef<Tensor<'graph, F>> + Copy,
@@ -539,7 +552,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::lstsq;
 ///
@@ -809,14 +822,14 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::linear_algebra::frobenius_norm;
 ///
 /// ag::run(|g| {
 ///    let x = ag::tensor_ops::convert_to_tensor(array![[3., 4.], [0., 0.]], g);
 ///    let norm = frobenius_norm(x);
-///    assert_eq!(norm.eval(g), Ok(ndarray::arr0(5.).into_dyn()));
+///    assert_eq!(norm.eval(g), Ok(scirs2_core::ndarray::arr0(5.).into_dyn()));
 /// });
 /// ```
 #[allow(dead_code)]
@@ -934,7 +947,7 @@ mod tests {
     use crate::tensor_ops::convert_to_tensor;
     #[allow(unused_imports)]
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_matrix_operations() {
@@ -961,7 +974,10 @@ mod tests {
 
             // Test trace
             let tr = trace(a);
-            assert_eq!(tr.eval(g).unwrap(), ndarray::arr0(5.0).into_dyn());
+            assert_eq!(
+                tr.eval(g).unwrap(),
+                scirs2_core::ndarray::arr0(5.0).into_dyn()
+            );
 
             // Test diagonal extraction
             let diag_vals = extract_diag(a);
@@ -971,7 +987,7 @@ mod tests {
             // Test determinant (with tolerance for floating point precision)
             let det = determinant(a);
             let det_result = det.eval(g).unwrap();
-            let det_value = det_result[ndarray::IxDyn(&[])];
+            let det_value = det_result[scirs2_core::ndarray::IxDyn(&[])];
             assert!((det_value - (-2.0)).abs() < 1e-5);
         });
     }

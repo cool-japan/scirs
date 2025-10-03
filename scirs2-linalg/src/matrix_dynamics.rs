@@ -48,9 +48,9 @@
 //! - Saad, Y. (1992). "Analysis of Some Krylov Subspace Approximations to the Matrix Exponential Operator"
 //! - Al-Mohy, A. H., & Higham, N. J. (2011). "Computing the Action of the Matrix Exponential"
 
-use ndarray::{s, Array1, Array2, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::decomposition::svd;
@@ -177,7 +177,7 @@ pub struct ODEResult<F> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_dynamics::{matrix_exp_action, DynamicsConfig};
 ///
 /// let a = array![[0.0, 1.0], [-1.0, 0.0]]; // Rotation matrix generator
@@ -194,7 +194,7 @@ pub fn matrix_exp_action<F>(
     config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let (n, k) = b.dim();
     if a.nrows() != n || a.ncols() != n {
@@ -221,7 +221,7 @@ fn high_precision_exp_action<F>(
     _config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
 
@@ -272,7 +272,7 @@ where
 #[allow(dead_code)]
 fn padematrix_exp<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
     let mut result = Array2::eye(n);
@@ -318,7 +318,7 @@ fn krylov_exp_action<F>(
     config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let (n, k) = b.dim();
     let m = config.krylov_dim.min(n);
@@ -409,7 +409,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_dynamics::{lyapunov_solve, DynamicsConfig};
 ///
 /// let a = array![[-1.0, 1.0], [0.0, -2.0]]; // Stable matrix
@@ -424,7 +424,7 @@ pub fn lyapunov_solve<F>(
     config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
     if a.ncols() != n || c.nrows() != n || c.ncols() != n {
@@ -460,7 +460,7 @@ fn lyapunov_direct<F>(
     _config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
 
@@ -514,7 +514,7 @@ fn lyapunov_iterative<F>(
     config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
     let mut x = Array2::<F>::zeros((n, n));
@@ -559,7 +559,7 @@ where
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_dynamics::{riccati_solve, DynamicsConfig};
 ///
 /// let a = array![[0.0, 1.0], [0.0, 0.0]]; // Simple integrator
@@ -578,7 +578,7 @@ pub fn riccati_solve<F>(
     config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
     let m = b.ncols();
@@ -609,7 +609,7 @@ fn riccati_hamiltonian<F>(
     _config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
 
@@ -701,15 +701,15 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_dynamics::{matrix_ode_solve, DynamicsConfig};
 ///
 /// // Linear ODE: dX/dt = AX
 /// let a = array![[-1.0, 2.0], [0.0, -3.0]];
 /// let x0 = array![[1.0, 0.0], [0.0, 1.0]];
 ///
-/// let f = |t: f64, x: &ndarray::ArrayView2<f64>| -> Result<ndarray::Array2<f64>, Box<dyn std::error::Error>> {
-///     Ok::<ndarray::Array2<f64>, Box<dyn std::error::Error>>(a.dot(x))
+/// let f = |t: f64, x: &scirs2_core::ndarray::ArrayView2<f64>| -> Result<scirs2_core::ndarray::Array2<f64>, Box<dyn std::error::Error>> {
+///     Ok::<scirs2_core::ndarray::Array2<f64>, Box<dyn std::error::Error>>(a.dot(x))
 /// };
 ///
 /// let result = matrix_ode_solve(f, &x0.view(), [0.0, 1.0], &DynamicsConfig::default()).unwrap();
@@ -722,7 +722,7 @@ pub fn matrix_ode_solve<F, E>(
     config: &DynamicsConfig,
 ) -> LinalgResult<ODEResult<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
     E: std::fmt::Debug,
 {
     let [t_start, t_end] = t_span;
@@ -857,7 +857,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_dynamics::{quantum_evolution, DynamicsConfig};
 ///
 /// // Pauli-Z Hamiltonian
@@ -875,7 +875,7 @@ pub fn quantum_evolution<F>(
     config: &DynamicsConfig,
 ) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = hamiltonian.nrows();
     if hamiltonian.ncols() != n {
@@ -952,7 +952,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_dynamics::stability_analysis;
 ///
 /// let a = array![[-1.0, 1.0], [0.0, -2.0]]; // Stable upper triangular
@@ -963,7 +963,7 @@ where
 #[allow(dead_code)]
 pub fn stability_analysis<F>(a: &ArrayView2<F>) -> LinalgResult<(bool, Array1<Complex<F>>, F)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + 'static + ndarray::ScalarOperand,
+    F: Float + NumAssign + Sum + Send + Sync + 'static + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
     if a.ncols() != n {
@@ -990,7 +990,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use std::f64::consts::PI;
 
     #[test]

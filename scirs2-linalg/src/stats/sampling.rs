@@ -4,8 +4,8 @@
 //! matrix-valued probability distributions, including multivariate normal,
 //! Wishart, and other specialized distributions.
 
-use ndarray::{Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, One, Zero};
 
 use crate::decomposition::cholesky;
 use crate::error::{LinalgError, LinalgResult};
@@ -37,9 +37,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -98,9 +98,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -140,9 +140,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
@@ -185,9 +185,9 @@ where
         + Copy
         + std::fmt::Debug
         + std::fmt::Display
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync,
@@ -246,9 +246,9 @@ where
         + Copy
         + std::fmt::Debug
         + std::fmt::Display
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync,
@@ -415,9 +415,9 @@ where
         + One
         + Copy
         + std::fmt::Debug
-        + ndarray::ScalarOperand
-        + num_traits::FromPrimitive
-        + num_traits::NumAssign
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::FromPrimitive
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync,
@@ -480,7 +480,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_sample_multivariate_normal() {
@@ -493,7 +493,7 @@ mod tests {
         assert!(samples.iter().all(|&x| x.is_finite()));
 
         // Check that sample mean is approximately correct
-        let sample_mean = samples.mean_axis(ndarray::Axis(0)).unwrap();
+        let sample_mean = samples.mean_axis(scirs2_core::ndarray::Axis(0)).unwrap();
         assert_abs_diff_eq!(sample_mean[0], 0.0, epsilon = 0.5);
         assert_abs_diff_eq!(sample_mean[1], 0.0, epsilon = 0.5);
     }

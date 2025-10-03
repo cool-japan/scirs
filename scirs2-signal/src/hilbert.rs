@@ -8,9 +8,9 @@
 // processing applications.
 
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
-use num_traits::{Float, NumCast};
 use rustfft;
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::{Float, NumCast};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 
@@ -90,7 +90,7 @@ where
     let signal: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val)
+            NumCast::from(val)
                 .ok_or_else(|| SignalError::ValueError(format!("Could not convert {val:?} to f64")))
         })
         .collect::<SignalResult<Vec<_>>>()?;
@@ -106,7 +106,7 @@ where
     // 3. Zero out the negative frequencies
     let mut h = vec![Complex64::new(1.0, 0.0); n];
 
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         // Even length case
         h[0] = Complex64::new(1.0, 0.0); // DC component
         h[n / 2] = Complex64::new(1.0, 0.0); // Nyquist component

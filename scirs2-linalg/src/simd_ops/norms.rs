@@ -5,7 +5,7 @@
 //! All SIMD operations are delegated to scirs2-core::simd_ops for unified optimization.
 
 #[cfg(feature = "simd")]
-use ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 #[cfg(feature = "simd")]
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
@@ -259,7 +259,7 @@ pub fn simdmatrix_norm_inf_f64(matrix: &ArrayView2<f64>) -> f64 {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Array1};
+    use scirs2_core::ndarray::{array, Array1};
 
     #[test]
     #[cfg(feature = "simd")]

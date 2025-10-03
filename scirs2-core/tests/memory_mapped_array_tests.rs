@@ -16,7 +16,7 @@ mod tests {
         let data = Array1::<f64>::linspace(0., 99., 100);
 
         // Create memory-mapped array
-        let mmap = create_mmap::<f64, ndarray::OwnedRepr<f64>, Ix1>(
+        let mmap = create_mmap::<f64, scirs2_core::ndarray::OwnedRepr<f64>, Ix1>(
             &data,
             &file_path,
             AccessMode::Write,
@@ -42,7 +42,7 @@ mod tests {
         let data = Array2::<f32>::from_shape_fn((10, 5), |(i, j)| (i * 5 + j) as f32);
 
         // Create memory-mapped array in write mode
-        let mut mmap = create_mmap::<f32, ndarray::OwnedRepr<f32>, Ix2>(
+        let mut mmap = create_mmap::<f32, scirs2_core::ndarray::OwnedRepr<f32>, Ix2>(
             &data,
             &file_path,
             AccessMode::Write,
@@ -140,9 +140,12 @@ mod tests {
         let data = Array1::<f64>::linspace(0., 9., 10);
 
         // Create temporary memory-mapped array
-        let mmap =
-            create_temp_mmap::<f64, ndarray::OwnedRepr<f64>, Ix1>(&data, AccessMode::ReadWrite, 0)
-                .unwrap();
+        let mmap = create_temp_mmap::<f64, scirs2_core::ndarray::OwnedRepr<f64>, Ix1>(
+            &data,
+            AccessMode::ReadWrite,
+            0,
+        )
+        .unwrap();
 
         // Check that it's marked as temporary
         assert!(mmap.is_temp());

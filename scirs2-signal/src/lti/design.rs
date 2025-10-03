@@ -10,7 +10,7 @@
 
 use super::systems::{LtiSystem, StateSpace, TransferFunction, ZerosPoleGain};
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 
 #[allow(unused_imports)]
 /// Create a transfer function system from numerator and denominator coefficients
@@ -62,7 +62,7 @@ pub fn tf(num: Vec<f64>, den: Vec<f64>, dt: Option<bool>) -> SignalResult<Transf
 ///
 /// ```rust
 /// use scirs2_signal::lti::design::zpk;
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Create H(s) = 2 * (s + 1) / (s + 2)(s + 3)
 /// let sys = zpk(
@@ -703,7 +703,7 @@ mod tests {
     use crate::lti::systems::{LtiSystem, StateSpace};
     use crate::lti::{tf, TransferFunction};
     use approx::assert_relative_eq;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     #[test]
     fn test_system_creation() {
         // Test transfer function creation

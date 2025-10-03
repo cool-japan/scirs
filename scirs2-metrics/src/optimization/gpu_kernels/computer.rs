@@ -8,8 +8,8 @@
 
 use crate::error::{MetricsError, Result};
 use crate::optimization::gpu_kernels::runtime::GpuRuntime;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

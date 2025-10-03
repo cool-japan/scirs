@@ -21,7 +21,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use ndarray::{Array1, Array2};
+//! use scirs2_core::ndarray::{Array1, Array2};
 //! use scirs2_interpolate::scattered_optimized::{
 //!     OptimizedScatteredInterpolator, ScatteredConfig
 //! };
@@ -40,8 +40,8 @@ use crate::advanced::rbf::RBFKernel;
 use crate::cache_aware::{CacheOptimizedConfig, CacheOptimizedStats};
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::spatial::enhanced_search::{EnhancedNearestNeighborSearcher, IndexType, SearchConfig};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use std::fmt::{Debug, Display};
 use std::sync::{Arc, RwLock};
@@ -675,7 +675,7 @@ where
 
         for chunk_start in (0..n_queries).step_by(chunk_size) {
             let chunk_end = (chunk_start + chunk_size).min(n_queries);
-            let chunk = querypoints.slice(ndarray::s![chunk_start..chunk_end, ..]);
+            let chunk = querypoints.slice(scirs2_core::ndarray::s![chunk_start..chunk_end, ..]);
 
             let chunk_results = self.interpolate_direct(&chunk)?;
 
@@ -739,7 +739,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_optimized_scattered_interpolator_creation() {

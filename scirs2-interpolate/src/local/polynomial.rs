@@ -8,8 +8,8 @@
 //! The main difference from Moving Least Squares is the additional focus on
 //! regression diagnostics, bandwidth selection, and statistical properties.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
@@ -97,7 +97,7 @@ impl<F: Float + FromPrimitive> Default for LocalPolynomialConfig<F> {
 /// ```
 /// # #[cfg(feature = "linalg")]
 /// # {
-/// use ndarray::{Array1, Array2, Axis};
+/// use scirs2_core::ndarray::{Array1, Array2, Axis};
 /// use scirs2_interpolate::local::polynomial::{
 ///     LocalPolynomialRegression, LocalPolynomialConfig
 /// };
@@ -317,7 +317,7 @@ where
 
         // Fit at each point
         for i in 0..n_points {
-            let point = points.slice(ndarray::s![i, ..]);
+            let point = points.slice(scirs2_core::ndarray::s![i, ..]);
             let result = self.fit_at_point(&point)?;
             results[i] = result.value;
         }
@@ -919,7 +919,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::{array, Axis};
+    use scirs2_core::ndarray::{array, Axis};
 
     #[test]
     fn test_local_polynomial_regression() {

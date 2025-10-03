@@ -7,8 +7,8 @@
 use crate::error::{NeuralError, Result};
 use crate::utils::colors::{colorize, stylize, Color, ColorOptions, Style};
 use crate::utils::evaluation::helpers::draw_line_with_coords;
-use ndarray::{Array1, Array2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 // Removed problematic type alias - use trait bounds directly in implementations
 /// Learning curve data structure for visualizing model performance
@@ -43,7 +43,7 @@ impl<F: Float + Debug + Display + FromPrimitive> LearningCurve<F> {
     /// * `Result<LearningCurve<F>>` - Learning curve data
     /// # Example
     /// ```
-    /// use ndarray::{Array1, Array2};
+    /// use scirs2_core::ndarray::{Array1, Array2};
     /// use scirs2_neural::utils::evaluation::LearningCurve;
     /// // Create sample data
     /// let train_sizes = Array1::from_vec(vec![100, 200, 300, 400, 500]);

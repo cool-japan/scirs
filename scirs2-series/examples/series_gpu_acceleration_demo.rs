@@ -3,7 +3,7 @@
 //! This example shows how to use GPU acceleration for large-scale time series processing
 //! and demonstrates advanced machine learning integration capabilities.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_series::{
     forecasting::neural::{LSTMConfig, LSTMForecaster, NeuralForecaster},
     gpu_acceleration::{
@@ -100,19 +100,17 @@ fn gpu_device_management_demo() {
             }
 
             // Try to set a device
-            if !devices.is_empty() {
-                if let Ok(_) = manager.set_device(0) {
-                    println!("  Successfully set device 0 as active");
+            if !devices.is_empty() && manager.set_device(0).is_ok() {
+                println!("  Successfully set device 0 as active");
 
-                    if let Some(caps) = manager.current_device_capabilities() {
-                        println!(
-                            "  Active device supports GPU: {}",
-                            !matches!(
-                                caps.backend,
-                                scirs2_series::gpu_acceleration::GpuBackend::CpuFallback
-                            )
-                        );
-                    }
+                if let Some(caps) = manager.current_device_capabilities() {
+                    println!(
+                        "  Active device supports GPU: {}",
+                        !matches!(
+                            caps.backend,
+                            scirs2_series::gpu_acceleration::GpuBackend::CpuFallback
+                        )
+                    );
                 }
             }
         }

@@ -9,7 +9,7 @@ use super::transform::zpk_to_tf;
 use crate::error::{SignalError, SignalResult};
 use crate::lti::design::tf as design_tf;
 use crate::lti::TransferFunction;
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 
 #[allow(unused_imports)]
 /// Design a notch filter to remove a specific frequency
@@ -261,7 +261,7 @@ pub fn hilbert_filter(numtaps: usize) -> SignalResult<Vec<f64>> {
         ));
     }
 
-    if numtaps % 2 == 0 {
+    if numtaps.is_multiple_of(2) {
         return Err(SignalError::ValueError(
             "Number of taps should be odd for linear phase".to_string(),
         ));
@@ -325,7 +325,7 @@ pub fn differentiator_filter(numtaps: usize) -> SignalResult<Vec<f64>> {
         ));
     }
 
-    if numtaps % 2 == 0 {
+    if numtaps.is_multiple_of(2) {
         return Err(SignalError::ValueError(
             "Number of taps should be odd for linear phase".to_string(),
         ));

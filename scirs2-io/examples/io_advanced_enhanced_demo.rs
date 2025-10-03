@@ -204,7 +204,7 @@ fn demonstrate_emergent_pattern_detection(
                     "     Combined: {} + {}",
                     meta_pattern
                         .pattern_combination
-                        .get(0)
+                        .first()
                         .unwrap_or(&"unknown".to_string()),
                     meta_pattern
                         .pattern_combination
@@ -287,7 +287,7 @@ fn demonstrate_meta_pattern_recognition(recognizer: &mut AdvancedPatternRecogniz
                     "     Pattern Fusion: {} ⊗ {}",
                     meta_pattern
                         .pattern_combination
-                        .get(0)
+                        .first()
                         .unwrap_or(&"A".to_string()),
                     meta_pattern
                         .pattern_combination
@@ -603,7 +603,7 @@ fn demonstrate_real_world_analysis(recognizer: &mut AdvancedPatternRecognizer) -
                     / analysis.pattern_scores.len() as f32;
                 println!("   Traffic Regularity: {:.3}", periodicity);
 
-                if analysis.emergent_patterns.len() > 0 {
+                if !analysis.emergent_patterns.is_empty() {
                     println!("   🚨 Anomalous traffic patterns detected");
                 }
             }
@@ -625,7 +625,7 @@ fn demonstrate_real_world_analysis(recognizer: &mut AdvancedPatternRecognizer) -
     println!("🔬 Cross-Domain Pattern Analysis:");
     let mut pattern_prevalence = std::collections::HashMap::new();
 
-    for (_domain, analysis) in &domain_insights {
+    for analysis in domain_insights.values() {
         for (pattern_type, score) in &analysis.pattern_scores {
             if *score > 0.6 {
                 *pattern_prevalence.entry(pattern_type.clone()).or_insert(0) += 1;
@@ -657,7 +657,7 @@ fn demonstrate_real_world_analysis(recognizer: &mut AdvancedPatternRecognizer) -
 
 #[allow(dead_code)]
 fn generate_repetitive_pattern(size: usize) -> Vec<u8> {
-    let pattern = vec![1, 2, 3, 4, 5];
+    let pattern = [1, 2, 3, 4, 5];
     (0..size).map(|i| pattern[i % pattern.len()]).collect()
 }
 
@@ -672,7 +672,7 @@ fn generate_fractal_data(size: usize) -> Vec<u8> {
         .map(|i| {
             let x = i as f32 / size as f32;
             let fractal = (x * 16.0).sin() * (x * 32.0).cos() * (x * 64.0).sin();
-            ((fractal * 127.0 + 128.0) as u8).min(255)
+            (fractal * 127.0 + 128.0) as u8
         })
         .collect()
 }
@@ -872,7 +872,7 @@ fn generate_sensor_scenario(size: usize) -> Vec<u8> {
 fn generate_training_data_type_a(size: usize) -> Vec<u8> {
     (0..size)
         .map(|i| {
-            let pattern = vec![1, 2, 4, 8, 16, 32, 64, 128];
+            let pattern = [1, 2, 4, 8, 16, 32, 64, 128];
             pattern[i % pattern.len()]
         })
         .collect()
@@ -925,14 +925,14 @@ fn generate_financial_time_series(size: usize) -> Vec<u8> {
             let trend = (i as f32 * 0.001).exp();
             let volatility = (i as f32 * 0.1).sin() * 0.2 + 1.0;
             let price = trend * volatility * 100.0;
-            (price as u8).min(255)
+            price as u8
         })
         .collect()
 }
 
 #[allow(dead_code)]
 fn generate_genomic_sequence(size: usize) -> Vec<u8> {
-    let bases = vec![0, 1, 2, 3]; // A, T, G, C
+    let bases = [0, 1, 2, 3]; // A, T, G, C
     (0..size)
         .map(|i| {
             if i % 20 < 5 {

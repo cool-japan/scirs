@@ -6,7 +6,7 @@
 use super::super::QuantizationParams;
 use super::utils::*;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use std::fmt::Debug;
 
 // -------------------------------------------------------------------------
@@ -21,8 +21,11 @@ pub(super) fn calibrate_vector_minmax<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Find min and max values in the vector
     let mut min_val = f32::MAX;
@@ -60,8 +63,11 @@ pub(super) fn calibrate_vector_moving_average<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Convert vector to a flattened vector of finite f32 values
     let mut values: Vec<f32> = vector
@@ -109,8 +115,11 @@ pub(super) fn calibrate_vector_percentile<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     if !(0.0..=1.0).contains(&percentile) {
         return Err(LinalgError::ValueError(
@@ -160,8 +169,11 @@ pub(super) fn calibrate_vector_entropy<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // First get min-max range to create histogram
     let (min_val, max_val) = find_min_max_vec(vector);
@@ -184,8 +196,11 @@ pub(super) fn calibrate_vector_mse<F>(
     symmetric: bool,
 ) -> LinalgResult<QuantizationParams>
 where
-    F: num_traits::Float + Debug + num_traits::AsPrimitive<f32> + num_traits::FromPrimitive,
-    f32: num_traits::AsPrimitive<F>,
+    F: scirs2_core::numeric::Float
+        + Debug
+        + scirs2_core::numeric::AsPrimitive<f32>
+        + scirs2_core::numeric::FromPrimitive,
+    f32: scirs2_core::numeric::AsPrimitive<F>,
 {
     // Start with min-max calibration
     let mut base_params = calibrate_vector_minmax(vector, bits, symmetric)?;

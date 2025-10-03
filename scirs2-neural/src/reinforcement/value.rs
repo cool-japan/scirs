@@ -3,8 +3,8 @@
 use crate::activations::Activation;
 use crate::error::Result;
 use crate::layers::{Dense, Layer};
-use ndarray::prelude::*;
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::ndarray::ArrayView1;
 use statrs::statistics::Statistics;
 /// Value function network
 pub struct ValueNetwork {
@@ -135,9 +135,9 @@ impl DQN {
             target_update_freq,
     /// Select action using epsilon-greedy policy
     pub fn select_action(&self, state: &ArrayView1<f32>, training: bool) -> Result<usize> {
-        if training && rand::random::<f32>() < self.epsilon {
+        if training && scirs2_core::random::random::<f32>() < self.epsilon {
             // Random action
-            Ok(rand::random::<usize>() % self.q_network.action_dim)
+            Ok(scirs2_core::random::random::<usize>() % self.q_network.action_dim)
             // Greedy action
             self.q_network.get_best_action(state)
     /// Update Q-network using experience batch

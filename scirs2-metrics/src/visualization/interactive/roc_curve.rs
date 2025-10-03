@@ -3,7 +3,7 @@
 //! This module provides tools for creating interactive ROC curve visualizations with
 //! threshold adjustment and performance metrics display.
 
-use ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
 use std::collections::HashMap;
 use std::error::Error;
 
@@ -617,7 +617,7 @@ pub fn interactive_roc_curve_visualization(
     tpr: Vec<f64>,
     thresholds: Option<Vec<f64>>,
     auc: Option<f64>,
-) -> InteractiveROCVisualizer<'static, f64, ndarray::OwnedRepr<f64>> {
+) -> InteractiveROCVisualizer<'static, f64, scirs2_core::ndarray::OwnedRepr<f64>> {
     InteractiveROCVisualizer::new(fpr, tpr, thresholds, auc)
 }
 

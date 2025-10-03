@@ -36,8 +36,8 @@
 //! println!("Geary's C: {:.3}", geary);
 //! ```
 
-use num_traits::Float;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 
 use crate::error::{SpatialError, SpatialResult};
 

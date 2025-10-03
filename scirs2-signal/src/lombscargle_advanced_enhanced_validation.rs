@@ -6,8 +6,8 @@
 
 use crate::error::SignalResult;
 use crate::lombscargle::lombscargle;
-use ndarray::Array1;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::Rng;
 use std::time::Instant;
 
 #[allow(unused_imports)]
@@ -222,7 +222,7 @@ fn validate_basic_accuracy() -> SignalResult<LombScargleAccuracyValidation> {
     // Test 1: Single frequency sinusoid with irregular sampling
     for &freq in &[0.1, 1.0, 5.0, 10.0] {
         let n = 200;
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Generate irregular time samples
         let mut t = Vec::new();
@@ -326,7 +326,7 @@ fn validate_statistical_robustness() -> SignalResult<StatisticalRobustnessMetric
     for _ in 0..n_trials {
         let n = 200;
         let t: Vec<f64> = (0..n).map(|i| i as f64 * 0.01).collect();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let y: Vec<f64> = (0..n).map(|_| rng.gen_range(-1.0..1.0)).collect();
 
         let freq_grid = Array1::linspace(0.1, 10.0, 100);

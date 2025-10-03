@@ -3,7 +3,7 @@
 //! This module provides additional window functions and analysis capabilities
 //! to complement the basic window module, matching SciPy's comprehensive catalog.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::f64::consts::PI;
 
 use crate::error::{FFTError, FFTResult};
@@ -322,7 +322,7 @@ pub fn analyze_window(
 
     let fft_result = fft(
         &padded
-            .mapv(|x| num_complex::Complex64::new(x, 0.0))
+            .mapv(|x| scirs2_core::numeric::Complex64::new(x, 0.0))
             .to_vec(),
         None,
     )?;
@@ -383,9 +383,9 @@ pub fn visualize_window(
 
     // Frequency response
     let n_fft = 8 * n;
-    let mut padded = vec![num_complex::Complex64::new(0.0, 0.0); n_fft];
+    let mut padded = vec![scirs2_core::numeric::Complex64::new(0.0, 0.0); n_fft];
     for i in 0..n {
-        padded[i] = num_complex::Complex64::new(window[i], 0.0);
+        padded[i] = scirs2_core::numeric::Complex64::new(window[i], 0.0);
     }
 
     let fft_result = fft(&padded, None).unwrap_or(padded);

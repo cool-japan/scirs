@@ -3,7 +3,7 @@
 use crate::error::{NeuralError, Result};
 use crate::federated::{AggregationStrategy, ClientUpdate};
 use crate::models::sequential::Sequential;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::prelude::*;
 use std::sync::{Arc, RwLock};
 /// Server configuration
 #[derive(Debug, Clone)]

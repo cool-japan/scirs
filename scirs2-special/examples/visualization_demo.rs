@@ -83,8 +83,8 @@ fn create_custom_plot() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     MultiPlot::new(config)
-        .add_function(Box::new(|x| ai(x)), "Airy Ai(x)")
-        .add_function(Box::new(|x| bi(x)), "Airy Bi(x)")
+        .add_function(Box::new(ai), "Airy Ai(x)")
+        .add_function(Box::new(bi), "Airy Bi(x)")
         .add_function(
             Box::new(|x| si(x).unwrap_or(f64::NAN)),
             "Sine integral Si(x)",
@@ -103,12 +103,12 @@ fn export_examples() -> Result<(), Box<dyn std::error::Error>> {
     use scirs2_special::gamma;
 
     // Export gamma function data as CSV
-    let csv_data = export_plot_data(|x| gamma(x), (0.1, 5.0), 100, ExportFormat::CSV)?;
+    let csv_data = export_plot_data(gamma, (0.1, 5.0), 100, ExportFormat::CSV)?;
     std::fs::write("plots/gamma_data.csv", csv_data)?;
     println!("   Exported gamma function to CSV: plots/gamma_data.csv");
 
     // Export as LaTeX/TikZ
-    let latex_data = export_plot_data(|x| gamma(x), (0.1, 5.0), 50, ExportFormat::LaTeX)?;
+    let latex_data = export_plot_data(gamma, (0.1, 5.0), 50, ExportFormat::LaTeX)?;
     std::fs::write("plots/gamma_tikz.tex", latex_data)?;
     println!("   Exported gamma function to LaTeX: plots/gamma_tikz.tex");
 

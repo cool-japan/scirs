@@ -14,8 +14,8 @@ build = "build.rs"
 workspace = true
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true, features = ["parallel", "simd"] }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["parallel", "simd", "array", "random"] }
 # Optional dependencies for integration with other modules
 # Note: scirs2-optim integration is handled via external trait implementations to avoid circular dependencies
 # scirs2-neural = { workspace = true, optional = true, default-features = false }
@@ -23,13 +23,8 @@ scirs2-core = { workspace = true, features = ["parallel", "simd"] }
 # Temporarily removed for publishing
 # # # scirs2-stats = { workspace = true }
 # # # scirs2-linalg = { workspace = true }
-ndarray = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
 approx = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
 parking_lot = { workspace = true }
 num_cpus = { workspace = true }
 crossbeam-utils = { workspace = true }

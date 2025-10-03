@@ -3,7 +3,7 @@
 //! This example shows how to use the SIMD-accelerated quantized matrix operations
 //! for improved performance while maintaining reasonable accuracy.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::quantization::simd::{simd_quantized_matmul, simd_quantized_matvec};
 use scirs2_linalg::quantization::{quantize_matrix, QuantizationMethod};
 use std::time::Instant;
@@ -90,7 +90,7 @@ fn generate_randommatrix(rows: usize, cols: usize) -> Array2<f32> {
 
     for i in 0..rows {
         for j in 0..cols {
-            matrix[[i, j]] = rand::random::<f32>() * 2.0 - 1.0; // Values between -1 and 1
+            matrix[[i, j]] = scirs2_core::random::random::<f32>() * 2.0 - 1.0; // Values between -1 and 1
         }
     }
 
@@ -102,7 +102,7 @@ fn generate_random_vector(length: usize) -> Array1<f32> {
     let mut vector = Array1::zeros(length);
 
     for i in 0..length {
-        vector[i] = rand::random::<f32>() * 2.0 - 1.0; // Values between -1 and 1
+        vector[i] = scirs2_core::random::random::<f32>() * 2.0 - 1.0; // Values between -1 and 1
     }
 
     vector

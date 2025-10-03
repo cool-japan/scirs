@@ -169,7 +169,7 @@ fn benchmark_fixed_chunks(
         // Process chunks by summing all elements (simple operation)
         // Note: process_chunks method not available on MemoryMappedArray
         // For demo purposes, we'll process the whole array
-        let data = array.as_array::<ndarray::Ix1>()?;
+        let data = array.as_array::<scirs2_core::ndarray::Ix1>()?;
         let sums = [data.sum()]; // Just one "chunk" for now
 
         let elapsed = start.elapsed();
@@ -305,7 +305,7 @@ fn benchmark_adaptive_parallel(
     let seq_start = Instant::now();
     // Note: process_chunks_adaptive not available on MemoryMappedArray
     // For demo purposes, we'll process the whole array
-    let data = array.as_array::<ndarray::Ix1>()?;
+    let data = array.as_array::<scirs2_core::ndarray::Ix1>()?;
     let seq_result = [data.iter().map(|&x| (x * x).sqrt()).sum::<f64>()];
     let seq_elapsed = seq_start.elapsed();
 
@@ -342,7 +342,7 @@ fn benchmark_adaptive_parallel(
 
         // Note: process_chunks_parallel_adaptive not available on MemoryMappedArray
         // For demo purposes, we'll process the whole array
-        let data = array.as_array::<ndarray::Ix1>()?;
+        let data = array.as_array::<scirs2_core::ndarray::Ix1>()?;
         let result = [data.iter().map(|&x| (x * x).sqrt()).sum::<f64>()];
 
         let elapsed = start.elapsed();

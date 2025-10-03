@@ -6,8 +6,8 @@
 use crate::error::SparseResult;
 use crate::neural_adaptive_sparse::{NeuralAdaptiveConfig, NeuralAdaptiveSparseProcessor};
 use crate::quantum_inspired_sparse::{QuantumSparseConfig, QuantumSparseProcessor};
-use num_traits::{Float, NumAssign};
-use rand::Rng;
+use scirs2_core::numeric::{Float, NumAssign, NumCast};
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -370,7 +370,7 @@ impl QuantumNeuralHybridProcessor {
             let neural_weight = 0.15;
 
             for i in 0..rows {
-                y[i] = num_traits::cast(
+                y[i] = NumCast::from(
                     quantum_weight * quantum_result[i].into()
                         + neural_weight * neural_result[i].into(),
                 )
@@ -428,7 +428,7 @@ impl QuantumNeuralHybridProcessor {
             for i in 0..rows {
                 let current_val: f64 = y[i].into();
                 let enhancement: f64 = quantum_enhancement[i].into();
-                y[i] = num_traits::cast(current_val + enhancement_strength * enhancement)
+                y[i] = NumCast::from(current_val + enhancement_strength * enhancement)
                     .unwrap_or(T::zero());
             }
         }
@@ -481,7 +481,7 @@ impl QuantumNeuralHybridProcessor {
         let neural_weight = self.performance_fusion.fusion_weights[1];
 
         for i in 0..rows {
-            y[i] = num_traits::cast(
+            y[i] = NumCast::from(
                 quantum_weight * quantum_result[i].into() + neural_weight * neural_result[i].into(),
             )
             .unwrap_or(T::zero());
@@ -550,7 +550,7 @@ impl QuantumNeuralHybridProcessor {
             }
 
             // Adaptive blending
-            y[row] = num_traits::cast(quantum_ratio * quantum_sum + neural_ratio * neural_sum)
+            y[row] = NumCast::from(quantum_ratio * quantum_sum + neural_ratio * neural_sum)
                 .unwrap_or(T::zero());
         }
 
@@ -595,7 +595,7 @@ impl QuantumNeuralHybridProcessor {
 
         for coupling in &mut self.hybrid_state.quantum_neural_coupling {
             // Update coupling based on synchronization and random fluctuations
-            let fluctuation = (rand::rng().random::<f64>() - 0.5) * 0.1;
+            let fluctuation = (scirs2_core::random::rng().random::<f64>() - 0.5) * 0.1;
             *coupling = coupling_strength * synchronization + fluctuation;
             *coupling = coupling.clamp(0.0, 2.0);
         }
@@ -676,7 +676,7 @@ impl QuantumNeuralHybridProcessor {
         // Add slight exploration
         let exploration = 0.05;
         self.performance_fusion.fusion_weights[0] +=
-            (rand::rng().random::<f64>() - 0.5) * exploration;
+            (scirs2_core::random::rng().random::<f64>() - 0.5) * exploration;
         self.performance_fusion.fusion_weights[1] = 1.0 - self.performance_fusion.fusion_weights[0];
 
         // Clamp weights

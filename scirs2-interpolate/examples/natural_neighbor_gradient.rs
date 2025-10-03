@@ -3,8 +3,8 @@
 //! This example shows how to use the gradient estimation feature of
 //! Voronoi-based Natural Neighbor interpolation methods.
 
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use scirs2_interpolate::voronoi::{
     make_sibson_interpolator, GradientEstimation, InterpolateWithGradient, InterpolationMethod,
     NaturalNeighborInterpolator,
@@ -30,7 +30,7 @@ fn analytical_gradient(x: f64, y: f64) -> Vec<f64> {
 fn main() -> Result<(), Box<dyn Error>> {
     // Generate scattered data points
     let n_points = 100;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Create points in a 2D domain
     let mut points_vec = Vec::with_capacity(n_points * 2);

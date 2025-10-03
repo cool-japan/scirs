@@ -76,12 +76,12 @@ fn main() {
 
     // Create inputs and targets
     let inputs = Array2::<f64>::from_shape_fn((num_samples, input_dim), |_| {
-        rand::random::<f64>() * 2.0 - 1.0
+        scirs2_core::random::random::<f64>() * 2.0 - 1.0
     });
 
     let mut targets = Array2::<f64>::zeros((num_samples, num_classes));
     for i in 0..num_samples {
-        let class = (rand::random::<f64>() * num_classes as f64).floor() as usize;
+        let class = (scirs2_core::random::random::<f64>() * num_classes as f64).floor() as usize;
         targets[[i, class]] = 1.0;
     }
 
@@ -241,13 +241,21 @@ fn main() {
     let train_size = (num_samples as f64 * 0.8).floor() as usize;
 
     // Create training dataset
-    let train_inputs = inputs.slice(ndarray::s![..train_size, ..]).to_owned();
-    let train_targets = targets.slice(ndarray::s![..train_size, ..]).to_owned();
+    let train_inputs = inputs
+        .slice(scirs2_core::ndarray::s![..train_size, ..])
+        .to_owned();
+    let train_targets = targets
+        .slice(scirs2_core::ndarray::s![..train_size, ..])
+        .to_owned();
     let train_dataset = InMemoryDataset::from_arrays(train_inputs, train_targets);
 
     // Create validation dataset
-    let val_inputs = inputs.slice(ndarray::s![train_size.., ..]).to_owned();
-    let val_targets = targets.slice(ndarray::s![train_size.., ..]).to_owned();
+    let val_inputs = inputs
+        .slice(scirs2_core::ndarray::s![train_size.., ..])
+        .to_owned();
+    let val_targets = targets
+        .slice(scirs2_core::ndarray::s![train_size.., ..])
+        .to_owned();
     let val_dataset = InMemoryDataset::from_arrays(val_inputs, val_targets);
 
     println!(

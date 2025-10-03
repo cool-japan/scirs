@@ -33,7 +33,7 @@
 //! - Neuromorphic-guided quantum optimization
 //! - Bio-quantum hybrid feature detection
 
-use ndarray::{Array1, Array2, Array3};
+use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_ndimage::{
     // Neuromorphic algorithms
     event_driven_processing,
@@ -173,7 +173,7 @@ fn create_advanced_test_dataset() -> AdvancedTestData {
     // Noisy medical-like image
     let mut noisy_medical = naturalimage.clone();
     for element in noisy_medical.iter_mut() {
-        *element += (rand::random::<f64>() - 0.5) * 0.4;
+        *element += (scirs2_core::random::random::<f64>() - 0.5) * 0.4;
         *element = element.tanh(); // Keep in reasonable range
     }
 
@@ -244,26 +244,28 @@ fn create_advanced_test_dataset() -> AdvancedTestData {
 
 #[allow(dead_code)]
 fn configure_quantum_system() -> QuantumConfig {
-    let mut config = QuantumConfig::default();
-    config.iterations = 30;
-    config.coherence_threshold = 0.95;
-    config.entanglement_strength = 0.8;
-    config.noise_level = 0.005;
-    config.use_quantum_acceleration = true;
-    config
+    QuantumConfig {
+        iterations: 30,
+        coherence_threshold: 0.95,
+        entanglement_strength: 0.8,
+        noise_level: 0.005,
+        use_quantum_acceleration: true,
+        ..Default::default()
+    }
 }
 
 #[allow(dead_code)]
 fn configure_neuromorphic_system() -> NeuromorphicConfig {
-    let mut config = NeuromorphicConfig::default();
-    config.tau_membrane = 15.0;
-    config.tau_synaptic = 3.0;
-    config.spike_threshold = 0.8;
-    config.learning_rate = 0.015;
-    config.tau_homeostatic = 500.0;
-    config.max_weight = 3.0;
-    config.stdp_window = 25;
-    config
+    NeuromorphicConfig {
+        tau_membrane: 15.0,
+        tau_synaptic: 3.0,
+        spike_threshold: 0.8,
+        learning_rate: 0.015,
+        tau_homeostatic: 500.0,
+        max_weight: 3.0,
+        stdp_window: 25,
+        ..Default::default()
+    }
 }
 
 #[allow(dead_code)]
@@ -607,7 +609,7 @@ fn demonstrate_multiscale_analysis(
     println!("🏗️ Hierarchical Neuromorphic Multi-Scale Processing...");
 
     // Process at multiple scales
-    let scales = vec![1.0, 0.5, 0.25];
+    let scales = [1.0, 0.5, 0.25];
     let mut multiscale_results = Vec::new();
 
     for (i, &scale) in scales.iter().enumerate() {

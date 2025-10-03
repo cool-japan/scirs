@@ -344,7 +344,7 @@ pub struct PredicateAnalysis {
 mod tests {
     use super::*;
     use crate::parquet::write_parquet;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
     use tempfile::tempdir;
 
     #[test]

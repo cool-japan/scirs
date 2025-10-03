@@ -5,7 +5,7 @@
 
 use super::models::{RANSModel as RANSModelTrait, TurbulenceConstants, TurbulenceModel};
 use crate::error::IntegrateResult;
-use ndarray::{Array2, Array3};
+use scirs2_core::ndarray::{Array2, Array3};
 
 /// RANS turbulence models
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

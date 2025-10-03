@@ -3,8 +3,8 @@
 //! This module provides the core scaled dot-product attention mechanism
 //! used in Transformer models, including optimized implementations for f32.
 
-use ndarray::{Array3, ArrayView3};
-use num_traits::{Float, NumAssignOps, Zero};
+use scirs2_core::ndarray::{Array3, ArrayView3};
+use scirs2_core::numeric::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
 use super::utils::{attention, AttentionMask};
@@ -116,9 +116,9 @@ fn blas_attention_f32(
 
     for b in 0..batchsize {
         // Extract batch slices
-        let q_b = query.slice(ndarray::s![b, .., ..]);
-        let k_b = key.slice(ndarray::s![b, .., ..]);
-        let v_b = value.slice(ndarray::s![b, .., ..]);
+        let q_b = query.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let k_b = key.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let v_b = value.slice(scirs2_core::ndarray::s![b, .., ..]);
 
         // Compute scores using BLAS matrix multiplication: QK^T
         // First transpose the key matrix
@@ -135,7 +135,7 @@ fn blas_attention_f32(
 
         // Apply softmax along the last dimension
         for i in 0..seq_len_q {
-            let mut row = scores_scaled.slice_mut(ndarray::s![i, ..]);
+            let mut row = scores_scaled.slice_mut(scirs2_core::ndarray::s![i, ..]);
 
             // Find the maximum value for numerical stability
             let max_val = row.fold(f32::NEG_INFINITY, |max, &x| max.max(x));
@@ -162,7 +162,9 @@ fn blas_attention_f32(
         let output = blas_accelerated::matmul(&scores_view, &v_b_view)?;
 
         // Store the result for this batch
-        result.slice_mut(ndarray::s![b, .., ..]).assign(&output);
+        result
+            .slice_mut(scirs2_core::ndarray::s![b, .., ..])
+            .assign(&output);
     }
 
     Ok(result)

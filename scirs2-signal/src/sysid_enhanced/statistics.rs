@@ -6,8 +6,8 @@
 
 use crate::error::{SignalError, SignalResult};
 use super::types::*;
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
 
 /// Jarque-Bera test for normality of residuals
 ///
@@ -25,7 +25,7 @@ use num_complex::Complex64;
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::sysid_enhanced::statistics::jarque_bera_test;
 ///
 /// // Test normally distributed data

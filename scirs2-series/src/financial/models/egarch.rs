@@ -34,7 +34,7 @@
 //! ## Basic EGARCH(1,1) Model
 //! ```rust
 //! use scirs2_series::financial::models::egarch::{EgarchModel, EgarchConfig};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = EgarchModel::egarch_11();
 //! let data = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -64,7 +64,7 @@
 //! ## Analyzing Asymmetric Effects
 //! ```rust
 //! use scirs2_series::financial::models::egarch::EgarchModel;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = EgarchModel::egarch_11();
 //! let data = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -82,8 +82,8 @@
 //! }
 //! ```
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -222,7 +222,7 @@ impl<F: Float + Debug + std::iter::Sum> EgarchModel<F> {
     /// # Examples
     /// ```rust
     /// use scirs2_series::financial::models::egarch::EgarchModel;
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     ///
     /// let mut model = EgarchModel::<f64>::egarch_11();
     /// let data = array![1.0, 1.01, 0.99, 1.02, 0.98]; // Price series
@@ -476,7 +476,7 @@ pub fn normal_cdf<F: Float>(x: F) -> F {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_egarch_basic() {

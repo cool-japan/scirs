@@ -4,9 +4,9 @@
 //! which process information using discrete spike events rather than continuous signals.
 
 use super::{NeuromorphicConfig, SpikeEvent};
-use ndarray::{Array1, ArrayView1};
-use rand::Rng;
 use scirs2_core::error::CoreResult as Result;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::Rng;
 use std::collections::VecDeque;
 
 /// Spiking neural network for optimization
@@ -95,7 +95,7 @@ impl SpikingNeuron {
 
         // Add noise
         let noise = if self.noise_amplitude > 0.0 {
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             (rng.random::<f64>() - 0.5) * 2.0 * self.noise_amplitude
         } else {
             0.0
@@ -219,7 +219,7 @@ impl SpikingNeuralNetwork {
         // Create random connectivity
         let mut synapses = vec![Vec::new(); config.num_neurons];
         let connection_probability = 0.1; // 10% connection probability
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         for i in 0..config.num_neurons {
             for j in 0..config.num_neurons {

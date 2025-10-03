@@ -5,7 +5,7 @@
 //! numerical accuracy.
 
 use crate::error::SpecialResult;
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 

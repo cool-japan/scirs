@@ -6,8 +6,8 @@
 //! to provide optimal performance across different scenarios.
 
 use crate::error::StatsResult;
-use ndarray::{ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -1036,7 +1036,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_adaptive_simd_config() {

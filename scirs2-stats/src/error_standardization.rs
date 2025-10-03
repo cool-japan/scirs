@@ -174,7 +174,7 @@ impl ErrorValidator {
 
     /// Validate probability value
     pub fn validate_probability(value: f64, name: &str) -> StatsResult<()> {
-        if value < 0.0 || value > 1.0 {
+        if !(0.0..=1.0).contains(&value) {
             return Err(ErrorMessages::invalid_probability(name, value));
         }
         if value.is_nan() {

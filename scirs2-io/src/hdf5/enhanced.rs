@@ -14,8 +14,8 @@
 use crate::error::{IoError, Result};
 use crate::hdf5::{CompressionOptions, DatasetOptions, FileMode, HDF5File};
 #[cfg(feature = "hdf5")]
-use ndarray::IxDyn;
-use ndarray::{ArrayBase, ArrayD};
+use scirs2_core::ndarray::IxDyn;
+use scirs2_core::ndarray::{ArrayBase, ArrayD};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Mutex, RwLock};
@@ -153,9 +153,9 @@ impl EnhancedHDF5File {
         options: DatasetOptions,
     ) -> Result<()>
     where
-        A: ndarray::Data,
+        A: scirs2_core::ndarray::Data,
         A::Elem: Clone + Into<f64> + std::fmt::Debug,
-        D: ndarray::Dimension,
+        D: scirs2_core::ndarray::Dimension,
     {
         let _lock = self.file_lock.write().unwrap();
         let _start_time = Instant::now();
@@ -195,9 +195,9 @@ impl EnhancedHDF5File {
         start_time: Instant,
     ) -> Result<()>
     where
-        A: ndarray::Data,
+        A: scirs2_core::ndarray::Data,
         A::Elem: Clone,
-        D: ndarray::Dimension,
+        D: scirs2_core::ndarray::Dimension,
     {
         // Navigate to the correct group and create the dataset
         let (grouppath, dataset_name) = self.split_path(path)?;
@@ -467,9 +467,9 @@ impl EnhancedHDF5File {
         options: DatasetOptions,
     ) -> Result<()>
     where
-        A: ndarray::Data,
+        A: scirs2_core::ndarray::Data,
         A::Elem: Clone + Into<f64> + std::fmt::Debug,
-        D: ndarray::Dimension,
+        D: scirs2_core::ndarray::Dimension,
     {
         // For now, delegate to the base implementation
         // In the future, this could implement a pure Rust HDF5 writer

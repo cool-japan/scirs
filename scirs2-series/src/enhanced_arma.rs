@@ -3,8 +3,8 @@
 //! This module provides advanced implementations of AR, MA, and ARMA models
 //! with robust estimation, enhanced diagnostics, and improved forecasting capabilities.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -414,14 +414,17 @@ where
 
             // Calculate likelihood
             let sigma2 = residuals
-                .slice(ndarray::s![p..])
+                .slice(scirs2_core::ndarray::s![p..])
                 .mapv(|x| x * x)
                 .mean()
                 .unwrap_or(F::one());
             let n_eff = F::from(n - p).unwrap();
 
             n_eff / F::from(2.0).unwrap() * sigma2.ln()
-                + residuals.slice(ndarray::s![p..]).mapv(|x| x * x).sum()
+                + residuals
+                    .slice(scirs2_core::ndarray::s![p..])
+                    .mapv(|x| x * x)
+                    .sum()
                     / (F::from(2.0).unwrap() * sigma2)
         };
 
@@ -454,7 +457,7 @@ where
         // Update variance
         let residuals = self.calculate_residuals(data)?;
         self.sigma2 = residuals
-            .slice(ndarray::s![self.p..])
+            .slice(scirs2_core::ndarray::s![self.p..])
             .mapv(|x| x * x)
             .mean()
             .unwrap_or(F::one());
@@ -499,8 +502,11 @@ where
 
         // Calculate residual variance
         let residuals = self.calculate_residuals(data)?;
-        self.sigma2 =
-            residuals.slice(ndarray::s![self.p..]).mapv(|x| x * x).sum() / F::from(n_eff).unwrap();
+        self.sigma2 = residuals
+            .slice(scirs2_core::ndarray::s![self.p..])
+            .mapv(|x| x * x)
+            .sum()
+            / F::from(n_eff).unwrap();
 
         Ok(())
     }
@@ -566,7 +572,7 @@ where
         // Update variance
         let residuals = self.calculate_residuals(data)?;
         self.sigma2 = residuals
-            .slice(ndarray::s![self.p..])
+            .slice(scirs2_core::ndarray::s![self.p..])
             .mapv(|x| x * x)
             .mean()
             .unwrap_or(F::one());
@@ -623,7 +629,7 @@ where
         sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
         let len = sorted.len();
-        if len % 2 == 0 {
+        if len.is_multiple_of(2) {
             let mid1 = sorted[len / 2 - 1];
             let mid2 = sorted[len / 2];
             (mid1 + mid2) / F::from(2.0).unwrap()
@@ -663,7 +669,10 @@ where
         let n_eff = F::from(n - self.p).unwrap();
         self.fit_stats.log_likelihood = -n_eff / F::from(2.0).unwrap()
             * (F::from(2.0 * std::f64::consts::PI).unwrap() * self.sigma2).ln()
-            - residuals.slice(ndarray::s![self.p..]).mapv(|x| x * x).sum()
+            - residuals
+                .slice(scirs2_core::ndarray::s![self.p..])
+                .mapv(|x| x * x)
+                .sum()
                 / (F::from(2.0).unwrap() * self.sigma2);
 
         // Information criteria
@@ -675,10 +684,13 @@ where
             - F::from(2.0).unwrap() * self.fit_stats.log_likelihood;
 
         // R-squared
-        let y_slice = data.slice(ndarray::s![self.p..]);
+        let y_slice = data.slice(scirs2_core::ndarray::s![self.p..]);
         let y_mean = y_slice.mean().unwrap_or(F::zero());
         let tss = y_slice.mapv(|x| (x - y_mean) * (x - y_mean)).sum();
-        let rss = residuals.slice(ndarray::s![self.p..]).mapv(|x| x * x).sum();
+        let rss = residuals
+            .slice(scirs2_core::ndarray::s![self.p..])
+            .mapv(|x| x * x)
+            .sum();
 
         if tss != F::zero() {
             self.fit_stats.r_squared = F::one() - rss / tss;
@@ -988,7 +1000,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_enhanced_ar_creation() {

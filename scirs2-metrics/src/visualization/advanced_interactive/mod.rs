@@ -1,7 +1,7 @@
 //! Advanced interactive visualization with real-time capabilities
 //!
 //! This module provides sophisticated interactive visualization features including:
-//! - Real-time data streaming and updates
+//! - Float-time data streaming and updates
 //! - Advanced widget systems (sliders, dropdowns, filters)
 //! - Multi-dimensional visualization support
 //! - Interactive dashboard components
@@ -80,7 +80,7 @@ pub struct InteractiveDashboard {
     layout_manager: Arc<Mutex<LayoutManager>>,
     /// Rendering engine
     renderer: Arc<Mutex<Box<dyn RenderingEngine + Send + Sync>>>,
-    /// Real-time update manager
+    /// Float-time update manager
     update_manager: Arc<Mutex<UpdateManager>>,
     /// Collaboration manager
     collaboration: Arc<Mutex<CollaborationManager>>,
@@ -111,7 +111,7 @@ impl std::fmt::Debug for InteractiveDashboard {
 }
 
 /// Dashboard state
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct DashboardState {
     /// Current view state
     pub view_state: ViewState,
@@ -383,7 +383,7 @@ impl InteractiveDashboard {
             .config
             .collaboration_config
             .as_ref()
-            .map_or(false, |c| c.enabled)
+            .is_some_and(|c| c.enabled)
         {
             let _resolved_operations = self.collaboration.lock().unwrap().resolve_conflicts()?;
         }
@@ -403,8 +403,7 @@ impl InteractiveDashboard {
 
     /// Export dashboard configuration
     pub fn export_config(&self) -> Result<Value> {
-        Ok(serde_json::to_value(&self.config)
-            .map_err(|e| MetricsError::InvalidInput(e.to_string()))?)
+        serde_json::to_value(&self.config).map_err(|e| MetricsError::InvalidInput(e.to_string()))
     }
 
     /// Import dashboard configuration
@@ -412,19 +411,6 @@ impl InteractiveDashboard {
         self.config = serde_json::from_value(config_data)
             .map_err(|e| MetricsError::InvalidInput(e.to_string()))?;
         Ok(())
-    }
-}
-
-impl Default for DashboardState {
-    fn default() -> Self {
-        Self {
-            view_state: ViewState::default(),
-            filters: HashMap::new(),
-            selections: Vec::new(),
-            viewport: ViewportState::default(),
-            time_range: None,
-            custom_state: HashMap::new(),
-        }
     }
 }
 

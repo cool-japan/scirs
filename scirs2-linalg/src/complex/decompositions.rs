@@ -3,9 +3,9 @@
 //! This module provides implementations of various matrix decompositions
 //! for complex-valued matrices.
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_complex::Complex;
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::{Float, One, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -795,7 +795,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_complex_lu() {

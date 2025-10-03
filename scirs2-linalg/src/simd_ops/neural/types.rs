@@ -1,7 +1,7 @@
 //! Common types for neural memory optimization module.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::collections::HashMap;
 use std::fmt::Debug;
 

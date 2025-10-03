@@ -5,8 +5,8 @@
 //! accuracy optimization, pattern analysis, performance tuning, quantum optimization,
 //! knowledge transfer, and memory management.
 
-use ndarray::{ArrayBase, ArrayD, Data, Dimension};
-use num_traits::Float;
+use scirs2_core::ndarray::{ArrayBase, ArrayD, Data, Dimension};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex, RwLock};
@@ -315,7 +315,7 @@ impl<
             let performance_targets = PerformanceTargets {
                 target_accuracy: self.config.target_accuracy,
                 max_time: 10000.0, // Default 10 seconds in microseconds
-                max_memory: (self.config.max_memory_mb * 1024 * 1024) as usize, // Convert MB to bytes
+                max_memory: (self.config.max_memory_mb * 1024 * 1024), // Convert MB to bytes
                 priority_weights: PerformancePriorities::default(),
             };
 
@@ -535,7 +535,7 @@ impl<
             InterpolateError::InvalidState("Failed to lock performance tracker".to_string())
         })?;
 
-        tracker.track_performance(method.clone(), &performance)
+        tracker.track_performance(*method, &performance)
     }
 
     fn update_learning_systems(
@@ -561,7 +561,7 @@ impl<
                 knowledge_system.learn_from_experience(
                     "general".to_string(),
                     &recommendation.data_characteristics,
-                    recommendation.recommended_method.clone(),
+                    recommendation.recommended_method,
                     &performance,
                 )?;
             }
@@ -588,7 +588,7 @@ impl<
             let d1 = data_vec[i] - data_vec[i - 1];
             let d2 = data_vec[i + 1] - data_vec[i];
             let curvature = (d2 - d1).abs();
-            total_curvature = total_curvature + curvature;
+            total_curvature += curvature;
             count += 1;
         }
 

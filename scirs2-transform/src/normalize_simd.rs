@@ -9,8 +9,8 @@
 //! - Cache-optimal memory access patterns
 //! - Advanced prefetching strategies for large datasets
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
 use crate::error::{Result, TransformError};
@@ -597,7 +597,7 @@ where
         let cols_per_batch = max_elements_per_batch / shape[0];
         for col_start in (0..shape[1]).step_by(cols_per_batch) {
             let col_end = (col_start + cols_per_batch).min(shape[1]);
-            let batch_view = array.slice(ndarray::s![.., col_start..col_end]);
+            let batch_view = array.slice(scirs2_core::ndarray::s![.., col_start..col_end]);
             let batch_normalized = simd_normalize_adaptive(&batch_view, method, axis)?;
 
             for (j_local, j_global) in (col_start..col_end).enumerate() {
@@ -611,7 +611,7 @@ where
         let rows_per_batch = max_elements_per_batch / shape[1];
         for row_start in (0..shape[0]).step_by(rows_per_batch) {
             let row_end = (row_start + rows_per_batch).min(shape[0]);
-            let batch_view = array.slice(ndarray::s![row_start..row_end, ..]);
+            let batch_view = array.slice(scirs2_core::ndarray::s![row_start..row_end, ..]);
             let batch_normalized = simd_normalize_adaptive(&batch_view, method, axis)?;
 
             for (i_local, i_global) in (row_start..row_end).enumerate() {
@@ -646,7 +646,7 @@ where
         // Process in column chunks
         for chunk_start in (0..shape[1]).step_by(chunk_size) {
             let chunk_end = (chunk_start + chunk_size).min(shape[1]);
-            let chunk_view = array.slice(ndarray::s![.., chunk_start..chunk_end]);
+            let chunk_view = array.slice(scirs2_core::ndarray::s![.., chunk_start..chunk_end]);
             let chunk_normalized = simd_normalizearray(&chunk_view, method, axis)?;
 
             for (j_local, j_global) in (chunk_start..chunk_end).enumerate() {
@@ -659,7 +659,7 @@ where
         // Process in row chunks
         for chunk_start in (0..shape[0]).step_by(chunk_size) {
             let chunk_end = (chunk_start + chunk_size).min(shape[0]);
-            let chunk_view = array.slice(ndarray::s![chunk_start..chunk_end, ..]);
+            let chunk_view = array.slice(scirs2_core::ndarray::s![chunk_start..chunk_end, ..]);
             let chunk_normalized = simd_normalizearray(&chunk_view, method, axis)?;
 
             for (i_local, i_global) in (chunk_start..chunk_end).enumerate() {

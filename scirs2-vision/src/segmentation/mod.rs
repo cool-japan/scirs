@@ -20,7 +20,7 @@ pub use watershed::{
 use crate::error::{Result, VisionError};
 use crate::feature::image_to_array;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
-// ndarray::Array2 is imported through image_to_array function
+// scirs2_core::ndarray::Array2 is imported through image_to_array function
 
 /// Adaptive thresholding method
 #[derive(Debug, Clone, Copy)]
@@ -148,7 +148,7 @@ pub fn adaptive_threshold(
     method: AdaptiveMethod,
 ) -> Result<GrayImage> {
     // Check if block _size is valid
-    if block_size % 2 == 0 || block_size < 3 {
+    if block_size.is_multiple_of(2) || block_size < 3 {
         return Err(VisionError::InvalidParameter(
             "block_size must be odd and at least 3".to_string(),
         ));

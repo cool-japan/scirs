@@ -11,7 +11,7 @@
 //! and Equal Opportunity.
 //!
 //! ```
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //! use scirs2_metrics::fairness::{
 //!     demographic_parity_difference, equalized_odds_difference, equal_opportunity_difference
 //! };
@@ -49,7 +49,7 @@
 //! regardless of protected attributes.
 //!
 //! ```
-//! use ndarray::{array, Array2};
+//! use scirs2_core::ndarray::{array, Array2};
 //! use scirs2_metrics::fairness::consistency_score;
 //!
 //! // Features matrix: each row is an individual, each column is a feature
@@ -83,7 +83,7 @@
 //! - Sensitivity to perturbations to assess how model fairness changes with data modifications
 //!
 //! ```
-//! use ndarray::{array, Array2};
+//! use scirs2_core::ndarray::{array, Array2};
 //! use scirs2_metrics::fairness::{demographic_parity_difference, disparate_impact};
 //! use scirs2_metrics::fairness::robustness::{
 //!     performance_invariance, influence_function, perturbation_sensitivity, PerturbationType
@@ -117,7 +117,7 @@
 //! ```
 //!
 //! ```
-//! use ndarray::{array, Array2};
+//! use scirs2_core::ndarray::{array, Array2};
 //! use scirs2_metrics::fairness::bias_detection::{
 //!     slice_analysis, subgroup_performance, intersectional_fairness
 //! };
@@ -150,15 +150,15 @@
 //!     &feature_names,
 //!     |y_t, y_p| {
 //!         // Convert Vec<f64> to Array1<f64> for accuracy_score
-//!         let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-//!         let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+//!         let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+//!         let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
 //!         accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
 //!     }
 //! ).unwrap();
 //! ```
 
-use ndarray::{ArrayBase, Data, Ix1, Ix2};
-use num_traits::real::Real;
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1, Ix2};
+use scirs2_core::numeric::Float;
 use std::cmp::Ordering;
 
 use crate::error::{MetricsError, Result};
@@ -186,7 +186,7 @@ pub mod robustness;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::fairness::demographic_parity_difference;
 ///
 /// let y_pred = array![1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0];
@@ -205,7 +205,7 @@ pub fn demographic_parity_difference<T, S, R>(
     protected_group: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -282,7 +282,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::fairness::disparate_impact;
 ///
 /// let y_pred = array![1.0, 0.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0];
@@ -302,7 +302,7 @@ pub fn disparate_impact<T, S, R>(
     protected_group: &ArrayBase<R, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {
@@ -388,7 +388,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::fairness::equalized_odds_difference;
 ///
 /// let y_true = array![0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0];
@@ -409,7 +409,7 @@ pub fn equalized_odds_difference<T, S, R, Q>(
     protected_group: &ArrayBase<Q, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
     Q: Data<Elem = T>,
@@ -539,7 +539,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::fairness::equal_opportunity_difference;
 ///
 /// let y_true = array![0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0, 1.0];
@@ -560,7 +560,7 @@ pub fn equal_opportunity_difference<T, S, R, Q>(
     protected_group: &ArrayBase<Q, Ix1>,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
     Q: Data<Elem = T>,
@@ -656,7 +656,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::fairness::consistency_score;
 ///
 /// // Features matrix (6 instances, 2 features each)
@@ -677,7 +677,7 @@ pub fn consistency_score<T, S, R>(
     k: usize,
 ) -> Result<f64>
 where
-    T: Real + PartialOrd + Clone,
+    T: Float + PartialOrd + Clone,
     S: Data<Elem = T>,
     R: Data<Elem = T>,
 {

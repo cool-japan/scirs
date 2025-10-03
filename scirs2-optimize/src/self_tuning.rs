@@ -6,7 +6,7 @@
 
 use crate::error::{ScirsError, ScirsResult};
 // Unused imports
-// use ndarray::{Array1, Array2, ArrayView1};
+// use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
@@ -110,7 +110,7 @@ impl SelfTuningOptimizer {
         );
 
         // Check if it's time to update parameters
-        if iteration % self.config.update_frequency != 0 {
+        if !iteration.is_multiple_of(self.config.update_frequency) {
             return Ok(false);
         }
 
@@ -1181,8 +1181,8 @@ impl BayesianParameterOptimizer {
             for (name, value) in current_params {
                 if name.contains("step_size") || name.contains("learning_rate") {
                     // Add small random perturbation for exploration
-                    use rand::{rng, Rng};
-                    let mut rng = rand::rng();
+                    use scirs2_core::random::{rng, Rng};
+                    let mut rng = scirs2_core::random::rng();
                     let perturbation_factor = 1.0 + (rng.gen_range(-0.1..=0.1));
 
                     let perturbed_value = match value {

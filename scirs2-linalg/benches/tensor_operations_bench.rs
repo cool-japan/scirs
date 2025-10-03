@@ -5,6 +5,7 @@
 //!
 //! NOTE: This benchmark is currently disabled due to missing function implementations.
 
+#![allow(unexpected_cfgs)]
 #![cfg(disabled)]
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};

@@ -5,7 +5,7 @@
 
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::time::Instant;
 

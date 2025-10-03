@@ -3,7 +3,7 @@
 //! This module contains all the foundational data types used throughout
 //! the extrapolation system.
 
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 
 /// Enhanced extrapolation methods for interpolation.
 ///

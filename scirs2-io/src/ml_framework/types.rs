@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 #![allow(missing_docs)]
 
-use ndarray::{ArrayD, IxDyn};
+use scirs2_core::ndarray::{ArrayD, IxDyn};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

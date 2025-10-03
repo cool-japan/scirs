@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(()) => println!("✓ All comprehensive examples validated successfully\n"),
         Err(e) => {
             println!("✗ Example validation failed: {}\n", e);
-            return Err(e.into());
+            return Err(e);
         }
     }
 
@@ -96,7 +96,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             println!("✗ API compatibility tests failed: {}", e);
-            return Err(e.into());
+            return Err(e);
         }
     }
     println!();
@@ -152,7 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             println!("✗ Numerical validation tests failed: {}", e);
-            return Err(e.into());
+            return Err(e);
         }
     }
     println!();
@@ -211,7 +211,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             println!("✗ Performance benchmarks failed: {}", e);
-            return Err(e.into());
+            return Err(e);
         }
     }
     println!();

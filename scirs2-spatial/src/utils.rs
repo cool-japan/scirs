@@ -22,7 +22,7 @@ type ScaledPointsResult = SpatialResult<(Array2<f64>, Vec<(f64, f64)>)>;
 #[allow(dead_code)]
 pub fn points_equal<T>(point1: &[T], point2: &[T], tol: Option<T>) -> bool
 where
-    T: PartialOrd + std::ops::Sub<Output = T> + Copy + num_traits::FromPrimitive,
+    T: PartialOrd + std::ops::Sub<Output = T> + Copy + scirs2_core::numeric::FromPrimitive,
 {
     // Default tolerance as 1e-8 converted to type T
     let tol = match tol {

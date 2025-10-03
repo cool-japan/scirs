@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_interpolate::{
     bspline::{BSpline, ExtrapolateMode},
     simd_bspline::SimdBSplineEvaluator,

@@ -8,7 +8,7 @@
 //! All GPU operations MUST go through scirs2-core::gpu.
 
 use crate::error::{FFTError, FFTResult};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 
 /// Placeholder for GPU kernel implementations
 ///

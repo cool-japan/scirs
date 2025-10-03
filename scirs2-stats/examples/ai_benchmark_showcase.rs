@@ -132,9 +132,8 @@ fn display_benchmark_results(
             println!("   🔍 Performance Bottlenecks Identified:");
             for bottleneck in &ai_analysis.bottlenecks {
                 println!(
-                    "     • {} (Severity: {:.1}%)",
-                    format!("{:?}", bottleneck.bottleneck_type),
-                    bottleneck.severity
+                    "     • {:?} (Severity: {:.1}%)",
+                    bottleneck.bottleneck_type, bottleneck.severity
                 );
                 println!(
                     "       Impact: {:.1}% performance loss",

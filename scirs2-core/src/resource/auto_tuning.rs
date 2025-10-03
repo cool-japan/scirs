@@ -980,25 +980,28 @@ impl ResourceMonitor {
             return Ok(0.04); // 4% estimated cache miss rate for Windows
         }
 
-        // Fallback: estimate based on workload patterns
-        let recent_metrics: Vec<_> = self.metrics_history.iter().rev().take(10).collect();
-        if recent_metrics.len() > 5 {
-            let avg_cpu = recent_metrics
-                .iter()
-                .map(|m| m.cpu_utilization)
-                .sum::<f64>()
-                / recent_metrics.len() as f64;
-            let avg_memory = recent_metrics
-                .iter()
-                .map(|m| m.memory_utilization)
-                .sum::<f64>()
-                / recent_metrics.len() as f64;
+        #[cfg(not(target_os = "windows"))]
+        {
+            // Fallback: estimate based on workload patterns
+            let recent_metrics: Vec<_> = self.metrics_history.iter().rev().take(10).collect();
+            if recent_metrics.len() > 5 {
+                let avg_cpu = recent_metrics
+                    .iter()
+                    .map(|m| m.cpu_utilization)
+                    .sum::<f64>()
+                    / recent_metrics.len() as f64;
+                let avg_memory = recent_metrics
+                    .iter()
+                    .map(|m| m.memory_utilization)
+                    .sum::<f64>()
+                    / recent_metrics.len() as f64;
 
-            // Higher CPU and memory utilization typically correlates with more cache misses
-            let estimated_miss_rate = 0.02 + (avg_cpu + avg_memory) * 0.05f64;
-            Ok(estimated_miss_rate.min(0.15)) // Cap at 15%
-        } else {
-            Ok(0.05) // Default 5% cache miss rate
+                // Higher CPU and memory utilization typically correlates with more cache misses
+                let estimated_miss_rate = 0.02 + (avg_cpu + avg_memory) * 0.05f64;
+                Ok(estimated_miss_rate.min(0.15)) // Cap at 15%
+            } else {
+                Ok(0.05) // Default 5% cache miss rate
+            }
         }
     }
 
@@ -1156,25 +1159,28 @@ impl ResourceMonitor {
             return Ok((recent_memory_usage * 0.6f64).min(1.0));
         }
 
-        // Fallback: estimate based on historical memory utilization patterns
-        let recent_metrics: Vec<_> = self.metrics_history.iter().rev().take(10).collect();
-        if recent_metrics.len() >= 3 {
-            let avg_memory_usage = recent_metrics
-                .iter()
-                .map(|m| m.memory_utilization)
-                .sum::<f64>()
-                / recent_metrics.len() as f64;
-            let memory_variance = recent_metrics
-                .iter()
-                .map(|m| (m.memory_utilization - avg_memory_usage).powi(2))
-                .sum::<f64>()
-                / recent_metrics.len() as f64;
+        #[cfg(not(target_os = "windows"))]
+        {
+            // Fallback: estimate based on historical memory utilization patterns
+            let recent_metrics: Vec<_> = self.metrics_history.iter().rev().take(10).collect();
+            if recent_metrics.len() >= 3 {
+                let avg_memory_usage = recent_metrics
+                    .iter()
+                    .map(|m| m.memory_utilization)
+                    .sum::<f64>()
+                    / recent_metrics.len() as f64;
+                let memory_variance = recent_metrics
+                    .iter()
+                    .map(|m| (m.memory_utilization - avg_memory_usage).powi(2))
+                    .sum::<f64>()
+                    / recent_metrics.len() as f64;
 
-            // Higher variance indicates more memory bandwidth usage
-            let bandwidth_usage = avg_memory_usage * 0.6 + memory_variance * 10.0f64;
-            Ok(bandwidth_usage.min(0.95))
-        } else {
-            Ok(0.3) // Default 30% bandwidth usage
+                // Higher variance indicates more memory bandwidth usage
+                let bandwidth_usage = avg_memory_usage * 0.6 + memory_variance * 10.0f64;
+                Ok(bandwidth_usage.min(0.95))
+            } else {
+                Ok(0.3) // Default 30% bandwidth usage
+            }
         }
     }
 
@@ -1280,32 +1286,35 @@ impl ResourceMonitor {
             return Ok(contention_estimate.min(0.5));
         }
 
-        // Fallback: estimate based on CPU utilization patterns and variance
-        let recent_metrics: Vec<_> = self.metrics_history.iter().rev().take(10).collect();
-        if recent_metrics.len() >= 5 {
-            let avg_cpu = recent_metrics
-                .iter()
-                .map(|m| m.cpu_utilization)
-                .sum::<f64>()
-                / recent_metrics.len() as f64;
-            let cpu_variance = recent_metrics
-                .iter()
-                .map(|m| (m.cpu_utilization - avg_cpu).powi(2))
-                .sum::<f64>()
-                / recent_metrics.len() as f64;
+        #[cfg(not(target_os = "windows"))]
+        {
+            // Fallback: estimate based on CPU utilization patterns and variance
+            let recent_metrics: Vec<_> = self.metrics_history.iter().rev().take(10).collect();
+            if recent_metrics.len() >= 5 {
+                let avg_cpu = recent_metrics
+                    .iter()
+                    .map(|m| m.cpu_utilization)
+                    .sum::<f64>()
+                    / recent_metrics.len() as f64;
+                let cpu_variance = recent_metrics
+                    .iter()
+                    .map(|m| (m.cpu_utilization - avg_cpu).powi(2))
+                    .sum::<f64>()
+                    / recent_metrics.len() as f64;
 
-            // High CPU usage with high variance suggests contention
-            let contention_score = if avg_cpu > 0.7 {
-                let base_contention = (avg_cpu - 0.7f64) / 0.3f64; // Scale 0.7-1.0 CPU to 0.0.saturating_sub(1).0 contention
-                let variance_factor = (cpu_variance * 20.0f64).min(0.3); // Variance contributes up to 30%
-                (base_contention + variance_factor).min(1.0)
+                // High CPU usage with high variance suggests contention
+                let contention_score = if avg_cpu > 0.7 {
+                    let base_contention = (avg_cpu - 0.7f64) / 0.3f64; // Scale 0.7-1.0 CPU to 0.0.saturating_sub(1).0 contention
+                    let variance_factor = (cpu_variance * 20.0f64).min(0.3); // Variance contributes up to 30%
+                    (base_contention + variance_factor).min(1.0)
+                } else {
+                    (cpu_variance * 5.0f64).min(0.2) // Low CPU but high variance = mild contention
+                };
+
+                Ok(contention_score)
             } else {
-                (cpu_variance * 5.0f64).min(0.2) // Low CPU but high variance = mild contention
-            };
-
-            Ok(contention_score)
-        } else {
-            Ok(0.1) // Default 10% contention
+                Ok(0.1) // Default 10% contention
+            }
         }
     }
 

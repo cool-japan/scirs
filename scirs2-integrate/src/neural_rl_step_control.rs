@@ -15,8 +15,8 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2};
 use scirs2_core::gpu::{self, GpuDataType};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
@@ -454,11 +454,11 @@ impl<F: IntegrateFloat + GpuDataType + Default> NeuralRLStepController<F> {
 
     fn select_action(&self, qvalues: &Array1<F>) -> IntegrateResult<usize> {
         // Epsilon-greedy action selection
-        let random_val: f64 = rand::random();
+        let random_val: f64 = scirs2_core::random::random();
 
         if random_val < self.training_config.epsilon {
             // Exploration: random action
-            Ok((rand::random::<f64>() * 32.0) as usize % 32)
+            Ok((scirs2_core::random::random::<f64>() * 32.0) as usize % 32)
         } else {
             // Exploitation: best Q-value
             let mut best_action = 0;
@@ -502,7 +502,7 @@ impl<F: IntegrateFloat + GpuDataType + Default> NeuralRLStepController<F> {
 
     fn calculate_exploration_noise(&self) -> f64 {
         // Calculate exploration noise based on current epsilon
-        self.training_config.epsilon * rand::random::<f64>()
+        self.training_config.epsilon * scirs2_core::random::random::<f64>()
     }
 
     fn should_train(&self) -> IntegrateResult<bool> {
@@ -728,12 +728,12 @@ impl<F: IntegrateFloat> NetworkWeights<F> {
 
         for i in 0..128 {
             for j in 0..64 {
-                let random_val = rand::random::<f64>() * 2.0 - 1.0; // [-1, 1]
+                let random_val = scirs2_core::random::random::<f64>() * 2.0 - 1.0; // [-1, 1]
                 let weight = F::from(random_val * xavier_bound_1).unwrap_or(F::zero());
                 self.layer1_weights[[i, j]] = weight;
             }
             // Initialize biases to small random values
-            let bias_val = rand::random::<f64>() * 0.01;
+            let bias_val = scirs2_core::random::random::<f64>() * 0.01;
             self.layer1_biases[i] = F::from(bias_val).unwrap_or(F::zero());
         }
 
@@ -744,11 +744,11 @@ impl<F: IntegrateFloat> NetworkWeights<F> {
 
         for i in 0..64 {
             for j in 0..128 {
-                let random_val = rand::random::<f64>() * 2.0 - 1.0;
+                let random_val = scirs2_core::random::random::<f64>() * 2.0 - 1.0;
                 let weight = F::from(random_val * xavier_bound_2).unwrap_or(F::zero());
                 self.layer2_weights[[i, j]] = weight;
             }
-            let bias_val = rand::random::<f64>() * 0.01;
+            let bias_val = scirs2_core::random::random::<f64>() * 0.01;
             self.layer2_biases[i] = F::from(bias_val).unwrap_or(F::zero());
         }
 
@@ -759,22 +759,22 @@ impl<F: IntegrateFloat> NetworkWeights<F> {
 
         for i in 0..32 {
             for j in 0..64 {
-                let random_val = rand::random::<f64>() * 2.0 - 1.0;
+                let random_val = scirs2_core::random::random::<f64>() * 2.0 - 1.0;
                 let weight = F::from(random_val * xavier_bound_3).unwrap_or(F::zero());
                 self.advantage_weights[[i, j]] = weight;
             }
-            let bias_val = rand::random::<f64>() * 0.01;
+            let bias_val = scirs2_core::random::random::<f64>() * 0.01;
             self.advantage_biases[i] = F::from(bias_val).unwrap_or(F::zero());
         }
 
         // Value layer: 64 -> 1
         let xavier_bound_4 = (6.0_f64 / (64.0 + 1.0)).sqrt();
         for j in 0..64 {
-            let random_val = rand::random::<f64>() * 2.0 - 1.0;
+            let random_val = scirs2_core::random::random::<f64>() * 2.0 - 1.0;
             let weight = F::from(random_val * xavier_bound_4).unwrap_or(F::zero());
             self.value_weights[j] = weight;
         }
-        self.value_bias = F::from(rand::random::<f64>() * 0.01).unwrap_or(F::zero());
+        self.value_bias = F::from(scirs2_core::random::random::<f64>() * 0.01).unwrap_or(F::zero());
 
         Ok(())
     }
@@ -828,8 +828,9 @@ impl<F: IntegrateFloat> PrioritizedExperienceReplay<F> {
         if total_priority <= 0.0 {
             // Fallback to uniform sampling if no valid priorities
             for _i in 0..actual_batch_size {
-                let random_idx =
-                    (rand::random::<f64>() * self.buffer.len() as f64) as usize % self.buffer.len();
+                let random_idx = (scirs2_core::random::random::<f64>() * self.buffer.len() as f64)
+                    as usize
+                    % self.buffer.len();
                 batch.push(self.buffer[random_idx].clone());
                 indices.push(random_idx);
                 weights.push(1.0); // Uniform weights
@@ -839,7 +840,7 @@ impl<F: IntegrateFloat> PrioritizedExperienceReplay<F> {
 
         // Sample experiences based on priority
         for _ in 0..actual_batch_size {
-            let random_value = rand::random::<f64>() * total_priority;
+            let random_value = scirs2_core::random::random::<f64>() * total_priority;
             let mut cumulative_priority = 0.0;
             let mut selected_idx = 0;
 
@@ -1181,7 +1182,7 @@ impl Default for TrainingConfiguration {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_neural_rl_controller_creation() {

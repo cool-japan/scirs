@@ -12,7 +12,7 @@ pub use crate::utils::scaling::StatsExt;
 
 #[cfg(test)]
 mod tests {
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_stats_ext_integration() {

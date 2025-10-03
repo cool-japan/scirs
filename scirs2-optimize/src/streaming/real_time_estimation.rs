@@ -9,7 +9,7 @@ use super::{
     StreamingStats,
 };
 use crate::error::OptimizeError;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 // Unused import
 // use scirs2_core::error::CoreResult;
 use std::time::{Duration, Instant};
@@ -320,7 +320,7 @@ impl<T: StreamingObjective + Clone> StreamingOptimizer for RealTimeEstimator<T> 
         }
 
         // Adaptive parameter tuning
-        if self.stats.points_processed % 20 == 0 {
+        if self.stats.points_processed.is_multiple_of(20) {
             self.adapt_parameters();
         }
 

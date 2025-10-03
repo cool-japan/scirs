@@ -4,9 +4,9 @@
 //! fully leverage scirs2-core's unified parallel operations infrastructure.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, NumCast, One, Zero};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, NumCast, One, Zero};
+use scirs2_core::random::Rng;
 use scirs2_core::{parallel_ops::*, simd_ops::SimdUnifiedOps, validation::*};
 use std::sync::Arc;
 
@@ -43,6 +43,26 @@ pub struct EnhancedParallelProcessor<F> {
     _phantom: std::marker::PhantomData<F>,
 }
 
+impl<F> Default for EnhancedParallelProcessor<F>
+where
+    F: Float
+        + NumCast
+        + SimdUnifiedOps
+        + Zero
+        + One
+        + PartialOrd
+        + Copy
+        + Send
+        + Sync
+        + std::fmt::Display
+        + std::iter::Sum<F>
+        + scirs2_core::numeric::FromPrimitive,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F> EnhancedParallelProcessor<F>
 where
     F: Float
@@ -56,7 +76,7 @@ where
         + Sync
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     /// Create new enhanced parallel processor
     pub fn new() -> Self {
@@ -446,7 +466,7 @@ where
         + Sync
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     let processor = EnhancedParallelProcessor::<F>::new();
     processor.mean_parallel_enhanced(data)
@@ -466,7 +486,7 @@ where
         + Sync
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     let processor = EnhancedParallelProcessor::<F>::new();
     processor.variance_parallel_enhanced(data, ddof)
@@ -486,7 +506,7 @@ where
         + Sync
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     let processor = EnhancedParallelProcessor::<F>::new();
     processor.correlation_matrix_parallel(matrix)
@@ -511,7 +531,7 @@ where
         + Sync
         + std::fmt::Display
         + std::iter::Sum<F>
-        + num_traits::FromPrimitive,
+        + scirs2_core::numeric::FromPrimitive,
 {
     let processor = EnhancedParallelProcessor::<F>::new();
     processor.bootstrap_parallel_enhanced(data, n_bootstrap, statistic_fn, seed)

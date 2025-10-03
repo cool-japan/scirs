@@ -10,7 +10,7 @@
 use crate::error::Result;
 use crate::integration::NeuralQuantumHybridProcessor;
 use crate::streaming::Frame;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::time::{Duration, Instant};
 
 /// Comprehensive performance benchmark suite for Advanced mode

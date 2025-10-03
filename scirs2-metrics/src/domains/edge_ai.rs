@@ -16,7 +16,7 @@
 //!
 //! ```
 //! use scirs2_metrics::domains::edge_ai::EdgeAISuite;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut edge_suite = EdgeAISuite::new();
 //!
@@ -38,8 +38,8 @@
 
 use crate::domains::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::time::Duration;
 

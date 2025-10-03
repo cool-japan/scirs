@@ -4,7 +4,7 @@
 // properties, such as prominence and width.
 
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -61,7 +61,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -84,7 +84,7 @@ where
 
     // Apply height filter if specified
     if let Some(h) = height {
-        let h_f64 = num_traits::cast::cast::<T, f64>(h)
+        let h_f64 = NumCast::from(h)
             .ok_or_else(|| SignalError::ValueError(format!("Could not convert {:?} to f64", h)))?;
 
         peak_indices.retain(|&idx| x_f64[idx] >= h_f64);
@@ -92,7 +92,7 @@ where
 
     // Apply threshold filter if specified
     if let Some(th) = threshold {
-        let th_f64 = num_traits::cast::cast::<T, f64>(th)
+        let th_f64 = NumCast::from(th)
             .ok_or_else(|| SignalError::ValueError(format!("Could not convert {:?} to f64", th)))?;
 
         peak_indices.retain(|&idx| {
@@ -145,7 +145,7 @@ where
 
     // Apply prominence filter if specified
     if let Some(prom) = prominence {
-        let prom_f64 = num_traits::cast::cast::<T, f64>(prom).ok_or_else(|| {
+        let prom_f64 = NumCast::from(prom).ok_or_else(|| {
             SignalError::ValueError(format!("Could not convert {:?} to f64", prom))
         })?;
 
@@ -163,7 +163,7 @@ where
 
     // Apply width filter if specified
     if let Some(w) = width {
-        let w_f64 = num_traits::cast::cast::<T, f64>(w)
+        let w_f64 = NumCast::from(w)
             .ok_or_else(|| SignalError::ValueError(format!("Could not convert {:?} to f64", w)))?;
 
         let widths = peak_widths(&x_f64, &peak_indices, None)?;
@@ -226,7 +226,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })
@@ -353,7 +353,7 @@ where
     let x_f64: Vec<f64> = x
         .iter()
         .map(|&val| {
-            num_traits::cast::cast::<T, f64>(val).ok_or_else(|| {
+            NumCast::from(val).ok_or_else(|| {
                 SignalError::ValueError(format!("Could not convert {:?} to f64", val))
             })
         })

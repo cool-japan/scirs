@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_stats::{
     tests::ttest::Alternative,
     tests::{enhanced_ttest_1samp, enhanced_ttest_ind, enhanced_ttest_rel, ttest_ind_from_stats},
@@ -139,7 +139,7 @@ fn main() {
 }
 
 #[allow(dead_code)]
-fn print_ttest_result<F: std::fmt::Display + num_traits::Float>(
+fn print_ttest_result<F: std::fmt::Display + scirs2_core::numeric::Float>(
     result: &TTestResult<F>,
     title: &str,
 ) {

@@ -15,7 +15,7 @@
 
 use crate::bessel::first_kind::j0;
 use crate::constants;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Bessel function of the second kind of order 0 with enhanced numerical stability.
@@ -253,9 +253,8 @@ pub fn y1<F: Float + FromPrimitive + Debug>(x: F) -> F {
     let y0_val = y0(x);
 
     let two_over_pi_x = F::from(2.0).unwrap() / (F::from(constants::f64::PI).unwrap() * x);
-    let y1_val = (j1_val * y0_val - two_over_pi_x) / j0_val;
 
-    y1_val
+    (j1_val * y0_val - two_over_pi_x) / j0_val
 }
 
 /// Bessel function of the second kind of integer order n with enhanced numerical stability.

@@ -13,19 +13,12 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true, features = ["simd", "parallel", "random"] }
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["simd", "parallel", "random", "array"] }
 scirs2-linalg = { workspace = true }
-ndarray = { workspace = true }
-# BLAS dependencies removed - using core abstractions
-# ndarray-linalg = { workspace = true, optional = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
 num_cpus = { workspace = true }
 ordered-float = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
 fastrand = { workspace = true }
 statrs = { workspace = true }
 
@@ -38,7 +31,6 @@ serde = { workspace = true, optional = true, features = ["derive"] }
 approx = { workspace = true }
 criterion = { workspace = true }
 plotters = { workspace = true }
-rand = { workspace = true }
 
 [features]
 # Default features
@@ -76,6 +68,8 @@ harness = false
 name = "bspline_benchmarks"
 harness = false
 
-[[bench]]
-name = "scipy_comparison"
-harness = false
+# scipy_comparison benchmark disabled (Python/PyO3 linking issues on macOS)
+# [[bench]]
+# name = "scipy_comparison"
+# harness = false
+# required-features = ["scipy-comparison"]

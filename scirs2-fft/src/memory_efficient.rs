@@ -4,10 +4,10 @@
 //! that minimize allocations for large arrays.
 
 use crate::error::{FFTError, FFTResult};
-use ndarray::{Array2, ArrayView2};
-use num_complex::Complex64;
-use num_traits::NumCast;
 use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 use std::any::Any;
 use std::fmt::Debug;
 use std::num::NonZeroUsize;
@@ -20,8 +20,9 @@ fn downcast_to_complex<T: 'static>(value: &T) -> Option<Complex64> {
         return Some(*complex);
     }
 
-    // Try to directly convert from num_complex::Complex<f32>
-    if let Some(complex) = (value as &dyn Any).downcast_ref::<num_complex::Complex<f32>>() {
+    // Try to directly convert from scirs2_core::numeric::Complex<f32>
+    if let Some(complex) = (value as &dyn Any).downcast_ref::<scirs2_core::numeric::Complex<f32>>()
+    {
         return Some(Complex64::new(complex.re as f64, complex.im as f64));
     }
 
@@ -71,7 +72,7 @@ pub enum FftMode {
 ///
 /// ```
 /// use scirs2_fft::memory_efficient::{fft_inplace, FftMode};
-/// use num_complex::Complex64;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Create input and output buffers
 /// let mut input_buffer = vec![Complex64::new(1.0, 0.0),
@@ -150,7 +151,7 @@ pub fn fft_inplace(
     // Perform the FFT
     fft.process(&mut buffer);
 
-    // Convert back to num_complex::Complex64 and apply normalization if needed
+    // Convert back to scirs2_core::numeric::Complex64 and apply normalization if needed
     let scale = if normalize { 1.0 / (n as f64) } else { 1.0 };
 
     if scale != 1.0 && use_simd {
@@ -268,7 +269,7 @@ where
     for r in 0..n_rows.min(n_rows_out) {
         for c in 0..n_cols.min(n_cols_out) {
             let val = input[[r, c]];
-            match num_traits::cast::cast::<T, f64>(val) {
+            match NumCast::from(val) {
                 Some(val_f64) => {
                     complex_input[[r, c]] = Complex64::new(val_f64, 0.0);
                 }
@@ -434,7 +435,7 @@ where
         let mut complex_input: Vec<Complex64> = Vec::with_capacity(input_length);
 
         for &val in input {
-            match num_traits::cast::cast::<T, f64>(val) {
+            match NumCast::from(val) {
                 Some(val_f64) => {
                     complex_input.push(Complex64::new(val_f64, 0.0));
                 }
@@ -482,7 +483,7 @@ where
         // Perform the FFT
         fft.process(&mut buffer);
 
-        // Convert back to num_complex::Complex64 and apply normalization if needed
+        // Convert back to scirs2_core::numeric::Complex64 and apply normalization if needed
         let scale = if mode == FftMode::Inverse {
             1.0 / (n_val as f64)
         } else {
@@ -514,7 +515,7 @@ where
             // Part of the chunk comes from the input
             let input_end = end.min(input_length);
             for val in input[start..input_end].iter() {
-                match num_traits::cast::cast::<T, f64>(*val) {
+                match NumCast::from(*val) {
                     Some(val_f64) => {
                         chunk_input.push(Complex64::new(val_f64, 0.0));
                     }
@@ -556,7 +557,7 @@ where
         // Perform the FFT on this chunk
         fft.process(&mut buffer);
 
-        // Convert back to num_complex::Complex64 and apply normalization if needed
+        // Convert back to scirs2_core::numeric::Complex64 and apply normalization if needed
         let scale = if mode == FftMode::Inverse {
             1.0 / (chunk_size as f64)
         } else {
@@ -592,7 +593,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_fft_inplace() {

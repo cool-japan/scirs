@@ -4,12 +4,12 @@
 //! following SciPy's `stats.random` module.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, NumCast, Zero};
-use rand::prelude::*;
-use rand::{rngs::StdRng, SeedableRng};
-use rand_distr::uniform::SampleUniform;
-use rand_distr::{Distribution, StandardNormal};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast, Zero};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::uniform::SampleUniform;
+use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::random::{Distribution, StandardNormal};
 
 /// Generate random samples from a specified random distribution
 ///
@@ -26,7 +26,7 @@ use rand_distr::{Distribution, StandardNormal};
 /// # Examples
 ///
 /// ```
-/// use rand_distr::{Uniform, Distribution};
+/// use scirs2_core::random::{Uniform, Distribution};
 /// use scirs2_stats::random::random_sample;
 ///
 /// // Generate 10 random numbers from a uniform distribution [0, 1)
@@ -60,7 +60,7 @@ where
         None => {
             // Use system entropy
             {
-                let mut system_rng = rand::thread_rng();
+                let mut system_rng = scirs2_core::random::thread_rng();
                 let seed: [u8; 32] = system_rng.random();
                 SeedableRng::from_seed(seed)
             }
@@ -119,7 +119,7 @@ where
         ));
     }
 
-    let distribution = rand_distr::Uniform::new(low, high).map_err(|e| {
+    let distribution = scirs2_core::random::Uniform::new(low, high).map_err(|e| {
         StatsError::ComputationError(format!("Failed to create uniform distribution: {}", e))
     })?;
     random_sample(size, &distribution, seed)
@@ -166,7 +166,7 @@ pub fn randint(low: i64, high: i64, size: usize, seed: Option<u64>) -> StatsResu
         ));
     }
 
-    let distribution = rand_distr::Uniform::new_inclusive(low, high - 1).map_err(|e| {
+    let distribution = scirs2_core::random::Uniform::new_inclusive(low, high - 1).map_err(|e| {
         StatsError::ComputationError(format!("Failed to create uniform distribution: {}", e))
     })?;
     random_sample(size, &distribution, seed)
@@ -217,7 +217,7 @@ pub fn randn(size: usize, seed: Option<u64>) -> StatsResult<Array1<f64>> {
         None => {
             // Use system entropy
             {
-                let mut system_rng = rand::thread_rng();
+                let mut system_rng = scirs2_core::random::thread_rng();
                 let seed: [u8; 32] = system_rng.random();
                 SeedableRng::from_seed(seed)
             }
@@ -250,7 +250,7 @@ pub fn randn(size: usize, seed: Option<u64>) -> StatsResult<Array1<f64>> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::random::choice;
 ///
 /// // Create an array of choices
@@ -305,7 +305,7 @@ where
         None => {
             // Use system entropy
             {
-                let mut system_rng = rand::thread_rng();
+                let mut system_rng = scirs2_core::random::thread_rng();
                 let seed: [u8; 32] = system_rng.random();
                 SeedableRng::from_seed(seed)
             }
@@ -413,7 +413,7 @@ where
         // Unweighted sampling
         if replace {
             // Simple random sampling with replacement
-            let uniform = rand_distr::Uniform::new(0, n).unwrap();
+            let uniform = scirs2_core::random::Uniform::new(0, n).unwrap();
 
             for _ in 0..size {
                 let idx = uniform.sample(&mut rng);
@@ -448,7 +448,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::random::permutation;
 ///
 /// // Permute an array
@@ -486,7 +486,7 @@ where
         None => {
             // Use system entropy
             {
-                let mut system_rng = rand::thread_rng();
+                let mut system_rng = scirs2_core::random::thread_rng();
                 let seed: [u8; 32] = system_rng.random();
                 SeedableRng::from_seed(seed)
             }
@@ -550,7 +550,7 @@ pub fn permutation_int(n: usize, seed: Option<u64>) -> StatsResult<Array1<usize>
         None => {
             // Use system entropy
             {
-                let mut system_rng = rand::thread_rng();
+                let mut system_rng = scirs2_core::random::thread_rng();
                 let seed: [u8; 32] = system_rng.random();
                 SeedableRng::from_seed(seed)
             }
@@ -627,7 +627,7 @@ pub fn random_binary_matrix(
         None => {
             // Use system entropy
             {
-                let mut system_rng = rand::thread_rng();
+                let mut system_rng = scirs2_core::random::thread_rng();
                 let seed: [u8; 32] = system_rng.random();
                 SeedableRng::from_seed(seed)
             }
@@ -662,7 +662,7 @@ pub fn random_binary_matrix(
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::random::bootstrap_sample;
 ///
 /// // Create an array
@@ -681,7 +681,7 @@ pub fn bootstrap_sample<T>(
     seed: Option<u64>,
 ) -> StatsResult<Array2<T>>
 where
-    T: Copy + num_traits::Zero,
+    T: Copy + scirs2_core::numeric::Zero,
 {
     let n = x.len();
 
@@ -707,14 +707,14 @@ where
         None => {
             // Use system entropy
             {
-                let mut system_rng = rand::thread_rng();
+                let mut system_rng = scirs2_core::random::thread_rng();
                 let seed: [u8; 32] = system_rng.random();
                 SeedableRng::from_seed(seed)
             }
         }
     };
 
-    let uniform = rand_distr::Uniform::new(0, n).unwrap();
+    let uniform = scirs2_core::random::Uniform::new(0, n).unwrap();
 
     let mut result = Array2::zeros((n_samples_, n));
 
@@ -732,12 +732,12 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_random_sample() {
         // Test with uniform distribution
-        let uniform_dist = rand_distr::Uniform::new(0.0, 1.0).unwrap();
+        let uniform_dist = scirs2_core::random::Uniform::new(0.0, 1.0).unwrap();
         let samples = random_sample(100, &uniform_dist, Some(42)).unwrap();
 
         assert_eq!(samples.len(), 100);
@@ -746,7 +746,10 @@ mod tests {
         }
 
         // Test error cases
-        assert!(random_sample::<f64, rand_distr::Uniform<f64>>(0, &uniform_dist, None).is_err());
+        assert!(
+            random_sample::<f64, scirs2_core::random::Uniform<f64>>(0, &uniform_dist, None)
+                .is_err()
+        );
     }
 
     #[test]

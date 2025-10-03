@@ -1,6 +1,6 @@
 use ag::tensor_ops as T;
-use ndarray::Array2;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::Array2;
 use std::time::Instant;
 
 #[allow(dead_code)]
@@ -28,7 +28,7 @@ fn main() {
             let mut rng = ag::ndarray_ext::ArrayRng::<f32>::default();
             rng.standard_normal(&[feature_size, feature_size])
                 .mapv(|x| x * 0.01) // Scale down to prevent explosion
-                .into_dimensionality::<ndarray::Ix2>()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
                 .unwrap()
         })
         .collect();

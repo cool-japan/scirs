@@ -5,8 +5,8 @@
 use super::{Callback, CallbackContext, CallbackTiming};
 use crate::error::Result;
 use crate::layers::Layer;
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
 use std::fmt::{Debug, Display};
 /// Gradient clipping method
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

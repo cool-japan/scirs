@@ -12,7 +12,7 @@
 
 use super::types::{MAMethod, MAResult};
 use crate::error::{SignalError, SignalResult};
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 
@@ -33,7 +33,7 @@ use std::f64::consts::PI;
 ///
 /// # Example
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_signal::parametric::{estimate_ma, MAMethod};
 ///
 /// let signal = Array1::from_vec(vec![1.0, 2.0, 1.5, 0.8, 1.2, 2.1, 1.8, 0.9]);

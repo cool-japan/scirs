@@ -6,7 +6,7 @@
 
 use super::common::validation::validate_cutoff_frequency;
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -160,7 +160,7 @@ pub fn remez(
         ));
     }
 
-    if bands.len() % 2 != 0 || bands.len() < 2 {
+    if !bands.len().is_multiple_of(2) || bands.len() < 2 {
         return Err(SignalError::ValueError(
             "Bands must be specified as pairs of edges".to_string(),
         ));

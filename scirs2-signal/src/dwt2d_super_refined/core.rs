@@ -19,8 +19,8 @@ use super::types::*;
 
 use crate::dwt::Wavelet;
 use crate::error::SignalResult;
-use ndarray::Array2;
-use rand::Rng;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::random::Rng;
 use scirs2_core::simd_ops::PlatformCapabilities;
 
 /// Advanced-refined 2D wavelet packet decomposition with memory efficiency and adaptive basis selection
@@ -47,7 +47,7 @@ use scirs2_core::simd_ops::PlatformCapabilities;
 /// ```
 /// use scirs2_signal::dwt2d_super_refined::{advanced_refined_wavelet_packet_2d, AdvancedRefinedConfig};
 /// use scirs2_signal::dwt::Wavelet;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 ///
 /// // Create test image
 /// let image = Array2::from_shape_fn((128, 128), |(i, j)| {
@@ -281,7 +281,7 @@ fn estimate_cache_efficiency(_image_dim: (usize, usize)) -> f64 {
 mod tests {
     use super::*;
     use crate::dwt::Wavelet;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_advanced_refined_wavelet_packet_2d() {
@@ -321,7 +321,8 @@ mod tests {
         });
 
         // Add noise
-        let noisy_image = clean_image.mapv(|x| x + 0.1 * rand::random::<f64>() - 0.05);
+        let noisy_image =
+            clean_image.mapv(|x| x + 0.1 * scirs2_core::random::random::<f64>() - 0.05);
 
         let denoising_config = AdvancedRefinedDenoisingConfig {
             noise_variance: Some(0.01),

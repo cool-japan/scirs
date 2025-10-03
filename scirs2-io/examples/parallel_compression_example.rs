@@ -77,10 +77,10 @@ fn demonstrate_basic_parallel_compression(data: &[u8]) -> Result<(), Box<dyn std
     let config = ParallelCompressionConfig::default();
 
     println!(
-        "  📝 Compressing {} bytes with {:?} (level {})...",
+        "  📝 Compressing {} bytes with {:?} (level {:?})...",
         data.len(),
         algorithm,
-        level.unwrap()
+        level
     );
 
     let start_time = Instant::now();

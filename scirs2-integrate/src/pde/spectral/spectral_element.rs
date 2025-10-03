@@ -12,7 +12,7 @@
 //! - Isoparametric mapping for curved elements
 //! - Exponential convergence for smooth solutions
 
-use ndarray::{s, Array1, Array2, Array3, ArrayView1};
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1};
 use std::time::Instant;
 
 use crate::pde::spectral::{legendre_diff_matrix, legendre_points};

@@ -1,5 +1,5 @@
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::ExtrapolateMode;
@@ -470,7 +470,7 @@ impl<T: Float + std::fmt::Display + FromPrimitive> TensionSpline<T> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::tension::make_tension_spline;
     /// use scirs2_interpolate::ExtrapolateMode;
     ///
@@ -513,7 +513,7 @@ impl<T: Float + std::fmt::Display + FromPrimitive> TensionSpline<T> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::tension::make_tension_spline;
     /// use scirs2_interpolate::ExtrapolateMode;
     ///
@@ -551,7 +551,7 @@ impl<T: Float + std::fmt::Display + FromPrimitive> TensionSpline<T> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::tension::make_tension_spline;
     /// use scirs2_interpolate::ExtrapolateMode;
     ///
@@ -662,7 +662,7 @@ impl<T: Float + std::fmt::Display + FromPrimitive> TensionSpline<T> {
     /// # Examples
     ///
     /// ```no_run
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::tension::make_tension_spline;
     /// use scirs2_interpolate::ExtrapolateMode;
     ///
@@ -802,7 +802,7 @@ impl<T: Float + std::fmt::Display + FromPrimitive> TensionSpline<T> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::tension::make_tension_spline;
     /// use scirs2_interpolate::ExtrapolateMode;
     ///
@@ -868,7 +868,7 @@ impl<T: Float + std::fmt::Display + FromPrimitive> TensionSpline<T> {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::tension::make_tension_spline;
     /// use scirs2_interpolate::ExtrapolateMode;
     ///
@@ -974,7 +974,7 @@ impl<T: Float + std::fmt::Display + FromPrimitive> TensionSpline<T> {
 ///
 /// A `Result` containing the tension spline interpolator.
 #[allow(dead_code)]
-pub fn make_tension_spline<T: Float + std::fmt::Display + num_traits::FromPrimitive>(
+pub fn make_tension_spline<T: Float + std::fmt::Display + scirs2_core::numeric::FromPrimitive>(
     x: &ArrayView1<T>,
     y: &ArrayView1<T>,
     tension: T,
@@ -987,7 +987,7 @@ pub fn make_tension_spline<T: Float + std::fmt::Display + num_traits::FromPrimit
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_tension_spline_creation() {

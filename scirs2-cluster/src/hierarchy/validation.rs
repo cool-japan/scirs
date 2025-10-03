@@ -4,8 +4,8 @@
 //! hierarchical clustering data structures to ensure they meet mathematical
 //! requirements and are suitable for downstream analysis.
 
-use ndarray::{ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -458,7 +458,7 @@ pub fn validate_cluster_consistency<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2, ArrayView1};
+    use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
     #[test]
     fn test_validate_linkage_matrix_valid() {

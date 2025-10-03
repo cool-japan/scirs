@@ -9,7 +9,7 @@
 use super::kernels::{GpuOperationType, TensorShape};
 use crate::error::{LinalgError, LinalgResult};
 use crate::gpu::GpuDeviceType;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
 
@@ -337,7 +337,7 @@ impl AdvancedMultiGpuCoordinator {
         fusion_plan: &[super::kernels::FusionCandidate],
     ) -> LinalgResult<Vec<Array2<T>>>
     where
-        T: Clone + num_traits::Zero,
+        T: Clone + scirs2_core::numeric::Zero,
     {
         // Simplified multi-GPU execution
         let mut results = Vec::new();
@@ -359,7 +359,7 @@ impl AdvancedMultiGpuCoordinator {
     /// Execute work on a specific GPU
     fn execute_on_gpu<T>(&self, _work: GpuWorkPartition) -> LinalgResult<Array2<T>>
     where
-        T: Clone + num_traits::Zero,
+        T: Clone + scirs2_core::numeric::Zero,
     {
         // Simplified GPU execution
         Ok(Array2::zeros((1, 1)))

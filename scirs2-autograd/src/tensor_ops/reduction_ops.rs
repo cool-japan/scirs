@@ -1,3 +1,4 @@
+use crate::ndarray;
 use crate::ndarray_ext;
 use crate::ndarray_ext::{NdArray, NdArrayView};
 use crate::op;
@@ -5,7 +6,6 @@ use crate::tensor::Tensor;
 use crate::tensor_ops;
 use crate::tensor_ops::*;
 use crate::Float;
-use ndarray;
 use std::f32;
 use std::mem;
 
@@ -108,7 +108,10 @@ fn simd_gradient_broadcast_f32_cache_aware(
         simd_gradient_broadcast_large_cache_aware(grad_value, target_shape, total_elements)
     } else {
         // Fallback for smaller gradients
-        ndarray::Array::from_elem(ndarray::IxDyn(target_shape), grad_value)
+        scirs2_core::ndarray::Array::from_elem(
+            scirs2_core::ndarray::IxDyn(target_shape),
+            grad_value,
+        )
     }
 }
 
@@ -163,7 +166,7 @@ fn simd_gradient_broadcast_large_cache_aware(
     }
 
     // Convert to ndarray with target shape
-    ndarray::Array::from_shape_vec(ndarray::IxDyn(target_shape), result)
+    scirs2_core::ndarray::Array::from_shape_vec(scirs2_core::ndarray::IxDyn(target_shape), result)
         .expect("Shape and data length should match")
 }
 
@@ -252,16 +255,16 @@ macro_rules! impl_reduce_forward {
                     let func = T::$reduce_fn_name;
 
                     let ret = match folded {
-                        Some(ref a) => {
-                            a.fold_axis(ndarray::Axis(axis), T::$reduce_default(), move |&l, &r| {
-                                func(l, r)
-                            })
-                        }
-                        None => {
-                            x.fold_axis(ndarray::Axis(axis), T::$reduce_default(), move |&l, &r| {
-                                func(l, r)
-                            })
-                        }
+                        Some(ref a) => a.fold_axis(
+                            scirs2_core::ndarray::Axis(axis),
+                            T::$reduce_default(),
+                            move |&l, &r| func(l, r),
+                        ),
+                        None => x.fold_axis(
+                            scirs2_core::ndarray::Axis(axis),
+                            T::$reduce_default(),
+                            move |&l, &r| func(l, r),
+                        ),
                     };
 
                     if keep_dims {
@@ -301,7 +304,7 @@ impl<T: Float> op::Op<T> for ReduceSumToScalar {
         let x = &ctx.input(0);
         // Debug information for empty arrays
         if x.is_empty() {
-            ctx.append_output(ndarray::arr0(T::zero()).into_dyn());
+            ctx.append_output(scirs2_core::ndarray::arr0(T::zero()).into_dyn());
         } else {
             // Use ultra-optimized SIMD reduction for performance-critical gradient computation
             #[cfg(feature = "simd")]
@@ -318,13 +321,13 @@ impl<T: Float> op::Op<T> for ReduceSumToScalar {
                         };
                         let sum_f32 = simd_reduce_sum_f32_cache_aware(f32_slice);
                         let sum_t = T::from(sum_f32).unwrap();
-                        ctx.append_output(ndarray::arr0(sum_t).into_dyn());
+                        ctx.append_output(scirs2_core::ndarray::arr0(sum_t).into_dyn());
                         return Ok(());
                     }
                 }
             }
             // Fallback to standard ndarray sum
-            ctx.append_output(ndarray::arr0(x.sum()).into_dyn());
+            ctx.append_output(scirs2_core::ndarray::arr0(x.sum()).into_dyn());
         }
         Ok(())
     }
@@ -365,7 +368,10 @@ impl<T: Float> op::Op<T> for ReduceSumToScalarGrad {
         // Fallback to standard ndarray broadcast
         let ret = unsafe {
             let x = *ctx.input(0).as_ptr();
-            ndarray::ArrayD::<T>::from_elem(ndarray::IxDyn(shape.as_slice()), x)
+            scirs2_core::ndarray::ArrayD::<T>::from_elem(
+                scirs2_core::ndarray::IxDyn(shape.as_slice()),
+                x,
+            )
         };
         ctx.append_output(ret);
         Ok(())
@@ -412,8 +418,10 @@ impl<T: Float> op::Op<T> for ReduceSum {
                             shape.remove(axes[0]);
                             shape // Don't change empty shape to vec![1] - empty shape means scalar
                         };
-                        let result =
-                            ndarray::Array::from_elem(ndarray::IxDyn(&result_shape), sum_t);
+                        let result = scirs2_core::ndarray::Array::from_elem(
+                            scirs2_core::ndarray::IxDyn(&result_shape),
+                            sum_t,
+                        );
                         ctx.append_output(result);
                         return Ok(());
                     }
@@ -610,13 +618,18 @@ fn argx_helper<T: Float>(
     let xshape = x.shape();
     // 1. Make binary mask tensor (maximums are 1s)
     let mut mask = {
-        let maxed = x.fold_axis(ndarray::Axis(axis), default_val, move |&a, &b| {
-            comp_fn(a, b)
-        });
+        let maxed = x.fold_axis(
+            scirs2_core::ndarray::Axis(axis),
+            default_val,
+            move |&a, &b| comp_fn(a, b),
+        );
         let mut mask = x.to_owned();
-        let mut found = ndarray::Array::<bool, ndarray::IxDyn>::from_elem(maxed.shape(), false);
-        for mut sub in mask.axis_iter_mut(ndarray::Axis(axis)) {
-            ndarray::Zip::from(&mut sub)
+        let mut found = scirs2_core::ndarray::Array::<bool, scirs2_core::ndarray::IxDyn>::from_elem(
+            maxed.shape(),
+            false,
+        );
+        for mut sub in mask.axis_iter_mut(scirs2_core::ndarray::Axis(axis)) {
+            scirs2_core::ndarray::Zip::from(&mut sub)
                 .and(&mut found)
                 .and(&maxed)
                 .for_each(|r, f, m| {
@@ -634,7 +647,11 @@ fn argx_helper<T: Float>(
     let mask = {
         // move the `axis` to first, and put remaining together on the 2nd axis
         let reduction_len = xshape[axis];
-        ndarray_ext::roll_axis(&mut mask, ndarray::Axis(0), ndarray::Axis(axis));
+        ndarray_ext::roll_axis(
+            &mut mask,
+            scirs2_core::ndarray::Axis(0),
+            scirs2_core::ndarray::Axis(axis),
+        );
         let shape2d = (reduction_len, mask.len() / reduction_len);
         let mut mask = if mask.is_standard_layout() {
             mask.into_shape_with_order(shape2d).unwrap()
@@ -652,7 +669,7 @@ fn argx_helper<T: Float>(
     // 3. Make the indices (vertical vector)
     let indices = {
         let cols = mask.shape()[1];
-        ndarray::Array::range(T::zero(), T::from(cols).unwrap(), T::one())
+        scirs2_core::ndarray::Array::range(T::zero(), T::from(cols).unwrap(), T::one())
             .into_shape_with_order((cols, 1))
             .unwrap()
     };
@@ -669,7 +686,7 @@ fn argx_helper<T: Float>(
     }
     // unwrap is safe (95% confidence...)
     mat.into_dyn()
-        .into_shape_with_order(ndarray::IxDyn(finalshape.as_slice()))
+        .into_shape_with_order(scirs2_core::ndarray::IxDyn(finalshape.as_slice()))
         .unwrap()
 }
 
@@ -799,7 +816,7 @@ impl<T: Float> op::Op<T> for ReduceVariance {
 impl<T: Float> op::Op<T> for ReduceSumAll {
     fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
         let x = &ctx.input(0);
-        ctx.append_output(ndarray::arr0(x.sum()).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(x.sum()).into_dyn());
         Ok(())
     }
 
@@ -817,7 +834,7 @@ impl<T: Float> op::Op<T> for ReduceMeanAll {
         let x = &ctx.input(0);
         let len = x.len() as f32;
         let mean = x.sum() / T::from(len).unwrap();
-        ctx.append_output(ndarray::arr0(mean).into_dyn());
+        ctx.append_output(scirs2_core::ndarray::arr0(mean).into_dyn());
         Ok(())
     }
 
@@ -850,14 +867,16 @@ impl<T: Float> op::Op<T> for ReduceAll {
 
             for axis in sorted_axes.into_iter().rev() {
                 let ret = match folded {
-                    Some(ref a) => a.fold_axis(ndarray::Axis(axis), T::one(), |&l, &r| {
-                        if l != T::zero() && r != T::zero() {
-                            T::one()
-                        } else {
-                            T::zero()
-                        }
-                    }),
-                    None => x.fold_axis(ndarray::Axis(axis), T::one(), |&l, &r| {
+                    Some(ref a) => {
+                        a.fold_axis(scirs2_core::ndarray::Axis(axis), T::one(), |&l, &r| {
+                            if l != T::zero() && r != T::zero() {
+                                T::one()
+                            } else {
+                                T::zero()
+                            }
+                        })
+                    }
+                    None => x.fold_axis(scirs2_core::ndarray::Axis(axis), T::one(), |&l, &r| {
                         if l != T::zero() && r != T::zero() {
                             T::one()
                         } else {
@@ -901,14 +920,16 @@ impl<T: Float> op::Op<T> for ReduceAny {
 
             for axis in sorted_axes.into_iter().rev() {
                 let ret = match folded {
-                    Some(ref a) => a.fold_axis(ndarray::Axis(axis), T::zero(), |&l, &r| {
-                        if l != T::zero() || r != T::zero() {
-                            T::one()
-                        } else {
-                            T::zero()
-                        }
-                    }),
-                    None => x.fold_axis(ndarray::Axis(axis), T::zero(), |&l, &r| {
+                    Some(ref a) => {
+                        a.fold_axis(scirs2_core::ndarray::Axis(axis), T::zero(), |&l, &r| {
+                            if l != T::zero() || r != T::zero() {
+                                T::one()
+                            } else {
+                                T::zero()
+                            }
+                        })
+                    }
+                    None => x.fold_axis(scirs2_core::ndarray::Axis(axis), T::zero(), |&l, &r| {
                         if l != T::zero() || r != T::zero() {
                             T::one()
                         } else {

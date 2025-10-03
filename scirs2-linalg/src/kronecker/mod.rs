@@ -4,13 +4,13 @@
 //! operations that are particularly useful for neural network layers, especially in
 //! second-order optimization methods like K-FAC (Kronecker-Factored Approximate Curvature).
 
-use ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
-// Helper function to convert ndarray::ShapeError to LinalgError
+// Helper function to convert scirs2_core::ndarray::ShapeError to LinalgError
 #[allow(dead_code)]
-fn shape_err_to_linalg(err: ndarray::ShapeError) -> crate::error::LinalgError {
+fn shape_err_to_linalg(err: scirs2_core::ndarray::ShapeError) -> crate::error::LinalgError {
     crate::error::LinalgError::ShapeError(err.to_string())
 }
 
@@ -38,7 +38,7 @@ use crate::norm::matrix_norm;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::kronecker::kron;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -96,7 +96,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array1};
+/// use scirs2_core::ndarray::{array, Array1};
 /// use scirs2_linalg::kronecker::kron_matvec;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -111,8 +111,8 @@ where
 pub fn kron_matvec<F>(
     a: &ArrayView2<F>,
     b: &ArrayView2<F>,
-    x: &ndarray::ArrayView1<F>,
-) -> LinalgResult<ndarray::Array1<F>>
+    x: &scirs2_core::ndarray::ArrayView1<F>,
+) -> LinalgResult<scirs2_core::ndarray::Array1<F>>
 where
     F: Float + NumAssign + Sum + ScalarOperand + Send + Sync,
 {
@@ -177,7 +177,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::kronecker::kron_matmul;
 ///
 /// let a = array![[1.0, 2.0], [3.0, 4.0]];
@@ -217,7 +217,7 @@ where
 
     // Process each column of X separately
     for col in 0..r {
-        let x_col = x.slice(ndarray::s![.., col]);
+        let x_col = x.slice(scirs2_core::ndarray::s![.., col]);
         let y_col = kron_matvec(a, b, &x_col)?;
 
         // Copy the result to the output matrix
@@ -250,7 +250,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::kronecker::{kron, kron_factorize};
 ///
 /// // Create a matrix to factorize
@@ -390,7 +390,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::kronecker::kfac_factorization;
 ///
 /// // Create sample activations and gradients
@@ -507,7 +507,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::kronecker::{kfac_factorization, kfac_update};
 /// use scirs2_linalg::inv;
 ///
@@ -1214,7 +1214,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_kron_simple() {

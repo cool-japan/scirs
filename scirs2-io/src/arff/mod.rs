@@ -3,7 +3,7 @@
 //! This module provides functionality for reading and writing ARFF files,
 //! commonly used in machine learning applications like WEKA.
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::Path;
@@ -431,7 +431,7 @@ pub fn get_numeric_matrix(
 ///
 /// ```no_run
 /// use scirs2_io::arff::{ArffData, ArffValue, AttributeType, write_arff};
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use std::path::Path;
 ///
 /// // Create a simple ARFF dataset
@@ -548,7 +548,7 @@ pub fn write_arff<P: AsRef<Path>>(path: P, arff_data: &ArffData) -> Result<()> {
 ///
 /// ```no_run
 /// use scirs2_io::arff::numeric_matrix_to_arff;
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use std::path::Path;
 ///
 /// // Create a simple matrix

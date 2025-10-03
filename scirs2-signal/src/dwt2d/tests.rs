@@ -5,7 +5,7 @@
 
 use super::*;
 use crate::dwt::Wavelet;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 #[test]
 fn test_dwt2d_haar_basic() {

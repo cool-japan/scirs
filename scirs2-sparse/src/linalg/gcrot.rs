@@ -6,8 +6,8 @@
 
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, Array2, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Type alias for GCROT inner iteration result
@@ -74,7 +74,7 @@ pub struct GCROTResult<T> {
 /// ```rust
 /// use scirs2_sparse::csr_array::CsrArray;
 /// use scirs2_sparse::linalg::{gcrot, GCROTOptions};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Create a simple matrix
 /// let rows = vec![0, 0, 1, 1, 2, 2];
@@ -251,8 +251,8 @@ where
 fn gcrot_inner_iteration<T, S>(
     matrix: &S,
     r: &ArrayView1<T>,
-    c_vectors: &ndarray::ArrayView2<T>,
-    u_vectors: &ndarray::ArrayView2<T>,
+    c_vectors: &scirs2_core::ndarray::ArrayView2<T>,
+    u_vectors: &scirs2_core::ndarray::ArrayView2<T>,
     tolerance: T,
 ) -> GCROTInnerResult<T>
 where

@@ -1,10 +1,10 @@
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use crate::wavelets;
-use ndarray::s;
-use ndarray::{Array1, Array2};
-use num_complex::Complex64;
-use num_traits::Float;
+use scirs2_core::ndarray::s;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::Float;
 
 // Synchrosqueezed Wavelet Transform Implementation
 //
@@ -75,7 +75,7 @@ pub struct SynchroCwtResult {
 /// # Example
 ///
 /// ```
-/// use ndarray::{Array1, Array2};
+/// use scirs2_core::ndarray::{Array1, Array2};
 /// use scirs2_signal::sswt::{synchrosqueezed_cwt, SynchroCwtConfig};
 /// use scirs2_signal::wavelets;
 ///

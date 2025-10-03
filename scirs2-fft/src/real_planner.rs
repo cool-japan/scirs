@@ -34,8 +34,8 @@
 //! ```
 
 use crate::error::{FFTError, FFTResult};
-use num_complex::Complex;
-use num_traits::Float;
+use scirs2_core::numeric::Complex;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 
@@ -177,7 +177,7 @@ impl ComplexToReal<f64> for InverseRealFftPlanF64 {
         buffer.extend_from_slice(input);
 
         // Add conjugate symmetric part
-        let start_idx = if self.length % 2 == 0 {
+        let start_idx = if self.length.is_multiple_of(2) {
             input.len() - 1
         } else {
             input.len()
@@ -295,7 +295,7 @@ impl ComplexToReal<f32> for InverseRealFftPlanF32 {
         buffer.extend_from_slice(input);
 
         // Add conjugate symmetric part
-        let start_idx = if self.length % 2 == 0 {
+        let start_idx = if self.length.is_multiple_of(2) {
             input.len() - 1
         } else {
             input.len()
@@ -440,7 +440,7 @@ impl Default for RealFftPlanner<f32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use std::f64::consts::PI;
 
     #[test]

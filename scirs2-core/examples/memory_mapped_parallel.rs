@@ -12,10 +12,10 @@
 #[cfg(all(feature = "memory_efficient", feature = "parallel"))]
 #[allow(dead_code)]
 fn main() {
-    use ndarray::Array1;
     use scirs2_core::memory_efficient::{
         create_mmap, AccessMode, ChunkingStrategy, MemoryMappedChunks, MemoryMappedChunksParallel,
     };
+    use scirs2_core::ndarray::Array1;
     // Path is unused
     use std::time::Instant;
 

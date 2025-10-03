@@ -11,7 +11,7 @@ use crate::error::OptimizeError;
 use crate::unconstrained::adaptive_convergence::{
     AdaptiveToleranceOptions, AdaptiveToleranceState, ConvergenceStatus,
 };
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 

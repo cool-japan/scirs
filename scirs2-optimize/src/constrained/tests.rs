@@ -2,7 +2,7 @@
 
 use crate::constrained::*;
 use crate::error::OptimizeError;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 
 #[allow(dead_code)]
 fn objective(x: &[f64]) -> f64 {

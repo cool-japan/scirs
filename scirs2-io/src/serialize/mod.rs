@@ -12,7 +12,7 @@
 //! - Memory-efficient sparse matrix operations
 
 use ::serde::{Deserialize, Serialize};
-use ndarray::{Array, Array2, ArrayBase, IxDyn};
+use scirs2_core::ndarray::{Array, Array2, ArrayBase, IxDyn};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Write};
@@ -50,7 +50,7 @@ pub enum SerializationFormat {
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array2, IxDyn};
+/// use scirs2_core::ndarray::{Array2, IxDyn};
 /// use scirs2_io::serialize::{serialize_array, SerializationFormat};
 ///
 /// let array = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).unwrap();
@@ -71,7 +71,7 @@ pub fn serialize_array<P, A, S>(
 where
     P: AsRef<Path>,
     A: Serialize + Clone,
-    S: ndarray::Data<Elem = A>,
+    S: scirs2_core::ndarray::Data<Elem = A>,
 {
     // Create a serializable representation
     let shape = array.shape().to_vec();
@@ -137,7 +137,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::{Array, IxDyn};
+/// use scirs2_core::ndarray::{Array, IxDyn};
 /// use scirs2_io::serialize::{deserialize_array, SerializationFormat};
 ///
 /// // Binary deserialization
@@ -252,7 +252,7 @@ pub struct SerializedArray<A> {
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_io::serialize::{serialize_array_with_metadata, SerializationFormat};
 /// use std::collections::HashMap;
 ///
@@ -281,7 +281,7 @@ pub fn serialize_array_with_metadata<P, A, S>(
 where
     P: AsRef<Path>,
     A: Serialize + Clone,
-    S: ndarray::Data<Elem = A>,
+    S: scirs2_core::ndarray::Data<Elem = A>,
 {
     let file = File::create(path).map_err(|e| IoError::FileError(e.to_string()))?;
     let mut writer = BufWriter::new(file);
@@ -340,7 +340,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_io::serialize::{deserialize_array_with_metadata, SerializationFormat};
 ///
 /// // Deserialize array with metadata
@@ -1223,7 +1223,7 @@ pub fn write_array_json<P, A, S>(path: P, array: &ArrayBase<S, IxDyn>) -> Result
 where
     P: AsRef<Path>,
     A: Serialize + Clone,
-    S: ndarray::Data<Elem = A>,
+    S: scirs2_core::ndarray::Data<Elem = A>,
 {
     serialize_array::<P, A, S>(path, array, SerializationFormat::JSON)
 }
@@ -1244,7 +1244,7 @@ pub fn write_array_binary<P, A, S>(path: P, array: &ArrayBase<S, IxDyn>) -> Resu
 where
     P: AsRef<Path>,
     A: Serialize + Clone,
-    S: ndarray::Data<Elem = A>,
+    S: scirs2_core::ndarray::Data<Elem = A>,
 {
     serialize_array::<P, A, S>(path, array, SerializationFormat::Binary)
 }
@@ -1265,7 +1265,7 @@ pub fn write_array_messagepack<P, A, S>(path: P, array: &ArrayBase<S, IxDyn>) ->
 where
     P: AsRef<Path>,
     A: Serialize + Clone,
-    S: ndarray::Data<Elem = A>,
+    S: scirs2_core::ndarray::Data<Elem = A>,
 {
     serialize_array::<P, A, S>(path, array, SerializationFormat::MessagePack)
 }
@@ -1309,7 +1309,7 @@ pub fn serialize_array_zero_copy<P, A, S>(
 where
     P: AsRef<Path>,
     A: Serialize + bytemuck::Pod,
-    S: ndarray::Data<Elem = A>,
+    S: scirs2_core::ndarray::Data<Elem = A>,
 {
     if !array.is_standard_layout() {
         return Err(IoError::FormatError(

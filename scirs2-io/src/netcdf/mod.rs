@@ -16,7 +16,7 @@
 //! - Compression and chunking support (NetCDF4/HDF5)
 //! - Large file support with HDF5 backend
 
-use ndarray::{Array, Array2, ArrayD, Dimension};
+use scirs2_core::ndarray::{Array, Array2, ArrayD, Dimension};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -910,7 +910,7 @@ impl NetCDFFile {
 /// # Example
 ///
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use std::collections::HashMap;
 /// use scirs2_io::netcdf::{create_netcdf4_with_data};
 ///
@@ -1150,7 +1150,7 @@ mod tests {
 
     #[test]
     fn test_netcdf4_write_array() {
-        use ndarray::array;
+        use scirs2_core::ndarray::array;
 
         let mut file =
             NetCDFFile::create_with_format("test_netcdf4_array.nc", NetCDFFormat::NetCDF4).unwrap();
@@ -1171,7 +1171,7 @@ mod tests {
 
     #[test]
     fn test_netcdf4_convenience_functions() {
-        use ndarray::array;
+        use scirs2_core::ndarray::array;
         use std::collections::HashMap;
 
         let mut datasets = HashMap::new();
@@ -1192,7 +1192,7 @@ mod tests {
 
     #[test]
     fn test_classic_netcdf_write_array_error() {
-        use ndarray::array;
+        use scirs2_core::ndarray::array;
 
         let mut file =
             NetCDFFile::create_with_format("test_classic_error.nc", NetCDFFormat::Classic).unwrap();

@@ -5,9 +5,11 @@
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use crate::traits::{Distribution as DistributionTrait, MultivariateDistribution};
-use ndarray::{s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix1, Ix2};
-use rand_distr::{Distribution as RandDistribution, Normal as RandNormal};
+use scirs2_core::ndarray::{
+    s, Array1, Array2, ArrayBase, ArrayView1, ArrayView2, Axis, Data, Ix1, Ix2,
+};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::{Distribution as RandDistribution, Normal as RandNormal};
 use statrs::statistics::Statistics;
 use std::fmt::Debug;
 
@@ -43,7 +45,7 @@ impl MultivariateNormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array1, Array2};
+    /// use scirs2_core::ndarray::{array, Array1, Array2};
     /// use scirs2_stats::distributions::multivariate::normal::MultivariateNormal;
     ///
     /// // Create a 2D multivariate normal distribution
@@ -112,7 +114,7 @@ impl MultivariateNormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::normal::MultivariateNormal;
     ///
     /// let mean = array![0.0, 0.0];
@@ -162,7 +164,7 @@ impl MultivariateNormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::normal::MultivariateNormal;
     ///
     /// let mean = array![0.0, 0.0];
@@ -218,7 +220,7 @@ impl MultivariateNormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::normal::MultivariateNormal;
     ///
     /// let mean = array![0.0, 0.0];
@@ -246,7 +248,7 @@ impl MultivariateNormal {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::normal::MultivariateNormal;
     ///
     /// let mean = array![0.0, 0.0];
@@ -386,7 +388,7 @@ pub fn compute_inverse_from_cholesky(l: &Array2<f64>) -> Result<Array2<f64>, Str
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distributions::multivariate;
 ///
 /// let mean = array![0.0, 0.0];
@@ -451,7 +453,7 @@ impl MultivariateDistribution<f64> for MultivariateNormal {
         self.pdf(x)
     }
 
-    fn rvs(&self, size: usize) -> StatsResult<ndarray::Array2<f64>> {
+    fn rvs(&self, size: usize) -> StatsResult<scirs2_core::ndarray::Array2<f64>> {
         self.rvs(size)
     }
 
@@ -459,7 +461,7 @@ impl MultivariateDistribution<f64> for MultivariateNormal {
         self.mean.clone()
     }
 
-    fn cov(&self) -> ndarray::Array2<f64> {
+    fn cov(&self) -> scirs2_core::ndarray::Array2<f64> {
         self.cov.clone()
     }
 
@@ -496,7 +498,7 @@ impl SampleableDistribution<Array1<f64>> for MultivariateNormal {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::{array, Axis};
+    use scirs2_core::ndarray::{array, Axis};
 
     #[test]
     fn test_mvn_creation() {

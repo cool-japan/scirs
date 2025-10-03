@@ -3,8 +3,8 @@
 //! This module provides specialized image processing functions for different domains:
 //! medical imaging, satellite/remote sensing, and microscopy.
 
-use ndarray::{Array2, Array3, ArrayView2, ArrayView3};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, Array3, ArrayView2, ArrayView3};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{NdimageError, NdimageResult};
@@ -148,12 +148,12 @@ pub mod medical {
             + Sync
             + std::ops::AddAssign
             + std::ops::DivAssign
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + 'static,
     {
         // Top-hat transform to enhance bright structures
         let structure = crate::morphology::disk_structure(kernel_size as f64, None)?;
-        let structure_2d = structure.into_dimensionality::<ndarray::Ix2>()?;
+        let structure_2d = structure.into_dimensionality::<scirs2_core::ndarray::Ix2>()?;
         let opened = grey_opening(
             &image.to_owned(),
             None,
@@ -183,7 +183,7 @@ pub mod medical {
             + Debug
             + Send
             + Sync
-            + num_traits::NumAssign
+            + scirs2_core::numeric::NumAssign
             + std::ops::DivAssign
             + 'static,
     {
@@ -428,7 +428,7 @@ pub mod satellite {
             + Debug
             + Send
             + Sync
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + std::ops::Mul<Output = T>
             + std::ops::AddAssign
             + std::ops::DivAssign
@@ -448,7 +448,7 @@ pub mod satellite {
 
                 // Upsample multispectral to pan resolution
                 for band in 0..num_bands {
-                    let ms_band = multi_spectral.slice(ndarray::s![.., .., band]);
+                    let ms_band = multi_spectral.slice(scirs2_core::ndarray::s![.., .., band]);
                     let upsampled = zoom(
                         &ms_band.to_owned(),
                         T::from_f64(scale_x).ok_or_else(|| {
@@ -460,7 +460,7 @@ pub mod satellite {
                         None,
                     )?;
                     sharpened
-                        .slice_mut(ndarray::s![.., .., band])
+                        .slice_mut(scirs2_core::ndarray::s![.., .., band])
                         .assign(&upsampled);
                 }
 
@@ -499,7 +499,7 @@ pub mod satellite {
 
                 // Upsample and apply Brovey transform
                 for band in 0..num_bands {
-                    let ms_band = multi_spectral.slice(ndarray::s![.., .., band]);
+                    let ms_band = multi_spectral.slice(scirs2_core::ndarray::s![.., .., band]);
                     let upsampled = zoom(
                         &ms_band.to_owned(),
                         T::from_f64(scale_x).ok_or_else(|| {
@@ -514,7 +514,7 @@ pub mod satellite {
                     // Compute sum of all bands at low resolution
                     let mut ms_sum = Array2::zeros((ms_h, ms_w));
                     for k in 0..num_bands {
-                        ms_sum += &multi_spectral.slice(ndarray::s![.., .., k]);
+                        ms_sum += &multi_spectral.slice(scirs2_core::ndarray::s![.., .., k]);
                     }
 
                     // Upsample sum
@@ -596,7 +596,7 @@ pub mod microscopy {
         params: Option<CellSegmentationParams>,
     ) -> NdimageResult<(Array2<i32>, Vec<CellInfo>)>
     where
-        T: Float + FromPrimitive + Debug + Send + Sync + num_traits::NumAssign + 'static,
+        T: Float + FromPrimitive + Debug + Send + Sync + scirs2_core::numeric::NumAssign + 'static,
     {
         let params = params.unwrap_or_default();
 
@@ -742,7 +742,7 @@ pub mod microscopy {
             + Sync
             + std::ops::AddAssign
             + std::ops::DivAssign
-            + num_traits::NumAssign
+            + scirs2_core::numeric::NumAssign
             + 'static,
     {
         // Preprocess with median filter to reduce noise
@@ -750,7 +750,7 @@ pub mod microscopy {
 
         // Enhance nuclei using top-hat transform
         let structure = crate::morphology::disk_structure(10.0, None)?;
-        let structure_2d = structure.into_dimensionality::<ndarray::Ix2>()?;
+        let structure_2d = structure.into_dimensionality::<scirs2_core::ndarray::Ix2>()?;
         let background = grey_opening(&denoised, None, Some(&structure_2d), None, None, None)?;
         let enhanced = &denoised - &background;
 
@@ -913,7 +913,7 @@ pub mod microscopy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_ndvi() {
@@ -958,7 +958,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // FIXME: Test failing - needs investigation
     fn test_cell_segmentation() {
         // Create synthetic cell image
         let mut image = Array2::zeros((100, 100));

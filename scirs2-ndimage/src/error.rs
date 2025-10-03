@@ -58,7 +58,7 @@ pub enum NdimageError {
 
     /// Shape building error
     #[error("Shape error: {0}")]
-    ShapeError(#[from] ndarray::ShapeError),
+    ShapeError(#[from] scirs2_core::ndarray::ShapeError),
 
     /// Format error
     #[error("Format error: {0}")]

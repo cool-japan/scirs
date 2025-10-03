@@ -135,7 +135,7 @@ fn bench_spline_regression(c: &mut Criterion) {
     group.bench_function("cubic_spline_evaluation", |b| {
         b.iter(|| {
             for &x in x_queries.iter() {
-                black_box(spline.evaluate(black_box(x)));
+                let _ = black_box(spline.evaluate(black_box(x)));
             }
         })
     });
@@ -143,7 +143,7 @@ fn bench_spline_regression(c: &mut Criterion) {
     group.bench_function("cubic_spline_derivatives", |b| {
         b.iter(|| {
             for &x in x_queries.iter() {
-                black_box(spline.derivative_n(black_box(x), black_box(1)));
+                let _ = black_box(spline.derivative_n(black_box(x), black_box(1)));
             }
         })
     });
@@ -151,7 +151,9 @@ fn bench_spline_regression(c: &mut Criterion) {
     group.bench_function("cubic_spline_integration", |b| {
         b.iter(|| {
             for i in 0..x_queries.len() - 1 {
-                black_box(spline.integrate(black_box(x_queries[i]), black_box(x_queries[i + 1])));
+                let _ = black_box(
+                    spline.integrate(black_box(x_queries[i]), black_box(x_queries[i + 1])),
+                );
             }
         })
     });
@@ -187,7 +189,7 @@ fn bench_bspline_regression(c: &mut Criterion) {
     group.bench_function("bspline_evaluation", |b| {
         b.iter(|| {
             for &x in queries.iter() {
-                black_box(spline.evaluate(black_box(x)));
+                let _ = black_box(spline.evaluate(black_box(x)));
             }
         })
     });
@@ -195,7 +197,7 @@ fn bench_bspline_regression(c: &mut Criterion) {
     group.bench_function("bspline_derivative", |b| {
         b.iter(|| {
             for &x in queries.iter() {
-                black_box(spline.derivative(black_box(x), black_box(1)));
+                let _ = black_box(spline.derivative(black_box(x), black_box(1)));
             }
         })
     });

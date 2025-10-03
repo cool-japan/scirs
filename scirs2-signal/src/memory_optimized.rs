@@ -5,7 +5,7 @@
 // entirely in memory, or where memory usage needs to be carefully controlled.
 
 use crate::error::{SignalError, SignalResult};
-use num_complex::Complex;
+use scirs2_core::numeric::Complex;
 use rustfft::FftPlanner;
 use scirs2_core::parallel_ops::*;
 use std::fs;
@@ -295,7 +295,7 @@ pub fn memory_optimized_fft(
     input_file: &str,
     output_file: &str,
     config: &MemoryConfig,
-) -> SignalResult<MemoryOptimizedResult<num_complex::Complex<f64>>> {
+) -> SignalResult<MemoryOptimizedResult<scirs2_core::numeric::Complex<f64>>> {
     let _start_time = Instant::now();
 
     // Open input _file and validate size
@@ -339,7 +339,7 @@ fn memory_fft_in_core(
     output_file: &str,
     n: usize,
     _config: &MemoryConfig,
-) -> SignalResult<MemoryOptimizedResult<num_complex::Complex<f64>>> {
+) -> SignalResult<MemoryOptimizedResult<scirs2_core::numeric::Complex<f64>>> {
     let start_time = Instant::now();
     let io_start = Instant::now();
 
@@ -434,7 +434,7 @@ fn memory_fft_out_of_core(
     n: usize,
     log2n: usize,
     config: &MemoryConfig,
-) -> SignalResult<MemoryOptimizedResult<num_complex::Complex<f64>>> {
+) -> SignalResult<MemoryOptimizedResult<scirs2_core::numeric::Complex<f64>>> {
     let start_time = Instant::now();
     let mut memory_stats = MemoryStats {
         peak_memory: 0,
@@ -541,7 +541,7 @@ fn process_fft_stage_disk(
     n: usize,
     stage: usize,
     config: &MemoryConfig,
-) -> SignalResult<MemoryOptimizedResult<num_complex::Complex<f64>>> {
+) -> SignalResult<MemoryOptimizedResult<scirs2_core::numeric::Complex<f64>>> {
     let start_time = std::time::Instant::now();
     let mut disk_ops = 0;
 
@@ -687,7 +687,7 @@ fn process_fft_stages_memory(
     _start_stage: usize,
     _stages: usize,
     config: &MemoryConfig,
-) -> SignalResult<MemoryOptimizedResult<num_complex::Complex<f64>>> {
+) -> SignalResult<MemoryOptimizedResult<scirs2_core::numeric::Complex<f64>>> {
     // For simplicity, delegate to in-core implementation
     // In a full implementation, this would do the remaining radix-2 _stages
     memory_fft_in_core(input_file, output_file, n, config)

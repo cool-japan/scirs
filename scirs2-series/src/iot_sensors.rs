@@ -5,7 +5,7 @@
 //! GPS, accelerometer, and other sensor data streams.
 
 use crate::error::{Result, TimeSeriesError};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -349,7 +349,7 @@ impl MotionSensorAnalysis {
                 break; // Skip incomplete windows
             }
 
-            let window = accel_data.slice(ndarray::s![start..end, ..]);
+            let window = accel_data.slice(scirs2_core::ndarray::s![start..end, ..]);
 
             // Calculate features
             let magnitude: Array1<f64> = window
@@ -431,8 +431,8 @@ impl MotionSensorAnalysis {
                 // Check for low acceleration in the next few samples (impact followed by stillness)
                 let check_samples = ((0.5 * self.fs) as usize).min(accel_data.nrows() - i - 1);
                 if check_samples > 0 {
-                    let future_window =
-                        accel_data.slice(ndarray::s![i + 1..i + 1 + check_samples, ..]);
+                    let future_window = accel_data
+                        .slice(scirs2_core::ndarray::s![i + 1..i + 1 + check_samples, ..]);
                     let future_magnitudes: Array1<f64> = future_window
                         .outer_iter()
                         .map(|row| (row[0] * row[0] + row[1] * row[1] + row[2] * row[2]).sqrt())
@@ -786,7 +786,7 @@ impl IoTAnalysis {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, arr2};
+    use scirs2_core::ndarray::{arr1, arr2};
 
     #[test]
     fn test_environmental_sensor_analysis() {

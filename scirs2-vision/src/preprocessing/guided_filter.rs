@@ -5,7 +5,7 @@
 //! HDR compression, image matting/feathering, haze removal, and joint upsampling.
 
 use crate::error::Result;
-use ndarray::{s, Array2, Array3};
+use scirs2_core::ndarray::{s, Array2, Array3};
 
 /// Apply guided filter to a grayscale image
 ///
@@ -233,7 +233,7 @@ pub fn fast_guided_filter(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_guided_filter_identity() {

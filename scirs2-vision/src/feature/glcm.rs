@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage};
-use ndarray::{Array2, Axis};
+use scirs2_core::ndarray::{Array2, Axis};
 
 /// Direction for GLCM computation
 #[derive(Debug, Clone, Copy)]

@@ -7,7 +7,7 @@ use super::types::*;
 use crate::dwt::{wavedec, waverec, DecompositionResult};
 // use crate::dwt2d::dwt2d_decompose; // TODO: Enable when dwt2d module is available
 use crate::error::{SignalError, SignalResult};
-use ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_finite;
 
@@ -205,7 +205,7 @@ pub fn estimate_noise_mad(coeffs: &Array1<f64>) -> f64 {
     let mut abs_coeffs: Vec<f64> = coeffs.iter().map(|&x: &f64| x.abs()).collect();
     abs_coeffs.sort_by(|a, b| a.partial_cmp(b).unwrap());
 
-    let median = if abs_coeffs.len() % 2 == 0 {
+    let median = if abs_coeffs.len().is_multiple_of(2) {
         (abs_coeffs[abs_coeffs.len() / 2 - 1] + abs_coeffs[abs_coeffs.len() / 2]) / 2.0
     } else {
         abs_coeffs[abs_coeffs.len() / 2]

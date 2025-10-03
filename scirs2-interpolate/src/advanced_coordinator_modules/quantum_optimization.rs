@@ -6,8 +6,8 @@
 
 use super::types::*;
 use crate::error::InterpolateResult;
-use ndarray::Array2;
-use num_traits::Float;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::fmt::Debug;
 use std::time::Instant;
@@ -508,8 +508,8 @@ impl<F: Float + Debug + std::ops::MulAssign + std::ops::AddAssign + std::ops::Su
 
             // Initialize with random parameter values within bounds
             for (param_name, &(min_val, max_val)) in parameter_bounds {
-                let random_val =
-                    min_val + (max_val - min_val) * F::from(rand::random::<f64>()).unwrap();
+                let random_val = min_val
+                    + (max_val - min_val) * F::from(scirs2_core::random::random::<f64>()).unwrap();
                 state
                     .parameter_values
                     .insert(param_name.clone(), random_val);
@@ -524,10 +524,12 @@ impl<F: Float + Debug + std::ops::MulAssign + std::ops::AddAssign + std::ops::Su
                 );
                 param_count
             ];
-            state.phases = vec![
-                F::from(rand::random::<f64>() * 2.0 * std::f64::consts::PI).unwrap();
-                param_count
-            ];
+            state.phases =
+                vec![
+                    F::from(scirs2_core::random::random::<f64>() * 2.0 * std::f64::consts::PI)
+                        .unwrap();
+                    param_count
+                ];
 
             self.state_population.push(state);
         }
@@ -611,8 +613,8 @@ impl<F: Float + Debug + std::ops::MulAssign + std::ops::AddAssign + std::ops::Su
         for (param_name, &current_value) in &self.quantum_state.parameter_values {
             // Quantum measurement introduces uncertainty
             let measurement_uncertainty = F::from(0.01).unwrap(); // 1% uncertainty
-            let random_factor =
-                F::from(rand::random::<f64>() - 0.5).unwrap() * measurement_uncertainty;
+            let random_factor = F::from(scirs2_core::random::random::<f64>() - 0.5).unwrap()
+                * measurement_uncertainty;
             let measured_value = current_value * (F::one() + random_factor);
 
             measured_params.insert(param_name.clone(), measured_value);
@@ -647,7 +649,7 @@ impl<F: Float + Debug + std::ops::MulAssign + std::ops::AddAssign + std::ops::Su
 
     /// Determine if state should be accepted
     fn should_accept_state(&self, acceptance_probability: F) -> InterpolateResult<bool> {
-        let random_value = F::from(rand::random::<f64>()).unwrap();
+        let random_value = F::from(scirs2_core::random::random::<f64>()).unwrap();
         Ok(random_value < acceptance_probability)
     }
 
@@ -656,9 +658,9 @@ impl<F: Float + Debug + std::ops::MulAssign + std::ops::AddAssign + std::ops::Su
         let tunneling_strength = self.annealing_params.tunneling_strength;
 
         // Add quantum fluctuations to parameter values
-        for (_param_name, value) in &mut self.quantum_state.parameter_values {
+        for value in self.quantum_state.parameter_values.values_mut() {
             let tunneling_offset =
-                F::from(rand::random::<f64>() - 0.5).unwrap() * tunneling_strength;
+                F::from(scirs2_core::random::random::<f64>() - 0.5).unwrap() * tunneling_strength;
             *value += tunneling_offset;
         }
 

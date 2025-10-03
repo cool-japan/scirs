@@ -37,7 +37,7 @@
 
 use crate::error::{SpatialError, SpatialResult};
 use crate::generic_traits::{DistanceMetric, Point, SpatialPoint, SpatialScalar};
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::PlatformCapabilities;
 use std::cmp::Ordering;

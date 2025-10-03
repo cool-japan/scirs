@@ -1,8 +1,8 @@
 //! Debug test to understand gradient flow issues
 
 use ag::tensor_ops::*;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 #[test]
 #[ignore = "Gradient shape propagation architectural limitation"]

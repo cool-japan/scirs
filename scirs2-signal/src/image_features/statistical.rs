@@ -2,7 +2,7 @@
 
 use super::utils::{calculate_kurtosis, calculate_skewness};
 use crate::error::SignalResult;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 
 #[allow(unused_imports)]

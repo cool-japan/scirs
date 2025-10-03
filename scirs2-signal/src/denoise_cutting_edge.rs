@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Cutting-edge denoising methods
 //
 // This module implements state-of-the-art denoising algorithms including:
@@ -10,7 +10,7 @@ use ndarray::s;
 // - Learned iterative shrinkage thresholding (LISTA)
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::parallel_ops::*;
 
 #[allow(unused_imports)]

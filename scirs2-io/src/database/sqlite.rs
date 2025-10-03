@@ -5,8 +5,8 @@ use crate::database::{
     ResultSet, TableSchema,
 };
 use crate::error::{IoError, Result};
-use ndarray::ArrayView2;
 use rusqlite::{params_from_iter, Connection as SqliteConn, ToSql};
+use scirs2_core::ndarray::ArrayView2;
 use std::sync::Mutex;
 
 /// SQLite connection wrapper

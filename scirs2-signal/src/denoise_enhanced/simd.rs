@@ -4,7 +4,7 @@
 //! operations to improve performance on supported hardware.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 
 /// SIMD-optimized weighted sum operation

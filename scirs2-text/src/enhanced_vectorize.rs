@@ -6,7 +6,7 @@
 use crate::error::{Result, TextError};
 use crate::tokenize::{NgramTokenizer, Tokenizer, WordTokenizer};
 use crate::vocabulary::Vocabulary;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 /// Enhanced count vectorizer with n-gram support

@@ -177,7 +177,7 @@ fn create_grid(x_min: f64, x_max: f64, y_min: f64, y_max: f64, size: usize) -> A
 /// Generate random points in a given range
 #[allow(dead_code)]
 fn generate_random_points(n: usize, x_min: f64, x_max: f64, y_min: f64, y_max: f64) -> Array2<f64> {
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let mut points = Array2::zeros((n, 2));
 
     for i in 0..n {

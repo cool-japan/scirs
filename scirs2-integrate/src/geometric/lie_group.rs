@@ -4,7 +4,7 @@
 //! preserving the group structure throughout the integration.
 
 use crate::error::{IntegrateResult, IntegrateResult as Result};
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
 /// Trait for Lie algebra operations
 pub trait LieAlgebra: Clone {
@@ -463,15 +463,17 @@ impl LieAlgebra for Se3 {
 
     fn from_vector(v: &ArrayView1<f64>) -> Self {
         Se3 {
-            v: v.slice(ndarray::s![0..3]).to_owned(),
-            omega: v.slice(ndarray::s![3..6]).to_owned(),
+            v: v.slice(scirs2_core::ndarray::s![0..3]).to_owned(),
+            omega: v.slice(scirs2_core::ndarray::s![3..6]).to_owned(),
         }
     }
 
     fn to_vector(&self) -> Array1<f64> {
         let mut vec = Array1::zeros(6);
-        vec.slice_mut(ndarray::s![0..3]).assign(&self.v);
-        vec.slice_mut(ndarray::s![3..6]).assign(&self.omega);
+        vec.slice_mut(scirs2_core::ndarray::s![0..3])
+            .assign(&self.v);
+        vec.slice_mut(scirs2_core::ndarray::s![3..6])
+            .assign(&self.omega);
         vec
     }
 

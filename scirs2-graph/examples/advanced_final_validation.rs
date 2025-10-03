@@ -54,7 +54,7 @@ fn test_processor_configurations() -> HashMap<String, bool> {
 
     // Test enhanced processor creation
     println!("  Testing enhanced processor...");
-    match std::panic::catch_unwind(|| create_enhanced_advanced_processor()) {
+    match std::panic::catch_unwind(create_enhanced_advanced_processor) {
         Ok(_processor) => {
             results.insert("enhanced_processor".to_string(), true);
             println!("    ✅ Enhanced processor created successfully");
@@ -67,7 +67,7 @@ fn test_processor_configurations() -> HashMap<String, bool> {
 
     // Test large graph processor creation
     println!("  Testing large graph processor...");
-    match std::panic::catch_unwind(|| create_large_graph_advanced_processor()) {
+    match std::panic::catch_unwind(create_large_graph_advanced_processor) {
         Ok(_processor) => {
             results.insert("large_graph_processor".to_string(), true);
             println!("    ✅ Large graph processor created successfully");
@@ -80,7 +80,7 @@ fn test_processor_configurations() -> HashMap<String, bool> {
 
     // Test performance processor creation
     println!("  Testing performance processor...");
-    match std::panic::catch_unwind(|| create_performance_advanced_processor()) {
+    match std::panic::catch_unwind(create_performance_advanced_processor) {
         Ok(_processor) => {
             results.insert("performance_processor".to_string(), true);
             println!("    ✅ Performance processor created successfully");

@@ -16,7 +16,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::IntegrateResult;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::num_threads;
 
 #[cfg(feature = "parallel_jacobian")]
@@ -512,7 +512,7 @@ impl ParallelJacobianStrategy {
 mod tests {
     use super::greedy_coloring;
     use crate::ode::utils::{parallel_finite_difference_jacobian, parallel_sparse_jacobian};
-    use ndarray::{array, Array1, Array2, ArrayView1};
+    use scirs2_core::ndarray::{array, Array1, Array2, ArrayView1};
 
     // Test function for Jacobian computation
     fn test_func(t: f64, y: ArrayView1<f64>) -> Array1<f64> {

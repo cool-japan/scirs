@@ -4,8 +4,8 @@
 //! including LU, QR, Cholesky, and SVD factorizations.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, Zero, One};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, Zero, One};
 use std::sync::Arc;
 
 use super::matrix::DistributedMatrix;

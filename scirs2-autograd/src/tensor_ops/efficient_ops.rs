@@ -8,7 +8,7 @@ use crate::ndarray_ext::NdArrayView;
 use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
-use ndarray::{Array, IxDyn, SliceInfo, SliceInfoElem};
+use scirs2_core::ndarray::{Array, IxDyn, SliceInfo, SliceInfoElem};
 use std::sync::{LazyLock, Mutex};
 
 /// Cache for storing reshape operation metadata
@@ -456,8 +456,8 @@ pub fn efficient_transpose<'g, F: Float>(
     // We'll simplify this to just use the default transpose
     let g = tensor.graph();
     let axes_tensor = crate::tensor_ops::convert_to_tensor(
-        ndarray::Array::from_shape_vec(
-            ndarray::IxDyn(&[2]),
+        scirs2_core::ndarray::Array::from_shape_vec(
+            scirs2_core::ndarray::IxDyn(&[2]),
             vec![F::from(1).unwrap(), F::from(0).unwrap()],
         )
         .unwrap(),

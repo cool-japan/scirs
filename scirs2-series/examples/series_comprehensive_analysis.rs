@@ -3,7 +3,7 @@
 //! This example demonstrates the full workflow of time series analysis using scirs2-series,
 //! including data preprocessing, decomposition, forecasting, and anomaly detection.
 
-use ndarray::{array, Array1};
+use scirs2_core::ndarray::{array, Array1};
 use scirs2_series::{
     // TODO: Fix imports when modules are implemented
     // anomaly::{AnomalyDetector, IsolationForestDetector, ZScoreDetector},
@@ -233,8 +233,8 @@ fn detect_changes_and_anomalies(data: &Array1<f64>) {
 fn compare_forecasting_methods(data: &Array1<f64>) {
     let forecast_horizon = 10;
     let train_size = data.len() - forecast_horizon;
-    let train_data = data.slice(ndarray::s![..train_size]).to_owned();
-    let test_data = data.slice(ndarray::s![train_size..]).to_owned();
+    let train_data = data.slice(scirs2_core::ndarray::s![..train_size]).to_owned();
+    let test_data = data.slice(scirs2_core::ndarray::s![train_size..]).to_owned();
 
     println!(
         "  Training on {} points, testing on {} points",
@@ -346,8 +346,8 @@ fn advanced_analysis(data: &Array1<f64>) {
     // Dynamic Time Warping self-similarity
     let dtw = DynamicTimeWarping::new();
     let half_len = data.len() / 2;
-    let first_half = data.slice(ndarray::s![..half_len]).to_owned();
-    let second_half = data.slice(ndarray::s![half_len..half_len * 2]).to_owned();
+    let first_half = data.slice(scirs2_core::ndarray::s![..half_len]).to_owned();
+    let second_half = data.slice(scirs2_core::ndarray::s![half_len..half_len * 2]).to_owned();
 
     if let Ok(dtw_distance) = dtw.distance(&first_half, &second_half) {
         println!("  DTW distance between halves: {:.2}", dtw_distance);
@@ -369,7 +369,7 @@ fn advanced_analysis(data: &Array1<f64>) {
     let mut subsequences = Vec::new();
 
     for i in (0.._data.len() - window_size).step_by(step_size) {
-        let subseq = data.slice(ndarray::s![i..i + window_size]).to_owned();
+        let subseq = data.slice(scirs2_core::ndarray::s![i..i + window_size]).to_owned();
         subsequences.push(subseq);
     }
 

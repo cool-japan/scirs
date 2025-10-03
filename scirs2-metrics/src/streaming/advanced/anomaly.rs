@@ -8,7 +8,7 @@
 
 use super::core::AnomalyDetectionAlgorithm;
 use crate::error::{MetricsError, Result};
-use num_traits::Float;
+use scirs2_core::numeric::Float;
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 

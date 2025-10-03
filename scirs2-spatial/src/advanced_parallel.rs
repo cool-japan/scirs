@@ -581,10 +581,10 @@ impl WorkStealingPool {
                 }
                 #[cfg(target_os = "windows")]
                 {
-                    if let Err(e) = Self::set_numa_affinity_windows(numa_node) {
+                    if let Err(e) = Self::set_numa_affinity_windows(numanode) {
                         eprintln!(
                             "Warning: Failed to set NUMA affinity for node {}: {}",
-                            numa_node, e
+                            numanode, e
                         );
                     }
                 }
@@ -689,7 +689,7 @@ impl WorkStealingPool {
     fn set_cpu_affinity_windows(_cpuid: usize) -> Result<(), Box<dyn std::error::Error>> {
         // Windows implementation would use SetThreadAffinityMask
         // For now, return success as a fallback
-        let _ = cpu_id;
+        let _ = _cpuid;
         Ok(())
     }
 
@@ -698,7 +698,7 @@ impl WorkStealingPool {
     fn set_numa_affinity_windows(_numanode: usize) -> Result<(), Box<dyn std::error::Error>> {
         // Windows implementation would use SetThreadGroupAffinity
         // For now, return success as a fallback
-        let _ = numa_node;
+        let _ = _numanode;
         Ok(())
     }
 
@@ -706,7 +706,7 @@ impl WorkStealingPool {
     #[cfg(target_os = "windows")]
     fn set_custom_cpu_affinity_windows(_cpuid: usize) -> Result<(), Box<dyn std::error::Error>> {
         // Same as set_cpu_affinity_windows
-        Self::set_cpu_affinity_windows(_cpu_id)
+        Self::set_cpu_affinity_windows(_cpuid)
     }
 
     /// Get work item from local or global queue

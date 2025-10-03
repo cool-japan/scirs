@@ -6,7 +6,7 @@
 //! - Enumerations for threshold methods
 //! - Memory pool for efficient temporary buffer management
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 
 /// Memory-optimized configuration for 2D DWT operations
@@ -99,7 +99,7 @@ impl Default for MemoryPool {
 /// # Example
 ///
 /// ```rust,no_run
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::dwt2d_decompose;
 ///

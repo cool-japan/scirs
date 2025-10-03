@@ -7,8 +7,8 @@
 use super::types::*;
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::ODEResult;
-use ndarray::{Array1, Array2, Axis};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::random::Rng;
 use std::collections::HashMap;
 
 /// Multi-dimensional data visualization engine
@@ -130,7 +130,7 @@ impl MultiDimensionalVisualizer {
     fn apply_tsne(&self, data: &Array2<f64>) -> IntegrateResult<Array2<f64>> {
         // Simplified t-SNE implementation - in practice would use proper t-SNE algorithm
         let (n_samples, _) = data.dim();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Random initialization
         let mut embedding = Array2::zeros((n_samples, self.target_dimensions));
@@ -228,7 +228,7 @@ impl MultiDimensionalVisualizer {
 
     /// K-means clustering implementation
     fn kmeans_clustering(&self, data: &Array2<f64>, k: usize) -> IntegrateResult<Vec<usize>> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let (n_samples, n_features) = data.dim();
 
         // Initialize centroids randomly
@@ -406,8 +406,8 @@ impl MultiDimensionalVisualizer {
     /// Helper functions
     fn euclidean_distance(
         &self,
-        a: &ndarray::ArrayView1<f64>,
-        b: &ndarray::ArrayView1<f64>,
+        a: &scirs2_core::ndarray::ArrayView1<f64>,
+        b: &scirs2_core::ndarray::ArrayView1<f64>,
     ) -> f64 {
         a.iter()
             .zip(b.iter())

@@ -4,9 +4,9 @@
 //! specialized validation techniques such as stability measures, consensus
 //! metrics, and similarity indices.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Dimension, Ix2};
-use num_traits::{Float, NumCast};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Dimension, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 use std::collections::HashMap;
 use std::ops::{AddAssign, DivAssign};
 
@@ -31,7 +31,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::clustering::validation::jaccard_similarity;
 ///
 /// let labels_true = array![0, 0, 1, 1, 2, 2];
@@ -130,7 +130,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::validation::cluster_stability;
 ///
 /// let x = Array2::from_shape_vec((6, 2), vec![
@@ -151,7 +151,12 @@ pub fn cluster_stability<F, S1, S2, D>(
     random_seed: Option<u64>,
 ) -> Result<F>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + AddAssign + DivAssign,
+    F: Float
+        + NumCast
+        + std::fmt::Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + AddAssign
+        + DivAssign,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -177,7 +182,7 @@ where
     }
 
     // Setup RNG
-    let _seed = random_seed.unwrap_or_else(rand::random::<u64>);
+    let _seed = random_seed.unwrap_or_else(scirs2_core::random::random::<u64>);
     let mut rng = StdRng::seed_from_u64(_seed);
 
     // Get unique clusters
@@ -272,8 +277,8 @@ where
             ari_input_pred.push(perturbed_labels[i]);
         }
 
-        let ari_true = ndarray::Array1::from_vec(ari_input_true);
-        let ari_pred = ndarray::Array1::from_vec(ari_input_pred);
+        let ari_true = scirs2_core::ndarray::Array1::from_vec(ari_input_true);
+        let ari_pred = scirs2_core::ndarray::Array1::from_vec(ari_input_pred);
 
         let ari = adjusted_rand_index(&ari_true, &ari_pred).unwrap();
         stability_scores.push(F::from(ari).unwrap());
@@ -302,7 +307,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::clustering::validation::consensus_score;
 ///
 /// let clustering1 = array![0, 0, 0, 1, 1, 1];
@@ -414,7 +419,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_metrics::clustering::validation::fold_stability;
 ///
 /// let x = Array2::from_shape_vec((10, 2), vec![
@@ -435,7 +440,12 @@ pub fn fold_stability<F, S1, S2, D>(
     random_seed: Option<u64>,
 ) -> Result<F>
 where
-    F: Float + NumCast + std::fmt::Debug + ndarray::ScalarOperand + AddAssign + DivAssign,
+    F: Float
+        + NumCast
+        + std::fmt::Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + AddAssign
+        + DivAssign,
     S1: Data<Elem = F>,
     S2: Data<Elem = usize>,
     D: Dimension,
@@ -467,7 +477,7 @@ where
     }
 
     // Setup RNG
-    let _seed = random_seed.unwrap_or_else(rand::random::<u64>);
+    let _seed = random_seed.unwrap_or_else(scirs2_core::random::random::<u64>);
     let mut rng = StdRng::seed_from_u64(_seed);
 
     // Get unique clusters
@@ -574,8 +584,8 @@ where
         }
 
         // Calculate similarity between original and predicted labels
-        let true_labels = ndarray::Array1::from_vec(fold_labels);
-        let pred_labels = ndarray::Array1::from_vec(predicted_labels);
+        let true_labels = scirs2_core::ndarray::Array1::from_vec(fold_labels);
+        let pred_labels = scirs2_core::ndarray::Array1::from_vec(predicted_labels);
 
         let jaccard = jaccard_similarity(&true_labels, &pred_labels).unwrap();
         stability_scores.push(F::from(jaccard).unwrap());
@@ -592,7 +602,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_jaccard_similarity() {
@@ -737,7 +747,7 @@ mod tests {
         assert!(result.is_err());
 
         // Empty or singleton inputs
-        let empty = array![] as ndarray::Array1<usize>;
+        let empty = array![] as scirs2_core::ndarray::Array1<usize>;
         let singleton = array![0];
 
         let result = jaccard_similarity(&empty, &empty);
@@ -747,7 +757,8 @@ mod tests {
         assert!(result.is_err());
 
         // Test consensus score with invalid inputs
-        let empty_array: ndarray::Array1<usize> = ndarray::Array1::zeros(0);
+        let empty_array: scirs2_core::ndarray::Array1<usize> =
+            scirs2_core::ndarray::Array1::zeros(0);
         let result = consensus_score(&[&empty_array]);
         assert!(result.is_err());
 

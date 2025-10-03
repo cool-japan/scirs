@@ -217,8 +217,8 @@ pub fn train_test_split(
     test_size: f64,
     random_seed: Option<u64>,
 ) -> Result<(Vec<String>, Vec<String>)> {
-    use rand::seq::SliceRandom;
-    use rand::SeedableRng;
+    use scirs2_core::random::seq::SliceRandom;
+    use scirs2_core::random::SeedableRng;
 
     if !(0.0..=1.0).contains(&test_size) {
         return Err(TextError::InvalidInput(
@@ -232,10 +232,10 @@ pub fn train_test_split(
 
     // Use the random _seed if provided
     let mut rng = match random_seed {
-        Some(_seed) => rand::rngs::StdRng::seed_from_u64(_seed),
+        Some(_seed) => scirs2_core::random::rngs::StdRng::seed_from_u64(_seed),
         None => {
-            let mut temp_rng = rand::rng();
-            rand::rngs::StdRng::from_rng(&mut temp_rng)
+            let mut temp_rng = scirs2_core::random::rng();
+            scirs2_core::random::rngs::StdRng::from_rng(&mut temp_rng)
         }
     };
 

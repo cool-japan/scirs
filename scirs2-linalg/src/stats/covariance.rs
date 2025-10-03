@@ -2,8 +2,8 @@
 //!
 //! This module provides functions for computing covariance and correlation matrices.
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, Zero};
 
 use crate::error::{LinalgError, LinalgResult};
 
@@ -23,7 +23,13 @@ use crate::error::{LinalgError, LinalgResult};
 #[allow(dead_code)]
 pub fn covariancematrix<F>(data: &ArrayView2<F>, ddof: Option<usize>) -> LinalgResult<Array2<F>>
 where
-    F: Float + Zero + num_traits::FromPrimitive + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Zero
+        + scirs2_core::numeric::FromPrimitive
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     let n_samples = data.nrows();
     let n_features = data.ncols();
@@ -84,7 +90,13 @@ where
 #[allow(dead_code)]
 pub fn correlationmatrix<F>(data: &ArrayView2<F>, ddof: Option<usize>) -> LinalgResult<Array2<F>>
 where
-    F: Float + Zero + num_traits::FromPrimitive + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + Zero
+        + scirs2_core::numeric::FromPrimitive
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     // Compute covariance matrix
     let cov = covariancematrix(data, ddof)?;
@@ -142,12 +154,12 @@ pub fn mahalanobis_distance<F>(
 where
     F: Float
         + Zero
-        + num_traits::One
-        + num_traits::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::numeric::NumAssign
         + std::iter::Sum
         + Send
         + Sync
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static,
 {
     if x.len() != mean.len() || x.len() != cov.nrows() || x.len() != cov.ncols() {

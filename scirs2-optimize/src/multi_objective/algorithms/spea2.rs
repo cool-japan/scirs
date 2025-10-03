@@ -5,7 +5,7 @@
 use super::{MultiObjectiveOptimizer, MultiObjectiveResult};
 use crate::error::OptimizeError;
 use crate::multi_objective::solutions::{Population, Solution};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 
 /// SPEA2 optimizer
 #[derive(Debug, Clone)]

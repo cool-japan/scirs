@@ -22,8 +22,8 @@
 //! - Dynamic system monitoring in scientific imaging
 //! - Predictive analysis in image-based monitoring systems
 
-use ndarray::{Array2, Array3, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, Array3, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, VecDeque};
 
@@ -528,7 +528,7 @@ pub fn analyze_multiscale_temporal_causality(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_calculate_window_variance() {

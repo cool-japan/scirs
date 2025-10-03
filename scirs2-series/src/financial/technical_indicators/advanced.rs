@@ -28,7 +28,7 @@
 //! ## Enhanced Bollinger Bands
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::advanced::{BollingerBandsConfig, bollinger_bands, MovingAverageType};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let prices = array![20.0, 21.0, 19.5, 22.0, 21.5, 20.0, 19.0, 23.0, 22.5, 21.0];
 //! let config = BollingerBandsConfig {
@@ -45,7 +45,7 @@
 //! ## Ichimoku Cloud Analysis
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::advanced::{IchimokuConfig, ichimoku_cloud};
-//! use ndarray::Array1;
+//! use scirs2_core::ndarray::Array1;
 //!
 //! let high = (0..60).map(|i| 15.0 + (i as f64 * 0.1).sin() * 2.0).collect::<Vec<f64>>();
 //! let low = (0..60).map(|i| 13.0 + (i as f64 * 0.1).sin() * 2.0).collect::<Vec<f64>>();
@@ -61,14 +61,14 @@
 //! ## Adaptive Moving Average
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::advanced::kama;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let prices = array![10.0, 12.0, 11.0, 13.0, 15.0, 14.0, 16.0, 18.0];
 //! let kama_values = kama(&prices, 5, 2, 30).unwrap();
 //! ```
 
-use ndarray::{s, Array1};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::Float;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -137,7 +137,7 @@ pub struct BollingerBands<F: Float> {
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::advanced::{BollingerBandsConfig, bollinger_bands};
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let prices = array![20.0, 21.0, 19.5, 22.0, 21.5, 20.0, 19.0, 23.0, 22.5, 21.0, 20.5, 22.5, 23.0, 21.5, 20.0, 22.0, 21.0, 19.5, 21.5, 22.0, 20.5];
 /// let config = BollingerBandsConfig::default();
@@ -518,7 +518,7 @@ pub fn ichimoku_cloud<F: Float + Clone>(
 /// # Returns
 ///
 /// * `Result<Array1<F>>` - ADX values (0-100)
-pub fn adx<F: Float + Clone + num_traits::FromPrimitive>(
+pub fn adx<F: Float + Clone + scirs2_core::numeric::FromPrimitive>(
     high: &Array1<F>,
     low: &Array1<F>,
     close: &Array1<F>,
@@ -1092,7 +1092,7 @@ pub fn kama<F: Float + Clone>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_bollinger_bands_basic() {

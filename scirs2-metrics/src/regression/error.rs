@@ -3,8 +3,8 @@
 //! This module provides functions for calculating error metrics between
 //! predicted values and true values in regression models.
 
-use ndarray::{ArrayBase, ArrayView1, Data, Dimension};
-use num_traits::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::{ArrayBase, ArrayView1, Data, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::cmp::Ordering;
 
@@ -68,7 +68,7 @@ use crate::error::{MetricsError, Result};
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::mean_squared_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -136,7 +136,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::root_mean_squared_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -179,7 +179,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::mean_absolute_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -253,7 +253,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::mean_absolute_percentage_error;
 ///
 /// let y_true = array![3.0, 0.5, 2.0, 7.0];
@@ -315,7 +315,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::symmetric_mean_absolute_percentage_error;
 ///
 /// let y_true = array![3.0, 0.01, 2.0, 7.0];
@@ -377,7 +377,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::max_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -430,7 +430,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::median_absolute_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -498,7 +498,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::mean_squared_log_error;
 ///
 /// let y_true = array![3.0, 5.0, 2.5, 7.0];
@@ -572,7 +572,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::huber_loss;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -639,7 +639,7 @@ where
 /// # Examples
 ///
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::normalized_root_mean_squared_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -702,13 +702,13 @@ where
             let q1_idx = n / 4;
             let q3_idx = 3 * n / 4;
 
-            let q1 = if n % 4 == 0 {
+            let q1 = if n.is_multiple_of(4) {
                 (values[q1_idx - 1] + values[q1_idx]) / NumCast::from(2).unwrap()
             } else {
                 values[q1_idx]
             };
 
-            let q3 = if n % 4 == 0 {
+            let q3 = if n.is_multiple_of(4) {
                 (values[q3_idx - 1] + values[q3_idx]) / NumCast::from(2).unwrap()
             } else {
                 values[q3_idx]
@@ -746,7 +746,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::relative_absolute_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];
@@ -808,7 +808,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_metrics::regression::relative_squared_error;
 ///
 /// let y_true = array![3.0, -0.5, 2.0, 7.0];

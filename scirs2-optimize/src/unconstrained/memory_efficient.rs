@@ -9,7 +9,7 @@ use crate::unconstrained::line_search::backtracking_line_search;
 use crate::unconstrained::result::OptimizeResult;
 use crate::unconstrained::utils::check_convergence;
 use crate::unconstrained::Options;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::collections::VecDeque;
 
 /// Memory optimization options for large-scale problems
@@ -441,8 +441,8 @@ fn chunked_dot_product(a: &Array1<f64>, b: &Array1<f64>, chunk_size: usize) -> f
 
     for chunk_start in (0..n).step_by(chunk_size) {
         let chunk_end = std::cmp::min(chunk_start + chunk_size, n);
-        let a_chunk = a.slice(ndarray::s![chunk_start..chunk_end]);
-        let b_chunk = b.slice(ndarray::s![chunk_start..chunk_end]);
+        let a_chunk = a.slice(scirs2_core::ndarray::s![chunk_start..chunk_end]);
+        let b_chunk = b.slice(scirs2_core::ndarray::s![chunk_start..chunk_end]);
         result += a_chunk.dot(&b_chunk);
     }
 
@@ -457,7 +457,7 @@ fn array_norm_chunked(array: &Array1<f64>, chunk_size: usize) -> f64 {
 
     for chunk_start in (0..n).step_by(chunk_size) {
         let chunk_end = std::cmp::min(chunk_start + chunk_size, n);
-        let chunk = array.slice(ndarray::s![chunk_start..chunk_end]);
+        let chunk = array.slice(scirs2_core::ndarray::s![chunk_start..chunk_end]);
         sum_sq += chunk.mapv(|x| x.powi(2)).sum();
     }
 

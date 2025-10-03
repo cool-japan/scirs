@@ -17,7 +17,7 @@
 //! - Electromagnetic field simulation and quantum chemistry
 //! - Image processing and computer graphics
 
-use ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_linalg::conjugate_gradient;
 use scirs2_linalg::preconditioners::{
     analyze_preconditioner, create_preconditioner, preconditioned_conjugate_gradient,

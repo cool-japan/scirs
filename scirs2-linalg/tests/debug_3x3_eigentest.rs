@@ -1,5 +1,5 @@
-use ndarray::array;
-use num_traits::Float;
+use scirs2_core::ndarray::array;
+use scirs2_core::numeric::Float;
 use scirs2_linalg::eigh;
 
 #[test]
@@ -33,7 +33,7 @@ fn debug_3x3_eigenvalue_computation() {
 
     // Check A*V = V*Λ
     let av = a.dot(&eigenvectors);
-    let vl = eigenvectors.dot(&ndarray::Array2::from_diag(&eigenvalues));
+    let vl = eigenvectors.dot(&scirs2_core::ndarray::Array2::from_diag(&eigenvalues));
 
     println!("A*V:");
     println!("{:?}", av);
@@ -50,7 +50,7 @@ fn debug_3x3_eigenvalue_computation() {
 
     // Check orthogonality V^T * V = I
     let vtv = eigenvectors.t().dot(&eigenvectors);
-    let identity: ndarray::Array2<f64> = ndarray::Array2::eye(3);
+    let identity: scirs2_core::ndarray::Array2<f64> = scirs2_core::ndarray::Array2::eye(3);
     let ortho_diff = &vtv - &identity;
     let max_ortho_diff = ortho_diff.iter().map(|x| x.abs()).fold(0.0, f64::max);
 

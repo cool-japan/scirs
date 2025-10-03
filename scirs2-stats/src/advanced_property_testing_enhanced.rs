@@ -6,8 +6,8 @@
 //! for ensuring mathematical correctness in statistical computing operations.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, NumCast};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};

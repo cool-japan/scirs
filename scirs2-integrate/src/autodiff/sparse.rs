@@ -5,7 +5,7 @@
 
 use crate::common::IntegrateFloat;
 use crate::error::{IntegrateError, IntegrateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::parallel_ops::*;
 use std::collections::{HashMap, HashSet};
 
@@ -681,7 +681,7 @@ pub struct HybridJacobian<F: IntegrateFloat> {
 mod tests {
     use super::*;
     use crate::{SparseJacobian, SparsePattern};
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_sparse_pattern() {

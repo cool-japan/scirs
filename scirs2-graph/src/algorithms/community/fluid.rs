@@ -47,14 +47,14 @@ where
     }
 
     let num_communities = num_communities.min(n);
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Initialize fluids - each node starts with a random fluid
     let mut node_fluids: HashMap<N, Vec<f64>> = HashMap::new();
     for node in &nodes {
         let mut fluids = vec![0.0; num_communities];
         // Assign random initial fluid
-        use rand::Rng;
+        use scirs2_core::random::Rng;
         let initial_fluid = rng.gen_range(0..num_communities);
         fluids[initial_fluid] = 1.0;
         node_fluids.insert(node.clone(), fluids);
@@ -104,7 +104,7 @@ where
                 }
             } else {
                 // If all fluids are zero, assign random fluid
-                use rand::Rng;
+                use scirs2_core::random::Rng;
                 let random_fluid = rng.gen_range(0..num_communities);
                 fluid_sums[random_fluid] = 1.0;
             }

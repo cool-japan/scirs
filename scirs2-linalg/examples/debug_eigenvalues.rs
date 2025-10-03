@@ -1,4 +1,4 @@
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::compat;
 
 #[allow(dead_code)]
@@ -30,7 +30,7 @@ fn main() {
 
                 // Test A*V = V*Λ
                 let av = diagmatrix.dot(&eigenvecs);
-                let vl = eigenvecs.dot(&ndarray::Array2::from_diag(&eigenvals));
+                let vl = eigenvecs.dot(&scirs2_core::ndarray::Array2::from_diag(&eigenvals));
                 println!("A*V: {:?}", av);
                 println!("V*Λ: {:?}", vl);
                 println!("Difference: {:?}", &av - &vl);
@@ -63,7 +63,7 @@ fn main() {
 
                 // Test A*V = V*Λ
                 let av = simplematrix.dot(&eigenvecs);
-                let vl = eigenvecs.dot(&ndarray::Array2::from_diag(&eigenvals));
+                let vl = eigenvecs.dot(&scirs2_core::ndarray::Array2::from_diag(&eigenvals));
                 println!("A*V: {:?}", av);
                 println!("V*Λ: {:?}", vl);
                 println!("Difference: {:?}", &av - &vl);

@@ -1,4 +1,4 @@
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_stats::{linear_regression, polyfit};
 
 // Temporarily commenting out multilinear_regression due to linalg crate errors
@@ -83,7 +83,7 @@ fn main() {
         // y = 2x^2 - 3x + 1
         2.0 * (-2.0_f64).powi(2) - 3.0 * (-2.0) + 1.0,
         2.0 * (-1.5_f64).powi(2) - 3.0 * (-1.5) + 1.0,
-        2.0 * (-1.0_f64).powi(2) - 3.0 * (-1.0) + 1.0,
+        2.0 * (-1.0_f64).powi(2) - -3.0 + 1.0,
         2.0 * (-0.5_f64).powi(2) - 3.0 * (-0.5) + 1.0,
         2.0 * (0.0_f64).powi(2) - 3.0 * (0.0) + 1.0,
         2.0 * (0.5_f64).powi(2) - 3.0 * (0.5) + 1.0,

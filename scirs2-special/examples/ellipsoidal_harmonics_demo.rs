@@ -4,7 +4,7 @@
 //! which are used in geodesy and geophysics for modeling gravitational fields
 //! of rotating bodies like planets.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_core::Complex64;
 use scirs2_special::{
     ellip_harm, ellip_harm_2, ellip_harm_array, ellip_harm_coefficients, ellip_harm_complex,
@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_degree + 1,
         max_order + 1
     );
-    for (i, row) in coeffs.axis_iter(ndarray::Axis(0)).enumerate() {
+    for (i, row) in coeffs.axis_iter(scirs2_core::ndarray::Axis(0)).enumerate() {
         print!("n={}: ", i);
         for &coeff in row.iter() {
             print!("{:8.4} ", coeff);

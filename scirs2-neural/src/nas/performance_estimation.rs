@@ -3,8 +3,8 @@
 use crate::error::Result;
 use crate::models::sequential::Sequential;
 use crate::nas::EvaluationMetrics;
-use ndarray::prelude::*;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::parallel_ops::*;
 use std::collections::HashMap;
 /// Trait for performance estimation strategies
@@ -53,7 +53,7 @@ impl PerformanceEstimator for EarlyStoppingEstimator {
         for epoch in 0..self.epochs {
             // Simulate training epoch
             let train_loss = 1.0 / (epoch as f64 + 1.0);
-            let val_loss = 1.1 / (epoch as f64 + 1.0) + 0.05 * rand::random::<f64>();
+            let val_loss = 1.1 / (epoch as f64 + 1.0) + 0.05 * scirs2_core::random::random::<f64>();
             let val_accuracy = 1.0 - val_loss;
             // Check for improvement
             if val_loss < best_val_loss - self.min_delta {
@@ -108,7 +108,7 @@ impl SuperNetEstimator {
             let key = format!("dense_{}", size);
             let weight_matrix = Array2::random(
                 (size, size),
-                rand_distr::Normal::new(0.0, (2.0 / size as f32).sqrt()).unwrap(),
+                scirs2_core::random::Normal::new(0.0, (2.0 / size as f32).sqrt()).unwrap(),
             );
             weights.insert(key, weight_matrix);
         // Convolutional layers with different filter sizes
@@ -116,7 +116,7 @@ impl SuperNetEstimator {
             let key = format!("conv_{}", filters);
             let weight_tensor = Array2::random(
                 (filters, 64), // Simplified 2D representation
-                rand_distr::Normal::new(0.0, (2.0 / filters as f32).sqrt()).unwrap(),
+                scirs2_core::random::Normal::new(0.0, (2.0 / filters as f32).sqrt()).unwrap(),
             weights.insert(key, weight_tensor);
         self.shared_weights = Some(weights);
         Ok(())
@@ -140,7 +140,7 @@ impl SuperNetEstimator {
         self.is_trained = true;
     /// Sample a random architecture for training
     fn sample_random_architecture(&self) -> Vec<String> {
-        use rand::prelude::*;
+        use scirs2_core::random::prelude::*;
 use statrs::statistics::Statistics;
         let mut rng = rng();
         let mut architecture = Vec::new();
@@ -191,7 +191,7 @@ use statrs::statistics::Statistics;
                 } else if layer_spec == "dropout" {
                     // Apply dropout (simplified)
                     current_output
-                        .mapv_inplace(|x| if rand::random::<f32>() > 0.5 { x } else { 0.0 });
+                        .mapv_inplace(|x| if scirs2_core::random::random::<f32>() > 0.5 { x } else { 0.0 });
                 } else if layer_spec == "batchnorm" {
                     // Apply batch normalization (simplified)
                     let mean = current_output.mean().unwrap_or(0.0);
@@ -297,7 +297,7 @@ impl PerformanceEstimator for LearningCurveEstimator {
         // Collect learning curve for initial epochs
         let mut learning_curve = Vec::new();
         for epoch in 1..=self._initial_epochs {
-            let accuracy = 1.0 - 1.0 / (epoch as f64).sqrt() + 0.01 * rand::random::<f64>();
+            let accuracy = 1.0 - 1.0 / (epoch as f64).sqrt() + 0.01 * scirs2_core::random::random::<f64>();
             learning_curve.push(accuracy);
         // Fit curve and extrapolate
         // Simplified - in practice would use proper curve fitting
@@ -326,7 +326,7 @@ impl PerformanceEstimator for PredictorNetworkEstimator {
         // Extract architecture features
         // In practice, would encode architecture and pass through predictor network
         let complexity_score = 0.5; // Placeholder
-        let predicted_accuracy = 0.6 + 0.3 * complexity_score + 0.1 * rand::random::<f64>();
+        let predicted_accuracy = 0.6 + 0.3 * complexity_score + 0.1 * scirs2_core::random::random::<f64>();
         metrics.insert("validation_accuracy".to_string(), predicted_accuracy);
         metrics.insert("prediction_confidence".to_string(), 0.85);
         "PredictorNetworkEstimator"
@@ -355,7 +355,7 @@ impl ZeroCostEstimator {
         // Compute Jacobian matrix for the batch
         let mut jacobians = Vec::new();
         for i in 0..batch_size {
-            let input = batch_data.row(i).to_owned().insert_axis(ndarray::Axis(0));
+            let input = batch_data.row(i).to_owned().insert_axis(scirs2_core::ndarray::Axis(0));
             let jacobian = self.compute_jacobian_for_input(model, &input)?;
             jacobians.push(jacobian.into_raw_vec());
         // Compute covariance of Jacobians
@@ -435,7 +435,7 @@ impl ZeroCostEstimator {
             let input = synthetic_data
                 .row(i)
                 .to_owned()
-                .insert_axis(ndarray::Axis(0));
+                .insert_axis(scirs2_core::ndarray::Axis(0));
             // Forward pass with synthetic data
             // Compute flow as product of activations
             let flow = output.iter().fold(1.0, |acc, &x| acc * x.abs());
@@ -483,7 +483,7 @@ impl ZeroCostEstimator {
         // Placeholder implementation
         Ok(Array1::random(
             param_size,
-            rand_distr::Normal::new(0.0, 0.1).unwrap(),
+            scirs2_core::random::Normal::new(0.0, 0.1).unwrap(),
         ))
     fn compute_determinant(&self, matrix: &Array2<f64>) -> f64 {
         // Simplified determinant computation for small matrices
@@ -506,7 +506,7 @@ impl ZeroCostEstimator {
         // In practice, would use the actual model
         let output_size = 10;
             output_size,
-            rand_distr::Normal::new(0.0, 1.0).unwrap(),
+            scirs2_core::random::Normal::new(0.0, 1.0).unwrap(),
     fn compute_loss_gradient(&self, output: &Array1<f32>, target: usize) -> Result<Array1<f32>> {
         // Simplified gradient computation
         let mut grad = output.clone();

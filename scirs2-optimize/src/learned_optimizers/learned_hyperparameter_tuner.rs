@@ -9,8 +9,8 @@ use super::{
 };
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayView1};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::random::Rng;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 
@@ -611,12 +611,15 @@ impl LearnedHyperparameterTuner {
             let value = match param.scale {
                 ParameterScale::Linear => {
                     param.lower_bound
-                        + rand::rng().random::<f64>() * (param.upper_bound - param.lower_bound)
+                        + scirs2_core::random::rng().random::<f64>()
+                            * (param.upper_bound - param.lower_bound)
                 }
                 ParameterScale::Logarithmic => {
                     let log_lower = param.lower_bound.ln();
                     let log_upper = param.upper_bound.ln();
-                    (log_lower + rand::rng().random::<f64>() * (log_upper - log_lower)).exp()
+                    (log_lower
+                        + scirs2_core::random::rng().random::<f64>() * (log_upper - log_lower))
+                        .exp()
                 }
                 _ => param.default_value,
             };
@@ -626,14 +629,14 @@ impl LearnedHyperparameterTuner {
 
         // Sample discrete parameters
         for param in &self.hyperparameter_space.discrete_params {
-            let idx = rand::rng().random_range(0..param.values.len());
+            let idx = scirs2_core::random::rng().random_range(0..param.values.len());
             let value = param.values[idx];
             parameters.insert(param.name.clone(), ParameterValue::Discrete(value));
         }
 
         // Sample categorical parameters
         for param in &self.hyperparameter_space.categorical_params {
-            let idx = rand::rng().random_range(0..param.categories.len());
+            let idx = scirs2_core::random::rng().random_range(0..param.categories.len());
             let value = param.categories[idx].clone();
             parameters.insert(param.name.clone(), ParameterValue::Categorical(value));
         }
@@ -1086,7 +1089,7 @@ impl HyperparameterConfig {
         let mut embedding = Array1::zeros(32); // Fixed embedding size
 
         let mut idx = 0;
-        for (_, value) in parameters {
+        for value in parameters.values() {
             if idx >= embedding.len() {
                 break;
             }
@@ -1113,6 +1116,12 @@ impl HyperparameterConfig {
     }
 }
 
+impl Default for PerformanceDatabase {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PerformanceDatabase {
     /// Create new performance database
     pub fn new() -> Self {
@@ -1132,8 +1141,14 @@ impl PerformanceDatabase {
         let record_idx = self.records.len() - 1;
         self.index
             .entry("all".to_string())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(record_idx);
+    }
+}
+
+impl Default for BayesianOptimizer {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1148,6 +1163,12 @@ impl BayesianOptimizer {
             },
             exploration_factor: 0.1,
         }
+    }
+}
+
+impl Default for GaussianProcess {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1196,6 +1217,12 @@ impl GaussianProcess {
         let variance = 1.0; // Would compute proper posterior variance
 
         Ok((mean, variance))
+    }
+}
+
+impl Default for MultiFidelityEvaluator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1250,17 +1277,29 @@ impl MultiFidelityEvaluator {
     }
 }
 
+impl Default for CostModel {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CostModel {
     /// Create new cost model
     pub fn new() -> Self {
         Self {
             cost_network: Array2::from_shape_fn((1, 10), |_| {
-                (rand::rng().random::<f64>() - 0.5) * 0.1
+                (scirs2_core::random::rng().random::<f64>() - 0.5) * 0.1
             }),
             base_cost: 1.0,
             scaling_factors: Array1::ones(5),
             cost_history: VecDeque::with_capacity(1000),
         }
+    }
+}
+
+impl Default for FidelityCorrelationEstimator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1437,7 +1476,7 @@ mod tests {
     fn test_gaussian_process() {
         let mut gp = GaussianProcess::new();
 
-        let inputs = Array2::from_shape_fn((3, 2), |_| rand::rng().random::<f64>());
+        let inputs = Array2::from_shape_fn((3, 2), |_| scirs2_core::random::rng().random::<f64>());
         let outputs = Array1::from(vec![1.0, 2.0, 3.0]);
 
         gp.update_training_data(inputs, outputs).unwrap();

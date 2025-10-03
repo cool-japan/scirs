@@ -16,9 +16,9 @@
 //! * **Johnson-Lindenstrauss Transform**: Implements the Johnson-Lindenstrauss lemma
 //!   for dimension reduction with theoretical guarantees
 
-use ndarray::{Array2, ArrayView2, ScalarOperand};
-use num_traits::{Float, NumAssign, Zero};
-use rand::{self, Rng};
+use scirs2_core::ndarray::{Array2, ArrayView2, ScalarOperand};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
+use scirs2_core::random::{self, Rng};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -41,7 +41,7 @@ use crate::error::{LinalgError, LinalgResult};
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::projection::gaussian_randommatrix;
 ///
 /// // Generate a 1000x100 random projection matrix (projecting from 1000 to 100 dimensions)
@@ -59,7 +59,7 @@ pub fn gaussian_randommatrix<F: Float + NumAssign + Zero + Sum + ScalarOperand>(
         )));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Scaling factor for preserving distances
     let scale = F::from(1.0 / (n_components as f64).sqrt()).unwrap();
@@ -102,7 +102,7 @@ pub fn gaussian_randommatrix<F: Float + NumAssign + Zero + Sum + ScalarOperand>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::projection::sparse_randommatrix;
 ///
 /// // Generate a 1000x100 sparse random projection matrix with density 0.1
@@ -127,7 +127,7 @@ pub fn sparse_randommatrix<F: Float + NumAssign + Zero + Sum + ScalarOperand>(
         )));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Scaling factor for preserving distances
     let scale = F::from(1.0 / (density * n_components as f64).sqrt()).unwrap();
@@ -174,7 +174,7 @@ pub fn sparse_randommatrix<F: Float + NumAssign + Zero + Sum + ScalarOperand>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_linalg::projection::very_sparse_randommatrix;
 ///
 /// // Generate a 1000x100 very sparse random projection matrix
@@ -192,7 +192,7 @@ pub fn very_sparse_randommatrix<F: Float + NumAssign + Zero + Sum + ScalarOperan
         )));
     }
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     // Compute the sparsity parameter (sqrt(n_features))
     let s = (n_features as f64).sqrt();
@@ -239,7 +239,7 @@ pub fn very_sparse_randommatrix<F: Float + NumAssign + Zero + Sum + ScalarOperan
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array, Array2};
+/// use scirs2_core::ndarray::{Array, Array2};
 /// use scirs2_linalg::projection::{gaussian_randommatrix, project};
 ///
 /// // Generate sample data
@@ -294,7 +294,7 @@ pub fn project<F: Float + NumAssign + Sum + ScalarOperand>(
 /// # Examples
 ///
 /// ```ignore
-/// use ndarray::{Array, Array2};
+/// use scirs2_core::ndarray::{Array, Array2};
 /// use scirs2_linalg::projection::johnson_lindenstrauss_transform;
 ///
 /// // Generate sample data
@@ -378,7 +378,7 @@ pub fn johnson_lindenstrauss_min_dim(_nsamples: usize, eps: f64) -> LinalgResult
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_gaussian_randommatrix() {

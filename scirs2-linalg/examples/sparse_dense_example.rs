@@ -3,7 +3,7 @@
 //! This example demonstrates how to use the sparse-dense operations module
 //! for efficient operations between sparse and dense matrices.
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_linalg::sparse_dense::{
     sparse_dense_add, sparse_dense_elementwise_mul, sparse_dense_matmul, sparse_dense_matvec,
     sparse_from_ndarray, sparse_transpose,

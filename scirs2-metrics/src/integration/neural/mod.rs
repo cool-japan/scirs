@@ -23,7 +23,7 @@
 //! # {
 //! use scirs2_metrics::integration::neural::NeuralMetricAdapter;
 //! use scirs2_metrics::integration::traits::MetricComputation;
-//! use ndarray::{Array, IxDyn};
+//! use scirs2_core::ndarray::{Array, IxDyn};
 //!
 //! // Create metric adapters
 //! let accuracy = NeuralMetricAdapter::<f64>::accuracy();
@@ -78,7 +78,7 @@
 //!     neural_confusion_matrix_visualization,
 //!     training_history_visualization,
 //! };
-//! use ndarray::{Array, IxDyn};
+//! use scirs2_core::ndarray::{Array, IxDyn};
 //! use std::collections::HashMap;
 //!
 //! // Example data

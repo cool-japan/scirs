@@ -3,7 +3,7 @@
 //! This example demonstrates the Python interoperability infrastructure for scirs2-ndimage,
 //! showing how to prepare data for Python bindings and generate API specifications.
 
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_ndimage::{
     error::NdimageResult,
     python_interop::{

@@ -22,7 +22,7 @@
 //! ## Moving Averages
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::basic::{sma, ema};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let prices = array![10.0, 12.0, 13.0, 11.0, 14.0, 15.0];
 //!
@@ -36,7 +36,7 @@
 //! ## Momentum Oscillators
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::basic::rsi;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let prices = array![44.0, 44.25, 44.5, 43.75, 44.5, 45.0, 45.25, 45.5];
 //! let rsi_values = rsi(&prices, 6).unwrap();
@@ -45,14 +45,14 @@
 //! ## Bollinger Bands
 //! ```rust
 //! use scirs2_series::financial::technical_indicators::basic::bollinger_bands;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let prices = array![20.0, 21.0, 19.5, 22.0, 21.5, 20.0, 19.0];
 //! let (upper, middle, lower) = bollinger_bands(&prices, 5, 2.0).unwrap();
 //! ```
 
-use ndarray::{s, Array1};
-use num_traits::Float;
+use scirs2_core::ndarray::{s, Array1};
+use scirs2_core::numeric::Float;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -79,7 +79,7 @@ use crate::error::{Result, TimeSeriesError};
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::sma;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let prices = array![10.0, 11.0, 12.0, 13.0, 14.0];
 /// let sma_3 = sma(&prices, 3).unwrap();
@@ -134,7 +134,7 @@ pub fn sma<F: Float + Clone>(data: &Array1<F>, window: usize) -> Result<Array1<F
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::ema;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let prices = array![10.0, 11.0, 12.0, 13.0, 14.0];
 /// let ema_values = ema(&prices, 0.3).unwrap();
@@ -188,7 +188,7 @@ pub fn ema<F: Float + Clone>(data: &Array1<F>, alpha: F) -> Result<Array1<F>> {
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::bollinger_bands;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let prices = array![20.0, 21.0, 19.5, 22.0, 21.5, 20.0, 19.0];
 /// let (upper, middle, lower) = bollinger_bands(&prices, 5, 2.0).unwrap();
@@ -244,7 +244,7 @@ pub fn bollinger_bands<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::rsi;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let prices = array![44.0, 44.25, 44.5, 43.75, 44.5, 45.0, 45.25, 45.5];
 /// let rsi_values = rsi(&prices, 6).unwrap();
@@ -315,7 +315,7 @@ pub fn rsi<F: Float + Clone>(data: &Array1<F>, period: usize) -> Result<Array1<F
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::macd;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let prices = array![12.0, 13.0, 14.0, 13.5, 15.0, 16.0, 15.5, 17.0];
 /// let (macd_line, signal_line, histogram) = macd(&prices, 3, 6, 2).unwrap();
@@ -373,7 +373,7 @@ pub fn macd<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::stochastic;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![15.0, 16.0, 14.5, 17.0, 16.5];
 /// let low = array![13.0, 14.0, 13.5, 15.0, 15.5];
@@ -452,7 +452,7 @@ pub fn stochastic<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::atr;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![15.0, 16.0, 14.5, 17.0, 16.5];
 /// let low = array![13.0, 14.0, 13.5, 15.0, 15.5];
@@ -514,7 +514,7 @@ pub fn atr<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::williams_r;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![15.0, 16.0, 14.5, 17.0, 16.5];
 /// let low = array![13.0, 14.0, 13.5, 15.0, 15.5];
@@ -591,7 +591,7 @@ pub fn williams_r<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::cci;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let high = array![15.0, 16.0, 14.5, 17.0, 16.5];
 /// let low = array![13.0, 14.0, 13.5, 15.0, 15.5];
@@ -667,7 +667,7 @@ pub fn cci<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::technical_indicators::basic::obv;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let close = array![10.0, 10.5, 10.2, 10.8, 11.0];
 /// let volume = array![1000.0, 1200.0, 800.0, 1500.0, 2000.0];
@@ -708,7 +708,7 @@ pub fn obv<F: Float + Clone>(close: &Array1<F>, volume: &Array1<F>) -> Result<Ar
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_sma() {

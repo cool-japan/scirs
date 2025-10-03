@@ -1,6 +1,6 @@
 // Utility functions for image feature extraction
 
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 #[allow(unused_imports)]
 /// Calculate skewness of a vector

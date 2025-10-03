@@ -5,10 +5,10 @@
 
 use crate::error::{Result, TextError};
 use crate::vectorize::{TfidfVectorizer, Vectorizer};
-use ndarray::{Array2, Axis};
-use rand::prelude::*;
-use rand::seq::SliceRandom;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array2, Axis};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::seq::SliceRandom;
+use scirs2_core::random::SeedableRng;
 
 /// Text feature selector
 ///
@@ -441,11 +441,11 @@ impl TextDataset {
         // Shuffle indices
         if let Some(_seed) = random_seed {
             // Use deterministic RNG with _seed
-            let mut rng = rand::rngs::StdRng::seed_from_u64(_seed);
+            let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(_seed);
             indices.shuffle(&mut rng);
         } else {
             // Use standard rng
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             indices.shuffle(&mut rng);
         }
 

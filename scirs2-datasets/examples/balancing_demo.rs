@@ -3,7 +3,7 @@
 //! This example demonstrates the use of data balancing utilities for handling
 //! imbalanced datasets in machine learning applications.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_datasets::{
     create_balanced_dataset, generate_synthetic_samples, load_iris, random_oversample,
     random_undersample, BalancingStrategy,
@@ -145,8 +145,11 @@ fn main() {
             })
             .collect();
 
-        let imbalanceddata = iris.data.select(ndarray::Axis(0), &indices_to_keep);
-        let imbalanced_targets = iris_targets.select(ndarray::Axis(0), &indices_to_keep);
+        let imbalanceddata = iris
+            .data
+            .select(scirs2_core::ndarray::Axis(0), &indices_to_keep);
+        let imbalanced_targets =
+            iris_targets.select(scirs2_core::ndarray::Axis(0), &indices_to_keep);
 
         println!("\nArtificially imbalanced Iris:");
         print_class_distribution(&imbalanced_targets);

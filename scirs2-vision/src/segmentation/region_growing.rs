@@ -5,7 +5,7 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, Rgb, RgbImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::{HashSet, VecDeque};
 
 /// Parameters for region growing

@@ -41,7 +41,7 @@
 //! ## Basic GJR-GARCH(1,1) Model
 //! ```rust
 //! use scirs2_series::financial::models::gjr_garch::GjrGarchModel;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = GjrGarchModel::new();
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -56,7 +56,7 @@
 //! ## Volatility Forecasting
 //! ```rust
 //! use scirs2_series::financial::models::gjr_garch::GjrGarchModel;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = GjrGarchModel::new();
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -74,7 +74,7 @@
 //! ## Testing for Leverage Effect
 //! ```rust
 //! use scirs2_series::financial::models::gjr_garch::GjrGarchModel;
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let mut model = GjrGarchModel::new();
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.015, 0.02, -0.01, 0.008,
@@ -91,8 +91,8 @@
 //! }
 //! ```
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -185,7 +185,7 @@ impl<F: Float + Debug + Clone + std::iter::Sum> GjrGarchModel<F> {
     /// # Examples
     /// ```rust
     /// use scirs2_series::financial::models::gjr_garch::GjrGarchModel;
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     ///
     /// let mut model = GjrGarchModel::<f64>::new();
     /// let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.003, 0.007, -0.001, 0.004];
@@ -309,7 +309,7 @@ impl<F: Float + Debug + Clone + std::iter::Sum> GjrGarchModel<F> {
     /// # Examples
     /// ```rust
     /// use scirs2_series::financial::models::gjr_garch::GjrGarchModel;
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     ///
     /// let mut model = GjrGarchModel::<f64>::new();
     /// let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.003, 0.007, -0.001, 0.004];
@@ -456,7 +456,7 @@ impl<F: Float + Debug + Clone + std::iter::Sum> GjrGarchModel<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_gjr_garch_basic() {

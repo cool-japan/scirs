@@ -2,7 +2,7 @@
 
 use crate::error::{IoError, Result};
 use arrow::datatypes::{DataType, Field, Schema};
-use ndarray::{ArrayBase, Data as NdData, Dimension};
+use scirs2_core::ndarray::{ArrayBase, Data as NdData, Dimension};
 use std::sync::Arc;
 
 /// Parquet schema wrapper
@@ -61,6 +61,7 @@ where
 
 /// Trait for types that can be converted to Arrow DataType
 pub trait InferArrowType {
+    /// Get the Arrow data type for this Rust type
     fn arrow_data_type() -> DataType;
 }
 
@@ -133,7 +134,7 @@ impl InferArrowType for bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_infer_schema_f64() {

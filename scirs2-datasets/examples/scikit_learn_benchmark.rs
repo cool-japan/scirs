@@ -354,6 +354,7 @@ fn run_sklearn_generation_comparison() {
     ];
 
     for (n_samples, n_features, gen_type) in configs {
+        #[allow(clippy::type_complexity)]
         let (python_code, scirs2_fn): (&str, Box<dyn Fn() -> Result<Dataset, Box<dyn std::error::Error>>>) = match gen_type {
             "classification" => (
                 &format!("from sklearn.datasets import make_classification; make_classification(n_samples={n_samples}, n_features={n_features}, random_state=42)"),

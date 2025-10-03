@@ -1,3 +1,4 @@
+#![allow(clippy::needless_range_loop)]
 use plotly::common::Title;
 use plotly::{common::Mode, layout::Axis, Layout, Plot, Scatter};
 use scirs2_core::Complex64;
@@ -25,7 +26,7 @@ fn main() {
     // Add some noise
     let mut noisy_signal = clean_signal.clone();
     for i in 0..n {
-        noisy_signal[i] += 0.1 * rand::random::<f64>();
+        noisy_signal[i] += 0.1 * scirs2_core::random::random::<f64>();
     }
 
     // 1. Basic sparse FFT with efficient detection of important components

@@ -4,7 +4,7 @@
 //! scirs2-special crate, including numerical analysis applications,
 //! optimization techniques, and integration with scientific workflows.
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::*;
 use std::f64::consts::PI;
 

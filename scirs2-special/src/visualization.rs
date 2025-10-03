@@ -4,9 +4,9 @@
 //! for all special functions, including 2D/3D plots, animations, and interactive
 //! visualizations.
 
-use num_complex::Complex64;
 #[cfg(feature = "plotting")]
 use plotters::prelude::*;
+use scirs2_core::numeric::Complex64;
 use std::error::Error;
 use std::path::Path;
 
@@ -275,19 +275,20 @@ pub mod bessel_plots {
                 .label("J₀(x)")
                 .legend(|(x, y)| PathElement::new(vec![(x, y), (x + 10, y)], &BLUE));
 
-            // Mark zeros
-            let zeros = j0_zeros(10);
-            for zero in zeros {
-                chart.draw_series(PointSeries::of_element(
-                    vec![(zero, 0.0)],
-                    5,
-                    &RED,
-                    &|c, s, st| {
-                        return EmptyElement::at(c)
-                            + Circle::new((0, 0), s, st.filled())
-                            + Text::new(format!("{:.3}", zero), (10, 0), ("sans-serif", 15));
-                    },
-                ))?;
+            // Mark zeros (first 10 zeros)
+            for k in 1..=10 {
+                if let Ok(zero) = j0_zeros::<f64>(k) {
+                    chart.draw_series(PointSeries::of_element(
+                        vec![(zero, 0.0)],
+                        5,
+                        &RED,
+                        &|c, s, st| {
+                            return EmptyElement::at(c)
+                                + Circle::new((0, 0), s, st.filled())
+                                + Text::new(format!("{:.3}", zero), (10, 0), ("sans-serif", 15));
+                        },
+                    ))?;
+                }
             }
 
             chart

@@ -10,9 +10,9 @@ use crate::error::Result;
 use crate::layers::{
     Conv2D, Dense, Dropout, GlobalAvgPool2D, Layer, LayerNorm2D, PaddingMode, Sequential,
 };
-use ndarray::{Array, IxDyn, ScalarOperand};
-use ndarray_rand::rand::{rngs::SmallRng, SeedableRng};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::random::{rngs::SmallRng, SeedableRng};
+use scirs2_core::numeric::Float;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 /// Configuration for a ConvNeXt stage
@@ -82,7 +82,7 @@ pub struct ConvNeXtBlock<F: Float + Debug + ScalarOperand + Send + Sync> {
 impl<F: Float + Debug + ScalarOperand + Send + Sync> ConvNeXtBlock<F> {
     /// Create a new ConvNeXtBlock
     pub fn new(_channels: usize, layer_scale_init_value: f64, drop_pathprob: f64) -> Result<Self> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let depthwise_conv = Conv2D::<F>::new(
             channels,
             (7, 7),
@@ -356,7 +356,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> ConvNeXt<F> {
         // Create the head if needed
         let head = if config.include_top {
             let mut head_seq = Sequential::new();
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
             head_seq.add(LayerNorm2D::<F>::new::<SmallRng>(
                 *config.dims.last().unwrap(),
                 1e-6,

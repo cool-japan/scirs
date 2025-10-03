@@ -3,8 +3,8 @@
 //! This module provides the watershed segmentation algorithm for image segmentation.
 
 use crate::error::{NdimageError, NdimageResult};
-use ndarray::{Array, Ix2};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array, Ix2};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::hash::{Hash, Hasher};
@@ -69,7 +69,7 @@ impl<T: PartialOrd> Ord for PriorityPoint<T> {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::segmentation::watershed;
 ///
 /// let image = array![
@@ -282,7 +282,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_ndimage::segmentation::marker_watershed;
 ///
 /// let image = array![

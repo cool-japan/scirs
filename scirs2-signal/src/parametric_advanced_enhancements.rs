@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Advanced enhancements for parametric spectral estimation
 //
 // This module provides additional advanced features for parametric spectral estimation,
@@ -9,9 +9,9 @@ use crate::error::{SignalError, SignalResult};
 use crate::parametric::{estimate_ar, ARMethod};
 use crate::parametric_arma::{estimate_arma, ArmaMethod, ArmaModel};
 use crate::parametric_enhanced::ModelType;
-use ndarray::Array1;
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 use scirs2_core::validation::check_finite;
 use statrs::statistics::Statistics;
 
@@ -745,7 +745,7 @@ mod tests {
     #[test]
     fn test_adaptive_model_selection() {
         // Generate AR(2) signal
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let n = 200;
         let mut signal = Array1::zeros(n);
 

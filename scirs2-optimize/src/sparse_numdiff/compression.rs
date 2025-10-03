@@ -5,7 +5,7 @@
 //! for finite differences.
 
 use crate::error::OptimizeError;
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 // Unused import: Array1
 use scirs2_sparse::csr_array::CsrArray;
 use scirs2_sparse::SparseArray;

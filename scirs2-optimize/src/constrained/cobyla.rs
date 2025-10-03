@@ -3,7 +3,7 @@
 use crate::constrained::{Constraint, ConstraintFn, ConstraintKind, Options};
 use crate::error::{OptimizeError, OptimizeResult};
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
 use scirs2_core::validation::check_finite;
 
 /// COBYLA optimizer for constrained optimization
@@ -41,7 +41,7 @@ where
 
     // Validate inputs
     for (i, &val) in x0_vec.iter().enumerate() {
-        check_finite(val, &format!("x0[{}]", i))?;
+        check_finite(val, format!("x0[{}]", i))?;
     }
     if n == 0 {
         return Err(OptimizeError::ValueError("x0 cannot be empty".to_string()));

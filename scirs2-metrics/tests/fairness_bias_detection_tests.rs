@@ -1,5 +1,5 @@
 use approx::assert_abs_diff_eq;
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 use scirs2_metrics::classification::accuracy_score;
 use scirs2_metrics::fairness::bias_detection::{
     intersectional_fairness, slice_analysis, subgroup_performance,
@@ -25,8 +25,8 @@ fn test_slice_analysis() {
     // Test: slice analysis with gender (column 1) and region (column 2)
     let results = slice_analysis(&features, &[1, 2], &y_true, &y_pred, |y_t, y_p| {
         // Convert Vec<f64> to Array1<f64> for accuracy_score
-        let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-        let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+        let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+        let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
         accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
     })
     .unwrap();
@@ -50,8 +50,8 @@ fn test_slice_analysis() {
     let wrong_y_true = array![0.0, 0.0, 1.0];
     assert!(
         slice_analysis(&features, &[1, 2], &wrong_y_true, &y_pred, |y_t, y_p| {
-            let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-            let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+            let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+            let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
             accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
         },)
         .is_err()
@@ -64,8 +64,8 @@ fn test_slice_analysis() {
         &y_true,
         &y_pred,
         |y_t, y_p| {
-            let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-            let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+            let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+            let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
             accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
         },
     )
@@ -99,8 +99,8 @@ fn test_subgroup_performance() {
 
     // Analyze performance across subgroups
     let results = subgroup_performance(&y_true, &y_pred, &groups, &group_names, |y_t, y_p| {
-        let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-        let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+        let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+        let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
         accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
     })
     .unwrap();
@@ -127,8 +127,8 @@ fn test_subgroup_performance() {
     let wrong_y_true = array![0.0, 0.0, 1.0];
     assert!(
         subgroup_performance(&wrong_y_true, &y_pred, &groups, &group_names, |y_t, y_p| {
-            let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-            let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+            let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+            let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
             accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
         },)
         .is_err()
@@ -138,8 +138,8 @@ fn test_subgroup_performance() {
     let wrong_group_names = vec!["gender".to_string()];
     assert!(
         subgroup_performance(&y_true, &y_pred, &groups, &wrong_group_names, |y_t, y_p| {
-            let y_t_array = ndarray::Array::from_vec(y_t.to_vec());
-            let y_p_array = ndarray::Array::from_vec(y_p.to_vec());
+            let y_t_array = scirs2_core::ndarray::Array::from_vec(y_t.to_vec());
+            let y_p_array = scirs2_core::ndarray::Array::from_vec(y_p.to_vec());
             accuracy_score(&y_t_array, &y_p_array).unwrap_or(0.0)
         },)
         .is_err()

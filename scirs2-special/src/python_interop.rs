@@ -290,7 +290,7 @@ impl MigrationGuide {
 /// Compatibility layer providing SciPy-like function signatures
 pub mod compat {
     use super::*;
-    use ndarray::{Array1, ArrayView1};
+    use scirs2_core::ndarray::{Array1, ArrayView1};
 
     /// SciPy-compatible gamma function for arrays
     pub fn gamma_array(x: &ArrayView1<f64>) -> Array1<f64> {
@@ -510,7 +510,7 @@ use scirs2_special::gamma;
 let result = gamma(5.5_f64);
 
 // For array operations:
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 let x = Array1::linspace(0.1, 10.0, 100);
 let gamma_values = x.mapv(gamma);
@@ -550,7 +550,7 @@ let sigmoid = logistic(x);
 let probs = softmax(&logits);  // Note: takes a slice
 
 // For ndarray:
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 
 let x_array = Array1::from_vec(vec![1.0, 2.0, 3.0]);
 let sigmoid_array = x_array.mapv(logistic);

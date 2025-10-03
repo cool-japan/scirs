@@ -5,7 +5,7 @@
 
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array3;
+use scirs2_core::ndarray::Array3;
 use statrs::statistics::Statistics;
 
 /// Build optimal decomposition tree for wavelet packet coefficients
@@ -140,7 +140,7 @@ fn extract_node_coefficients(
         return Ok(Vec::new());
     }
 
-    let level_coeffs = coefficients.slice(ndarray::s![level, .., ..]);
+    let level_coeffs = coefficients.slice(scirs2_core::ndarray::s![level, .., ..]);
     let flat_coeffs: Vec<f64> = level_coeffs.iter().cloned().collect();
 
     // For simplicity, return all coefficients for the level
@@ -311,7 +311,7 @@ fn classify_subband(index: usize) -> SubbandType {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array3;
+    use scirs2_core::ndarray::Array3;
 
     #[test]
     fn test_build_decomposition_tree() {

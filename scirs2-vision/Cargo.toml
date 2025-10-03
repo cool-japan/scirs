@@ -13,19 +13,11 @@ categories = ["science", "mathematics", "algorithms"]
 workspace = true
 
 [dependencies]
-# Core dependencies
-scirs2-core = { workspace = true, features = ["parallel", "gpu", "random"] }
-# scirs2-linalg = { workspace = true, default-features = false }
-# Temporarily commented out for publishing
+# Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
+scirs2-core = { workspace = true, features = ["parallel", "gpu", "random", "array"] }
+scirs2-linalg = { workspace = true }
 # scirs2-ndimage = { workspace = true }
-ndarray = { workspace = true }
-# BLAS dependencies removed - using core abstractions
-# ndarray-linalg = { workspace = true }
-num-traits = { workspace = true }
-num-complex = { workspace = true }
 thiserror = { workspace = true }
-rand = { workspace = true }
-rand_distr = { workspace = true }
 statrs = { workspace = true }
 
 # Vision specific dependencies

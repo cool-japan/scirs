@@ -14,8 +14,8 @@ use crate::bspline::{BSpline, BSplineWorkspace};
 #[cfg(test)]
 use crate::bspline::ExtrapolateMode;
 use crate::error::InterpolateResult;
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::fmt::{Debug, Display};
 
 #[cfg(feature = "simd")]
@@ -261,7 +261,7 @@ impl SimdBSplineOps {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_simd_cubic_bspline_eval() {

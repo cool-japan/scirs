@@ -1,3 +1,5 @@
+#![allow(clippy::needless_range_loop)]
+
 use plotly::common::Title;
 use plotly::{common::Mode, layout::Axis, Layout, Plot, Scatter};
 use scirs2_core::Complex64;

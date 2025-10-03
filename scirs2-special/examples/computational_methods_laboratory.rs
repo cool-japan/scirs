@@ -13,7 +13,7 @@
 //!
 //! Run with: cargo run --example computational_methods_laboratory
 
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use scirs2_special::*;
 use std::f64::consts::PI;
 use std::io::{self, Write};

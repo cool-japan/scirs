@@ -4,7 +4,7 @@
 
 #[allow(unused_imports)]
 use crate::error::MetricsError;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;

@@ -4,8 +4,8 @@
 //! compatible with SciPy's validation patterns and provide consistent
 //! error messages across all clustering algorithms.
 
-use ndarray::{ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -107,7 +107,7 @@ impl ValidationConfig {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::input_validation::{validate_clustering_data, ValidationConfig};
 ///
 /// let data = Array2::from_shape_vec((10, 3), (0..30).map(|x| x as f64).collect()).unwrap();
@@ -568,7 +568,7 @@ pub fn suggest_clustering_algorithm<F: Float + FromPrimitive + Debug + PartialOr
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{Array1, Array2, ArrayView1};
+    use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 
     #[test]
     fn test_validate_clustering_data() {

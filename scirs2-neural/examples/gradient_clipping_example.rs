@@ -1,6 +1,6 @@
-use ndarray::ScalarOperand;
-use ndarray::{Array, ArrayBase, IxDyn, OwnedRepr};
-use num_traits::Float;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::ndarray::{Array, ArrayBase, IxDyn, OwnedRepr};
+use scirs2_core::numeric::Float;
 use scirs2_neural::error::Result;
 use std::fmt::Debug;
 

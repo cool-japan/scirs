@@ -6,7 +6,7 @@
 
 use super::types::{Dwt2dResult, ThresholdMethod};
 use super::simd::simd_threshold_coefficients;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Apply thresholding to wavelet coefficients for denoising or compression.
 ///
@@ -24,7 +24,7 @@ use ndarray::Array2;
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, dwt2d_reconstruct, threshold_dwt2d, ThresholdMethod};
 ///
@@ -93,7 +93,7 @@ pub fn threshold_dwt2d(decomposition: &mut Dwt2dResult, threshold: f64, method: 
 /// Using a different threshold for each level:
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{wavedec2, waverec2, threshold_wavedec2, ThresholdMethod};
 ///
@@ -168,7 +168,7 @@ pub fn apply_threshold(x: f64, threshold: f64, method: ThresholdMethod) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt2d::{apply_adaptive_thresholding, ThresholdMethod};
 ///
 /// // Create a sample coefficient array
@@ -212,7 +212,7 @@ pub fn apply_adaptive_thresholding(data: &mut Array2<f64>, threshold: f64, metho
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, estimate_noise_variance};
 ///
@@ -269,7 +269,7 @@ pub fn estimate_noise_variance(decomp: &Dwt2dResult) -> f64 {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::dwt2d::{dwt2d_decompose, threshold_dwt2d, calculate_compression_ratio, ThresholdMethod};
 ///

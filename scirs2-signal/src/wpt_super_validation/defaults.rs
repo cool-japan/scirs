@@ -5,7 +5,7 @@
 
 use super::types::*;
 use crate::wpt_validation::{OrthogonalityMetrics, PerformanceMetrics};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::collections::HashMap;
 
 impl Default for MathematicalPropertyValidation {

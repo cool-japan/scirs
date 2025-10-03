@@ -1,7 +1,7 @@
-use ndarray::Array2;
 use scirs2_cluster::vq::{
     kmeans2, kmeans_plus_plus, kmeans_with_options, KMeansOptions, MinitMethod, MissingMethod,
 };
+use scirs2_core::ndarray::Array2;
 
 #[allow(dead_code)]
 fn main() {

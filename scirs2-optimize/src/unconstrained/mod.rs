@@ -3,7 +3,7 @@
 //! This module provides various algorithms for unconstrained minimization problems.
 
 use crate::error::OptimizeError;
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::fmt;
 
 // Sub-modules

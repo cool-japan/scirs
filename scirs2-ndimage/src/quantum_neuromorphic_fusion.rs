@@ -33,7 +33,7 @@
 //!
 //! ```rust,ignore
 //! use scirs2_ndimage::quantum_neuromorphic_fusion::*;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create configuration
@@ -51,7 +51,7 @@
 //!
 //! ```rust,ignore
 //! use scirs2_ndimage::quantum_neuromorphic_fusion::*;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create consciousness configuration
@@ -69,7 +69,7 @@
 //!
 //! ```rust,ignore
 //! use scirs2_ndimage::quantum_neuromorphic_fusion::*;
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! // Create hybrid configuration

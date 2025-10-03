@@ -3,7 +3,7 @@
 //! This module provides the LIL matrix format implementation, which is
 //! efficient for row-based operations and incremental matrix construction.
 
-use num_traits::Zero;
+use scirs2_core::numeric::Zero;
 
 /// List of Lists (LIL) matrix
 ///

@@ -6,7 +6,7 @@
 #[allow(unused_imports)]
 use crate::error::Result;
 use crate::integration::optim::OptimizationMode;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt;
 #[allow(unused_imports)]
 use std::marker::PhantomData;

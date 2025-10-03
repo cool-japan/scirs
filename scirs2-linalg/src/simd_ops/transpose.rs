@@ -7,7 +7,7 @@
 #[cfg(feature = "simd")]
 use crate::error::{LinalgError, LinalgResult};
 #[cfg(feature = "simd")]
-use ndarray::{Array2, ArrayView2};
+use scirs2_core::ndarray::{Array2, ArrayView2};
 #[cfg(feature = "simd")]
 use scirs2_core::simd_ops::SimdUnifiedOps;
 
@@ -129,7 +129,7 @@ pub fn simd_transpose_inplace_f64(matrix: &mut Array2<f64>) -> LinalgResult<()> 
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     #[cfg(feature = "simd")]

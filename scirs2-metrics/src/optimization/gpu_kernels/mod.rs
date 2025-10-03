@@ -39,7 +39,7 @@ pub use config::GpuComputeConfig as GpuConfig;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_advanced_gpu_computer_creation() {
@@ -166,6 +166,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::const_is_empty)]
     fn test_kernel_source_availability() {
         // Test that kernel sources are available
         assert!(!cuda_kernels::MSE_KERNEL.is_empty());

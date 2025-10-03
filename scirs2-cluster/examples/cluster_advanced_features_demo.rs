@@ -6,7 +6,6 @@
 //! - Parallel K-means clustering
 //! - Various initialization methods
 
-use ndarray::{Array1, Array2};
 use scirs2_cluster::metrics::silhouette_score;
 use scirs2_cluster::preprocess::standardize;
 use scirs2_cluster::vq::{
@@ -14,6 +13,7 @@ use scirs2_cluster::vq::{
     parallel_kmeans, weighted_kmeans, KMeansInit, KMeansOptions, MiniBatchKMeansOptions,
     ParallelKMeansOptions, WeightedKMeansOptions,
 };
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[allow(dead_code)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {

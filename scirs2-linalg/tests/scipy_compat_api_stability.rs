@@ -5,7 +5,7 @@
 //! It ensures backward compatibility and consistent behavior for migration
 //! from SciPy to scirs2-linalg.
 
-use ndarray::{array, Array1, Array2};
+use scirs2_core::ndarray::{array, Array1, Array2};
 use scirs2_linalg::compat;
 use scirs2_linalg::error::{LinalgError, LinalgResult};
 use std::collections::HashMap;

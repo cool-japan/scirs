@@ -3,8 +3,8 @@
 //! This module provides functionality for detecting patterns, periods, and seasonality
 //! in time series data.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -84,7 +84,7 @@ impl Default for PeriodDetectionOptions {
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::detection::{detect_periods, PeriodDetectionOptions};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0,
@@ -144,7 +144,7 @@ where
     let detrended_ts = if options.detrend {
         // Use a moving average for detrending
         let window_size = std::cmp::min(n / 10, 21);
-        let window_size = if window_size % 2 == 0 {
+        let window_size = if window_size.is_multiple_of(2) {
             window_size + 1
         } else {
             window_size
@@ -438,7 +438,7 @@ where
 /// # Example
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_series::detection::{detect_and_decompose, PeriodDetectionOptions, DecompositionType, AutoDecomposition};
 ///
 /// let ts = array![1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0,
@@ -522,8 +522,8 @@ where
         + FromPrimitive
         + Debug
         + std::iter::Sum
-        + ndarray::ScalarOperand
-        + num_traits::NumCast,
+        + scirs2_core::ndarray::ScalarOperand
+        + scirs2_core::numeric::NumCast,
 {
     // First, detect periods
     let period_result = detect_periods(ts, detection_options)?;
@@ -585,7 +585,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use num_traits::ToPrimitive;
+    use scirs2_core::numeric::ToPrimitive;
 
     #[test]
     fn test_detect_periods_acf() {

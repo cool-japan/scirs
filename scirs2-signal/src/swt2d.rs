@@ -28,7 +28,7 @@
 // Basic usage:
 //
 // ```
-// use ndarray::Array2;
+// use scirs2_core::ndarray::Array2;
 // use scirs2_signal::dwt::Wavelet;
 // use scirs2_signal::swt2d::swt2d_decompose;
 //
@@ -53,8 +53,8 @@
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use crate::swt;
-use ndarray::{Array2, Axis};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array2, Axis};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 
@@ -97,7 +97,7 @@ pub struct Swt2dResult {
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::swt2d::swt2d_decompose;
 ///
@@ -137,7 +137,7 @@ where
 
     // Convert input to f64
     let data_f64 = data.mapv(|val| {
-        num_traits::cast::cast::<T, f64>(val)
+        NumCast::from(val)
             .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
     });
 
@@ -281,7 +281,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::swt2d::swt2d;
 ///
@@ -328,7 +328,7 @@ where
 
     // Convert input to f64
     let mut approx = data.mapv(|val| {
-        num_traits::cast::cast::<T, f64>(val)
+        NumCast::from(val)
             .unwrap_or_else(|| panic!("Could not convert {:?} to f64", val))
     });
 
@@ -364,7 +364,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::swt2d::{swt2d_decompose, swt2d_reconstruct};
 ///
@@ -550,7 +550,7 @@ pub fn swt2d_reconstruct(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_signal::dwt::Wavelet;
 /// use scirs2_signal::swt2d::{swt2d, iswt2d};
 ///

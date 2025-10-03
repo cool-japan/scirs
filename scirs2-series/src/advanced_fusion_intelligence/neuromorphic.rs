@@ -4,8 +4,8 @@
 //! for the advanced fusion intelligence system, including spiking neural networks,
 //! synaptic plasticity, and bio-inspired adaptive mechanisms.
 
-use ndarray::Array1;
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -95,6 +95,12 @@ pub struct SynapticPlasticityManager<F: Float + Debug> {
     homeostatic_scaling: bool,
 }
 
+impl<F: Float + Debug + FromPrimitive> Default for SynapticPlasticityManager<F> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<F: Float + Debug + FromPrimitive> SynapticPlasticityManager<F> {
     /// Create new synaptic plasticity manager
     pub fn new() -> Self {
@@ -133,6 +139,12 @@ impl<F: Float + Debug + FromPrimitive> SynapticPlasticityManager<F> {
 pub struct NeuronalAdaptationSystem<F: Float + Debug> {
     adaptation_mechanisms: Vec<AdaptationMechanism<F>>,
     homeostatic_controller: HomeostaticController<F>,
+}
+
+impl<F: Float + Debug + FromPrimitive> Default for NeuronalAdaptationSystem<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float + Debug + FromPrimitive> NeuronalAdaptationSystem<F> {
@@ -183,6 +195,12 @@ pub struct HomeostaticController<F: Float + Debug> {
     target_firing_rate: F,
     scaling_factor: F,
     time_constant: F,
+}
+
+impl<F: Float + Debug + FromPrimitive> Default for HomeostaticController<F> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl<F: Float + Debug + FromPrimitive> HomeostaticController<F> {
@@ -375,6 +393,12 @@ impl<F: Float + Debug + FromPrimitive> AdvancedSpikingLayer<F> {
         }
 
         Ok(output_spikes)
+    }
+}
+
+impl<F: Float + Debug + FromPrimitive> Default for SpikingNeuron<F> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

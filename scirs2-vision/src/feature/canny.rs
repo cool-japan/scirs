@@ -24,7 +24,7 @@
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GrayImage};
-use ndarray::{Array2, Zip};
+use scirs2_core::ndarray::{Array2, Zip};
 use std::collections::VecDeque;
 use std::f32::consts::{FRAC_PI_4, PI};
 

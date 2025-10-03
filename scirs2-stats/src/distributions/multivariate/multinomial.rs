@@ -4,9 +4,9 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
-use ndarray::{Array1, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1};
 // NOTE: rand, distr: weighted may not be available in current version
-// use rand_distr::weighted::WeightedAliasIndex;
+// use scirs2_core::random::weighted::WeightedAliasIndex;
 use scirs2_core::random::prelude::*;
 use scirs2_core::validation::{check_probabilities, check_probabilities_sum_to_one};
 use scirs2_core::Rng;
@@ -67,7 +67,7 @@ impl Multinomial {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multinomial::Multinomial;
     ///
     /// // Create a multinomial distribution for a 3-sided die rolled 10 times
@@ -116,7 +116,7 @@ impl Multinomial {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multinomial::Multinomial;
     ///
     /// let n = 10;
@@ -186,7 +186,7 @@ impl Multinomial {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multinomial::Multinomial;
     ///
     /// let n = 10;
@@ -262,7 +262,7 @@ impl Multinomial {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multinomial::Multinomial;
     ///
     /// let n = 10;
@@ -316,7 +316,7 @@ impl Multinomial {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multinomial::Multinomial;
     ///
     /// let n = 10;
@@ -341,7 +341,7 @@ impl Multinomial {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multinomial::Multinomial;
     ///
     /// let n = 10;
@@ -365,7 +365,7 @@ impl Multinomial {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_stats::distributions::multivariate::multinomial::Multinomial;
     ///
     /// let n = 10;
@@ -374,10 +374,10 @@ impl Multinomial {
     ///
     /// let cov = multinomial.cov();
     /// ```
-    pub fn cov(&self) -> ndarray::Array2<f64> {
+    pub fn cov(&self) -> scirs2_core::ndarray::Array2<f64> {
         let k = self.p.len();
         let n_f64 = self.n as f64;
-        let mut cov = ndarray::Array2::zeros((k, k));
+        let mut cov = scirs2_core::ndarray::Array2::zeros((k, k));
 
         // Fill the covariance matrix
         // Diagonal: n*p_i*(1-p_i)
@@ -413,7 +413,7 @@ impl Multinomial {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::distributions::multivariate;
 ///
 /// let n = 10;
@@ -439,7 +439,7 @@ impl SampleableDistribution<Array1<f64>> for Multinomial {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_multinomial_creation() {

@@ -4,8 +4,8 @@
 //! the eigenvectors of a graph Laplacian to embed data points in a lower-dimensional space.
 //! It's particularly effective for data that lies on a non-linear manifold.
 
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::validation::{check_positive, checkshape};
 use scirs2_linalg::eigh;
 
@@ -120,8 +120,8 @@ impl SpectralEmbedding {
             for j in i + 1..n_samples {
                 let mut dist_sq = 0.0;
                 for k in 0..x.ncols() {
-                    let diff = num_traits::cast::<S::Elem, f64>(x[[i, k]]).unwrap_or(0.0)
-                        - num_traits::cast::<S::Elem, f64>(x[[j, k]]).unwrap_or(0.0);
+                    let diff = NumCast::from(x[[i, k]]).unwrap_or(0.0)
+                        - NumCast::from(x[[j, k]]).unwrap_or(0.0);
                     dist_sq += diff * diff;
                 }
                 let dist = dist_sq.sqrt();
@@ -287,7 +287,7 @@ impl SpectralEmbedding {
         }
 
         // Convert input to f64
-        let x_f64 = x.mapv(|v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0));
+        let x_f64 = x.mapv(|v| NumCast::from(v).unwrap_or(0.0));
 
         // Step 1: Compute pairwise distances
         let distances = self.compute_distances(&x_f64.view());
@@ -352,7 +352,7 @@ impl SpectralEmbedding {
             .as_ref()
             .ok_or_else(|| TransformError::NotFitted("Training data not available".to_string()))?;
 
-        let x_f64 = x.mapv(|v| num_traits::cast::<S::Elem, f64>(v).unwrap_or(0.0));
+        let x_f64 = x.mapv(|v| NumCast::from(v).unwrap_or(0.0));
 
         // Check if this is the training data
         if self.is_same_data(&x_f64, training_data) {
@@ -485,7 +485,7 @@ impl SpectralEmbedding {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_spectral_embedding_gaussian() {

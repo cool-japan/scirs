@@ -6,8 +6,8 @@
 //! - Minimal branching in inner loops
 //! - Cache-friendly memory access patterns
 
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use std::fmt::Debug;
@@ -466,7 +466,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{arr1, arr2};
+    use scirs2_core::ndarray::{arr1, arr2};
 
     #[test]
     fn test_boundary1d_modes() {

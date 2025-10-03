@@ -6,7 +6,7 @@
 //! more informative representations of the data.
 
 use crate::error::{DatasetsError, Result};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use statrs::statistics::Statistics;
 
 /// Binning strategies for discretization
@@ -36,7 +36,7 @@ pub enum BinningStrategy {
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_datasets::utils::polynomial_features;
 ///
 /// let data = Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).unwrap();
@@ -165,7 +165,7 @@ fn generate_polynomial_combinations(
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_datasets::utils::statistical_features;
 ///
 /// let data = Array2::from_shape_vec((5, 2), vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0, 4.0, 40.0, 5.0, 50.0]).unwrap();
@@ -257,7 +257,7 @@ fn calculate_quantile(sorted_data: &[f64], quantile: f64) -> f64 {
 
 /// Calculates skewness (third moment)
 #[allow(dead_code)]
-fn calculate_skewness(data: &ndarray::ArrayView1<f64>, mean: f64, std: f64) -> f64 {
+fn calculate_skewness(data: &scirs2_core::ndarray::ArrayView1<f64>, mean: f64, std: f64) -> f64 {
     if std <= 1e-10 {
         return 0.0;
     }
@@ -270,7 +270,7 @@ fn calculate_skewness(data: &ndarray::ArrayView1<f64>, mean: f64, std: f64) -> f
 
 /// Calculates kurtosis (fourth moment)
 #[allow(dead_code)]
-fn calculate_kurtosis(data: &ndarray::ArrayView1<f64>, mean: f64, std: f64) -> f64 {
+fn calculate_kurtosis(data: &scirs2_core::ndarray::ArrayView1<f64>, mean: f64, std: f64) -> f64 {
     if std <= 1e-10 {
         return 0.0;
     }
@@ -300,7 +300,7 @@ fn calculate_kurtosis(data: &ndarray::ArrayView1<f64>, mean: f64, std: f64) -> f
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_datasets::utils::{create_binned_features, BinningStrategy};
 ///
 /// let data = Array2::from_shape_vec((5, 2), vec![1.0, 10.0, 2.0, 20.0, 3.0, 30.0, 4.0, 40.0, 5.0, 50.0]).unwrap();
@@ -340,7 +340,7 @@ pub fn create_binned_features(
 /// Calculate bin edges based on the specified strategy
 #[allow(dead_code)]
 fn calculate_bin_edges(
-    data: &ndarray::ArrayView1<f64>,
+    data: &scirs2_core::ndarray::ArrayView1<f64>,
     n_bins: usize,
     strategy: &BinningStrategy,
 ) -> Result<Vec<f64>> {
@@ -396,7 +396,7 @@ fn find_bin_index(_value: f64, binedges: &[f64]) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_polynomial_features_degree_2() {

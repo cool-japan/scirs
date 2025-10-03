@@ -7,8 +7,8 @@ use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
 use crate::layers::Sequential;
 use crate::utils::colors::{colorize, stylize, Color, ColorOptions, Style};
-use ndarray::ScalarOperand;
-use num_traits::Float;
+use scirs2_core::ndarray::ScalarOperand;
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 /// Represents a node in the model architecture graph
 #[derive(Debug, Clone)]
@@ -63,7 +63,7 @@ impl Default for ModelVizOptions {
 /// * `Result<String>` - ASCII representation of the model architecture
 #[allow(dead_code)]
 pub fn sequential_model_summary<
-    F: Float + Debug + ScalarOperand + num_traits::FromPrimitive + std::fmt::Display,
+    F: Float + Debug + ScalarOperand + scirs2_core::numeric::FromPrimitive + std::fmt::Display,
 >(
     model: &Sequential<F>,
     inputshape: Option<Vec<usize>>,
@@ -368,7 +368,7 @@ pub fn sequential_model_summary<
 /// including transformations in shape and any connections between layers.
 #[allow(dead_code)]
 pub fn sequential_model_dataflow<
-    F: Float + Debug + ScalarOperand + num_traits::FromPrimitive + std::fmt::Display,
+    F: Float + Debug + ScalarOperand + scirs2_core::numeric::FromPrimitive + std::fmt::Display,
 >(
     model: &Sequential<F>,
     inputshape: Vec<usize>,

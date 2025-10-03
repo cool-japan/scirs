@@ -3,9 +3,9 @@
 use crate::activations_minimal::Activation;
 use crate::error::{NeuralError, Result};
 use crate::layers::{Layer, ParamLayer};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use ndarray_rand::rand_distr::{Distribution, Uniform};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::random::{Distribution, Uniform};
+use scirs2_core::numeric::Float;
 use std::fmt::Debug;
 
 /// Dense (fully connected) layer for neural networks.
@@ -72,7 +72,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Dense<F> {
     /// * `output_dim` - Number of output features
     /// * `activation_name` - Optional activation function name
     /// * `rng` - Random number generator for weight initialization
-    pub fn new<R: ndarray, rand: rand::Rng + ndarray, _rand::rand::RngCore>(
+    pub fn new<R: ndarray, rand: scirs2_core::random::Rng + ndarray, _rand::scirs2_core::random::RngCore>(
         input_dim: usize,
         output_dim: usize,
         activation_name: Option<&str>,
@@ -169,7 +169,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Dense<F> {
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Dense<F> {
-    fn forward(&self, input: &Array<F, ndarray::IxDyn>) -> Result<Array<F, ndarray::IxDyn>> {
+    fn forward(&self, input: &Array<F, scirs2_core::ndarray::IxDyn>) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Cache input for backward pass
         {
             let mut input_cache = self.input.write().unwrap();
@@ -216,9 +216,9 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Dens
 
     fn backward(
         &mut self,
-        _input: &Array<F, ndarray::IxDyn>,
-        grad_output: &Array<F, ndarray::IxDyn>,
-    ) -> Result<Array<F, ndarray::IxDyn>> {
+        _input: &Array<F, scirs2_core::ndarray::IxDyn>,
+        grad_output: &Array<F, scirs2_core::ndarray::IxDyn>,
+    ) -> Result<Array<F, scirs2_core::ndarray::IxDyn>> {
         // Get cached data
         let cached_input = {
             let cache = self._input.read().unwrap();
@@ -366,16 +366,16 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for Dens
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for Dense<F> {
-    fn get_parameters(&self) -> Vec<&Array<F, ndarray::IxDyn>> {
+    fn get_parameters(&self) -> Vec<&Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![&self.weights, &self.biases]
     }
 
-    fn get_gradients(&self) -> Vec<&Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<&Array<F, scirs2_core::ndarray::IxDyn>> {
         // This method has limitations with RwLock - in practice this would need redesign
         vec![]
     }
 
-    fn set_parameters(&mut self, params: Vec<Array<F, ndarray::IxDyn>>) -> Result<()> {
+    fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
         if params.len() != 2 {
             return Err(NeuralError::InvalidArchitecture(format!(
                 "Expected 2 parameters (weights, biases), got {}",

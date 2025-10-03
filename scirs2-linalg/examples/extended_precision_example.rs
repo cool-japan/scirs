@@ -3,7 +3,7 @@
 //! This example demonstrates the use of extended precision operations for improved accuracy.
 //! This includes matrix operations, determinant calculation, factorizations and eigendecompositions.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::error::LinalgResult;
 use scirs2_linalg::prelude::*;
 

@@ -3,8 +3,8 @@
 use ag::tensor_ops::ConditionType;
 use ag::tensor_ops::*;
 use approx::assert_relative_eq;
-use ndarray::array;
 use scirs2_autograd as ag;
+use scirs2_core::ndarray::array;
 
 #[test]
 #[allow(dead_code)]
@@ -30,7 +30,7 @@ fn test_matrix_rank() {
         // We test that it returns a positive rank value instead of exact value
         let rank_result = r3.eval(g).unwrap()[[]];
         assert!(
-            rank_result >= 1.0 && rank_result <= 3.0,
+            (1.0..=3.0).contains(&rank_result),
             "Rank should be between 1 and 3, got {}",
             rank_result
         );

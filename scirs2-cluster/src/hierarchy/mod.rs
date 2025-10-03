@@ -6,7 +6,7 @@
 //! ## Examples
 //!
 //! ```
-//! use ndarray::{Array2, ArrayView2};
+//! use scirs2_core::ndarray::{Array2, ArrayView2};
 //! use scirs2_cluster::hierarchy::{linkage, fcluster, LinkageMethod, Metric};
 //!
 //! // Example data
@@ -30,8 +30,8 @@
 //! println!("Cluster assignments: {:?}", labels);
 //! ```
 
-use ndarray::{Array1, Array2, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -308,7 +308,14 @@ pub fn coords_to_condensed_index(n: usize, i: usize, j: usize) -> Result<usize> 
 /// * `Result<Array2<F>>` - The linkage matrix, which describes the dendrogram
 #[allow(dead_code)]
 pub fn linkage<
-    F: Float + FromPrimitive + Debug + PartialOrd + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float
+        + FromPrimitive
+        + Debug
+        + PartialOrd
+        + Send
+        + Sync
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 >(
     data: ArrayView2<F>,
     method: LinkageMethod,
@@ -358,7 +365,7 @@ pub fn linkage<
 /// # Examples
 ///
 /// ```
-/// use ndarray::{Array2, ArrayView2};
+/// use scirs2_core::ndarray::{Array2, ArrayView2};
 /// use scirs2_cluster::hierarchy::{parallel_linkage, LinkageMethod, Metric};
 ///
 /// // Example data
@@ -385,7 +392,7 @@ pub fn parallel_linkage<
         + Send
         + Sync
         + std::iter::Sum
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + 'static,
 >(
     data: ArrayView2<F>,
@@ -491,7 +498,7 @@ pub fn fcluster<F: Float + FromPrimitive + PartialOrd + Debug>(
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_cluster::hierarchy::{linkage, fcluster_generic, LinkageMethod, Metric, ClusterCriterion};
 ///
 /// let data = Array2::from_shape_vec((6, 2), vec![

@@ -89,7 +89,7 @@
 //! - **Engineering**: Signal processing, communications theory
 //! - **Mathematics**: Solutions to the heat equation
 
-use num_traits::{Float, FromPrimitive, ToPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive};
 
 /// Error function.
 ///
@@ -456,7 +456,7 @@ fn refine_erfinv<F: Float + FromPrimitive>(mut x: F, y: F) -> F {
 
 /// Complex number support for error functions
 pub mod complex {
-    use num_complex::Complex64;
+    use scirs2_core::numeric::Complex64;
     use std::f64::consts::PI;
 
     /// Complex error function erf(z)
@@ -477,7 +477,7 @@ pub mod complex {
     ///
     /// ```
     /// use scirs2_special::erf_complex;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// let z = Complex64::new(1.0, 0.0);
     /// let result = erf_complex(z);
@@ -524,7 +524,7 @@ pub mod complex {
     ///
     /// ```
     /// use scirs2_special::erfc_complex;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// let z = Complex64::new(1.0, 0.0);
     /// let result = erfc_complex(z);
@@ -565,7 +565,7 @@ pub mod complex {
     ///
     /// ```
     /// use scirs2_special::erfcx_complex;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// let z = Complex64::new(2.0, 0.0);
     /// let result = erfcx_complex(z);
@@ -618,7 +618,7 @@ pub mod complex {
     ///
     /// ```
     /// use scirs2_special::faddeeva_complex;
-    /// use num_complex::Complex64;
+    /// use scirs2_core::numeric::Complex64;
     ///
     /// let z = Complex64::new(1.0, 0.0);
     /// let result = faddeeva_complex(z);
@@ -1052,7 +1052,7 @@ pub fn erfcx<F: Float + FromPrimitive>(x: F) -> F {
     // For the real-valued version, we can use the complex implementation
     // with zero imaginary part and take the real part
     use crate::erf::complex::erfcx_complex;
-    use num_complex::Complex;
+    use scirs2_core::numeric::Complex;
 
     let z = Complex::new(x.to_f64().unwrap(), 0.0);
     let result = erfcx_complex(z);
@@ -1160,7 +1160,7 @@ pub fn erfi<F: Float + FromPrimitive>(x: F) -> F {
 pub fn wofz<F: Float + FromPrimitive>(x: F) -> F {
     // For real arguments, use the complex implementation and take the real part
     use crate::erf::complex::faddeeva_complex;
-    use num_complex::Complex;
+    use scirs2_core::numeric::Complex;
 
     let z = Complex::new(x.to_f64().unwrap(), 0.0);
     let result = faddeeva_complex(z);

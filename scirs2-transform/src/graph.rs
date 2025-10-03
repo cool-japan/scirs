@@ -3,9 +3,9 @@
 //! This module provides utilities for transforming graph structures into
 //! numerical feature representations suitable for machine learning.
 
-use ndarray::{Array1, Array2};
-use rand::prelude::*;
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::prelude::*;
+use scirs2_core::random::Rng;
 
 use crate::error::{Result, TransformError};
 use scirs2_linalg::eigh;
@@ -64,7 +64,7 @@ impl SpectralEmbedding {
         }
 
         // Compute degree matrix
-        let degrees: Array1<f64> = adjacency.sum_axis(ndarray::Axis(1));
+        let degrees: Array1<f64> = adjacency.sum_axis(scirs2_core::ndarray::Axis(1));
 
         match self.laplacian_type {
             LaplacianType::Unnormalized => {
@@ -206,7 +206,7 @@ impl DeepWalk {
         let nnodes = adjacency.shape()[0];
         let mut walks = Vec::with_capacity(nnodes * self.n_walks);
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Build neighbor lists for efficient sampling
         let mut neighbors: Vec<Vec<usize>> = vec![Vec::new(); nnodes];
@@ -247,7 +247,7 @@ impl DeepWalk {
 
     /// Train embeddings using Skip-gram with negative sampling
     fn train_embeddings(&self, walks: &[Vec<usize>], nnodes: usize) -> Array2<f64> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Initialize embeddings randomly
         let mut embeddings = Array2::zeros((nnodes, self._embeddingdim));
@@ -380,7 +380,7 @@ impl Node2Vec {
         let mut rng = if let Some(seed) = self.base_model.random_state {
             StdRng::seed_from_u64(seed)
         } else {
-            StdRng::seed_from_u64(rand::random::<u64>())
+            StdRng::seed_from_u64(scirs2_core::random::random::<u64>())
         };
 
         // Build neighbor lists
@@ -566,7 +566,7 @@ impl GraphAutoencoder {
             )));
         }
 
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Initialize weights
         let mut encoder_weights = Vec::new();

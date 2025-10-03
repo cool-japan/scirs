@@ -5,10 +5,10 @@
 
 use crate::error::{StatsError, StatsResult};
 use crate::traits::{CircularDistribution, Distribution};
-use ndarray::Array1;
-use num_traits::Float;
-use rand::{rng, Rng};
-use rand_distr::uniform::SampleUniform;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
+use scirs2_core::random::uniform::SampleUniform;
+use scirs2_core::random::{rng, Rng};
 use std::f64::consts::PI;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -168,7 +168,7 @@ impl<F: Float + SampleUniform + Debug + 'static + std::fmt::Display> CircularDis
 
         // Method 1: Inverse transform sampling
         // Generate uniform random number in [0, 1)
-        let mut rng = rand::thread_rng();
+        let mut rng = scirs2_core::random::thread_rng();
         let u: f64 = rng.random();
 
         // Convert to angle using inverse CDF
@@ -177,12 +177,12 @@ impl<F: Float + SampleUniform + Debug + 'static + std::fmt::Display> CircularDis
         let gamma_f64 = self.gamma.to_f64().unwrap();
         let mu_f64 = self.mu.to_f64().unwrap();
 
-        let pi_u = (PI as f64) * u_f64;
+        let pi_u = PI * u_f64;
         let angle = 2.0_f64 * (pi_u.tan() / gamma_f64).atan();
 
         // Add the mean direction and normalize to [-π, π]
         let result = angle + mu_f64;
-        let normalized = ((result + (PI as f64)) % (2.0_f64 * (PI as f64))) - (PI as f64);
+        let normalized = ((result + PI) % (2.0_f64 * PI)) - PI;
 
         Ok(F::from(normalized).unwrap())
     }

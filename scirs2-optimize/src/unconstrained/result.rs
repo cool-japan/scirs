@@ -1,6 +1,6 @@
 //! Result structure for unconstrained optimization
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Result structure for optimization algorithms
 #[derive(Debug, Clone)]

@@ -8,7 +8,7 @@ use super::stereo_rectification::matrix_multiply;
 use crate::error::{Result, VisionError};
 use crate::registration::{identity_transform, TransformMatrix};
 use image::{DynamicImage, Rgb, RgbImage};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 /// Create a panorama by stitching multiple images
 ///

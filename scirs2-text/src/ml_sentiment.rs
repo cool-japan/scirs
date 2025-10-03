@@ -7,8 +7,8 @@ use crate::classification::{TextClassificationMetrics, TextDataset};
 use crate::error::{Result, TextError};
 use crate::sentiment::{Sentiment, SentimentResult};
 use crate::vectorize::{TfidfVectorizer, Vectorizer};
-use ndarray::{Array1, Array2};
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::SeedableRng;
 use std::collections::HashMap;
 
 /// ML-based sentiment analyzer
@@ -230,13 +230,13 @@ impl MLSentimentAnalyzer {
 
         // Create RNG for batch sampling
         let mut rng = if let Some(seed) = self.config.random_seed {
-            rand::rngs::StdRng::seed_from_u64(seed)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(seed)
         } else {
             // Create a default random seed
-            rand::rngs::StdRng::seed_from_u64(0)
+            scirs2_core::random::rngs::StdRng::seed_from_u64(0)
         };
 
-        use rand::seq::SliceRandom;
+        use scirs2_core::random::seq::SliceRandom;
         let indices: Vec<usize> = (0..n_samples).collect();
 
         // Training loop

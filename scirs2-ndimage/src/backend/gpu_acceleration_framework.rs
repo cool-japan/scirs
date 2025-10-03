@@ -8,8 +8,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-use ndarray::{Array, ArrayView, Dimension};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array, ArrayView, Dimension};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use crate::backend::Backend;
 use crate::error::NdimageResult;

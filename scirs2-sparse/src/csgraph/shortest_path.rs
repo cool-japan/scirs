@@ -6,8 +6,8 @@
 use super::{num_vertices, to_adjacency_list, validate_graph, PriorityQueueNode};
 use crate::error::{SparseError, SparseResult};
 use crate::sparray::SparseArray;
-use ndarray::{Array1, Array2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::collections::BinaryHeap;
 use std::fmt::Debug;
 

@@ -164,8 +164,8 @@ pub fn snr_db(signal_power: f64, noise_power: f64) -> f64 {
 /// Generate white noise with specified standard deviation
 #[allow(dead_code)]
 pub fn generate_white_noise(n: usize, std_dev: f64) -> Vec<f64> {
-    use rand::prelude::*;
-    let mut rng = rand::rng();
+    use scirs2_core::random::prelude::*;
+    let mut rng = scirs2_core::random::rng();
 
     (0..n)
         .map(|_| std_dev * rng.gen_range(-1.0..1.0))

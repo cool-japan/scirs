@@ -3,7 +3,7 @@
 //! This example showcases specialized financial time series analysis capabilities,
 //! including GARCH volatility modeling, technical indicators, and risk metrics.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_series::{
     correlation::CorrelationAnalyzer,
     // features::{FeatureConfig, FeatureExtractor}, // TODO: Fix when needed

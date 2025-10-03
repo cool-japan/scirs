@@ -8,9 +8,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Dropout, Layer, LayerNorm, MultiHeadAttention, PatchEmbedding};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::SeedableRng;
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 /// Configuration for a Vision Transformer model
@@ -127,7 +127,7 @@ impl<
         attention_dropout_rate: F,
     ) -> Result<Self> {
         // Layer normalization for attention
-        let mut ln_rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut ln_rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let norm1 = LayerNorm::new(dim, 1e-6, &mut ln_rng)?;
         // Multi-head attention
         // Create config for attention
@@ -138,20 +138,20 @@ impl<
             causal: false,
             scale: None, // Use default scaling
         };
-        let mut attn_rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut attn_rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let attention = MultiHeadAttention::new(dim, attn_config, &mut attn_rng)?;
         // Layer normalization for MLP
         let norm2 = LayerNorm::new(dim, 1e-6, &mut ln_rng)?;
         let mlp = TransformerMlp {
             dense1: {
-                let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+                let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
                 Dense::new(dim, mlp_dim, None, &mut rng)?
             },
             dense2: {
                 Dense::new(mlp_dim, dim, None, &mut rng)?
         // Dropouts
         let dropout_rate_f64 = dropout_rate.to_f64().unwrap();
-        let mut dropout_rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut dropout_rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let attn_dropout = Dropout::new(dropout_rate_f64, &mut dropout_rng)?;
         let mlp_dropout = Dropout::new(dropout_rate_f64, &mut dropout_rng)?;
         Ok(Self {
@@ -262,7 +262,7 @@ pub struct VisionTransformer<
             )?;
             encoder_blocks.push(block);
         // Layer normalization
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let norm = LayerNorm::new(_config.embed_dim, 1e-6, &mut rng)?;
         // Classification head
         let classifier = Dense::new(

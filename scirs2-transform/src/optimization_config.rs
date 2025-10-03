@@ -131,7 +131,7 @@ pub struct DataCharacteristics {
 
 impl DataCharacteristics {
     /// Analyze data characteristics from array view
-    pub fn analyze(data: &ndarray::ArrayView2<f64>) -> Result<Self> {
+    pub fn analyze(data: &scirs2_core::ndarray::ArrayView2<f64>) -> Result<Self> {
         let (n_samples, nfeatures) = data.dim();
 
         if n_samples == 0 || nfeatures == 0 {
@@ -846,7 +846,7 @@ impl AdvancedConfigOptimizer {
         self.adaptive_tuner.update_q_values(config_hash, reward)?;
 
         // Trigger online learning if enough samples accumulated
-        if self.config_predictor.sample_count % 100 == 0 {
+        if self.config_predictor.sample_count.is_multiple_of(100) {
             self.retrain_models()?;
         }
 
@@ -1143,7 +1143,7 @@ impl AdaptiveParameterTuner {
         self.current_state = state.to_string();
 
         // Apply epsilon-greedy policy for parameter exploration
-        if rand::rng().gen_range(0.0..1.0) < self.exploration_rate {
+        if scirs2_core::random::rng().gen_range(0.0..1.0) < self.exploration_rate {
             // Explore: randomly adjust parameters
             config = self.explore_parameters(config)?;
         } else {
@@ -1156,7 +1156,7 @@ impl AdaptiveParameterTuner {
 
     /// Explore by randomly adjusting parameters
     fn explore_parameters(&self, mut config: OptimizationConfig) -> Result<OptimizationConfig> {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Randomly adjust memory limit (±20%)
         let memory_factor = rng.gen_range(0.8..1.2);
@@ -1225,7 +1225,7 @@ impl AdaptiveParameterTuner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_system_resources_detection() {

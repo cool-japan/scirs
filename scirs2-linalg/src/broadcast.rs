@@ -4,8 +4,8 @@
 //! more than 2 dimensions, following NumPy's broadcasting rules.
 
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array, ArrayBase, Data, Dimension, Ix3, IxDyn};
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::{Array, ArrayBase, Data, Dimension, Ix3, IxDyn};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -151,12 +151,18 @@ where
         let a_idx = if ashape[0] == 1 { 0 } else { i };
         let b_idx = if bshape[0] == 1 { 0 } else { i };
 
-        let a_mat = a.index_axis(ndarray::Axis(0), a_idx);
-        let b_mat = b.index_axis(ndarray::Axis(0), b_idx);
-        let mut out_mat = output.index_axis_mut(ndarray::Axis(0), i);
+        let a_mat = a.index_axis(scirs2_core::ndarray::Axis(0), a_idx);
+        let b_mat = b.index_axis(scirs2_core::ndarray::Axis(0), b_idx);
+        let mut out_mat = output.index_axis_mut(scirs2_core::ndarray::Axis(0), i);
 
         // Standard matrix multiplication for this batch
-        ndarray::linalg::general_mat_mul(A::one(), &a_mat, &b_mat, A::one(), &mut out_mat);
+        scirs2_core::ndarray::linalg::general_mat_mul(
+            A::one(),
+            &a_mat,
+            &b_mat,
+            A::one(),
+            &mut out_mat,
+        );
     }
 
     Ok(output)
@@ -269,7 +275,7 @@ where
         }
 
         // Perform matrix multiplication
-        ndarray::linalg::general_mat_mul(
+        scirs2_core::ndarray::linalg::general_mat_mul(
             A::one(),
             &a_slice.view(),
             &b_slice.view(),
@@ -396,7 +402,7 @@ where
         }
 
         // Perform matrix-vector multiplication
-        ndarray::linalg::general_mat_vec_mul(
+        scirs2_core::ndarray::linalg::general_mat_vec_mul(
             A::one(),
             &a_slice.view(),
             &x_slice.view(),
@@ -423,12 +429,12 @@ where
     Ok(output)
 }
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_broadcast_compatible() {

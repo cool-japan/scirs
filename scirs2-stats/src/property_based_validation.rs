@@ -12,7 +12,7 @@
 //! - Numerical stability analysis
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::Array1;
+use scirs2_core::ndarray::Array1;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -309,8 +309,8 @@ impl MathematicalProperty<Array1<f64>> for MeanTranslationInvariance {
     }
 
     fn generate_test_cases(&self, config: &PropertyTestConfig) -> Vec<Array1<f64>> {
-        use rand::prelude::*;
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::{Distribution, Normal};
 
         let mut rng = StdRng::seed_from_u64(config.seed);
         let normal = Normal::new(0.0, 1.0).unwrap();
@@ -453,8 +453,8 @@ impl MathematicalProperty<(Array1<f64>, Array1<f64>)> for CorrelationBounds {
     }
 
     fn generate_test_cases(&self, config: &PropertyTestConfig) -> Vec<(Array1<f64>, Array1<f64>)> {
-        use rand::prelude::*;
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::prelude::*;
+        use scirs2_core::random::{Distribution, Normal};
 
         let mut rng = StdRng::seed_from_u64(config.seed);
         let normal = Normal::new(0.0, 1.0).unwrap();

@@ -2016,12 +2016,12 @@ pub fn simd_dot_f32_ultra(a: &ArrayView1<f32>, b: &ArrayView1<f32>) -> f32 {
     // Fallback to existing implementation
     #[cfg(not(target_arch = "x86_64"))]
     {
-        return simd_dot_f32(a, b);
+        simd_dot_f32(a, b)
     }
 
     #[cfg(target_arch = "x86_64")]
     {
-        return simd_dot_f32(a, b);
+        simd_dot_f32(a, b)
     }
 }
 

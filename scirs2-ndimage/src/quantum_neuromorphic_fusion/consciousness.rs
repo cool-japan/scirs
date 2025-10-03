@@ -32,8 +32,8 @@
 //! 6. **Meta-Cognitive Monitoring**: Self-awareness and confidence assessment
 //! 7. **Temporal Binding**: Integration across temporal windows
 
-use ndarray::{Array1, Array2, Array3, ArrayView2};
-use num_traits::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;

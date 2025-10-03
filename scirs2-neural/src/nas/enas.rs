@@ -8,11 +8,11 @@ use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Layer};
 use crate::nas::search_space::{Architecture, LayerType};
 use crate::nas::SearchSpace;
-use ndarray::concatenate;
-use ndarray::prelude::*;
+use scirs2_core::ndarray::concatenate;
+use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 /// ENAS Controller that generates architectures
 pub struct ENASController {
     hidden_size: usize,
@@ -135,7 +135,7 @@ impl ENASController {
     /// Sample width multiplier
     fn sample_width_multiplier(&self, hidden: &ArrayView1<f32>) -> Result<f32> {
         let choices = &self.search_space.config.width_multipliers;
-        let idx = rand::random::<usize>() % choices.len();
+        let idx = scirs2_core::random::random::<usize>() % choices.len();
         Ok(choices[idx])
     /// Sample depth multiplier
     fn sample_depth_multiplier(&self, hidden: &ArrayView1<f32>) -> Result<f32> {
@@ -397,7 +397,7 @@ fn softmax(logits: &Array1<f32>, temperature: f32) -> Array1<f32> {
 #[allow(dead_code)]
 fn sample_categorical(probs: &Array1<f32>) -> Result<usize> {
     let mut rng = rng();
-    let uniform: f32 = rand::Rng::random(&mut rng);
+    let uniform: f32 = scirs2_core::random::Rng::random(&mut rng);
     let mut cumsum = 0.0;
     for (i, &p) in probs.iter().enumerate() {
         cumsum += p;

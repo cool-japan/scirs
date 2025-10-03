@@ -9,7 +9,7 @@
 use crate::bessel::first_kind::{j0, j1, jn, jv};
 use crate::bessel::modified::{i0, i1, iv, k0, k1, kv};
 use crate::bessel::second_kind::{y0, y1, yn};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 /// Compute the derivative of the Bessel function of the first kind of order 0.

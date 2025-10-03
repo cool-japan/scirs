@@ -1,4 +1,4 @@
-use ndarray::s;
+use scirs2_core::ndarray::s;
 // Enhanced boundary handling for 2D Discrete Wavelet Transform
 //
 // This module provides sophisticated boundary handling techniques specifically
@@ -16,8 +16,8 @@ use ndarray::s;
 use crate::dwt::Wavelet;
 use crate::dwt2d::{dwt2d_decompose, dwt2d_reconstruct};
 use crate::error::{SignalError, SignalResult};
-use ndarray::Array2;
-use num_traits::{Float, NumCast, Zero};
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, NumCast, Zero};
 use std::collections::HashMap;
 use std::fmt::Debug;
 

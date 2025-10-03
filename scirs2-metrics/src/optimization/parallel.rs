@@ -2,8 +2,8 @@
 //!
 //! This module provides tools for computing metrics in parallel using core parallel operations.
 
-use ndarray::{ArrayBase, Data, Dimension};
 use parking_lot;
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
 use scirs2_core::parallel_ops::*;
 use std::sync::Arc;
 
@@ -94,7 +94,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_metrics::optimization::parallel::{compute_metrics_batch, ParallelConfig};
 /// use scirs2_metrics::error::Result;
 /// use scirs2_metrics::classification::{accuracy_score, precision_score};
@@ -293,7 +293,7 @@ where
 mod tests {
     use super::*;
     use crate::error::MetricsError;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_parallel_config() {

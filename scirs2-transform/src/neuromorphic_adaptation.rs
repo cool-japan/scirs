@@ -7,8 +7,8 @@ use crate::auto_feature_engineering::{
     DatasetMetaFeatures, TransformationConfig, TransformationType,
 };
 use crate::error::{Result, TransformError};
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 // use scirs2_core::parallel_ops::*; // Reserved for future parallel processing
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::validation::{check_not_empty, check_positive};
@@ -45,7 +45,7 @@ pub struct SpikingNeuron {
 impl SpikingNeuron {
     /// Create a new spiking neuron
     pub fn new(_ninputs: usize, threshold: f64) -> Self {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         SpikingNeuron {
             membrane_potential: 0.0,
@@ -167,7 +167,7 @@ pub struct NeuromorphicAdaptationNetwork {
 impl NeuromorphicAdaptationNetwork {
     /// Create a new neuromorphic adaptation network
     pub fn new(input_size: usize, hidden_size: usize, outputsize: usize) -> Self {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
 
         // Initialize neuron layers
         let input_neurons: Vec<SpikingNeuron> = (0..input_size)

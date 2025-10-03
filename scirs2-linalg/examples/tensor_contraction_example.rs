@@ -1,6 +1,6 @@
 #[cfg(feature = "tensor_contraction")]
 mod tensor_example {
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
     use scirs2_linalg::tensor_contraction::{batch_matmul, contract, einsum, hosvd};
 
     pub fn run() {

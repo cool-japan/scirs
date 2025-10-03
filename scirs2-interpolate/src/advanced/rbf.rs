@@ -6,8 +6,8 @@ use crate::error::{InterpolateError, InterpolateResult};
 use crate::numerical_stability::{
     assess_matrix_condition, solve_with_stability_monitoring, ConditionReport, StabilityLevel,
 };
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 use std::ops::AddAssign;
 
@@ -84,7 +84,7 @@ impl<
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_interpolate::advanced::rbf::{RBFInterpolator, RBFKernel};
     ///
     /// // Create 2D points
@@ -142,7 +142,7 @@ impl<
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_interpolate::advanced::rbf::{RBFInterpolator, RBFKernel};
     ///
     /// // Create 2D points
@@ -239,8 +239,8 @@ impl<
 
         for i in 0..n_points {
             for j in 0..n_points {
-                let point_i = points.slice(ndarray::s![i, ..]);
-                let point_j = points.slice(ndarray::s![j, ..]);
+                let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
+                let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
 
                 let r = Self::distance(&point_i, &point_j);
                 a_matrix[[i, j]] = Self::rbf_kernel(r, epsilon, kernel);
@@ -267,8 +267,8 @@ impl<
                 let i = idx / n_points;
                 let j = idx % n_points;
 
-                let point_i = points.slice(ndarray::s![i, ..]);
-                let point_j = points.slice(ndarray::s![j, ..]);
+                let point_i = points.slice(scirs2_core::ndarray::s![i, ..]);
+                let point_j = points.slice(scirs2_core::ndarray::s![j, ..]);
 
                 let r = Self::distance(&point_i, &point_j);
                 Self::rbf_kernel(r, epsilon, kernel)
@@ -396,7 +396,7 @@ impl<
     /// # Examples
     ///
     /// ```
-    /// use ndarray::array;
+    /// use scirs2_core::ndarray::array;
     /// use scirs2_interpolate::advanced::rbf::{RBFInterpolator, RBFKernel};
     ///
     /// // Training data: function z = x² + y²
@@ -434,10 +434,10 @@ impl<
 
         for i in 0..n_query {
             let mut sum = F::zero();
-            let query_point = querypoints.slice(ndarray::s![i, ..]);
+            let query_point = querypoints.slice(scirs2_core::ndarray::s![i, ..]);
 
             for j in 0..n_points {
-                let sample_point = self.points.slice(ndarray::s![j, ..]);
+                let sample_point = self.points.slice(scirs2_core::ndarray::s![j, ..]);
                 let r = Self::distance(&query_point, &sample_point);
                 let rbf_value = Self::rbf_kernel(r, self.epsilon, self.kernel);
                 sum += self.coefficients[j] * rbf_value;
@@ -477,13 +477,13 @@ impl<
     /// # Examples
     ///
     /// ```
-    /// use ndarray::Array2;
+    /// use scirs2_core::ndarray::Array2;
     /// use scirs2_interpolate::advanced::rbf::{RBFInterpolator, RBFKernel};
     /// use scirs2_interpolate::numerical_stability::StabilityLevel;
     ///
     /// // Create interpolator (example data)
     /// let points = Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).unwrap();
-    /// let values = ndarray::array![0.0, 1.0, 1.0];
+    /// let values = scirs2_core::ndarray::array![0.0, 1.0, 1.0];
     /// let interp = RBFInterpolator::new(&points.view(), &values.view(),
     ///                                   RBFKernel::Gaussian, 1.0).unwrap();
     ///
@@ -565,7 +565,7 @@ impl<
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_interpolate::advanced::rbf::{RBFInterpolator, RBFKernel};
     ///
     /// let mut rbf = RBFInterpolator::new_unfitted(RBFKernel::Gaussian, 1.0f64);
@@ -603,7 +603,7 @@ impl<
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_interpolate::advanced::rbf::{RBFInterpolator, RBFKernel};
     ///
     /// let mut rbf = RBFInterpolator::new_unfitted(RBFKernel::Gaussian, 1.0f64);
@@ -758,7 +758,7 @@ fn self_solve_linear_system<
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_rbf_interpolator_2d() {

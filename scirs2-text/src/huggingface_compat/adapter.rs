@@ -12,7 +12,7 @@ use super::pipelines::{
 use crate::error::{Result, TextError};
 use crate::model_registry::{ModelMetadata, ModelRegistry};
 use crate::transformer::{TransformerConfig, TransformerModel};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::fs;
 use std::path::Path;
 

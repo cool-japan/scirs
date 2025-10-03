@@ -8,9 +8,9 @@
 //! - Property-based testing for mathematical operations
 //! - Numerical stability testing
 
-use ndarray::{Array, IxDyn};
 use scirs2_autograd as ag;
 use scirs2_autograd::tensor_ops as T;
+use scirs2_core::ndarray::{Array, IxDyn};
 
 /// Test advanced tensor indexing operations
 #[cfg(test)]

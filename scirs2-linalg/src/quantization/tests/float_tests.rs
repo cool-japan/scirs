@@ -7,7 +7,7 @@ use crate::quantization::{
     dequantize_matrix, quantize_matrix, quantize_vector, quantized_dot, quantized_matmul,
     quantized_matvec, QuantizationMethod, QuantizedDataType,
 };
-use ndarray::{array, Array2};
+use scirs2_core::ndarray::{array, Array2};
 
 #[test]
 fn test_float16_quantization() {

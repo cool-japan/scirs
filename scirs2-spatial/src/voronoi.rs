@@ -149,7 +149,7 @@ impl Voronoi {
                             // Add a small perturbation to points and retry
                             let mut perturbedpoints = points.to_owned();
                             use scirs2_core::random::Rng;
-                            let mut rng = rand::rng();
+                            let mut rng = scirs2_core::random::rng();
 
                             for i in 0..npoints {
                                 for j in 0..ndim {

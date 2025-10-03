@@ -7,12 +7,14 @@ use crate::classification::curves::precision_recall_curve;
 use crate::classification::threshold::average_precision_score;
 use crate::visualization::precision_recall::precision_recall_visualization;
 use crate::visualization::MetricVisualizer;
-use ndarray::{Array, Ix1, IxDyn};
+use scirs2_core::ndarray::{Array, Ix1, IxDyn};
 use std::error::Error;
 
 /// Create a Precision-Recall curve visualizer from neural network predictions and targets
 #[allow(dead_code)]
-pub fn neural_precision_recall_curve_visualization<F: num_traits::Float + std::fmt::Debug>(
+pub fn neural_precision_recall_curve_visualization<
+    F: scirs2_core::numeric::Float + std::fmt::Debug,
+>(
     y_true: &Array<F, IxDyn>,
     y_pred: &Array<F, IxDyn>,
     average_precision: Option<f64>,

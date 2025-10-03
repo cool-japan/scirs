@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(feature = "plotters")]
 #[allow(dead_code)]
 fn create_dendrograms(
-    linkage_matrix: &ndarray::ArrayView2<f64>,
+    linkage_matrix: &scirs2_core::ndarray::ArrayView2<f64>,
     labels: &[String],
     method_name: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {

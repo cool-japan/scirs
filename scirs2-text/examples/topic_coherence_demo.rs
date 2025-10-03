@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create document-term matrix
     let n_docs = tokenized_docs.len();
     let n_words = vocabulary.len();
-    let mut doc_term_matrix = ndarray::Array2::zeros((n_docs, n_words));
+    let mut doc_term_matrix = scirs2_core::ndarray::Array2::zeros((n_docs, n_words));
 
     for (doc_idx, doc) in tokenized_docs.iter().enumerate() {
         for word in doc {

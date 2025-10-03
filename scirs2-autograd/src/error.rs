@@ -2,7 +2,7 @@
 //!
 //! This module defines the error types used throughout the autograd module.
 
-use ndarray;
+use crate::ndarray;
 use thiserror::Error;
 
 /// Error type for autograd operations
@@ -10,7 +10,7 @@ use thiserror::Error;
 pub enum OpError {
     /// Error related to ndarray operations
     #[error("{0}: {1}")]
-    NdArrayError(String, ndarray::ShapeError),
+    NdArrayError(String, scirs2_core::ndarray::ShapeError),
 
     /// Shape incompatibility error
     #[error("Incompatible shape: {0}")]

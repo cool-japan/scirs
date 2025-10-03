@@ -8,8 +8,8 @@ use crate::utils::colors::{
     colored_metric_cell, colorize, stylize, Color, ColorOptions, Style, RESET,
 };
 use crate::utils::evaluation::helpers::draw_line_with_coords;
-use ndarray::{Array1, ArrayView1};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::Float;
 use std::fmt::{Debug, Display};
 
 /// ROC curve data structure for binary classification evaluation
@@ -41,7 +41,7 @@ impl<F: Float + Debug + Display> ROCCurve<F> {
     ///
     /// # Example
     /// ```
-    /// use ndarray::{Array1, ArrayView1};
+    /// use scirs2_core::ndarray::{Array1, ArrayView1};
     /// use scirs2_neural::utils::evaluation::ROCCurve;
     ///
     /// // Create some example data
@@ -160,7 +160,7 @@ impl<F: Float + Debug + Display> ROCCurve<F> {
     /// ```
     /// use scirs2_neural::utils::colors::ColorOptions;
     /// use scirs2_neural::utils::ROCCurve;
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     ///
     /// // Create test data
     /// let y_true = Array1::from_vec(vec![0, 0, 1, 1]);

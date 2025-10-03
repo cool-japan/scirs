@@ -5,8 +5,8 @@
 //! measure how well the predicted clustering preserves the information structure
 //! of the true class labels.
 
-use ndarray::{Array1, ArrayView1};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -27,7 +27,7 @@ use crate::error::{ClusteringError, Result};
 ///
 /// # Example
 /// ```rust
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 /// use scirs2_cluster::metrics::mutual_info_score;
 ///
 /// let true_labels = Array1::from_vec(vec![0, 0, 1, 1, 2, 2]);
@@ -373,7 +373,7 @@ where
     // Calculate expected mutual information using the formula
     for &a_i in &a {
         for &b_j in &b {
-            let start: usize = (a_i + b_j).saturating_sub(n_samples as usize);
+            let start: usize = (a_i + b_j).saturating_sub(n_samples);
             let end = a_i.min(b_j);
 
             for n_ij in start..=end {
@@ -436,7 +436,7 @@ fn binomial_coefficient(n: usize, k: usize) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     #[test]
     fn test_mutual_info_score_perfect_match() {

@@ -5,8 +5,8 @@
 
 use crate::decomposition::svd;
 use crate::error::{LinalgError, LinalgResult};
-use ndarray::{Array1, Array2, ArrayD, ArrayView, Dimension};
-use num_traits::{Float, NumAssign, Zero};
+use scirs2_core::ndarray::{Array1, Array2, ArrayD, ArrayView, Dimension};
+use scirs2_core::numeric::{Float, NumAssign, Zero};
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -170,7 +170,7 @@ where
                 }
 
                 // Add to the result
-                let result_idx = ndarray::IxDyn(idx.as_slice());
+                let result_idx = scirs2_core::ndarray::IxDyn(idx.as_slice());
                 result[&result_idx] += value;
             }
         }
@@ -262,14 +262,18 @@ where
         let compressed_factors: Vec<Array2<A>> = self
             .factors
             .iter()
-            .map(|factor| factor.slice(ndarray::s![.., ..newrank]).to_owned())
+            .map(|factor| {
+                factor
+                    .slice(scirs2_core::ndarray::s![.., ..newrank])
+                    .to_owned()
+            })
             .collect();
 
         // Truncate weights if present
         let compressed_weights = self
             .weights
             .as_ref()
-            .map(|w| w.slice(ndarray::s![..newrank]).to_owned());
+            .map(|w| w.slice(scirs2_core::ndarray::s![..newrank]).to_owned());
 
         // Create new CP decomposition
         CanonicalPolyadic::new(
@@ -300,7 +304,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::tensor_contraction::cp::cp_als;
 ///
 /// // Create a 2x3x2 tensor
@@ -333,7 +337,7 @@ where
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
     D: Dimension,
 {
     // Validate inputs
@@ -461,7 +465,7 @@ where
     }
 
     // Populate the unfolded _tensor
-    for idx in ndarray::indices(shape) {
+    for idx in scirs2_core::ndarray::indices(shape) {
         let mode_idx = idx[mode];
         let idx_vec: Vec<usize> = idx.as_array_view().to_vec();
         let col_idx = calc_col_idx(&idx_vec, shape, mode);
@@ -588,7 +592,7 @@ where
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 {
     let (u, s, vt) = svd(&matrix.view(), false, None)?;
 
@@ -651,7 +655,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_cp_decomposition_basic() {
@@ -747,7 +751,7 @@ mod tests {
         let c = array![6.0, 7.0];
 
         // Manual construction of a rank-1 tensor
-        let mut tensor = ArrayD::<f64>::zeros(ndarray::IxDyn(&[2, 3, 2]));
+        let mut tensor = ArrayD::<f64>::zeros(scirs2_core::ndarray::IxDyn(&[2, 3, 2]));
         for i in 0..2 {
             for j in 0..3 {
                 for k in 0..2 {

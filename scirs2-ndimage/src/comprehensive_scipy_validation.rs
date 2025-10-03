@@ -11,8 +11,8 @@ use crate::interpolation::zoom;
 use crate::interpolation::*;
 use crate::measurements::*;
 use crate::morphology::*;
-use ndarray::{Array2, ArrayView2};
-use num_traits::ToPrimitive;
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::ToPrimitive;
 use std::collections::HashMap;
 
 /// Numerical validation result for a single test case
@@ -104,9 +104,9 @@ impl SciPyValidationSuite {
     pub fn validate_gaussian_filter(&mut self) -> Result<()> {
         // Test case 1: Simple 3x3 array with sigma=1.0
         // Reference values computed with SciPy 1.11.0
-        let input = ndarray::array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        let input = scirs2_core::ndarray::array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
-        let reference = ndarray::array![
+        let reference = scirs2_core::ndarray::array![
             [2.9347, 3.9745, 4.5966],
             [4.6665, 5.0000, 5.3335],
             [5.4034, 6.0255, 7.0653]
@@ -194,7 +194,7 @@ impl SciPyValidationSuite {
     /// Validate median filter against known reference values
     pub fn validate_median_filter(&mut self) -> Result<()> {
         // Test case 1: Array with outliers
-        let input = ndarray::array![
+        let input = scirs2_core::ndarray::array![
             [1.0, 2.0, 3.0, 4.0, 5.0],
             [6.0, 100.0, 8.0, 9.0, 10.0], // 100 is outlier
             [11.0, 12.0, 13.0, 14.0, 15.0],
@@ -271,7 +271,7 @@ impl SciPyValidationSuite {
     /// Validate morphological operations against mathematical properties
     pub fn validate_morphological_operations(&mut self) -> Result<()> {
         // Test erosion-dilation duality
-        let input = ndarray::array![
+        let input = scirs2_core::ndarray::array![
             [false, false, false, false, false],
             [false, true, true, true, false],
             [false, true, true, true, false],
@@ -337,9 +337,9 @@ impl SciPyValidationSuite {
     /// Validate interpolation operations against analytical results
     pub fn validate_interpolation_operations(&mut self) -> Result<()> {
         // Test 1: Identity transformation should preserve array
-        let input = ndarray::array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        let input = scirs2_core::ndarray::array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
 
-        let identity_matrix = ndarray::array![[1.0, 0.0], [0.0, 1.0]];
+        let identity_matrix = scirs2_core::ndarray::array![[1.0, 0.0], [0.0, 1.0]];
         let result =
             affine_transform(&input, &identity_matrix, None, None, None, None, None, None)?;
 
@@ -683,8 +683,8 @@ mod tests {
     #[test]
     fn test_arrays_approximately_equal() {
         let suite = SciPyValidationSuite::new();
-        let a = ndarray::array![[1.0, 2.0], [3.0, 4.0]];
-        let b = ndarray::array![[1.0001, 2.0001], [3.0001, 4.0001]];
+        let a = scirs2_core::ndarray::array![[1.0, 2.0], [3.0, 4.0]];
+        let b = scirs2_core::ndarray::array![[1.0001, 2.0001], [3.0001, 4.0001]];
 
         assert!(suite.arrays_approximately_equal(&a.view(), &b.view(), 1e-3));
         assert!(!suite.arrays_approximately_equal(&a.view(), &b.view(), 1e-5));

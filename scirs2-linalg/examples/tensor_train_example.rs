@@ -1,6 +1,6 @@
 #[cfg(feature = "tensor_contraction")]
 mod tensor_train_example {
-    use ndarray::{array, ArrayD};
+    use scirs2_core::ndarray::{array, ArrayD};
     use scirs2_linalg::tensor_contraction::tensor_train::tensor_train_decomposition;
 
     pub fn run() {
@@ -41,7 +41,7 @@ mod tensor_train_example {
         println!("Example 2: Tensor Train Decomposition with Rank Truncation");
 
         // Create a 4x3x2x2 tensor with outer product structure
-        let mut tensor4d = ArrayD::<f64>::zeros(ndarray::IxDyn(&[4, 3, 2, 2]));
+        let mut tensor4d = ArrayD::<f64>::zeros(scirs2_core::ndarray::IxDyn(&[4, 3, 2, 2]));
 
         // Fill with values (outer product-like pattern)
         for i in 0..4 {

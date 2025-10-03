@@ -18,7 +18,7 @@ use crate::tensor_ops::{activation_ops, scalar, shape, xent_ops};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::sigmoid;
 ///
@@ -46,7 +46,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::tanh;
 ///
@@ -76,7 +76,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::relu;
 ///
@@ -108,7 +108,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::leaky_relu;
 ///
@@ -136,7 +136,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::elu;
 ///
@@ -166,7 +166,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::softplus;
 ///
@@ -197,7 +197,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::swish;
 ///
@@ -228,7 +228,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::gelu;
 ///
@@ -259,7 +259,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::mish;
 ///
@@ -290,7 +290,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::softmax;
 ///
@@ -321,7 +321,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::log_softmax;
 ///
@@ -362,7 +362,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::sigmoid_cross_entropy;
 ///
@@ -405,7 +405,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::softmax_cross_entropy;
 ///
@@ -447,7 +447,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::sparse_softmax_cross_entropy;
 ///
@@ -481,7 +481,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::mean_squared_error;
 ///
@@ -587,7 +587,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::hard_sigmoid;
 ///
@@ -622,7 +622,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::hard_tanh;
 ///
@@ -652,7 +652,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_autograd as ag;
 /// use ag::tensor_ops::activation::relu6;
 ///
@@ -680,7 +680,7 @@ mod tests {
     use super::*;
     use crate::tensor_ops::convert_to_tensor;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_basic_activations() {
@@ -747,7 +747,7 @@ mod tests {
             let log_actual = log_softmax_result.eval(g).unwrap();
 
             // Log probabilities should be negative - access as 2D array
-            let log_slice = log_actual.index_axis(ndarray::Axis(0), 0);
+            let log_slice = log_actual.index_axis(scirs2_core::ndarray::Axis(0), 0);
             assert!(log_slice[0] < 0.0);
             assert!(log_slice[1] < 0.0);
             assert!(log_slice[2] < 0.0);
@@ -775,7 +775,7 @@ mod tests {
             let mse_val = mse.eval(g).unwrap();
 
             // MSE should be positive
-            assert!(mse_val[ndarray::IxDyn(&[])] > 0.0);
+            assert!(mse_val[scirs2_core::ndarray::IxDyn(&[])] > 0.0);
         });
     }
 

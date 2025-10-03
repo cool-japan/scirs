@@ -182,7 +182,7 @@ async fn demonstrate_concurrent_processing() -> Result<(), Box<dyn std::error::E
             checksum = checksum.wrapping_add(byte as u64);
 
             // Occasionally yield to demonstrate async behavior
-            if checksum % 10000 == 0 {
+            if checksum.is_multiple_of(10000) {
                 tokio::task::yield_now().await;
             }
         }

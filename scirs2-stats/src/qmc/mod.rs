@@ -5,8 +5,8 @@
 //! stratified sampling methods.
 
 use crate::error::{StatsError, StatsResult};
-use ndarray::{Array1, Array2, ArrayView1};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
 use scirs2_core::validation::*;
 
 /// Generate Sobol sequence
@@ -186,7 +186,7 @@ impl SobolSequence {
         } else {
             4
         };
-        let num_chunks = (n + chunk_size - 1) / chunk_size;
+        let num_chunks = n.div_ceil(chunk_size);
 
         // Pre-allocate SIMD-aligned buffers for bandwidth saturation
         let mut indices_buffer = Vec::with_capacity(chunk_size);
@@ -495,7 +495,7 @@ impl HaltonSequence {
         } else {
             4
         };
-        let num_chunks = (n + chunk_size - 1) / chunk_size;
+        let num_chunks = n.div_ceil(chunk_size);
 
         // Pre-allocate SIMD-aligned buffers for bandwidth saturation
         let mut indices_buffer = Vec::with_capacity(chunk_size);
@@ -708,13 +708,13 @@ impl HaltonSequence {
         if n == 2 {
             return true;
         }
-        if n % 2 == 0 {
+        if n.is_multiple_of(2) {
             return false;
         }
 
         let sqrt_n = (n as f64).sqrt() as u32;
         for i in (3..=sqrt_n).step_by(2) {
-            if n % i == 0 {
+            if n.is_multiple_of(i) {
                 return false;
             }
         }
@@ -771,7 +771,7 @@ pub fn star_discrepancy(samples: &ArrayView1<Array1<f64>>) -> StatsResult<f64> {
     let mut max_discrepancy: f64 = 0.0;
     let num_test_points = 100; // Reduced for efficiency
 
-    let mut rng = rand::thread_rng();
+    let mut rng = scirs2_core::random::thread_rng();
     for _ in 0..num_test_points {
         let mut test_point = Array1::zeros(d);
         for j in 0..d {

@@ -5,8 +5,8 @@
 
 use crate::descriptive_simd::mean_simd;
 use crate::error::{StatsError, StatsResult};
-use ndarray::{ArrayBase, Data, Ix1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::simd_ops::{AutoOptimizer, SimdUnifiedOps};
 
 /// Compute the Pearson correlation coefficient using SIMD operations
@@ -26,7 +26,7 @@ use scirs2_core::simd_ops::{AutoOptimizer, SimdUnifiedOps};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::pearson_r_simd;
 ///
 /// let x = array![1.0, 2.0, 3.0, 4.0, 5.0];
@@ -62,8 +62,8 @@ where
     if optimizer.should_use_simd(n) {
         // SIMD path
         // Create arrays filled with means for subtraction
-        let mean_x_array = ndarray::Array1::from_elem(n, mean_x);
-        let mean_y_array = ndarray::Array1::from_elem(n, mean_y);
+        let mean_x_array = scirs2_core::ndarray::Array1::from_elem(n, mean_x);
+        let mean_y_array = scirs2_core::ndarray::Array1::from_elem(n, mean_y);
 
         // Compute deviations: x - mean_x and y - mean_y
         let x_dev = F::simd_sub(&x.view(), &mean_x_array.view());
@@ -132,14 +132,14 @@ where
 /// Correlation matrix
 #[allow(dead_code)]
 pub fn corrcoef_simd<F, D>(
-    data: &ArrayBase<D, ndarray::Ix2>,
+    data: &ArrayBase<D, scirs2_core::ndarray::Ix2>,
     rowvar: bool,
-) -> StatsResult<ndarray::Array2<F>>
+) -> StatsResult<scirs2_core::ndarray::Array2<F>>
 where
     F: Float + NumCast + SimdUnifiedOps,
     D: Data<Elem = F>,
 {
-    use ndarray::s;
+    use scirs2_core::ndarray::s;
 
     let (n_vars, n_obs) = if rowvar {
         (data.nrows(), data.ncols())
@@ -153,7 +153,7 @@ where
         ));
     }
 
-    let mut corr_matrix = ndarray::Array2::zeros((n_vars, n_vars));
+    let mut corr_matrix = scirs2_core::ndarray::Array2::zeros((n_vars, n_vars));
 
     // Compute correlations
     for i in 0..n_vars {
@@ -214,8 +214,8 @@ where
 
     let sum_xy = if optimizer.should_use_simd(n) {
         // SIMD path
-        let mean_x_array = ndarray::Array1::from_elem(n, mean_x);
-        let mean_y_array = ndarray::Array1::from_elem(n, mean_y);
+        let mean_x_array = scirs2_core::ndarray::Array1::from_elem(n, mean_x);
+        let mean_y_array = scirs2_core::ndarray::Array1::from_elem(n, mean_y);
 
         let x_dev = F::simd_sub(&x.view(), &mean_x_array.view());
         let y_dev = F::simd_sub(&y.view(), &mean_y_array.view());

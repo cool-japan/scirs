@@ -4,8 +4,8 @@ use crate::error::{IoError, Result};
 use crate::parquet::conversion::{ndarray_to_arrow, ToArrowArray};
 use crate::parquet::options::ParquetWriteOptions;
 use arrow::record_batch::RecordBatch;
-use ndarray::{ArrayBase, Data as NdData, Dimension};
 use parquet::arrow::ArrowWriter;
+use scirs2_core::ndarray::{ArrayBase, Data as NdData, Dimension};
 use std::fs::File;
 use std::path::Path;
 
@@ -71,7 +71,7 @@ impl ParquetWriter {
 ///
 /// ```rust,no_run
 /// use scirs2_io::parquet::{write_parquet, ParquetWriteOptions, CompressionCodec};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
 /// let options = ParquetWriteOptions::with_compression(CompressionCodec::Zstd);
@@ -118,7 +118,7 @@ where
 ///
 /// ```rust,no_run
 /// use scirs2_io::parquet::{write_parquet_with_name, ParquetWriteOptions};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// let temperatures = Array1::from_vec(vec![20.5, 21.3, 19.8, 22.1]);
 /// write_parquet_with_name(
@@ -210,7 +210,7 @@ mod tests {
     use super::*;
     use crate::parquet::options::CompressionCodec;
     use crate::parquet::reader::read_parquet;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
     use std::fs;
     use tempfile::tempdir;
 

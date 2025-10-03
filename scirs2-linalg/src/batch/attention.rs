@@ -4,8 +4,8 @@
 //! for processing batches of sequences, which is especially useful for
 //! transformer-based models in machine learning.
 
-use ndarray::{Array1, Array2, Array3, ArrayView2, ArrayView3};
-use num_traits::{Float, NumAssignOps, Zero};
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2, ArrayView3};
+use scirs2_core::numeric::{Float, NumAssignOps, Zero};
 use std::ops::{Add, Div, Mul, Sub};
 
 use crate::attention::{AttentionConfig, AttentionMask};
@@ -60,7 +60,7 @@ where
     // Process each batch independently
     for b in 0..batchsize {
         // Extract _query for this batch
-        let query_b = batch_query.slice(ndarray::s![b, .., ..]);
+        let query_b = batch_query.slice(scirs2_core::ndarray::s![b, .., ..]);
 
         // Calculate attention scores: Q * K^T
         let mut scores = Array2::<F>::zeros((seq_len_q, seq_len_k));
@@ -99,7 +99,7 @@ where
 
         // Apply softmax to each row
         for i in 0..seq_len_q {
-            let mut row = scores.slice_mut(ndarray::s![i, ..]);
+            let mut row = scores.slice_mut(scirs2_core::ndarray::s![i, ..]);
 
             // Find max for numerical stability
             let max_val = row.fold(F::neg_infinity(), |max, &x| if x > max { x } else { max });
@@ -283,9 +283,9 @@ where
             let end_idx = start_idx + head_dim;
 
             // Extract head-specific portions for this batch
-            let q_head = q_proj.slice(ndarray::s![b, .., start_idx..end_idx]);
-            let k_head = k_proj.slice(ndarray::s![b, .., start_idx..end_idx]);
-            let v_head = v_proj.slice(ndarray::s![b, .., start_idx..end_idx]);
+            let q_head = q_proj.slice(scirs2_core::ndarray::s![b, .., start_idx..end_idx]);
+            let k_head = k_proj.slice(scirs2_core::ndarray::s![b, .., start_idx..end_idx]);
+            let v_head = v_proj.slice(scirs2_core::ndarray::s![b, .., start_idx..end_idx]);
 
             // Calculate attention scores: Q * K^T
             let mut scores = Array2::<F>::zeros((seq_len_q, seq_len_k));
@@ -333,7 +333,7 @@ where
 
             // Apply softmax to each row
             for i in 0..seq_len_q {
-                let mut row = scores.slice_mut(ndarray::s![i, ..]);
+                let mut row = scores.slice_mut(scirs2_core::ndarray::s![i, ..]);
 
                 // Find max for numerical stability
                 let max_val = row.fold(F::neg_infinity(), |max, &x| if x > max { x } else { max });
@@ -447,14 +447,14 @@ where
 
     // Process batch by batch
     for b in 0..batchsize {
-        let query_b = batch_query.slice(ndarray::s![b, .., ..]);
-        let key_b = batch_key.slice(ndarray::s![b, .., ..]);
-        let value_b = batch_value.slice(ndarray::s![b, .., ..]);
+        let query_b = batch_query.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let key_b = batch_key.slice(scirs2_core::ndarray::s![b, .., ..]);
+        let value_b = batch_value.slice(scirs2_core::ndarray::s![b, .., ..]);
 
         // Process _query blocks
         for q_start in (0..seq_len_q).step_by(blocksize_q) {
             let q_end = (q_start + blocksize_q).min(seq_len_q);
-            let q_block = query_b.slice(ndarray::s![q_start..q_end, ..]);
+            let q_block = query_b.slice(scirs2_core::ndarray::s![q_start..q_end, ..]);
 
             // For each _query block, process all _key/_value blocks
             let mut m_block = Array1::<F>::from_elem(q_end - q_start, F::neg_infinity());
@@ -462,8 +462,8 @@ where
 
             for k_start in (0..seq_len_k).step_by(blocksize_k) {
                 let k_end = (k_start + blocksize_k).min(seq_len_k);
-                let k_block = key_b.slice(ndarray::s![k_start..k_end, ..]);
-                let v_block = value_b.slice(ndarray::s![k_start..k_end, ..]);
+                let k_block = key_b.slice(scirs2_core::ndarray::s![k_start..k_end, ..]);
+                let v_block = value_b.slice(scirs2_core::ndarray::s![k_start..k_end, ..]);
 
                 // Compute block of attention scores
                 let mut scores_block = Array2::<F>::zeros((q_end - q_start, k_end - k_start));
@@ -499,7 +499,7 @@ where
 
                 // Update max values and compute exponentials
                 for i in 0..(q_end - q_start) {
-                    let row = scores_block.slice(ndarray::s![i, ..]);
+                    let row = scores_block.slice(scirs2_core::ndarray::s![i, ..]);
                     let max_val =
                         row.fold(F::neg_infinity(), |max, &x| if x > max { x } else { max });
 
@@ -565,7 +565,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::Array;
+    use scirs2_core::ndarray::Array;
 
     #[test]
     fn test_batch_multi_query_attention() {

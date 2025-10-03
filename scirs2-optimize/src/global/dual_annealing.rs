@@ -6,11 +6,11 @@
 
 use crate::error::OptimizeError;
 use crate::unconstrained::{minimize, Bounds, Method, OptimizeResult, Options};
-use ndarray::{Array1, ArrayView1};
-use rand::rngs::StdRng;
-use rand::{Rng, SeedableRng};
+use scirs2_core::ndarray::{Array1, ArrayView1};
+use scirs2_core::random::rngs::StdRng;
 #[allow(unused_imports)]
-use rand_distr::{Cauchy, Distribution as RandDistribution};
+use scirs2_core::random::{Cauchy, Distribution as RandDistribution};
+use scirs2_core::random::{Rng, SeedableRng};
 
 /// Options for Dual Annealing algorithm
 #[derive(Debug, Clone)]
@@ -77,7 +77,7 @@ where
         let ndim = x0.len();
         let seed = options
             .seed
-            .unwrap_or_else(|| rand::rng().random_range(0..u64::MAX));
+            .unwrap_or_else(|| scirs2_core::random::rng().random_range(0..u64::MAX));
         let rng = StdRng::seed_from_u64(seed);
 
         let initial_energy = func(&x0.view());
@@ -216,7 +216,7 @@ where
         }
 
         // Local search phase
-        if iteration % 10 == 0 {
+        if iteration.is_multiple_of(10) {
             // Perform local search periodically
             let (x_local, energy_local, nfev_local) = self.local_search();
             self.nfev += nfev_local;

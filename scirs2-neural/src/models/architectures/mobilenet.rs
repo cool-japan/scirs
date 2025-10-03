@@ -13,9 +13,9 @@
 
 use crate::error::{NeuralError, Result};
 use crate::layers::{BatchNorm, Conv2D, Dense, Dropout, Layer, PaddingMode};
-use ndarray::{Array, IxDyn, ScalarOperand};
-use num_traits::Float;
-use rand::SeedableRng;
+use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::SeedableRng;
 use std::fmt::Debug;
 /// ReLU6 activation function (min(max(x, 0), 6))
 #[allow(dead_code)]
@@ -207,7 +207,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> SqueezeExcitation<F> {
     /// Create a new Squeeze and Excitation block
     pub fn new(_input_channels: usize, squeezechannels: usize) -> Result<Self> {
         // First 1x1 convolution (squeeze)
-        let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
         let kernel_size = (1, 1);
         let stride = (1, 1);
         let fc1 = Conv2D::new(
@@ -326,7 +326,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync> InvertedResidualBlock<F> {
         let (expand_conv, expand_bn) = if expand_ratio != 1 {
             let expanded_channels = input_channels * expand_ratio;
             // Expansion convolution (1x1)
-            let mut rng = rand::rngs::SmallRng::from_seed([42; 32]);
+            let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
             let kernel_size = (1, 1);
             let stride = (1, 1);
             let conv = Conv2D::new(

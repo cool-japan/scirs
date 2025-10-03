@@ -6,7 +6,7 @@
 
 use crate::error::OptimizeError;
 use crate::least_squares::Options;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 
 /// Sparse matrix representation using compressed sparse row (CSR) format
 #[derive(Debug, Clone)]
@@ -736,7 +736,7 @@ where
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_sparse_matrix_creation() {

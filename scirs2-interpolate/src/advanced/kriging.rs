@@ -5,8 +5,8 @@
 //! uncertainty quantification.
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::{Debug, Display};
 
 /// Prediction result from Kriging interpolation
@@ -81,7 +81,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> KrigingInterpolator<F
     /// # Examples
     ///
     /// ```
-    /// use ndarray::{array, Array2};
+    /// use scirs2_core::ndarray::{array, Array2};
     /// use scirs2_interpolate::advanced::kriging::{KrigingInterpolator, CovarianceFunction};
     ///
     /// // Create 2D points
@@ -180,8 +180,8 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> KrigingInterpolator<F
                     cov_matrix[[i, j]] = sigma_sq + nugget;
                 } else {
                     let dist = Self::distance(
-                        &points.slice(ndarray::s![i, ..]),
-                        &points.slice(ndarray::s![j, ..]),
+                        &points.slice(scirs2_core::ndarray::s![i, ..]),
+                        &points.slice(scirs2_core::ndarray::s![j, ..]),
                     );
                     cov_matrix[[i, j]] =
                         Self::covariance(dist, sigma_sq, length_scale, cov_fn, alpha);
@@ -224,8 +224,8 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> KrigingInterpolator<F
             for j in 0..n_points {
                 if i != j {
                     let dist = Self::distance(
-                        &points.slice(ndarray::s![i, ..]),
-                        &points.slice(ndarray::s![j, ..]),
+                        &points.slice(scirs2_core::ndarray::s![i, ..]),
+                        &points.slice(scirs2_core::ndarray::s![j, ..]),
                     );
                     if dist > F::from_f64(1e-10).unwrap() {
                         w = w * (F::one() / dist);
@@ -334,12 +334,12 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> KrigingInterpolator<F
         let mut variances = Array1::zeros(n_query);
 
         for i in 0..n_query {
-            let query_point = querypoints.slice(ndarray::s![i, ..]);
+            let query_point = querypoints.slice(scirs2_core::ndarray::s![i, ..]);
 
             // Compute covariance vector between query point and training _points
             let mut k_star = Array1::zeros(n_points);
             for j in 0..n_points {
-                let sample_point = self.points.slice(ndarray::s![j, ..]);
+                let sample_point = self.points.slice(scirs2_core::ndarray::s![j, ..]);
                 let dist = Self::distance(&query_point, &sample_point);
                 k_star[j] = Self::covariance(
                     dist,
@@ -365,7 +365,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> KrigingInterpolator<F
             let mut min_dist = F::infinity();
 
             for j in 0..n_points {
-                let sample_point = self.points.slice(ndarray::s![j, ..]);
+                let sample_point = self.points.slice(scirs2_core::ndarray::s![j, ..]);
                 let dist = Self::distance(&query_point, &sample_point);
                 avg_dist = avg_dist + dist;
                 min_dist = if dist < min_dist { dist } else { min_dist };
@@ -436,7 +436,7 @@ impl<F: Float + FromPrimitive + Debug + std::fmt::Display> KrigingInterpolator<F
 /// # Examples
 ///
 /// ```
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 /// use scirs2_interpolate::advanced::kriging::{make_kriging_interpolator, CovarianceFunction};
 ///
 /// // Create 2D points
@@ -493,7 +493,7 @@ pub fn make_kriging_interpolator<F: crate::traits::InterpolationFloat>(
 mod tests {
     use super::*;
     // テスト用アサーション
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_kriging_interpolator_exact() {

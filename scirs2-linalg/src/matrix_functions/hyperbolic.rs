@@ -1,7 +1,7 @@
 //! Matrix hyperbolic functions
 
-use ndarray::{Array2, ArrayView2};
-use num_traits::{Float, NumAssign, One};
+use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::{Float, NumAssign, One};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -26,7 +26,7 @@ use crate::validation::validate_decomposition;
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::coshm;
 ///
 /// let a = array![[0.0_f64, 1.0], [1.0, 0.0]];
@@ -35,7 +35,7 @@ use crate::validation::validate_decomposition;
 #[allow(dead_code)]
 pub fn coshm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     validate_decomposition(a, "Matrix hyperbolic cosine computation", true)?;
 
@@ -161,7 +161,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::sinhm;
 ///
 /// let a = array![[0.0_f64, 1.0], [1.0, 0.0]];
@@ -170,7 +170,7 @@ where
 #[allow(dead_code)]
 pub fn sinhm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     validate_decomposition(a, "Matrix hyperbolic sine computation", true)?;
 
@@ -301,7 +301,7 @@ where
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::matrix_functions::tanhm;
 ///
 /// let a = array![[0.1_f64, 0.0], [0.0, 0.1]];
@@ -310,7 +310,7 @@ where
 #[allow(dead_code)]
 pub fn tanhm<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float + NumAssign + Sum + One + Send + Sync + ndarray::ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::solve::solve_multiple;
 

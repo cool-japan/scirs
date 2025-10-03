@@ -4,8 +4,8 @@
 //! various distance metrics optimized for GPU hardware.
 
 use crate::error::{ClusteringError, Result};
-use ndarray::{Array2, ArrayView1, ArrayView2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array2, ArrayView1, ArrayView2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use serde::{Deserialize, Serialize};
 
 use super::core::{GpuConfig, GpuContext};
@@ -452,12 +452,12 @@ impl<F: Float> GpuArray<F> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_distance_metrics() {
-        let point1 = ndarray::arr1(&[1.0, 2.0, 3.0]);
-        let point2 = ndarray::arr1(&[4.0, 5.0, 6.0]);
+        let point1 = scirs2_core::ndarray::arr1(&[1.0, 2.0, 3.0]);
+        let point2 = scirs2_core::ndarray::arr1(&[4.0, 5.0, 6.0]);
 
         let config = GpuConfig::default();
         let matrix =
@@ -490,7 +490,7 @@ mod tests {
 
     #[test]
     fn test_k_nearest_neighbors() {
-        let query = ndarray::arr1(&[1.0, 1.0]);
+        let query = scirs2_core::ndarray::arr1(&[1.0, 1.0]);
         let data =
             Array2::from_shape_vec((4, 2), vec![0.0, 0.0, 2.0, 2.0, 3.0, 3.0, 1.0, 1.0]).unwrap();
 

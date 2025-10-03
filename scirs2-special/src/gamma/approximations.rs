@@ -1,6 +1,6 @@
 //! Stirling and Lanczos approximations for gamma function computation
 
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive};
 
 use super::constants;
 

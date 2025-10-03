@@ -3,7 +3,7 @@
 use crate::error::{DatasetsError, Result};
 use crate::utils::Dataset;
 use csv::ReaderBuilder;
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use std::fs::File;
 use std::io::{BufReader, Read};
 use std::path::Path;

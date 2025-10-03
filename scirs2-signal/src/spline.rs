@@ -6,7 +6,7 @@
 // to a signal with continuous derivatives.
 
 use crate::error::{SignalError, SignalResult};
-use num_traits::{Float, NumCast};
+use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
 #[allow(unused_imports)]
@@ -608,7 +608,7 @@ where
 ///
 /// ```
 /// use scirs2_signal::spline::{bspline_coefficients, bspline_evaluate, SplineOrder};
-/// use ndarray::Array1;
+/// use scirs2_core::ndarray::Array1;
 ///
 /// // Generate a signal
 /// let signal = vec![1.0, 2.0, 1.5, 0.5, 1.0, 2.0, 1.5];

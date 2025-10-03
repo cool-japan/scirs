@@ -8,8 +8,8 @@ use crate::advanced_clustering::{
     AdvancedClusterer, AdvancedClusteringResult, QuantumNeuromorphicMetrics,
 };
 use crate::error::{ClusteringError, Result};
-use ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
-use num_complex::Complex64;
+use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::Complex64;
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 
@@ -193,6 +193,12 @@ impl DeepAdvancedClusterer {
             ensemble_consensus,
             uncertainty_estimates,
         })
+    }
+}
+
+impl Default for TransformerClusterEmbedder {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -529,6 +535,12 @@ impl TransformerClusterEmbedder {
 
 // Placeholder implementations for complex components
 
+impl Default for GraphNeuralNetworkProcessor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GraphNeuralNetworkProcessor {
     pub fn new() -> Self {
         Self {
@@ -770,15 +782,33 @@ pub struct EnsembleConsensus {
 }
 
 // Implementation of placeholder structures
+impl Default for MessagePassingNeuralNetwork {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MessagePassingNeuralNetwork {
     pub fn new() -> Self {
         Self
     }
 }
 
+impl Default for GraphAttentionNetwork {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GraphAttentionNetwork {
     pub fn new() -> Self {
         Self
+    }
+}
+
+impl Default for ReinforcementLearningAgent {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -837,6 +867,12 @@ impl ReinforcementLearningAgent {
             norm += embeddings[[pointidx, j]] * embeddings[[pointidx, j]];
         }
         norm.sqrt()
+    }
+}
+
+impl Default for NeuralArchitectureSearchEngine {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -923,6 +959,12 @@ impl NeuralArchitectureSearchEngine {
         } else {
             1.0
         }
+    }
+}
+
+impl Default for DeepEnsembleCoordinator {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

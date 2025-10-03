@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         graph_size, edge_count
     );
 
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
     let probability = edge_count as f64 / (graph_size * (graph_size - 1) / 2) as f64;
     let graph = erdos_renyi_graph(graph_size, probability, &mut rng)?;
 
@@ -213,7 +213,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing advanced performance scaling...");
 
     for &size in &graph_sizes {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let probability = (size * 3) as f64 / (size * (size - 1) / 2) as f64;
         let test_graph = erdos_renyi_graph(size, probability.min(1.0), &mut rng)?;
 
@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_advanced_basic_functionality() {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let graph = erdos_renyi_graph(100, 0.02, &mut rng).unwrap();
         // Test that advanced processing works
         let result = execute_with_advanced(&graph, |g| Ok(connected_components(g)));
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_advanced_performance_metrics() {
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let graph = erdos_renyi_graph(50, 0.04, &mut rng).unwrap();
         // Run a test algorithm
         let _ = execute_with_advanced(&graph, |g| pagerank_centrality(g, 0.85, 1e-4)).unwrap();

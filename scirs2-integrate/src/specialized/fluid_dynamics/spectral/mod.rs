@@ -26,7 +26,7 @@
 //! use scirs2_integrate::specialized::fluid_dynamics::spectral::{
 //!     SpectralNavierStokesSolver, DealiasingStrategy
 //! };
-//! use ndarray::Array2;
+//! use scirs2_core::ndarray::Array2;
 //!
 //! // Create a 2D spectral solver for a periodic domain
 //! let solver = SpectralNavierStokesSolver::new(
@@ -77,7 +77,7 @@ pub use solver::SpectralNavierStokesSolver as SpectralSolver;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array2;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_spectral_module_integration() {

@@ -1,6 +1,6 @@
 use crate::error::{StatsError, StatsResult};
-use ndarray::{ArrayBase, Data, Dimension, Ix2};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{ArrayBase, Data, Dimension, Ix2};
+use scirs2_core::numeric::{Float, NumCast};
 
 /// Calculates the intraclass correlation coefficient (ICC) with confidence intervals.
 ///
@@ -24,7 +24,7 @@ use num_traits::{Float, NumCast};
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_stats::icc;
 ///
 /// // Create data for 5 subjects measured by 3 raters

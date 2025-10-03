@@ -3,7 +3,7 @@
 //! This module provides utilities for processing data streams in real-time,
 //! maintaining running statistics and transforming data incrementally.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_linalg::eigh;
 use std::collections::VecDeque;
 
@@ -554,8 +554,8 @@ impl StreamingPCA {
                 let centered = &sample.to_owned() - &self.mean;
                 let outer_product = centered
                     .clone()
-                    .insert_axis(ndarray::Axis(1))
-                    .dot(&centered.insert_axis(ndarray::Axis(0)));
+                    .insert_axis(scirs2_core::ndarray::Axis(1))
+                    .dot(&centered.insert_axis(scirs2_core::ndarray::Axis(0)));
 
                 let weight = self.alpha;
                 self.cov_matrix = (1.0 - weight) * &self.cov_matrix + weight * outer_product;
@@ -786,7 +786,7 @@ impl StreamingOutlierDetector {
     }
 
     /// Compute isolation score using path length estimation
-    fn compute_isolation_score(&self, sample: ndarray::ArrayView1<f64>) -> f64 {
+    fn compute_isolation_score(&self, sample: scirs2_core::ndarray::ArrayView1<f64>) -> f64 {
         let mut path_length = 0.0;
         let mut current_sample = sample.to_owned();
 

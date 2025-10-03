@@ -15,15 +15,15 @@
 //! - k-nearest neighbor searches
 //! - Range queries for all points within a specified radius
 
-use ndarray::Array2;
-use num_traits::{Float, FromPrimitive};
 use ordered_float::OrderedFloat;
+use scirs2_core::ndarray::Array2;
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 
 use crate::error::{InterpolateError, InterpolateResult};
-use ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayView1;
 
 /// A node in the Ball Tree
 #[derive(Debug, Clone)]
@@ -49,7 +49,7 @@ struct BallNode<F: Float + ordered_float::FloatCore> {
 /// # Examples
 ///
 /// ```rust
-/// use ndarray::Array2;
+/// use scirs2_core::ndarray::Array2;
 /// use scirs2_interpolate::spatial::balltree::BallTree;
 ///
 /// // Create sample 3D points
@@ -264,7 +264,7 @@ where
         }
 
         // Initialize nearest neighbor search
-        let mut best_dist = <F as num_traits::Float>::infinity();
+        let mut best_dist = <F as scirs2_core::numeric::Float>::infinity();
         let mut best_idx = 0;
 
         // Start recursive search
@@ -456,12 +456,12 @@ where
 
         // Get current kth distance (the farthest point in our current result set)
         let kth_dist = if heap.len() < k {
-            <F as num_traits::Float>::infinity()
+            <F as scirs2_core::numeric::Float>::infinity()
         } else {
             // Peek at the top of the max-heap to get the farthest point
             match heap.peek() {
                 Some(&(dist_, _)) => dist_.into_inner(),
-                None => <F as num_traits::Float>::infinity(),
+                None => <F as scirs2_core::numeric::Float>::infinity(),
             }
         };
 
@@ -554,7 +554,7 @@ where
     fn linear_nearest_neighbor(&self, query: &[F]) -> InterpolateResult<(usize, F)> {
         let n_points = self.points.shape()[0];
 
-        let mut min_dist = <F as num_traits::Float>::infinity();
+        let mut min_dist = <F as scirs2_core::numeric::Float>::infinity();
         let mut min_idx = 0;
 
         for i in 0..n_points {
@@ -669,7 +669,7 @@ where
     /// Vector of (point_index, distance) tuples for all points within radius
     pub fn radius_neighbors_view(
         &self,
-        query: &ndarray::ArrayView1<F>,
+        query: &scirs2_core::ndarray::ArrayView1<F>,
         radius: F,
     ) -> InterpolateResult<Vec<(usize, F)>> {
         let query_slice = query.as_slice().ok_or_else(|| {
@@ -729,7 +729,8 @@ where
         use std::collections::BinaryHeap;
 
         let mut heap = BinaryHeap::with_capacity(k + 1);
-        let mut search_radius = max_distance.unwrap_or(<F as num_traits::Float>::infinity());
+        let mut search_radius =
+            max_distance.unwrap_or(<F as scirs2_core::numeric::Float>::infinity());
 
         // Start recursive search with adaptive bounds
         self.search_k_nearest_optimized(
@@ -761,7 +762,7 @@ where
     ) -> InterpolateResult<Vec<(usize, F)>> {
         let n_points = self.points.shape()[0];
         let k = k.min(n_points);
-        let max_dist = max_distance.unwrap_or(<F as num_traits::Float>::infinity());
+        let max_dist = max_distance.unwrap_or(<F as scirs2_core::numeric::Float>::infinity());
 
         let mut distances: Vec<(usize, F)> = Vec::with_capacity(n_points);
 
@@ -1219,7 +1220,7 @@ fn euclidean_distance<F: Float>(a: &[F], b: &[F]) -> F {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr2;
+    use scirs2_core::ndarray::arr2;
 
     #[test]
     fn test_balltree_creation() {

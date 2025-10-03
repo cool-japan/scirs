@@ -1,4 +1,10 @@
 #![allow(deprecated)]
+#![allow(clippy::non_canonical_partial_ord_impl)]
+#![allow(clippy::module_inception)]
+#![allow(clippy::manual_div_ceil)]
+#![allow(clippy::let_and_return)]
+#![allow(clippy::needless_range_loop)]
+#![allow(clippy::useless_vec)]
 //! # SciRS2 Autograd - Automatic Differentiation for Rust
 #![recursion_limit = "1024"]
 //!
@@ -19,7 +25,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.1.0-beta.4", features = ["blas"] }
+//! scirs2-autograd = { version = "0.1.0-rc.1", features = ["blas"] }
 //! ```
 //!
 //! ### BLAS Acceleration (Recommended)
@@ -28,7 +34,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.1.0-beta.4", features = ["blas", "openblas"] }
+//! scirs2-autograd = { version = "0.1.0-rc.1", features = ["blas", "openblas"] }
 //! ```
 //!
 //! Available BLAS implementations:
@@ -59,7 +65,7 @@
 //!
 //!     // Compute dz/dx (feed x=2)
 //!     let dz_dx = &T::grad(&[z], &[x])[0];
-//!     let x_val = ag::ndarray::arr0(2.0);
+//!     let x_val = scirs2_core::ndarray::arr0(2.0);
 //!     let result = ctx.evaluator()
 //!         .push(dz_dx)
 //!         .feed(x, x_val.view().into_dyn())
@@ -211,7 +217,7 @@
 //!     let dy_dx = &T::grad(&[y], &[x])[0];
 //!
 //!     // Evaluate at x=2: 3(2²) = 12
-//!     let x_val = ag::ndarray::arr0(2.0);
+//!     let x_val = scirs2_core::ndarray::arr0(2.0);
 //!     let grad_val = ctx.evaluator()
 //!         .push(dy_dx)
 //!         .feed(x, x_val.view().into_dyn())
@@ -306,13 +312,12 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.1.0-beta.4** (Released October 01, 2025)
+//! Current version: **0.1.0-rc.1** (Released October 03, 2025)
 
 #[allow(unused_imports)]
-// Expose to prevent version conflict
-#[macro_use(s)]
-/// re-exported for convenience and version-compatibility
-pub extern crate ndarray;
+// Re-export from scirs2-core for POLICY compliance
+pub use scirs2_core::ndarray;
+pub use scirs2_core::random as rand;
 
 // BLAS dependencies now handled through scirs2-core
 
@@ -320,10 +325,6 @@ extern crate approx;
 extern crate libc;
 extern crate matrixmultiply;
 extern crate num;
-extern crate num_traits;
-/// re-exported for convenience and version-compatibility
-pub extern crate rand;
-extern crate rand_distr;
 // extern crate rayon;  // Now use scirs2-core parallel abstractions
 extern crate rustc_hash;
 extern crate serde;
@@ -359,10 +360,10 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use std::any::TypeId;
 use std::fmt;
 
-/// A primitive type in this crate, which is actually a decorated `num_traits::Float`.
+/// A primitive type in this crate, which is actually a decorated `scirs2_core::numeric::Float`.
 pub trait Float:
-    num_traits::Float
-    + num_traits::NumAssignOps
+    scirs2_core::numeric::Float
+    + scirs2_core::numeric::NumAssignOps
     + Copy
     + Send
     + Sync
@@ -379,8 +380,8 @@ pub trait Float:
 /// Internal trait.
 pub trait Int:
     num::Integer
-    + num_traits::NumAssignOps
-    + num_traits::ToPrimitive
+    + scirs2_core::numeric::NumAssignOps
+    + scirs2_core::numeric::ToPrimitive
     + Copy
     + Send
     + fmt::Display
@@ -393,7 +394,7 @@ pub trait Int:
 
 impl<T> Float for T where
     T: num::Float
-        + num_traits::NumAssignOps
+        + scirs2_core::numeric::NumAssignOps
         + Copy
         + Send
         + Sync
@@ -408,8 +409,8 @@ impl<T> Float for T where
 
 impl<T> Int for T where
     T: num::Integer
-        + num_traits::NumAssignOps
-        + num_traits::ToPrimitive
+        + scirs2_core::numeric::NumAssignOps
+        + scirs2_core::numeric::ToPrimitive
         + Copy
         + Send
         + Sync

@@ -319,7 +319,7 @@ pub fn implied_volatility_newton(
         }
 
         // Newton step
-        vol = vol - diff / vega;
+        vol -= diff / vega;
 
         // Ensure vol stays in reasonable range
         vol = vol.max(0.001).min(5.0);

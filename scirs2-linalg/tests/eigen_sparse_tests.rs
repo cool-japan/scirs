@@ -1,5 +1,5 @@
 use approx::assert_relative_eq;
-use ndarray::array;
+use scirs2_core::ndarray::array;
 use scirs2_linalg::{largest_k_eigh, smallest_k_eigh};
 
 #[test]

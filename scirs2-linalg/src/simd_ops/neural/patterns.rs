@@ -1,7 +1,7 @@
 //! Pattern recognition and hashing for memory access patterns.
 
 use super::types::*;
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use std::collections::HashMap;
 
 /// Pattern database for memory access patterns

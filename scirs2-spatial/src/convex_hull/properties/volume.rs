@@ -170,7 +170,7 @@ pub fn compute_volume_monte_carlo(hull: &ConvexHull, num_samples: usize) -> Spat
 
     // Monte Carlo sampling
     let mut inside_count = 0;
-    let mut rng = rand::rng();
+    let mut rng = scirs2_core::random::rng();
 
     for _ in 0..num_samples {
         let mut sample_point = vec![0.0; ndim];

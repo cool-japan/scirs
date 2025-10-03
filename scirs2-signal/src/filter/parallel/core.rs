@@ -4,8 +4,8 @@
 //! filtfilt (zero-phase filtering), lfilter (direct filtering), and overlap-save methods.
 
 use crate::error::{SignalError, SignalResult};
-use ndarray::{s, Array1, ArrayView1};
-use num_traits::{Float, NumCast};
+use scirs2_core::ndarray::{s, Array1, ArrayView1};
+use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use std::fmt::Debug;
 
@@ -302,11 +302,11 @@ pub(crate) fn sequential_lfilter(b: &[f64], a: &[f64], x: &[f64]) -> SignalResul
 pub fn parallel_batch_filter(
     b: &[f64],
     a: &[f64],
-    signals: &ndarray::Array2<f64>,
+    signals: &scirs2_core::ndarray::Array2<f64>,
     chunk_size: Option<usize>,
-) -> SignalResult<ndarray::Array2<f64>> {
+) -> SignalResult<scirs2_core::ndarray::Array2<f64>> {
     let (n_signals, signal_len) = signals.dim();
-    let mut results = ndarray::Array2::zeros((n_signals, signal_len));
+    let mut results = scirs2_core::ndarray::Array2::zeros((n_signals, signal_len));
 
     // Process each signal in parallel
     let signal_refs: Vec<_> = (0..n_signals).map(|i| signals.row(i)).collect();

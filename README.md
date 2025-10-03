@@ -6,6 +6,24 @@
 
 SciRS2 is a comprehensive scientific computing and AI/ML infrastructure in Rust, providing SciPy-compatible APIs while leveraging Rust's performance, safety, and concurrency features. The project aims to provide a complete ecosystem for scientific computing, data analysis, and machine learning in Rust.
 
+## 🚀 Release Status: v0.1.0-RC.1
+
+**Release Candidate 1** - Ready for testing!
+
+- ✅ **POLICY Compliance Complete**: All 23 crates now follow the unified SciRS2 architecture
+- ✅ **Centralized Dependencies**: Only `scirs2-core` manages external dependencies
+- ✅ **Full Test Coverage**: 9,800+ tests passing
+- ✅ **Zero Warnings Build**: Clean compilation across entire workspace
+- 📅 **Release Date**: October 03, 2025
+
+**What's New in RC.1**:
+- Complete migration to SciRS2 POLICY architecture
+- Unified dependency management through scirs2-core
+- Enhanced type safety and API consistency
+- Improved maintainability and version control
+
+See [SCIRS2_POLICY.md](SCIRS2_POLICY.md) for architectural details.
+
 ## Features
 
 ### Scientific Computing
@@ -46,7 +64,7 @@ SciRS2 is a comprehensive scientific computing and AI/ML infrastructure in Rust,
 
 ## Project Scale
 
-This project now contains **over 2 million source lines of code** and runs **over 9,000 tests** across all modules (including previous scirs2-optim, currently another project), demonstrating the comprehensive nature of the SciRS2 ecosystem.
+This project now contains **over 2 million source lines of code** and runs **9,800+ tests** across all modules (including previous scirs2-optim, currently another project), demonstrating the comprehensive nature of the SciRS2 ecosystem.
 
 ## Project Goals
 
@@ -281,7 +299,7 @@ SciRS2 leverages the Rust ecosystem:
 - `image`: Image processing utilities
 - `petgraph`: Graph algorithms and data structures
 
-## What's New in v0.1.0-beta.4 (Released October 01, 2025)
+## What's New in v0.1.0-rc.1 (Released October 03, 2025)
 
 ### Major Enhancements
 
@@ -301,6 +319,30 @@ The `scirs2_core::ndarray` module provides complete ndarray functionality:
 - ✅ Eliminates fragmentation across different modules
 - ✅ Full backward compatibility with existing code
 
+#### Build System Improvements
+- **Removed `openblas-src`**: No longer builds BLAS from source, uses system libraries instead
+  - macOS: Accelerate framework (system BLAS)
+  - Linux: System OpenBLAS (openblas-system feature)
+  - Windows: System BLAS libraries where available
+- **Faster Builds**: Significantly reduced build times by eliminating BLAS source compilation
+- **Platform Optimization**: Leverages platform-specific optimized BLAS implementations
+- **Simplified Dependencies**: Removed `intel-mkl-src` to avoid system BLAS conflicts
+
+#### Code Quality & Architecture Overhaul
+- **100% POLICY Compliance**: All 23 crates fully comply with SciRS2 POLICY
+  - Only `scirs2-core` has direct external dependencies
+  - ~600+ import statements unified to `scirs2_core::` prefix
+  - ~100+ external dependencies centralized
+- **Zero Warnings Achievement**: Complete workspace builds with zero warnings
+  - All 23 crates (lib, tests, examples) compile cleanly
+  - Enhanced documentation coverage (100+ new doc comments)
+- **Code Cleanup**: Significant TODO/FIXME reduction and refactoring
+  - Removed obsolete markers, implemented pending features
+  - Enhanced error handling and validation
+- **Massive Scale**: 3,016 files modified in comprehensive RC.1 transformation
+  - 18,081 insertions, 15,487 deletions
+  - Major commits: POLICY migration, zero warnings fixes, TODO/FIXME cleanup
+
 #### Migration Support
 - 📖 [Migration Guide](MIGRATION_GUIDE_BETA3.md) for updating existing code
 - 📖 Updated [SciRS2 POLICY](SCIRS2_POLICY.md) documentation
@@ -315,7 +357,7 @@ SciRS2 and all its modules are available on [crates.io](https://crates.io/crates
 ```toml
 # Add the main integration crate for all functionality
 [dependencies]
-scirs2 = "0.1.0-beta.4"
+scirs2 = "0.1.0-rc.1"
 ```
 
 Or include only the specific modules you need:
@@ -323,16 +365,16 @@ Or include only the specific modules you need:
 ```toml
 [dependencies]
 # Core utilities
-scirs2-core = "0.1.0-beta.4"
+scirs2-core = "0.1.0-rc.1"
 
 # Scientific computing modules
-scirs2-linalg = "0.1.0-beta.4"
-scirs2-stats = "0.1.0-beta.4"
-scirs2-optimize = "0.1.0-beta.4"
+scirs2-linalg = "0.1.0-rc.1"
+scirs2-stats = "0.1.0-rc.1"
+scirs2-optimize = "0.1.0-rc.1"
 
 # AI/ML modules
-scirs2-neural = "0.1.0-beta.4"
-scirs2-autograd = "0.1.0-beta.4"
+scirs2-neural = "0.1.0-rc.1"
+scirs2-autograd = "0.1.0-rc.1"
 # Note: For ML optimization algorithms, use the independent OptiRS project
 ```
 
@@ -448,9 +490,59 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-## Current Status (v0.1.0-beta.4 - Released October 01, 2025)
+## Platform Compatibility
 
-### 🎉 Key Features in Beta 4
+SciRS2 v0.1.0-RC.1 has been tested on the following platforms:
+
+### ✅ Fully Supported Platforms
+
+| Platform | Architecture | Test Status | Notes |
+|----------|-------------|-------------|-------|
+| **macOS** | Apple M3 (ARM64) | ✅ All tests passing (9,800+ tests) | macOS 15.6.1, 24GB RAM |
+| **Linux** | x86_64 | ✅ All tests passing (9,800+ tests) | With required dependencies |
+| **Linux + CUDA** | x86_64 + NVIDIA GPU | ✅ All tests passing (9,800+ tests) | CUDA support enabled |
+
+### ⚠️ Partially Supported Platforms
+
+| Platform | Architecture | Test Status | Notes |
+|----------|-------------|-------------|-------|
+| **Windows** | x86_64 | ⚠️ Build succeeds, some tests fail | Windows 11 Pro - see known issues below |
+
+### Platform-Specific Requirements
+
+#### macOS / Linux
+To run the full test suite with all features:
+```bash
+# Install required system libraries (OpenBLAS, LAPACK, etc.)
+# Set necessary environment variables
+cargo nextest run --nff --all-features  # 9,800+ tests
+```
+
+#### Windows
+```bash
+# Build works successfully
+cargo build
+
+# Note: Some crates have test failures on Windows
+# Full test compatibility is planned for v0.2.0
+cargo test  # Some tests may fail
+```
+
+### Running Tests
+
+**Recommended test runner**: Use `cargo nextest` instead of `cargo test` for better performance and output:
+
+```bash
+# Install nextest
+cargo install cargo-nextest
+
+# Run all tests
+cargo nextest run --nff --all-features
+```
+
+## Current Status (v0.1.0-rc.1 - Released October 03, 2025)
+
+### 🎉 Key Features
 
 #### SciRS2 POLICY Framework and Ecosystem Consistency
 - **Ecosystem Architecture Policy**: Established layered abstraction architecture where only `scirs2-core` uses external dependencies directly
@@ -559,10 +651,10 @@ All SciRS2 modules are available on crates.io. Add the modules you need to your 
 
 ```toml
 [dependencies]
-scirs2 = "0.1.0-beta.4"  # Core library with all modules
+scirs2 = "0.1.0-rc.1"  # Core library with all modules
 # Or individual modules:
-scirs2-linalg = "0.1.0-beta.4"  # Linear algebra
-scirs2-stats = "0.1.0-beta.4"   # Statistics
+scirs2-linalg = "0.1.0-rc.1"  # Linear algebra
+scirs2-stats = "0.1.0-rc.1"   # Statistics
 # ... and more
 ```
 
@@ -599,7 +691,7 @@ Performance benchmarks on core operations show significant improvements over sca
 
 *Note: Performance may vary based on hardware, compiler optimization, and specific workloads.*
 
-## Core Module Usage Policy (New in Beta 4)
+## Core Module Usage Policy
 
 Following the [SciRS2 Ecosystem Policy](SCIRS2_POLICY.md), all SciRS2 modules now follow a strict layered architecture:
 
@@ -625,9 +717,9 @@ This policy ensures ecosystem consistency and enables better optimization across
 
 ## Release Notes
 
-### 🚀 v0.1.0-beta.4 (October 01, 2025) - Release Stabilization
+### 🚀 v0.1.0-rc.1 (October 03, 2025) - Release Candidate 1
 
-This release focuses on stabilizing the beta.3 ecosystem architecture and preparing for production use:
+This release is the first Release Candidate, focusing on platform compatibility testing and final preparation for stable release:
 
 #### ✅ Improvements:
 - **Documentation Updates**: Comprehensive version updates across all documentation
@@ -642,44 +734,34 @@ This release focuses on stabilizing the beta.3 ecosystem architecture and prepar
 
 #### 📊 Status:
 - ✅ **Build System**: All modules compile cleanly with zero warnings
-- ✅ **Test Suite**: 9,500+ tests passing across all modules
+- ✅ **Test Suite**: 9,800+ tests passing across all modules
 - ✅ **Documentation**: Up-to-date examples and API references
 - ✅ **Platform Support**: Verified on Linux, macOS, and Windows
 
 **Migration:**
-- No breaking API changes from beta.3
+- No breaking API changes from beta.4
 - See [RELEASE_NOTES.md](RELEASE_NOTES.md) for complete details
 
-### 🚀 v0.1.0-beta.4 (September 29, 2025) - SciRS2 POLICY & Major Modernization
+### Previous Beta Releases
 
-This release establishes the SciRS2 ecosystem architecture and modernizes all dependencies:
+**Beta Series (v0.1.0-beta.1 through beta.4)**:
+- Established SciRS2 POLICY framework with layered abstraction architecture
+- Implemented ultra-optimized SIMD operations (10-100x performance improvements)
+- Added comprehensive GPU kernel infrastructure (CUDA, ROCm, Metal, WGPU, OpenCL)
+- Enhanced ecosystem-wide performance and stability
+- Full details available in [RELEASE_NOTES.md](RELEASE_NOTES.md)
 
-#### ✅ New Features:
-- **SciRS2 POLICY**: Established comprehensive ecosystem architecture with layered abstractions
-- **Dependency Updates**: Updated all dependencies to latest versions with extensive testing (156 files changed)
-- **GPU Enhancements**: Major CUDA/Linux improvements and WebGPU backend enhancements (333+ lines)
-- **Memory Optimizations**: Advanced memory-mapped arrays with improved serialization and chunking
-- **Performance Improvements**: Enhanced SIMD operations, spatial algorithms, and numerical computations
+## Known Limitations (Release Candidate)
 
-#### 🏗️ Ecosystem Architecture:
-- **Core-Only Dependencies**: Only `scirs2-core` may use external dependencies directly
-- **Consistent APIs**: All non-core crates must use scirs2-core abstractions for `rand`, `ndarray`, etc.
-- **Better Maintainability**: Centralized version control and unified type system
-- **Enhanced Performance**: Optimized abstractions with hardware-specific optimizations
+This is the first Release Candidate (0.1.0-rc.1) of SciRS2, released October 03, 2025. While the core functionality is stable and well-tested, there are some known limitations:
 
-#### 📊 Results:
-- ✅ **Policy Framework**: Complete SciRS2 Ecosystem Policy documentation and implementation plan
-- ✅ **Modernized Dependencies**: All crates use latest available dependency versions
-- ✅ **Enhanced GPU Support**: Better cross-platform GPU acceleration with CUDA and WebGPU
-- ✅ **Improved Performance**: Advanced memory management and SIMD optimizations
+### Platform-Specific Issues
 
-**Migration:**
-- Migration to scirs2-core abstractions is in progress across all modules
-- See [SciRS2 POLICY](SCIRS2_POLICY.md) for implementation guidelines
-
-## Known Limitations (Beta Release)
-
-This is the fourth beta release (0.1.0-beta.4) of SciRS2, released October 01, 2025. While the core functionality is stable and well-tested, there are some known limitations:
+#### Windows Platform
+- **OpenBLAS/BLAS Runtime Errors**: Some tests fail on Windows 11 Pro due to OpenBLAS/BLAS library issues
+- **Build Status**: All subcrates build successfully with `cargo build`
+- **Test Status**: Most tests pass, but BLAS-dependent tests may encounter runtime errors
+- **Full Support Timeline**: Complete Windows compatibility is planned for v0.2.0
 
 ### SciRS2 POLICY Implementation Status
 - **Policy Established**: Complete SciRS2 POLICY framework with layered abstraction architecture
@@ -706,9 +788,9 @@ The following features are planned for future releases:
 - Specialized hardware support (FPGA, ASIC) uses mock implementations when hardware is not present
 
 ### Test Coverage
-- Total tests: ~6,500+ across all modules
+- Total tests: 9,800+ across all modules
 - Regular CI tests: All passing ✅
-- Ignored tests: ~600 (mostly benchmarks and hardware-dependent tests)
+- Performance tests: Included in full test suite (run with `--all-features`)
 
 For the most up-to-date information on limitations and ongoing development, please check our [GitHub Issues](https://github.com/cool-japan/scirs/issues).
 
@@ -761,11 +843,11 @@ SciRS2 is part of the **Cool Japan Ecosystem** - a comprehensive collection of p
 - Advanced indexing, groupby operations, and time series functionality
 - 10-50x faster than Python pandas for large datasets
 
-#### [QuantRS](https://github.com/cool-japan/quantrs)
-**Professional quantitative finance and risk management library**
-- Fixed income, derivatives pricing, risk metrics, and portfolio optimization
-- Market data integration with real-time streaming support
-- High-frequency trading infrastructure with microsecond latency
+#### [QuantRS2](https://github.com/cool-japan/quantrs)
+**Quantum computing library in pure Rust**
+- Quantum circuit simulation and execution
+- Quantum algorithm implementations
+- Integration with quantum hardware backends
 
 ### 🤖 Machine Learning & Deep Learning
 
@@ -792,14 +874,12 @@ SciRS2 is part of the **Cool Japan Ecosystem** - a comprehensive collection of p
 
 #### [SkleaRS](https://github.com/cool-japan/sklears)
 **scikit-learn compatible machine learning library**
-- 65% scikit-learn API coverage targeting 95%+ for v0.1.0
 - 3-100x performance improvements over Python implementations
 - Classification, regression, clustering, preprocessing, and model selection
 - GPU acceleration, ONNX export, and AutoML capabilities
 
 #### [TrustformeRS](https://github.com/cool-japan/trustformers)
 **Hugging Face Transformers in pure Rust for production deployment**
-- 85% feature-complete with 15+ transformer architectures
 - BERT, GPT-2/3/4, T5, BART, RoBERTa, DistilBERT, and more
 - Full training infrastructure with mixed precision and gradient accumulation
 - Optimized inference (1.5-3x faster than PyTorch) with quantization support

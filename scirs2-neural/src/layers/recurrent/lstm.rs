@@ -3,9 +3,9 @@
 use crate::error::{NeuralError, Result};
 use crate::layers::recurrent::{LstmGateCache, LstmStepOutput};
 use crate::layers::{Layer, ParamLayer};
-use ndarray::{Array, ArrayView, Ix2, IxDyn, ScalarOperand};
-use ndarray_rand::rand_distr::{Distribution, Uniform};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array, ArrayView, Ix2, IxDyn, ScalarOperand};
+use scirs2_core::numeric::Float;
+use scirs2_core::random::{Distribution, Uniform};
 use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 /// Configuration for LSTM layers
@@ -28,9 +28,9 @@ pub struct LSTMConfig {
 /// # Examples
 /// ```
 /// use scirs2_neural::layers::{Layer, recurrent::LSTM};
-/// use ndarray::{Array, Array3};
-/// use ndarray_rand::rand::rngs::StdRng;
-/// use ndarray_rand::rand::SeedableRng;
+/// use scirs2_core::ndarray::{Array, Array3};
+/// use scirs2_core::random::rngs::StdRng;
+/// use scirs2_core::random::SeedableRng;
 /// // Create an LSTM layer with 10 input features and 20 hidden units
 /// let mut rng = StdRng::seed_from_u64(42);
 /// let lstm = LSTM::new(10, 20, &mut rng).unwrap();
@@ -102,7 +102,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> LSTM<F> {
     /// * `rng` - Random number generator for weight initialization
     /// # Returns
     /// * A new LSTM layer
-    pub fn new<R: ndarray_rand::rand::Rng + ndarray_rand::rand::RngCore>(
+    pub fn new<R: scirs2_core::random::Rng + scirs2_core::random::RngCore>(
         input_size: usize,
         hidden_size: usize,
         rng: &mut R,
@@ -127,7 +127,11 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> LSTM<F> {
                                         scale: F|
          -> Result<Array<F, IxDyn>> {
             let mut weights_vec: Vec<F> = Vec::with_capacity(rows * cols);
-            let uniform = Uniform::new(-1.0, 1.0);
+            let uniform = Uniform::new(-1.0, 1.0).map_err(|e| {
+                NeuralError::InvalidArchitecture(format!(
+                    "Failed to create uniform distribution: {e}"
+                ))
+            })?;
             for _ in 0..(rows * cols) {
                 let rand_val = uniform.sample(rng);
                 let val = F::from(rand_val).ok_or_else(|| {
@@ -356,7 +360,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for LSTM
         // Process each time step
         for t in 0..seq_len {
             // Extract input at time t
-            let x_t = input.slice(ndarray::s![.., t, ..]);
+            let x_t = input.slice(scirs2_core::ndarray::s![.., t, ..]);
             // Process one step - converting views to dynamic dimension
             let x_t_view = x_t.view().into_dyn();
             let h_view = h.view().into_dyn();
@@ -448,7 +452,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> Layer<F> for LSTM
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for LSTM<F> {
-    fn get_parameters(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_parameters(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         vec![
             self.weight_ii.clone(),
             self.weight_hi.clone(),
@@ -469,14 +473,14 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for
         ]
     }
 
-    fn get_gradients(&self) -> Vec<Array<F, ndarray::IxDyn>> {
+    fn get_gradients(&self) -> Vec<Array<F, scirs2_core::ndarray::IxDyn>> {
         // This is a placeholder implementation until proper gradient access is implemented
         // Return an empty vector as we can't get references to the gradients inside the RwLock
         // The actual gradient update logic is handled in the backward method
         Vec::new()
     }
 
-    fn set_parameters(&mut self, params: Vec<Array<F, ndarray::IxDyn>>) -> Result<()> {
+    fn set_parameters(&mut self, params: Vec<Array<F, scirs2_core::ndarray::IxDyn>>) -> Result<()> {
         if params.len() != 16 {
             return Err(NeuralError::InvalidArchitecture(format!(
                 "Expected 16 parameters, got {}",
@@ -538,14 +542,14 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static> ParamLayer<F> for
 // #[cfg(test)]
 // mod tests {
 //     use super::*;
-//     use ndarray::Array3;
-//     use rand::rngs::SmallRng;
-//     use rand::SeedableRng;
+//     use scirs2_core::ndarray::Array3;
+//     use scirs2_core::random::rngs::SmallRng;
+//     use scirs2_core::random::SeedableRng;
 //
 //     #[test]
 // //     fn test_lstmshape() {
 // //         // Create an LSTM layer
-// //         let mut rng = rand::rng();
+// //         let mut rng = scirs2_core::random::rng();
 // //         let lstm = LSTM::<f64>::new(
 // //             10, // input_size
 // //             20, // hidden_size

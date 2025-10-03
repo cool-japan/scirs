@@ -92,7 +92,7 @@ pub mod helpers {
 #[allow(dead_code)]
 pub mod validation {
     use super::*;
-    use num_traits::Float;
+    use scirs2_core::numeric::Float;
 
     /// Validate that a value is positive
     pub fn ensure_positive<F: Float + std::fmt::Display>(

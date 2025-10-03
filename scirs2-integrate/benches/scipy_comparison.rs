@@ -4,7 +4,7 @@
 //! implementations and SciPy's integrate module for various problem types.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_integrate::cubature::{cubature, CubatureOptions};
 use scirs2_integrate::monte_carlo::{monte_carlo, MonteCarloOptions};
 use scirs2_integrate::ode::{solve_ivp, ODEMethod, ODEOptions};
@@ -13,15 +13,15 @@ use std::hint::black_box;
 
 /// Test problems for ODE benchmarking
 mod ode_problems {
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     /// Simple exponential decay: dy/dt = -y, y(0) = 1
-    pub fn exponential_decay(t: f64, y: ndarray::ArrayView1<f64>) -> Array1<f64> {
+    pub fn exponential_decay(t: f64, y: scirs2_core::ndarray::ArrayView1<f64>) -> Array1<f64> {
         Array1::from_vec(vec![-y[0]])
     }
 
     /// Harmonic oscillator: d²x/dt² + x = 0, converted to first order system
-    pub fn harmonic_oscillator(t: f64, y: ndarray::ArrayView1<f64>) -> Array1<f64> {
+    pub fn harmonic_oscillator(t: f64, y: scirs2_core::ndarray::ArrayView1<f64>) -> Array1<f64> {
         Array1::from_vec(vec![y[1], -y[0]])
     }
 
@@ -29,8 +29,8 @@ mod ode_problems {
     #[allow(dead_code)]
     pub fn van_der_pol(
         _mu: f64,
-    ) -> impl Fn(f64, ndarray::ArrayView1<f64>) -> Array1<f64> + 'static {
-        move |_t: f64, y: ndarray::ArrayView1<f64>| {
+    ) -> impl Fn(f64, scirs2_core::ndarray::ArrayView1<f64>) -> Array1<f64> + 'static {
+        move |_t: f64, y: scirs2_core::ndarray::ArrayView1<f64>| {
             Array1::from_vec(vec![y[1], _mu * (1.0 - y[0] * y[0]) * y[1] - y[0]])
         }
     }
@@ -42,8 +42,8 @@ mod ode_problems {
         b: f64,
         c: f64,
         d: f64,
-    ) -> impl Fn(f64, ndarray::ArrayView1<f64>) -> Array1<f64> + 'static {
-        move |_t: f64, y: ndarray::ArrayView1<f64>| {
+    ) -> impl Fn(f64, scirs2_core::ndarray::ArrayView1<f64>) -> Array1<f64> + 'static {
+        move |_t: f64, y: scirs2_core::ndarray::ArrayView1<f64>| {
             let x = y[0]; // prey
             let y_val = y[1]; // predator
             Array1::from_vec(vec![
@@ -54,7 +54,7 @@ mod ode_problems {
     }
 
     /// N-body problem (simplified 3-body)
-    pub fn three_body_problem(t: f64, y: ndarray::ArrayView1<f64>) -> Array1<f64> {
+    pub fn three_body_problem(t: f64, y: scirs2_core::ndarray::ArrayView1<f64>) -> Array1<f64> {
         let mut dydt = Array1::zeros(y.len());
 
         // Positions: x1, y1, x2, y2, x3, y3
@@ -440,7 +440,7 @@ fn bench_parallel_operations(c: &mut Criterion) {
                         };
 
                         let result = parallel_monte_carlo(
-                            |x: ndarray::ArrayView1<f64>| {
+                            |x: scirs2_core::ndarray::ArrayView1<f64>| {
                                 quadrature_problems::multivariate_gaussian(x.as_slice().unwrap())
                             },
                             &ranges,
@@ -482,7 +482,7 @@ fn bench_memory_usage(c: &mut Criterion) {
                         }
                     });
 
-                    let linear_system = move |_t: f64, y: ndarray::ArrayView1<f64>| {
+                    let linear_system = move |_t: f64, y: scirs2_core::ndarray::ArrayView1<f64>| {
                         let y_owned = y.to_owned();
                         a_matrix.dot(&y_owned)
                     };

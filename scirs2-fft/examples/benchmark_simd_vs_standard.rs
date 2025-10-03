@@ -206,7 +206,8 @@ fn run_2d_benchmarks(results: &mut Vec<BenchmarkResult>) {
 
         let standard_fn = || {
             // Create a properly dimensioned Array2
-            let array = ndarray::Array::from_shape_vec((size, size), signal.clone()).unwrap();
+            let array =
+                scirs2_core::ndarray::Array::from_shape_vec((size, size), signal.clone()).unwrap();
             let result = fft2(&array, None, None, None).unwrap();
             result.into_raw_vec_and_offset().0
         };
@@ -242,8 +243,11 @@ fn run_nd_benchmarks(results: &mut Vec<BenchmarkResult>) {
 
         let standard_fn = || {
             // Create a properly dimensioned ArrayD
-            let array =
-                ndarray::ArrayD::from_shape_vec(ndarray::IxDyn(&shape), signal.clone()).unwrap();
+            let array = scirs2_core::ndarray::ArrayD::from_shape_vec(
+                scirs2_core::ndarray::IxDyn(&shape),
+                signal.clone(),
+            )
+            .unwrap();
             let shape_vec = None;
             let axes: Option<Vec<usize>> = None;
             let result = fftn(&array, shape_vec, axes, None, None, None).unwrap();
@@ -278,8 +282,11 @@ fn run_nd_benchmarks(results: &mut Vec<BenchmarkResult>) {
 
         let standard_fn = || {
             // Create a properly dimensioned ArrayD
-            let array =
-                ndarray::ArrayD::from_shape_vec(ndarray::IxDyn(&shape), signal.clone()).unwrap();
+            let array = scirs2_core::ndarray::ArrayD::from_shape_vec(
+                scirs2_core::ndarray::IxDyn(&shape),
+                signal.clone(),
+            )
+            .unwrap();
             let shape_vec = None;
             let axes: Option<Vec<usize>> = None;
             let result = fftn(&array, shape_vec, axes, None, None, None).unwrap();

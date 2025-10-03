@@ -139,7 +139,7 @@ fn global_buffer_pool_example() {
 #[cfg(feature = "memory_management")]
 #[allow(dead_code)]
 fn print_array<T: std::fmt::Display + Copy>(
-    array: &ndarray::ArrayBase<impl ndarray::Data<Elem = T>, ndarray::Dim<[usize; 2]>>,
+    array: &scirs2_core::ndarray::ArrayBase<impl ndarray::Data<Elem = T>, ndarray::Dim<[usize; 2]>>,
 ) {
     for row in array.rows() {
         for &value in row.iter() {

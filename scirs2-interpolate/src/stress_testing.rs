@@ -9,7 +9,7 @@ use crate::{
     linear_interpolate,
     spline::CubicSpline,
 };
-use ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use std::f64::INFINITY;
 use std::f64::{EPSILON as F64_EPSILON, MAX as F64_MAX, MIN_POSITIVE as F64_MIN_POSITIVE};
 
@@ -234,8 +234,8 @@ pub mod extreme_data {
                     for i in 0..points_per_cluster {
                         let idx = cluster * points_per_cluster + i;
                         if idx < n {
-                            points[[idx, 0]] = center_x + 0.01 * rand::random::<f64>();
-                            points[[idx, 1]] = center_y + 0.01 * rand::random::<f64>();
+                            points[[idx, 0]] = center_x + 0.01 * scirs2_core::random::random::<f64>();
+                            points[[idx, 1]] = center_y + 0.01 * scirs2_core::random::random::<f64>();
                             values[idx] = center_x.sin() * center_y.cos();
                         }
                     }
@@ -253,8 +253,8 @@ pub mod extreme_data {
             _ => {
                 // Default: random points
                 for i in 0..n {
-                    points[[i, 0]] = rand::random::<f64>() * 10.0;
-                    points[[i, 1]] = rand::random::<f64>() * 10.0;
+                    points[[i, 0]] = scirs2_core::random::random::<f64>() * 10.0;
+                    points[[i, 1]] = scirs2_core::random::random::<f64>() * 10.0;
                     values[i] = points[[i, 0]].sin() * points[[i, 1]].cos();
                 }
             }
@@ -548,7 +548,7 @@ pub mod stability {
         for i in 0..n {
             for j in i + 1..n {
                 let dist: f64 = _points
-                    .slice(ndarray::s![i, ..])
+                    .slice(scirs2_core::ndarray::s![i, ..])
                     .iter..].iter())
                     .map(|(&a, &b)| (a - b).powi(2))
                     .sum::<f64>()

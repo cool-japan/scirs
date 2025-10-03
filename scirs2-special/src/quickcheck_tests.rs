@@ -10,8 +10,8 @@
 
 #![allow(dead_code)]
 
-use num_complex::Complex64;
 use quickcheck::{Arbitrary, Gen, QuickCheck, TestResult};
+use scirs2_core::numeric::Complex64;
 use std::f64;
 
 /// Configuration for test intensity
@@ -162,7 +162,7 @@ mod gamma_properties {
         let n = n.0 as f64;
 
         // Tighter bounds to avoid numerical issues with large values
-        if x < 1.0 || x > 14.0 || x + n > 20.0 || n > 10.0 {
+        if !(1.0..=14.0).contains(&x) || x + n > 20.0 || n > 10.0 {
             return TestResult::discard();
         }
 
@@ -365,7 +365,7 @@ mod orthogonal_polynomial_properties {
         let p_n_x = crate::orthogonal::legendre(n, x);
         let p_n_neg_x = crate::orthogonal::legendre(n, -x);
 
-        let expected = if n % 2 == 0 { p_n_x } else { -p_n_x };
+        let expected = if n.is_multiple_of(2) { p_n_x } else { -p_n_x };
 
         (p_n_neg_x - expected).abs() < 1e-10
     }
@@ -476,7 +476,7 @@ mod statistical_function_properties {
         // Clamp values to reasonable range
         let _xs: Vec<f64> = xs.iter().map(|&x| x.clamp(-50.0, 50.0)).collect();
 
-        let xs_array = ndarray::Array1::from(_xs.clone());
+        let xs_array = scirs2_core::ndarray::Array1::from(_xs.clone());
         let softmax_result = crate::statistical::softmax(xs_array.view());
         let sum: f64 = match softmax_result {
             Ok(arr) => arr.iter().sum(),
@@ -495,7 +495,7 @@ mod statistical_function_properties {
         // Clamp to reasonable range
         let _xs: Vec<f64> = xs.iter().map(|&x| x.clamp(-100.0, 100.0)).collect();
 
-        let xs_array = ndarray::Array1::from(_xs.clone());
+        let xs_array = scirs2_core::ndarray::Array1::from(_xs.clone());
         let lse_result = crate::statistical::logsumexp(xs_array.view());
         let lse = lse_result.unwrap_or(f64::NAN);
 

@@ -7,10 +7,10 @@
 
 use crate::error::FFTResult;
 use crate::fft::algorithms::{parse_norm_mode, NormMode};
-use ndarray::{Array2, Axis};
-use num_complex::Complex64;
-use num_traits::NumCast;
 use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
+use scirs2_core::ndarray::{Array2, Axis};
+use scirs2_core::numeric::Complex64;
+use scirs2_core::numeric::NumCast;
 
 use scirs2_core::parallel_ops::*;
 
@@ -32,7 +32,7 @@ use scirs2_core::parallel_ops::*;
 ///
 /// ```
 /// use scirs2_fft::fft2_parallel;
-/// use ndarray::{array, Array2};
+/// use scirs2_core::ndarray::{array, Array2};
 ///
 /// // Create a simple 2x2 array
 /// let input = array![[1.0, 2.0], [3.0, 4.0]];
@@ -90,7 +90,7 @@ where
                 complex_input[[i, j]] = c;
             } else {
                 // Not a complex number, try to convert to f64 and make into a complex with zero imaginary part
-                let real = num_traits::cast::<T, f64>(val).ok_or_else(|| {
+                let real = NumCast::from(val).ok_or_else(|| {
                     crate::FFTError::ValueError(format!("Could not convert {val:?} to f64"))
                 })?;
                 complex_input[[i, j]] = Complex64::new(real, 0.0);
@@ -278,7 +278,7 @@ where
                 complex_input[[i, j]] = c;
             } else {
                 // Not a complex number, try to convert to f64 and make into a complex with zero imaginary part
-                let real = num_traits::cast::<T, f64>(val).ok_or_else(|| {
+                let real = NumCast::from(val).ok_or_else(|| {
                     crate::FFTError::ValueError(format!("Could not convert {val:?} to f64"))
                 })?;
                 complex_input[[i, j]] = Complex64::new(real, 0.0);

@@ -1,6 +1,8 @@
 //! Interactive Proof Explorer for Special Functions
 //!
 //! This module provides a comprehensive system for exploring mathematical proofs
+
+#![allow(clippy::all)]
 //! interactively, with step-by-step guidance, visualization, and verification.
 //!
 //! Features:
@@ -13,7 +15,7 @@
 //!
 //! Run with: cargo run --example interactive_proof_explorer
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::Complex64;
 use scirs2_special::*;
 use std::collections::HashMap;
@@ -722,8 +724,8 @@ impl ProofExplorer {
                 }
 
                 let response = get_user_input("\nYour answer (A, B, C, etc.): ")?;
-                let answer_index = response.to_uppercase().chars().next().and_then(|c| {
-                    if c >= 'A' && c <= 'Z' {
+                let answer_index = response.to_uppercase().chars().next().and_then(|c: char| {
+                    if c.is_ascii_uppercase() {
                         Some((c as u8 - b'A') as usize)
                     } else {
                         None
@@ -764,7 +766,7 @@ impl ProofExplorer {
                 println!("Functions: {}", functions.join(", "));
 
                 // Simple ASCII visualization
-                self.create_ascii_plot(domain, &functions)?;
+                self.create_ascii_plot(domain, functions)?;
             }
 
             PlotType::ComplexPlane { radius, function } => {
@@ -830,7 +832,7 @@ impl ProofExplorer {
             let normalized_y = ((y + 2.0) * 10.0) as usize;
             let display_pos = normalized_y.min(20);
 
-            let mut line = vec![' '; 21];
+            let mut line = [' '; 21];
             line[10] = '|'; // Zero line
             if display_pos < line.len() {
                 line[display_pos] = '●';
@@ -1595,14 +1597,14 @@ fn gamma_complex(z: Complex64) -> Complex64 {
         // Use Lanczos approximation for positive real part
         let g = 7.0;
         let coef = [
-            0.99999999999980993,
+            0.999_999_999_999_809_9,
             676.5203681218851,
             -1259.1392167224028,
-            771.32342877765313,
-            -176.61502916214059,
+            771.323_428_777_653_1,
+            -176.615_029_162_140_6,
             12.507343278686905,
             -0.13857109526572012,
-            9.9843695780195716e-6,
+            9.984_369_578_019_572e-6,
             1.5056327351493116e-7,
         ];
 
@@ -1610,7 +1612,7 @@ fn gamma_complex(z: Complex64) -> Complex64 {
         let mut x = Complex64::new(coef[0], 0.0);
 
         for i in 1..coef.len() {
-            x = x + Complex64::new(coef[i], 0.0) / (z_shifted + Complex64::new(i as f64, 0.0));
+            x += Complex64::new(coef[i], 0.0) / (z_shifted + Complex64::new(i as f64, 0.0));
         }
 
         let t = z_shifted + Complex64::new(g + 0.5, 0.0);

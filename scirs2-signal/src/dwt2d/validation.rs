@@ -8,7 +8,7 @@ use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use super::types::{Dwt2dResult, Dwt2dValidationConfig, Dwt2dValidationResult, MemoryEfficiencyMetrics, PerformanceMetrics2d, WaveletEnergy, WaveletCounts};
 use super::simd::{simd_calculate_energy, PlatformCapabilities};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 use scirs2_core::validation::{check_positive, check_finite};
 use std::time::Instant;
 

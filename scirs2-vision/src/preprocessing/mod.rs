@@ -3,7 +3,7 @@
 use crate::error::{Result, VisionError};
 use crate::feature::image_to_array;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
-use ndarray::Array2;
+use scirs2_core::ndarray::Array2;
 
 pub mod bilateral;
 pub mod gamma;
@@ -348,7 +348,7 @@ pub fn bilateral_filter(
     sigma_color: f32,
 ) -> Result<DynamicImage> {
     // Parameter validation
-    if diameter % 2 == 0 || diameter == 0 {
+    if diameter.is_multiple_of(2) || diameter == 0 {
         return Err(VisionError::InvalidParameter(
             "Diameter must be a positive odd number".to_string(),
         ));
@@ -607,7 +607,7 @@ fn bilateral_filter_color(
 #[allow(dead_code)]
 pub fn median_filter(img: &DynamicImage, kernelsize: u32) -> Result<DynamicImage> {
     // Parameter validation
-    if kernelsize % 2 == 0 || kernelsize == 0 {
+    if kernelsize.is_multiple_of(2) || kernelsize == 0 {
         return Err(VisionError::InvalidParameter(
             "Kernel _size must be a positive odd number".to_string(),
         ));

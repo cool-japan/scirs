@@ -3,7 +3,7 @@
 //! This module contains tests for the specialized BDF methods for DAE systems.
 
 use approx::assert_relative_eq;
-use ndarray::{array, ArrayView1};
+use scirs2_core::ndarray::{array, ArrayView1};
 use scirs2_integrate::{bdf_implicit_dae, bdf_semi_explicit_dae, DAEIndex, DAEOptions, DAEType};
 
 /// Test the BDF solver for a simple linear semi-explicit DAE

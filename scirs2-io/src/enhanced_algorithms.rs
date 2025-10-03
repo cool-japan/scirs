@@ -8,8 +8,8 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::error::{IoError, Result};
-use ndarray::{Array1, Array2};
-use rand::Rng;
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::random::Rng;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
@@ -514,7 +514,7 @@ impl AdvancedPatternRecognizer {
     fn calculate_complexity_index(&self, features: &Array2<f32>) -> f32 {
         // Calculate weighted sum across scales
         let weights = Array1::from(vec![0.4, 0.3, 0.2, 0.1]); // Higher weight for finer scales
-        let scale_complexities = features.mean_axis(ndarray::Axis(1)).unwrap();
+        let scale_complexities = features.mean_axis(scirs2_core::ndarray::Axis(1)).unwrap();
         weights.dot(&scale_complexities)
     }
 
@@ -627,7 +627,7 @@ impl PatternNetwork {
     fn new(pattern_type: &str, input_size: usize, hidden_size: usize, _output_size: usize) -> Self {
         // Xavier initialization for weights
         let scale = (2.0 / (input_size + hidden_size) as f32).sqrt();
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let weights = Array2::from_shape_fn((hidden_size, input_size), |_| {
             (rng.random::<f32>() - 0.5) * 2.0 * scale
         });
@@ -647,10 +647,14 @@ impl PatternNetwork {
 
         // Resize input to match network size if necessary
         let network_input = if input.len() > self.weights.ncols() {
-            input.slice(ndarray::s![..self.weights.ncols()]).to_owned()
+            input
+                .slice(scirs2_core::ndarray::s![..self.weights.ncols()])
+                .to_owned()
         } else {
             let mut padded = Array1::zeros(self.weights.ncols());
-            padded.slice_mut(ndarray::s![..input.len()]).assign(&input);
+            padded
+                .slice_mut(scirs2_core::ndarray::s![..input.len()])
+                .assign(&input);
             padded
         };
 
@@ -689,8 +693,10 @@ impl PatternNetwork {
             let mut count = 0;
 
             for i in 0..=(activations.len() - 2 * window_size) {
-                let window1 = activations.slice(ndarray::s![i..i + window_size]);
-                let window2 = activations.slice(ndarray::s![i + window_size..i + 2 * window_size]);
+                let window1 = activations.slice(scirs2_core::ndarray::s![i..i + window_size]);
+                let window2 = activations.slice(scirs2_core::ndarray::s![
+                    i + window_size..i + 2 * window_size
+                ]);
 
                 let similarity = window1
                     .iter()
@@ -972,7 +978,7 @@ mod tests {
     #[test]
     fn test_pattern_network() {
         let mut network = PatternNetwork::new("test", 10, 5, 3);
-        let mut rng = rand::rng();
+        let mut rng = scirs2_core::random::rng();
         let features = Array2::from_shape_fn((2, 5), |_| rng.random::<f32>());
 
         let score = network.analyze(&features).unwrap();

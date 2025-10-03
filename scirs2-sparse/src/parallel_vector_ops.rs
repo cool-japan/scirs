@@ -3,8 +3,8 @@
 //! This module provides SIMD and parallel accelerated implementations of common
 //! vector operations used in iterative solvers, leveraging scirs2-core infrastructure.
 
-use ndarray::ArrayView1;
-use num_traits::{Float, NumAssign};
+use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 // Import parallel and SIMD operations from scirs2-core

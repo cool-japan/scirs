@@ -8,8 +8,8 @@ use crate::reinforcement::policy::PolicyNetwork;
 use crate::reinforcement::replay_buffer::{PrioritizedReplayBuffer, ReplayBuffer};
 use crate::reinforcement::value::{QNetwork, ValueNetwork};
 use crate::reinforcement::{ExperienceBatch, LossInfo, RLAgent};
-use ndarray::prelude::*;
-use num_traits::Float;
+use scirs2_core::ndarray::prelude::*;
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 /// Twin Delayed Deep Deterministic Policy Gradients (TD3)
 pub struct TD3 {
@@ -216,7 +216,7 @@ impl TD3 {
         Ok(actor_loss)
     /// Sample noise for exploration or target smoothing
     fn sample_noise(&self, size: usize, std: f32) -> Array1<f32> {
-        use rand_distr::{Distribution, Normal};
+        use scirs2_core::random::{Distribution, Normal};
         let mut rng = rng();
         let normal = Normal::new(0.0, std).unwrap();
         Array1::from_shape_fn(size, |_| normal.sample(&mut rng))
@@ -670,10 +670,10 @@ impl ExplorationStrategy {
                 let epsilon = self.config.epsilon_end + 
                     (self.config.epsilon_start - self.config.epsilon_end) * 
                     self.config.epsilon_decay.powi(self.step_count as i32);
-                if rand::random::<f32>() < epsilon {
+                if scirs2_core::random::random::<f32>() < epsilon {
                     // Random action
-                    use rand::prelude::*;
-use ndarray::ArrayView1;
+                    use scirs2_core::random::prelude::*;
+use scirs2_core::ndarray::ArrayView1;
 use statrs::statistics::Statistics;
                     let mut rng = rng();
                     Ok(rng.random_range(0..q_values.len()))
@@ -701,7 +701,7 @@ use statrs::statistics::Statistics;
                     .unwrap_or(0))
             ExplorationStrategyType::ThompsonSampling => {
                 // Thompson Sampling (simplified)
-                use rand_distr::{Distribution, Normal};
+                use scirs2_core::random::{Distribution, Normal};
                 let mut rng = rng();
                 let normal = Normal::new(0.0, 1.0).unwrap();
                 let mut sampled_values = Array1::zeros(q_values.len());

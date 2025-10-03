@@ -3,8 +3,8 @@
 //! This module contains the fundamental algorithms for eigenvalue computation
 //! including Hessenberg reduction, tridiagonalization, and QR algorithm implementations.
 
-use ndarray::{Array1, Array2};
-use num_traits::{Float, One, Zero};
+use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::{Float, One, Zero};
 
 // Helper function for Hessenberg reduction
 #[allow(dead_code)]
@@ -243,7 +243,7 @@ pub(super) fn qr_algorithm<I>(
     mut a: Array2<I>,
     maxiter: usize,
     tol: I,
-) -> Array1<num_complex::Complex<I>>
+) -> Array1<scirs2_core::numeric::Complex<I>>
 where
     I: Float + Zero + One + Copy + std::fmt::Debug + std::ops::AddAssign + std::ops::SubAssign,
 {
@@ -270,12 +270,12 @@ where
 
         if l == m - 1 {
             // 1x1 block - real eigenvalue
-            eigenvalues[m - 1] = num_complex::Complex::new(a[[m - 1, m - 1]], I::zero());
+            eigenvalues[m - 1] = scirs2_core::numeric::Complex::new(a[[m - 1, m - 1]], I::zero());
             m -= 1;
         } else {
             // Apply QR iteration to the active submatrix
             let mut q = Array2::eye(m);
-            let mut r = a.slice(ndarray::s![0..m, 0..m]).to_owned();
+            let mut r = a.slice(scirs2_core::ndarray::s![0..m, 0..m]).to_owned();
 
             // QR factorization
             for k in 0..m - 1 {
@@ -327,7 +327,7 @@ where
                 // In a full implementation, we would use a different strategy here
                 // For now, just extract approximate eigenvalues
                 for i in 0..m {
-                    eigenvalues[i] = num_complex::Complex::new(a[[i, i]], I::zero());
+                    eigenvalues[i] = scirs2_core::numeric::Complex::new(a[[i, i]], I::zero());
                 }
                 break;
             }
@@ -336,7 +336,7 @@ where
 
     // Handle any remaining 1x1 blocks
     for i in 0..m {
-        eigenvalues[i] = num_complex::Complex::new(a[[i, i]], I::zero());
+        eigenvalues[i] = scirs2_core::numeric::Complex::new(a[[i, i]], I::zero());
     }
 
     eigenvalues

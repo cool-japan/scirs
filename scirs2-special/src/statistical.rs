@@ -107,7 +107,7 @@
 //! - **Loss Functions**: Cross-entropy loss uses log-softmax for numerical stability
 
 use crate::error::{SpecialError, SpecialResult};
-use ndarray::{Array1, ArrayView1};
+use scirs2_core::ndarray::{Array1, ArrayView1};
 use std::f64::consts::PI;
 
 /// Computes the logistic (sigmoid) function.
@@ -193,7 +193,7 @@ pub fn logistic_derivative(x: f64) -> f64 {
 ///
 /// ```
 /// use scirs2_special::softmax;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use approx::assert_relative_eq;
 ///
 /// let x = array![1.0, 2.0, 3.0];
@@ -258,7 +258,7 @@ pub fn softmax(x: ArrayView1<f64>) -> SpecialResult<Array1<f64>> {
 ///
 /// ```
 /// use scirs2_special::log_softmax;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use approx::assert_relative_eq;
 ///
 /// let x = array![1.0, 2.0, 3.0];
@@ -322,7 +322,7 @@ pub fn log_softmax(x: ArrayView1<f64>) -> SpecialResult<Array1<f64>> {
 ///
 /// ```
 /// use scirs2_special::logsumexp;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use approx::assert_relative_eq;
 ///
 /// let x = array![1.0, 2.0, 3.0];
@@ -377,7 +377,7 @@ pub fn logsumexp(x: ArrayView1<f64>) -> SpecialResult<f64> {
 ///
 /// ```
 /// use scirs2_special::log1p_array;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use approx::assert_relative_eq;
 ///
 /// let x = array![0.0, 1e-10, 0.1, 1.0];
@@ -410,7 +410,7 @@ pub fn log1p_array(x: ArrayView1<f64>) -> Array1<f64> {
 ///
 /// ```
 /// use scirs2_special::expm1_array;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use approx::assert_relative_eq;
 ///
 /// let x = array![0.0, 1e-10, 0.1, 1.0];
@@ -475,7 +475,7 @@ pub fn sinc(x: f64) -> f64 {
 ///
 /// ```
 /// use scirs2_special::sinc_array;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use approx::assert_relative_eq;
 ///
 /// let x = array![0.0, 0.5, 1.0, 2.0];
@@ -529,7 +529,7 @@ pub fn log_abs_gamma(x: f64) -> SpecialResult<f64> {
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_logistic() {

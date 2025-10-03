@@ -6,7 +6,7 @@
 //! ## Example
 //!
 //! ```no_run
-//! use ndarray::{array, Array1};
+//! use scirs2_core::ndarray::{array, Array1};
 //! use scirs2_optimize::constrained::{minimize_constrained, Method, Constraint};
 //!
 //! // Define a simple function to minimize
@@ -41,7 +41,7 @@
 
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1};
 use std::fmt;
 
 // Re-export optimization methods
@@ -217,7 +217,7 @@ impl<F> Constraint<F> {
 /// # Example
 ///
 /// ```no_run
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_optimize::constrained::{minimize_constrained, Method, Constraint};
 ///
 /// // Function to minimize

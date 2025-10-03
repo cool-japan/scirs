@@ -3,7 +3,7 @@
 //! This module provides utilities for computing metrics with minimal memory usage,
 //! which is particularly useful for large datasets.
 
-use ndarray::{ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
 use std::marker::PhantomData;
 
 use super::parallel::ParallelConfig;
@@ -86,7 +86,7 @@ impl ChunkedMetrics {
     /// # Examples
     ///
     /// ```
-    /// use ndarray::Array1;
+    /// use scirs2_core::ndarray::Array1;
     /// use scirs2_metrics::optimization::memory::{ChunkedMetrics, StreamingMetric};
     /// use scirs2_metrics::error::Result;
     ///
@@ -350,8 +350,8 @@ pub trait MemoryMappedMetric<T> {
 }
 
 use crossbeam_utils::CachePadded;
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2};
-use num_traits::Float;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2};
+use scirs2_core::numeric::Float;
 /// Zero-copy memory operations and custom allocators for high-performance metrics computation
 ///
 /// This module provides advanced memory management techniques including zero-copy operations,
@@ -1642,7 +1642,7 @@ impl<'a, T> ZeroCopyArrayViewMut<'a, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::Array1;
+    use scirs2_core::ndarray::Array1;
 
     // Example streaming implementation of mean absolute error
     struct StreamingMAE;

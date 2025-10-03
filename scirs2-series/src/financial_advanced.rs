@@ -8,8 +8,8 @@
 //! - Copula models for dependency modeling
 //! - Regime-switching models
 
-use ndarray::{s, Array1, Array2};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -206,7 +206,7 @@ pub struct OptionPrice {
 
 /// Risk metrics calculator
 #[derive(Debug)]
-pub struct RiskMetrics<F: Float + Debug + std::iter::Sum + num_traits::FromPrimitive> {
+pub struct RiskMetrics<F: Float + Debug + std::iter::Sum + scirs2_core::numeric::FromPrimitive> {
     /// Returns data
     returns: Array1<F>,
     /// Confidence levels for VaR/CVaR
@@ -214,7 +214,9 @@ pub struct RiskMetrics<F: Float + Debug + std::iter::Sum + num_traits::FromPrimi
     confidencelevels: Vec<F>,
 }
 
-impl<F: Float + Debug + Clone + std::iter::Sum + num_traits::FromPrimitive> RiskMetrics<F> {
+impl<F: Float + Debug + Clone + std::iter::Sum + scirs2_core::numeric::FromPrimitive>
+    RiskMetrics<F>
+{
     /// Create new risk metrics calculator
     pub fn new(returns: Array1<F>) -> Self {
         let confidencelevels = vec![
@@ -748,7 +750,9 @@ pub struct RegimeParameters<F: Float> {
     pub persistence: F,
 }
 
-impl<F: Float + Debug + Clone + FromPrimitive + ndarray::ScalarOperand> RegimeSwitchingModel<F> {
+impl<F: Float + Debug + Clone + FromPrimitive + scirs2_core::ndarray::ScalarOperand>
+    RegimeSwitchingModel<F>
+{
     /// Create new regime-switching model
     pub fn new(
         num_regimes: usize,

@@ -16,7 +16,7 @@
 //!    Journal of Mathematical Analysis and Applications, 235(1), 285-298.
 
 use crate::error::{SpecialError, SpecialResult};
-use num_complex::Complex64;
+use scirs2_core::numeric::Complex64;
 // Using f64 constants directly without imports
 use crate::gamma;
 
@@ -889,7 +889,7 @@ mod tests {
 
     #[test]
     fn test_wright_bessel_complex_special_cases() {
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
 
         // For z=0, beta=1, the result should be 1/Gamma(1) = 1
         let result =
@@ -912,7 +912,7 @@ mod tests {
 
     #[test]
     fn test_wright_bessel_complex_invalid_parameters() {
-        use num_complex::Complex64;
+        use scirs2_core::numeric::Complex64;
 
         // Test with invalid rho
         assert!(

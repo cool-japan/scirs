@@ -4,7 +4,7 @@
 //! in the scirs2-interpolate library, showcasing the complete functionality
 //! from basic interpolation to advanced SIMD-optimized methods.
 
-use ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_interpolate::{
     // Advanced methods
     advanced::rbf::{RBFInterpolator, RBFKernel},

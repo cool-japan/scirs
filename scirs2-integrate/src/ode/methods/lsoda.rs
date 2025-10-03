@@ -8,7 +8,7 @@
 use crate::error::{IntegrateError, IntegrateResult};
 use crate::ode::types::{ODEMethod, ODEOptions, ODEResult};
 use crate::IntegrateFloat;
-use ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::fmt::Debug;
 
 /// Method type for LSODA

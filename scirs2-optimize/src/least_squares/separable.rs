@@ -10,7 +10,7 @@
 //! # Example
 //!
 //! ```
-//! use ndarray::{array, Array1, Array2};
+//! use scirs2_core::ndarray::{array, Array1, Array2};
 //! use scirs2_optimize::least_squares::separable::{separable_least_squares, SeparableOptions};
 //!
 //! // Model: y = α₁ * exp(-β * t) + α₂
@@ -68,7 +68,7 @@
 
 use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
-use ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1};
 use std::f64;
 
 /// Options for separable least squares
@@ -474,7 +474,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::array;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_separable_exponential() {

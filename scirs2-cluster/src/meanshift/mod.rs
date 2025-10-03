@@ -1,5 +1,5 @@
-use ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
-use num_traits::{Float, FromPrimitive};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
+use scirs2_core::numeric::{Float, FromPrimitive};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::hash::{Hash, Hasher};
@@ -108,7 +108,7 @@ impl<T: Float> Hash for FloatPoint<T> {
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_cluster::meanshift::estimate_bandwidth;
 ///
 /// let data = array![
@@ -138,9 +138,9 @@ pub fn estimate_bandwidth<T: Float + Display + FromPrimitive + Send + Sync + 'st
             data.to_owned()
         } else {
             // Sample n_samples points randomly
-            let mut rng = rand::rng();
+            let mut rng = scirs2_core::random::rng();
 
-            use rand::seq::SliceRandom;
+            use scirs2_core::random::seq::SliceRandom;
             let mut indices: Vec<usize> = (0..data.nrows()).collect();
             indices.shuffle(&mut rng);
 
@@ -171,7 +171,7 @@ pub fn estimate_bandwidth<T: Float + Display + FromPrimitive + Send + Sync + 'st
     let batch_size = 500;
     for i in (0..data.nrows()).step_by(batch_size) {
         let end = (i + batch_size).min(data.nrows());
-        let batch = data.slice(ndarray::s![i..end, ..]);
+        let batch = data.slice(scirs2_core::ndarray::s![i..end, ..]);
 
         for row in batch.rows() {
             let (_, distances) = kdtree.query(&row.to_vec(), n_neighbors + 1).map_err(|e| {
@@ -275,7 +275,7 @@ fn mean_shift_single_seed<
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand,
+        + scirs2_core::ndarray::ScalarOperand,
 >(
     seed: ArrayView1<T>,
     data: &ArrayView2<T>,
@@ -354,7 +354,7 @@ fn mean_shift_single_seed<
 /// # Examples
 ///
 /// ```
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 /// use scirs2_cluster::meanshift::{mean_shift, MeanShiftOptions};
 ///
 /// let data = array![
@@ -379,7 +379,7 @@ pub fn mean_shift<
         + Send
         + Sync
         + 'static
-        + ndarray::ScalarOperand
+        + scirs2_core::ndarray::ScalarOperand
         + Debug,
 >(
     data: &ArrayView2<T>,
@@ -410,7 +410,7 @@ impl<
             + Send
             + Sync
             + 'static
-            + ndarray::ScalarOperand
+            + scirs2_core::ndarray::ScalarOperand
             + Debug,
     > MeanShift<T>
 {
@@ -575,7 +575,7 @@ impl<
         let batch_size = 1000;
         for i in (0..n_samples).step_by(batch_size) {
             let end = (i + batch_size).min(n_samples);
-            let batch = data.slice(ndarray::s![i..end, ..]);
+            let batch = data.slice(scirs2_core::ndarray::s![i..end, ..]);
 
             for (row_idx, row) in batch.rows().into_iter().enumerate() {
                 let point_idx = i + row_idx;
@@ -648,7 +648,7 @@ impl<
         let batch_size = 1000;
         for i in (0..n_samples).step_by(batch_size) {
             let end = (i + batch_size).min(n_samples);
-            let batch = data.slice(ndarray::s![i..end, ..]);
+            let batch = data.slice(scirs2_core::ndarray::s![i..end, ..]);
 
             for (row_idx, row) in batch.rows().into_iter().enumerate() {
                 let (indices_, _distances) = kdtree.query(&row.to_vec(), 1).map_err(|e| {
@@ -671,7 +671,7 @@ impl<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::{array, Array2, ArrayView1};
+    use scirs2_core::ndarray::{array, Array2, ArrayView1};
     use std::collections::HashSet;
 
     #[test]

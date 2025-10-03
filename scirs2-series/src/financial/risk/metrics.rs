@@ -39,7 +39,7 @@
 //! ## Basic VaR Calculation
 //! ```rust
 //! use scirs2_series::financial::risk::metrics::{var_historical, expected_shortfall};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let returns = array![-0.05, 0.02, -0.03, 0.01, -0.02, 0.03, -0.01, 0.04];
 //! let confidence = 0.95; // 95% confidence level
@@ -56,7 +56,7 @@
 //! ## Risk-Adjusted Performance
 //! ```rust
 //! use scirs2_series::financial::risk::metrics::{sharpe_ratio, sortino_ratio};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let returns = array![0.01, -0.02, 0.015, -0.008, 0.012, 0.005, -0.003];
 //! let risk_free_rate = 0.02; // 2% annual
@@ -72,7 +72,7 @@
 //! ## Market Beta Analysis
 //! ```rust
 //! use scirs2_series::financial::risk::metrics::{beta, jensens_alpha};
-//! use ndarray::array;
+//! use scirs2_core::ndarray::array;
 //!
 //! let asset_returns = array![0.01, -0.02, 0.015, -0.01, 0.005];
 //! let market_returns = array![0.008, -0.015, 0.012, -0.008, 0.004];
@@ -86,8 +86,8 @@
 //! let alpha = jensens_alpha(&asset_returns, &market_returns, risk_free_rate, periods_per_year).unwrap();
 //! ```
 
-use ndarray::Array1;
-use num_traits::Float;
+use scirs2_core::ndarray::Array1;
+use scirs2_core::numeric::Float;
 
 use crate::error::{Result, TimeSeriesError};
 
@@ -110,7 +110,7 @@ use crate::error::{Result, TimeSeriesError};
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::metrics::var_historical;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![-0.05, 0.02, -0.03, 0.01, -0.02, 0.03, -0.01, 0.04];
 /// let var_95 = var_historical(&returns, 0.95).unwrap();
@@ -157,7 +157,7 @@ pub fn var_historical<F: Float + Clone>(returns: &Array1<F>, confidence: f64) ->
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::metrics::expected_shortfall;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![-0.05, 0.02, -0.03, 0.01, -0.02, 0.03, -0.01, 0.04];
 /// let es_95 = expected_shortfall(&returns, 0.95).unwrap();
@@ -196,7 +196,7 @@ pub fn expected_shortfall<F: Float + Clone + std::iter::Sum>(
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::metrics::parametric_var;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![0.01, -0.02, 0.015, -0.01, 0.005];
 /// let var = parametric_var(&returns, 0.95).unwrap();
@@ -311,7 +311,7 @@ pub fn monte_carlo_var<F: Float + Clone>(
 ///
 /// ```rust
 /// use scirs2_series::financial::risk::metrics::sharpe_ratio;
-/// use ndarray::array;
+/// use scirs2_core::ndarray::array;
 ///
 /// let returns = array![0.01, -0.02, 0.015, -0.008, 0.012];
 /// let sharpe = sharpe_ratio(&returns, 0.02, 252).unwrap();
@@ -667,7 +667,7 @@ fn normal_inverse_cdf<F: Float>(p: F) -> F {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ndarray::arr1;
+    use scirs2_core::ndarray::arr1;
 
     #[test]
     fn test_var_historical() {
