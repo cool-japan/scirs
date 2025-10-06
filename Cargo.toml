@@ -68,7 +68,7 @@ num-integer = "0.1.46"
 
 # Parallelization and performance
 rayon = "1.11.0"
-wide = "0.7.33"  # SIMD acceleration library
+wide = "0.8.0"  # SIMD acceleration library
 num_cpus = "1.17.0"
 
 # Random number generation
@@ -233,7 +233,7 @@ objc2 = { version = "0.6.2"}
 objc2-foundation = "0.3.1"
 objc2-metal-performance-shaders = "0.3.1"
 opencl3 = { version = "0.12" }
-wgpu = { version = "26.0" }
+wgpu = { version = "27.0" }
 pollster = { version = "0.4" }
 cudarc = { version = "0.17", features = ["cuda-12000"] }
 
