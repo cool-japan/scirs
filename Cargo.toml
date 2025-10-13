@@ -68,7 +68,7 @@ num-integer = "0.1.46"
 
 # Parallelization and performance
 rayon = "1.11.0"
-wide = "0.7.33"  # SIMD acceleration library
+wide = "0.8.1"  # SIMD acceleration library
 num_cpus = "1.17.0"
 
 # Random number generation
@@ -111,7 +111,7 @@ ndarray-linalg = { version = "0.17.0", default-features = false }
 # - macOS: Use Accelerate framework (system BLAS, no source build)
 # - Linux: Use system OpenBLAS (openblas-system feature, no source build)
 # - Windows: Use openblas-src as fallback
-blas-src = { version = "0.13", default-features = false }
+blas-src = { version = "0.14", default-features = false }
 cblas-sys = { version = "0.3.0", default-features = false }
 blas = { version = "0.23.0", default-features = false }
 # NOTE: openblas-src is intentionally removed from workspace - use system libraries only
@@ -140,7 +140,7 @@ hex = "0.4"
 digest = "0.10"
 data-encoding = "2.9"
 glob = "0.3"
-zip = "5.1"
+zip = "6.0"
 dirs = "6.0.0"
 urlencoding = "2.1"
 url = "2.5.7"
@@ -233,13 +233,13 @@ objc2 = { version = "0.6.2"}
 objc2-foundation = "0.3.1"
 objc2-metal-performance-shaders = "0.3.1"
 opencl3 = { version = "0.12" }
-wgpu = { version = "26.0" }
+wgpu = { version = "27.0" }
 pollster = { version = "0.4" }
 cudarc = { version = "0.17", features = ["cuda-12000"] }
 
 
 # Development and testing additions
-ctor = { version = "0.5" }
+ctor = { version = "0.6" }
 quickcheck = { version = "1.0" }
 quickcheck_macros = { version = "1.1" }
 instant = { version = "0.1" }
@@ -287,8 +287,8 @@ tch = { version = "0.20", features = ["download-libtorch"] } # Auto-download lib
 prometheus = { version = "0.14" }
 
 # GUI libraries
-egui = { version = "0.32" }
-eframe = { version = "0.32" }
+egui = { version = "0.33" }
+eframe = { version = "0.33" }
 
 # Python integration (optional)
 
