@@ -105,7 +105,7 @@ sprs = { version = "0.11.3", default-features = false }
 
 # Platform-specific BLAS/LAPACK backends
 # ndarray-linalg with different backends - choose only one per platform
-ndarray-linalg = { version = "0.17.0", default-features = false }
+ndarray-linalg = { version = "0.18.0", default-features = false }
 
 # BLAS backends - platform-specific configuration:
 # - macOS: Use Accelerate framework (system BLAS, no source build)
