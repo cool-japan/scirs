@@ -1027,7 +1027,7 @@ where
         return Err("number of intervals must be at least 2".to_string());
     }
 
-    if !n.is_multiple_of(2) {
+    if n % 2 != 0 {
         return Err("number of intervals must be even".to_string());
     }
 
