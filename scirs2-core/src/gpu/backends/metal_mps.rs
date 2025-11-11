@@ -40,7 +40,7 @@ use objc2::runtime::ProtocolObject;
 use objc2::rc::Retained;
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
-use objc2::{msg_send, msg_send_id, rc::Id, ClassType};
+use objc2::{msg_send, msg_send_id, ClassType};
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
 use objc2::runtime::AnyObject;
@@ -60,9 +60,9 @@ type MTLBuffer = ();
 /// Metal Performance Shaders context (using objc2 API)
 pub struct MPSContext {
     #[cfg(all(feature = "metal", target_os = "macos"))]
-    device: Id<ProtocolObject<dyn MTLDevice>>,
+    device: Retained<ProtocolObject<dyn MTLDevice>>,
     #[cfg(all(feature = "metal", target_os = "macos"))]
-    command_queue: Id<ProtocolObject<dyn MTLCommandQueue>>,
+    command_queue: Retained<ProtocolObject<dyn MTLCommandQueue>>,
     #[cfg(not(all(feature = "metal", target_os = "macos")))]
     device: MTLDevice,
     #[cfg(not(all(feature = "metal", target_os = "macos")))]
@@ -79,8 +79,8 @@ impl MPSContext {
     /// Create a new MPS context (objc2 API)
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn new(
-        device: Id<ProtocolObject<dyn MTLDevice>>,
-        command_queue: Id<ProtocolObject<dyn MTLCommandQueue>>,
+        device: Retained<ProtocolObject<dyn MTLDevice>>,
+        command_queue: Retained<ProtocolObject<dyn MTLCommandQueue>>,
     ) -> Self {
         Self {
             device,
@@ -196,7 +196,7 @@ impl MPSContext {
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn create_matrix(
         &self,
-        buffer: &Id<ProtocolObject<dyn MTLBuffer>>,
+        buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
         descriptor: &Retained<MPSMatrixDescriptor>,
     ) -> Result<Retained<MPSMatrix>, GpuError> {
         use objc2_metal_performance_shaders::MPSMatrix;
@@ -235,11 +235,10 @@ impl MPSContext {
         result_matrix: &Retained<MPSMatrix>,
         matmul: &Retained<MPSMatrixMultiplication>,
     ) -> Result<(), GpuError> {
-        use objc2::rc::Id;
         use objc2_metal::MTLCommandBuffer;
 
         // Create command buffer using msg_send! (trait object requires dynamic dispatch)
-        let command_buffer: Option<Id<AnyObject>> = unsafe {
+        let command_buffer: Option<Retained<AnyObject>> = unsafe {
             msg_send_id![&self.command_queue, commandBuffer]
         };
 
@@ -436,8 +435,8 @@ impl MPSOperations {
     /// Create new MPS operations instance (objc2 API)
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn new(
-        device: Id<ProtocolObject<dyn MTLDevice>>,
-        command_queue: Id<ProtocolObject<dyn MTLCommandQueue>>,
+        device: Retained<ProtocolObject<dyn MTLDevice>>,
+        command_queue: Retained<ProtocolObject<dyn MTLCommandQueue>>,
     ) -> Self {
         Self {
             context: Arc::new(MPSContext::new(device, command_queue)),
@@ -475,9 +474,9 @@ impl MPSOperations {
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn matmul_f32(
         &self,
-        a_buffer: &Id<ProtocolObject<dyn MTLBuffer>>,
-        b_buffer: &Id<ProtocolObject<dyn MTLBuffer>>,
-        c_buffer: &Id<ProtocolObject<dyn MTLBuffer>>,
+        a_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
+        b_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
+        c_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
         m: usize,
         k: usize,
         n: usize,
