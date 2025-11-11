@@ -29,9 +29,25 @@ use objc2_metal::{MTLBuffer, MTLCommandQueue, MTLDevice};
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
 use objc2_metal_performance_shaders::{
-    MPSImageConvolution, MPSImageGaussianBlur, MPSMatrix, MPSMatrixDescriptor,
-    MPSMatrixMultiplication,
+    MPSDataType as MPSDataTypeEnum, MPSImageConvolution, MPSImageGaussianBlur, MPSMatrix,
+    MPSMatrixDescriptor, MPSMatrixMultiplication,
 };
+
+#[cfg(all(feature = "metal", target_os = "macos"))]
+use objc2::runtime::ProtocolObject;
+
+#[cfg(all(feature = "metal", target_os = "macos"))]
+use objc2::rc::Retained;
+
+#[cfg(all(feature = "metal", target_os = "macos"))]
+use objc2::{msg_send, msg_send_id, rc::Id, ClassType};
+
+#[cfg(all(feature = "metal", target_os = "macos"))]
+use objc2::runtime::AnyObject;
+
+// Import macOS-specific MPS class types
+#[cfg(all(feature = "metal", target_os = "macos"))]
+use objc2_metal_performance_shaders::MPSKernel;
 
 // Fallback type aliases when not on macOS
 #[cfg(not(all(feature = "metal", target_os = "macos")))]
@@ -44,9 +60,9 @@ type MTLBuffer = ();
 /// Metal Performance Shaders context (using objc2 API)
 pub struct MPSContext {
     #[cfg(all(feature = "metal", target_os = "macos"))]
-    device: objc2::rc::Retained<dyn MTLDevice>,
+    device: Id<ProtocolObject<dyn MTLDevice>>,
     #[cfg(all(feature = "metal", target_os = "macos"))]
-    command_queue: objc2::rc::Retained<dyn MTLCommandQueue>,
+    command_queue: Id<ProtocolObject<dyn MTLCommandQueue>>,
     #[cfg(not(all(feature = "metal", target_os = "macos")))]
     device: MTLDevice,
     #[cfg(not(all(feature = "metal", target_os = "macos")))]
@@ -63,8 +79,8 @@ impl MPSContext {
     /// Create a new MPS context (objc2 API)
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn new(
-        device: objc2::rc::Retained<dyn MTLDevice>,
-        command_queue: objc2::rc::Retained<dyn MTLCommandQueue>,
+        device: Id<ProtocolObject<dyn MTLDevice>>,
+        command_queue: Id<ProtocolObject<dyn MTLCommandQueue>>,
     ) -> Self {
         Self {
             device,
@@ -81,53 +97,176 @@ impl MPSContext {
         }
     }
 
-    /// Create a matrix multiplication operation (stub)
+    /// Create a matrix multiplication operation
+    #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn create_matmul(
         &self,
-        _dimension: usize,
-        _alpha: f32,
-        _beta: f32,
+        transpose_left: bool,
+        transpose_right: bool,
+        result_rows: usize,
+        result_columns: usize,
+        interior_columns: usize,
+        alpha: f64,
+        beta: f64,
+    ) -> Result<Retained<MPSMatrixMultiplication>, GpuError> {
+        use objc2_metal_performance_shaders::MPSMatrixMultiplication;
+
+        // Create matrix multiplication kernel using msg_send (handles trait objects properly)
+        let matmul = unsafe {
+            let cls = MPSMatrixMultiplication::class();
+            let alloc = msg_send_id![cls, alloc];
+            msg_send_id![
+                alloc,
+                initWithDevice: &*self.device,
+                transposeLeft: transpose_left,
+                transposeRight: transpose_right,
+                resultRows: result_rows,
+                resultColumns: result_columns,
+                interiorColumns: interior_columns,
+                alpha: alpha,
+                beta: beta
+            ]
+        };
+
+        Ok(matmul)
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
+    pub fn create_matmul(
+        &self,
+        _transpose_left: bool,
+        _transpose_right: bool,
+        _result_rows: usize,
+        _result_columns: usize,
+        _interior_columns: usize,
+        _alpha: f64,
+        _beta: f64,
     ) -> Result<(), GpuError> {
-        // TODO: Implement proper MPS matrix multiplication with updated objc2 API
         Err(GpuError::Other(
-            "MPS matrix multiplication not yet implemented with new objc2 API".to_string(),
+            "Metal not available on this platform".to_string(),
         ))
     }
 
-    /// Create a matrix descriptor (stub)
+    /// Create a matrix descriptor
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn create_descriptor(
+        rows: usize,
+        columns: usize,
+        row_bytes: usize,
+        datatype: MPSDataType,
+    ) -> Result<Retained<MPSMatrixDescriptor>, GpuError> {
+        use objc2_metal_performance_shaders::MPSMatrixDescriptor;
+
+        // Map our datatype to MPS data type enum
+        let mps_datatype = match datatype {
+            MPSDataType::Float32 => MPSDataTypeEnum::Float32,
+            MPSDataType::Float16 => MPSDataTypeEnum::Float16,
+            MPSDataType::Int32 => MPSDataTypeEnum::Int32,
+            _ => return Err(GpuError::Other(format!("Unsupported datatype: {:?}", datatype))),
+        };
+
+        // Create matrix descriptor using msg_send
+        let descriptor = unsafe {
+            let cls = MPSMatrixDescriptor::class();
+            msg_send_id![
+                cls,
+                matrixDescriptorWithRows: rows,
+                columns: columns,
+                rowBytes: row_bytes,
+                dataType: mps_datatype
+            ]
+        };
+
+        Ok(descriptor)
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
     pub fn create_descriptor(
         _rows: usize,
         _columns: usize,
         _row_bytes: usize,
         _datatype: MPSDataType,
     ) -> Result<(), GpuError> {
-        // TODO: Implement proper MPS matrix descriptor with updated objc2 API
-        Err(GpuError::Other(
-            "MPS matrix descriptor not yet implemented with new objc2 API".to_string(),
-        ))
-    }
-
-    /// Create an MPS matrix from a Metal buffer (stub - objc2 API)
-    #[cfg(all(feature = "metal", target_os = "macos"))]
-    pub fn creatematrix(
-        &self,
-        _buffer: &objc2::rc::Retained<dyn MTLBuffer>,
-        _descriptor: &(),
-    ) -> Result<(), GpuError> {
-        // TODO: Implement using objc2 MPSMatrixDescriptor and MPSMatrix::init_with_buffer
-        Err(GpuError::Other(
-            "MPS matrix creation not yet implemented with new objc2 API".to_string(),
-        ))
-    }
-
-    #[cfg(not(all(feature = "metal", target_os = "macos")))]
-    pub fn creatematrix(&self, _buffer: &MTLBuffer, _descriptor: &()) -> Result<(), GpuError> {
         Err(GpuError::Other(
             "Metal not available on this platform".to_string(),
         ))
     }
 
-    /// Perform matrix multiplication using MPS (stub)
+    /// Create an MPS matrix from a Metal buffer
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn create_matrix(
+        &self,
+        buffer: &Id<ProtocolObject<dyn MTLBuffer>>,
+        descriptor: &Retained<MPSMatrixDescriptor>,
+    ) -> Result<Retained<MPSMatrix>, GpuError> {
+        use objc2_metal_performance_shaders::MPSMatrix;
+
+        // Create MPSMatrix wrapping the MTLBuffer using msg_send (handles trait objects)
+        let matrix = unsafe {
+            let cls = MPSMatrix::class();
+            let alloc = msg_send_id![cls, alloc];
+            msg_send_id![
+                alloc,
+                initWithBuffer: &**buffer,
+                descriptor: &**descriptor
+            ]
+        };
+
+        Ok(matrix)
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
+    pub fn create_matrix(
+        &self,
+        _buffer: &MTLBuffer,
+        _descriptor: &(),
+    ) -> Result<(), GpuError> {
+        Err(GpuError::Other(
+            "Metal not available on this platform".to_string(),
+        ))
+    }
+
+    /// Perform matrix multiplication using MPS
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn matrix_multiply(
+        &self,
+        left_matrix: &Retained<MPSMatrix>,
+        right_matrix: &Retained<MPSMatrix>,
+        result_matrix: &Retained<MPSMatrix>,
+        matmul: &Retained<MPSMatrixMultiplication>,
+    ) -> Result<(), GpuError> {
+        use objc2::rc::Id;
+        use objc2_metal::MTLCommandBuffer;
+
+        // Create command buffer using msg_send! (trait object requires dynamic dispatch)
+        let command_buffer: Option<Id<AnyObject>> = unsafe {
+            msg_send_id![&self.command_queue, commandBuffer]
+        };
+
+        let command_buffer = command_buffer
+            .ok_or_else(|| GpuError::Other("Failed to create command buffer".to_string()))?;
+
+        // Encode matrix multiplication operation using msg_send
+        unsafe {
+            let _: () = msg_send![
+                &**matmul,
+                encodeToCommandBuffer:&*command_buffer
+                leftMatrix:&**left_matrix
+                rightMatrix:&**right_matrix
+                resultMatrix:&**result_matrix
+            ];
+        }
+
+        // Commit and wait for completion
+        unsafe {
+            let _: () = msg_send![&*command_buffer, commit];
+            let _: () = msg_send![&*command_buffer, waitUntilCompleted];
+        }
+
+        Ok(())
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
     pub fn matrix_multiply(
         &self,
         _left: &(),
@@ -135,9 +274,8 @@ impl MPSContext {
         _result: &(),
         _matmul: &(),
     ) -> Result<(), GpuError> {
-        // TODO: Implement proper MPS matrix multiplication with updated objc2 API
         Err(GpuError::Other(
-            "MPS matrix multiply not yet implemented with new objc2 API".to_string(),
+            "Metal not available on this platform".to_string(),
         ))
     }
 
@@ -298,8 +436,8 @@ impl MPSOperations {
     /// Create new MPS operations instance (objc2 API)
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn new(
-        device: objc2::rc::Retained<dyn MTLDevice>,
-        command_queue: objc2::rc::Retained<dyn MTLCommandQueue>,
+        device: Id<ProtocolObject<dyn MTLDevice>>,
+        command_queue: Id<ProtocolObject<dyn MTLCommandQueue>>,
     ) -> Self {
         Self {
             context: Arc::new(MPSContext::new(device, command_queue)),
