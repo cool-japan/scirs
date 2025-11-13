@@ -162,7 +162,12 @@ impl MPSContext {
             MPSDataType::Float32 => MPSDataTypeEnum::Float32,
             MPSDataType::Float16 => MPSDataTypeEnum::Float16,
             MPSDataType::Int32 => MPSDataTypeEnum::Int32,
-            _ => return Err(GpuError::Other(format!("Unsupported datatype: {:?}", datatype))),
+            _ => {
+                return Err(GpuError::Other(format!(
+                    "Unsupported datatype: {:?}",
+                    datatype
+                )))
+            }
         };
 
         // Create matrix descriptor using msg_send
@@ -216,17 +221,62 @@ impl MPSContext {
     }
 
     #[cfg(not(all(feature = "metal", target_os = "macos")))]
-    pub fn create_matrix(
-        &self,
-        _buffer: &MTLBuffer,
-        _descriptor: &(),
-    ) -> Result<(), GpuError> {
+    pub fn create_matrix(&self, _buffer: &MTLBuffer, _descriptor: &()) -> Result<(), GpuError> {
         Err(GpuError::Other(
             "Metal not available on this platform".to_string(),
         ))
     }
 
-    /// Perform matrix multiplication using MPS
+    /// Create a command buffer for batching operations
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn create_command_buffer(&self) -> Result<Retained<AnyObject>, GpuError> {
+        let command_buffer: Option<Retained<AnyObject>> =
+            unsafe { msg_send_id![&self.command_queue, commandBuffer] };
+
+        command_buffer.ok_or_else(|| GpuError::Other("Failed to create command buffer".to_string()))
+    }
+
+    /// Commit a command buffer (non-blocking)
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn commit_command_buffer(&self, command_buffer: &Retained<AnyObject>) {
+        unsafe {
+            let _: () = msg_send![&**command_buffer, commit];
+        }
+    }
+
+    /// Wait for a command buffer to complete
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn wait_for_command_buffer(&self, command_buffer: &Retained<AnyObject>) {
+        unsafe {
+            let _: () = msg_send![&**command_buffer, waitUntilCompleted];
+        }
+    }
+
+    /// Encode matrix multiplication to an existing command buffer (non-blocking, for batching)
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn encode_matrix_multiply(
+        &self,
+        command_buffer: &Retained<AnyObject>,
+        left_matrix: &Retained<MPSMatrix>,
+        right_matrix: &Retained<MPSMatrix>,
+        result_matrix: &Retained<MPSMatrix>,
+        matmul: &Retained<MPSMatrixMultiplication>,
+    ) -> Result<(), GpuError> {
+        // Encode matrix multiplication operation using msg_send
+        unsafe {
+            let _: () = msg_send![
+                &**matmul,
+                encodeToCommandBuffer:&**command_buffer
+                leftMatrix:&**left_matrix
+                rightMatrix:&**right_matrix
+                resultMatrix:&**result_matrix
+            ];
+        }
+
+        Ok(())
+    }
+
+    /// Perform matrix multiplication using MPS (creates own command buffer and waits)
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn matrix_multiply(
         &self,
@@ -238,29 +288,14 @@ impl MPSContext {
         use objc2_metal::MTLCommandBuffer;
 
         // Create command buffer using msg_send! (trait object requires dynamic dispatch)
-        let command_buffer: Option<Retained<AnyObject>> = unsafe {
-            msg_send_id![&self.command_queue, commandBuffer]
-        };
+        let command_buffer = self.create_command_buffer()?;
 
-        let command_buffer = command_buffer
-            .ok_or_else(|| GpuError::Other("Failed to create command buffer".to_string()))?;
-
-        // Encode matrix multiplication operation using msg_send
-        unsafe {
-            let _: () = msg_send![
-                &**matmul,
-                encodeToCommandBuffer:&*command_buffer
-                leftMatrix:&**left_matrix
-                rightMatrix:&**right_matrix
-                resultMatrix:&**result_matrix
-            ];
-        }
+        // Encode operation
+        self.encode_matrix_multiply(&command_buffer, left_matrix, right_matrix, result_matrix, matmul)?;
 
         // Commit and wait for completion
-        unsafe {
-            let _: () = msg_send![&*command_buffer, commit];
-            let _: () = msg_send![&*command_buffer, waitUntilCompleted];
-        }
+        self.commit_command_buffer(&command_buffer);
+        self.wait_for_command_buffer(&command_buffer);
 
         Ok(())
     }
@@ -456,6 +491,61 @@ impl MPSOperations {
         &self.context
     }
 
+    /// Encode matrix multiplication to an existing command buffer (for batching)
+    ///
+    /// This variant doesn't commit or wait, allowing multiple operations to be batched.
+    /// Expected speedup: 2-3x when batching multiple operations.
+    ///
+    /// # Arguments
+    /// * `command_buffer` - Existing command buffer to encode into
+    /// * `a_buffer` - Left matrix buffer (M x K)
+    /// * `b_buffer` - Right matrix buffer (K x N)
+    /// * `c_buffer` - Result matrix buffer (M x N)
+    /// * `m` - Number of rows in A and C
+    /// * `k` - Number of columns in A and rows in B
+    /// * `n` - Number of columns in B and C
+    ///
+    /// # Returns
+    /// Ok(()) if operation encoded successfully
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn encode_matmul_f32(
+        &self,
+        command_buffer: &Retained<AnyObject>,
+        a_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
+        b_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
+        c_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> Result<(), GpuError> {
+        // Create matrix descriptors
+        let a_desc = MPSContext::create_descriptor(m, k, k * 4, MPSDataType::Float32)?;
+        let b_desc = MPSContext::create_descriptor(k, n, n * 4, MPSDataType::Float32)?;
+        let c_desc = MPSContext::create_descriptor(m, n, n * 4, MPSDataType::Float32)?;
+
+        // Create MPS matrices
+        let a_matrix = self.context.create_matrix(a_buffer, &a_desc)?;
+        let b_matrix = self.context.create_matrix(b_buffer, &b_desc)?;
+        let c_matrix = self.context.create_matrix(c_buffer, &c_desc)?;
+
+        // Create matmul kernel (alpha=1.0, beta=0.0 for C = A*B)
+        let matmul = self.context.create_matmul(
+            false, // No transpose for A
+            false, // No transpose for B
+            m,     // Result rows
+            n,     // Result columns
+            k,     // Interior dimension
+            1.0,   // alpha
+            0.0,   // beta
+        )?;
+
+        // Encode multiplication (don't commit/wait)
+        self.context
+            .encode_matrix_multiply(command_buffer, &a_matrix, &b_matrix, &c_matrix, &matmul)?;
+
+        Ok(())
+    }
+
     /// High-level matrix multiplication for f32 data (C = A * B)
     ///
     /// Performs optimized matrix multiplication using Metal Performance Shaders.
@@ -503,7 +593,8 @@ impl MPSOperations {
         )?;
 
         // Execute multiplication
-        self.context.matrix_multiply(&a_matrix, &b_matrix, &c_matrix, &matmul)?;
+        self.context
+            .matrix_multiply(&a_matrix, &b_matrix, &c_matrix, &matmul)?;
 
         Ok(())
     }
@@ -517,6 +608,78 @@ impl MPSOperations {
         _m: usize,
         _k: usize,
         _n: usize,
+    ) -> Result<(), GpuError> {
+        Err(GpuError::Other(
+            "Metal not available on this platform".to_string(),
+        ))
+    }
+
+    /// High-level scaled matrix multiplication for f32 data (C = alpha * A * B)
+    ///
+    /// Performs optimized scaled matrix multiplication using Metal Performance Shaders.
+    /// This fuses the scaling operation into the matmul, eliminating a separate kernel dispatch.
+    /// Expected speedup: 1.5-2x over separate matmul + scale operations.
+    ///
+    /// # Arguments
+    /// * `a_buffer` - Left matrix buffer (M x K)
+    /// * `b_buffer` - Right matrix buffer (K x N)
+    /// * `c_buffer` - Result matrix buffer (M x N)
+    /// * `m` - Number of rows in A and C
+    /// * `k` - Number of columns in A and rows in B
+    /// * `n` - Number of columns in B and C
+    /// * `alpha` - Scaling factor for the result (C = alpha * A * B)
+    ///
+    /// # Returns
+    /// Ok(()) if operation completed successfully
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn matmul_f32_scaled(
+        &self,
+        a_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
+        b_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
+        c_buffer: &Retained<ProtocolObject<dyn MTLBuffer>>,
+        m: usize,
+        k: usize,
+        n: usize,
+        alpha: f32,
+    ) -> Result<(), GpuError> {
+        // Create matrix descriptors
+        let a_desc = MPSContext::create_descriptor(m, k, k * 4, MPSDataType::Float32)?;
+        let b_desc = MPSContext::create_descriptor(k, n, n * 4, MPSDataType::Float32)?;
+        let c_desc = MPSContext::create_descriptor(m, n, n * 4, MPSDataType::Float32)?;
+
+        // Create MPS matrices
+        let a_matrix = self.context.create_matrix(a_buffer, &a_desc)?;
+        let b_matrix = self.context.create_matrix(b_buffer, &b_desc)?;
+        let c_matrix = self.context.create_matrix(c_buffer, &c_desc)?;
+
+        // Create matmul kernel with custom alpha (C = alpha * A * B)
+        let matmul = self.context.create_matmul(
+            false,        // No transpose for A
+            false,        // No transpose for B
+            m,            // Result rows
+            n,            // Result columns
+            k,            // Interior dimension
+            alpha as f64, // alpha (scaling factor)
+            0.0,          // beta
+        )?;
+
+        // Execute multiplication
+        self.context
+            .matrix_multiply(&a_matrix, &b_matrix, &c_matrix, &matmul)?;
+
+        Ok(())
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
+    pub fn matmul_f32_scaled(
+        &self,
+        _a_buffer: &(),
+        _b_buffer: &(),
+        _c_buffer: &(),
+        _m: usize,
+        _k: usize,
+        _n: usize,
+        _alpha: f32,
     ) -> Result<(), GpuError> {
         Err(GpuError::Other(
             "Metal not available on this platform".to_string(),
