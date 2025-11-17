@@ -315,7 +315,7 @@ impl RecordArray {
     }
 
     /// Enable or disable attribute-style field access
-    pub const fn set_allow_field_attributes(&mut self, allow: bool) {
+    pub fn set_allow_field_attributes(&mut self, allow: bool) {
         self.allow_field_attributes = allow;
     }
 

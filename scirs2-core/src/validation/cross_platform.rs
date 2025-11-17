@@ -640,8 +640,7 @@ impl CrossPlatformValidator {
         };
 
         // Check if allocation is aligned to page size for optimal performance
-        if size > self.platform_info.page_size && !size.is_multiple_of(self.platform_info.page_size)
-        {
+        if size > self.platform_info.page_size && size % self.platform_info.page_size != 0 {
             result.warnings.push(format!(
                 "Allocation size {} is not page-aligned (page size: {})",
                 size, self.platform_info.page_size

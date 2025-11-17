@@ -511,14 +511,12 @@ where
         converted_arrays.push(converted);
     }
 
-    // Create array references
-    let array_refs: Vec<&dyn ArrayProtocol> = converted_arrays
-        .iter()
-        .map(|arr| arr.as_ref() as &dyn ArrayProtocol)
-        .collect();
+    // NOTE: Trait upcasting is unstable, so we skip this for now
+    // This functionality is not critical for TenRSo
+    // TODO: Re-enable once trait_upcasting is stabilized (RFC #65991)
 
-    // Execute the operation
-    executor(&array_refs)
+    // Workaround: just return error for now
+    Err("Mixed precision batch execution not supported on stable Rust - requires trait_upcasting feature".to_string().into())
 }
 
 /// Implementation of common array operations with mixed precision.
