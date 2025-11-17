@@ -8,6 +8,7 @@
 
 use crate::error::{Error, Result};
 use scirs2_core::ndarray::{ArrayD, ArrayView, Zip};
+use scirs2_core::ndarray::ArrayStatCompat;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use statrs::statistics::Statistics;
@@ -355,7 +356,7 @@ impl MixedBitWidthQuantizer {
         self.assign_bit_widths()?;
     /// Compute variance of activations
     fn compute_variance(&self, tensor: &ArrayD<f32>) -> f32 {
-        let mean = tensor.mean().unwrap_or(0.0);
+        let mean = tensor.mean_or(0.0);
         let variance =
             tensor.iter().map(|&x| (x - mean).powi(2)).sum::<f32>() / tensor.len() as f32;
         variance

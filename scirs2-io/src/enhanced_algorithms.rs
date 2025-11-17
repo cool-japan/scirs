@@ -10,6 +10,7 @@
 use crate::error::{IoError, Result};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;
@@ -669,7 +670,7 @@ impl PatternNetwork {
             "fractal" => self.score_fractal_pattern(&activated),
             "entropy" => self.score_entropy_pattern(&activated),
             "compression" => self.score_compression_pattern(&activated),
-            _ => activated.mean().unwrap_or(0.0),
+            _ => activated.mean_or(0.0),
         };
 
         self.activation_history.push_back(score);

@@ -10,6 +10,7 @@ use crate::error::{NeuralError, Result};
 use scirs2_core::ndarray::{Array, ArrayD, Axis};
 use scirs2_core::numeric::Float;
 use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use statrs::statistics::Statistics;
@@ -370,7 +371,7 @@ impl<F: Float + Debug + 'static + scirs2_core::ndarray::ScalarOperand + scirs2_c
         if let Some(contrast_factor) = contrast {
                 F::from(1.0 + rng().random_range(-contrast_factor..=contrast_factor))
                     .unwrap();
-            let mean = result.mean().unwrap_or(F::zero());
+            let mean = result.mean_or(F::zero());
             result = (result - mean) * factor + mean;
         // Clamp values to valid range [0..1] (assuming normalized images)
         result = result.mapv(|x| x.max(F::zero()).min(F::one()));

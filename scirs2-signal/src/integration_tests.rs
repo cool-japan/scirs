@@ -16,6 +16,7 @@ use crate::sysid::{estimate_transfer_function, TfEstimationMethod};
 use crate::validation_runner::{validate_signal_processing_library, ValidationConfig};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -951,7 +952,7 @@ fn extract_image_features(
     features.push(detail_d_energy);
 
     // Additional statistical features
-    features.push(decomp.approx.mean().unwrap_or(0.0));
+    features.push(decomp.approx.mean_or(0.0));
     features.push(decomp.approx.var(1.0));
 
     Ok(features)

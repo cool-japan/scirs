@@ -16,6 +16,7 @@ use scirs2_core::random::Rng;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{PlatformCapabilities, SimdUnifiedOps};
 use scirs2_core::Rng as CoreRng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -1080,8 +1081,8 @@ fn calculate_ssim_2d(img1: &ArrayView2<f64>, img2: &ArrayView2<f64>) -> SignalRe
     let c1 = 0.01_f64.powi(2);
     let c2 = 0.03_f64.powi(2);
 
-    let mean1 = img1.mean().unwrap_or(0.0);
-    let mean2 = img2.mean().unwrap_or(0.0);
+    let mean1 = img1.mean_or(0.0);
+    let mean2 = img2.mean_or(0.0);
 
     let var1 = img1.mapv(|x| (x - mean1).powi(2)).mean();
     let var2 = img2.mapv(|x| (x - mean2).powi(2)).mean();

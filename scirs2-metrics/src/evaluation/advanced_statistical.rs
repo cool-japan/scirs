@@ -6,6 +6,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 
 use crate::error::{MetricsError, Result};
@@ -206,8 +207,8 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
 
     /// Calculate Cohen's d effect size
     fn cohensd(&self, group_a: ArrayView1<F>, group_b: ArrayView1<F>) -> Result<F> {
-        let mean_a = group_a.mean().unwrap_or(F::zero());
-        let mean_b = group_b.mean().unwrap_or(F::zero());
+        let mean_a = group_a.mean_or(F::zero());
+        let mean_b = group_b.mean_or(F::zero());
 
         let var_a = self.variance(group_a)?;
         let var_b = self.variance(group_b)?;
@@ -233,8 +234,8 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
         group_a: ArrayView1<F>,
         group_b: ArrayView1<F>,
     ) -> Result<(F, F)> {
-        let mean_a = group_a.mean().unwrap_or(F::zero());
-        let mean_b = group_b.mean().unwrap_or(F::zero());
+        let mean_a = group_a.mean_or(F::zero());
+        let mean_b = group_b.mean_or(F::zero());
         let diff = mean_a - mean_b;
 
         let var_a = self.variance(group_a)?;
@@ -285,7 +286,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
             .collect();
         let diff_array = Array1::from(differences);
 
-        let mean_diff = diff_array.mean().unwrap_or(F::zero());
+        let mean_diff = diff_array.mean_or(F::zero());
         let sd_diff = self.std_dev(diff_array.view())?;
 
         let n_f = F::from(n).unwrap();
@@ -427,8 +428,8 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
         group_b: ArrayView1<F>,
     ) -> Result<BayesianAnalysisResults<F>> {
         // Simplified Bayesian analysis using normal-normal model
-        let mean_a = group_a.mean().unwrap_or(F::zero());
-        let mean_b = group_b.mean().unwrap_or(F::zero());
+        let mean_a = group_a.mean_or(F::zero());
+        let mean_b = group_b.mean_or(F::zero());
 
         let var_a = self.variance(group_a)?;
         let var_b = self.variance(group_b)?;
@@ -533,7 +534,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
             return Ok(F::zero());
         }
 
-        let mean = data.mean().unwrap_or(F::zero());
+        let mean = data.mean_or(F::zero());
         let sum_sq_diff: F = data.iter().map(|&x| (x - mean) * (x - mean)).sum();
 
         Ok(sum_sq_diff / F::from(n - 1).unwrap())

@@ -12,6 +12,7 @@ use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::Rng;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::checkshape;
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_linalg::solve;
 use statrs::statistics::Statistics;
 
@@ -1139,7 +1140,7 @@ fn compute_parameter_statistics(
 #[allow(dead_code)]
 fn compute_autocorrelation(_signal: &Array1<f64>, maxlag: usize) -> SignalResult<Vec<f64>> {
     let n = signal.len();
-    let mean = signal.mean().unwrap_or(0.0);
+    let mean = signal.mean_or(0.0);
     let centered = _signal - mean;
 
     let mut r = vec![0.0; max_lag];

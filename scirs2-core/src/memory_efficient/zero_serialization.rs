@@ -276,6 +276,8 @@
 //! - Converting endianness explicitly (using `to_ne_bytes()` and `from_ne_bytes()`)
 //! - Adding a version field to your serialized format for future compatibility
 
+use crate::ndarray::ArrayStatCompat;
+
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::marker::PhantomData;
@@ -983,7 +985,7 @@ impl<A: ZeroCopySerializable> MemoryMappedArray<A> {
     ///
     /// // Now you can use all the ndarray methods
     /// let sum = ndarray.sum();
-    /// let mean = ndarray.mean().unwrap_or(0.0);
+    /// let mean = ndarray.mean_or(0.0);
     /// println!("Matrix sum: {}, mean: {}", sum, mean);
     /// # Ok(())
     /// # }

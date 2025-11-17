@@ -5,6 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_linalg::solve;
 use std::fmt::Debug;
 
@@ -263,7 +264,7 @@ where
 {
     // Simplified estimation - in practice, would use profile likelihood
     let variance = ts.var(F::zero());
-    let mean = ts.mean().unwrap_or(F::zero());
+    let mean = ts.mean_or(F::zero());
 
     if variance > F::zero() && mean > F::zero() {
         // Use coefficient of variation to guide lambda selection

@@ -11,6 +11,7 @@ use crate::advanced::fast_kriging::{
 use crate::error::{InterpolateError, InterpolateResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -136,7 +137,7 @@ pub fn compute_trend_coefficients<F: Float + FromPrimitive + 'static>(
             Err(_) => {
                 // Fallback to simple mean for constant trend
                 let mut coeffs = Array1::zeros(basis_functions.shape()[1]);
-                coeffs[0] = values.mean().unwrap_or(F::zero());
+                coeffs[0] = values.mean_or(F::zero());
                 Ok(coeffs)
             }
         }
@@ -146,7 +147,7 @@ pub fn compute_trend_coefficients<F: Float + FromPrimitive + 'static>(
     {
         // Without linalg, just use mean as constant
         let mut coeffs = Array1::zeros(basis_functions.shape()[1]);
-        coeffs[0] = values.mean().unwrap_or(F::zero());
+        coeffs[0] = values.mean_or(F::zero());
         Ok(coeffs)
     }
 }
@@ -195,7 +196,7 @@ where
             // Skip if no neighbors found
             if indices.is_empty() {
                 // Use global mean as fallback
-                values[i] = self.values.mean().unwrap_or(F::zero());
+                values[i] = self.values.mean_or(F::zero());
                 variances[i] = self.anisotropic_cov.sigma_sq;
                 continue;
             }
@@ -272,7 +273,7 @@ where
             #[cfg(not(feature = "linalg"))]
             {
                 // Fallback without linalg
-                values[i] = local_values.mean().unwrap_or(F::zero());
+                values[i] = local_values.mean_or(F::zero());
                 variances[i] = self.anisotropic_cov.sigma_sq;
                 continue;
             }
@@ -294,7 +295,7 @@ where
                             Ok(w) => w.mapv(|x| F::from_f64(x).unwrap()),
                             Err(_) => {
                                 // Return mean as last resort
-                                values[i] = local_values.mean().unwrap_or(F::zero());
+                                values[i] = local_values.mean_or(F::zero());
                                 variances[i] = self.anisotropic_cov.sigma_sq;
                                 continue;
                             }

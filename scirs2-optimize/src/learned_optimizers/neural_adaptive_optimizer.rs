@@ -11,6 +11,7 @@ use crate::error::OptimizeResult;
 use crate::result::OptimizeResults;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 
@@ -1061,7 +1062,7 @@ impl LayerNormalization {
 
     /// Normalize input
     pub fn normalize(&mut self, input: &Array1<f64>) -> OptimizeResult<Array1<f64>> {
-        let mean = input.mean().unwrap_or(0.0);
+        let mean = input.mean_or(0.0);
         let var = input.variance();
         let std = (var + self.epsilon).sqrt();
 

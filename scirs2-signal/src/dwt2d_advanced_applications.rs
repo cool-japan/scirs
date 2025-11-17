@@ -11,6 +11,7 @@ use scirs2_core::ndarray::{Array1, Array2, Array3};
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 use crate::dwt2d_enhanced::{
@@ -558,7 +559,7 @@ fn compute_entropy(array: &Array2<f64>) -> f64 {
 #[allow(dead_code)]
 fn compute_contrast(array: &Array2<f64>) -> f64 {
     // Simplified contrast measure (standard deviation)
-    let mean = array.mean().unwrap_or(0.0);
+    let mean = array.mean_or(0.0);
     let variance = array.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / array.len() as f64;
     variance.sqrt()
 }

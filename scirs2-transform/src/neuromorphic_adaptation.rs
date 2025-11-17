@@ -12,6 +12,7 @@ use scirs2_core::random::Rng;
 // use scirs2_core::parallel_ops::*; // Reserved for future parallel processing
 use scirs2_core::simd_ops::SimdUnifiedOps;
 use scirs2_core::validation::{check_not_empty, check_positive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 
@@ -1202,7 +1203,7 @@ impl AdvancedNeuromorphicProcessor {
         }
 
         // ✅ Advanced OPTIMIZATION: Update network utilization metric
-        let average_activity = outputspikes.mean().unwrap_or(0.0);
+        let average_activity = outputspikes.mean_or(0.0);
         self.performance_metrics.network_utilization =
             (average_activity / target_activity).min(1.0);
     }

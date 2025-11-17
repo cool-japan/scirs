@@ -56,6 +56,7 @@
 use crate::error::{SpatialError, SpatialResult};
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
@@ -1993,7 +1994,7 @@ impl NumericalStabilityMonitor {
     /// Estimate relative error
     fn estimate_relative_error(&mut self, input: &Array2<f64>, output: &Array2<f64>) -> f64 {
         // Simplified relative error estimation
-        let mean_val = output.mean().unwrap_or(0.0);
+        let mean_val = output.mean_or(0.0);
         if mean_val.abs() > 1e-15 {
             // Use machine epsilon scaled by condition number
             let machine_eps = match self.current_precision {

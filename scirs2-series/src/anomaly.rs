@@ -12,6 +12,7 @@ use std::fmt::Debug;
 use crate::error::{Result, TimeSeriesError};
 use scirs2_core::random::rand_prelude::ThreadRng;
 use scirs2_core::random::SliceRandom;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Method for anomaly detection
@@ -436,7 +437,7 @@ where
     F: Float + FromPrimitive + Debug + NumCast + std::iter::Sum,
 {
     let n = ts.len();
-    let mean = ts.mean().unwrap_or(F::zero()).to_f64().unwrap_or(0.0);
+    let mean = ts.mean_or(F::zero()).to_f64().unwrap_or(0.0);
     let std_dev = calculate_std_dev(ts).to_f64().unwrap_or(1.0);
 
     let threshold = options.threshold.unwrap_or(3.0);
@@ -661,7 +662,7 @@ where
     for i in window_size..n {
         // Calculate moving average as prediction
         let window = ts.slice(s![i - window_size..i]);
-        let prediction = window.mean().unwrap_or(F::zero()).to_f64().unwrap_or(0.0);
+        let prediction = window.mean_or(F::zero()).to_f64().unwrap_or(0.0);
         let actual = ts[i].to_f64().unwrap_or(0.0);
 
         // Calculate prediction error
@@ -863,7 +864,7 @@ where
         return F::zero();
     }
 
-    let mean = data.mean().unwrap_or(F::zero());
+    let mean = data.mean_or(F::zero());
     let variance =
         data.iter().map(|&x| (x - mean) * (x - mean)).sum::<F>() / F::from_usize(n - 1).unwrap();
 

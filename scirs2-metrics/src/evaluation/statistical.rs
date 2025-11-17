@@ -6,6 +6,7 @@
 use scirs2_core::ndarray::{Array, Array1, Array2, ArrayBase, Data, Ix1, Ix2};
 use scirs2_core::numeric::Float;
 use scirs2_core::random::{random, rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::panic;
@@ -591,7 +592,7 @@ where
 /// // Calculate confidence interval for the mean
 /// let (lower, point_estimate, upper) = bootstrap_confidence_interval(
 ///     &data,
-///     |x| x.mean().unwrap_or(0.0),
+///     |x| x.mean_or(0.0),
 ///     0.95,
 ///     1000,
 ///     Some(42)
@@ -1156,7 +1157,7 @@ mod tests {
 
         // Calculate confidence interval for the mean
         let (lower, point_estimate, upper) =
-            bootstrap_confidence_interval(&data, |x| x.mean().unwrap_or(0.0), 0.95, 1000, Some(42))
+            bootstrap_confidence_interval(&data, |x| x.mean_or(0.0), 0.95, 1000, Some(42))
                 .unwrap();
 
         // Check that point estimate is between bounds

@@ -22,6 +22,7 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rand_prelude::IndexedMutRandom;
 use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -646,7 +647,7 @@ impl QuantumEntanglementStage {
         let mut features = Vec::new();
 
         // Extract basic statistical features
-        let mean = frame.data.mean().unwrap_or(0.0) as f64;
+        let mean = frame.data.mean_or(0.0) as f64;
         let variance = {
             let variance_f32 = frame
                 .data
@@ -663,9 +664,9 @@ impl QuantumEntanglementStage {
         if let Ok((_grad_x, _grad_y, magnitude)) =
             crate::simd_ops::simd_sobel_gradients(&frame.data.view())
         {
-            let grad_mean = magnitude.mean().unwrap_or(0.0) as f64;
+            let grad_mean = magnitude.mean_or(0.0) as f64;
             let grad_variance = {
-                let mag_mean = magnitude.mean().unwrap_or(0.0);
+                let mag_mean = magnitude.mean_or(0.0);
                 let variance_f32 = magnitude
                     .iter()
                     .map(|&x| (x - mag_mean).powi(2))

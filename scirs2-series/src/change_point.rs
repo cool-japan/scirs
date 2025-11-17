@@ -6,6 +6,7 @@
 
 use scirs2_core::ndarray::{s, Array1};
 use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -325,7 +326,7 @@ where
     }
 
     // Calculate reference statistics from the first window
-    let reference_mean = ts.slice(s![0..window_size]).mean().unwrap_or(F::zero());
+    let reference_mean = ts.slice(s![0..window_size]).mean_or(F::zero());
     let reference_var =
         calculate_variance(&ts.slice(s![0..window_size]).to_owned(), reference_mean);
     let reference_std = reference_var.sqrt();
@@ -548,7 +549,7 @@ where
     match cost_function {
         CostFunction::Normal => {
             // Negative log-likelihood for normal distribution
-            let mean = segment.mean().unwrap_or(F::zero());
+            let mean = segment.mean_or(F::zero());
             let variance = calculate_variance(&segment.to_owned(), mean);
 
             if variance <= F::from_f64(1e-10).unwrap() {
@@ -562,7 +563,7 @@ where
         }
         CostFunction::Poisson => {
             // Negative log-likelihood for Poisson distribution
-            let mean = segment.mean().unwrap_or(F::zero());
+            let mean = segment.mean_or(F::zero());
             if mean <= F::zero() {
                 return Ok(F::infinity());
             }
@@ -574,7 +575,7 @@ where
         }
         CostFunction::Exponential => {
             // Negative log-likelihood for exponential distribution
-            let mean = segment.mean().unwrap_or(F::zero());
+            let mean = segment.mean_or(F::zero());
             if mean <= F::zero() {
                 return Ok(F::infinity());
             }
@@ -584,7 +585,7 @@ where
         }
         CostFunction::NonParametric => {
             // Use empirical variance as a simple non-parametric cost
-            let mean = segment.mean().unwrap_or(F::zero());
+            let mean = segment.mean_or(F::zero());
             let variance = calculate_variance(&segment.to_owned(), mean);
             Ok(variance)
         }

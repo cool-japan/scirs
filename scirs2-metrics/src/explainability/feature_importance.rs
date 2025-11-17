@@ -14,6 +14,7 @@ use crate::error::{MetricsError, Result};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::SimdUnifiedOps;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 use std::iter::Sum;
@@ -531,7 +532,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
         for (feature_idx, &in_coalition) in coalition.iter().enumerate() {
             if !in_coalition && feature_idx < x_background.ncols() {
                 // Replace with _background value
-                let bg_mean = x_background.column(feature_idx).mean().unwrap_or(F::zero());
+                let bg_mean = x_background.column(feature_idx).mean_or(F::zero());
                 for row_idx in 0..sample.nrows() {
                     sample[[row_idx, feature_idx]] = bg_mean;
                 }
@@ -563,7 +564,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
                     samples[[i, j]] = x_instance[j];
                 } else {
                     // Use _background value
-                    let bg_mean = x_background.column(j).mean().unwrap_or(F::zero());
+                    let bg_mean = x_background.column(j).mean_or(F::zero());
                     samples[[i, j]] = bg_mean;
                 }
             }
@@ -657,7 +658,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum>
 
         for feature_idx in 0..n_features {
             let feature_diff = x_instance[feature_idx] - x_baseline[feature_idx];
-            let avg_gradient = gradients.column(feature_idx).mean().unwrap_or(F::zero());
+            let avg_gradient = gradients.column(feature_idx).mean_or(F::zero());
             integrated[feature_idx] = feature_diff * avg_gradient;
         }
 

@@ -4,6 +4,7 @@
 //! used throughout the ensemble clustering system.
 
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::ArrayStatCompat;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -334,7 +335,7 @@ impl ConsensusStatistics {
 
     /// Get average consensus strength
     pub fn average_consensus_strength(&self) -> f64 {
-        self.consensus_strength.mean().unwrap_or(0.0)
+        self.consensus_strength.mean_or(0.0)
     }
 
     /// Get minimum consensus strength

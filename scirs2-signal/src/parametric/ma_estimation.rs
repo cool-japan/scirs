@@ -13,6 +13,7 @@
 use super::types::{MAMethod, MAResult};
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 
@@ -95,7 +96,7 @@ fn estimate_ma_innovations(signal: &Array1<f64>, order: usize) -> SignalResult<M
     ma_coeffs[0] = 1.0;
 
     // Simplified innovations algorithm implementation
-    let mean = signal.mean().unwrap_or(0.0);
+    let mean = signal.mean_or(0.0);
     let variance = signal.mapv(|x| (x - mean).powi(2)).mean();
 
     Ok(MAResult {
@@ -134,7 +135,7 @@ fn estimate_ma_ml(signal: &Array1<f64>, order: usize) -> SignalResult<MAResult> 
     ma_coeffs[0] = 1.0; // Set first coefficient to 1
 
     // Center the signal
-    let signal_mean = signal.mean().unwrap_or(0.0);
+    let signal_mean = signal.mean_or(0.0);
     let centered_signal = signal - signal_mean;
 
     // Initialize with small random values
@@ -253,7 +254,7 @@ fn estimate_ma_durbin(signal: &Array1<f64>, order: usize) -> SignalResult<MAResu
     }
 
     // Center the signal
-    let signal_mean = signal.mean().unwrap_or(0.0);
+    let signal_mean = signal.mean_or(0.0);
     let centered_signal = signal - signal_mean;
 
     // Compute autocovariance function

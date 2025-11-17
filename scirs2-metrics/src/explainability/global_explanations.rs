@@ -3,6 +3,7 @@
 use crate::error::{MetricsError, Result};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -127,7 +128,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> GlobalExpl
             }
 
             let predictions = model(&x_modified.view());
-            let mean_prediction = predictions.mean().unwrap_or(F::zero());
+            let mean_prediction = predictions.mean_or(F::zero());
             pd_values.push(mean_prediction);
         }
 
@@ -254,7 +255,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> GlobalExpl
         let predictions = model(&xdata.view());
 
         // Basic prediction statistics
-        let mean_prediction = predictions.mean().unwrap_or(F::zero());
+        let mean_prediction = predictions.mean_or(F::zero());
         let prediction_variance = self.compute_variance(&predictions)?;
         let prediction_range = (
             predictions.iter().cloned().fold(F::infinity(), F::min),
@@ -625,7 +626,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> GlobalExpl
     // Utility methods
 
     fn compute_variance(&self, data: &Array1<F>) -> Result<F> {
-        let mean = data.mean().unwrap_or(F::zero());
+        let mean = data.mean_or(F::zero());
         let variance =
             data.iter().map(|&x| (x - mean) * (x - mean)).sum::<F>() / F::from(data.len()).unwrap();
         Ok(variance)
@@ -637,7 +638,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> GlobalExpl
 
     fn compute_column_std(&self, xdata: &Array2<F>, colidx: usize) -> Result<F> {
         let column = xdata.column(colidx);
-        let mean = column.mean().unwrap_or(F::zero());
+        let mean = column.mean_or(F::zero());
         let variance = column.iter().map(|&x| (x - mean) * (x - mean)).sum::<F>()
             / F::from(column.len()).unwrap();
         Ok(variance.sqrt())
@@ -678,7 +679,7 @@ impl<F: Float + scirs2_core::numeric::FromPrimitive + std::iter::Sum> GlobalExpl
     {
         // Compute variance explained by this feature
         let mut x_baseline = xdata.clone();
-        let feature_mean = xdata.column(featureidx).mean().unwrap_or(F::zero());
+        let feature_mean = xdata.column(featureidx).mean_or(F::zero());
 
         // Set feature to its mean value
         for i in 0..x_baseline.nrows() {

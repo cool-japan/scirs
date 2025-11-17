@@ -5,6 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{HashMap, VecDeque};
 
 use super::config::{
@@ -115,7 +116,7 @@ impl ConsciousnessAwakening {
         }
 
         // Update global self-awareness level
-        self.awareness_level = awareness_map.mean().unwrap_or(0.0);
+        self.awareness_level = awareness_map.mean_or(0.0);
 
         // Update self-recognition based on pattern complexity
         self.self_recognition = self.calculate_pattern_self_recognition(&awareness_map)?;

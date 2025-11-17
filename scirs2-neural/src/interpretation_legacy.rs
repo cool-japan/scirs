@@ -9,6 +9,7 @@
 use crate::error::{NeuralError, Result};
 use scirs2_core::ndarray::{Array, ArrayD, Dimension, IxDyn};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -436,7 +437,7 @@ impl<
         let num_channels = activations.shape()[1];
         for c in 0..num_channels {
             let channel_grad = gradients.index_axis(scirs2_core::ndarray::Axis(1), c);
-            let weight = channel_grad.mean().unwrap_or(F::zero());
+            let weight = channel_grad.mean_or(F::zero());
             weights.push(weight);
         // Compute weighted combination of activation maps
         let first_channel = activations
@@ -546,7 +547,7 @@ impl<
         targetshape: IxDyn,
         if attribution.len() == targetshape.size() {
             Ok(attribution.clone().into_shape_with_order(targetshape)?)
-            let mean_val = attribution.mean().unwrap_or(F::zero());
+            let mean_val = attribution.mean_or(F::zero());
             Ok(Array::from_elem(targetshape, mean_val))
     /// Analyze layer activations and store statistics
     pub fn analyze_layer_activations(
@@ -559,7 +560,7 @@ impl<
         let flattened = activations
             .view()
             .into_shape_with_order(activations.len())?;
-        let mean_activation = flattened.mean().unwrap_or(F::zero());
+        let mean_activation = flattened.mean_or(F::zero());
         let variance = flattened
             .mapv(|x| (x - mean_activation) * (x - mean_activation))
             .mean()
@@ -624,8 +625,8 @@ impl<
                 let flattened = attribution
                     .view()
                     .into_shape_with_order(attribution.len())?;
-                let mean = flattened.mean().unwrap_or(F::zero());
-                let mean_absolute = flattened.mapv(|x| x.abs()).mean().unwrap_or(F::zero());
+                let mean = flattened.mean_or(F::zero());
+                let mean_absolute = flattened.mapv(|x| x.abs()).mean_or(F::zero());
                 let max_absolute =
                     flattened.fold(
                         F::zero(),

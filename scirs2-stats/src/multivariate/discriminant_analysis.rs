@@ -586,7 +586,8 @@ impl LinearDiscriminantAnalysis {
                 row /= sum_exp;
             } else {
                 // Uniform distribution if all scores are very negative
-                row.fill(1.0 / row.len() as f64);
+                let len = row.len();
+                row.fill(1.0 / len as f64);
             }
         }
 
@@ -888,7 +889,8 @@ impl QuadraticDiscriminantAnalysis {
             if sum_exp > 1e-10 {
                 row /= sum_exp;
             } else {
-                row.fill(1.0 / row.len() as f64);
+                let len = row.len();
+                row.fill(1.0 / len as f64);
             }
         }
 

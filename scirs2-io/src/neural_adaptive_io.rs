@@ -10,6 +10,7 @@
 use crate::error::Result;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::simd_ops::SimdUnifiedOps;
+use scirs2_core::ndarray::ArrayStatCompat;
 use serde::{Deserialize, Serialize};
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
@@ -183,8 +184,8 @@ impl NeuralIoNetwork {
 
     /// Layer normalization for improved training stability
     fn layer_normalize(&self, input: &Array1<f32>) -> Array1<f32> {
-        let mean = input.mean().unwrap_or(0.0);
-        let variance = input.mapv(|x| (x - mean).powi(2)).mean().unwrap_or(1.0);
+        let mean = input.mean_or(0.0);
+        let variance = input.mapv(|x| (x - mean).powi(2)).mean_or(1.0);
         let std_dev = (variance + 1e-6).sqrt();
 
         input.mapv(|x| (x - mean) / std_dev)
@@ -1017,7 +1018,7 @@ impl EnsembleNeuralNetwork {
 
         for network in &mut self.networks {
             let prediction = network.forward(input)?;
-            let error = (target - &prediction).mapv(|x| x * x).mean().unwrap_or(1.0);
+            let error = (target - &prediction).mapv(|x| x * x).mean_or(1.0);
             individual_errors.push(error);
 
             network.update_weights(input, target, &prediction)?;

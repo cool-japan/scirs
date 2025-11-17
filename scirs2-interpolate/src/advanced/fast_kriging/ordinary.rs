@@ -12,6 +12,7 @@ use crate::error::{InterpolateError, InterpolateResult};
 use crate::numerical_stability::{assess_matrix_condition, safe_reciprocal, StabilityLevel};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 use std::ops::{Add, Div, Mul, Sub};
 
@@ -63,7 +64,7 @@ where
             // Skip if no neighbors found
             if indices.is_empty() {
                 // Use global mean as fallback
-                values[i] = self.values.mean().unwrap_or(F::zero());
+                values[i] = self.values.mean_or(F::zero());
                 variances[i] = self.anisotropic_cov.sigma_sq;
                 continue;
             }
@@ -102,7 +103,7 @@ where
             #[cfg(not(feature = "linalg"))]
             {
                 // Fallback without linalg
-                values[i] = local_values.mean().unwrap_or(F::zero());
+                values[i] = local_values.mean_or(F::zero());
                 variances[i] = self.anisotropic_cov.sigma_sq;
                 continue;
             }
@@ -145,7 +146,7 @@ where
                             }
 
                             // Final fallback to mean
-                            values[i] = local_values.mean().unwrap_or(F::zero());
+                            values[i] = local_values.mean_or(F::zero());
                             variances[i] = self.anisotropic_cov.sigma_sq;
                             continue;
                         }
@@ -193,7 +194,7 @@ where
                         }
 
                         // Final fallback to mean
-                        values[i] = local_values.mean().unwrap_or(F::zero());
+                        values[i] = local_values.mean_or(F::zero());
                         variances[i] = self.anisotropic_cov.sigma_sq;
                         continue;
                     }
@@ -362,7 +363,7 @@ where
 
             // If no _points within range, use global mean
             if nonzero_indices.is_empty() {
-                pred_values[i] = self.values.mean().unwrap_or(F::zero());
+                pred_values[i] = self.values.mean_or(F::zero());
                 pred_variances[i] = self.anisotropic_cov.sigma_sq;
                 continue;
             }
@@ -513,7 +514,7 @@ where
                 }
             } else {
                 // Fallback to global mean
-                prediction = self.values.mean().unwrap_or(F::zero());
+                prediction = self.values.mean_or(F::zero());
                 variance = self.anisotropic_cov.sigma_sq;
             }
 
@@ -601,7 +602,7 @@ where
                 }
                 Err(_) => {
                     // Fallback to mean
-                    let mean_val = block_values.mean().unwrap_or(F::zero());
+                    let mean_val = block_values.mean_or(F::zero());
                     Ok((mean_val, self.anisotropic_cov.sigma_sq))
                 }
             }
@@ -610,7 +611,7 @@ where
         #[cfg(not(feature = "linalg"))]
         {
             // Fallback without linalg
-            let mean_val = block_values.mean().unwrap_or(F::zero());
+            let mean_val = block_values.mean_or(F::zero());
             Ok((mean_val, self.anisotropic_cov.sigma_sq))
         }
     }

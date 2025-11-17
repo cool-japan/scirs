@@ -6,6 +6,7 @@
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GenericImageView, GrayImage};
 use scirs2_core::ndarray::{s, Array2};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Compute Peak Signal-to-Noise Ratio (PSNR) between two images
@@ -400,8 +401,8 @@ pub fn vif(img1: &DynamicImage, img2: &DynamicImage) -> Result<f32> {
 /// Compute variance of an array view
 #[allow(dead_code)]
 fn variance(data: &scirs2_core::ndarray::ArrayView2<f32>) -> f32 {
-    let mean = data.mean().unwrap_or(0.0);
-    data.mapv(|x| (x - mean).powi(2)).mean().unwrap_or(0.0)
+    let mean = data.mean_or(0.0);
+    data.mapv(|x| (x - mean).powi(2)).mean_or(0.0)
 }
 
 /// Mean Absolute Error (MAE)

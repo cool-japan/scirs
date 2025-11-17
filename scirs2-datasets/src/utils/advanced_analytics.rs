@@ -244,12 +244,8 @@ impl AdvancedDatasetAnalyzer {
             return Ok(0.5);
         }
 
-        let mean = {
-            match data.mean() {
-                Some(val) if !val.is_nan() => val,
-                _ => 0.0,
-            }
-        };
+        use scirs2_core::ndarray::ArrayStatCompat;
+        let mean = data.mean_or(0.0);
         let variance = data.var(1.0);
 
         if variance == 0.0 {

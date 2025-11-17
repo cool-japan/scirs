@@ -4,6 +4,7 @@
 
 use scirs2_core::ndarray::{s, Array1, ArrayBase, Data, Ix1, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -226,7 +227,7 @@ where
         }
 
         // Initialize intercept
-        self.intercept = data.mean().unwrap_or(F::zero());
+        self.intercept = data.mean_or(F::zero());
 
         // Initialize variance
         self.sigma2 = data

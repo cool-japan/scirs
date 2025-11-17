@@ -5,6 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -264,7 +265,7 @@ where
         self.fit_stats.n_obs = n;
 
         // Center the data
-        let mean = data.mean().unwrap_or(F::zero());
+        let mean = data.mean_or(F::zero());
         let centered: Array1<F> = data.mapv(|x| x - mean);
 
         // Calculate sample autocorrelations
@@ -301,7 +302,7 @@ where
             variance_multiplier = variance_multiplier - self.ar_coeffs[k] * acf[k + 1];
         }
 
-        let sample_variance = centered.mapv(|x| x * x).mean().unwrap_or(F::one());
+        let sample_variance = centered.mapv(|x| x * x).mean_or(F::one());
         self.sigma2 = sample_variance * variance_multiplier;
 
         Ok(())
@@ -316,7 +317,7 @@ where
         self.fit_stats.n_obs = n;
 
         // Center the data
-        let mean = data.mean().unwrap_or(F::zero());
+        let mean = data.mean_or(F::zero());
         let x: Array1<F> = data.mapv(|x| x - mean);
 
         // Initialize
@@ -364,7 +365,7 @@ where
 
         // Calculate residual variance
         let residuals = self.calculate_residuals(&x)?;
-        self.sigma2 = residuals.mapv(|x| x * x).mean().unwrap_or(F::one());
+        self.sigma2 = residuals.mapv(|x| x * x).mean_or(F::one());
 
         Ok(())
     }
@@ -685,7 +686,7 @@ where
 
         // R-squared
         let y_slice = data.slice(scirs2_core::ndarray::s![self.p..]);
-        let y_mean = y_slice.mean().unwrap_or(F::zero());
+        let y_mean = y_slice.mean_or(F::zero());
         let tss = y_slice.mapv(|x| (x - y_mean) * (x - y_mean)).sum();
         let rss = residuals
             .slice(scirs2_core::ndarray::s![self.p..])

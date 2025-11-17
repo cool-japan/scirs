@@ -11,6 +11,7 @@ use crate::error::{NeuralError, Result};
 use scirs2_core::ndarray::{Array, ArrayD};
 use scirs2_core::numeric::Float;
 use scirs2_core::numeric::FromPrimitive;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -310,12 +311,12 @@ impl<F: Float + Debug + 'static + Sum + Clone + Copy + FromPrimitive> ModelEvalu
     fn mean_squared_error(&self, y_true: &ArrayD<F>, ypred: &ArrayD<F>) -> F {
         let diff = y_true - y_pred;
         let squared_diff = diff.mapv(|x| x * x);
-        squared_diff.mean().unwrap_or(F::zero())
+        squared_diff.mean_or(F::zero())
     fn mean_absolute_error(&self, y_true: &ArrayD<F>, ypred: &ArrayD<F>) -> F {
         let abs_diff = diff.mapv(|x| x.abs());
-        abs_diff.mean().unwrap_or(F::zero())
+        abs_diff.mean_or(F::zero())
     fn r_squared(&self, y_true: &ArrayD<F>, ypred: &ArrayD<F>) -> Result<F> {
-        let y_mean = y_true.mean().unwrap_or(F::zero());
+        let y_mean = y_true.mean_or(F::zero());
         let ss_res = (y_true - y_pred).mapv(|x| x * x).sum();
         let ss_tot = y_true.mapv(|x| (x - y_mean) * (x - y_mean)).sum();
         if ss_tot == F::zero() {

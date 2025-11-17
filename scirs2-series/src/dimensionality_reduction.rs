@@ -37,6 +37,7 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, Axis, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
@@ -1291,7 +1292,7 @@ fn apply_persist(
 
 #[allow(dead_code)]
 fn normalize_timeseries(_timeseries: &Array1<f64>) -> Result<Array1<f64>> {
-    let mean = _timeseries.mean().unwrap_or(0.0);
+    let mean = _timeseries.mean_or(0.0);
     let std = _timeseries.std(0.0);
 
     if std == 0.0 {

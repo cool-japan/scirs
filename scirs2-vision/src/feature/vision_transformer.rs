@@ -25,6 +25,7 @@ use crate::error::{Result, VisionError};
 use crate::feature::KeyPoint;
 use crate::gpu_ops::GpuVisionContext;
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, Axis};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Type alias for feature matches (index, confidence score)
@@ -676,8 +677,8 @@ impl LayerNorm {
         let mut output = input.to_owned();
 
         for mut row in output.rows_mut() {
-            let mean = row.mean().unwrap_or(0.0);
-            let variance = row.mapv(|x| (x - mean).powi(2)).mean().unwrap_or(0.0);
+            let mean = row.mean_or(0.0);
+            let variance = row.mapv(|x| (x - mean).powi(2)).mean_or(0.0);
             let std = (variance + self.eps).sqrt();
 
             row.mapv_inplace(|x| (x - mean) / std);

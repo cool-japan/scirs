@@ -10,6 +10,7 @@ use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
 use scirs2_core::ndarray::{Array, ArrayD, Axis};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use statrs::statistics::Statistics;
@@ -239,7 +240,7 @@ impl<F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_c
                     self.adapt_features(student_feat, teacher_feat, adaptation_method)?;
                 // Compute L2 loss between features
                 let diff = teacher_feat - &adapted_student;
-                let layer_loss = diff.mapv(|x| x * x).mean().unwrap_or(F::zero());
+                let layer_loss = diff.mapv(|x| x * x).mean_or(F::zero());
                 total_loss = total_loss + layer_loss;
                 layer_count += 1;
                 // Note: per-layer loss tracking removed for immutable methods
@@ -278,7 +279,7 @@ impl<F: Float + Debug + 'static + scirs2_core::numeric::FromPrimitive + scirs2_c
             self.compute_relations(student_feat, relation_type, distance_metric)?;
         // Compute loss between relation matrices
         let diff = teacher_relations - student_relations;
-        let loss = diff.mapv(|x| x * x).mean().unwrap_or(F::zero());
+        let loss = diff.mapv(|x| x * x).mean_or(F::zero());
         Ok(loss)
     fn compute_self_distillation_loss(
         aggregation: &EnsembleAggregation,

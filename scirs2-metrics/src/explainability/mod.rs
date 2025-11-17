@@ -7,6 +7,7 @@
 use crate::error::{MetricsError, Result};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -171,7 +172,7 @@ impl<
             ExplanationMethod::Permutation => {
                 // Permutation importance
                 let baseline_predictions = model(&x_test.view());
-                let baseline_mean = baseline_predictions.mean().unwrap_or(F::zero());
+                let baseline_mean = baseline_predictions.mean_or(F::zero());
 
                 for (i, feature_name) in feature_names.iter().enumerate() {
                     if i >= n_features {
@@ -186,7 +187,7 @@ impl<
                         self.permute_feature(&mut x_perturbed, i)?;
 
                         let perturbed_predictions = model(&x_perturbed.view());
-                        let perturbed_mean = perturbed_predictions.mean().unwrap_or(F::zero());
+                        let perturbed_mean = perturbed_predictions.mean_or(F::zero());
                         let error = (baseline_mean - perturbed_mean).abs();
                         perturbed_errors.push(error);
                     }
@@ -501,8 +502,8 @@ impl<
             ));
         }
 
-        let mean_x = x.mean().unwrap_or(F::zero());
-        let mean_y = y.mean().unwrap_or(F::zero());
+        let mean_x = x.mean_or(F::zero());
+        let mean_y = y.mean_or(F::zero());
 
         let numerator: F = x
             .iter()
@@ -721,7 +722,7 @@ impl<
         let mut weights = Array1::zeros(nsamples);
 
         // Calculate feature statistics for perturbation
-        let feature_mean = instance.mean().unwrap_or(F::zero());
+        let feature_mean = instance.mean_or(F::zero());
         let feature_std = {
             let variance = instance
                 .iter()

@@ -14,6 +14,7 @@ use numpy::{IntoPyArray, PyArray1, PyReadonlyArray1};
 
 #[cfg(feature = "python")]
 use scirs2_core::ndarray::Array1;
+use scirs2_core::ndarray::ArrayStatCompat;
 
 #[cfg(feature = "python")]
 use std::collections::HashMap;
@@ -118,7 +119,7 @@ impl PyTimeSeries {
         let mut stats = HashMap::new();
         let values = &self.values;
 
-        let mean = values.mean().unwrap_or(0.0);
+        let mean = values.mean_or(0.0);
         let std = values.std(0.0);
         let min = values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
         let max = values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));

@@ -4,6 +4,7 @@
 
 use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -139,7 +140,7 @@ where
     }
 
     // Basic statistics
-    let mean = residuals.mean().unwrap_or(F::zero());
+    let mean = residuals.mean_or(F::zero());
     let variance = residuals
         .mapv(|x| (x - mean) * (x - mean))
         .mean()
@@ -189,7 +190,7 @@ where
     F: Float + FromPrimitive + Display,
 {
     let n = F::from(data.len()).unwrap();
-    let mean = data.mean().unwrap_or(F::zero());
+    let mean = data.mean_or(F::zero());
 
     let mut m2 = F::zero();
     let mut m3 = F::zero();
@@ -349,7 +350,7 @@ where
         let residuals_arch = y.clone() - &fitted;
 
         // Calculate R-squared
-        let y_mean = y.mean().unwrap_or(F::zero());
+        let y_mean = y.mean_or(F::zero());
         let ss_tot = y.mapv(|yi| (yi - y_mean) * (yi - y_mean)).sum();
         let ss_res = residuals_arch.dot(&residuals_arch);
         let r2 = if ss_tot > F::zero() {

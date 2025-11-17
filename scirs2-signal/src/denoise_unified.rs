@@ -11,6 +11,7 @@ use crate::denoise_super_advanced::{advanced_advanced_denoise, AdvancedAdvancedD
 use crate::dwt::Wavelet;
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::Array1;
+use scirs2_core::ndarray::ArrayStatCompat;
 use serde::{Deserialize, Serialize};
 use statrs::statistics::Statistics;
 
@@ -396,7 +397,7 @@ pub fn auto_select_denoising_method(
 #[allow(dead_code)]
 fn preprocess_signal(signal: &Array1<f64>) -> SignalResult<Array1<f64>> {
     // Basic preprocessing: remove DC offset
-    let mean = signal.mean().unwrap_or(0.0);
+    let mean = signal.mean_or(0.0);
     Ok(_signal.mapv(|x| x - mean))
 }
 

@@ -12,6 +12,7 @@ use crate::unified_processor:{
 };
 use scirs2_core::ndarray::{Array1, ArrayView1};
 use scirs2_core::simd_ops::PlatformCapabilities;
+use scirs2_core::ndarray::ArrayStatCompat;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -634,7 +635,7 @@ impl CrossPlatformValidator {
         result: &crate::unified_processor::AdvancedComprehensiveResult<f64>,
     ) -> f64 {
         // Simple accuracy calculation based on mean comparison
-        let reference_mean = data.mean().unwrap_or(0.0);
+        let reference_mean = data.mean_or(0.0);
         if reference_mean == 0.0 {
             if result.statistics.mean.abs() < 1e-15 {
                 1.0

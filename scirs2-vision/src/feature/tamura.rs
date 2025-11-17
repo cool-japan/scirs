@@ -6,6 +6,7 @@
 use crate::error::Result;
 use image::{DynamicImage, GrayImage};
 use scirs2_core::ndarray::Array2;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::f32::consts::PI;
 
@@ -133,7 +134,7 @@ fn compute_coarseness(img: &GrayImage) -> Result<f32> {
     }
 
     // Average coarseness
-    Ok(s_best.mean().unwrap_or(1.0))
+    Ok(s_best.mean_or(1.0))
 }
 
 /// Compute E value for coarseness

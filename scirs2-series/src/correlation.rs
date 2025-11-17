@@ -9,6 +9,7 @@
 use crate::error::TimeSeriesError;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::validation::checkarray_finite;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 
@@ -668,7 +669,7 @@ impl CorrelationAnalyzer {
     // Helper methods
 
     fn normalize_series(&self, x: &Array1<f64>) -> CorrelationResult<Array1<f64>> {
-        let mean = x.mean().unwrap_or(0.0);
+        let mean = x.mean_or(0.0);
         let std = (x.mapv(|xi| (xi - mean).powi(2)).sum() / x.len() as f64).sqrt();
 
         if std < f64::EPSILON {
@@ -1200,7 +1201,7 @@ impl CorrelationAnalyzer {
         match method {
             DetrendMethod::None => Ok(x.clone()),
             DetrendMethod::Mean => {
-                let mean = x.mean().unwrap_or(0.0);
+                let mean = x.mean_or(0.0);
                 Ok(x - mean)
             }
             DetrendMethod::Linear => {

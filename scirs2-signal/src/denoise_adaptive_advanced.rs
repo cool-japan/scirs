@@ -18,6 +18,7 @@ use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::Rng;
 use scirs2_core::validation::check_finite;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -477,7 +478,7 @@ fn estimate_local_noise_variance(
 
     if local_variances.is_empty() {
         // Fallback to global variance
-        let mean = signal.mean().unwrap_or(0.0);
+        let mean = signal.mean_or(0.0);
         Ok(signal.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / signal.len() as f64)
     } else {
         // Use median of local variances
@@ -913,8 +914,8 @@ fn compute_quality_metrics(
 #[allow(dead_code)]
 fn calculate_correlation(x: &Array1<f64>, y: &Array1<f64>) -> f64 {
     let _n = x.len() as f64;
-    let mean_x = x.mean().unwrap_or(0.0);
-    let mean_y = y.mean().unwrap_or(0.0);
+    let mean_x = x.mean_or(0.0);
+    let mean_y = y.mean_or(0.0);
 
     let mut cov = 0.0;
     let mut var_x = 0.0;
@@ -938,7 +939,7 @@ fn calculate_correlation(x: &Array1<f64>, y: &Array1<f64>) -> f64 {
 /// Calculate variance of a signal
 #[allow(dead_code)]
 fn calculate_variance(signal: &Array1<f64>) -> f64 {
-    let mean = signal.mean().unwrap_or(0.0);
+    let mean = signal.mean_or(0.0);
     signal.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / signal.len() as f64
 }
 

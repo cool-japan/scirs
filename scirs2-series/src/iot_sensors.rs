@@ -5,7 +5,7 @@
 //! GPS, accelerometer, and other sensor data streams.
 
 use crate::error::{Result, TimeSeriesError};
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayStatCompat};
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -225,7 +225,7 @@ impl EnvironmentalSensorAnalysis {
         let mut recommendations = Vec::new();
 
         if let Some(ref temp_data) = self.temperature {
-            let avg_temp = temp_data.mean().unwrap();
+            let avg_temp = temp_data.mean_or(0.0);
 
             if avg_temp > 25.0 {
                 recommendations
@@ -245,7 +245,7 @@ impl EnvironmentalSensorAnalysis {
         }
 
         if let Some(ref humidity_data) = self.humidity {
-            let avg_humidity = humidity_data.mean().unwrap();
+            let avg_humidity = humidity_data.mean_or(0.0);
 
             if avg_humidity > 70.0 {
                 recommendations

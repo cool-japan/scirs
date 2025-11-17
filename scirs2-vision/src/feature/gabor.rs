@@ -7,6 +7,7 @@
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
 use scirs2_core::ndarray::{Array2, Array3};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::f32::consts::PI;
 
@@ -79,7 +80,7 @@ pub fn gabor_kernel(params: &GaborParams, size: usize) -> Array2<f32> {
     }
 
     // Normalize kernel to have zero mean
-    let mean = kernel.mean().unwrap_or(0.0);
+    let mean = kernel.mean_or(0.0);
     kernel.mapv_inplace(|v| v - mean);
 
     kernel
@@ -321,7 +322,7 @@ mod tests {
 
         assert_eq!(kernel.dim(), (21, 21));
         // Kernel should have approximately zero mean
-        assert!(kernel.mean().unwrap_or(0.0).abs() < 1e-6);
+        assert!(kernel.mean_or(0.0).abs() < 1e-6);
     }
 
     #[test]

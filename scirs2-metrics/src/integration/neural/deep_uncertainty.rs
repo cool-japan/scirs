@@ -15,6 +15,7 @@ use crate::error::{MetricsError, Result};
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::SimdUnifiedOps;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 use std::iter::Sum;
@@ -320,7 +321,7 @@ impl<
             let sample_probs = probabilities.column(i);
 
             // Compute mean probability
-            let mean_prob = sample_probs.mean().unwrap_or(F::zero());
+            let mean_prob = sample_probs.mean_or(F::zero());
 
             // Total entropy (entropy of mean prediction)
             if mean_prob > F::zero() && mean_prob < F::one() {
@@ -929,8 +930,8 @@ impl<
             let ensemble_col = ensemble_predictions.column(i);
 
             // Compute disagreement as variance across methods
-            let mc_mean = mc_col.mean().unwrap_or(F::zero());
-            let ensemble_mean = ensemble_col.mean().unwrap_or(F::zero());
+            let mc_mean = mc_col.mean_or(F::zero());
+            let ensemble_mean = ensemble_col.mean_or(F::zero());
 
             let method_means = [mc_mean, ensemble_mean];
             let overall_mean =

@@ -8,6 +8,7 @@ use crate::error::{SignalError, SignalResult};
 use super::types::*;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
+use scirs2_core::ndarray::ArrayStatCompat;
 
 /// Jarque-Bera test for normality of residuals
 ///
@@ -35,7 +36,7 @@ use scirs2_core::numeric::Complex64;
 /// ```
 pub fn jarque_bera_test(data: &Array1<f64>) -> f64 {
     let n = data.len() as f64;
-    let mean = data.mean().unwrap_or(0.0);
+    let mean = data.mean_or(0.0);
 
     // Compute central moments
     let mut m2 = 0.0; // Second moment (variance)
@@ -90,7 +91,7 @@ pub fn ljung_box_test(residuals: &Array1<f64>, h: usize) -> f64 {
     }
 
     // Compute sample autocorrelations
-    let mean = residuals.mean().unwrap_or(0.0);
+    let mean = residuals.mean_or(0.0);
     let variance = residuals.var(0.0);
 
     if variance < 1e-15 {
@@ -143,8 +144,8 @@ pub fn cross_correlation_test(residuals: &Array1<f64>, input: &Array1<f64>, max_
         return 1.0;
     }
 
-    let residuals_mean = residuals.mean().unwrap_or(0.0);
-    let input_mean = input.mean().unwrap_or(0.0);
+    let residuals_mean = residuals.mean_or(0.0);
+    let input_mean = input.mean_or(0.0);
     let residuals_var = residuals.var(0.0);
     let input_var = input.var(0.0);
 
@@ -216,7 +217,7 @@ pub fn analyze_residuals(
 /// Compute autocorrelation function
 fn compute_autocorrelation(data: &Array1<f64>, max_lag: usize) -> Array1<f64> {
     let n = data.len();
-    let mean = data.mean().unwrap_or(0.0);
+    let mean = data.mean_or(0.0);
     let variance = data.var(0.0);
 
     let mut autocorr = Array1::zeros(max_lag + 1);
@@ -243,8 +244,8 @@ fn compute_autocorrelation(data: &Array1<f64>, max_lag: usize) -> Array1<f64> {
 /// Compute cross-correlation function
 fn compute_cross_correlation(data1: &Array1<f64>, data2: &Array1<f64>, max_lag: usize) -> Array1<f64> {
     let n = data1.len().min(data2.len());
-    let mean1 = data1.mean().unwrap_or(0.0);
-    let mean2 = data2.mean().unwrap_or(0.0);
+    let mean1 = data1.mean_or(0.0);
+    let mean2 = data2.mean_or(0.0);
     let var1 = data1.var(0.0);
     let var2 = data2.var(0.0);
 

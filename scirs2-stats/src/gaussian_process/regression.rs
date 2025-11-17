@@ -8,6 +8,7 @@ use super::prior::{Prior, ZeroPrior};
 use crate::error::StatsResult;
 use scirs2_core::error::CoreError;
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::ArrayStatCompat;
 
 /// Gaussian Process Regressor with scikit-learn compatible API
 ///
@@ -102,7 +103,7 @@ impl<K: Kernel> GaussianProcessRegressor<K> {
 
         // Normalize y if requested
         let y_normalized = if self.normalize_y {
-            let mean = y.mean().unwrap_or(0.0);
+            let mean = y.mean_or(0.0);
             let std = y.std(0.0);
             let std = if std < 1e-10 { 1.0 } else { std };
 
@@ -205,7 +206,7 @@ impl<K: Kernel> GaussianProcessRegressor<K> {
         }
 
         // Compute R²
-        let y_mean = y.mean().unwrap_or(0.0);
+        let y_mean = y.mean_or(0.0);
         let ss_tot: f64 = y.iter().map(|&yi| (yi - y_mean).powi(2)).sum();
         let ss_res: f64 = y
             .iter()

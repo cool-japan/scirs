@@ -7,6 +7,7 @@ use crate::error::{Result, VisionError};
 use image::{DynamicImage, GenericImageView, GrayImage, Rgb, RgbImage};
 use scirs2_core::ndarray::{s, Array2};
 use scirs2_core::parallel_ops::*;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Template matching method
@@ -224,7 +225,7 @@ fn match_ncc(img: &GrayImage, template: &GrayImage) -> Result<Array2<f32>> {
     let tmpl_array = image_to_array(template);
 
     // Compute template mean and norm
-    let tmpl_mean: f32 = tmpl_array.mean().unwrap_or(0.0);
+    let tmpl_mean: f32 = tmpl_array.mean_or(0.0);
     let tmpl_norm: f32 = tmpl_array
         .iter()
         .map(|&v| {
@@ -246,7 +247,7 @@ fn match_ncc(img: &GrayImage, template: &GrayImage) -> Result<Array2<f32>> {
                     // Extract patch
                     let patch = img_slice
                         .slice(s![y..y + tmpl_height as usize, x..x + tmpl_width as usize]);
-                    let patch_mean: f32 = patch.mean().unwrap_or(0.0);
+                    let patch_mean: f32 = patch.mean_or(0.0);
 
                     let mut correlation = 0.0f32;
                     let mut patch_norm = 0.0f32;

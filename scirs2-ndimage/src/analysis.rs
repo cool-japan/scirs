@@ -7,6 +7,7 @@
 use scirs2_core::ndarray::{Array2, ArrayView2, Zip};
 use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -250,7 +251,7 @@ pub fn signal_to_noise_ratio<T>(image: &ArrayView2<T>) -> NdimageResult<T>
 where
     T: Float + FromPrimitive + std::ops::AddAssign + std::ops::DivAssign + 'static,
 {
-    let mean_val = image.mean().unwrap_or(T::zero());
+    let mean_val = image.mean_or(T::zero());
     let variance = image
         .mapv(|x| (x - mean_val) * (x - mean_val))
         .mean()
@@ -274,7 +275,7 @@ pub fn contrast_to_noise_ratio<T>(image: &ArrayView2<T>) -> NdimageResult<T>
 where
     T: Float + FromPrimitive + std::ops::AddAssign + std::ops::DivAssign + 'static,
 {
-    let mean_val = image.mean().unwrap_or(T::zero());
+    let mean_val = image.mean_or(T::zero());
     let max_val = image.iter().cloned().fold(T::neg_infinity(), T::max);
     let min_val = image.iter().cloned().fold(T::infinity(), T::min);
 

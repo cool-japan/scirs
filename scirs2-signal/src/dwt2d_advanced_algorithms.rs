@@ -16,6 +16,7 @@ use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_positive;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -733,8 +734,8 @@ fn compute_edge_map(data: &Array2<f64>) -> SignalResult<Array2<f64>> {
 #[allow(dead_code)]
 fn compute_structural_similarity(img1: &Array2<f64>, img2: &Array2<f64>) -> SignalResult<f64> {
     // Simplified SSIM computation
-    let mean1 = img1.mean().unwrap_or(0.0);
-    let mean2 = img2.mean().unwrap_or(0.0);
+    let mean1 = img1.mean_or(0.0);
+    let mean2 = img2.mean_or(0.0);
 
     let var1 = img1.mapv(|x| (x - mean1).powi(2)).mean();
     let var2 = img2.mapv(|x| (x - mean2).powi(2)).mean();

@@ -6,6 +6,7 @@ use crate::nas::EvaluationMetrics;
 use scirs2_core::ndarray::prelude::*;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::parallel_ops::*;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 /// Trait for performance estimation strategies
 pub trait PerformanceEstimator: Send + Sync {
@@ -194,7 +195,7 @@ use statrs::statistics::Statistics;
                         .mapv_inplace(|x| if scirs2_core::random::random::<f32>() > 0.5 { x } else { 0.0 });
                 } else if layer_spec == "batchnorm" {
                     // Apply batch normalization (simplified)
-                    let mean = current_output.mean().unwrap_or(0.0);
+                    let mean = current_output.mean_or(0.0);
                     let std = current_output.std(0.0);
                     current_output.mapv_inplace(|x| (x - mean) / (std + 1e-5));
                 }

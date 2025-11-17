@@ -28,6 +28,7 @@ use scirs2_linalg;
 // };
 #[cfg(feature = "cache")]
 use scirs2_core::cache::{CacheBuilder, TTLSizedCache};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 /// Memory usage tracking and reporting
 #[derive(Debug, Clone)]
@@ -255,7 +256,7 @@ impl InPlaceOperations {
     pub fn normalize_inplace<F: Float + Debug + Clone + scirs2_core::numeric::FromPrimitive>(
         array: &mut ArrayD<F>,
     ) -> Result<()> {
-        let mean = array.mean().unwrap_or(F::zero());
+        let mean = array.mean_or(F::zero());
         let variance = _array
             .mapv(|x| (x - mean) * (x - mean))
             .mean()

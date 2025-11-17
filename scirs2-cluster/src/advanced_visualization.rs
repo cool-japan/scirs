@@ -7,6 +7,7 @@
 use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
 use crate::error::{ClusteringError, Result};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
@@ -511,7 +512,7 @@ impl AdvancedVisualizer {
     fn calculate_quantum_sample_weight(&self, sampleidx: usize, sample: &ArrayView1<f64>) -> f64 {
         // Quantum weighting based on sample entropy and variance
         let sample_variance = sample.variance();
-        let sample_mean = sample.mean().unwrap_or(0.0);
+        let sample_mean = sample.mean_or(0.0);
 
         // Information theoretic weight
         let entropy_factor = if sample_variance > 0.0 {

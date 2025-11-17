@@ -8,6 +8,7 @@ use crate::reinforcement::policy::{Policy, PolicyNetwork};
 use crate::reinforcement::value::ValueNetwork;
 use scirs2_core::ndarray::prelude::*;
 use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 // Note: Would use ndarray_linalg for matrix operations in production
 /// TRPO configuration
@@ -221,7 +222,7 @@ impl TRPO {
         let (advantages, returns) = self.compute_gae(rewards, &values, next_value, dones);
         // Normalize advantages
         let adv_array = Array1::from_vec(advantages.clone());
-        let adv_mean = adv_array.mean().unwrap_or(0.0);
+        let adv_mean = adv_array.mean_or(0.0);
         let adv_std = adv_array.std(0.0);
         let normalized_advantages = (adv_array - adv_mean) / (adv_std + 1e-8);
         // Store old policy

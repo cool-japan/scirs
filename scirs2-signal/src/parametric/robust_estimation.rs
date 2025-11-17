@@ -35,6 +35,7 @@
 
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 // Import types from the parent module
@@ -298,6 +299,6 @@ pub fn compute_parameter_change(_old_params: &Array1<f64>, newparams: &Array1<f6
 #[allow(dead_code)]
 fn compute_efficiency(weights: &Array1<f64>) -> f64 {
     // Compute statistical efficiency of the robust estimator
-    let mean_weight = weights.mean().unwrap_or(1.0);
+    let mean_weight = weights.mean_or(1.0);
     mean_weight.min(1.0)
 }

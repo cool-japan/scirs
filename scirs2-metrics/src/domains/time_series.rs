@@ -7,6 +7,7 @@ use crate::domains::{DomainEvaluationResult, DomainMetrics};
 use crate::error::{MetricsError, Result};
 use crate::regression::{mean_absolute_error, mean_squared_error, r2_score};
 use scirs2_core::ndarray::{s, Array1, Array2};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -651,7 +652,7 @@ impl TrendAnalysisMetrics {
         let x: Array1<f64> = Array1::linspace(0.0, (n - 1) as f64, n);
 
         let x_mean = x.clone().mean();
-        let y_mean = timeseries.mean().unwrap_or(0.0);
+        let y_mean = timeseries.mean_or(0.0);
 
         let mut numerator = 0.0;
         let mut x_var = 0.0;
@@ -713,8 +714,8 @@ impl TrendAnalysisMetrics {
         let x1 = &timeseries.slice(s![..n]);
         let x2 = &timeseries.slice(s![lag..]);
 
-        let mean1 = x1.mean().unwrap_or(0.0);
-        let mean2 = x2.mean().unwrap_or(0.0);
+        let mean1 = x1.mean_or(0.0);
+        let mean2 = x2.mean_or(0.0);
 
         let mut covariance = 0.0_f64;
         let mut var1 = 0.0_f64;

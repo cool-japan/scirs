@@ -5,7 +5,7 @@
 //! other physiological signals.
 
 use crate::error::{Result, TimeSeriesError};
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayStatCompat, ArrayView1};
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -486,8 +486,8 @@ impl EEGAnalysis {
             ));
         }
 
-        let mean1 = signal1.mean().unwrap();
-        let mean2 = signal2.mean().unwrap();
+        let mean1 = signal1.mean_or(0.0);
+        let mean2 = signal2.mean_or(0.0);
 
         let mut numerator = 0.0;
         let mut sum1_sq = 0.0;
@@ -639,8 +639,8 @@ impl EMGAnalysis {
         }
 
         let _n = x.len() as f64;
-        let x_mean = x.mean().unwrap();
-        let y_mean = y.mean().unwrap();
+        let x_mean = x.mean_or(0.0);
+        let y_mean = y.mean_or(0.0);
 
         let mut numerator = 0.0;
         let mut denominator = 0.0;

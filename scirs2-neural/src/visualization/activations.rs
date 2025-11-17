@@ -8,6 +8,7 @@ use crate::error::{NeuralError, Result};
 use crate::models::sequential::Sequential;
 use scirs2_core::ndarray::{ArrayD, ScalarOperand};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -403,7 +404,7 @@ impl<
                 if range > F::zero() {
                     processed.mapv(|x| (x - min_val) / range)
                     processed.mapv(|_| F::zero()), ActivationNormalization::ZScore => {
-                let mean = processed.mean().unwrap_or(F::zero());
+                let mean = processed.mean_or(F::zero());
                 let variance = processed
                     .iter()
                     .map(|&x| (x - mean) * (x - mean))

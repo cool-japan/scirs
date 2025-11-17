@@ -9,6 +9,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::{Float, One, Zero};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Configuration for hardware acceleration
@@ -366,7 +367,7 @@ impl SimdStatistics {
             || !self.capabilities.simd_available()
             || data.len() < self.config.min_data_size
         {
-            return Ok(data.mean().unwrap_or(0.0));
+            return Ok(data.mean_or(0.0));
         }
 
         let sum = self.sum_simd(data)?;
@@ -383,7 +384,7 @@ impl SimdStatistics {
             || !self.capabilities.simd_available()
             || data.len() < self.config.min_data_size
         {
-            let mean = data.mean().unwrap_or(0.0);
+            let mean = data.mean_or(0.0);
             let var =
                 data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / (data.len() - 1) as f64;
             return Ok(var);

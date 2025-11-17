@@ -14,6 +14,7 @@ use scirs2_core::numeric::Complex64;
 use scirs2_core::random::Rng;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::{check_finite, checkshape};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -217,8 +218,8 @@ fn estimate_snr_correlation(input: &Array1<f64>, output: &Array1<f64>) -> Signal
     let _n = input.len();
 
     // Compute normalized cross-correlation
-    let input_mean = input.mean().unwrap_or(0.0);
-    let output_mean = output.mean().unwrap_or(0.0);
+    let input_mean = input.mean_or(0.0);
+    let output_mean = output.mean_or(0.0);
 
     let input_centered: Array1<f64> = input.mapv(|x| x - input_mean);
     let output_centered: Array1<f64> = output.mapv(|x| x - output_mean);
@@ -286,8 +287,8 @@ fn estimate_snr_wavelet_denoising(signal: &Array1<f64>) -> SignalResult<f64> {
     }
 
     let noise = _signal - &denoised;
-    let signal_power = denoised.mapv(|x| x * x).mean().unwrap_or(1e-12);
-    let noise_power = noise.mapv(|x| x * x).mean().unwrap_or(1e-12);
+    let signal_power = denoised.mapv(|x| x * x).mean_or(1e-12);
+    let noise_power = noise.mapv(|x| x * x).mean_or(1e-12);
 
     let snr_linear = signal_power / noise_power;
     Ok(10.0 * snr_linear.log10())
@@ -495,7 +496,7 @@ pub fn enhanced_cross_validation(
         fold_errors[fold] = val_error;
     }
 
-    let mean_cv_error = fold_errors.mean().unwrap_or(f64::INFINITY);
+    let mean_cv_error = fold_errors.mean_or(f64::INFINITY);
     let cv_std = fold_errors.std(0.0);
 
     // Bootstrap confidence intervals

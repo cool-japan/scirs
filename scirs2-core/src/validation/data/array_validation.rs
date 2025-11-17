@@ -3,6 +3,8 @@
 //! This module provides comprehensive validation for ndarray arrays,
 //! including shape, numeric quality, statistical properties, and performance checks.
 
+use crate::ndarray::ArrayStatCompat;
+
 use crate::error::CoreError;
 use std::collections::HashMap;
 use std::fmt;
@@ -258,7 +260,7 @@ impl ArrayValidator {
         }
 
         // Calculate basic statistics
-        let mean = array.mean().unwrap_or(S::Elem::zero());
+        let mean = array.mean_or(S::Elem::zero());
         let std_dev = array.std(num_traits::cast(1.0).unwrap());
 
         // Validate mean constraints

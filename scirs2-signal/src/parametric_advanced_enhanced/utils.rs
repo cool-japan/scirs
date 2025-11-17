@@ -8,6 +8,7 @@ use crate::error::{SignalError, SignalResult};
 // Remove unused import - compute_eigendecomposition is used directly in high_resolution module
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 
@@ -349,7 +350,7 @@ pub fn compute_autocorrelation(signal: &Array1<f64>, maxlag: usize) -> SignalRes
     let n = signal.len();
     let mut autocorr = Array1::zeros(maxlag + 1);
 
-    let mean = signal.mean().unwrap_or(0.0);
+    let mean = signal.mean_or(0.0);
     let variance = signal.var(0.0);
 
     if variance <= 0.0 {

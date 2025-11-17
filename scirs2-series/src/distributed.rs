@@ -5,6 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
@@ -591,7 +592,7 @@ impl<
         let data = &task.input_data;
 
         // Extract basic statistical features
-        let mean = data.mean().unwrap_or(F::zero());
+        let mean = data.mean_or(F::zero());
         let variance = data.var(F::zero());
         let min = data.iter().fold(F::infinity(), |acc, &x| acc.min(x));
         let max = data.iter().fold(F::neg_infinity(), |acc, &x| acc.max(x));
@@ -611,7 +612,7 @@ impl<
     /// Simulate anomaly detection task execution
     fn simulate_anomaly_detection_task(&self, task: &DistributedTask<F>) -> Result<Array1<F>> {
         let data = &task.input_data;
-        let mean = data.mean().unwrap_or(F::zero());
+        let mean = data.mean_or(F::zero());
         let std_dev = data.var(F::zero()).sqrt();
 
         // Simple z-score based anomaly detection

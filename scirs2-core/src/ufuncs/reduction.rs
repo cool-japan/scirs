@@ -4,6 +4,8 @@
 //! (sum, mean, etc.) as universal functions for efficient
 //! array reductions along specified axes.
 
+use crate::ndarray::ArrayStatCompat;
+
 use crate::ufuncs::core::{apply_reduction, register_ufunc, UFunc, UFuncKind};
 use ndarray::{Array, Array1, ArrayView, ArrayViewMut, Axis, Dimension, Ix1, IxDyn, ShapeBuilder};
 use std::sync::Once;
@@ -625,7 +627,7 @@ where
             // Variance along a specific axis
             let n = array.len_of(Axis(ax)) as f64;
             let result = array.map_axis(Axis(ax), |lane| {
-                let m = lane.mean().unwrap_or(0.0);
+                let m = lane.mean_or(0.0);
                 lane.iter().map(|&x| (x - m).powi(2)).sum::<f64>() / n
             });
             // Convert to 1D array
@@ -633,7 +635,7 @@ where
         }
         None => {
             // Variance of all elements
-            let mean_val = array.mean().unwrap_or(0.0);
+            let mean_val = array.mean_or(0.0);
             let n = array.len() as f64;
             let var_val = array.iter().map(|&x| (x - mean_val).powi(2)).sum::<f64>() / n;
             Array::from_elem(1, var_val)

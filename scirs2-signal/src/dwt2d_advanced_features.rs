@@ -15,6 +15,7 @@ use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::Array2;
 use scirs2_core::random::Rng;
 use scirs2_core::validation::checkarray_finite;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -783,8 +784,8 @@ fn compute_denoising_metrics(
     let denoising_strength = 1.0 - (residual_variance / noise_variance).min(1.0);
 
     // Signal preservation (correlation)
-    let mean_orig = original.mean().unwrap_or(0.0);
-    let mean_denoised = denoised.mean().unwrap_or(0.0);
+    let mean_orig = original.mean_or(0.0);
+    let mean_denoised = denoised.mean_or(0.0);
 
     let mut cov = 0.0;
     let mut var_orig = 0.0;

@@ -8,6 +8,7 @@ use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::validation::{check_positive, checkshape};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::distribution::{ContinuousCDF, FisherSnedecor};
 use statrs::statistics::Statistics;
 
@@ -163,7 +164,7 @@ pub fn multitaper_ftest_complex(
     let taper_means: Vec<f64> = (0..k)
         .map(|i| {
             let row = tapers.row(i);
-            row.mean().unwrap_or(0.0)
+            row.mean_or(0.0)
         })
         .collect();
 

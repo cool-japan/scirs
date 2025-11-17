@@ -64,6 +64,7 @@ use super::config::*;
 use crate::error::NdimageResult;
 use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, Array5};
 use scirs2_core::numeric::Complex;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 /// Quantum-Aware Resource Scheduling and Optimization
@@ -554,7 +555,7 @@ fn apply_quantum_load_balancing(
     }
 
     // Generate migration recommendations based on load imbalance
-    let avg_load = load_distribution.mean().unwrap_or(0.0);
+    let avg_load = load_distribution.mean_or(0.0);
     let mut high_load_resources = Vec::new();
     let mut low_load_resources = Vec::new();
 

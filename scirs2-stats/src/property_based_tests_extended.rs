@@ -19,6 +19,7 @@ use crate::{
     pearson_r,
 };
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::ArrayStatCompat;
 
 /// Test data generator for property-based tests
 #[derive(Clone, Debug)]
@@ -474,7 +475,7 @@ impl BatchProcessingTester {
         let batch_means: Vec<f64> = (0..matrixdata.cols)
             .map(|col_idx| {
                 let column = data.column(col_idx);
-                column.mean().unwrap_or(0.0)
+                column.mean_or(0.0)
             })
             .collect();
         

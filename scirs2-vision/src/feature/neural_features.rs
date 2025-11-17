@@ -21,6 +21,7 @@ use crate::error::{Result, VisionError};
 use crate::feature::KeyPoint;
 use crate::gpu_ops::GpuVisionContext;
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Neural network model for feature detection and description
@@ -1228,8 +1229,8 @@ impl LearnedSIFT {
 
         // Apply learned normalization
         for mut row in descriptors.rows_mut() {
-            let mean = row.mean().unwrap_or(0.0);
-            let std = ((row.mapv(|x| (x - mean).powi(2)).mean().unwrap_or(0.0)).sqrt()).max(1e-6);
+            let mean = row.mean_or(0.0);
+            let std = ((row.mapv(|x| (x - mean).powi(2)).mean_or(0.0)).sqrt()).max(1e-6);
             row.mapv_inplace(|x| (x - mean) / std);
         }
 

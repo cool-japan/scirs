@@ -26,6 +26,7 @@ use scirs2_core::ndarray::s;
 use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, Array5, ArrayView2};
 use scirs2_core::numeric::Complex;
 use scirs2_core::numeric::{Float, FromPrimitive, Zero};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::f64::consts::PI;
 use std::sync::{Arc, RwLock};
@@ -259,7 +260,7 @@ pub fn multi_scale_integration(
             }
             _ => {
                 // Coarse scale: Global features
-                let global_mean = level.mean().unwrap_or(0.0);
+                let global_mean = level.mean_or(0.0);
                 let global_std = {
                     let variance = level
                         .iter()

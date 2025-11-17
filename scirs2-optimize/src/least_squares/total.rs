@@ -33,7 +33,7 @@
 //! ```
 
 use crate::error::OptimizeResult;
-use scirs2_core::ndarray::{array, s, Array1, Array2, ArrayBase, Data, Ix1};
+use scirs2_core::ndarray::{array, s, Array1, Array2, ArrayBase, ArrayStatCompat, Data, Ix1};
 use statrs::statistics::Statistics;
 
 /// Options for total least squares
@@ -180,8 +180,8 @@ where
     let n = x_measured.len();
 
     // Center the data
-    let x_mean = x_measured.mean().unwrap();
-    let y_mean = y_measured.mean().unwrap();
+    let x_mean = x_measured.mean_or(0.0);
+    let y_mean = y_measured.mean_or(0.0);
 
     let x_centered = x_measured - x_mean;
     let y_centered = y_measured - y_mean;
@@ -196,9 +196,9 @@ where
             let x_weights = x_var.mapv(|v| 1.0 / v.sqrt());
             let y_weights = y_var.mapv(|v| 1.0 / v.sqrt());
 
-            (x_centered * &x_weights, y_centered * &y_weights)
+            ((&x_centered * &x_weights).to_owned(), (&y_centered * &y_weights).to_owned())
         } else {
-            (x_centered.clone(), y_centered.clone())
+            (x_centered.to_owned(), y_centered.to_owned())
         };
 
     // Form the augmented matrix [x_scaled, y_scaled]
@@ -393,8 +393,8 @@ where
     S2: Data<Elem = f64>,
 {
     let _n = x.len() as f64;
-    let x_mean = x.mean().unwrap();
-    let y_mean = y.mean().unwrap();
+    let x_mean = x.mean_or(0.0);
+    let y_mean = y.mean_or(0.0);
 
     let mut num = 0.0;
     let mut den = 0.0;

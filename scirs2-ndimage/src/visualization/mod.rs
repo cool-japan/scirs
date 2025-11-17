@@ -74,6 +74,8 @@
 //! # Ok::<(), Box<dyn std::error::Error>>(())
 //! ```
 
+use scirs2_core::ndarray::ArrayStatCompat;
+
 // Sub-module declarations
 pub mod colormap;
 pub mod plotting;
@@ -241,7 +243,7 @@ pub mod advanced {
     use super::plotting::plot_heatmap;
     use super::types::{ColorMap, PlotConfig, ReportFormat};
     use crate::error::{NdimageError, NdimageResult};
-    use scirs2_core::ndarray::ArrayView2;
+    use scirs2_core::ndarray::{ArrayStatCompat, ArrayView2};
     use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive, Zero};
     use std::fmt::{Debug, Write};
 
@@ -345,7 +347,7 @@ pub mod advanced {
 
         // Statistics panel
         let (height, width) = image.dim();
-        let mean = image.mean().unwrap_or(T::zero());
+        let mean = image.mean_or(T::zero());
         let min_val = image.iter().cloned().fold(T::infinity(), T::min);
         let max_val = image.iter().cloned().fold(T::neg_infinity(), T::max);
 
@@ -459,7 +461,7 @@ pub mod advanced {
 
             // Add statistics
             let (height, width) = image.dim();
-            let mean = image.mean().unwrap_or(T::zero());
+            let mean = image.mean_or(T::zero());
             let min_val = image.iter().cloned().fold(T::infinity(), T::min);
             let max_val = image.iter().cloned().fold(T::neg_infinity(), T::max);
 

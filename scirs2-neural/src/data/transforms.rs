@@ -3,6 +3,7 @@
 use crate::error::Result;
 use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::Debug;
 use statrs::statistics::Statistics;
 /// Trait for data transforms
@@ -38,7 +39,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> StandardSca
     pub fn fit(&mut self, data: &Array<F, IxDyn>) -> Result<&mut Self> {
         if data.ndim() < 2 {
             // Just compute global mean and std
-            let mean = data.mean().unwrap_or(F::zero());
+            let mean = data.mean_or(F::zero());
             let zero = F::from(0.0).unwrap_or(F::zero());
             let std = data.std(zero);
             self.mean = Some(Array::from_elem(IxDyn(&[1]), mean));

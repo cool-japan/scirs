@@ -10,6 +10,7 @@ use crate::models::Model;
 use scirs2_core::ndarray::{Array, ArrayD, Dimension, IxDyn, Zip, Axis, s};
 use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::Debug;
 use std::iter::Sum;
 use std::sync::{Arc, RwLock};
@@ -561,7 +562,7 @@ pub fn compute_gradcam_attribution<F>(
     let num_channels = activations.shape()[1];
     for c in 0..num_channels {
         let channel_grad = gradients.index_axis(scirs2_core::ndarray::Axis(1), c);
-        let weight = channel_grad.mean().unwrap_or(F::zero());
+        let weight = channel_grad.mean_or(F::zero());
         weights.push(weight);
     // Compute weighted combination of activation maps
     let first_channel = activations
@@ -1003,8 +1004,8 @@ pub fn generate_attribution_report<F, M>(
     // Compute attribution
     let attribution = compute_single_attribution(model, input, method, config)?;
     // Compute statistics
-    let mean = attribution.mean().unwrap_or(F::zero());
-    let variance = attribution.mapv(|x| (x - mean) * (x - mean)).mean().unwrap_or(F::zero());
+    let mean = attribution.mean_or(F::zero());
+    let variance = attribution.mapv(|x| (x - mean) * (x - mean)).mean_or(F::zero());
     let std_dev = variance.sqrt();
     let min = attribution.iter().fold(F::infinity(), |a, &b| a.min(b));
     let max = attribution.iter().fold(F::neg_infinity(), |a, &b| a.max(b));

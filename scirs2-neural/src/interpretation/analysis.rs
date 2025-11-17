@@ -7,6 +7,7 @@
 use crate::error::{NeuralError, Result};
 use scirs2_core::ndarray::{Array, ArrayD};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -86,7 +87,7 @@ where
 /// Compute detailed statistics for layer activations
 #[allow(dead_code)]
 pub fn compute_layer_statistics<F>(activations: &ArrayD<F>) -> Result<LayerAnalysisStats<F>>
-    let mean_activation = activations.mean().unwrap_or(F::zero());
+    let mean_activation = activations.mean_or(F::zero());
     let variance = activations
         .mapv(|x| (x - mean_activation) * (x - mean_activation))
         .mean()
@@ -138,9 +139,9 @@ pub fn compute_layer_statistics<F>(activations: &ArrayD<F>) -> Result<LayerAnaly
 /// Compute attribution statistics for a single attribution method
 #[allow(dead_code)]
 pub fn compute_attribution_statistics<F>(attribution: &ArrayD<F>) -> AttributionStatistics<F>
-    let mean = attribution.mean().unwrap_or(F::zero());
+    let mean = attribution.mean_or(F::zero());
     let abs_attribution = attribution.mapv(|x| x.abs());
-    let mean_abs = abs_attribution.mean().unwrap_or(F::zero());
+    let mean_abs = abs_attribution.mean_or(F::zero());
     let max_abs = abs_attribution.iter().cloned().fold(F::zero(), F::max);
     let positive_ratio =
         attribution.iter().filter(|&&x| x > F::zero()).count() as f64 / attribution.len() as f64;
@@ -241,8 +242,8 @@ pub fn compute_correlation<F>(x: &ArrayD<F>, y: &ArrayD<F>) -> f64
     let n = x.len() as f64;
     if n == 0.0 {
         return 0.0;
-    let x_mean = x.mean().unwrap_or(F::zero()).to_f64().unwrap_or(0.0);
-    let y_mean = y.mean().unwrap_or(F::zero()).to_f64().unwrap_or(0.0);
+    let x_mean = x.mean_or(F::zero()).to_f64().unwrap_or(0.0);
+    let y_mean = y.mean_or(F::zero()).to_f64().unwrap_or(0.0);
     let mut numerator = 0.0;
     let mut x_sum_sq = 0.0;
     let mut y_sum_sq = 0.0;

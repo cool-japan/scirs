@@ -703,8 +703,9 @@ impl<T: TargetDistribution + Clone + Send + Sync> EnsembleSampler<T> {
             return Ok(1.0);
         }
 
-        let mean = chain.mean().unwrap();
-        let variance = chain.mapv(|x| (x - mean).powi(2)).mean();
+        use scirs2_core::ndarray::ArrayStatCompat;
+        let mean = chain.mean_or(0.0);
+        let variance = chain.mapv(|x| (x - mean).powi(2)).mean_or(1.0);
 
         if variance <= 0.0 {
             return Ok(1.0);

@@ -5,7 +5,7 @@
 //! atmospheric measurements, and other environmental indicators.
 
 use crate::error::{Result, TimeSeriesError};
-use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayStatCompat};
 use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
@@ -470,8 +470,8 @@ impl ClimateIndices {
             ));
         }
 
-        let tahiti_mean = tahiti_pressure.mean().unwrap();
-        let darwin_mean = darwin_pressure.mean().unwrap();
+        let tahiti_mean = tahiti_pressure.mean_or(0.0);
+        let darwin_mean = darwin_pressure.mean_or(0.0);
         let tahiti_std = tahiti_pressure.std(0.0);
         let darwin_std = darwin_pressure.std(0.0);
 
@@ -497,8 +497,8 @@ impl ClimateIndices {
             ));
         }
 
-        let azores_mean = azores_pressure.mean().unwrap();
-        let iceland_mean = iceland_pressure.mean().unwrap();
+        let azores_mean = azores_pressure.mean_or(0.0);
+        let iceland_mean = iceland_pressure.mean_or(0.0);
         let azores_std = azores_pressure.std(0.0);
         let iceland_std = iceland_pressure.std(0.0);
 

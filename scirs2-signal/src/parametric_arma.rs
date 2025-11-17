@@ -12,6 +12,7 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::Float;
 use scirs2_core::validation::check_finite;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 #[allow(unused_imports)]
@@ -186,7 +187,7 @@ fn innovation_algorithm(signal: &Array1<f64>, p: usize, q: usize) -> SignalResul
     ma_coeffs[0] = 1.0;
 
     // Center the _signal
-    let mean = signal.mean().unwrap_or(0.0);
+    let mean = signal.mean_or(0.0);
     let centered = signal.mapv(|x| x - mean);
 
     // Innovation algorithm iterations

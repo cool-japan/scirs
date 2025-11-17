@@ -43,6 +43,7 @@ use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_fft;
 use statrs::statistics::Statistics;
 use std::cmp;
@@ -754,7 +755,7 @@ fn estimate_noise_power(signal: &Array1<f64>) -> SignalResult<f64> {
 #[allow(dead_code)]
 fn estimate_signal_power(signal: &Array1<f64>) -> SignalResult<f64> {
     // Compute mean
-    let mean = signal.mean().unwrap_or(0.0);
+    let mean = signal.mean_or(0.0);
 
     // Compute variance (_signal power)
     let power = signal.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / signal.len() as f64;

@@ -2,6 +2,7 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Data, Ix1, Ix2, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};
@@ -24,7 +25,7 @@ where
     }
 
     let n = data.len();
-    let mean = data.mean().unwrap_or(F::zero());
+    let mean = data.mean_or(F::zero());
 
     // Calculate autocovariance
     let mut cov = F::zero();
@@ -1070,7 +1071,7 @@ where
     }
 
     let n = data.len() as f64;
-    let mean = data.mean().unwrap_or(F::zero()).into();
+    let mean = data.mean_or(F::zero()).into();
     let variance = data
         .iter()
         .map(|x| {

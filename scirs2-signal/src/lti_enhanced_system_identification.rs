@@ -18,6 +18,7 @@ use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::{check_finite, check_positive, checkshape};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 
@@ -1013,7 +1014,7 @@ fn compute_fit_percentage(actual: &Array1<f64>, predicted: &Array1<f64>) -> f64 
 
 #[allow(dead_code)]
 fn compute_r_squared(actual: &Array1<f64>, predicted: &Array1<f64>) -> f64 {
-    let actual_mean = actual.mean().unwrap_or(0.0);
+    let actual_mean = actual.mean_or(0.0);
     let ss_tot: f64 = actual.iter().map(|&y| (y - actual_mean).powi(2)).sum();
     let ss_res: f64 = _actual
         .iter()
@@ -1030,7 +1031,7 @@ fn compute_r_squared(actual: &Array1<f64>, predicted: &Array1<f64>) -> f64 {
 
 #[allow(dead_code)]
 fn compute_variance(data: &Array1<f64>) -> f64 {
-    let mean = data.mean().unwrap_or(0.0);
+    let mean = data.mean_or(0.0);
     let n = data.len() as f64;
     data.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / n
 }

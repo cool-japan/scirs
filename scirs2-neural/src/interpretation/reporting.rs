@@ -7,6 +7,7 @@ use crate::error::{NeuralError, Result};
 use crate::interpretation::ConceptActivationVector;
 use scirs2_core::ndarray::{ArrayD, IxDyn};
 use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::iter::Sum;
@@ -508,7 +509,7 @@ fn compute_concept_activation<F>(_input: &ArrayD<F>, conceptvector: &ConceptActi
 /// Compute high activation score based on input statistics
 #[allow(dead_code)]
 fn compute_high_activation_score<F>(input: &ArrayD<F>) -> f64
-    let mean_val = input.mean().unwrap_or(F::zero()).to_f64().unwrap_or(0.0);
+    let mean_val = input.mean_or(F::zero()).to_f64().unwrap_or(0.0);
     let max_val = input.iter().fold(F::zero(), |acc, &x| acc.max(x)).to_f64().unwrap_or(0.0);
     // Score based on how much of the input has high activation values
     let threshold = F::from(mean_val + 0.5 * (max_val - mean_val)).unwrap();
@@ -527,7 +528,7 @@ fn compute_low_activation_score<F>(input: &ArrayD<F>) -> f64
 /// Compute activation variance as a concept score
 #[allow(dead_code)]
 fn compute_activation_variance<F>(input: &ArrayD<F>) -> f64
-    let mean_val = input.mean().unwrap_or(F::zero());
+    let mean_val = input.mean_or(F::zero());
     let variance = input.iter()
         .map(|&x| {
             let diff = x - mean_val;

@@ -4,7 +4,7 @@
 //! meta-learning to select optimal transformations for given datasets.
 
 use crate::error::{Result, TransformError};
-use scirs2_core::ndarray::{Array1, ArrayView1, ArrayView2};
+use scirs2_core::ndarray::{Array1, ArrayStatCompat, ArrayView1, ArrayView2};
 use scirs2_core::random::seq::SliceRandom;
 use scirs2_core::validation::check_not_empty;
 use std::collections::HashMap;
@@ -602,12 +602,8 @@ impl AutoFeatureEngineer {
         }
 
         let _n = x.len() as f64;
-        let mean_x = x.mean().ok_or_else(|| {
-            TransformError::ComputationError("Failed to compute mean of x".to_string())
-        })?;
-        let mean_y = y.mean().ok_or_else(|| {
-            TransformError::ComputationError("Failed to compute mean of y".to_string())
-        })?;
+        let mean_x = x.mean_or(0.0);
+        let mean_y = y.mean_or(0.0);
 
         let numerator: f64 = x
             .iter()

@@ -15,6 +15,7 @@ use scirs2_core::numeric::Complex64;
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::Rng;
 use scirs2_core::validation::checkshape;
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 use crate::lti::design::tf;
@@ -2434,7 +2435,7 @@ fn invert_matrix(matrix: &Array2<f64>) -> Result<Array2<f64>, SignalError> {
 
     // For simplicity, just return identity _matrix scaled by diagonal average
     // In practice would implement proper _matrix inversion
-    let diag_avg = matrix.diag().mean().unwrap_or(1.0);
+    let diag_avg = matrix.diag().mean_or(1.0);
     if diag_avg.abs() < 1e-15 {
         return Err(SignalError::ComputationError(
             "Matrix is singular".to_string(),

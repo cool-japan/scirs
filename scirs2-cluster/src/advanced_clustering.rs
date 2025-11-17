@@ -55,6 +55,7 @@ use crate::quantum_clustering::{QAOAConfig, VQEConfig};
 use crate::vq::euclidean_distance;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::Complex64;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 use std::time::Instant;
@@ -1493,7 +1494,7 @@ impl MetaLearningClusterOptimizer {
         let mut embedding = Array1::zeros(10);
         embedding[0] = data.nrows() as f64;
         embedding[1] = data.ncols() as f64;
-        embedding[2] = data.mean().unwrap_or(0.0);
+        embedding[2] = data.mean_or(0.0);
         embedding[3] = data.variance();
         // ... additional features
         embedding

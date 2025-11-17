@@ -5,6 +5,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use scirs2_core::numeric::{Float, NumCast};
+use scirs2_core::ndarray::ArrayStatCompat;
 
 use crate::error::{Result, TransformError};
 use statrs::statistics::Statistics;
@@ -482,8 +483,8 @@ impl MutualInfoSelector {
         // Simple correlation-based approximation for continuous variables
         if !self.discrete_target {
             // Standardize variables
-            let x_mean = x.mean().unwrap_or(0.0);
-            let y_mean = y.mean().unwrap_or(0.0);
+            let x_mean = x.mean_or(0.0);
+            let y_mean = y.mean_or(0.0);
             let x_std = x.std(0.0);
             let y_std = y.std(0.0);
 
@@ -513,7 +514,7 @@ impl MutualInfoSelector {
             }
 
             // Calculate between-group variance / total variance ratio
-            let total_mean = x.mean().unwrap_or(0.0);
+            let total_mean = x.mean_or(0.0);
             let total_var = x.variance();
 
             if total_var < 1e-10 {
@@ -863,8 +864,8 @@ mod tests {
     fn pearson_correlation(x: &Array1<f64>, y: &Array1<f64>) -> f64 {
         #[allow(unused_variables)]
         let n = x.len() as f64;
-        let x_mean = x.mean().unwrap_or(0.0);
-        let y_mean = y.mean().unwrap_or(0.0);
+        let x_mean = x.mean_or(0.0);
+        let y_mean = y.mean_or(0.0);
 
         let mut num = 0.0;
         let mut x_var = 0.0;

@@ -16,6 +16,8 @@
 //! using the array protocol. It enables gradient computation for any array
 //! type that implements the `ArrayProtocol` trait.
 
+use crate::ndarray::ArrayStatCompat;
+
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -987,7 +989,7 @@ pub fn grad_mean(a: &GradientTensor) -> CoreResult<GradientTensor> {
         .downcast_ref::<NdarrayWrapper<f64, IxDyn>>()
     {
         let array = a_array.as_array();
-        let mean_value = array.mean().unwrap_or(0.0);
+        let mean_value = array.mean_or(0.0);
         let result = ArrayD::<f64>::from_elem(IxDyn(&[1]), mean_value);
         let result_wrapped = NdarrayWrapper::new(result);
         let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
@@ -1001,7 +1003,7 @@ pub fn grad_mean(a: &GradientTensor) -> CoreResult<GradientTensor> {
         .downcast_ref::<NdarrayWrapper<f32, IxDyn>>()
     {
         let array = a_array.as_array();
-        let mean_value = array.mean().unwrap_or(0.0f32);
+        let mean_value = array.mean_or(0.0f32);
         let result = ArrayD::<f32>::from_elem(IxDyn(&[1]), mean_value);
         let result_wrapped = NdarrayWrapper::new(result);
         let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);

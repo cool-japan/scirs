@@ -25,6 +25,7 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
 use scirs2_core::random::Rng;
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{HashMap, VecDeque};
 
 use super::config::*;
@@ -343,7 +344,7 @@ pub fn update_meta_learning_parameters_enhanced(
     config: &AdvancedConfig,
 ) -> NdimageResult<()> {
     let (rows, cols) = meta_params.dim();
-    let output_mean = output.mean().unwrap_or(0.0);
+    let output_mean = output.mean_or(0.0);
     let output_std = output.std(0.0);
 
     // Calculate performance-based adaptation
@@ -708,15 +709,15 @@ pub fn create_memory_trace(
     }
 
     // Calculate importance score
-    let importance = content.mean().unwrap_or(0.0).abs() + content.std(0.0);
+    let importance = content.mean_or(0.0).abs() + content.std(0.0);
 
     // Create memory context
     let context = MemoryContext {
         operation_type: task_context.to_string(),
         data_characteristics: vec![
-            consciousness_response.mean().unwrap_or(0.0),
-            neural_response.mean().unwrap_or(0.0),
-            causal_response.mean().unwrap_or(0.0),
+            consciousness_response.mean_or(0.0),
+            neural_response.mean_or(0.0),
+            causal_response.mean_or(0.0),
         ],
         performance_outcome: importance,
         environment: HashMap::new(),
@@ -843,7 +844,7 @@ pub fn update_memory_attention(
 /// Calculate Statistical Metrics (mean, variance)
 #[allow(dead_code)]
 fn calculate_statistical_metrics(data: &Array2<f64>) -> (f64, f64) {
-    let mean = data.mean().unwrap_or(0.0);
+    let mean = data.mean_or(0.0);
     let variance = data.var(0.0);
     (mean, variance)
 }
@@ -914,7 +915,7 @@ fn calculate_meta_gradient(
     let performance_gradient = if i < output.nrows() && j < output.ncols() {
         output[(i, j)]
     } else {
-        output.mean().unwrap_or(0.0)
+        output.mean_or(0.0)
     };
 
     performance_gradient * config.meta_learning_rate
@@ -923,7 +924,7 @@ fn calculate_meta_gradient(
 /// Calculate Performance Score
 #[allow(dead_code)]
 fn calculate_performance_score(output: &Array2<f64>) -> f64 {
-    let mean = output.mean().unwrap_or(0.0);
+    let mean = output.mean_or(0.0);
     let std = output.std(0.0);
     (mean.abs() + std).tanh()
 }
@@ -984,7 +985,7 @@ fn apply_hierarchical_attention(
     attention_weights: &Array1<f64>,
 ) -> NdimageResult<Array2<f64>> {
     let mut output = input.clone();
-    let attention_factor = attention_weights.mean().unwrap_or(1.0);
+    let attention_factor = attention_weights.mean_or(1.0);
 
     for value in output.iter_mut() {
         *value *= attention_factor;
@@ -1002,7 +1003,7 @@ fn evaluate_strategy_fitness(
 ) -> NdimageResult<f64> {
     let temporal_score = calculate_performance_score(temporal_output);
     let hierarchical_score = calculate_performance_score(hierarchical_output);
-    let genome_quality = strategy.genome.mean().unwrap_or(0.0).abs();
+    let genome_quality = strategy.genome.mean_or(0.0).abs();
 
     Ok((temporal_score + hierarchical_score + genome_quality) / 3.0)
 }

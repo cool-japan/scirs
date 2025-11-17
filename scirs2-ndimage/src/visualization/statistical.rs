@@ -6,6 +6,7 @@
 
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive, Zero};
+use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Write};
 
 use crate::error::{NdimageError, NdimageResult};
@@ -267,7 +268,7 @@ where
             continue;
         }
 
-        let mean = data.mean().unwrap_or(T::zero());
+        let mean = data.mean_or(T::zero());
         let min_val = data.iter().cloned().fold(T::infinity(), T::min);
         let max_val = data.iter().cloned().fold(T::neg_infinity(), T::max);
         let variance = data
@@ -376,7 +377,7 @@ where
         return (T::zero(), T::zero(), T::zero(), T::zero(), 0);
     }
 
-    let mean = data.mean().unwrap_or(T::zero());
+    let mean = data.mean_or(T::zero());
     let min_val = data.iter().cloned().fold(T::infinity(), T::min);
     let max_val = data.iter().cloned().fold(T::neg_infinity(), T::max);
     let variance = data
@@ -530,8 +531,8 @@ where
         return 0.0;
     }
 
-    let mean1 = data1.mean().unwrap_or(T::zero()).to_f64().unwrap_or(0.0);
-    let mean2 = data2.mean().unwrap_or(T::zero()).to_f64().unwrap_or(0.0);
+    let mean1 = data1.mean_or(T::zero()).to_f64().unwrap_or(0.0);
+    let mean2 = data2.mean_or(T::zero()).to_f64().unwrap_or(0.0);
 
     let mut sum_xy = 0.0;
     let mut sum_x2 = 0.0;

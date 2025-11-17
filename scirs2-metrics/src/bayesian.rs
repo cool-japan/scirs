@@ -6,6 +6,7 @@
 
 use crate::error::{MetricsError, Result};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Results from Bayesian model comparison
@@ -328,7 +329,7 @@ impl BayesianModelComparison {
         }
 
         // Compute autocorrelation function
-        let mean = samples.mean().unwrap_or(0.0);
+        let mean = samples.mean_or(0.0);
         let variance = samples.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
 
         if variance == 0.0 {
@@ -656,8 +657,8 @@ impl BayesianModelComparison {
         prior_log_likes: &Array1<f64>,
     ) -> Result<f64> {
         // Simple initial estimate using sample means
-        let posterior_mean = posterior_log_likes.mean().unwrap_or(0.0);
-        let prior_mean = prior_log_likes.mean().unwrap_or(0.0);
+        let posterior_mean = posterior_log_likes.mean_or(0.0);
+        let prior_mean = prior_log_likes.mean_or(0.0);
 
         Ok(posterior_mean - prior_mean)
     }
@@ -1011,7 +1012,7 @@ impl BayesianModelComparison {
             return Ok(0.0);
         }
 
-        let mean = data.mean().unwrap_or(0.0);
+        let mean = data.mean_or(0.0);
         let variance = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
         Ok(variance)
     }
@@ -1061,7 +1062,7 @@ impl BayesianInformationCriteria {
         let loo_cv = self.calculate_loo_cv(log_likelihoodsamples)?;
 
         // Calculate BIC (requires point estimate of log-likelihood)
-        let mean_log_likelihood: f64 = log_likelihoodsamples.mean().unwrap_or(0.0);
+        let mean_log_likelihood: f64 = log_likelihoodsamples.mean_or(0.0);
         let bic = -2.0 * mean_log_likelihood * num_observations as f64
             + (num_parameters as f64) * (num_observations as f64).ln();
 
@@ -1153,7 +1154,7 @@ impl BayesianInformationCriteria {
 
     /// Calculate Deviance Information Criterion (DIC)
     fn calculate_dic(&self, log_likelihoodsamples: &Array2<f64>) -> Result<f64> {
-        let mean_deviance = -2.0 * log_likelihoodsamples.mean().unwrap_or(0.0);
+        let mean_deviance = -2.0 * log_likelihoodsamples.mean_or(0.0);
 
         // Calculate deviance at posterior mean (simplified)
         let posterior_mean_ll = log_likelihoodsamples.mean_axis(Axis(0)).unwrap();
@@ -1300,9 +1301,9 @@ impl PosteriorPredictiveCheck {
         }
 
         match &self.test_statistic {
-            TestStatisticType::Mean => Ok(data.mean().unwrap_or(0.0)),
+            TestStatisticType::Mean => Ok(data.mean_or(0.0)),
             TestStatisticType::Variance => {
-                let mean = data.mean().unwrap_or(0.0);
+                let mean = data.mean_or(0.0);
                 let variance =
                     data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
                 Ok(variance)
@@ -1312,7 +1313,7 @@ impl PosteriorPredictiveCheck {
             TestStatisticType::Custom(_name) => {
                 // For custom functions, implement specific logic
                 // For now, return mean as default
-                Ok(data.mean().unwrap_or(0.0))
+                Ok(data.mean_or(0.0))
             }
         }
     }
@@ -1323,7 +1324,7 @@ impl PosteriorPredictiveCheck {
             return Ok(0.0);
         }
 
-        let mean = data.mean().unwrap_or(0.0);
+        let mean = data.mean_or(0.0);
         let variance = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
         Ok(variance.sqrt())
     }
@@ -1395,7 +1396,7 @@ impl CredibleIntervalCalculator {
         let upper_bound = sortedsamples[upper_idx.min(n - 1)];
 
         // Posterior statistics
-        let posterior_mean = posterior_samples.mean().unwrap_or(0.0);
+        let posterior_mean = posterior_samples.mean_or(0.0);
         let posterior_median = if n.is_multiple_of(2) {
             (sortedsamples[n / 2 - 1] + sortedsamples[n / 2]) / 2.0
         } else {

@@ -192,13 +192,9 @@ impl StatsExt for scirs2_core::ndarray::ArrayView1<'_, f64> {
             return 0.0;
         }
 
+        use scirs2_core::ndarray::ArrayStatCompat;
         let n = self.len() as f64;
-        let mean = {
-            match self.mean() {
-                Some(val) if !val.is_nan() => val,
-                _ => 0.0,
-            }
-        };
+        let mean = self.mean_or(0.0);
 
         let mut sum_sq = 0.0;
         for &x in self.iter() {
