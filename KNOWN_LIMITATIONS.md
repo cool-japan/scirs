@@ -42,6 +42,66 @@ This will be addressed in **v0.2.0** with a comprehensive refactoring of feature
 
 For detailed analysis and migration plan, see [docs/ISSUE_77_FEATURE_FLAGS_ANALYSIS.md](docs/ISSUE_77_FEATURE_FLAGS_ANALYSIS.md).
 
+## Python Bindings (ndarray 0.17 Incompatibility)
+
+**Status**: Temporarily unavailable, waiting for upstream fix
+
+**Problem**: The `numpy` Rust crate (v0.27.0) only supports ndarray < 0.17, but SciRS2 has migrated to ndarray 0.17.1.
+
+### Current Behavior
+
+Python bindings are feature-gated and will cause build errors if enabled:
+
+```bash
+# This will fail
+cargo build --all-features
+
+# This works (default features only)
+cargo build
+```
+
+### Affected Crates
+
+- `scirs2-cluster` - `pyo3` feature
+- `scirs2-series` - `python` feature
+
+### Impact
+
+- Python bindings (`pyo3`, `python` features) cannot be used
+- Default builds work fine (Python bindings not enabled by default)
+- CI/CD should avoid `--all-features` flag
+
+### Workaround
+
+**For now**: Do not enable `pyo3` or `python` features
+
+```toml
+# Don't do this
+[dependencies]
+scirs2-cluster = { version = "0.1.0-rc.2", features = ["pyo3"] }  # ❌ Will fail
+
+# Do this instead
+[dependencies]
+scirs2-cluster = "0.1.0-rc.2"  # ✅ Works (default features)
+```
+
+### Solution Timeline
+
+**v0.2.0**: Re-enable Python bindings when one of the following occurs:
+1. `numpy` crate releases version with ndarray 0.17 support (Issue #76 dependency)
+2. We implement direct PyO3 bindings without the `numpy` crate
+3. We add conditional compilation for ndarray 0.16 vs 0.17
+
+**Tracking**: This is blocked by upstream `numpy` crate compatibility with ndarray 0.17.
+
+### Technical Details
+
+The `numpy` Rust crate depends on `ndarray ^0.15, < 0.17`. When SciRS2 uses ndarray 0.17, Cargo includes both:
+- ndarray 0.17.1 (for SciRS2)
+- ndarray 0.16.1 (for numpy crate)
+
+This causes type mismatches because `ArrayBase` from 0.16 and 0.17 are different types.
+
 ## Platform-Specific Issues
 
 ### Windows Platform

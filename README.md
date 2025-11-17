@@ -832,6 +832,23 @@ This release focuses on performance optimizations, code quality improvements, an
 
 This is the second Release Candidate (0.1.0-rc.2) of SciRS2, released October 19, 2025. While the core functionality is stable and well-tested, there are some known limitations:
 
+### Python Bindings (Temporary Limitation - v0.1.0-rc.3)
+
+**Status**: ⚠️ Temporarily unavailable with `--all-features`
+
+**Issue**: The `numpy` Rust crate (v0.27.0) only supports ndarray < 0.17. SciRS2 has migrated to ndarray 0.17.1 for improved performance and safety.
+
+**Impact**:
+- Python bindings features (`pyo3`, `python`) are **disabled by default** ✅
+- Regular builds work fine: `cargo build` ✅
+- Full feature builds fail: `cargo build --all-features` ❌
+
+**Workaround**: Do not enable `pyo3` or `python` features until `numpy` crate adds ndarray 0.17 support.
+
+**Resolution**: Planned for v0.2.0 when upstream `numpy` crate updates (related to Issue #76).
+
+For details, see [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md#python-bindings-ndarray-017-incompatibility).
+
 ### Platform-Specific Issues
 
 #### Windows Platform
