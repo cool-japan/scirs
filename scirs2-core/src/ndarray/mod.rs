@@ -274,8 +274,10 @@ pub mod utils {
 // ========================================
 
 /// Compatibility module for smooth migration from fragmented imports
+/// and ndarray version changes (SciRS2 POLICY compliance)
 pub mod compat {
     pub use super::*;
+    use crate::numeric::{Float, FromPrimitive};
 
     /// Alias for commonly used types to match existing usage patterns
     pub type DynArray<T> = ArrayD<T>;
@@ -283,6 +285,67 @@ pub mod compat {
     pub type Vector<T> = Array1<T>;
     pub type Tensor3<T> = Array3<T>;
     pub type Tensor4<T> = Array4<T>;
+
+    /// Compatibility extensions for ndarray statistical operations
+    ///
+    /// This trait provides stable statistical operation APIs that remain consistent
+    /// across ndarray version updates, implementing the SciRS2 POLICY principle
+    /// of isolating external dependency changes to scirs2-core only.
+    ///
+    /// ## Rationale
+    ///
+    /// ndarray's statistical methods have changed across versions:
+    /// - v0.16: `.mean()` returns `Option<T>`
+    /// - v0.17: `.mean()` returns `T` directly (may be NaN for invalid operations)
+    ///
+    /// This trait provides a consistent API regardless of the underlying ndarray version.
+    ///
+    /// ## Example
+    ///
+    /// ```rust
+    /// use scirs2_core::ndarray::{Array1, compat::ArrayStatCompat};
+    ///
+    /// let data = Array1::from(vec![1.0, 2.0, 3.0]);
+    /// let mean = data.mean_or(0.0);  // Stable API across ndarray versions
+    /// ```
+    pub trait ArrayStatCompat<T> {
+        /// Compute the mean of the array, returning a default value if computation fails
+        ///
+        /// This method abstracts over ndarray version differences:
+        /// - For ndarray 0.16: Unwraps the Option, using default if None
+        /// - For ndarray 0.17+: Returns the value, using default if NaN
+        fn mean_or(&self, default: T) -> T;
+
+        /// Compute the variance with optional default
+        fn var_or(&self, ddof: T, default: T) -> T;
+
+        /// Compute the standard deviation with optional default
+        fn std_or(&self, ddof: T, default: T) -> T;
+    }
+
+    impl<T, S, D> ArrayStatCompat<T> for ArrayBase<S, D>
+    where
+        T: Float + FromPrimitive,
+        S: Data<Elem = T>,
+        D: Dimension,
+    {
+        fn mean_or(&self, default: T) -> T {
+            // ndarray returns Option<T> in both 0.16 and 0.17
+            self.mean().unwrap_or(default)
+        }
+
+        fn var_or(&self, ddof: T, default: T) -> T {
+            // ndarray returns T directly (may be NaN for invalid inputs)
+            let v = self.var(ddof);
+            if v.is_nan() { default } else { v }
+        }
+
+        fn std_or(&self, ddof: T, default: T) -> T {
+            // ndarray returns T directly (may be NaN for invalid inputs)
+            let s = self.std(ddof);
+            if s.is_nan() { default } else { s }
+        }
+    }
 
     /// Re-export from ndarray_ext for backward compatibility
     pub use crate::ndarray_ext::{
@@ -463,6 +526,9 @@ pub mod migration_guide {
     //! | `use ndarray::{s!, Axis}` | `use scirs2_core::ndarray::{s, Axis}` |
 }
 
+// Re-export compatibility traits for easy access
+pub use compat::ArrayStatCompat;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -536,5 +602,26 @@ mod tests {
         });
 
         assert_eq!(c, array![5, 7, 9]);
+    }
+
+    #[test]
+    fn test_array_stat_compat() {
+        use compat::ArrayStatCompat;
+
+        // Test mean_or
+        let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
+        assert_eq!(data.mean_or(0.0), 3.0);
+
+        let empty = Array1::<f64>::from(vec![]);
+        assert_eq!(empty.mean_or(0.0), 0.0);
+
+        // Test var_or
+        let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
+        let var = data.var_or(1.0, 0.0);
+        assert!(var > 0.0);
+
+        // Test std_or
+        let std = data.std_or(1.0, 0.0);
+        assert!(std > 0.0);
     }
 }
