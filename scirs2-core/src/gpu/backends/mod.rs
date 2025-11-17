@@ -28,6 +28,9 @@ pub mod metal;
 #[cfg(all(feature = "metal", target_os = "macos"))]
 pub mod metal_mps;
 
+#[cfg(all(feature = "mpsgraph", target_os = "macos"))]
+pub mod metal_mpsgraph;
+
 // Re-export backend implementations
 #[cfg(feature = "cuda")]
 pub use cuda::{get_optimizer_kernels, CudaContext, CudaStream};
@@ -43,6 +46,9 @@ pub use metal::{MetalBufferOptions, MetalContext, MetalStorageMode};
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
 pub use metal_mps::{MPSContext, MPSDataType, MPSOperations};
+
+#[cfg(all(feature = "mpsgraph", target_os = "macos"))]
+pub use metal_mpsgraph::MPSGraphContext;
 
 /// Information about available GPU hardware
 #[derive(Debug, Clone)]

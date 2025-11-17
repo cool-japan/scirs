@@ -291,7 +291,13 @@ impl MPSContext {
         let command_buffer = self.create_command_buffer()?;
 
         // Encode operation
-        self.encode_matrix_multiply(&command_buffer, left_matrix, right_matrix, result_matrix, matmul)?;
+        self.encode_matrix_multiply(
+            &command_buffer,
+            left_matrix,
+            right_matrix,
+            result_matrix,
+            matmul,
+        )?;
 
         // Commit and wait for completion
         self.commit_command_buffer(&command_buffer);
@@ -540,8 +546,13 @@ impl MPSOperations {
         )?;
 
         // Encode multiplication (don't commit/wait)
-        self.context
-            .encode_matrix_multiply(command_buffer, &a_matrix, &b_matrix, &c_matrix, &matmul)?;
+        self.context.encode_matrix_multiply(
+            command_buffer,
+            &a_matrix,
+            &b_matrix,
+            &c_matrix,
+            &matmul,
+        )?;
 
         Ok(())
     }
