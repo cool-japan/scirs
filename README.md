@@ -353,6 +353,77 @@ For detailed migration instructions, see [MIGRATION_GUIDE_BETA3.md](MIGRATION_GU
 
 ## Installation and Usage
 
+### System Dependencies
+
+SciRS2 requires system-level BLAS/LAPACK libraries for linear algebra operations. Install the appropriate packages for your platform **before** building SciRS2:
+
+#### Linux (Ubuntu/Debian)
+```bash
+sudo apt-get update
+sudo apt-get install libopenblas-dev liblapack-dev pkg-config
+```
+
+#### Linux (Fedora/RHEL/CentOS)
+```bash
+sudo dnf install openblas-devel lapack-devel pkgconfig
+# Or for older systems:
+sudo yum install openblas-devel lapack-devel pkgconfig
+```
+
+#### Linux (Arch)
+```bash
+sudo pacman -S openblas lapack pkgconf
+```
+
+#### macOS
+macOS comes with Accelerate framework (Apple's optimized BLAS/LAPACK), no additional installation needed:
+```bash
+# No action required - Accelerate framework is pre-installed
+```
+
+#### Windows
+On Windows, you need to either:
+
+**Option 1: Install OpenBLAS** (Recommended)
+```powershell
+# Using vcpkg
+vcpkg install openblas:x64-windows
+```
+
+**Option 2: Use pre-built libraries**
+- Download OpenBLAS from https://github.com/xianyi/OpenBLAS/releases
+- Extract to a location like `C:\openblas`
+- Set environment variables:
+  ```powershell
+  $env:OPENBLAS_PATH = "C:\openblas"
+  $env:PATH += ";C:\openblas\bin"
+  ```
+
+#### Troubleshooting Build Errors
+
+If you encounter linking errors like:
+```
+rust-lld: error: unable to find library -lopenblas
+rust-lld: error: unable to find library -llapack
+```
+
+**Solution**:
+1. Verify system libraries are installed (see commands above for your platform)
+2. Ensure `pkg-config` can find the libraries:
+   ```bash
+   pkg-config --libs openblas  # Should output library paths
+   ```
+3. On Linux, you may need to set `PKG_CONFIG_PATH`:
+   ```bash
+   export PKG_CONFIG_PATH=/usr/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
+   ```
+4. On macOS, ensure Xcode Command Line Tools are installed:
+   ```bash
+   xcode-select --install
+   ```
+
+### Cargo Installation
+
 SciRS2 and all its modules are available on [crates.io](https://crates.io/crates/scirs2). You can add them to your project using Cargo:
 
 ```toml
