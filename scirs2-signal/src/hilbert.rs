@@ -99,11 +99,12 @@ where
     let spectrum = scirs2_fft::fft(&signal, None)
         .map_err(|e| SignalError::ComputationError(format!("FFT computation error: {e}")))?;
 
-    // Create the frequency domain filter for the Hilbert transform
-    // For a proper Hilbert transform, we need to:
-    // 1. Set the DC component (0 frequency) to 1
-    // 2. Double the positive frequencies and multiply by -i
-    // 3. Zero out the negative frequencies
+    // Create the frequency domain filter for the analytic signal
+    // For a proper analytic signal (SciPy-compatible), we need to:
+    // 1. Keep the DC component (0 frequency) unchanged: h[0] = 1
+    // 2. Double the positive frequencies: h[1..n/2] = 2
+    // 3. Keep the Nyquist component unchanged (even length): h[n/2] = 1
+    // 4. Zero out the negative frequencies: h[n/2+1..] = 0
     let mut h = vec![Complex64::new(1.0, 0.0); n];
 
     if n.is_multiple_of(2) {
@@ -111,9 +112,9 @@ where
         h[0] = Complex64::new(1.0, 0.0); // DC component
         h[n / 2] = Complex64::new(1.0, 0.0); // Nyquist component
 
-        // Positive frequencies (multiply by 2 and by -i)
+        // Positive frequencies (multiply by 2 to create analytic signal)
         h.iter_mut().take(n / 2).skip(1).for_each(|val| {
-            *val = Complex64::new(0.0, -2.0); // Equivalent to 2 * (-i)
+            *val = Complex64::new(2.0, 0.0);
         });
 
         // Negative frequencies (set to 0)
@@ -124,9 +125,9 @@ where
         // Odd length case
         h[0] = Complex64::new(1.0, 0.0); // DC component
 
-        // Positive frequencies (multiply by 2 and by -i)
+        // Positive frequencies (multiply by 2 to create analytic signal)
         h.iter_mut().take(n.div_ceil(2)).skip(1).for_each(|val| {
-            *val = Complex64::new(0.0, -2.0); // Equivalent to 2 * (-i)
+            *val = Complex64::new(2.0, 0.0);
         });
 
         // Negative frequencies (set to 0)
