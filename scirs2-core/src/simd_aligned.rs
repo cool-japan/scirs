@@ -29,6 +29,16 @@ impl<T> AlignedVec<T> {
             });
         }
 
+        // Handle Zero-Sized Types (ZST) to avoid undefined behavior
+        // When size_of::<T>() == 0, we must not call alloc()
+        if std::mem::size_of::<T>() == 0 {
+            return Ok(Self {
+                ptr: NonNull::dangling(),
+                len: 0,
+                capacity,
+            });
+        }
+
         let layout = Layout::from_size_align(capacity * std::mem::size_of::<T>(), SIMD_ALIGNMENT)
             .map_err(|e| Box::new(e) as Box<dyn std::error::Error>)?;
 
