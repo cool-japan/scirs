@@ -20,8 +20,8 @@
 use crate::error::{Result, VisionError};
 use crate::feature::KeyPoint;
 use crate::gpu_ops::GpuVisionContext;
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView2};
 use statrs::statistics::Statistics;
 
 /// Neural network model for feature detection and description

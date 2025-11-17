@@ -72,9 +72,9 @@ use crate::lti::{LtiSystem, TransferFunction};
 use crate::parametric::{estimate_ar, estimate_arma, ARMethod, OrderSelection};
 use crate::spectral::welch;
 use crate::window::get_window;
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Complex64;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 

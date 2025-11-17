@@ -54,9 +54,9 @@
 //! ```
 
 use crate::error::{SpatialError, SpatialResult};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2};
 use scirs2_core::random::Rng;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};

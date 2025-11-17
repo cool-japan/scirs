@@ -3,9 +3,9 @@
 //! This module provides methods for selecting relevant features from datasets,
 //! which can help reduce dimensionality and improve model performance.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix2};
 use scirs2_core::numeric::{Float, NumCast};
-use scirs2_core::ndarray::ArrayStatCompat;
 
 use crate::error::{Result, TransformError};
 use statrs::statistics::Statistics;

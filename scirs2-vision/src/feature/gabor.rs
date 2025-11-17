@@ -6,8 +6,8 @@
 
 use crate::error::Result;
 use image::{DynamicImage, GrayImage, ImageBuffer, Luma};
-use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{Array2, Array3};
 use statrs::statistics::Statistics;
 use std::f32::consts::PI;
 

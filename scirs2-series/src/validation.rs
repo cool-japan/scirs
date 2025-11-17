@@ -2,9 +2,9 @@
 //!
 //! Provides centralized validation functions for parameters and data
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{ArrayBase, Data, Ix1};
 use scirs2_core::numeric::{Float, FromPrimitive};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::Display;
 
 use crate::error::{Result, TimeSeriesError};

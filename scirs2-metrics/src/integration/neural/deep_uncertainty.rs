@@ -12,10 +12,10 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::error::{MetricsError, Result};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::Float;
 use scirs2_core::simd_ops::SimdUnifiedOps;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 use std::iter::Sum;

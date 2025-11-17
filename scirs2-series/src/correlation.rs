@@ -7,9 +7,9 @@
 //! - Coherence analysis for frequency domain relationships
 
 use crate::error::TimeSeriesError;
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::validation::checkarray_finite;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 

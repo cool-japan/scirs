@@ -337,13 +337,21 @@ pub mod compat {
         fn var_or(&self, ddof: T, default: T) -> T {
             // ndarray returns T directly (may be NaN for invalid inputs)
             let v = self.var(ddof);
-            if v.is_nan() { default } else { v }
+            if v.is_nan() {
+                default
+            } else {
+                v
+            }
         }
 
         fn std_or(&self, ddof: T, default: T) -> T {
             // ndarray returns T directly (may be NaN for invalid inputs)
             let s = self.std(ddof);
-            if s.is_nan() { default } else { s }
+            if s.is_nan() {
+                default
+            } else {
+                s
+            }
         }
     }
 

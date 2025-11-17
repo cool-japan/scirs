@@ -8,9 +8,9 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::error::{IoError, Result};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::Rng;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};
 use std::time::Instant;

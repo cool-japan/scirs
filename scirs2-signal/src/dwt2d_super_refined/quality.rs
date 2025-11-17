@@ -5,8 +5,8 @@
 
 use super::types::*;
 use crate::error::{SignalError, SignalResult};
-use scirs2_core::ndarray::{Array2, Array3};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{Array2, Array3};
 use statrs::statistics::Statistics;
 
 /// Compute comprehensive quality metrics for advanced-refined wavelet analysis

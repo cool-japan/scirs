@@ -196,7 +196,10 @@ where
             let x_weights = x_var.mapv(|v| 1.0 / v.sqrt());
             let y_weights = y_var.mapv(|v| 1.0 / v.sqrt());
 
-            ((&x_centered * &x_weights).to_owned(), (&y_centered * &y_weights).to_owned())
+            (
+                (&x_centered * &x_weights).to_owned(),
+                (&y_centered * &y_weights).to_owned(),
+            )
         } else {
             (x_centered.to_owned(), y_centered.to_owned())
         };

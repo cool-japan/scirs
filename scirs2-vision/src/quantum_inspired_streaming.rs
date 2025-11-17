@@ -18,11 +18,11 @@ use crate::error::Result;
 #[cfg(test)]
 use crate::streaming::FrameMetadata;
 use crate::streaming::{Frame, ProcessingStage};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::rand_prelude::IndexedMutRandom;
 use scirs2_core::random::Rng;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

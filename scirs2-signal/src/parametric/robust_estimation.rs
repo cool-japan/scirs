@@ -34,8 +34,8 @@
 //! ```
 
 use crate::error::{SignalError, SignalResult};
-use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{Array1, Array2};
 use statrs::statistics::Statistics;
 
 // Import types from the parent module

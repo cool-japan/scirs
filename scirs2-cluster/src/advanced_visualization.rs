@@ -6,8 +6,8 @@
 
 use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
 use crate::error::{ClusteringError, Result};
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};

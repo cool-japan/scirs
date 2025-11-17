@@ -1,9 +1,9 @@
 //! Global explanation methods for understanding overall model behavior
 
 use crate::error::{MetricsError, Result};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2, Axis};
 use scirs2_core::numeric::Float;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 use std::collections::HashMap;
 

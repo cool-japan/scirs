@@ -5,11 +5,11 @@
 //! and cross-platform compatibility.
 
 use crate::error::{MetricsError, Result};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::{Float, One, Zero};
 use scirs2_core::parallel_ops::*;
 use scirs2_core::simd_ops::{AutoOptimizer, PlatformCapabilities, SimdUnifiedOps};
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Configuration for hardware acceleration

@@ -4,9 +4,9 @@
 //! including Bayesian model comparison, effect size calculations, and advanced
 //! hypothesis testing techniques.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::numeric::Float;
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 
 use crate::error::{MetricsError, Result};

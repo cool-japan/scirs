@@ -2,9 +2,9 @@
 //!
 //! Implements various diagnostic tests and residual analysis
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, ArrayBase, Data, Ix1, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};

@@ -4,9 +4,9 @@
 //! supporting multiple output formats (HTML, Markdown, Text) and comprehensive
 //! analysis sections including basic statistics, quality metrics, and texture analysis.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::ArrayView2;
 use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive, Zero};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Write};
 
 use crate::analysis::{ImageQualityMetrics, TextureMetrics};

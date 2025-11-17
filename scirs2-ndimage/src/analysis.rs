@@ -4,10 +4,10 @@
 //! quality metrics, texture analysis, multi-scale analysis, and
 //! advanced statistical measurements for scientific image processing.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array2, ArrayView2, Zip};
 use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use scirs2_core::simd_ops::SimdUnifiedOps;
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 

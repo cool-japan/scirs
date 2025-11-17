@@ -5,8 +5,8 @@
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GenericImageView, GrayImage};
-use scirs2_core::ndarray::{s, Array2};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{s, Array2};
 use statrs::statistics::Statistics;
 
 /// Compute Peak Signal-to-Noise Ratio (PSNR) between two images

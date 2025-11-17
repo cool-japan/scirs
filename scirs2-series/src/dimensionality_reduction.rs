@@ -35,9 +35,9 @@
 //! println!("Explained variance ratio: {:?}", result.explained_variance_ratio);
 //! ```
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{s, Array1, Array2, Axis, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};

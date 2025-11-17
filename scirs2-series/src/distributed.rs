@@ -3,9 +3,9 @@
 //! This module provides infrastructure for distributing time series computations
 //! across multiple nodes, supporting both synchronous and asynchronous processing.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Float;
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::time::{Duration, Instant};

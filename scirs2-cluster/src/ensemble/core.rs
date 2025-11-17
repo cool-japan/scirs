@@ -3,8 +3,8 @@
 //! This module provides the fundamental data structures and configurations
 //! used throughout the ensemble clustering system.
 
-use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{Array1, Array2};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 

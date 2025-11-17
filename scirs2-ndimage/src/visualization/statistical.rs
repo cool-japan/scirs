@@ -4,9 +4,9 @@
 //! comparative studies, and multi-dataset visualization. These functions are designed
 //! to support statistical research and data analysis workflows.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{ArrayView1, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive, ToPrimitive, Zero};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Write};
 
 use crate::error::{NdimageError, NdimageResult};

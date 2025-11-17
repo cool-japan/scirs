@@ -23,9 +23,9 @@
 //! and advanced temporal fusion capabilities (`enhanced_meta_learning_with_temporal_fusion`)
 //! for different complexity requirements.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{s, Array1, Array2, Array3, Axis};
 use scirs2_core::random::Rng;
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{HashMap, VecDeque};
 
 use super::config::*;

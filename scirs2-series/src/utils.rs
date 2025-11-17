@@ -1,8 +1,8 @@
 //! Utility functions for time series analysis
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayBase, Data, Ix1, Ix2, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};

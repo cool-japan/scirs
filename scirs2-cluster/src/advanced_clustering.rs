@@ -53,9 +53,9 @@
 use crate::error::{ClusteringError, Result};
 use crate::quantum_clustering::{QAOAConfig, VQEConfig};
 use crate::vq::euclidean_distance;
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use scirs2_core::numeric::Complex64;
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{HashMap, VecDeque};
 use std::f64::consts::PI;
 use std::time::Instant;

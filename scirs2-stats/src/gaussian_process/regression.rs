@@ -7,8 +7,8 @@ use super::kernel::{Kernel, SquaredExponential, SumKernel, WhiteKernel};
 use super::prior::{Prior, ZeroPrior};
 use crate::error::StatsResult;
 use scirs2_core::error::CoreError;
-use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{Array1, Array2};
 
 /// Gaussian Process Regressor with scikit-learn compatible API
 ///

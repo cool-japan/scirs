@@ -8,9 +8,9 @@
 //! The main difference from Moving Least Squares is the additional focus on
 //! regression diagnostics, bandwidth selection, and statistical properties.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::Debug;
 use std::marker::PhantomData;
 

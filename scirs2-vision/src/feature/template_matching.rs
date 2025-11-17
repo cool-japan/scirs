@@ -5,9 +5,9 @@
 
 use crate::error::{Result, VisionError};
 use image::{DynamicImage, GenericImageView, GrayImage, Rgb, RgbImage};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{s, Array2};
 use scirs2_core::parallel_ops::*;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Template matching method

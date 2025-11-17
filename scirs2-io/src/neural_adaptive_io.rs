@@ -8,9 +8,9 @@
 #![allow(clippy::too_many_arguments)]
 
 use crate::error::Result;
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::simd_ops::SimdUnifiedOps;
-use scirs2_core::ndarray::ArrayStatCompat;
 use serde::{Deserialize, Serialize};
 use statrs::statistics::Statistics;
 use std::collections::{HashMap, VecDeque};

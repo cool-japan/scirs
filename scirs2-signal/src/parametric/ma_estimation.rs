@@ -12,8 +12,8 @@
 
 use super::types::{MAMethod, MAResult};
 use crate::error::{SignalError, SignalResult};
-use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{s, Array1, Array2};
 use statrs::statistics::Statistics;
 use std::f64::consts::PI;
 

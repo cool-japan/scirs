@@ -3,9 +3,9 @@
 //! This module implements consciousness awakening, self-awareness development,
 //! consciousness evolution tracking, and consciousness state management.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, Array3, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{HashMap, VecDeque};
 
 use super::config::{

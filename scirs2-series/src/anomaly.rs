@@ -10,9 +10,9 @@ use scirs2_core::random::prelude::*;
 use std::fmt::Debug;
 
 use crate::error::{Result, TimeSeriesError};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::random::rand_prelude::ThreadRng;
 use scirs2_core::random::SliceRandom;
-use scirs2_core::ndarray::ArrayStatCompat;
 use statrs::statistics::Statistics;
 
 /// Method for anomaly detection

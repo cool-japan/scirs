@@ -3,9 +3,9 @@
 //! This module provides advanced implementations of AR, MA, and ARMA models
 //! with robust estimation, enhanced diagnostics, and improved forecasting capabilities.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, ArrayBase, Data, Ix1, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::fmt::{Debug, Display};
 
 use crate::error::{Result, TimeSeriesError};

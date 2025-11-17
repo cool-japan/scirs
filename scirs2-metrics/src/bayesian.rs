@@ -5,8 +5,8 @@
 //! and Bayesian model averaging metrics.
 
 use crate::error::{MetricsError, Result};
-use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{Array1, Array2, Axis};
 use statrs::statistics::Statistics;
 
 /// Results from Bayesian model comparison

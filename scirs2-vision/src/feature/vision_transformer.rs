@@ -24,8 +24,8 @@
 use crate::error::{Result, VisionError};
 use crate::feature::KeyPoint;
 use crate::gpu_ops::GpuVisionContext;
-use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, Axis};
 use scirs2_core::ndarray::ArrayStatCompat;
+use scirs2_core::ndarray::{s, Array1, Array2, Array3, Array4, ArrayView2, Axis};
 use statrs::statistics::Statistics;
 
 /// Type alias for feature matches (index, confidence score)

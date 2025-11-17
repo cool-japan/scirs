@@ -3,9 +3,9 @@
 //! TBATS stands for Trigonometric seasonality, Box-Cox transformation,
 //! ARMA errors, Trend, and Seasonal components.
 
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
-use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_linalg::solve;
 use std::fmt::Debug;
 

@@ -62,9 +62,9 @@
 
 use super::config::*;
 use crate::error::NdimageResult;
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2, Array3, Array4, Array5};
 use scirs2_core::numeric::Complex;
-use scirs2_core::ndarray::ArrayStatCompat;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 
 /// Quantum-Aware Resource Scheduling and Optimization
