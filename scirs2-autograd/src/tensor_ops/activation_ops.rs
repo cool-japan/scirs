@@ -84,7 +84,7 @@ impl<T: Float> op::Op<T> for Softmax {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let y = ctx.output();
         let gy = ctx.output_grad();
         let sum = reduce_sum(y * gy, &[self.axis], true);
@@ -99,7 +99,7 @@ impl<T: Float> op::Op<T> for Softplus {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let a = exp(ctx.input(0));
         let b = a + scalar(T::one(), ctx.graph());
@@ -118,7 +118,7 @@ impl<T: Float> op::Op<T> for Sigmoid {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let y = ctx.output();
         ctx.append_input_grad(0, Some(gy * (y - square(y))));
@@ -132,7 +132,7 @@ impl<T: Float> op::Op<T> for ReLU {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let s = ctx.graph();
         let gy = ctx.output_grad();
         let bin = greater(ctx.input(0), scalar(T::zero(), s));
@@ -148,7 +148,7 @@ impl<T: Float> op::Op<T> for Identity {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         ctx.append_input_grad(0, Some(gy.to_owned()))
     }
@@ -167,7 +167,7 @@ impl<T: Float> op::Op<T> for Elu<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = &ctx.output_grad();
         let gx = Tensor::builder(ctx.graph())
             .append_input(ctx.input(0), false)
@@ -193,7 +193,7 @@ impl<T: Float> op::Op<T> for EluGrad<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
         ctx.append_input_grad(1, None);
     }
@@ -214,7 +214,7 @@ impl<T: Float> op::Op<T> for Swish {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
 
@@ -257,7 +257,7 @@ impl<T: Float> op::Op<T> for Gelu {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
 
@@ -321,7 +321,7 @@ impl<T: Float> op::Op<T> for Mish {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
 
@@ -368,7 +368,7 @@ impl<T: Float> op::Op<T> for PReLU<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
         let g = ctx.graph();
@@ -404,7 +404,7 @@ impl<T: Float> op::Op<T> for PReLUGrad<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         // Second-order gradients not implemented
     }
 }
@@ -430,7 +430,7 @@ impl<T: Float> op::Op<T> for LearnableELU<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
         let g = ctx.graph();
@@ -466,7 +466,7 @@ impl<T: Float> op::Op<T> for LearnableELUGrad<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         // Second-order gradients not implemented
     }
 }
@@ -493,7 +493,7 @@ impl<T: Float> op::Op<T> for LearnableSwish<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
         let g = ctx.graph();
@@ -535,7 +535,7 @@ impl<T: Float> op::Op<T> for LearnableSwishGrad<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         // Second-order gradients not implemented
     }
 }
@@ -570,7 +570,7 @@ impl<T: Float> op::Op<T> for AdaptiveActivation<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         let gy = ctx.output_grad();
         let x = ctx.input(0);
         let g = ctx.graph();
@@ -628,7 +628,7 @@ impl<T: Float> op::Op<T> for AdaptiveActivationGrad<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         // Second-order gradients not implemented
     }
 }

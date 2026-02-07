@@ -285,35 +285,35 @@ impl<F: Float> Op<F> for OptimizedBroadcastOp<F> {
 
         // Compute gradients based on operation type
         let (left_grad, right_grad) = match self.operation {
-            BinaryOperation::Add => (*gy, *gy),
-            BinaryOperation::Subtract => (*gy, tensor_ops::neg(gy)),
-            BinaryOperation::Multiply => ((*gy) * right_input, (*gy) * left_input),
+            BinaryOperation::Add => (gy, gy),
+            BinaryOperation::Subtract => (gy, tensor_ops::neg(gy)),
+            BinaryOperation::Multiply => (gy * right_input, gy * left_input),
             BinaryOperation::Divide => {
-                let left_grad = (*gy) / right_input;
+                let left_grad = gy / right_input;
                 let neg_two = F::from(-2.0).expect("Failed to convert constant to float");
                 let right_grad =
-                    tensor_ops::neg(left_input) * tensor_ops::pow(right_input, neg_two) * (*gy);
+                    tensor_ops::neg(left_input) * tensor_ops::pow(right_input, neg_two) * gy;
                 (left_grad, right_grad)
             }
             BinaryOperation::Power => {
                 // Simplified power gradient (for now, assume power by scalar)
                 // In a full implementation, tensor-tensor power would need more complex handling
-                let left_grad = (*gy) * right_input;
-                let right_grad = (*gy) * left_input;
+                let left_grad = gy * right_input;
+                let right_grad = gy * left_input;
                 (left_grad, right_grad)
             }
             BinaryOperation::Maximum => {
                 // Gradient flows to the maximum operand
                 let mask = tensor_ops::greater_equal(left_input, right_input);
-                let left_grad = (*gy) * mask;
-                let right_grad = (*gy) * (tensor_ops::scalar(F::one(), g) - mask);
+                let left_grad = gy * mask;
+                let right_grad = gy * (tensor_ops::scalar(F::one(), g) - mask);
                 (left_grad, right_grad)
             }
             BinaryOperation::Minimum => {
                 // Gradient flows to the minimum operand
                 let mask = tensor_ops::lesser_equal(left_input, right_input);
-                let left_grad = (*gy) * mask;
-                let right_grad = (*gy) * (tensor_ops::scalar(F::one(), g) - mask);
+                let left_grad = gy * mask;
+                let right_grad = gy * (tensor_ops::scalar(F::one(), g) - mask);
                 (left_grad, right_grad)
             }
         };
@@ -533,7 +533,7 @@ fn apply_standard_broadcast<'a, F: Float>(
 fn reduce_for_broadcast_grad<'g, F: Float>(
     grad: &Tensor<'g, F>,
     reduce_axes: &[usize],
-    original_input: &Tensor<'g, F>,
+    original_input: Tensor<'g, F>,
     graph: &'g crate::Graph<F>,
 ) -> Tensor<'g, F> {
     let mut result = *grad;

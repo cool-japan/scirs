@@ -113,7 +113,7 @@ impl<T: Float> op::Op<T> for RandomNormal<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
     }
 }
@@ -127,7 +127,7 @@ impl<T: Float> op::Op<T> for RandomUniform<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
     }
 }
@@ -141,7 +141,7 @@ impl<T: Float> op::Op<T> for StandardNormal<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
     }
 }
@@ -155,7 +155,7 @@ impl<T: Float> op::Op<T> for StandardUniform<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
     }
 }
@@ -169,7 +169,7 @@ impl<T: Float> op::Op<T> for Bernoulli<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
     }
 }
@@ -183,7 +183,7 @@ impl<T: Float> op::Op<T> for Exponential<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
     }
 }
@@ -197,7 +197,7 @@ impl<T: Float> op::Op<T> for LogNormal<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
     }
 }
@@ -211,7 +211,7 @@ impl<T: Float> op::Op<T> for Gamma<T> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         ctx.append_input_grad(0, None);
     }
 }
@@ -253,7 +253,7 @@ impl<F: Float> op::Op<F> for Dropout<F> {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, F>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<F>) {
         let gy = ctx.output_grad();
         let mask = nth_tensor(ctx.output(), 1);
         ctx.append_input_grad(0, Some(gy * mask));

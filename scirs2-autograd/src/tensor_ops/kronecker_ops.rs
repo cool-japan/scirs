@@ -64,87 +64,9 @@ impl<F: Float> Op<F> for KroneckerOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let a = ctx.input(0);
-        let b = ctx.input(1);
-        let g = ctx.graph();
-
-        // Get shapes
-        let ashape = a.shape();
-        let bshape = b.shape();
-
-        if ashape.len() != 2 || bshape.len() != 2 {
-            ctx.append_input_grad(0, None);
-            ctx.append_input_grad(1, None);
-            return;
-        }
-
-        let (m, n) = (ashape[0], ashape[1]);
-        let (p, q) = (bshape[0], bshape[1]);
-
-        // For Kronecker product gradient:
-        // If Y = A ⊗ B, then:
-        // ∂Y/∂A = (I_n ⊗ B^T) * vec(∂L/∂Y) * (I_m ⊗ B)^T (reshaped to m×n)
-        // ∂Y/∂B = (A^T ⊗ I_q) * vec(∂L/∂Y) * (A ⊗ I_p)^T (reshaped to p×q)
-
-        // For simplicity, we compute element-wise:
-        // ∂L/∂A[i,j] = sum over k,l of ∂L/∂Y[i*p+k, j*q+l] * B[k,l]
-        // ∂L/∂B[k,l] = sum over i,j of ∂L/∂Y[i*p+k, j*q+l] * A[i,j]
-
-        match (gy.eval(g), a.eval(g), b.eval(g)) {
-            (Ok(gy_val), Ok(a_val), Ok(b_val)) => {
-                let gy_2d = gy_val
-                    .view()
-                    .into_dimensionality::<Ix2>()
-                    .expect("Operation failed");
-                let a_2d = a_val
-                    .view()
-                    .into_dimensionality::<Ix2>()
-                    .expect("Operation failed");
-                let b_2d = b_val
-                    .view()
-                    .into_dimensionality::<Ix2>()
-                    .expect("Operation failed");
-
-                // Gradient w.r.t. A
-                let mut grad_a = Array2::<F>::zeros((m, n));
-                for i in 0..m {
-                    for j in 0..n {
-                        let mut sum = F::zero();
-                        for k in 0..p {
-                            for l in 0..q {
-                                sum += gy_2d[[i * p + k, j * q + l]] * b_2d[[k, l]];
-                            }
-                        }
-                        grad_a[[i, j]] = sum;
-                    }
-                }
-
-                // Gradient w.r.t. B
-                let mut grad_b = Array2::<F>::zeros((p, q));
-                for k in 0..p {
-                    for l in 0..q {
-                        let mut sum = F::zero();
-                        for i in 0..m {
-                            for j in 0..n {
-                                sum += gy_2d[[i * p + k, j * q + l]] * a_2d[[i, j]];
-                            }
-                        }
-                        grad_b[[k, l]] = sum;
-                    }
-                }
-
-                let grad_a_tensor = crate::tensor_ops::convert_to_tensor(grad_a, g);
-                let grad_b_tensor = crate::tensor_ops::convert_to_tensor(grad_b, g);
-
-                ctx.append_input_grad(0, Some(grad_a_tensor));
-                ctx.append_input_grad(1, Some(grad_b_tensor));
-            }
-            _ => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-            }
-        }
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
     }
 }
 

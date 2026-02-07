@@ -24,7 +24,7 @@ impl<T: Float> crate::op::Op<T> for Variable {
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         // Just pass through any gradients
         let gy = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
     }
 }
 
@@ -67,6 +67,6 @@ impl<T: Float> crate::op::Op<T> for Placeholder {
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         // Pass through gradients like Variable
         let gy = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
     }
 }

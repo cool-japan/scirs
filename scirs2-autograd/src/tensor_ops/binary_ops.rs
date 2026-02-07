@@ -152,7 +152,7 @@ impl<T: Float> op::Op<T> for MaybeBroadcast {
 
     fn grad(&self, ctx: &mut op::GradientContext<T>) {
         let g = ctx.graph();
-        let gx = maybe_reduce(&shape(ctx.input(0)), ctx.output_grad(), g);
+        let gx = maybe_reduce(shape(ctx.input(0)), ctx.output_grad(), g);
         ctx.append_input_grad(0, Some(gx));
         ctx.append_input_grad(1, None);
     }
@@ -179,8 +179,8 @@ impl<T: Float> op::Op<T> for AddOp {
         let x0 = ctx.input(0);
         let x1 = ctx.input(1);
         let gy = ctx.output_grad();
-        let shape0 = &shape(x0);
-        let shape1 = &shape(x1);
+        let shape0 = shape(x0);
+        let shape1 = shape(x1);
         let gy0 = maybe_reduce(shape0, gy, g);
         let gy1 = maybe_reduce(shape1, gy, g);
         ctx.append_input_grad(0, Some(gy0));
@@ -208,9 +208,9 @@ impl<T: Float> op::Op<T> for SubOp {
         let g = ctx.graph();
         let x0 = ctx.input(0);
         let x1 = ctx.input(1);
-        let shape0 = &shape(x0);
-        let shape1 = &shape(x1);
-        let gy = &ctx.output_grad();
+        let shape0 = shape(x0);
+        let shape1 = shape(x1);
+        let gy = ctx.output_grad();
         let gy0 = maybe_reduce(shape0, gy, g);
         let gy1 = maybe_reduce(shape1, gy, g);
         ctx.append_input_grad(0, Some(gy0));
@@ -232,16 +232,16 @@ impl<T: Float> op::Op<T> for MulOp {
         let x0 = ctx.input(0);
         let x1 = ctx.input(1);
 
-        let shape0 = &shape(x0);
-        let shape1 = &shape(x1);
+        let shape0 = shape(x0);
+        let shape1 = shape(x1);
 
         let gy = ctx.output_grad();
 
         let gx0 = gy * x1;
         let gx1 = gy * x0;
 
-        let gx0 = maybe_reduce(shape0, &gx0, graph);
-        let gx1 = maybe_reduce(shape1, &gx1, graph);
+        let gx0 = maybe_reduce(shape0, gx0, graph);
+        let gx1 = maybe_reduce(shape1, gx1, graph);
 
         ctx.append_input_grad(0, Some(gx0));
         ctx.append_input_grad(1, Some(gx1));
@@ -254,15 +254,15 @@ impl<T: Float> op::Op<T> for DivOp {
         let x1 = &ctx.input(1);
         let shape0: &[usize] = x0.shape();
         let shape1: &[usize] = x1.shape();
-        let is_scalar0 = shape0.is_empty() || shape0 == [0];
-        let is_scalar1 = shape1.is_empty() || shape1 == [1];
+        let is_scalar0 = crate::ndarray_ext::is_scalarshape(shape0);
+        let is_scalar1 = crate::ndarray_ext::is_scalarshape(shape1);
         let ret = if is_scalar0 {
             // a is a scalar
-            let x0_elem = x0[scirs2_core::ndarray::IxDyn(&[])];
+            let x0_elem = x0.iter().next().copied().unwrap();
             x1.map(move |&a| x0_elem / a)
         } else if is_scalar1 {
             // b is a scalar
-            let x1_elem = x1[scirs2_core::ndarray::IxDyn(&[])];
+            let x1_elem = x1.iter().next().copied().unwrap();
             let rhs = T::one() / x1_elem;
             x0.mapv(|x0_elem| x0_elem * rhs)
         } else {
@@ -276,15 +276,15 @@ impl<T: Float> op::Op<T> for DivOp {
         let g = ctx.graph();
         let x0 = ctx.input(0);
         let x1 = ctx.input(1);
-        let shape0 = &shape(x0);
-        let shape1 = &shape(x1);
+        let shape0 = shape(x0);
+        let shape1 = shape(x1);
         let gy = ctx.output_grad();
 
         let gx0 = gy / x1;
         let gx1 = neg(x0) * pow(x1, T::from(-2.).expect("Operation failed")) * gy;
 
-        let gx0 = maybe_reduce(shape0, &gx0, g);
-        let gx1 = maybe_reduce(shape1, &gx1, g);
+        let gx0 = maybe_reduce(shape0, gx0, g);
+        let gx1 = maybe_reduce(shape1, gx1, g);
 
         ctx.append_input_grad(0, Some(gx0));
         ctx.append_input_grad(1, Some(gx1));
@@ -293,14 +293,14 @@ impl<T: Float> op::Op<T> for DivOp {
 
 #[allow(dead_code)]
 fn maybe_reduce<'g, T: Float>(
-    targetshape: &Tensor<'g, T>,
-    x: &Tensor<'g, T>,
+    targetshape: Tensor<'g, T>,
+    x: Tensor<'g, T>,
     graph: &'g Graph<T>,
 ) -> Tensor<'g, T> {
     Tensor::builder(graph)
         .append_input(x, false)
         .append_input(targetshape, false)
-        .setshape(targetshape)
+        .setshape(&targetshape)
         .build(MaybeReduceSum)
 }
 

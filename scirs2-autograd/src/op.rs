@@ -71,7 +71,7 @@ pub trait Op<F: Float> {
     fn compute(&self, ctx: &mut ComputeContext<F>) -> Result<(), OpError>;
 
     /// Returns gradients for input nodes by use of output's gradients etc.
-    fn grad<'a>(&self, ctx: &mut GradientContext<'a, 'a, F>);
+    fn grad(&self, ctx: &mut GradientContext<F>);
 }
 
 #[allow(dead_code)]
@@ -187,95 +187,101 @@ impl<F: Float> ComputeContext<F> {
 }
 
 /// Context given to `Op::grad`.
-pub struct GradientContext<'a, 'graph, F: Float> {
-    /// tensor outputs. No owned data.
-    pub(crate) zs: &'a [&'graph Tensor<'graph, F>],
-
-    /// tensor inputs. No owned data.
-    pub(crate) xs: &'a [&'graph Tensor<'graph, F>],
-
-    /// Context graph reference
-    pub(crate) context: &'graph crate::Context<'graph, F>,
-
-    /// gradients of outputs. No owned data.
-    pub(crate) gzs: &'a [&'graph Tensor<'graph, F>],
-
-    /// gradient tensors to be the result.
-    pub(crate) results: &'a mut Vec<Option<Tensor<'graph, F>>>,
-
-    /// Index of array field.
-    pub(crate) array_field_id: usize,
-
-    /// This is needed to constrain type parameters.
-    pub(crate) _marker: PhantomData<&'a mut &'graph F>,
+///
+/// Follows the upstream rust-autograd design with a single lifetime parameter.
+/// The "steal-call-restore" pattern in `compute_input_grads` allows proper
+/// polymorphic dispatch to `Op::grad()` implementations.
+pub struct GradientContext<'graph, F: Float> {
+    /// The output tensor of this op.
+    pub(crate) y: Tensor<'graph, F>,
+    /// The gradient of the output tensor.
+    pub(crate) gy: Tensor<'graph, F>,
+    /// Reference to the computation graph.
+    pub(crate) graph: &'graph crate::Graph<F>,
+    /// Accumulated gradient results for each input.
+    pub(crate) gxs: SmallVec<Option<Tensor<'graph, F>>>,
 }
 
-impl<'graph, F: Float> GradientContext<'_, 'graph, F> {
-    // We can't implement the new method with the current struct design due to lifetime issues
-    // Just implement a stub method to support backward compatibility
-    #[doc(hidden)]
-    pub fn _new_stub() {}
-
-    /// Compute input gradients
-    pub fn compute_input_grads(&self) -> Vec<Option<Tensor<'graph, F>>> {
-        self.results.clone().into_iter().collect()
-    }
-}
-
-impl<'graph, F: Float> GradientContext<'_, 'graph, F> {
-    /// Returns the output array.
-    pub fn output(&self) -> &'graph Tensor<'graph, F> {
-        self.zs[self.array_field_id]
+impl<'graph, F: Float> GradientContext<'graph, F> {
+    /// Create a new GradientContext.
+    pub(crate) fn new(
+        y: Tensor<'graph, F>,
+        gy: Tensor<'graph, F>,
+        graph: &'graph crate::Graph<F>,
+        num_inputs: usize,
+    ) -> Self {
+        let mut gxs = SmallVec::new();
+        for _ in 0..num_inputs {
+            gxs.push(None);
+        }
+        GradientContext { y, gy, graph, gxs }
     }
 
-    /// Returns the gradient of output array.
-    pub fn output_grad(&self) -> &'graph Tensor<'graph, F> {
-        self.gzs[self.array_field_id]
+    /// Steal-call-restore: take the op out, call Op::grad(), put it back.
+    pub(crate) fn compute_input_grads(mut self) -> SmallVec<Option<Tensor<'graph, F>>> {
+        let id = self.y.id;
+        // Steal the op from the tensor node (RefMut dropped at semicolon)
+        let stolen = self.graph.access_inner_mut(id).op.take().unwrap();
+        // Call Op::grad — no outstanding borrows on node_set at this point
+        stolen.grad(&mut self);
+        // Restore the op
+        let mut slot = Some(stolen);
+        std::mem::swap(&mut self.graph.access_inner_mut(id).op, &mut slot);
+        self.gxs
     }
 
-    /// Returns the `i`-th input array.
-    pub fn input(&self, i: usize) -> &'graph Tensor<'graph, F> {
-        self.xs[i]
+    /// Returns the output tensor.
+    pub fn output(&self) -> Tensor<'graph, F> {
+        self.y
+    }
+
+    /// Returns the gradient of the output tensor.
+    pub fn output_grad(&self) -> Tensor<'graph, F> {
+        self.gy
+    }
+
+    /// Returns the `i`-th input tensor.
+    pub fn input(&self, i: usize) -> Tensor<'graph, F> {
+        self.y.get_backprop_input(i)
     }
 
     /// Returns the number of inputs.
     pub fn num_inputs(&self) -> usize {
-        self.xs.len()
+        self.y.num_backprop_inputs()
     }
 
     /// Returns the number of outputs.
     pub fn num_outputs(&self) -> usize {
-        self.zs.len()
+        1
     }
 
-    /// Returns the context graph.
-    pub fn graph(&self) -> &'graph crate::Context<'graph, F> {
-        self.context
+    /// Returns a reference to the computation graph.
+    pub fn graph(&self) -> &'graph crate::Graph<F> {
+        self.graph
     }
 
     /// Appends a gradient for the input indexed by `i`.
     pub fn append_input_grad(&mut self, i: usize, gx: Option<Tensor<'graph, F>>) {
-        for _ in self.results.len()..=i {
-            self.results.push(None);
+        while self.gxs.len() <= i {
+            self.gxs.push(None);
         }
-        self.results[i] = gx;
+        self.gxs[i] = gx;
     }
 
-    /// Appends a gradient for the input indexed by 0.
-    /// Short-hand for `append_input_grad(0, gx)`.
+    /// Appends a gradient for input 0.
     pub fn append_input_grad_by_ref(&mut self, gx: Option<&Tensor<'graph, F>>) {
-        self.append_input_grad(0, gx.cloned());
+        self.append_input_grad(0, gx.copied());
     }
 
-    /// Appends a gradient for the input indexed by 0.
-    /// Short-hand for `append_input_grad(0, gx)`.
+    /// Appends a gradient for input 0.
     pub fn append_input_grad_0(&mut self, gx: Option<Tensor<'graph, F>>) {
         self.append_input_grad(0, gx);
     }
 
-    /// Returns all input tensors.
-    pub fn inputs(&self) -> &[&'graph Tensor<'graph, F>] {
-        self.xs
+    /// Returns all input tensors as a vec.
+    pub fn inputs(&self) -> Vec<Tensor<'graph, F>> {
+        let n = self.num_inputs();
+        (0..n).map(|i| self.input(i)).collect()
     }
 }
 

@@ -537,7 +537,7 @@ impl<T: Float> op::Op<T> for ReduceMin {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         min_max_grad(
             ctx.output_grad(),
             ctx.input(0),
@@ -559,7 +559,7 @@ impl<T: Float> op::Op<T> for ReduceMax {
         Ok(())
     }
 
-    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+    fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
         min_max_grad(
             ctx.output_grad(),
             ctx.input(0),
@@ -573,14 +573,14 @@ impl<T: Float> op::Op<T> for ReduceMax {
 }
 
 #[allow(dead_code)]
-fn min_max_grad<'a, 'g: 'a, T: Float>(
-    gy: &Tensor<'g, T>,
-    x1: &Tensor<'g, T>,
-    x2: &Tensor<'g, T>,
-    y: &Tensor<'g, T>,
+fn min_max_grad<'g, T: Float>(
+    gy: Tensor<'g, T>,
+    x1: Tensor<'g, T>,
+    x2: Tensor<'g, T>,
+    y: Tensor<'g, T>,
     keep_dims: bool,
     sparse_axes: bool,
-    ctx: &mut op::GradientContext<'a, 'a, T>,
+    ctx: &mut op::GradientContext<'g, T>,
 ) {
     let grad_op1 = ReduceGradCommon {
         should_make_broadcast_dims: !keep_dims,
@@ -590,7 +590,7 @@ fn min_max_grad<'a, 'g: 'a, T: Float>(
         should_make_broadcast_dims: !keep_dims,
         sparse_axes,
     };
-    let xshape = &shape(x1);
+    let xshape = shape(x1);
     let y = Tensor::builder(ctx.graph())
         .append_input(y, false)
         .append_input(xshape, false)

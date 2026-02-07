@@ -51,74 +51,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for S
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let y = ctx.output();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Get arrays from tensors
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let y_array = match y.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let gy_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let n = input_array.shape()[0];
-
-        // Extract eigenvalues and eigenvectors from output
-        let values_size = n;
-        let vectors_start = values_size;
-
-        let eigen_vals = y_array.slice(scirs2_core::ndarray::s![0..values_size]);
-        let eigen_vecs = y_array.slice(scirs2_core::ndarray::s![vectors_start..]);
-
-        let eigen_vals_1d = eigen_vals.to_shape(n).expect("Operation failed").to_owned();
-        let eigen_vecs_2d = eigen_vecs
-            .to_shape((n, n))
-            .expect("Operation failed")
-            .to_owned();
-
-        // Get gradients
-        let grad_vals = gy_array
-            .slice(scirs2_core::ndarray::s![0..values_size])
-            .to_shape(n)
-            .expect("Failed to reshape")
-            .to_owned();
-        let grad_vecs = gy_array
-            .slice(scirs2_core::ndarray::s![vectors_start..])
-            .to_shape((n, n))
-            .expect("Failed to reshape")
-            .to_owned();
-
-        // Compute gradient for symmetric eigendecomposition
-        let grad_input = symmetric_eigen_gradient(
-            &eigen_vals_1d.view(),
-            &eigen_vecs_2d.view(),
-            &grad_vals.view(),
-            &grad_vecs.view(),
-        );
-
-        // Convert gradient to tensor and append
-        let grad_tensor = convert_to_tensor(grad_input.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 

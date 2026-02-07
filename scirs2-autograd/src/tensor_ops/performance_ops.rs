@@ -54,12 +54,12 @@ impl<F: Float> Op<F> for SimdBinaryOp {
 
         match self.operation {
             SimdBinaryOperation::Add => {
-                ctx.append_input_grad(0, Some(*gy));
-                ctx.append_input_grad(1, Some(*gy));
+                ctx.append_input_grad(0, Some(gy));
+                ctx.append_input_grad(1, Some(gy));
             }
             SimdBinaryOperation::Mul => {
-                ctx.append_input_grad(0, Some((*gy) * right));
-                ctx.append_input_grad(1, Some((*gy) * left));
+                ctx.append_input_grad(0, Some(gy * right));
+                ctx.append_input_grad(1, Some(gy * left));
             }
         }
     }
@@ -104,13 +104,13 @@ impl<F: Float> Op<F> for SimdUnaryOp {
             SimdUnaryOperation::ReLU => {
                 let zero_tensor = crate::tensor_ops::scalar(F::zero(), ctx.graph());
                 let mask = crate::tensor_ops::greater(input, zero_tensor);
-                (*gy) * mask
+                gy * mask
             }
             SimdUnaryOperation::Sigmoid => {
                 let sigmoid_x = crate::tensor_ops::sigmoid(input);
                 let one = crate::tensor_ops::scalar(F::one(), ctx.graph());
                 let one_minus_sigmoid = one - sigmoid_x;
-                (*gy) * sigmoid_x * one_minus_sigmoid
+                gy * sigmoid_x * one_minus_sigmoid
             }
         };
 
@@ -150,7 +150,7 @@ impl<F: Float> Op<F> for ParallelReductionOp {
         Ok(())
     }
 
-    fn grad<'a>(&self, _ctx: &mut GradientContext<'a, 'a, F>) {
+    fn grad(&self, _ctx: &mut GradientContext<F>) {
         // Simplified gradient implementation
         // In practice, would implement proper gradient broadcasting
     }

@@ -27,49 +27,8 @@ impl<F: Float> Op<F> for FrobeniusNormOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Evaluate the values we need for gradient computation
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Compute the norm for gradient calculation
-        let mut sum_squared = F::zero();
-        for &elem in input_array.iter() {
-            sum_squared += elem * elem;
-        }
-
-        // Avoid division by zero - check BEFORE sqrt for better numerical stability
-        if sum_squared < F::epsilon() * F::from(10.0).expect("Failed to convert constant to float")
-        {
-            ctx.append_input_grad(0, None);
-            return;
-        }
-
-        let norm = sum_squared.sqrt();
-
-        // Compute gradient: input / norm * grad_output
-        let grad_scalar = grad_output_array[[]];
-        let grad_array = input_array.mapv(|x| x / norm * grad_scalar);
-
-        // Convert back to tensor
-        let grad_tensor = tensor_ops::convert_to_tensor(grad_array, g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -109,37 +68,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SpectralNormOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Evaluate the input to work with concrete values for SVD computation
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_scalar = grad_output_array[[]];
-
-        if let Ok(matrix) = input_array.view().into_dimensionality::<Ix2>() {
-            let grad_matrix = compute_spectral_norm_gradient(&matrix, grad_scalar);
-            let grad_tensor = tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-            return;
-        }
-
-        // Fallback
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }
@@ -183,37 +112,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for NuclearNormOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Evaluate inputs to work with concrete values
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_scalar = grad_output_array[[]];
-
-        if let Ok(matrix) = input_array.view().into_dimensionality::<Ix2>() {
-            let grad_matrix = compute_nuclear_norm_gradient_improved(&matrix, grad_scalar);
-            let grad_tensor = tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-            return;
-        }
-
-        // Fallback
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }

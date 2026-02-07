@@ -121,7 +121,7 @@ impl<F: Float> Op<F> for EfficientReshapeOp {
 
         // Gradient needs to be reshaped back to input shape
         let inputshape = crate::tensor_ops::shape(input);
-        let reshaped_grad = efficient_reshape(gy, &inputshape);
+        let reshaped_grad = efficient_reshape(&gy, &inputshape);
         ctx.append_input_grad(0, Some(reshaped_grad));
     }
 }

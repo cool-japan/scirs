@@ -124,8 +124,8 @@ impl<F: Float> Op<F> for ConditionalOp {
         ctx.append_input_grad(0, None);
 
         // For simplicity, pass gradient to both branches
-        ctx.append_input_grad(1, Some(*gy));
-        ctx.append_input_grad(2, Some(*gy));
+        ctx.append_input_grad(1, Some(gy));
+        ctx.append_input_grad(2, Some(gy));
     }
 }
 
@@ -151,7 +151,7 @@ impl<F: Float> Op<F> for SmartCheckpointOp {
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let gy = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
     }
 }
 
@@ -192,14 +192,14 @@ impl<F: Float> Op<F> for CachedOp {
 
         // Simple gradient computation
         let grad = match self.operation_name.as_str() {
-            "identity" => *gy,
+            "identity" => gy,
             "square" => {
                 let input = ctx.input(0);
                 let two = crate::tensor_ops::scalar(
                     F::from(2.0).expect("Failed to convert constant to float"),
                     ctx.graph(),
                 );
-                (*gy) * two * input
+                gy * two * input
             }
             "sqrt" => {
                 let input = ctx.input(0);
@@ -208,9 +208,9 @@ impl<F: Float> Op<F> for CachedOp {
                     ctx.graph(),
                 );
                 let sqrt_input = crate::tensor_ops::sqrt(input);
-                (*gy) * half / sqrt_input
+                gy * half / sqrt_input
             }
-            _ => *gy,
+            _ => gy,
         };
 
         ctx.append_input_grad(0, Some(grad));

@@ -86,30 +86,8 @@ impl<F: Float> Op<F> for QROp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        println!("Computing simplified gradient for QR decomposition");
-
-        // Get the input
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // In a production implementation, we'd compute the gradient properly
-        // For now, we'll just pass through a zero gradient
-        // as a placeholder for the proper implementation
-
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Create a zero gradient with the same shape as the input
-        let zero_grad = Array2::<F>::zeros((input_array.shape()[0], input_array.shape()[1]));
-
-        // Convert to tensor and append
-        let grad_tensor = convert_to_tensor(zero_grad.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -205,19 +183,8 @@ impl<F: Float> Op<F> for QRExtractOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let g = ctx.graph();
-
-        // Pass through a simple gradient (this is an approximation)
-        let grad_tensor = match gy.eval(g) {
-            Ok(arr) => convert_to_tensor(arr, g),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -302,48 +269,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SVDOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let input = ctx.input(0);
-        let g = ctx.graph();
-        let _gradient = ctx.output_grad();
-
-        // Get the input shape
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let shape = input_array.shape();
-        if shape.len() != 2 {
-            ctx.append_input_grad(0, None);
-            return;
-        }
-
-        let m = shape[0];
-        let n = shape[1];
-        let _k = m.min(n);
-
-        // Simplified gradient computation for SVD
-        // For now, we return identity gradient for 2×2 matrices
-        // and zeros for larger matrices
-        if m == 2 && n == 2 {
-            // For 2×2 matrices, we'll use hardcoded gradient values for testing
-            let mut gradient_matrix = Array2::<F>::zeros((2, 2));
-            gradient_matrix[[0, 0]] = F::from(0.4).expect("Failed to convert constant to float");
-            gradient_matrix[[0, 1]] = F::from(0.6).expect("Failed to convert constant to float");
-            gradient_matrix[[1, 0]] = F::from(0.6).expect("Failed to convert constant to float");
-            gradient_matrix[[1, 1]] = F::from(-0.4).expect("Failed to convert constant to float");
-
-            let grad_tensor = convert_to_tensor(gradient_matrix.into_dyn(), g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-        } else {
-            // For larger matrices, use zeros as a placeholder
-            let gradient_matrix = Array2::<F>::zeros((m, n));
-            let grad_tensor = convert_to_tensor(gradient_matrix.into_dyn(), g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-        }
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -416,19 +343,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SVDExtractOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let g = ctx.graph();
-
-        // Pass through a simple gradient (this is an approximation)
-        let grad_tensor = match gy.eval(g) {
-            Ok(arr) => convert_to_tensor(arr, g),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -652,37 +568,7 @@ impl<F: Float> Op<F> for CholeskyOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Get the input matrix
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-            if let Ok(grad_2d) = grad_output_array.view().into_dimensionality::<Ix2>() {
-                let grad_matrix = compute_cholesky_gradient(&input_2d, &grad_2d);
-                let grad_tensor = convert_to_tensor(grad_matrix.into_dyn(), g);
-                ctx.append_input_grad(0, Some(grad_tensor));
-                return;
-            }
-        }
-
-        // Fallback to None
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }
@@ -880,7 +766,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SymmetricEigenOp 
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let gy = ctx.output_grad();
         // For eigendecomposition gradient, use simplified identity approximation
-        ctx.append_input_grad(0, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
     }
 }
 
@@ -996,7 +882,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixExpOp {
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let gy = ctx.output_grad();
         // For matrix exponential gradient, use simplified identity approximation
-        ctx.append_input_grad(0, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
     }
 }
 
@@ -1043,7 +929,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixLogOp {
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let gy = ctx.output_grad();
         // For matrix logarithm gradient, use simplified identity approximation
-        ctx.append_input_grad(0, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
     }
 }
 
@@ -1082,7 +968,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for MatrixPowerOp {
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let gy = ctx.output_grad();
         // For matrix power gradient, use simplified identity approximation
-        ctx.append_input_grad(0, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
     }
 }
 

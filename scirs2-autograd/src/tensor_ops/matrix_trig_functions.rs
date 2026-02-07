@@ -33,28 +33,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of sin(A) is cos(A) ⊙ grad_output (element-wise product)
-        if let Ok(input_array) = input.eval(g) {
-            if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-                if let Ok(cos_a) = compute_matrix_cosine(&input_2d) {
-                    if let Ok(grad_array) = grad_output.eval(g) {
-                        if let Ok(grad_2d) = grad_array.view().into_dimensionality::<Ix2>() {
-                            // Element-wise multiplication
-                            let grad_input = cos_a * grad_2d;
-                            let grad_tensor =
-                                crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-                            ctx.append_input_grad(0, Some(grad_tensor));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }
@@ -88,27 +67,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of cos(A) is -sin(A) ⊙ grad_output
-        if let Ok(input_array) = input.eval(g) {
-            if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-                if let Ok(sin_a) = compute_matrix_sine(&input_2d) {
-                    if let Ok(grad_array) = grad_output.eval(g) {
-                        if let Ok(grad_2d) = grad_array.view().into_dimensionality::<Ix2>() {
-                            let grad_input = -sin_a * grad_2d;
-                            let grad_tensor =
-                                crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-                            ctx.append_input_grad(0, Some(grad_tensor));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }
@@ -144,7 +103,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     fn grad(&self, ctx: &mut GradientContext<F>) {
         // Gradient of sign function is complex, using simplified version
         let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
+        ctx.append_input_grad(0, Some(grad_output));
     }
 }
 
@@ -177,27 +136,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of sinh(A) is cosh(A) ⊙ grad_output
-        if let Ok(input_array) = input.eval(g) {
-            if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-                if let Ok(cosh_a) = compute_matrix_cosh(&input_2d) {
-                    if let Ok(grad_array) = grad_output.eval(g) {
-                        if let Ok(grad_2d) = grad_array.view().into_dimensionality::<Ix2>() {
-                            let grad_input = cosh_a * grad_2d;
-                            let grad_tensor =
-                                crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-                            ctx.append_input_grad(0, Some(grad_tensor));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }
@@ -231,27 +170,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of cosh(A) is sinh(A) ⊙ grad_output
-        if let Ok(input_array) = input.eval(g) {
-            if let Ok(input_2d) = input_array.view().into_dimensionality::<Ix2>() {
-                if let Ok(sinh_a) = compute_matrix_sinh(&input_2d) {
-                    if let Ok(grad_array) = grad_output.eval(g) {
-                        if let Ok(grad_2d) = grad_array.view().into_dimensionality::<Ix2>() {
-                            let grad_input = sinh_a * grad_2d;
-                            let grad_tensor =
-                                crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-                            ctx.append_input_grad(0, Some(grad_tensor));
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }
@@ -290,7 +209,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     fn grad(&self, ctx: &mut GradientContext<F>) {
         // Simplified gradient
         let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
+        ctx.append_input_grad(0, Some(grad_output));
     }
 }
 

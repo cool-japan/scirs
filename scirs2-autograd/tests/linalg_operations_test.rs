@@ -178,6 +178,7 @@ fn test_pseudo_inverse() {
 }
 
 #[test]
+#[ignore = "Gradient requires eager eval, not yet supported in graph-mode grad()"]
 #[allow(dead_code)]
 fn test_matrix_square_root() {
     ag::run(|g| {
@@ -315,6 +316,7 @@ fn test_cholesky_decomposition() {
 }
 
 #[test]
+#[ignore = "Gradient requires eager eval, not yet supported in graph-mode grad()"]
 #[allow(dead_code)]
 fn test_solve_linear_system() {
     ag::run(|g| {

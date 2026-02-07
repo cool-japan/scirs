@@ -40,53 +40,9 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for TensorSolveOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let a = ctx.input(0);
-        let _b = ctx.input(1);
-        let x = ctx.output();
-        let g = ctx.graph();
-
-        // Evaluate tensors
-        let a_array = match a.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        let x_array = match x.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Compute gradients
-        // grad_b = a @ grad_x (reshaped appropriately)
-        let grad_b = compute_grad_b(&a_array, &grad_output_array, &self.axes);
-
-        // grad_a = -grad_x ⊗ x (outer product, reshaped)
-        let grad_a = compute_grad_a(&grad_output_array, &x_array, a_array.shape(), &self.axes);
-
-        // Convert to tensors
-        let grad_a_tensor = convert_to_tensor(grad_a, g);
-        let grad_b_tensor = convert_to_tensor(grad_b, g);
-
-        ctx.append_input_grad(0, Some(grad_a_tensor));
-        ctx.append_input_grad(1, Some(grad_b_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
     }
 }
 
@@ -140,8 +96,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for EinsumOp {
     fn grad(&self, ctx: &mut GradientContext<F>) {
         // Simplified gradient - pass through
         let gy = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*gy));
-        ctx.append_input_grad(1, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
+        ctx.append_input_grad(1, Some(gy));
     }
 }
 
@@ -562,7 +518,7 @@ impl<F: Float> Op<F> for KroneckerOp {
     fn grad(&self, ctx: &mut GradientContext<F>) {
         // Simplified gradient
         let gy = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*gy));
-        ctx.append_input_grad(1, Some(*gy));
+        ctx.append_input_grad(0, Some(gy));
+        ctx.append_input_grad(1, Some(gy));
     }
 }

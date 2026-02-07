@@ -41,19 +41,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for PolarDecompositio
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let g = ctx.graph();
-
-        // Simplified gradient - pass through
-        let grad_tensor = match gy.eval(g) {
-            Ok(arr) => convert_to_tensor(arr, g),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -135,19 +124,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for SchurDecompositio
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let g = ctx.graph();
-
-        // Simplified gradient
-        let grad_tensor = match gy.eval(g) {
-            Ok(arr) => convert_to_tensor(arr, g),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 

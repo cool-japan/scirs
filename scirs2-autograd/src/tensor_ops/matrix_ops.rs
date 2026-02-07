@@ -52,51 +52,8 @@ impl<F: Float> Op<F> for MatrixInverseOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let output = ctx.output(); // This is the inverse
-        let g = ctx.graph();
-
-        // Evaluate tensors
-        let output_array = match output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Gradient of matrix inverse: -A^{-T} @ grad_output @ A^{-T}
-        let inv = match output_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_out_2d = match grad_output_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let inv_t = inv.t();
-        let temp = inv_t.dot(&grad_out_2d);
-        let grad_input = -temp.dot(&inv_t);
-
-        // Convert gradient to tensor
-        let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -119,80 +76,8 @@ impl<F: Float> Op<F> for PseudoInverseOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let output = ctx.output(); // This is the pseudo-inverse
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Evaluate tensors
-        let output_array = match output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Convert to 2D arrays
-        let pinv = match output_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_out_2d = match grad_output_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let input_2d = match input_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Gradient calculation
-        let pinv_t = pinv.t();
-        let term1 = -pinv_t.dot(&grad_out_2d).dot(&pinv_t);
-        let term2 = pinv_t
-            .dot(&pinv_t.t())
-            .dot(&grad_out_2d)
-            .dot(&input_2d.t())
-            .dot(&pinv_t);
-        let term3 = pinv_t
-            .dot(&input_2d.t())
-            .dot(&grad_out_2d)
-            .dot(&pinv_t.t())
-            .dot(&pinv_t);
-
-        let grad_input = term1 + term2 + term3;
-
-        // Convert gradient to tensor
-        let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_input.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -236,101 +121,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for GeneralDeterminan
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let output = ctx.output();
-        let g = ctx.graph();
-
-        println!("Computing gradient for determinant");
-
-        // Evaluate tensors
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                println!("Failed to evaluate gradient output");
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let output_array = match output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                println!("Failed to evaluate output");
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                println!("Failed to evaluate input");
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Access scalar values
-        let grad_scalar = grad_output_array[[0]];
-        let det = output_array[[0]];
-        println!("Determinant: {det}, Gradient scale: {grad_scalar}");
-
-        // Gradient of determinant: det(A) * A^{-T}
-        if det.abs() > F::epsilon() {
-            let input_2d = match input_array.view().into_dimensionality::<Ix2>() {
-                Ok(view) => view,
-                Err(_) => {
-                    println!("Failed to convert input to 2D");
-                    ctx.append_input_grad(0, None);
-                    return;
-                }
-            };
-
-            match compute_inverse(&input_2d) {
-                Ok(inv) => {
-                    // Scale transpose of inverse by det and grad_scalar
-                    let inv_t = inv.t();
-                    println!("Inverse transpose shape: {:?}", inv_t.shape());
-
-                    // Correctly compute gradient: grad = grad_scalar * det * A^(-T)
-                    let scaled_grad = inv_t.mapv(|x| det * grad_scalar * x);
-                    let grad_tensor =
-                        crate::tensor_ops::convert_to_tensor(scaled_grad.into_dyn(), g);
-
-                    println!("Determinant gradient computed successfully");
-                    ctx.append_input_grad(0, Some(grad_tensor));
-                }
-                Err(_) => {
-                    println!("Matrix is nearly singular, using approximate gradient");
-                    // For nearly singular matrices, use regularized inverse
-                    let eps =
-                        F::epsilon() * F::from(10.0).expect("Failed to convert constant to float");
-                    let n = input_2d.shape()[0];
-                    let regularized = &input_2d + &(Array2::<F>::eye(n) * eps);
-
-                    if let Ok(reg_inv) = compute_inverse(&regularized.view()) {
-                        let reg_inv_t = reg_inv.t();
-                        let scaled_grad = reg_inv_t.mapv(|x| det * grad_scalar * x);
-                        let grad_tensor =
-                            crate::tensor_ops::convert_to_tensor(scaled_grad.into_dyn(), g);
-                        ctx.append_input_grad(0, Some(grad_tensor));
-                    } else {
-                        println!("Failed to compute even regularized inverse, returning zeros");
-                        let zeros = scirs2_core::ndarray::Array::zeros(input_array.raw_dim());
-                        let grad_tensor = crate::tensor_ops::convert_to_tensor(zeros, g);
-                        ctx.append_input_grad(0, Some(grad_tensor));
-                    }
-                }
-            }
-            return;
-        }
-
-        println!("Matrix is singular, gradient is undefined, returning zeros");
-        // If matrix is singular, gradient is undefined
-        let zeros = scirs2_core::ndarray::Array::zeros(input_array.raw_dim());
-        let grad_tensor = crate::tensor_ops::convert_to_tensor(zeros, g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -487,39 +279,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let output = ctx.output();
-        let g = ctx.graph();
-
-        // Gradient of matrix exponential: complex computation
-        // For now, use a simplified version
-        let _grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let _input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let _output_array = match output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Simplified gradient: pass through
-        ctx.append_input_grad(0, Some(*grad_output));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -551,7 +312,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for M
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let grad_output = ctx.output_grad();
         // Simplified gradient
-        ctx.append_input_grad(0, Some(*grad_output));
+        ctx.append_input_grad(0, Some(grad_output));
     }
 }
 

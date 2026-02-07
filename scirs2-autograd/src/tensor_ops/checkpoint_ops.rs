@@ -95,50 +95,8 @@ impl<F: Float> Op<F> for CheckpointOp {
     /// the entire forward computation path will be recomputed since
     /// intermediate activations were not stored
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let g = ctx.graph();
-
-        // We need to be more careful with shapes in our temporary gradient fix
-        // Get the input tensor shape for proper gradient propagation
-        let input = ctx.input(0);
-
-        // Attempt to evaluate the input to understand its shape
-        if let Ok(input_array) = input.eval(g) {
-            // Create a gradient with the right shape
-            let inputshape = input_array.shape();
-
-            // Create output gradient with the correct shape
-            if let Ok(grad_output_array) = grad_output.eval(g) {
-                // If shapes match, pass through the gradient directly
-                if grad_output_array.shape() == inputshape {
-                    ctx.append_input_grad(0, Some(*grad_output));
-                } else {
-                    // If shapes don't match, we need to reshape or broadcast
-                    // For now with our temporary gradient fix, we'll use a simple ones tensor
-                    // with the same shape as the input
-                    let shape_tensor = crate::tensor_ops::convert_to_tensor(
-                        scirs2_core::ndarray::Array::from_shape_vec(
-                            scirs2_core::ndarray::IxDyn(&[inputshape.len()]),
-                            inputshape
-                                .iter()
-                                .map(|&x| F::from(x).expect("Failed to convert to float"))
-                                .collect::<Vec<_>>(),
-                        )
-                        .expect("Operation failed"),
-                        g,
-                    );
-
-                    let ones = crate::tensor_ops::ones(&shape_tensor, g);
-                    ctx.append_input_grad(0, Some(ones));
-                }
-            } else {
-                // Fallback to scalar 1.0 if we can't evaluate grad_output
-                ctx.append_input_grad(0, Some(crate::tensor_ops::scalar(F::one(), g)));
-            }
-        } else {
-            // If we can't evaluate the input, fall back to passing the gradient as is
-            ctx.append_input_grad(0, Some(*grad_output));
-        }
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 

@@ -177,7 +177,7 @@ macro_rules! impl_cmp_op {
                 Ok(())
             }
 
-            fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+            fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
                 $grad_fn(
                     ctx.output_grad().clone(),
                     ctx.input(0).clone(),
@@ -219,7 +219,7 @@ fn min_max_grad<'g, T: Float>(
     x1: Tensor<'g, T>,
     x2: Tensor<'g, T>,
     y: Tensor<'g, T>,
-    ctx: &mut op::GradientContext<'g, 'g, T>,
+    ctx: &mut op::GradientContext<'g, T>,
 ) {
     let selected_a = equal(x1, y);
     let selected_b = equal(x2, y);

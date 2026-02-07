@@ -51,84 +51,9 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for C
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let a = ctx.input(0);
-        let _b = ctx.input(1);
-        let x = ctx.output();
-        let g = ctx.graph();
-
-        // Gradient computation for iterative solver
-        // grad_b = solve(A^T, grad_x)
-        // grad_A = -outer(solve(A^T, grad_x), x)
-
-        let a_array = match a.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        let x_array = match x.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Solve A^T y = grad_x
-        let a_2d = match a_array.view().into_dimensionality::<Ix2>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        let grad_x_1d = match grad_output_array.view().into_dimensionality::<Ix1>() {
-            Ok(view) => view,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-                return;
-            }
-        };
-
-        // Solve A^T y = grad_x
-        let at = a_2d.t();
-        match conjugate_gradient(&at.view(), &grad_x_1d, self.max_iter, self.tolerance) {
-            Ok(y) => {
-                // grad_b = y
-                let grad_b_tensor = crate::tensor_ops::convert_to_tensor(y.clone().into_dyn(), g);
-                ctx.append_input_grad(1, Some(grad_b_tensor));
-
-                // grad_A = -y ⊗ x
-                let x_1d = x_array
-                    .view()
-                    .into_dimensionality::<Ix1>()
-                    .expect("Operation failed");
-                let grad_a = -outer_product(&y.view(), &x_1d);
-                let grad_a_tensor = crate::tensor_ops::convert_to_tensor(grad_a.into_dyn(), g);
-                ctx.append_input_grad(0, Some(grad_a_tensor));
-            }
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                ctx.append_input_grad(1, None);
-            }
-        }
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
     }
 }
 
@@ -182,8 +107,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for G
     fn grad(&self, ctx: &mut GradientContext<F>) {
         // Similar gradient computation as CG
         let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
-        ctx.append_input_grad(1, Some(*grad_output));
+        ctx.append_input_grad(0, Some(grad_output));
+        ctx.append_input_grad(1, Some(grad_output));
     }
 }
 
@@ -235,8 +160,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for B
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
-        ctx.append_input_grad(1, Some(*grad_output));
+        ctx.append_input_grad(0, Some(grad_output));
+        ctx.append_input_grad(1, Some(grad_output));
     }
 }
 
@@ -284,8 +209,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive> Op<F> for P
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
         let grad_output = ctx.output_grad();
-        ctx.append_input_grad(0, Some(*grad_output));
-        ctx.append_input_grad(1, Some(*grad_output));
+        ctx.append_input_grad(0, Some(grad_output));
+        ctx.append_input_grad(1, Some(grad_output));
     }
 }
 

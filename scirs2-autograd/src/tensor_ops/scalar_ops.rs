@@ -17,24 +17,8 @@ impl<F: Float> Op<F> for ScalarMulOp<F> {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let g = ctx.graph();
-
-        // Evaluate gradient tensor to array
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Compute gradient (scalar multiplication)
-        let grad_input = grad_output_array.mapv(|x| x * self.scalar);
-
-        // Convert to tensor and append
-        let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_input, g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 

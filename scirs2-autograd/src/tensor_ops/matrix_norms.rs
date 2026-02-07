@@ -33,35 +33,7 @@ impl<F: Float> Op<F> for Matrix1NormOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_scalar = grad_output_array[[]];
-
-        if let Ok(matrix) = input_array.view().into_dimensionality::<Ix2>() {
-            let grad_matrix = compute_matrix_1_norm_gradient(&matrix, grad_scalar);
-            let grad_tensor = tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-            return;
-        }
-
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }
@@ -95,35 +67,7 @@ impl<F: Float> Op<F> for MatrixInfNormOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_scalar = grad_output_array[[]];
-
-        if let Ok(matrix) = input_array.view().into_dimensionality::<Ix2>() {
-            let grad_matrix = compute_matrix_inf_norm_gradient(&matrix, grad_scalar);
-            let grad_tensor = tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-            return;
-        }
-
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }
@@ -158,37 +102,7 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for Matrix2NormOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        // Delegate to spectral norm gradient computation
-        // since 2-norm is the same as spectral norm
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let grad_scalar = grad_output_array[[]];
-
-        if let Ok(matrix) = input_array.view().into_dimensionality::<Ix2>() {
-            let grad_matrix = compute_matrix_2_norm_gradient(&matrix, grad_scalar);
-            let grad_tensor = tensor_ops::convert_to_tensor(grad_matrix.into_dyn(), g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-            return;
-        }
-
+        // Gradient requires eager eval which is unavailable during graph construction
         ctx.append_input_grad(0, None);
     }
 }

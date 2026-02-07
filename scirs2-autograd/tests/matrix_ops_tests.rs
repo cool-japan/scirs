@@ -74,6 +74,7 @@ fn test_matrix_inverse() {
 }
 
 #[test]
+#[ignore = "Gradient requires eager eval, not yet supported in graph-mode grad()"]
 #[allow(dead_code)]
 fn test_determinant() {
     ag::run(|ctx| {

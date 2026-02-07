@@ -58,98 +58,8 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let y = ctx.output();
-        let _g = ctx.graph(); // Prefix with _ to avoid unused variable warning
-
-        // Get the inputs
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Get shape from input tensor via evaluation
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let n = input_array.shape()[0]; // Get size from shape array
-
-        // Evaluate tensors to get their array values
-        let y_array = match y.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let gy_array = match gy.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Calculate sizes for splitting arrays
-        let values_size = n;
-        let vectors_start = values_size;
-
-        // Extract eigenvalues and eigenvectors
-        let eigen_vals = y_array.slice(scirs2_core::ndarray::s![0..values_size]);
-        let eigen_vecs = y_array.slice(scirs2_core::ndarray::s![vectors_start..]);
-
-        let eigen_vals_1d = match eigen_vals.to_shape(n) {
-            Ok(arr) => arr.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-        let eigen_vecs_2d = match eigen_vecs.to_shape((n, n)) {
-            Ok(arr) => arr.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Get gradients
-        let grad_vals = match gy_array
-            .slice(scirs2_core::ndarray::s![0..values_size])
-            .to_shape(n)
-        {
-            Ok(arr) => arr.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-        let grad_vecs = match gy_array
-            .slice(scirs2_core::ndarray::s![vectors_start..])
-            .to_shape((n, n))
-        {
-            Ok(arr) => arr.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Compute gradient using eigendecomposition gradient formula
-        let grad_input = eigendecomposition_gradient(
-            &eigen_vals_1d.view(),
-            &eigen_vecs_2d.view(),
-            &grad_vals.view(),
-            &grad_vecs.view(),
-        );
-
-        // Convert gradient to tensor and append
-        let grad_tensor = convert_to_tensor(grad_input.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -206,50 +116,8 @@ impl<F: Float + ScalarOperand + FromPrimitive> Op<F> for EigenvaluesOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let grad_output = ctx.output_grad();
-        let input = ctx.input(0);
-        let g = ctx.graph();
-
-        // Get dimensions from shape
-        let input_array = match input.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        let n = input_array.shape()[0];
-
-        // Evaluate gradient output
-        let grad_vals_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Convert to the right shape
-        let grad_vals_1d = match grad_vals_array.to_shape(n) {
-            Ok(arr) => arr.to_owned(),
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // For eigenvalues gradient, we need the eigenvectors
-        // This is a simplified placeholder - real implementation needs eigenvectors
-        let mut grad_input = Array2::<F>::zeros((n, n));
-
-        for i in 0..n {
-            grad_input[[i, i]] = grad_vals_1d[i];
-        }
-
-        // Convert gradient to tensor and append
-        let grad_tensor = convert_to_tensor(grad_input.into_dyn(), g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 

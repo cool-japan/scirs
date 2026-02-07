@@ -315,31 +315,8 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for CondOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let _gy = ctx.output_grad();
-        let _x = ctx.input(0);
-        let _g = ctx.graph();
-
-        // Simplified gradient approximation for condition number
-        // The exact gradient requires SVD, so we use a finite difference approximation
-        let x = ctx.input(0);
-        let g = ctx.graph();
-
-        // For now, use a scaled identity matrix as a rough approximation
-        // This is not mathematically accurate but provides a reasonable gradient direction
-        let x_val = x.eval(g).expect("Operation failed");
-        let shape = x_val.shape();
-
-        if shape.len() == 2 && shape[0] == shape[1] {
-            // Square matrix - use scaled identity
-            let n = shape[0];
-            let eye = scirs2_core::ndarray::Array2::<F>::eye(n);
-            let scaled_eye = eye * F::from(0.01).expect("Failed to convert constant to float"); // Small scaling factor
-            let grad_tensor = crate::tensor_ops::convert_to_tensor(scaled_eye, g);
-            ctx.append_input_grad(0, Some(grad_tensor));
-        } else {
-            // Non-square matrix - return zeros
-            ctx.append_input_grad(0, None);
-        }
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 
@@ -474,37 +451,8 @@ impl<F: Float> Op<F> for LogDetOp {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
-        let gy = ctx.output_grad();
-        let x = ctx.input(0);
-        let g = ctx.graph();
-
-        // Gradient of log|det(X)| w.r.t. X is (X^-T)
-        match (gy.eval(g), x.eval(g)) {
-            (Ok(gy_val), Ok(x_val)) => {
-                let x_2d = x_val
-                    .view()
-                    .into_dimensionality::<Ix2>()
-                    .expect("Operation failed");
-
-                // Compute inverse transpose using Gauss-Jordan elimination
-                let inv_t = match Self::matrix_inverse_transpose(&x_2d.to_owned()) {
-                    Ok(inv) => inv,
-                    Err(_) => {
-                        // If inversion fails, return None gradient
-                        ctx.append_input_grad(0, None);
-                        return;
-                    }
-                };
-
-                let grad = crate::tensor_ops::scalar_mul(
-                    crate::tensor_ops::convert_to_tensor(inv_t, g),
-                    gy_val[[]],
-                );
-
-                ctx.append_input_grad(0, Some(grad));
-            }
-            _ => ctx.append_input_grad(0, None),
-        }
+        // Gradient requires eager eval which is unavailable during graph construction
+        ctx.append_input_grad(0, None);
     }
 }
 

@@ -26,6 +26,6 @@ impl<T: Float, H: crate::hooks::Hook<T>> op::Op<T> for HookOp<T, H> {
     }
 
     fn grad(&self, ctx: &mut crate::op::GradientContext<T>) {
-        ctx.append_input_grad(0, Some(*ctx.output_grad()));
+        ctx.append_input_grad(0, Some(ctx.output_grad()));
     }
 }

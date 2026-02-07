@@ -339,14 +339,14 @@ impl<F: Float> Op<F> for InPlaceOp<F> {
         match self.operation {
             InPlaceOperation::AddAssign => {
                 // Both inputs get the same gradient
-                ctx.append_input_grad(0, Some(*gy));
+                ctx.append_input_grad(0, Some(gy));
                 if ctx.inputs().len() > 1 {
-                    ctx.append_input_grad(1, Some(*gy));
+                    ctx.append_input_grad(1, Some(gy));
                 }
             }
             InPlaceOperation::SubAssign => {
                 // Left input gets positive gradient, right gets negative
-                ctx.append_input_grad(0, Some(*gy));
+                ctx.append_input_grad(0, Some(gy));
                 if ctx.inputs().len() > 1 {
                     ctx.append_input_grad(1, Some(crate::tensor_ops::neg(gy)));
                 }
@@ -356,10 +356,10 @@ impl<F: Float> Op<F> for InPlaceOp<F> {
                 if ctx.inputs().len() > 1 {
                     let right_input = ctx.input(1);
                     let left_input = ctx.input(0);
-                    ctx.append_input_grad(0, Some((*gy) * right_input));
-                    ctx.append_input_grad(1, Some((*gy) * left_input));
+                    ctx.append_input_grad(0, Some(gy * right_input));
+                    ctx.append_input_grad(1, Some(gy * left_input));
                 } else {
-                    ctx.append_input_grad(0, Some(*gy));
+                    ctx.append_input_grad(0, Some(gy));
                 }
             }
             InPlaceOperation::DivAssign => {
@@ -367,14 +367,14 @@ impl<F: Float> Op<F> for InPlaceOp<F> {
                 if ctx.inputs().len() > 1 {
                     let right_input = ctx.input(1);
                     let left_input = ctx.input(0);
-                    ctx.append_input_grad(0, Some((*gy) / right_input));
+                    ctx.append_input_grad(0, Some(gy / right_input));
                     let neg_two = F::from(-2.0).expect("Failed to convert constant to float");
                     let right_grad = crate::tensor_ops::neg(left_input)
                         * crate::tensor_ops::pow(right_input, neg_two)
-                        * (*gy);
+                        * gy;
                     ctx.append_input_grad(1, Some(right_grad));
                 } else {
-                    ctx.append_input_grad(0, Some(*gy));
+                    ctx.append_input_grad(0, Some(gy));
                 }
             }
             InPlaceOperation::NegAssign => {
@@ -385,11 +385,11 @@ impl<F: Float> Op<F> for InPlaceOp<F> {
                 // Gradient of absolute value (sign of input)
                 let input = ctx.input(0);
                 let sign = crate::tensor_ops::sign(input);
-                ctx.append_input_grad(0, Some((*gy) * sign));
+                ctx.append_input_grad(0, Some(gy * sign));
             }
             InPlaceOperation::ScalarMulAssign | InPlaceOperation::ScalarAddAssign => {
                 // For scalar operations, gradient flows through unchanged
-                ctx.append_input_grad(0, Some(*gy));
+                ctx.append_input_grad(0, Some(gy));
                 if ctx.inputs().len() > 1 {
                     // Scalar doesn't need gradient
                     ctx.append_input_grad(1, None);

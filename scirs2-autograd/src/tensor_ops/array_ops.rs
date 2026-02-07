@@ -625,8 +625,8 @@ impl<T: Float> op::Op<T> for Concat {
         let graph = ctx.graph();
         let input0shape = shape(ctx.input(0));
 
-        // Clone all inputs to avoid borrow issues
-        let inputs: Vec<&Tensor<T>> = (0..num_inputs).map(|i| ctx.input(i)).collect();
+        // Collect all inputs (Tensor is Copy)
+        let inputs: Vec<Tensor<T>> = (0..num_inputs).map(|i| ctx.input(i)).collect();
 
         for i in 0..num_inputs {
             let mut builder = Tensor::builder(graph)
@@ -891,7 +891,8 @@ impl<T: Float> op::Op<T> for Squeeze {
     }
 
     fn grad(&self, ctx: &mut op::GradientContext<T>) {
-        ctx.append_input_grad(0, Some(expand_dims(ctx.output_grad(), ctx.input(1))));
+        let axes = ctx.input(1);
+        ctx.append_input_grad(0, Some(expand_dims(ctx.output_grad(), &axes)));
         ctx.append_input_grad(1, None);
     }
 }
@@ -923,7 +924,8 @@ impl<T: Float> op::Op<T> for ExpandDims {
     }
 
     fn grad(&self, ctx: &mut op::GradientContext<T>) {
-        ctx.append_input_grad(0, Some(squeeze(ctx.output_grad(), ctx.input(1))));
+        let axes = ctx.input(1);
+        ctx.append_input_grad(0, Some(squeeze(ctx.output_grad(), &axes)));
         ctx.append_input_grad(1, None);
     }
 }
