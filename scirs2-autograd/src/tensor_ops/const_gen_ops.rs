@@ -82,37 +82,7 @@ impl<T: Float> op::Op<T> for Ones {
 
 impl<T: Float> op::Op<T> for ConvertToTensor<T> {
     fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
-        // Save the original array shape for debugging
-        let shape = self.arr.shape();
-        println!(
-            "ConvertToTensor: Input array shape: {:?}, ndim: {}",
-            shape,
-            self.arr.ndim()
-        );
-
-        // Always preserve the original array's shape exactly
-        let output = self.arr.clone();
-
-        // Check the created array
-        println!(
-            "DEBUG: Created tensor with shape: {:?}, ndim: {}",
-            output.shape(),
-            output.ndim()
-        );
-
-        // Additional debugging info
-        if output.ndim() == 0 {
-            println!("DEBUG: Scalar tensor value: {}", output[[]]);
-        } else if output.ndim() == 1 && !output.is_empty() {
-            println!("DEBUG: Vector tensor first element: {}", output[[0]]);
-        } else if output.ndim() == 2 && output.shape()[0] > 0 && output.shape()[1] > 0 {
-            println!("DEBUG: Matrix tensor first element: {}", output[[0, 0]]);
-        } else {
-            println!("DEBUG: Tensor cannot display elements (empty or higher dimension)");
-        }
-
-        // Append the output, preserving the exact shape
-        ctx.append_output(output);
+        ctx.append_output(self.arr.clone());
         Ok(())
     }
 
