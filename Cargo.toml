@@ -80,14 +80,14 @@ wide = "1.1.1"  # SIMD acceleration library
 num_cpus = "1.17.0"
 
 # Platform-specific system APIs
-windows-sys = { version = "0.52", default-features = false }  # Windows system APIs
+windows-sys = { version = "0.61", default-features = false }  # Windows system APIs
 
 # Random number generation
 rand = "0.9.2"
 rand_distr = "0.5.1"
-rand_core = "0.9.5"
+rand_core = "0.10.0"
 rand_pcg = "0.9.0"
-rand_chacha = "0.9.0"
+rand_chacha = "0.10.0"
 fastrand = "2.3.0"
 
 # Development and testing
@@ -109,7 +109,7 @@ chrono = "0.4.43"
 # Python bindings (optional)
 # NOTE: default-features = false to avoid auto-initialize which breaks manylinux builds
 # extension-module should be enabled only in actual Python extension module crates
-pyo3 = { version = "0.27.2", default-features = false, features = ["macros"] }
+pyo3 = { version = "0.28.0", default-features = false, features = ["macros"] }
 numpy = { version = "0.27.1" }  # Keep for non-SciRS2 compatibility
 scirs2-numpy = { version = "0.1.5", path = "./scirs2-numpy" }  # SciRS2 fork with ndarray 0.17
 
