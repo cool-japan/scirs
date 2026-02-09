@@ -110,7 +110,7 @@ chrono = "0.4.43"
 # NOTE: default-features = false to avoid auto-initialize which breaks manylinux builds
 # extension-module should be enabled only in actual Python extension module crates
 pyo3 = { version = "0.27.2", default-features = false, features = ["macros"] }
-numpy = { version = "0.27.1" }  # Keep for non-SciRS2 compatibility
+numpy = { version = "0.28.0" }  # Keep for non-SciRS2 compatibility
 scirs2-numpy = { version = "0.1.5", path = "./scirs2-numpy" }  # SciRS2 fork with ndarray 0.17
 
 # Linear algebra and math (heavy dependencies - minimize features)
