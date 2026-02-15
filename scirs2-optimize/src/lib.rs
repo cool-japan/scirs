@@ -316,6 +316,48 @@
 //! let bounds2 = Bounds::from_vecs(lb, ub).unwrap();
 //! ```
 //!
+//! ### User-Provided Gradient (Jacobian)
+//!
+//! For faster optimization, you can provide an analytical gradient instead of using
+//! finite differences. This is especially beneficial for high-dimensional problems
+//! or when the gradient is easy to compute analytically.
+//!
+//! ```
+//! use scirs2_core::ndarray::{Array1, ArrayView1};
+//! use scirs2_optimize::unconstrained::{minimize_bfgs_with_jacobian, Jacobian, Options};
+//!
+//! // Rosenbrock function
+//! fn rosenbrock(x: &ArrayView1<f64>) -> f64 {
+//!     let a = 1.0;
+//!     let b = 100.0;
+//!     (a - x[0]).powi(2) + b * (x[1] - x[0].powi(2)).powi(2)
+//! }
+//!
+//! // Analytical gradient of Rosenbrock function
+//! fn rosenbrock_grad(x: &ArrayView1<f64>) -> Array1<f64> {
+//!     let a = 1.0;
+//!     let b = 100.0;
+//!     Array1::from_vec(vec![
+//!         -2.0 * (a - x[0]) - 4.0 * b * x[0] * (x[1] - x[0].powi(2)),
+//!         2.0 * b * (x[1] - x[0].powi(2))
+//!     ])
+//! }
+//!
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! let x0 = Array1::from_vec(vec![0.0, 0.0]);
+//! let options = Options::default();
+//!
+//! // Create a Jacobian with the user-provided gradient function
+//! let jac = Jacobian::Function(Box::new(rosenbrock_grad));
+//!
+//! let result = minimize_bfgs_with_jacobian(rosenbrock, x0, Some(&jac), &options)?;
+//!
+//! println!("Solution: {:?}", result.x);
+//! println!("Function evaluations: {}", result.nfev);  // Much fewer than with finite differences!
+//! # Ok(())
+//! # }
+//! ```
+//!
 //! ### Robust Least Squares Example
 //!
 //! ```
@@ -505,7 +547,7 @@ pub use streaming::{
     StreamingConfig, StreamingDataPoint, StreamingObjective, StreamingOptimizer, StreamingStats,
     StreamingTrustRegion,
 };
-pub use unconstrained::{minimize, Bounds};
+pub use unconstrained::{minimize, Bounds, Jacobian};
 pub use unified_pipeline::{
     presets as unified_presets, UnifiedOptimizationConfig, UnifiedOptimizationResults,
     UnifiedOptimizer,
