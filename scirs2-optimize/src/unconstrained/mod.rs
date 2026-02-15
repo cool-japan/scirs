@@ -44,7 +44,7 @@ pub use advanced_line_search::{
     advanced_line_search, create_non_monotone_state, AdvancedLineSearchOptions,
     InterpolationStrategy, LineSearchMethod, LineSearchResult, LineSearchStats,
 };
-pub use bfgs::minimize_bfgs;
+pub use bfgs::{minimize_bfgs, minimize_bfgs_with_jacobian};
 pub use callback_diagnostics::{
     minimize_with_diagnostics, optimize_with_diagnostics, CallbackInfo, CallbackResult,
     DiagnosticOptimizer, OptimizationCallback,
@@ -122,6 +122,23 @@ pub enum Method {
     TruncatedNewton,
     /// Trust-region Newton method with truncated CG
     TrustRegionNewton,
+}
+
+/// Method for computing the Jacobian (gradient) of the objective function
+pub enum Jacobian<'a> {
+    /// Compute gradient using finite differences
+    FiniteDiff,
+    /// User-provided gradient function
+    Function(Box<dyn Fn(&ArrayView1<f64>) -> Array1<f64> + 'a>),
+}
+
+impl<'a> std::fmt::Debug for Jacobian<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Jacobian::FiniteDiff => write!(f, "Jacobian::FiniteDiff"),
+            Jacobian::Function(_) => write!(f, "Jacobian::Function(<function>)"),
+        }
+    }
 }
 
 /// Bounds for optimization variables

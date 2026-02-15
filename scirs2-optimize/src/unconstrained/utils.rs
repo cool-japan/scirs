@@ -43,6 +43,30 @@ where
     Ok(grad)
 }
 
+/// Computes gradient using the specified Jacobian method
+#[allow(dead_code)]
+pub fn compute_gradient_with_jacobian<'a, F, S>(
+    fun: &mut F,
+    x: &ArrayView1<f64>,
+    jacobian: &crate::unconstrained::Jacobian<'a>,
+    eps: f64,
+    nfev: &mut usize,
+) -> Result<Array1<f64>, OptimizeError>
+where
+    F: FnMut(&ArrayView1<f64>) -> S,
+    S: Into<f64>,
+{
+    match jacobian {
+        crate::unconstrained::Jacobian::FiniteDiff => {
+            *nfev += x.len();
+            finite_difference_gradient(fun, x, eps)
+        }
+        crate::unconstrained::Jacobian::Function(grad_fn) => {
+            Ok(grad_fn(x))
+        }
+    }
+}
+
 /// Computes finite difference Hessian
 #[allow(dead_code)]
 pub fn finite_difference_hessian<F, S>(
