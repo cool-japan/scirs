@@ -49,7 +49,7 @@ pub use callback_diagnostics::{
     minimize_with_diagnostics, optimize_with_diagnostics, CallbackInfo, CallbackResult,
     DiagnosticOptimizer, OptimizationCallback,
 };
-pub use conjugate_gradient::minimize_conjugate_gradient;
+pub use conjugate_gradient::{minimize_conjugate_gradient, minimize_conjugate_gradient_with_jacobian};
 pub use convergence_diagnostics::{
     ConvergenceDiagnostics, DiagnosticCollector, DiagnosticOptions, DiagnosticWarning,
     ExportFormat, IterationDiagnostic, LineSearchDiagnostic, PerformanceMetrics, ProblemAnalysis,

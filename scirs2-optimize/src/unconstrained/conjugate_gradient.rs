@@ -170,6 +170,151 @@ where
     })
 }
 
+/// Implements the Conjugate Gradient method for unconstrained optimization with optional bounds support and user-provided Jacobian
+#[allow(dead_code)]
+pub fn minimize_conjugate_gradient_with_jacobian<'a, F, S>(
+    mut fun: F,
+    x0: Array1<f64>,
+    jacobian: Option<&crate::unconstrained::Jacobian<'a>>,
+    options: &Options,
+) -> Result<OptimizeResult<S>, OptimizeError>
+where
+    F: FnMut(&ArrayView1<f64>) -> S + Clone,
+    S: Into<f64> + Clone,
+{
+    use crate::unconstrained::utils::compute_gradient_with_jacobian;
+    
+    // Get options or use defaults
+    let ftol = options.ftol;
+    let gtol = options.gtol;
+    let max_iter = options.max_iter;
+    let eps = options.eps;
+    let bounds = options.bounds.as_ref();
+    
+    // Use finite differences if no Jacobian provided
+    let jac = jacobian.unwrap_or(&crate::unconstrained::Jacobian::FiniteDiff);
+
+    // Initialize variables
+    let n = x0.len();
+    let mut x = x0.to_owned();
+
+    // Ensure initial point is within bounds
+    if let Some(bounds) = bounds {
+        bounds.project(x.as_slice_mut().expect("Operation failed"));
+    }
+
+    let mut f = fun(&x.view()).into();
+
+    // Calculate initial gradient using specified method
+    let mut nfev = 1;
+    let mut g = compute_gradient_with_jacobian(&mut fun, &x.view(), jac, eps, &mut nfev)?;
+
+    // Initialize search direction as projected steepest descent
+    let mut p = -g.clone();
+
+    // Project the search direction to respect bounds if at boundary
+    if let Some(bounds) = bounds {
+        project_search_direction(&mut p, &x, bounds);
+    }
+
+    // Counters
+    let mut iter = 0;
+
+    while iter < max_iter {
+        // Check convergence on gradient
+        if g.mapv(|gi| gi.abs()).sum() < gtol {
+            break;
+        }
+
+        // If search direction is zero (completely constrained),
+        // we're at a constrained optimum
+        if p.mapv(|pi| pi.abs()).sum() < 1e-10 {
+            break;
+        }
+
+        // Line search along the search direction, respecting bounds
+        let (alpha, f_new) = line_search_cg(&mut fun, &x, &p, f, &mut nfev, bounds);
+
+        // Update position
+        let mut x_new = &x + &(&p * alpha);
+
+        // Ensure we're within bounds (should be a no-op if line_search_cg respected bounds)
+        if let Some(bounds) = bounds {
+            bounds.project(x_new.as_slice_mut().expect("Operation failed"));
+        }
+
+        // Check if the step actually moved the point
+        let step_size = array_diff_norm(&x_new.view(), &x.view());
+        if step_size < 1e-10 {
+            // We're at a boundary constraint and can't move further
+            x = x_new;
+            break;
+        }
+
+        // Compute new gradient
+        let g_new = compute_gradient_with_jacobian(&mut fun, &x_new.view(), jac, eps, &mut nfev)?;
+
+        // Check convergence on function value
+        if check_convergence(
+            f - f_new,
+            step_size,
+            g_new.mapv(|x| x.abs()).sum(),
+            ftol,
+            options.xtol,
+            gtol,
+        ) {
+            x = x_new;
+            g = g_new;
+            break;
+        }
+
+        // Calculate beta using Polak-Ribière formula (with reset if necessary)
+        let g_new_dot_g_new = g_new.dot(&g_new);
+        let g_old_dot_g_old = g.dot(&g);
+        let y = &g_new - &g;
+        let beta = g_new.dot(&y).max(0.0) / g_old_dot_g_old;
+
+        // Reset direction if beta is negative (not a descent direction anymore)
+        p = if beta < 0.0 || !beta.is_finite() {
+            -g_new.clone()
+        } else {
+            -&g_new + beta * &p
+        };
+
+        // Project the search direction if at boundary
+        if let Some(bounds) = bounds {
+            project_search_direction(&mut p, &x_new, bounds);
+        }
+
+        // Update for next iteration
+        x = x_new;
+        g = g_new;
+        f = f_new;
+
+        iter += 1;
+    }
+
+    // Use original function for final value
+    let final_fun = fun(&x.view());
+
+    // Create and return result
+    Ok(OptimizeResult {
+        x,
+        fun: final_fun,
+        nit: iter,
+        func_evals: nfev,
+        nfev,
+        success: iter < max_iter,
+        message: if iter < max_iter {
+            "Optimization terminated successfully.".to_string()
+        } else {
+            "Maximum iterations reached.".to_string()
+        },
+        jacobian: Some(g),
+        hessian: None,
+    })
+}
+
 /// Project search direction to respect bounds
 #[allow(dead_code)]
 fn project_search_direction(p: &mut Array1<f64>, x: &Array1<f64>, bounds: &Bounds) {
@@ -317,6 +462,7 @@ pub fn compute_line_bounds(
 mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_cg_quadratic() {
@@ -383,5 +529,39 @@ mod tests {
         // Allow more tolerance for this challenging bounded problem
         assert_abs_diff_eq!(result.x[0], 1.0, epsilon = 0.4);
         assert_abs_diff_eq!(result.x[1], 1.0, epsilon = 0.4);
+    }
+
+    #[test]
+    fn test_cg_with_user_jacobian() {
+        use crate::unconstrained::Jacobian;
+
+        // Simpler quadratic function for CG
+        let quadratic = |x: &ArrayView1<f64>| -> f64 {
+            (x[0] - 2.0).powi(2) + (x[1] - 2.0).powi(2)
+        };
+
+        // Analytical gradient
+        let gradient = |x: &ArrayView1<f64>| -> Array1<f64> {
+            Array1::from_vec(vec![
+                2.0 * (x[0] - 2.0),
+                2.0 * (x[1] - 2.0)
+            ])
+        };
+
+        let x0 = Array1::from_vec(vec![0.0, 0.0]);
+        let mut options = Options::default();
+        options.max_iter = 100;
+        
+        let jac = Jacobian::Function(Box::new(gradient));
+        let result = minimize_conjugate_gradient_with_jacobian(quadratic, x0, Some(&jac), &options)
+            .expect("Operation failed");
+
+        assert!(result.success);
+        // Optimal solution: x = [2.0, 2.0]
+        assert_abs_diff_eq!(result.x[0], 2.0, epsilon = 1e-4);
+        assert_abs_diff_eq!(result.x[1], 2.0, epsilon = 1e-4);
+        
+        // With analytical gradient, should use fewer function evaluations
+        assert!(result.nfev < 50);
     }
 }
