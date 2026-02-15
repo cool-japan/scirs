@@ -191,7 +191,6 @@ where
 }
 
 /// Implements the BFGS algorithm with optional bounds support and user-provided Jacobian
-#[allow(dead_code)]
 pub fn minimize_bfgs_with_jacobian<'a, F, S>(
     mut fun: F,
     x0: Array1<f64>,
@@ -478,5 +477,49 @@ mod tests {
         // With analytical gradient, should converge in fewer function evaluations
         // than finite differences (which needs n+1 evaluations per iteration)
         assert!(result.nfev < 50); // Much less than finite difference version
+    }
+
+    #[test]
+    fn test_gradient_verification() {
+        use crate::unconstrained::utils::finite_difference_gradient;
+        
+        // Test Rosenbrock gradient correctness
+        let rosenbrock = |x: &ArrayView1<f64>| -> f64 {
+            let a = 1.0;
+            let b = 100.0;
+            (a - x[0]).powi(2) + b * (x[1] - x[0].powi(2)).powi(2)
+        };
+        
+        let rosenbrock_grad = |x: &ArrayView1<f64>| -> Array1<f64> {
+            let a = 1.0;
+            let b = 100.0;
+            Array1::from_vec(vec![
+                -2.0 * (a - x[0]) - 4.0 * b * x[0] * (x[1] - x[0].powi(2)),
+                2.0 * b * (x[1] - x[0].powi(2))
+            ])
+        };
+        
+        // Test at several points
+        let test_points = vec![
+            Array1::from_vec(vec![0.0, 0.0]),
+            Array1::from_vec(vec![1.0, 1.0]),
+            Array1::from_vec(vec![0.5, 0.25]),
+            Array1::from_vec(vec![-0.5, 1.5]),
+        ];
+        
+        for x in test_points {
+            let analytical_grad = rosenbrock_grad(&x.view());
+            let mut fun_copy = rosenbrock;
+            let numerical_grad = finite_difference_gradient(&mut fun_copy, &x.view(), 1e-8)
+                .expect("Operation failed");
+            
+            for i in 0..2 {
+                assert_abs_diff_eq!(
+                    analytical_grad[i],
+                    numerical_grad[i],
+                    epsilon = 1e-5
+                );
+            }
+        }
     }
 }

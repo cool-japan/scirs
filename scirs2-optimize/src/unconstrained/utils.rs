@@ -44,7 +44,6 @@ where
 }
 
 /// Computes gradient using the specified Jacobian method
-#[allow(dead_code)]
 pub fn compute_gradient_with_jacobian<'a, F, S>(
     fun: &mut F,
     x: &ArrayView1<f64>,

@@ -171,7 +171,6 @@ where
 }
 
 /// Implements the Conjugate Gradient method for unconstrained optimization with optional bounds support and user-provided Jacobian
-#[allow(dead_code)]
 pub fn minimize_conjugate_gradient_with_jacobian<'a, F, S>(
     mut fun: F,
     x0: Array1<f64>,
