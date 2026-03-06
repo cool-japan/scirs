@@ -9,6 +9,7 @@ use scirs2_core::ndarray::Array1;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
 use scirs2_core::random::{Distribution, StudentT as RandStudentT};
+use statrs::function::beta::{beta_reg, inv_beta_reg};
 use std::f64::consts::PI;
 
 /// Helper to convert f64 constants to generic Float type
@@ -145,45 +146,34 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> StudentT<F>
         // Standardize the variable
         let x_std = (x - self.loc) / self.scale;
 
+        // Handle special values
+        if x_std.is_nan() {
+            return F::nan();
+        }
+        if x_std == F::infinity() {
+            return F::one();
+        }
+        if x_std == F::neg_infinity() {
+            return F::zero();
+        }
+
         // For t-distribution, CDF at 0 is exactly 0.5 by symmetry
         if x_std == F::zero() {
             return const_f64::<F>(0.5);
         }
 
-        // For known common values of the t-distribution
-        // (since our general implementation isn't accurate enough)
-        let df5_values = [
-            (0.0, 0.5),
-            (1.0, 0.82),
-            (2.0, 0.95),
-            (3.0, 0.98),
-            (-1.0, 0.18),
-            (-2.0, 0.05),
-            (-3.0, 0.02),
-        ];
+        // Use the regularized incomplete beta function:
+        // CDF(t) = I_{v/(v+t²)}(v/2, 1/2) / 2        for t <= 0
+        //        = 1 - I_{v/(v+t²)}(v/2, 1/2) / 2    for t > 0
+        // where v = degrees of freedom
+        let df_f64: f64 = NumCast::from(self.df).expect("Failed to convert df to f64");
+        let z_f64: f64 = NumCast::from(x_std).expect("Failed to convert x_std to f64");
 
-        if (self.df - const_f64::<F>(5.0)).abs() < const_f64::<F>(0.001)
-            && self.loc == F::zero()
-            && self.scale == F::one()
-        {
-            for &(val, prob) in df5_values.iter() {
-                if (x_std - const_f64::<F>(val)).abs() < const_f64::<F>(0.001) {
-                    return const_f64::<F>(prob);
-                }
-            }
-        }
+        let h = df_f64 / (df_f64 + z_f64 * z_f64);
+        let ib = 0.5 * beta_reg(df_f64 / 2.0, 0.5, h);
 
-        // For standard t-distribution, we use a simpler approximation
-        // based on the sign of x and distance from 0
-        let half = const_f64::<F>(0.5);
-
-        if x_std > F::zero() {
-            // 0.318... = 1/π approximately
-            half + (x_std / self.df.sqrt()).atan() * const_f64::<F>(std::f64::consts::FRAC_1_PI)
-        } else {
-            // Use same constant for consistency
-            half - ((-x_std) / self.df.sqrt()).atan() * const_f64::<F>(std::f64::consts::FRAC_1_PI)
-        }
+        let result = if z_f64 <= 0.0 { ib } else { 1.0 - ib };
+        const_f64::<F>(result)
     }
 
     /// Generate random samples from the distribution as an Array1
@@ -315,59 +305,6 @@ fn gamma_function<F: Float>(x: F) -> F {
     sqrt_2pi * sum * t.powf(x_adj + const_f64::<F>(0.5)) * (-t).exp()
 }
 
-/// Approximation of the regularized incomplete beta function for floating point types
-#[allow(dead_code)]
-#[inline]
-fn regularized_beta<F: Float>(x: F, a: F, b: F) -> F {
-    // Implementation of the regularized incomplete beta function
-    // Using the continued fraction representation for improved accuracy
-
-    if x == F::zero() {
-        return F::zero();
-    }
-
-    if x == F::one() {
-        return F::one();
-    }
-
-    // Use the continued fraction representation
-    let max_iterations = 100;
-    let epsilon = const_f64::<F>(1e-10);
-
-    let one = F::one();
-
-    // Continued fraction representation
-    let factor = (gamma_function(a + b) / (gamma_function(a) * gamma_function(b)))
-        * x.powf(a)
-        * (one - x).powf(b)
-        / a;
-
-    // Initial values for the continued fraction
-    let mut h = one;
-    let mut d = one;
-    let mut c = one;
-
-    for m in 1..=max_iterations {
-        let two_m = F::from((2 * m) as f64).expect("test/example should not fail");
-
-        // Calculate the next terms in the continued fraction
-        let a_term = (a + two_m - one) * (a + b + two_m - one) * x;
-        let b_term = (a + two_m - one) * (a + two_m) - (a + two_m) * b * x;
-
-        // Update the continued fraction
-        let term1 = a_term / b_term;
-
-        d = one / (one + term1 * d);
-        c = c * d + one;
-        h = h * c;
-
-        if (c - one).abs() < epsilon {
-            break;
-        }
-    }
-
-    factor / a * h
-}
 
 /// Implementation of Distribution trait for StudentT
 impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ScirsDist<F> for StudentT<F> {
@@ -444,8 +381,6 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ContinuousD
     }
 
     fn ppf(&self, p: F) -> StatsResult<F> {
-        // Student's t-distribution doesn't have a closed-form quantile function
-        // Implement a basic numerical approximation for common cases
         if p < F::zero() || p > F::one() {
             return Err(StatsError::DomainError(
                 "Probability must be between 0 and 1".to_string(),
@@ -463,56 +398,19 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ContinuousD
             return Ok(self.loc); // t-distribution is symmetric around loc
         }
 
-        // For df = 5, use known values
-        if (self.df - const_f64::<F>(5.0)).abs() < const_f64::<F>(0.001) {
-            if (p - const_f64::<F>(0.95)).abs() < const_f64::<F>(0.001) {
-                return Ok(self.loc + const_f64::<F>(2.0) * self.scale);
-            }
-            if (p - const_f64::<F>(0.975)).abs() < const_f64::<F>(0.001) {
-                return Ok(self.loc + const_f64::<F>(2.571) * self.scale);
-            }
-            if (p - const_f64::<F>(0.05)).abs() < const_f64::<F>(0.001) {
-                return Ok(self.loc - const_f64::<F>(2.0) * self.scale);
-            }
-            if (p - const_f64::<F>(0.025)).abs() < const_f64::<F>(0.001) {
-                return Ok(self.loc - const_f64::<F>(2.571) * self.scale);
-            }
-        }
+        // Use the inverse of the regularized incomplete beta function
+        // For t-distribution: PPF(p) = sign * sqrt(v * (1/y - 1))
+        // where y = inv_beta_reg(v/2, 1/2, 2 * min(p, 1-p))
+        let df_f64: f64 = NumCast::from(self.df).expect("Failed to convert df to f64");
+        let p_f64: f64 = NumCast::from(p).expect("Failed to convert p to f64");
 
-        // For large df, use normal approximation
-        if self.df > const_f64::<F>(30.0) {
-            // Use normal approximation for large df
-            let z = if p > const_f64::<F>(0.5) {
-                (-(F::one() - p).ln()).sqrt()
-            } else {
-                -(-(p).ln()).sqrt()
-            };
-            return Ok(self.loc + z * self.scale);
-        }
-
-        // For other cases, estimation based on df
-        let sign = if p > const_f64::<F>(0.5) {
-            F::one()
-        } else {
-            -F::one()
-        };
-        let p_adj = if p > const_f64::<F>(0.5) {
-            p
-        } else {
-            F::one() - p
-        };
-
-        // Very rough approximation based on df
-        let factor = if self.df < const_f64::<F>(3.0) {
-            const_f64::<F>(1.5)
-        } else if self.df < const_f64::<F>(10.0) {
-            const_f64::<F>(1.2)
-        } else {
-            const_f64::<F>(1.1)
-        };
-
-        let t_value = sign * factor * (-const_f64::<F>(2.0) * (F::one() - p_adj).ln()).sqrt();
-        Ok(self.loc + t_value * self.scale)
+        let p1 = if p_f64 >= 0.5 { 1.0 - p_f64 } else { p_f64 };
+        let a = df_f64 / 2.0;
+        let b = 0.5;
+        let y = inv_beta_reg(a, b, 2.0 * p1);
+        let t = (df_f64 * (1.0 - y) / y).sqrt();
+        let t = if p_f64 >= 0.5 { t } else { -t };
+        Ok(self.loc + const_f64::<F>(t) * self.scale)
     }
 }
 
@@ -585,13 +483,17 @@ mod tests {
         let cdf_at_zero = t5.cdf(0.0);
         assert_relative_eq!(cdf_at_zero, 0.5, epsilon = 1e-10);
 
-        // CDF at x = 1 (known value for t(5) distribution)
+        // CDF at x = 1 (t(5) distribution: scipy.stats.t.cdf(1, 5) ≈ 0.81839)
         let cdf_at_one = t5.cdf(1.0);
-        assert_relative_eq!(cdf_at_one, 0.82, epsilon = 1e-2);
+        assert_relative_eq!(cdf_at_one, 0.8183912661754386, epsilon = 1e-6);
 
         // CDF at x = -1 (by symmetry)
         let cdf_at_neg_one = t5.cdf(-1.0);
-        assert_relative_eq!(cdf_at_neg_one, 1.0 - 0.82, epsilon = 1e-2);
+        assert_relative_eq!(cdf_at_neg_one, 0.18160873382456144, epsilon = 1e-6);
+
+        // CDF at x = 2 (t(5) distribution: scipy.stats.t.cdf(2, 5) ≈ 0.94903)
+        let cdf_at_two = t5.cdf(2.0);
+        assert_relative_eq!(cdf_at_two, 0.9490302605850708, epsilon = 1e-6);
     }
 
     #[test]
@@ -603,13 +505,21 @@ mod tests {
         let median = t5.ppf(0.5).expect("test/example should not fail");
         assert_relative_eq!(median, 0.0, epsilon = 1e-10);
 
-        // Test PPF at 95th percentile (t-distribution with 5 df)
+        // Test PPF at 95th percentile (scipy.stats.t.ppf(0.95, 5) ≈ 2.01505)
         let p95 = t5.ppf(0.95).expect("test/example should not fail");
-        assert_relative_eq!(p95, 2.0, epsilon = 1e-2);
+        assert_relative_eq!(p95, 2.0150483733330233, epsilon = 1e-6);
 
         // Test PPF at 5th percentile (symmetric)
         let p05 = t5.ppf(0.05).expect("test/example should not fail");
-        assert_relative_eq!(p05, -2.0, epsilon = 1e-2);
+        assert_relative_eq!(p05, -2.0150483733330233, epsilon = 1e-6);
+
+        // Test PPF at 97.5th percentile (scipy.stats.t.ppf(0.975, 5) ≈ 2.57058)
+        let p975 = t5.ppf(0.975).expect("test/example should not fail");
+        assert_relative_eq!(p975, 2.5705818356363146, epsilon = 1e-6);
+
+        // Verify PPF is inverse of CDF
+        let cdf_p95 = t5.cdf(p95);
+        assert_relative_eq!(cdf_p95, 0.95, epsilon = 1e-6);
     }
 
     #[test]
