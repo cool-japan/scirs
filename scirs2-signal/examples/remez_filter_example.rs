@@ -16,7 +16,7 @@ fn main() {
     let numtaps = 65;
     let bands = vec![0.0, 0.3, 0.35, 1.0]; // Passband: 0-0.3, Stopband: 0.35-1.0
     let desired = vec![1.0, 1.0, 0.0, 0.0];
-    let weights = vec![1.0, 1.0, 10.0, 10.0]; // Emphasize stopband attenuation
+    let weights = vec![1.0, 10.0]; // One weight per band: passband=1, stopband=10
 
     let h_lp = remez(numtaps, &bands, &desired, Some(&weights), None, None)
         .expect("Test: operation failed");
@@ -32,28 +32,30 @@ fn main() {
     h_padded[..numtaps].copy_from_slice(&h_lp);
 
     let h_fft = fft(&h_padded, None).expect("Test: operation failed");
-    let _freqs: Vec<f64> = (0..nfft / 2).map(|i| i as f64 / nfft as f64).collect();
+    // FFT index for normalized frequency f in [0, 1] (where 1 = Nyquist) is f * nfft / 2.
+    // Clamp to [0, nfft/2] to avoid out-of-bounds panics.
+    let freq_idx = |f: f64| ((f * nfft as f64 / 2.0) as usize).min(nfft / 2);
 
     println!("\nFrequency response at key points:");
     println!(
         "  f=0.0:   |H(f)| = {:.4} dB",
-        20.0 * h_fft[0].norm().log10()
+        20.0 * h_fft[freq_idx(0.0)].norm().log10()
     );
     println!(
         "  f=0.15:  |H(f)| = {:.4} dB",
-        20.0 * h_fft[(0.15 * nfft as f64) as usize].norm().log10()
+        20.0 * h_fft[freq_idx(0.15)].norm().log10()
     );
     println!(
         "  f=0.3:   |H(f)| = {:.4} dB",
-        20.0 * h_fft[(0.3 * nfft as f64) as usize].norm().log10()
+        20.0 * h_fft[freq_idx(0.3)].norm().log10()
     );
     println!(
         "  f=0.35:  |H(f)| = {:.4} dB",
-        20.0 * h_fft[(0.35 * nfft as f64) as usize].norm().log10()
+        20.0 * h_fft[freq_idx(0.35)].norm().log10()
     );
     println!(
         "  f=0.5:   |H(f)| = {:.4} dB",
-        20.0 * h_fft[(0.5 * nfft as f64) as usize].norm().log10()
+        20.0 * h_fft[freq_idx(0.5)].norm().log10()
     );
 
     // Example 2: Bandpass filter
@@ -63,7 +65,7 @@ fn main() {
     let numtaps = 101;
     let bands = vec![0.0, 0.2, 0.25, 0.45, 0.5, 1.0];
     let desired = vec![0.0, 0.0, 1.0, 1.0, 0.0, 0.0];
-    let weights = vec![10.0, 10.0, 1.0, 1.0, 10.0, 10.0]; // Emphasize rejection bands
+    let weights = vec![10.0, 1.0, 10.0]; // One weight per band: stopband1=10, passband=1, stopband2=10
 
     let h_bp = remez(numtaps, &bands, &desired, Some(&weights), None, None)
         .expect("Test: operation failed");
