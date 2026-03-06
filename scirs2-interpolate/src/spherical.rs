@@ -105,6 +105,7 @@ fn assoc_legendre(l: usize, m: usize, x: f64) -> f64 {
 /// Normalisation constant K_l^m for real spherical harmonics.
 ///
 /// `K = sqrt((2l+1)/(4π) * (l-m)!/(l+m)!)`
+#[allow(dead_code)]
 fn normk(l: usize, m: usize) -> f64 {
     // Compute (l-m)!/(l+m)! incrementally to avoid huge factorials
     let mut ratio = 1.0f64;
@@ -116,6 +117,70 @@ fn normk(l: usize, m: usize) -> f64 {
     ((2 * l + 1) as f64 / (4.0 * PI) * ratio).sqrt()
 }
 
+/// Compute the fully-normalised Legendre value `K_l^m * P_l^m(x)` with the
+/// Condon-Shortley phase `(-1)^m`, avoiding overflow for large `l` and `m`.
+///
+/// For large `l = m` the unnormalised `P_m^m ≈ (2m-1)!!` overflows f64 while
+/// the normalisation constant `K_m^m ≈ 1/(2m)!` underflows.  This routine
+/// folds both factors into a single recurrence so that neither intermediate
+/// quantity grows beyond O(sqrt(l)).
+fn normalized_legendre_cs(l: usize, m: usize, x: f64) -> f64 {
+    if m > l {
+        return 0.0;
+    }
+
+    // Clamp x to [-1, 1] to guard against floating-point rounding errors.
+    let x = x.clamp(-1.0, 1.0);
+    let sin_theta = ((1.0 - x) * (1.0 + x)).sqrt(); // = |sin θ|
+
+    // Compute the normalised seed K_m^m * P_m^m with Condon-Shortley phase.
+    //
+    //   K_m^m * P_m^m = sqrt((2m+1)/(4π)) * prod_{k=1}^{m} (-sqrt((2k-1)/(2k))) * sin θ
+    //
+    // Each factor |−sqrt((2k-1)/(2k)) * sin θ| ≤ 1, so the running product
+    // never overflows regardless of m.
+    let mut bar_pmm = 1.0_f64 / (2.0 * PI.sqrt()); // = sqrt(1/(4π))
+    for k in 1..=m {
+        let kf = k as f64;
+        // The leading (-1) per step contributes the overall (-1)^m CS phase.
+        bar_pmm *= -((2.0 * kf - 1.0) / (2.0 * kf)).sqrt() * sin_theta;
+    }
+    bar_pmm *= ((2 * m + 1) as f64).sqrt();
+
+    if l == m {
+        return bar_pmm;
+    }
+
+    // bar_P_{m+1}^m = sqrt(2m+3) * x * bar_P_m^m
+    let mut bar_pmmp1 = ((2 * m + 3) as f64).sqrt() * x * bar_pmm;
+
+    if l == m + 1 {
+        return bar_pmmp1;
+    }
+
+    // Three-term normalised recurrence for l >= m+2:
+    //   bar_P_l^m = alpha * x * bar_P_{l-1}^m - beta * bar_P_{l-2}^m
+    // with:
+    //   alpha = sqrt((4l²-1) / (l²-m²))
+    //   beta  = sqrt((2l+1)(l+m-1)(l-m-1) / ((2l-3)(l²-m²)))
+    let mut result = 0.0;
+    let mut prev2 = bar_pmm;
+    let mut prev1 = bar_pmmp1;
+    for ll in (m + 2)..=l {
+        let lf = ll as f64;
+        let mf = m as f64;
+        let l2m2 = lf * lf - mf * mf;
+        let alpha = ((4.0 * lf * lf - 1.0) / l2m2).sqrt();
+        let beta = (((2.0 * lf + 1.0) * (lf + mf - 1.0) * (lf - mf - 1.0))
+            / ((2.0 * lf - 3.0) * l2m2))
+            .sqrt();
+        result = alpha * x * prev1 - beta * prev2;
+        prev2 = prev1;
+        prev1 = result;
+    }
+    result
+}
+
 /// Evaluate a single real spherical harmonic Y_l^m(θ, φ).
 ///
 /// `m` is signed: negative values use the sine component.
@@ -123,14 +188,14 @@ pub fn real_sph_harm(l: usize, m: i64, theta: f64, phi: f64) -> f64 {
     let abs_m = m.unsigned_abs() as usize;
     debug_assert!(abs_m <= l);
     let cos_theta = theta.cos().clamp(-1.0, 1.0);
-    let k = normk(l, abs_m);
-    let p = assoc_legendre(l, abs_m, cos_theta);
+    // Use the normalized computation to avoid overflow/underflow for large l and m.
+    let bar_p = normalized_legendre_cs(l, abs_m, cos_theta);
     if m == 0 {
-        k * p
+        bar_p
     } else if m > 0 {
-        SQRT_2 * k * p * (abs_m as f64 * phi).cos()
+        SQRT_2 * bar_p * (abs_m as f64 * phi).cos()
     } else {
-        SQRT_2 * k * p * (abs_m as f64 * phi).sin()
+        SQRT_2 * bar_p * (abs_m as f64 * phi).sin()
     }
 }
 
