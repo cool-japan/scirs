@@ -144,6 +144,11 @@ where
 /// let desired = vec![1.0, 1.0, 0.0, 0.0];
 /// let h = remez(65, &bands, &desired, None, None, None).expect("Operation failed");
 /// ```
+/// Minimum absolute difference for barycentric weight computation to avoid division by zero.
+const BARY_EPSILON: f64 = 1e-15;
+/// Minimum denominator magnitude for barycentric interpolation to avoid division by zero.
+const BARY_MIN_DENOM: f64 = 1e-30;
+
 #[allow(dead_code)]
 pub fn remez(
     numtaps: usize,
@@ -191,164 +196,268 @@ pub fn remez(
     let max_iter = max_iter.unwrap_or(25);
     let grid_density = grid_density.unwrap_or(16);
 
-    // Calculate filter order
-    let filter_order = numtaps - 1;
-
-    // Number of extremal frequencies
-    let r = (filter_order + 2) / 2;
-
-    // Set up the dense frequency grid
-    let grid_size = grid_density * filter_order;
-    let mut omega_grid = Vec::with_capacity(grid_size);
-    let mut desired_grid = Vec::with_capacity(grid_size);
-    let mut weight_grid = Vec::with_capacity(grid_size);
-
-    // Build the frequency grid for each band
     let num_bands = bands.len() / 2;
+
+    // Determine one weight per band.
+    // Accepts either num_bands weights (one per band) or bands.len() weights (per edge, averaged).
+    // Safety: bands.len() is already validated to be even (see check above), so
+    // w.len() == bands.len() guarantees w[2*i+1] is in-bounds for i in 0..num_bands.
+    let band_weights: Vec<f64> = if let Some(w) = weights {
+        if w.len() == num_bands {
+            w.to_vec()
+        } else if w.len() == bands.len() {
+            // Per-edge weights: average the two edges for each band
+            (0..num_bands)
+                .map(|i| (w[2 * i] + w[2 * i + 1]) / 2.0)
+                .collect()
+        } else {
+            vec![1.0; num_bands]
+        }
+    } else {
+        vec![1.0; num_bands]
+    };
+
+    // Filter half-order M = (N-1)/2 for Type I (odd N).
+    // For even N (Type II) the same formula is used as an approximation.
+    let filter_order = numtaps - 1;
+    let m = filter_order / 2;
+
+    // Number of extremal frequencies required by the alternation theorem: r = M + 2.
+    // A common bug is to use M+1 here, which makes the algorithm degenerate.
+    let r = m + 2;
+
+    // Build the dense frequency grid (ω in [0, π])
+    let grid_size = (grid_density * filter_order).max(r + 1);
+    let mut omega_grid: Vec<f64> = Vec::with_capacity(grid_size);
+    let mut desired_grid: Vec<f64> = Vec::with_capacity(grid_size);
+    let mut weight_grid: Vec<f64> = Vec::with_capacity(grid_size);
+
     for band_idx in 0..num_bands {
-        let band_start = bands[2 * band_idx];
-        let band_end = bands[2 * band_idx + 1];
-        let band_points = ((band_end - band_start) * grid_size as f64).round() as usize;
-
-        for i in 0..band_points {
-            let omega =
-                band_start + (band_end - band_start) * (i as f64) / (band_points as f64 - 1.0);
-            omega_grid.push(omega * std::f64::consts::PI);
-
-            // Linear interpolation for desired response
-            let t = (omega - band_start) / (band_end - band_start);
-            let des = desired[2 * band_idx] * (1.0 - t) + desired[2 * band_idx + 1] * t;
-            desired_grid.push(des);
-
-            // Set weights
-            if let Some(w) = weights {
-                let wt = w[2 * band_idx] * (1.0 - t) + w[2 * band_idx + 1] * t;
-                weight_grid.push(wt);
-            } else {
-                weight_grid.push(1.0);
-            }
+        let f0 = bands[2 * band_idx];
+        let f1 = bands[2 * band_idx + 1];
+        let pts = ((f1 - f0) * grid_size as f64).round().max(2.0) as usize;
+        for i in 0..pts {
+            let t = i as f64 / (pts - 1) as f64;
+            let f = f0 + (f1 - f0) * t;
+            omega_grid.push(f * std::f64::consts::PI);
+            // Linear interpolation for desired response within the band
+            let d = desired[2 * band_idx] * (1.0 - t) + desired[2 * band_idx + 1] * t;
+            desired_grid.push(d);
+            weight_grid.push(band_weights[band_idx]);
         }
     }
 
-    // Initialize extremal frequencies uniformly
-    let mut extremal_freqs = Vec::with_capacity(r);
-    for i in 0..r {
-        extremal_freqs.push(i * (omega_grid.len() - 1) / (r - 1));
+    if omega_grid.len() < r + 1 {
+        return Err(SignalError::ValueError(
+            "Grid too small for the requested filter order".to_string(),
+        ));
     }
 
-    // Remez exchange algorithm
-    let mut h = vec![0.0; numtaps];
-    let mut best_error = f64::MAX;
+    // Initialize extremal set uniformly across the grid
+    let mut ext: Vec<usize> = (0..r)
+        .map(|i| i * (omega_grid.len() - 1) / (r - 1))
+        .collect();
 
+    // Remez exchange iterations
     for _iter in 0..max_iter {
-        // Step 1: Calculate the polynomial using the extremal frequencies
-        let mut a_matrix = vec![vec![0.0; r]; r];
-        let mut b_vector = vec![0.0; r];
+        // Cosine of the extremal frequencies (x-coordinates for Lagrange interpolation)
+        let x: Vec<f64> = ext.iter().map(|&i| omega_grid[i].cos()).collect();
+        let d: Vec<f64> = ext.iter().map(|&i| desired_grid[i]).collect();
+        let w: Vec<f64> = ext.iter().map(|&i| weight_grid[i]).collect();
 
-        for (i, &ext_idx) in extremal_freqs.iter().enumerate() {
-            let omega = omega_grid[ext_idx];
+        // Barycentric weights: λ_i = 1 / ∏_{j≠i} (x_i − x_j)
+        let bary = compute_barycentric_weights(&x);
 
-            // Fill the matrix for the linear system
-            for j in 0..(r - 1) {
-                a_matrix[i][j] = (j as f64 * omega).cos();
-            }
-            // Last column alternates signs
-            a_matrix[i][r - 1] = if i % 2 == 0 { 1.0 } else { -1.0 } / weight_grid[ext_idx];
+        // Equiripple deviation δ via the alternation-theorem formula:
+        //   δ = (Σ λ_i · D_i) / (Σ (−1)^i · λ_i / W_i)
+        let (num_d, den_d) = delta_numerator_denominator(&bary, &d, &w);
+        let delta = if den_d.abs() > BARY_MIN_DENOM {
+            num_d / den_d
+        } else {
+            0.0
+        };
 
-            b_vector[i] = desired_grid[ext_idx];
+        // Adjusted desired values at extremal points:
+        //   E_i = D_i − (−1)^i · δ / W_i
+        // These are the values that the optimal polynomial P takes at each extremal point.
+        let e: Vec<f64> = (0..r)
+            .map(|i| {
+                let sign = if i % 2 == 0 { 1.0_f64 } else { -1.0_f64 };
+                d[i] - sign * delta / w[i]
+            })
+            .collect();
+
+        // Evaluate P on the dense grid using barycentric interpolation with E values.
+        // Using D values here (as done in the old code) is the root cause of the bug.
+        let mut errors: Vec<f64> = Vec::with_capacity(omega_grid.len());
+        for &om in &omega_grid {
+            let xg = om.cos();
+            let p = barycentric_eval(&bary, &x, &e, xg);
+            errors.push(p); // store P temporarily
+        }
+        // Compute weighted error |D − P| · W
+        for (gi, err) in errors.iter_mut().enumerate() {
+            *err = ((desired_grid[gi] - *err) * weight_grid[gi]).abs();
         }
 
-        // Solve the linear system to get polynomial coefficients
-        let coeffs = solve_linear_system(&a_matrix, &b_vector)?;
-
-        // Step 2: Calculate error on the dense grid
-        let mut errors = Vec::with_capacity(omega_grid.len());
-        let mut max_error = 0.0;
-
-        for i in 0..omega_grid.len() {
-            let omega = omega_grid[i];
-
-            // Evaluate the polynomial
-            let mut p_omega = 0.0;
-            for (j, &coeff) in coeffs.iter().enumerate().take(r - 1) {
-                p_omega += coeff * (j as f64 * omega).cos();
-            }
-
-            let error = (desired_grid[i] - p_omega) * weight_grid[i];
-            errors.push(error.abs());
-
-            if error.abs() > max_error {
-                max_error = error.abs();
-            }
+        // Find new extremal set: local maxima of |error|, keep r largest
+        let mut new_ext: Vec<usize> = Vec::new();
+        if errors.first().copied().unwrap_or(0.0)
+            >= errors.get(1).copied().unwrap_or(0.0)
+        {
+            new_ext.push(0);
         }
-
-        // Step 3: Find new extremal frequencies
-        let mut new_extremal = Vec::new();
-
-        // Find local maxima in the error function
         for i in 1..(errors.len() - 1) {
             if errors[i] >= errors[i - 1] && errors[i] >= errors[i + 1] {
-                new_extremal.push(i);
+                new_ext.push(i);
             }
         }
-
-        // Add boundaries if they are extremal
-        if errors[0] > errors[1] {
-            new_extremal.insert(0, 0);
-        }
-        if errors[errors.len() - 1] > errors[errors.len() - 2] {
-            new_extremal.push(errors.len() - 1);
+        if errors.last().copied().unwrap_or(0.0)
+            >= errors.get(errors.len() - 2).copied().unwrap_or(0.0)
+        {
+            new_ext.push(errors.len() - 1);
         }
 
-        // Select r extremal points with alternating signs
-        if new_extremal.len() >= r {
-            // Sort by error magnitude
-            new_extremal
-                .sort_by(|&a, &b| errors[b].partial_cmp(&errors[a]).expect("Operation failed"));
+        new_ext.sort_by(|&a, &b| {
+            errors[b]
+                .partial_cmp(&errors[a])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        new_ext.truncate(r);
+        new_ext.sort();
 
-            // Keep the r largest errors
-            new_extremal.truncate(r);
-            new_extremal.sort();
-
-            extremal_freqs = new_extremal;
+        if new_ext.len() < r {
+            break; // cannot improve further
         }
+        ext = new_ext;
+    }
 
-        // Check convergence
-        if max_error < best_error {
-            best_error = max_error;
+    // ── Coefficient extraction ────────────────────────────────────────────────
+    // Rebuild barycentric interpolation for the final extremal set.
+    let x_f: Vec<f64> = ext.iter().map(|&i| omega_grid[i].cos()).collect();
+    let d_f: Vec<f64> = ext.iter().map(|&i| desired_grid[i]).collect();
+    let w_f: Vec<f64> = ext.iter().map(|&i| weight_grid[i]).collect();
+    let bary_f = compute_barycentric_weights(&x_f);
 
-            // Convert polynomial coefficients to filter coefficients
-            for (i, coeff) in h.iter_mut().enumerate() {
-                let n = i as f64 - (numtaps as f64 - 1.0) / 2.0;
+    let (num_d, den_d) = delta_numerator_denominator(&bary_f, &d_f, &w_f);
+    let delta_f = if den_d.abs() > BARY_MIN_DENOM {
+        num_d / den_d
+    } else {
+        0.0
+    };
 
-                *coeff = 0.0;
-                for (j, &c) in coeffs.iter().enumerate().take(r - 1) {
-                    if j == 0 {
-                        *coeff += c;
-                    } else {
-                        let freq = j as f64 * std::f64::consts::PI / (numtaps as f64 - 1.0);
-                        *coeff += 2.0 * c * (freq * n).cos();
-                    }
-                }
-                *coeff /= numtaps as f64;
-            }
+    let e_f: Vec<f64> = (0..r)
+        .map(|i| {
+            let sign = if i % 2 == 0 { 1.0_f64 } else { -1.0_f64 };
+            d_f[i] - sign * delta_f / w_f[i]
+        })
+        .collect();
+
+    // For a Type I filter H(ω) = Σ_{k=0}^{M} a[k] cos(kω).
+    // Sample P at M+1 evenly-spaced frequencies ω_j = j·π/M (j = 0…M) using
+    // barycentric interpolation, then apply the inverse DCT-I to recover a[k].
+    let mut h = vec![0.0_f64; numtaps];
+
+    if m == 0 {
+        // Trivial single-tap case
+        h[0] = barycentric_eval(&bary_f, &x_f, &e_f, 1.0); // ω=0
+        return Ok(h);
+    }
+
+    // Evaluate P at the M+1 DCT-I nodes
+    let mut p_vals = vec![0.0_f64; m + 1];
+    let pi_over_m = std::f64::consts::PI / (m as f64);
+    for j in 0..=m {
+        let omega_j = (j as f64) * pi_over_m;
+        p_vals[j] = barycentric_eval(&bary_f, &x_f, &e_f, omega_j.cos());
+    }
+
+    // Inverse DCT-I: recover cosine-series coefficients a[k].
+    // From the orthogonality of the DCT-I basis on {j·π/M, j=0…M}:
+    //   a[0]      = (1/M) · Σ_j  wj · p_vals[j]
+    //   a[k]      = (2/M) · Σ_j  wj · p_vals[j] · cos(k·j·π/M)   (1 ≤ k ≤ M-1)
+    //   a[M]      = (1/M) · Σ_j  wj · p_vals[j] · (−1)^j
+    // where wj = 0.5 for j=0,M and wj = 1 otherwise.
+    let inv_m = 1.0 / (m as f64);
+    let mut a = vec![0.0_f64; m + 1];
+    for k in 0..=m {
+        let mut sum = p_vals[0] * 0.5; // j = 0, weight 0.5
+        for j in 1..m {
+            sum += p_vals[j] * ((k as f64 * j as f64 * pi_over_m).cos());
         }
-
-        // Check if converged
-        if max_error - best_error < 1e-10 {
-            break;
+        // j = m, weight 0.5
+        sum += p_vals[m] * 0.5 * ((k as f64 * std::f64::consts::PI).cos());
+        a[k] = sum * inv_m;
+        // Interior coefficients have an additional factor of 2 (from DCT-I orthogonality)
+        if k > 0 && k < m {
+            a[k] *= 2.0;
         }
     }
 
-    // Make filter symmetric
-    let mid = numtaps / 2;
-    for i in 0..mid {
-        let avg = (h[i] + h[numtaps - 1 - i]) / 2.0;
-        h[i] = avg;
-        h[numtaps - 1 - i] = avg;
+    // Convert cosine-series to symmetric FIR taps:
+    //   h[M]     = a[0]
+    //   h[M±k]   = a[k]/2   for k = 1…M
+    h[m] = a[0];
+    for k in 1..=m {
+        h[m - k] = a[k] / 2.0;
+        h[m + k] = a[k] / 2.0;
     }
 
     Ok(h)
+}
+
+/// Compute barycentric weights for Lagrange interpolation at nodes `x`.
+/// λ_i = 1 / ∏_{j≠i} (x_i − x_j)
+fn compute_barycentric_weights(x: &[f64]) -> Vec<f64> {
+    let r = x.len();
+    let mut bary = vec![1.0_f64; r];
+    for i in 0..r {
+        for j in 0..r {
+            if i != j {
+                let diff = x[i] - x[j];
+                if diff.abs() > BARY_EPSILON {
+                    bary[i] /= diff;
+                }
+            }
+        }
+    }
+    bary
+}
+
+/// Evaluate the barycentric Lagrange interpolant at `xg`.
+/// Returns y[i] directly if `xg` coincides with a node.
+fn barycentric_eval(bary: &[f64], x: &[f64], y: &[f64], xg: f64) -> f64 {
+    let r = bary.len();
+    let mut num = 0.0_f64;
+    let mut den = 0.0_f64;
+    for i in 0..r {
+        let dx = xg - x[i];
+        if dx.abs() < BARY_EPSILON {
+            return y[i]; // exactly at a node
+        }
+        let b = bary[i] / dx;
+        num += b * y[i];
+        den += b;
+    }
+    if den.abs() > BARY_MIN_DENOM {
+        num / den
+    } else {
+        y[0]
+    }
+}
+
+/// Compute the numerator and denominator used for the equiripple deviation δ.
+///   num = Σ λ_i · D_i
+///   den = Σ (−1)^i · λ_i / W_i
+fn delta_numerator_denominator(bary: &[f64], d: &[f64], w: &[f64]) -> (f64, f64) {
+    let mut num = 0.0_f64;
+    let mut den = 0.0_f64;
+    for i in 0..bary.len() {
+        let sign = if i % 2 == 0 { 1.0_f64 } else { -1.0_f64 };
+        num += bary[i] * d[i];
+        den += sign * bary[i] / w[i];
+    }
+    (num, den)
 }
 
 /// Generate a window function
@@ -404,63 +513,114 @@ fn generate_window(_length: usize, windowtype: &str) -> SignalResult<Vec<f64>> {
     Ok(window)
 }
 
-/// Solve a linear system Ax = b using Gaussian elimination
-///
-/// Internal helper function for the Remez exchange algorithm.
-#[allow(dead_code)]
-fn solve_linear_system(a: &[Vec<f64>], b: &[f64]) -> SignalResult<Vec<f64>> {
-    let n = a.len();
-    if n == 0 || a[0].len() != n || b.len() != n {
-        return Err(SignalError::ValueError(
-            "Invalid matrix dimensions".to_string(),
-        ));
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::f64::consts::PI;
+
+    /// Evaluate the frequency response magnitude of an FIR filter at frequency f ∈ [0, 1].
+    fn freq_mag(h: &[f64], f: f64) -> f64 {
+        let omega = f * PI;
+        let (re, im) = h.iter().enumerate().fold((0.0_f64, 0.0_f64), |(re, im), (k, &hk)| {
+            (re + hk * (k as f64 * omega).cos(), im - hk * (k as f64 * omega).sin())
+        });
+        (re * re + im * im).sqrt()
     }
 
-    // Create augmented matrix
-    let mut aug = vec![vec![0.0; n + 1]; n];
-    for i in 0..n {
-        for j in 0..n {
-            aug[i][j] = a[i][j];
-        }
-        aug[i][n] = b[i];
+    #[test]
+    fn test_remez_length() {
+        let bands = vec![0.0, 0.3, 0.35, 1.0];
+        let desired = vec![1.0, 1.0, 0.0, 0.0];
+        let h = remez(65, &bands, &desired, None, None, None).expect("remez failed");
+        assert_eq!(h.len(), 65);
     }
 
-    // Forward elimination
-    for i in 0..n {
-        // Find pivot
-        let mut max_row = i;
-        for k in (i + 1)..n {
-            if aug[k][i].abs() > aug[max_row][i].abs() {
-                max_row = k;
-            }
-        }
-
-        // Swap rows
-        aug.swap(i, max_row);
-
-        // Check for zero pivot
-        if aug[i][i].abs() < 1e-10 {
-            return Err(SignalError::ValueError("Singular matrix".to_string()));
-        }
-
-        // Eliminate column
-        for k in (i + 1)..n {
-            let factor = aug[k][i] / aug[i][i];
-            for j in i..=n {
-                aug[k][j] -= factor * aug[i][j];
-            }
+    #[test]
+    fn test_remez_symmetric() {
+        let bands = vec![0.0, 0.3, 0.35, 1.0];
+        let desired = vec![1.0, 1.0, 0.0, 0.0];
+        let h = remez(65, &bands, &desired, None, None, None).expect("remez failed");
+        for i in 0..h.len() / 2 {
+            assert!(
+                (h[i] - h[h.len() - 1 - i]).abs() < 1e-12,
+                "filter is not symmetric at index {i}"
+            );
         }
     }
 
-    // Back substitution
-    let mut x = vec![0.0; n];
-    for i in (0..n).rev() {
-        x[i] = aug[i][n];
-        for j in (i + 1)..n {
-            x[i] -= aug[i][j] * x[j];
-        }
-        x[i] /= aug[i][i];
+    #[test]
+    fn test_remez_lowpass_frequency_response() {
+        // Design a 65-tap lowpass filter: passband [0, 0.3], stopband [0.35, 1.0]
+        let bands = vec![0.0, 0.3, 0.35, 1.0];
+        let desired = vec![1.0, 1.0, 0.0, 0.0];
+        let weights = vec![1.0, 10.0]; // 1 weight per band
+        let h = remez(65, &bands, &desired, Some(&weights), Some(25), None)
+            .expect("remez failed");
+
+        // Passband: gain should be close to 1 (≥ -1 dB ≈ 0.89)
+        let gain_dc = freq_mag(&h, 0.0);
+        let gain_mid = freq_mag(&h, 0.15);
+        let gain_edge = freq_mag(&h, 0.28);
+        assert!(
+            gain_dc > 0.85,
+            "DC gain too low: {gain_dc:.4}"
+        );
+        assert!(
+            gain_mid > 0.85,
+            "Passband gain too low at f=0.15: {gain_mid:.4}"
+        );
+        assert!(
+            gain_edge > 0.80,
+            "Passband gain too low at f=0.28: {gain_edge:.4}"
+        );
+
+        // Stopband: gain should be small (≤ -20 dB ≈ 0.1)
+        let gain_stop1 = freq_mag(&h, 0.5);
+        let gain_stop2 = freq_mag(&h, 0.75);
+        let gain_stop3 = freq_mag(&h, 1.0);
+        assert!(
+            gain_stop1 < 0.15,
+            "Stopband gain too high at f=0.5: {gain_stop1:.4}"
+        );
+        assert!(
+            gain_stop2 < 0.15,
+            "Stopband gain too high at f=0.75: {gain_stop2:.4}"
+        );
+        assert!(
+            gain_stop3 < 0.15,
+            "Stopband gain too high at f=1.0: {gain_stop3:.4}"
+        );
     }
 
-    Ok(x)
+    #[test]
+    fn test_remez_bandpass_frequency_response() {
+        // Design a 101-tap bandpass filter
+        // Stopband 1: [0, 0.2], Passband: [0.25, 0.45], Stopband 2: [0.5, 1.0]
+        let bands = vec![0.0, 0.2, 0.25, 0.45, 0.5, 1.0];
+        let desired = vec![0.0, 0.0, 1.0, 1.0, 0.0, 0.0];
+        let weights = vec![10.0, 1.0, 10.0]; // 1 weight per band
+        let h = remez(101, &bands, &desired, Some(&weights), Some(25), None)
+            .expect("remez failed");
+
+        // Passband gain should be close to 1
+        let gain_pass = freq_mag(&h, 0.35);
+        assert!(
+            gain_pass > 0.8,
+            "Bandpass passband gain too low: {gain_pass:.4}"
+        );
+
+        // Stopband gains should be small
+        let gain_low = freq_mag(&h, 0.05);
+        let gain_high = freq_mag(&h, 0.75);
+        assert!(
+            gain_low < 0.2,
+            "Lower stopband gain too high: {gain_low:.4}"
+        );
+        assert!(
+            gain_high < 0.2,
+            "Upper stopband gain too high: {gain_high:.4}"
+        );
+    }
 }
