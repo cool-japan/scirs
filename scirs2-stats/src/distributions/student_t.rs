@@ -167,12 +167,12 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> StudentT<F>
         //        = 1 - I_{v/(v+t²)}(v/2, 1/2) / 2    for t > 0
         // where v = degrees of freedom
         let df_f64: f64 = NumCast::from(self.df).expect("Failed to convert df to f64");
-        let z_f64: f64 = NumCast::from(x_std).expect("Failed to convert x_std to f64");
+        let x_std_f64: f64 = NumCast::from(x_std).expect("Failed to convert x_std to f64");
 
-        let h = df_f64 / (df_f64 + z_f64 * z_f64);
+        let h = df_f64 / (df_f64 + x_std_f64 * x_std_f64);
         let ib = 0.5 * beta_reg(df_f64 / 2.0, 0.5, h);
 
-        let result = if z_f64 <= 0.0 { ib } else { 1.0 - ib };
+        let result = if x_std_f64 <= 0.0 { ib } else { 1.0 - ib };
         const_f64::<F>(result)
     }
 
@@ -408,7 +408,12 @@ impl<F: Float + NumCast + Send + Sync + 'static + std::fmt::Display> ContinuousD
         let a = df_f64 / 2.0;
         let b = 0.5;
         let y = inv_beta_reg(a, b, 2.0 * p1);
-        let t = (df_f64 * (1.0 - y) / y).sqrt();
+        // When y == 0 (extreme probabilities), the result is infinite
+        let t = if y == 0.0 {
+            f64::INFINITY
+        } else {
+            (df_f64 * (1.0 - y) / y).sqrt()
+        };
         let t = if p_f64 >= 0.5 { t } else { -t };
         Ok(self.loc + const_f64::<F>(t) * self.scale)
     }
