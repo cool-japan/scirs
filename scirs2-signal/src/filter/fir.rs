@@ -289,13 +289,14 @@ pub fn remez(
 
         // Evaluate P on the dense grid using barycentric interpolation with E values.
         // Using D values here (as done in the old code) is the root cause of the bug.
+        // We reuse a single Vec, first storing P(ω), then overwriting with |D−P|·W.
         let mut errors: Vec<f64> = Vec::with_capacity(omega_grid.len());
         for &om in &omega_grid {
             let xg = om.cos();
             let p = barycentric_eval(&bary, &x, &e, xg);
-            errors.push(p); // store P temporarily
+            errors.push(p); // initially stores P(ω); converted to weighted error below
         }
-        // Compute weighted error |D − P| · W
+        // Convert P(ω) values to weighted error magnitude |D(ω) − P(ω)| · W(ω)
         for (gi, err) in errors.iter_mut().enumerate() {
             *err = ((desired_grid[gi] - *err) * weight_grid[gi]).abs();
         }

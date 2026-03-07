@@ -105,6 +105,10 @@ fn assoc_legendre(l: usize, m: usize, x: f64) -> f64 {
 /// Normalisation constant K_l^m for real spherical harmonics.
 ///
 /// `K = sqrt((2l+1)/(4π) * (l-m)!/(l+m)!)`
+///
+/// NOTE: This function is no longer called by `real_sph_harm` — the computation
+/// has been replaced by `normalized_legendre_cs` which folds K_l^m * P_l^m into
+/// a single stable recurrence.  Kept here for reference and potential use in tests.
 #[allow(dead_code)]
 fn normk(l: usize, m: usize) -> f64 {
     // Compute (l-m)!/(l+m)! incrementally to avoid huge factorials
