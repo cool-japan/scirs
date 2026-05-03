@@ -179,12 +179,12 @@ fn encode_to(w: &mut dyn Write, value: &MsgpackValue) -> Result<usize> {
 
 fn encode_int(w: &mut dyn Write, i: i64) -> Result<usize> {
     // positive fixint
-    if i >= 0 && i <= 127 {
+    if (0..=127).contains(&i) {
         w.write_u8(i as u8).map_err(IoError::Io)?;
         return Ok(1);
     }
     // negative fixint
-    if i >= -32 && i < 0 {
+    if (-32..0).contains(&i) {
         w.write_u8(i as i8 as u8).map_err(IoError::Io)?;
         return Ok(1);
     }
@@ -286,8 +286,7 @@ fn encode_bin(w: &mut dyn Write, data: &[u8]) -> Result<usize> {
 fn encode_array(w: &mut dyn Write, items: &[MsgpackValue]) -> Result<usize> {
     let n = items.len();
     let header_size = if n <= 15 {
-        w.write_u8(FIXARRAY_MASK | n as u8)
-            .map_err(IoError::Io)?;
+        w.write_u8(FIXARRAY_MASK | n as u8).map_err(IoError::Io)?;
         1
     } else if n <= u16::MAX as usize {
         w.write_u8(ARRAY16).map_err(IoError::Io)?;
@@ -405,9 +404,7 @@ pub fn decode(bytes: &[u8]) -> Result<MsgpackValue> {
 /// Deserialize a [`MsgpackValue`] from `reader`.
 pub fn read_msgpack(reader: &mut dyn Read) -> Result<MsgpackValue> {
     let mut buf = Vec::new();
-    reader
-        .read_to_end(&mut buf)
-        .map_err(IoError::Io)?;
+    reader.read_to_end(&mut buf).map_err(IoError::Io)?;
     decode(&buf)
 }
 
@@ -741,13 +738,11 @@ pub fn json_value_to_msgpack(v: &serde_json::Value) -> MsgpackValue {
         serde_json::Value::Array(arr) => {
             MsgpackValue::Array(arr.iter().map(json_value_to_msgpack).collect())
         }
-        serde_json::Value::Object(obj) => {
-            MsgpackValue::Map(
-                obj.iter()
-                    .map(|(k, v)| (MsgpackValue::Str(k.clone()), json_value_to_msgpack(v)))
-                    .collect(),
-            )
-        }
+        serde_json::Value::Object(obj) => MsgpackValue::Map(
+            obj.iter()
+                .map(|(k, v)| (MsgpackValue::Str(k.clone()), json_value_to_msgpack(v)))
+                .collect(),
+        ),
     }
 }
 
@@ -778,7 +773,8 @@ pub fn msgpack_to_json_value(v: &MsgpackValue) -> Result<serde_json::Value> {
         MsgpackValue::Str(s) => Ok(serde_json::Value::String(s.clone())),
         MsgpackValue::Bin(b) => {
             // Represent binary as array of u8 values
-            let arr: Vec<serde_json::Value> = b.iter().map(|&byte| serde_json::json!(byte)).collect();
+            let arr: Vec<serde_json::Value> =
+                b.iter().map(|&byte| serde_json::json!(byte)).collect();
             Ok(serde_json::Value::Array(arr))
         }
         MsgpackValue::Array(items) => {
@@ -929,7 +925,14 @@ mod tests {
 
     #[test]
     fn test_float64_roundtrip() {
-        for f in [0.0_f64, 1.0, -1.0, f64::MAX, f64::MIN_POSITIVE, 3.141592653589793] {
+        for f in [
+            0.0_f64,
+            1.0,
+            -1.0,
+            f64::MAX,
+            f64::MIN_POSITIVE,
+            std::f64::consts::PI,
+        ] {
             let v = MsgpackValue::Float(f);
             assert_eq!(rt(&v), v, "float64 {f}");
         }

@@ -66,9 +66,17 @@ fn obl_cv_continued_fraction(m: i32, n: i32, c: f64) -> SpecialResult<f64> {
     Ok(lambda)
 }
 
-/// Computes the oblate characteristic determinant and its derivative
+/// Compute the tridiagonal secular equation value and its derivative using the
+/// Sturm sequence recurrence for the oblate spheroidal characteristic value problem.
 ///
-/// Similar to the prolate case but with sign changes in the recurrence relations
+/// For oblate spheroids, the off-diagonal coupling has the **opposite sign** compared
+/// to the prolate case (because the parameter becomes imaginary: c → ic).
+/// The matrix eigenvalue equation is:
+///   (l(l+1) - λ) · d_l - c² · β_{l-2} · d_{l-2} - c² · β_l · d_{l+2} = 0
+/// where β_l = +1/(4(2l+1)(2l+3))  (same magnitude as prolate, same sign in matrix)
+///
+/// The sign convention: for oblate, c² → -c² in the coupling terms,
+/// so the off-diagonal elements are NEGATIVE: off[k] = -c²/(4(2l+1)(2l+3))
 #[allow(dead_code)]
 fn compute_oblate_characteristic_determinant(
     m: i32,
@@ -76,59 +84,70 @@ fn compute_oblate_characteristic_determinant(
     c: f64,
     lambda: f64,
 ) -> SpecialResult<(f64, f64)> {
-    let _n_f64 = n as f64;
     let m_f64 = m as f64;
-    let c2 = c.powi(2);
+    let c2 = c.powi(2); // c² > 0 always; oblate uses -c² in coupling
+    let parity = (n - m) % 2;
+    let parity_f64 = parity as f64;
 
-    let matrixsize = 20.max(2 * (n as usize) + 10);
+    let matrixsize = 25.max(2 * (n as usize) + 15);
 
-    let mut matrix = vec![vec![0.0; matrixsize]; matrixsize];
-    let mut deriv_matrix = vec![vec![0.0; matrixsize]; matrixsize];
+    let mut diag = vec![0.0_f64; matrixsize];
+    let mut off = vec![0.0_f64; matrixsize - 1];
 
-    for i in 0..matrixsize {
-        let r = (i as i32 + m - n) * 2 + n;
-        let r_f64 = r as f64;
+    for k in 0..matrixsize {
+        let l = m_f64 + 2.0 * k as f64 + parity_f64;
+        diag[k] = l * (l + 1.0);
+    }
 
-        // Diagonal elements for oblate case
-        let alpha_r = (r_f64 + m_f64) * (r_f64 + m_f64 + 1.0);
-        matrix[i][i] = alpha_r - lambda;
-        deriv_matrix[i][i] = -1.0;
+    // Oblate: off-diagonal elements have NEGATIVE sign (−c²/4...)
+    for k in 0..(matrixsize - 1) {
+        let l = m_f64 + 2.0 * k as f64 + parity_f64;
+        off[k] = -c2 / (4.0 * (2.0 * l + 1.0) * (2.0 * l + 3.0));
+    }
 
-        // Off-diagonal elements with sign change for oblate
-        if i + 2 < matrixsize {
-            let beta_r = -c2 / (4.0 * (2.0 * r_f64 + 1.0) * (2.0 * r_f64 + 3.0)); // Negative for oblate
-            matrix[i][i + 2] = beta_r;
-            matrix[i + 2][i] = beta_r;
+    // Sturm sequence: D_k = (diag[k] - λ)·D_{k-1} - off[k-1]²·D_{k-2}
+    let tiny = 1e-300_f64;
+    let mut d_prev = 1.0_f64;
+    let mut d_curr = diag[0] - lambda;
+    let mut dp_prev = 0.0_f64;
+    let mut dp_curr = -1.0_f64;
+    let mut log_scale = 0.0_f64;
+    let mut sign = if d_curr >= 0.0 { 1.0 } else { -1.0 };
+
+    for k in 1..matrixsize {
+        let dk = diag[k] - lambda;
+        let bk_sq = off[k - 1] * off[k - 1];
+
+        let dp_next = -d_prev + dk * dp_curr - bk_sq * dp_prev;
+        let d_next = dk * d_curr - bk_sq * d_prev;
+
+        dp_prev = dp_curr;
+        d_prev = d_curr;
+        dp_curr = dp_next;
+        d_curr = d_next;
+
+        let abs_d = d_curr.abs();
+        if abs_d > 1e100 {
+            let scale = 1.0 / abs_d;
+            d_curr *= scale;
+            d_prev *= scale;
+            dp_curr *= scale;
+            dp_prev *= scale;
+            log_scale += abs_d.ln();
+            sign = if d_curr >= 0.0 { 1.0 } else { -1.0 };
+        } else if abs_d < tiny && abs_d > 0.0 {
+            let scale = 1.0 / abs_d.max(tiny);
+            d_curr *= scale;
+            d_prev *= scale;
+            dp_curr *= scale;
+            dp_prev *= scale;
+            log_scale -= abs_d.ln().abs();
         }
     }
 
-    // Similar determinant computation as prolate case
-    let center = matrixsize / 2;
-    let window = 6.min(matrixsize / 2);
-
-    let mut det_val = 1.0;
-    let mut det_prime = 0.0;
-
-    for i in (center - window / 2)..(center + window / 2).min(matrixsize) {
-        if i < matrixsize {
-            det_val *= matrix[i][i];
-            det_prime += deriv_matrix[i][i] / matrix[i][i];
-        }
-    }
-
-    det_prime *= det_val;
-
-    // Off-diagonal correction for oblate case
-    let mut off_diag_correction = 0.0;
-    for i in 0..(matrixsize - 2) {
-        if matrix[i][i].abs() > 1e-10 && matrix[i + 2][i + 2].abs() > 1e-10 {
-            off_diag_correction += matrix[i][i + 2].powi(2) / (matrix[i][i] * matrix[i + 2][i + 2]);
-        }
-    }
-
-    det_val -= off_diag_correction;
-
-    Ok((det_val, det_prime))
+    let _ = log_scale;
+    let _ = sign;
+    Ok((d_curr, dp_curr))
 }
 
 /// Computes oblate characteristic values using asymptotic expansion for large c values

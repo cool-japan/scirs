@@ -55,9 +55,6 @@ use scirs2_core::validation::check_positive;
 use statrs::statistics::Statistics;
 use std::collections::VecDeque;
 
-#[allow(unused_imports)]
-// TODO: sosfilt_zi function not implemented yet
-// use crate::filter::sosfilt_zi;
 /// Configuration for streaming signal processor
 #[derive(Debug, Clone)]
 pub struct StreamingConfig {

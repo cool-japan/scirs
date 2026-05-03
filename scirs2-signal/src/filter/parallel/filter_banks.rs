@@ -308,12 +308,19 @@ pub fn parallel_savgol_filter(
     deriv: usize,
     delta: f64,
 ) -> SignalResult<Array1<f64>> {
-    // TODO: Implement when savgol module is available
-    // Temporary stub to allow compilation
-    let _ = (window_length, polyorder, deriv, delta);
-    Err(SignalError::NotImplemented(
-        "parallel_savgol_filter requires savgol module".to_string(),
-    ))
+    // Convert Array1<f64> to a slice for savgol_filter.
+    // Use to_vec() to handle non-contiguous arrays safely.
+    let data_vec = data.to_vec();
+    let result = crate::savgol::savgol_filter(
+        &data_vec,
+        window_length,
+        polyorder,
+        Some(deriv),
+        Some(delta),
+        None,
+        None,
+    )?;
+    Ok(Array1::from_vec(result))
 }
 
 #[cfg(test)]
@@ -396,5 +403,41 @@ mod tests {
         let result = parallel_polyphase_filter(&signal, &polyphase_filters, 2, None)
             .expect("Operation failed");
         assert_eq!(result.len(), signal.len() / 2);
+    }
+
+    #[test]
+    fn test_parallel_savgol_filter_smoothing() {
+        // Use window=5, polyorder=2 which has a hardcoded fast path in savgol_coeffs
+        let signal: Array1<f64> = Array1::from_vec(
+            (0..50)
+                .map(|i| (2.0 * PI * i as f64 / 20.0).sin())
+                .collect(),
+        );
+        let result = parallel_savgol_filter(&signal, 5, 2, 0, 1.0).expect("savgol smoothing");
+        // Output length must equal input length
+        assert_eq!(result.len(), signal.len());
+        // Smoothed values should stay bounded within the original signal range
+        for &v in result.iter() {
+            assert!(v.abs() <= 1.5, "smoothed value {} out of expected range", v);
+        }
+    }
+
+    #[test]
+    fn test_parallel_savgol_filter_derivative() {
+        // First derivative of a linearly increasing signal should be approximately constant
+        let signal: Array1<f64> = Array1::from_vec((0..50).map(|i| i as f64).collect());
+        let result = parallel_savgol_filter(&signal, 5, 2, 1, 1.0).expect("savgol derivative");
+        assert_eq!(result.len(), signal.len());
+        // First derivative of a linear ramp is 1.0
+        // Check the interior points (edges may differ due to boundary handling)
+        for i in 2..(result.len() - 2) {
+            let diff = (result[i] - 1.0).abs();
+            assert!(
+                diff < 1e-6,
+                "derivative[{}] = {} expected ~1.0",
+                i,
+                result[i]
+            );
+        }
     }
 }

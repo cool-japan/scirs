@@ -300,11 +300,7 @@ impl<F: LqrFloat> LqrController<F> {
                 .map(|i| (0..n).map(|j| a_owned[[i, j]] * x[j]).sum::<F>())
                 .collect();
             let bu: Vec<F> = (0..n)
-                .map(|i| {
-                    (0..u.len())
-                        .map(|j| b_owned[[i, j]] * u[j])
-                        .sum::<F>()
-                })
+                .map(|i| (0..u.len()).map(|j| b_owned[[i, j]] * u[j]).sum::<F>())
                 .collect();
             for i in 0..n {
                 x[i] += dt * (ax[i] + bu[i]);
@@ -419,9 +415,7 @@ fn validate_lqr_inputs<F: LqrFloat>(
 ) -> LinalgResult<()> {
     let n = a.nrows();
     if a.ncols() != n {
-        return Err(LinalgError::ShapeError(
-            "LQR: A must be square".to_string(),
-        ));
+        return Err(LinalgError::ShapeError("LQR: A must be square".to_string()));
     }
     if b.nrows() != n {
         return Err(LinalgError::ShapeError(format!(
@@ -546,11 +540,7 @@ where
                     .map(|i| (0..n).map(|j| q[[i, j]] * x[j]).sum::<F>())
                     .collect();
                 let atvx: Vec<F> = (0..n)
-                    .map(|i| {
-                        (0..n)
-                            .map(|j| at[[j, i]] * v_x[t + 1][[j, 0]])
-                            .sum::<F>()
-                    })
+                    .map(|i| (0..n).map(|j| at[[j, i]] * v_x[t + 1][[j, 0]]).sum::<F>())
                     .collect();
                 Array1::from_vec((0..n).map(|i| qx[i] + atvx[i]).collect())
             };
@@ -561,11 +551,7 @@ where
                     .map(|i| (0..m).map(|j| r[[i, j]] * u[j]).sum::<F>())
                     .collect();
                 let btvx: Vec<F> = (0..m)
-                    .map(|i| {
-                        (0..n)
-                            .map(|j| bt[[j, i]] * v_x[t + 1][[j, 0]])
-                            .sum::<F>()
-                    })
+                    .map(|i| (0..n).map(|j| bt[[j, i]] * v_x[t + 1][[j, 0]]).sum::<F>())
                     .collect();
                 Array1::from_vec((0..m).map(|i| ru[i] + btvx[i]).collect())
             };
@@ -656,15 +642,7 @@ where
 
         for _ls in 0..10 {
             new_xs = forward_pass_with_gains(
-                &dynamics,
-                x0,
-                &xs,
-                &us,
-                &k_gains,
-                &kk_gains,
-                alpha,
-                n,
-                horizon,
+                &dynamics, x0, &xs, &us, &k_gains, &kk_gains, alpha, n, horizon,
             );
             new_us = (0..horizon)
                 .map(|t| {
@@ -682,7 +660,7 @@ where
             if new_cost < prev_cost {
                 break;
             }
-            alpha = alpha * half;
+            alpha *= half;
         }
 
         let new_cost = compute_total_cost(&new_xs, &new_us, q, r, p_terminal, n, m);
@@ -818,12 +796,7 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     /// Double integrator: ẋ = [[0,1],[0,0]] x + [[0],[1]] u
-    fn double_integrator() -> (
-        Array2<f64>,
-        Array2<f64>,
-        Array2<f64>,
-        Array2<f64>,
-    ) {
+    fn double_integrator() -> (Array2<f64>, Array2<f64>, Array2<f64>, Array2<f64>) {
         let a = array![[0.0_f64, 1.0], [0.0, 0.0]];
         let b = array![[0.0_f64], [1.0]];
         let q = array![[1.0_f64, 0.0], [0.0, 1.0]];
@@ -834,12 +807,26 @@ mod tests {
     #[test]
     fn test_continuous_lqr_double_integrator() {
         let (a, b, q, r) = double_integrator();
-        let ctrl = LqrController::new(&a.view(), &b.view(), &q.view(), &r.view(), LqrMode::Continuous)
-            .expect("LQR synthesis failed");
+        let ctrl = LqrController::new(
+            &a.view(),
+            &b.view(),
+            &q.view(),
+            &r.view(),
+            LqrMode::Continuous,
+        )
+        .expect("LQR synthesis failed");
 
         // P should be positive definite
-        assert!(ctrl.p[[0, 0]] > 0.0, "P[0,0] = {} must be positive", ctrl.p[[0, 0]]);
-        assert!(ctrl.p[[1, 1]] > 0.0, "P[1,1] = {} must be positive", ctrl.p[[1, 1]]);
+        assert!(
+            ctrl.p[[0, 0]] > 0.0,
+            "P[0,0] = {} must be positive",
+            ctrl.p[[0, 0]]
+        );
+        assert!(
+            ctrl.p[[1, 1]] > 0.0,
+            "P[1,1] = {} must be positive",
+            ctrl.p[[1, 1]]
+        );
 
         // Gain K should be non-trivial
         let k_frobenius: f64 = ctrl.gain.iter().map(|&x| x * x).sum::<f64>().sqrt();
@@ -858,14 +845,24 @@ mod tests {
     #[test]
     fn test_control_law() {
         let (a, b, q, r) = double_integrator();
-        let ctrl = LqrController::new(&a.view(), &b.view(), &q.view(), &r.view(), LqrMode::Continuous)
-            .expect("LQR failed");
+        let ctrl = LqrController::new(
+            &a.view(),
+            &b.view(),
+            &q.view(),
+            &r.view(),
+            LqrMode::Continuous,
+        )
+        .expect("LQR failed");
 
         let x = array![1.0_f64, 0.0];
         let u = ctrl.control(&x.view());
         assert_eq!(u.len(), 1);
         // With x=[1,0], u = -K[:,0]*1 which should push state back to origin → u < 0
-        assert!(u[0] < 0.0, "Control should be negative for x=[1,0]: u={}", u[0]);
+        assert!(
+            u[0] < 0.0,
+            "Control should be negative for x=[1,0]: u={}",
+            u[0]
+        );
     }
 
     #[test]
@@ -875,8 +872,14 @@ mod tests {
         let b = array![[0.0_f64], [1.0]];
         let q = array![[1.0_f64, 0.0], [0.0, 1.0]];
         let r = array![[1.0_f64]];
-        let ctrl = LqrController::new(&a.view(), &b.view(), &q.view(), &r.view(), LqrMode::Discrete)
-            .expect("Discrete LQR failed");
+        let ctrl = LqrController::new(
+            &a.view(),
+            &b.view(),
+            &q.view(),
+            &r.view(),
+            LqrMode::Discrete,
+        )
+        .expect("Discrete LQR failed");
         assert!(ctrl.p[[0, 0]] > 0.0, "P positive definite");
         assert!(ctrl.p[[1, 1]] > 0.0, "P positive definite");
     }
@@ -884,11 +887,18 @@ mod tests {
     #[test]
     fn test_simulate_continuous_convergence() {
         let (a, b, q, r) = double_integrator();
-        let ctrl = LqrController::new(&a.view(), &b.view(), &q.view(), &r.view(), LqrMode::Continuous)
-            .expect("LQR failed");
+        let ctrl = LqrController::new(
+            &a.view(),
+            &b.view(),
+            &q.view(),
+            &r.view(),
+            LqrMode::Continuous,
+        )
+        .expect("LQR failed");
 
         let x0 = array![1.0_f64, 0.0];
-        let traj = ctrl.simulate_continuous(&a.view(), &b.view(), &x0.view(), 0.01, 500)
+        let traj = ctrl
+            .simulate_continuous(&a.view(), &b.view(), &x0.view(), 0.01, 500)
             .expect("simulate failed");
 
         // Final state should be close to origin
@@ -905,11 +915,18 @@ mod tests {
         let b = array![[0.005_f64], [0.1]];
         let q = array![[1.0_f64, 0.0], [0.0, 1.0]];
         let r = array![[1.0_f64]];
-        let ctrl = LqrController::new(&a.view(), &b.view(), &q.view(), &r.view(), LqrMode::Discrete)
-            .expect("Discrete LQR failed");
+        let ctrl = LqrController::new(
+            &a.view(),
+            &b.view(),
+            &q.view(),
+            &r.view(),
+            LqrMode::Discrete,
+        )
+        .expect("Discrete LQR failed");
 
         let x0 = array![1.0_f64, 0.0];
-        let traj = ctrl.simulate_discrete(&a.view(), &b.view(), &x0.view(), 200)
+        let traj = ctrl
+            .simulate_discrete(&a.view(), &b.view(), &x0.view(), 200)
             .expect("simulate failed");
 
         let x_final_norm: f64 = (0..2).map(|j| traj[[200, j]].powi(2)).sum::<f64>().sqrt();
@@ -922,24 +939,42 @@ mod tests {
     #[test]
     fn test_optimal_cost_positive() {
         let (a, b, q, r) = double_integrator();
-        let ctrl = LqrController::new(&a.view(), &b.view(), &q.view(), &r.view(), LqrMode::Continuous)
-            .expect("LQR failed");
+        let ctrl = LqrController::new(
+            &a.view(),
+            &b.view(),
+            &q.view(),
+            &r.view(),
+            LqrMode::Continuous,
+        )
+        .expect("LQR failed");
         let x0 = array![1.0_f64, 1.0];
         let cost = ctrl.optimal_cost(&x0.view());
-        assert!(cost > 0.0, "Optimal cost = {cost} must be positive for non-zero x0");
+        assert!(
+            cost > 0.0,
+            "Optimal cost = {cost} must be positive for non-zero x0"
+        );
     }
 
     #[test]
     fn test_closed_loop_a() {
         let (a, b, q, r) = double_integrator();
-        let ctrl = LqrController::new(&a.view(), &b.view(), &q.view(), &r.view(), LqrMode::Continuous)
-            .expect("LQR failed");
+        let ctrl = LqrController::new(
+            &a.view(),
+            &b.view(),
+            &q.view(),
+            &r.view(),
+            LqrMode::Continuous,
+        )
+        .expect("LQR failed");
         let acl = ctrl.closed_loop_a(&a.view(), &b.view());
         assert_eq!(acl.nrows(), 2);
         assert_eq!(acl.ncols(), 2);
         // For a stable closed-loop, trace of A_cl should be negative
         let trace = acl[[0, 0]] + acl[[1, 1]];
-        assert!(trace < 0.0, "Closed-loop trace = {trace} should be negative (stable)");
+        assert!(
+            trace < 0.0,
+            "Closed-loop trace = {trace} should be negative (stable)"
+        );
     }
 
     #[test]
@@ -967,21 +1002,24 @@ mod tests {
         };
 
         let ad_jx = ad.clone();
-        let jac_x = move |_x: &Array1<f64>, _u: &Array1<f64>| -> Array2<f64> {
-            ad_jx.clone()
-        };
+        let jac_x = move |_x: &Array1<f64>, _u: &Array1<f64>| -> Array2<f64> { ad_jx.clone() };
         let bd_ju = bd.clone();
-        let jac_u = move |_x: &Array1<f64>, _u: &Array1<f64>| -> Array2<f64> {
-            bd_ju.clone()
-        };
+        let jac_u = move |_x: &Array1<f64>, _u: &Array1<f64>| -> Array2<f64> { bd_ju.clone() };
 
         let x0 = array![1.0_f64, 0.0];
         let result = ilqr_solve(
-            dynamics, jac_x, jac_u,
-            &q.view(), &r_mat.view(), &p_f.view(),
+            dynamics,
+            jac_x,
+            jac_u,
+            &q.view(),
+            &r_mat.view(),
+            &p_f.view(),
             &x0.view(),
-            20, 50, 1e-6_f64,
-        ).expect("iLQR failed");
+            20,
+            50,
+            1e-6_f64,
+        )
+        .expect("iLQR failed");
 
         // Final state should be close to origin
         let xf = result.states.row(20);

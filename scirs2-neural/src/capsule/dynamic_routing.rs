@@ -14,8 +14,8 @@
 //!    d. b_{ij} += û_{j|i} · v_i           — agreement update
 //! 3. Return {v_i}
 
-use crate::error::{NeuralError, Result};
 use crate::capsule::layers::squash;
+use crate::error::{NeuralError, Result};
 
 // ---------------------------------------------------------------------------
 // DynamicRouting
@@ -68,9 +68,7 @@ impl DynamicRouting {
         }
         let cap_dim = u_hat[0][0].len();
         if cap_dim == 0 {
-            return Err(NeuralError::InvalidArgument(
-                "cap_dim must be > 0".into(),
-            ));
+            return Err(NeuralError::InvalidArgument("cap_dim must be > 0".into()));
         }
 
         // Validate shape consistency
@@ -225,10 +223,7 @@ mod tests {
         let routing = DynamicRouting::new(1).expect("operation should succeed");
         // Simple 2 classes, 2 primaries, 2-dim capsules
         // u_hat[i][j] all ones
-        let u_hat = vec![
-            vec![vec![1.0_f32, 0.0]; 2],
-            vec![vec![0.0_f32, 1.0]; 2],
-        ];
+        let u_hat = vec![vec![vec![1.0_f32, 0.0]; 2], vec![vec![0.0_f32, 1.0]; 2]];
         let v = routing.route(&u_hat).expect("operation should succeed");
         assert_eq!(v.len(), 2);
         // Both classes should have non-zero magnitude

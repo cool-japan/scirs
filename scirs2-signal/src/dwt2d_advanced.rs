@@ -142,7 +142,9 @@ fn extend_1d(signal: &[f64], filter_len: usize, mode: EdgeMode2D) -> Vec<f64> {
             // Half-sample symmetric
             for i in 0..pad {
                 extended[pad - 1 - i] = signal[i.min(n - 1)];
-                extended[pad + n + i] = signal[(n - 1 - i).max(0)];
+                // Safe saturating subtraction to avoid usize underflow
+                let back_idx = n.saturating_sub(1).saturating_sub(i);
+                extended[pad + n + i] = signal[back_idx];
             }
         }
         EdgeMode2D::Reflect => {
@@ -150,7 +152,9 @@ fn extend_1d(signal: &[f64], filter_len: usize, mode: EdgeMode2D) -> Vec<f64> {
             for i in 0..pad {
                 let idx = (i + 1).min(n - 1);
                 extended[pad - 1 - i] = signal[idx];
-                extended[pad + n + i] = signal[(n - 2 - i).max(0)];
+                // Safe saturating subtraction to avoid usize underflow
+                let back_idx = n.saturating_sub(2).saturating_sub(i);
+                extended[pad + n + i] = signal[back_idx];
             }
         }
         EdgeMode2D::Periodic => {
@@ -172,7 +176,9 @@ fn extend_1d(signal: &[f64], filter_len: usize, mode: EdgeMode2D) -> Vec<f64> {
             for i in 0..pad {
                 let idx = i.min(n - 1);
                 extended[pad - 1 - i] = 2.0 * signal[0] - signal[idx];
-                extended[pad + n + i] = 2.0 * signal[n - 1] - signal[(n - 1 - i).max(0)];
+                // Safe saturating subtraction to avoid usize underflow
+                let back_idx = n.saturating_sub(1).saturating_sub(i);
+                extended[pad + n + i] = 2.0 * signal[n - 1] - signal[back_idx];
             }
         }
         EdgeMode2D::GradientPreserving => {

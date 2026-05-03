@@ -21,6 +21,7 @@
 //! ```
 
 use crate::error::{Result, TextError};
+use std::cmp::Reverse;
 use std::collections::HashMap;
 
 // ---------------------------------------------------------------------------
@@ -154,24 +155,91 @@ pub fn infer_gender_number(text: &str) -> GenderNumber {
 
 fn is_likely_masculine_name(name: &str) -> bool {
     const MASC: &[&str] = &[
-        "john", "james", "michael", "william", "david", "richard", "joseph",
-        "thomas", "charles", "christopher", "daniel", "matthew", "anthony",
-        "mark", "donald", "steven", "paul", "andrew", "kenneth", "george",
-        "joshua", "kevin", "brian", "tim", "bob", "bill", "frank", "larry",
-        "scott", "jeffrey", "eric", "robert", "peter", "henry", "edward",
+        "john",
+        "james",
+        "michael",
+        "william",
+        "david",
+        "richard",
+        "joseph",
+        "thomas",
+        "charles",
+        "christopher",
+        "daniel",
+        "matthew",
+        "anthony",
+        "mark",
+        "donald",
+        "steven",
+        "paul",
+        "andrew",
+        "kenneth",
+        "george",
+        "joshua",
+        "kevin",
+        "brian",
+        "tim",
+        "bob",
+        "bill",
+        "frank",
+        "larry",
+        "scott",
+        "jeffrey",
+        "eric",
+        "robert",
+        "peter",
+        "henry",
+        "edward",
     ];
     MASC.contains(&name)
 }
 
 fn is_likely_feminine_name(name: &str) -> bool {
     const FEM: &[&str] = &[
-        "mary", "patricia", "linda", "barbara", "elizabeth", "jennifer",
-        "maria", "susan", "margaret", "dorothy", "lisa", "nancy", "karen",
-        "betty", "helen", "sandra", "donna", "carol", "ruth", "sharon",
-        "michelle", "laura", "sarah", "kimberly", "deborah", "jessica",
-        "shirley", "cynthia", "angela", "melissa", "brenda", "amy", "anna",
-        "rebecca", "virginia", "kathleen", "pamela", "martha", "debra",
-        "amanda", "stephanie", "carolyn", "christine", "alice",
+        "mary",
+        "patricia",
+        "linda",
+        "barbara",
+        "elizabeth",
+        "jennifer",
+        "maria",
+        "susan",
+        "margaret",
+        "dorothy",
+        "lisa",
+        "nancy",
+        "karen",
+        "betty",
+        "helen",
+        "sandra",
+        "donna",
+        "carol",
+        "ruth",
+        "sharon",
+        "michelle",
+        "laura",
+        "sarah",
+        "kimberly",
+        "deborah",
+        "jessica",
+        "shirley",
+        "cynthia",
+        "angela",
+        "melissa",
+        "brenda",
+        "amy",
+        "anna",
+        "rebecca",
+        "virginia",
+        "kathleen",
+        "pamela",
+        "martha",
+        "debra",
+        "amanda",
+        "stephanie",
+        "carolyn",
+        "christine",
+        "alice",
     ];
     FEM.contains(&name)
 }
@@ -234,7 +302,9 @@ pub fn antecedent_score(
 fn is_pronoun(word: &str) -> bool {
     matches!(
         word.to_lowercase().as_str(),
-        "he" | "him" | "his" | "himself"
+        "he" | "him"
+            | "his"
+            | "himself"
             | "she"
             | "her"
             | "hers"
@@ -335,11 +405,7 @@ fn detect_mentions(text: &str) -> Vec<(usize, Mention)> {
             if word.starts_with(|c: char| c.is_uppercase()) && abs_start > *sent_start {
                 // Skip if it is the first word of the sentence (always capitalised).
                 let mut j = i;
-                while j < tokens.len()
-                    && tokens[j]
-                        .2
-                        .starts_with(|c: char| c.is_uppercase())
-                {
+                while j < tokens.len() && tokens[j].2.starts_with(|c: char| c.is_uppercase()) {
                     j += 1;
                 }
                 if j > i {
@@ -368,8 +434,7 @@ fn detect_mentions(text: &str) -> Vec<(usize, Mention)> {
             if (lower == "the" || lower == "a" || lower == "an") && i + 1 < tokens.len() {
                 let head_start = sent_start + tokens[i + 1].0;
                 let head_end = sent_start + tokens[i + 1].1;
-                let det_text =
-                    sent_text[*tok_start..tokens[i + 1].1].to_string();
+                let det_text = sent_text[*tok_start..tokens[i + 1].1].to_string();
                 result.push((
                     sent_idx,
                     Mention {
@@ -459,14 +524,11 @@ pub fn resolve_pronouns(text: &str) -> Vec<CoreferenceChain> {
                 continue;
             }
             // Within the same sentence, the candidate must come first.
-            if cand_mention.span.0 >= pron_mention.span.0
-                && cand_sent == *pron_sent
-            {
+            if cand_mention.span.0 >= pron_mention.span.0 && cand_sent == *pron_sent {
                 continue;
             }
 
-            let score =
-                antecedent_score(pron_mention, cand_mention, *pron_sent, cand_sent);
+            let score = antecedent_score(pron_mention, cand_mention, *pron_sent, cand_sent);
             if score > best_score {
                 best_score = score;
                 best_cand_idx = Some(cand_mention_idx);
@@ -518,7 +580,7 @@ pub fn replace_pronouns(text: &str, chains: &[CoreferenceChain]) -> String {
         .into_iter()
         .map(|(span, (repl, _))| (span.0, span.1, repl))
         .collect();
-    spans.sort_by(|a, b| b.0.cmp(&a.0));
+    spans.sort_by_key(|(start, _, _)| std::cmp::Reverse(*start));
 
     let mut result = text.to_string();
     for (start, end, replacement) in spans {
@@ -602,8 +664,7 @@ mod tests {
 
     #[test]
     fn test_resolve_pronouns_basic() {
-        let text =
-            "Alice is a scientist. She won a prize. Bob is an engineer. He built a bridge.";
+        let text = "Alice is a scientist. She won a prize. Bob is an engineer. He built a bridge.";
         let chains = resolve_pronouns(text);
         // Should find at least one chain linking a pronoun back to a name.
         assert!(!chains.is_empty());

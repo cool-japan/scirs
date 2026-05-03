@@ -50,7 +50,7 @@ pub struct CountPanelResult<F> {
 
 /// Softplus to keep values positive: log(1 + exp(x)).
 #[inline]
-fn softplus<F: Float>(x: F) -> F {
+fn softplus<F: Float + FromPrimitive>(x: F) -> F {
     let one = F::one();
     let ex = if x > F::from_f64(20.0).unwrap_or(F::one()) {
         x
@@ -62,13 +62,14 @@ fn softplus<F: Float>(x: F) -> F {
 
 /// log-sum-exp trick.
 #[inline]
-fn log_sum_exp<F: Float>(vals: &[F]) -> F {
+fn log_sum_exp<F: Float + std::iter::Sum>(vals: &[F]) -> F {
     if vals.is_empty() {
         return F::zero();
     }
-    let max = vals.iter().copied().fold(F::neg_infinity(), |a, b| {
-        if b > a { b } else { a }
-    });
+    let max = vals
+        .iter()
+        .copied()
+        .fold(F::neg_infinity(), |a, b| if b > a { b } else { a });
     if max.is_infinite() {
         return F::neg_infinity();
     }
@@ -106,7 +107,7 @@ where
         ));
     }
 
-    let mut eta = Array1::zeros(n); // linear predictor
+    let mut eta: Array1<F> = Array1::zeros(n); // linear predictor
     for i in 0..n {
         for j in 0..k {
             eta[i] = eta[i] + x[[i, j]] * beta[j];
@@ -152,11 +153,8 @@ where
             let r = one / alpha;
             let rr = r + mu_i;
             if rr > F::zero() && mu_i > F::zero() {
-                ll = ll
-                    + lgamma(y[i] + r)
-                    - lgamma(r)
-                    + r * (r / rr).ln()
-                    + y[i] * (mu_i / rr).ln();
+                ll =
+                    ll + lgamma(y[i] + r) - lgamma(r) + r * (r / rr).ln() + y[i] * (mu_i / rr).ln();
             }
         }
 
@@ -171,9 +169,13 @@ where
     // beta_new = beta - H^{-1} s
     // Negate h to get positive-definite system: -H δ = s  =>  δ = (-H)^{-1} s
     let neg_h: Array2<F> = h.mapv(|v| -v);
-    let delta = solve(&neg_h.view(), &s.view())
+    let delta = solve(&neg_h.view(), &s.view(), None)
         .map_err(|e| StatsError::ComputationError(format!("IRLS solve: {e}")))?;
-    let beta_new: Array1<F> = beta.iter().zip(delta.iter()).map(|(&b, &d)| b + d).collect();
+    let beta_new: Array1<F> = beta
+        .iter()
+        .zip(delta.iter())
+        .map(|(&b, &d)| b + d)
+        .collect();
 
     Ok((beta_new, ll))
 }
@@ -195,11 +197,7 @@ fn lgamma<F: Float + FromPrimitive>(x: F) -> F {
 }
 
 /// Extract Hessian diagonal → standard errors.
-fn hessian_se<F>(
-    x: &Array2<F>,
-    mu: &Array1<F>,
-    alpha: F,
-) -> StatsResult<Array1<F>>
+fn hessian_se<F>(x: &Array2<F>, mu: &Array1<F>, alpha: F) -> StatsResult<Array1<F>>
 where
     F: Float
         + std::iter::Sum
@@ -238,10 +236,14 @@ where
     for j in 0..k {
         let mut ej = Array1::zeros(k);
         ej[j] = F::one();
-        let vj = solve(&neg_h.view(), &ej.view())
+        let vj = solve(&neg_h.view(), &ej.view(), None)
             .map_err(|e| StatsError::ComputationError(format!("hessian_se solve: {e}")))?;
         let var_j = vj[j];
-        se[j] = if var_j >= F::zero() { var_j.sqrt() } else { F::zero() };
+        se[j] = if var_j >= F::zero() {
+            var_j.sqrt()
+        } else {
+            F::zero()
+        };
     }
     Ok(se)
 }
@@ -277,7 +279,11 @@ fn p_normal_upper<F: Float + FromPrimitive>(z: F) -> F {
     let poly = t * (b1 + t * (b2 + t * (b3 + t * (b4 + t * b5))));
     let phi = sqrt2pi_inv * (-(abs_z * abs_z) / two).exp();
     let p_upper = (phi * poly).max(F::zero()).min(F::one());
-    if z >= F::zero() { p_upper } else { F::one() - p_upper }
+    if z >= F::zero() {
+        p_upper
+    } else {
+        F::one() - p_upper
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -380,14 +386,14 @@ impl PoissonFE {
         }
 
         // ── Final fitted values ───────────────────────────────────────────────
-        let mut eta = Array1::zeros(n);
+        let mut eta: Array1<F> = Array1::zeros(n);
         for i in 0..n {
             for j in 0..k {
                 eta[i] = eta[i] + x[[i, j]] * beta[j];
             }
             eta[i] = eta[i] + offset[i];
         }
-        let fitted: Array1<F> = eta.mapv(|e| e.exp());
+        let fitted: Array1<F> = eta.mapv(|e: F| e.exp());
 
         // ── SE via observed information ───────────────────────────────────────
         let std_errors = hessian_se(&x_owned, &fitted, F::zero())?;
@@ -413,10 +419,8 @@ impl PoissonFE {
         let ll_null: F = {
             let mut ll_n = F::zero();
             for (i, &eid) in entity.iter().enumerate() {
-                let y_cnt = F::from_usize(
-                    entity.iter().filter(|&&e| e == eid).count(),
-                )
-                .unwrap_or(F::one());
+                let y_cnt =
+                    F::from_usize(entity.iter().filter(|&&e| e == eid).count()).unwrap_or(F::one());
                 let lambda = y_sum[eid] / y_cnt;
                 if lambda > F::zero() {
                     ll_n = ll_n + y[i] * lambda.ln() - lambda;
@@ -549,14 +553,14 @@ impl NegBinomFE {
         }
 
         // ── Estimate α from Pearson chi² of Poisson fit ───────────────────────
-        let mut eta = Array1::zeros(n);
+        let mut eta: Array1<F> = Array1::zeros(n);
         for i in 0..n {
             for j in 0..k {
                 eta[i] = eta[i] + x[[i, j]] * beta[j];
             }
             eta[i] = eta[i] + offset[i];
         }
-        let mu_pois: Array1<F> = eta.mapv(|e| e.exp());
+        let mu_pois: Array1<F> = eta.mapv(|e: F| e.exp());
         let pearson_chi2: F = (0..n)
             .map(|i| {
                 let diff = y[i] - mu_pois[i];
@@ -592,14 +596,14 @@ impl NegBinomFE {
             beta = new_beta;
 
             // Update alpha: method of moments
-            let mut eta2 = Array1::zeros(n);
+            let mut eta2: Array1<F> = Array1::zeros(n);
             for i in 0..n {
                 for j in 0..k {
                     eta2[i] = eta2[i] + x[[i, j]] * beta[j];
                 }
                 eta2[i] = eta2[i] + offset[i];
             }
-            let mu2: Array1<F> = eta2.mapv(|e| e.exp());
+            let mu2: Array1<F> = eta2.mapv(|e: F| e.exp());
             let pc: F = (0..n)
                 .map(|i| {
                     let diff = y[i] - mu2[i];
@@ -613,7 +617,11 @@ impl NegBinomFE {
             let denom_a: F = mu2.iter().map(|&m| m * m).sum::<F>();
             let new_alpha = if denom_a > F::zero() {
                 let a = pc / denom_a;
-                if a > F::zero() { a } else { F::from_f64(1e-10).unwrap_or(F::zero()) }
+                if a > F::zero() {
+                    a
+                } else {
+                    F::from_f64(1e-10).unwrap_or(F::zero())
+                }
             } else {
                 alpha
             };
@@ -627,14 +635,14 @@ impl NegBinomFE {
         }
 
         // ── Final fit ─────────────────────────────────────────────────────────
-        let mut eta_f = Array1::zeros(n);
+        let mut eta_f: Array1<F> = Array1::zeros(n);
         for i in 0..n {
             for j in 0..k {
                 eta_f[i] = eta_f[i] + x[[i, j]] * beta[j];
             }
             eta_f[i] = eta_f[i] + offset[i];
         }
-        let fitted: Array1<F> = eta_f.mapv(|e| e.exp());
+        let fitted: Array1<F> = eta_f.mapv(|e: F| e.exp());
         let std_errors = hessian_se(&x_owned, &fitted, alpha)?;
         let z_stats: Array1<F> = beta
             .iter()
@@ -649,8 +657,7 @@ impl NegBinomFE {
                 let r = one / alpha;
                 let rr = r + fitted[i];
                 if rr > F::zero() && fitted[i] > F::zero() {
-                    lgamma(y[i] + r) - lgamma(r) + r * (r / rr).ln()
-                        + y[i] * (fitted[i] / rr).ln()
+                    lgamma(y[i] + r) - lgamma(r) + r * (r / rr).ln() + y[i] * (fitted[i] / rr).ln()
                 } else {
                     F::zero()
                 }
@@ -659,8 +666,8 @@ impl NegBinomFE {
         let ll_null: F = {
             let mut ll_n = F::zero();
             for (i, &eid) in entity.iter().enumerate() {
-                let y_cnt = F::from_usize(entity.iter().filter(|&&e| e == eid).count())
-                    .unwrap_or(F::one());
+                let y_cnt =
+                    F::from_usize(entity.iter().filter(|&&e| e == eid).count()).unwrap_or(F::one());
                 let lam = y_sum[eid] / y_cnt;
                 if lam > F::zero() {
                     ll_n = ll_n + y[i] * lam.ln() - lam;
@@ -678,7 +685,11 @@ impl NegBinomFE {
                 } else {
                     fitted[i]
                 };
-                if v > F::zero() { (y[i] - fitted[i]) / v.sqrt() } else { F::zero() }
+                if v > F::zero() {
+                    (y[i] - fitted[i]) / v.sqrt()
+                } else {
+                    F::zero()
+                }
             })
             .collect();
 
@@ -780,21 +791,21 @@ impl ZeroInflated {
             // ── E-step: compute P(zero-inflate | y_i, params) ─────────────────
             // For y_i > 0: w_i = 0 (cannot be inflated zero)
             // For y_i = 0: w_i = π_i / (π_i + (1-π_i) * p_count(0|mu_i))
-            let mut eta_c = Array1::zeros(n);
+            let mut eta_c: Array1<F> = Array1::zeros(n);
             for i in 0..n {
                 for j in 0..kx {
                     eta_c[i] = eta_c[i] + x[[i, j]] * beta_count[j];
                 }
             }
-            let mu: Array1<F> = eta_c.mapv(|e| e.exp());
+            let mu: Array1<F> = eta_c.mapv(|e: F| e.exp());
 
-            let mut eta_z = Array1::zeros(n);
+            let mut eta_z: Array1<F> = Array1::zeros(n);
             for i in 0..n {
                 for j in 0..kz {
                     eta_z[i] = eta_z[i] + z[[i, j]] * gamma_inflate[j];
                 }
             }
-            let pi: Array1<F> = eta_z.mapv(|e| {
+            let pi: Array1<F> = eta_z.mapv(|e: F| {
                 let ex = e.exp();
                 ex / (F::one() + ex)
             });
@@ -807,7 +818,11 @@ impl ZeroInflated {
                     } else {
                         let r = F::one() / alpha;
                         let rr = r + mu[i];
-                        if rr > F::zero() { (r / rr).powf(r) } else { F::zero() }
+                        if rr > F::zero() {
+                            (r / rr).powf(r)
+                        } else {
+                            F::zero()
+                        }
                     }
                 })
                 .collect();
@@ -820,7 +835,11 @@ impl ZeroInflated {
                     } else {
                         let pi_i = pi[i];
                         let denom = pi_i + (F::one() - pi_i) * p0_count[i];
-                        if denom > F::zero() { pi_i / denom } else { F::zero() }
+                        if denom > F::zero() {
+                            pi_i / denom
+                        } else {
+                            F::zero()
+                        }
                     }
                 })
                 .collect();
@@ -832,19 +851,18 @@ impl ZeroInflated {
             // ── M-step: update beta (Poisson/NB on (1-w) weighted) ────────────
             // Effective y for count part: only use non-inflated obs
             let yw: Array1<F> = (0..n).map(|i| (F::one() - w[i]) * y[i]).collect();
-            let (new_beta, ll_count) =
-                irls_step(&x_owned, &yw, &beta_count, None, alpha)?;
+            let (new_beta, ll_count) = irls_step(&x_owned, &yw, &beta_count, None, alpha)?;
             beta_count = new_beta;
 
             // Update alpha for NB
             if dist == CountDistribution::NegativeBinomial {
-                let mut eta_new = Array1::zeros(n);
+                let mut eta_new: Array1<F> = Array1::zeros(n);
                 for i in 0..n {
                     for j in 0..kx {
                         eta_new[i] = eta_new[i] + x[[i, j]] * beta_count[j];
                     }
                 }
-                let mu_new: Array1<F> = eta_new.mapv(|e| e.exp());
+                let mu_new: Array1<F> = eta_new.mapv(|e: F| e.exp());
                 let pc: F = (0..n)
                     .map(|i| {
                         let wt = F::one() - w[i];
@@ -879,14 +897,19 @@ impl ZeroInflated {
                         } else {
                             let r = F::one() / alpha;
                             let rr = r + mu_i;
-                            lgamma(y[i] + r) - lgamma(r) + r * (r / rr).ln()
+                            lgamma(y[i] + r) - lgamma(r)
+                                + r * (r / rr).ln()
                                 + y[i] * (mu_i / rr).ln()
                         };
                         (F::one() - pi_i).ln() + log_p
                     } else {
                         // log(π_i + (1-π_i) * p_count(0))
                         let val = pi_i + (F::one() - pi_i) * p0_count[i];
-                        if val > F::zero() { val.ln() } else { F::from_f64(-1e10).unwrap_or(F::zero()) }
+                        if val > F::zero() {
+                            val.ln()
+                        } else {
+                            F::from_f64(-1e10).unwrap_or(F::zero())
+                        }
                     }
                 })
                 .sum();
@@ -898,15 +921,15 @@ impl ZeroInflated {
         }
 
         // ── Final fit ─────────────────────────────────────────────────────────
-        let mut eta_f = Array1::zeros(n);
+        let mut eta_f: Array1<F> = Array1::zeros(n);
         for i in 0..n {
             for j in 0..kx {
                 eta_f[i] = eta_f[i] + x[[i, j]] * beta_count[j];
             }
         }
-        let mu_f: Array1<F> = eta_f.mapv(|e| e.exp());
+        let mu_f: Array1<F> = eta_f.mapv(|e: F| e.exp());
 
-        let mut eta_zf = Array1::zeros(n);
+        let mut eta_zf: Array1<F> = Array1::zeros(n);
         for i in 0..n {
             for j in 0..kz {
                 eta_zf[i] = eta_zf[i] + z[[i, j]] * gamma_inflate[j];
@@ -931,9 +954,7 @@ impl ZeroInflated {
             let y_mean = y.iter().copied().sum::<F>() / F::from_usize(n).unwrap_or(F::one());
             if y_mean > F::zero() {
                 let ln_lam = y_mean.ln();
-                (0..n)
-                    .map(|i| y[i] * ln_lam - y_mean)
-                    .sum::<F>()
+                (0..n).map(|i| y[i] * ln_lam - y_mean).sum::<F>()
             } else {
                 F::zero()
             }
@@ -945,7 +966,11 @@ impl ZeroInflated {
         let pearson_resid: Array1<F> = (0..n)
             .map(|i| {
                 let denom = fitted[i].sqrt();
-                if denom > F::zero() { (y[i] - fitted[i]) / denom } else { F::zero() }
+                if denom > F::zero() {
+                    (y[i] - fitted[i]) / denom
+                } else {
+                    F::zero()
+                }
             })
             .collect();
 
@@ -1036,18 +1061,18 @@ where
     let mut ll = F::zero();
     for _iter in 0..max_iter {
         // pi = logistic(z γ)
-        let mut eta = Array1::zeros(n);
+        let mut eta: Array1<F> = Array1::zeros(n);
         for i in 0..n {
             for j in 0..kz {
                 eta[i] = eta[i] + z[[i, j]] * g[j];
             }
         }
-        let pi: Array1<F> = eta.mapv(|e| {
+        let pi: Array1<F> = eta.mapv(|e: F| {
             let ex = e.exp();
             ex / (F::one() + ex)
         });
         // Score: s = Z' (w - π)
-        let mut s = Array1::zeros(kz);
+        let mut s: Array1<F> = Array1::zeros(kz);
         let mut h = Array2::<F>::zeros((kz, kz));
         ll = F::zero();
         for i in 0..n {
@@ -1060,12 +1085,18 @@ where
                     h[[j, l]] = h[[j, l]] - z[[i, j]] * z[[i, l]] * w_i;
                 }
             }
-            let p_i = if pi_i > F::from_f64(1e-12).unwrap_or(F::zero()) { pi_i } else { F::from_f64(1e-12).unwrap_or(F::zero()) };
+            let p_i = if pi_i > F::from_f64(1e-12).unwrap_or(F::zero()) {
+                pi_i
+            } else {
+                F::from_f64(1e-12).unwrap_or(F::zero())
+            };
             let one_p = F::one() - p_i;
-            ll = ll + w[i] * p_i.ln() + (F::one() - w[i]) * one_p.max(F::from_f64(1e-12).unwrap_or(F::zero())).ln();
+            ll = ll
+                + w[i] * p_i.ln()
+                + (F::one() - w[i]) * one_p.max(F::from_f64(1e-12).unwrap_or(F::zero())).ln();
         }
         let neg_h: Array2<F> = h.mapv(|v| -v);
-        let delta = solve(&neg_h.view(), &s.view())
+        let delta = solve(&neg_h.view(), &s.view(), None)
             .map_err(|e| StatsError::ComputationError(format!("logistic_irls solve: {e}")))?;
         g = g.iter().zip(delta.iter()).map(|(&b, &d)| b + d).collect();
     }
@@ -1106,8 +1137,8 @@ mod tests {
     #[test]
     fn test_poisson_fe_fit() {
         let (x, y, entity) = make_count_panel();
-        let result = PoissonFE::fit(&x.view(), &y.view(), &entity, 100, 1e-8)
-            .expect("PoissonFE fit failed");
+        let result =
+            PoissonFE::fit(&x.view(), &y.view(), &entity, 100, 1e-8).expect("PoissonFE fit failed");
         assert!(result.log_likelihood.is_finite());
         assert_eq!(result.irr.len(), 1);
         assert!(result.irr[0] > 0.0, "IRR should be positive");
@@ -1145,8 +1176,8 @@ mod tests {
     #[test]
     fn test_irr_positive() {
         let (x, y, entity) = make_count_panel();
-        let result = PoissonFE::fit(&x.view(), &y.view(), &entity, 100, 1e-8)
-            .expect("PoissonFE fit failed");
+        let result =
+            PoissonFE::fit(&x.view(), &y.view(), &entity, 100, 1e-8).expect("PoissonFE fit failed");
         for &irr in result.irr.iter() {
             assert!(irr > 0.0, "All IRRs must be positive");
         }

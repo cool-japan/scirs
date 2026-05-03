@@ -26,7 +26,7 @@ pub mod sa;
 
 // Re-exports for Simulated Annealing
 pub use sa::{
-    AdaptiveCoolingState, CoolingSchedule as SaCoolingSchedule, ConstraintHandler,
+    AdaptiveCoolingState, ConstraintHandler, CoolingSchedule as SaCoolingSchedule,
     MetaheuristicSaOptions, MetaheuristicSaResult, MultiStartSaOptions, PenaltyConstraint,
     ReheatingStrategy, SimulatedAnnealingOptimizer,
 };

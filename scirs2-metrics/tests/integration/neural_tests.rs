@@ -14,7 +14,6 @@ use std::collections::HashMap;
 
 /// Test that the neural metric adapter produces the same results as direct metric calls
 #[test]
-#[ignore = "Stack overflow issue - needs investigation"]
 #[allow(dead_code)]
 fn test_metric_adapter_consistency() {
     // Create binary classification data

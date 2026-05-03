@@ -70,10 +70,7 @@ impl IstaOptimizer {
     /// # Arguments
     /// * `lr` - Step size (1 / Lipschitz constant of ∇f)
     /// * `prox` - Proximal operator of the non-smooth term g
-    pub fn new(
-        lr: f64,
-        prox: Box<dyn Fn(&[f64]) -> Vec<f64> + Send + Sync>,
-    ) -> Self {
+    pub fn new(lr: f64, prox: Box<dyn Fn(&[f64]) -> Vec<f64> + Send + Sync>) -> Self {
         Self {
             lr,
             prox,
@@ -117,7 +114,11 @@ impl IstaOptimizer {
             nfev += 1;
 
             // Gradient step
-            let x_grad: Vec<f64> = x.iter().zip(g.iter()).map(|(&xi, &gi)| xi - self.lr * gi).collect();
+            let x_grad: Vec<f64> = x
+                .iter()
+                .zip(g.iter())
+                .map(|(&xi, &gi)| xi - self.lr * gi)
+                .collect();
 
             // Proximal step
             let x_new = (self.prox)(&x_grad);
@@ -130,7 +131,8 @@ impl IstaOptimizer {
             }
 
             // Convergence check
-            let diff: f64 = x.iter()
+            let diff: f64 = x
+                .iter()
                 .zip(x_new.iter())
                 .map(|(&a, &b)| (a - b) * (a - b))
                 .sum::<f64>()
@@ -243,7 +245,8 @@ impl FistaOptimizer {
             let t_next = (1.0 + (1.0 + 4.0 * t * t).sqrt()) / 2.0;
             let beta = (t - 1.0) / t_next;
 
-            let y: Vec<f64> = x.iter()
+            let y: Vec<f64> = x
+                .iter()
                 .zip(x_prev.iter())
                 .map(|(&xi, &xp)| xi + beta * (xi - xp))
                 .collect();
@@ -251,7 +254,11 @@ impl FistaOptimizer {
             let g = grad_f(&y);
             nfev += 1;
 
-            let y_grad: Vec<f64> = y.iter().zip(g.iter()).map(|(&yi, &gi)| yi - self.lr * gi).collect();
+            let y_grad: Vec<f64> = y
+                .iter()
+                .zip(g.iter())
+                .map(|(&yi, &gi)| yi - self.lr * gi)
+                .collect();
             let x_new = (self.prox)(&y_grad);
 
             if x_new.iter().any(|v| !v.is_finite()) {
@@ -272,7 +279,8 @@ impl FistaOptimizer {
             prev_fun = cur_fun;
 
             // Convergence check
-            let diff: f64 = x.iter()
+            let diff: f64 = x
+                .iter()
                 .zip(x_new.iter())
                 .map(|(&a, &b)| (a - b) * (a - b))
                 .sum::<f64>()
@@ -375,8 +383,8 @@ mod tests {
         let lambda = 0.1;
         let x0 = vec![2.0, -3.0, 0.5];
         let prox = move |v: &[f64]| prox_l1(v, lambda);
-        let result = ista_minimize(smooth_f, smooth_grad, prox, x0, 0.5, 1000)
-            .expect("ISTA failed");
+        let result =
+            ista_minimize(smooth_f, smooth_grad, prox, x0, 0.5, 1000).expect("ISTA failed");
         for &xi in &result.x {
             assert_abs_diff_eq!(xi, 0.0, epsilon = 1e-4);
         }
@@ -387,8 +395,8 @@ mod tests {
         let lambda = 0.1;
         let x0 = vec![2.0, -3.0, 0.5];
         let prox = move |v: &[f64]| prox_l1(v, lambda);
-        let result = fista_minimize(smooth_f, smooth_grad, prox, x0, 0.5, 500)
-            .expect("FISTA failed");
+        let result =
+            fista_minimize(smooth_f, smooth_grad, prox, x0, 0.5, 500).expect("FISTA failed");
         for &xi in &result.x {
             assert_abs_diff_eq!(xi, 0.0, epsilon = 1e-4);
         }
@@ -404,8 +412,8 @@ mod tests {
 
         let fista_res = fista_minimize(smooth_f, smooth_grad, prox_f, x0.clone(), 0.5, 2000)
             .expect("FISTA failed");
-        let ista_res = ista_minimize(smooth_f, smooth_grad, prox_i, x0, 0.5, 2000)
-            .expect("ISTA failed");
+        let ista_res =
+            ista_minimize(smooth_f, smooth_grad, prox_i, x0, 0.5, 2000).expect("ISTA failed");
 
         // Both should converge; FISTA generally faster (fewer iters for same precision)
         assert!(fista_res.success || ista_res.success || true); // at least one should work
@@ -417,8 +425,7 @@ mod tests {
         // With identity prox (λ=0), ISTA should be gradient descent
         let x0 = vec![3.0, -2.0];
         let prox = |v: &[f64]| v.to_vec(); // identity
-        let result = ista_minimize(smooth_f, smooth_grad, prox, x0, 0.5, 200)
-            .expect("ISTA failed");
+        let result = ista_minimize(smooth_f, smooth_grad, prox, x0, 0.5, 200).expect("ISTA failed");
         for &xi in &result.x {
             assert_abs_diff_eq!(xi, 0.0, epsilon = 1e-3);
         }

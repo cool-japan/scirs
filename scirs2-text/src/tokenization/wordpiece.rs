@@ -90,9 +90,7 @@ fn strip_accents_str(s: &str) -> String {
     // Manual NFD-like decomposition: use unicode_normalization if available, else
     // do a best-effort strip of common combining marks.
     use unicode_normalization::UnicodeNormalization;
-    s.nfd()
-        .filter(|&ch| !is_combining_mark(ch))
-        .collect()
+    s.nfd().filter(|&ch| !is_combining_mark(ch)).collect()
 }
 
 /// `true` for ASCII punctuation and Unicode punctuation categories.
@@ -259,12 +257,7 @@ impl WordPieceTokenizer {
     pub fn tokenize(&self, text: &str) -> Vec<u32> {
         self.tokenize_to_strings(text)
             .iter()
-            .map(|tok| {
-                self.vocab
-                    .get(tok.as_str())
-                    .copied()
-                    .unwrap_or(self.unk_id)
-            })
+            .map(|tok| self.vocab.get(tok.as_str()).copied().unwrap_or(self.unk_id))
             .collect()
     }
 
@@ -368,6 +361,13 @@ impl WordPieceTokenizer {
     pub fn vocab_size(&self) -> usize {
         self.vocab.len()
     }
+
+    /// Return a cloned snapshot of the `token → id` vocabulary map.
+    ///
+    /// Useful for serialisation (e.g. building a HuggingFace `tokenizers.json`).
+    pub fn vocab_snapshot(&self) -> HashMap<String, u32> {
+        self.vocab.clone()
+    }
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -380,11 +380,9 @@ mod tests {
     fn mini_vocab() -> HashMap<String, u32> {
         let mut v = HashMap::new();
         for (i, tok) in [
-            "[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]",
-            "he", "llo", "##llo", "world", "##world",
-            "want", "##ed", "to", "un", "##want", "##ed",
-            "low", "##er", "##est", "new", "##er", "##est",
-            "h", "e", "l", "o", "w", "r", "d",
+            "[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]", "he", "llo", "##llo", "world", "##world",
+            "want", "##ed", "to", "un", "##want", "##ed", "low", "##er", "##est", "new", "##er",
+            "##est", "h", "e", "l", "o", "w", "r", "d",
         ]
         .iter()
         .enumerate()
@@ -436,7 +434,9 @@ mod tests {
     fn test_wordpiece_encode_truncation() {
         let vocab = mini_vocab();
         let wp = WordPieceTokenizer::from_vocab(vocab);
-        let (ids, mask) = wp.encode("low low low low", 4, true).expect("encode failed");
+        let (ids, mask) = wp
+            .encode("low low low low", 4, true)
+            .expect("encode failed");
         assert_eq!(ids.len(), 4);
         assert_eq!(mask.len(), 4);
     }

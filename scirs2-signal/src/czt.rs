@@ -11,9 +11,9 @@ use crate::error::{SignalError, SignalResult};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::{Float, NumCast};
 
+use std::f64::consts::PI;
 use std::fmt::Debug;
 
-#[allow(unused_imports)]
 /// Calculate the points at which the chirp z-transform is computed
 ///
 /// # Arguments
@@ -35,7 +35,6 @@ use std::fmt::Debug;
 /// let points = czt_points(10, None, None).expect("Operation failed");
 /// assert_eq!(points.len(), 10);
 /// ```
-#[allow(dead_code)]
 pub fn czt_points(
     m: usize,
     w: Option<Complex64>,
@@ -45,7 +44,7 @@ pub fn czt_points(
     let a_val = a.unwrap_or(Complex64::new(1.0, 0.0));
     let w_val = w.unwrap_or_else(|| {
         // Default to unit circle: w = exp(-j*2π/m)
-        let arg = -2.0 * std::f64::consts::PI / m as f64;
+        let arg = -2.0 * PI / m as f64;
         Complex64::new(arg.cos(), arg.sin())
     });
 
@@ -63,13 +62,18 @@ pub fn czt_points(
 
 /// Compute the Chirp Z-Transform
 ///
+/// Evaluates `X(k) = sum_{n=0}^{N-1} x[n] * A^{-n} * W^{nk}` for `k = 0..M-1`.
+///
+/// When called with default parameters (`m = N`, `w = exp(-j*2π/N)`, `a = 1`),
+/// the result is identical to the standard DFT (FFT output).
+///
 /// # Arguments
 ///
 /// * `x` - Input signal
 /// * `m` - Number of output points (default: same as input length)
 /// * `w` - Step size between points on the contour (default: unit circle w = exp(-j*2π/m))
 /// * `a` - Starting point on the contour (default: a = 1)
-/// * `axis` - Axis along which to compute the transform (not fully implemented)
+/// * `axis` - Axis along which to compute the transform (only -1 or 0 supported)
 ///
 /// # Returns
 ///
@@ -92,17 +96,17 @@ pub fn czt_points(
 ///
 /// ```
 /// use scirs2_signal::czt::czt;
+/// use scirs2_core::numeric::Complex64;
 ///
 /// // Generate a simple signal
 /// let signal = vec![1.0, 2.0, 3.0, 4.0];
 ///
-/// // Compute the CZT focusing on the lower half of the frequency spectrum
 /// // w = exp(-j*π/8) -> 1/8 of a full circle per step
-/// let w = Complex64::new((PI/8.0).cos(), -(PI/8.0).sin());
+/// let arg = -std::f64::consts::PI / 8.0;
+/// let w = Complex64::new(arg.cos(), arg.sin());
 /// let result = czt(&signal, Some(16), Some(w), None, None).expect("Operation failed");
 /// assert_eq!(result.len(), 16);
 /// ```
-#[allow(dead_code)]
 pub fn czt<T>(
     x: &[T],
     m: Option<usize>,
@@ -124,7 +128,7 @@ where
     let a_val = a.unwrap_or(Complex64::new(1.0, 0.0));
     let w_val = w.unwrap_or_else(|| {
         // Default to unit circle: w = exp(-j*2π/m)
-        let arg = -2.0 * std::f64::consts::PI / m_val as f64;
+        let arg = -2.0 * PI / m_val as f64;
         Complex64::new(arg.cos(), arg.sin())
     });
 
@@ -152,15 +156,17 @@ where
     czt_bluestein(&x_complex, m_val, w_val, a_val)
 }
 
-/// Compute the Chirp Z-Transform using Bluestein's algorithm
+/// Compute the Chirp Z-Transform using Bluestein's algorithm.
 ///
-/// This algorithm computes the CZT using the relation:
-/// X(z_k) = sum_{n=0}^{N-1} x[n] * z_k^{-n}
-///        = sum_{n=0}^{N-1} x[n] * a^{-n} * w^{-n(n-1)/2} * w^{n(n-1)/2} * w^{-nk}
+/// Evaluates X(k) = sum_{n=0}^{N-1} x[n] * a^{-n} * w^{nk}  for k=0..M-1
 ///
-/// Where the chirp terms w^{±n(n-1)/2} allow us to express this as a convolution,
-/// which can be efficiently computed using FFTs.
-#[allow(dead_code)]
+/// Using the Bluestein identity `nk = n²/2 - (k-n)²/2 + k²/2`:
+///
+/// ```text
+/// X(k) = w^{k²/2} * sum_{n=0}^{N-1} [x[n] * a^{-n} * w^{n²/2}] * w^{-(k-n)²/2}
+/// ```
+///
+/// The inner sum is a convolution that can be computed with FFTs.
 fn czt_bluestein(
     x: &[Complex64],
     m: usize,
@@ -169,112 +175,167 @@ fn czt_bluestein(
 ) -> SignalResult<Vec<Complex64>> {
     let n = x.len();
 
-    // Find next power of 2 greater than or equal to (n + m - 1)
-    let l = next_power_of_two(n + m - 1);
+    // Length for the FFT-based convolution: next power of 2 >= (n + m - 1)
+    let conv_len = next_power_of_two(n + m - 1);
 
-    // Precompute chirp factors
-    let mut k_range = Vec::with_capacity(n);
-    for k in 0..n {
-        let k_sq = (k * k) as f64;
-        let arg = -k_sq / 2.0 * w.arg(); // w^{-k^2/2}
-        k_range.push(Complex64::new(arg.cos(), arg.sin()));
+    // Extract |w| and angle(w) to handle complex w with |w| != 1 correctly.
+    let w_angle = w.im.atan2(w.re);
+    let w_mag = (w.re * w.re + w.im * w.im).sqrt();
+
+    // chirp_w(n_val) = w^{n_val^2 / 2}
+    //   magnitude:  w_mag^{n_val^2 / 2}
+    //   phase:      exp(j * w_angle * n_val^2 / 2)
+    let chirp_w = |n_val: i64| -> Complex64 {
+        let sq = n_val * n_val;
+        let mag = w_mag.powf(sq as f64 / 2.0);
+        let phase = w_angle * sq as f64 / 2.0;
+        Complex64::new(mag * phase.cos(), mag * phase.sin())
+    };
+
+    // Build yn[n] = x[n] * a^{-n} * w^{n²/2},  n = 0..N-1, zero-padded to conv_len
+    let mut yn: Vec<Complex64> = Vec::with_capacity(conv_len);
+    let a_inv = Complex64::new(1.0, 0.0) / a;
+    let mut a_pow = Complex64::new(1.0, 0.0); // tracks a^{-n}
+    for ni in 0..n {
+        let chirp_n = chirp_w(ni as i64);
+        yn.push(x[ni] * a_pow * chirp_n);
+        a_pow *= a_inv;
+    }
+    while yn.len() < conv_len {
+        yn.push(Complex64::new(0.0, 0.0));
     }
 
-    // Compute A
-    let mut a_vec = vec![Complex64::new(0.0, 0.0); l];
-    for k in 0..n {
-        let a_k = a.powi(-(k as i32)) * k_range[k];
-        a_vec[k] = x[k] * a_k;
+    // Build hn: the filter kernel h[k] = w^{-k²/2}
+    //   h[k]              for k = 0..M-1  (positive lags)
+    //   h[conv_len - k]   for k = 1..N-1  (negative lags, wrapped)
+    let mut hn: Vec<Complex64> = vec![Complex64::new(0.0, 0.0); conv_len];
+    for ki in 0..m {
+        let c = chirp_w(ki as i64);
+        hn[ki] = Complex64::new(c.re, -c.im); // conjugate = w^{-k^2/2}
+    }
+    for ni in 1..n {
+        let c = chirp_w(ni as i64);
+        hn[conv_len - ni] = Complex64::new(c.re, -c.im);
     }
 
-    // Compute B
-    let mut b_vec = vec![Complex64::new(0.0, 0.0); l];
-    for (k, item) in b_vec.iter_mut().enumerate().take(m) {
-        let k_sq = (k * k) as f64;
-        let arg = k_sq / 2.0 * w.arg(); // w^{k^2/2}
-        *item = Complex64::new(arg.cos(), arg.sin());
-    }
+    // FFT-based convolution
+    let yn_fft = fft_complex(&yn)?;
+    let hn_fft = fft_complex(&hn)?;
 
-    // Reverse B for convolution
-    for k in 1..n {
-        b_vec[l - k] = b_vec[k].conj();
-    }
+    let mut product: Vec<Complex64> = yn_fft
+        .iter()
+        .zip(hn_fft.iter())
+        .map(|(&y, &h)| y * h)
+        .collect();
 
-    // Perform convolution using FFT
-    let a_fft = fft(&a_vec)?;
-    let b_fft = fft(&b_vec)?;
+    ifft_in_place(&mut product)?;
 
-    // Element-wise multiplication
-    let mut ab_fft = Vec::with_capacity(l);
-    for k in 0..l {
-        ab_fft.push(a_fft[k] * b_fft[k]);
-    }
-
-    // Inverse FFT
-    let ab = ifft(&ab_fft)?;
-
-    // Extract the relevant portion
-    let mut result = Vec::with_capacity(m);
-    for (k, &item) in ab.iter().enumerate().take(m) {
-        let k_sq = (k * k) as f64;
-        let arg = k_sq / 2.0 * w.arg(); // w^{k^2/2}
-        let chirp_factor = Complex64::new(arg.cos(), arg.sin());
-        result.push(item * chirp_factor);
-    }
+    // Extract M points, multiply by post-chirp w^{k²/2}
+    let result: Vec<Complex64> = (0..m).map(|ki| product[ki] * chirp_w(ki as i64)).collect();
 
     Ok(result)
 }
 
-/// Find the next power of 2 greater than or equal to n
-#[allow(dead_code)]
+/// Find the next power of 2 greater than or equal to n.
 fn next_power_of_two(n: usize) -> usize {
+    if n == 0 {
+        return 1;
+    }
     let mut p = 1;
     while p < n {
-        p *= 2;
+        p <<= 1;
     }
     p
 }
 
-/// Compute Fast Fourier Transform (FFT) of a complex sequence
-///
-/// This is an implementation for complex inputs using scirs2_fft
-#[allow(dead_code)]
-fn fft(x: &[Complex64]) -> SignalResult<Vec<Complex64>> {
+/// Compute FFT of a complex sequence using in-place Cooley-Tukey.
+fn fft_complex(x: &[Complex64]) -> SignalResult<Vec<Complex64>> {
     if x.is_empty() {
-        return Err(SignalError::ValueError("Input array is empty".to_string()));
+        return Ok(Vec::new());
     }
-
-    let n = x.len();
-
-    // Perform the FFT using scirs2_fft
-    let result = scirs2_fft::fft(x, Some(n))
-        .map_err(|e| SignalError::ComputationError(format!("FFT failed: {}", e)))?;
-
-    Ok(result)
+    let mut buf = x.to_vec();
+    fft_inplace(&mut buf, false)?;
+    Ok(buf)
 }
 
-/// Compute Inverse Fast Fourier Transform (IFFT) of a complex sequence
-///
-/// This is an implementation for complex inputs using scirs2_fft
-#[allow(dead_code)]
-fn ifft(x: &[Complex64]) -> SignalResult<Vec<Complex64>> {
-    if x.is_empty() {
-        return Err(SignalError::ValueError("Input array is empty".to_string()));
+/// In-place Cooley-Tukey radix-2 DIT FFT/IFFT. Length must be a power of 2.
+fn fft_inplace(buf: &mut Vec<Complex64>, inverse: bool) -> SignalResult<()> {
+    let n = buf.len();
+    if n <= 1 {
+        return Ok(());
+    }
+    if n & (n - 1) != 0 {
+        return Err(SignalError::ValueError(format!(
+            "FFT length must be a power of 2, got {}",
+            n
+        )));
     }
 
-    let n = x.len();
+    // Bit-reversal permutation
+    let bits = n.trailing_zeros() as usize;
+    for i in 0..n {
+        let j = bit_reverse(i, bits);
+        if j > i {
+            buf.swap(i, j);
+        }
+    }
 
-    // Perform the IFFT using scirs2_fft (already normalizes by 1/N internally)
-    let result = scirs2_fft::ifft(x, Some(n))
-        .map_err(|e| SignalError::ComputationError(format!("IFFT failed: {}", e)))?;
+    // Cooley-Tukey butterfly
+    let mut len = 2_usize;
+    while len <= n {
+        let half = len / 2;
+        let angle = if inverse {
+            2.0 * PI / len as f64
+        } else {
+            -2.0 * PI / len as f64
+        };
+        let wlen = Complex64::new(angle.cos(), angle.sin());
 
-    Ok(result)
+        let mut i = 0;
+        while i < n {
+            let mut w = Complex64::new(1.0, 0.0);
+            for j in 0..half {
+                let u = buf[i + j];
+                let v = buf[i + j + half] * w;
+                buf[i + j] = u + v;
+                buf[i + j + half] = u - v;
+                w *= wlen;
+            }
+            i += len;
+        }
+        len <<= 1;
+    }
+
+    if inverse {
+        let scale = 1.0 / n as f64;
+        for c in buf.iter_mut() {
+            *c = Complex64::new(c.re * scale, c.im * scale);
+        }
+    }
+
+    Ok(())
+}
+
+/// Reverse the bits of `x` using `bits` significant bits.
+fn bit_reverse(mut x: usize, bits: usize) -> usize {
+    let mut result = 0;
+    for _ in 0..bits {
+        result = (result << 1) | (x & 1);
+        x >>= 1;
+    }
+    result
+}
+
+/// In-place IFFT.
+fn ifft_in_place(buf: &mut Vec<Complex64>) -> SignalResult<()> {
+    fft_inplace(buf, true)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+
     #[test]
     fn test_czt_points() {
         // Generate 4 points on the unit circle
@@ -289,7 +350,7 @@ mod tests {
 
         // Check that points are evenly spaced on unit circle (W = exp(-j*2π/4))
         points.iter().enumerate().take(4).for_each(|(i, point)| {
-            let angle = -2.0 * std::f64::consts::PI * i as f64 / 4.0;
+            let angle = -2.0 * PI * i as f64 / 4.0;
             let expected = Complex64::new(angle.cos(), angle.sin());
 
             assert_relative_eq!(point.re, expected.re, epsilon = 1e-10);
@@ -297,37 +358,91 @@ mod tests {
         });
     }
 
+    /// Helper: compute an N-point DFT directly (O(N²)) for reference comparison.
+    fn dft_direct(x: &[f64]) -> Vec<Complex64> {
+        let n = x.len();
+        (0..n)
+            .map(|k| {
+                let mut sum = Complex64::new(0.0, 0.0);
+                for (ni, &xn) in x.iter().enumerate() {
+                    let angle = -2.0 * PI * k as f64 * ni as f64 / n as f64;
+                    sum += Complex64::new(xn, 0.0) * Complex64::new(angle.cos(), angle.sin());
+                }
+                sum
+            })
+            .collect()
+    }
+
     #[test]
-    #[ignore = "CZT implementation needs refinement for better FFT equivalence"]
     fn test_czt_dft_equivalence() {
-        // Test that CZT with default parameters is equivalent to DFT
-        // (though possibly with different scaling)
-        let signal = vec![1.0, 2.0, 3.0, 4.0];
+        // CZT with default parameters (w = exp(-j*2π/N), a = 1, m = N)
+        // must be identical to the standard DFT within floating-point tolerance.
+        let signals: &[&[f64]] = &[
+            &[1.0, 2.0, 3.0, 4.0],
+            &[1.0, 0.0, -1.0, 0.0],
+            &[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
+            &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0],
+        ];
 
-        // Compute CZT
-        let czt_result = czt(&signal, None, None, None, None).expect("Operation failed");
+        for signal in signals {
+            let czt_result = czt(*signal, None, None, None, None).expect("CZT failed");
+            let dft_result = dft_direct(signal);
 
-        // Check the relative magnitudes and phases instead of absolute values
+            assert_eq!(czt_result.len(), dft_result.len());
 
-        // 1. First check that length matches
+            for (k, (c, d)) in czt_result.iter().zip(dft_result.iter()).enumerate() {
+                let err_re = (c.re - d.re).abs();
+                let err_im = (c.im - d.im).abs();
+                assert!(
+                    err_re < 1e-9,
+                    "signal index {}, bin {}: CZT re={} vs DFT re={} (err={})",
+                    signal.len(),
+                    k,
+                    c.re,
+                    d.re,
+                    err_re
+                );
+                assert!(
+                    err_im < 1e-9,
+                    "signal index {}, bin {}: CZT im={} vs DFT im={} (err={})",
+                    signal.len(),
+                    k,
+                    c.im,
+                    d.im,
+                    err_im
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_czt_dft_properties() {
+        // Verify DFT properties when CZT uses default parameters.
+        let signal = vec![1.0_f64, 2.0, 3.0, 4.0];
+        let czt_result = czt(&signal, None, None, None, None).expect("CZT failed");
+
+        // 1. Length
         assert_eq!(czt_result.len(), 4);
 
-        // 2. Check that the DC component (index 0) is real valued
-        assert_relative_eq!(czt_result[0].im, 0.0, epsilon = 1e-10);
+        // 2. DC component should be purely real and equal to sum of signal
+        let dc_sum: f64 = signal.iter().sum();
+        assert_relative_eq!(czt_result[0].re, dc_sum, epsilon = 1e-9);
+        assert_relative_eq!(czt_result[0].im, 0.0, epsilon = 1e-9);
 
-        // 3. Check that the Nyquist component (for even-length FFT) is real valued
-        assert_relative_eq!(czt_result[2].im, 0.0, epsilon = 1e-10);
+        // 3. Nyquist bin (index N/2) should be real for real input
+        assert_relative_eq!(czt_result[2].im, 0.0, epsilon = 1e-9);
 
-        // 4. Check the symmetry of the 1st and 3rd components (conjugate symmetry)
-        assert_relative_eq!(czt_result[1].re, czt_result[3].re, epsilon = 1e-10);
-        assert_relative_eq!(czt_result[1].im, -czt_result[3].im, epsilon = 1e-10);
+        // 4. Conjugate symmetry: X[N-k] = conj(X[k])
+        assert_relative_eq!(czt_result[1].re, czt_result[3].re, epsilon = 1e-9);
+        assert_relative_eq!(czt_result[1].im, -czt_result[3].im, epsilon = 1e-9);
 
-        // 5. Verify increasing signal order gives increasing DC component
-        let signal2 = vec![2.0, 4.0, 6.0, 8.0]; // 2× original signal
-        let czt_result2 = czt(&signal2, None, None, None, None).expect("Operation failed");
-
-        // DC component should double
-        assert_relative_eq!(czt_result2[0].re, 2.0 * czt_result[0].re, epsilon = 1e-10);
+        // 5. Linearity: CZT(2x) = 2 * CZT(x)
+        let signal2: Vec<f64> = signal.iter().map(|&v| 2.0 * v).collect();
+        let czt_result2 = czt(&signal2, None, None, None, None).expect("CZT failed");
+        for k in 0..4 {
+            assert_relative_eq!(czt_result2[k].re, 2.0 * czt_result[k].re, epsilon = 1e-9);
+            assert_relative_eq!(czt_result2[k].im, 2.0 * czt_result[k].im, epsilon = 1e-9);
+        }
     }
 
     #[test]
@@ -337,17 +452,13 @@ mod tests {
 
         // Compute 8-point CZT that zooms in on the first quarter of the spectrum
         // This means w = exp(-j*π/16)
-        let arg = -std::f64::consts::PI / 16.0;
+        let arg = -PI / 16.0;
         let w = Complex64::new(arg.cos(), arg.sin());
 
         let czt_result = czt(&signal, Some(8), Some(w), None, None).expect("Operation failed");
 
         // Check length
         assert_eq!(czt_result.len(), 8);
-
-        // The signal has energy at the 1st harmonic (2Hz), which would be
-        // bin index 1 in a 4-point DFT. In our zoomed CZT, this should now
-        // appear at a specific location.
 
         // Find max magnitude bin
         let mut max_idx = 0;
@@ -361,14 +472,57 @@ mod tests {
         }
 
         // Check that we have significant energy somewhere in the array
-        // This test is less specific about which bin has the maximum energy,
-        // since that can vary with implementation details.
         assert!(max_val > 1.0);
 
-        // Print the value for debugging (not normally in production code)
         println!(
             "Max energy found at bin {} with magnitude {}",
             max_idx, max_val
         );
+    }
+
+    #[test]
+    fn test_czt_non_power_of_two_length() {
+        // CZT can handle non-power-of-2 input lengths unlike standard FFT
+        let signal: Vec<f64> = (0..7).map(|i| i as f64).collect();
+        let czt_result = czt(&signal, None, None, None, None).expect("CZT failed");
+        let dft_result = dft_direct(&signal);
+
+        assert_eq!(czt_result.len(), 7);
+
+        for (k, (c, d)) in czt_result.iter().zip(dft_result.iter()).enumerate() {
+            let err = (c - d).norm();
+            assert!(
+                err < 1e-8,
+                "bin {}: CZT=({},{}) vs DFT=({},{}) err={}",
+                k,
+                c.re,
+                c.im,
+                d.re,
+                d.im,
+                err
+            );
+        }
+    }
+
+    #[test]
+    fn test_czt_m_greater_than_n() {
+        // CZT can produce more output points than input length
+        let signal = vec![1.0_f64, 0.0, 0.0, 0.0];
+        // With a = 1 and w = exp(-j*2π/8), 8 output points on the unit circle
+        let w_arg = -2.0 * PI / 8.0;
+        let w = Complex64::new(w_arg.cos(), w_arg.sin());
+        let czt_result = czt(&signal, Some(8), Some(w), None, None).expect("CZT failed");
+
+        // For x = [1, 0, 0, 0], all DFT bins have value 1.0+0j
+        assert_eq!(czt_result.len(), 8);
+        for (k, c) in czt_result.iter().enumerate() {
+            let err = (c.norm() - 1.0).abs();
+            assert!(
+                err < 1e-9,
+                "bin {} magnitude should be 1.0, got {}",
+                k,
+                c.norm()
+            );
+        }
     }
 }

@@ -116,7 +116,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-core = { version = "0.4.2", features = ["simd", "parallel"] }
+//! scirs2-core = { version = "0.4.3", features = ["simd", "parallel"] }
 //! ```
 //!
 //! ### SIMD Operations
@@ -360,7 +360,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.4.2**
+//! Current version: **0.4.3**
 //!
 //! ## 📚 Examples
 //!
@@ -546,6 +546,8 @@ pub mod numa_scheduler;
 pub mod platform_compat;
 // Structured logging framework
 pub mod structured_logging;
+// Distributed shard management and rebalancing
+pub mod sharding;
 
 // Re-exports
 #[cfg(feature = "cache")]

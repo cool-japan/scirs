@@ -637,3 +637,28 @@ required-features = ["testing"]
 name = "rng_patterns"
 path = "examples/rng_patterns.rs"
 required-features = ["random"]
+
+[[example]]
+name = "simd_ml_operations_demo"
+path = "examples/simd_ml_operations_demo.rs"
+required-features = ["simd"]
+
+[[example]]
+name = "simd_perf_comparison"
+path = "examples/simd_perf_comparison.rs"
+required-features = ["simd"]
+
+[[example]]
+name = "simd_ultra_benchmark"
+path = "examples/simd_ultra_benchmark.rs"
+required-features = ["simd"]
+
+[[example]]
+name = "simd_ultra_benchmark_csv"
+path = "examples/simd_ultra_benchmark_csv.rs"
+required-features = ["simd"]
+
+[[example]]
+name = "norm_l2_comparison"
+path = "examples/norm_l2_comparison.rs"
+required-features = ["random", "simd"]

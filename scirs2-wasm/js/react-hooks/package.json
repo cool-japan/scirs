@@ -1,0 +1,22 @@
+{
+  "name": "@scirs2/react-hooks",
+  "version": "0.4.3",
+  "description": "React hooks for scirs2-wasm integration",
+  "main": "useScirs2.js",
+  "type": "module",
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  },
+  "keywords": [
+    "scirs2",
+    "wasm",
+    "react",
+    "hooks",
+    "scientific-computing"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cool-japan/scirs"
+  }
+}

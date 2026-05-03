@@ -14,6 +14,7 @@ use crate::result::OptimizeResults;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{rng, Rng, SeedableRng};
+use scirs2_core::RngExt;
 
 // ---------------------------------------------------------------------------
 // Enums & Configuration

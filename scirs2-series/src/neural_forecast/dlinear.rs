@@ -274,13 +274,21 @@ impl DLinearModel {
 
             if self.config.individual {
                 // Per-channel weights
-                let wt = self.w_trend_individual.as_ref()
+                let wt = self
+                    .w_trend_individual
+                    .as_ref()
                     .expect("individual weights must be set");
-                let bt = self.b_trend_individual.as_ref()
+                let bt = self
+                    .b_trend_individual
+                    .as_ref()
                     .expect("individual bias must be set");
-                let ws = self.w_seasonal_individual.as_ref()
+                let ws = self
+                    .w_seasonal_individual
+                    .as_ref()
                     .expect("individual weights must be set");
-                let bse = self.b_seasonal_individual.as_ref()
+                let bse = self
+                    .b_seasonal_individual
+                    .as_ref()
                     .expect("individual bias must be set");
 
                 let trend_pred = nn_utils::dense_forward_vec(&trend, &wt[ch], &bt[ch]);
@@ -291,13 +299,21 @@ impl DLinearModel {
                 }
             } else {
                 // Shared weights
-                let wt = self.w_trend_shared.as_ref()
+                let wt = self
+                    .w_trend_shared
+                    .as_ref()
                     .expect("shared trend weights must be set");
-                let bt = self.b_trend_shared.as_ref()
+                let bt = self
+                    .b_trend_shared
+                    .as_ref()
                     .expect("shared trend bias must be set");
-                let ws = self.w_seasonal_shared.as_ref()
+                let ws = self
+                    .w_seasonal_shared
+                    .as_ref()
                     .expect("shared seasonal weights must be set");
-                let bse = self.b_seasonal_shared.as_ref()
+                let bse = self
+                    .b_seasonal_shared
+                    .as_ref()
                     .expect("shared seasonal bias must be set");
 
                 let trend_pred = nn_utils::dense_forward_vec(&trend, wt, bt);
@@ -435,16 +451,18 @@ impl NLinearModel {
 
             // Linear projection
             let pred = if self.config.individual {
-                let w = self.w_individual.as_ref()
+                let w = self
+                    .w_individual
+                    .as_ref()
                     .expect("individual weights must be set");
-                let b = self.b_individual.as_ref()
+                let b = self
+                    .b_individual
+                    .as_ref()
                     .expect("individual bias must be set");
                 nn_utils::dense_forward_vec(&normalized, &w[ch], &b[ch])
             } else {
-                let w = self.w_shared.as_ref()
-                    .expect("shared weights must be set");
-                let b = self.b_shared.as_ref()
-                    .expect("shared bias must be set");
+                let w = self.w_shared.as_ref().expect("shared weights must be set");
+                let b = self.b_shared.as_ref().expect("shared bias must be set");
                 nn_utils::dense_forward_vec(&normalized, w, b)
             };
 

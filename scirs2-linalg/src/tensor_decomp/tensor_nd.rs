@@ -75,7 +75,9 @@ fn solve_sq(a: &[Vec<f64>], b: &[f64], n: usize) -> LinalgResult<Vec<f64>> {
             }
         }
         if max_val < 1e-300 {
-            return Err(LinalgError::SingularMatrixError("Matrix is singular".to_string()));
+            return Err(LinalgError::SingularMatrixError(
+                "Matrix is singular".to_string(),
+            ));
         }
         mat.swap(col, max_row);
         rhs.swap(col, max_row);
@@ -96,7 +98,9 @@ fn solve_sq(a: &[Vec<f64>], b: &[f64], n: usize) -> LinalgResult<Vec<f64>> {
             s -= mat[i][j] * x[j];
         }
         if mat[i][i].abs() < 1e-300 {
-            return Err(LinalgError::SingularMatrixError("Matrix is singular".to_string()));
+            return Err(LinalgError::SingularMatrixError(
+                "Matrix is singular".to_string(),
+            ));
         }
         x[i] = s / mat[i][i];
     }
@@ -113,7 +117,11 @@ fn thin_svd(a: &[Vec<f64>], rows: usize, cols: usize) -> (Vec<Vec<f64>>, Vec<f64
     // Jacobi eigen
     let (eigenvals, eigenvecs) = jacobi_eigen_sym(&ata, cols);
     let mut order: Vec<usize> = (0..cols).collect();
-    order.sort_by(|&i, &j| eigenvals[j].partial_cmp(&eigenvals[i]).unwrap_or(std::cmp::Ordering::Equal));
+    order.sort_by(|&i, &j| {
+        eigenvals[j]
+            .partial_cmp(&eigenvals[i])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let mut s = vec![0.0f64; k];
     let mut vt = vec![vec![0.0f64; cols]; k];
@@ -139,11 +147,13 @@ fn thin_svd(a: &[Vec<f64>], rows: usize, cols: usize) -> (Vec<Vec<f64>>, Vec<f64
 /// Symmetric Jacobi eigen-decomposition. Returns (eigenvalues, eigenvectors as columns).
 fn jacobi_eigen_sym(a: &[Vec<f64>], n: usize) -> (Vec<f64>, Vec<Vec<f64>>) {
     let mut mat = a.to_vec();
-    let mut vecs: Vec<Vec<f64>> = (0..n).map(|i| {
-        let mut row = vec![0.0; n];
-        row[i] = 1.0;
-        row
-    }).collect();
+    let mut vecs: Vec<Vec<f64>> = (0..n)
+        .map(|i| {
+            let mut row = vec![0.0; n];
+            row[i] = 1.0;
+            row
+        })
+        .collect();
 
     for _ in 0..200 {
         let mut max_val = 0.0f64;
@@ -216,11 +226,12 @@ fn random_matrix(m: usize, k: usize, seed: u64) -> Vec<Vec<f64>> {
     use scirs2_core::random::prelude::*;
     use scirs2_core::random::rngs::SmallRng;
     use scirs2_core::random::{Distribution, Normal};
-    let normal = Normal::new(0.0f64, 1.0).unwrap_or_else(|_| {
-        Normal::new(0.0, 1.0 - f64::EPSILON).expect("normal")
-    });
+    let normal = Normal::new(0.0f64, 1.0)
+        .unwrap_or_else(|_| Normal::new(0.0, 1.0 - f64::EPSILON).expect("normal"));
     let mut rng = SmallRng::seed_from_u64(seed);
-    (0..m).map(|_| (0..k).map(|_| normal.sample(&mut rng)).collect()).collect()
+    (0..m)
+        .map(|_| (0..k).map(|_| normal.sample(&mut rng)).collect())
+        .collect()
 }
 
 /// Gram-Schmidt QR: returns Q (m×k), columns are orthonormal.
@@ -308,11 +319,16 @@ impl Tensor {
         if data.len() != n {
             return Err(LinalgError::ShapeError(format!(
                 "Tensor::new: data.len()={} but product(shape)={}",
-                data.len(), n
+                data.len(),
+                n
             )));
         }
         let strides = compute_strides(&shape);
-        Ok(Self { data, shape, strides })
+        Ok(Self {
+            data,
+            shape,
+            strides,
+        })
     }
 
     /// Create an all-zeros tensor with the given shape.
@@ -358,7 +374,9 @@ impl Tensor {
         if n != self.numel() {
             return Err(LinalgError::ShapeError(format!(
                 "Tensor::reshape: cannot reshape {} elements to shape {:?} ({} elements)",
-                self.numel(), new_shape, n
+                self.numel(),
+                new_shape,
+                n
             )));
         }
         let strides = compute_strides(&new_shape);
@@ -381,7 +399,8 @@ impl Tensor {
         let ndim = self.n_dims();
         if mode >= ndim {
             return Err(LinalgError::ShapeError(format!(
-                "unfold: mode {} >= n_dims {}", mode, ndim
+                "unfold: mode {} >= n_dims {}",
+                mode, ndim
             )));
         }
         let rows = self.shape[mode];
@@ -421,15 +440,28 @@ impl Tensor {
         let ndim = shape.len();
         if mode >= ndim {
             return Err(LinalgError::ShapeError(format!(
-                "fold: mode {} >= ndim {}", mode, ndim
+                "fold: mode {} >= ndim {}",
+                mode, ndim
             )));
         }
         let rows = shape[mode];
-        let cols: usize = shape.iter().enumerate().filter(|&(i, _)| i != mode).map(|(_, &s)| s).product();
+        let cols: usize = shape
+            .iter()
+            .enumerate()
+            .filter(|&(i, _)| i != mode)
+            .map(|(_, &s)| s)
+            .product();
         if matrix.len() != rows || (!matrix.is_empty() && matrix[0].len() != cols) {
             return Err(LinalgError::ShapeError(format!(
                 "fold: matrix shape {}×{} does not match shape {:?} for mode {}",
-                matrix.len(), if matrix.is_empty() { 0 } else { matrix[0].len() }, shape, mode
+                matrix.len(),
+                if matrix.is_empty() {
+                    0
+                } else {
+                    matrix[0].len()
+                },
+                shape,
+                mode
             )));
         }
         let mut t = Tensor::zeros(shape.clone());
@@ -532,7 +564,9 @@ pub fn cp_als(
 ) -> LinalgResult<CpDecomposition> {
     let ndim = tensor.n_dims();
     if ndim < 2 {
-        return Err(LinalgError::ShapeError("cp_als requires at least 2 modes".into()));
+        return Err(LinalgError::ShapeError(
+            "cp_als requires at least 2 modes".into(),
+        ));
     }
     let rank = rank.max(1);
 
@@ -596,7 +630,7 @@ pub fn cp_als(
 
             // Build KR product: for modes in Kolda-Bader order (mode+1, ..., N-1, 0, ..., mode-1)
             let mut kr: Vec<Vec<f64>> = vec![vec![1.0]; rank]; // dummy 1 × rank start
-            // Build KR as cols_u × rank
+                                                               // Build KR as cols_u × rank
             let mut kr_mat = vec![vec![1.0; rank]; 1];
             for step in 0..ndim - 1 {
                 let m = (mode + 1 + step) % ndim;
@@ -632,13 +666,17 @@ pub fn cp_als(
                         for r in 0..rank {
                             v_reg[r][r] += 1e-10;
                         }
-                        new_factor[i] = solve_sq(&v_reg, &mttkrp[i], rank).unwrap_or_else(|_| mttkrp[i].clone());
+                        new_factor[i] = solve_sq(&v_reg, &mttkrp[i], rank)
+                            .unwrap_or_else(|_| mttkrp[i].clone());
                     }
                 }
             }
             // Normalize columns and extract weights
             for r in 0..rank {
-                let nrm: f64 = (0..rows_u).map(|i| new_factor[i][r] * new_factor[i][r]).sum::<f64>().sqrt();
+                let nrm: f64 = (0..rows_u)
+                    .map(|i| new_factor[i][r] * new_factor[i][r])
+                    .sum::<f64>()
+                    .sqrt();
                 weights[r] = nrm;
                 if nrm > 1e-14 {
                     for i in 0..rows_u {
@@ -658,7 +696,13 @@ pub fn cp_als(
     }
 
     let fit = compute_cp_fit(tensor, &factors, &weights, rank, norm_t);
-    Ok(CpDecomposition { factors, weights, rank, n_iter, fit })
+    Ok(CpDecomposition {
+        factors,
+        weights,
+        rank,
+        n_iter,
+        fit,
+    })
 }
 
 /// Compute CP fit = 1 - ||T - T_hat|| / ||T||
@@ -697,7 +741,11 @@ fn compute_cp_fit(
     if norm_t > 1e-300 {
         1.0 - sq_err.sqrt() / norm_t
     } else {
-        if sq_err < 1e-20 { 1.0 } else { 0.0 }
+        if sq_err < 1e-20 {
+            1.0
+        } else {
+            0.0
+        }
     }
 }
 
@@ -744,7 +792,9 @@ pub fn tucker_hosvd(tensor: &Tensor, ranks: &[usize]) -> LinalgResult<TuckerDeco
     let ndim = tensor.n_dims();
     if ranks.len() != ndim {
         return Err(LinalgError::ShapeError(format!(
-            "tucker_hosvd: ranks.len()={} != n_dims={}", ranks.len(), ndim
+            "tucker_hosvd: ranks.len()={} != n_dims={}",
+            ranks.len(),
+            ndim
         )));
     }
 
@@ -765,7 +815,11 @@ pub fn tucker_hosvd(tensor: &Tensor, ranks: &[usize]) -> LinalgResult<TuckerDeco
 
     // Compute core: G = T ×_1 U_1^T ×_2 U_2^T ... ×_N U_N^T
     let core = multilinear_product(tensor, &factors, ranks)?;
-    Ok(TuckerDecomposition { core, factors, ranks: ranks.to_vec() })
+    Ok(TuckerDecomposition {
+        core,
+        factors,
+        ranks: ranks.to_vec(),
+    })
 }
 
 /// Tucker decomposition via Higher-Order Orthogonal Iteration (HOOI).
@@ -814,12 +868,18 @@ pub fn tucker_hooi(
             let cols = partial.numel() / rows;
             let (u, _s, _vt) = thin_svd(&unfolded, rows, cols);
             let r = ranks[mode].min(rows).min(cols);
-            tucker.factors[mode] = (0..rows).map(|i| (0..r).map(|j| u[i][j]).collect()).collect();
+            tucker.factors[mode] = (0..rows)
+                .map(|i| (0..r).map(|j| u[i][j]).collect())
+                .collect();
         }
         tucker.core = multilinear_product(tensor, &tucker.factors, ranks)?;
 
         // Fit = ||G||_F / ||T||_F
-        let fit = if norm_t > 1e-300 { tucker.core.frobenius_norm() / norm_t } else { 1.0 };
+        let fit = if norm_t > 1e-300 {
+            tucker.core.frobenius_norm() / norm_t
+        } else {
+            1.0
+        };
         if (fit - prev_fit).abs() < tol && prev_fit >= 0.0 {
             break;
         }
@@ -848,7 +908,9 @@ fn multilinear_product(
         let mut prod = vec![vec![0.0; cols]; r];
         for i in 0..r {
             for k in 0..rows {
-                if f[k][i] == 0.0 { continue; }
+                if f[k][i] == 0.0 {
+                    continue;
+                }
                 for j in 0..cols {
                     prod[i][j] += f[k][i] * unfolded[k][j];
                 }
@@ -883,7 +945,9 @@ fn multilinear_product_skip(
         let mut prod = vec![vec![0.0; cols]; r];
         for i in 0..r {
             for k in 0..rows {
-                if f[k][i] == 0.0 { continue; }
+                if f[k][i] == 0.0 {
+                    continue;
+                }
                 for j in 0..cols {
                     prod[i][j] += f[k][i] * unfolded[k][j];
                 }
@@ -947,7 +1011,9 @@ pub fn tensor_train_svd(
 ) -> LinalgResult<TensorTrainDecomposition> {
     let ndim = tensor.n_dims();
     if ndim < 2 {
-        return Err(LinalgError::ShapeError("tensor_train_svd requires at least 2 modes".into()));
+        return Err(LinalgError::ShapeError(
+            "tensor_train_svd requires at least 2 modes".into(),
+        ));
     }
 
     let norm_t = tensor.frobenius_norm();
@@ -974,7 +1040,10 @@ pub fn tensor_train_svd(
         if left * right != c_data.len() {
             return Err(LinalgError::ShapeError(format!(
                 "TT-SVD reshape error at mode {}: {} × {} != {}",
-                k, left, right, c_data.len()
+                k,
+                left,
+                right,
+                c_data.len()
             )));
         }
         // Build left × right matrix
@@ -1023,7 +1092,7 @@ pub fn tensor_train_svd(
             d
         })?);
     } else {
-        let mut last_data = vec![0.0; prev_r * n_last * 1];
+        let mut last_data = vec![0.0; prev_r * n_last];
         for i in 0..prev_r {
             for j in 0..n_last {
                 last_data[i * n_last + j] = c_data[i * n_last + j];

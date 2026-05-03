@@ -911,7 +911,7 @@ impl GpuBackend for OpenCLBackend {
     }
 }
 
-#[cfg(feature = "cuda")]
+#[cfg(all(feature = "cuda", feature = "gpu"))]
 impl crate::backend::GpuContext for CudaContext {
     fn name(&self) -> &str {
         "CUDA"
@@ -932,7 +932,7 @@ impl crate::backend::GpuContext for CudaContext {
     }
 }
 
-#[cfg(feature = "opencl")]
+#[cfg(all(feature = "opencl", feature = "gpu"))]
 impl crate::backend::GpuContext for OpenCLContext {
     fn name(&self) -> &str {
         "OpenCL"

@@ -185,9 +185,7 @@ pub fn median_filter3d(image: ArrayView3<f64>, size: usize) -> NdimageResult<Arr
         ));
     }
     if size % 2 == 0 {
-        return Err(NdimageError::InvalidInput(
-            "size must be odd".to_string(),
-        ));
+        return Err(NdimageError::InvalidInput("size must be odd".to_string()));
     }
     let (sz, sy, sx) = (image.shape()[0], image.shape()[1], image.shape()[2]);
     let half = (size / 2) as isize;
@@ -238,9 +236,7 @@ pub fn uniform_filter3d(image: ArrayView3<f64>, size: usize) -> NdimageResult<Ar
         ));
     }
     if size % 2 == 0 {
-        return Err(NdimageError::InvalidInput(
-            "size must be odd".to_string(),
-        ));
+        return Err(NdimageError::InvalidInput("size must be odd".to_string()));
     }
     let (sz, sy, sx) = (image.shape()[0], image.shape()[1], image.shape()[2]);
     let half = (size / 2) as isize;
@@ -405,7 +401,8 @@ pub fn laplace3d(image: ArrayView3<f64>) -> NdimageResult<Array3<f64>> {
                 let center = owned[[iz, iy, ix]];
                 let mut laplacian = -6.0 * center;
                 for &(dz, dy, dx) in &neighbors {
-                    laplacian += get_clamped(&owned, iz as isize + dz, iy as isize + dy, ix as isize + dx);
+                    laplacian +=
+                        get_clamped(&owned, iz as isize + dz, iy as isize + dy, ix as isize + dx);
                 }
                 out[[iz, iy, ix]] = laplacian;
             }
@@ -446,9 +443,7 @@ pub fn non_local_means3d(
         ));
     }
     if h <= 0.0 {
-        return Err(NdimageError::InvalidInput(
-            "h must be positive".to_string(),
-        ));
+        return Err(NdimageError::InvalidInput("h must be positive".to_string()));
     }
     let (sz, sy, sx) = (image.shape()[0], image.shape()[1], image.shape()[2]);
     let owned = image.to_owned();
@@ -594,8 +589,8 @@ pub fn anisotropic_diffusion3d(
                     let cxn = pm_conductance(gx_n.abs(), kappa);
                     let cxp = pm_conductance(gx_p.abs(), kappa);
 
-                    let flux = cn * gz_n + cp * gz_p + cyn * gy_n + cyp * gy_p
-                        + cxn * gx_n + cxp * gx_p;
+                    let flux =
+                        cn * gz_n + cp * gz_p + cyn * gy_n + cyp * gy_p + cxn * gx_n + cxp * gx_p;
 
                     current[[iz, iy, ix]] = center + gamma * flux;
                 }
@@ -662,8 +657,7 @@ pub fn bilateral_filter3d(
                             let ny = iy as isize + dy;
                             let nx = ix as isize + dx;
                             let v = get_clamped(&owned, nz, ny, nx);
-                            let spatial_dist_sq =
-                                (dz * dz + dy * dy + dx * dx) as f64;
+                            let spatial_dist_sq = (dz * dz + dy * dy + dx * dx) as f64;
                             let intensity_diff = v - center_val;
                             let w = (-spatial_dist_sq / two_ss_sq
                                 - intensity_diff * intensity_diff / two_si_sq)
@@ -738,7 +732,11 @@ mod tests {
         let smoothed = gaussian_filter3d(img.view(), 1.5, 4.0).expect("gaussian failed");
         // The sharp edge at x=4 should be blurred: pixels near edge have intermediate values
         let edge_val = smoothed[[4, 4, 4]]; // near the edge
-        assert!(edge_val > 0.01 && edge_val < 0.99, "expected blurred edge, got {}", edge_val);
+        assert!(
+            edge_val > 0.01 && edge_val < 0.99,
+            "expected blurred edge, got {}",
+            edge_val
+        );
     }
 
     #[test]
@@ -765,7 +763,11 @@ mod tests {
         img[[2, 2, 2]] = 100.0; // impulse noise
         let result = median_filter3d(img.view(), 3).expect("median failed");
         // Center voxel should be suppressed
-        assert!(result[[2, 2, 2]] < 10.0, "spike not removed: {}", result[[2, 2, 2]]);
+        assert!(
+            result[[2, 2, 2]] < 10.0,
+            "spike not removed: {}",
+            result[[2, 2, 2]]
+        );
     }
 
     #[test]
@@ -828,7 +830,11 @@ mod tests {
         let result = sobel_gradient3d(img.view()).expect("sobel failed");
         // Voxels at the edge (x around 3-4) should have high gradient
         let edge_mag = result[[4, 4, 3]];
-        assert!(edge_mag > 0.01, "expected nonzero gradient at edge, got {}", edge_mag);
+        assert!(
+            edge_mag > 0.01,
+            "expected nonzero gradient at edge, got {}",
+            edge_mag
+        );
     }
 
     #[test]
@@ -871,8 +877,7 @@ mod tests {
     #[test]
     fn test_nlm_uniform_preserves_value() {
         let img = uniform_volume(4.0);
-        let result =
-            non_local_means3d(img.view(), 3, 2, 0.1).expect("NLM failed");
+        let result = non_local_means3d(img.view(), 3, 2, 0.1).expect("NLM failed");
         for &v in result.iter() {
             assert!((v - 4.0).abs() < 1e-6, "expected 4.0, got {}", v);
         }
@@ -900,11 +905,7 @@ mod tests {
         let result = anisotropic_diffusion3d(img.view(), 5, 10.0, 0.1)
             .expect("anisotropic diffusion failed");
         for &v in result.iter() {
-            assert!(
-                (v - 5.0).abs() < 1e-8,
-                "expected 5.0, got {}",
-                v
-            );
+            assert!((v - 5.0).abs() < 1e-8, "expected 5.0, got {}", v);
         }
     }
 
@@ -937,8 +938,7 @@ mod tests {
     #[test]
     fn test_bilateral_uniform_preserves_value() {
         let img = uniform_volume(6.0);
-        let result = bilateral_filter3d(img.view(), 1.5, 1.0)
-            .expect("bilateral filter failed");
+        let result = bilateral_filter3d(img.view(), 1.5, 1.0).expect("bilateral filter failed");
         for &v in result.iter() {
             assert!((v - 6.0).abs() < 1e-8, "expected 6.0, got {}", v);
         }
@@ -947,8 +947,7 @@ mod tests {
     #[test]
     fn test_bilateral_output_shape() {
         let img = ramp_volume();
-        let result = bilateral_filter3d(img.view(), 1.5, 1.0)
-            .expect("bilateral filter failed");
+        let result = bilateral_filter3d(img.view(), 1.5, 1.0).expect("bilateral filter failed");
         assert_eq!(result.shape(), img.shape());
     }
 
@@ -963,10 +962,8 @@ mod tests {
     fn test_bilateral_step_edge_preservation() {
         // Bilateral should preserve the step edge better than Gaussian
         let img = step_volume();
-        let bilateral = bilateral_filter3d(img.view(), 1.5, 0.1)
-            .expect("bilateral filter failed");
-        let gaussian = gaussian_filter3d(img.view(), 1.5, 4.0)
-            .expect("gaussian failed");
+        let bilateral = bilateral_filter3d(img.view(), 1.5, 0.1).expect("bilateral filter failed");
+        let gaussian = gaussian_filter3d(img.view(), 1.5, 4.0).expect("gaussian failed");
         // The far interior of the left half should stay close to 0 with bilateral
         let bi_left = bilateral[[4, 4, 0]]; // deep in the left (0) half
         let ga_left = gaussian[[4, 4, 0]];

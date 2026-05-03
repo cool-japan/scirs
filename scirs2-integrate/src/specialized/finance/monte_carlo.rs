@@ -6,8 +6,8 @@
 
 use crate::error::{IntegrateError, IntegrateResult};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{Normal, Rng, SeedableRng, StandardNormal};
 use scirs2_core::random::seeded_rng;
+use scirs2_core::random::{Normal, Rng, SeedableRng, StandardNormal};
 use std::f64::consts::PI;
 
 // ============================================================
@@ -230,16 +230,12 @@ fn bs_european_price(s0: f64, k: f64, r: f64, sigma: f64, t: f64, call: bool) ->
 /// Closed-form geometric Asian call price (control variate)
 fn geometric_asian_call(s0: f64, k: f64, r: f64, sigma: f64, t: f64, n: usize) -> f64 {
     let n_f = n as f64;
-    let sigma_adj =
-        sigma * ((n_f + 1.0) * (2.0 * n_f + 1.0) / (6.0 * n_f * n_f)).sqrt();
-    let b = 0.5 * (r - 0.5 * sigma * sigma)
-        + 0.5 * sigma_adj * sigma_adj;
-    let d1 = ((s0 / k).ln() + (b + 0.5 * sigma_adj * sigma_adj) * t)
-        / (sigma_adj * t.sqrt());
+    let sigma_adj = sigma * ((n_f + 1.0) * (2.0 * n_f + 1.0) / (6.0 * n_f * n_f)).sqrt();
+    let b = 0.5 * (r - 0.5 * sigma * sigma) + 0.5 * sigma_adj * sigma_adj;
+    let d1 = ((s0 / k).ln() + (b + 0.5 * sigma_adj * sigma_adj) * t) / (sigma_adj * t.sqrt());
     let d2 = d1 - sigma_adj * t.sqrt();
     (-(r - b) * t).exp()
-        * (s0 * (-((r - b) * t)).exp() * normal_cdf(d1)
-            - k * (-r * t).exp() * normal_cdf(d2))
+        * (s0 * (-((r - b) * t)).exp() * normal_cdf(d1) - k * (-r * t).exp() * normal_cdf(d2))
 }
 
 // ============================================================
@@ -523,16 +519,16 @@ pub fn mc_lookback_option(
     let n = engine.n_steps;
 
     let payoffs: Vec<f64> = (0..total_paths)
-        .map(|i| {
-            match option_type {
-                OptionType::Call => {
-                    let s_max = (1..=n).map(|j| paths[[i, j]]).fold(f64::NEG_INFINITY, f64::max);
-                    (s_max - k).max(0.0)
-                }
-                OptionType::Put => {
-                    let s_min = (1..=n).map(|j| paths[[i, j]]).fold(f64::INFINITY, f64::min);
-                    (k - s_min).max(0.0)
-                }
+        .map(|i| match option_type {
+            OptionType::Call => {
+                let s_max = (1..=n)
+                    .map(|j| paths[[i, j]])
+                    .fold(f64::NEG_INFINITY, f64::max);
+                (s_max - k).max(0.0)
+            }
+            OptionType::Put => {
+                let s_min = (1..=n).map(|j| paths[[i, j]]).fold(f64::INFINITY, f64::min);
+                (k - s_min).max(0.0)
             }
         })
         .collect();
@@ -598,8 +594,12 @@ fn ols_fit(x_mat: &[Vec<f64>], y: &[f64]) -> Vec<f64> {
 
     for col in 0..p {
         // Find pivot
-        let pivot = (col..p)
-            .max_by(|&a, &b| aug[a][col].abs().partial_cmp(&aug[b][col].abs()).expect("NaN"));
+        let pivot = (col..p).max_by(|&a, &b| {
+            aug[a][col]
+                .abs()
+                .partial_cmp(&aug[b][col].abs())
+                .expect("NaN")
+        });
         if let Some(pivot_row) = pivot {
             aug.swap(col, pivot_row);
         }
@@ -716,8 +716,7 @@ pub fn mc_american_option_lsm(
         }
 
         // Non-ITM paths: just discount
-        let in_money_set: std::collections::HashSet<usize> =
-            in_money.into_iter().collect();
+        let in_money_set: std::collections::HashSet<usize> = in_money.into_iter().collect();
         for i in 0..n_paths_total {
             if !in_money_set.contains(&i) {
                 cash_flows[i] *= discount_factor;
@@ -747,10 +746,10 @@ pub fn mc_greeks(
     option_type: OptionType,
     engine: &MonteCarloEngine,
 ) -> IntegrateResult<OptionGreeks> {
-    let ds = s0 * 0.01;  // 1% bump
-    let dv = 0.001;      // 0.1% vol bump
+    let ds = s0 * 0.01; // 1% bump
+    let dv = 0.001; // 0.1% vol bump
     let dt = 1.0 / 365.0; // 1 calendar day
-    let dr = 0.0001;     // 1 basis point
+    let dr = 0.0001; // 1 basis point
 
     let base = mc_european_option(s0, k, r, sigma, t, option_type, engine)?;
     let up_s = mc_european_option(s0 + ds, k, r, sigma, t, option_type, engine)?;
@@ -808,7 +807,7 @@ pub fn generate_heston_paths(
             "s0 must be positive, v0 must be non-negative".to_string(),
         ));
     }
-    if rho < -1.0 || rho > 1.0 {
+    if !(-1.0..=1.0).contains(&rho) {
         return Err(IntegrateError::ValueError(
             "Correlation rho must be in [-1, 1]".to_string(),
         ));
@@ -933,7 +932,9 @@ pub fn mc_portfolio_var(
     seed: u64,
 ) -> IntegrateResult<(f64, f64)> {
     let n_assets = initial_prices.len();
-    if weights.len() != n_assets || mu.len() != n_assets || cov_matrix.nrows() != n_assets
+    if weights.len() != n_assets
+        || mu.len() != n_assets
+        || cov_matrix.nrows() != n_assets
         || cov_matrix.ncols() != n_assets
     {
         return Err(IntegrateError::DimensionMismatch(
@@ -985,8 +986,7 @@ pub fn mc_portfolio_var(
         // Compute log-normal scenario return for each asset
         let mut new_value = 0.0f64;
         for i in 0..n_assets {
-            let log_return = (mu[i] - 0.5 * cov_matrix[[i, i]]) * horizon
-                + horizon.sqrt() * eps[i];
+            let log_return = (mu[i] - 0.5 * cov_matrix[[i, i]]) * horizon + horizon.sqrt() * eps[i];
             let new_price = initial_prices[i] * log_return.exp();
             new_value += weights[i] * new_price;
         }
@@ -1056,15 +1056,15 @@ pub fn sobol_sequence(n_samples: usize, n_dimensions: usize, skip: usize) -> Arr
     // polynomial degree s (number of initial values).
     // Format: (degree_s, [m_1, ..., m_s])
     let direction_data: &[(usize, &[u32])] = &[
-        (1, &[1]),              // dim 2:  x + 1
-        (2, &[1, 1]),           // dim 3:  x^2 + x + 1
-        (3, &[1, 1, 1]),        // dim 4:  x^3 + x^2 + 1
-        (3, &[1, 3, 7]),        // dim 5:  x^3 + x + 1
-        (4, &[1, 1, 5, 11]),    // dim 6
-        (4, &[1, 3, 13, 11]),   // dim 7
-        (5, &[1, 1, 19, 25, 7]),// dim 8
-        (5, &[1, 3, 7, 11, 1]), // dim 9
-        (5, &[1, 1, 5, 1, 15]), // dim 10
+        (1, &[1]),               // dim 2:  x + 1
+        (2, &[1, 1]),            // dim 3:  x^2 + x + 1
+        (3, &[1, 1, 1]),         // dim 4:  x^3 + x^2 + 1
+        (3, &[1, 3, 7]),         // dim 5:  x^3 + x + 1
+        (4, &[1, 1, 5, 11]),     // dim 6
+        (4, &[1, 3, 13, 11]),    // dim 7
+        (5, &[1, 1, 19, 25, 7]), // dim 8
+        (5, &[1, 3, 7, 11, 1]),  // dim 9
+        (5, &[1, 1, 5, 1, 15]),  // dim 10
     ];
 
     let max_bits: usize = 32;
@@ -1198,18 +1198,17 @@ mod tests {
     fn test_gbm_path_variance_matches_theory() {
         // Var[S_T] = S0^2 * exp(2rT) * (exp(sigma^2 T) - 1)
         let s0 = 100.0;
-        let r = 0.0;  // Zero rate to simplify
+        let r = 0.0; // Zero rate to simplify
         let sigma = 0.2;
         let t = 1.0;
         let n = 50_000;
-        let paths = generate_gbm_paths(s0, r, sigma, t, n, N_STEPS, SEED, false)
-            .expect("gbm paths failed");
+        let paths =
+            generate_gbm_paths(s0, r, sigma, t, n, N_STEPS, SEED, false).expect("gbm paths failed");
         let last_col = N_STEPS;
         let vals: Vec<f64> = (0..n).map(|i| paths[[i, last_col]]).collect();
         let mean = vals.iter().sum::<f64>() / n as f64;
         let var = vals.iter().map(|&s| (s - mean).powi(2)).sum::<f64>() / (n - 1) as f64;
-        let theoretical_var =
-            s0 * s0 * (2.0 * r * t).exp() * ((sigma * sigma * t).exp() - 1.0);
+        let theoretical_var = s0 * s0 * (2.0 * r * t).exp() * ((sigma * sigma * t).exp() - 1.0);
         assert!(
             (var / theoretical_var - 1.0).abs() < 0.05,
             "GBM variance mismatch: MC={:.2} theory={:.2}",
@@ -1230,9 +1229,8 @@ mod tests {
     #[test]
     fn test_mc_european_call_vs_bs() {
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED).with_antithetic();
-        let result =
-            mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
-                .expect("mc european call failed");
+        let result = mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("mc european call failed");
         let bs = bs_call(100.0, 100.0, 0.05, 0.2, 1.0);
         assert!(
             (result.price - bs).abs() < TOL * bs,
@@ -1245,9 +1243,8 @@ mod tests {
     #[test]
     fn test_mc_european_put_vs_bs() {
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED).with_antithetic();
-        let result =
-            mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put, &engine)
-                .expect("mc european put failed");
+        let result = mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put, &engine)
+            .expect("mc european put failed");
         let bs = bs_put(100.0, 100.0, 0.05, 0.2, 1.0);
         assert!(
             (result.price - bs).abs() < TOL * bs,
@@ -1279,9 +1276,8 @@ mod tests {
     #[test]
     fn test_mc_european_result_has_valid_ci() {
         let engine = MonteCarloEngine::new(5000, 100, SEED);
-        let result =
-            mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
-                .expect("mc failed");
+        let result = mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("mc failed");
         let (lo, hi) = result.confidence_interval;
         assert!(lo < result.price && result.price < hi);
         assert!(result.std_error > 0.0);
@@ -1293,15 +1289,29 @@ mod tests {
     fn test_asian_geometric_less_than_arithmetic() {
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
         let arith = mc_asian_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call,
-            AsianAveraging::Arithmetic, &engine,
-        ).expect("arith asian failed");
+            100.0,
+            100.0,
+            0.05,
+            0.2,
+            1.0,
+            OptionType::Call,
+            AsianAveraging::Arithmetic,
+            &engine,
+        )
+        .expect("arith asian failed");
         let geom = mc_asian_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call,
-            AsianAveraging::Geometric, &engine,
-        ).expect("geom asian failed");
+            100.0,
+            100.0,
+            0.05,
+            0.2,
+            1.0,
+            OptionType::Call,
+            AsianAveraging::Geometric,
+            &engine,
+        )
+        .expect("geom asian failed");
         assert!(
-            geom.price <= arith.price * 1.05,  // geometric should be <= arithmetic
+            geom.price <= arith.price * 1.05, // geometric should be <= arithmetic
             "Geometric price ({:.4}) should be <= arithmetic ({:.4})",
             geom.price,
             arith.price
@@ -1312,9 +1322,16 @@ mod tests {
     fn test_asian_put_positive_price() {
         let engine = MonteCarloEngine::new(5000, 100, SEED);
         let result = mc_asian_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put,
-            AsianAveraging::Arithmetic, &engine,
-        ).expect("asian put failed");
+            100.0,
+            100.0,
+            0.05,
+            0.2,
+            1.0,
+            OptionType::Put,
+            AsianAveraging::Arithmetic,
+            &engine,
+        )
+        .expect("asian put failed");
         assert!(result.price > 0.0);
     }
 
@@ -1323,12 +1340,18 @@ mod tests {
         // Asian call is generally cheaper than European call (for ATM options)
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
         let asian = mc_asian_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call,
-            AsianAveraging::Arithmetic, &engine,
-        ).expect("asian failed");
-        let european = mc_european_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine,
-        ).expect("european failed");
+            100.0,
+            100.0,
+            0.05,
+            0.2,
+            1.0,
+            OptionType::Call,
+            AsianAveraging::Arithmetic,
+            &engine,
+        )
+        .expect("asian failed");
+        let european = mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("european failed");
         // Asian should be strictly cheaper for ATM calls with T > 0
         assert!(
             asian.price < european.price * 1.01,
@@ -1346,9 +1369,17 @@ mod tests {
         // Up-and-out with barrier at S0: should knock out almost immediately
         let engine = MonteCarloEngine::new(2000, 100, SEED);
         let result = mc_barrier_option(
-            150.0, 100.0, 0.05, 0.2, 1.0, 100.0, // barrier below spot
-            OptionType::Call, BarrierType::DownAndOut, &engine,
-        ).expect("barrier failed");
+            150.0,
+            100.0,
+            0.05,
+            0.2,
+            1.0,
+            100.0, // barrier below spot
+            OptionType::Call,
+            BarrierType::DownAndOut,
+            &engine,
+        )
+        .expect("barrier failed");
         // All paths start at 150 > 100, so down-and-out immediately active (not knocked)
         // Wait: paths start at S0=150 which is ABOVE barrier=100. For DownAndOut they get
         // knocked if price goes below 100. Price starts at 150, so many survive.
@@ -1359,13 +1390,20 @@ mod tests {
     fn test_barrier_up_and_out_reduces_price() {
         // Up-and-out call with high barrier should be cheaper than European call
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
-        let european = mc_european_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine,
-        ).expect("european failed");
+        let european = mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("european failed");
         let uao = mc_barrier_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, 120.0, // barrier 20% OTM
-            OptionType::Call, BarrierType::UpAndOut, &engine,
-        ).expect("barrier failed");
+            100.0,
+            100.0,
+            0.05,
+            0.2,
+            1.0,
+            120.0, // barrier 20% OTM
+            OptionType::Call,
+            BarrierType::UpAndOut,
+            &engine,
+        )
+        .expect("barrier failed");
         assert!(
             uao.price < european.price,
             "Up-and-out ({:.4}) should be < European ({:.4})",
@@ -1378,13 +1416,20 @@ mod tests {
     fn test_barrier_down_and_out_below_spot() {
         // Down-and-out call with very low barrier should approximate European
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
-        let european = mc_european_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine,
-        ).expect("european failed");
+        let european = mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("european failed");
         let dao = mc_barrier_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, 10.0, // barrier very deep OTM
-            OptionType::Call, BarrierType::DownAndOut, &engine,
-        ).expect("barrier failed");
+            100.0,
+            100.0,
+            0.05,
+            0.2,
+            1.0,
+            10.0, // barrier very deep OTM
+            OptionType::Call,
+            BarrierType::DownAndOut,
+            &engine,
+        )
+        .expect("barrier failed");
         // Very low barrier => rarely knocked out => price ~ European
         assert!(
             (dao.price - european.price).abs() / european.price < 0.15,
@@ -1399,12 +1444,10 @@ mod tests {
     #[test]
     fn test_lookback_call_more_expensive_than_european() {
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
-        let lookback = mc_lookback_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine,
-        ).expect("lookback failed");
-        let european = mc_european_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine,
-        ).expect("european failed");
+        let lookback = mc_lookback_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("lookback failed");
+        let european = mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("european failed");
         // Lookback uses max price so is always >= European payoff
         assert!(
             lookback.price >= european.price * 0.9,
@@ -1419,12 +1462,11 @@ mod tests {
     #[test]
     fn test_american_put_more_expensive_than_european() {
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
-        let american = mc_american_option_lsm(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put, &engine, 3,
-        ).expect("american lsm failed");
-        let european = mc_european_option(
-            100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put, &engine,
-        ).expect("european failed");
+        let american =
+            mc_american_option_lsm(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put, &engine, 3)
+                .expect("american lsm failed");
+        let european = mc_european_option(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put, &engine)
+            .expect("european failed");
         // American >= European (early exercise premium)
         assert!(
             american.price >= european.price * 0.95,
@@ -1439,9 +1481,8 @@ mod tests {
     #[test]
     fn test_greeks_delta_call_positive() {
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
-        let greeks =
-            mc_greeks(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
-                .expect("greeks failed");
+        let greeks = mc_greeks(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("greeks failed");
         // Delta of ATM call should be around 0.5
         assert!(
             greeks.delta > 0.3 && greeks.delta < 0.7,
@@ -1453,9 +1494,8 @@ mod tests {
     #[test]
     fn test_greeks_delta_put_negative() {
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
-        let greeks =
-            mc_greeks(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put, &engine)
-                .expect("greeks failed");
+        let greeks = mc_greeks(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Put, &engine)
+            .expect("greeks failed");
         // Delta of ATM put should be around -0.5
         assert!(
             greeks.delta < 0.0,
@@ -1467,10 +1507,13 @@ mod tests {
     #[test]
     fn test_greeks_vega_positive() {
         let engine = MonteCarloEngine::new(N_PATHS, N_STEPS, SEED);
-        let greeks =
-            mc_greeks(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
-                .expect("greeks failed");
-        assert!(greeks.vega > 0.0, "Vega should be positive, got {:.4}", greeks.vega);
+        let greeks = mc_greeks(100.0, 100.0, 0.05, 0.2, 1.0, OptionType::Call, &engine)
+            .expect("greeks failed");
+        assert!(
+            greeks.vega > 0.0,
+            "Vega should be positive, got {:.4}",
+            greeks.vega
+        );
     }
 
     // --- Heston model ---
@@ -1481,19 +1524,25 @@ mod tests {
         let n_steps = 100;
         let (price_paths, vol_paths) = generate_heston_paths(
             100.0, 0.04, 0.05, 2.0, 0.04, 0.3, -0.7, 1.0, n_paths, n_steps, SEED,
-        ).expect("heston failed");
+        )
+        .expect("heston failed");
         assert_eq!(price_paths.shape(), &[n_paths, n_steps + 1]);
         assert_eq!(vol_paths.shape(), &[n_paths, n_steps + 1]);
     }
 
     #[test]
     fn test_heston_paths_positive_prices() {
-        let (price_paths, _) = generate_heston_paths(
-            100.0, 0.04, 0.05, 2.0, 0.04, 0.3, -0.7, 1.0, 200, 100, SEED,
-        ).expect("heston failed");
+        let (price_paths, _) =
+            generate_heston_paths(100.0, 0.04, 0.05, 2.0, 0.04, 0.3, -0.7, 1.0, 200, 100, SEED)
+                .expect("heston failed");
         for i in 0..200 {
             for j in 0..=100 {
-                assert!(price_paths[[i, j]] > 0.0, "Non-positive price at [{}, {}]", i, j);
+                assert!(
+                    price_paths[[i, j]] > 0.0,
+                    "Non-positive price at [{}, {}]",
+                    i,
+                    j
+                );
             }
         }
     }
@@ -1502,8 +1551,19 @@ mod tests {
     fn test_heston_european_call_positive() {
         let engine = MonteCarloEngine::new(5000, 100, SEED);
         let result = mc_heston_european(
-            100.0, 0.04, 100.0, 0.05, 2.0, 0.04, 0.3, -0.7, 1.0, OptionType::Call, &engine,
-        ).expect("heston european failed");
+            100.0,
+            0.04,
+            100.0,
+            0.05,
+            2.0,
+            0.04,
+            0.3,
+            -0.7,
+            1.0,
+            OptionType::Call,
+            &engine,
+        )
+        .expect("heston european failed");
         assert!(result.price > 0.0);
         // Roughly within range of BS price
         let bs = bs_call(100.0, 100.0, 0.05, 0.2, 1.0);
@@ -1519,10 +1579,16 @@ mod tests {
         let weights = array![0.5, 0.5];
         let mu = array![0.08, 0.10];
         let cov = Array2::from_shape_vec((2, 2), vec![0.04, 0.01, 0.01, 0.09]).expect("cov");
-        let (var, cvar) = mc_portfolio_var(&prices, &weights, &mu, &cov, 1.0 / 252.0, 0.99, 10000, SEED)
-            .expect("var failed");
+        let (var, cvar) =
+            mc_portfolio_var(&prices, &weights, &mu, &cov, 1.0 / 252.0, 0.99, 10000, SEED)
+                .expect("var failed");
         assert!(var >= 0.0, "VaR should be non-negative, got {:.4}", var);
-        assert!(cvar >= var * 0.9, "CVaR ({:.4}) should be >= VaR ({:.4})", cvar, var);
+        assert!(
+            cvar >= var * 0.9,
+            "CVaR ({:.4}) should be >= VaR ({:.4})",
+            cvar,
+            var
+        );
     }
 
     #[test]
@@ -1532,10 +1598,16 @@ mod tests {
         let weights = array![1.0];
         let mu = array![0.05];
         let cov = Array2::from_shape_vec((1, 1), vec![0.04]).expect("cov");
-        let (var, cvar) = mc_portfolio_var(&prices, &weights, &mu, &cov, 1.0 / 52.0, 0.95, 5000, SEED)
-            .expect("var failed");
+        let (var, cvar) =
+            mc_portfolio_var(&prices, &weights, &mu, &cov, 1.0 / 52.0, 0.95, 5000, SEED)
+                .expect("var failed");
         // CVaR >= VaR by construction
-        assert!(cvar >= var * 0.95, "CVaR ({:.4}) must be >= VaR ({:.4})", cvar, var);
+        assert!(
+            cvar >= var * 0.95,
+            "CVaR ({:.4}) must be >= VaR ({:.4})",
+            cvar,
+            var
+        );
     }
 
     #[test]
@@ -1545,8 +1617,7 @@ mod tests {
         let weights = array![1.0];
         let mu = array![0.05];
         let cov = Array2::from_shape_vec((1, 1), vec![0.04]).expect("cov");
-        let result =
-            mc_portfolio_var(&prices, &weights, &mu, &cov, 1.0 / 52.0, 1.5, 100, SEED);
+        let result = mc_portfolio_var(&prices, &weights, &mu, &cov, 1.0 / 52.0, 1.5, 100, SEED);
         assert!(result.is_err());
     }
 
@@ -1562,7 +1633,11 @@ mod tests {
     fn test_sobol_sequence_range() {
         let seq = sobol_sequence(200, 5, 0);
         for val in seq.iter() {
-            assert!(*val >= 0.0 && *val < 1.0, "Sobol value out of range: {}", val);
+            assert!(
+                *val >= 0.0 && *val < 1.0,
+                "Sobol value out of range: {}",
+                val
+            );
         }
     }
 

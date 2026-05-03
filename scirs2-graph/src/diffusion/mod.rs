@@ -27,8 +27,8 @@ pub mod models;
 pub mod ris;
 
 pub use influence_max::{
-    celf_influence_max, celf_plus_plus, degree_heuristic, greedy_influence_max,
-    pagerank_heuristic, InfluenceMaxConfig, InfluenceMaxResult,
+    celf_influence_max, celf_plus_plus, degree_heuristic, greedy_influence_max, pagerank_heuristic,
+    InfluenceMaxConfig, InfluenceMaxResult,
 };
 pub use models::{
     expected_spread, simulate_ic, simulate_lt, simulate_sir, simulate_sis, IndependentCascade,

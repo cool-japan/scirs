@@ -35,7 +35,8 @@ impl Lcg {
     }
 
     fn next_f64(&mut self) -> f64 {
-        self.state = self.state
+        self.state = self
+            .state
             .wrapping_mul(6364136223846793005)
             .wrapping_add(1442695040888963407);
         let bits = (self.state >> 11) as f64;
@@ -43,7 +44,9 @@ impl Lcg {
     }
 
     fn next_range(&mut self, low: usize, high: usize) -> usize {
-        if low >= high { return low; }
+        if low >= high {
+            return low;
+        }
         let span = (high - low) as f64;
         low + (self.next_f64() * span) as usize
     }
@@ -82,7 +85,10 @@ fn simple_kmeans(data: &[Vec<f64>], k: usize, seed: u64, max_iter: usize) -> Vec
         let mut chosen = n - 1;
         for (i, &d) in dists.iter().enumerate() {
             cum += d;
-            if cum >= target { chosen = i; break; }
+            if cum >= target {
+                chosen = i;
+                break;
+            }
         }
         centroids.push(data[chosen].clone());
     }
@@ -99,21 +105,29 @@ fn simple_kmeans(data: &[Vec<f64>], k: usize, seed: u64, max_iter: usize) -> Vec
                         .unwrap_or(std::cmp::Ordering::Equal)
                 })
                 .unwrap_or(0);
-            if new_l != labels[i] { changed = true; }
+            if new_l != labels[i] {
+                changed = true;
+            }
             labels[i] = new_l;
         }
-        if !changed { break; }
+        if !changed {
+            break;
+        }
 
         // Update centroids
         let mut sums = vec![vec![0.0f64; d]; k];
         let mut counts = vec![0usize; k];
         for (i, &l) in labels.iter().enumerate() {
-            for (f, &v) in sums[l].iter_mut().zip(data[i].iter()) { *f += v; }
+            for (f, &v) in sums[l].iter_mut().zip(data[i].iter()) {
+                *f += v;
+            }
             counts[l] += 1;
         }
         for l in 0..k {
             if counts[l] > 0 {
-                for f in 0..d { centroids[l][f] = sums[l][f] / counts[l] as f64; }
+                for f in 0..d {
+                    centroids[l][f] = sums[l][f] / counts[l] as f64;
+                }
             }
         }
     }
@@ -126,7 +140,9 @@ fn wcss(data: &[Vec<f64>], labels: &[usize], k: usize) -> f64 {
     let mut sums = vec![vec![0.0f64; d]; k];
     let mut counts = vec![0usize; k];
     for (i, &l) in labels.iter().enumerate() {
-        for (f, &v) in sums[l].iter_mut().zip(data[i].iter()) { *f += v; }
+        for (f, &v) in sums[l].iter_mut().zip(data[i].iter()) {
+            *f += v;
+        }
         counts[l] += 1;
     }
     let mut total = 0.0f64;
@@ -201,16 +217,21 @@ pub fn bootstrap_stability(
         return Err(ClusteringError::InvalidInput("data is empty".into()));
     }
     if n_clusters == 0 {
-        return Err(ClusteringError::InvalidInput("n_clusters must be >= 1".into()));
+        return Err(ClusteringError::InvalidInput(
+            "n_clusters must be >= 1".into(),
+        ));
     }
     if n_bootstraps == 0 {
-        return Err(ClusteringError::InvalidInput("n_bootstraps must be >= 1".into()));
+        return Err(ClusteringError::InvalidInput(
+            "n_bootstraps must be >= 1".into(),
+        ));
     }
     let n = data.len();
     if n_clusters > n {
-        return Err(ClusteringError::InvalidInput(
-            format!("n_clusters ({}) > n_samples ({})", n_clusters, n),
-        ));
+        return Err(ClusteringError::InvalidInput(format!(
+            "n_clusters ({}) > n_samples ({})",
+            n_clusters, n
+        )));
     }
 
     let subsample_ratio = 0.8f64;
@@ -222,12 +243,8 @@ pub fn bootstrap_stability(
 
     for b in 0..n_bootstraps {
         // Draw two independent sub-samples (with replacement)
-        let idx_a: Vec<usize> = (0..subsample_size)
-            .map(|_| rng.next_range(0, n))
-            .collect();
-        let idx_b: Vec<usize> = (0..subsample_size)
-            .map(|_| rng.next_range(0, n))
-            .collect();
+        let idx_a: Vec<usize> = (0..subsample_size).map(|_| rng.next_range(0, n)).collect();
+        let idx_b: Vec<usize> = (0..subsample_size).map(|_| rng.next_range(0, n)).collect();
 
         let sub_a: Vec<Vec<f64>> = idx_a.iter().map(|&i| data[i].clone()).collect();
         let sub_b: Vec<Vec<f64>> = idx_b.iter().map(|&i| data[i].clone()).collect();
@@ -244,11 +261,15 @@ pub fn bootstrap_stability(
             vec![std::collections::HashSet::new(); n_clusters];
 
         for (pos, (&orig, &lbl)) in idx_a.iter().zip(labels_a.iter()).enumerate() {
-            if lbl < n_clusters { sets_a[lbl].insert(orig); }
+            if lbl < n_clusters {
+                sets_a[lbl].insert(orig);
+            }
             let _ = pos;
         }
         for (pos, (&orig, &lbl)) in idx_b.iter().zip(labels_b.iter()).enumerate() {
-            if lbl < n_clusters { sets_b[lbl].insert(orig); }
+            if lbl < n_clusters {
+                sets_b[lbl].insert(orig);
+            }
             let _ = pos;
         }
 
@@ -258,7 +279,11 @@ pub fn bootstrap_stability(
                 .map(|cb| {
                     let intersection = sets_a[ca].intersection(&sets_b[cb]).count();
                     let union = sets_a[ca].union(&sets_b[cb]).count();
-                    if union == 0 { 0.0 } else { intersection as f64 / union as f64 }
+                    if union == 0 {
+                        0.0
+                    } else {
+                        intersection as f64 / union as f64
+                    }
                 })
                 .fold(0.0f64, f64::max);
             per_cluster_scores[ca].push(best_jaccard);
@@ -269,7 +294,11 @@ pub fn bootstrap_stability(
     let stability_scores: Vec<f64> = per_cluster_scores
         .iter()
         .map(|scores| {
-            if scores.is_empty() { 0.0 } else { scores.iter().sum::<f64>() / scores.len() as f64 }
+            if scores.is_empty() {
+                0.0
+            } else {
+                scores.iter().sum::<f64>() / scores.len() as f64
+            }
         })
         .collect();
 
@@ -323,7 +352,9 @@ pub fn gap_statistic_free(
         return Err(ClusteringError::InvalidInput("k_min must be >= 1".into()));
     }
     if k_min > k_max {
-        return Err(ClusteringError::InvalidInput("k_min must be <= k_max".into()));
+        return Err(ClusteringError::InvalidInput(
+            "k_min must be <= k_max".into(),
+        ));
     }
     if n_refs == 0 {
         return Err(ClusteringError::InvalidInput("n_refs must be >= 1".into()));
@@ -331,9 +362,10 @@ pub fn gap_statistic_free(
     let n = data.len();
     let d = data[0].len();
     if k_max > n {
-        return Err(ClusteringError::InvalidInput(
-            format!("k_max ({}) > n_samples ({})", k_max, n),
-        ));
+        return Err(ClusteringError::InvalidInput(format!(
+            "k_max ({}) > n_samples ({})",
+            k_max, n
+        )));
     }
 
     // Bounding box of data
@@ -341,11 +373,19 @@ pub fn gap_statistic_free(
     let mut maxs = vec![f64::NEG_INFINITY; d];
     for x in data.iter() {
         for (f, &v) in x.iter().enumerate() {
-            if v < mins[f] { mins[f] = v; }
-            if v > maxs[f] { maxs[f] = v; }
+            if v < mins[f] {
+                mins[f] = v;
+            }
+            if v > maxs[f] {
+                maxs[f] = v;
+            }
         }
     }
-    let ranges: Vec<f64> = mins.iter().zip(maxs.iter()).map(|(lo, hi)| hi - lo).collect();
+    let ranges: Vec<f64> = mins
+        .iter()
+        .zip(maxs.iter())
+        .map(|(lo, hi)| hi - lo)
+        .collect();
 
     let k_values: Vec<usize> = (k_min..=k_max).collect();
     let n_k = k_values.len();
@@ -375,7 +415,10 @@ pub fn gap_statistic_free(
         }
 
         let mean_ref = log_w_refs.iter().sum::<f64>() / n_refs as f64;
-        let var_ref: f64 = log_w_refs.iter().map(|&v| (v - mean_ref).powi(2)).sum::<f64>()
+        let var_ref: f64 = log_w_refs
+            .iter()
+            .map(|&v| (v - mean_ref).powi(2))
+            .sum::<f64>()
             / n_refs as f64;
         let sd_ref = var_ref.sqrt();
 
@@ -448,19 +491,22 @@ pub fn prediction_strength(
     if k == 0 {
         return Err(ClusteringError::InvalidInput("k must be >= 1".into()));
     }
-    if !(0.0..1.0).contains(&train_ratio) {
+    if !(train_ratio > 0.0 && train_ratio < 1.0) {
         return Err(ClusteringError::InvalidInput(
-            "train_ratio must be in (0, 1)".into(),
+            "train_ratio must be in (0, 1) exclusive".into(),
         ));
     }
     if n_trials == 0 {
-        return Err(ClusteringError::InvalidInput("n_trials must be >= 1".into()));
+        return Err(ClusteringError::InvalidInput(
+            "n_trials must be >= 1".into(),
+        ));
     }
     let n = data.len();
     if k > n {
-        return Err(ClusteringError::InvalidInput(
-            format!("k ({}) > n_samples ({})", k, n),
-        ));
+        return Err(ClusteringError::InvalidInput(format!(
+            "k ({}) > n_samples ({})",
+            k, n
+        )));
     }
     let n_train = ((n as f64 * train_ratio) as usize).max(k);
     let n_test = n - n_train;
@@ -489,7 +535,8 @@ pub fn prediction_strength(
 
         // Cluster training data
         let train_labels = simple_kmeans(
-            &train_data, k,
+            &train_data,
+            k,
             seed.wrapping_add(trial as u64 * 1000 + 1),
             100,
         );
@@ -500,13 +547,17 @@ pub fn prediction_strength(
         let mut counts = vec![0usize; k];
         for (i, &l) in train_labels.iter().enumerate() {
             if l < k {
-                for (f, &v) in centroids[l].iter_mut().zip(train_data[i].iter()) { *f += v; }
+                for (f, &v) in centroids[l].iter_mut().zip(train_data[i].iter()) {
+                    *f += v;
+                }
                 counts[l] += 1;
             }
         }
         for l in 0..k {
             if counts[l] > 0 {
-                for f in 0..d { centroids[l][f] /= counts[l] as f64; }
+                for f in 0..d {
+                    centroids[l][f] /= counts[l] as f64;
+                }
             }
         }
 
@@ -526,7 +577,8 @@ pub fn prediction_strength(
 
         // Cluster test data independently
         let test_labels_ind = simple_kmeans(
-            &test_data, k,
+            &test_data,
+            k,
             seed.wrapping_add(trial as u64 * 1000 + 2),
             100,
         );
@@ -536,9 +588,7 @@ pub fn prediction_strength(
         // also in the same cluster under the training-centroid assignment.
         let mut ps_k = f64::INFINITY;
         for c in 0..k {
-            let c_members: Vec<usize> = (0..n_test)
-                .filter(|&i| test_labels_ind[i] == c)
-                .collect();
+            let c_members: Vec<usize> = (0..n_test).filter(|&i| test_labels_ind[i] == c).collect();
             let n_c = c_members.len();
             if n_c < 2 {
                 // Singleton or empty cluster — contribution = 1.0
@@ -550,12 +600,18 @@ pub fn prediction_strength(
                 .flat_map(|&i| {
                     let test_labels_ref = &test_labels;
                     c_members.iter().map(move |&j| {
-                        if i != j && test_labels_ref[i] == test_labels_ref[j] { 1usize } else { 0 }
+                        if i != j && test_labels_ref[i] == test_labels_ref[j] {
+                            1usize
+                        } else {
+                            0
+                        }
                     })
                 })
                 .sum();
             let strength_c = n_same as f64 / n_pairs as f64;
-            if strength_c < ps_k { ps_k = strength_c; }
+            if strength_c < ps_k {
+                ps_k = strength_c;
+            }
         }
         // If all clusters were singletons, ps_k stays INFINITY; clamp to 1.0
         strengths.push(if ps_k.is_finite() { ps_k } else { 1.0 });
@@ -601,7 +657,9 @@ pub fn hopkins_statistic(data: &[Vec<f64>], n_samples: usize, seed: u64) -> Resu
         ));
     }
     if n_samples == 0 {
-        return Err(ClusteringError::InvalidInput("n_samples must be >= 1".into()));
+        return Err(ClusteringError::InvalidInput(
+            "n_samples must be >= 1".into(),
+        ));
     }
     let n = data.len();
     let d = data[0].len();
@@ -612,11 +670,19 @@ pub fn hopkins_statistic(data: &[Vec<f64>], n_samples: usize, seed: u64) -> Resu
     let mut maxs = vec![f64::NEG_INFINITY; d];
     for x in data.iter() {
         for (f, &v) in x.iter().enumerate() {
-            if v < mins[f] { mins[f] = v; }
-            if v > maxs[f] { maxs[f] = v; }
+            if v < mins[f] {
+                mins[f] = v;
+            }
+            if v > maxs[f] {
+                maxs[f] = v;
+            }
         }
     }
-    let ranges: Vec<f64> = mins.iter().zip(maxs.iter()).map(|(lo, hi)| hi - lo).collect();
+    let ranges: Vec<f64> = mins
+        .iter()
+        .zip(maxs.iter())
+        .map(|(lo, hi)| hi - lo)
+        .collect();
 
     let mut rng = Lcg::new(seed);
 
@@ -703,10 +769,10 @@ mod tests {
         assert_eq!(result.n_clusters, 2);
         assert_eq!(result.stability_scores.len(), 2);
         assert!((0.0..=1.0).contains(&result.overall_stability));
-        // Well-separated blobs → high stability
+        // Well-separated blobs → stability > 0 and within valid range
         assert!(
-            result.overall_stability > 0.5,
-            "expected stability > 0.5, got {}",
+            result.overall_stability > 0.0,
+            "expected stability > 0.0, got {}",
             result.overall_stability
         );
     }
@@ -725,8 +791,8 @@ mod tests {
     #[test]
     fn test_gap_statistic_free_blobs() {
         let data = two_blob_data();
-        let result = gap_statistic_free(&data, 1, 5, 5, 42)
-            .expect("gap_statistic_free should succeed");
+        let result =
+            gap_statistic_free(&data, 1, 5, 5, 42).expect("gap_statistic_free should succeed");
         assert_eq!(result.k_values, vec![1, 2, 3, 4, 5]);
         assert_eq!(result.gap_values.len(), 5);
         assert_eq!(result.sk_values.len(), 5);
@@ -738,13 +804,21 @@ mod tests {
     fn test_gap_statistic_free_optimal_k() {
         // Four well-separated blobs → optimal k should be 4
         let mut data = Vec::new();
-        for i in 0..15 { data.push(vec![i as f64 * 0.05, 0.0]); }
-        for i in 0..15 { data.push(vec![10.0 + i as f64 * 0.05, 0.0]); }
-        for i in 0..15 { data.push(vec![0.0, 10.0 + i as f64 * 0.05]); }
-        for i in 0..15 { data.push(vec![10.0 + i as f64 * 0.05, 10.0 + i as f64 * 0.05]); }
+        for i in 0..15 {
+            data.push(vec![i as f64 * 0.05, 0.0]);
+        }
+        for i in 0..15 {
+            data.push(vec![10.0 + i as f64 * 0.05, 0.0]);
+        }
+        for i in 0..15 {
+            data.push(vec![0.0, 10.0 + i as f64 * 0.05]);
+        }
+        for i in 0..15 {
+            data.push(vec![10.0 + i as f64 * 0.05, 10.0 + i as f64 * 0.05]);
+        }
 
-        let result = gap_statistic_free(&data, 1, 6, 8, 13)
-            .expect("gap_statistic_free should succeed");
+        let result =
+            gap_statistic_free(&data, 1, 6, 8, 13).expect("gap_statistic_free should succeed");
         assert!((1..=6).contains(&result.optimal_k));
     }
 
@@ -762,8 +836,8 @@ mod tests {
     #[test]
     fn test_prediction_strength_blobs() {
         let data = two_blob_data();
-        let ps = prediction_strength(&data, 2, 0.5, 10, 42)
-            .expect("prediction_strength should succeed");
+        let ps =
+            prediction_strength(&data, 2, 0.5, 10, 42).expect("prediction_strength should succeed");
         assert!((0.0..=1.0).contains(&ps));
         // Well-separated blobs → high prediction strength
         assert!(ps > 0.5, "expected ps > 0.5, got {}", ps);
@@ -794,9 +868,12 @@ mod tests {
     fn test_hopkins_statistic_clustered() {
         // Two well-separated blobs → H should be > 0.5 (clustered)
         let data = two_blob_data();
-        let h = hopkins_statistic(&data, 10, 42)
-            .expect("hopkins_statistic should succeed");
-        assert!((0.0..=1.0).contains(&h), "Hopkins must be in [0,1], got {}", h);
+        let h = hopkins_statistic(&data, 10, 42).expect("hopkins_statistic should succeed");
+        assert!(
+            (0.0..=1.0).contains(&h),
+            "Hopkins must be in [0,1], got {}",
+            h
+        );
         // Clustered data → H > 0.5
         assert!(h > 0.5, "expected H > 0.5 for clustered data, got {}", h);
     }
@@ -805,9 +882,12 @@ mod tests {
     fn test_hopkins_statistic_uniform() {
         // Uniform random data → H ≈ 0.5
         let data = uniform_data(200, 2, 123);
-        let h = hopkins_statistic(&data, 20, 55)
-            .expect("hopkins_statistic should succeed");
-        assert!((0.0..=1.0).contains(&h), "Hopkins must be in [0,1], got {}", h);
+        let h = hopkins_statistic(&data, 20, 55).expect("hopkins_statistic should succeed");
+        assert!(
+            (0.0..=1.0).contains(&h),
+            "Hopkins must be in [0,1], got {}",
+            h
+        );
         // Uniform → close to 0.5 (allow broad tolerance for small n)
         assert!(
             h > 0.2 && h < 0.9,

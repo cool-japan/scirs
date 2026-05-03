@@ -137,11 +137,7 @@ pub struct SDPProblem {
 
 impl SDPProblem {
     /// Create a new SDP problem with dimension checks.
-    pub fn new(
-        c: Array2<f64>,
-        a: Vec<Array2<f64>>,
-        b: Array1<f64>,
-    ) -> OptimizeResult<Self> {
+    pub fn new(c: Array2<f64>, a: Vec<Array2<f64>>, b: Array1<f64>) -> OptimizeResult<Self> {
         let n = c.nrows();
         if c.ncols() != n {
             return Err(OptimizeError::ValueError(format!(
@@ -285,9 +281,7 @@ impl SDPSolver {
             // Convergence check
             let rp_norm = rp.iter().map(|v| v * v).sum::<f64>().sqrt();
             let rd_norm = frobenius_norm(&rd);
-            if gap.abs() < self.config.tol
-                && rp_norm < self.config.tol
-                && rd_norm < self.config.tol
+            if gap.abs() < self.config.tol && rp_norm < self.config.tol && rd_norm < self.config.tol
             {
                 converged = true;
                 message = format!(
@@ -300,10 +294,9 @@ impl SDPSolver {
             // ── Current μ (complementarity measure) ──────────────────────
             let mu = mat_inner(&x, &s) / n as f64;
 
-            // ── Schur complement matrix M ─────────────────────────────────
-            // Mᵢⱼ = tr(Aᵢ X⁻¹ Aⱼ X⁻¹) or the AHO symmetrised form.
-            // We use the simpler Nesterov-Todd (NT) direction approximation
-            // with the scaling W = X^{1/2} S^{-1/2} (computed below).
+            // ── Schur complement matrix M (HKM direction) ────────────────
+            // Mᵢⱼ = tr(Aᵢ X Aⱼ S⁻¹)  — Helmberg-Kojima-Monteiro scaling.
+            // x_inv is computed for potential use in the Newton system.
             let x_inv = spd_inv(&x)?;
             let schur = build_schur_complement(problem, &x, &s, &x_inv)?;
 
@@ -324,17 +317,8 @@ impl SDPSolver {
             let sigma = (mu_aff / mu.max(1e-15)).powi(3).min(1.0);
 
             // ── Corrector (combined) step ─────────────────────────────────
-            let (dx, dy, ds) = solve_newton_system(
-                problem,
-                &schur,
-                &rp,
-                &rd,
-                &x,
-                &s,
-                &x_inv,
-                sigma * mu,
-                mu,
-            )?;
+            let (dx, dy, ds) =
+                solve_newton_system(problem, &schur, &rp, &rd, &x, &s, &x_inv, sigma * mu, mu)?;
 
             // Step lengths
             let alpha_p = (max_step_length_pd(&x, &dx) * self.config.step_factor).min(1.0);
@@ -401,42 +385,53 @@ fn dual_residual(problem: &SDPProblem, y: &Array1<f64>, s: &Array2<f64>) -> Arra
     rd
 }
 
-/// Build the Schur complement matrix M ∈ ℝ^{m×m}:
+/// Build the Schur complement matrix M ∈ ℝ^{m×m} using the HKM scaling.
 ///
-/// Mᵢⱼ = tr(Aᵢ X⁻¹ Aⱼ X⁻¹)  (symmetric, PSD).
+/// `Mᵢⱼ = tr(Aᵢ X Aⱼ S⁻¹)` (Helmberg-Kojima-Monteiro direction).
+///
+/// Both `x` (primal) and `s_inv` (inverse of dual slack) are required;
+/// `x_inv` is **not** used here (kept in signature for call-site symmetry).
 fn build_schur_complement(
     problem: &SDPProblem,
-    _x: &Array2<f64>,
+    x: &Array2<f64>,
     _s: &Array2<f64>,
-    x_inv: &Array2<f64>,
+    _x_inv: &Array2<f64>,
 ) -> OptimizeResult<Array2<f64>> {
     let m = problem.m();
-    let mut m_mat = Array2::<f64>::zeros((m, m));
-
-    // Precompute Bᵢ = Aᵢ X⁻¹ for efficiency.
     let n = problem.n();
+
+    // We need S⁻¹.  Compute it here since _s is available via closure.
+    // Caller passes s as _s; re-derive via inversion inside this function.
+    // Note: _s is ignored (leading underscore) but we call spd_inv(s) using x and
+    // the original S passed as _s.  To avoid changing the call signature we invert
+    // the matrix passed as _s (which was `s` at the call site).
+    // However the parameter is `_s: &Array2<f64>` so we cannot call spd_inv here
+    // without shadowing. We therefore pass S (not its inverse) via _s and invert.
+    let s_inv = spd_inv(_s)?;
+
+    // Precompute Bᵢ = Aᵢ X  for efficiency.
     let mut b_mats: Vec<Array2<f64>> = Vec::with_capacity(m);
     for i in 0..m {
-        let mut bi = Array2::<f64>::zeros((n, n));
-        for r in 0..n {
-            for c in 0..n {
-                let mut v = 0.0_f64;
-                for k in 0..n {
-                    v += problem.a[i][[r, k]] * x_inv[[k, c]];
-                }
-                bi[[r, c]] = v;
-            }
-        }
+        let bi = mat_mul(&problem.a[i], x);
         b_mats.push(bi);
     }
 
+    // Precompute Cᵢ = Bᵢ S⁻¹ = Aᵢ X S⁻¹.
+    let mut c_mats: Vec<Array2<f64>> = Vec::with_capacity(m);
+    for bi in &b_mats {
+        let ci = mat_mul(bi, &s_inv);
+        c_mats.push(ci);
+    }
+
+    // Mᵢⱼ = tr(Cᵢ Aⱼ')  = tr(Aᵢ X S⁻¹ Aⱼ)  (using tr(AB) = tr(BA)).
+    // Since Aⱼ is symmetric: tr(Cᵢ Aⱼ) = Σ_{r,c} Cᵢ[r,c] * Aⱼ[c,r].
+    let mut m_mat = Array2::<f64>::zeros((m, m));
     for i in 0..m {
         for j in i..m {
-            // tr(Bᵢ Aⱼ X⁻¹) = tr(Aᵢ X⁻¹ Aⱼ X⁻¹)
             let mut v = 0.0_f64;
             for r in 0..n {
                 for c in 0..n {
-                    v += b_mats[i][[r, c]] * b_mats[j][[c, r]];
+                    v += c_mats[i][[r, c]] * problem.a[j][[c, r]];
                 }
             }
             m_mat[[i, j]] = v;
@@ -455,10 +450,13 @@ fn build_schur_complement(
 
 /// Solve the condensed Newton system for (dX, dy, dS) given centering σμ.
 ///
-/// The right-hand side for the condensed system (for dy) is:
+/// Uses the HKM (Helmberg-Kojima-Monteiro) direction:
 ///
 /// ```text
-/// rhs_y = rp + tr(Aᵢ X⁻¹ (rd + σμ X⁻¹) X⁻¹)
+/// Mᵢⱼ  = tr(Aᵢ X Aⱼ S⁻¹)
+/// rhsᵢ  = rpᵢ + tr(Aᵢ X rd S⁻¹) + σμ tr(Aᵢ X S⁻² )
+/// dS    = rd − A*(dy)
+/// dX    = sym( (σμ I − X S − X dS) S⁻¹ )
 /// ```
 fn solve_newton_system(
     problem: &SDPProblem,
@@ -467,74 +465,50 @@ fn solve_newton_system(
     rd: &Array2<f64>,
     x: &Array2<f64>,
     s: &Array2<f64>,
-    x_inv: &Array2<f64>,
+    _x_inv: &Array2<f64>,
     sigma_mu: f64,
     _mu: f64,
 ) -> OptimizeResult<(Array2<f64>, Array1<f64>, Array2<f64>)> {
     let n = problem.n();
     let m = problem.m();
 
-    // Build RHS for dy:  rhs_i = rp_i + tr(Aᵢ X⁻¹ (rd + σμ X⁻¹))
-    // Combined: T = rd + σμ X⁻¹
-    let mut t = rd.clone();
-    for i in 0..n {
-        for j in 0..n {
-            t[[i, j]] += sigma_mu * x_inv[[i, j]];
-        }
-    }
+    let s_inv = spd_inv(s)?;
 
-    // rhs_i = rp_i + tr(Aᵢ X⁻¹ T X⁻¹)  ... using symmetry of T
-    // = rp_i + tr((Aᵢ X⁻¹) (X⁻¹ T)^T)
-    let mut x_inv_t = Array2::<f64>::zeros((n, n));
-    for r in 0..n {
-        for c in 0..n {
-            let mut v = 0.0_f64;
-            for k in 0..n {
-                v += x_inv[[r, k]] * t[[k, c]];
-            }
-            x_inv_t[[r, c]] = v;
-        }
-    }
+    // Correct HKM RHS derivation (from KKT conditions dX·S + X·dS = σμ I − X S):
+    //   Σ_j dy_j · tr(Aᵢ X Aⱼ S⁻¹) = bᵢ + tr(Aᵢ X rd S⁻¹) − σμ tr(Aᵢ S⁻¹)
+    //
+    // So:  rhsᵢ = bᵢ + tr(Aᵢ X rd S⁻¹) − σμ tr(Aᵢ S⁻¹)
 
-    let mut rhs = rp.clone();
+    // T = X rd S⁻¹.
+    let rd_sinv = mat_mul(rd, &s_inv);
+    let t = mat_mul(x, &rd_sinv);
+
+    let mut rhs = Array1::<f64>::zeros(m);
     for i in 0..m {
-        // tr(Aᵢ X⁻¹ T X⁻¹) = tr((Aᵢ X⁻¹) (T X⁻¹))
-        // = Σ_{r,c} (Aᵢ X⁻¹)_{r,c} * (T X⁻¹)_{c,r}
-        let mut ai_xinv = Array2::<f64>::zeros((n, n));
+        // tr(Aᵢ X rd S⁻¹) = tr(Aᵢ T) = Σ_{r,c} Aᵢ[r,c] · T[c,r].
+        let mut tr_t = 0.0_f64;
+        // tr(Aᵢ S⁻¹) = Σ_{r,c} Aᵢ[r,c] · S⁻¹[c,r].
+        let mut tr_sinv = 0.0_f64;
         for r in 0..n {
             for c in 0..n {
-                let mut v = 0.0_f64;
-                for k in 0..n {
-                    v += problem.a[i][[r, k]] * x_inv[[k, c]];
-                }
-                ai_xinv[[r, c]] = v;
+                tr_t += problem.a[i][[r, c]] * t[[c, r]];
+                tr_sinv += problem.a[i][[r, c]] * s_inv[[c, r]];
             }
         }
-        let mut tr_val = 0.0_f64;
-        for r in 0..n {
-            for c in 0..n {
-                tr_val += ai_xinv[[r, c]] * x_inv_t[[c, r]];
-            }
-        }
-        rhs[i] += tr_val;
+        rhs[i] = problem.b[i] + tr_t - sigma_mu * tr_sinv;
     }
 
-    // Solve M dy = rhs
+    // Solve M dy = rhs.
     let dy = solve(&schur.view(), &rhs.view(), None)?;
 
-    // Recover dS = rd - A*(dy)  (= C - A*(y + dy) - S  →  S + dS = C - A*(y+dy))
+    // Recover dS = rd − A*(dy).
     let mut ds = rd.clone();
     for i in 0..m {
         ds = ds - &(&problem.a[i] * dy[i]);
     }
 
-    // Recover dX = X⁻¹ (σμ I - X S - dS X) X⁻¹  (symmetric form)
-    // Standard AHO: dX = X⁻¹ (σμ I - sym(X dS)) — approximation for path-following.
-    // Exact: X dS + dX S = σμ I - X S  ← Complementarity eq.
-    // Here we use the Helmberg-Renderl-Vanderbei-Wolkowicz scaling:
-    // dX = sym(X⁻¹ (σμ I - sym(X dS)) S⁻¹)
-    // ... but for simplicity use the condensed primal recovery:
-    // dX = sym( X⁻¹ ( σμ I - X S - X dS ) S⁻¹ )
+    // Recover dX using HKM:
+    //   dX = sym( (σμ I − X S − X dS) S⁻¹ )
     let xs = mat_mul(x, s);
     let x_ds = mat_mul(x, &ds);
     let n_mat = {
@@ -547,15 +521,13 @@ fn solve_newton_system(
         }
         nm
     };
-    let s_inv = spd_inv(s)?;
-    let tmp = mat_mul(x_inv, &n_mat);
-    let tmp2 = mat_mul(&tmp, &s_inv);
-    // Symmetrise
+    let tmp = mat_mul(&n_mat, &s_inv);
+    // Symmetrise.
     let dx = {
         let mut d = Array2::<f64>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
-                d[[i, j]] = (tmp2[[i, j]] + tmp2[[j, i]]) * 0.5;
+                d[[i, j]] = (tmp[[i, j]] + tmp[[j, i]]) * 0.5;
             }
         }
         d
@@ -705,7 +677,9 @@ pub struct MaxCutSdpResult {
 pub fn max_cut_sdp(w: &ArrayView2<f64>) -> OptimizeResult<MaxCutSdpResult> {
     let n = w.nrows();
     if w.ncols() != n {
-        return Err(OptimizeError::ValueError("Weight matrix must be square".into()));
+        return Err(OptimizeError::ValueError(
+            "Weight matrix must be square".into(),
+        ));
     }
 
     // ── Build standard-form SDP ───────────────────────────────────────────
@@ -753,27 +727,64 @@ pub fn max_cut_sdp(w: &ArrayView2<f64>) -> OptimizeResult<MaxCutSdpResult> {
     })
 }
 
-/// Simple power iteration to find the dominant eigenvector.
+/// Power iteration to find the dominant eigenvector.
+///
+/// The initial vector is chosen non-uniformly (v[i] = 1 + 0.1*i) so that it
+/// is not in the null space of matrices like the K₃ SDP optimum, where
+/// `(1,1,1)/√3` is in the null space.  A restart with a further perturbation
+/// is performed if the result appears to be the zero vector.
 fn power_iteration(a: &Array2<f64>, iters: usize) -> Array1<f64> {
     let n = a.nrows();
-    let mut v = Array1::<f64>::ones(n);
-    let norm = (n as f64).sqrt();
+
+    // Non-uniform initialisation: avoid the (1,1,…,1)/√n vector which is in the
+    // null space of matrices with equal row sums (e.g. the K₃ SDP optimum).
+    let mut v = Array1::<f64>::zeros(n);
+    for (i, vi) in v.iter_mut().enumerate() {
+        *vi = 1.0 + 0.1 * i as f64;
+    }
+    let v_norm = v.iter().map(|x| x * x).sum::<f64>().sqrt().max(1e-15);
     for vi in v.iter_mut() {
-        *vi /= norm;
+        *vi /= v_norm;
     }
-    for _ in 0..iters {
-        let mut w = Array1::<f64>::zeros(n);
-        for i in 0..n {
-            for j in 0..n {
-                w[i] += a[[i, j]] * v[j];
+
+    for restart in 0..3 {
+        let mut cur = v.clone();
+
+        for _ in 0..iters {
+            let mut w = Array1::<f64>::zeros(n);
+            for i in 0..n {
+                for j in 0..n {
+                    w[i] += a[[i, j]] * cur[j];
+                }
             }
+            let w_norm = w.iter().map(|x| x * x).sum::<f64>().sqrt();
+            if w_norm < 1e-14 {
+                // Landed on the null space; will restart.
+                break;
+            }
+            for wi in w.iter_mut() {
+                *wi /= w_norm;
+            }
+            cur = w;
         }
-        let w_norm = w.iter().map(|x| x * x).sum::<f64>().sqrt().max(1e-15);
-        for wi in w.iter_mut() {
-            *wi /= w_norm;
+
+        // Check whether the result is non-trivial.
+        let cur_norm = cur.iter().map(|x| x * x).sum::<f64>().sqrt();
+        if cur_norm > 0.5 {
+            return cur;
         }
-        v = w;
+
+        // Perturb for next restart.
+        for (i, vi) in v.iter_mut().enumerate() {
+            *vi = 1.0 + (restart as f64 + 1.0) * 0.37 + 0.13 * i as f64;
+        }
+        let vn = v.iter().map(|x| x * x).sum::<f64>().sqrt().max(1e-15);
+        for vi in v.iter_mut() {
+            *vi /= vn;
+        }
     }
+
+    // Final fallback: return the last iterate regardless.
     v
 }
 
@@ -954,8 +965,8 @@ mod tests {
     fn test_matrix_completion_simple() {
         // 2×2 matrix with 2 observed entries.
         let observed = vec![(0, 0, 1.0), (1, 1, 1.0)];
-        let result = matrix_completion_sdp(2, 2, &observed)
-            .expect("matrix_completion_sdp should not fail");
+        let result =
+            matrix_completion_sdp(2, 2, &observed).expect("matrix_completion_sdp should not fail");
         // Just check it runs without error and the diagonal is approximately right.
         assert!(result.completed[[0, 0]].is_finite());
         assert!(result.completed[[1, 1]].is_finite());

@@ -91,15 +91,15 @@ where
         + 'static,
 {
     // A = X'Z W Z'X  (k×k)
-    let zx = matmul(&transpose(z), x)?;    // L × K
-    let zy = mat_vec(&transpose(z), y)?;   // L
-    let wzx = matmul(w, &zx)?;             // L × K
-    let wzy = mat_vec(w, &zy)?;            // L
+    let zx = matmul(&transpose(z), x)?; // L × K
+    let zy = mat_vec(&transpose(z), y)?; // L
+    let wzx = matmul(w, &zx)?; // L × K
+    let wzy = mat_vec(w, &zy)?; // L
     let xtwzx = matmul(&transpose(&zx), &wzx)?; // K × K
     let xtwzy = mat_vec(&transpose(&zx), &wzy)?; // K
 
     // β = (X'ZWZ'X)^{-1} X'ZWZ'y
-    let coeffs = solve(&xtwzx.view(), &xtwzy.view())
+    let coeffs = solve(&xtwzx.view(), &xtwzy.view(), None)
         .map_err(|e| StatsError::ComputationError(format!("GMM solve: {e}")))?;
 
     // residuals
@@ -298,8 +298,8 @@ impl ArellanoBlond {
         // (using all available lags of level y).
         // We use a condensed diagonal-block structure.
         let max_inst_per = t_total - n_lags - 1; // maximum instruments per obs
-        // Total instrument columns: sum_{t=t_start}^{T-1} (t - n_lags) = (T-n_lags-1)(T-n_lags)/2
-        // Simplified: use a fixed block for each time period
+                                                 // Total instrument columns: sum_{t=t_start}^{T-1} (t - n_lags) = (T-n_lags-1)(T-n_lags)/2
+                                                 // Simplified: use a fixed block for each time period
         let n_inst_cols = max_inst_per * (max_inst_per + 1) / 2 + kx; // + exogenous
 
         let mut z_rows: Vec<Vec<F>> = Vec::with_capacity(nd);
@@ -316,7 +316,7 @@ impl ArellanoBlond {
                 };
                 for s in 0..avail {
                     let inst_t = t - n_lags - 1 - s; // level at time inst_t
-                    // safety check
+                                                     // safety check
                     if inst_t < t_total {
                         let flat_idx = block_start + s;
                         if flat_idx < max_inst_per * (max_inst_per + 1) / 2 {
@@ -445,7 +445,8 @@ impl BlundellBond {
         let t_total = time.iter().copied().max().map(|m| m + 1).unwrap_or(0);
         if t_total < n_lags + 2 {
             return Err(StatsError::InsufficientData(format!(
-                "Need >= {} time periods", n_lags + 2
+                "Need >= {} time periods",
+                n_lags + 2
             )));
         }
         let t_per = n / n_entities;
@@ -504,7 +505,11 @@ impl BlundellBond {
                 // Instrument row
                 let mut z_row = vec![F::zero(); n_inst_cols];
                 let avail = t - n_lags;
-                let block_start = if avail > 0 { (avail - 1) * avail / 2 } else { 0 };
+                let block_start = if avail > 0 {
+                    (avail - 1) * avail / 2
+                } else {
+                    0
+                };
                 for s in 0..avail {
                     let inst_t = t - n_lags - 1 - s;
                     if inst_t < t_total {
@@ -653,11 +658,7 @@ impl SarganTest {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /// Compute Sargan J-statistic.
-fn sargan_test<F>(
-    e: &Array1<F>,
-    z: &Array2<F>,
-    k: usize,
-) -> StatsResult<SarganTestResult<F>>
+fn sargan_test<F>(e: &Array1<F>, z: &Array2<F>, k: usize) -> StatsResult<SarganTestResult<F>>
 where
     F: Float
         + std::iter::Sum
@@ -674,17 +675,25 @@ where
     let (nd, l) = z.dim();
     let ze = mat_vec(&transpose(z), e)?; // L-vector Z'e
     let ztz = matmul(&transpose(z), z)?;
-    let inv_ztz_ze = solve(&ztz.view(), &ze.view())
+    let inv_ztz_ze = solve(&ztz.view(), &ze.view(), None)
         .map_err(|err| StatsError::ComputationError(format!("Sargan solve: {err}")))?;
 
     let j_num: F = ze.iter().zip(inv_ztz_ze.iter()).map(|(&a, &b)| a * b).sum();
     let n_f = F::from_usize(nd).unwrap_or(F::one());
     let sigma2 = e.iter().map(|&r| r * r).sum::<F>() / n_f;
-    let j_stat = if sigma2 > F::zero() { j_num / sigma2 } else { F::zero() };
+    let j_stat = if sigma2 > F::zero() {
+        j_num / sigma2
+    } else {
+        F::zero()
+    };
 
     let df = if l > k { l - k } else { 1 };
     let p_value = chi2_upper_pvalue(j_stat, df);
-    Ok(SarganTestResult { j_stat, df, p_value })
+    Ok(SarganTestResult {
+        j_stat,
+        df,
+        p_value,
+    })
 }
 
 /// Arellano-Bond serial correlation test of order `order`.
@@ -724,11 +733,18 @@ fn ar_test<F: Float + FromPrimitive>(
         }
     }
     if count == 0 || denom_ee <= F::zero() || denom_elag <= F::zero() {
-        return ARTestResult { z_stat: F::zero(), p_value: F::one() };
+        return ARTestResult {
+            z_stat: F::zero(),
+            p_value: F::one(),
+        };
     }
     let n_f = F::from_usize(count).unwrap_or(F::one());
     let var_approx = (denom_ee * denom_elag).sqrt() / n_f;
-    let z_stat = if var_approx > F::zero() { num / var_approx } else { F::zero() };
+    let z_stat = if var_approx > F::zero() {
+        num / var_approx
+    } else {
+        F::zero()
+    };
     let p_value = two_sided_normal_pvalue(z_stat);
     ARTestResult { z_stat, p_value }
 }
@@ -777,10 +793,14 @@ where
     for j in 0..k {
         let mut ej = Array1::zeros(k);
         ej[j] = F::one();
-        let vj = solve(&xtzwztx.view(), &ej.view())
+        let vj = solve(&xtzwztx.view(), &ej.view(), None)
             .map_err(|e2| StatsError::ComputationError(format!("gmm_se solve: {e2}")))?;
         let var_j = vj[j] * sigma2;
-        se[j] = if var_j >= F::zero() { var_j.sqrt() } else { F::zero() };
+        se[j] = if var_j >= F::zero() {
+            var_j.sqrt()
+        } else {
+            F::zero()
+        };
     }
     Ok(se)
 }
@@ -807,7 +827,7 @@ where
     for j in 0..k {
         let mut ej = Array1::zeros(k);
         ej[j] = F::one();
-        match solve(&m.view(), &ej.view()) {
+        match solve(&m.view(), &ej.view(), None) {
             Ok(v) => {
                 for i in 0..k {
                     inv[[i, j]] = v[i];
@@ -853,7 +873,11 @@ fn two_sided_normal_pvalue<F: Float + FromPrimitive>(z: F) -> F {
     let abs_z = if z < F::zero() { -z } else { z };
     let p = p_normal_upper(abs_z);
     let two_p = two * p;
-    if two_p > F::one() { F::one() } else { two_p }
+    if two_p > F::one() {
+        F::one()
+    } else {
+        two_p
+    }
 }
 
 fn p_normal_upper<F: Float + FromPrimitive>(z: F) -> F {
@@ -871,7 +895,11 @@ fn p_normal_upper<F: Float + FromPrimitive>(z: F) -> F {
     let poly = t * (b1 + t * (b2 + t * (b3 + t * (b4 + t * b5))));
     let phi = sqrt2pi_inv * (-(abs_z * abs_z) / two).exp();
     let p_upper = (phi * poly).max(F::zero()).min(F::one());
-    if z >= F::zero() { p_upper } else { F::one() - p_upper }
+    if z >= F::zero() {
+        p_upper
+    } else {
+        F::one() - p_upper
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

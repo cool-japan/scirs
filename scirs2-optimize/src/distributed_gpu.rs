@@ -6,6 +6,7 @@
 
 use crate::error::ScirsResult;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use std::sync::Arc;
 
 use crate::distributed::{
     DistributedConfig, DistributedOptimizationContext, DistributedStats, MPIInterface,
@@ -149,18 +150,21 @@ impl<M: MPIInterface> DistributedGpuOptimizer<M> {
 
         // Initialize population on GPU
         let dims = bounds.len();
-        let local_population = self.initialize_gpu_population(local_pop_size, bounds)?;
-        let local_fitness = self.evaluate_population_gpu(&function, &local_population)?;
+        let mut local_population = self.initialize_gpu_population(local_pop_size, bounds)?;
+        let mut local_fitness = self.evaluate_population_gpu(&function, &local_population)?;
 
-        // GPU kernels for evolution operations
-        // TODO: Fix GpuContext type mismatch between local alias and scirs2_core::GpuContext
-        // let evolution_kernel =
-        //     DifferentialEvolutionKernel::new(
-        //         Arc::new(CoreGpuContext::from_device(self.gpu_context.context().as_ref().clone()))
-        //     ).map_err(|e| scirs2_core::error::CoreError::General(e.to_string()))?;
-        let evolution_kernel = todo!("Fix GpuContext type conversion");
+        // GPU kernels for evolution operations.
+        //
+        // `GpuOptimizationContext::context()` returns `&Arc<scirs2_core::gpu::GpuContext>`,
+        // which is the exact type `DifferentialEvolutionKernel::new` expects (an
+        // `Arc<GpuContext>`). The earlier comment about a type mismatch referred to a
+        // path that tried to `.clone()` the inner `GpuContext` and rewrap it; that path
+        // is unsound because `GpuContext` is not `Clone` (it owns a `KernelRegistry`).
+        // The right approach is to share ownership via `Arc::clone`, matching the
+        // pattern used by `SwarmKernelCache` in `gpu/acceleration.rs`.
+        let evolution_kernel =
+            DifferentialEvolutionKernel::new(Arc::clone(self.gpu_context.context()))?;
 
-        #[allow(unreachable_code)]
         let mut best_individual = Array1::zeros(dims);
         let mut best_fitness = f64::INFINITY;
         let mut total_evaluations = local_pop_size;

@@ -178,7 +178,9 @@ impl StochasticWaveSolver {
             ));
         }
         if config.dt <= 0.0 {
-            return Err(IntegrateError::InvalidInput("dt must be positive".to_string()));
+            return Err(IntegrateError::InvalidInput(
+                "dt must be positive".to_string(),
+            ));
         }
         if config.wave_speed <= 0.0 {
             return Err(IntegrateError::InvalidInput(
@@ -233,9 +235,8 @@ impl StochasticWaveSolver {
             ));
         }
 
-        let normal = Normal::new(0.0_f64, 1.0).map_err(|e| {
-            IntegrateError::ComputationError(format!("Normal distribution: {e}"))
-        })?;
+        let normal = Normal::new(0.0_f64, 1.0)
+            .map_err(|e| IntegrateError::ComputationError(format!("Normal distribution: {e}")))?;
 
         let dt = self.cfg.dt;
         let c = self.cfg.wave_speed;
@@ -277,7 +278,7 @@ impl StochasticWaveSolver {
                 let u_left = if i == 0 { 0.0 } else { u[i - 1] };
                 let u_right = if i < self.n_nodes - 1 { u[i + 1] } else { 0.0 };
                 let laplacian = u_left - 2.0 * u[i] + u_right;
-                let xi = rng.sample(&normal);
+                let xi = rng.sample(normal);
                 v[i] += actual_dt * (c2dx2 * laplacian + ns * xi);
             }
 
@@ -349,10 +350,11 @@ mod tests {
         // With σ=0 the discrete energy should be approximately conserved
         let config = StochasticWaveConfig {
             wave_speed: 1.0,
-            sigma: 0.0,    // no noise
+            sigma: 0.0, // no noise
             dt: 5e-5,
         };
-        let solver = StochasticWaveSolver::new(config, 1.0, 20, 10).expect("StochasticWaveSolver::new should succeed");
+        let solver = StochasticWaveSolver::new(config, 1.0, 20, 10)
+            .expect("StochasticWaveSolver::new should succeed");
         let u0 = Array1::from_vec(
             (0..20)
                 .map(|i| ((i as f64 + 1.0) * std::f64::consts::PI / 21.0).sin())
@@ -360,7 +362,9 @@ mod tests {
         );
         let v0 = Array1::zeros(20);
         let mut rng = make_rng();
-        let sol = solver.solve(&u0, &v0, 0.0, 0.05, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&u0, &v0, 0.0, 0.05, &mut rng)
+            .expect("solver.solve should succeed");
 
         let energies = sol.energy_series();
         let e0 = energies[0];
@@ -381,11 +385,14 @@ mod tests {
             sigma: 0.5,
             dt: 5e-5,
         };
-        let solver = StochasticWaveSolver::new(config, 1.0, 20, 10).expect("StochasticWaveSolver::new should succeed");
+        let solver = StochasticWaveSolver::new(config, 1.0, 20, 10)
+            .expect("StochasticWaveSolver::new should succeed");
         let u0 = Array1::zeros(20);
         let v0 = Array1::zeros(20);
         let mut rng = make_rng();
-        let sol = solver.solve(&u0, &v0, 0.0, 0.02, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&u0, &v0, 0.0, 0.02, &mut rng)
+            .expect("solver.solve should succeed");
         // Energy must be finite throughout
         for s in &sol.snapshots {
             assert!(s.energy.is_finite(), "Non-finite energy at t={}", s.t);
@@ -409,7 +416,8 @@ mod tests {
     #[test]
     fn test_dimension_mismatch_error() {
         let config = StochasticWaveConfig::default();
-        let solver = StochasticWaveSolver::new(config, 1.0, 10, 1).expect("StochasticWaveSolver::new should succeed");
+        let solver = StochasticWaveSolver::new(config, 1.0, 10, 1)
+            .expect("StochasticWaveSolver::new should succeed");
         let u0 = Array1::zeros(5); // wrong length
         let v0 = Array1::zeros(10);
         let mut rng = make_rng();
@@ -424,12 +432,15 @@ mod tests {
             sigma: 0.1,
             dt: 1e-4,
         };
-        let solver = StochasticWaveSolver::new(config, 1.0, 15, 20).expect("StochasticWaveSolver::new should succeed");
+        let solver = StochasticWaveSolver::new(config, 1.0, 15, 20)
+            .expect("StochasticWaveSolver::new should succeed");
         let n = solver.n_nodes;
         let u0 = Array1::zeros(n);
         let v0 = Array1::zeros(n);
         let mut rng = make_rng();
-        let sol = solver.solve(&u0, &v0, 0.0, 0.01, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&u0, &v0, 0.0, 0.01, &mut rng)
+            .expect("solver.solve should succeed");
         for s in &sol.snapshots {
             assert!(s.u.iter().all(|v| v.is_finite()));
             assert!(s.v.iter().all(|v| v.is_finite()));

@@ -225,7 +225,7 @@ mod tests {
     #[test]
     fn test_context_builder() {
         let builder = fft_context()
-            .backend("rustfft")
+            .backend("oxifft")
             .workers(4)
             .cache_enabled(true);
 
@@ -236,7 +236,7 @@ mod tests {
 
     #[test]
     fn test_with_backend() {
-        let result = with_backend("rustfft", || {
+        let result = with_backend("oxifft", || {
             // Do some FFT operations
             42
         });
@@ -268,7 +268,7 @@ mod tests {
     fn test_combined_settings() {
         let result = with_fft_settings(
             fft_context()
-                .backend("rustfft")
+                .backend("oxifft")
                 .workers(4)
                 .cache_enabled(false),
             || {

@@ -1,365 +1,627 @@
-//! Performance optimization utilities for neural networks
+//! Performance profiling utilities for neural networks
 //!
-//! This module provides comprehensive performance optimizations for neural network operations
-//! including SIMD acceleration, memory-efficient processing, and parallel execution capabilities.
-//! The module is organized into three focused submodules:
-//! - [`simd`] - SIMD-accelerated operations for vectorized computations
-//! - [`memory`] - Memory-efficient processing and optimization capabilities
-//! - [`threading`] - Thread pool management, profiling, and distributed training
-//! # Quick Start
-//! ## SIMD Operations
-//! ```rust
-//! use scirs2_neural::performance::simd::SIMDOperations;
-//! use scirs2_core::ndarray::Array;
-//! let input = Array::ones((1000, 512)).into_dyn();
-//! let result = SIMDOperations::simd_relu_f32(&input.view());
-//! ```
-//! ## Memory-Efficient Processing
-//! use scirs2_neural::performance::memory::MemoryEfficientProcessor;
-//! let processor = MemoryEfficientProcessor::new(Some(256), Some(1024));
-//! // Process large tensors in manageable chunks
-//! ## Thread Pool Management
-//! use scirs2_neural::performance::threading::ThreadPoolManager;
-//! let a = Array::ones((100, 200)).into_dyn();
-//! let b = Array::ones((200, 150)).into_dyn();
-//! let pool = ThreadPoolManager::new(Some(8)).expect("Operation failed");
-//! let result = pool.parallel_matmul(&a, &b).expect("Operation failed");
-//! assert_eq!(result.shape(), &[100, 150]);
-//! ## Unified Performance Optimization
-//! use scirs2_neural::performance::PerformanceOptimizer;
-//! let mut optimizer = PerformanceOptimizer::new(
-//!     Some(256),  // chunk_size
-//!     Some(1024), // max_memory_mb
-//!     Some(8),    // num_threads
-//!     true        // enable_profiling
-//! ).expect("Operation failed");
-//! let result = optimizer.optimized_matmul(&a, &b).expect("Operation failed");
-//! optimizer.profiler().print_summary();
+//! This module provides tools for measuring and analysing the computational
+//! cost of neural network layers and operations:
+//!
+//! - [`PerformanceProfiler`] – profile individual layers
+//! - [`LayerStats`] – per-layer timing and memory statistics
+//! - [`FLOPsCounter`] – estimate FLOPs for common layer types
+//! - [`ProfilingReport`] – aggregated results from a full profiling run
 
-// Re-export all public modules
-pub mod memory;
-pub mod simd;
-pub mod threading;
-// Re-export commonly used types and functions
-pub use simd::SIMDOperations;
-pub use memory::{
-    MemoryEfficientProcessor, MemoryMonitor, MemoryPool, MemoryPoolStats, MemorySettings,
-    MemoryStats, OptimizationCapabilities, SIMDStats,
-};
-pub use threading::{
-    distributed::{
-        CommunicationBackend, DistributedConfig, DistributedManager, DistributedStats,
-        DistributedStrategy, GradientSyncMethod, ProcessInfo,
-    },
-    PerformanceProfiler, ProfilingStats, ThreadPoolManager, ThreadPoolStats,
-use crate::error::{NeuralError, Result};
-use scirs2_core::ndarray::ArrayD;
-use std::sync::Arc;
-/// Unified performance optimization manager
-///
-/// Combines all performance optimization techniques including SIMD, memory efficiency,
-/// and parallel processing to provide optimal performance for neural network operations.
-pub struct PerformanceOptimizer {
-    #[cfg(feature = "simd")]
-    #[allow(dead_code)]
-    simd_ops: SIMDOperations,
-    #[cfg(feature = "memory_efficient")]
-    memory_processor: MemoryEfficientProcessor,
-    thread_pool: Arc<ThreadPoolManager>,
-    profiler: PerformanceProfiler,
-    capabilities: OptimizationCapabilities,
+use crate::error::Result;
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LayerStats
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Per-layer performance statistics collected by [`PerformanceProfiler`].
+#[derive(Debug, Clone)]
+pub struct LayerStats {
+    /// Layer name
+    pub layer_name: String,
+    /// Forward pass wall-clock time
+    pub forward_ms: f64,
+    /// Backward pass wall-clock time (0 if not measured)
+    pub backward_ms: f64,
+    /// Approximate memory allocated for activations in bytes
+    pub memory_bytes: usize,
+    /// Estimated floating-point operations (multiplications + additions)
+    pub flops: u64,
+    /// Number of trainable parameters
+    pub param_count: usize,
+    /// Number of forward profiling invocations recorded
+    pub num_forward_runs: usize,
+    /// Number of backward profiling invocations recorded
+    pub num_backward_runs: usize,
 }
-impl PerformanceOptimizer {
-    /// Create a new performance optimizer
+
+impl LayerStats {
+    /// Create a zero-initialised stat record for the given layer.
+    pub fn new(layer_name: impl Into<String>) -> Self {
+        Self {
+            layer_name: layer_name.into(),
+            forward_ms: 0.0,
+            backward_ms: 0.0,
+            memory_bytes: 0,
+            flops: 0,
+            param_count: 0,
+            num_forward_runs: 0,
+            num_backward_runs: 0,
+        }
+    }
+
+    /// Returns average forward time in milliseconds.
+    pub fn avg_forward_ms(&self) -> f64 {
+        if self.num_forward_runs == 0 {
+            return 0.0;
+        }
+        self.forward_ms / self.num_forward_runs as f64
+    }
+
+    /// Returns average backward time in milliseconds.
+    pub fn avg_backward_ms(&self) -> f64 {
+        if self.num_backward_runs == 0 {
+            return 0.0;
+        }
+        self.backward_ms / self.num_backward_runs as f64
+    }
+
+    /// Returns memory in megabytes.
+    pub fn memory_mb(&self) -> f64 {
+        self.memory_bytes as f64 / (1024.0 * 1024.0)
+    }
+
+    /// Returns FLOPs in giga-FLOP units.
+    pub fn gflops(&self) -> f64 {
+        self.flops as f64 / 1e9
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PerformanceProfiler
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Profiles neural network layer performance by timing closures.
+///
+/// # Examples
+/// ```
+/// use scirs2_neural::performance::PerformanceProfiler;
+///
+/// let mut profiler = PerformanceProfiler::new();
+///
+/// let stats = profiler.profile_layer("dense_1", || {
+///     // Simulate a forward pass
+///     let sum: f64 = (0..1000).map(|i| i as f64).sum();
+///     (sum, 1000 * 4) // (result, bytes_allocated)
+/// }, None)
+/// .expect("profile ok");
+///
+/// assert!(stats.forward_ms >= 0.0);
+/// assert_eq!(stats.memory_bytes, 1000 * 4);
+/// ```
+pub struct PerformanceProfiler {
+    layer_stats: HashMap<String, LayerStats>,
+    /// Number of warm-up runs before measurement
+    pub warmup_runs: usize,
+    /// Number of timed runs to average
+    pub timed_runs: usize,
+}
+
+impl PerformanceProfiler {
+    /// Create a profiler with default settings (1 warmup, 3 timed runs).
+    pub fn new() -> Self {
+        Self {
+            layer_stats: HashMap::new(),
+            warmup_runs: 1,
+            timed_runs: 3,
+        }
+    }
+
+    /// Profile a forward pass closure for the named layer.
+    ///
+    /// The closure must return `(value, memory_bytes)` where `memory_bytes` is
+    /// the approximate number of bytes allocated for the output activations.
     ///
     /// # Arguments
-    /// * `chunk_size` - Chunk size for memory-efficient processing
-    /// * `max_memory_mb` - Maximum memory usage in MB
-    /// * `num_threads` - Number of threads for parallel processing
-    /// * `enable_profiling` - Whether to enable performance profiling
-    /// # Examples
-    /// ```rust
-    /// use scirs2_neural::performance::PerformanceOptimizer;
-    /// let optimizer = PerformanceOptimizer::new(
-    ///     Some(256),  // 256 samples per chunk
-    ///     Some(1024), // 1GB memory limit
-    ///     Some(8),    // 8 threads
-    ///     true        // enable profiling
-    /// ).expect("Operation failed");
-    /// ```
-    pub fn new(
-        _chunk_size: Option<usize>, _max_memory_mb: Option<usize>,
-        num_threads: Option<usize>,
-        enable_profiling: bool,
-    ) -> Result<Self> {
-        let capabilities = OptimizationCapabilities::detect();
-        Ok(Self {
-            #[cfg(feature = "simd")]
-            simd_ops: SIMDOperations,
-            #[cfg(feature = "memory_efficient")]
-            memory_processor: MemoryEfficientProcessor::new(_chunk_size_max_memory_mb),
-            thread_pool: Arc::new(ThreadPoolManager::new(num_threads)?),
-            profiler: PerformanceProfiler::new(enable_profiling),
-            capabilities,
-        })
-    }
-    /// Get reference to thread pool
-    pub fn thread_pool(&self) -> &Arc<ThreadPoolManager> {
-        &self.thread_pool
-    /// Get mutable reference to profiler
-    pub fn profiler_mut(&mut self) -> &mut PerformanceProfiler {
-        &mut self.profiler
-    /// Get reference to profiler
-    pub fn profiler(&self) -> &PerformanceProfiler {
-        &self.profiler
-    /// Get optimization capabilities
-    pub fn get_capabilities(&self) -> &OptimizationCapabilities {
-        &self.capabilities
-    /// Optimized matrix multiplication using all available optimizations
-    /// Automatically selects the best optimization strategy based on matrix size,
-    /// available features, and system capabilities.
-    pub fn optimized_matmul(&mut self, a: &ArrayD<f32>, b: &ArrayD<f32>) -> Result<ArrayD<f32>> {
-        let timer = self.profiler.start_timer("optimized_matmul");
-        let result = {
-            {
-                // Try SIMD first if available and matrices are suitable
-                if self.is_suitable_for_simd(a, b) {
-                    if let Ok(result) = SIMDOperations::simd_matmul_f32(&a.view(), &b.view()) {
-                        result
-                    } else {
-                        // Fallback to parallel matmul
-                        self.thread_pool.parallel_matmul(a, b)?
-                    }
-                } else {
-                    // Use parallel matmul for large matrices
-                    self.thread_pool.parallel_matmul(a, b)?
-                }
-            }
-            #[cfg(not(feature = "simd"))]
-                // Use parallel matmul when SIMD is not available
-                self.thread_pool.parallel_matmul(a, b)?
-        };
-        self.profiler
-            .end_timer("optimized_matmul".to_string(), timer);
-        Ok(result)
-    /// Optimized convolution using all available optimizations
-    pub fn optimized_conv2d(
+    /// * `layer_name` – identifier for the layer
+    /// * `forward_fn` – the forward pass to time; returns `(T, usize)` where the
+    ///   second element is the estimated activation memory in bytes.
+    /// * `flops` – optional estimated FLOPs; computed by `FLOPsCounter` methods if
+    ///   known ahead of time.
+    pub fn profile_layer<T, F>(
         &mut self,
-        input: &ArrayD<f32>,
-        kernel: &ArrayD<f32>,
-        bias: Option<&[f32]>,
-        stride: (usize, usize),
-        padding: (usize, usize),
-    ) -> Result<ArrayD<f32>> {
-        let timer = self.profiler.start_timer("optimized_conv2d");
-                // Try SIMD convolution if available
-                if let Ok(result) = SIMDOperations::simd_conv2d_f32(
-                    &input.view(),
-                    &kernel.view(),
-                    bias,
-                    stride,
-                    padding,
-                ) {
-                    result
-                    // Fallback to parallel convolution
-                    self.thread_pool
-                        .parallel_conv2d(input, kernel, bias, stride, padding)?
-                // Use parallel convolution when SIMD is not available
-                self.thread_pool
-                    .parallel_conv2d(input, kernel, bias, stride, padding)?
-            .end_timer("optimized_conv2d".to_string(), timer);
-    /// Memory-efficient forward pass for large batches
-    pub fn memory_efficient_forward<F>(
+        layer_name: &str,
         forward_fn: F,
-    ) -> Result<ArrayD<f32>>
+        flops: Option<u64>,
+    ) -> Result<LayerStats>
     where
-        F: Fn(&scirs2_core::ndarray::ArrayView<f32, scirs2_core::ndarray::IxDyn>) -> Result<ArrayD<f32>>,
+        F: Fn() -> (T, usize),
     {
-        let timer = self.profiler.start_timer("memory_efficient_forward");
-        let result = self
-            .memory_processor
-            .memory_efficient_forward(input, forward_fn);
-            .end_timer("memory_efficient_forward".to_string(), timer);
-        result
-    /// Process large tensors in memory-efficient chunks
-    pub fn process_in_chunks<F, T>(
-        processor: F,
-    ) -> Result<ArrayD<T>>
-        F: FnMut(&scirs2_core::ndarray::ArrayView<f32, scirs2_core::ndarray::IxDyn>) -> Result<ArrayD<T>>,
-        T: Clone + std::fmt::Debug + Default,
-        let timer = self.profiler.start_timer("process_in_chunks");
-        let result = self.memory_processor.process_in_chunks(input, processor);
-            .end_timer("process_in_chunks".to_string(), timer);
-    /// Get comprehensive performance statistics
-    pub fn get_performance_stats(&self) -> PerformanceStats {
-        PerformanceStats {
-            capabilities: self.capabilities.clone(),
-            profiling_stats: self.profiler.get_stats(),
-            thread_pool_stats: self.thread_pool.get_stats(),
-            simd_stats: SIMDStats::detect(),
+        // Warm-up runs (results discarded)
+        for _ in 0..self.warmup_runs {
+            forward_fn();
         }
-    /// Reset all performance tracking
-    pub fn reset_stats(&mut self) {
-        self.profiler.clear();
-    /// Helper to determine if matrices are suitable for SIMD operations
-    fn is_suitable_for_simd(&self, a: &ArrayD<f32>, b: &ArrayD<f32>) -> bool {
-        if a.ndim() != 2 || b.ndim() != 2 {
-            return false;
-        let (m, k) = (a.shape()[0], a.shape()[1]);
-        let n = b.shape()[1];
-        // SIMD is more effective for medium-sized matrices
-        // Very small matrices have too much overhead, very large ones benefit more from parallelism
-        m >= 32 && n >= 32 && k >= 32 && m <= 2048 && n <= 2048 && k <= 2048
-    /// Benchmark different optimization strategies
-    pub fn benchmark_strategies(
-        a: &ArrayD<f32>,
-        b: &ArrayD<f32>,
-        iterations: usize,
-    ) -> Result<BenchmarkResults> {
-        let mut results = BenchmarkResults::default();
-        // Benchmark SIMD matmul
-        #[cfg(feature = "simd")]
-        {
-            let start = std::time::Instant::now();
-            for _ in 0..iterations {
-                let _ = SIMDOperations::simd_matmul_f32(&a.view(), &b.view());
-            results.simd_time = Some(start.elapsed() / iterations as u32);
-        // Benchmark parallel matmul
-        let start = std::time::Instant::now();
-        for _ in 0..iterations {
-            let _ = self.thread_pool.parallel_matmul(a, b)?;
-        results.parallel_time = start.elapsed() / iterations as u32;
-        // Benchmark serial matmul
-            let _ = self.serial_matmul(a, b)?;
-        results.serial_time = start.elapsed() / iterations as u32;
-        Ok(results)
-    /// Serial matrix multiplication for benchmarking
-    fn serial_matmul(&self, a: &ArrayD<f32>, b: &ArrayD<f32>) -> Result<ArrayD<f32>> {
-            return Err(NeuralError::ComputationError(
-                "Serial matmul requires 2D arrays".to_string(),
-            ));
-        let mut result = scirs2_core::ndarray::Array::zeros((m, n));
-        for i in 0..m {
-            for j in 0..n {
-                let mut sum = 0.0;
-                for ki in 0..k {
-                    sum += a[[i, ki]] * b[[ki, j]];
-                result[[i, j]] = sum;
-        Ok(result.into_dyn())
-/// Comprehensive performance statistics
+
+        // Timed runs
+        let mut total_ns: u128 = 0;
+        let mut memory_bytes = 0usize;
+        for _ in 0..self.timed_runs.max(1) {
+            let start = Instant::now();
+            let (_, mem) = forward_fn();
+            let elapsed = start.elapsed();
+            total_ns += elapsed.as_nanos();
+            memory_bytes = mem; // last measurement wins
+        }
+        let n_runs = self.timed_runs.max(1) as u128;
+        let avg_ns = total_ns / n_runs;
+        let forward_ms = Duration::from_nanos(avg_ns as u64).as_secs_f64() * 1000.0;
+
+        let stats = LayerStats {
+            layer_name: layer_name.to_string(),
+            forward_ms,
+            backward_ms: 0.0,
+            memory_bytes,
+            flops: flops.unwrap_or(0),
+            param_count: 0,
+            num_forward_runs: self.timed_runs.max(1),
+            num_backward_runs: 0,
+        };
+
+        self.layer_stats
+            .insert(layer_name.to_string(), stats.clone());
+        Ok(stats)
+    }
+
+    /// Profile both a forward and backward pass closure for the named layer.
+    ///
+    /// `forward_fn` returns `(T, usize)` (value + memory bytes).
+    /// `backward_fn` takes the forward output and computes gradients.
+    pub fn profile_layer_with_backward<T, F, B>(
+        &mut self,
+        layer_name: &str,
+        forward_fn: F,
+        backward_fn: B,
+        flops: Option<u64>,
+    ) -> Result<LayerStats>
+    where
+        F: Fn() -> (T, usize),
+        B: Fn(T),
+    {
+        // Warm-up
+        for _ in 0..self.warmup_runs {
+            let (val, _) = forward_fn();
+            backward_fn(val);
+        }
+
+        // Timed runs
+        let mut fwd_ns: u128 = 0;
+        let mut bwd_ns: u128 = 0;
+        let mut memory_bytes = 0usize;
+        for _ in 0..self.timed_runs.max(1) {
+            let fwd_start = Instant::now();
+            let (val, mem) = forward_fn();
+            fwd_ns += fwd_start.elapsed().as_nanos();
+            memory_bytes = mem;
+
+            let bwd_start = Instant::now();
+            backward_fn(val);
+            bwd_ns += bwd_start.elapsed().as_nanos();
+        }
+        let n = self.timed_runs.max(1) as u128;
+
+        let forward_ms = Duration::from_nanos((fwd_ns / n) as u64).as_secs_f64() * 1000.0;
+        let backward_ms = Duration::from_nanos((bwd_ns / n) as u64).as_secs_f64() * 1000.0;
+
+        let stats = LayerStats {
+            layer_name: layer_name.to_string(),
+            forward_ms,
+            backward_ms,
+            memory_bytes,
+            flops: flops.unwrap_or(0),
+            param_count: 0,
+            num_forward_runs: self.timed_runs.max(1),
+            num_backward_runs: self.timed_runs.max(1),
+        };
+
+        self.layer_stats
+            .insert(layer_name.to_string(), stats.clone());
+        Ok(stats)
+    }
+
+    /// Return stats for a previously profiled layer, if available.
+    pub fn get_stats(&self, layer_name: &str) -> Option<&LayerStats> {
+        self.layer_stats.get(layer_name)
+    }
+
+    /// Return all recorded layer stats, sorted by average forward time (descending).
+    pub fn all_stats_sorted(&self) -> Vec<&LayerStats> {
+        let mut v: Vec<&LayerStats> = self.layer_stats.values().collect();
+        v.sort_by(|a, b| {
+            b.avg_forward_ms()
+                .partial_cmp(&a.avg_forward_ms())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        v
+    }
+
+    /// Reset all recorded statistics.
+    pub fn reset(&mut self) {
+        self.layer_stats.clear();
+    }
+
+    /// Build a [`ProfilingReport`] from all recorded stats.
+    pub fn report(&self) -> ProfilingReport {
+        let stats: Vec<LayerStats> = self.layer_stats.values().cloned().collect();
+        ProfilingReport::from_stats(stats)
+    }
+}
+
+impl Default for PerformanceProfiler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FLOPsCounter
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Estimates FLOPs (floating-point operations = MACs × 2) for common layer types.
+///
+/// Counts **multiply-accumulate operations × 2** (one multiply + one addition).
+/// These are coarse estimates and match the convention used in most ML papers.
+pub struct FLOPsCounter;
+
+impl FLOPsCounter {
+    /// FLOPs for a dense (fully-connected) layer.
+    ///
+    /// `2 × batch × in_features × out_features`
+    pub fn dense(batch: usize, in_features: usize, out_features: usize) -> u64 {
+        2 * batch as u64 * in_features as u64 * out_features as u64
+    }
+
+    /// FLOPs for a standard 2-D convolution.
+    ///
+    /// `2 × batch × out_ch × H_out × W_out × in_ch × kH × kW`
+    pub fn conv2d(
+        batch: usize,
+        in_channels: usize,
+        out_channels: usize,
+        kernel_h: usize,
+        kernel_w: usize,
+        out_height: usize,
+        out_width: usize,
+    ) -> u64 {
+        2 * batch as u64
+            * out_channels as u64
+            * out_height as u64
+            * out_width as u64
+            * in_channels as u64
+            * kernel_h as u64
+            * kernel_w as u64
+    }
+
+    /// FLOPs for a depthwise 2-D convolution.
+    ///
+    /// `2 × batch × channels × H_out × W_out × kH × kW`
+    pub fn depthwise_conv2d(
+        batch: usize,
+        channels: usize,
+        kernel_h: usize,
+        kernel_w: usize,
+        out_height: usize,
+        out_width: usize,
+    ) -> u64 {
+        2 * batch as u64
+            * channels as u64
+            * out_height as u64
+            * out_width as u64
+            * kernel_h as u64
+            * kernel_w as u64
+    }
+
+    /// FLOPs for a pointwise (1×1) convolution.
+    pub fn pointwise_conv2d(
+        batch: usize,
+        in_channels: usize,
+        out_channels: usize,
+        height: usize,
+        width: usize,
+    ) -> u64 {
+        2 * batch as u64 * in_channels as u64 * out_channels as u64 * height as u64 * width as u64
+    }
+
+    /// FLOPs for a scaled dot-product attention block.
+    ///
+    /// Counts Q·K^T (`2 × L × L × d_k`) + softmax (approx `4 × L²`)
+    /// + attention·V (`2 × L² × d_v`).
+    ///
+    /// `batch × heads × (2 × seq_len² × d_key + 4 × seq_len² + 2 × seq_len² × d_val)`
+    pub fn attention(
+        batch: usize,
+        num_heads: usize,
+        seq_len: usize,
+        d_key: usize,
+        d_val: usize,
+    ) -> u64 {
+        let l = seq_len as u64;
+        let dk = d_key as u64;
+        let dv = d_val as u64;
+        let per_head = 2 * l * l * dk  // QK^T
+            + 4 * l * l     // softmax approx
+            + 2 * l * l * dv; // attn·V
+        batch as u64 * num_heads as u64 * per_head
+    }
+
+    /// FLOPs for a batch normalisation layer (2 ops per element: normalise + scale/shift).
+    pub fn batch_norm(batch: usize, channels: usize, height: usize, width: usize) -> u64 {
+        2 * batch as u64 * channels as u64 * height as u64 * width as u64
+    }
+
+    /// FLOPs for layer normalisation (same formula as batch norm but over feature dim).
+    pub fn layer_norm(batch: usize, seq_len: usize, hidden_dim: usize) -> u64 {
+        2 * batch as u64 * seq_len as u64 * hidden_dim as u64
+    }
+
+    /// FLOPs for an embedding lookup (essentially free – just an index op, returns 0).
+    pub fn embedding(_batch: usize, _seq_len: usize, _embedding_dim: usize) -> u64 {
+        0
+    }
+
+    /// FLOPs for an LSTM cell (approximate).
+    ///
+    /// 4 gates × (2 × hidden × batch + 2 × input × batch) + element-wise ops
+    pub fn lstm_cell(batch: usize, input_size: usize, hidden_size: usize, seq_len: usize) -> u64 {
+        let per_step = 8 * batch as u64 * hidden_size as u64
+            + 8 * batch as u64 * input_size as u64
+            + 12 * batch as u64 * hidden_size as u64; // element-wise
+        per_step * seq_len as u64
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ProfilingReport
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Aggregated profiling report for all measured layers.
 #[derive(Debug, Clone)]
-pub struct PerformanceStats {
-    /// System optimization capabilities
-    pub capabilities: OptimizationCapabilities,
-    /// Profiling statistics
-    pub profiling_stats: ProfilingStats,
-    /// Thread pool statistics
-    pub thread_pool_stats: ThreadPoolStats,
-    /// SIMD statistics
-    pub simd_stats: SIMDStats,
-impl std::fmt::Display for PerformanceStats {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "Performance Statistics:")?;
-        writeln!(f, "======================")?;
-        writeln!(f)?;
-        writeln!(f, "{}", self.capabilities)?;
-        writeln!(f, "{}", self.simd_stats)?;
-        writeln!(f, "Thread Pool:")?;
-        writeln!(f, "  Threads: {}", self.thread_pool_stats.num_threads)?;
-        writeln!(f, "  Active: {}", self.thread_pool_stats.active)?;
-        writeln!(f, "Profiling:")?;
-        writeln!(f, "  Enabled: {}", self.profiling_stats.enabled)?;
-        writeln!(f, "  Operations: {}", self.profiling_stats.total_operations)?;
-        writeln!(f, "  Total Calls: {}", self.profiling_stats.total_calls)?;
-        writeln!(
-            f,
-            "  Total Time: {:.3}ms",
-            self.profiling_stats.total_time.as_secs_f64() * 1000.0
-        )?;
-        writeln!(f, "  Active Timers: {}", self.profiling_stats.active_timers)?;
-        Ok(())
-/// Benchmark results for different optimization strategies
-#[derive(Debug, Clone, Default)]
-pub struct BenchmarkResults {
-    /// Time taken by SIMD implementation
-    pub simd_time: Option<std::time::Duration>,
-    /// Time taken by parallel implementation
-    pub parallel_time: std::time::Duration,
-    /// Time taken by serial implementation
-    pub serial_time: std::time::Duration,
-impl BenchmarkResults {
-    /// Get speedup of parallel vs serial
-    pub fn parallel_speedup(&self) -> f64 {
-        self.serial_time.as_secs_f64() / self.parallel_time.as_secs_f64()
-    /// Get speedup of SIMD vs serial
-    pub fn simd_speedup(&self) -> Option<f64> {
-        self.simd_time
-            .map(|simd| self.serial_time.as_secs_f64() / simd.as_secs_f64())
-    /// Get the best performing strategy
-    pub fn best_strategy(&self) -> &'static str {
-        let parallel_faster = self.parallel_time < self.serial_time;
-        if let Some(simd_time) = self.simd_time {
-            if simd_time < self.parallel_time && simd_time < self.serial_time {
-                "SIMD"
-            } else if parallel_faster {
-                "Parallel"
-            } else {
-                "Serial"
-        } else if parallel_faster {
-            "Parallel"
-        } else {
-            "Serial"
-impl std::fmt::Display for BenchmarkResults {
-        writeln!(f, "Benchmark Results:")?;
-        writeln!(f, "==================")?;
-            "Serial Time: {:.3}ms",
-            self.serial_time.as_secs_f64() * 1000.0
-            "Parallel Time: {:.3}ms",
-            self.parallel_time.as_secs_f64() * 1000.0
-        writeln!(f, "Parallel Speedup: {:.2}x", self.parallel_speedup())?;
-            writeln!(f, "SIMD Time: {:.3}ms", simd_time.as_secs_f64() * 1000.0)?;
-            writeln!(
-                f,
-                "SIMD Speedup: {:.2}x",
-                self.simd_speedup().unwrap_or(0.0)
-            )?;
-        writeln!(f, "Best Strategy: {}", self.best_strategy())?;
+pub struct ProfilingReport {
+    /// Stats per layer
+    pub layers: Vec<LayerStats>,
+    /// Total forward time across all layers (ms)
+    pub total_forward_ms: f64,
+    /// Total backward time across all layers (ms)
+    pub total_backward_ms: f64,
+    /// Total memory across all layers (bytes)
+    pub total_memory_bytes: usize,
+    /// Total estimated FLOPs
+    pub total_flops: u64,
+    /// Name of the slowest layer
+    pub bottleneck_layer: Option<String>,
+}
+
+impl ProfilingReport {
+    /// Build a report from a vector of layer stats.
+    pub fn from_stats(layers: Vec<LayerStats>) -> Self {
+        let total_forward_ms: f64 = layers.iter().map(|s| s.avg_forward_ms()).sum();
+        let total_backward_ms: f64 = layers.iter().map(|s| s.avg_backward_ms()).sum();
+        let total_memory_bytes: usize = layers.iter().map(|s| s.memory_bytes).sum();
+        let total_flops: u64 = layers.iter().map(|s| s.flops).sum();
+
+        let bottleneck_layer = layers
+            .iter()
+            .max_by(|a, b| {
+                a.avg_forward_ms()
+                    .partial_cmp(&b.avg_forward_ms())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .map(|s| s.layer_name.clone());
+
+        Self {
+            layers,
+            total_forward_ms,
+            total_backward_ms,
+            total_memory_bytes,
+            total_flops,
+            bottleneck_layer,
+        }
+    }
+
+    /// Returns total memory in megabytes.
+    pub fn total_memory_mb(&self) -> f64 {
+        self.total_memory_bytes as f64 / (1024.0 * 1024.0)
+    }
+
+    /// Returns total FLOPs in Giga-FLOP units.
+    pub fn total_gflops(&self) -> f64 {
+        self.total_flops as f64 / 1e9
+    }
+
+    /// Returns layers sorted by forward time (slowest first).
+    pub fn layers_by_forward_time(&self) -> Vec<&LayerStats> {
+        let mut v: Vec<&LayerStats> = self.layers.iter().collect();
+        v.sort_by(|a, b| {
+            b.avg_forward_ms()
+                .partial_cmp(&a.avg_forward_ms())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        v
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn test_performance_optimizer_creation() {
-        let optimizer = PerformanceOptimizer::new(Some(256), Some(1024), Some(4), true);
-        assert!(optimizer.is_ok());
-        let optimizer = optimizer.expect("Operation failed");
-        assert_eq!(optimizer.thread_pool().num_threads(), 4);
-        assert!(optimizer.profiler().get_stats().enabled);
-    fn test_thread_pool_manager() {
-        let pool = ThreadPoolManager::new(Some(2));
-        assert!(pool.is_ok());
-        let pool = pool.expect("Operation failed");
-        assert_eq!(pool.num_threads(), 2);
-    fn test_performance_profiler() {
-        let mut profiler = PerformanceProfiler::new(true);
-        let timer = profiler.start_timer("test_operation");
-        std::thread::sleep(std::time::Duration::from_millis(1));
-        profiler.end_timer("test_operation".to_string(), timer);
-        let timings = profiler.get_timings();
-        assert!(timings.contains_key("test_operation"));
-        assert!(timings["test_operation"] > std::time::Duration::ZERO);
-    fn test_optimization_capabilities() {
-        let caps = OptimizationCapabilities::detect();
-        assert!(caps.optimization_score() >= 0.0 && caps.optimization_score() <= 1.0);
-    fn test_memory_efficient_processor() {
-        let processor = MemoryEfficientProcessor::new(Some(10), Some(100));
-        let input = Array::ones((20, 5)).into_dyn();
-        let result = processor.process_in_chunks(&input, |chunk| Ok(chunk.to_owned()));
-        assert!(result.is_ok());
-    fn test_benchmark_results() {
-        let results = BenchmarkResults {
-            simd_time: Some(std::time::Duration::from_millis(10)),
-            parallel_time: std::time::Duration::from_millis(15),
-            serial_time: std::time::Duration::from_millis(30),
-        assert!(results.parallel_speedup() > 1.0);
-        assert!(results.simd_speedup().expect("Operation failed") > 1.0);
-        assert_eq!(results.best_strategy(), "SIMD");
+    fn test_profile_layer_basic() {
+        let mut profiler = PerformanceProfiler::new();
+        let stats = profiler
+            .profile_layer(
+                "dense_1",
+                || {
+                    let _: f64 = (0..1000).map(|i| i as f64).sum();
+                    ((), 1000 * 8)
+                },
+                Some(2_000),
+            )
+            .expect("ok");
+        assert_eq!(stats.layer_name, "dense_1");
+        assert!(stats.forward_ms >= 0.0);
+        assert_eq!(stats.memory_bytes, 1000 * 8);
+        assert_eq!(stats.flops, 2_000);
+    }
+
+    #[test]
+    fn test_profile_layer_with_backward() {
+        let mut profiler = PerformanceProfiler::new();
+        let stats = profiler
+            .profile_layer_with_backward(
+                "layer_a",
+                || (vec![1.0_f64; 64], 64 * 8),
+                |v: Vec<f64>| {
+                    let _: f64 = v.iter().sum();
+                },
+                None,
+            )
+            .expect("ok");
+        assert!(stats.backward_ms >= 0.0);
+        assert_eq!(stats.num_backward_runs, profiler.timed_runs.max(1));
+    }
+
+    #[test]
+    fn test_profiler_get_stats() {
+        let mut profiler = PerformanceProfiler::new();
+        profiler
+            .profile_layer("conv1", || ((), 512 * 64), None)
+            .expect("ok");
+        assert!(profiler.get_stats("conv1").is_some());
+        assert!(profiler.get_stats("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_profiler_reset() {
+        let mut profiler = PerformanceProfiler::new();
+        profiler.profile_layer("l1", || ((), 0), None).expect("ok");
+        assert!(!profiler.layer_stats.is_empty());
+        profiler.reset();
+        assert!(profiler.layer_stats.is_empty());
+    }
+
+    #[test]
+    fn test_profiler_report() {
+        let mut profiler = PerformanceProfiler::new();
+        profiler
+            .profile_layer("l1", || ((), 100), Some(1000))
+            .expect("ok");
+        profiler
+            .profile_layer("l2", || ((), 200), Some(2000))
+            .expect("ok");
+        let report = profiler.report();
+        assert_eq!(report.layers.len(), 2);
+        assert_eq!(report.total_flops, 3000);
+        assert_eq!(report.total_memory_bytes, 300);
+    }
+
+    #[test]
+    fn test_all_stats_sorted() {
+        let mut profiler = PerformanceProfiler::new();
+        profiler.warmup_runs = 0;
+        profiler.timed_runs = 1;
+        profiler
+            .profile_layer("fast", || ((), 0), None)
+            .expect("ok");
+        // Make slow layer actually compute something
+        profiler
+            .profile_layer(
+                "slow",
+                || {
+                    let _: u64 = (0u64..100_000).sum();
+                    ((), 0)
+                },
+                None,
+            )
+            .expect("ok");
+        let sorted = profiler.all_stats_sorted();
+        // Just check both layers are present
+        assert_eq!(sorted.len(), 2);
+    }
+
+    #[test]
+    fn test_flops_counter_dense() {
+        let flops = FLOPsCounter::dense(1, 784, 512);
+        assert_eq!(flops, 2 * 784 * 512); // batch=1
+    }
+
+    #[test]
+    fn test_flops_counter_conv2d() {
+        let flops = FLOPsCounter::conv2d(1, 3, 64, 3, 3, 224, 224);
+        let expected = 2u64 * 64 * 224 * 224 * 3 * 3 * 3; // batch=1
+        assert_eq!(flops, expected);
+    }
+
+    #[test]
+    fn test_flops_counter_depthwise() {
+        let flops = FLOPsCounter::depthwise_conv2d(1, 32, 3, 3, 112, 112);
+        let expected = 2u64 * 32 * 112 * 112 * 3 * 3; // batch=1
+        assert_eq!(flops, expected);
+    }
+
+    #[test]
+    fn test_flops_counter_attention() {
+        let flops = FLOPsCounter::attention(1, 8, 128, 64, 64);
+        assert!(flops > 0);
+    }
+
+    #[test]
+    fn test_flops_counter_batch_norm() {
+        let flops = FLOPsCounter::batch_norm(4, 64, 56, 56);
+        assert_eq!(flops, 2 * 4 * 64 * 56 * 56);
+    }
+
+    #[test]
+    fn test_flops_counter_embedding_is_zero() {
+        assert_eq!(FLOPsCounter::embedding(2, 512, 768), 0);
+    }
+
+    #[test]
+    fn test_layer_stats_avg() {
+        let mut s = LayerStats::new("test");
+        s.forward_ms = 6.0;
+        s.num_forward_runs = 3;
+        assert!((s.avg_forward_ms() - 2.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_layer_stats_memory_mb() {
+        let mut s = LayerStats::new("x");
+        s.memory_bytes = 1024 * 1024;
+        assert!((s.memory_mb() - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_profiling_report_bottleneck() {
+        let mut stats = vec![
+            LayerStats {
+                layer_name: "fast".to_string(),
+                forward_ms: 1.0,
+                num_forward_runs: 1,
+                ..LayerStats::new("fast")
+            },
+            LayerStats {
+                layer_name: "slow".to_string(),
+                forward_ms: 10.0,
+                num_forward_runs: 1,
+                ..LayerStats::new("slow")
+            },
+        ];
+        let report = ProfilingReport::from_stats(std::mem::take(&mut stats));
+        assert_eq!(report.bottleneck_layer.as_deref(), Some("slow"));
+    }
+}

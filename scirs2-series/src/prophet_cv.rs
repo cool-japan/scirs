@@ -7,7 +7,7 @@
 use scirs2_core::ndarray::Array1;
 
 use crate::error::{Result, TimeSeriesError};
-use crate::prophet::{ProphetForecast, ProphetMetrics, ProphetModel, prophet_metrics};
+use crate::prophet::{prophet_metrics, ProphetForecast, ProphetMetrics, ProphetModel};
 
 // ─────────────────────────────────────────────────────────────── public types ─
 
@@ -117,7 +117,8 @@ pub fn prophet_cv(
 
     if cutoffs.is_empty() {
         return Err(TimeSeriesError::InsufficientData {
-            message: "no valid CV cutoffs found — check initial_window, horizon, and period".to_string(),
+            message: "no valid CV cutoffs found — check initial_window, horizon, and period"
+                .to_string(),
             required: 1,
             actual: 0,
         });
@@ -142,12 +143,10 @@ pub fn prophet_cv(
 
         let t_train: Array1<f64> =
             Array1::from_vec(train_idx.iter().map(|&i| timestamps[i]).collect());
-        let y_train: Array1<f64> =
-            Array1::from_vec(train_idx.iter().map(|&i| values[i]).collect());
+        let y_train: Array1<f64> = Array1::from_vec(train_idx.iter().map(|&i| values[i]).collect());
         let t_test: Array1<f64> =
             Array1::from_vec(test_idx.iter().map(|&i| timestamps[i]).collect());
-        let y_test: Array1<f64> =
-            Array1::from_vec(test_idx.iter().map(|&i| values[i]).collect());
+        let y_test: Array1<f64> = Array1::from_vec(test_idx.iter().map(|&i| values[i]).collect());
 
         let mut model = build_cv_model();
         match model.fit(&t_train, &y_train) {
@@ -271,7 +270,11 @@ mod tests {
     fn test_cv_metrics_finite() {
         let (t, y) = make_linear(120, 0.5, 2.0);
         let result = prophet_cv(&t, &y, 60.0, 15.0, 15.0).expect("CV should succeed");
-        for (&rmse, (&mae, &mape)) in result.rmse.iter().zip(result.mae.iter().zip(result.mape.iter())) {
+        for (&rmse, (&mae, &mape)) in result
+            .rmse
+            .iter()
+            .zip(result.mae.iter().zip(result.mape.iter()))
+        {
             assert!(rmse.is_finite(), "RMSE must be finite");
             assert!(mae.is_finite(), "MAE must be finite");
             assert!(mape.is_finite(), "MAPE must be finite");

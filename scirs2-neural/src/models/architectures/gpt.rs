@@ -12,10 +12,11 @@ use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::random::SeedableRng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// Configuration for a GPT model
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GPTConfig {
     /// Vocabulary size
     pub vocab_size: usize,

@@ -48,14 +48,10 @@ impl STDP {
         w_max: f32,
     ) -> Result<Self> {
         if tau_plus <= 0.0 {
-            return Err(NeuralError::InvalidArgument(
-                "tau_plus must be > 0".into(),
-            ));
+            return Err(NeuralError::InvalidArgument("tau_plus must be > 0".into()));
         }
         if tau_minus <= 0.0 {
-            return Err(NeuralError::InvalidArgument(
-                "tau_minus must be > 0".into(),
-            ));
+            return Err(NeuralError::InvalidArgument("tau_minus must be > 0".into()));
         }
         if w_max <= 0.0 {
             return Err(NeuralError::InvalidArgument("w_max must be > 0".into()));
@@ -206,9 +202,7 @@ impl TripletSTDP {
             ("tau_y", tau_y),
         ] {
             if val <= 0.0 {
-                return Err(NeuralError::InvalidArgument(format!(
-                    "{name} must be > 0"
-                )));
+                return Err(NeuralError::InvalidArgument(format!("{name} must be > 0")));
             }
         }
         Ok(Self {
@@ -320,9 +314,7 @@ impl BCMRule {
             return Err(NeuralError::InvalidArgument("lr must be > 0".into()));
         }
         if tau_theta <= 0.0 {
-            return Err(NeuralError::InvalidArgument(
-                "tau_theta must be > 0".into(),
-            ));
+            return Err(NeuralError::InvalidArgument("tau_theta must be > 0".into()));
         }
         Ok(Self {
             lr,
@@ -434,12 +426,7 @@ impl OjaRule {
     ///
     /// # Errors
     /// Returns an error if lengths mismatch.
-    pub fn update_vector(
-        &self,
-        weights: &mut [f32],
-        inputs: &[f32],
-        output: f32,
-    ) -> Result<()> {
+    pub fn update_vector(&self, weights: &mut [f32], inputs: &[f32], output: f32) -> Result<()> {
         if weights.len() != inputs.len() {
             return Err(NeuralError::DimensionMismatch(format!(
                 "weights length {} != inputs length {}",
@@ -526,7 +513,7 @@ mod tests {
             w = nw;
             state = ns;
         }
-        assert!(w >= 0.0 && w <= 1.0);
+        assert!((0.0..=1.0).contains(&w));
     }
 
     #[test]
@@ -534,7 +521,10 @@ mod tests {
         let mut rule = BCMRule::new(0.01, 0.1, 100.0).expect("operation should succeed");
         let theta_init = rule.theta;
         let _ = rule.update(0.5, 1.0, 1.0, 1.0);
-        assert!(rule.theta > theta_init, "theta should increase when y² > theta");
+        assert!(
+            rule.theta > theta_init,
+            "theta should increase when y² > theta"
+        );
     }
 
     #[test]

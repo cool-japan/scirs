@@ -19,13 +19,13 @@ minimal = []
 parallel = []
 simd = [] # SIMD acceleration support
 oxifft = ["dep:oxifft"] # Pure Rust FFT backend (default)
-rustfft-backend = ["dep:rustfft"] # Optional RustFFT backend
 serde = [] # Serialization support
 cuda = [] # Optional CUDA support for GPU acceleration (dependencies disabled)
 hip = [] # Optional ROCm/HIP support for AMD GPU acceleration
 sycl = [] # Optional SYCL support for cross-platform GPU acceleration
 never = [] # Used to conditionally disable tests during development
 python = ["scirs2-core/python"] # Python bindings support
+wgpu_fft = ["dep:wgpu", "dep:pollster"] # wgpu-based GPU FFT dispatch (optional, behind feature gate)
 
 [lints]
 workspace = true
@@ -43,9 +43,6 @@ scirs2-core = { workspace = true, features = ["simd", "parallel", "gpu", "valida
 # OxiFFT - Pure Rust high-performance FFT (FFTW-compatible algorithms) - DEFAULT
 oxifft = { workspace = true, optional = true }
 
-# RustFFT - Optional backend (feature-gated for Pure Rust policy)
-rustfft = { workspace = true, default-features = false, optional = true }
-
 # Serialization dependencies
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -58,9 +55,15 @@ tempfile = { workspace = true }
 # cudarc = { version = "0.12", optional = true, features = ["driver", "runtime", "cublas", "curand"] }
 # cufft = { version = "0.3", optional = true } # Temporarily disabled - version not available
 
-# ROCm/HIP dependencies (optional) - temporarily disabled  
+# ROCm/HIP dependencies (optional) - temporarily disabled
 # hiprt = { version = "0.2", optional = true }
 # rocblas = { version = "0.2", optional = true }
+
+# wgpu GPU FFT backend (optional, behind wgpu_fft feature)
+wgpu = { workspace = true, optional = true }
+
+# Blocking executor for synchronous wgpu adapter checks (used by wgpu_fft feature)
+pollster = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -71,20 +74,53 @@ proptest = { workspace = true }
 [[bench]]
 name = "fft_benchmarks"
 harness = false
-required-features = ["rustfft-backend"]
 
 [[bench]]
 name = "scipy_comparison"
 harness = false
 
+[[bench]]
+name = "butterfly_bench"
+harness = false
+
 [[example]]
 name = "plan_cache_example"
-required-features = ["rustfft-backend"]
 
 [[example]]
 name = "benchmark_simple"
-required-features = ["rustfft-backend"]
 
 [[example]]
 name = "memory_usage_benchmarking"
-required-features = ["rustfft-backend"]
+
+[[example]]
+name = "memory_efficient_fft"
+
+[[example]]
+name = "memory_profiling_example"
+
+[[example]]
+name = "adaptive_planning_example"
+
+[[example]]
+name = "advanced_fft"
+
+[[example]]
+name = "advanced_planning_strategies"
+
+[[example]]
+name = "auto_tuning_example"
+
+[[example]]
+name = "context_example"
+
+[[example]]
+name = "parallel_planning_simple"
+
+[[example]]
+name = "plan_optimization_example"
+
+[[example]]
+name = "strided_fft_example"
+
+[[example]]
+name = "backend_example"

@@ -98,8 +98,7 @@ impl LIFNeuron {
             return false;
         }
 
-        let dv = dt * (-(self.v - self.v_rest) / self.tau_m
-            + self.r_m * current / self.tau_m);
+        let dv = dt * (-(self.v - self.v_rest) / self.tau_m + self.r_m * current / self.tau_m);
         self.v += dv;
 
         if self.v >= self.v_thresh {
@@ -212,11 +211,10 @@ impl AdExNeuron {
     /// # Returns
     /// `true` if the neuron fires a spike.
     pub fn step(&mut self, current: f32, dt: f32) -> bool {
-        let exp_term = self.g_l * self.delta_t
-            * ((self.v - self.v_t) / self.delta_t).exp().min(1e6_f32);
+        let exp_term =
+            self.g_l * self.delta_t * ((self.v - self.v_t) / self.delta_t).exp().min(1e6_f32);
 
-        let dv = dt / self.c_m
-            * (-self.g_l * (self.v - self.e_l) + exp_term - self.w + current);
+        let dv = dt / self.c_m * (-self.g_l * (self.v - self.e_l) + exp_term - self.w + current);
         let dw = dt / self.tau_w * (self.a * (self.v - self.e_l) - self.w);
 
         self.v += dv;

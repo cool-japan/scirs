@@ -1,11 +1,70 @@
 //! Transliteration utilities: convert non-Latin scripts to Latin characters.
 //!
-//! Supports Cyrillic (ISO 9), Greek (ALA-LC), Hiragana/Katakana (Hepburn),
-//! and provides heuristic script detection based on Unicode block ranges.
+//! # Overview
+//!
+//! This module provides two tiers of API:
+//!
+//! ## Trait-based API (new)
+//! High-level, script-specific transliterators each implementing the
+//! [`Transliterator`] trait:
+//!
+//! | Type | Script | Notes |
+//! |------|--------|-------|
+//! | [`HepburnTransliterator`] | Japanese kana | Modified Hepburn, yōon, long vowels |
+//! | [`CyrillicTransliterator`] | Cyrillic | GOST 2005, BGN/PCGN 1947, ALA-LC |
+//! | [`PinyinTransliterator`] | Simplified Chinese | HSK 1-6, tone marks or numbered |
+//!
+//! ## Struct-based API (legacy)
+//! [`ScriptTransliterator`] accepts a [`Script`] enum at call time and dispatches
+//! to embedded tables for Cyrillic (ISO 9), Greek (ALA-LC), Hiragana and Katakana.
+//! This API is kept for backwards-compatibility.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use scirs2_text::transliteration::{
+//!     Transliterator, HepburnTransliterator, CyrillicTransliterator,
+//!     CyrillicScheme, PinyinTransliterator, PinyinStyle,
+//! };
+//!
+//! // Japanese kana → romaji
+//! let hepburn = HepburnTransliterator::new();
+//! assert_eq!(hepburn.transliterate("さくら"), "sakura");
+//!
+//! // Cyrillic → Latin (BGN/PCGN)
+//! let cyrillic = CyrillicTransliterator::new(CyrillicScheme::BgnPcgn);
+//! let r = cyrillic.transliterate("Москва");
+//! assert!(r.to_lowercase().contains("moskva"));
+//!
+//! // Chinese → Pinyin
+//! let pinyin = PinyinTransliterator::new(PinyinStyle::WithToneMarks);
+//! let r = pinyin.transliterate("你好");
+//! assert!(r.contains("nǐ") || r.contains("ni"));
+//! ```
 
 use unicode_normalization::UnicodeNormalization;
 
-// ─── Script / sub-script enums ────────────────────────────────────────────────
+pub mod cyrillic;
+pub mod hepburn;
+pub mod pinyin;
+
+pub use cyrillic::{CyrillicScheme, CyrillicTransliterator};
+pub use hepburn::HepburnTransliterator;
+pub use pinyin::{PinyinStyle, PinyinTransliterator};
+
+// ─── Core trait ───────────────────────────────────────────────────────────────
+
+/// Common interface for all script-specific transliterators.
+///
+/// Each implementation converts its source script to a Latin representation.
+/// Characters that are not part of the source script (e.g. Latin letters,
+/// digits, punctuation) are passed through unchanged.
+pub trait Transliterator {
+    /// Transliterate `input` and return the Latin representation.
+    fn transliterate(&self, input: &str) -> String;
+}
+
+// ─── Legacy struct-based API ──────────────────────────────────────────────────
 
 /// Japanese writing system variant.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -52,9 +111,7 @@ pub enum Script {
     Latin,
 }
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-
-/// Configuration for the `Transliterator`.
+/// Configuration for the [`ScriptTransliterator`].
 #[derive(Debug, Clone)]
 pub struct TranslitConfig {
     /// If `true`, preserve case through mapping of uppercase source characters.
@@ -72,7 +129,7 @@ impl Default for TranslitConfig {
     }
 }
 
-// ─── Static transliteration tables ───────────────────────────────────────────
+// ─── Static transliteration tables (legacy) ───────────────────────────────────
 
 /// Cyrillic → Latin (ISO 9).
 pub static CYRILLIC_TO_LATIN: &[(&str, &str)] = &[
@@ -360,15 +417,18 @@ pub static KATAKANA_TO_ROMAJI: &[(&str, &str)] = &[
     ("ポ", "po"),
 ];
 
-// ─── Transliterator ───────────────────────────────────────────────────────────
+// ─── ScriptTransliterator (legacy, struct-based) ──────────────────────────────
 
-/// Stateful transliterator.
-pub struct Transliterator {
+/// Stateful transliterator (legacy struct-based API).
+///
+/// For new code, prefer the trait-based API with [`HepburnTransliterator`],
+/// [`CyrillicTransliterator`], or [`PinyinTransliterator`].
+pub struct ScriptTransliterator {
     config: TranslitConfig,
 }
 
-impl Transliterator {
-    /// Create a new `Transliterator` with the given configuration.
+impl ScriptTransliterator {
+    /// Create a new `ScriptTransliterator` with the given configuration.
     pub fn new(config: TranslitConfig) -> Self {
         Self { config }
     }
@@ -503,7 +563,7 @@ pub fn strip_diacritics(s: &str) -> String {
         .collect()
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// ─── Tests (legacy API) ────────────────────────────────────────────────────────
 
 #[cfg(test)]
 mod tests {
@@ -511,34 +571,40 @@ mod tests {
 
     #[test]
     fn test_detect_cyrillic() {
-        assert_eq!(Transliterator::detect_script("Привет"), Script::Cyrillic);
+        assert_eq!(
+            ScriptTransliterator::detect_script("Привет"),
+            Script::Cyrillic
+        );
     }
 
     #[test]
     fn test_detect_greek() {
-        assert_eq!(Transliterator::detect_script("αβγδ"), Script::Greek);
+        assert_eq!(ScriptTransliterator::detect_script("αβγδ"), Script::Greek);
     }
 
     #[test]
     fn test_detect_hiragana() {
-        let s = Transliterator::detect_script("あいうえお");
+        let s = ScriptTransliterator::detect_script("あいうえお");
         assert_eq!(s, Script::Japanese(JapaneseScript::Hiragana));
     }
 
     #[test]
     fn test_detect_katakana() {
-        let s = Transliterator::detect_script("アイウエオ");
+        let s = ScriptTransliterator::detect_script("アイウエオ");
         assert_eq!(s, Script::Japanese(JapaneseScript::Katakana));
     }
 
     #[test]
     fn test_detect_latin_fallback() {
-        assert_eq!(Transliterator::detect_script("hello world"), Script::Latin);
+        assert_eq!(
+            ScriptTransliterator::detect_script("hello world"),
+            Script::Latin
+        );
     }
 
     #[test]
     fn test_transliterate_cyrillic() {
-        let t = Transliterator::new(TranslitConfig::default());
+        let t = ScriptTransliterator::new(TranslitConfig::default());
         let result = t.transliterate("привет", &Script::Cyrillic);
         // "привет" → "p"+"r"+"i"+"v"+"je"+"t" = "privjet"
         assert!(
@@ -553,7 +619,7 @@ mod tests {
 
     #[test]
     fn test_transliterate_cyrillic_known() {
-        let t = Transliterator::new(TranslitConfig::default());
+        let t = ScriptTransliterator::new(TranslitConfig::default());
         assert_eq!(t.transliterate("а", &Script::Cyrillic), "a");
         assert_eq!(t.transliterate("б", &Script::Cyrillic), "b");
         assert_eq!(t.transliterate("ш", &Script::Cyrillic), "sh");
@@ -561,14 +627,14 @@ mod tests {
 
     #[test]
     fn test_transliterate_hiragana_aiu() {
-        let t = Transliterator::new(TranslitConfig::default());
+        let t = ScriptTransliterator::new(TranslitConfig::default());
         let result = t.transliterate("あいう", &Script::Japanese(JapaneseScript::Hiragana));
         assert_eq!(result, "aiu");
     }
 
     #[test]
     fn test_transliterate_hiragana_full_word() {
-        let t = Transliterator::new(TranslitConfig::default());
+        let t = ScriptTransliterator::new(TranslitConfig::default());
         // "さくら" (sakura)
         let result = t.transliterate("さくら", &Script::Japanese(JapaneseScript::Hiragana));
         assert_eq!(result, "sakura");
@@ -576,14 +642,14 @@ mod tests {
 
     #[test]
     fn test_transliterate_katakana() {
-        let t = Transliterator::new(TranslitConfig::default());
+        let t = ScriptTransliterator::new(TranslitConfig::default());
         let result = t.transliterate("アイウ", &Script::Japanese(JapaneseScript::Katakana));
         assert_eq!(result, "aiu");
     }
 
     #[test]
     fn test_transliterate_greek() {
-        let t = Transliterator::new(TranslitConfig::default());
+        let t = ScriptTransliterator::new(TranslitConfig::default());
         let result = t.transliterate("αβγ", &Script::Greek);
         assert_eq!(result, "abg");
     }
@@ -597,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_strip_diacritics_config() {
-        let t = Transliterator::new(TranslitConfig {
+        let t = ScriptTransliterator::new(TranslitConfig {
             strip_diacritics: true,
             ..Default::default()
         });
@@ -608,7 +674,7 @@ mod tests {
 
     #[test]
     fn test_no_match_passthrough() {
-        let t = Transliterator::new(TranslitConfig::default());
+        let t = ScriptTransliterator::new(TranslitConfig::default());
         // ASCII should pass through unchanged for Cyrillic transliterator.
         let result = t.transliterate("abc", &Script::Cyrillic);
         assert_eq!(result, "abc");

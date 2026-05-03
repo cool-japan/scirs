@@ -409,10 +409,7 @@ where
     }
 
     // Evaluate all scenario losses
-    let mut losses: Vec<f64> = scenarios
-        .iter()
-        .map(|s| f(x, &s.view()))
-        .collect();
+    let mut losses: Vec<f64> = scenarios.iter().map(|s| f(x, &s.view())).collect();
 
     losses.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
@@ -523,8 +520,7 @@ where
         outer_iter = outer + 1;
 
         // Draw fresh samples
-        let samples: Vec<Array1<f64>> =
-            (0..config.n_samples).map(|_| sample_generator()).collect();
+        let samples: Vec<Array1<f64>> = (0..config.n_samples).map(|_| sample_generator()).collect();
 
         // Inner gradient descent on SAA objective
         for _ in 0..config.inner_max_iter {
@@ -671,12 +667,8 @@ mod tests {
         // f(x) = x²; worst case over box |ξ| ≤ 0.5 around x=1 should be (1.5)²=2.25
         let x = array![1.0];
         let delta = array![0.5];
-        let val = box_robust(
-            &|v: &ArrayView1<f64>| v[0] * v[0],
-            &x.view(),
-            &delta.view(),
-        )
-        .expect("unexpected None or Err");
+        let val = box_robust(&|v: &ArrayView1<f64>| v[0] * v[0], &x.view(), &delta.view())
+            .expect("unexpected None or Err");
         assert!((val - 2.25).abs() < 1e-9, "expected 2.25, got {val}");
     }
 
@@ -693,24 +685,20 @@ mod tests {
         let x = array![0.0, 0.0];
         let center = array![0.0, 0.0];
         let cov = Array2::<f64>::eye(2);
-        let val =
-            ellipsoidal_robust(&quadratic, &x.view(), &center.view(), &cov, 1.0).expect("unexpected None or Err");
+        let val = ellipsoidal_robust(&quadratic, &x.view(), &center.view(), &cov, 1.0)
+            .expect("unexpected None or Err");
         // worst case: move distance 1 in any direction → ‖x+ξ‖²= 1
-        assert!(
-            (val - 1.0).abs() < 0.05,
-            "expected ~1.0, got {val}"
-        );
+        assert!((val - 1.0).abs() < 0.05, "expected ~1.0, got {val}");
     }
 
     #[test]
     fn test_cvar_basic() {
         // 5 scenarios with losses [0,1,2,3,4]; CVaR_{0.8} = mean of top 20% = 4.0
         let x = array![0.0];
-        let scenarios: Vec<Array1<f64>> = (0..5)
-            .map(|i| array![i as f64])
-            .collect();
+        let scenarios: Vec<Array1<f64>> = (0..5).map(|i| array![i as f64]).collect();
         let f = |_x: &ArrayView1<f64>, s: &ArrayView1<f64>| s[0];
-        let cvar = distributionally_robust_cvar(&f, &x.view(), &scenarios, 0.8).expect("failed to create cvar");
+        let cvar = distributionally_robust_cvar(&f, &x.view(), &scenarios, 0.8)
+            .expect("failed to create cvar");
         assert!((cvar - 4.0).abs() < 1e-9, "expected 4.0, got {cvar}");
     }
 
@@ -733,8 +721,11 @@ mod tests {
         let mut rng_state = 42u64;
         let mut sample_gen = || {
             // Simple LCG pseudo-random in [0, 2]
-            rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
-            let t = ((rng_state >> 33) as f64) / (u32::MAX as f64) * 2.0;
+            rng_state = rng_state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            // Take upper 32 bits to get a full u32-range value, then normalize to [0, 2]
+            let t = ((rng_state >> 32) as u32 as f64) / (u32::MAX as f64) * 2.0;
             array![t]
         };
         let x0 = array![0.0];
@@ -745,7 +736,8 @@ mod tests {
             inner_max_iter: 200,
             step_size: 5e-3,
         };
-        let result = saa_solve(&f, &mut sample_gen, &x0.view(), &config).expect("failed to create result");
+        let result =
+            saa_solve(&f, &mut sample_gen, &x0.view(), &config).expect("failed to create result");
         assert!(
             (result.x[0] - 1.0).abs() < 0.15,
             "expected x* ≈ 1.0, got {}",

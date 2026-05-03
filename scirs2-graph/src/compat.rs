@@ -188,7 +188,7 @@ where
 /// # Arguments
 ///
 /// - `graph`       – the undirected input graph (treated as directed with
-///                   symmetric adjacency for the purposes of PageRank).
+///   symmetric adjacency for the purposes of PageRank).
 /// - `damping`     – damping factor `α` (typically 0.85).
 /// - `max_iter`    – maximum number of power-method iterations.
 /// - `tolerance`   – convergence threshold (L1 norm of update).
@@ -296,10 +296,7 @@ where
         }
     }
 
-    Ok(node_list
-        .into_iter()
-        .zip(rank)
-        .collect())
+    Ok(node_list.into_iter().zip(rank).collect())
 }
 
 // ============================================================================
@@ -426,10 +423,7 @@ where
         *v *= norm;
     }
 
-    Ok(node_list
-        .into_iter()
-        .zip(centrality)
-        .collect())
+    Ok(node_list.into_iter().zip(centrality).collect())
 }
 
 // ============================================================================
@@ -576,8 +570,7 @@ mod tests {
     use super::*;
 
     fn triangle_graph() -> Graph<u32, f64> {
-        from_edge_list(&[(0u32, 1u32, 1.0f64), (1, 2, 1.0), (2, 0, 1.0)])
-            .expect("triangle graph")
+        from_edge_list(&[(0u32, 1u32, 1.0f64), (1, 2, 1.0), (2, 0, 1.0)]).expect("triangle graph")
     }
 
     fn path_graph(n: u32) -> Graph<u32, f64> {
@@ -703,8 +696,14 @@ mod tests {
         // On a path 0-1-2-3, node 1 and 2 should have higher centrality than 0 and 3
         let g = path_graph(4);
         let bc = betweenness_centrality(&g).expect("betweenness");
-        assert!(bc[&1] > bc[&0], "interior nodes should have higher centrality");
-        assert!(bc[&2] > bc[&3], "interior nodes should have higher centrality");
+        assert!(
+            bc[&1] > bc[&0],
+            "interior nodes should have higher centrality"
+        );
+        assert!(
+            bc[&2] > bc[&3],
+            "interior nodes should have higher centrality"
+        );
     }
 
     #[test]
@@ -735,8 +734,11 @@ mod tests {
     fn test_betweenness_normalized_max_le_one() {
         let g = path_graph(5);
         let bc = betweenness_centrality(&g).expect("betweenness");
-        for (_, &v) in &bc {
-            assert!(v <= 1.0 + 1e-9, "normalized centrality must be ≤ 1; got {v}");
+        for &v in bc.values() {
+            assert!(
+                v <= 1.0 + 1e-9,
+                "normalized centrality must be ≤ 1; got {v}"
+            );
         }
     }
 
@@ -752,7 +754,7 @@ mod tests {
     fn test_clustering_triangle_all_ones() {
         let g = triangle_graph();
         let cc = clustering_coefficient(&g).expect("cc");
-        for (_, &v) in &cc {
+        for &v in cc.values() {
             assert!((v - 1.0).abs() < 1e-10, "triangle cc must be 1.0; got {v}");
         }
     }
@@ -762,23 +764,18 @@ mod tests {
         // In a path, no node has a pair of neighbors that are adjacent
         let g = path_graph(5);
         let cc = clustering_coefficient(&g).expect("cc");
-        for (_, &v) in &cc {
+        for &v in cc.values() {
             assert!((v).abs() < 1e-10, "path cc must be 0.0; got {v}");
         }
     }
 
     #[test]
     fn test_clustering_range_zero_to_one() {
-        let edges = vec![
-            (0u32, 1u32, 1.0f64),
-            (0, 2, 1.0),
-            (0, 3, 1.0),
-            (1, 2, 1.0),
-        ];
+        let edges = vec![(0u32, 1u32, 1.0f64), (0, 2, 1.0), (0, 3, 1.0), (1, 2, 1.0)];
         let g = from_edge_list(&edges).expect("build");
         let cc = clustering_coefficient(&g).expect("cc");
-        for (_, &v) in &cc {
-            assert!(v >= 0.0 && v <= 1.0 + 1e-10, "cc out of range: {v}");
+        for &v in cc.values() {
+            assert!((0.0..=1.0 + 1e-10).contains(&v), "cc out of range: {v}");
         }
     }
 
@@ -817,6 +814,6 @@ mod tests {
         let edges = vec![(0u32, 1u32, 1.0f64), (1, 2, 1.0), (0, 3, 1.0)];
         let g = from_edge_list(&edges).expect("build");
         let gcc = global_clustering_coefficient(&g).expect("gcc");
-        assert!(gcc >= 0.0 && gcc <= 1.0 + 1e-10, "gcc={gcc}");
+        assert!((0.0..=1.0 + 1e-10).contains(&gcc), "gcc={gcc}");
     }
 }

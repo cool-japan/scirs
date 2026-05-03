@@ -280,16 +280,8 @@ mod tests {
 
     #[test]
     fn test_continuous_lyapunov_3x3_residual() {
-        let a = array![
-            [-3.0_f64, 1.0, 0.0],
-            [0.0, -2.0, 0.5],
-            [0.0, 0.0, -1.0]
-        ];
-        let q = array![
-            [2.0_f64, 0.5, 0.0],
-            [0.5, 1.0, 0.0],
-            [0.0, 0.0, 3.0]
-        ];
+        let a = array![[-3.0_f64, 1.0, 0.0], [0.0, -2.0, 0.5], [0.0, 0.0, -1.0]];
+        let q = array![[2.0_f64, 0.5, 0.0], [0.5, 1.0, 0.0], [0.0, 0.0, 3.0]];
         let x = lyapunov_continuous(&a.view(), &q.view()).expect("3x3 failed");
         let res = a.dot(&x) + x.dot(&a.t()) + &q;
         for &v in res.iter() {
@@ -299,16 +291,8 @@ mod tests {
 
     #[test]
     fn test_discrete_lyapunov_3x3_residual() {
-        let a = array![
-            [0.4_f64, 0.1, 0.0],
-            [0.0, 0.5, 0.2],
-            [0.0, 0.0, 0.3]
-        ];
-        let q = array![
-            [1.0_f64, 0.0, 0.0],
-            [0.0, 1.0, 0.0],
-            [0.0, 0.0, 1.0]
-        ];
+        let a = array![[0.4_f64, 0.1, 0.0], [0.0, 0.5, 0.2], [0.0, 0.0, 0.3]];
+        let q = array![[1.0_f64, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
         let x = lyapunov_discrete(&a.view(), &q.view()).expect("3x3 discrete failed");
         let res = a.dot(&x).dot(&a.t()) - &x + &q;
         for &v in res.iter() {

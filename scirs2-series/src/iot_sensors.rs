@@ -220,6 +220,131 @@ impl EnvironmentalSensorAnalysis {
         Ok(comfort)
     }
 
+    /// Calculate environmental stress index from available sensor data.
+    ///
+    /// The Environmental Stress Index (ESI) quantifies the cumulative physiological
+    /// stress imposed by the thermal environment. It combines temperature and humidity
+    /// deviations from neutral comfort zones with optional contributions from
+    /// barometric pressure changes and light intensity extremes.
+    ///
+    /// The returned array has the same length as the underlying timestamp array.
+    /// Each element is a non-negative stress score where:
+    ///   - 0.0 = neutral / no stress
+    ///   - Values > 1.0 indicate significant environmental stress
+    ///   - There is no upper bound (extreme heat+humidity can exceed 10.0)
+    ///
+    /// # Formula
+    ///
+    /// The core temperature-humidity ESI follows the Moran et al. (1998) index:
+    /// `ESI = 0.63 × T_db - 0.03 × RH + 0.004 × (T_db × RH) - 0.046 × T_wb + 0.01`
+    /// where T_db is dry-bulb temperature (°C), RH is relative humidity (%), and
+    /// T_wb is wet-bulb temperature approximated via the Stull (2011) formula.
+    ///
+    /// When only temperature data is available, a simplified heat-stress index is
+    /// used (deviation from 22 °C comfort baseline).  When neither temperature nor
+    /// humidity is available the method returns a zero-filled array of the correct
+    /// length.
+    ///
+    /// Pressure contributions (if present) add a normalised deviation from 1013 hPa,
+    /// and light contributions add a normalised excess above 10 000 lux.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`TimeSeriesError::InvalidInput`] if no environmental data has been
+    /// attached to the analysis object at all.
+    pub fn environmental_stress_index(&self) -> Result<Array1<f64>> {
+        let n = self.timestamps.len();
+
+        // Require at least one data channel
+        if self.temperature.is_none()
+            && self.humidity.is_none()
+            && self.pressure.is_none()
+            && self.light.is_none()
+        {
+            return Err(TimeSeriesError::InvalidInput(
+                "At least one sensor data channel must be present to compute \
+                 the environmental stress index"
+                    .to_string(),
+            ));
+        }
+
+        let mut stress = Array1::<f64>::zeros(n);
+
+        // --- Temperature + humidity combined ESI (Moran et al. 1998) -----------
+        match (&self.temperature, &self.humidity) {
+            (Some(temp), Some(rh)) => {
+                for i in 0..n {
+                    let t = temp[i];
+                    let r = rh[i].clamp(0.0, 100.0);
+
+                    // Wet-bulb temperature approximation (Stull 2011)
+                    let t_wb = t * (0.151_977 * (r + 8.313_659).sqrt()).atan() + (t + r).atan()
+                        - (r - 1.676_331).atan()
+                        + 0.003_918_38 * r.powf(1.5) * (0.023_101 * r).atan()
+                        - 4.686_035;
+
+                    // Moran et al. ESI
+                    let esi = 0.63 * t - 0.03 * r + 0.004 * (t * r) - 0.046 * t_wb + 0.01;
+
+                    // Shift so that neutral conditions (≈22 °C, 50 % RH) yield ~0
+                    // and any positive ESI means heat stress ≥ 0.
+                    stress[i] = esi.max(0.0);
+                }
+            }
+            (Some(temp), None) => {
+                // Temperature-only: simple positive-deviation from 22 °C comfort
+                let t_comfort = 22.0_f64;
+                for i in 0..n {
+                    let deviation = temp[i] - t_comfort;
+                    stress[i] = if deviation > 0.0 {
+                        deviation * 0.2 // scale: +5 °C → +1.0 stress unit
+                    } else {
+                        (-deviation * 0.1).max(0.0) // cold stress (half weight)
+                    };
+                }
+            }
+            (None, Some(rh)) => {
+                // Humidity-only: deviation from the 40-60 % comfort band
+                for i in 0..n {
+                    let r = rh[i].clamp(0.0, 100.0);
+                    stress[i] = if r > 60.0 {
+                        (r - 60.0) * 0.03
+                    } else if r < 40.0 {
+                        (40.0 - r) * 0.02
+                    } else {
+                        0.0
+                    };
+                }
+            }
+            (None, None) => {
+                // No thermal data — baseline zero (pressure/light will add later)
+            }
+        }
+
+        // --- Pressure contribution (deviation from 1013 hPa baseline) ----------
+        if let Some(ref pres) = self.pressure {
+            let p0 = 1013.25_f64; // standard sea-level pressure
+            for i in 0..n.min(pres.len()) {
+                let dp = (pres[i] - p0).abs();
+                // Every 10 hPa deviation adds 0.05 stress units
+                stress[i] += dp / 200.0;
+            }
+        }
+
+        // --- Light contribution (excess above 10 000 lux threshold) ------------
+        if let Some(ref lux) = self.light {
+            let lux_threshold = 10_000.0_f64;
+            for i in 0..n.min(lux.len()) {
+                if lux[i] > lux_threshold {
+                    // Every 10 000 lux above threshold adds 0.1 stress units
+                    stress[i] += (lux[i] - lux_threshold) / 100_000.0;
+                }
+            }
+        }
+
+        Ok(stress)
+    }
+
     /// Energy optimization recommendations based on environmental data
     pub fn energy_optimization_recommendations(&self) -> Result<Vec<String>> {
         let mut recommendations = Vec::new();

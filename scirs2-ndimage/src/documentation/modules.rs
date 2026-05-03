@@ -162,7 +162,8 @@ let distances = distance_transform_edt(&binary_image);
 // Each pixel contains distance to nearest background pixel"#,
     );
 
-    distance_transform.add_note("Uses Felzenszwalb & Huttenlocher separable algorithm for O(n) performance");
+    distance_transform
+        .add_note("Uses Felzenszwalb & Huttenlocher separable algorithm for O(n) performance");
     distance_transform.add_note("Supports arbitrary dimensions");
 
     module.add_function(distance_transform);
@@ -238,11 +239,7 @@ pub fn build_measurements_documentation() -> ModuleDoc {
         "Vec<f64> - Center of mass coordinates",
     );
 
-    center_of_mass.add_parameter(Parameter::required(
-        "_input",
-        "&ArrayD<T>",
-        "Input array",
-    ));
+    center_of_mass.add_parameter(Parameter::required("_input", "&ArrayD<T>", "Input array"));
 
     center_of_mass.add_example(
         r#"use scirs2_ndimage::measurements::center_of_mass;

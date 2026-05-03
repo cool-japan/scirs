@@ -72,9 +72,29 @@ impl<F: Float + Debug + Display + FromPrimitive + scirs2_core::simd_ops::SimdUni
     pub fn accuracy() -> Self {
         Self::new(
             "accuracy",
-            Box::new(|_preds, _targets| {
-                // Temporarily return a fixed value to test if this is the cause of stack overflow
-                Ok(F::from(0.8).expect("Failed to convert constant to float"))
+            Box::new(|preds, targets| {
+                // Convert to 1D f64 arrays safely, then delegate to accuracy_score
+                let preds_1d = preds
+                    .to_shape(preds.len())
+                    .map_err(|e| MetricsError::InvalidInput(e.to_string()))?;
+                let targets_1d = targets
+                    .to_shape(targets.len())
+                    .map_err(|e| MetricsError::InvalidInput(e.to_string()))?;
+
+                let preds_f64: Vec<f64> = preds_1d
+                    .iter()
+                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .collect();
+                let targets_f64: Vec<f64> = targets_1d
+                    .iter()
+                    .map(|&x| x.to_f64().unwrap_or(0.0))
+                    .collect();
+
+                let preds_arr = scirs2_core::ndarray::Array1::from(preds_f64);
+                let targets_arr = scirs2_core::ndarray::Array1::from(targets_f64);
+
+                let result = crate::classification::accuracy_score(&targets_arr, &preds_arr)?;
+                Ok(F::from(result).expect("Failed to convert to float"))
             }),
         )
     }

@@ -13,10 +13,12 @@ mod clustering;
 mod cmaes;
 #[allow(dead_code)]
 mod differential_evolution;
+pub mod direct;
 #[allow(dead_code)]
 mod dual_annealing;
 #[allow(dead_code)]
 mod multi_start;
+pub mod multistart;
 #[allow(dead_code)]
 mod particle_swarm;
 #[allow(dead_code)]

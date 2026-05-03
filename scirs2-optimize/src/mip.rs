@@ -48,15 +48,13 @@ use scirs2_core::ndarray::{Array1, Array2};
 
 // ─── Re-exports from integer submodule ───────────────────────────────────────
 
-pub use crate::integer::{
-    BranchAndBoundOptions, BranchAndBoundSolver, CuttingPlaneOptions, CuttingPlaneSolver,
-    IntegerKind, IntegerVariableSet, LinearProgram, MipResult, is_integer_valued,
-};
 pub use crate::integer::milp_branch_and_bound::{
-    BnbConfig, BranchingStrategy,
-    MilpProblem as MilpProblemInner,
+    branch_and_bound, BnbConfig, BranchingStrategy, MilpProblem as MilpProblemInner,
     MilpResult as MilpResultInner,
-    branch_and_bound,
+};
+pub use crate::integer::{
+    is_integer_valued, BranchAndBoundOptions, BranchAndBoundSolver, CuttingPlaneOptions,
+    CuttingPlaneSolver, IntegerKind, IntegerVariableSet, LinearProgram, MipResult,
 };
 
 // ─── IntegerConstraint ───────────────────────────────────────────────────────
@@ -576,7 +574,10 @@ mod tests {
         // A has 3 cols but c has 2
         let a = Array2::from_shape_vec((1, 3), vec![1.0, 1.0, 1.0]).expect("shape");
         let b = array![5.0];
-        let result = MilpProblem::builder(c).inequalities(a, b).all_binary().build();
+        let result = MilpProblem::builder(c)
+            .inequalities(a, b)
+            .all_binary()
+            .build();
         assert!(result.is_err());
     }
 
@@ -662,7 +663,10 @@ mod tests {
 
     #[test]
     fn test_integer_constraint_to_kind() {
-        assert_eq!(IntegerConstraint::Continuous.to_kind(), IntegerKind::Continuous);
+        assert_eq!(
+            IntegerConstraint::Continuous.to_kind(),
+            IntegerKind::Continuous
+        );
         assert_eq!(IntegerConstraint::Binary.to_kind(), IntegerKind::Binary);
         assert_eq!(IntegerConstraint::Integer.to_kind(), IntegerKind::Integer);
         assert_eq!(

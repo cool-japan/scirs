@@ -10,7 +10,7 @@
 use crate::error::{Result, TimeSeriesError};
 use scirs2_fft::{
     fft, ifft, rfft, rfftfreq,
-    wavelet_packets::{wp_reconstruct, wpd, Wavelet},
+    wavelet_packets::{wp_reconstruct, wpd, Wavelet, WaveletPacketNode as WpNode},
 };
 use std::f64::consts::PI;
 
@@ -121,8 +121,8 @@ pub fn bandpass_filter_series(
     let _ = order_actual; // used above
 
     // Reconstruct via IFFT
-    let recovered = ifft(&masked, None)
-        .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
+    let recovered =
+        ifft(&masked, None).map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
     let out: Vec<f64> = recovered.iter().map(|c| c.re).collect();
     Ok(out)
 }
@@ -328,7 +328,10 @@ pub fn bandpass_filter_bk(ts: &[f64], low: f64, high: f64, k: usize) -> Result<V
     let n = ts.len();
     if n < 2 * k + 1 {
         return Err(TimeSeriesError::InsufficientData {
-            message: format!("BK filter with K={k} requires at least {} samples", 2 * k + 1),
+            message: format!(
+                "BK filter with K={k} requires at least {} samples",
+                2 * k + 1
+            ),
             required: 2 * k + 1,
             actual: n,
         });
@@ -340,7 +343,7 @@ pub fn bandpass_filter_bk(ts: &[f64], low: f64, high: f64, k: usize) -> Result<V
     }
 
     let omega_l = 2.0 * PI / high; // lower angular frequency (high period → low freq)
-    let omega_h = 2.0 * PI / low;  // upper angular frequency (low period  → high freq)
+    let omega_h = 2.0 * PI / low; // upper angular frequency (low period  → high freq)
 
     // Ideal bandpass filter weights: b_j = (sin(ω_h j) - sin(ω_l j)) / (π j)
     // with b_0 = (ω_h - ω_l) / π
@@ -399,11 +402,7 @@ pub fn bandpass_filter_bk(ts: &[f64], low: f64, high: f64, k: usize) -> Result<V
 /// # Returns
 /// `(cycle, trend)` where `cycle` is the bandpass-filtered component and
 /// `trend = ts − cycle`.
-pub fn christiano_fitzgerald(
-    ts: &[f64],
-    low: f64,
-    high: f64,
-) -> Result<(Vec<f64>, Vec<f64>)> {
+pub fn christiano_fitzgerald(ts: &[f64], low: f64, high: f64) -> Result<(Vec<f64>, Vec<f64>)> {
     let n = ts.len();
     if n < 4 {
         return Err(TimeSeriesError::InsufficientData {
@@ -510,52 +509,76 @@ pub fn wavelet_decompose_ts(
     }
 
     // Build the full wavelet packet tree up to n_levels
-    let tree = wpd(ts, wavelet, n_levels)
-        .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
+    let tree =
+        wpd(ts, wavelet, n_levels).map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
 
-    // For a standard DWT-style MRA we need:
-    //   Level k detail: node (k, 1) — the high-pass branch at level k
-    //   Final approx:  node (n_levels, 0) — the low-pass branch at the deepest level
+    // For a standard DWT-style MRA we need the DWT basis — the unique set of
+    // nodes that forms a complete partition of the time-frequency plane and
+    // follows the low-pass chain:
     //
-    // However, wpd gives us wavelet-packet nodes, and we want the DWT tree which
-    // always takes the low-pass branch for the next level.  The DWT detail at
-    // level k corresponds to wp node (k, 1) and the approximation at the deepest
-    // level is node (n_levels, 0).
+    //   Detail at level k : node (k, 1)   — high-pass branch at level k
+    //   Approximation     : node (n_levels, 0) — lowest-resolution subband
+    //
+    // wp_reconstruct requires a *complete* basis (all nodes must be present
+    // and together cover the root).  Passing only one node leaves the sibling
+    // branch empty, so the parent is never reconstructed and root (0,0) is
+    // never reached.
+    //
+    // Solution: build the full DWT basis once.  For each MRA component we
+    // clone the basis, zero out all coefficients except the target node, then
+    // call wp_reconstruct.  The zeroed nodes contribute nothing to the output
+    // while satisfying the completeness requirement.
 
-    let mut components: Vec<Vec<f64>> = Vec::with_capacity(n_levels + 1);
+    // Collect the DWT basis nodes.
+    // Basis: details (lev=1..=n_levels, idx=1) + approx (lev=n_levels, idx=0).
+    // All nodes must be present for wp_reconstruct to succeed (it requires a
+    // complete partition of the time-frequency plane).
+    let mut basis_template: Vec<WpNode> = Vec::with_capacity(n_levels + 1);
+    let mut all_present = true;
 
-    // Details: level 1..=n_levels, high-pass branch (index 1 at each level)
-    // Reconstruct each detail from the single wp node.
     for lev in 1..=n_levels {
-        let node_opt = tree.get(lev, 1);
-        match node_opt {
-            Some(node) => {
-                // Reconstruct this single wp node back to the original domain
-                let basis = vec![node.clone()];
-                let reconstructed = wp_reconstruct(&tree, &basis)
-                    .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
-                components.push(reconstructed);
-            }
+        match tree.get(lev, 1) {
+            Some(node) => basis_template.push(node.clone()),
             None => {
-                // If the node is unavailable (too few samples for this level),
-                // push a zero vector
-                components.push(vec![0.0; n]);
+                all_present = false;
             }
         }
     }
-
-    // Approximation: node (n_levels, 0)
-    let approx_opt = tree.get(n_levels, 0);
-    match approx_opt {
-        Some(node) => {
-            let basis = vec![node.clone()];
-            let reconstructed = wp_reconstruct(&tree, &basis)
-                .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
-            components.push(reconstructed);
-        }
+    match tree.get(n_levels, 0) {
+        Some(node) => basis_template.push(node.clone()),
         None => {
-            components.push(vec![0.0; n]);
+            all_present = false;
         }
+    }
+
+    if !all_present {
+        // Signal is too short for the requested decomposition depth.
+        // Return zero-filled components.
+        return Ok(vec![vec![0.0_f64; n]; n_levels + 1]);
+    }
+
+    let mut components: Vec<Vec<f64>> = Vec::with_capacity(n_levels + 1);
+
+    for target in 0..=n_levels {
+        // Build a basis clone where every node except `target` has zero coeffs.
+        // wp_reconstruct requires all basis nodes (the set must cover the root),
+        // so we keep them all but zero-out all non-target coefficients so they
+        // contribute nothing to the reconstructed output.
+        let isolated_basis: Vec<WpNode> = basis_template
+            .iter()
+            .enumerate()
+            .map(|(i, node)| {
+                if i == target {
+                    node.clone()
+                } else {
+                    WpNode::new(vec![0.0_f64; node.coeffs.len()], node.level, node.index)
+                }
+            })
+            .collect();
+
+        let reconstructed = wp_reconstruct(&tree, &isolated_basis)
+            .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
+        components.push(reconstructed);
     }
 
     Ok(components)
@@ -690,7 +713,10 @@ mod tests {
         let out = bandpass_filter_bk(&ts, 6.0, 32.0, k).expect("BK filter failed");
         let max_val = out.iter().map(|v| v.abs()).fold(0.0_f64, f64::max);
         // BK adjusts weights to zero-sum so it should remove a linear trend
-        assert!(max_val < 1e-8, "BK should remove linear trend, max_val={max_val}");
+        assert!(
+            max_val < 1e-8,
+            "BK should remove linear trend, max_val={max_val}"
+        );
     }
 
     #[test]
@@ -705,8 +731,7 @@ mod tests {
     fn test_cf_filter_output_length() {
         let n = 100;
         let ts: Vec<f64> = (0..n).map(|i| i as f64 % 10.0).collect();
-        let (cycle, trend) = christiano_fitzgerald(&ts, 6.0, 32.0)
-            .expect("CF filter failed");
+        let (cycle, trend) = christiano_fitzgerald(&ts, 6.0, 32.0).expect("CF filter failed");
         assert_eq!(cycle.len(), n);
         assert_eq!(trend.len(), n);
     }
@@ -717,8 +742,7 @@ mod tests {
         let ts: Vec<f64> = (0..n)
             .map(|i| (2.0 * PI * 0.05 * i as f64).sin() + (i as f64) * 0.01)
             .collect();
-        let (cycle, trend) = christiano_fitzgerald(&ts, 6.0, 32.0)
-            .expect("CF filter failed");
+        let (cycle, trend) = christiano_fitzgerald(&ts, 6.0, 32.0).expect("CF filter failed");
         for i in 0..n {
             assert!(
                 (cycle[i] + trend[i] - ts[i]).abs() < 1e-10,
@@ -736,8 +760,7 @@ mod tests {
         // Sum of two sinusoids: 5 Hz (in band) and 40 Hz (out of band)
         let ts: Vec<f64> = (0..n)
             .map(|i| {
-                (2.0 * PI * 5.0 * i as f64 / fs).sin()
-                    + (2.0 * PI * 40.0 * i as f64 / fs).sin()
+                (2.0 * PI * 5.0 * i as f64 / fs).sin() + (2.0 * PI * 40.0 * i as f64 / fs).sin()
             })
             .collect();
 
@@ -762,8 +785,8 @@ mod tests {
         let n = 64;
         let ts: Vec<f64> = (0..n).map(|i| (i as f64 * 0.1).sin()).collect();
         let levels = 3;
-        let components = wavelet_decompose_ts(&ts, WaveletType::Db4, levels)
-            .expect("wavelet decompose failed");
+        let components =
+            wavelet_decompose_ts(&ts, WaveletType::Db4, levels).expect("wavelet decompose failed");
         assert_eq!(components.len(), levels + 1);
         for comp in &components {
             assert_eq!(comp.len(), n, "component length mismatch");
@@ -774,8 +797,7 @@ mod tests {
     fn test_wavelet_reconstruct_matches_sum() {
         let n = 64;
         let ts: Vec<f64> = (0..n).map(|i| (i as f64 * 0.1).sin()).collect();
-        let components =
-            wavelet_decompose_ts(&ts, WaveletType::Haar, 2).expect("decompose failed");
+        let components = wavelet_decompose_ts(&ts, WaveletType::Haar, 2).expect("decompose failed");
 
         let recon =
             reconstruct_wavelet(&components, WaveletType::Haar).expect("reconstruct failed");

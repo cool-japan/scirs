@@ -361,7 +361,11 @@ mod tests {
         // D̃^{-½} = [[1/sqrt(2), 0], [0, 1/sqrt(2)]]
         // Normalised diagonal = 1.0/2.0 = 0.5
         let expected_diag = 0.5_f32;
-        assert!((norm[0][0] - expected_diag).abs() < 1e-5, "diag={}", norm[0][0]);
+        assert!(
+            (norm[0][0] - expected_diag).abs() < 1e-5,
+            "diag={}",
+            norm[0][0]
+        );
     }
 
     #[test]

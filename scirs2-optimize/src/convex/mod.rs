@@ -6,6 +6,6 @@
 pub mod geometric_programming;
 
 pub use geometric_programming::{
-    GPProblem, GPResult, GPSolverConfig, LogConvexProblem, Monomial,
-    Posynomial, gp_to_convex, solve_gp,
+    gp_to_convex, solve_gp, GPProblem, GPResult, GPSolverConfig, LogConvexProblem, Monomial,
+    Posynomial,
 };

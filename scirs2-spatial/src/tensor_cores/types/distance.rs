@@ -1049,6 +1049,12 @@ impl AdvancedTensorCoreDistanceMatrix {
                 self.base_computer.precision_mode = PrecisionMode::Full32;
             }
         }
+        // Sync the monitor's current_precision so that estimate_relative_error
+        // uses the updated precision mode for machine epsilon calculation
+        let new_precision = self.base_computer.precision_mode;
+        if let Ok(mut monitor) = self.stability_monitor.lock() {
+            monitor.current_precision = new_precision;
+        }
         Ok(())
     }
 

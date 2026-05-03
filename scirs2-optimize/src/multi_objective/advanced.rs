@@ -23,7 +23,7 @@
 
 use crate::error::{OptimizeError, OptimizeResult};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core dominance utilities
@@ -156,19 +156,23 @@ fn hv_2d(front: &[Vec<f64>], ref_pt: &[f64]) -> f64 {
         return 0.0;
     }
 
-    // Sweep line: process points right-to-left, tracking lowest y seen
-    pts.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
+    // Sweep line: process points left-to-right (ascending x), tracking minimum y seen
+    // so far.  For each point i the strip [x_i, x_{i+1}) × [min_y, ref_y) is added,
+    // where x_{n} = ref_pt[0].  This correctly handles dominated points and arbitrary
+    // orderings because min_y only decreases, preventing overcounting.
+    pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
+    let n = pts.len();
     let mut hv = 0.0f64;
     let mut min_y = ref_pt[1];
-    let mut prev_x = ref_pt[0];
 
-    for &(x, y) in &pts {
-        if y < min_y {
-            hv += (prev_x - x) * (min_y - y);
-            min_y = y;
-            prev_x = x;
+    for i in 0..n {
+        let (x_i, y_i) = pts[i];
+        let next_x = if i + 1 < n { pts[i + 1].0 } else { ref_pt[0] };
+        if y_i < min_y {
+            min_y = y_i;
         }
+        hv += (next_x - x_i) * (ref_pt[1] - min_y);
     }
     hv
 }
@@ -176,10 +180,17 @@ fn hv_2d(front: &[Vec<f64>], ref_pt: &[f64]) -> f64 {
 fn hv_mc(front: &[Vec<f64>], ref_pt: &[f64], n_samples: usize) -> f64 {
     let n_obj = ref_pt.len();
     let ideal: Vec<f64> = (0..n_obj)
-        .map(|j| front.iter().filter_map(|f| f.get(j).copied()).fold(f64::INFINITY, f64::min))
+        .map(|j| {
+            front
+                .iter()
+                .filter_map(|f| f.get(j).copied())
+                .fold(f64::INFINITY, f64::min)
+        })
         .collect();
 
-    let box_vol: f64 = (0..n_obj).map(|j| (ref_pt[j] - ideal[j]).max(0.0)).product();
+    let box_vol: f64 = (0..n_obj)
+        .map(|j| (ref_pt[j] - ideal[j]).max(0.0))
+        .product();
     if box_vol <= 0.0 {
         return 0.0;
     }
@@ -190,9 +201,9 @@ fn hv_mc(front: &[Vec<f64>], ref_pt: &[f64], n_samples: usize) -> f64 {
             let sample: Vec<f64> = (0..n_obj)
                 .map(|j| ideal[j] + rng.random::<f64>() * (ref_pt[j] - ideal[j]))
                 .collect();
-            front.iter().any(|f| {
-                f.len() >= n_obj && (0..n_obj).all(|j| f[j] <= sample[j])
-            })
+            front
+                .iter()
+                .any(|f| f.len() >= n_obj && (0..n_obj).all(|j| f[j] <= sample[j]))
         })
         .count();
 
@@ -248,8 +259,7 @@ pub fn crowding_distance(front: &[Vec<f64>]) -> Vec<f64> {
         }
 
         for k in 1..(n - 1) {
-            dist[order[k]] +=
-                (front[order[k + 1]][obj] - front[order[k - 1]][obj]) / range;
+            dist[order[k]] += (front[order[k + 1]][obj] - front[order[k - 1]][obj]) / range;
         }
     }
 
@@ -308,11 +318,7 @@ impl NsgaIII {
     }
 
     /// Run NSGA-III to approximate the Pareto front.
-    pub fn optimize<F>(
-        &self,
-        objectives: F,
-        bounds: &[(f64, f64)],
-    ) -> OptimizeResult<NsgaResult>
+    pub fn optimize<F>(&self, objectives: F, bounds: &[(f64, f64)]) -> OptimizeResult<NsgaResult>
     where
         F: Fn(&[f64]) -> Vec<f64>,
     {
@@ -392,8 +398,8 @@ where
             .map(|&(lb, ub)| lb + rng.random::<f64>() * (ub - lb))
             .collect();
 
-        let avg_range = bounds.iter().map(|&(lb, ub)| (ub - lb).abs()).sum::<f64>()
-            / n_vars.max(1) as f64;
+        let avg_range =
+            bounds.iter().map(|&(lb, ub)| (ub - lb).abs()).sum::<f64>() / n_vars.max(1) as f64;
         let mut step = 0.1 * avg_range;
         let mut fx = scalar(&x);
 
@@ -483,8 +489,8 @@ where
             .map(|&(lb, ub)| lb + rng.random::<f64>() * (ub - lb))
             .collect();
 
-        let avg_range = bounds.iter().map(|&(lb, ub)| (ub - lb).abs()).sum::<f64>()
-            / n_vars.max(1) as f64;
+        let avg_range =
+            bounds.iter().map(|&(lb, ub)| (ub - lb).abs()).sum::<f64>() / n_vars.max(1) as f64;
         let mut step = 0.1 * avg_range;
         let mut fx = penalized(&x);
 
@@ -548,10 +554,21 @@ where
     let ref_pts = gen_reference_points(n_obj, n_div);
 
     let mut pop: Vec<Vec<f64>> = (0..pop_size)
-        .map(|_| bounds.iter().map(|&(lb, ub)| lb + rng.random::<f64>() * (ub - lb)).collect())
+        .map(|_| {
+            bounds
+                .iter()
+                .map(|&(lb, ub)| lb + rng.random::<f64>() * (ub - lb))
+                .collect()
+        })
         .collect();
 
-    let mut obj_vals: Vec<Vec<f64>> = pop.iter().map(|x| { n_eval += 1; objectives(x) }).collect();
+    let mut obj_vals: Vec<Vec<f64>> = pop
+        .iter()
+        .map(|x| {
+            n_eval += 1;
+            objectives(x)
+        })
+        .collect();
 
     for _gen in 0..n_gen {
         let mut offspring: Vec<Vec<f64>> = Vec::with_capacity(pop_size);
@@ -575,12 +592,20 @@ where
             }
         }
 
-        let offspring_obj: Vec<Vec<f64>> =
-            offspring.iter().map(|x| { n_eval += 1; objectives(x) }).collect();
+        let offspring_obj: Vec<Vec<f64>> = offspring
+            .iter()
+            .map(|x| {
+                n_eval += 1;
+                objectives(x)
+            })
+            .collect();
 
         let combined: Vec<Vec<f64>> = pop.iter().chain(offspring.iter()).cloned().collect();
-        let combined_obj: Vec<Vec<f64>> =
-            obj_vals.iter().chain(offspring_obj.iter()).cloned().collect();
+        let combined_obj: Vec<Vec<f64>> = obj_vals
+            .iter()
+            .chain(offspring_obj.iter())
+            .cloned()
+            .collect();
 
         let fronts = non_dominated_sort(&combined_obj);
 
@@ -646,7 +671,11 @@ fn gen_ref_rec(
 ) {
     if idx == n_obj - 1 {
         cur[idx] = rem;
-        points.push(cur.iter().map(|&v| v as f64 / n_div.max(1) as f64).collect());
+        points.push(
+            cur.iter()
+                .map(|&v| v as f64 / n_div.max(1) as f64)
+                .collect(),
+        );
         return;
     }
     for v in 0..=rem {
@@ -678,10 +707,20 @@ fn niche_select(
         .collect();
 
     let ideal: Vec<f64> = (0..n_obj)
-        .map(|j| all_selected_obj.iter().filter_map(|f| f.get(j).copied()).fold(f64::INFINITY, f64::min))
+        .map(|j| {
+            all_selected_obj
+                .iter()
+                .filter_map(|f| f.get(j).copied())
+                .fold(f64::INFINITY, f64::min)
+        })
         .collect();
     let nadir: Vec<f64> = (0..n_obj)
-        .map(|j| all_selected_obj.iter().filter_map(|f| f.get(j).copied()).fold(f64::NEG_INFINITY, f64::max))
+        .map(|j| {
+            all_selected_obj
+                .iter()
+                .filter_map(|f| f.get(j).copied())
+                .fold(f64::NEG_INFINITY, f64::max)
+        })
         .collect();
 
     let norm = |f: &[f64]| -> Vec<f64> {
@@ -698,14 +737,22 @@ fn niche_select(
         let dot: f64 = f_n.iter().zip(rp).map(|(&fi, &ri)| fi * ri).sum();
         let proj = dot / rp_norm;
         let proj_pt: Vec<f64> = rp.iter().map(|&ri| proj * ri / rp_norm).collect();
-        f_n.iter().zip(&proj_pt).map(|(&fi, &pi)| (fi - pi).powi(2)).sum::<f64>().sqrt()
+        f_n.iter()
+            .zip(&proj_pt)
+            .map(|(&fi, &pi)| (fi - pi).powi(2))
+            .sum::<f64>()
+            .sqrt()
     };
 
     let mut niche_count = vec![0usize; n_ref];
     for f in selected_obj {
         let fn_ = norm(f);
         let best = (0..n_ref)
-            .min_by(|&r1, &r2| line_dist(&fn_, &ref_pts[r1]).partial_cmp(&line_dist(&fn_, &ref_pts[r2])).unwrap_or(std::cmp::Ordering::Equal))
+            .min_by(|&r1, &r2| {
+                line_dist(&fn_, &ref_pts[r1])
+                    .partial_cmp(&line_dist(&fn_, &ref_pts[r2]))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .unwrap_or(0);
         niche_count[best] += 1;
     }
@@ -726,7 +773,11 @@ fn niche_select(
     let mut selected = Vec::with_capacity(n_select);
 
     while selected.len() < n_select && !remaining.is_empty() {
-        let min_nc = remaining.iter().map(|&(_, r, _)| niche_count[r]).min().unwrap_or(0);
+        let min_nc = remaining
+            .iter()
+            .map(|&(_, r, _)| niche_count[r])
+            .min()
+            .unwrap_or(0);
         let cands: Vec<usize> = remaining
             .iter()
             .enumerate()
@@ -737,8 +788,14 @@ fn niche_select(
         let chosen = if min_nc == 0 {
             cands[rng.random_range(0..cands.len())]
         } else {
-            *cands.iter()
-                .min_by(|&&a, &&b| remaining[a].2.partial_cmp(&remaining[b].2).unwrap_or(std::cmp::Ordering::Equal))
+            *cands
+                .iter()
+                .min_by(|&&a, &&b| {
+                    remaining[a]
+                        .2
+                        .partial_cmp(&remaining[b].2)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .unwrap_or(&cands[0])
         };
 
@@ -822,7 +879,12 @@ mod tests {
 
     #[test]
     fn test_non_dominated_sort_basic() {
-        let sols = vec![vec![1.0, 3.0], vec![2.0, 2.0], vec![3.0, 1.0], vec![4.0, 4.0]];
+        let sols = vec![
+            vec![1.0, 3.0],
+            vec![2.0, 2.0],
+            vec![3.0, 1.0],
+            vec![4.0, 4.0],
+        ];
         let fronts = non_dominated_sort(&sols);
         assert_eq!(fronts[0].len(), 3);
         assert!(fronts[1].contains(&3));
@@ -858,7 +920,9 @@ mod tests {
         nsga.n_divisions = 2;
 
         let bounds: Vec<(f64, f64)> = vec![(0.0, 1.0); 2];
-        let result = nsga.optimize(|x| vec![x[0], 1.0 - x[0].sqrt()], &bounds).expect("failed to create result");
+        let result = nsga
+            .optimize(|x| vec![x[0], 1.0 - x[0].sqrt()], &bounds)
+            .expect("failed to create result");
         assert!(!result.pareto_front.is_empty());
         assert!(result.n_evaluations > 0);
     }
@@ -871,13 +935,7 @@ mod tests {
 
     #[test]
     fn test_weighted_sum_single() {
-        let (x, f) = weighted_sum_optimize(
-            |x| vec![x[0].powi(2)],
-            &[1.0],
-            &[(0.0, 2.0)],
-            5,
-            0,
-        );
+        let (x, f) = weighted_sum_optimize(|x| vec![x[0].powi(2)], &[1.0], &[(0.0, 2.0)], 5, 0);
         assert!(x[0] < 0.2, "x near 0, got {}", x[0]);
         assert!(f[0] < 0.05, "f near 0, got {}", f[0]);
     }

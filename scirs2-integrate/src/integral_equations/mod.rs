@@ -33,6 +33,8 @@
 //! - Brunner (2004), "Collocation Methods for Volterra Integral and Related Equations"
 //! - Gorenflo & Mainardi (1997), "Fractional Calculus: integral/differential equations"
 
+pub mod fredholm;
+
 use crate::error::{IntegrateError, IntegrateResult};
 use scirs2_core::ndarray::{Array1, Array2};
 
@@ -98,48 +100,80 @@ fn gauss_legendre(npts: usize) -> (Vec<f64>, Vec<f64>) {
         ),
         3 => (
             vec![-0.7745966692414834, 0.0, 0.7745966692414834],
-            vec![0.5555555555555556, 0.8888888888888889, 0.5555555555555556],
+            vec![
+                0.555_555_555_555_556,
+                0.888_888_888_888_889,
+                0.555_555_555_555_556,
+            ],
         ),
         4 => (
             vec![
-                -0.8611363115940526, -0.3399810435848563,
-                0.3399810435848563, 0.8611363115940526,
+                -0.8611363115940526,
+                -0.3399810435848563,
+                0.3399810435848563,
+                0.8611363115940526,
             ],
             vec![
-                0.3478548451374538, 0.6521451548625461,
-                0.6521451548625461, 0.3478548451374538,
+                0.3478548451374538,
+                0.6521451548625461,
+                0.6521451548625461,
+                0.3478548451374538,
             ],
         ),
         5 => (
             vec![
-                -0.9061798459386640, -0.5384693101056831, 0.0,
-                0.5384693101056831, 0.9061798459386640,
+                -0.906_179_845_938_664,
+                -0.5384693101056831,
+                0.0,
+                0.5384693101056831,
+                0.906_179_845_938_664,
             ],
             vec![
-                0.2369268850561891, 0.4786286704993665, 0.5688888888888889,
-                0.4786286704993665, 0.2369268850561891,
+                0.2369268850561891,
+                0.4786286704993665,
+                0.5688888888888889,
+                0.4786286704993665,
+                0.2369268850561891,
             ],
         ),
         8 => (
             vec![
-                -0.9602898564975363, -0.7966664774136267, -0.5255324099163290, -0.1834346424956498,
-                0.1834346424956498, 0.5255324099163290, 0.7966664774136267, 0.9602898564975363,
+                -0.9602898564975363,
+                -0.7966664774136267,
+                -0.525_532_409_916_329,
+                -0.1834346424956498,
+                0.1834346424956498,
+                0.525_532_409_916_329,
+                0.7966664774136267,
+                0.9602898564975363,
             ],
             vec![
-                0.1012285362903763, 0.2223810344533745, 0.3137066458778873, 0.3626837833783620,
-                0.3626837833783620, 0.3137066458778873, 0.2223810344533745, 0.1012285362903763,
+                0.1012285362903763,
+                0.2223810344533745,
+                0.3137066458778873,
+                0.362_683_783_378_362,
+                0.362_683_783_378_362,
+                0.3137066458778873,
+                0.2223810344533745,
+                0.1012285362903763,
             ],
         ),
         _ => {
             // Default: 5-point rule
             (
                 vec![
-                    -0.9061798459386640, -0.5384693101056831, 0.0,
-                    0.5384693101056831, 0.9061798459386640,
+                    -0.906_179_845_938_664,
+                    -0.5384693101056831,
+                    0.0,
+                    0.5384693101056831,
+                    0.906_179_845_938_664,
                 ],
                 vec![
-                    0.2369268850561891, 0.4786286704993665, 0.5688888888888889,
-                    0.4786286704993665, 0.2369268850561891,
+                    0.2369268850561891,
+                    0.4786286704993665,
+                    0.5688888888888889,
+                    0.4786286704993665,
+                    0.2369268850561891,
                 ],
             )
         }
@@ -297,9 +331,10 @@ impl VolterraIE2ndKind {
                     };
 
                     if diag_coeff.abs() < 1e-15 {
-                        return Err(IntegrateError::ComputationError(
-                            format!("Near-zero diagonal at step {}", i)
-                        ));
+                        return Err(IntegrateError::ComputationError(format!(
+                            "Near-zero diagonal at step {}",
+                            i
+                        )));
                     }
                     u[i] = (f(xi) + lambda * sum) / diag_coeff;
                 }
@@ -431,7 +466,11 @@ impl FredholmIE2ndKind {
         // Estimate condition number (rough: ratio of max to min diagonal)
         let diag_max = (0..n).fold(f64::NEG_INFINITY, |m, i| m.max(a_mat[[i, i]].abs()));
         let diag_min = (0..n).fold(f64::INFINITY, |m, i| m.min(a_mat[[i, i]].abs()));
-        let condition_estimate = if diag_min > 1e-300 { diag_max / diag_min } else { f64::INFINITY };
+        let condition_estimate = if diag_min > 1e-300 {
+            diag_max / diag_min
+        } else {
+            f64::INFINITY
+        };
 
         // Solve linear system
         let u_nodes = gauss_solve(&mut a_mat, &mut rhs)?;
@@ -467,13 +506,18 @@ impl FredholmIE2ndKind {
     {
         // We need the weights — derive them from nodes spacing (trapezoidal approx)
         let n = result.x.len();
-        if n == 0 { return f(x); }
+        if n == 0 {
+            return f(x);
+        }
         // Use equal-weight approximation from result nodes
         let a = result.x[0];
         let b = result.x[n - 1];
         let w = (b - a) / n as f64;
 
-        let sum: f64 = result.x.iter().zip(result.u.iter())
+        let sum: f64 = result
+            .x
+            .iter()
+            .zip(result.u.iter())
             .map(|(&tj, &uj)| kernel(x, tj) * uj * w)
             .sum();
         f(x) + lambda * sum
@@ -554,10 +598,7 @@ impl AbelEquation {
     /// # Returns
     ///
     /// `AbelResult` with the recovered u(x).
-    pub fn solve<FRhs>(
-        f: &FRhs,
-        cfg: &AbelConfig,
-    ) -> IntegrateResult<AbelResult>
+    pub fn solve<FRhs>(f: &FRhs, cfg: &AbelConfig) -> IntegrateResult<AbelResult>
     where
         FRhs: Fn(f64) -> f64,
     {
@@ -601,7 +642,9 @@ impl AbelEquation {
             for j in 0..i {
                 let tj = xs[j];
                 let diff = xi - tj;
-                if diff <= 0.0 { continue; }
+                if diff <= 0.0 {
+                    continue;
+                }
 
                 // Product trapezoidal weight: approximate by composite midpoint
                 let wj = if j == 0 {
@@ -669,7 +712,9 @@ impl AbelEquation {
 /// where D is the first-difference matrix, using tridiagonal solve.
 fn tikhonov_smooth(v: &[f64], reg: f64, _h: f64) -> Vec<f64> {
     let n = v.len();
-    if n < 3 || reg <= 0.0 { return v.to_vec(); }
+    if n < 3 || reg <= 0.0 {
+        return v.to_vec();
+    }
 
     // Tridiagonal system: (1 + 2*reg)*u_i - reg*u_{i-1} - reg*u_{i+1} = v_i
     let diag_val = 1.0 + 2.0 * reg;
@@ -683,13 +728,19 @@ fn tikhonov_smooth(v: &[f64], reg: f64, _h: f64) -> Vec<f64> {
     d[0] /= diag_val;
     for i in 1..n - 1 {
         let denom = diag_val - off_val * c[i - 1];
-        if denom.abs() < 1e-300 { return v.to_vec(); }
-        if i < n - 1 { c[i] = off_val / denom; }
+        if denom.abs() < 1e-300 {
+            return v.to_vec();
+        }
+        if i < n - 1 {
+            c[i] = off_val / denom;
+        }
         d[i] = (d[i] - off_val * d[i - 1]) / denom;
     }
     // Last row (no c[n-1])
     let denom = diag_val - off_val * c[n - 2];
-    if denom.abs() < 1e-300 { return v.to_vec(); }
+    if denom.abs() < 1e-300 {
+        return v.to_vec();
+    }
     d[n - 1] = (d[n - 1] - off_val * d[n - 2]) / denom;
 
     // Back substitution
@@ -701,13 +752,7 @@ fn tikhonov_smooth(v: &[f64], reg: f64, _h: f64) -> Vec<f64> {
 }
 
 /// Compute ‖(A u)(x_i) - f(x_i)‖ where A is the Abel operator
-fn compute_abel_residual(
-    xs: &[f64],
-    u: &[f64],
-    fs: &[f64],
-    alpha: f64,
-    h: f64,
-) -> f64 {
+fn compute_abel_residual(xs: &[f64], u: &[f64], fs: &[f64], alpha: f64, h: f64) -> f64 {
     let n = xs.len();
     let mut sq_sum = 0.0_f64;
 
@@ -718,7 +763,9 @@ fn compute_abel_residual(
         for j in 0..i {
             let tj = xs[j];
             let diff = xi - tj;
-            if diff <= 0.0 { continue; }
+            if diff <= 0.0 {
+                continue;
+            }
             let wj = if j == 0 || j == i - 1 { 0.5 * h } else { h };
             au_i += wj * u[j] / diff.powf(alpha);
         }
@@ -748,8 +795,8 @@ mod tests {
             b: 1.0,
             quadrature: QuadratureRule::Trapezoidal,
         };
-        let result = VolterraIE2ndKind::solve(&f, &kernel, 1.0, &cfg)
-            .expect("Volterra solve failed");
+        let result =
+            VolterraIE2ndKind::solve(&f, &kernel, 1.0, &cfg).expect("Volterra solve failed");
 
         // Check u(x) ≈ e^x at several points
         let points = [0.0, 0.25, 0.5, 0.75, 1.0];
@@ -761,7 +808,10 @@ mod tests {
                 assert!(
                     err < 0.05,
                     "Volterra u({}) = {} but exact = {} (err = {})",
-                    xp, result.u[idx], exact, err
+                    xp,
+                    result.u[idx],
+                    exact,
+                    err
                 );
             }
         }
@@ -799,8 +849,7 @@ mod tests {
             n_quad: 10,
             lambda: 1.0,
         };
-        let result = FredholmIE2ndKind::solve(&f, &kernel, &cfg)
-            .expect("Fredholm solve failed");
+        let result = FredholmIE2ndKind::solve(&f, &kernel, &cfg).expect("Fredholm solve failed");
 
         // u should equal f at all nodes
         for (xi, ui) in result.x.iter().zip(result.u.iter()) {
@@ -808,7 +857,10 @@ mod tests {
             assert!(
                 (ui - exact).abs() < 1e-10,
                 "u({}) = {} != f({}) = {}",
-                xi, ui, xi, exact
+                xi,
+                ui,
+                xi,
+                exact
             );
         }
     }
@@ -830,8 +882,8 @@ mod tests {
             n_quad: 16,
             lambda: lam,
         };
-        let result = FredholmIE2ndKind::solve(&f, &kernel, &cfg)
-            .expect("Fredholm separable solve failed");
+        let result =
+            FredholmIE2ndKind::solve(&f, &kernel, &cfg).expect("Fredholm separable solve failed");
 
         // Check u(x) ≈ sin(πx) + λ*c*x
         for (xi, ui) in result.x.iter().zip(result.u.iter()) {
@@ -839,7 +891,9 @@ mod tests {
             assert!(
                 (ui - exact).abs() < 0.01,
                 "u({:.3}) = {:.6} != exact {:.6}",
-                xi, ui, exact
+                xi,
+                ui,
+                exact
             );
         }
     }

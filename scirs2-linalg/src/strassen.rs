@@ -373,25 +373,13 @@ fn strassen_recursive_f64(a: &ArrayView2<f64>, b: &ArrayView2<f64>, thresh: usiz
     // M5 = (A11 + A12) B22
     // M6 = (A21 - A11)(B11 + B12)
     // M7 = (A12 - A22)(B21 + B22)
-    let m1 = strassen_recursive_f64(
-        &(&a11 + &a22).view(),
-        &(&b11 + &b22).view(),
-        thresh,
-    );
+    let m1 = strassen_recursive_f64(&(&a11 + &a22).view(), &(&b11 + &b22).view(), thresh);
     let m2 = strassen_recursive_f64(&(&a21 + &a22).view(), &b11.to_owned().view(), thresh);
     let m3 = strassen_recursive_f64(&a11.to_owned().view(), &(&b12 - &b22).view(), thresh);
     let m4 = strassen_recursive_f64(&a22.to_owned().view(), &(&b21 - &b11).view(), thresh);
     let m5 = strassen_recursive_f64(&(&a11 + &a12).view(), &b22.to_owned().view(), thresh);
-    let m6 = strassen_recursive_f64(
-        &(&a21 - &a11).view(),
-        &(&b11 + &b12).view(),
-        thresh,
-    );
-    let m7 = strassen_recursive_f64(
-        &(&a12 - &a22).view(),
-        &(&b21 + &b22).view(),
-        thresh,
-    );
+    let m6 = strassen_recursive_f64(&(&a21 - &a11).view(), &(&b11 + &b12).view(), thresh);
+    let m7 = strassen_recursive_f64(&(&a12 - &a22).view(), &(&b21 + &b22).view(), thresh);
 
     // Reconstruct quadrants
     // C11 = M1 + M4 - M5 + M7

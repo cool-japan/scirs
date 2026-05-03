@@ -65,8 +65,7 @@ fn random_gaussian_matrix(rows: usize, cols: usize, rng: &mut StdRng) -> Vec<Vec
             // Box-Muller transform for standard normal
             let u1: f64 = rng.random::<f64>().max(1e-30);
             let u2: f64 = rng.random::<f64>();
-            *val = (-2.0_f64 * u1.ln()).sqrt()
-                * (2.0_f64 * std::f64::consts::PI * u2).cos();
+            *val = (-2.0_f64 * u1.ln()).sqrt() * (2.0_f64 * std::f64::consts::PI * u2).cos();
         }
     }
     mat
@@ -121,9 +120,7 @@ fn qr_gram_schmidt(a: &[Vec<f64>]) -> OptimizeResult<(Vec<Vec<f64>>, Vec<Vec<f64
     let n = a[0].len();
 
     // Work column-major: extract columns of A (each column is length m)
-    let mut cols: Vec<Vec<f64>> = (0..n)
-        .map(|j| (0..m).map(|i| a[i][j]).collect())
-        .collect();
+    let mut cols: Vec<Vec<f64>> = (0..n).map(|j| (0..m).map(|i| a[i][j]).collect()).collect();
 
     let k = m.min(n);
     let mut r = vec![vec![0.0; n]; k];
@@ -378,15 +375,9 @@ pub fn randomized_svd(
     let actual_k = k.min(sigma.len());
     let s: Vec<f64> = sigma[..actual_k].to_vec();
 
-    let u: Vec<Vec<f64>> = u_full
-        .iter()
-        .map(|row| row[..actual_k].to_vec())
-        .collect();
+    let u: Vec<Vec<f64>> = u_full.iter().map(|row| row[..actual_k].to_vec()).collect();
 
-    let vt: Vec<Vec<f64>> = vt_full[..actual_k]
-        .iter()
-        .cloned()
-        .collect();
+    let vt: Vec<Vec<f64>> = vt_full[..actual_k].iter().cloned().collect();
 
     Ok(RandomizedSVDResult { u, s, vt })
 }
@@ -594,9 +585,7 @@ mod tests {
         // Check U^T U ~ I_k
         for i in 0..k {
             for j in 0..k {
-                let dot: f64 = (0..m)
-                    .map(|r| result.u[r][i] * result.u[r][j])
-                    .sum();
+                let dot: f64 = (0..m).map(|r| result.u[r][i] * result.u[r][j]).sum();
                 let expected = if i == j { 1.0 } else { 0.0 };
                 assert!(
                     (dot - expected).abs() < 0.3,
@@ -794,17 +783,18 @@ mod tests {
             vt: vt.clone(),
         });
         let err = frobenius_diff_norm(&b, &recon);
-        assert!(err < 1e-6, "Rank-deficient SVD reconstruction error: {}", err);
+        assert!(
+            err < 1e-6,
+            "Rank-deficient SVD reconstruction error: {}",
+            err
+        );
     }
 
     /// Test: Direct SVD of small matrix
     #[test]
     fn test_direct_small_svd() {
         // 2x3 matrix with known SVD
-        let b = vec![
-            vec![3.0, 0.0, 0.0],
-            vec![0.0, 2.0, 0.0],
-        ];
+        let b = vec![vec![3.0, 0.0, 0.0], vec![0.0, 2.0, 0.0]];
         let (u, s, vt) = small_svd_jacobi(&b, 100).expect("SVD should work");
         assert_eq!(s.len(), 2);
         // Singular values should be 3 and 2 (sorted descending)

@@ -446,10 +446,10 @@ where
 
         Ok(sum)
     } else {
-        // For non-square matrices, we'd need SVD
-        // For now, return an error
-        Err(LinalgError::ImplementationError(
-            "Nuclear norm for non-square matrices requires SVD (not yet implemented)".to_string(),
-        ))
+        // For non-square matrices, compute the nuclear norm as the sum of
+        // singular values via SVD.
+        let (_, s, _) = crate::decomposition::svd(a, false, workers)?;
+        let sum = s.iter().copied().fold(F::zero(), |acc, v| acc + v);
+        Ok(sum)
     }
 }

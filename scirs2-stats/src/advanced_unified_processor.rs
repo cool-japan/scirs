@@ -128,7 +128,7 @@ impl AdvancedUnifiedProcessor {
             .build();
 
         // Determine optimal processing strategy
-        let strategy = self.determine_processing_strategy(n, &context)?;
+        let strategy = self.determine_processing_strategy(n)?;
 
         // Run stability analysis if enabled
         let stability_report = if self.config.enable_stability_testing {
@@ -170,7 +170,7 @@ impl AdvancedUnifiedProcessor {
             simd_enabled: strategy.uses_simd(),
             parallel_enabled: strategy.uses_parallel(),
             stability_tested: self.config.enable_stability_testing,
-            memory_usage_mb: self.estimate_memory, _usage::<F>(n),
+            memory_usage_mb: self.estimate_memory_usage::<F>(n),
         };
 
         if self.config.enable_performance_monitoring {
@@ -226,14 +226,10 @@ impl AdvancedUnifiedProcessor {
 
         let result = match (strategy, operation) {
             (ProcessingStrategy::SimdOnly, AdvancedMatrixOperation::Covariance) => {
-                advanced_matrix_operations(data, BatchOperation::Covariance, &self.config.simd_config)?
+                self.process_matrix_standard(data, AdvancedMatrixOperation::Covariance)?
             }
             (ProcessingStrategy::SimdOnly, AdvancedMatrixOperation::Correlation) => {
-                advanced_matrix_operations(
-                    data,
-                    BatchOperation::Correlation,
-                    &self.config.simd_config,
-                )?
+                self.process_matrix_standard(data, AdvancedMatrixOperation::Correlation)?
             }
             (ProcessingStrategy::ParallelOnly, AdvancedMatrixOperation::Covariance) => {
                 let parallel_result = self
@@ -316,7 +312,7 @@ impl AdvancedUnifiedProcessor {
                 (ProcessingStrategy::SimdOnly, AdvancedTimeSeriesOperation::MovingWindow) => {
                     advanced_moving_window_stats(data, windowsize, &self.config.simd_config)?
                 }
-                (ProcessingStrategy:: ParallelOnly) => {
+                ProcessingStrategy::ParallelOnly => {
                     let ts_operations = self.convert_to_parallel_ts_operations(operations);
                     let parallel_result = self.parallel_processor.process_time_series(
                         data,
@@ -343,7 +339,7 @@ impl AdvancedUnifiedProcessor {
             simd_enabled: strategy.uses_simd(),
             parallel_enabled: strategy.uses_parallel(),
             stability_tested: false,
-            memory_usage_mb: self.estimate_memory, _usage::<F>(n),
+            memory_usage_mb: self.estimate_memory_usage::<F>(n),
         };
 
         Ok(AdvancedTimeSeriesResult {
@@ -404,7 +400,7 @@ impl AdvancedUnifiedProcessor {
 
     fn determine_processing_strategy(
         &self,
-        datasize: usize, _context: &crate::advanced_error_enhancements_v2::AdvancedErrorContext,
+        datasize: usize,
     ) -> StatsResult<ProcessingStrategy> {
         match self.config.optimization_mode {
             OptimizationMode::Performance => {
@@ -455,10 +451,7 @@ impl AdvancedUnifiedProcessor {
 
         if similar_operations.is_empty() {
             // No history, use default heuristics
-            return self.determine_processing_strategy(
-                datasize,
-                &AdvancedContextBuilder::new(datasize).build(),
-            );
+            return self.determine_processing_strategy(datasize);
         }
 
         // Find the strategy with the best average performance
@@ -584,7 +577,7 @@ impl AdvancedUnifiedProcessor {
 
     fn convert_parallel_to_batch_stats<F>(
         &self,
-        parallel_result: crate::parallel_enhancements::AdvancedParallelBatchResult<F>,
+        parallel_result: crate::advanced_parallel_enhancements::AdvancedParallelBatchResult<F>,
     ) -> BatchResults<F>
     where
         F: Float + NumCast + Copy
@@ -726,7 +719,7 @@ impl AdvancedUnifiedProcessor {
     }
 
     fn convert_parallel_ts_result<F>(
-        &self, crate::parallel_enhancements::AdvancedParallelTimeSeriesResult<F>,
+        &self, _result: crate::advanced_parallel_enhancements::AdvancedParallelTimeSeriesResult<F>,
     ) -> StatsResult<MovingWindowResult<F>>
     where
         F: Float + NumCast + Copy
@@ -743,12 +736,11 @@ impl AdvancedUnifiedProcessor {
     }
 
     fn process_time_series_standard<F, D>(
-        &self, &ArrayBase<D, Ix1>, _windowsize: usize, _operation: AdvancedTimeSeriesOperation,
+        &self, _data: &ArrayBase<D, Ix1>, _windowsize: usize, _operation: AdvancedTimeSeriesOperation,
     ) -> StatsResult<MovingWindowResult<F>>
     where
         F: Float + NumCast + Copy,
-        D: Data<Elem = F>
-        + std::fmt::Display,
+        D: Data<Elem = F>,
     {
         // Placeholder implementation
         Ok(MovingWindowResult {
@@ -756,21 +748,21 @@ impl AdvancedUnifiedProcessor {
             variances: Array1::zeros(0),
             mins: Array1::zeros(0),
             maxs: Array1::zeros(0),
-            windowsize: windowsize,
+            windowsize: _windowsize,
         })
     }
 
     fn generate_recommendations(
-        &self, &ProcessingMetrics_stability, _report: &Option<StabilityAnalysisReport>,
+        &self, metrics: &ProcessingMetrics, _report: &Option<StabilityAnalysisReport>,
     ) -> Vec<String> {
         let mut recommendations = Vec::new();
 
-        if metrics.datasize > 10000 && !_metrics.parallel_enabled {
+        if metrics.datasize > 10000 && !metrics.parallel_enabled {
             recommendations
                 .push("Consider enabling parallel processing for large datasets".to_string());
         }
 
-        if metrics.datasize > 1000 && !_metrics.simd_enabled && self.capabilities.has_avx2() {
+        if metrics.datasize > 1000 && !metrics.simd_enabled && self.capabilities.has_avx2() {
             recommendations.push("SIMD optimizations could improve performance".to_string());
         }
 
@@ -946,10 +938,10 @@ mod tests {
 
         // Test different data sizes
         let _small_strategy = processor
-            .determine_processing_strategy(100, &context)
+            .determine_processing_strategy(100)
             .expect("Operation failed");
         let large_strategy = processor
-            .determine_processing_strategy(100000, &context)
+            .determine_processing_strategy(100000)
             .expect("Operation failed");
 
         // Large datasets should use more aggressive optimization

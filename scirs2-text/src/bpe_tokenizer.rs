@@ -273,13 +273,7 @@ pub fn bpe_encode(text: &str, vocab: &BpeVocab) -> Result<Vec<usize>> {
 
     let ids: Vec<usize> = tokens
         .iter()
-        .filter_map(|tok| {
-            vocab
-                .vocab
-                .get(tok.as_str())
-                .copied()
-                .or(unk_id)
-        })
+        .filter_map(|tok| vocab.vocab.get(tok.as_str()).copied().or(unk_id))
         .collect();
 
     Ok(ids)
@@ -412,7 +406,10 @@ mod tests {
         assert!(!tokens.is_empty());
         // No token should contain the </w> marker (they are stripped)
         for tok in &tokens {
-            assert!(!tok.contains("</w>"), "token should not contain </w>: {tok}");
+            assert!(
+                !tok.contains("</w>"),
+                "token should not contain </w>: {tok}"
+            );
         }
     }
 

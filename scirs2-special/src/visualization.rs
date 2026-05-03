@@ -1022,6 +1022,7 @@ pub mod export {
     pub enum ExportFormat {
         PNG,
         SVG,
+        #[cfg(feature = "pdf")]
         PDF,
         LaTeX,
         CSV,
@@ -1068,10 +1069,8 @@ pub mod export {
                 latex.push_str("};\n\\end{axis}\n\\end{tikzpicture}\n");
                 Ok(latex.into_bytes())
             }
-            ExportFormat::PDF => {
-                // PDF export is not yet implemented
-                Err("PDF export is not yet implemented".to_string().into())
-            }
+            #[cfg(feature = "pdf")]
+            ExportFormat::PDF => pdf_export::render_pdf(&f, x_range, n_points),
             ExportFormat::PNG => {
                 // Generate PNG using plotters
                 let mut png_data = Vec::new();
@@ -1174,6 +1173,437 @@ pub mod export {
             }
         }
     }
+
+    /// Pure-Rust PDF rendering for the PDF export branch of [`export_plot_data`].
+    ///
+    /// Builds a single landscape A4 page using `printpdf` with the following layout:
+    ///
+    /// * Page: 297 mm × 210 mm (A4 landscape).
+    /// * Plot region: an inner rectangle obtained by stripping a 30 mm margin on every side.
+    /// * Curve: `n_points + 1` samples of `f` over `x_range`, with non-finite y-values dropped
+    ///   *before* the y-range is computed so they neither bias auto-scaling nor produce broken
+    ///   line segments.
+    /// * Y-range: data extent inflated by a 5 % padding factor; degenerates to `[ymin-1, ymax+1]`
+    ///   when the curve is flat (so a horizontal line still renders inside the frame).
+    /// * Axes: black 1 pt outlines along the bottom and left edges of the plot region.
+    /// * Tick marks: 8 along x and 6 along y, with numeric labels rendered with the standard
+    ///   PDF Helvetica built-in font (no font embedding required, keeps the output small and
+    ///   the dependency tree free of font files).
+    /// * Titles: chart title centred above the plot, x-axis label centred below, y-axis label
+    ///   rotated 90° on the left side via `TextMatrix::TranslateRotate`.
+    /// * Curve: drawn as a polyline (`Op::DrawLine`) in blue (RGB 0.0 / 0.4 / 0.8) with a 1.2 pt
+    ///   stroke. Runs of finite samples that are interrupted by a non-finite value are split
+    ///   into separate `DrawLine` operations so discontinuities remain visible rather than
+    ///   being bridged by a misleading straight segment.
+    #[cfg(feature = "pdf")]
+    pub(super) mod pdf_export {
+        use super::*;
+        use printpdf::{
+            BuiltinFont, Color, Line, LinePoint, Mm, Op, PdfDocument, PdfFontHandle, PdfPage,
+            PdfSaveOptions, Point, Pt, Rgb, TextItem, TextMatrix,
+        };
+
+        // --- Page geometry constants (millimetres) ----------------------------------------
+
+        const PAGE_WIDTH_MM: f32 = 297.0; // A4 landscape long side
+        const PAGE_HEIGHT_MM: f32 = 210.0; // A4 landscape short side
+        const MARGIN_MM: f32 = 30.0;
+
+        const PLOT_X_MIN_MM: f32 = MARGIN_MM;
+        const PLOT_X_MAX_MM: f32 = PAGE_WIDTH_MM - MARGIN_MM;
+        const PLOT_Y_MIN_MM: f32 = MARGIN_MM;
+        const PLOT_Y_MAX_MM: f32 = PAGE_HEIGHT_MM - MARGIN_MM;
+        const PLOT_WIDTH_MM: f32 = PLOT_X_MAX_MM - PLOT_X_MIN_MM;
+        const PLOT_HEIGHT_MM: f32 = PLOT_Y_MAX_MM - PLOT_Y_MIN_MM;
+
+        // --- Tick / typography constants -------------------------------------------------
+
+        const X_TICKS: usize = 8;
+        const Y_TICKS: usize = 6;
+        const TICK_LEN_MM: f32 = 2.0;
+        const AXIS_LINE_PT: f32 = 1.0;
+        const CURVE_LINE_PT: f32 = 1.2;
+        const TITLE_FONT_PT: f32 = 14.0;
+        const LABEL_FONT_PT: f32 = 11.0;
+        const TICK_FONT_PT: f32 = 9.0;
+
+        // --- Y-range padding -------------------------------------------------------------
+
+        const Y_PADDING_FACTOR: f32 = 0.05;
+
+        /// Black, no ICC profile.
+        fn black() -> Color {
+            Color::Rgb(Rgb {
+                r: 0.0,
+                g: 0.0,
+                b: 0.0,
+                icc_profile: None,
+            })
+        }
+
+        /// Curve colour — a moderately saturated blue.
+        fn curve_color() -> Color {
+            Color::Rgb(Rgb {
+                r: 0.0,
+                g: 0.4,
+                b: 0.8,
+                icc_profile: None,
+            })
+        }
+
+        /// Convert a data-space x-coordinate to a page-space x in millimetres.
+        fn x_to_mm(x: f64, x_range: (f64, f64)) -> f32 {
+            let span = x_range.1 - x_range.0;
+            // Caller guarantees x_range.0 < x_range.1; if it doesn't, we still produce a
+            // well-defined value (mid-plot) instead of NaN, which keeps the renderer safe.
+            if span.abs() < f64::EPSILON {
+                PLOT_X_MIN_MM + PLOT_WIDTH_MM * 0.5
+            } else {
+                let t = ((x - x_range.0) / span) as f32;
+                PLOT_X_MIN_MM + t.clamp(0.0, 1.0) * PLOT_WIDTH_MM
+            }
+        }
+
+        /// Convert a data-space y-coordinate to a page-space y in millimetres.
+        fn y_to_mm(y: f64, y_range: (f64, f64)) -> f32 {
+            let span = y_range.1 - y_range.0;
+            if span.abs() < f64::EPSILON {
+                PLOT_Y_MIN_MM + PLOT_HEIGHT_MM * 0.5
+            } else {
+                let t = ((y - y_range.0) / span) as f32;
+                PLOT_Y_MIN_MM + t.clamp(0.0, 1.0) * PLOT_HEIGHT_MM
+            }
+        }
+
+        /// Format a tick label compactly: integer if essentially integral, else 4 sig figs.
+        fn fmt_tick(value: f64) -> String {
+            if !value.is_finite() {
+                return "n/a".to_string();
+            }
+            let rounded = value.round();
+            if (value - rounded).abs() < 1e-9 && value.abs() < 1e7 {
+                return format!("{}", rounded as i64);
+            }
+            let abs = value.abs();
+            if abs >= 1e4 || (abs > 0.0 && abs < 1e-3) {
+                format!("{:.3e}", value)
+            } else {
+                format!("{:.4}", value)
+            }
+        }
+
+        /// Sample `f` over `x_range` with `n_points + 1` points; returns the (possibly
+        /// non-finite) y-values aligned with their x-positions.
+        fn sample_curve<F>(f: &F, x_range: (f64, f64), n_points: usize) -> Vec<(f64, f64)>
+        where
+            F: Fn(f64) -> f64,
+        {
+            // We deliberately use n_points + 1 samples (matches PNG/SVG branches and includes
+            // both endpoints).
+            let n = n_points.max(1);
+            let step = (x_range.1 - x_range.0) / n as f64;
+            (0..=n)
+                .map(|i| {
+                    let x = x_range.0 + i as f64 * step;
+                    (x, f(x))
+                })
+                .collect()
+        }
+
+        /// Compute the plotted y-range from the sample buffer, ignoring non-finite y-values.
+        /// Falls back to a centred unit interval when no finite samples exist.
+        fn finite_y_range(samples: &[(f64, f64)]) -> (f64, f64) {
+            let mut y_min = f64::INFINITY;
+            let mut y_max = f64::NEG_INFINITY;
+            for &(_, y) in samples {
+                if y.is_finite() {
+                    if y < y_min {
+                        y_min = y;
+                    }
+                    if y > y_max {
+                        y_max = y;
+                    }
+                }
+            }
+            if !y_min.is_finite() || !y_max.is_finite() {
+                // No finite sample at all — give the curve a small canvas so the axes still
+                // render correctly.
+                return (-1.0, 1.0);
+            }
+            if (y_max - y_min).abs() < f64::EPSILON {
+                // Flat curve: synthesise a 1-unit window so the line is interior to the box.
+                return (y_min - 1.0, y_max + 1.0);
+            }
+            let pad = (y_max - y_min) * Y_PADDING_FACTOR as f64;
+            (y_min - pad, y_max + pad)
+        }
+
+        /// Build a single polyline `Op::DrawLine` for a contiguous run of finite points.
+        fn polyline_op(points: &[(f32, f32)]) -> Op {
+            Op::DrawLine {
+                line: Line {
+                    points: points
+                        .iter()
+                        .map(|&(mx, my)| LinePoint {
+                            p: Point {
+                                x: Mm(mx).into(),
+                                y: Mm(my).into(),
+                            },
+                            bezier: false,
+                        })
+                        .collect(),
+                    is_closed: false,
+                },
+            }
+        }
+
+        /// Helper: emit a labelled text block at a page-space anchor in millimetres.
+        fn text_at(text: &str, anchor_mm: (f32, f32), size_pt: f32) -> Vec<Op> {
+            vec![
+                Op::StartTextSection,
+                Op::SetTextCursor {
+                    pos: Point::new(Mm(anchor_mm.0), Mm(anchor_mm.1)),
+                },
+                Op::SetFont {
+                    font: PdfFontHandle::Builtin(BuiltinFont::Helvetica),
+                    size: Pt(size_pt),
+                },
+                Op::SetLineHeight { lh: Pt(size_pt) },
+                Op::SetFillColor { col: black() },
+                Op::ShowText {
+                    items: vec![TextItem::Text(text.to_string())],
+                },
+                Op::EndTextSection,
+            ]
+        }
+
+        /// Helper: emit a vertical (90° CCW) text block centred along the y-axis.
+        fn text_rotated(text: &str, anchor_mm: (f32, f32), size_pt: f32) -> Vec<Op> {
+            // Convert mm -> pt for the text matrix (which expects raw points).
+            let x_pt = Mm(anchor_mm.0).into_pt().0;
+            let y_pt = Mm(anchor_mm.1).into_pt().0;
+            vec![
+                Op::StartTextSection,
+                Op::SetFont {
+                    font: PdfFontHandle::Builtin(BuiltinFont::Helvetica),
+                    size: Pt(size_pt),
+                },
+                Op::SetLineHeight { lh: Pt(size_pt) },
+                Op::SetFillColor { col: black() },
+                Op::SetTextMatrix {
+                    matrix: TextMatrix::TranslateRotate(Pt(x_pt), Pt(y_pt), 90.0),
+                },
+                Op::ShowText {
+                    items: vec![TextItem::Text(text.to_string())],
+                },
+                Op::EndTextSection,
+            ]
+        }
+
+        /// A single straight line in page-space (mm), drawn with the current outline colour
+        /// and thickness.
+        fn line_segment_mm(from: (f32, f32), to: (f32, f32)) -> Op {
+            Op::DrawLine {
+                line: Line {
+                    points: vec![
+                        LinePoint {
+                            p: Point::new(Mm(from.0), Mm(from.1)),
+                            bezier: false,
+                        },
+                        LinePoint {
+                            p: Point::new(Mm(to.0), Mm(to.1)),
+                            bezier: false,
+                        },
+                    ],
+                    is_closed: false,
+                },
+            }
+        }
+
+        /// Emit the plot frame (left + bottom axis lines) plus tick marks and tick labels.
+        fn axes_and_ticks(x_range: (f64, f64), y_range: (f64, f64)) -> Vec<Op> {
+            let mut ops: Vec<Op> = vec![
+                Op::SetOutlineColor { col: black() },
+                Op::SetOutlineThickness {
+                    pt: Pt(AXIS_LINE_PT),
+                },
+                // Bottom axis (x).
+                line_segment_mm(
+                    (PLOT_X_MIN_MM, PLOT_Y_MIN_MM),
+                    (PLOT_X_MAX_MM, PLOT_Y_MIN_MM),
+                ),
+                // Left axis (y).
+                line_segment_mm(
+                    (PLOT_X_MIN_MM, PLOT_Y_MIN_MM),
+                    (PLOT_X_MIN_MM, PLOT_Y_MAX_MM),
+                ),
+            ];
+
+            // X-axis ticks + labels.
+            for i in 0..=X_TICKS {
+                let t = i as f32 / X_TICKS as f32;
+                let x_mm = PLOT_X_MIN_MM + t * PLOT_WIDTH_MM;
+                ops.push(line_segment_mm(
+                    (x_mm, PLOT_Y_MIN_MM),
+                    (x_mm, PLOT_Y_MIN_MM - TICK_LEN_MM),
+                ));
+                let value = x_range.0 + (x_range.1 - x_range.0) * t as f64;
+                let label = fmt_tick(value);
+                // Approximate text width centring (Helvetica char ~ 0.55em wide).
+                let approx_width_mm =
+                    label.chars().count() as f32 * (TICK_FONT_PT * 0.55) / 2.834_646;
+                let label_x = x_mm - approx_width_mm * 0.5;
+                let label_y = PLOT_Y_MIN_MM - TICK_LEN_MM - 4.0;
+                ops.extend(text_at(&label, (label_x, label_y), TICK_FONT_PT));
+            }
+
+            // Y-axis ticks + labels.
+            for i in 0..=Y_TICKS {
+                let t = i as f32 / Y_TICKS as f32;
+                let y_mm = PLOT_Y_MIN_MM + t * PLOT_HEIGHT_MM;
+                ops.push(line_segment_mm(
+                    (PLOT_X_MIN_MM, y_mm),
+                    (PLOT_X_MIN_MM - TICK_LEN_MM, y_mm),
+                ));
+                let value = y_range.0 + (y_range.1 - y_range.0) * t as f64;
+                let label = fmt_tick(value);
+                let approx_width_mm =
+                    label.chars().count() as f32 * (TICK_FONT_PT * 0.55) / 2.834_646;
+                // Right-aligned label with a 1 mm gap before the tick mark.
+                let label_x = PLOT_X_MIN_MM - TICK_LEN_MM - 1.0 - approx_width_mm;
+                let label_y = y_mm - (TICK_FONT_PT * 0.35) / 2.834_646;
+                ops.extend(text_at(&label, (label_x, label_y), TICK_FONT_PT));
+            }
+
+            ops
+        }
+
+        /// Draw the curve, splitting at non-finite gaps so discontinuities aren't bridged.
+        fn curve_polylines(
+            samples: &[(f64, f64)],
+            y_range: (f64, f64),
+            x_range: (f64, f64),
+        ) -> Vec<Op> {
+            let mut ops: Vec<Op> = vec![
+                Op::SetOutlineColor { col: curve_color() },
+                Op::SetOutlineThickness {
+                    pt: Pt(CURVE_LINE_PT),
+                },
+            ];
+
+            let mut current: Vec<(f32, f32)> = Vec::new();
+            for &(x, y) in samples {
+                if y.is_finite() {
+                    let mx = x_to_mm(x, x_range);
+                    let my = y_to_mm(y, y_range);
+                    current.push((mx, my));
+                } else if current.len() >= 2 {
+                    ops.push(polyline_op(&current));
+                    current.clear();
+                } else {
+                    current.clear();
+                }
+            }
+            if current.len() >= 2 {
+                ops.push(polyline_op(&current));
+            }
+
+            ops
+        }
+
+        /// Render the chart and return PDF bytes.
+        pub fn render_pdf<F>(
+            f: &F,
+            x_range: (f64, f64),
+            n_points: usize,
+        ) -> Result<Vec<u8>, Box<dyn Error>>
+        where
+            F: Fn(f64) -> f64,
+        {
+            // Validate the x-range once up-front so the rest of the pipeline can assume a
+            // monotone increasing interval and finite endpoints.
+            if !(x_range.0.is_finite() && x_range.1.is_finite()) {
+                return Err(format!(
+                    "PDF generation failed: x_range endpoints must be finite, got ({}, {})",
+                    x_range.0, x_range.1
+                )
+                .into());
+            }
+            if x_range.0 >= x_range.1 {
+                return Err(format!(
+                    "PDF generation failed: x_range must be strictly increasing, got ({}, {})",
+                    x_range.0, x_range.1
+                )
+                .into());
+            }
+            if n_points == 0 {
+                return Err("PDF generation failed: n_points must be > 0"
+                    .to_string()
+                    .into());
+            }
+
+            let samples = sample_curve(f, x_range, n_points);
+            let y_range = finite_y_range(&samples);
+
+            let mut ops: Vec<Op> = Vec::new();
+
+            // Plot frame interior left blank — only axes, ticks, labels and curve are drawn.
+            ops.extend(axes_and_ticks(x_range, y_range));
+
+            // Chart title — centred horizontally above the plot region.
+            {
+                let title = "Special Function Plot";
+                let approx_width_mm =
+                    title.chars().count() as f32 * (TITLE_FONT_PT * 0.55) / 2.834_646;
+                let title_x = (PAGE_WIDTH_MM - approx_width_mm) * 0.5;
+                let title_y = PLOT_Y_MAX_MM + 12.0;
+                ops.extend(text_at(title, (title_x, title_y), TITLE_FONT_PT));
+            }
+
+            // X-axis label.
+            {
+                let label = "x";
+                let approx_width_mm =
+                    label.chars().count() as f32 * (LABEL_FONT_PT * 0.55) / 2.834_646;
+                let label_x = (PLOT_X_MIN_MM + PLOT_X_MAX_MM) * 0.5 - approx_width_mm * 0.5;
+                let label_y = PLOT_Y_MIN_MM - TICK_LEN_MM - 14.0;
+                ops.extend(text_at(label, (label_x, label_y), LABEL_FONT_PT));
+            }
+
+            // Y-axis label (rotated 90°, anchored on the left margin centred vertically).
+            {
+                let label = "f(x)";
+                let approx_width_mm =
+                    label.chars().count() as f32 * (LABEL_FONT_PT * 0.55) / 2.834_646;
+                let label_x = PLOT_X_MIN_MM - 18.0;
+                let label_y = (PLOT_Y_MIN_MM + PLOT_Y_MAX_MM) * 0.5 - approx_width_mm * 0.5;
+                ops.extend(text_rotated(label, (label_x, label_y), LABEL_FONT_PT));
+            }
+
+            // The curve last so it sits on top of the axes.
+            ops.extend(curve_polylines(&samples, y_range, x_range));
+
+            let mut doc = PdfDocument::new("Special Function Plot");
+            let page = PdfPage::new(Mm(PAGE_WIDTH_MM), Mm(PAGE_HEIGHT_MM), ops);
+
+            let bytes = doc
+                .with_pages(vec![page])
+                .save(&PdfSaveOptions::default(), &mut Vec::new());
+
+            // Sanity check: a minimal PDF still has a `%PDF-` signature; if the underlying
+            // serializer ever returned an empty buffer we'd want to surface that as an error
+            // rather than producing an invalid PDF blob.
+            if bytes.len() < 5 || !bytes.starts_with(b"%PDF-") {
+                return Err(
+                    "PDF generation failed: serializer returned a non-PDF byte buffer"
+                        .to_string()
+                        .into(),
+                );
+            }
+
+            Ok(bytes)
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1197,5 +1627,172 @@ mod tests {
         assert!(csv.contains("x,y\n"));
         assert!(csv.contains("0,0\n"));
         assert!(csv.contains("1,1\n"));
+    }
+
+    /// PDF export must produce a buffer that begins with the standard `%PDF-` magic header.
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn test_export_pdf_magic_bytes() {
+        let data = export::export_plot_data(
+            |x: f64| x.sin(),
+            (-std::f64::consts::PI, std::f64::consts::PI),
+            100,
+            export::ExportFormat::PDF,
+        )
+        .expect("PDF export should succeed for sin(x) over (-π, π)");
+
+        assert!(
+            data.len() >= 5 && data.starts_with(b"%PDF-"),
+            "PDF output must start with %PDF- magic bytes; got first 16 bytes: {:?}",
+            &data[..data.len().min(16)]
+        );
+    }
+
+    /// A real chart with axes, ticks, labels and a curve is well over 1 KB. A trivial empty
+    /// PDF (header + xref + trailer + EOF) is ~300 bytes; this test guards against the PDF
+    /// arm regressing back to a placeholder document.
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn test_export_pdf_meaningful_size() {
+        let data = export::export_plot_data(
+            |x: f64| x.cos(),
+            (-2.0 * std::f64::consts::PI, 2.0 * std::f64::consts::PI),
+            200,
+            export::ExportFormat::PDF,
+        )
+        .expect("PDF export should succeed for cos(x)");
+
+        assert!(
+            data.len() > 1024,
+            "Rendered PDF should be > 1 KB to indicate a non-trivial chart; got {} bytes",
+            data.len()
+        );
+    }
+
+    /// Round-trip the PDF bytes through the filesystem to ensure they survive a write/read
+    /// cycle unchanged. Uses `std::env::temp_dir()` per the project's test I/O policy.
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn test_export_pdf_roundtrip_via_temp_file() {
+        use std::fs;
+        use std::io::Write;
+
+        let data = export::export_plot_data(
+            |x: f64| 1.0 / (1.0 + x * x),
+            (-5.0, 5.0),
+            150,
+            export::ExportFormat::PDF,
+        )
+        .expect("PDF export should succeed for the Cauchy/Lorentzian peak");
+
+        let mut path = std::env::temp_dir();
+        path.push(format!(
+            "scirs2_special_pdf_export_{}.pdf",
+            std::process::id()
+        ));
+
+        {
+            let mut file = fs::File::create(&path).expect("create temp pdf file");
+            file.write_all(&data).expect("write pdf bytes");
+            file.flush().expect("flush pdf bytes");
+        }
+
+        let read_back = fs::read(&path).expect("read pdf bytes back");
+        assert_eq!(
+            data.len(),
+            read_back.len(),
+            "Written and read-back PDF must be byte-for-byte identical in length",
+        );
+        assert_eq!(
+            data, read_back,
+            "Written and read-back PDF must be byte-for-byte identical",
+        );
+
+        let _ = fs::remove_file(&path);
+    }
+
+    /// Functions that produce non-finite values (e.g. `1/x` near 0) must be handled by the
+    /// PDF renderer: those samples are filtered before y-range computation and split the
+    /// curve into multiple polylines instead of bridging the asymptote with a straight line.
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn test_export_pdf_non_finite_filtering() {
+        // Helper closure asserts PDF magic + a meaningful (>1KB) chart for one case.
+        let assert_pdf_with_filtered_samples =
+            |label: &str, f: &dyn Fn(f64) -> f64, range: (f64, f64), n: usize| {
+                let data = export::export_plot_data(f, range, n, export::ExportFormat::PDF)
+                    .unwrap_or_else(|e| {
+                        panic!("PDF export must not panic on non-finite samples ({label}): {e}");
+                    });
+                assert!(
+                    data.starts_with(b"%PDF-"),
+                    "[{label}] Non-finite-aware rendering must still emit a valid PDF header"
+                );
+                assert!(
+                    data.len() > 1024,
+                    "[{label}] Even after filtering non-finite samples, the chart should still \
+                     be substantial; got {} bytes",
+                    data.len()
+                );
+            };
+
+        // `1/x` over the symmetric interval (-1, 1) with `n_points = 100` produces a step
+        // of `2/100 = 0.02`, so the sample at `i = 50` lands exactly on `x = 0` and yields
+        // +∞ — directly exercising the non-finite branch in `curve_polylines`.
+        assert_pdf_with_filtered_samples("1/x straddling 0", &|x| 1.0 / x, (-1.0, 1.0), 100);
+
+        // `tan(x)` near (±π/2): the endpoint samples blow up, splitting the polyline near
+        // both extremes.
+        assert_pdf_with_filtered_samples(
+            "tan(x) near asymptotes",
+            &|x: f64| x.tan(),
+            (
+                -std::f64::consts::FRAC_PI_2 + 1e-9,
+                std::f64::consts::FRAC_PI_2 - 1e-9,
+            ),
+            200,
+        );
+
+        // `sqrt(x)` over (-1, 1): every negative-x sample produces NaN, so half of the
+        // samples are filtered out — exercises the "drop run when current.len() < 2" path.
+        assert_pdf_with_filtered_samples(
+            "sqrt(x) with negative-half NaN region",
+            &|x: f64| x.sqrt(),
+            (-1.0, 1.0),
+            100,
+        );
+
+        // Adversarial: a function whose every output is non-finite must still produce a
+        // valid PDF (just with no curve drawn — only axes / labels / placeholder y-range).
+        let data = export::export_plot_data(
+            |_x: f64| f64::NAN,
+            (-1.0, 1.0),
+            50,
+            export::ExportFormat::PDF,
+        )
+        .expect("PDF export must succeed even when every sample is non-finite");
+        assert!(
+            data.starts_with(b"%PDF-"),
+            "Empty-curve PDF must still have valid header"
+        );
+    }
+
+    /// Edge case: an x-range with non-monotonic endpoints must be rejected with a useful
+    /// error message rather than producing a malformed PDF.
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn test_export_pdf_rejects_inverted_range() {
+        let result =
+            export::export_plot_data(|x: f64| x, (1.0, -1.0), 10, export::ExportFormat::PDF);
+        assert!(result.is_err(), "inverted x-range must be rejected");
+    }
+
+    /// Edge case: zero samples must be rejected — a chart with no data points has nothing
+    /// to render and would silently produce an empty curve in earlier iterations.
+    #[cfg(feature = "pdf")]
+    #[test]
+    fn test_export_pdf_rejects_zero_points() {
+        let result = export::export_plot_data(|x: f64| x, (0.0, 1.0), 0, export::ExportFormat::PDF);
+        assert!(result.is_err(), "n_points = 0 must be rejected");
     }
 }

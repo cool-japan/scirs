@@ -327,10 +327,7 @@ pub fn write_record_batch(
 ///
 /// This is a low-level function.  The schema must be passed in because it has
 /// already been consumed from the stream at open time.
-pub fn read_next_batch(
-    reader: &mut dyn Read,
-    schema: &ArrowSchema,
-) -> Result<Option<RecordBatch>> {
+pub fn read_next_batch(reader: &mut dyn Read, schema: &ArrowSchema) -> Result<Option<RecordBatch>> {
     match read_message(reader) {
         Ok((TAG_EOS, _, _)) => Ok(None),
         Ok((TAG_RECORD_BATCH, codec, payload)) => {
@@ -407,8 +404,9 @@ fn read_message(r: &mut dyn Read) -> Result<(u8, u8, Vec<u8>)> {
     }
 
     let mut payload = vec![0u8; len];
-    r.read_exact(&mut payload)
-        .map_err(|e| IoError::FormatError(format!("failed to read message payload ({len} b): {e}")))?;
+    r.read_exact(&mut payload).map_err(|e| {
+        IoError::FormatError(format!("failed to read message payload ({len} b): {e}"))
+    })?;
 
     // Skip alignment padding
     let rem = len % ALIGNMENT;
@@ -514,7 +512,12 @@ fn deserialize_schema(data: &[u8]) -> Result<ArrowSchema> {
             let v = read_length_prefixed_string(&mut cur)?;
             metadata.insert(k, v);
         }
-        fields.push(ArrowField { name, dtype, nullable, metadata });
+        fields.push(ArrowField {
+            name,
+            dtype,
+            nullable,
+            metadata,
+        });
     }
 
     let schema_meta_count = read_u32_le_cur(&mut cur)? as usize;
@@ -620,11 +623,7 @@ fn serialize_column(col: &ArrowColumn) -> Result<Vec<u8>> {
     Ok(buf)
 }
 
-fn deserialize_column(
-    data: &[u8],
-    dtype: &ArrowDataType,
-    num_rows: usize,
-) -> Result<ArrowColumn> {
+fn deserialize_column(data: &[u8], dtype: &ArrowDataType, num_rows: usize) -> Result<ArrowColumn> {
     let mut cur = Cursor::new(data);
     match dtype {
         ArrowDataType::Int64 => {
@@ -916,7 +915,9 @@ mod tests {
     #[test]
     fn test_schema_metadata_preserved() {
         let mut schema = make_schema();
-        schema.metadata.insert("source".to_string(), "test_suite".to_string());
+        schema
+            .metadata
+            .insert("source".to_string(), "test_suite".to_string());
 
         let mut buf = Vec::new();
         {
@@ -975,8 +976,8 @@ mod tests {
             RecordBatch::new(schema_b.clone(), vec![ArrowColumn::Float64(vec![1.0])]).expect("b");
 
         let mut buf = Vec::new();
-        let mut writer = ArrowStreamWriter::new(&mut buf, schema_a, StreamingCompression::None)
-            .expect("writer");
+        let mut writer =
+            ArrowStreamWriter::new(&mut buf, schema_a, StreamingCompression::None).expect("writer");
         let result = writer.write_batch(&batch_b);
         assert!(result.is_err(), "mismatched schema should error");
     }
@@ -1063,8 +1064,9 @@ mod tests {
 
         let mut buf = Vec::new();
         {
-            let mut w = ArrowStreamWriter::new(&mut buf, schema.clone(), StreamingCompression::None)
-                .expect("w");
+            let mut w =
+                ArrowStreamWriter::new(&mut buf, schema.clone(), StreamingCompression::None)
+                    .expect("w");
             w.write_batch(&empty).expect("write");
             w.finish().expect("finish");
         }
@@ -1085,8 +1087,9 @@ mod tests {
 
         let mut buf = Vec::new();
         {
-            let mut w = ArrowStreamWriter::new(&mut buf, schema.clone(), StreamingCompression::None)
-                .expect("w");
+            let mut w =
+                ArrowStreamWriter::new(&mut buf, schema.clone(), StreamingCompression::None)
+                    .expect("w");
             w.write_batch(&batch).expect("write");
             w.finish().expect("finish");
         }

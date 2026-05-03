@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-signal = "0.4.2"
+//! scirs2-signal = "0.4.3"
 //! ```
 //!
 //! ```rust
@@ -49,7 +49,7 @@
 //! let filtered = convolve(&signal, &kernel, "same").expect("operation should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2 (March 27, 2026)
+//! ## 🔒 Version: 0.4.3 (March 27, 2026)
 
 // Core error handling - ESSENTIAL
 pub mod error;
@@ -88,9 +88,12 @@ pub mod wavelets;
 // Advanced wavelet features for v0.2.0
 pub mod dwt2d_advanced;
 pub mod wavelet_advanced;
+pub mod wpt;
 pub mod wpt_enhanced;
 
 // Additional signal processing modules
+pub mod denoise;
+pub mod denoise_advanced;
 pub mod denoise_enhanced;
 pub mod emd;
 pub mod hilbert;
@@ -101,18 +104,20 @@ pub mod parametric_advanced_enhanced;
 pub mod spline;
 pub mod swt;
 pub mod sysid;
+pub mod sysid_advanced_enhanced;
+pub mod sysid_enhanced;
 pub mod tv;
 pub mod waveforms;
 
-// Additional signal processing modules (temporarily disabled for compilation stability)
-// TODO: Re-add these modules incrementally after fixing compilation errors
 // Lomb-Scargle periodogram module (refactored)
 pub mod lombscargle;
 pub mod lombscargle_enhanced;
 pub mod lombscargle_scipy_validation;
 // pub mod utilities;
+pub mod cqt;
 pub mod simd_advanced;
-// pub mod cqt;
+// Chirp Z-Transform (generalisation of the DFT)
+pub mod czt;
 // pub mod wvd;
 // pub mod nlm;
 // pub mod wiener;
@@ -121,7 +126,7 @@ pub mod simd_advanced;
 // pub mod wavelet_vis;
 // pub mod reassigned;
 // pub mod deconvolution;
-// pub mod savgol;
+pub mod savgol;
 
 // Signal processing submodules (temporarily disabled)
 // pub mod bss;
@@ -184,6 +189,11 @@ pub mod gpu;
 pub mod gpu_spectrograms;
 // GPU-accelerated matched filter bank
 pub mod gpu_matched_filter;
+// GPU wavelet transform dispatch layer
+pub mod gpu_wavelet;
+pub use gpu_wavelet::{
+    dwt_dispatch, dwt_dispatch_batch, GpuWaveletBackend, GpuWaveletConfig, GpuWaveletFamily,
+};
 // Operational modal analysis
 pub mod modal_analysis;
 // Batched Welch PSD for parallel multi-channel processing
@@ -192,6 +202,11 @@ pub mod welch_batch;
 pub mod oma_efdd;
 // Neural audio processing
 pub mod neural_audio;
+// Deep filtering via neural-predicted FIR coefficients
+pub mod deep_filter;
+// Pre-trained model weight loading / saving in oxicode format
+pub mod model_weights;
+pub use model_weights::{SignalWeightFormat, SignalWeightStore};
 // Phase estimation (ESPRIT, MUSIC)
 pub mod phase_estimation;
 // Real-time DSP pipeline
@@ -227,6 +242,7 @@ pub use parametric_advanced_enhanced::{
     AdvancedEnhancedConfig, HighResolutionConfig, MultitaperParametricConfig,
     RobustParametricConfig,
 };
+pub use savgol::{savgol_coeffs, savgol_filter};
 pub use swt::{iswt, swt, swt_decompose_simd_pipelined};
 pub use tv::{tv_denoise_1d, tv_denoise_2d};
 pub use waveforms::{chirp, sawtooth, square};

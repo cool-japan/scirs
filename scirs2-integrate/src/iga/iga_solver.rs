@@ -26,8 +26,8 @@
 //! - Hughes, Cottrell & Bazilevs (2005), "Isogeometric Analysis: CAD, FEM, NURBS…"
 //! - Cottrell, Hughes & Bazilevs (2009), "Isogeometric Analysis: Toward Integration…"
 
-use crate::error::{IntegrateError, IntegrateResult};
 use super::bspline::BSplineBasis;
+use crate::error::{IntegrateError, IntegrateResult};
 
 // We need gaussian_elimination — pull it from panel_method via the BEM module
 // but since iga is a separate module tree, we inline a small copy here.
@@ -36,7 +36,7 @@ use super::bspline::BSplineBasis;
 // Inline Gaussian elimination (avoid cross-module dependency)
 // ---------------------------------------------------------------------------
 
-fn gauss_solve(a: &mut Vec<Vec<f64>>, b: &mut Vec<f64>, n: usize) -> IntegrateResult<Vec<f64>> {
+fn gauss_solve(a: &mut [Vec<f64>], b: &mut [f64], n: usize) -> IntegrateResult<Vec<f64>> {
     for col in 0..n {
         let mut max_row = col;
         let mut max_val = a[col][col].abs();
@@ -83,19 +83,30 @@ fn gauss_solve(a: &mut Vec<Vec<f64>>, b: &mut Vec<f64>, n: usize) -> IntegrateRe
 fn gauss_legendre(n: usize) -> (Vec<f64>, Vec<f64>) {
     match n {
         1 => (vec![0.0], vec![2.0]),
-        2 => (vec![-0.577_350_269_189_625_8, 0.577_350_269_189_625_8], vec![1.0, 1.0]),
+        2 => (
+            vec![-0.577_350_269_189_625_8, 0.577_350_269_189_625_8],
+            vec![1.0, 1.0],
+        ),
         3 => (
             vec![-0.774_596_669_241_483_4, 0.0, 0.774_596_669_241_483_4],
-            vec![0.555_555_555_555_555_6, 0.888_888_888_888_888_9, 0.555_555_555_555_555_6],
+            vec![
+                0.555_555_555_555_556,
+                0.888_888_888_888_889,
+                0.555_555_555_555_556,
+            ],
         ),
         4 => (
             vec![
-                -0.861_136_311_594_052_6, -0.339_981_043_584_856_3,
-                0.339_981_043_584_856_3, 0.861_136_311_594_052_6,
+                -0.861_136_311_594_052_6,
+                -0.339_981_043_584_856_3,
+                0.339_981_043_584_856_3,
+                0.861_136_311_594_052_6,
             ],
             vec![
-                0.347_854_845_137_453_8, 0.652_145_154_862_546_1,
-                0.652_145_154_862_546_1, 0.347_854_845_137_453_8,
+                0.347_854_845_137_453_8,
+                0.652_145_154_862_546_1,
+                0.652_145_154_862_546_1,
+                0.347_854_845_137_453_8,
             ],
         ),
         _ => gauss_legendre(4),
@@ -133,7 +144,7 @@ impl IGASolution1D {
     pub fn eval(&self, t: f64) -> f64 {
         let (span, n_vals) = self.basis.eval_basis_functions(t);
         let p = self.basis.degree;
-        let start = if span >= p { span - p } else { 0 };
+        let start = span.saturating_sub(p);
         let mut val = 0.0_f64;
         for (k, &n_k) in n_vals.iter().enumerate() {
             let idx = start + k;
@@ -148,7 +159,7 @@ impl IGASolution1D {
     pub fn eval_deriv(&self, t: f64) -> f64 {
         let (span, dn_vals) = self.basis.eval_basis_derivatives(t);
         let p = self.basis.degree;
-        let start = if span >= p { span - p } else { 0 };
+        let start = span.saturating_sub(p);
         let mut val = 0.0_f64;
         for (k, &dn_k) in dn_vals.iter().enumerate() {
             let idx = start + k;
@@ -212,14 +223,18 @@ impl IGASolver1D {
                 let a_val = a_coeff(t);
                 let (_, dn_vals) = self.basis.eval_basis_derivatives(t);
                 // span from find_span corresponds to span_idx
-                let start = if span_idx >= p { span_idx - p } else { 0 };
+                let start = span_idx.saturating_sub(p);
 
                 for (ki, &dn_i) in dn_vals.iter().enumerate() {
                     let i = start + ki;
-                    if i >= n { continue; }
+                    if i >= n {
+                        continue;
+                    }
                     for (kj, &dn_j) in dn_vals.iter().enumerate() {
                         let j = start + kj;
-                        if j >= n { continue; }
+                        if j >= n {
+                            continue;
+                        }
                         k_mat[i][j] += a_val * dn_i * dn_j * w * jac;
                     }
                 }
@@ -242,7 +257,9 @@ impl IGASolver1D {
         for span_idx in p..=(n - 1) {
             let ta = knots[span_idx];
             let tb = knots[span_idx + 1];
-            if (tb - ta).abs() < 1e-15 { continue; }
+            if (tb - ta).abs() < 1e-15 {
+                continue;
+            }
             let half = (tb - ta) * 0.5;
             let mid = (ta + tb) * 0.5;
 
@@ -251,7 +268,7 @@ impl IGASolver1D {
                 let jac = half;
                 let f_val = f_rhs(t);
                 let (_, n_vals) = self.basis.eval_basis_functions(t);
-                let start = if span_idx >= p { span_idx - p } else { 0 };
+                let start = span_idx.saturating_sub(p);
 
                 for (ki, &n_k) in n_vals.iter().enumerate() {
                     let i = start + ki;
@@ -327,9 +344,7 @@ impl IGASolver1D {
 
         let mut coeffs = vec![0.0_f64; n];
         coeffs[0] = u0;
-        for i in 0..n_free {
-            coeffs[i + 1] = u_free[i];
-        }
+        coeffs[1..(n_free + 1)].copy_from_slice(&u_free[..n_free]);
         coeffs[n - 1] = u1;
 
         Ok(IGASolution1D {
@@ -361,13 +376,15 @@ impl IGASolution2D {
         let (span_v, n_v) = self.basis_v.eval_basis_functions(v);
         let pu = self.basis_u.degree;
         let pv = self.basis_v.degree;
-        let start_u = if span_u >= pu { span_u - pu } else { 0 };
-        let start_v = if span_v >= pv { span_v - pv } else { 0 };
+        let start_u = span_u.saturating_sub(pu);
+        let start_v = span_v.saturating_sub(pv);
 
         let mut val = 0.0_f64;
         for (ki, &n_ui) in n_u.iter().enumerate() {
             let i = start_u + ki;
-            if i >= self.coefficients.len() { continue; }
+            if i >= self.coefficients.len() {
+                continue;
+            }
             for (kj, &n_vj) in n_v.iter().enumerate() {
                 let j = start_v + kj;
                 if j < self.coefficients[i].len() {
@@ -396,7 +413,11 @@ impl IGASolver2D {
     ) -> IntegrateResult<Self> {
         let basis_u = BSplineBasis::uniform_open(degree, n_elements_u + degree)?;
         let basis_v = BSplineBasis::uniform_open(degree, n_elements_v + degree)?;
-        Ok(Self { basis_u, basis_v, cfg })
+        Ok(Self {
+            basis_u,
+            basis_v,
+            cfg,
+        })
     }
 
     /// Solve −∇²u = f with zero Dirichlet BCs on the entire boundary.
@@ -429,14 +450,18 @@ impl IGASolver2D {
         for span_i in pu..=(nu - 1) {
             let ua = knots_u[span_i];
             let ub = knots_u[span_i + 1];
-            if (ub - ua).abs() < 1e-15 { continue; }
+            if (ub - ua).abs() < 1e-15 {
+                continue;
+            }
             let half_u = (ub - ua) * 0.5;
             let mid_u = (ua + ub) * 0.5;
 
             for span_j in pv..=(nv - 1) {
                 let va = knots_v[span_j];
                 let vb = knots_v[span_j + 1];
-                if (vb - va).abs() < 1e-15 { continue; }
+                if (vb - va).abs() < 1e-15 {
+                    continue;
+                }
                 let half_v = (vb - va) * 0.5;
                 let mid_v = (va + vb) * 0.5;
 
@@ -445,13 +470,13 @@ impl IGASolver2D {
                     let u_pt = mid_u + half_u * xi_u;
                     let (_, n_u) = self.basis_u.eval_basis_functions(u_pt);
                     let (_, dn_u) = self.basis_u.eval_basis_derivatives(u_pt);
-                    let start_u = if span_i >= pu { span_i - pu } else { 0 };
+                    let start_u = span_i.saturating_sub(pu);
 
                     for (&xi_v, &w_v) in xi_ref.iter().zip(w_ref.iter()) {
                         let v_pt = mid_v + half_v * xi_v;
                         let (_, n_v) = self.basis_v.eval_basis_functions(v_pt);
                         let (_, dn_v) = self.basis_v.eval_basis_derivatives(v_pt);
-                        let start_v = if span_j >= pv { span_j - pv } else { 0 };
+                        let start_v = span_j.saturating_sub(pv);
 
                         let jac = half_u * half_v * w_u * w_v;
                         let f_val = f_rhs(u_pt, v_pt);
@@ -459,22 +484,34 @@ impl IGASolver2D {
                         // Assemble stiffness and load
                         for (ki, (&n_ui, &dn_ui)) in n_u.iter().zip(dn_u.iter()).enumerate() {
                             let i = start_u + ki;
-                            if i >= nu { continue; }
+                            if i >= nu {
+                                continue;
+                            }
                             for (kj, (&n_vj, &dn_vj)) in n_v.iter().zip(dn_v.iter()).enumerate() {
                                 let j = start_v + kj;
-                                if j >= nv { continue; }
+                                if j >= nv {
+                                    continue;
+                                }
                                 let row = idx(i, j);
 
                                 // Load: ∫ f N_ij dΩ
                                 f_global[row] += f_val * n_ui * n_vj * jac;
 
                                 // Stiffness: ∫ ∇N_ij · ∇N_kl dΩ
-                                for (ki2, (&n_ui2, &dn_ui2)) in n_u.iter().zip(dn_u.iter()).enumerate() {
+                                for (ki2, (&n_ui2, &dn_ui2)) in
+                                    n_u.iter().zip(dn_u.iter()).enumerate()
+                                {
                                     let i2 = start_u + ki2;
-                                    if i2 >= nu { continue; }
-                                    for (kj2, (&n_vj2, &dn_vj2)) in n_v.iter().zip(dn_v.iter()).enumerate() {
+                                    if i2 >= nu {
+                                        continue;
+                                    }
+                                    for (kj2, (&n_vj2, &dn_vj2)) in
+                                        n_v.iter().zip(dn_v.iter()).enumerate()
+                                    {
                                         let j2 = start_v + kj2;
-                                        if j2 >= nv { continue; }
+                                        if j2 >= nv {
+                                            continue;
+                                        }
                                         let col = idx(i2, j2);
 
                                         // ∇N_{ij} · ∇N_{i2j2} = N'_i N_j * N'_i2 N_j2 / Jac_u²
@@ -546,7 +583,12 @@ impl IGASolver {
         n_elements_u: usize,
         n_elements_v: usize,
     ) -> IntegrateResult<IGASolver2D> {
-        IGASolver2D::new(degree, n_elements_u, n_elements_v, IGASolver1DConfig::default())
+        IGASolver2D::new(
+            degree,
+            n_elements_u,
+            n_elements_v,
+            IGASolver1DConfig::default(),
+        )
     }
 }
 
@@ -566,7 +608,8 @@ mod tests {
             .expect("IGA 1D solver creation");
 
         let a = |_x: f64| 1.0_f64;
-        let f = |x: f64| std::f64::consts::PI * std::f64::consts::PI * (std::f64::consts::PI * x).sin();
+        let f =
+            |x: f64| std::f64::consts::PI * std::f64::consts::PI * (std::f64::consts::PI * x).sin();
 
         let sol = solver.solve(&a, &f, 0.0, 0.0).expect("IGA 1D solve");
 
@@ -590,11 +633,13 @@ mod tests {
         // General solution: u(x) = x²/2 + cx + d.
         // BCs: u(0)=0 ⟹ d=0; u(1)=1 ⟹ 1/2 + c = 1 ⟹ c = 1/2.
         // Exact: u(x) = x²/2 + x/2 = x(x+1)/2.
-        let solver = IGASolver1D::new(2, 4, IGASolver1DConfig { n_gauss: 3 })
-            .expect("IGA 1D creation");
+        let solver =
+            IGASolver1D::new(2, 4, IGASolver1DConfig { n_gauss: 3 }).expect("IGA 1D creation");
         let a = |_x: f64| 2.0_f64;
         let f = |_x: f64| -2.0_f64;
-        let sol = solver.solve(&a, &f, 0.0, 1.0).expect("IGA 1D variable coeff solve");
+        let sol = solver
+            .solve(&a, &f, 0.0, 1.0)
+            .expect("IGA 1D variable coeff solve");
 
         for k in 0..5 {
             let x = k as f64 * 0.2 + 0.1;
@@ -611,8 +656,7 @@ mod tests {
     #[test]
     fn test_iga_1d_solution_derivative() {
         // Check that the derivative of the solution matches the exact derivative.
-        let solver = IGASolver1D::new(3, 6, IGASolver1DConfig::default())
-            .expect("IGA 1D creation");
+        let solver = IGASolver1D::new(3, 6, IGASolver1DConfig::default()).expect("IGA 1D creation");
         let a = |_x: f64| 1.0_f64;
         let pi = std::f64::consts::PI;
         let f = |x: f64| pi * pi * (pi * x).sin();

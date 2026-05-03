@@ -219,6 +219,7 @@ where
                     v[i] /= v_norm;
                 }
 
+                let two = F::one() + F::one();
                 // Apply Householder reflection to R
                 for j in k..m {
                     let column = r.slice(scirs2_core::ndarray::s![k.., j]).to_owned();
@@ -229,8 +230,7 @@ where
                         .fold(F::zero(), |acc, val| acc + val);
 
                     for i in k..n {
-                        r[[i, j]] -=
-                            F::from(2.0).expect("Operation failed") * v[i - k] * dot_product;
+                        r[[i, j]] -= two * v[i - k] * dot_product;
                     }
                 }
 
@@ -242,8 +242,7 @@ where
                         .fold(F::zero(), |acc, val| acc + val);
 
                     for i in k..n {
-                        q[[i, j]] -=
-                            F::from(2.0).expect("Operation failed") * v[i - k] * dot_product;
+                        q[[i, j]] -= two * v[i - k] * dot_product;
                     }
                 }
             }
@@ -361,6 +360,9 @@ where
         s[new_idx] = eigenvalues[old_idx].abs().sqrt();
     }
 
+    // Numerical threshold for near-zero values
+    let threshold = F::from(1e-14).unwrap_or(F::epsilon());
+
     // Build U and V _matrices with improved orthogonality
     let (u, vt) = if use_ata {
         // We computed V from A^T*A, now compute U = A*V*S^(-1)
@@ -374,11 +376,11 @@ where
         // Compute U with better numerical stability
         let mut u = Array2::<F>::zeros((n, rank));
         for i in 0..rank {
-            if s[i] > F::from(1e-14).expect("Operation failed") {
+            if s[i] > threshold {
                 // More conservative threshold
                 let av_col = a.dot(&v_sorted.column(i));
                 let norm = av_col.dot(&av_col).sqrt();
-                if norm > F::from(1e-14).expect("Operation failed") {
+                if norm > threshold && norm.is_finite() {
                     u.column_mut(i).assign(&(&av_col / norm));
                     // Recompute singular value more accurately
                     s[i] = norm;
@@ -403,10 +405,10 @@ where
         // Compute V with better numerical stability
         let mut v = Array2::<F>::zeros((m, rank));
         for i in 0..rank {
-            if s[i] > F::from(1e-14).expect("Operation failed") {
+            if s[i] > threshold {
                 let atv_col = a.t().dot(&u_sorted.column(i));
                 let norm = atv_col.dot(&atv_col).sqrt();
-                if norm > F::from(1e-14).expect("Operation failed") {
+                if norm > threshold && norm.is_finite() {
                     v.column_mut(i).assign(&(&atv_col / norm));
                     // Recompute singular value more accurately
                     s[i] = norm;
@@ -436,9 +438,17 @@ where
         vt
     };
 
+    // Sanitize any NaN values in singular values before sorting (NaN can arise from
+    // eigenvalues of ill-conditioned matrices; treat as zero)
+    for val in s.iter_mut() {
+        if !val.is_finite() {
+            *val = F::zero();
+        }
+    }
+
     // Ensure singular values are sorted in descending order (required by SciPy compatibility)
     let mut sort_indices: Vec<usize> = (0..s.len()).collect();
-    sort_indices.sort_by(|&i, &j| s[j].partial_cmp(&s[i]).expect("Operation failed"));
+    sort_indices.sort_by(|&i, &j| s[j].partial_cmp(&s[i]).unwrap_or(std::cmp::Ordering::Equal));
 
     // Check if sorting is needed
     let needs_sorting = sort_indices.iter().enumerate().any(|(i, &j)| i != j);
@@ -499,7 +509,8 @@ where
         let mut col_i = matrix.column(i).to_owned();
         let norm = col_i.dot(&col_i).sqrt();
 
-        if norm > F::from(1e-14).expect("Operation failed") {
+        let threshold = F::from(1e-14).unwrap_or(F::epsilon());
+        if norm > threshold {
             col_i /= norm;
             matrix.column_mut(i).assign(&col_i);
 
@@ -557,7 +568,8 @@ where
 
         // Normalize
         let norm = new_vec.dot(&new_vec).sqrt();
-        if norm > F::from(1e-14).expect("Operation failed") {
+        let threshold = F::from(1e-14).unwrap_or(F::epsilon());
+        if norm > threshold {
             new_vec /= norm;
         }
 

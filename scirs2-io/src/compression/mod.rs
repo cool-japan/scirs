@@ -46,6 +46,7 @@ use std::path::Path;
 use oxiarc_archive::{bzip2, gzip, lz4, zstd};
 
 // Re-export ndarray submodule
+pub mod advanced;
 pub mod ndarray;
 
 use crate::error::{IoError, Result};
@@ -1033,6 +1034,10 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+// Parallel iterator support via scirs2-core (re-exports rayon::prelude::*)
+#[allow(unused_imports)]
+use scirs2_core::parallel_ops::{IntoParallelIterator, ParallelIterator};
+
 /// Configuration for parallel compression/decompression operations
 #[derive(Debug, Clone)]
 pub struct ParallelCompressionConfig {
@@ -1119,10 +1124,10 @@ pub fn compress_data_parallel(
     let chunks: Vec<&[u8]> = data.chunks(chunk_size).collect();
     let chunk_count = chunks.len();
 
-    // Process chunks sequentially (TODO: implement proper parallel processing)
+    // Process chunks in parallel using rayon (via scirs2-core parallel_ops)
     let processed_count = Arc::new(AtomicUsize::new(0));
     let compressed_chunks: Result<Vec<Vec<u8>>> = chunks
-        .into_iter()
+        .into_par_iter()
         .map(|chunk| {
             let result = compress_data(chunk, algorithm, level);
             processed_count.fetch_add(1, Ordering::Relaxed);
@@ -1258,10 +1263,10 @@ pub fn decompress_data_parallel(
         offset += size;
     }
 
-    // Decompress chunks sequentially (TODO: implement proper parallel processing)
+    // Decompress chunks in parallel using rayon (via scirs2-core parallel_ops)
     let processed_count = Arc::new(AtomicUsize::new(0));
     let decompressed_chunks: Result<Vec<Vec<u8>>> = chunks
-        .into_iter()
+        .into_par_iter()
         .map(|chunk| {
             let result = decompress_data(chunk, algorithm);
             processed_count.fetch_add(1, Ordering::Relaxed);

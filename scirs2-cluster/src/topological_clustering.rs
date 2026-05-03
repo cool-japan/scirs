@@ -549,8 +549,7 @@ pub fn mapper_graph(
         }
 
         // Single-linkage clustering on sub-data
-        let sub_labels =
-            single_linkage_from_data(sub_data.view(), metric, cluster_threshold)?;
+        let sub_labels = single_linkage_from_data(sub_data.view(), metric, cluster_threshold)?;
 
         // Group sub-indices by cluster label
         let max_label = sub_labels.iter().max().copied().unwrap_or(0);
@@ -575,8 +574,7 @@ pub fn mapper_graph(
     }
 
     // Step 4: build edges (shared data points between nodes in different patches)
-    let mut edge_set: std::collections::HashSet<(usize, usize)> =
-        std::collections::HashSet::new();
+    let mut edge_set: std::collections::HashSet<(usize, usize)> = std::collections::HashSet::new();
     for node_list in &point_to_nodes {
         if node_list.len() < 2 {
             continue;
@@ -584,7 +582,10 @@ pub fn mapper_graph(
         // All pairs of nodes sharing this point
         for i in 0..node_list.len() {
             for j in (i + 1)..node_list.len() {
-                let (a, b) = (node_list[i].min(node_list[j]), node_list[i].max(node_list[j]));
+                let (a, b) = (
+                    node_list[i].min(node_list[j]),
+                    node_list[i].max(node_list[j]),
+                );
                 // Only link nodes from *different* patches
                 if nodes[a].patch_index != nodes[b].patch_index {
                     edge_set.insert((a, b));
@@ -595,7 +596,10 @@ pub fn mapper_graph(
 
     let edges: Vec<MapperEdge> = edge_set
         .into_iter()
-        .map(|(s, t)| MapperEdge { source: s, target: t })
+        .map(|(s, t)| MapperEdge {
+            source: s,
+            target: t,
+        })
         .collect();
 
     Ok(MapperGraph { nodes, edges })
@@ -622,9 +626,7 @@ pub fn mapper_graph(
 pub fn n_clusters_from_barcode(barcode: &[(f64, f64)], min_persistence: f64) -> usize {
     barcode
         .iter()
-        .filter(|&&(birth, death)| {
-            death.is_infinite() || (death - birth) >= min_persistence
-        })
+        .filter(|&&(birth, death)| death.is_infinite() || (death - birth) >= min_persistence)
         .count()
         .max(1)
 }
@@ -633,10 +635,7 @@ pub fn n_clusters_from_barcode(barcode: &[(f64, f64)], min_persistence: f64) -> 
 ///
 /// Returns an `(n × n)` symmetric matrix where entry `[i, j]` is the distance
 /// between points `i` and `j`.
-pub fn pairwise_distance_matrix(
-    data: ArrayView2<f64>,
-    metric: &dyn Metric,
-) -> Array2<f64> {
+pub fn pairwise_distance_matrix(data: ArrayView2<f64>, metric: &dyn Metric) -> Array2<f64> {
     let n = data.shape()[0];
     let mut dist = Array2::<f64>::zeros((n, n));
     for i in 0..n {
@@ -660,8 +659,8 @@ mod tests {
         Array2::from_shape_vec(
             (8, 2),
             vec![
-                0.0, 0.0, 0.1, 0.1, 0.05, 0.05, -0.05, 0.05,
-                5.0, 5.0, 5.1, 4.9, 4.9, 5.1, 5.05, 4.95,
+                0.0, 0.0, 0.1, 0.1, 0.05, 0.05, -0.05, 0.05, 5.0, 5.0, 5.1, 4.9, 4.9, 5.1, 5.05,
+                4.95,
             ],
         )
         .expect("data")
@@ -670,22 +669,37 @@ mod tests {
     #[test]
     fn test_ph0_two_clusters() {
         let data = two_cluster_data();
-        let barcode = persistent_homology_0d(data.view(), &EuclideanMetric)
-            .expect("ph0");
-        // Should see two long-lived bars (one per cluster) plus short-lived ones
+        let barcode = persistent_homology_0d(data.view(), &EuclideanMetric).expect("ph0");
+        // In 0-D persistent homology, there is exactly 1 immortal bar (the final connected component).
+        // The two clusters produce one very long-lived finite bar (dies when clusters merge)
+        // and 6 short-lived finite bars (within-cluster merges).
         let n_inf = barcode.iter().filter(|&&(_, d)| d.is_infinite()).count();
-        assert_eq!(n_inf, 2, "expected 2 immortal components");
+        assert_eq!(
+            n_inf, 1,
+            "expected 1 immortal component (connected at infinity)"
+        );
+        // The longest finite bar should have death >> 1.0 (between-cluster distance ~7)
+        let finite_bars: Vec<f64> = barcode
+            .iter()
+            .filter(|&&(_, d)| d.is_finite())
+            .map(|&(b, d)| d - b)
+            .collect();
+        assert!(!finite_bars.is_empty());
+        let max_persistence = finite_bars
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
+        assert!(
+            max_persistence > 1.0,
+            "largest finite bar persistence={}",
+            max_persistence
+        );
     }
 
     #[test]
     fn test_ph0_single_cluster() {
-        let data = Array2::from_shape_vec(
-            (4, 1),
-            vec![0.0, 0.1, 0.2, 0.3],
-        )
-        .expect("data");
-        let barcode = persistent_homology_0d(data.view(), &EuclideanMetric)
-            .expect("ph0 single");
+        let data = Array2::from_shape_vec((4, 1), vec![0.0, 0.1, 0.2, 0.3]).expect("data");
+        let barcode = persistent_homology_0d(data.view(), &EuclideanMetric).expect("ph0 single");
         let n_inf = barcode.iter().filter(|&&(_, d)| d.is_infinite()).count();
         assert_eq!(n_inf, 1);
     }
@@ -693,8 +707,7 @@ mod tests {
     #[test]
     fn test_ph0_empty() {
         let data = Array2::<f64>::zeros((0, 2));
-        let barcode = persistent_homology_0d(data.view(), &EuclideanMetric)
-            .expect("ph0 empty");
+        let barcode = persistent_homology_0d(data.view(), &EuclideanMetric).expect("ph0 empty");
         assert!(barcode.is_empty());
     }
 
@@ -710,8 +723,7 @@ mod tests {
     #[test]
     fn test_single_linkage_from_data() {
         let data = two_cluster_data();
-        let labels = single_linkage_from_data(data.view(), &EuclideanMetric, 0.5)
-            .expect("sl data");
+        let labels = single_linkage_from_data(data.view(), &EuclideanMetric, 0.5).expect("sl data");
         assert_eq!(labels.len(), 8);
         let unique: std::collections::HashSet<_> = labels.iter().copied().collect();
         assert_eq!(unique.len(), 2, "expected 2 clusters, got {:?}", unique);
@@ -721,8 +733,7 @@ mod tests {
     fn test_single_linkage_threshold_zero() {
         let data = two_cluster_data();
         // At threshold 0, no edges are added (exact duplicates needed)
-        let labels = single_linkage_from_data(data.view(), &EuclideanMetric, 0.0)
-            .expect("sl zero");
+        let labels = single_linkage_from_data(data.view(), &EuclideanMetric, 0.0).expect("sl zero");
         // Each point is its own cluster
         let unique: std::collections::HashSet<_> = labels.iter().copied().collect();
         assert_eq!(unique.len(), data.shape()[0]);
@@ -730,11 +741,7 @@ mod tests {
 
     #[test]
     fn test_n_clusters_from_barcode() {
-        let barcode = vec![
-            (0.0, f64::INFINITY),
-            (0.0, f64::INFINITY),
-            (0.0, 0.05),
-        ];
+        let barcode = vec![(0.0, f64::INFINITY), (0.0, f64::INFINITY), (0.0, 0.05)];
         assert_eq!(n_clusters_from_barcode(&barcode, 0.5), 2);
         assert_eq!(n_clusters_from_barcode(&barcode, 0.01), 3);
     }
@@ -750,17 +757,22 @@ mod tests {
 
     #[test]
     fn test_mapper_graph_line() {
-        let data = Array2::from_shape_vec(
-            (8, 1),
-            vec![0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5],
-        )
-        .expect("data");
+        let data = Array2::from_shape_vec((8, 1), vec![0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5])
+            .expect("data");
         let filter_fn = |row: &[f64]| row[0];
         let cover = uniform_cover(0.0, 3.5, 4, 0.4);
-        let graph = mapper_graph(data.view(), &filter_fn, &cover, 0.6, &EuclideanMetric)
-            .expect("mapper");
-        assert!(graph.n_nodes() >= 4, "expected >= 4 nodes, got {}", graph.n_nodes());
-        assert!(graph.n_edges() >= 1, "expected at least 1 edge, got {}", graph.n_edges());
+        let graph =
+            mapper_graph(data.view(), &filter_fn, &cover, 0.6, &EuclideanMetric).expect("mapper");
+        assert!(
+            graph.n_nodes() >= 4,
+            "expected >= 4 nodes, got {}",
+            graph.n_nodes()
+        );
+        assert!(
+            graph.n_edges() >= 1,
+            "expected at least 1 edge, got {}",
+            graph.n_edges()
+        );
     }
 
     #[test]
@@ -783,11 +795,8 @@ mod tests {
 
     #[test]
     fn test_pairwise_distance_matrix() {
-        let data = Array2::from_shape_vec(
-            (3, 2),
-            vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0],
-        )
-        .expect("data");
+        let data =
+            Array2::from_shape_vec((3, 2), vec![0.0, 0.0, 1.0, 0.0, 0.0, 1.0]).expect("data");
         let dm = pairwise_distance_matrix(data.view(), &EuclideanMetric);
         assert_eq!(dm.shape(), [3, 3]);
         assert!((dm[[0, 0]]).abs() < 1e-10);

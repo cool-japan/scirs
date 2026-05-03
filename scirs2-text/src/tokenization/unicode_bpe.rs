@@ -82,12 +82,7 @@ impl UnicodeBpeTokenizer {
             vocab: HashMap::new(),
             id_to_token: Vec::new(),
             merges: Vec::new(),
-            special_tokens: vec![
-                "<unk>".into(),
-                "<s>".into(),
-                "</s>".into(),
-                "<pad>".into(),
-            ],
+            special_tokens: vec!["<unk>".into(), "<s>".into(), "</s>".into(), "<pad>".into()],
         }
     }
 
@@ -121,7 +116,9 @@ impl UnicodeBpeTokenizer {
             .collect();
 
         if words.is_empty() {
-            return Err(TextError::InvalidInput("corpus has no words after split".into()));
+            return Err(TextError::InvalidInput(
+                "corpus has no words after split".into(),
+            ));
         }
 
         // ---- 2. Count word frequencies ----
@@ -248,11 +245,7 @@ impl UnicodeBpeTokenizer {
             text.to_string()
         };
 
-        let unk_id = self
-            .vocab
-            .get("<unk>")
-            .copied()
-            .unwrap_or(0);
+        let unk_id = self.vocab.get("<unk>").copied().unwrap_or(0);
 
         let mut ids = Vec::new();
 
@@ -371,7 +364,10 @@ mod tests {
     fn test_train_succeeds() {
         let mut tok = UnicodeBpeTokenizer::new(UnicodeBpeConfig::default());
         tok.train(&small_corpus()).expect("train failed");
-        assert!(tok.vocab_size() > 0, "vocab should be non-empty after training");
+        assert!(
+            tok.vocab_size() > 0,
+            "vocab should be non-empty after training"
+        );
     }
 
     #[test]
@@ -398,7 +394,10 @@ mod tests {
         });
         tok.train(&small_corpus()).expect("train failed");
         let ids = tok.encode("low").expect("encode failed");
-        assert!(!ids.is_empty(), "encoding 'low' should produce at least one id");
+        assert!(
+            !ids.is_empty(),
+            "encoding 'low' should produce at least one id"
+        );
     }
 
     #[test]

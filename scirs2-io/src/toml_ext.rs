@@ -85,15 +85,14 @@ impl TomlConfig {
 
     /// Parse TOML text and wrap the result.
     pub fn from_str(src: &str) -> TomlResult<Self> {
-        let root: Value = toml::from_str(src)
-            .map_err(|e| IoError::ParseError(format!("TOML parse: {e}")))?;
+        let root: Value =
+            toml::from_str(src).map_err(|e| IoError::ParseError(format!("TOML parse: {e}")))?;
         Ok(Self { root })
     }
 
     /// Read a file and parse it as TOML.
     pub fn from_file(path: &std::path::Path) -> TomlResult<Self> {
-        let text = std::fs::read_to_string(path)
-            .map_err(|e| IoError::FileError(e.to_string()))?;
+        let text = std::fs::read_to_string(path).map_err(|e| IoError::FileError(e.to_string()))?;
         Self::from_str(&text)
     }
 
@@ -265,12 +264,7 @@ pub fn flatten_toml(value: &Value, sep: &str) -> HashMap<String, String> {
     out
 }
 
-fn flatten_recursive(
-    value: &Value,
-    prefix: &str,
-    sep: &str,
-    out: &mut HashMap<String, String>,
-) {
+fn flatten_recursive(value: &Value, prefix: &str, sep: &str, out: &mut HashMap<String, String>) {
     match value {
         Value::Table(table) => {
             for (key, val) in table {
@@ -590,9 +584,9 @@ latency = 1.5
         let overlay = parse("[a]\n[a.b]\ny = 999\nz = 3");
         let merged = merge_tomls(&base, &overlay);
         let cfg = TomlConfig::new(merged);
-        assert_eq!(cfg.get_i64("a.b.x"), Some(1));   // preserved from base
-        assert_eq!(cfg.get_i64("a.b.y"), Some(999));  // overridden
-        assert_eq!(cfg.get_i64("a.b.z"), Some(3));    // added from overlay
+        assert_eq!(cfg.get_i64("a.b.x"), Some(1)); // preserved from base
+        assert_eq!(cfg.get_i64("a.b.y"), Some(999)); // overridden
+        assert_eq!(cfg.get_i64("a.b.z"), Some(3)); // added from overlay
     }
 
     #[test]
@@ -643,18 +637,17 @@ latency = 1.5
 
     #[test]
     fn test_validate_required_missing_fails() {
-        let schema = TomlSchema::new(vec![
-            TomlFieldRule::required("name", TomlValueType::String),
-        ]);
+        let schema = TomlSchema::new(vec![TomlFieldRule::required("name", TomlValueType::String)]);
         let val = parse("other = 1");
         assert!(validate_toml_schema(&val, &schema).is_err());
     }
 
     #[test]
     fn test_validate_type_mismatch_fails() {
-        let schema = TomlSchema::new(vec![
-            TomlFieldRule::required("port", TomlValueType::Integer),
-        ]);
+        let schema = TomlSchema::new(vec![TomlFieldRule::required(
+            "port",
+            TomlValueType::Integer,
+        )]);
         let val = parse("port = \"not-an-int\"");
         assert!(validate_toml_schema(&val, &schema).is_err());
     }
@@ -696,10 +689,11 @@ latency = 1.5
 
     #[test]
     fn test_validate_description_in_error() {
-        let schema = TomlSchema::new(vec![
-            TomlFieldRule::required("api_key", TomlValueType::String)
-                .with_description("API authentication key"),
-        ]);
+        let schema = TomlSchema::new(vec![TomlFieldRule::required(
+            "api_key",
+            TomlValueType::String,
+        )
+        .with_description("API authentication key")]);
         let val = parse("other = 1");
         let err = validate_toml_schema(&val, &schema).unwrap_err();
         assert!(err.to_string().contains("api_key"));
@@ -708,12 +702,18 @@ latency = 1.5
 
     #[test]
     fn test_validate_any_type_always_passes() {
-        let schema = TomlSchema::new(vec![
-            TomlFieldRule::required("value", TomlValueType::Any),
-        ]);
-        for src in &["value = 1", "value = \"str\"", "value = true", "value = 1.5"] {
+        let schema = TomlSchema::new(vec![TomlFieldRule::required("value", TomlValueType::Any)]);
+        for src in &[
+            "value = 1",
+            "value = \"str\"",
+            "value = true",
+            "value = 1.5",
+        ] {
             let val = parse(src);
-            assert!(validate_toml_schema(&val, &schema).is_ok(), "failed for: {src}");
+            assert!(
+                validate_toml_schema(&val, &schema).is_ok(),
+                "failed for: {src}"
+            );
         }
     }
 }

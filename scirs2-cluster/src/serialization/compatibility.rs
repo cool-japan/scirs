@@ -330,6 +330,143 @@ pub fn to_sklearn_format<T: ClusteringModel>(model: &T) -> Result<Value> {
     to_sklearn_clustering_result(model)
 }
 
+// ─── SciPy / sklearn round-trip serialization ─────────────────────────────
+
+/// Export a `HierarchicalModel` to a SciPy-compatible JSON representation.
+///
+/// The JSON mirrors SciPy's `linkage` array layout:
+/// `{"linkage": [[left, right, dist, count], ...], "n_observations": N, "method": "..."}`
+pub fn export_to_scipy_json(hierarchy: &HierarchicalModel) -> Result<Value> {
+    let linkage = &hierarchy.linkage;
+    let nrows = linkage.nrows();
+    let ncols = linkage.ncols();
+    let mut rows: Vec<Value> = Vec::with_capacity(nrows);
+    for i in 0..nrows {
+        let row: Vec<Value> = (0..ncols)
+            .map(|j| serde_json::json!(linkage[[i, j]]))
+            .collect();
+        rows.push(Value::Array(row));
+    }
+    Ok(serde_json::json!({
+        "linkage": rows,
+        "n_observations": hierarchy.n_observations,
+        "method": hierarchy.method,
+        "labels": hierarchy.labels,
+    }))
+}
+
+/// Export a `KMeansModel` to an sklearn-compatible JSON representation.
+///
+/// Keys match sklearn KMeans pickle attributes:
+/// `{"cluster_centers_": [...], "labels_": [...], "n_iter_": N, "inertia_": f}`
+pub fn export_to_sklearn_json(kmeans: &KMeansModel) -> Result<Value> {
+    let centers = &kmeans.centroids;
+    let nrows = centers.nrows();
+    let ncols = centers.ncols();
+    let mut center_rows: Vec<Value> = Vec::with_capacity(nrows);
+    for i in 0..nrows {
+        let row: Vec<Value> = (0..ncols)
+            .map(|j| serde_json::json!(centers[[i, j]]))
+            .collect();
+        center_rows.push(Value::Array(row));
+    }
+    let labels_val: Value = match &kmeans.labels {
+        Some(labels) => Value::Array(labels.iter().map(|&l| serde_json::json!(l)).collect()),
+        None => Value::Null,
+    };
+    Ok(serde_json::json!({
+        "cluster_centers_": center_rows,
+        "labels_": labels_val,
+        "n_iter_": kmeans.n_iter,
+        "inertia_": kmeans.inertia,
+        "n_clusters_": kmeans.n_clusters,
+    }))
+}
+
+/// Import a SciPy linkage JSON (produced by `export_to_scipy_json`) back to `HierarchicalModel`.
+pub fn import_scipy_hierarchy(json: &Value) -> Result<HierarchicalModel> {
+    let linkage_arr = json["linkage"]
+        .as_array()
+        .ok_or_else(|| ClusteringError::InvalidInput("Missing 'linkage' array".into()))?;
+    let nrows = linkage_arr.len();
+    if nrows == 0 {
+        return Err(ClusteringError::InvalidInput("Empty linkage array".into()));
+    }
+    let ncols = linkage_arr[0].as_array().map(|r| r.len()).unwrap_or(0);
+    let mut flat: Vec<f64> = Vec::with_capacity(nrows * ncols);
+    for row in linkage_arr {
+        let row_arr = row
+            .as_array()
+            .ok_or_else(|| ClusteringError::InvalidInput("Linkage row is not an array".into()))?;
+        for v in row_arr {
+            let val = v.as_f64().ok_or_else(|| {
+                ClusteringError::InvalidInput("Non-numeric value in linkage".into())
+            })?;
+            flat.push(val);
+        }
+    }
+    let linkage = scirs2_core::ndarray::Array2::from_shape_vec((nrows, ncols), flat)
+        .map_err(|e| ClusteringError::InvalidInput(format!("Reshape failed: {e}")))?;
+    let n_observations = json["n_observations"]
+        .as_u64()
+        .ok_or_else(|| ClusteringError::InvalidInput("Missing 'n_observations'".into()))?
+        as usize;
+    let method = json["method"].as_str().unwrap_or("ward").to_string();
+    let labels: Option<Vec<String>> = json["labels"].as_array().map(|arr| {
+        arr.iter()
+            .map(|v| v.as_str().unwrap_or("").to_string())
+            .collect()
+    });
+    Ok(HierarchicalModel::new(
+        linkage,
+        n_observations,
+        method,
+        labels,
+    ))
+}
+
+/// Import an sklearn KMeans JSON (produced by `export_to_sklearn_json`) back to `KMeansModel`.
+pub fn import_sklearn_kmeans(json: &Value) -> Result<KMeansModel> {
+    let centers_arr = json["cluster_centers_"]
+        .as_array()
+        .ok_or_else(|| ClusteringError::InvalidInput("Missing 'cluster_centers_'".into()))?;
+    let nrows = centers_arr.len();
+    if nrows == 0 {
+        return Err(ClusteringError::InvalidInput(
+            "Empty cluster_centers_ array".into(),
+        ));
+    }
+    let ncols = centers_arr[0].as_array().map(|r| r.len()).unwrap_or(0);
+    let mut flat: Vec<f64> = Vec::with_capacity(nrows * ncols);
+    for row in centers_arr {
+        let row_arr = row.as_array().ok_or_else(|| {
+            ClusteringError::InvalidInput("cluster_centers_ row is not an array".into())
+        })?;
+        for v in row_arr {
+            let val = v.as_f64().ok_or_else(|| {
+                ClusteringError::InvalidInput("Non-numeric in cluster_centers_".into())
+            })?;
+            flat.push(val);
+        }
+    }
+    let centroids = scirs2_core::ndarray::Array2::from_shape_vec((nrows, ncols), flat)
+        .map_err(|e| ClusteringError::InvalidInput(format!("Reshape failed: {e}")))?;
+    let n_clusters = json["n_clusters_"].as_u64().unwrap_or(nrows as u64) as usize;
+    let n_iter = json["n_iter_"].as_u64().unwrap_or(0) as usize;
+    let inertia = json["inertia_"].as_f64().unwrap_or(0.0);
+    let labels: Option<scirs2_core::ndarray::Array1<usize>> =
+        json["labels_"].as_array().map(|arr| {
+            scirs2_core::ndarray::Array1::from_vec(
+                arr.iter()
+                    .map(|v| v.as_u64().unwrap_or(0) as usize)
+                    .collect(),
+            )
+        });
+    Ok(KMeansModel::new(
+        centroids, n_clusters, n_iter, inertia, labels,
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -361,5 +498,48 @@ mod tests {
             Array2::from_shape_vec((1, 3), vec![0.0, 1.0, 0.5]).expect("Operation failed");
         let result = to_scipy_linkage_format(&linkage);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_scipy_hierarchy_roundtrip() {
+        // Build a simple 2-merge linkage: (0+1 → node2, then 2+node2 → node3)
+        // SciPy linkage cols: [left, right, distance, count]
+        let linkage = Array2::from_shape_vec((2, 4), vec![0.0, 1.0, 0.5, 2.0, 2.0, 2.0, 1.0, 3.0])
+            .expect("shape error");
+        let model = HierarchicalModel::new(
+            linkage.clone(),
+            3,
+            "ward".to_string(),
+            Some(vec!["a".to_string(), "b".to_string(), "c".to_string()]),
+        );
+
+        // Export then import
+        let json = export_to_scipy_json(&model).expect("export failed");
+        let restored = import_scipy_hierarchy(&json).expect("import failed");
+
+        assert_eq!(restored.n_observations, 3);
+        assert_eq!(restored.method, "ward");
+        assert_eq!(restored.linkage.nrows(), 2);
+        assert!((restored.linkage[[0, 2]] - 0.5).abs() < 1e-12);
+        assert!(restored.labels.is_some());
+    }
+
+    #[test]
+    fn test_sklearn_kmeans_roundtrip() {
+        let centroids = Array2::from_shape_vec((2, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+            .expect("shape error");
+        let labels = scirs2_core::ndarray::Array1::from_vec(vec![0usize, 1, 0]);
+        let model = KMeansModel::new(centroids, 2, 10, 0.5, Some(labels));
+
+        let json = export_to_sklearn_json(&model).expect("export failed");
+        let restored = import_sklearn_kmeans(&json).expect("import failed");
+
+        assert_eq!(restored.n_clusters, 2);
+        assert_eq!(restored.n_iter, 10);
+        assert!((restored.inertia - 0.5).abs() < 1e-12);
+        assert_eq!(restored.centroids.nrows(), 2);
+        assert_eq!(restored.centroids.ncols(), 3);
+        assert!((restored.centroids[[0, 0]] - 1.0).abs() < 1e-12);
+        assert!(restored.labels.is_some());
     }
 }

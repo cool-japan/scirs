@@ -79,7 +79,11 @@ impl ViolationSummary {
 
     /// Compute the L2 (sum-of-squares) violation norm.
     pub fn l2_norm(&self) -> f64 {
-        self.violations.iter().map(|v| v.powi(2)).sum::<f64>().sqrt()
+        self.violations
+            .iter()
+            .map(|v| v.powi(2))
+            .sum::<f64>()
+            .sqrt()
     }
 }
 
@@ -131,9 +135,7 @@ impl FeasibilityRule {
         match (feasible_a, feasible_b) {
             (true, false) => std::cmp::Ordering::Less,
             (false, true) => std::cmp::Ordering::Greater,
-            (true, true) => f_a
-                .partial_cmp(&f_b)
-                .unwrap_or(std::cmp::Ordering::Equal),
+            (true, true) => f_a.partial_cmp(&f_b).unwrap_or(std::cmp::Ordering::Equal),
             (false, false) => viol_a
                 .total_violation
                 .partial_cmp(&viol_b.total_violation)
@@ -145,10 +147,7 @@ impl FeasibilityRule {
     /// feasibility rule (best first).
     ///
     /// Returns the sorted indices into the original slice.
-    pub fn sort_population(
-        &self,
-        population: &[(f64, ViolationSummary)],
-    ) -> Vec<usize> {
+    pub fn sort_population(&self, population: &[(f64, ViolationSummary)]) -> Vec<usize> {
         let mut indices: Vec<usize> = (0..population.len()).collect();
         indices.sort_by(|&a, &b| {
             self.compare(
@@ -372,7 +371,9 @@ impl StochasticRanking {
                 let vb = &violations[b];
 
                 // Pseudo-random value from LCG
-                rng_state = rng_state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                rng_state = rng_state
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
                 let u = (rng_state >> 33) as f64 / (u32::MAX as f64);
 
                 let should_swap = if va.is_feasible() && vb.is_feasible() {
@@ -520,7 +521,9 @@ impl AdaptiveFeasibility {
                 let w = self.effective_penalty_weight(1.0);
                 let score_a = f_a + w * viol_a.total_violation;
                 let score_b = f_b + w * viol_b.total_violation;
-                score_a.partial_cmp(&score_b).unwrap_or(std::cmp::Ordering::Equal)
+                score_a
+                    .partial_cmp(&score_b)
+                    .unwrap_or(std::cmp::Ordering::Equal)
             }
         }
     }
@@ -583,11 +586,7 @@ where
 /// Combine inequality and equality violations into a single summary.
 ///
 /// Concatenates the violation vectors from both and recomputes the summary.
-pub fn combined_violations<G, H>(
-    x: &[f64],
-    g_fns: &[G],
-    h_fns: &[H],
-) -> ViolationSummary
+pub fn combined_violations<G, H>(x: &[f64], g_fns: &[G], h_fns: &[H]) -> ViolationSummary
 where
     G: Fn(&[f64]) -> f64,
     H: Fn(&[f64]) -> f64,
@@ -645,16 +644,28 @@ mod tests {
         let feas = ViolationSummary::new(vec![0.0]);
         let infeas = ViolationSummary::new(vec![0.5]);
         // feasible wins regardless of objective
-        assert_eq!(rule.compare(100.0, &feas, 0.0, &infeas), std::cmp::Ordering::Less);
+        assert_eq!(
+            rule.compare(100.0, &feas, 0.0, &infeas),
+            std::cmp::Ordering::Less
+        );
     }
 
     #[test]
     fn test_feasibility_rule_both_feasible_compare_objective() {
         let rule = FeasibilityRule::new(1e-8);
         let feas = ViolationSummary::new(vec![0.0]);
-        assert_eq!(rule.compare(1.0, &feas, 2.0, &feas), std::cmp::Ordering::Less);
-        assert_eq!(rule.compare(2.0, &feas, 1.0, &feas), std::cmp::Ordering::Greater);
-        assert_eq!(rule.compare(1.5, &feas, 1.5, &feas), std::cmp::Ordering::Equal);
+        assert_eq!(
+            rule.compare(1.0, &feas, 2.0, &feas),
+            std::cmp::Ordering::Less
+        );
+        assert_eq!(
+            rule.compare(2.0, &feas, 1.0, &feas),
+            std::cmp::Ordering::Greater
+        );
+        assert_eq!(
+            rule.compare(1.5, &feas, 1.5, &feas),
+            std::cmp::Ordering::Equal
+        );
     }
 
     #[test]
@@ -670,9 +681,9 @@ mod tests {
     fn test_feasibility_rule_sort_population() {
         let rule = FeasibilityRule::new(1e-8);
         let pop = vec![
-            (5.0, ViolationSummary::new(vec![0.0])),  // feasible, bad obj
-            (1.0, ViolationSummary::new(vec![1.0])),  // infeasible, good obj
-            (2.0, ViolationSummary::new(vec![0.0])),  // feasible, medium obj
+            (5.0, ViolationSummary::new(vec![0.0])), // feasible, bad obj
+            (1.0, ViolationSummary::new(vec![1.0])), // infeasible, good obj
+            (2.0, ViolationSummary::new(vec![0.0])), // feasible, medium obj
         ];
         let sorted = rule.sort_population(&pop);
         // Best first: feasible with obj=2.0 (idx 2), then feasible with obj=5.0 (idx 0), then infeasible (idx 1)
@@ -685,7 +696,8 @@ mod tests {
 
     #[test]
     fn test_epsilon_feasibility_linear_decay() {
-        let mut ef = EpsilonFeasibility::new(1.0, 10, 1.0, EpsilonSchedule::Linear).expect("failed to create ef");
+        let mut ef = EpsilonFeasibility::new(1.0, 10, 1.0, EpsilonSchedule::Linear)
+            .expect("failed to create ef");
         assert!((ef.epsilon() - 1.0).abs() < 1e-10);
         ef.step(); // gen 1
         assert!((ef.epsilon() - 0.9).abs() < 1e-10);
@@ -697,7 +709,8 @@ mod tests {
 
     #[test]
     fn test_epsilon_feasibility_power_law_decay() {
-        let mut ef = EpsilonFeasibility::new(1.0, 100, 2.0, EpsilonSchedule::PowerLaw).expect("failed to create ef");
+        let mut ef = EpsilonFeasibility::new(1.0, 100, 2.0, EpsilonSchedule::PowerLaw)
+            .expect("failed to create ef");
         ef.step(); // gen 1: ε = 1 * (1 - 1/100)^2 ≈ 0.9801
         assert!(ef.epsilon() > 0.97 && ef.epsilon() < 1.0);
     }
@@ -716,7 +729,8 @@ mod tests {
 
     #[test]
     fn test_epsilon_feasibility_compare_relaxed_feasibility() {
-        let ef = EpsilonFeasibility::new(0.5, 10, 1.0, EpsilonSchedule::Linear).expect("failed to create ef");
+        let ef = EpsilonFeasibility::new(0.5, 10, 1.0, EpsilonSchedule::Linear)
+            .expect("failed to create ef");
         // Both have violation <= 0.5, so both treated as "feasible" → compare by objective
         let v1 = ViolationSummary::new(vec![0.3]);
         let v2 = ViolationSummary::new(vec![0.4]);
@@ -736,7 +750,9 @@ mod tests {
             ViolationSummary::new(vec![0.0]),
             ViolationSummary::new(vec![0.2]),
         ];
-        let ranked = sr.rank(&objectives, &violations, 5).expect("failed to create ranked");
+        let ranked = sr
+            .rank(&objectives, &violations, 5)
+            .expect("failed to create ranked");
         assert_eq!(ranked.len(), 4);
         // All indices should be present
         let mut sorted_ranked = ranked.clone();
@@ -753,7 +769,9 @@ mod tests {
             ViolationSummary::new(vec![0.0]), // feasible
             ViolationSummary::new(vec![0.0]), // feasible
         ];
-        let ranked = sr.rank(&objectives, &violations, 50).expect("failed to create ranked");
+        let ranked = sr
+            .rank(&objectives, &violations, 50)
+            .expect("failed to create ranked");
         assert_eq!(ranked[0], 1, "better objective should rank first");
     }
 
@@ -800,7 +818,10 @@ mod tests {
         ];
         af.update(&violations);
         let weight = af.effective_penalty_weight(1.0);
-        assert!(weight > 1.0, "penalty should be amplified when feasibility is low");
+        assert!(
+            weight > 1.0,
+            "penalty should be amplified when feasibility is low"
+        );
     }
 
     #[test]

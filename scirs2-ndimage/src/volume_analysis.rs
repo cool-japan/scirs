@@ -96,8 +96,7 @@ pub fn analyze_volume(binary_3d: &Array3<bool>, voxel_size: f64) -> NdimageResul
                         || nz >= sz as isize
                         || ny >= sy as isize
                         || nx >= sx as isize;
-                    let is_bg = outside
-                        || !binary_3d[[nz as usize, ny as usize, nx as usize]];
+                    let is_bg = outside || !binary_3d[[nz as usize, ny as usize, nx as usize]];
                     if is_bg {
                         is_surface = true;
                         break;
@@ -575,9 +574,7 @@ pub fn marching_cubes_simplified(
                     let p0 = edge_pts[e0 as usize];
                     let p1 = edge_pts[e1 as usize];
                     let p2 = edge_pts[e2 as usize];
-                    triangles.push([
-                        p0.0, p0.1, p0.2, p1.0, p1.1, p1.2, p2.0, p2.1, p2.2,
-                    ]);
+                    triangles.push([p0.0, p0.1, p0.2, p1.0, p1.1, p1.2, p2.0, p2.1, p2.2]);
                     ti += 3;
                 }
             }
@@ -1094,6 +1091,9 @@ mod tests {
             (dz * dz + dy * dy + dx * dx).sqrt() - 2.5
         });
         let tris = marching_cubes_simplified(&vol, 0.0).expect("marching_cubes failed");
-        assert!(!tris.is_empty(), "Expected non-empty triangle list for sphere SDF");
+        assert!(
+            !tris.is_empty(),
+            "Expected non-empty triangle list for sphere SDF"
+        );
     }
 }

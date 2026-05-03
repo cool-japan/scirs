@@ -551,7 +551,12 @@ fn rasterise_convex_hull(hull: &[(i64, i64)], out: &mut Array2<bool>) {
     let cols = out.ncols() as i64;
 
     let min_r = hull.iter().map(|&(r, _)| r).min().unwrap_or(0).max(0);
-    let max_r = hull.iter().map(|&(r, _)| r).max().unwrap_or(0).min(rows - 1);
+    let max_r = hull
+        .iter()
+        .map(|&(r, _)| r)
+        .max()
+        .unwrap_or(0)
+        .min(rows - 1);
 
     let n = hull.len();
 
@@ -635,7 +640,11 @@ pub fn binary_fill_holes(binary: &Array2<bool>) -> Array2<bool> {
     let mut reachable = Array2::<bool>::from_elem((rows, cols), false);
     let mut queue: VecDeque<(usize, usize)> = VecDeque::new();
 
-    let seed_if_bg = |r: usize, c: usize, img: &Array2<bool>, reach: &mut Array2<bool>, q: &mut VecDeque<(usize, usize)>| {
+    let seed_if_bg = |r: usize,
+                      c: usize,
+                      img: &Array2<bool>,
+                      reach: &mut Array2<bool>,
+                      q: &mut VecDeque<(usize, usize)>| {
         if !img[[r, c]] && !reach[[r, c]] {
             reach[[r, c]] = true;
             q.push_back((r, c));
@@ -700,9 +709,24 @@ mod tests {
         Array2::from_elem((rows, cols), true)
     }
 
+    /// A foreground rectangle inset one pixel from the image border, so that
+    /// Zhang-Suen (which only processes interior rows 1..n-1 and cols 1..m-1)
+    /// can actually remove all fully-surrounded pixels.
+    fn inset_filled_rect(rows: usize, cols: usize) -> Array2<bool> {
+        let mut arr = Array2::from_elem((rows + 2, cols + 2), false);
+        for r in 1..=rows {
+            for c in 1..=cols {
+                arr[[r, c]] = true;
+            }
+        }
+        arr
+    }
+
     fn ring(size: usize) -> Array2<bool> {
         Array2::from_shape_fn((size, size), |(r, c)| {
-            let d = (r as i32 - size as i32 / 2).abs().max((c as i32 - size as i32 / 2).abs());
+            let d = (r as i32 - size as i32 / 2)
+                .abs()
+                .max((c as i32 - size as i32 / 2).abs());
             d == size as i32 / 2 - 1
         })
     }
@@ -711,7 +735,11 @@ mod tests {
 
     #[test]
     fn zhang_suen_solid_rect_produces_skeleton() {
-        let binary = filled_rect(15, 15);
+        // Use a rectangle inset one pixel from the image border so Zhang-Suen
+        // (which only processes interior rows/cols 1..n-1) can fully thin the
+        // interior.  An all-true image would have border pixels that are never
+        // considered for removal, leaving fully-surrounded pixels.
+        let binary = inset_filled_rect(15, 15);
         let skel = zhang_suen_thin(&binary);
         // Skeleton should be non-empty
         assert!(
@@ -846,15 +874,14 @@ mod tests {
     #[test]
     fn distance_transform_edt_center_of_square() {
         // 5×5 square of true embedded in a larger false field
-        let binary = Array2::from_shape_fn((9, 9), |(r, c)| {
-            r >= 2 && r <= 6 && c >= 2 && c <= 6
-        });
+        let binary = Array2::from_shape_fn((9, 9), |(r, c)| r >= 2 && r <= 6 && c >= 2 && c <= 6);
         let dt = distance_transform_edt(&binary).expect("edt ok");
-        // Center (4,4) should have distance 2.0 (nearest border 2 pixels away)
+        // Center (4,4): nearest background is at row 1 or row 7 (3 rows away),
+        // so Euclidean distance = 3.0
         let center_dist = dt[[4, 4]];
         assert!(
-            (center_dist - 2.0).abs() < 0.5,
-            "Center distance {center_dist} not close to 2.0"
+            (center_dist - 3.0).abs() < 0.5,
+            "Center distance {center_dist} not close to 3.0"
         );
         // Background pixels should be 0
         assert_eq!(dt[[0, 0]], 0.0);
@@ -937,9 +964,7 @@ mod tests {
     #[test]
     fn fill_holes_does_not_fill_exterior() {
         // Solid rectangle bordered by background
-        let binary = Array2::from_shape_fn((9, 9), |(r, c)| {
-            r >= 2 && r <= 6 && c >= 2 && c <= 6
-        });
+        let binary = Array2::from_shape_fn((9, 9), |(r, c)| r >= 2 && r <= 6 && c >= 2 && c <= 6);
         let filled = binary_fill_holes(&binary);
         // Corner (0,0) must remain background
         assert!(!filled[[0, 0]]);

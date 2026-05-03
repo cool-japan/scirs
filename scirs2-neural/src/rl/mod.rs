@@ -27,85 +27,41 @@ pub mod value;
 // ── Environments ─────────────────────────────────────────────────────────────
 
 pub use environments::{
-    ActionSpace,
-    CartPole,
-    ContinuousCartPole,
-    Environment,
-    GridCell,
-    GridWorld,
-    ObservationSpace,
+    ActionSpace, CartPole, ContinuousCartPole, Environment, GridCell, GridWorld, ObservationSpace,
     PendulumEnv,
 };
 
 // ── Policy ───────────────────────────────────────────────────────────────────
 
 pub use policy::{
-    BoltzmannPolicy,
-    EpsilonGreedy,
-    Policy,
-    PolicyRng,
-    SimpleNetwork,
-    categorical_sample,
-    softmax,
-    softmax_temperature,
+    categorical_sample, softmax, softmax_temperature, BoltzmannPolicy, EpsilonGreedy, Policy,
+    PolicyRng, SimpleNetwork,
 };
 
 // ── Value networks ───────────────────────────────────────────────────────────
 
 pub use value::{
-    ActionValuePolicy,
-    DuelingQNetwork,
-    NetworkUpdate,
-    QNetwork,
-    SoftmaxValuePolicy,
-    ValueNetwork,
+    ActionValuePolicy, DuelingQNetwork, NetworkUpdate, QNetwork, SoftmaxValuePolicy, ValueNetwork,
 };
 
 // ── DQN ──────────────────────────────────────────────────────────────────────
 
-pub use dqn::{
-    DQNAgent,
-    DQNConfig,
-    DQNReplayBuffer,
-    Experience,
-};
+pub use dqn::{DQNAgent, DQNConfig, DQNReplayBuffer, Experience};
 
 // ── A2C ──────────────────────────────────────────────────────────────────────
 
 pub use actor_critic::{
-    A2CAgent,
-    A2CConfig,
-    A2CTrainInfo,
-    ActorNetwork,
-    CriticNetwork,
-    run_episode,
+    run_episode, A2CAgent, A2CConfig, A2CTrainInfo, ActorNetwork, CriticNetwork,
 };
 
 // ── PPO ──────────────────────────────────────────────────────────────────────
 
-pub use ppo::{
-    ActorCritic,
-    PPOConfig,
-    PPOInfo,
-    RolloutBuffer,
-    PPO,
-};
+pub use ppo::{ActorCritic, PPOConfig, PPOInfo, RolloutBuffer, PPO};
 
 // ── SAC ──────────────────────────────────────────────────────────────────────
 
-pub use sac::{
-    Critic,
-    SACConfig,
-    SACInfo,
-    StochasticActor,
-    SAC,
-};
+pub use sac::{Critic, SACConfig, SACInfo, StochasticActor, SAC};
 
 // ── Replay buffer ────────────────────────────────────────────────────────────
 
-pub use replay_buffer::{
-    ReplayBuffer,
-    Rng,
-    Transition,
-    XorShift64,
-};
+pub use replay_buffer::{ReplayBuffer, Rng, Transition, XorShift64};

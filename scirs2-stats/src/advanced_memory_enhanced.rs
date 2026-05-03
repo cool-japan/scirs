@@ -125,15 +125,15 @@ impl AdvancedMemoryManager {
         let cache_hierarchy = detect_cache_hierarchy();
 
         Self {
-            memory_profiler: Arc::new(RwLock::new(AdvancedMemoryProfiler::new(&_config))),
+            memory_profiler: Arc::new(RwLock::new(AdvancedMemoryProfiler::new(&config))),
             memory_pools: Arc::new(RwLock::new(IntelligentMemoryPools::new(
-                &_config,
+                &config,
                 &numa_topology,
             ))),
-            cache_optimizer: Arc::new(RwLock::new(CacheOptimizer::new(&_config, cache_hierarchy))),
-            numa_manager: Arc::new(RwLock::new(NumaMemoryManager::new(&_config, numa_topology))),
-            compression_engine: Arc::new(RwLock::new(CompressionEngine::new(&_config))),
-            memory_mapper: Arc::new(RwLock::new(MemoryMapper::new(&_config))),
+            cache_optimizer: Arc::new(RwLock::new(CacheOptimizer::new(&config, cache_hierarchy))),
+            numa_manager: Arc::new(RwLock::new(NumaMemoryManager::new(&config, numa_topology))),
+            compression_engine: Arc::new(RwLock::new(CompressionEngine::new(&config))),
+            memory_mapper: Arc::new(RwLock::new(MemoryMapper::new(&config))),
             allocation_tracker: Arc::new(RwLock::new(AllocationTracker::new())),
             performance_monitor: Arc::new(RwLock::new(MemoryPerformanceMonitor::new())),
             config,
@@ -170,7 +170,7 @@ impl AdvancedMemoryManager {
         let allocation = match allocation_strategy {
             AllocationStrategy::Pool => self.allocate_from_pool::<T>(size, &usage_hint)?,
             AllocationStrategy::Direct => {
-                self.allocate_direct::<T>(size, &allocation_characteristics)?
+                self.allocate_direct::<T>(size, Some(&allocation_characteristics))?
             }
             AllocationStrategy::MemoryMapped => {
                 self.allocate_memory_mapped::<T>(size, &allocation_characteristics)?
@@ -421,8 +421,7 @@ impl AdvancedMemoryManager {
     fn analyze_array_characteristics<F, D>(&self, data: &ArrayBase<D, Ix1>) -> ArrayCharacteristics
     where
         F: Float + NumCast + Copy + Send + Sync,
-        D: Data<Elem = F> + Sync
-        + std::fmt::Display,
+        D: Data<Elem = F> + Sync,
     {
         let size_bytes = data.len() * std::mem::size_of::<F>();
 
@@ -483,7 +482,7 @@ impl AdvancedMemoryManager {
         }
     }
 
-    fn estimate_cache_efficiency(&self, sizebytes: usize) -> f64 {
+    fn estimate_cache_efficiency(&self, size_bytes: usize) -> f64 {
         // Simple cache efficiency estimation based on cache hierarchy
         let l1_cache = 32 * 1024; // 32KB
         let l2_cache = 256 * 1024; // 256KB
@@ -500,7 +499,7 @@ impl AdvancedMemoryManager {
         }
     }
 
-    fn estimate_numa_distribution(&self, sizebytes: usize) -> f64 {
+    fn estimate_numa_distribution(&self, size_bytes: usize) -> f64 {
         // Estimate how well data can be distributed across NUMA nodes
         let numa_node_capacity = 64 * 1024 * 1024 * 1024; // 64GB per node
 
@@ -511,7 +510,7 @@ impl AdvancedMemoryManager {
         }
     }
 
-    fn estimate_cache_blocking_potential(&self, sizebytes: usize) -> f64 {
+    fn estimate_cache_blocking_potential(&self, size_bytes: usize) -> f64 {
         // Estimate benefit of cache blocking for matrix operations
         let l2_cache = 256 * 1024;
 
@@ -522,7 +521,7 @@ impl AdvancedMemoryManager {
         }
     }
 
-    fn estimate_numa_partitioning_potential(&self, sizebytes: usize) -> f64 {
+    fn estimate_numa_partitioning_potential(&self, size_bytes: usize) -> f64 {
         // Estimate benefit of NUMA partitioning
         let numa_threshold = 1024 * 1024 * 1024; // 1GB
 
@@ -591,7 +590,7 @@ impl AdvancedMemoryManager {
     {
         // Estimate how efficiently memory can be used in parallel processing
         let totalsize: usize = batches.iter().map(|b| b.len()).sum();
-        let thread_count = num_threads();
+        let thread_count = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
         let avgsize_per_thread = totalsize / thread_count;
 
         // Consider cache efficiency per thread
@@ -623,7 +622,7 @@ impl AdvancedMemoryManager {
 
     fn allocate_from_pool<T>(
         &self,
-        size: usize_usage, hint: &MemoryUsageHint,
+        size: usize, _hint: &MemoryUsageHint,
     ) -> StatsResult<OptimizedAllocation<T>>
     where
         T: Copy + Send + Sync,
@@ -651,7 +650,7 @@ impl AdvancedMemoryManager {
 
     fn allocate_direct<T>(
         &self,
-        size: usize, characteristics: &AllocationCharacteristics,
+        size: usize, _characteristics: Option<&AllocationCharacteristics>,
     ) -> StatsResult<OptimizedAllocation<T>>
     where
         T: Copy + Send + Sync,
@@ -679,35 +678,35 @@ impl AdvancedMemoryManager {
 
     fn allocate_memory_mapped<T>(
         &self,
-        size: usize, characteristics: &AllocationCharacteristics,
+        size: usize, _characteristics: &AllocationCharacteristics,
     ) -> StatsResult<OptimizedAllocation<T>>
     where
         T: Copy + Send + Sync,
     {
         // Placeholder - would use mmap in real implementation
-        self.allocate_direct(size_characteristics)
+        self.allocate_direct(size, None)
     }
 
     fn allocate_compressed<T>(
         &self,
-        size: usize, characteristics: &AllocationCharacteristics,
+        size: usize, _characteristics: &AllocationCharacteristics,
     ) -> StatsResult<OptimizedAllocation<T>>
     where
         T: Copy + Send + Sync,
     {
         // Placeholder - would implement compression in real implementation
-        self.allocate_direct(size_characteristics)
+        self.allocate_direct(size, None)
     }
 
     fn allocate_numa_optimized<T>(
         &self,
-        size: usize, characteristics: &AllocationCharacteristics,
+        size: usize, _characteristics: &AllocationCharacteristics,
     ) -> StatsResult<OptimizedAllocation<T>>
     where
         T: Copy + Send + Sync,
     {
         // Placeholder - would use NUMA-aware allocation in real implementation
-        let mut allocation = self.allocate_direct(size_characteristics)?;
+        let mut allocation = self.allocate_direct(size, None)?;
         allocation.numa_node = Some(0); // Assume node 0
         Ok(allocation)
     }
@@ -715,7 +714,7 @@ impl AdvancedMemoryManager {
     // Placeholder operation execution methods
 
     fn execute_sequential_optimized<F, D, R>(
-        &self, &ArrayBase<D, Ix1>, _operation: CacheOptimizedOp<F, R>,
+        &self, _data: &ArrayBase<D, Ix1>, _operation: CacheOptimizedOp<F, R>,
     ) -> StatsResult<R>
     where
         F: Float + NumCast + Copy + Send + Sync,
@@ -729,7 +728,7 @@ impl AdvancedMemoryManager {
     }
 
     fn execute_blocked_optimized<F, D, R>(
-        &self, &ArrayBase<D, Ix1>, _operation: CacheOptimizedOp<F, R>, _characteristics: &ArrayCharacteristics,
+        &self, _data: &ArrayBase<D, Ix1>, _operation: CacheOptimizedOp<F, R>, _characteristics: &ArrayCharacteristics,
     ) -> StatsResult<R>
     where
         F: Float + NumCast + Copy + Send + Sync,
@@ -743,7 +742,7 @@ impl AdvancedMemoryManager {
     }
 
     fn execute_prefetched_optimized<F, D, R>(
-        &self, &ArrayBase<D, Ix1>, _operation: CacheOptimizedOp<F, R>,
+        &self, _data: &ArrayBase<D, Ix1>, _operation: CacheOptimizedOp<F, R>,
     ) -> StatsResult<R>
     where
         F: Float + NumCast + Copy + Send + Sync,
@@ -757,7 +756,7 @@ impl AdvancedMemoryManager {
     }
 
     fn execute_hierarchical_optimized<F, D, R>(
-        &self, &ArrayBase<D, Ix1>, _operation: CacheOptimizedOp<F, R>, _characteristics: &ArrayCharacteristics,
+        &self, _data: &ArrayBase<D, Ix1>, _operation: CacheOptimizedOp<F, R>, _characteristics: &ArrayCharacteristics,
     ) -> StatsResult<R>
     where
         F: Float + NumCast + Copy + Send + Sync,
@@ -783,7 +782,7 @@ impl AdvancedMemoryManager {
     }
 
     fn optimize_streaming_memory_config<F, D, R>(
-        &self, usize, _operation: &StreamingMemoryOp<F, R>,
+        &self, _windowsize: usize, _operation: &StreamingMemoryOp<F, R>,
     ) -> StatsResult<StreamingMemoryConfig>
     where
         F: Float + NumCast + Copy + Send + Sync,
@@ -792,7 +791,7 @@ impl AdvancedMemoryManager {
         + std::fmt::Display,
     {
         Ok(StreamingMemoryConfig {
-            buffersize: windowsize,
+            buffersize: _windowsize,
             double_buffering: true,
             prefetchsize: _windowsize / 4,
             memory_poolsize: _windowsize * 2,
@@ -800,12 +799,11 @@ impl AdvancedMemoryManager {
     }
 
     fn create_optimized_streaming_buffer<F, D>(
-        &self, &StreamingMemoryConfig,
+        &self, _config: &StreamingMemoryConfig,
     ) -> StatsResult<OptimizedStreamingBuffer<F, D>>
     where
         F: Float + NumCast + Copy + Send + Sync,
-        D: Data<Elem = F> + Sync
-        + std::fmt::Display,
+        D: Data<Elem = F> + Sync,
     {
         Ok(OptimizedStreamingBuffer::new(_config.buffersize))
     }
@@ -825,7 +823,7 @@ impl AdvancedMemoryManager {
     }
 
     fn optimize_batch_memory_layout<F>(
-        &self, &BatchMemoryCharacteristics,
+        &self, _characteristics: &BatchMemoryCharacteristics,
     ) -> StatsResult<BatchMemoryLayout>
     where
         F: Float + NumCast + Copy + Send + Sync
@@ -869,7 +867,7 @@ impl AdvancedMemoryManager {
     }
 
     fn generate_memory_optimization_recommendations(
-        &self, &ComprehensiveMemoryMetrics, _patterns: &MemoryUsagePatterns,
+        &self, _metrics: &ComprehensiveMemoryMetrics, _patterns: &MemoryUsagePatterns,
     ) -> StatsResult<Vec<MemoryOptimizationRecommendation>> {
         Ok(vec![MemoryOptimizationRecommendation {
             recommendation: "Enable memory pooling for small allocations".to_string(),
@@ -1247,7 +1245,7 @@ impl AdvancedMemoryProfiler {
     }
 
     pub fn analyze_usage_patterns(
-        &self, &ComprehensiveMemoryMetrics,
+        &self, _metrics: &ComprehensiveMemoryMetrics,
     ) -> StatsResult<MemoryUsagePatterns> {
         Ok(MemoryUsagePatterns {
             allocation_patterns: vec![],
@@ -1289,10 +1287,10 @@ pub struct IntelligentMemoryPools {
 }
 
 impl IntelligentMemoryPools {
-    pub fn new(config: &AdvancedMemoryConfig_numa, topology: &NumaTopology) -> Self {
+    pub fn new(config: &AdvancedMemoryConfig, topology: &NumaTopology) -> Self {
         Self {
             pools: HashMap::new(),
-            numa_topology: numa_topology.clone(),
+            numa_topology: topology.clone(),
             allocation_strategy: config.pool_strategy,
         }
     }
@@ -1314,7 +1312,7 @@ pub struct CacheOptimizer {
 }
 
 impl CacheOptimizer {
-    pub fn new(_config: &AdvancedMemoryConfig, cachehierarchy: CacheHierarchy) -> Self {
+    pub fn new(config: &AdvancedMemoryConfig, cache_hierarchy: CacheHierarchy) -> Self {
         Self {
             cache_hierarchy,
             optimization_strategy: config.cache_strategy,
@@ -1323,7 +1321,7 @@ impl CacheOptimizer {
     }
 
     pub fn select_optimal_strategy(
-        &self, &ArrayCharacteristics,
+        &self, _characteristics: &ArrayCharacteristics,
     ) -> StatsResult<CacheStrategy> {
         Ok(CacheStrategy::Sequential) // Placeholder
     }
@@ -1351,7 +1349,7 @@ pub struct NumaMemoryManager {
 }
 
 impl NumaMemoryManager {
-    pub fn new(_config: &AdvancedMemoryConfig, numatopology: NumaTopology) -> Self {
+    pub fn new(config: &AdvancedMemoryConfig, numa_topology: NumaTopology) -> Self {
         Self {
             numa_topology,
             memory_policy: config.numa_policy,
@@ -1360,7 +1358,7 @@ impl NumaMemoryManager {
     }
 
     pub fn optimize_matrix_placement(
-        &self, &MatrixMemoryCharacteristics,
+        &self, _characteristics: &MatrixMemoryCharacteristics,
     ) -> StatsResult<NumaLayout> {
         Ok(NumaLayout {
             node_assignments: HashMap::new(),
@@ -1593,7 +1591,7 @@ impl Default for RealTimeMemoryMetrics {
 
 impl RealTimeMemoryMetrics {
     pub fn update_allocation_metrics(
-        &mut selfsize_bytes: usize, _allocation_time: Duration, _strategy: &AllocationStrategy,
+        &mut self, _size_bytes: usize, _allocation_time: Duration, _strategy: &AllocationStrategy,
     ) {
         // Placeholder for updating metrics based on allocation
         self.last_updated = Instant::now();
@@ -1612,9 +1610,9 @@ where
     D: scirs2_core::ndarray::RawData<Elem = F> + Data<Elem = F> + Sync
         + std::fmt::Display,
 {
-    pub fn new(_maxsize: usize) -> Self {
+    pub fn new(maxsize: usize) -> Self {
         Self {
-            data: VecDeque::with_capacity(_maxsize),
+            data: VecDeque::with_capacity(maxsize),
             maxsize,
             current_memory_usage: 0, _phantom: std::marker::PhantomData,
         }

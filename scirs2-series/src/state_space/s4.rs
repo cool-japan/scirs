@@ -114,9 +114,7 @@ impl S4Layer {
             DiscretizationMethod::ZOH | DiscretizationMethod::Euler => {
                 discretize_euler(&a_cont, &b_cont, config.dt)
             }
-            DiscretizationMethod::Bilinear => {
-                discretize_bilinear(&a_cont, &b_cont, config.dt)?
-            }
+            DiscretizationMethod::Bilinear => discretize_bilinear(&a_cont, &b_cont, config.dt)?,
         };
 
         let c = vec![1.0_f64; n];
@@ -254,11 +252,7 @@ fn discretize_euler(a: &[Vec<f64>], b: &[f64], dt: f64) -> (Vec<Vec<f64>>, Vec<f
 /// Bilinear (Tustin) discretization:
 ///   A_bar = (I + A*dt/2) * inv(I - A*dt/2)
 ///   B_bar = dt * inv(I - A*dt/2) * B
-fn discretize_bilinear(
-    a: &[Vec<f64>],
-    b: &[f64],
-    dt: f64,
-) -> Result<(Vec<Vec<f64>>, Vec<f64>)> {
+fn discretize_bilinear(a: &[Vec<f64>], b: &[f64], dt: f64) -> Result<(Vec<Vec<f64>>, Vec<f64>)> {
     let n = a.len();
     let half_dt = dt / 2.0;
 

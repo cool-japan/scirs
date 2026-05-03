@@ -119,7 +119,7 @@ impl PropertyBasedValidator {
     /// Create a new property-based validator
     pub fn new(config: PropertyTestConfig) -> Self {
         Self {
-            config: config,
+            config,
             test_results: HashMap::new(),
         }
     }
@@ -152,7 +152,7 @@ impl PropertyBasedValidator {
                     expected: "property_holds".to_string(),
                     actual: "property_violated".to_string(),
                     error_magnitude: 0.0, // Would be calculated from actual test
-                    inputdata: vec![],   // Would contain actual input data
+                    inputdata: vec![],    // Would contain actual input data
                 });
             }
         }
@@ -278,7 +278,11 @@ impl MathematicalProperty<Array1<f64>> for MeanTranslationInvariance {
         let translated_mean = mean(&translated.view());
 
         let property_holds = match (original_mean, translated_mean) {
-            (Ok(orig), Ok(trans)) => (trans - orig - translation).abs() < 1e-12,
+            (Ok(orig), Ok(trans)) => {
+                let diff = (trans - orig - translation).abs();
+                let scale = 1.0 + orig.abs() + translation.abs();
+                diff < 1e-9 * scale
+            }
             _ => false,
         };
 
@@ -327,10 +331,12 @@ impl MathematicalProperty<Array1<f64>> for MeanTranslationInvariance {
             test_cases.push(data);
         }
 
-        // Add edge cases
+        // Add edge cases (avoid extreme magnitudes like f64::MAX/MIN or 1e100 since
+        // adding the translation constant (100.0) to values near the f64 range limits
+        // causes overflow or cancellation that would invalidate the property check)
         if config.test_edge_cases {
             test_cases.push(Array1::from_vec(vec![0.0]));
-            test_cases.push(Array1::from_vec(vec![f64::MAX, f64::MIN]));
+            test_cases.push(Array1::from_vec(vec![-1e6_f64, 1e6_f64]));
             test_cases.push(Array1::from_vec(vec![-1.0, 1.0]));
         }
 
@@ -355,7 +361,15 @@ impl MathematicalProperty<Array1<f64>> for VarianceTranslationInvariance {
         let translated_var = var(&translated.view(), 1, None);
 
         let property_holds = match (original_var, translated_var) {
-            (Ok(orig), Ok(trans)) => (trans - orig).abs() < 1e-12,
+            (Ok(orig), Ok(trans)) => {
+                let diff = (trans - orig).abs();
+                let scale = 1.0 + orig.abs();
+                diff < 1e-9 * scale
+            }
+            // If both fail (e.g., insufficient data for ddof=1), the property is
+            // vacuously satisfied — we cannot test it on this degenerate input.
+            (Err(_), Err(_)) => true,
+            // One succeeded and the other didn't — unexpected asymmetry; fail.
             _ => false,
         };
 

@@ -24,9 +24,9 @@ use scirs2_core::ndarray::{s, Array2, ArrayView2};
 /// # Arguments
 /// * `a` - Square state matrix A (n×n)
 /// * `q` - Symmetric matrix Q (n×n). The convention used here is the common
-///         sign convention where Q appears on the *right-hand side with a
-///         negative sign*: the caller provides Q and the function solves for X
-///         satisfying AX + XA^T = -Q.
+///   sign convention where Q appears on the *right-hand side with a
+///   negative sign*: the caller provides Q and the function solves for X
+///   satisfying AX + XA^T = -Q.
 ///
 /// # Returns
 /// Solution matrix X such that AX + XA^T + Q = 0
@@ -149,40 +149,59 @@ pub fn care(
         return Err(LinalgError::ShapeError("Matrix R must be m×m".into()));
     }
 
-    // Hamiltonian: H = [ A,  -B R^{-1} B^T ]
-    //                   [ -Q,   -A^T        ]
+    // Form the Hamiltonian H = [[A, -S], [-Q, -A^T]] where S = B R^{-1} B^T
     let r_inv = crate::inv(r, None)?;
-    let b_r_inv_bt = b.dot(&r_inv).dot(&b.t());
+    let s = b.dot(&r_inv).dot(&b.t()); // n×n
 
     let mut h = Array2::<f64>::zeros((2 * n, 2 * n));
     h.slice_mut(s![..n, ..n]).assign(a);
-    h.slice_mut(s![..n, n..]).assign(&b_r_inv_bt.mapv(|v| -v));
+    h.slice_mut(s![..n, n..]).assign(&s.mapv(|v| -v));
     h.slice_mut(s![n.., ..n]).assign(&q.mapv(|v| -v));
     h.slice_mut(s![n.., n..]).assign(&a.t().mapv(|v| -v));
 
-    let (eigvals, eigvecs) = crate::eigen::eig(&h.view(), None)?;
+    // Compute the stable invariant subspace via the matrix sign function.
+    //
+    // The matrix sign function sign(H) satisfies:
+    //   sign(H)^2 = I,  and the stable/unstable invariant subspaces are the
+    //   eigenspaces of sign(H) corresponding to ±1.
+    //
+    // Iteration (Roberts/Kenney-Laub):
+    //   S_{k+1} = (S_k + S_k^{-1}) / 2,  S_0 = H
+    // This converges quadratically to sign(H).
+    //
+    // The stable projector is P = (I - sign(H)) / 2 (rank n).
+    let frob_norm: f64 = h.iter().map(|v| v * v).sum::<f64>().sqrt();
+    let mut sign_h = h.clone();
 
-    // Stable eigenspace: Re(lambda) < 0
-    let mut stable_idx: Vec<usize> = (0..2 * n).filter(|&i| eigvals[i].re < 0.0).collect();
-
-    if stable_idx.len() < n {
-        return Err(LinalgError::ConvergenceError(
-            "CARE: could not find n stable eigenvalues in Hamiltonian spectrum".into(),
-        ));
-    }
-    stable_idx.truncate(n);
-
-    let mut u1 = Array2::<f64>::zeros((n, n));
-    let mut u2 = Array2::<f64>::zeros((n, n));
-    for (col, &idx) in stable_idx.iter().enumerate() {
-        for row in 0..n {
-            u1[[row, col]] = eigvecs[[row, idx]].re;
-            u2[[row, col]] = eigvecs[[n + row, idx]].re;
+    for _ in 0..50 {
+        let sign_inv = crate::inv(&sign_h.view(), None)?;
+        let sign_new = (&sign_h + &sign_inv) * 0.5;
+        let diff: f64 = (&sign_new - &sign_h)
+            .iter()
+            .map(|v| v.abs())
+            .fold(0.0_f64, f64::max);
+        sign_h = sign_new;
+        if diff < 1e-12 * (1.0 + frob_norm) {
+            break;
         }
     }
 
+    // Stable projector P = (I - sign(H)) / 2
+    let eye_2n = Array2::<f64>::eye(2 * n);
+    let p_stable = (&eye_2n - &sign_h) * 0.5;
+
+    // The stable invariant subspace = column space of p_stable (rank n).
+    // Extract an orthonormal basis via SVD.
+    let (u_svd, _sv, _vt) = crate::decomposition::svd(&p_stable.view(), true, None)?;
+
+    // First n left singular vectors span the stable subspace
+    let u_stable = u_svd.slice(s![.., ..n]).to_owned();
+    let u1 = u_stable.slice(s![..n, ..]).to_owned();
+    let u2 = u_stable.slice(s![n.., ..]).to_owned();
+
     let u1_inv = crate::inv(&u1.view(), None)?;
     let x = u2.dot(&u1_inv);
+
     // Symmetrize
     Ok((&x + &x.t()) * 0.5)
 }

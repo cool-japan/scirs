@@ -1,6 +1,6 @@
 # scirs2-optimize TODO
 
-## Status: v0.3.4 Released (March 18, 2026)
+## Status: v0.4.3 Released (May 3, 2026)
 
 19,685 workspace tests pass (100% pass rate). All v0.3.4 features are complete and production-ready.
 

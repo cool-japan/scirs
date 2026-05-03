@@ -94,7 +94,10 @@ impl ClusterSimilarity {
             }
         }
 
-        let row_sums: Vec<f64> = contingency.iter().map(|r| r.iter().sum::<usize>() as f64).collect();
+        let row_sums: Vec<f64> = contingency
+            .iter()
+            .map(|r| r.iter().sum::<usize>() as f64)
+            .collect();
         let col_sums: Vec<f64> = (0..kb)
             .map(|j| contingency.iter().map(|r| r[j]).sum::<usize>() as f64)
             .collect();
@@ -269,21 +272,16 @@ impl WeightedVoting {
         // to average similarity with other clusterings.
         let mut effective_weights: Vec<f64> = match self.config.quality_metric {
             EnsembleQualityMetric::Uniform => w.to_vec(),
-            EnsembleQualityMetric::NMI => {
-                self.compute_diversity_weights(base_labels, |a, b| {
-                    ClusterSimilarity::normalized_mutual_info(a, b)
-                })
-            }
-            EnsembleQualityMetric::ARI => {
-                self.compute_diversity_weights(base_labels, |a, b| {
-                    ClusterSimilarity::adjusted_rand_index(a, b)
-                })
-            }
-            EnsembleQualityMetric::FowlkesMallows => {
-                self.compute_diversity_weights(base_labels, |a, b| {
+            EnsembleQualityMetric::NMI => self.compute_diversity_weights(base_labels, |a, b| {
+                ClusterSimilarity::normalized_mutual_info(a, b)
+            }),
+            EnsembleQualityMetric::ARI => self.compute_diversity_weights(base_labels, |a, b| {
+                ClusterSimilarity::adjusted_rand_index(a, b)
+            }),
+            EnsembleQualityMetric::FowlkesMallows => self
+                .compute_diversity_weights(base_labels, |a, b| {
                     ClusterSimilarity::fowlkes_mallows(a, b)
-                })
-            }
+                }),
         };
 
         // Apply supplied weights multiplicatively
@@ -443,7 +441,11 @@ impl WeightedVotingResult {
             return 0.0;
         }
         let mean = self.mean_weight();
-        let var: f64 = self.weights.iter().map(|&w| (w - mean).powi(2)).sum::<f64>()
+        let var: f64 = self
+            .weights
+            .iter()
+            .map(|&w| (w - mean).powi(2))
+            .sum::<f64>()
             / (self.weights.len() - 1) as f64;
         var
     }
@@ -514,9 +516,13 @@ impl SelectiveEnsemble {
 
         let target = self.config.target_size.min(m);
         let sim_fn: Box<dyn Fn(&[usize], &[usize]) -> f64> = match self.config.diversity_metric {
-            DiversityMeasure::NMI => Box::new(|a, b| ClusterSimilarity::normalized_mutual_info(a, b)),
+            DiversityMeasure::NMI => {
+                Box::new(|a, b| ClusterSimilarity::normalized_mutual_info(a, b))
+            }
             DiversityMeasure::ARI => Box::new(|a, b| ClusterSimilarity::adjusted_rand_index(a, b)),
-            DiversityMeasure::FowlkesMallows => Box::new(|a, b| ClusterSimilarity::fowlkes_mallows(a, b)),
+            DiversityMeasure::FowlkesMallows => {
+                Box::new(|a, b| ClusterSimilarity::fowlkes_mallows(a, b))
+            }
         };
 
         // Compute full diversity matrix (diversity = 1 - similarity)
@@ -573,7 +579,10 @@ impl SelectiveEnsemble {
                 .enumerate()
                 .flat_map(|(i, &a)| {
                     let div_ref = &diversity;
-                    selected[(i + 1)..].iter().map(move |&b| div_ref[a][b]).collect::<Vec<_>>()
+                    selected[(i + 1)..]
+                        .iter()
+                        .map(move |&b| div_ref[a][b])
+                        .collect::<Vec<_>>()
                 })
                 .sum();
             sum / pairs as f64
@@ -912,12 +921,7 @@ impl StackedClustering {
         let offset_f = F::from_f64(offset).unwrap_or(F::zero());
 
         let mut cents: Vec<Vec<f64>> = (0..k)
-            .map(|i| {
-                data.row(i)
-                    .iter()
-                    .map(|&v| f64::from(v) + offset)
-                    .collect()
-            })
+            .map(|i| data.row(i).iter().map(|&v| f64::from(v) + offset).collect())
             .collect();
         let mut labels = vec![0usize; n];
 
@@ -971,7 +975,11 @@ fn nearest_centroid_f64(centroids: &[Vec<f64>], point: &[f64]) -> usize {
     let mut best = 0;
     let mut best_d = f64::MAX;
     for (j, c) in centroids.iter().enumerate() {
-        let d: f64 = c.iter().zip(point.iter()).map(|(&a, &b)| (a - b) * (a - b)).sum();
+        let d: f64 = c
+            .iter()
+            .zip(point.iter())
+            .map(|(&a, &b)| (a - b) * (a - b))
+            .sum();
         if d < best_d {
             best_d = d;
             best = j;

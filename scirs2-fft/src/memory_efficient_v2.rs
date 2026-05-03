@@ -12,8 +12,6 @@ use oxifft::{Complex as OxiComplex, Direction};
 use scirs2_core::ndarray::{Array, Array1, Array2, ArrayD, Dimension, IxDyn, ShapeBuilder};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::NumCast;
-#[cfg(feature = "rustfft-backend")]
-use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
 use std::fmt::Debug;
 use std::sync::Arc;
 
@@ -23,7 +21,8 @@ thread_local! {
     static BUFFER_CACHE: std::cell::RefCell<Option<Vec<OxiComplex<f64>>>> = std::cell::RefCell::new(None);
 }
 
-#[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+// NOTE: rustfft-backend removed; this block is now dead code
+#[cfg(not(feature = "oxifft"))]
 thread_local! {
     static BUFFER_CACHE: std::cell::RefCell<Option<Vec<RustComplex<f64>>>> = std::cell::RefCell::new(None);
 }
@@ -47,7 +46,8 @@ fn get_or_create_buffer(size: usize) -> Vec<OxiComplex<f64>> {
     })
 }
 
-#[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+// NOTE: rustfft-backend removed; this block is now dead code
+#[cfg(not(feature = "oxifft"))]
 #[allow(dead_code)]
 fn get_or_create_buffer(size: usize) -> Vec<RustComplex<f64>> {
     BUFFER_CACHE.with(|cache| {
@@ -74,7 +74,8 @@ fn return_buffer_to_cache(buffer: Vec<OxiComplex<f64>>) {
     });
 }
 
-#[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+// NOTE: rustfft-backend removed; this block is now dead code
+#[cfg(not(feature = "oxifft"))]
 #[allow(dead_code)]
 fn return_buffer_to_cache(buffer: Vec<RustComplex<f64>>) {
     BUFFER_CACHE.with(|cache| {
@@ -184,7 +185,8 @@ where
     {
         buffer.resize(fft_size, OxiComplex::zero());
     }
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         buffer.resize(fft_size, RustComplex::new(0.0, 0.0));
     }
@@ -200,7 +202,8 @@ where
         }
     }
 
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         for (i, val) in input.iter().enumerate() {
             if i < fft_size {
@@ -225,7 +228,8 @@ where
         buffer.extend(output_oxi);
     }
 
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         // Use rustfft library for computation with planner caching
         static PLANNER_CACHE: std::sync::OnceLock<std::sync::Mutex<FftPlanner<f64>>> = std::sync::OnceLock::new();
@@ -240,7 +244,7 @@ where
         fft_plan.process(&mut buffer);
     }
 
-    #[cfg(all(not(feature = "oxifft"), not(feature = "rustfft-backend")))]
+    #[cfg(not(feature = "oxifft"))]
     {
         return Err(FFTError::ComputationError(
             "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
@@ -333,7 +337,8 @@ where
     {
         buffer.resize(fft_size, OxiComplex::zero());
     }
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         buffer.resize(fft_size, RustComplex::new(0.0, 0.0));
     }
@@ -349,7 +354,8 @@ where
         }
     }
 
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         for (i, val) in input.iter().enumerate() {
             if i < fft_size {
@@ -374,7 +380,8 @@ where
         buffer.extend(output_oxi);
     }
 
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         static PLANNER_CACHE: std::sync::OnceLock<std::sync::Mutex<FftPlanner<f64>>> = std::sync::OnceLock::new();
         let planner = PLANNER_CACHE.get_or_init(|| std::sync::Mutex::new(FftPlanner::new()));
@@ -388,7 +395,7 @@ where
         ifft_plan.process(&mut buffer);
     }
 
-    #[cfg(all(not(feature = "oxifft"), not(feature = "rustfft-backend")))]
+    #[cfg(not(feature = "oxifft"))]
     {
         return Err(FFTError::ComputationError(
             "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()

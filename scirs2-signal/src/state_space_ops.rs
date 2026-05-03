@@ -740,104 +740,189 @@ pub fn ss_feedback(
 
     match feedback_sys {
         Some(h) => {
-            // General case: feedback with H
-            // Series connection G*H for the loop
-            let gh = ss_series(plant, h)?;
-            // This is complex for general MIMO; implement SISO case
-            if plant.n_inputs != 1 || plant.n_outputs != 1 {
-                return Err(SignalError::NotImplemented(
-                    "MIMO feedback not yet implemented at state-space level".into(),
-                ));
-            }
-
-            // SISO: closed loop = G / (1 + G*H)
-            // Use the series-feedback formula
+            // General MIMO feedback interconnection.
+            //
+            // Given plant G = (A1, B1, C1, D1) and feedback controller H = (A2, B2, C2, D2):
+            //
+            //   Closed-loop (negative feedback, sign = feedback_sign):
+            //     Let F = (I - sign * D1 * D2)^{-1}
+            //     A_cl = [ A1 + B1*sign*D2*F*C1,   B1*F*C2             ]
+            //             [ B2*F*C1,                 A2 + B2*D1*F*C2*sign ]
+            //     B_cl = [ B1*F        ]
+            //             [ B2*D1*F    ]
+            //     C_cl = [ F*C1,  D1*F*C2*sign ]
+            //     D_cl = D1 * F
+            //
+            // where F = (I - sign*D1*D2)^{-1}.
             let n1 = plant.n_states;
             let n2 = h.n_states;
             let n = n1 + n2;
 
+            let p = plant.n_outputs; // output dimension of G
+            let m = plant.n_inputs; // input dimension of G
+
+            if h.n_inputs != p || h.n_outputs != m {
+                return Err(SignalError::ValueError(format!(
+                    "Feedback dimensions incompatible: plant ({}in, {}out), feedback ({}in, {}out)",
+                    m, p, h.n_inputs, h.n_outputs
+                )));
+            }
+
             let a1 = to_array2(&plant.a, n1, n1)?;
-            let b1 = to_array2(&plant.b, n1, plant.n_inputs)?;
-            let c1 = to_array2(&plant.c, plant.n_outputs, n1)?;
-            let d1 = to_array2(&plant.d, plant.n_outputs, plant.n_inputs)?;
+            let b1 = to_array2(&plant.b, n1, m)?;
+            let c1 = to_array2(&plant.c, p, n1)?;
+            let d1 = to_array2(&plant.d, p, m)?;
 
             let a2 = to_array2(&h.a, n2, n2)?;
-            let b2 = to_array2(&h.b, n2, h.n_inputs)?;
-            let c2 = to_array2(&h.c, h.n_outputs, n2)?;
-            let d2 = to_array2(&h.d, h.n_outputs, h.n_inputs)?;
+            let b2 = to_array2(&h.b, n2, p)?;
+            let c2 = to_array2(&h.c, m, n2)?;
+            let d2 = to_array2(&h.d, m, p)?;
 
-            let d_loop = &d1 * &d2;
-            let eye = Array2::<f64>::eye(1);
-            let inv_factor_mat = &eye - &(&d_loop * feedback_sign);
-            let inv_factor = inv_factor_mat[[0, 0]];
-
-            if inv_factor.abs() < 1e-15 {
-                return Err(SignalError::ComputationError(
-                    "Feedback loop has algebraic loop (1 + D_g * D_h = 0)".into(),
-                ));
-            }
-
-            let inv_f = 1.0 / inv_factor;
-
-            let mut a_cl = Array2::<f64>::zeros((n, n));
-            a_cl.slice_mut(s![0..n1, 0..n1])
-                .assign(&(&a1 + &(&b1 * (feedback_sign * inv_f) * &c1.dot(&d2.t()))));
-            // This gets complex; simplify for SISO
-            // A_cl = [A1 + B1*fb*D2*C1*inv_f,  B1*fb*C2*inv_f; B2*C1*inv_f, A2 + B2*D1*fb*C2*inv_f]
-
-            // Use a simpler formula for SISO
             let fb = feedback_sign;
-            let d1v = d1[[0, 0]];
-            let d2v = d2[[0, 0]];
-            let factor = 1.0 / (1.0 - fb * d1v * d2v);
+
+            // Compute M = I_m - sign * D1 * D2  (m x m matrix, D1: p×m, D2: m×p)
+            let d1d2 = d1.dot(&d2); // p×p
+                                    // F is p×p: F = (I_p - sign * D2 * D1)^{-1} for D_cl = D1 * F
+                                    // Equivalent formulation: use F_m = (I_m - sign*D2*D1)^{-1} so D_cl = D1*F_m...
+                                    // Standard approach: M = I_p - sign*(D1*D2), F = M^{-1}  (p×p)
+            let eye_p = Array2::<f64>::eye(p);
+            let m_mat = &eye_p - &(fb * &d1d2);
+
+            // Invert M via Gauss elimination
+            let f_mat = invert_matrix(&m_mat).map_err(|_| {
+                SignalError::ComputationError(
+                    "Feedback loop algebraic loop: (I - sign*D1*D2) is singular".into(),
+                )
+            })?;
+
+            // Build closed-loop matrices
+            // A_cl top-left:   A1 + B1 * sign * D2 * F * C1
+            let d2_f = d2.dot(&f_mat); // m×p * p×p = m×p... wait, D2 is m×p, F is p×p -> m×p
+            let f_c1 = f_mat.dot(&c1); // p×p * p×n1 = p×n1
+            let b1_sign_d2_f = b1.dot(&(fb * &d2_f)); // n1×m * m×p = n1×p
+            let a1_tl = &a1 + &b1_sign_d2_f.dot(&c1); // n1×n1
+
+            // A_cl top-right:  B1 * F * C2  ... wait: B1 is n1×m, F is p×p, C2 is m×n2
+            // Need B1 * (sign*D2*F) * C2 doesn't match. Let's use correct formula:
+            // From Doyle/Skogestad:
+            //   A_cl = [ A1 + B1*sign*D2_F*C1,  B1*F_c2_sign ]
+            // where D2_F = D2*(I-sign*D1*D2)^{-1} = ...
+            // Use the simpler Redheffer star product approach instead:
+            // Standard LFT lower: given u = D2*y + ... (feedback loop)
+            // Resolved closed form:
+            //   F = (I - sign*D1*D2)^{-1}   -- p×p
+            //   A_cl = [ A1 + B1*sign*D2*F*C1,        B1*(F*C2_sign) ]   -- but need to check B1 dim
+            //         = [ A1 + (n1×m)*(m×p)*(p×p)*(p×n1),   (n1×m)*(m×p)*(p×p)*(p×n2)*sign ]
+            // Actually: D1:p×m, D2:m×p -> D1*D2: p×p, F:p×p
+            // B1:n1×m, C2:m×n2 -> B1*C2: n1×n2, correct
+            // Top-right of A_cl: B1 * (I + sign*D2*F*D1) * C2 ... complex.
+            // Use cleaner: from Lohmann's formulation:
+            //
+            // Let F = (I - sign*D1*D2)^{-1}  [p×p]
+            // A_cl_tr = B1 * sign * F * D1_?
+            // Use Matlab-style LFT:
+            //   A_cl = [A1+B1*Kc*C1,  B1*Kc*C2; B2*Kc*C1, A2+B2*(D1*Kc-I_{maybe})*C2]
+            // where Kc = sign * (I_m - D2 * sign * D1)^{-1} * D2  ...
+            //
+            // The cleanest reference is the standard feedback SS formula from SciPy/Matlab:
+            // Given plant (A1,B1,C1,D1) and controller (A2,B2,C2,D2), negative feedback:
+            //   E = I + D1*D2  [p×p] (for negative fb)
+            //   E^{-1}: [p×p]
+            //   A_cl_11 = A1 - B1*D2*E^{-1}*C1
+            //   A_cl_12 = -B1*E_inv_C2 (but we want gain, not controller output)
+            // This gets messy without a consensus reference. Use the verified SISO path for 1×1,
+            // and for MIMO use the resolved Redheffer formula from Skogestad & Postlethwaite:
+            //
+            //   F1 = (I_p - sign*D1*D2)^{-1}     [p×p]
+            //   F2 = (I_m - sign*D2*D1)^{-1}     [m×m]
+            //
+            //   A_cl = [ A1 + sign*B1*F2*D2*C1,   B1*F2*C2           ]
+            //           [ sign*B2*F1*C1,            A2 + sign*B2*D1*F1*C2 ]   -- sign enters differently
+            // Actually from Maciejowski "Multivariable Feedback Design" p.78:
+            //   Closed-loop A:
+            //    [A1 + B1*K*(I+D1*K)^{-1}*C1,   B1*(I+K*D1)^{-1}*K_c*C2 ]
+            //    ...this is getting crate-specific.
+            //
+            // Use the simplest correct formula derived from block elimination:
+            // y = C1*x1 + D1*u,  u_fb = C2*x2 + D2*y,  u = r - sign_neg * u_fb
+            // => u = (I + sign_neg*D1*D2)^{-1} * (r - sign_neg*D1*C2*x2 - sign_neg*B1*...
+            // Let fb_sign mean the negative feedback sign (+1 for negative, -1 for positive)
+            // Define M = I_m + fb_sign * D2 * D1   [m×m] -- this is the correct loop-breaking matrix
+            let eye_m = Array2::<f64>::eye(m);
+            let d2d1 = d2.dot(&d1); // m×p * p×m = m×m
+            let m2_mat = &eye_m + &(fb * &d2d1);
+            let f2_mat = invert_matrix(&m2_mat).map_err(|_| {
+                SignalError::ComputationError(
+                    "Feedback loop algebraic loop: (I + sign*D2*D1) is singular".into(),
+                )
+            })?;
+
+            // A_cl_11 = A1 + B1*(-sign)*D2*f2*C1 ... need to track signs carefully
+            // Standard negative feedback (sign = 1 means negative):
+            // u = r - D2*y => u = (I + D2*D1)^{-1}*(r - D2*C1*x1 - D2*D1...
+            // Substituting back: u = F2*r - F2*D2*C1*x1 - F2*D2*D1*...
+            // Actually the cleanest result (from any SS control textbook):
+            //
+            // x1_dot = A1*x1 + B1*u_e
+            // x2_dot = A2*x2 + B2*y
+            // y = C1*x1 + D1*u_e
+            // u_fb = C2*x2 + D2*y
+            // u_e = r - fb*u_fb   (fb > 0 means negative fb)
+            //
+            // From u_e = r - fb*(C2*x2 + D2*(C1*x1 + D1*u_e))
+            //   (I + fb*D2*D1)*u_e = r - fb*D2*C1*x1 - fb*C2*x2
+            //   u_e = F2*(r - fb*D2*C1*x1 - fb*C2*x2)
+            //
+            // x1_dot = A1*x1 + B1*F2*(r - fb*D2*C1*x1 - fb*C2*x2)
+            //        = (A1 - fb*B1*F2*D2*C1)*x1 + (-fb*B1*F2*C2)*x2 + B1*F2*r
+            //
+            // y = C1*x1 + D1*F2*(r - fb*D2*C1*x1 - fb*C2*x2)
+            //   = (C1 - fb*D1*F2*D2*C1)*x1 + (-fb*D1*F2*C2)*x2 + D1*F2*r
+            //   = (I - fb*D1*F2*D2)*C1*x1 ...
+            //
+            // x2_dot = A2*x2 + B2*(C1*x1 + D1*F2*(r - fb*D2*C1*x1 - fb*C2*x2))
+            //        = B2*(I - fb*D1*F2*D2)*C1*x1 + (A2 - fb*B2*D1*F2*C2)*x2 + B2*D1*F2*r
+            //
+            // Assembling:
+            let fb_val = fb; // positive = negative feedback
+            let f2_d2 = f2_mat.dot(&d2); // m×m * m×p = m×p
+            let f2_c2 = f2_mat.dot(&c2); // m×m * m×n2 = m×n2
+            let d1_f2 = d1.dot(&f2_mat); // p×m * m×m = p×m
+            let d1_f2_d2 = d1_f2.dot(&d2); // p×m * m×p = p×p
+
+            let a_tl = &a1 - &(b1.dot(&(fb_val * &f2_d2.dot(&c1)))); // n1×n1
+            let a_tr = -(b1.dot(&(fb_val * &f2_c2))); // n1×n2
+            let i_d1f2d2 = &Array2::<f64>::eye(p) - &(fb_val * &d1_f2_d2); // p×p
+            let a_bl = b2.dot(&i_d1f2d2.dot(&c1)); // n2×n1
+            let a_br = &a2 - &(b2.dot(&(fb_val * &d1_f2.dot(&c2)))); // n2×n2
 
             let mut a_combined = Array2::<f64>::zeros((n, n));
-            a_combined.slice_mut(s![0..n1, 0..n1]).assign(&a1);
-            a_combined.slice_mut(s![n1.., n1..]).assign(&a2);
+            a_combined.slice_mut(s![0..n1, 0..n1]).assign(&a_tl);
+            a_combined.slice_mut(s![0..n1, n1..]).assign(&a_tr);
+            a_combined.slice_mut(s![n1.., 0..n1]).assign(&a_bl);
+            a_combined.slice_mut(s![n1.., n1..]).assign(&a_br);
 
-            // Cross terms from feedback
-            let b1c2_term = &b1 * (fb * d1v * factor) * &c2;
-            let b2c1_term = &b2 * factor * &c1;
-            let b1d2c1 = &b1 * (fb * factor) * &(&d2 * &c1);
-            let b2d1c2 = &b2 * (fb * d1v * factor) * &c2;
+            // B_cl = [ B1*F2; B2*D1*F2 ]
+            let b_top = b1.dot(&f2_mat); // n1×m
+            let b_bot = b2.dot(&d1_f2); // n2×m
+            let mut b_combined = Array2::<f64>::zeros((n, m));
+            b_combined.slice_mut(s![0..n1, ..]).assign(&b_top);
+            b_combined.slice_mut(s![n1.., ..]).assign(&b_bot);
 
-            for i in 0..n1 {
-                for j in 0..n2 {
-                    a_combined[[i, n1 + j]] += b1c2_term[[i, j]] * fb;
-                }
-                for j in 0..n1 {
-                    a_combined[[i, j]] += b1d2c1[[i, j]] * fb;
-                }
-            }
-            for i in 0..n2 {
-                for j in 0..n1 {
-                    a_combined[[n1 + i, j]] += b2c1_term[[i, j]];
-                }
-            }
+            // C_cl = [ (I - fb*D1*F2*D2)*C1,  -fb*D1*F2*C2 ]
+            let c_left = i_d1f2d2.dot(&c1); // p×n1
+            let c_right = -(d1_f2.dot(&(fb_val * &c2))); // p×n2
+            let mut c_combined = Array2::<f64>::zeros((p, n));
+            c_combined.slice_mut(s![.., 0..n1]).assign(&c_left);
+            c_combined.slice_mut(s![.., n1..]).assign(&c_right);
 
-            let b_cl_val = factor;
-            let mut b_combined = Array2::<f64>::zeros((n, 1));
-            for i in 0..n1 {
-                b_combined[[i, 0]] = b1[[i, 0]] * b_cl_val;
-            }
-            for i in 0..n2 {
-                b_combined[[n1 + i, 0]] = b2[[i, 0]] * d1v * b_cl_val;
-            }
-
-            let mut c_combined = Array2::<f64>::zeros((1, n));
-            for j in 0..n1 {
-                c_combined[[0, j]] = c1[[0, j]] * factor;
-            }
-            for j in 0..n2 {
-                c_combined[[0, n1 + j]] = d1v * c2[[0, j]] * factor * fb;
-            }
-
-            let d_cl = Array2::from_elem((1, 1), d1v * factor);
+            // D_cl = D1 * F2
+            let d_combined = d1_f2.clone(); // p×m
 
             let a_flat: Vec<f64> = a_combined.iter().copied().collect();
             let b_flat: Vec<f64> = b_combined.iter().copied().collect();
             let c_flat: Vec<f64> = c_combined.iter().copied().collect();
-            let d_flat: Vec<f64> = d_cl.iter().copied().collect();
+            let d_flat: Vec<f64> = d_combined.iter().copied().collect();
 
             StateSpace::new(a_flat, b_flat, c_flat, d_flat, Some(plant.dt))
         }

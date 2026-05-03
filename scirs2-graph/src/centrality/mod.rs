@@ -42,8 +42,8 @@
 pub mod extended;
 
 pub use extended::{
-    CoreDecomposition, EffectiveResistance, HITSCentrality, TrustCentrality,
-    TrustCentralityResult, VoteRankCentrality,
+    CoreDecomposition, EffectiveResistance, HITSCentrality, TrustCentrality, TrustCentralityResult,
+    VoteRankCentrality,
 };
 
 pub mod advanced_centrality;

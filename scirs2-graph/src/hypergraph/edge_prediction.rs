@@ -354,7 +354,11 @@ pub fn generate_negatives(
 /// # Returns
 /// AUC value in [0, 1]. Returns 0.5 for degenerate inputs.
 pub fn roc_auc(labels: &[bool], scores: &[f64]) -> f64 {
-    assert_eq!(labels.len(), scores.len(), "labels and scores must have equal length");
+    assert_eq!(
+        labels.len(),
+        scores.len(),
+        "labels and scores must have equal length"
+    );
     if labels.is_empty() {
         return 0.5;
     }
@@ -367,7 +371,11 @@ pub fn roc_auc(labels: &[bool], scores: &[f64]) -> f64 {
 
     // Sort by score descending
     let mut indices: Vec<usize> = (0..labels.len()).collect();
-    indices.sort_by(|&a, &b| scores[b].partial_cmp(&scores[a]).unwrap_or(std::cmp::Ordering::Equal));
+    indices.sort_by(|&a, &b| {
+        scores[b]
+            .partial_cmp(&scores[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     // Compute ROC curve points (FPR, TPR) using sorted scores
     let mut tpr_points = vec![0.0_f64];
@@ -423,7 +431,7 @@ mod tests {
         let candidate = vec![0, 1, 2];
         let score = predictor.score(&feats, &candidate).expect("score");
         assert!(
-            score >= 0.0 && score <= 1.0,
+            (0.0..=1.0).contains(&score),
             "score must be in [0,1], got {score}"
         );
     }
@@ -436,12 +444,7 @@ mod tests {
         };
         let predictor = HyperedgePredictor::new(4, config);
         let feats = make_feats(6, 4);
-        let candidates = vec![
-            vec![0, 1],
-            vec![1, 2, 3],
-            vec![3, 4, 5],
-            vec![0, 2, 4],
-        ];
+        let candidates = vec![vec![0, 1], vec![1, 2, 3], vec![3, 4, 5], vec![0, 2, 4]];
         let scores = predictor.predict_batch(&feats, &candidates).expect("batch");
         for s in &scores {
             assert!(*s >= 0.0 && *s <= 1.0, "score {s} not in [0,1]");
@@ -508,7 +511,7 @@ mod tests {
         let auc = roc_auc(&labels, &scores);
         // With all equal scores, AUC depends on tie-breaking → ≈ 0.5
         assert!(
-            auc >= 0.0 && auc <= 1.0,
+            (0.0..=1.0).contains(&auc),
             "AUC must be in [0,1], got {auc}"
         );
     }

@@ -176,9 +176,11 @@
 pub mod derivatives;
 pub mod ml;
 pub mod models;
+pub mod monte_carlo;
 pub mod pricing;
 pub mod risk;
 pub mod solvers;
+pub mod term_structure;
 pub mod types;
 pub mod utils;
 

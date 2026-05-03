@@ -1076,7 +1076,7 @@ mod tests {
         let fci = FciAlgorithm::new(0.05);
         let result = fci.fit(data.view(), &["X", "Y", "Z"]).expect("FCI failed");
         // PAG should have 3 nodes
-        assert_eq!(result.graph.n_nodes(), 3);
+        assert_eq!(result.graph.num_vars(), 3);
     }
 
     #[test]
@@ -1157,7 +1157,7 @@ mod tests {
         let data = Array2::<f64>::zeros((10, 0));
         let fci = FciAlgorithm::new(0.05);
         let result = fci.fit(data.view(), &[]).expect("FCI should handle empty");
-        assert_eq!(result.graph.n_nodes(), 0);
+        assert_eq!(result.graph.num_vars(), 0);
         assert_eq!(result.n_tests, 0);
     }
 

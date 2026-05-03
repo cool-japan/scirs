@@ -240,11 +240,11 @@ pub enum PreprocessingStep {
 pub enum StabilizationTechnique {
     Regularization { lambda: f64 },
     Pivoting,
-    Iterative Refinement,
-    Extended Precision,
-    Condition Number Monitoring,
-    Adaptive Tolerance,
-    Robust Algorithms,
+    IterativeRefinement,
+    ExtendedPrecision,
+    ConditionNumberMonitoring,
+    AdaptiveTolerance,
+    RobustAlgorithms,
     Preconditioning { method: String },
 }
 
@@ -296,7 +296,7 @@ pub enum ImputationMethod {
 pub enum OutlierRemovalMethod {
     ZScore { threshold: f64 },
     IQR { multiplier: f64 },
-    Isolation Forest,
+    IsolationForest,
     LocalOutlierFactor,
     EllipticEnvelope,
 }
@@ -694,7 +694,7 @@ where
 
         // Add graceful degradation as last resort
         strategies.push(RecoveryStrategy::GracefulDegradation {
-            fallback_result: DegradedResult::ApproximateResult { accuracy, estimate: 0.8 },
+            fallback_result: DegradedResult::ApproximateResult { accuracy: 0.8, estimate: 0.8 },
         });
 
         strategies
@@ -746,7 +746,8 @@ where
         match (strategy, classification) {
             (RecoveryStrategy::NumericalStabilization { .. }, ErrorClassification::NumericalInstability { .. }) => 0.9,
             (RecoveryStrategy::DataPreprocessing { .. }, ErrorClassification::DataQuality { .. }) => 0.85,
-            (RecoveryStrategy::AlgorithmSwitch { .. }, ErrorClassification::ConvergenceFailure { .. }) => 0.8_ => 0.6,
+            (RecoveryStrategy::AlgorithmSwitch { .. }, ErrorClassification::ConvergenceFailure { .. }) => 0.8,
+            _ => 0.6,
         }
     }
 

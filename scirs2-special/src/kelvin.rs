@@ -667,7 +667,7 @@ fn psi(n: usize) -> f64 {
 /// use scirs2_special::ber;
 ///
 /// let value = ber(1.5).unwrap();
-/// println!("ber(1.5) = {}", value);
+/// assert!((value - 0.9210721835_f64).abs() < 1e-7);
 /// ```
 #[allow(dead_code)]
 pub fn ber(x: f64) -> SpecialResult<f64> {
@@ -690,7 +690,7 @@ pub fn ber(x: f64) -> SpecialResult<f64> {
 /// use scirs2_special::bei;
 ///
 /// let value = bei(1.5).unwrap();
-/// println!("bei(1.5) = {}", value);
+/// assert!((value - 0.5575600623_f64).abs() < 1e-7);
 /// ```
 #[allow(dead_code)]
 pub fn bei(x: f64) -> SpecialResult<f64> {
@@ -713,7 +713,7 @@ pub fn bei(x: f64) -> SpecialResult<f64> {
 /// use scirs2_special::ker;
 ///
 /// let value = ker(1.5).unwrap();
-/// println!("ker(1.5) = {}", value);
+/// assert!((value - (-0.5569728003_f64)).abs() < 1e-7);
 /// ```
 #[allow(dead_code)]
 pub fn ker(x: f64) -> SpecialResult<f64> {
@@ -736,7 +736,7 @@ pub fn ker(x: f64) -> SpecialResult<f64> {
 /// use scirs2_special::kei;
 ///
 /// let value = kei(1.5).unwrap();
-/// println!("kei(1.5) = {}", value);
+/// assert!((value - (-1.3676944418_f64)).abs() < 1e-7);
 /// ```
 #[allow(dead_code)]
 pub fn kei(x: f64) -> SpecialResult<f64> {
@@ -759,7 +759,7 @@ pub fn kei(x: f64) -> SpecialResult<f64> {
 /// use scirs2_special::berp;
 ///
 /// let value = berp(1.5).unwrap();
-/// println!("berp(1.5) = {}", value);
+/// assert!((value - (-0.7302506739_f64)).abs() < 1e-7);
 /// ```
 #[allow(dead_code)]
 pub fn berp(x: f64) -> SpecialResult<f64> {
@@ -782,7 +782,7 @@ pub fn berp(x: f64) -> SpecialResult<f64> {
 /// use scirs2_special::beip;
 ///
 /// let value = beip(1.5).unwrap();
-/// println!("beip(1.5) = {}", value);
+/// assert!((value - 0.2100110173_f64).abs() < 1e-7);
 /// ```
 #[allow(dead_code)]
 pub fn beip(x: f64) -> SpecialResult<f64> {
@@ -805,7 +805,7 @@ pub fn beip(x: f64) -> SpecialResult<f64> {
 /// use scirs2_special::kerp;
 ///
 /// let value = kerp(1.5).unwrap();
-/// println!("kerp(1.5) = {}", value);
+/// assert!((value - 0.3505138876_f64).abs() < 1e-7);
 /// ```
 #[allow(dead_code)]
 pub fn kerp(x: f64) -> SpecialResult<f64> {
@@ -828,7 +828,7 @@ pub fn kerp(x: f64) -> SpecialResult<f64> {
 /// use scirs2_special::keip;
 ///
 /// let value = keip(1.5).unwrap();
-/// println!("keip(1.5) = {}", value);
+/// assert!((value - (-0.8020851757_f64)).abs() < 1e-7);
 /// ```
 #[allow(dead_code)]
 pub fn keip(x: f64) -> SpecialResult<f64> {

@@ -236,9 +236,7 @@ impl SmcModelComparison {
         let n = self.config.n_particles;
         let log_w0 = -(n as f64).ln();
         let mut uniform = || rng.next_f64();
-        let thetas: Vec<Vec<f64>> = (0..n)
-            .map(|_| prior_sampler(&mut uniform))
-            .collect();
+        let thetas: Vec<Vec<f64>> = (0..n).map(|_| prior_sampler(&mut uniform)).collect();
         SmcParticles {
             thetas,
             log_weights: vec![log_w0; n],
@@ -302,7 +300,11 @@ impl SmcModelComparison {
             .iter()
             .map(|theta| {
                 let ll = log_likelihood(theta);
-                if ll.is_finite() { ll } else { -1e300 }
+                if ll.is_finite() {
+                    ll
+                } else {
+                    -1e300
+                }
             })
             .collect();
 
@@ -435,11 +437,8 @@ impl SmcModelComparison {
             }
 
             // Find optimal temperature increment
-            let delta_beta = self.find_next_temperature(
-                &particles,
-                log_likelihood,
-                self.config.ess_threshold,
-            );
+            let delta_beta =
+                self.find_next_temperature(&particles, log_likelihood, self.config.ess_threshold);
 
             if delta_beta < 1e-12 {
                 // Tiny step: take remaining temperature and finish
@@ -573,7 +572,10 @@ mod tests {
         let big = vec![1000.0, 1000.1, 999.9];
         let result = logsumexp(&big);
         // Should not overflow
-        assert!(result.is_finite(), "logsumexp of large values should be finite");
+        assert!(
+            result.is_finite(),
+            "logsumexp of large values should be finite"
+        );
         // Expected ≈ 1000 + ln(3) ≈ 1001.099
         assert!((result - 1001.099).abs() < 0.01, "got {result}");
     }
@@ -582,8 +584,14 @@ mod tests {
     fn test_logsumexp_stable_small() {
         let small = vec![-1000.0, -1000.1, -999.9];
         let result = logsumexp(&small);
-        assert!(result.is_finite(), "logsumexp of small values should be finite");
-        assert!((result - (-999.0 + (3.0_f64).ln() - 1.0)).abs() < 0.1, "got {result}");
+        assert!(
+            result.is_finite(),
+            "logsumexp of small values should be finite"
+        );
+        assert!(
+            (result - (-999.0 + (3.0_f64).ln() - 1.0)).abs() < 0.1,
+            "got {result}"
+        );
     }
 
     #[test]
@@ -634,9 +642,8 @@ mod tests {
             let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             vec![z]
         };
-        let prior_log_density = |theta: &[f64]| {
-            -0.5 * theta[0] * theta[0] - 0.5 * (2.0 * std::f64::consts::PI).ln()
-        };
+        let prior_log_density =
+            |theta: &[f64]| -0.5 * theta[0] * theta[0] - 0.5 * (2.0 * std::f64::consts::PI).ln();
         let data_clone = data.clone();
         let log_likelihood = move |theta: &[f64]| {
             let mu = theta[0];
@@ -722,7 +729,11 @@ mod tests {
         };
 
         smc.resample(&mut particles, &mut rng);
-        assert_eq!(particles.thetas.len(), n, "resample should preserve particle count");
+        assert_eq!(
+            particles.thetas.len(),
+            n,
+            "resample should preserve particle count"
+        );
         assert_eq!(particles.log_weights.len(), n);
     }
 

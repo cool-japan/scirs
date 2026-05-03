@@ -293,19 +293,16 @@ where
     };
 
     // Worst-case objective over samples
-    let worst_obj_fn = |x_cur: &Array1<f64>,
-                        k: &Array2<f64>,
-                        l: &Array2<f64>,
-                        m: &Array1<f64>|
-     -> f64 {
-        xi_samples
-            .iter()
-            .map(|xi| {
-                let y = eval_policy(x_cur, k, l, m, xi);
-                obj_fn(&x_cur.view(), &y.view(), &xi.view())
-            })
-            .fold(f64::NEG_INFINITY, f64::max)
-    };
+    let worst_obj_fn =
+        |x_cur: &Array1<f64>, k: &Array2<f64>, l: &Array2<f64>, m: &Array1<f64>| -> f64 {
+            xi_samples
+                .iter()
+                .map(|xi| {
+                    let y = eval_policy(x_cur, k, l, m, xi);
+                    obj_fn(&x_cur.view(), &y.view(), &xi.view())
+                })
+                .fold(f64::NEG_INFINITY, f64::max)
+        };
 
     for _ in 0..config.max_iter {
         let f_curr = worst_obj_fn(&x, &k_matrix, &l_matrix, &m_vector);
@@ -511,9 +508,7 @@ where
     }
 
     // Draw N scenarios
-    let scenarios: Vec<Array1<f64>> = (0..config.n_scenarios)
-        .map(|_| sample_fn())
-        .collect();
+    let scenarios: Vec<Array1<f64>> = (0..config.n_scenarios).map(|_| sample_fn()).collect();
 
     let h = config.fd_step;
     let penalty = 1e3_f64; // constraint penalty weight
@@ -550,9 +545,23 @@ where
             break;
         }
 
-        for j in 0..n {
-            x[j] -= config.step_size * grad[j];
+        // Backtracking line search (Armijo condition) to prevent divergence
+        let mut alpha = config.step_size;
+        let mut x_trial = x.clone();
+        let armijo_c = 0.5_f64;
+        let backtrack_factor = 0.5_f64;
+        let max_backtracks = 30_usize;
+        for _ in 0..max_backtracks {
+            for j in 0..n {
+                x_trial[j] = x[j] - alpha * grad[j];
+            }
+            let f_trial = penalized_obj(&x_trial.view());
+            if f_trial <= f0 - armijo_c * alpha * gn * gn {
+                break;
+            }
+            alpha *= backtrack_factor;
         }
+        x = x_trial;
     }
 
     let fun = obj_fn(&x.view());
@@ -844,7 +853,8 @@ mod tests {
         let scenarios = make_uniform_scenarios(10);
         let obj_fn = |x: &ArrayView1<f64>, xi: &ArrayView1<f64>| (x[0] - xi[0]).powi(2);
         let constraints: &[fn(&ArrayView1<f64>, &ArrayView1<f64>) -> f64] = &[];
-        let result = worst_case_analysis(&obj_fn, &x.view(), &scenarios, constraints).expect("failed to create result");
+        let result = worst_case_analysis(&obj_fn, &x.view(), &scenarios, constraints)
+            .expect("failed to create result");
 
         assert_eq!(result.n_scenarios, 10);
         assert!(result.worst_obj >= result.best_obj);
@@ -859,7 +869,8 @@ mod tests {
         let obj_fn = |_x: &ArrayView1<f64>, xi: &ArrayView1<f64>| xi[0];
         // Constraint: ξ ≤ 0.5 → only first half feasible
         let constraints = vec![|_x: &ArrayView1<f64>, xi: &ArrayView1<f64>| xi[0] - 0.5];
-        let result = worst_case_analysis(&obj_fn, &x.view(), &scenarios, &constraints).expect("failed to create result");
+        let result = worst_case_analysis(&obj_fn, &x.view(), &scenarios, &constraints)
+            .expect("failed to create result");
         // Scenarios: 0.1, 0.3, 0.5, 0.7, 0.9 → 0.5 border, > 0.5 infeasible
         assert!(result.feasibility_rate <= 1.0);
         assert!(result.feasibility_rate >= 0.0);
@@ -913,8 +924,8 @@ mod tests {
             step_size: 1e-2,
             ..Default::default()
         };
-        let result =
-            distributionally_robust(&quadratic_loss, &x0.view(), &scenarios, &config).expect("unexpected None or Err");
+        let result = distributionally_robust(&quadratic_loss, &x0.view(), &scenarios, &config)
+            .expect("unexpected None or Err");
 
         // DRO minimizer should be in [0, 1]
         assert!(
@@ -941,7 +952,8 @@ mod tests {
             step_size: 1e-3,
             ..Default::default()
         };
-        let result = affinely_adjustable(&obj_fn, &x0.view(), &xi_samples, 1, &config).expect("failed to create result");
+        let result = affinely_adjustable(&obj_fn, &x0.view(), &xi_samples, 1, &config)
+            .expect("failed to create result");
         assert!(result.worst_obj >= 0.0);
         assert_eq!(result.k_matrix.shape(), [1, 1]);
         assert_eq!(result.l_matrix.shape(), [1, 1]);

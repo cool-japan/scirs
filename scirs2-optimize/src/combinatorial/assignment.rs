@@ -3,8 +3,8 @@
 //! Provides the Hungarian algorithm (Kuhn-Munkres) for minimum-cost square
 //! or rectangular assignment, and a general minimum-cost bipartite matching.
 
-use scirs2_core::ndarray::Array2;
 use crate::error::OptimizeError;
+use scirs2_core::ndarray::Array2;
 
 /// Result type for assignment operations.
 pub type AssignmentResult<T> = Result<T, OptimizeError>;
@@ -54,9 +54,7 @@ pub fn hungarian_algorithm(cost: &Array2<f64>) -> AssignmentResult<(Vec<usize>, 
 
     // ── Phase 2: subtract column minima ──────────────────────────────────────
     for j in 0..n {
-        let min_val = (0..n)
-            .map(|i| c[i][j])
-            .fold(f64::INFINITY, f64::min);
+        let min_val = (0..n).map(|i| c[i][j]).fold(f64::INFINITY, f64::min);
         if min_val.is_finite() {
             for i in 0..n {
                 c[i][j] -= min_val;
@@ -117,16 +115,25 @@ pub fn hungarian_algorithm(cost: &Array2<f64>) -> AssignmentResult<(Vec<usize>, 
     col_assign = vec![usize::MAX; n];
     for i in 0..n {
         let mut visited_cols = vec![false; n];
-        augment_assignment(i, &c, &mut row_assign, &mut col_assign, &mut visited_cols, n);
+        augment_assignment(
+            i,
+            &c,
+            &mut row_assign,
+            &mut col_assign,
+            &mut visited_cols,
+            n,
+        );
     }
 
-    // Compute total cost using original cost matrix
+    // Compute total cost using original cost matrix.
+    // Padded-column assignments (j >= cols) are preserved as-is so callers can
+    // distinguish real vs. dummy assignments.
     let mut total_cost = 0.0;
     let mut assignment = vec![0usize; rows];
     for i in 0..rows {
         let j = row_assign[i];
-        assignment[i] = if j < cols { j } else { 0 };
-        if i < rows && j < cols {
+        assignment[i] = j; // preserve padded column index (j >= cols means dummy)
+        if j < cols {
             total_cost += cost[[i, j]];
         }
     }
@@ -358,11 +365,7 @@ mod tests {
     #[test]
     fn test_hungarian_3x3() {
         // Classic 3×3 example; optimal = 4+3+4 or equivalent
-        let cost = array![
-            [4.0, 1.0, 3.0],
-            [2.0, 0.0, 5.0],
-            [3.0, 2.0, 2.0]
-        ];
+        let cost = array![[4.0, 1.0, 3.0], [2.0, 0.0, 5.0], [3.0, 2.0, 2.0]];
         let (assign, total) = hungarian_algorithm(&cost).expect("unexpected None or Err");
         verify_assignment(&cost, &assign, total);
         // Optimal = 1+2+2 = 5 or 0+3+2 = 5  (both are 5)
@@ -373,10 +376,10 @@ mod tests {
     fn test_hungarian_4x4_known_optimal() {
         // Example from Burkard & Derigs; optimal = 55
         let cost = array![
-            [9.0,  2.0, 7.0, 8.0],
-            [6.0,  4.0, 3.0, 7.0],
-            [5.0,  8.0, 1.0, 8.0],
-            [7.0,  6.0, 9.0, 4.0]
+            [9.0, 2.0, 7.0, 8.0],
+            [6.0, 4.0, 3.0, 7.0],
+            [5.0, 8.0, 1.0, 8.0],
+            [7.0, 6.0, 9.0, 4.0]
         ];
         let (assign, total) = hungarian_algorithm(&cost).expect("unexpected None or Err");
         verify_assignment(&cost, &assign, total);
@@ -386,11 +389,7 @@ mod tests {
     #[test]
     fn test_hungarian_identity() {
         // Identity cost: optimal = 0
-        let cost = array![
-            [0.0, 1.0, 1.0],
-            [1.0, 0.0, 1.0],
-            [1.0, 1.0, 0.0]
-        ];
+        let cost = array![[0.0, 1.0, 1.0], [1.0, 0.0, 1.0], [1.0, 1.0, 0.0]];
         let (assign, total) = hungarian_algorithm(&cost).expect("unexpected None or Err");
         verify_assignment(&cost, &assign, total);
         assert!((total - 0.0).abs() < 1e-6);
@@ -448,17 +447,17 @@ mod tests {
     #[test]
     fn test_hungarian_rectangular_3x2() {
         // 3 rows, 2 columns (padded to 3×3 internally)
-        let cost = array![
-            [5.0, 2.0],
-            [3.0, 4.0],
-            [1.0, 6.0]
-        ];
+        let cost = array![[5.0, 2.0], [3.0, 4.0], [1.0, 6.0]];
         let (assign, total) = hungarian_algorithm(&cost).expect("unexpected None or Err");
         // assignment has 3 entries; some may point to padded column (2)
         assert_eq!(assign.len(), 3);
         // Real-column assignments should be feasible
         let real_assigns: Vec<usize> = assign.iter().cloned().filter(|&j| j < 2).collect();
-        assert_eq!(real_assigns.len(), 2, "expected exactly 2 real-column assignments");
+        assert_eq!(
+            real_assigns.len(),
+            2,
+            "expected exactly 2 real-column assignments"
+        );
         let _ = total;
     }
 }

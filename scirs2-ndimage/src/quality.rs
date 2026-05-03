@@ -20,7 +20,9 @@ use std::f64::consts::PI;
 pub fn psnr(original: &[Vec<f64>], distorted: &[Vec<f64>], max_val: f64) -> NdimageResult<f64> {
     validate_same_shape(original, distorted)?;
     if max_val <= 0.0 {
-        return Err(NdimageError::InvalidInput("max_val must be positive".into()));
+        return Err(NdimageError::InvalidInput(
+            "max_val must be positive".into(),
+        ));
     }
     let mse = mean_squared_error(original, distorted);
     if mse < 1e-15 {
@@ -48,7 +50,9 @@ pub fn ssim(
 ) -> NdimageResult<f64> {
     validate_same_shape(img1, img2)?;
     if max_val <= 0.0 {
-        return Err(NdimageError::InvalidInput("max_val must be positive".into()));
+        return Err(NdimageError::InvalidInput(
+            "max_val must be positive".into(),
+        ));
     }
     let rows = img1.len();
     let cols = img1[0].len();
@@ -68,26 +72,25 @@ pub fn ssim(
             // Compute local stats using the window
             let (mu1, mu2, var1, var2, covar) =
                 local_stats_with_window(img1, img2, r, c, &win, rows, cols);
-            let ssim_val = (2.0 * mu1 * mu2 + c1)
-                * (2.0 * covar + c2)
+            let ssim_val = (2.0 * mu1 * mu2 + c1) * (2.0 * covar + c2)
                 / ((mu1 * mu1 + mu2 * mu2 + c1) * (var1 + var2 + c2));
             ssim_sum += ssim_val;
             count += 1;
         }
     }
     let _ = half;
-    Ok(if count > 0 { ssim_sum / count as f64 } else { 0.0 })
+    Ok(if count > 0 {
+        ssim_sum / count as f64
+    } else {
+        0.0
+    })
 }
 
 /// Multi-Scale SSIM (MS-SSIM).
 ///
 /// Computes SSIM at multiple down-sampled scales and combines using weights
 /// calibrated by Wang et al. (2003).  Range `[0, 1]`; higher = better.
-pub fn ms_ssim(
-    img1: &[Vec<f64>],
-    img2: &[Vec<f64>],
-    max_val: f64,
-) -> NdimageResult<f64> {
+pub fn ms_ssim(img1: &[Vec<f64>], img2: &[Vec<f64>], max_val: f64) -> NdimageResult<f64> {
     validate_same_shape(img1, img2)?;
     // Weights from Wang 2003 for 5-scale MS-SSIM
     let weights = [0.0448, 0.2856, 0.3001, 0.2363, 0.1333];
@@ -135,7 +138,8 @@ pub fn fsim(img1: &[Vec<f64>], img2: &[Vec<f64>]) -> NdimageResult<f64> {
     for r in 0..rows {
         for c in 0..cols {
             let pc_m = pc1[r][c].max(pc2[r][c]);
-            let s_pc = (2.0 * pc1[r][c] * pc2[r][c] + t1) / (pc1[r][c].powi(2) + pc2[r][c].powi(2) + t1);
+            let s_pc =
+                (2.0 * pc1[r][c] * pc2[r][c] + t1) / (pc1[r][c].powi(2) + pc2[r][c].powi(2) + t1);
             let g1 = gm1[r][c];
             let g2 = gm2[r][c];
             let s_gm = (2.0 * g1 * g2 + t2) / (g1 * g1 + g2 * g2 + t2);
@@ -143,7 +147,11 @@ pub fn fsim(img1: &[Vec<f64>], img2: &[Vec<f64>]) -> NdimageResult<f64> {
             fsim_den += pc_m;
         }
     }
-    Ok(if fsim_den > 1e-12 { fsim_num / fsim_den } else { 0.0 })
+    Ok(if fsim_den > 1e-12 {
+        fsim_num / fsim_den
+    } else {
+        0.0
+    })
 }
 
 /// Gradient Magnitude Similarity Deviation (GMSD).
@@ -215,14 +223,15 @@ pub fn brisque_features(image: &[Vec<f64>]) -> NdimageResult<Vec<f64>> {
     if image.is_empty() {
         return Err(NdimageError::InvalidInput("Image must not be empty".into()));
     }
-    let rows = image.len();
-    let cols = image[0].len();
     let mut feats = Vec::with_capacity(36);
 
     // Process two scales
     let mut cur = image.to_vec();
     for scale in 0..2usize {
         let mscn = compute_mscn(&cur);
+        // Use dimensions of the current scale, not the original image
+        let cur_rows = cur.len();
+        let cur_cols = if cur_rows > 0 { cur[0].len() } else { 0 };
         // Feature 1: AGGD fit to MSCN (shape, left_std, right_std)
         let (alpha, sigma_l, sigma_r) = fit_aggd(&mscn);
         feats.push(alpha);
@@ -232,7 +241,7 @@ pub fn brisque_features(image: &[Vec<f64>]) -> NdimageResult<Vec<f64>> {
         // Features 2-4: pairwise MSCN products in 4 directions
         let dirs: &[(isize, isize)] = &[(0, 1), (1, 0), (1, 1), (1, -1)];
         for &(dr, dc) in dirs {
-            let pairs = mscn_pairwise(&mscn, dr, dc, rows, cols);
+            let pairs = mscn_pairwise(&mscn, dr, dc, cur_rows, cur_cols);
             let (a2, sl2, sr2, mean2) = fit_aggd_with_mean(&pairs);
             feats.push(mean2);
             feats.push(a2);
@@ -267,9 +276,9 @@ pub fn niqe_score(image: &[Vec<f64>]) -> NdimageResult<f64> {
     // Simple model: project features against a reference vector
     // (in practice this would use a fitted multivariate Gaussian model)
     let ref_mean = [
-        2.5_f64, 0.45, 0.55, 0.0, 3.0, 0.5, 0.5, 2.8, 0.48, 0.52, 0.01, 2.9, 0.5, 0.5, 0.0,
-        2.7, 0.46, 0.54, 0.0, 2.9, 0.47, 0.53, 0.01, 2.8, 0.49, 0.51, 0.0, 2.7, 0.46, 0.53,
-        0.0, 2.9, 0.48, 0.52, 0.01, 2.8,
+        2.5_f64, 0.45, 0.55, 0.0, 3.0, 0.5, 0.5, 2.8, 0.48, 0.52, 0.01, 2.9, 0.5, 0.5, 0.0, 2.7,
+        0.46, 0.54, 0.0, 2.9, 0.47, 0.53, 0.01, 2.8, 0.49, 0.51, 0.0, 2.7, 0.46, 0.53, 0.0, 2.9,
+        0.48, 0.52, 0.01, 2.8,
     ];
     let diff: f64 = feats
         .iter()
@@ -296,8 +305,7 @@ pub fn mos_features(image: &[Vec<f64>]) -> NdimageResult<Vec<f64>> {
         let mean = flat_gm.iter().sum::<f64>() / n;
         let var = flat_gm.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / n;
         let skew = if var > 1e-12 {
-            flat_gm.iter().map(|v| (v - mean).powi(3)).sum::<f64>()
-                / (n * var.powf(1.5))
+            flat_gm.iter().map(|v| (v - mean).powi(3)).sum::<f64>() / (n * var.powf(1.5))
         } else {
             0.0
         };
@@ -324,7 +332,9 @@ pub fn mos_features(image: &[Vec<f64>]) -> NdimageResult<Vec<f64>> {
 
 fn validate_same_shape(a: &[Vec<f64>], b: &[Vec<f64>]) -> NdimageResult<()> {
     if a.is_empty() || b.is_empty() {
-        return Err(NdimageError::InvalidInput("Images must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Images must not be empty".into(),
+        ));
     }
     if a.len() != b.len() || a[0].len() != b[0].len() {
         return Err(NdimageError::InvalidInput(
@@ -444,10 +454,16 @@ fn gradient_magnitude(image: &[Vec<f64>]) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
     let mut ori = vec![vec![0.0f64; cols]; rows];
     for r in 0..rows {
         for c in 0..cols {
-            let dx = if c + 1 < cols { image[r][c + 1] } else { image[r][c] }
-                - if c > 0 { image[r][c - 1] } else { image[r][c] };
-            let dy = if r + 1 < rows { image[r + 1][c] } else { image[r][c] }
-                - if r > 0 { image[r - 1][c] } else { image[r][c] };
+            let dx = if c + 1 < cols {
+                image[r][c + 1]
+            } else {
+                image[r][c]
+            } - if c > 0 { image[r][c - 1] } else { image[r][c] };
+            let dy = if r + 1 < rows {
+                image[r + 1][c]
+            } else {
+                image[r][c]
+            } - if r > 0 { image[r - 1][c] } else { image[r][c] };
             mag[r][c] = (dx * dx + dy * dy).sqrt();
             ori[r][c] = dy.atan2(dx);
         }
@@ -461,7 +477,10 @@ fn phase_congruency_map(image: &[Vec<f64>]) -> Vec<Vec<f64>> {
     let cols = if rows > 0 { image[0].len() } else { 0 };
     let (gm, _) = gradient_magnitude(image);
     // Phase congruency ≈ normalised gradient magnitude (simplified)
-    let max_gm = gm.iter().flat_map(|r| r.iter().copied()).fold(0.0f64, f64::max);
+    let max_gm = gm
+        .iter()
+        .flat_map(|r| r.iter().copied())
+        .fold(0.0f64, f64::max);
     if max_gm < 1e-12 {
         return vec![vec![0.0; cols]; rows];
     }
@@ -520,13 +539,7 @@ fn compute_mscn(image: &[Vec<f64>]) -> Vec<Vec<f64>> {
 }
 
 /// Extract pairwise MSCN products in direction (dr, dc).
-fn mscn_pairwise(
-    mscn: &[Vec<f64>],
-    dr: isize,
-    dc: isize,
-    rows: usize,
-    cols: usize,
-) -> Vec<f64> {
+fn mscn_pairwise(mscn: &[Vec<f64>], dr: isize, dc: isize, rows: usize, cols: usize) -> Vec<f64> {
     let mut pairs = Vec::new();
     for r in 0..rows {
         for c in 0..cols {
@@ -578,14 +591,23 @@ fn fit_aggd_params(data: &[f64]) -> (f64, f64, f64) {
 /// Fit AGGD with mean, returns (shape, sigma_l, sigma_r, mean).
 fn fit_aggd_with_mean(data: &[f64]) -> (f64, f64, f64, f64) {
     let (a, sl, sr) = fit_aggd_params(data);
-    let mean = if data.is_empty() { 0.0 } else {
+    let mean = if data.is_empty() {
+        0.0
+    } else {
         data.iter().sum::<f64>() / data.len() as f64
     };
     (a, sl, sr, mean)
 }
 
 /// Local variance in a patch around (r, c).
-fn local_variance(image: &[Vec<f64>], r: usize, c: usize, patch: usize, rows: usize, cols: usize) -> f64 {
+fn local_variance(
+    image: &[Vec<f64>],
+    r: usize,
+    c: usize,
+    patch: usize,
+    rows: usize,
+    cols: usize,
+) -> f64 {
     let half = patch as isize / 2;
     let mut vals = Vec::new();
     for dr in -half..=half {
@@ -657,7 +679,11 @@ mod tests {
 
     fn make_ramp(rows: usize, cols: usize) -> Vec<Vec<f64>> {
         (0..rows)
-            .map(|r| (0..cols).map(|c| (r + c) as f64 / (rows + cols) as f64).collect())
+            .map(|r| {
+                (0..cols)
+                    .map(|c| (r + c) as f64 / (rows + cols) as f64)
+                    .collect()
+            })
             .collect()
     }
 
@@ -679,7 +705,10 @@ mod tests {
     fn test_psnr_identical() {
         let img = make_ramp(32, 32);
         let p = psnr(&img, &img, 1.0).expect("psnr should succeed on valid identical images");
-        assert!(p.is_infinite(), "Identical images should have infinite PSNR");
+        assert!(
+            p.is_infinite(),
+            "Identical images should have infinite PSNR"
+        );
     }
 
     #[test]
@@ -706,7 +735,8 @@ mod tests {
     #[test]
     fn test_ssim_identical() {
         let img = make_ramp(32, 32);
-        let s = ssim(&img, &img, 5, 0.01, 0.03, 1.0).expect("ssim should succeed on valid identical images");
+        let s = ssim(&img, &img, 5, 0.01, 0.03, 1.0)
+            .expect("ssim should succeed on valid identical images");
         // SSIM of an image with itself should be close to 1.0
         assert!(s > 0.9, "SSIM of identical images should be ≈1, got {s}");
     }
@@ -715,8 +745,10 @@ mod tests {
     fn test_ssim_with_noise() {
         let img = make_ramp(32, 32);
         let noisy = add_noise(&img, 0.2);
-        let s = ssim(&img, &noisy, 5, 0.01, 0.03, 1.0).expect("ssim should succeed on valid images");
-        let s_same = ssim(&img, &img, 5, 0.01, 0.03, 1.0).expect("ssim should succeed on identical images");
+        let s =
+            ssim(&img, &noisy, 5, 0.01, 0.03, 1.0).expect("ssim should succeed on valid images");
+        let s_same =
+            ssim(&img, &img, 5, 0.01, 0.03, 1.0).expect("ssim should succeed on identical images");
         assert!(s < s_same, "Noisy image should have lower SSIM");
     }
 

@@ -225,3 +225,75 @@ fn test_cobyla_not_implemented() {
     let opt_result = result.expect("Operation failed");
     assert!(opt_result.success || opt_result.nit > 0); // Should make progress or succeed
 }
+
+/// Verify that Method::AugmentedLagrangian is wired up and returns a valid result.
+/// The inequality constraint is x0 + x1 <= 3, minimising (x0-1)^2 + (x1-2.5)^2.
+/// Unconstrained minimum at (1, 2.5) satisfies the constraint, so we expect success
+/// near that point when running enough iterations.
+#[test]
+fn test_augmented_lagrangian_wired_up() {
+    let x0 = array![0.5, 0.5];
+    let constraints = vec![Constraint::new(constraint, Constraint::INEQUALITY)];
+
+    let options = Options {
+        maxiter: Some(50),
+        ..Options::default()
+    };
+
+    let result = minimize_constrained(
+        objective,
+        &x0.view(),
+        &constraints,
+        Method::AugmentedLagrangian,
+        Some(options),
+    );
+
+    // The method must succeed without error (no longer returns NotImplementedError)
+    assert!(
+        result.is_ok(),
+        "AugmentedLagrangian returned an error: {:?}",
+        result.err()
+    );
+    let opt_result = result.expect("AugmentedLagrangian failed");
+    // Must make at least one iteration
+    assert!(opt_result.nit > 0 || opt_result.success);
+    // Objective must be finite
+    assert!(opt_result.fun.is_finite());
+}
+
+/// Test with equality constraint: x0 + x1 = 2, minimise x0^2 + x1^2.
+/// Optimal solution is x0 = x1 = 1 with f = 2.
+#[test]
+fn test_augmented_lagrangian_equality_wired_up() {
+    fn obj_sum_sq(x: &[f64]) -> f64 {
+        x[0].powi(2) + x[1].powi(2)
+    }
+    // Equality g(x) = 0, expressed as g(x) = x0 + x1 - 2 (must be 0)
+    // The constraint API uses "fun >= 0" for inequality and "fun == 0" for equality.
+    fn eq_con(x: &[f64]) -> f64 {
+        x[0] + x[1] - 2.0
+    }
+
+    let x0 = array![0.5, 1.5];
+    let constraints = vec![Constraint::new(eq_con, Constraint::EQUALITY)];
+    let options = Options {
+        maxiter: Some(100),
+        ..Options::default()
+    };
+
+    let result = minimize_constrained(
+        obj_sum_sq,
+        &x0.view(),
+        &constraints,
+        Method::AugmentedLagrangian,
+        Some(options),
+    );
+
+    assert!(
+        result.is_ok(),
+        "AugmentedLagrangian equality failed: {:?}",
+        result.err()
+    );
+    let opt_result = result.expect("AugmentedLagrangian equality failed");
+    assert!(opt_result.fun.is_finite());
+}

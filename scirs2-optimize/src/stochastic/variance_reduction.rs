@@ -54,12 +54,7 @@ where
 }
 
 /// Average gradient over a set of samples (full batch).
-fn full_grad<F>(
-    f: &mut F,
-    x: &ArrayView1<f64>,
-    samples: &[Array1<f64>],
-    h: f64,
-) -> Array1<f64>
+fn full_grad<F>(f: &mut F, x: &ArrayView1<f64>, samples: &[Array1<f64>], h: f64) -> Array1<f64>
 where
     F: FnMut(&ArrayView1<f64>, &ArrayView1<f64>) -> f64,
 {
@@ -184,7 +179,9 @@ where
         // Inner loop
         for _ in 0..opts.inner_steps {
             // Pick random sample index via LCG
-            rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            rng = rng
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             let idx = (rng >> 33) as usize % m;
             let s = &samples[idx];
 
@@ -323,7 +320,9 @@ where
         let mut x_prev = x.clone();
 
         for _ in 0..opts.inner_steps {
-            rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            rng = rng
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             let idx = (rng >> 33) as usize % m;
             let s = &samples[idx];
 
@@ -475,7 +474,9 @@ where
             // Sample mini-batch B of size b
             let mut batch_indices = Vec::with_capacity(b);
             for _ in 0..b {
-                rng = rng.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+                rng = rng
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
                 batch_indices.push((rng >> 33) as usize % m);
             }
 
@@ -564,7 +565,8 @@ mod tests {
             tol: 1e-4,
             fd_step: 1e-5,
         };
-        let res = svrg(&mut |x, s| sample_loss(x, s), &x0.view(), &samples, &opts).expect("failed to create res");
+        let res = svrg(&mut |x, s| sample_loss(x, s), &x0.view(), &samples, &opts)
+            .expect("failed to create res");
         assert!(
             (res.x[0] - 1.0).abs() < 0.3,
             "SVRG: expected x[0]≈1.0, got {}",
@@ -588,7 +590,8 @@ mod tests {
             tol: 1e-4,
             fd_step: 1e-5,
         };
-        let res = sarah(&mut |x, s| sample_loss(x, s), &x0.view(), &samples, &opts).expect("failed to create res");
+        let res = sarah(&mut |x, s| sample_loss(x, s), &x0.view(), &samples, &opts)
+            .expect("failed to create res");
         assert!(
             (res.x[0] - 1.0).abs() < 0.3,
             "SARAH: expected x[0]≈1.0, got {}",
@@ -613,7 +616,8 @@ mod tests {
             fd_step: 1e-5,
             mini_batch: 2,
         };
-        let res = spider(&mut |x, s| sample_loss(x, s), &x0.view(), &samples, &opts).expect("failed to create res");
+        let res = spider(&mut |x, s| sample_loss(x, s), &x0.view(), &samples, &opts)
+            .expect("failed to create res");
         assert!(
             (res.x[0] - 1.0).abs() < 0.4,
             "SPIDER: expected x[0]≈1.0, got {}",

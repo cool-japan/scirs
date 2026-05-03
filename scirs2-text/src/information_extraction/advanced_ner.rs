@@ -114,19 +114,54 @@ impl AdvancedNerExtractor {
         let mut entities = Vec::new();
 
         // Built-in patterns
-        entities.extend(extract_with_pattern(text, &EMAIL_PATTERN, EntityType::Email, 1.0));
-        entities.extend(extract_with_pattern(text, &URL_PATTERN, EntityType::Url, 1.0));
-        entities.extend(extract_with_pattern(text, &DATE_PATTERN, EntityType::Date, 0.95));
-        entities.extend(extract_with_pattern(text, &TIME_PATTERN, EntityType::Time, 0.95));
-        entities.extend(extract_with_pattern(text, &PHONE_PATTERN, EntityType::Phone, 0.90));
-        entities.extend(extract_with_pattern(text, &MONEY_PATTERN, EntityType::Money, 0.95));
+        entities.extend(extract_with_pattern(
+            text,
+            &EMAIL_PATTERN,
+            EntityType::Email,
+            1.0,
+        ));
+        entities.extend(extract_with_pattern(
+            text,
+            &URL_PATTERN,
+            EntityType::Url,
+            1.0,
+        ));
+        entities.extend(extract_with_pattern(
+            text,
+            &DATE_PATTERN,
+            EntityType::Date,
+            0.95,
+        ));
+        entities.extend(extract_with_pattern(
+            text,
+            &TIME_PATTERN,
+            EntityType::Time,
+            0.95,
+        ));
+        entities.extend(extract_with_pattern(
+            text,
+            &PHONE_PATTERN,
+            EntityType::Phone,
+            0.90,
+        ));
+        entities.extend(extract_with_pattern(
+            text,
+            &MONEY_PATTERN,
+            EntityType::Money,
+            0.95,
+        ));
         entities.extend(extract_with_pattern(
             text,
             &PERCENTAGE_PATTERN,
             EntityType::Percentage,
             0.95,
         ));
-        entities.extend(extract_with_pattern(text, &NUMBER_PATTERN, EntityType::Custom("number".to_string()), 0.85));
+        entities.extend(extract_with_pattern(
+            text,
+            &NUMBER_PATTERN,
+            EntityType::Custom("number".to_string()),
+            0.85,
+        ));
 
         // Custom patterns
         for (et, re) in &self.custom_patterns {
@@ -211,9 +246,11 @@ fn extract_with_pattern(
 /// the earlier start when equal).
 fn dedup_overlapping(mut entities: Vec<Entity>) -> Vec<Entity> {
     entities.sort_by(|a, b| {
-        a.start
-            .cmp(&b.start)
-            .then_with(|| b.confidence.partial_cmp(&a.confidence).unwrap_or(std::cmp::Ordering::Equal))
+        a.start.cmp(&b.start).then_with(|| {
+            b.confidence
+                .partial_cmp(&a.confidence)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     });
 
     let mut result: Vec<Entity> = Vec::new();
@@ -359,7 +396,7 @@ impl RakeExtractor {
     // Internals
     // ------------------------------------------------------------------
 
-    fn extract_candidates<'a>(&self, text: &'a str) -> Vec<String> {
+    fn extract_candidates(&self, text: &str) -> Vec<String> {
         // Split at sentence boundaries first, then at stop-word / punctuation
         // boundaries within each sentence.
         let mut candidates = Vec::new();
@@ -504,8 +541,8 @@ pub fn simple_coreference(text: &str) -> Vec<CoreferenceCluster> {
         static ref PRONOUN_RE: Regex =
             Regex::new(r"\b(?i)(he|him|his|she|her|hers|it|its|they|them|their|theirs)\b")
                 .expect("PRONOUN_RE is valid");
-        static ref CAPITALIZED_NOUN_RE: Regex =
-            Regex::new(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b").expect("CAPITALIZED_NOUN_RE is valid");
+        static ref CAPITALIZED_NOUN_RE: Regex = Regex::new(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\b")
+            .expect("CAPITALIZED_NOUN_RE is valid");
     }
 
     // Collect antecedent candidates: (start, end, text)
@@ -539,7 +576,7 @@ pub fn simple_coreference(text: &str) -> Vec<CoreferenceCluster> {
     for (start, end, name) in &antecedents {
         clusters
             .entry(name.clone())
-            .or_insert_with(Vec::new)
+            .or_default()
             .push((*start, *end));
     }
 
@@ -561,9 +598,7 @@ pub fn simple_coreference(text: &str) -> Vec<CoreferenceCluster> {
             let resolved_name = if prefer_person {
                 antecedents
                     .iter()
-                    .filter(|(a_start, _, n)| {
-                        *a_start < *p_start && n.contains(' ')
-                    })
+                    .filter(|(a_start, _, n)| *a_start < *p_start && n.contains(' '))
                     .max_by_key(|(a_start, _, _)| *a_start)
                     .map(|(_, _, n)| n)
                     .unwrap_or(name)
@@ -573,7 +608,7 @@ pub fn simple_coreference(text: &str) -> Vec<CoreferenceCluster> {
 
             clusters
                 .entry(resolved_name.clone())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((*p_start, *p_end));
         }
     }
@@ -586,7 +621,10 @@ pub fn simple_coreference(text: &str) -> Vec<CoreferenceCluster> {
         .map(|(canonical, mut mentions)| {
             mentions.sort_by_key(|(s, _)| *s);
             mentions.dedup();
-            CoreferenceCluster { canonical, mentions }
+            CoreferenceCluster {
+                canonical,
+                mentions,
+            }
         })
         .collect()
 }
@@ -629,22 +667,16 @@ fn tokenize_phrase(phrase: &str) -> Vec<String> {
 /// Minimal English stop-word list for RAKE.
 fn default_stop_words() -> HashSet<String> {
     const WORDS: &[&str] = &[
-        "a", "an", "the", "and", "or", "but", "nor", "for", "yet", "so",
-        "in", "on", "at", "to", "of", "with", "by", "from", "as", "into",
-        "through", "during", "before", "after", "above", "below", "between",
-        "out", "off", "over", "under", "again", "about", "against", "along",
-        "around", "up", "down",
-        "i", "me", "my", "we", "our", "you", "your", "he", "him", "his",
-        "she", "her", "it", "its", "they", "them", "their", "what", "which",
-        "who", "this", "that", "these", "those",
-        "is", "am", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did",
-        "will", "would", "shall", "should", "may", "might", "must",
-        "can", "could",
-        "not", "no", "very", "just", "here", "there", "when", "where",
-        "why", "how", "all", "each", "every", "both", "few", "more",
-        "most", "other", "some", "such", "only", "same", "than", "too",
-        "also", "any", "because", "if", "while",
+        "a", "an", "the", "and", "or", "but", "nor", "for", "yet", "so", "in", "on", "at", "to",
+        "of", "with", "by", "from", "as", "into", "through", "during", "before", "after", "above",
+        "below", "between", "out", "off", "over", "under", "again", "about", "against", "along",
+        "around", "up", "down", "i", "me", "my", "we", "our", "you", "your", "he", "him", "his",
+        "she", "her", "it", "its", "they", "them", "their", "what", "which", "who", "this", "that",
+        "these", "those", "is", "am", "are", "was", "were", "be", "been", "being", "have", "has",
+        "had", "do", "does", "did", "will", "would", "shall", "should", "may", "might", "must",
+        "can", "could", "not", "no", "very", "just", "here", "there", "when", "where", "why",
+        "how", "all", "each", "every", "both", "few", "more", "most", "other", "some", "such",
+        "only", "same", "than", "too", "also", "any", "because", "if", "while",
     ];
     WORDS.iter().map(|w| w.to_string()).collect()
 }
@@ -694,7 +726,8 @@ mod tests {
         extractor
             .add_pattern(EntityType::Custom("ticker".to_string()), r"\b[A-Z]{2,5}\b")
             .expect("pattern is valid");
-        let entities = extractor.extract("Contact sales@acme.com or visit https://acme.com for ACME stock.");
+        let entities =
+            extractor.extract("Contact sales@acme.com or visit https://acme.com for ACME stock.");
         assert!(!entities.is_empty());
     }
 
@@ -726,9 +759,11 @@ mod tests {
         let text = "The quick brown fox is a good jumper.";
         let keyphrases = rake.extract(text);
         // Quick and fox should appear as candidates
-        assert!(keyphrases.iter().any(|(p, _)| p.to_lowercase().contains("quick")
-            || p.to_lowercase().contains("fox")
-            || p.to_lowercase().contains("brown")));
+        assert!(keyphrases
+            .iter()
+            .any(|(p, _)| p.to_lowercase().contains("quick")
+                || p.to_lowercase().contains("fox")
+                || p.to_lowercase().contains("brown")));
     }
 
     #[test]
@@ -740,7 +775,7 @@ mod tests {
         let triples = extractor.extract(text);
         // Should find at least one triple
         assert!(!triples.is_empty() || triples.is_empty()); // non-panicking check
-        // All triples should have non-empty fields
+                                                            // All triples should have non-empty fields
         for t in &triples {
             assert!(!t.subject.is_empty());
             assert!(!t.predicate.is_empty());

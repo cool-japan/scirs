@@ -6,7 +6,7 @@
 //! similarities or connections between them.
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, ScalarOperand};
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, Zero};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::fmt::Debug;
 
@@ -16,7 +16,7 @@ use crate::error::{ClusteringError, Result};
 
 /// Graph representation for clustering algorithms
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Graph<F: Float> {
+pub struct Graph<F> {
     /// Number of nodes in the graph
     pub n_nodes: usize,
     /// Adjacency list representation: node_id -> [(neighbor_id, weight), ...]
@@ -25,17 +25,9 @@ pub struct Graph<F: Float> {
     pub node_features: Option<Array2<F>>,
 }
 
-impl<
-        F: Float
-            + FromPrimitive
-            + Debug
-            + ScalarOperand
-            + std::iter::Sum
-            + std::cmp::Eq
-            + std::hash::Hash
-            + 'static,
-    > Graph<F>
-{
+/// Basic construction and traversal methods — no Float arithmetic required.
+/// Works with any `F` that is `Copy + PartialOrd + Zero + 'static`.
+impl<F: Copy + PartialOrd + Zero + 'static> Graph<F> {
     /// Create a new empty graph with specified number of nodes
     pub fn new(_nnodes: usize) -> Self {
         Self {
@@ -57,41 +49,11 @@ impl<
         let mut graph = Self::new(n_nodes);
 
         for i in 0..n_nodes {
-            for j in 0..n_nodes {
+            for j in (i + 1)..n_nodes {
                 let weight = _adjacencymatrix[[i, j]];
-                if weight > F::zero() && i != j {
+                if weight > F::zero() {
                     graph.add_edge(i, j, weight)?;
                 }
-            }
-        }
-
-        Ok(graph)
-    }
-
-    /// Create a k-nearest neighbor_ graph from data points
-    pub fn from_knngraph(data: ArrayView2<F>, k: usize) -> Result<Self> {
-        let n_samples = data.shape()[0];
-        let mut graph = Self::new(n_samples);
-        graph.node_features = Some(data.to_owned());
-
-        // For each point, find k nearest neighbor_s
-        for i in 0..n_samples {
-            let mut distances: Vec<(usize, F)> = Vec::new();
-
-            for j in 0..n_samples {
-                if i != j {
-                    let dist = euclidean_distance(data.row(i), data.row(j));
-                    distances.push((j, dist));
-                }
-            }
-
-            // Sort by distance and take k nearest
-            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("Operation failed"));
-
-            for &(neighbor_idx, distance) in distances.iter().take(k) {
-                // Use similarity (inverse of distance) as edge weight
-                let similarity = F::one() / (F::one() + distance);
-                graph.add_edge(i, neighbor_idx, similarity)?;
             }
         }
 
@@ -123,21 +85,54 @@ impl<
         }
     }
 
-    /// Get the weighted degree of a node (sum of edge weights)
-    pub fn weighted_degree(&self, node: usize) -> F {
-        if node < self.n_nodes {
-            self.adjacency[node].iter().map(|(_, weight)| *weight).sum()
-        } else {
-            F::zero()
-        }
-    }
-
     /// Get all neighbor_s of a node
     pub fn neighbor_s(&self, node: usize) -> &[(usize, F)] {
         if node < self.n_nodes {
             &self.adjacency[node]
         } else {
             &[]
+        }
+    }
+}
+
+/// Float-arithmetic methods — modularity calculations, KNN graph construction, etc.
+impl<F: Float + FromPrimitive + Debug + ScalarOperand + std::iter::Sum + 'static> Graph<F> {
+    /// Create a k-nearest neighbor_ graph from data points
+    pub fn from_knngraph(data: ArrayView2<F>, k: usize) -> Result<Self> {
+        let n_samples = data.shape()[0];
+        let mut graph = Self::new(n_samples);
+        graph.node_features = Some(data.to_owned());
+
+        // For each point, find k nearest neighbor_s
+        for i in 0..n_samples {
+            let mut distances: Vec<(usize, F)> = Vec::new();
+
+            for j in 0..n_samples {
+                if i != j {
+                    let dist = euclidean_distance(data.row(i), data.row(j));
+                    distances.push((j, dist));
+                }
+            }
+
+            // Sort by distance and take k nearest
+            distances.sort_by(|a, b| a.1.partial_cmp(&b.1).expect("Operation failed"));
+
+            for &(neighbor_idx, distance) in distances.iter().take(k) {
+                // Use similarity (inverse of distance) as edge weight
+                let similarity = F::one() / (F::one() + distance);
+                graph.add_edge(i, neighbor_idx, similarity)?;
+            }
+        }
+
+        Ok(graph)
+    }
+
+    /// Get the weighted degree of a node (sum of edge weights)
+    pub fn weighted_degree(&self, node: usize) -> F {
+        if node < self.n_nodes {
+            self.adjacency[node].iter().map(|(_, weight)| *weight).sum()
+        } else {
+            F::zero()
         }
     }
 
@@ -838,9 +833,6 @@ mod tests {
     use super::*;
     use scirs2_core::ndarray::Array2;
 
-    // TODO: Graph tests disabled due to trait bound conflicts
-    // Float types like f64 don't implement Eq + Hash required by Graph
-    /*
     #[test]
     fn testgraph_creation() {
         let graph = Graph::<i32>::new(5);
@@ -850,9 +842,8 @@ mod tests {
 
     #[test]
     fn testgraph_from_adjacencymatrix() {
-        let adjacency =
-            Array2::from_shape_vec((3, 3), vec![0, 1, 0, 1, 0, 1, 0, 1, 0])
-                .expect("Operation failed");
+        let adjacency = Array2::from_shape_vec((3, 3), vec![0, 1, 0, 1, 0, 1, 0, 1, 0])
+            .expect("Operation failed");
 
         let graph = Graph::from_adjacencymatrix(adjacency.view()).expect("Operation failed");
         assert_eq!(graph.n_nodes, 3);
@@ -860,7 +851,6 @@ mod tests {
         assert_eq!(graph.degree(1), 2);
         assert_eq!(graph.degree(2), 1);
     }
-    */
 
     /*
     #[test]

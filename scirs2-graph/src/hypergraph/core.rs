@@ -9,11 +9,11 @@
 //!
 //! Both expose clique expansion, star expansion, and bipartite representation.
 
-use crate::base::{Graph, IndexType, Node, EdgeWeight};
 use crate::base::Hypergraph as BaseHypergraph;
+use crate::base::{EdgeWeight, Graph, IndexType, Node};
 use crate::error::{GraphError, Result};
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
 // ============================================================================
@@ -347,18 +347,12 @@ impl<N: Clone, E: Clone> Hypergraph<N, E> {
 
     /// Return the ids of all hyperedges incident to `node`.
     pub fn incident_edges(&self, node: usize) -> Vec<usize> {
-        self.node_to_edges
-            .get(node)
-            .cloned()
-            .unwrap_or_default()
+        self.node_to_edges.get(node).cloned().unwrap_or_default()
     }
 
     /// Return the degree (number of incident hyperedges) of a node.
     pub fn node_degree(&self, node: usize) -> usize {
-        self.node_to_edges
-            .get(node)
-            .map(|v| v.len())
-            .unwrap_or(0)
+        self.node_to_edges.get(node).map(|v| v.len()).unwrap_or(0)
     }
 
     /// Number of nodes.
@@ -531,12 +525,7 @@ pub fn hypergraph_random_walk<R: Rng>(
             }
         }
         let he = &hg.hyperedges[chosen_id];
-        let candidates: Vec<usize> = he
-            .nodes
-            .iter()
-            .copied()
-            .filter(|&n| n != current)
-            .collect();
+        let candidates: Vec<usize> = he.nodes.iter().copied().filter(|&n| n != current).collect();
         if candidates.is_empty() {
             path.push(current);
         } else {
@@ -574,11 +563,7 @@ pub fn hyperedge_centrality(hg: &IndexedHypergraph) -> Vec<f64> {
         return Vec::new();
     }
     let dv: Vec<f64> = (0..m).map(|i| hg.weighted_degree(i)).collect();
-    let de: Vec<f64> = hg
-        .hyperedges
-        .iter()
-        .map(|h| h.nodes.len() as f64)
-        .collect();
+    let de: Vec<f64> = hg.hyperedges.iter().map(|h| h.nodes.len() as f64).collect();
 
     let mut c = vec![1.0 / e as f64; e];
     let max_iter = 1000;
@@ -616,11 +601,7 @@ pub fn hyperedge_centrality(hg: &IndexedHypergraph) -> Vec<f64> {
         for v in &mut c_new {
             *v /= norm;
         }
-        let diff: f64 = c_new
-            .iter()
-            .zip(c.iter())
-            .map(|(a, b)| (a - b).abs())
-            .sum();
+        let diff: f64 = c_new.iter().zip(c.iter()).map(|(a, b)| (a - b).abs()).sum();
         c = c_new;
         if diff < tol {
             break;

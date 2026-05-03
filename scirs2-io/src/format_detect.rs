@@ -361,10 +361,13 @@ fn detect_magic_bytes(data: &[u8]) -> Option<DataFormat> {
     }
 
     // NetCDF: "CDF\x01" (classic) or "CDF\x02" (64-bit offset)
-    if data.len() >= 4 && data[0] == b'C' && data[1] == b'D' && data[2] == b'F' {
-        if data[3] == 0x01 || data[3] == 0x02 {
-            return Some(DataFormat::NetCdf);
-        }
+    if data.len() >= 4
+        && data[0] == b'C'
+        && data[1] == b'D'
+        && data[2] == b'F'
+        && (data[3] == 0x01 || data[3] == 0x02)
+    {
+        return Some(DataFormat::NetCdf);
     }
 
     // Arrow IPC: "ARROW1"
@@ -408,12 +411,11 @@ fn detect_magic_bytes(data: &[u8]) -> Option<DataFormat> {
     }
 
     // TIFF: "II\x2A\x00" (little-endian) or "MM\x00\x2A" (big-endian)
-    if data.len() >= 4 {
-        if (data[0] == b'I' && data[1] == b'I' && data[2] == 0x2A && data[3] == 0x00)
-            || (data[0] == b'M' && data[1] == b'M' && data[2] == 0x00 && data[3] == 0x2A)
-        {
-            return Some(DataFormat::Tiff);
-        }
+    if data.len() >= 4
+        && ((data[0] == b'I' && data[1] == b'I' && data[2] == 0x2A && data[3] == 0x00)
+            || (data[0] == b'M' && data[1] == b'M' && data[2] == 0x00 && data[3] == 0x2A))
+    {
+        return Some(DataFormat::Tiff);
     }
 
     // FITS: "SIMPLE  ="

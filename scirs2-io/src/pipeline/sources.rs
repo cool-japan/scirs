@@ -30,7 +30,9 @@ pub trait DataSource: Send {
 
     /// Reset the source to the beginning, if supported.
     fn reset(&mut self) -> Result<()> {
-        Err(IoError::Other("reset not supported by this source".to_string()))
+        Err(IoError::Other(
+            "reset not supported by this source".to_string(),
+        ))
     }
 
     /// Human-readable name for diagnostics.
@@ -149,7 +151,8 @@ impl FileSource {
             if reader.read_line(&mut line).map_err(IoError::Io)? == 0 {
                 return Ok(None);
             }
-            let headers: Vec<String> = line.trim_end_matches(['\n', '\r'])
+            let headers: Vec<String> = line
+                .trim_end_matches(['\n', '\r'])
                 .split(',')
                 .map(|h| h.trim().trim_matches('"').to_string())
                 .collect();
@@ -182,8 +185,7 @@ impl FileSource {
                         Value::Number(n.into())
                     } else if let Ok(f) = val.parse::<f64>() {
                         Value::Number(
-                            serde_json::Number::from_f64(f)
-                                .unwrap_or(serde_json::Number::from(0)),
+                            serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
                         )
                     } else if val == "true" {
                         Value::Bool(true)
@@ -304,10 +306,7 @@ impl DatabaseSource {
     ///
     /// - `connection_string`: path to the `.sqlite` / `.db` file, or `:memory:`.
     /// - `query`: full SQL `SELECT` statement.
-    pub fn new(
-        connection_string: impl Into<String>,
-        query: impl Into<String>,
-    ) -> Self {
+    pub fn new(connection_string: impl Into<String>, query: impl Into<String>) -> Self {
         Self {
             connection_string: connection_string.into(),
             query: query.into(),
@@ -318,7 +317,7 @@ impl DatabaseSource {
 
     #[cfg(feature = "sqlite")]
     fn load_rows(&mut self) -> Result<()> {
-        use rusqlite::{Connection, types::ValueRef};
+        use rusqlite::{types::ValueRef, Connection};
 
         let conn = Connection::open(&self.connection_string)
             .map_err(|e| IoError::DatabaseError(e.to_string()))?;
@@ -343,20 +342,19 @@ impl DatabaseSource {
         {
             let mut obj = serde_json::Map::new();
             for (i, col) in column_names.iter().enumerate() {
-                let val = match row.get_ref(i).map_err(|e| IoError::DatabaseError(e.to_string()))? {
+                let val = match row
+                    .get_ref(i)
+                    .map_err(|e| IoError::DatabaseError(e.to_string()))?
+                {
                     ValueRef::Null => Value::Null,
                     ValueRef::Integer(n) => Value::Number(n.into()),
                     ValueRef::Real(f) => Value::Number(
                         serde_json::Number::from_f64(f).unwrap_or(serde_json::Number::from(0)),
                     ),
-                    ValueRef::Text(t) => Value::String(
-                        std::str::from_utf8(t)
-                            .unwrap_or("")
-                            .to_string(),
-                    ),
-                    ValueRef::Blob(b) => {
-                        Value::String(format!("<blob {} bytes>", b.len()))
+                    ValueRef::Text(t) => {
+                        Value::String(std::str::from_utf8(t).unwrap_or("").to_string())
                     }
+                    ValueRef::Blob(b) => Value::String(format!("<blob {} bytes>", b.len())),
                 };
                 obj.insert(col.clone(), val);
             }
@@ -382,7 +380,10 @@ impl DataSource for DatabaseSource {
         if self.rows.is_none() {
             self.load_rows()?;
         }
-        let queue = self.rows.as_mut().expect("rows must be populated after load_rows");
+        let queue = self
+            .rows
+            .as_mut()
+            .expect("rows must be populated after load_rows");
         if queue.is_empty() {
             self.exhausted = true;
             return Ok(None);
@@ -570,16 +571,10 @@ where
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Convenience: drain an entire [`DataSource`] into a `Vec<Value>`.
-pub fn drain_source(
-    source: &mut dyn DataSource,
-    batch_size: usize,
-) -> Result<Vec<Value>> {
+pub fn drain_source(source: &mut dyn DataSource, batch_size: usize) -> Result<Vec<Value>> {
     let mut all = Vec::new();
-    loop {
-        match source.next_batch(batch_size)? {
-            Some(batch) => all.extend(batch),
-            None => break,
-        }
+    while let Some(batch) = source.next_batch(batch_size)? {
+        all.extend(batch);
     }
     Ok(all)
 }
@@ -629,10 +624,7 @@ mod tests {
 
         let all = drain_source(&mut src, 10).unwrap();
         // We expect at least 2 records (timing-dependent for the empty-batch path)
-        let total: usize = all.len()
-            + drain_source(&mut src, 10)
-                .unwrap_or_default()
-                .len();
+        let total: usize = all.len() + drain_source(&mut src, 10).unwrap_or_default().len();
         assert!(total >= 2 || all.len() >= 2);
     }
 

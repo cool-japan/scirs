@@ -17,6 +17,9 @@ use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::error::{GraphError, Result};
 
+/// Return type for [`induced_subgraph`]: `(subgraph_adjacency, original_indices)`.
+type InducedSubgraphResult = (Vec<Vec<(usize, f64)>>, Vec<usize>);
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Minimal LCG-based PRNG (avoids external rand dependency)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -69,10 +72,10 @@ impl Lcg {
 ///
 /// # Parameters
 /// - `adjacency`   – adjacency list (unweighted); `adjacency[u]` contains the
-///                   neighbours of node `u`.
+///   neighbours of node `u`.
 /// - `start_node`  – index of the walk's first node.
 /// - `walk_length` – desired total number of nodes in the walk (including the
-///                   starting node).
+///   starting node).
 /// - `rng_seed`    – seed for the internal pseudo-random number generator.
 ///
 /// # Returns
@@ -133,12 +136,12 @@ pub fn random_walk(
 ///
 /// # Parameters
 /// - `adjacency`   – weighted adjacency list; `adjacency[u]` is a list of
-///                   `(neighbour, weight)` pairs.
+///   `(neighbour, weight)` pairs.
 /// - `start_node`  – starting node index.
 /// - `walk_length` – desired walk length (≥ 1).
 /// - `p`           – return parameter (> 0). Higher values discourage backtracking.
 /// - `q`           – in-out parameter (> 0). < 1 favours DFS-like walks; > 1
-///                   favours BFS-like walks.
+///   favours BFS-like walks.
 /// - `rng_seed`    – PRNG seed.
 ///
 /// # Errors
@@ -557,7 +560,7 @@ pub fn snowball_sampling(
 /// # Parameters
 /// - `adjacency` – weighted adjacency list of the full graph.
 /// - `node_set`  – node indices to include (may contain duplicates; duplicates
-///                 are silently deduplicated).
+///   are silently deduplicated).
 ///
 /// # Returns
 /// `(subgraph_adjacency, original_indices)` where:
@@ -571,7 +574,7 @@ pub fn snowball_sampling(
 pub fn induced_subgraph(
     adjacency: &[Vec<(usize, f64)>],
     node_set: &[usize],
-) -> Result<(Vec<Vec<(usize, f64)>>, Vec<usize>)> {
+) -> Result<InducedSubgraphResult> {
     let n = adjacency.len();
     for &v in node_set {
         if v >= n {

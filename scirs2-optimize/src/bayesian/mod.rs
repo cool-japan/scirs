@@ -82,9 +82,13 @@
 //! ```
 
 pub mod acquisition;
+pub mod constrained_bo;
 pub mod gp;
+pub mod multi_fidelity;
 pub mod optimizer;
 pub mod sampling;
+pub mod transfer_bo;
+pub mod warm_start;
 
 // ---- Re-exports for convenient access ----
 

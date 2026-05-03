@@ -1336,3 +1336,53 @@ mod tests {
         }
     }
 }
+
+// =============================================================================
+// Ergonomic Wrapper: CrossCorrelation
+// =============================================================================
+
+/// Ergonomic wrapper around the cross-correlation function analysis.
+///
+/// Computes the normalised cross-correlation between two series for lags
+/// `−max_lag … +max_lag` and returns the correlation values as an `Array1<f64>`
+/// of length `2 * max_lag + 1`, where index `max_lag` corresponds to lag 0.
+///
+/// # Example
+/// ```
+/// use scirs2_core::ndarray::Array1;
+/// use scirs2_series::correlation::CrossCorrelation;
+/// let x = Array1::from_vec(vec![1.0f64, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0,
+///                               1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 1.0]);
+/// let y = x.clone();
+/// let cc = CrossCorrelation::new().cross_correlate(&x, &y, 5);
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct CrossCorrelation;
+
+impl CrossCorrelation {
+    /// Create a new `CrossCorrelation` wrapper.
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Compute normalised cross-correlation for lags `−max_lag … +max_lag`.
+    ///
+    /// Returns an `Array1<f64>` of length `2 * max_lag + 1`.
+    /// Index `max_lag` corresponds to lag 0; index `max_lag + k` corresponds to lag `+k`.
+    pub fn cross_correlate(
+        &self,
+        x: &Array1<f64>,
+        y: &Array1<f64>,
+        max_lag: usize,
+    ) -> CorrelationResult<Array1<f64>> {
+        let config = CrossCorrelationConfig {
+            max_lag,
+            normalize: true,
+            confidence_level: None,
+            method: CorrelationMethod::Pearson,
+        };
+        let analyzer = CorrelationAnalyzer::new();
+        let result = analyzer.cross_correlation(x, y, &config)?;
+        Ok(result.correlations)
+    }
+}

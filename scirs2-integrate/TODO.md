@@ -115,13 +115,13 @@
 ### GPU Acceleration
 - [x] GPU-accelerated LBM: target millions of cells at interactive frame rates — Implemented in v0.4.2 (`gpu_lbm.rs`, D2Q9 BGK, periodic/no-slip/free-slip BC, Poiseuille init)
 - [x] GPU ODE ensemble integration: batched RK45 across thousands of parameter sets — Implemented in v0.4.2 (`gpu_ode_ensemble.rs`, Dormand-Prince RK45, sequential/simulated dispatch)
-- [ ] GPU FEM assembly: shared-memory atomic scatter for sparse stiffness matrix
-- [ ] CUDA graph capture for repeated ODE solve patterns (neural ODE training)
+- [x] GPU FEM assembly: shared-memory atomic scatter for sparse stiffness matrix — Implemented in v0.4.3 (`gpu_fem/stiffness.rs`, `gpu_fem/dispatch.rs`; CPU Rayon-parallel CST assembly + GPU stub; 8 tests)
+- [x] CUDA graph capture for repeated ODE solve patterns (neural ODE training) — Implemented in v0.4.3 (`async_ode/mod.rs`; `CachedOdeProblem` RK4 graph with pre-allocated buffers + Rayon batch + Tokio async wrapper; 6 tests)
 
 ### Adaptive Mesh Refinement
 - [x] Full AMR framework: quad-tree / oct-tree dynamic refinement — Implemented in v0.4.0 (`amr/quadtree.rs`, `amr/octree.rs`)
 - [x] Conservative prolongation and restriction operators — Implemented in v0.4.0 (`amr/operators.rs`)
-- [ ] Load-balanced AMR for parallel distributed grids
+- [x] Load-balanced AMR for parallel distributed grids — Implemented in v0.4.3 (`amr/load_balanced.rs`; `AmrGrid2D` quad-tree with Morton-ordered Rayon parallel refinement + 2:1 face-balance enforcement + load-stats; 9 tests)
 - [x] Interface tracking with level-set AMR — Implemented in v0.4.0 (`amr/level_set.rs`)
 
 ### Quantum Chemistry and Physics
@@ -134,7 +134,13 @@
 - [x] Weak order 2.0 SDE schemes (Platen-Wagner) — Implemented in v0.4.0 (`sde/weak_order2.rs`)
 - [x] Rough SDE driven by fractional Brownian motion — Implemented in v0.4.0 (`sde/rough_sde.rs`, `sde/fractional_brownian.rs`)
 - [x] Galerkin SPDE solvers with polynomial chaos expansion — Implemented in v0.4.0 (`polynomial_chaos/` module)
-- [ ] Real-time particle filter for state estimation
+- [x] Real-time particle filter for state estimation (planned 2026-04-17)
+  - **Goal:** Full net-new streaming SIR / bootstrap particle filter. The existing `sde/particle_filter.rs` is a batch filter with no streaming API whatsoever (confirmed: grep for `stream|online|step_observation|realtime|real_time` returned zero matches). Build a `StreamingParticleFilter<State, Obs>` that (a) accepts observations one at a time via `step(&mut self, obs: &Obs) -> FilterEstimate<State>`, (b) triggers systematic resampling when ESS drops below a configurable threshold (default `N/2`), (c) takes user-supplied proposal / likelihood / transition closures, (d) operates in bounded memory (particle buffer reused, no allocation per step), (e) exposes `mean`, `covariance`, `effective_sample_size`, and `log_marginal_likelihood` accessors.
+  - **Design:** New file `sde/streaming_particle_filter.rs`. `StreamingParticleFilter<S, O>` fields: `particles: Array2<f64>` (N × state_dim) via `scirs2-core::ndarray`, `log_weights: Array1<f64>`, `rng: Box<dyn scirs2_core::random::Rng>`, `transition: Box<dyn Fn(&ArrayView1<f64>, &mut dyn Rng) -> Array1<f64>>`, `log_likelihood: Box<dyn Fn(&ArrayView1<f64>, &O) -> f64>`, `ess_threshold: f64`, `log_evidence: f64`. Resampling: **systematic resampling** (Carpenter-Clifford-Fearnhead 1999) — deterministic partition `[u_0 + i/N : i=0..N]`, invert CDF in O(N). Builder: `StreamingParticleFilterBuilder::new(n_particles).transition(..).log_likelihood(..).ess_threshold(0.5).seed(42).build()`. Keep the existing batch filter untouched; `sde/mod.rs` re-exports both. RNG via `scirs2_core::random` (no raw `rand` in non-core crates per SciRS2 policy).
+  - **Files:** `scirs2-integrate/src/sde/streaming_particle_filter.rs` (new), `scirs2-integrate/src/sde/mod.rs` (re-export), `scirs2-integrate/tests/streaming_particle_filter_tests.rs` (new), `scirs2-integrate/TODO.md`.
+  - **Prerequisites:** none. RNG via `scirs2_core::random`.
+  - **Tests:** `streaming_filter_tracks_linear_gaussian_matches_kalman`, `streaming_filter_adaptive_resample_triggers_on_ess`, `streaming_filter_bearings_only_nonlinear_tracking`, `streaming_filter_bounded_memory_1000_steps`, `streaming_filter_log_evidence_matches_batch`.
+  - **Risk:** Systematic resampling + fixed seed is deterministic, so tests are stable. Heap check (`Vec::capacity()`) is fragile — assert no growth rather than exact size. If ndarray reallocation is detected, switch to pre-allocated `Array2::zeros` buffers filled in place.
 
 ### PDE Solvers
 - [x] Hybridizable DG (HDG) for diffusion-dominated problems — Implemented in v0.4.0 (`pde/hdg/` module)
@@ -145,7 +151,13 @@
 ### Integration and Quadrature
 - [x] Filon quadrature for highly oscillatory integrands — Implemented in v0.4.0 (`quadrature/filon.rs`, `quadrature/filon_clenshaw.rs`)
 - [x] Sparse grid quadrature for high-dimensional smooth functions — Implemented in v0.4.2 (`quadrature/sparse_grid.rs`, SmolyakGrid/SmolyakConfig/UnivariateRule API with CC/GL/GP rules)
-- [ ] Clenshaw-Curtis adaptive quadrature with contour deformation
+- [x] Clenshaw-Curtis adaptive quadrature with contour deformation (planned 2026-04-17)
+  - **Goal:** Audit `scirs2-integrate/src/quadrature/contour_cc.rs` for completeness; ensure it is exported, has a public API, has at least 3 tests covering real-axis convergence + a complex contour + a pole-avoidance case. Flip `[ ]` → `[x]` on this line.
+  - **Design:** The file already implements Clenshaw-Curtis with contour deformation (confirmed: `ContourType::{Real, Parabolic, Semicircle, Talbot}`, Talbot contour constructor, Trefethen & Weideman 2007 cited). Extend test coverage and confirm export from the module root. If anything is missing (convergence criteria, adaptive subdivision, Chebyshev-node-based weight construction), implement it — Trefethen-style Clenshaw-Curtis: generate nodes `x_k = cos(kπ/n)`, apply Curtis-Clenshaw FFT weight formula, deform contour `z(t) = t + i·h·(1-t²)` to dodge poles.
+  - **Files:** `scirs2-integrate/src/quadrature/contour_cc.rs`, `scirs2-integrate/src/quadrature/mod.rs` (confirm re-export), `scirs2-integrate/tests/contour_cc_tests.rs` (new or extended), `scirs2-integrate/TODO.md`.
+  - **Prerequisites:** none.
+  - **Tests:** `cc_converges_oscillatory` (∫cos(100x)dx), `cc_with_pole_avoidance` (contour around 1/(x-iε)), `cc_matches_analytic_gaussian`.
+  - **Risk:** existing implementation may use simplified CC without true contour deformation; implement Talbot-style or parabolic deformation fully per Trefethen & Weideman if needed.
 
 ## Known Issues
 

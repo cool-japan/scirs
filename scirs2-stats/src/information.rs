@@ -115,18 +115,22 @@ fn joint_histogram(
     let y_max = y.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
 
     // If range is zero (all values equal), treat as single bin
-    let x_range = if (x_max - x_min).abs() < f64::EPSILON { 1.0 } else { x_max - x_min };
-    let y_range = if (y_max - y_min).abs() < f64::EPSILON { 1.0 } else { y_max - y_min };
+    let x_range = if (x_max - x_min).abs() < f64::EPSILON {
+        1.0
+    } else {
+        x_max - x_min
+    };
+    let y_range = if (y_max - y_min).abs() < f64::EPSILON {
+        1.0
+    } else {
+        y_max - y_min
+    };
 
     let mut counts = vec![vec![0usize; bins]; bins];
 
     for (&xi, &yi) in x.iter().zip(y.iter()) {
-        let bx = ((((xi - x_min) / x_range) * bins as f64)
-            .floor() as usize)
-            .min(bins - 1);
-        let by = ((((yi - y_min) / y_range) * bins as f64)
-            .floor() as usize)
-            .min(bins - 1);
+        let bx = ((((xi - x_min) / x_range) * bins as f64).floor() as usize).min(bins - 1);
+        let by = ((((yi - y_min) / y_range) * bins as f64).floor() as usize).min(bins - 1);
         counts[bx][by] += 1;
     }
 
@@ -450,7 +454,11 @@ pub fn js_divergence(p: &[f64], q: &[f64]) -> StatsResult<f64> {
         )));
     }
 
-    let m: Vec<f64> = p.iter().zip(q.iter()).map(|(&pi, &qi)| (pi + qi) * 0.5).collect();
+    let m: Vec<f64> = p
+        .iter()
+        .zip(q.iter())
+        .map(|(&pi, &qi)| (pi + qi) * 0.5)
+        .collect();
 
     // KL(P ∥ M) — M is always > 0 where P or Q > 0
     let mut kl_pm = 0.0_f64;
@@ -502,7 +510,12 @@ pub fn total_variation(p: &[f64], q: &[f64]) -> StatsResult<f64> {
         )));
     }
 
-    let tv: f64 = p.iter().zip(q.iter()).map(|(&pi, &qi)| (pi - qi).abs()).sum::<f64>() * 0.5;
+    let tv: f64 = p
+        .iter()
+        .zip(q.iter())
+        .map(|(&pi, &qi)| (pi - qi).abs())
+        .sum::<f64>()
+        * 0.5;
     Ok(tv)
 }
 

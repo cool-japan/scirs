@@ -149,9 +149,9 @@ mod gamma_properties {
     }
 
     #[quickcheck]
-    #[ignore] // Flaky test - occasionally fails with specific inputs
     fn digamma_difference_formula(x: Positive, n: NonNegInt) -> TestResult {
         // ψ(x + n) - ψ(x) = sum(1/(x + k) for k in 0..n)
+        // This is the recurrence identity: exact up to floating-point rounding.
         let x = x.0;
         let n = n.0 as usize;
 
@@ -168,8 +168,9 @@ mod gamma_properties {
             sum += 1.0 / (x + k as f64);
         }
 
-        // Relaxed tolerance due to numerical approximation limitations in digamma function
-        TestResult::from_bool(approx_eq(diff, sum, 0.1))
+        // Tolerance of 1e-6 relative: the asymptotic-based implementation achieves
+        // sub-nanosecond accuracy uniformly so this identity holds to full precision.
+        TestResult::from_bool(approx_eq(diff, sum, 1e-6))
     }
 
     #[quickcheck]
@@ -191,6 +192,33 @@ mod gamma_properties {
 mod bessel_properties {
     use super::*;
     use crate::bessel::{iv, j0, j1, jn, kv, y0, y1};
+
+    /// Direct unit test (non-quickcheck) verifying the Wronskian identity for
+    /// a grid of v and x values in the allowed region.
+    #[test]
+    fn modified_bessel_wronskian_grid() {
+        let v_vals = [0.3_f64, 0.5, 0.7, 1.2, 1.5, 1.8];
+        let x_vals = [0.5_f64, 1.0, 2.0, 5.0, 10.0];
+        for &v in &v_vals {
+            for &x in &x_vals {
+                let i_v = iv(v, x);
+                let i_v1 = iv(v + 1.0, x);
+                let k_v = kv(v, x);
+                let k_v1 = kv(v + 1.0, x);
+                assert!(i_v.is_finite(), "iv({v}, {x}) = {i_v}");
+                assert!(i_v1.is_finite(), "iv({}, {x}) = {i_v1}", v + 1.0);
+                assert!(k_v.is_finite(), "kv({v}, {x}) = {k_v}");
+                assert!(k_v1.is_finite(), "kv({}, {x}) = {k_v1}", v + 1.0);
+                let lhs = i_v * k_v1 + i_v1 * k_v;
+                let expected = 1.0 / x;
+                let rel_err = (lhs - expected).abs() / expected.abs();
+                assert!(
+                    rel_err < 1e-5,
+                    "Wronskian: v={v}, x={x}: lhs={lhs}, expected={expected}, rel_err={rel_err}"
+                );
+            }
+        }
+    }
 
     #[quickcheck]
     fn bessel_j_recurrence(n: NonNegInt, x: Positive) -> TestResult {
@@ -253,11 +281,39 @@ mod bessel_properties {
 
     #[quickcheck]
     fn modified_bessel_relation(v: SmallPositive, x: Positive) -> TestResult {
-        // TODO: Fix modified Bessel function implementations
-        // The identity I_v(x) * K_v(x) - I_{v+1}(x) * K_{v-1}(x) = 1/x
-        // fails even with very relaxed tolerances, indicating fundamental issues
-        // with the modified Bessel function implementations (iv, kv)
-        TestResult::discard() // Skip test until implementations are fixed
+        // Standard Wronskian-like identity (DLMF 10.28.2 / A&S 9.6.15):
+        //   I_v(x) * K_{v+1}(x) + I_{v+1}(x) * K_v(x) = 1/x
+        let v = v.0;
+        let x = x.0;
+
+        // Restrict to well-conditioned region
+        if !(0.3..=30.0).contains(&x) {
+            return TestResult::discard();
+        }
+        // Exclude near-integer v to avoid catastrophic cancellation in kv's
+        // I_{-v}/I_v path for non-integer orders.
+        let frac = v.fract();
+        if !(0.05..=0.95).contains(&frac) {
+            return TestResult::discard();
+        }
+        // Exclude v >= 8 where forward recurrence on I degrades
+        if v >= 8.0 {
+            return TestResult::discard();
+        }
+
+        let i_v = iv(v, x);
+        let i_v1 = iv(v + 1.0, x);
+        let k_v = kv(v, x);
+        let k_v1 = kv(v + 1.0, x);
+
+        if !i_v.is_finite() || !i_v1.is_finite() || !k_v.is_finite() || !k_v1.is_finite() {
+            return TestResult::discard();
+        }
+
+        let lhs = i_v * k_v1 + i_v1 * k_v;
+        let expected = 1.0 / x;
+
+        TestResult::from_bool(approx_eq(lhs, expected, 1e-6))
     }
 }
 
@@ -399,7 +455,6 @@ mod orthogonal_polynomial_properties {
 mod spherical_harmonics_properties {
     use super::*;
 
-    #[ignore = "timeout"]
     #[quickcheck]
     fn spherical_harmonics_normalization(
         l: NonNegInt,
@@ -438,11 +493,46 @@ mod spherical_harmonics_properties {
         theta: f64,
         phi: f64,
     ) -> TestResult {
-        // TODO: Fix spherical harmonics implementation
-        // The conjugate symmetry property Y_l^{-m} = (-1)^m * conj(Y_l^m) fails
-        // even with very relaxed tolerances and small l,m values, indicating
-        // fundamental issues with the spherical harmonics implementation
-        TestResult::discard() // Skip test until spherical harmonics implementation is fixed
+        // Condon-Shortley conjugate symmetry (DLMF 14.30.1):
+        //   Y_l^{-m}(θ,φ) = (-1)^m * conj(Y_l^m(θ,φ))
+        let l = l.0 as usize;
+        let m = m.0 as usize; // NonNegInt is non-negative; we use |m|
+
+        // m must satisfy m <= l
+        if m > l {
+            return TestResult::discard();
+        }
+        // Trivial: m=0 is always real on both sides, no interesting test
+        if m == 0 {
+            return TestResult::discard();
+        }
+        // Must have finite angles
+        if !theta.is_finite() || !phi.is_finite() {
+            return TestResult::discard();
+        }
+        // Map theta to [0, π]
+        let theta_val = theta.abs() % std::f64::consts::PI;
+        let phi_val = phi % (2.0 * std::f64::consts::PI);
+
+        let m_signed = m as i32;
+        let neg_m_signed = -(m as i32);
+
+        let y_lm = crate::spherical_harmonics::sph_harm_complex(l, m_signed, theta_val, phi_val);
+        let y_l_neg_m =
+            crate::spherical_harmonics::sph_harm_complex(l, neg_m_signed, theta_val, phi_val);
+
+        match (y_lm, y_l_neg_m) {
+            (Ok((re_m, im_m)), Ok((re_neg_m, im_neg_m))) => {
+                // (-1)^m * conj(Y_l^m) = (-1)^m * (re_m, -im_m)
+                let phase = if m.is_multiple_of(2) { 1.0 } else { -1.0 };
+                let expected_re = phase * re_m;
+                let expected_im = phase * (-im_m);
+                let ok_re = (re_neg_m - expected_re).abs() < 1e-12;
+                let ok_im = (im_neg_m - expected_im).abs() < 1e-12;
+                TestResult::from_bool(ok_re && ok_im)
+            }
+            _ => TestResult::discard(),
+        }
     }
 }
 

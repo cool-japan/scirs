@@ -129,18 +129,14 @@ impl MambaBlock {
         let dt_scale = 1.0 / (dt_rank as f64).sqrt();
 
         let in_proj_weight = xorshift_matrix(&mut rng_state, 2 * inner, d, in_scale);
-        let conv1d_weight =
-            xorshift_vec(&mut rng_state, conv_dim, 1.0 / (conv_dim as f64).sqrt());
-        let x_proj_weight =
-            xorshift_matrix(&mut rng_state, dt_rank + 2 * n, inner, inner_scale);
+        let conv1d_weight = xorshift_vec(&mut rng_state, conv_dim, 1.0 / (conv_dim as f64).sqrt());
+        let x_proj_weight = xorshift_matrix(&mut rng_state, dt_rank + 2 * n, inner, inner_scale);
         let dt_proj_weight = xorshift_matrix(&mut rng_state, inner, dt_rank, dt_scale);
         let dt_proj_bias = xorshift_vec(&mut rng_state, inner, 0.01);
 
         // A_log initialised so that A = -exp(a_log) has reasonable decay
         // Use log-spaced values: a_log[i][j] = log(i+1) (so A = -(i+1))
-        let a_log: Vec<Vec<f64>> = (0..n)
-            .map(|i| vec![((i + 1) as f64).ln(); inner])
-            .collect();
+        let a_log: Vec<Vec<f64>> = (0..n).map(|i| vec![((i + 1) as f64).ln(); inner]).collect();
 
         // D parameter: ones (like a residual connection)
         let d_param = vec![1.0_f64; inner];
@@ -544,9 +540,8 @@ mod tests {
 
     #[test]
     fn test_selective_scan_empty() {
-        let output =
-            selective_scan(&[], &[], &vec![vec![-1.0; 2]; 3], &[], &[], &[1.0, 1.0])
-                .expect("should succeed");
+        let output = selective_scan(&[], &[], &vec![vec![-1.0; 2]; 3], &[], &[], &[1.0, 1.0])
+            .expect("should succeed");
         assert!(output.is_empty());
     }
 
@@ -670,11 +665,7 @@ mod tests {
 
     #[test]
     fn test_depthwise_conv1d() {
-        let input = vec![
-            vec![1.0, 2.0],
-            vec![3.0, 4.0],
-            vec![5.0, 6.0],
-        ];
+        let input = vec![vec![1.0, 2.0], vec![3.0, 4.0], vec![5.0, 6.0]];
         let kernel = vec![1.0, 0.5]; // [k0, k1] -> causal: y[t] = k0*x[t] + k1*x[t-1]
 
         let output = depthwise_conv1d(&input, &kernel).expect("should succeed");

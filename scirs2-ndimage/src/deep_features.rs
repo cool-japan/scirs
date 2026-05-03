@@ -64,7 +64,7 @@ impl GaborFilterBank {
                 let x = ci as isize - half;
                 let xp = x as f64 * cos_t + y as f64 * sin_t;
                 let yp = -x as f64 * sin_t + y as f64 * cos_t;
-                let gaussian = (-( xp * xp + yp * yp) / (2.0 * sigma_sq)).exp();
+                let gaussian = (-(xp * xp + yp * yp) / (2.0 * sigma_sq)).exp();
                 let wave = (2.0 * PI * frequency * xp).cos();
                 *cell = gaussian * wave;
             }
@@ -239,10 +239,7 @@ pub fn detect_sift_keypoints(
 ///
 /// Each descriptor is computed from a 16×16 pixel patch around the keypoint,
 /// divided into a 4×4 grid of 8-bin gradient-orientation histograms.
-pub fn compute_sift_descriptor(
-    image: &[Vec<f64>],
-    keypoints: &[SiftKeypoint],
-) -> Vec<Vec<f64>> {
+pub fn compute_sift_descriptor(image: &[Vec<f64>], keypoints: &[SiftKeypoint]) -> Vec<Vec<f64>> {
     let rows = image.len();
     if rows == 0 {
         return Vec::new();
@@ -406,10 +403,16 @@ fn gradient_images(image: &[Vec<f64>]) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
     let mut ori = vec![vec![0.0f64; cols]; rows];
     for r in 0..rows {
         for c in 0..cols {
-            let dx = if c + 1 < cols { image[r][c + 1] } else { image[r][c] }
-                - if c > 0 { image[r][c - 1] } else { image[r][c] };
-            let dy = if r + 1 < rows { image[r + 1][c] } else { image[r][c] }
-                - if r > 0 { image[r - 1][c] } else { image[r][c] };
+            let dx = if c + 1 < cols {
+                image[r][c + 1]
+            } else {
+                image[r][c]
+            } - if c > 0 { image[r][c - 1] } else { image[r][c] };
+            let dy = if r + 1 < rows {
+                image[r + 1][c]
+            } else {
+                image[r][c]
+            } - if r > 0 { image[r - 1][c] } else { image[r][c] };
             mag[r][c] = (dx * dx + dy * dy).sqrt();
             ori[r][c] = dy.atan2(dx);
         }
@@ -555,10 +558,7 @@ fn is_edge_point(dog: &[Vec<f64>], r: usize, c: usize, threshold: f64) -> bool {
     }
     let dxx = dog[r][c + 1] + dog[r][c - 1] - 2.0 * dog[r][c];
     let dyy = dog[r + 1][c] + dog[r - 1][c] - 2.0 * dog[r][c];
-    let dxy = (dog[r + 1][c + 1] + dog[r - 1][c - 1]
-        - dog[r + 1][c - 1]
-        - dog[r - 1][c + 1])
-        / 4.0;
+    let dxy = (dog[r + 1][c + 1] + dog[r - 1][c - 1] - dog[r + 1][c - 1] - dog[r - 1][c + 1]) / 4.0;
     let trace = dxx + dyy;
     let det = dxx * dyy - dxy * dxy;
     if det <= 0.0 {
@@ -579,10 +579,24 @@ fn dominant_orientation(image: &[Vec<f64>], r: usize, c: usize, sigma: f64) -> f
         for dc in -radius..=radius {
             let nr = (r as isize + dr).max(0).min(rows as isize - 1) as usize;
             let nc = (c as isize + dc).max(0).min(cols as isize - 1) as usize;
-            let dy = if nr + 1 < rows { image[nr + 1][nc] } else { image[nr][nc] }
-                - if nr > 0 { image[nr - 1][nc] } else { image[nr][nc] };
-            let dx = if nc + 1 < cols { image[nr][nc + 1] } else { image[nr][nc] }
-                - if nc > 0 { image[nr][nc - 1] } else { image[nr][nc] };
+            let dy = if nr + 1 < rows {
+                image[nr + 1][nc]
+            } else {
+                image[nr][nc]
+            } - if nr > 0 {
+                image[nr - 1][nc]
+            } else {
+                image[nr][nc]
+            };
+            let dx = if nc + 1 < cols {
+                image[nr][nc + 1]
+            } else {
+                image[nr][nc]
+            } - if nc > 0 {
+                image[nr][nc - 1]
+            } else {
+                image[nr][nc]
+            };
             let mag = (dx * dx + dy * dy).sqrt();
             let ori = dy.atan2(dx).rem_euclid(2.0 * PI);
             let dist_sq = (dr * dr + dc * dc) as f64;

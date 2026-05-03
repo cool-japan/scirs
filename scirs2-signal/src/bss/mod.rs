@@ -362,16 +362,20 @@ pub fn estimate_source_count(signals: &Array2<f64>, threshold: f64) -> SignalRes
 }
 
 // Public module exports
+pub mod convolutive;
 mod fastica;
 mod ica;
 mod infomax;
 mod jade;
+pub mod jade_full;
 mod joint;
 mod kernel;
 mod memd;
 mod nmf;
+pub mod nmf_audio;
 mod pca;
 mod sparse;
+pub mod sobi;
 
 // Re-export public functions
 pub use ica::ica;

@@ -213,10 +213,7 @@ pub fn minimax_subgradient(
 
     for k in 0..config.max_iter {
         let vals = problem.eval_all(&x.view());
-        let max_val = vals
-            .iter()
-            .cloned()
-            .fold(f64::NEG_INFINITY, f64::max);
+        let max_val = vals.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
 
         // Select index achieving the maximum (subgradient belongs to the active function)
         let active_idx = vals
@@ -232,7 +229,11 @@ pub fn minimax_subgradient(
         }
 
         // Compute subgradient of max_i f_i at x: a subgradient of f_{active_idx}
-        let subgrad = fd_gradient(&|v: &ArrayView1<f64>| problem.funcs[active_idx](v), &x.view(), h);
+        let subgrad = fd_gradient(
+            &|v: &ArrayView1<f64>| problem.funcs[active_idx](v),
+            &x.view(),
+            h,
+        );
         let sg_norm = l2_norm(&subgrad);
 
         if sg_norm < config.tol {
@@ -364,11 +365,7 @@ pub fn minimax_bundle(
             .enumerate()
             .filter(|(_, &v)| v >= threshold)
             .map(|(i, _)| {
-                let subgrad = fd_gradient(
-                    &|v: &ArrayView1<f64>| problem.funcs[i](v),
-                    &x.view(),
-                    h,
-                );
+                let subgrad = fd_gradient(&|v: &ArrayView1<f64>| problem.funcs[i](v), &x.view(), h);
                 BundleCut {
                     point: x.clone(),
                     value: vals[i],
@@ -407,10 +404,12 @@ pub fn minimax_bundle(
                             .iter()
                             .zip(d.iter())
                             .zip(x.iter())
-                            .map(|((&yj, &dj), &xc)| a.subgrad[{
-                                // inline the index via manual accumulation
-                                0
-                            }] * (xc + dj - yj))
+                            .map(|((&yj, &dj), &xc)| {
+                                a.subgrad[{
+                                    // inline the index via manual accumulation
+                                    0
+                                }] * (xc + dj - yj)
+                            })
                             .sum::<f64>();
                     let vb = b.value
                         + b.point
@@ -753,12 +752,8 @@ pub fn game_theoretic_minimax(
         }
 
         // Minimizer takes a step against the cumulative (average) gradient
-        let avg_grad_norm: f64 = cumulative_grad
-            .iter()
-            .map(|&g| g * g)
-            .sum::<f64>()
-            .sqrt()
-            / cumulative_count as f64;
+        let avg_grad_norm: f64 =
+            cumulative_grad.iter().map(|&g| g * g).sum::<f64>().sqrt() / cumulative_count as f64;
 
         if avg_grad_norm < config.tol {
             converged = true;
@@ -919,7 +914,8 @@ mod tests {
             fictitious_play_iter: 500,
             ..Default::default()
         };
-        let result = game_theoretic_minimax(&p, &x0.view(), 0.1, &config).expect("failed to create result");
+        let result =
+            game_theoretic_minimax(&p, &x0.view(), 0.1, &config).expect("failed to create result");
         // Should move towards x=0
         assert!(
             result.x[0].abs() < 2.5,

@@ -108,9 +108,7 @@ impl MotifTensor {
     pub fn z_eigenvector_centrality(&self) -> Result<(f64, Vec<f64>)> {
         let n = self.n;
         if n == 0 {
-            return Err(GraphError::InvalidGraph(
-                "empty motif tensor".to_string(),
-            ));
+            return Err(GraphError::InvalidGraph("empty motif tensor".to_string()));
         }
 
         // Initialise uniformly
@@ -210,9 +208,7 @@ impl TopologicalFeatures {
         let max_dim = sc.max_dim().unwrap_or(0);
         let betti_numbers = sc.betti_numbers();
         let euler_characteristic = sc.euler_characteristic();
-        let simplex_counts = (0..=max_dim)
-            .map(|d| sc.num_simplices(d))
-            .collect();
+        let simplex_counts = (0..=max_dim).map(|d| sc.num_simplices(d)).collect();
         TopologicalFeatures {
             betti_numbers,
             euler_characteristic,

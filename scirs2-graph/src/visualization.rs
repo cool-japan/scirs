@@ -356,11 +356,11 @@ where
         .enumerate()
         .map(|(i, node)| (i, graph.degree(node)))
         .collect();
-    degrees.sort_by(|a, b| b.1.cmp(&a.1));
+    degrees.sort_by_key(|b| std::cmp::Reverse(b.1));
 
     // Divide nodes into layers of similar degree
     let num_layers = (n as f64).sqrt().ceil() as usize + 1;
-    let layer_size = (n + num_layers - 1) / num_layers;
+    let layer_size = n.div_ceil(num_layers);
 
     let mut layers: Vec<Vec<usize>> = vec![Vec::new(); num_layers];
     for (rank, (node_idx, _)) in degrees.iter().enumerate() {
@@ -373,7 +373,8 @@ where
 
     for (layer_idx, layer) in layers.iter().enumerate() {
         let y = if actual_layers > 1 {
-            layer_spacing + (layer_idx as f64) * (height - 2.0 * layer_spacing) / (actual_layers - 1) as f64
+            layer_spacing
+                + (layer_idx as f64) * (height - 2.0 * layer_spacing) / (actual_layers - 1) as f64
         } else {
             height / 2.0
         };
@@ -381,7 +382,8 @@ where
         let layer_count = layer.len();
         for (slot, &node_idx) in layer.iter().enumerate() {
             let x = if layer_count > 1 {
-                node_spacing + (slot as f64) * (width - 2.0 * node_spacing) / (layer_count - 1) as f64
+                node_spacing
+                    + (slot as f64) * (width - 2.0 * node_spacing) / (layer_count - 1) as f64
             } else {
                 width / 2.0
             };
@@ -451,7 +453,10 @@ where
     }
     if n == 1 {
         let mut layout = GraphLayout::new(width, height);
-        layout.set_position(nodes[0].clone(), LayoutPosition::new(width / 2.0, height / 2.0));
+        layout.set_position(
+            nodes[0].clone(),
+            LayoutPosition::new(width / 2.0, height / 2.0),
+        );
         return Ok(layout);
     }
 
@@ -466,10 +471,7 @@ where
     let mut degree = vec![0.0f64; n];
 
     for e in graph.edges() {
-        if let (Some(&si), Some(&ti)) = (
-            node_to_idx.get(&e.source),
-            node_to_idx.get(&e.target),
-        ) {
+        if let (Some(&si), Some(&ti)) = (node_to_idx.get(&e.source), node_to_idx.get(&e.target)) {
             let w: f64 = e.weight.clone().into();
             let w = w.abs().max(1e-10);
             adj[si][ti] += w;
@@ -682,10 +684,9 @@ where
 
     // Draw edges first (behind nodes)
     for edge in graph.edges() {
-        if let (Some(src_pos), Some(tgt_pos)) = (
-            layout.position(&edge.source),
-            layout.position(&edge.target),
-        ) {
+        if let (Some(src_pos), Some(tgt_pos)) =
+            (layout.position(&edge.source), layout.position(&edge.target))
+        {
             let marker_attr = if config.arrow_size > 0.0 {
                 r#" marker-end="url(#arrow)""#
             } else {
@@ -736,11 +737,7 @@ where
                 let _ = writeln!(
                     svg,
                     r#"  <text x="{:.2}" y="{:.2}" font-size="{:.1}" font-family="sans-serif" fill="{}" text-anchor="middle" dominant-baseline="middle">{}</text>"#,
-                    pos.x,
-                    pos.y,
-                    config.font_size,
-                    config.font_color,
-                    node
+                    pos.x, pos.y, config.font_size, config.font_color, node
                 );
             }
         }
@@ -795,7 +792,8 @@ impl DotConfig {
 
     /// Add a default node attribute
     pub fn node_attr(mut self, key: &str, value: &str) -> Self {
-        self.node_attributes.push((key.to_string(), value.to_string()));
+        self.node_attributes
+            .push((key.to_string(), value.to_string()));
         self
     }
 }
@@ -855,11 +853,7 @@ where
         if config.include_positions {
             if let Some(layout) = layout {
                 if let Some(pos) = layout.position(node) {
-                    let _ = writeln!(
-                        dot,
-                        "  \"{}\" [pos=\"{:.2},{:.2}!\"];",
-                        node, pos.x, pos.y
-                    );
+                    let _ = writeln!(dot, "  \"{}\" [pos=\"{:.2},{:.2}!\"];", node, pos.x, pos.y);
                     continue;
                 }
             }
@@ -909,8 +903,13 @@ mod tests {
     #[test]
     fn test_circular_layout_positions() {
         let g = make_triangle();
-        let layout = compute_layout(&g, &LayoutAlgorithm::Circular { radius: 100.0 }, 400.0, 300.0)
-            .expect("Layout failed");
+        let layout = compute_layout(
+            &g,
+            &LayoutAlgorithm::Circular { radius: 100.0 },
+            400.0,
+            300.0,
+        )
+        .expect("Layout failed");
         assert_eq!(layout.node_count(), 3);
         // All nodes should be at approximately radius distance from center
         for pos in layout.positions.values() {
@@ -960,9 +959,13 @@ mod tests {
     #[test]
     fn test_svg_render_contains_elements() {
         let g = make_triangle();
-        let layout =
-            compute_layout(&g, &LayoutAlgorithm::Circular { radius: 100.0 }, 400.0, 300.0)
-                .expect("Layout");
+        let layout = compute_layout(
+            &g,
+            &LayoutAlgorithm::Circular { radius: 100.0 },
+            400.0,
+            300.0,
+        )
+        .expect("Layout");
         let svg = render_svg(&g, &layout, &SvgConfig::default());
         assert!(svg.contains("<svg"), "Missing SVG root element");
         assert!(svg.contains("<circle"), "Missing node circles");
@@ -973,14 +976,21 @@ mod tests {
     #[test]
     fn test_svg_render_node_labels() {
         let g = make_triangle();
-        let layout =
-            compute_layout(&g, &LayoutAlgorithm::Circular { radius: 100.0 }, 400.0, 300.0)
-                .expect("Layout");
+        let layout = compute_layout(
+            &g,
+            &LayoutAlgorithm::Circular { radius: 100.0 },
+            400.0,
+            300.0,
+        )
+        .expect("Layout");
         let mut config = SvgConfig::default();
         config.show_labels = true;
         let svg = render_svg(&g, &layout, &config);
         // Node labels "A", "B", "C" should appear
-        assert!(svg.contains(">A<") || svg.contains(">A "), "Label A not found");
+        assert!(
+            svg.contains(">A<") || svg.contains(">A "),
+            "Label A not found"
+        );
     }
 
     #[test]
@@ -990,15 +1000,22 @@ mod tests {
         let dot = export_dot(&g, &config, None).expect("DOT export failed");
         assert!(dot.contains("graph TestGraph"), "Missing graph header");
         assert!(dot.contains("--"), "Missing undirected edge operator");
-        assert!(dot.contains("\"A\"") || dot.contains("\"B\""), "Missing node");
+        assert!(
+            dot.contains("\"A\"") || dot.contains("\"B\""),
+            "Missing node"
+        );
     }
 
     #[test]
     fn test_dot_export_with_positions() {
         let g = make_triangle();
-        let layout =
-            compute_layout(&g, &LayoutAlgorithm::Circular { radius: 100.0 }, 400.0, 300.0)
-                .expect("Layout");
+        let layout = compute_layout(
+            &g,
+            &LayoutAlgorithm::Circular { radius: 100.0 },
+            400.0,
+            300.0,
+        )
+        .expect("Layout");
         let config = DotConfig::new("PosGraph").with_positions();
         let dot = export_dot(&g, &config, Some(&layout)).expect("DOT export with positions failed");
         assert!(dot.contains("pos="), "Missing position hints");
@@ -1027,9 +1044,13 @@ mod tests {
     #[test]
     fn test_dark_theme_config() {
         let g = make_triangle();
-        let layout =
-            compute_layout(&g, &LayoutAlgorithm::Circular { radius: 100.0 }, 400.0, 300.0)
-                .expect("Layout");
+        let layout = compute_layout(
+            &g,
+            &LayoutAlgorithm::Circular { radius: 100.0 },
+            400.0,
+            300.0,
+        )
+        .expect("Layout");
         let svg = render_svg(&g, &layout, &SvgConfig::dark_theme());
         assert!(svg.contains("#1A1A2E"), "Dark theme background not found");
     }

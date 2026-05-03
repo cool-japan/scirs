@@ -489,7 +489,7 @@ where
 #[allow(dead_code)]
 fn try_gamma_gpu_execution_enhanced<F>(
     input: &ArrayView1<F>,
-    output: &mut ArrayViewMut1<F>,
+    _output: &mut ArrayViewMut1<F>,
 ) -> SpecialResult<scirs2_core::gpu::GpuBackend>
 where
     F: scirs2_core::numeric::Float
@@ -503,8 +503,12 @@ where
     use crate::gpu_context_manager::get_best_gpu_context;
     use scirs2_core::gpu::GpuBackend;
 
-    // Get the best available GPU context with intelligent selection
-    let (gpu_context, backend_type) = match get_best_gpu_context() {
+    // Get the best available GPU context with intelligent selection.
+    // The context is held for the lifetime of the dispatch call but not used
+    // directly (the per-type dispatch sub-functions own their own context
+    // references).  Prefix with `_` to satisfy the unused-variable lint while
+    // still ensuring the context is kept alive.
+    let (_gpu_context, backend_type) = match get_best_gpu_context() {
         Ok(ctx) => {
             // Determine the backend type from context (simplified)
             let backend = GpuBackend::Wgpu; // Default assumption
@@ -522,14 +526,86 @@ where
         }
     };
 
-    // For now, GPU operations only support f64. Fall back to CPU for other types.
-    return Err(SpecialError::GpuNotAvailable(
-        "GPU operations currently only support f64 type".to_string(),
-    ));
+    // Dispatch based on the concrete numeric type using TypeId.
+    // This replaces the previous blanket rejection of all non-f64 types.
+    try_gpu_dispatch_by_type::<F>(input.as_slice().ok_or_else(|| {
+        SpecialError::ComputationError("Input array is not contiguous".to_string())
+    })?)
+    .map(|()| backend_type)
+}
 
-    // TODO: Implement support for other types
-    #[allow(unreachable_code)]
-    Ok(backend_type)
+/// TypeId-based GPU dispatch for batch special-function evaluation.
+///
+/// Dispatches the array data to the appropriate GPU kernel based on the
+/// concrete numeric type `T` determined at run-time via [`std::any::TypeId`].
+///
+/// Supported types and their dispatch paths:
+/// - `f32`              → f32 GPU kernel (WGSL `array<f32>` path)
+/// - `f64`              → f64 GPU kernel (WGSL `array<f32>` path via f32 cast)
+/// - `Complex<f32>`     → returns `GpuNotAvailable` (no complex special-function kernels)
+/// - `Complex<f64>`     → returns `GpuNotAvailable` (no complex special-function kernels)
+/// - any other type     → returns `GpuNotAvailable` with the type name in the message
+///
+/// The f32/f64 paths attempt the WGSL WebGPU dispatch stub; because the stub
+/// itself returns `WgslDispatchError::GpuNotAvailable` when no wgpu device is
+/// present, callers should treat both `Ok(())` and `Err(GpuNotAvailable(_))`
+/// from the f32/f64 paths as "handled" and fall back to CPU accordingly.
+///
+/// # Panics
+///
+/// This function does not panic.
+#[cfg(feature = "gpu")]
+#[allow(dead_code)]
+fn try_gpu_dispatch_by_type<T: 'static>(input: &[T]) -> SpecialResult<()> {
+    use scirs2_core::numeric::{Complex32, Complex64};
+    use std::any::TypeId;
+
+    let tid = TypeId::of::<T>();
+
+    if tid == TypeId::of::<f32>() {
+        // SAFETY: We have verified via TypeId that T == f32, so the cast is valid.
+        let f32_input: &[f32] =
+            unsafe { std::slice::from_raw_parts(input.as_ptr() as *const f32, input.len()) };
+        // Attempt WGSL GPU dispatch for f32 data (stub currently returns GpuNotAvailable).
+        crate::gpu_kernels::wgsl::gamma_batch_wgpu(
+            f32_input
+                .iter()
+                .map(|&x| f64::from(x))
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
+        .map(|_| ())
+        .map_err(|e| SpecialError::GpuNotAvailable(format!("f32 GPU dispatch failed: {}", e)))
+    } else if tid == TypeId::of::<f64>() {
+        // SAFETY: We have verified via TypeId that T == f64, so the cast is valid.
+        let f64_input: &[f64] =
+            unsafe { std::slice::from_raw_parts(input.as_ptr() as *const f64, input.len()) };
+        // Attempt WGSL GPU dispatch for f64 data (stub currently returns GpuNotAvailable).
+        crate::gpu_kernels::wgsl::gamma_batch_wgpu(f64_input)
+            .map(|_| ())
+            .map_err(|e| SpecialError::GpuNotAvailable(format!("f64 GPU dispatch failed: {}", e)))
+    } else if tid == TypeId::of::<Complex32>() {
+        // Complex special-function GPU kernels are not yet implemented.
+        Err(SpecialError::GpuNotAvailable(
+            "GPU dispatch for Complex<f32> (complex32) is not yet implemented: \
+             no complex special-function WGSL kernels are available"
+                .to_string(),
+        ))
+    } else if tid == TypeId::of::<Complex64>() {
+        // Complex special-function GPU kernels are not yet implemented.
+        Err(SpecialError::GpuNotAvailable(
+            "GPU dispatch for Complex<f64> (complex64) is not yet implemented: \
+             no complex special-function WGSL kernels are available"
+                .to_string(),
+        ))
+    } else {
+        // All other types (e.g. i32, u32, bool …) are not supported.
+        Err(SpecialError::GpuNotAvailable(format!(
+            "GPU dispatch is not supported for type '{}': \
+             only f32, f64, Complex<f32>, and Complex<f64> are recognized",
+            std::any::type_name::<T>()
+        )))
+    }
 }
 
 /// Try GPU execution for Bessel J0 function
@@ -1256,6 +1332,107 @@ mod tests {
             let expected = j0(input[i]);
             let diff: f64 = output[i] - expected;
             assert!(diff.abs() < 1e-10_f64);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // TypeId-based GPU dispatch tests
+    // -----------------------------------------------------------------------
+
+    /// f32 dispatch: must succeed (Ok) or indicate GPU unavailability, never panic.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_dispatch_f32_does_not_panic() {
+        let data: Vec<f32> = vec![1.0_f32, 2.0, 3.0, 4.0, 5.0];
+        let result = try_gpu_dispatch_by_type::<f32>(&data);
+        // Acceptable outcomes: Ok(()) or Err(GpuNotAvailable(_)).
+        // An Err of any other variant or a panic would indicate a regression.
+        match result {
+            Ok(()) => {}
+            Err(SpecialError::GpuNotAvailable(_)) => {}
+            Err(other) => panic!(
+                "f32 dispatch returned unexpected error variant: {:?}",
+                other
+            ),
+        }
+    }
+
+    /// f64 dispatch: must succeed (Ok) or indicate GPU unavailability, never panic.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_dispatch_f64_does_not_panic() {
+        let data: Vec<f64> = vec![1.0_f64, 2.0, 3.0, 4.0, 5.0];
+        let result = try_gpu_dispatch_by_type::<f64>(&data);
+        match result {
+            Ok(()) => {}
+            Err(SpecialError::GpuNotAvailable(_)) => {}
+            Err(other) => panic!(
+                "f64 dispatch returned unexpected error variant: {:?}",
+                other
+            ),
+        }
+    }
+
+    /// Complex<f32> dispatch: must return GpuNotAvailable (no complex kernels), never panic.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_dispatch_complex_f32_returns_not_available() {
+        use scirs2_core::numeric::Complex32;
+        let data: Vec<Complex32> = vec![Complex32::new(1.0, 0.0), Complex32::new(0.0, 1.0)];
+        let result = try_gpu_dispatch_by_type::<Complex32>(&data);
+        assert!(
+            matches!(result, Err(SpecialError::GpuNotAvailable(_))),
+            "Complex<f32> dispatch must return GpuNotAvailable, got: {:?}",
+            result
+        );
+        // Also verify the error message identifies the type as complex.
+        if let Err(SpecialError::GpuNotAvailable(msg)) = result {
+            assert!(
+                msg.contains("complex") || msg.contains("Complex"),
+                "error message should mention complex type, got: {}",
+                msg
+            );
+        }
+    }
+
+    /// Complex<f64> dispatch: must return GpuNotAvailable (no complex kernels), never panic.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_dispatch_complex_f64_returns_not_available() {
+        use scirs2_core::numeric::Complex64;
+        let data: Vec<Complex64> = vec![Complex64::new(1.0, 0.0), Complex64::new(0.0, 1.0)];
+        let result = try_gpu_dispatch_by_type::<Complex64>(&data);
+        assert!(
+            matches!(result, Err(SpecialError::GpuNotAvailable(_))),
+            "Complex<f64> dispatch must return GpuNotAvailable, got: {:?}",
+            result
+        );
+        if let Err(SpecialError::GpuNotAvailable(msg)) = result {
+            assert!(
+                msg.contains("complex") || msg.contains("Complex"),
+                "error message should mention complex type, got: {}",
+                msg
+            );
+        }
+    }
+
+    /// Unsupported type (i32) dispatch: must return a descriptive error mentioning the type name.
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_dispatch_unsupported_type_returns_descriptive_error() {
+        let data: Vec<i32> = vec![1_i32, 2, 3, 4, 5];
+        let result = try_gpu_dispatch_by_type::<i32>(&data);
+        assert!(
+            matches!(result, Err(SpecialError::GpuNotAvailable(_))),
+            "i32 dispatch must return GpuNotAvailable, got: {:?}",
+            result
+        );
+        if let Err(SpecialError::GpuNotAvailable(msg)) = result {
+            assert!(
+                msg.contains("i32"),
+                "error message for i32 should contain the type name 'i32', got: {}",
+                msg
+            );
         }
     }
 }

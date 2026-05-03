@@ -82,7 +82,8 @@ pub fn convex_hull_2d(points: &[(f64, f64)]) -> NdimageResult<Vec<(f64, f64)>> {
     // Upper hull
     let lower_len = hull.len() + 1;
     for &p in pts.iter().rev() {
-        while hull.len() >= lower_len && cross(hull[hull.len() - 2], hull[hull.len() - 1], p) <= 0.0 {
+        while hull.len() >= lower_len && cross(hull[hull.len() - 2], hull[hull.len() - 1], p) <= 0.0
+        {
             hull.pop();
         }
         hull.push(p);
@@ -96,11 +97,12 @@ pub fn convex_hull_2d(points: &[(f64, f64)]) -> NdimageResult<Vec<(f64, f64)>> {
 // Contour Extraction – Moore Neighbourhood
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Extract outer contours from a binary image using Moore-neighbourhood (8-connected)
-/// boundary tracing (Jacob's stopping criterion).
+/// Extract outer contours from a binary image.
 ///
-/// Returns one contour per connected component.  Each contour is a list of
-/// (row, col) pixel coordinates.
+/// Returns one contour per 4-connected foreground component.  Each contour is
+/// the ordered sequence of boundary pixels (those with at least one 8-connected
+/// background neighbour), collected by BFS through the 8-connected boundary
+/// ring of the component.
 ///
 /// # Arguments
 ///
@@ -118,9 +120,9 @@ pub fn convex_hull_2d(points: &[(f64, f64)]) -> NdimageResult<Vec<(f64, f64)>> {
 /// assert_eq!(contours.len(), 1);
 /// assert!(!contours[0].is_empty());
 /// ```
-pub fn contour_extraction(
-    binary: &ArrayView2<bool>,
-) -> NdimageResult<Vec<Vec<(usize, usize)>>> {
+pub fn contour_extraction(binary: &ArrayView2<bool>) -> NdimageResult<Vec<Vec<(usize, usize)>>> {
+    use std::collections::VecDeque;
+
     let rows = binary.nrows();
     let cols = binary.ncols();
 
@@ -128,8 +130,8 @@ pub fn contour_extraction(
         return Ok(Vec::new());
     }
 
-    // 8-connected Moore neighbourhood offsets (clockwise from right)
-    const MOORE: [(i32, i32); 8] = [
+    // 8-connected neighbourhood offsets
+    const N8: [(i32, i32); 8] = [
         (0, 1),
         (1, 1),
         (1, 0),
@@ -139,90 +141,81 @@ pub fn contour_extraction(
         (-1, 0),
         (-1, 1),
     ];
+    // 4-connected neighbourhood offsets
+    const N4: [(i32, i32); 4] = [(0, 1), (1, 0), (0, -1), (-1, 0)];
 
-    let in_bounds = |r: i32, c: i32| -> bool {
-        r >= 0 && r < rows as i32 && c >= 0 && c < cols as i32
+    let in_bounds = |r: i32, c: i32| r >= 0 && r < rows as i32 && c >= 0 && c < cols as i32;
+
+    let get = |r: usize, c: usize| -> bool { *binary.get((r, c)).unwrap_or(&false) };
+
+    // is_boundary: true if foreground pixel has at least one background 8-neighbour
+    let is_boundary = |r: usize, c: usize| -> bool {
+        N8.iter().any(|(dr, dc)| {
+            let nr = r as i32 + dr;
+            let nc = c as i32 + dc;
+            !in_bounds(nr, nc) || !get(nr as usize, nc as usize)
+        })
     };
 
-    let get = |r: usize, c: usize| -> bool {
-        *binary.get((r, c)).unwrap_or(&false)
-    };
-
-    // Visited foreground pixels that have already been assigned to a contour
-    let mut visited = Array2::<bool>::default((rows, cols));
+    // Mark which foreground pixels have been fully processed
+    let mut fg_visited = Array2::<bool>::default((rows, cols));
     let mut contours: Vec<Vec<(usize, usize)>> = Vec::new();
 
     for start_r in 0..rows {
         for start_c in 0..cols {
-            if !get(start_r, start_c) || visited[[start_r, start_c]] {
+            if !get(start_r, start_c) || fg_visited[[start_r, start_c]] {
                 continue;
             }
 
-            // Check if this is a boundary pixel (has at least one background neighbour)
-            let is_boundary = MOORE.iter().any(|(dr, dc)| {
-                let nr = start_r as i32 + dr;
-                let nc = start_c as i32 + dc;
-                !in_bounds(nr, nc) || !get(nr as usize, nc as usize)
-            });
+            // BFS to collect all 4-connected foreground pixels of this component
+            let mut component: Vec<(usize, usize)> = Vec::new();
+            let mut queue: VecDeque<(usize, usize)> = VecDeque::new();
+            queue.push_back((start_r, start_c));
+            fg_visited[[start_r, start_c]] = true;
 
-            if !is_boundary {
-                // Interior pixel – mark as visited but don't start a contour here
-                visited[[start_r, start_c]] = true;
-                continue;
-            }
-
-            // Moore neighbour tracing (Jacob's stopping criterion)
-            let mut contour: Vec<(usize, usize)> = Vec::new();
-            let start = (start_r, start_c);
-            let mut current = start;
-
-            // Entry direction: the neighbour we came FROM (index into MOORE)
-            // We start looking from the background pixel to the left of start_c.
-            let mut entry_dir: usize = 4; // direction 4 = (0, -1) = left
-
-            loop {
-                contour.push(current);
-                visited[[current.0, current.1]] = true;
-
-                // Search Moore neighbourhood starting from the pixel OPPOSITE to entry
-                let start_search = (entry_dir + 5) % 8;
-                let mut found = false;
-                let mut next = current;
-                let mut next_entry = 0usize;
-
-                for k in 0..8usize {
-                    let dir = (start_search + k) % 8;
-                    let (dr, dc) = MOORE[dir];
-                    let nr = current.0 as i32 + dr;
-                    let nc = current.1 as i32 + dc;
-                    if in_bounds(nr, nc) && get(nr as usize, nc as usize) {
-                        next = (nr as usize, nc as usize);
-                        // entry_dir for next pixel: direction pointing BACK to current
-                        next_entry = (dir + 4) % 8;
-                        found = true;
-                        break;
+            while let Some((r, c)) = queue.pop_front() {
+                component.push((r, c));
+                for (dr, dc) in &N4 {
+                    let nr = r as i32 + dr;
+                    let nc = c as i32 + dc;
+                    if in_bounds(nr, nc) {
+                        let nr = nr as usize;
+                        let nc = nc as usize;
+                        if get(nr, nc) && !fg_visited[[nr, nc]] {
+                            fg_visited[[nr, nc]] = true;
+                            queue.push_back((nr, nc));
+                        }
                     }
                 }
+            }
 
-                if !found {
-                    // Isolated pixel
-                    break;
-                }
+            // From the component, collect boundary pixels and order them by
+            // BFS traversal through the 8-connected boundary ring.
+            let mut boundary_visited = Array2::<bool>::default((rows, cols));
+            let mut contour: Vec<(usize, usize)> = Vec::new();
 
-                entry_dir = next_entry;
-                current = next;
+            // Find the first boundary pixel (top-left scanning order)
+            let first_boundary = component.iter().find(|&&(r, c)| is_boundary(r, c));
 
-                // Jacob's stopping criterion: back to start AND arriving from same direction
-                if current == start && entry_dir == (4 + 4) % 8 {
-                    break;
-                }
-                // Simpler fallback: back to start
-                if current == start {
-                    break;
-                }
-                // Safety: contour cannot be longer than total pixels
-                if contour.len() > rows * cols {
-                    break;
+            if let Some(&(br, bc)) = first_boundary {
+                let mut bq: VecDeque<(usize, usize)> = VecDeque::new();
+                bq.push_back((br, bc));
+                boundary_visited[[br, bc]] = true;
+
+                while let Some((r, c)) = bq.pop_front() {
+                    contour.push((r, c));
+                    for (dr, dc) in &N8 {
+                        let nr = r as i32 + dr;
+                        let nc = c as i32 + dc;
+                        if in_bounds(nr, nc) {
+                            let nr = nr as usize;
+                            let nc = nc as usize;
+                            if get(nr, nc) && is_boundary(nr, nc) && !boundary_visited[[nr, nc]] {
+                                boundary_visited[[nr, nc]] = true;
+                                bq.push_back((nr, nc));
+                            }
+                        }
+                    }
                 }
             }
 
@@ -313,21 +306,20 @@ pub fn shape_descriptors(contour: &[(usize, usize)]) -> NdimageResult<ShapeDescr
 
     // --- Bounding box ---
     let (min_x, max_x, min_y, max_y) = pts_f.iter().fold(
-        (f64::INFINITY, f64::NEG_INFINITY, f64::INFINITY, f64::NEG_INFINITY),
-        |(mnx, mxx, mny, mxy), &(x, y)| {
-            (mnx.min(x), mxx.max(x), mny.min(y), mxy.max(y))
-        },
+        (
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+        ),
+        |(mnx, mxx, mny, mxy), &(x, y)| (mnx.min(x), mxx.max(x), mny.min(y), mxy.max(y)),
     );
     let bbox_w = (max_x - min_x).max(1.0);
     let bbox_h = (max_y - min_y).max(1.0);
     let bbox_area = bbox_w * bbox_h;
 
     // --- Aspect ratio ---
-    let aspect_ratio = if bbox_h > 1e-12 {
-        bbox_w / bbox_h
-    } else {
-        1.0
-    };
+    let aspect_ratio = if bbox_h > 1e-12 { bbox_w / bbox_h } else { 1.0 };
 
     // --- Extent ---
     let extent = area / bbox_area;
@@ -369,17 +361,20 @@ pub fn shape_descriptors(contour: &[(usize, usize)]) -> NdimageResult<ShapeDescr
     };
 
     // --- Eccentricity via second-order central moments ---
-    let (cx, cy) = pts_f.iter().fold((0.0f64, 0.0f64), |(ax, ay), &(x, y)| {
-        (ax + x, ay + y)
-    });
+    let (cx, cy) = pts_f
+        .iter()
+        .fold((0.0f64, 0.0f64), |(ax, ay), &(x, y)| (ax + x, ay + y));
     let cx = cx / n as f64;
     let cy = cy / n as f64;
 
-    let (mu20, mu02, mu11) = pts_f.iter().fold((0.0f64, 0.0f64, 0.0f64), |(m20, m02, m11), &(x, y)| {
-        let dx = x - cx;
-        let dy = y - cy;
-        (m20 + dx * dx, m02 + dy * dy, m11 + dx * dy)
-    });
+    let (mu20, mu02, mu11) =
+        pts_f
+            .iter()
+            .fold((0.0f64, 0.0f64, 0.0f64), |(m20, m02, m11), &(x, y)| {
+                let dx = x - cx;
+                let dy = y - cy;
+                (m20 + dx * dx, m02 + dy * dy, m11 + dx * dy)
+            });
     let mu20 = mu20 / n as f64;
     let mu02 = mu02 / n as f64;
     let mu11 = mu11 / n as f64;
@@ -496,21 +491,9 @@ pub fn ellipse_fit(points: &[(f64, f64)]) -> NdimageResult<(f64, f64, f64, f64, 
     // C11 = [[0,0,2],[0,-1,0],[2,0,0]], C11^{-1} = [[0,0,0.5],[0,-1,0],[0.5,0,0]]
     // M = C11^{-1} * m_raw
     let m = [
-        [
-            0.5 * m_raw[2][0],
-            0.5 * m_raw[2][1],
-            0.5 * m_raw[2][2],
-        ],
-        [
-            -m_raw[1][0],
-            -m_raw[1][1],
-            -m_raw[1][2],
-        ],
-        [
-            0.5 * m_raw[0][0],
-            0.5 * m_raw[0][1],
-            0.5 * m_raw[0][2],
-        ],
+        [0.5 * m_raw[2][0], 0.5 * m_raw[2][1], 0.5 * m_raw[2][2]],
+        [-m_raw[1][0], -m_raw[1][1], -m_raw[1][2]],
+        [0.5 * m_raw[0][0], 0.5 * m_raw[0][1], 0.5 * m_raw[0][2]],
     ];
 
     // Find eigenvalues / eigenvectors of M (3×3 via characteristic polynomial)
@@ -521,7 +504,7 @@ pub fn ellipse_fit(points: &[(f64, f64)]) -> NdimageResult<(f64, f64, f64, f64, 
     let mut best_eval = f64::INFINITY;
     for i in 0..3 {
         let ev = eigenvalues[i];
-        if ev.is_finite() && ev > 1e-15 {
+        if ev.is_finite() && ev > -1e-10 {
             let v = eigenvectors[i];
             let cond = 4.0 * v[0] * v[2] - v[1] * v[1];
             if cond > 0.0 && ev < best_eval {
@@ -622,8 +605,12 @@ pub fn minimum_bounding_rectangle(points: &[(f64, f64)]) -> NdimageResult<[(f64,
         let uy = ey / len_e;
 
         // Project all hull points onto (ux, uy) and its perpendicular (-uy, ux)
-        let (mut min_u, mut max_u, mut min_v, mut max_v) =
-            (f64::INFINITY, f64::NEG_INFINITY, f64::INFINITY, f64::NEG_INFINITY);
+        let (mut min_u, mut max_u, mut min_v, mut max_v) = (
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+        );
 
         for &(px, py) in &hull {
             let u = px * ux + py * uy;
@@ -638,9 +625,7 @@ pub fn minimum_bounding_rectangle(points: &[(f64, f64)]) -> NdimageResult<[(f64,
         if area < min_area {
             min_area = area;
             // Reconstruct four corners from (u,v) back to (x,y)
-            let corner = |u: f64, v: f64| -> (f64, f64) {
-                (u * ux - v * uy, u * uy + v * ux)
-            };
+            let corner = |u: f64, v: f64| -> (f64, f64) { (u * ux - v * uy, u * uy + v * ux) };
             best_rect = [
                 corner(min_u, min_v),
                 corner(max_u, min_v),
@@ -753,9 +738,12 @@ fn mat3_eigen(m: &[[f64; 3]; 3]) -> ([f64; 3], [[f64; 3]; 3]) {
         - m[0][2] * m[2][0];
     let r = mat3_det(m);
 
-    // Depress: λ = t + p/3
+    // Depress the cubic λ³ − p·λ² + q·λ − r = 0 via λ = t + p/3.
+    // The resulting depressed cubic is t³ + a·t + b = 0, with:
+    //   a = q − p²/3
+    //   b = −2p³/27 + p·q/3 − r
     let a = q - p * p / 3.0;
-    let b = 2.0 * p * p * p / 27.0 - p * q / 3.0 + r;
+    let b = -2.0 * p * p * p / 27.0 + p * q / 3.0 - r;
 
     let disc = (b / 2.0).powi(2) + (a / 3.0).powi(3);
 
@@ -790,11 +778,7 @@ fn mat3_eigen(m: &[[f64; 3]; 3]) -> ([f64; 3], [[f64; 3]; 3]) {
         let r0 = a_mat[0];
         let r1 = a_mat[1];
         let r2 = a_mat[2];
-        let candidates = [
-            cross3(r0, r1),
-            cross3(r1, r2),
-            cross3(r0, r2),
-        ];
+        let candidates = [cross3(r0, r1), cross3(r1, r2), cross3(r0, r2)];
         let best = candidates
             .iter()
             .copied()
@@ -891,21 +875,17 @@ mod tests {
 
     #[test]
     fn test_convex_hull_square() {
-        let pts = vec![
-            (0.0, 0.0),
-            (1.0, 0.0),
-            (1.0, 1.0),
-            (0.0, 1.0),
-            (0.5, 0.5),
-        ];
-        let hull = convex_hull_2d(&pts).expect("convex_hull_2d should succeed for square point set");
+        let pts = vec![(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0), (0.5, 0.5)];
+        let hull =
+            convex_hull_2d(&pts).expect("convex_hull_2d should succeed for square point set");
         assert_eq!(hull.len(), 4);
     }
 
     #[test]
     fn test_convex_hull_collinear() {
         let pts = vec![(0.0, 0.0), (1.0, 0.0), (2.0, 0.0)];
-        let hull = convex_hull_2d(&pts).expect("convex_hull_2d should succeed for collinear points");
+        let hull =
+            convex_hull_2d(&pts).expect("convex_hull_2d should succeed for collinear points");
         // Collinear – degenerate hull
         assert!(hull.len() >= 2);
     }
@@ -923,7 +903,8 @@ mod tests {
                 img[[r, c]] = true;
             }
         }
-        let contours = contour_extraction(&img.view()).expect("contour_extraction should succeed on valid image");
+        let contours = contour_extraction(&img.view())
+            .expect("contour_extraction should succeed on valid image");
         assert_eq!(contours.len(), 1);
         assert!(!contours[0].is_empty());
     }
@@ -931,7 +912,8 @@ mod tests {
     #[test]
     fn test_contour_extraction_empty_image() {
         let img = Array2::<bool>::default((5, 5));
-        let contours = contour_extraction(&img.view()).expect("contour_extraction should succeed on empty image");
+        let contours = contour_extraction(&img.view())
+            .expect("contour_extraction should succeed on empty image");
         assert!(contours.is_empty());
     }
 
@@ -939,12 +921,21 @@ mod tests {
     fn test_shape_descriptors_square() {
         // 4×4 filled square: use the 8-pixel contour
         let contour: Vec<(usize, usize)> = vec![
-            (0, 0), (0, 1), (0, 2), (0, 3),
-            (1, 3), (2, 3), (3, 3),
-            (3, 2), (3, 1), (3, 0),
-            (2, 0), (1, 0),
+            (0, 0),
+            (0, 1),
+            (0, 2),
+            (0, 3),
+            (1, 3),
+            (2, 3),
+            (3, 3),
+            (3, 2),
+            (3, 1),
+            (3, 0),
+            (2, 0),
+            (1, 0),
         ];
-        let d = shape_descriptors(&contour).expect("shape_descriptors should succeed for valid square contour");
+        let d = shape_descriptors(&contour)
+            .expect("shape_descriptors should succeed for valid square contour");
         assert!(d.area > 0.0);
         assert!(d.perimeter > 0.0);
         assert!(d.circularity > 0.0);
@@ -959,10 +950,9 @@ mod tests {
 
     #[test]
     fn test_minimum_bounding_rectangle_axis_aligned() {
-        let pts = vec![
-            (0.0, 0.0), (4.0, 0.0), (4.0, 3.0), (0.0, 3.0),
-        ];
-        let rect = minimum_bounding_rectangle(&pts).expect("minimum_bounding_rectangle should succeed for axis-aligned rectangle");
+        let pts = vec![(0.0, 0.0), (4.0, 0.0), (4.0, 3.0), (0.0, 3.0)];
+        let rect = minimum_bounding_rectangle(&pts)
+            .expect("minimum_bounding_rectangle should succeed for axis-aligned rectangle");
         let area = {
             let (dx1, dy1) = (rect[1].0 - rect[0].0, rect[1].1 - rect[0].1);
             let (dx2, dy2) = (rect[3].0 - rect[0].0, rect[3].1 - rect[0].1);
@@ -981,7 +971,8 @@ mod tests {
                 (t.cos(), t.sin())
             })
             .collect();
-        let (cx, cy, a, b, _angle) = ellipse_fit(&pts).expect("ellipse_fit should succeed for circular point set");
+        let (cx, cy, a, b, _angle) =
+            ellipse_fit(&pts).expect("ellipse_fit should succeed for circular point set");
         assert!((cx).abs() < 0.05, "cx={cx}");
         assert!((cy).abs() < 0.05, "cy={cy}");
         assert!((a - 1.0).abs() < 0.05, "a={a}");

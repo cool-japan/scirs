@@ -3,22 +3,28 @@
 use serde::{Deserialize, Serialize};
 
 /// Compression codec for Parquet files
+///
+/// Note: Only `Uncompressed` is available by default. Other codecs (`Snappy`, `Gzip`,
+/// `Lz4`, `Zstd`, `Brotli`, `Lz4Raw`) require enabling the corresponding
+/// feature flags on the `parquet` dependency (`snap`, `flate2-zlib-rs`, `lz4`,
+/// `zstd`, `brotli`). Attempting to write with an unavailable codec will panic
+/// at runtime with "Disabled feature at compile time: <codec>".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CompressionCodec {
-    /// No compression
-    Uncompressed,
-    /// Snappy compression (fast, moderate compression)
+    /// No compression (always available, no feature flags required)
     #[default]
+    Uncompressed,
+    /// Snappy compression (fast, moderate compression) — requires `snap` parquet feature
     Snappy,
-    /// Gzip compression (slower, better compression)
+    /// Gzip compression (slower, better compression) — requires `flate2-zlib-rs` or `flate2-rust_backened` parquet feature
     Gzip,
-    /// LZ4 compression (very fast, moderate compression)
+    /// LZ4 compression (very fast, moderate compression) — requires `lz4` parquet feature
     Lz4,
-    /// ZSTD compression (good balance of speed and compression)
+    /// ZSTD compression (good balance of speed and compression) — requires `zstd` parquet feature
     Zstd,
-    /// Brotli compression (slower, best compression)
+    /// Brotli compression (slower, best compression) — requires `brotli` parquet feature
     Brotli,
-    /// LZ4 raw format
+    /// LZ4 raw format — requires `lz4` parquet feature
     Lz4Raw,
 }
 
@@ -163,31 +169,20 @@ mod tests {
 
     #[test]
     fn test_compression_codec_conversion() {
-        let codecs = [
-            CompressionCodec::Uncompressed,
-            CompressionCodec::Snappy,
-            CompressionCodec::Gzip,
-            CompressionCodec::Lz4,
-            CompressionCodec::Brotli,
-        ];
-
-        for codec in codecs {
-            let parquet_compression = codec.to_parquet_compression();
-            assert!(matches!(
-                parquet_compression,
-                parquet::basic::Compression::UNCOMPRESSED
-                    | parquet::basic::Compression::SNAPPY
-                    | parquet::basic::Compression::GZIP(_)
-                    | parquet::basic::Compression::LZ4
-                    | parquet::basic::Compression::BROTLI(_)
-            ));
-        }
+        // Only Uncompressed is always available without additional parquet feature flags.
+        // Other codecs (Snappy, Gzip, Lz4, Brotli, Zstd) require optional features.
+        let codec = CompressionCodec::Uncompressed;
+        let parquet_compression = codec.to_parquet_compression();
+        assert!(matches!(
+            parquet_compression,
+            parquet::basic::Compression::UNCOMPRESSED
+        ));
     }
 
     #[test]
     fn test_default_options() {
         let options = ParquetWriteOptions::default();
-        assert_eq!(options.compression, CompressionCodec::Snappy);
+        assert_eq!(options.compression, CompressionCodec::Uncompressed);
         assert_eq!(options.version, ParquetVersion::V2);
         assert!(options.enable_dictionary);
         assert!(options.enable_statistics);
@@ -195,11 +190,11 @@ mod tests {
 
     #[test]
     fn test_builder_pattern() {
-        let options = ParquetWriteOptions::with_compression(CompressionCodec::Brotli)
+        let options = ParquetWriteOptions::with_compression(CompressionCodec::Uncompressed)
             .with_row_group_size(50000)
             .with_dictionary(false);
 
-        assert_eq!(options.compression, CompressionCodec::Brotli);
+        assert_eq!(options.compression, CompressionCodec::Uncompressed);
         assert_eq!(options.row_group_size, 50000);
         assert!(!options.enable_dictionary);
     }

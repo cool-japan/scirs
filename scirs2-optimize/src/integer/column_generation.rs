@@ -279,10 +279,7 @@ pub struct ColumnGenerationResult<F> {
 /// ascent with a constant step size.
 ///
 /// Returns `(dual_vars, primal, objective)`.
-fn solve_rmp_dual<F>(
-    master: &MasterLp<F>,
-    config: &ColumnGenerationConfig,
-) -> (Vec<F>, Vec<F>, F)
+fn solve_rmp_dual<F>(master: &MasterLp<F>, config: &ColumnGenerationConfig) -> (Vec<F>, Vec<F>, F)
 where
     F: Float + FromPrimitive + Debug + Clone + std::ops::AddAssign + std::ops::MulAssign,
 {
@@ -370,7 +367,9 @@ where
         })
         .collect();
 
-    let min_rc = rc_vals.iter().fold(F::infinity(), |a, &b| if b < a { b } else { a });
+    let min_rc = rc_vals
+        .iter()
+        .fold(F::infinity(), |a, &b| if b < a { b } else { a });
     let zero = F::zero();
     let rc_tol = F::from_f64(1e-8).unwrap_or(zero);
 
@@ -425,12 +424,7 @@ pub fn column_generation<F, P>(
     config: &ColumnGenerationConfig,
 ) -> OptimizeResult<ColumnGenerationResult<F>>
 where
-    F: Float
-        + FromPrimitive
-        + Debug
-        + Clone
-        + std::ops::AddAssign
-        + std::ops::MulAssign,
+    F: Float + FromPrimitive + Debug + Clone + std::ops::AddAssign + std::ops::MulAssign,
     P: ColumnGenerationProblem<F>,
 {
     let m = problem.n_constraints();
@@ -557,7 +551,9 @@ mod tests {
     struct SingleConstraintProblem;
 
     impl ColumnGenerationProblem<F> for SingleConstraintProblem {
-        fn n_constraints(&self) -> usize { 1 }
+        fn n_constraints(&self) -> usize {
+            1
+        }
 
         fn solve_pricing(&self, dual_vars: &[F]) -> Option<Column<F>> {
             // Only one column exists; no more can be added
@@ -583,11 +579,17 @@ mod tests {
     }
 
     impl OnePricingIterProblem {
-        fn new() -> Self { Self { called: std::cell::Cell::new(0) } }
+        fn new() -> Self {
+            Self {
+                called: std::cell::Cell::new(0),
+            }
+        }
     }
 
     impl ColumnGenerationProblem<F> for OnePricingIterProblem {
-        fn n_constraints(&self) -> usize { 2 }
+        fn n_constraints(&self) -> usize {
+            2
+        }
 
         fn solve_pricing(&self, _dual_vars: &[F]) -> Option<Column<F>> {
             let c = self.called.get();
@@ -607,7 +609,9 @@ mod tests {
             ]
         }
 
-        fn initial_rhs(&self) -> Vec<F> { vec![1.0, 1.0] }
+        fn initial_rhs(&self) -> Vec<F> {
+            vec![1.0, 1.0]
+        }
 
         fn initial_senses(&self) -> Vec<ConstraintSense> {
             vec![ConstraintSense::Eq, ConstraintSense::Eq]
@@ -636,7 +640,9 @@ mod tests {
         )
         .unwrap();
         assert_eq!(master.n_columns(), 0);
-        master.add_column(Column::new(vec![1.0, 0.0], 2.0, "col1")).unwrap();
+        master
+            .add_column(Column::new(vec![1.0, 0.0], 2.0, "col1"))
+            .unwrap();
         assert_eq!(master.n_columns(), 1);
     }
 

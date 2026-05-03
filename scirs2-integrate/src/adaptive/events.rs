@@ -22,8 +22,8 @@
 //! Combine `EventSpec` and `EventSet` with `dopri5_with_events` to obtain
 //! both the solution trajectory and a list of detected crossings.
 
-use crate::error::{IntegrateError, IntegrateResult};
 use super::embedded_rk::{dopri5, OdeResult};
+use crate::error::{IntegrateError, IntegrateResult};
 
 // ─── Public types ────────────────────────────────────────────────────────────
 
@@ -106,13 +106,7 @@ fn direction_matches(g_prev: f64, g_curr: f64, direction: EventDirection) -> boo
 /// Performs the Illinois secant method on a user-supplied evaluation
 /// function `eval(t) -> g`.  The bracket `[ta, tb]` must satisfy
 /// `ga * gb < 0`.  Returns the located crossing time and state.
-fn illinois_bracket<E>(
-    mut ta: f64,
-    mut tb: f64,
-    mut ga: f64,
-    mut gb: f64,
-    eval: E,
-) -> f64
+fn illinois_bracket<E>(mut ta: f64, mut tb: f64, mut ga: f64, mut gb: f64, eval: E) -> f64
 where
     E: Fn(f64) -> f64,
 {
@@ -320,9 +314,7 @@ where
         ));
     }
     if t_end <= t0 {
-        return Err(IntegrateError::ValueError(
-            "t_end must be > t0".to_string(),
-        ));
+        return Err(IntegrateError::ValueError("t_end must be > t0".to_string()));
     }
 
     let mut all_t: Vec<f64> = vec![t0];
@@ -334,11 +326,7 @@ where
     let mut terminated = false;
 
     // Evaluate all event functions at t0
-    let mut g_prev: Vec<f64> = events
-        .specs
-        .iter()
-        .map(|s| (s.func)(t0, y0))
-        .collect();
+    let mut g_prev: Vec<f64> = events.specs.iter().map(|s| (s.func)(t0, y0)).collect();
 
     // Step through using DOPRI5 in segments.  We run one "short" integration
     // at a time to keep the segment granularity coarse; then we scan for
@@ -382,9 +370,7 @@ where
                 let g_p = g_prev[ev_idx];
 
                 if direction_matches(g_p, g_c, spec.direction) {
-                    if let Some(ev) =
-                        find_event_root(g_p, g_c, t_p, t_c, y_p, y_c, ev_idx, spec)
-                    {
+                    if let Some(ev) = find_event_root(g_p, g_c, t_p, t_c, y_p, y_c, ev_idx, spec) {
                         all_events.push(ev);
                         if spec.terminal {
                             early_stop_idx = Some(step_i);
@@ -415,9 +401,7 @@ where
         }
 
         // Advance to next segment
-        if let (Some(t_last), Some(y_last)) =
-            (seg_result.t.last(), seg_result.y.last())
-        {
+        if let (Some(t_last), Some(y_last)) = (seg_result.t.last(), seg_result.y.last()) {
             t_start = *t_last;
             y_start = y_last.clone();
         } else {
@@ -457,9 +441,8 @@ mod tests {
         };
         let y_prev = vec![1.0_f64];
         let y_curr = vec![1.0_f64];
-        let result =
-            find_event_root(-0.5, 0.5, 0.0, 1.0, &y_prev, &y_curr, 0, &spec)
-                .expect("should detect rising crossing");
+        let result = find_event_root(-0.5, 0.5, 0.0, 1.0, &y_prev, &y_curr, 0, &spec)
+            .expect("should detect rising crossing");
         assert!(
             (result.t_event - 0.5).abs() < 1e-10,
             "t_event={} expected 0.5",
@@ -473,12 +456,15 @@ mod tests {
         // g goes from +1 to -1 → falling crossing
         let spec_rising = EventSpec {
             func: Box::new(|t: f64, _y: &[f64]| 1.0 - 2.0 * t), // crosses 0 at 0.5
-            direction: EventDirection::Rising,                     // should NOT match
+            direction: EventDirection::Rising,                  // should NOT match
             terminal: false,
         };
         let y = vec![0.0_f64];
         let res = find_event_root(1.0, -1.0, 0.0, 1.0, &y, &y, 0, &spec_rising);
-        assert!(res.is_none(), "Rising filter should reject falling crossing");
+        assert!(
+            res.is_none(),
+            "Rising filter should reject falling crossing"
+        );
 
         let spec_falling = EventSpec {
             func: Box::new(|t: f64, _y: &[f64]| 1.0 - 2.0 * t),
@@ -517,16 +503,12 @@ mod tests {
             terminal: false,
         };
         let events = EventSet::new(vec![event_spec]);
-        let result =
-            dopri5_with_events(f, 0.0, &[0.0], 4.0, 1e-8, 1e-10, events)
-                .expect("integration failed");
+        let result = dopri5_with_events(f, 0.0, &[0.0], 4.0, 1e-8, 1e-10, events)
+            .expect("integration failed");
 
         // Should detect a crossing near t = π ≈ 3.14159
         let pi = std::f64::consts::PI;
-        let found = result
-            .events
-            .iter()
-            .any(|e| (e.t_event - pi).abs() < 0.05);
+        let found = result.events.iter().any(|e| (e.t_event - pi).abs() < 0.05);
         assert!(
             found,
             "Expected crossing near t=π, got events: {:?}",

@@ -47,7 +47,6 @@ fn test_classification_reference_values() {
 
 /// Test regression metrics against known reference values
 #[test]
-#[ignore = "timeout"]
 #[allow(dead_code)]
 fn test_regression_reference_values() {
     // Simple regression example with known differences
@@ -107,7 +106,6 @@ fn test_clustering_reference_values() {
 
 /// Test mathematical properties that should hold for any valid implementation
 #[test]
-#[ignore = "timeout"]
 #[allow(dead_code)]
 fn test_mathematical_properties() {
     // Test classification metric bounds
@@ -152,7 +150,6 @@ fn test_mathematical_properties() {
 
 /// Test symmetry properties where applicable
 #[test]
-#[ignore = "timeout"]
 #[allow(dead_code)]
 fn test_symmetry_properties() {
     // MSE and MAE should be symmetric in the sense that swapping y_true and y_pred
@@ -171,7 +168,6 @@ fn test_symmetry_properties() {
 
 /// Test with known datasets from literature (simplified versions)
 #[test]
-#[ignore = "timeout"]
 #[allow(dead_code)]
 fn test_known_dataset_results() {
     // Iris-like dataset with perfect linear separability for 2 classes

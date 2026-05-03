@@ -231,7 +231,7 @@ pub fn cp_als<F: TensorScalar>(
         for r in 0..rank {
             let s = scale[r];
             for i in 0..factor.nrows() {
-                factor[[i, r]] = factor[[i, r]] * s;
+                factor[[i, r]] *= s;
             }
         }
         factors[n] = factor;
@@ -324,7 +324,7 @@ pub fn cp_grad<F: TensorScalar>(
             let mut new_factor = factors[n].clone();
             for i in 0..new_factor.nrows() {
                 for j in 0..new_factor.ncols() {
-                    new_factor[[i, j]] = new_factor[[i, j]] - lr * grad[[i, j]];
+                    new_factor[[i, j]] -= lr * grad[[i, j]];
                 }
             }
             factors[n] = new_factor;
@@ -492,7 +492,7 @@ fn hadamard_gram_except<F: TensorScalar>(
         let gram = factor.t().dot(factor);
         for i in 0..rank {
             for j in 0..rank {
-                result[[i, j]] = result[[i, j]] * gram[[i, j]];
+                result[[i, j]] *= gram[[i, j]];
             }
         }
     }
@@ -509,7 +509,7 @@ fn pinv_symmetric<F: TensorScalar>(mat: &Array2<F>) -> LinalgResult<Array2<F>> {
     // Regularise: M + eps * I
     let mut reg = mat.clone();
     for i in 0..n {
-        reg[[i, i]] = reg[[i, i]] + eps;
+        reg[[i, i]] += eps;
     }
     // Gauss-Jordan inversion for small matrices (rank is typically <= 50)
     let mut augmented: Vec<Vec<F>> = (0..n)
@@ -542,7 +542,7 @@ fn pinv_symmetric<F: TensorScalar>(mat: &Array2<F>) -> LinalgResult<Array2<F>> {
         }
         let inv_pivot = F::one() / pivot;
         for j in 0..(2 * n) {
-            augmented[col][j] = augmented[col][j] * inv_pivot;
+            augmented[col][j] *= inv_pivot;
         }
         for row in 0..n {
             if row == col {
@@ -551,7 +551,7 @@ fn pinv_symmetric<F: TensorScalar>(mat: &Array2<F>) -> LinalgResult<Array2<F>> {
             let factor = augmented[row][col];
             for j in 0..(2 * n) {
                 let sub = factor * augmented[col][j];
-                augmented[row][j] = augmented[row][j] - sub;
+                augmented[row][j] -= sub;
             }
         }
     }
@@ -571,7 +571,9 @@ fn normalise_columns<F: TensorScalar>(mat: Array2<F>) -> (Array2<F>, Vec<F>) {
     let mut normed = mat.clone();
     let mut norms = vec![F::one(); r];
     for j in 0..r {
-        let sq: F = (0..m).map(|i| mat[[i, j]] * mat[[i, j]]).fold(F::zero(), |a, b| a + b);
+        let sq: F = (0..m)
+            .map(|i| mat[[i, j]] * mat[[i, j]])
+            .fold(F::zero(), |a, b| a + b);
         let n = sq.sqrt();
         norms[j] = n;
         if n > F::from(1e-30_f64).unwrap_or(F::zero()) {
@@ -627,9 +629,9 @@ pub(crate) fn reconstruct_from_factors<F: TensorScalar>(
         for r in 0..rank {
             let mut contrib = lambdas[r];
             for n in 0..ndim {
-                contrib = contrib * factors[n][[multi[n], r]];
+                contrib *= factors[n][[multi[n], r]];
             }
-            val = val + contrib;
+            val += contrib;
         }
         let idx: usize = multi.iter().zip(strides.iter()).map(|(i, s)| i * s).sum();
         data[idx] = val;
@@ -664,7 +666,10 @@ mod tests {
     #[test]
     fn test_cp_als_shape() {
         let t = make_tensor();
-        let cfg = CPConfig { max_iter: 50, ..Default::default() };
+        let cfg = CPConfig {
+            max_iter: 50,
+            ..Default::default()
+        };
         let r = cp_als(&t, 3, &cfg).expect("cp_als");
         assert_eq!(r.factors.len(), 3);
         assert_eq!(r.factors[0].shape(), &[2, 3]);
@@ -676,7 +681,10 @@ mod tests {
     #[test]
     fn test_cp_als_loss_decreasing() {
         let t = make_tensor();
-        let cfg = CPConfig { max_iter: 100, ..Default::default() };
+        let cfg = CPConfig {
+            max_iter: 100,
+            ..Default::default()
+        };
         let r = cp_als(&t, 4, &cfg).expect("cp_als");
         // Loss should be non-increasing (allow tiny numerical noise)
         for window in r.loss.windows(2) {
@@ -701,7 +709,11 @@ mod tests {
     #[test]
     fn test_cp_grad_shape() {
         let t = make_tensor();
-        let cfg = CPConfig { max_iter: 50, lr: 1e-3, ..Default::default() };
+        let cfg = CPConfig {
+            max_iter: 50,
+            lr: 1e-3,
+            ..Default::default()
+        };
         let r = cp_grad(&t, 2, &cfg).expect("cp_grad");
         assert_eq!(r.factors.len(), 3);
     }
@@ -709,9 +721,9 @@ mod tests {
     #[test]
     fn test_cp_als_low_rank_approximation() {
         // Rank-1 tensor: a ⊗ b ⊗ c
-        let a = vec![1.0_f64, 2.0];
-        let b = vec![1.0_f64, 3.0, 5.0];
-        let c = vec![1.0_f64, 0.5, 2.0, 0.25];
+        let a = [1.0_f64, 2.0];
+        let b = [1.0_f64, 3.0, 5.0];
+        let c = [1.0_f64, 0.5, 2.0, 0.25];
         let mut data = vec![0.0_f64; 2 * 3 * 4];
         for i in 0..2 {
             for j in 0..3 {
@@ -721,10 +733,17 @@ mod tests {
             }
         }
         let t = Tensor::new(data, vec![2, 3, 4]).expect("ok");
-        let cfg = CPConfig { max_iter: 300, tol: 1e-10, ..Default::default() };
+        let cfg = CPConfig {
+            max_iter: 300,
+            tol: 1e-10,
+            ..Default::default()
+        };
         let r = cp_als(&t, 1, &cfg).expect("rank-1 ALS");
         let err = r.relative_error(&t).expect("err");
-        assert!(err < 1e-5, "rank-1 CP should reconstruct exactly, err={err}");
+        assert!(
+            err < 1e-5,
+            "rank-1 CP should reconstruct exactly, err={err}"
+        );
     }
 
     #[test]

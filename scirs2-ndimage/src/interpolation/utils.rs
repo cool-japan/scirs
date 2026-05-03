@@ -251,24 +251,20 @@ where
         let dim_size_x = input.shape()[0] as isize;
         let dim_size_y = input.shape()[1] as isize;
 
+        // For Constant mode: check if the primary coordinate (floor) is out of bounds.
+        // Out-of-bounds corners are handled per-lookup via apply_boundary_condition +
+        // unwrap_or(const_val), so we only need to short-circuit when the primary
+        // (floor) coordinate is entirely outside the array.
+        if matches!(boundary, BoundaryMode::Constant)
+            && (i0 < 0 || i0 >= dim_size_x || j0 < 0 || j0 >= dim_size_y)
+        {
+            return const_val;
+        }
+
         let idx0 = apply_boundary_condition(i0, dim_size_x, boundary);
         let idx1 = apply_boundary_condition(i1, dim_size_x, boundary);
         let jdx0 = apply_boundary_condition(j0, dim_size_y, boundary);
         let jdx1 = apply_boundary_condition(j1, dim_size_y, boundary);
-
-        // Check bounds for constant mode
-        if matches!(boundary, BoundaryMode::Constant)
-            && (i0 < 0
-                || i0 >= dim_size_x
-                || i1 < 0
-                || i1 >= dim_size_x
-                || j0 < 0
-                || j0 >= dim_size_y
-                || j1 < 0
-                || j1 >= dim_size_y)
-        {
-            return const_val;
-        }
 
         let v00 = input.get([idx0, jdx0]).copied().unwrap_or(const_val);
         let v01 = input.get([idx0, jdx1]).copied().unwrap_or(const_val);

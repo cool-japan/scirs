@@ -43,7 +43,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-optimize = "0.4.2"
+//! scirs2-optimize = "0.4.3"
 //! ```
 //!
 //! ### Unconstrained Minimization (Rosenbrock Function)
@@ -470,6 +470,48 @@ pub mod sketched;
 // Subspace embedding
 pub mod subspace_embed;
 pub mod subspace_embedding;
+
+// Bilevel optimization
+pub mod bilevel;
+// Black-box / model-based optimization
+pub mod blackbox;
+// Combinatorial optimization (TSP, assignment, covering, graph coloring, knapsack)
+pub mod combinatorial;
+// Conic programming (SDP, SOCP)
+pub mod conic;
+// Convex optimization (geometric programming)
+pub mod convex;
+// Decomposition-based methods (Benders)
+pub mod decomposition;
+// Derivative-free methods (BOBYQA, Nelder-Mead, pattern search)
+pub mod derivative_free;
+// Evolutionary algorithms (CMA-ES standalone)
+pub mod evolution;
+// Game theory (normal form, zero-sum, cooperative)
+pub mod game_theory;
+// Hessian approximations and second-derivative utilities
+pub mod hessian;
+// Line search algorithms (enhanced)
+pub mod line_search;
+// Markov decision process / planning
+pub mod mdp;
+// Metaheuristics (ACO, DE, harmony search, SA)
+pub mod metaheuristics;
+// Minimax optimization
+pub mod minimax;
+// Multilevel / multigrid optimization
+pub mod multilevel;
+// Multi-objective algorithms (Vec<f64>-based: NSGA-II/III, MOEA/D, indicators)
+pub mod multiobjective;
+// Proximal-point and splitting methods (ADMM, ISTA, FISTA)
+pub mod proximal;
+// Robust optimization (minimax, robust LP, worst-case)
+pub mod robust;
+// Surrogate model optimization (RBF, Kriging, ensemble)
+pub mod surrogate;
+
+// Mixed-integer programming utilities
+pub mod mip;
 
 // Common optimization result structure
 pub mod result;

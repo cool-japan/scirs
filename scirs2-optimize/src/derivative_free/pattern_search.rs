@@ -13,7 +13,7 @@
 //! - Audet, C. & Dennis, J.E. (2006). "Mesh adaptive direct search algorithms
 //!   for constrained optimization." SIAM Journal on Optimization, 17(1), 188-217.
 
-use super::{clip, DfOptResult, DerivativeFreeOptimizer};
+use super::{clip, DerivativeFreeOptimizer, DfOptResult};
 use crate::error::{OptimizeError, OptimizeResult};
 use scirs2_core::ndarray::Array1;
 

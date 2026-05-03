@@ -1044,54 +1044,6 @@ impl AlgorithmSelector {
                 hardware_hash: 0, // Simplified for now
             })
         }
-
-        #[cfg(all(feature = "rustfft-backend", not(feature = "oxifft")))]
-        {
-            use rustfft::FftPlanner;
-
-            // Create test data
-            let mut data: Vec<Complex64> = (0..size)
-                .map(|i| Complex64::new(i as f64, (i * 2) as f64))
-                .collect();
-
-            // Create planner
-            let mut planner = FftPlanner::new();
-            let fft = if forward {
-                planner.plan_fft_forward(size)
-            } else {
-                planner.plan_fft_inverse(size)
-            };
-
-            // Warm-up
-            for _ in 0..3 {
-                fft.process(&mut data.clone());
-            }
-
-            // Benchmark
-            let start = Instant::now();
-            fft.process(&mut data);
-            let elapsed = start.elapsed();
-
-            Ok(PerformanceEntry {
-                size,
-                algorithm,
-                forward,
-                execution_time_ns: elapsed.as_nanos() as u64,
-                peak_memory_bytes: size * 16, // Complex64 = 16 bytes
-                timestamp: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or(Duration::ZERO)
-                    .as_secs(),
-                hardware_hash: 0, // Simplified for now
-            })
-        }
-
-        #[cfg(not(any(feature = "oxifft", feature = "rustfft-backend")))]
-        {
-            Err(FFTError::ValueError(
-                "No FFT backend available for benchmarking. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
-            ))
-        }
     }
 
     /// Get configuration
@@ -1318,7 +1270,7 @@ mod tests {
     }
 
     #[test]
-    #[cfg(any(feature = "oxifft", feature = "rustfft-backend"))]
+    #[cfg(feature = "oxifft")]
     fn test_benchmark() {
         let selector = AlgorithmSelector::new();
         let result = selector.benchmark(256, FftAlgorithm::MixedRadix, true);

@@ -1279,10 +1279,16 @@ mod tests {
 
     #[test]
     fn test_parse_store_url_local() {
-        let (provider, bucket, path) = parse_store_url("/tmp/local/path").unwrap();
+        let local_path = std::env::temp_dir()
+            .join("local")
+            .join("path")
+            .to_str()
+            .unwrap()
+            .to_string();
+        let (provider, bucket, path) = parse_store_url(&local_path).unwrap();
         assert_eq!(provider, StoreProviderType::LocalFs);
         assert!(bucket.is_empty());
-        assert_eq!(path, "/tmp/local/path");
+        assert_eq!(path, local_path);
     }
 
     // ---- S3Store / GcsStore / AzureBlobStore stub behaviour ----

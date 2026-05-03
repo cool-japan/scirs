@@ -21,7 +21,13 @@ pub struct PolicyRng {
 impl PolicyRng {
     /// Create a new RNG from a seed (must not be 0; uses fallback if 0).
     pub fn new(seed: u64) -> Self {
-        Self { state: if seed == 0 { 0xcafe_babe_dead_beef } else { seed } }
+        Self {
+            state: if seed == 0 {
+                0xcafe_babe_dead_beef
+            } else {
+                seed
+            },
+        }
     }
 
     /// Time-based seed using subsecond nanoseconds.
@@ -121,22 +127,31 @@ impl SimpleNetwork {
         dims.push(num_actions);
 
         let mut weights = Vec::with_capacity(dims.len() - 1);
-        let mut biases  = Vec::with_capacity(dims.len() - 1);
+        let mut biases = Vec::with_capacity(dims.len() - 1);
 
         for layer in 0..(dims.len() - 1) {
-            let in_d  = dims[layer];
+            let in_d = dims[layer];
             let out_d = dims[layer + 1];
             // He-uniform: scale = sqrt(6 / in_d)
             let scale = (6.0_f32 / in_d as f32).sqrt();
             let w: Vec<Vec<f32>> = (0..out_d)
-                .map(|_| (0..in_d).map(|_| (rng.uniform_f32() * 2.0 - 1.0) * scale).collect())
+                .map(|_| {
+                    (0..in_d)
+                        .map(|_| (rng.uniform_f32() * 2.0 - 1.0) * scale)
+                        .collect()
+                })
                 .collect();
             let b: Vec<f32> = vec![0.0; out_d];
             weights.push(w);
             biases.push(b);
         }
 
-        Self { weights, biases, num_actions, lr }
+        Self {
+            weights,
+            biases,
+            num_actions,
+            lr,
+        }
     }
 
     /// Forward pass through the network.
@@ -157,10 +172,18 @@ impl SimpleNetwork {
             let mut next = Vec::with_capacity(w.len());
             for (out_i, (row, bias)) in w.iter().zip(b.iter()).enumerate() {
                 let _ = out_i;
-                let dot: f32 = row.iter().zip(activation.iter()).map(|(wi, xi)| wi * xi).sum();
+                let dot: f32 = row
+                    .iter()
+                    .zip(activation.iter())
+                    .map(|(wi, xi)| wi * xi)
+                    .sum();
                 let pre = dot + bias;
                 // ReLU on all but the last layer
-                let post = if layer_idx < n_layers - 1 { pre.max(0.0) } else { pre };
+                let post = if layer_idx < n_layers - 1 {
+                    pre.max(0.0)
+                } else {
+                    pre
+                };
                 next.push(post);
             }
             activation = next;
@@ -181,7 +204,11 @@ impl SimpleNetwork {
             for (row, bias) in w.iter().zip(b.iter()) {
                 let dot: f32 = row.iter().zip(prev.iter()).map(|(wi, xi)| wi * xi).sum();
                 let pre = dot + bias;
-                let post = if layer_idx < n_layers - 1 { pre.max(0.0) } else { pre };
+                let post = if layer_idx < n_layers - 1 {
+                    pre.max(0.0)
+                } else {
+                    pre
+                };
                 next.push(post);
             }
             cache.push(next);
@@ -199,23 +226,31 @@ impl SimpleNetwork {
     ///   for Q-learning).
     ///
     /// Uses MSE loss: `½ Σ (output_i - target_i)²`.
-    pub fn sgd_update(&mut self, obs: &[f32], targets: &[f32], update_mask: &[bool]) -> Result<f32> {
+    pub fn sgd_update(
+        &mut self,
+        obs: &[f32],
+        targets: &[f32],
+        update_mask: &[bool],
+    ) -> Result<f32> {
         if obs.len() != self.input_dim() {
             return Err(NeuralError::ShapeMismatch(format!(
                 "obs_dim mismatch: expected {}, got {}",
-                self.input_dim(), obs.len()
+                self.input_dim(),
+                obs.len()
             )));
         }
         if targets.len() != self.num_actions {
             return Err(NeuralError::ShapeMismatch(format!(
                 "targets len mismatch: expected {}, got {}",
-                self.num_actions, targets.len()
+                self.num_actions,
+                targets.len()
             )));
         }
         if update_mask.len() != self.num_actions {
             return Err(NeuralError::ShapeMismatch(format!(
                 "update_mask len mismatch: expected {}, got {}",
-                self.num_actions, update_mask.len()
+                self.num_actions,
+                update_mask.len()
             )));
         }
 
@@ -248,7 +283,11 @@ impl SimpleNetwork {
 
             // Apply ReLU gradient to delta (all but output layer)
             let delta_with_relu: Vec<f32> = if layer_idx < n_layers - 1 {
-                delta.iter().zip(out_act.iter()).map(|(d, a)| if *a > 0.0 { *d } else { 0.0 }).collect()
+                delta
+                    .iter()
+                    .zip(out_act.iter())
+                    .map(|(d, a)| if *a > 0.0 { *d } else { 0.0 })
+                    .collect()
             } else {
                 delta.clone()
             };
@@ -256,18 +295,18 @@ impl SimpleNetwork {
             // Propagate delta to previous layer
             let in_d = in_act.len();
             let mut prev_delta = vec![0.0_f32; in_d];
-            for i in 0..out_d {
-                for j in 0..in_d {
-                    prev_delta[j] += delta_with_relu[i] * self.weights[layer_idx][i][j];
+            for (i, &dwr_i) in delta_with_relu.iter().enumerate().take(out_d) {
+                for (j, pd_j) in prev_delta.iter_mut().enumerate().take(in_d) {
+                    *pd_j += dwr_i * self.weights[layer_idx][i][j];
                 }
             }
 
             // Update weights and biases
-            for i in 0..out_d {
-                for j in 0..in_d {
-                    self.weights[layer_idx][i][j] -= self.lr * delta_with_relu[i] * in_act[j];
+            for (i, &dwr_i) in delta_with_relu.iter().enumerate().take(out_d) {
+                for (j, &ia_j) in in_act.iter().enumerate().take(in_d) {
+                    self.weights[layer_idx][i][j] -= self.lr * dwr_i * ia_j;
                 }
-                self.biases[layer_idx][i] -= self.lr * delta_with_relu[i];
+                self.biases[layer_idx][i] -= self.lr * dwr_i;
             }
 
             delta = prev_delta;
@@ -283,10 +322,16 @@ impl SimpleNetwork {
                 "copy_from: networks have different architectures".to_string(),
             ));
         }
-        for (l, (sw, ow)) in self.weights.iter_mut().zip(other.weights.iter()).enumerate() {
+        for (l, (sw, ow)) in self
+            .weights
+            .iter_mut()
+            .zip(other.weights.iter())
+            .enumerate()
+        {
             if sw.len() != ow.len() {
                 return Err(NeuralError::ShapeMismatch(format!(
-                    "copy_from: layer {} weight row count mismatch", l
+                    "copy_from: layer {} weight row count mismatch",
+                    l
                 )));
             }
             for (srow, orow) in sw.iter_mut().zip(ow.iter()) {
@@ -323,7 +368,10 @@ impl SimpleNetwork {
 
     /// Input (observation) dimension.
     pub fn input_dim(&self) -> usize {
-        self.weights.first().map(|w| w.first().map(|row| row.len()).unwrap_or(0)).unwrap_or(0)
+        self.weights
+            .first()
+            .map(|w| w.first().map(|row| row.len()).unwrap_or(0))
+            .unwrap_or(0)
     }
 
     /// Output dimension.
@@ -382,7 +430,10 @@ impl<P: Policy> EpsilonGreedy<P> {
     /// - `decay_steps`: number of `act_train` calls over which ε is annealed.
     pub fn new(inner: P, eps_start: f32, eps_end: f32, decay_steps: usize) -> Self {
         assert!(eps_start >= eps_end, "eps_start must be >= eps_end");
-        assert!(eps_end >= 0.0 && eps_start <= 1.0, "epsilon must be in [0, 1]");
+        assert!(
+            eps_end >= 0.0 && eps_start <= 1.0,
+            "epsilon must be in [0, 1]"
+        );
         Self {
             inner,
             eps_start,
@@ -475,7 +526,11 @@ impl<P: Policy> BoltzmannPolicy<P> {
                 "BoltzmannPolicy: temperature must be positive".to_string(),
             ));
         }
-        Ok(Self { inner, temperature, rng: PolicyRng::from_time() })
+        Ok(Self {
+            inner,
+            temperature,
+            rng: PolicyRng::from_time(),
+        })
     }
 
     /// Current temperature.
@@ -555,7 +610,9 @@ pub fn softmax(logits: &[f32]) -> Vec<f32> {
 /// Sample a categorical index from `probs` (must sum to 1).
 pub fn categorical_sample(probs: &[f32], rng: &mut PolicyRng) -> Result<usize> {
     if probs.is_empty() {
-        return Err(NeuralError::InvalidArgument("empty probability vector".to_string()));
+        return Err(NeuralError::InvalidArgument(
+            "empty probability vector".to_string(),
+        ));
     }
     let u = rng.uniform_f32();
     let mut cumsum = 0.0_f32;
@@ -631,7 +688,10 @@ mod tests {
         for _ in 0..100 {
             let _ = eg.act_train(&obs4()).expect("act_train failed");
         }
-        assert!((eg.epsilon() - 0.1).abs() < 1e-4, "epsilon should reach eps_end");
+        assert!(
+            (eg.epsilon() - 0.1).abs() < 1e-4,
+            "epsilon should reach eps_end"
+        );
     }
 
     #[test]
@@ -648,7 +708,11 @@ mod tests {
         let logits = vec![1.0_f32, 2.0, 3.0, 0.5];
         let probs = softmax(&logits);
         let sum: f32 = probs.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-5, "softmax probs should sum to 1, got {}", sum);
+        assert!(
+            (sum - 1.0).abs() < 1e-5,
+            "softmax probs should sum to 1, got {}",
+            sum
+        );
     }
 
     #[test]
@@ -663,13 +727,18 @@ mod tests {
     fn polyak_update_blends_weights() {
         let net_a = SimpleNetwork::new(4, &[8], 2, 1e-3);
         let mut net_b = SimpleNetwork::new(4, &[8], 2, 1e-3);
-        net_b.polyak_update(&net_a, 1.0).expect("polyak update failed");
+        net_b
+            .polyak_update(&net_a, 1.0)
+            .expect("polyak update failed");
         // After τ=1 update, net_b should equal net_a
         let obs = obs4();
         let out_a = net_a.forward(&obs).expect("forward a");
         let out_b = net_b.forward(&obs).expect("forward b");
         for (a, b) in out_a.iter().zip(out_b.iter()) {
-            assert!((a - b).abs() < 1e-6, "polyak τ=1 should make nets identical");
+            assert!(
+                (a - b).abs() < 1e-6,
+                "polyak τ=1 should make nets identical"
+            );
         }
     }
 }

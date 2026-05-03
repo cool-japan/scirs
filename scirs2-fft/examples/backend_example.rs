@@ -47,7 +47,7 @@ fn main() {
     // Demonstrate backend context (for future use when we have multiple backends)
     println!("\nUsing backend context:");
     {
-        let _ctx = BackendContext::new("rustfft").expect("Operation failed");
+        let _ctx = BackendContext::new("oxifft").expect("Operation failed");
         println!("  Inside context: backend = {}", get_backend_name());
         let _ = fft(&signal, None).expect("Operation failed");
     }
@@ -55,22 +55,26 @@ fn main() {
 
     // Test backend info
     println!("\nBackend capabilities:");
-    if let Some(backend_manager) = Some(scirs2_fft::get_backend_manager()) {
-        let backend = backend_manager.get_backend();
-        let features = vec![
-            "1d_fft",
-            "2d_fft",
-            "nd_fft",
-            "cached_plans",
-            "gpu_acceleration",
-        ];
+    {
+        let backend_manager = scirs2_fft::get_backend_manager();
+        if let Some(backend) = backend_manager.get_backend() {
+            let features = vec![
+                "1d_fft",
+                "2d_fft",
+                "nd_fft",
+                "cached_plans",
+                "gpu_acceleration",
+            ];
 
-        for feature in features {
-            println!(
-                "  Supports {}: {}",
-                feature,
-                backend.supports_feature(feature)
-            );
+            for feature in features {
+                println!(
+                    "  Supports {}: {}",
+                    feature,
+                    backend.supports_feature(feature)
+                );
+            }
+        } else {
+            println!("  No backend registered");
         }
     }
 

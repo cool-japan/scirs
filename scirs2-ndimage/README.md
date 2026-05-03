@@ -3,7 +3,7 @@
 [![crates.io](https://img.shields.io/crates/v/scirs2-ndimage.svg)](https://crates.io/crates/scirs2-ndimage)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-ndimage)](https://docs.rs/scirs2-ndimage)
-[![Version](https://img.shields.io/badge/version-0.4.2-green)]()
+[![Version](https://img.shields.io/badge/version-0.4.3-green)]()
 
 **scirs2-ndimage** is the N-dimensional image processing crate for the [SciRS2](https://github.com/cool-japan/scirs) scientific computing library. It provides a comprehensive toolkit for filtering, morphology, interpolation, measurements, segmentation, and feature detection on arrays of arbitrary dimensionality, modeled after SciPy's `ndimage` module.
 
@@ -22,7 +22,7 @@ Use scirs2-ndimage when you need to:
 - Detect features (corners, edges, SIFT descriptors, HOG)
 - Perform atlas-based segmentation
 
-## Features (v0.4.2)
+## Features (v0.4.3)
 
 ### Image Filtering
 - **Gaussian Filters**: `gaussian_filter`, `gaussian_filter1d`, `gaussian_gradient_magnitude`, `gaussian_laplace`
@@ -113,14 +113,14 @@ Use scirs2-ndimage when you need to:
 
 ```toml
 [dependencies]
-scirs2-ndimage = "0.4.2"
+scirs2-ndimage = "0.4.3"
 ```
 
 For parallel processing and SIMD:
 
 ```toml
 [dependencies]
-scirs2-ndimage = { version = "0.4.2", features = ["parallel", "simd"] }
+scirs2-ndimage = { version = "0.4.3", features = ["parallel", "simd"] }
 ```
 
 ## Feature Flags

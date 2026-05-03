@@ -118,13 +118,14 @@ where
     Ok(output)
 }
 
-/// Convert flat index to multi-dimensional indices
+/// Convert flat index to multi-dimensional indices (C/row-major order)
 #[allow(dead_code)]
-fn unravel_index(_flatindex: usize, shape: &[usize]) -> Vec<usize> {
+fn unravel_index(flatindex: usize, shape: &[usize]) -> Vec<usize> {
     let mut indices = vec![0; shape.len()];
-    let mut remaining = _flatindex;
+    let mut remaining = flatindex;
 
-    for i in (0..shape.len()).rev() {
+    // Forward iteration: dimension 0 is most significant (row-major)
+    for i in 0..shape.len() {
         let stride: usize = shape[(i + 1)..].iter().product();
         indices[i] = remaining / stride;
         remaining %= stride;
@@ -486,7 +487,6 @@ mod tests {
     use scirs2_core::ndarray::Array2;
 
     #[test]
-    #[ignore = "Test failure - index out of bounds: IxDynImpl(Inline(3, [0, 0, 3, 0])) for shape [2, 3, 3] at line 101"]
     fn test_map_coordinates_identity() {
         let input: Array2<f64> = Array2::eye(3);
 

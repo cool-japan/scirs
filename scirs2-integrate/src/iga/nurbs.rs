@@ -14,8 +14,8 @@
 //!
 //! - Piegl & Tiller (1997), "The NURBS Book", Chapter 4
 
-use crate::error::{IntegrateError, IntegrateResult};
 use super::bspline::BSplineBasis;
+use crate::error::{IntegrateError, IntegrateResult};
 
 // ---------------------------------------------------------------------------
 // NurbsCurve
@@ -77,7 +77,11 @@ impl NurbsCurve {
             .map(|(p, &w)| [p[0] * w, p[1] * w, w])
             .collect();
 
-        Ok(Self { basis, control_points_hw, weights })
+        Ok(Self {
+            basis,
+            control_points_hw,
+            weights,
+        })
     }
 
     /// Create a circular arc NURBS curve.
@@ -107,11 +111,7 @@ impl NurbsCurve {
         ];
         let weights = vec![1.0, sq, 1.0, sq, 1.0, sq, 1.0, sq, 1.0];
         let knots = vec![
-            0.0, 0.0, 0.0,
-            0.25, 0.25,
-            0.5, 0.5,
-            0.75, 0.75,
-            1.0, 1.0, 1.0,
+            0.0, 0.0, 0.0, 0.25, 0.25, 0.5, 0.5, 0.75, 0.75, 1.0, 1.0, 1.0,
         ];
 
         let _ = PI; // suppress unused warning
@@ -122,7 +122,7 @@ impl NurbsCurve {
     pub fn eval(&self, t: f64) -> [f64; 2] {
         let (span, n_vals) = self.basis.eval_basis_functions(t);
         let p = self.basis.degree;
-        let start = if span >= p { span - p } else { 0 };
+        let start = span.saturating_sub(p);
 
         let mut hw = [0.0_f64; 3];
         for (k, &n_k) in n_vals.iter().enumerate() {
@@ -147,7 +147,7 @@ impl NurbsCurve {
         let (span, n_vals) = self.basis.eval_basis_functions(t);
         let (_, dn_vals) = self.basis.eval_basis_derivatives(t);
         let p = self.basis.degree;
-        let start = if span >= p { span - p } else { 0 };
+        let start = span.saturating_sub(p);
 
         // A(t) = Σ N_i * w_i * P_i,  W(t) = Σ N_i * w_i
         let mut a = [0.0_f64; 2];
@@ -157,7 +157,9 @@ impl NurbsCurve {
 
         for k in 0..n_vals.len() {
             let idx = start + k;
-            if idx >= self.control_points_hw.len() { continue; }
+            if idx >= self.control_points_hw.len() {
+                continue;
+            }
             let cp = self.control_points_hw[idx];
             let n_k = n_vals[k];
             let dn_k = dn_vals.get(k).copied().unwrap_or(0.0);
@@ -175,7 +177,10 @@ impl NurbsCurve {
             [0.0, 0.0]
         } else {
             // C'(t) = (A'(t) W(t) - A(t) W'(t)) / W(t)²
-            [(da[0] * w - a[0] * dw) / (w * w), (da[1] * w - a[1] * dw) / (w * w)]
+            [
+                (da[0] * w - a[0] * dw) / (w * w),
+                (da[1] * w - a[1] * dw) / (w * w),
+            ]
         }
     }
 
@@ -260,17 +265,26 @@ impl NurbsSurface {
                 )));
             }
             if w_row.len() != cp_row.len() {
-                return Err(IntegrateError::DimensionMismatch(
-                    format!("weights[{i}] len {} != control_points[{i}] len {}", w_row.len(), cp_row.len())
-                ));
+                return Err(IntegrateError::DimensionMismatch(format!(
+                    "weights[{i}] len {} != control_points[{i}] len {}",
+                    w_row.len(),
+                    cp_row.len()
+                )));
             }
-            let hw_row: Vec<[f64; 4]> = cp_row.iter().zip(w_row.iter())
+            let hw_row: Vec<[f64; 4]> = cp_row
+                .iter()
+                .zip(w_row.iter())
                 .map(|(p, &w)| [p[0] * w, p[1] * w, p[2] * w, w])
                 .collect();
             control_points_hw.push(hw_row);
         }
 
-        Ok(Self { basis_u, basis_v, control_points_hw, weights })
+        Ok(Self {
+            basis_u,
+            basis_v,
+            control_points_hw,
+            weights,
+        })
     }
 
     /// Create a toroidal NURBS surface.
@@ -323,16 +337,20 @@ impl NurbsSurface {
         let (span_v, n_v) = self.basis_v.eval_basis_functions(v);
         let pu = self.basis_u.degree;
         let pv = self.basis_v.degree;
-        let start_u = if span_u >= pu { span_u - pu } else { 0 };
-        let start_v = if span_v >= pv { span_v - pv } else { 0 };
+        let start_u = span_u.saturating_sub(pu);
+        let start_v = span_v.saturating_sub(pv);
 
         let mut hw = [0.0_f64; 4];
         for (ki, &n_ui) in n_u.iter().enumerate() {
             let i = start_u + ki;
-            if i >= self.control_points_hw.len() { continue; }
+            if i >= self.control_points_hw.len() {
+                continue;
+            }
             for (kj, &n_vj) in n_v.iter().enumerate() {
                 let j = start_v + kj;
-                if j >= self.control_points_hw[i].len() { continue; }
+                if j >= self.control_points_hw[i].len() {
+                    continue;
+                }
                 let cp = self.control_points_hw[i][j];
                 let scale = n_ui * n_vj;
                 hw[0] += scale * cp[0];
@@ -363,8 +381,16 @@ impl NurbsSurface {
         let q1 = self.eval(u, (v + dv).min(t1v));
         let q0 = self.eval(u, (v - dv).max(t0v));
 
-        let su = [(p1[0] - p0[0]) / (2.0 * du), (p1[1] - p0[1]) / (2.0 * du), (p1[2] - p0[2]) / (2.0 * du)];
-        let sv = [(q1[0] - q0[0]) / (2.0 * dv), (q1[1] - q0[1]) / (2.0 * dv), (q1[2] - q0[2]) / (2.0 * dv)];
+        let su = [
+            (p1[0] - p0[0]) / (2.0 * du),
+            (p1[1] - p0[1]) / (2.0 * du),
+            (p1[2] - p0[2]) / (2.0 * du),
+        ];
+        let sv = [
+            (q1[0] - q0[0]) / (2.0 * dv),
+            (q1[1] - q0[1]) / (2.0 * dv),
+            (q1[2] - q0[2]) / (2.0 * dv),
+        ];
 
         [
             su[1] * sv[2] - su[2] * sv[1],

@@ -136,10 +136,7 @@ impl NelsonAalenEstimator {
         if self.times.is_empty() || t < self.times[0] {
             return 0.0;
         }
-        let idx = self
-            .times
-            .partition_point(|&tk| tk <= t)
-            .saturating_sub(1);
+        let idx = self.times.partition_point(|&tk| tk <= t).saturating_sub(1);
         self.cumulative_hazard[idx]
     }
 
@@ -235,10 +232,7 @@ impl NelsonAalenEstimator {
             }
             if d_k > 0 {
                 // Sum of risk scores in the risk set (all with time >= t_cur)
-                let risk_set_sum: f64 = idx[pos..]
-                    .iter()
-                    .map(|&i| risk_scores[i])
-                    .sum();
+                let risk_set_sum: f64 = idx[pos..].iter().map(|&i| risk_scores[i]).sum();
                 if risk_set_sum > 1e-300 {
                     cum_h += d_k as f64 / risk_set_sum;
                 }
@@ -263,7 +257,11 @@ fn norm_ppf(p: f64) -> f64 {
         let r = (-r.ln()).sqrt();
         let x = (((2.321_213_5 * r + 4.850_091_7) * r - 2.297_460_0) * r - 2.787_688_0)
             / ((1.637_547_9 * r + 3.543_889_2) * r + 1.0);
-        if q < 0.0 { -x } else { x }
+        if q < 0.0 {
+            -x
+        } else {
+            x
+        }
     }
 }
 
@@ -277,7 +275,9 @@ mod tests {
 
     fn simple_data() -> (Vec<f64>, Vec<bool>) {
         let times = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
-        let events = vec![true, true, false, true, true, false, true, false, true, true];
+        let events = vec![
+            true, true, false, true, true, false, true, false, true, true,
+        ];
         (times, events)
     }
 
@@ -366,8 +366,8 @@ mod tests {
             (5.0, true),
         ];
         let risk_scores = vec![1.0, 1.2, 0.8, 1.5, 0.9];
-        let (bt, bh) = NelsonAalenEstimator::breslow_baseline(&risk_scores, &pairs)
-            .expect("breslow failed");
+        let (bt, bh) =
+            NelsonAalenEstimator::breslow_baseline(&risk_scores, &pairs).expect("breslow failed");
         assert_eq!(bt.len(), bh.len());
         // Cumulative hazard should be monotone increasing
         for i in 1..bh.len() {

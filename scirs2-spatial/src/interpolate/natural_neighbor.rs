@@ -177,6 +177,19 @@ impl NaturalNeighborInterpolator {
             )));
         }
 
+        // Early return: if the query point exactly coincides with an input point,
+        // return that point's value directly (avoids Voronoi weight instability)
+        for (i, input_point) in self.points.outer_iter().enumerate() {
+            let dist_sq: f64 = point
+                .iter()
+                .zip(input_point.iter())
+                .map(|(a, b)| (a - b).powi(2))
+                .sum();
+            if dist_sq < 1e-20 {
+                return Ok(self.values[i]);
+            }
+        }
+
         // Find the simplex (triangle) containing the point
         let simplex_idx = self
             .delaunay
@@ -730,7 +743,6 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     #[test]
-    #[ignore = "Test failure - Expected 0.0 at corner, got 0.9863365525860783 at line 748"]
     fn test_natural_neighbor_interpolator() {
         // Create sample points in a square
         let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0],];

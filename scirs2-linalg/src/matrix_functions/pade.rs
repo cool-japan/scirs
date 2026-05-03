@@ -20,14 +20,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Trait alias for floating-point bounds used in Padé approximation.
-pub trait PadeFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<T> PadeFloat for T where
-    T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait PadeFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<T> PadeFloat for T where T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -44,7 +38,7 @@ fn matmul_nn<F: PadeFloat>(a: &Array2<F>, b: &Array2<F>) -> Array2<F> {
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + aik * b[[k, j]];
+                c[[i, j]] += aik * b[[k, j]];
             }
         }
     }
@@ -59,7 +53,7 @@ fn one_norm<F: PadeFloat>(a: &Array2<F>) -> F {
     for j in 0..n {
         let mut col_sum = F::zero();
         for i in 0..m {
-            col_sum = col_sum + a[[i, j]].abs();
+            col_sum += a[[i, j]].abs();
         }
         if col_sum > max_col {
             max_col = col_sum;
@@ -72,7 +66,7 @@ fn one_norm<F: PadeFloat>(a: &Array2<F>) -> F {
 fn add_identity_scaled<F: PadeFloat>(a: &mut Array2<F>, scale: F) {
     let n = a.nrows();
     for i in 0..n {
-        a[[i, i]] = a[[i, i]] + scale;
+        a[[i, i]] += scale;
     }
 }
 
@@ -91,29 +85,10 @@ fn add_identity_scaled<F: PadeFloat>(a: &mut Array2<F>, scale: F) {
 /// Orders supported: 3, 5, 7, 9, 13.
 pub fn pade_coefficients(m: usize) -> Vec<f64> {
     match m {
-        3 => vec![
-            120.0,
-            60.0,
-            12.0,
-            1.0,
-        ],
-        5 => vec![
-            30240.0,
-            15120.0,
-            3360.0,
-            420.0,
-            30.0,
-            1.0,
-        ],
+        3 => vec![120.0, 60.0, 12.0, 1.0],
+        5 => vec![30240.0, 15120.0, 3360.0, 420.0, 30.0, 1.0],
         7 => vec![
-            17297280.0,
-            8648640.0,
-            1995840.0,
-            277200.0,
-            25200.0,
-            1512.0,
-            56.0,
-            1.0,
+            17297280.0, 8648640.0, 1995840.0, 277200.0, 25200.0, 1512.0, 56.0, 1.0,
         ],
         9 => vec![
             17643225600.0,
@@ -150,6 +125,7 @@ pub fn pade_coefficients(m: usize) -> Vec<f64> {
             // Compute using iterative approach to avoid overflow
             let two_m_fact = factorial_f64(2 * m);
             let m_fact = factorial_f64(m);
+            #[allow(clippy::needless_range_loop)]
             for k in 0..=m {
                 let two_m_minus_k_fact = factorial_f64(2 * m - k);
                 let k_fact = factorial_f64(k);
@@ -265,9 +241,7 @@ fn pade_13_polynomials<F: PadeFloat>(
     let mut u_inner = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            u_inner[[i, j]] = c[13] * a6[[i, j]]
-                + c[11] * a4[[i, j]]
-                + c[9] * a2[[i, j]];
+            u_inner[[i, j]] = c[13] * a6[[i, j]] + c[11] * a4[[i, j]] + c[9] * a2[[i, j]];
         }
     }
     add_identity_scaled(&mut u_inner, c[7]);
@@ -276,9 +250,7 @@ fn pade_13_polynomials<F: PadeFloat>(
     let mut v_inner = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            v_inner[[i, j]] = c[12] * a6[[i, j]]
-                + c[10] * a4[[i, j]]
-                + c[8] * a2[[i, j]];
+            v_inner[[i, j]] = c[12] * a6[[i, j]] + c[10] * a4[[i, j]] + c[8] * a2[[i, j]];
         }
     }
     add_identity_scaled(&mut v_inner, c[6]);
@@ -288,9 +260,7 @@ fn pade_13_polynomials<F: PadeFloat>(
     let mut u_rest = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            u_rest[[i, j]] = a6_u_inner[[i, j]]
-                + c[5] * a4[[i, j]]
-                + c[3] * a2[[i, j]];
+            u_rest[[i, j]] = a6_u_inner[[i, j]] + c[5] * a4[[i, j]] + c[3] * a2[[i, j]];
         }
     }
     add_identity_scaled(&mut u_rest, c[1]);
@@ -300,9 +270,7 @@ fn pade_13_polynomials<F: PadeFloat>(
     let mut v_rest = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            v_rest[[i, j]] = a6_v_inner[[i, j]]
-                + c[4] * a4[[i, j]]
-                + c[2] * a2[[i, j]];
+            v_rest[[i, j]] = a6_v_inner[[i, j]] + c[4] * a4[[i, j]] + c[2] * a2[[i, j]];
         }
     }
     add_identity_scaled(&mut v_rest, c[0]);
@@ -361,8 +329,8 @@ fn pade_general_polynomials<F: PadeFloat>(
         for i in 0..n {
             for j in 0..n {
                 let term = c[k] * a_powers[k][[i, j]];
-                n_pade[[i, j]] = n_pade[[i, j]] + term;
-                d_pade[[i, j]] = d_pade[[i, j]] + sign * term;
+                n_pade[[i, j]] += term;
+                d_pade[[i, j]] += sign * term;
             }
         }
     }
@@ -532,7 +500,7 @@ pub fn expm_frechet<F: PadeFloat>(
             aug[[i, j]] = a[[i, j]]; // top-left block A
             aug[[i, j + n]] = e[[i, j]]; // top-right block E
             aug[[i + n, j + n]] = a[[i, j]]; // bottom-right block A
-            // bottom-left block remains zero
+                                             // bottom-left block remains zero
         }
     }
 

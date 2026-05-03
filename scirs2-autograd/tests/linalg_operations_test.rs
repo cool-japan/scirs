@@ -103,20 +103,19 @@ fn test_svd_decomposition() {
         assert_eq!(s_val.shape(), &[2]);
         assert_eq!(v_val.shape(), &[2, 2]);
 
-        // TODO: SVD implementation is currently a placeholder that returns identity matrices
-        // Skip reconstruction test until proper SVD is implemented
-        /*
-        // Verify reconstruction: A ≈ U * diag(S) * V^T
+        // Verify reconstruction: A ≈ U * diag(S) * Vt
+        // Note: SVD returns (U, S, Vt) where Vt is already V-transposed
         let s_diag = diag(s);
-        let reconstructed = matmul(matmul(u, &s_diag), &transpose(v, &[1, 0]));
+        let reconstructed = matmul(matmul(u, s_diag), v);
         let reconstructed_val = reconstructed.eval(g).expect("Test: operation failed");
+        let a_val_check = convert_to_tensor(array![[1.0_f64, 2.0], [3.0, 4.0], [5.0, 6.0]], g);
+        let a_orig = a_val_check.eval(g).expect("Test: operation failed");
 
         for i in 0..3 {
             for j in 0..2 {
-                assert_relative_eq!(reconstructed_val[[i, j]], a.eval(g).expect("Test: operation failed")[[i, j]], epsilon = 1e-5);
+                assert_relative_eq!(reconstructed_val[[i, j]], a_orig[[i, j]], epsilon = 1e-5);
             }
         }
-        */
     });
 }
 
@@ -281,7 +280,6 @@ fn test_qr_decomposition() {
 }
 
 #[test]
-#[ignore = "Cholesky decomposition not yet implemented - waiting for scirs2-core linear algebra"]
 #[allow(dead_code)]
 fn test_cholesky_decomposition() {
     ag::run(|g| {

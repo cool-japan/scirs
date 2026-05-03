@@ -54,19 +54,13 @@ pub mod splitting;
 // ─── Re-exports ──────────────────────────────────────────────────────────────
 
 // Proximal operators
-pub use operators::{
-    project_box, project_simplex, prox_l1, prox_l2, prox_linf, prox_nuclear,
-};
+pub use operators::{project_box, project_simplex, prox_l1, prox_l2, prox_linf, prox_nuclear};
 
 // ISTA / FISTA
-pub use ista::{
-    fista_minimize, ista_minimize, FistaOptimizer, IstaOptimizer, ProxOptResult,
-};
+pub use ista::{fista_minimize, ista_minimize, FistaOptimizer, IstaOptimizer, ProxOptResult};
 
 // ADMM
-pub use admm::{
-    solve_consensus, solve_lasso, AdmmSolver,
-};
+pub use admm::{solve_consensus, solve_lasso, AdmmSolver};
 
 // Splitting methods
 pub use splitting::{

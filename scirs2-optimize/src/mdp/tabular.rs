@@ -2,8 +2,8 @@
 //!
 //! All algorithms operate on finite MDPs represented by explicit transition and reward matrices.
 
-use scirs2_core::ndarray::{Array2, Array3};
 use crate::error::OptimizeError;
+use scirs2_core::ndarray::{Array2, Array3};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MDP definition
@@ -198,11 +198,7 @@ pub struct MdpSolution {
 /// `V_{k+1}(s) = max_a [ R(s,a) + γ Σ_{s'} T(s,a,s') V_k(s') ]`
 ///
 /// Convergence guarantee: terminates when `‖V_{k+1} − V_k‖_∞ < tol`.
-pub fn value_iteration(
-    mdp: &Mdp,
-    tol: f64,
-    max_iter: usize,
-) -> Result<MdpSolution, OptimizeError> {
+pub fn value_iteration(mdp: &Mdp, tol: f64, max_iter: usize) -> Result<MdpSolution, OptimizeError> {
     if tol <= 0.0 {
         return Err(OptimizeError::ValueError(
             "tol must be positive".to_string(),
@@ -218,7 +214,11 @@ pub fn value_iteration(
         max_diff = 0.0_f64;
         for s in 0..mdp.n_states {
             let best_a = (0..mdp.n_actions)
-                .max_by(|&a1, &a2| q[[s, a1]].partial_cmp(&q[[s, a2]]).unwrap_or(std::cmp::Ordering::Equal))
+                .max_by(|&a1, &a2| {
+                    q[[s, a1]]
+                        .partial_cmp(&q[[s, a2]])
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
                 .unwrap_or(0);
             let new_v = q[[s, best_a]];
             let diff = (new_v - v[s]).abs();
@@ -278,9 +278,7 @@ pub fn evaluate_policy(
         if a >= mdp.n_actions {
             return Err(OptimizeError::ValueError(format!(
                 "policy[{}] = {} >= n_actions {}",
-                s,
-                a,
-                mdp.n_actions
+                s, a, mdp.n_actions
             )));
         }
     }
@@ -346,7 +344,9 @@ pub fn policy_iteration(
         for s in 0..mdp.n_states {
             let best_a = (0..mdp.n_actions)
                 .max_by(|&a1, &a2| {
-                    q[[s, a1]].partial_cmp(&q[[s, a2]]).unwrap_or(std::cmp::Ordering::Equal)
+                    q[[s, a1]]
+                        .partial_cmp(&q[[s, a2]])
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 })
                 .unwrap_or(0);
             if best_a != policy[s] {
@@ -407,9 +407,7 @@ pub fn modified_policy_iteration(
         ));
     }
     if k == 0 {
-        return Err(OptimizeError::ValueError(
-            "k must be >= 1".to_string(),
-        ));
+        return Err(OptimizeError::ValueError("k must be >= 1".to_string()));
     }
     let r = mdp.expected_reward();
     let mut v = vec![0.0_f64; mdp.n_states];
@@ -422,7 +420,9 @@ pub fn modified_policy_iteration(
         for s in 0..mdp.n_states {
             policy[s] = (0..mdp.n_actions)
                 .max_by(|&a1, &a2| {
-                    q[[s, a1]].partial_cmp(&q[[s, a2]]).unwrap_or(std::cmp::Ordering::Equal)
+                    q[[s, a1]]
+                        .partial_cmp(&q[[s, a2]])
+                        .unwrap_or(std::cmp::Ordering::Equal)
                 })
                 .unwrap_or(0);
         }
@@ -510,13 +510,7 @@ pub struct QLearning {
 
 impl QLearning {
     /// Create a new Q-learning agent with zero-initialised Q-table.
-    pub fn new(
-        n_states: usize,
-        n_actions: usize,
-        alpha: f64,
-        epsilon: f64,
-        gamma: f64,
-    ) -> Self {
+    pub fn new(n_states: usize, n_actions: usize, alpha: f64, epsilon: f64, gamma: f64) -> Self {
         Self {
             q_table: Array2::<f64>::zeros((n_states, n_actions)),
             alpha,
@@ -666,13 +660,7 @@ pub struct Sarsa {
 
 impl Sarsa {
     /// Create a new SARSA agent.
-    pub fn new(
-        n_states: usize,
-        n_actions: usize,
-        alpha: f64,
-        epsilon: f64,
-        gamma: f64,
-    ) -> Self {
+    pub fn new(n_states: usize, n_actions: usize, alpha: f64, epsilon: f64, gamma: f64) -> Self {
         Self {
             q_table: Array2::<f64>::zeros((n_states, n_actions)),
             alpha,
@@ -808,7 +796,11 @@ pub fn simulate(
         if terminal_set.contains(&state) {
             break;
         }
-        let action = if state < policy.len() { policy[state] } else { 0 };
+        let action = if state < policy.len() {
+            policy[state]
+        } else {
+            0
+        };
         let next_state = sample_next_state(mdp, state, action, rng);
         rng = lcg_next(rng);
         let reward = r[[state, action]];
@@ -826,7 +818,9 @@ pub fn simulate(
 
 /// Simple LCG pseudo-random number generator state advance.
 pub(crate) fn lcg_next(state: u64) -> u64 {
-    state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407)
+    state
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407)
 }
 
 /// Map LCG state to uniform f64 in [0,1).
@@ -1005,10 +999,15 @@ mod tests {
         let mdp = three_state_mdp();
         let sol = value_iteration(&mdp, 1e-9, 10_000).expect("failed to create sol");
         assert!(sol.converged);
-        // Optimal: always move right → get reward 1 at state 1
-        // V(1) = 0.9*1 = 0.9 (one-step future of 1)
-        // V(0) = 0.9*V(1) = 0.81
-        assert!(sol.value_function[0] >= sol.value_function[1] - 1e-6);
+        // Optimal policy: always move right.
+        // State 1 gets the reward r[1,0,2]=1 when transitioning to state 2.
+        // → V(1) = 1 + 0.9*V(2) = 1.0   (V(2) = 0, absorbing)
+        // → V(0) = 0 + 0.9*V(1) = 0.9
+        // State 0 is one step further from the reward than state 1.
+        assert!(sol.value_function[0] > 0.0);
+        assert!(sol.value_function[1] > sol.value_function[0]);
+        assert!((sol.value_function[1] - 1.0).abs() < 1e-4);
+        assert!((sol.value_function[0] - 0.9).abs() < 1e-4);
     }
 
     #[test]
@@ -1034,7 +1033,10 @@ mod tests {
         let mdp = stochastic_mdp();
         let sol = value_iteration(&mdp, 1e-9, 10_000).expect("failed to create sol");
         assert!(sol.converged);
-        assert!(sol.value_function[2].abs() < 1e-6, "absorbing state value must be 0");
+        assert!(
+            sol.value_function[2].abs() < 1e-6,
+            "absorbing state value must be 0"
+        );
     }
 
     // ── Policy Evaluation ────────────────────────────────────────────────────
@@ -1044,7 +1046,8 @@ mod tests {
         let mdp = three_state_mdp();
         let vi = value_iteration(&mdp, 1e-12, 100_000).expect("failed to create vi");
         // Evaluate the VI-optimal policy
-        let v_eval = evaluate_policy(&mdp, &vi.policy, 1e-12, 100_000).expect("failed to create v_eval");
+        let v_eval =
+            evaluate_policy(&mdp, &vi.policy, 1e-12, 100_000).expect("failed to create v_eval");
         for s in 0..mdp.n_states {
             assert!(
                 (v_eval[s] - vi.value_function[s]).abs() < 1e-4,
@@ -1161,7 +1164,9 @@ mod tests {
     fn test_qlearning_train_returns_length() {
         let mdp = three_state_mdp();
         let mut q = QLearning::new(3, 2, 0.3, 0.1, 0.9);
-        let returns = q.train(&mdp, 100, 20, 42).expect("failed to create returns");
+        let returns = q
+            .train(&mdp, 100, 20, 42)
+            .expect("failed to create returns");
         assert_eq!(returns.len(), 100);
     }
 
@@ -1198,7 +1203,9 @@ mod tests {
     fn test_sarsa_train_returns_length() {
         let mdp = three_state_mdp();
         let mut s = Sarsa::new(3, 2, 0.3, 0.1, 0.9);
-        let returns = s.train(&mdp, 100, 20, 13).expect("failed to create returns");
+        let returns = s
+            .train(&mdp, 100, 20, 13)
+            .expect("failed to create returns");
         assert_eq!(returns.len(), 100);
     }
 

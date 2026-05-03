@@ -24,26 +24,30 @@ pub trait NetworkUpdate {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// MLP building block (private)
+// Mlp building block (private)
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// Minimal heap-allocated MLP shared by all network types in this module.
+/// Minimal heap-allocated Mlp shared by all network types in this module.
 #[derive(Debug, Clone)]
-struct MLP {
+struct Mlp {
     weights: Vec<Vec<Vec<f32>>>,
-    biases:  Vec<Vec<f32>>,
+    biases: Vec<Vec<f32>>,
 }
 
-impl MLP {
+impl Mlp {
     fn build(layer_dims: &[usize]) -> Self {
         let mut rng = PolicyRng::new(0x8f22_3344_ab11_cd88);
         let mut weights = Vec::with_capacity(layer_dims.len() - 1);
-        let mut biases  = Vec::with_capacity(layer_dims.len() - 1);
+        let mut biases = Vec::with_capacity(layer_dims.len() - 1);
         for l in 0..(layer_dims.len() - 1) {
             let (in_d, out_d) = (layer_dims[l], layer_dims[l + 1]);
             let scale = (6.0_f32 / in_d as f32).sqrt(); // He-uniform
             let w = (0..out_d)
-                .map(|_| (0..in_d).map(|_| (rng.uniform_f32() * 2.0 - 1.0) * scale).collect())
+                .map(|_| {
+                    (0..in_d)
+                        .map(|_| (rng.uniform_f32() * 2.0 - 1.0) * scale)
+                        .collect()
+                })
                 .collect();
             let b = vec![0.0_f32; out_d];
             weights.push(w);
@@ -57,7 +61,10 @@ impl MLP {
     }
 
     fn input_dim(&self) -> usize {
-        self.weights.first().map(|w| w.first().map(|r| r.len()).unwrap_or(0)).unwrap_or(0)
+        self.weights
+            .first()
+            .map(|w| w.first().map(|r| r.len()).unwrap_or(0))
+            .unwrap_or(0)
     }
 
     fn output_dim(&self) -> usize {
@@ -68,7 +75,9 @@ impl MLP {
     fn forward(&self, input: &[f32]) -> Result<Vec<f32>> {
         if input.len() != self.input_dim() {
             return Err(NeuralError::ShapeMismatch(format!(
-                "MLP: expected input_dim={}, got {}", self.input_dim(), input.len()
+                "MLP: expected input_dim={}, got {}",
+                self.input_dim(),
+                input.len()
             )));
         }
         let mut act: Vec<f32> = input.to_vec();
@@ -76,7 +85,12 @@ impl MLP {
         for (l, (w, b)) in self.weights.iter().zip(self.biases.iter()).enumerate() {
             let mut next = Vec::with_capacity(w.len());
             for (row, bias) in w.iter().zip(b.iter()) {
-                let pre: f32 = row.iter().zip(act.iter()).map(|(wi, xi)| wi * xi).sum::<f32>() + bias;
+                let pre: f32 = row
+                    .iter()
+                    .zip(act.iter())
+                    .map(|(wi, xi)| wi * xi)
+                    .sum::<f32>()
+                    + bias;
                 next.push(if l < n - 1 { pre.max(0.0) } else { pre });
             }
             act = next;
@@ -93,7 +107,12 @@ impl MLP {
             let prev = cache.last().expect("cache always non-empty");
             let mut next = Vec::with_capacity(w.len());
             for (row, bias) in w.iter().zip(b.iter()) {
-                let pre: f32 = row.iter().zip(prev.iter()).map(|(wi, xi)| wi * xi).sum::<f32>() + bias;
+                let pre: f32 = row
+                    .iter()
+                    .zip(prev.iter())
+                    .map(|(wi, xi)| wi * xi)
+                    .sum::<f32>()
+                    + bias;
                 next.push(if l < n - 1 { pre.max(0.0) } else { pre });
             }
             cache.push(next);
@@ -112,18 +131,22 @@ impl MLP {
             let in_d = in_act.len();
 
             let effective_delta: Vec<f32> = if l < n - 1 {
-                delta.iter().zip(out_act.iter()).map(|(d, a)| if *a > 0.0 { *d } else { 0.0 }).collect()
+                delta
+                    .iter()
+                    .zip(out_act.iter())
+                    .map(|(d, a)| if *a > 0.0 { *d } else { 0.0 })
+                    .collect()
             } else {
                 delta.clone()
             };
 
             let mut prev_delta = vec![0.0_f32; in_d];
-            for i in 0..out_d {
+            for (i, &eff_i) in effective_delta.iter().enumerate().take(out_d) {
                 for j in 0..in_d {
-                    prev_delta[j] += effective_delta[i] * self.weights[l][i][j];
-                    self.weights[l][i][j] -= lr * effective_delta[i] * in_act[j];
+                    prev_delta[j] += eff_i * self.weights[l][i][j];
+                    self.weights[l][i][j] -= lr * eff_i * in_act[j];
                 }
-                self.biases[l][i] -= lr * effective_delta[i];
+                self.biases[l][i] -= lr * eff_i;
             }
             delta = prev_delta;
         }
@@ -132,7 +155,9 @@ impl MLP {
     /// Hard copy weights from `other`.
     fn copy_from(&mut self, other: &Self) -> Result<()> {
         if self.weights.len() != other.weights.len() {
-            return Err(NeuralError::ShapeMismatch("MLP architecture mismatch on copy".into()));
+            return Err(NeuralError::ShapeMismatch(
+                "MLP architecture mismatch on copy".into(),
+            ));
         }
         for (sw, ow) in self.weights.iter_mut().zip(other.weights.iter()) {
             for (sr, or_) in sw.iter_mut().zip(ow.iter()) {
@@ -155,7 +180,7 @@ impl MLP {
 /// Output is a single scalar (no activation on the output neuron).
 #[derive(Debug, Clone)]
 pub struct ValueNetwork {
-    mlp: MLP,
+    mlp: Mlp,
 }
 
 impl ValueNetwork {
@@ -167,7 +192,9 @@ impl ValueNetwork {
         let mut dims = vec![obs_dim];
         dims.extend_from_slice(hidden_dims);
         dims.push(1); // scalar output
-        Self { mlp: MLP::build(&dims) }
+        Self {
+            mlp: Mlp::build(&dims),
+        }
     }
 
     /// Estimate V(s).
@@ -187,7 +214,8 @@ impl NetworkUpdate for ValueNetwork {
     fn update(&mut self, inputs: &[f32], targets: &[f32], lr: f32) -> Result<f32> {
         if targets.len() != 1 {
             return Err(NeuralError::ShapeMismatch(format!(
-                "ValueNetwork expects 1 target, got {}", targets.len()
+                "ValueNetwork expects 1 target, got {}",
+                targets.len()
             )));
         }
         let cache = self.mlp.forward_cache(inputs);
@@ -209,7 +237,7 @@ impl NetworkUpdate for ValueNetwork {
 /// Input: observation `s`. Output: vector of Q-values, one per action.
 #[derive(Debug, Clone)]
 pub struct QNetwork {
-    mlp: MLP,
+    mlp: Mlp,
     num_actions: usize,
 }
 
@@ -223,7 +251,10 @@ impl QNetwork {
         let mut dims = vec![obs_dim];
         dims.extend_from_slice(hidden_dims);
         dims.push(num_actions);
-        Self { mlp: MLP::build(&dims), num_actions }
+        Self {
+            mlp: Mlp::build(&dims),
+            num_actions,
+        }
     }
 
     /// Forward pass; returns Q-values for every action.
@@ -268,7 +299,8 @@ impl NetworkUpdate for QNetwork {
         if targets.len() != self.num_actions {
             return Err(NeuralError::ShapeMismatch(format!(
                 "QNetwork: expected {} targets, got {}",
-                self.num_actions, targets.len()
+                self.num_actions,
+                targets.len()
             )));
         }
         let cache = self.mlp.forward_cache(inputs);
@@ -285,10 +317,17 @@ impl QNetwork {
     ///
     /// `target` is the TD target for the chosen action; all other outputs are
     /// treated as correct (zero gradient).
-    pub fn update_action(&mut self, obs: &[f32], action: usize, target: f32, lr: f32) -> Result<f32> {
+    pub fn update_action(
+        &mut self,
+        obs: &[f32],
+        action: usize,
+        target: f32,
+        lr: f32,
+    ) -> Result<f32> {
         if action >= self.num_actions {
             return Err(NeuralError::InvalidArgument(format!(
-                "action {} out of range [0, {})", action, self.num_actions
+                "action {} out of range [0, {})",
+                action, self.num_actions
             )));
         }
         let cache = self.mlp.forward_cache(obs);
@@ -318,9 +357,9 @@ impl QNetwork {
 /// Reinforcement Learning", ICML 2016.
 #[derive(Debug, Clone)]
 pub struct DuelingQNetwork {
-    trunk:     MLP,
-    value_head: MLP,
-    adv_head:  MLP,
+    trunk: Mlp,
+    value_head: Mlp,
+    adv_head: Mlp,
     num_actions: usize,
 }
 
@@ -331,26 +370,36 @@ impl DuelingQNetwork {
     /// - `trunk_dims`: shared hidden layers (e.g., `&[64, 64]`).
     /// - `head_hidden`: hidden layers inside each head (e.g., `&[32]`).
     /// - `num_actions`: number of discrete actions.
-    pub fn new(obs_dim: usize, trunk_dims: &[usize], head_hidden: &[usize], num_actions: usize) -> Self {
+    pub fn new(
+        obs_dim: usize,
+        trunk_dims: &[usize],
+        head_hidden: &[usize],
+        num_actions: usize,
+    ) -> Self {
         assert!(num_actions > 0, "num_actions must be > 0");
 
         let trunk_out = *trunk_dims.last().unwrap_or(&obs_dim);
 
         let mut trunk_layer_dims = vec![obs_dim];
         trunk_layer_dims.extend_from_slice(trunk_dims);
-        let trunk = MLP::build(&trunk_layer_dims);
+        let trunk = Mlp::build(&trunk_layer_dims);
 
         let mut val_dims = vec![trunk_out];
         val_dims.extend_from_slice(head_hidden);
         val_dims.push(1);
-        let value_head = MLP::build(&val_dims);
+        let value_head = Mlp::build(&val_dims);
 
         let mut adv_dims = vec![trunk_out];
         adv_dims.extend_from_slice(head_hidden);
         adv_dims.push(num_actions);
-        let adv_head = MLP::build(&adv_dims);
+        let adv_head = Mlp::build(&adv_dims);
 
-        Self { trunk, value_head, adv_head, num_actions }
+        Self {
+            trunk,
+            value_head,
+            adv_head,
+            num_actions,
+        }
     }
 
     /// Forward pass returning combined Q-values.
@@ -398,7 +447,8 @@ impl NetworkUpdate for DuelingQNetwork {
         if targets.len() != self.num_actions {
             return Err(NeuralError::ShapeMismatch(format!(
                 "DuelingQNetwork: expected {} targets, got {}",
-                self.num_actions, targets.len()
+                self.num_actions,
+                targets.len()
             )));
         }
 
@@ -424,11 +474,23 @@ impl NetworkUpdate for DuelingQNetwork {
         // ∂Q_i/∂A_i = 1 - 1/n, ∂Q_i/∂A_j = -1/n for i≠j
         let n = self.num_actions as f32;
         let v_grad: f32 = errors.iter().sum::<f32>();
-        let adv_grad: Vec<f32> = errors.iter().enumerate().map(|(i, _ei)| {
-            errors.iter().enumerate().map(|(j, ej)| {
-                if i == j { ej * (1.0 - 1.0 / n) } else { -ej / n }
-            }).sum::<f32>()
-        }).collect();
+        let adv_grad: Vec<f32> = errors
+            .iter()
+            .enumerate()
+            .map(|(i, _ei)| {
+                errors
+                    .iter()
+                    .enumerate()
+                    .map(|(j, ej)| {
+                        if i == j {
+                            ej * (1.0 - 1.0 / n)
+                        } else {
+                            -ej / n
+                        }
+                    })
+                    .sum::<f32>()
+            })
+            .collect();
 
         self.value_head.sgd_step(&val_cache, &[v_grad], lr);
         self.adv_head.sgd_step(&adv_cache, &adv_grad, lr);
@@ -440,11 +502,16 @@ impl NetworkUpdate for DuelingQNetwork {
             let mut d = vec![0.0_f32; trunk_out.len()];
             let eff: Vec<f32> = if self.value_head.n_layers() > 0 {
                 vec![v_grad]
-            } else { vec![] };
-            for i in 0..self.value_head.weights[0].len().min(1) {
-                for j in 0..trunk_out.len() {
-                    d[j] += eff.get(i).copied().unwrap_or(0.0)
-                              * self.value_head.weights[0][i][j];
+            } else {
+                vec![]
+            };
+            for (i, &eff_i) in eff
+                .iter()
+                .enumerate()
+                .take(self.value_head.weights[0].len().min(1))
+            {
+                for (j, dj) in d.iter_mut().enumerate() {
+                    *dj += eff_i * self.value_head.weights[0][i][j];
                 }
             }
             d
@@ -452,16 +519,19 @@ impl NetworkUpdate for DuelingQNetwork {
         let adv_delta_back = {
             let mut d = vec![0.0_f32; trunk_out.len()];
             let eff: &[f32] = &adv_grad;
-            for i in 0..self.adv_head.weights[0].len() {
-                let g = if i < eff.len() { eff[i] } else { 0.0 };
-                for j in 0..trunk_out.len() {
-                    d[j] += g * self.adv_head.weights[0][i][j];
+            for (i, row) in self.adv_head.weights[0].iter().enumerate() {
+                let g = eff.get(i).copied().unwrap_or(0.0);
+                for (j, dj) in d.iter_mut().enumerate() {
+                    *dj += g * row[j];
                 }
             }
             d
         };
-        let trunk_delta: Vec<f32> = val_delta_back.iter().zip(adv_delta_back.iter())
-            .map(|(v, a)| v + a).collect();
+        let trunk_delta: Vec<f32> = val_delta_back
+            .iter()
+            .zip(adv_delta_back.iter())
+            .map(|(v, a)| v + a)
+            .collect();
         self.trunk.sgd_step(&trunk_cache, &trunk_delta, lr);
 
         Ok(loss)
@@ -523,9 +593,15 @@ impl SoftmaxValuePolicy {
     /// Create a new SoftmaxValuePolicy.
     pub fn new(q: QNetwork, temperature: f32) -> Result<Self> {
         if temperature <= 0.0 {
-            return Err(NeuralError::InvalidArgument("temperature must be positive".into()));
+            return Err(NeuralError::InvalidArgument(
+                "temperature must be positive".into(),
+            ));
         }
-        Ok(Self { q, temperature, rng: PolicyRng::from_time() })
+        Ok(Self {
+            q,
+            temperature,
+            rng: PolicyRng::from_time(),
+        })
     }
 
     /// Sample an action from softmax(Q / T).
@@ -544,7 +620,9 @@ impl SoftmaxValuePolicy {
 mod tests {
     use super::*;
 
-    fn obs4() -> Vec<f32> { vec![0.1, -0.2, 0.3, -0.4] }
+    fn obs4() -> Vec<f32> {
+        vec![0.1, -0.2, 0.3, -0.4]
+    }
 
     #[test]
     fn value_network_scalar_output() {
@@ -562,7 +640,11 @@ mod tests {
         for _ in 0..200 {
             prev_loss = vn.update(&obs, &target, 0.05).expect("update failed");
         }
-        assert!(prev_loss < 0.2, "ValueNetwork loss should decrease; got {}", prev_loss);
+        assert!(
+            prev_loss < 0.2,
+            "ValueNetwork loss should decrease; got {}",
+            prev_loss
+        );
     }
 
     #[test]
@@ -585,13 +667,19 @@ mod tests {
         let obs = obs4();
         let mut prev = qn.q_values(&obs).expect("q_values")[0];
         for _ in 0..100 {
-            qn.update_action(&obs, 0, 2.0, 0.1).expect("update_action failed");
+            qn.update_action(&obs, 0, 2.0, 0.1)
+                .expect("update_action failed");
         }
         let after = qn.q_values(&obs).expect("q_values")[0];
         // Q(s,0) should move towards 2.0
         let before_err = (prev - 2.0).abs();
         let after_err = (after - 2.0).abs();
-        assert!(after_err < before_err + 0.5, "Q-value should converge; before_err={} after_err={}", before_err, after_err);
+        assert!(
+            after_err < before_err + 0.5,
+            "Q-value should converge; before_err={} after_err={}",
+            before_err,
+            after_err
+        );
         let _ = prev; // suppress unused warning
         prev = after;
         let _ = prev;
@@ -614,7 +702,10 @@ mod tests {
         let dqn = DuelingQNetwork::new(4, &[32, 32], &[16], 4);
         let qs = dqn.q_values(&obs4()).expect("q_values failed");
         assert_eq!(qs.len(), 4);
-        assert!(qs.iter().all(|q| q.is_finite()), "all Q-values must be finite");
+        assert!(
+            qs.iter().all(|q| q.is_finite()),
+            "all Q-values must be finite"
+        );
     }
 
     #[test]
@@ -645,7 +736,8 @@ mod tests {
         assert!(loss0.is_finite(), "initial loss must be finite");
         // Just ensure update runs without error multiple times
         for _ in 0..10 {
-            dqn.update(&obs, &targets, 0.01).expect("update iteration failed");
+            dqn.update(&obs, &targets, 0.01)
+                .expect("update iteration failed");
         }
     }
 

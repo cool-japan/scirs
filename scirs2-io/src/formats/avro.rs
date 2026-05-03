@@ -22,9 +22,9 @@
 #![allow(dead_code)]
 
 use std::collections::HashMap;
+use std::fs;
 use std::io::{self, Read, Write};
 use std::path::Path;
-use std::fs;
 
 use crate::error::IoError;
 
@@ -61,15 +61,9 @@ pub enum AvroSchema {
         fields: Vec<AvroField>,
     },
     /// A named enum with ordered symbols.
-    Enum {
-        name: String,
-        symbols: Vec<String>,
-    },
+    Enum { name: String, symbols: Vec<String> },
     /// Fixed-length bytes.
-    Fixed {
-        name: String,
-        size: usize,
-    },
+    Fixed { name: String, size: usize },
     /// A union of two or more schemas.  The first matching branch is used.
     Union(Vec<AvroSchema>),
 }
@@ -402,7 +396,10 @@ pub fn decode_value(
                     "Avro: truncated bytes".into(),
                 ));
             }
-            Ok((AvroValue::Bytes(data[start..start + len].to_vec()), start + len))
+            Ok((
+                AvroValue::Bytes(data[start..start + len].to_vec()),
+                start + len,
+            ))
         }
 
         AvroSchema::String => {
@@ -596,8 +593,7 @@ pub fn schema_to_json(schema: &AvroSchema) -> String {
             )
         }
         AvroSchema::Union(branches) => {
-            let branch_jsons: Vec<String> =
-                branches.iter().map(schema_to_json).collect();
+            let branch_jsons: Vec<String> = branches.iter().map(schema_to_json).collect();
             format!("[{}]", branch_jsons.join(","))
         }
     }
@@ -640,7 +636,7 @@ fn encode_ocf_header(schema: &AvroSchema) -> (Vec<u8>, [u8; 16]) {
 
     // Metadata map: 1 key-value pair, then block terminator 0
     buf.extend_from_slice(&encode_long(1)); // one entry
-    // Key: "avro.schema"
+                                            // Key: "avro.schema"
     let key = b"avro.schema";
     buf.extend_from_slice(&encode_long(key.len() as i64));
     buf.extend_from_slice(key);
@@ -738,13 +734,15 @@ impl<W: Write> AvroWriter<W> {
             .map_err(|e| IoError::SerializationError(format!("Avro: block count write: {e}")))?;
         self.writer
             .write_all(&encode_long(byte_count as i64))
-            .map_err(|e| IoError::SerializationError(format!("Avro: block byte-count write: {e}")))?;
-        self.writer.write_all(&block_bytes).map_err(|e| {
-            IoError::SerializationError(format!("Avro: block data write: {e}"))
-        })?;
-        self.writer.write_all(&self.sync_marker).map_err(|e| {
-            IoError::SerializationError(format!("Avro: sync marker write: {e}"))
-        })?;
+            .map_err(|e| {
+                IoError::SerializationError(format!("Avro: block byte-count write: {e}"))
+            })?;
+        self.writer
+            .write_all(&block_bytes)
+            .map_err(|e| IoError::SerializationError(format!("Avro: block data write: {e}")))?;
+        self.writer
+            .write_all(&self.sync_marker)
+            .map_err(|e| IoError::SerializationError(format!("Avro: sync marker write: {e}")))?;
         Ok(())
     }
 
@@ -808,9 +806,7 @@ fn parse_ocf_header(data: &[u8]) -> Result<OcfHeader, IoError> {
             }
             let key = std::str::from_utf8(&data[pos..pos + kl])
                 .map_err(|e| {
-                    IoError::DeserializationError(format!(
-                        "Avro OCF: invalid key UTF-8: {e}"
-                    ))
+                    IoError::DeserializationError(format!("Avro OCF: invalid key UTF-8: {e}"))
                 })?
                 .to_string();
             pos += kl;
@@ -929,7 +925,7 @@ impl AvroReader {
                 "Avro OCF: truncated sync marker in data block".into(),
             ));
         }
-        if &self.data[self.pos..self.pos + 16] != self.sync_marker {
+        if self.data[self.pos..self.pos + 16] != self.sync_marker {
             return Err(IoError::DeserializationError(
                 "Avro OCF: sync marker mismatch".into(),
             ));
@@ -1251,18 +1247,16 @@ pub fn write_avro_file(
         writer.append(record)?;
     }
     let cursor = writer.into_inner()?;
-    fs::write(path.as_ref(), cursor.into_inner()).map_err(|e| {
-        IoError::SerializationError(format!("Avro: cannot write file: {e}"))
-    })
+    fs::write(path.as_ref(), cursor.into_inner())
+        .map_err(|e| IoError::SerializationError(format!("Avro: cannot write file: {e}")))
 }
 
 /// Read all records from an Avro OCF file.
 ///
 /// Returns `(schema_json, records)`.
 pub fn read_avro_file(path: impl AsRef<Path>) -> Result<(String, Vec<AvroValue>), IoError> {
-    let data = fs::read(path.as_ref()).map_err(|e| {
-        IoError::DeserializationError(format!("Avro: cannot read file: {e}"))
-    })?;
+    let data = fs::read(path.as_ref())
+        .map_err(|e| IoError::DeserializationError(format!("Avro: cannot read file: {e}")))?;
     let mut reader = AvroReader::from_bytes(data)?;
     let schema_json = reader.schema_json();
     let records = reader.read_all()?;
@@ -1316,8 +1310,7 @@ mod tests {
         for &b in &[true, false] {
             let encoded =
                 encode_value(&AvroValue::Boolean(b), &AvroSchema::Boolean).expect("encode");
-            let (val, _) =
-                decode_value(&encoded, 0, &AvroSchema::Boolean).expect("decode");
+            let (val, _) = decode_value(&encoded, 0, &AvroSchema::Boolean).expect("decode");
             assert_eq!(val, AvroValue::Boolean(b));
         }
     }
@@ -1325,8 +1318,7 @@ mod tests {
     #[test]
     fn test_int_encoding() {
         for &n in &[0i32, 42, -1, i32::MAX, i32::MIN] {
-            let encoded =
-                encode_value(&AvroValue::Int(n), &AvroSchema::Int).expect("encode");
+            let encoded = encode_value(&AvroValue::Int(n), &AvroSchema::Int).expect("encode");
             let (val, _) = decode_value(&encoded, 0, &AvroSchema::Int).expect("decode");
             assert_eq!(val, AvroValue::Int(n));
         }
@@ -1335,8 +1327,7 @@ mod tests {
     #[test]
     fn test_long_encoding() {
         for &n in &[0i64, 1_000_000, -1_000_000, i64::MAX, i64::MIN] {
-            let encoded =
-                encode_value(&AvroValue::Long(n), &AvroSchema::Long).expect("encode");
+            let encoded = encode_value(&AvroValue::Long(n), &AvroSchema::Long).expect("encode");
             let (val, _) = decode_value(&encoded, 0, &AvroSchema::Long).expect("decode");
             assert_eq!(val, AvroValue::Long(n));
         }
@@ -1344,7 +1335,7 @@ mod tests {
 
     #[test]
     fn test_float_encoding() {
-        let f = 3.14f32;
+        let f = std::f32::consts::PI;
         let encoded = encode_value(&AvroValue::Float(f), &AvroSchema::Float).expect("encode");
         let (val, _) = decode_value(&encoded, 0, &AvroSchema::Float).expect("decode");
         if let AvroValue::Float(decoded) = val {
@@ -1357,8 +1348,7 @@ mod tests {
     #[test]
     fn test_double_encoding() {
         let d = std::f64::consts::E;
-        let encoded =
-            encode_value(&AvroValue::Double(d), &AvroSchema::Double).expect("encode");
+        let encoded = encode_value(&AvroValue::Double(d), &AvroSchema::Double).expect("encode");
         let (val, _) = decode_value(&encoded, 0, &AvroSchema::Double).expect("decode");
         if let AvroValue::Double(decoded) = val {
             assert!((decoded - d).abs() < 1e-15);
@@ -1593,8 +1583,7 @@ mod tests {
         let schema_json = schema_to_json(&schema);
         let path = temp_dir().join("avro_record_roundtrip.avro");
         write_avro_file(&path, &schema_json, &records).expect("write failed");
-        let (returned_schema_json, decoded_records) =
-            read_avro_file(&path).expect("read failed");
+        let (returned_schema_json, decoded_records) = read_avro_file(&path).expect("read failed");
 
         // Schema should survive the round-trip
         let returned_schema =

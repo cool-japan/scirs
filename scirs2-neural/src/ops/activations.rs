@@ -5,8 +5,8 @@
 //! and scirs2-autograd Tensors.
 
 use crate::error::Result;
-use scirs2_core::ndarray::{Array, IxDyn, Zip};
-use scirs2_core::numeric::Float;
+use scirs2_core::ndarray::{Array, Axis, IxDyn, Zip};
+use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::Debug;
 
 /// ReLU (Rectified Linear Unit) activation function
@@ -205,7 +205,7 @@ pub fn swish<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>) -> Result<Ar
     Zip::from(&mut output)
         .and(&sigmoid_output)
         .for_each(|x, &sig| {
-            *x = *x * sig;
+            *x *= sig;
         });
     Ok(output)
 }
@@ -237,7 +237,7 @@ pub fn mish<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>) -> Result<Arr
     Zip::from(&mut output).for_each(|x| {
         // softplus(x) = ln(1 + exp(x))
         let softplus = (one + x.exp()).ln();
-        *x = *x * softplus.tanh();
+        *x *= softplus.tanh();
     });
     Ok(output)
 }
@@ -264,7 +264,10 @@ pub fn mish<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>) -> Result<Arr
 /// let input = Array::from_vec(vec![1.0, 2.0, 3.0]).into_dyn();
 /// let output = softmax(&input, -1).expect("Softmax failed");
 /// ```
-pub fn softmax<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>, axis: isize) -> Result<Array<F, IxDyn>> {
+pub fn softmax<F: Float + Debug + NumAssign>(
+    input: &Array<F, IxDyn>,
+    axis: isize,
+) -> Result<Array<F, IxDyn>> {
     // For simple 1D case or applying to last axis
     let mut output = input.clone();
 
@@ -283,27 +286,50 @@ pub fn softmax<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>, axis: isiz
         )));
     }
 
-    // Simple implementation for last axis
-    if actual_axis == input.ndim() - 1 {
-        // Find max for numerical stability
+    if input.ndim() == 1 {
+        // 1D: single-pass max-then-normalise (covers axis 0 and axis -1)
         let max_val = input.fold(F::neg_infinity(), |acc, &x| if x > acc { x } else { acc });
-
-        // Subtract max and exponentiate
         Zip::from(&mut output).for_each(|x| {
             *x = (*x - max_val).exp();
         });
-
-        // Normalize by sum
         let sum = output.sum();
         Zip::from(&mut output).for_each(|x| {
-            *x = *x / sum;
+            *x /= sum;
         });
     } else {
-        // For other axes, we need more sophisticated handling
-        // This is a simplified version
-        return Err(crate::error::NeuralError::InvalidArgument(
-            "Softmax along non-last axis not yet implemented".to_string(),
-        ));
+        // General multi-dimensional case.
+        // Strategy: compute max and sum along `actual_axis`, then broadcast back.
+        //
+        // `map_axis(Axis(a), f)` collapses axis `a`, so the result shape has
+        // `actual_axis` removed.  We re-insert it as a size-1 axis before
+        // broadcasting so that Zip can match element-wise.
+
+        // Step 1: compute per-lane max for numerical stability
+        let max_vals = input.map_axis(Axis(actual_axis), |view| {
+            view.fold(F::neg_infinity(), |a, &b| if b > a { b } else { a })
+        });
+        // Reinsert the reduced axis as size-1 for broadcasting
+        let max_broadcast = max_vals.view().insert_axis(Axis(actual_axis));
+
+        // Step 2: exp(x - max)
+        Zip::from(&mut output)
+            .and_broadcast(&max_broadcast)
+            .for_each(|v, &m| {
+                *v = (*v - m).exp();
+            });
+
+        // Step 3: compute normalising sum along axis
+        let sum_vals = output.map_axis(Axis(actual_axis), |view| {
+            view.fold(F::zero(), |a, &b| a + b)
+        });
+        let sum_broadcast = sum_vals.view().insert_axis(Axis(actual_axis));
+
+        // Step 4: divide by sum
+        Zip::from(&mut output)
+            .and_broadcast(&sum_broadcast)
+            .for_each(|v, &s| {
+                *v /= s;
+            });
     }
 
     Ok(output)
@@ -331,7 +357,10 @@ pub fn softmax<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>, axis: isiz
 /// let input = Array::from_vec(vec![-2.0, -1.0, 0.0, 1.0, 2.0]).into_dyn();
 /// let output = elu(&input, 1.0).expect("ELU failed");
 /// ```
-pub fn elu<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>, alpha: F) -> Result<Array<F, IxDyn>> {
+pub fn elu<F: Float + Debug + NumAssign>(
+    input: &Array<F, IxDyn>,
+    alpha: F,
+) -> Result<Array<F, IxDyn>> {
     let mut output = input.clone();
     let zero = F::zero();
     let one = F::one();
@@ -370,10 +399,10 @@ pub fn elu<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>, alpha: F) -> R
 /// let output = selu(&input).expect("SELU failed");
 /// ```
 pub fn selu<F: Float + Debug + NumAssign>(input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
-    let scale = F::from(1.0507009873554804934193349852946).ok_or_else(|| {
+    let scale = F::from(1.050_700_987_355_480_4_f64).ok_or_else(|| {
         crate::error::NeuralError::ComputationError("Failed to convert constant".to_string())
     })?;
-    let alpha = F::from(1.6732632423543772848170429916717).ok_or_else(|| {
+    let alpha = F::from(1.673_263_242_354_377_3_f64).ok_or_else(|| {
         crate::error::NeuralError::ComputationError("Failed to convert constant".to_string())
     })?;
 
@@ -480,5 +509,64 @@ mod tests {
         assert_eq!(output[[1]], 0.0);
         // Positive values should be scaled
         assert!(output[[2]] > 1.0);
+    }
+
+    #[test]
+    fn test_softmax_2d_axis0() {
+        // Shape: (3, 2) — apply softmax along axis 0
+        let data = vec![1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let arr =
+            scirs2_core::ndarray::Array::from_shape_vec(scirs2_core::ndarray::IxDyn(&[3, 2]), data)
+                .expect("shape failed");
+
+        let out = softmax(&arr, 0).expect("softmax axis=0 failed");
+        assert_eq!(out.shape(), arr.shape());
+
+        // Each column sum should be ~1.0
+        for col in 0..2 {
+            let col_sum: f64 = (0..3).map(|row| out[[row, col]]).sum();
+            assert!(
+                (col_sum - 1.0).abs() < 1e-6,
+                "column {} sum = {} (expected 1.0)",
+                col,
+                col_sum
+            );
+        }
+    }
+
+    #[test]
+    fn test_softmax_2d_axis1() {
+        // Shape: (2, 3) — apply softmax along axis 1 (same as last axis)
+        let data = vec![1.0_f64, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let arr =
+            scirs2_core::ndarray::Array::from_shape_vec(scirs2_core::ndarray::IxDyn(&[2, 3]), data)
+                .expect("shape failed");
+
+        let out = softmax(&arr, 1).expect("softmax axis=1 failed");
+        assert_eq!(out.shape(), arr.shape());
+
+        // Each row sum should be ~1.0
+        for row in 0..2 {
+            let row_sum: f64 = (0..3).map(|col| out[[row, col]]).sum();
+            assert!(
+                (row_sum - 1.0).abs() < 1e-6,
+                "row {} sum = {} (expected 1.0)",
+                row,
+                row_sum
+            );
+        }
+    }
+
+    #[test]
+    fn test_softmax_3d_middle_axis() {
+        // Shape: (2, 3, 4) — apply softmax along axis 1
+        use scirs2_core::ndarray::Array;
+        let arr = Array::from_elem(scirs2_core::ndarray::IxDyn(&[2, 3, 4]), 1.0_f64);
+        let out = softmax(&arr, 1).expect("softmax 3d axis=1 failed");
+        assert_eq!(out.shape(), arr.shape());
+        // Uniform input → each element should be 1/3
+        for &v in out.iter() {
+            assert!((v - 1.0 / 3.0).abs() < 1e-6);
+        }
     }
 }

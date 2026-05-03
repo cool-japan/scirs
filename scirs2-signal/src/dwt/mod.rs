@@ -18,6 +18,7 @@ mod boundary;
 mod filters;
 mod multiscale;
 mod transform;
+pub mod utils;
 
 // Re-export public items from submodules
 pub use filters::{Wavelet, WaveletFilters};

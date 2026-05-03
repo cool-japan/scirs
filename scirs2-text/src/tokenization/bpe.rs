@@ -92,8 +92,7 @@ impl BpeTokenizer {
 
             for i in 0..syms.len().saturating_sub(1) {
                 // Build a temporary key that lives long enough for the lookup
-                if let Some(&rank) = merge_priorities
-                    .get(&(syms[i].as_str(), syms[i + 1].as_str()))
+                if let Some(&rank) = merge_priorities.get(&(syms[i].as_str(), syms[i + 1].as_str()))
                 {
                     if rank < best_rank {
                         best_rank = rank;
@@ -119,11 +118,11 @@ impl BpeTokenizer {
     /// Train a BPE tokenizer from a raw-text corpus.
     ///
     /// # Arguments
-    /// * `corpus`        – slice of text strings to train on.
-    /// * `vocab_size`    – target vocabulary size (including special tokens and
-    ///                     initial character alphabet).
+    /// * `corpus` – slice of text strings to train on.
+    /// * `vocab_size` – target vocabulary size (including special tokens and
+    ///   initial character alphabet).
     /// * `min_frequency` – pairs occurring fewer than this many times are
-    ///                     never merged.
+    ///   never merged.
     pub fn train(corpus: &[&str], vocab_size: usize, min_frequency: usize) -> Result<Self> {
         if vocab_size < 4 {
             return Err(TextError::InvalidInput(
@@ -361,10 +360,8 @@ pub fn compute_merges(
     min_frequency: usize,
 ) -> Vec<(String, String)> {
     // Make a mutable working copy
-    let mut seqs: Vec<(Vec<String>, usize)> = word_freqs
-        .iter()
-        .map(|(k, &v)| (k.clone(), v))
-        .collect();
+    let mut seqs: Vec<(Vec<String>, usize)> =
+        word_freqs.iter().map(|(k, &v)| (k.clone(), v)).collect();
 
     let mut merges: Vec<(String, String)> = Vec::with_capacity(num_merges);
 
@@ -381,9 +378,7 @@ pub fn compute_merges(
         let best = pair_freqs
             .iter()
             .filter(|(_, &f)| f >= min_frequency)
-            .max_by(|(k1, &f1), (k2, &f2)| {
-                f1.cmp(&f2).then_with(|| k1.cmp(k2).reverse())
-            });
+            .max_by(|(k1, &f1), (k2, &f2)| f1.cmp(&f2).then_with(|| k1.cmp(k2).reverse()));
 
         let ((left, right), _) = match best {
             Some(entry) => entry,
@@ -591,7 +586,14 @@ mod tests {
         let mut word_freqs: HashMap<Vec<String>, usize> = HashMap::new();
         word_freqs.insert(vec!["l".into(), "o".into(), "w".into(), "</w>".into()], 5);
         word_freqs.insert(
-            vec!["l".into(), "o".into(), "w".into(), "e".into(), "r".into(), "</w>".into()],
+            vec![
+                "l".into(),
+                "o".into(),
+                "w".into(),
+                "e".into(),
+                "r".into(),
+                "</w>".into(),
+            ],
             3,
         );
         let merges = compute_merges(&word_freqs, 4, 1);

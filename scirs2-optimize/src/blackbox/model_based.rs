@@ -33,6 +33,7 @@
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::RngExt;
 
 use crate::error::{OptimizeError, OptimizeResult};
 
@@ -65,11 +66,7 @@ impl TreeNode {
                 left,
                 right,
             } => {
-                let v = if *feature < x.len() {
-                    x[*feature]
-                } else {
-                    0.0
-                };
+                let v = if *feature < x.len() { x[*feature] } else { 0.0 };
                 if v <= *threshold {
                     left.predict(x)
                 } else {
@@ -125,11 +122,7 @@ fn build_tree(
     }
 
     // Variance of target; if essentially zero, no need to split.
-    let var = y
-        .iter()
-        .map(|&v| (v - mean) * (v - mean))
-        .sum::<f64>()
-        / n as f64;
+    let var = y.iter().map(|&v| (v - mean) * (v - mean)).sum::<f64>() / n as f64;
     if var < 1e-12 {
         return TreeNode::Leaf { value: mean };
     }
@@ -176,8 +169,7 @@ fn build_tree(
     }
 
     // Partition data.
-    let (x_left, y_left, x_right, y_right) =
-        partition(x, y, best_feature, best_threshold);
+    let (x_left, y_left, x_right, y_right) = partition(x, y, best_feature, best_threshold);
 
     if x_left.is_empty() || x_right.is_empty() {
         return TreeNode::Leaf { value: mean };
@@ -204,10 +196,9 @@ fn variance_reduction(
     parent_var: f64,
     n: usize,
 ) -> f64 {
-    let (n_l, sum_l, sq_l, n_r, sum_r, sq_r) = x
-        .iter()
-        .zip(y.iter())
-        .fold((0usize, 0.0_f64, 0.0_f64, 0usize, 0.0_f64, 0.0_f64), |mut acc, (xi, &yi)| {
+    let (n_l, sum_l, sq_l, n_r, sum_r, sq_r) = x.iter().zip(y.iter()).fold(
+        (0usize, 0.0_f64, 0.0_f64, 0usize, 0.0_f64, 0.0_f64),
+        |mut acc, (xi, &yi)| {
             if xi[feature] <= threshold {
                 acc.0 += 1;
                 acc.1 += yi;
@@ -218,7 +209,8 @@ fn variance_reduction(
                 acc.5 += yi * yi;
             }
             acc
-        });
+        },
+    );
 
     if n_l == 0 || n_r == 0 {
         return 0.0;
@@ -227,8 +219,7 @@ fn variance_reduction(
     let var_l = (sq_l - sum_l * sum_l / n_l as f64) / n_l as f64;
     let var_r = (sq_r - sum_r * sum_r / n_r as f64) / n_r as f64;
 
-    let weighted_var =
-        (n_l as f64 * var_l + n_r as f64 * var_r) / n as f64;
+    let weighted_var = (n_l as f64 * var_l + n_r as f64 * var_r) / n as f64;
 
     let _ = parent_mean; // not needed directly
     parent_var - weighted_var
@@ -343,7 +334,10 @@ impl RandomForestSurrogate {
             let mut y_boot = Vec::with_capacity(n);
 
             // Use different seed per tree so bootstrap samples differ.
-            let mut tree_rng = StdRng::seed_from_u64(self.seed.wrapping_add(t as u64 * 6364136223846793005));
+            let mut tree_rng = StdRng::seed_from_u64(
+                self.seed
+                    .wrapping_add((t as u64).wrapping_mul(6364136223846793005)),
+            );
 
             for _ in 0..n {
                 let idx = rng.random_range(0..n);
@@ -361,10 +355,7 @@ impl RandomForestSurrogate {
     /// Predict mean and variance from tree ensemble at test points.
     ///
     /// Returns `(mean, variance)` where `variance` is the inter-tree variance.
-    pub fn predict(
-        &self,
-        x: &Array2<f64>,
-    ) -> OptimizeResult<(Array1<f64>, Array1<f64>)> {
+    pub fn predict(&self, x: &Array2<f64>) -> OptimizeResult<(Array1<f64>, Array1<f64>)> {
         if self.trees.is_empty() {
             return Err(OptimizeError::ComputationError(
                 "RandomForestSurrogate has not been fitted".to_string(),
@@ -514,10 +505,7 @@ pub struct SmacOptimizer {
 
 impl SmacOptimizer {
     /// Create a new SMAC optimizer.
-    pub fn new(
-        bounds: Vec<(f64, f64)>,
-        config: SmacConfig,
-    ) -> OptimizeResult<Self> {
+    pub fn new(bounds: Vec<(f64, f64)>, config: SmacConfig) -> OptimizeResult<Self> {
         if bounds.is_empty() {
             return Err(OptimizeError::InvalidInput(
                 "Search space bounds must not be empty".to_string(),
@@ -653,8 +641,8 @@ impl SmacOptimizer {
                     })
                     .collect();
 
-                let acq = ei_random_forest(&cand, &surrogate, best_y, self.config.xi)
-                    .unwrap_or(0.0);
+                let acq =
+                    ei_random_forest(&cand, &surrogate, best_y, self.config.xi).unwrap_or(0.0);
                 if acq > best_acq {
                     best_acq = acq;
                     best_candidate = cand;

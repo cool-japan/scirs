@@ -31,6 +31,10 @@ pub mod student_t;
 pub mod uniform;
 pub mod weibull;
 
+pub mod generalized_pareto;
+pub mod stable;
+pub mod truncated;
+pub mod tweedie;
 pub mod validation;
 
 // Re-export distribution functions

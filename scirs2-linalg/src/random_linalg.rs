@@ -150,7 +150,11 @@ fn svd_small(a: &[Vec<f64>], rows: usize, cols: usize) -> (Vec<Vec<f64>>, Vec<f6
     let (eigenvals, eigenvecs) = jacobi_eigen_sym(&ata, cols);
     // Sort descending
     let mut order: Vec<usize> = (0..cols).collect();
-    order.sort_by(|&i, &j| eigenvals[j].partial_cmp(&eigenvals[i]).unwrap_or(std::cmp::Ordering::Equal));
+    order.sort_by(|&i, &j| {
+        eigenvals[j]
+            .partial_cmp(&eigenvals[i])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let mut s = vec![0.0f64; k];
     let mut vt = vec![vec![0.0f64; cols]; k];
@@ -186,17 +190,28 @@ fn svd_small(a: &[Vec<f64>], rows: usize, cols: usize) -> (Vec<Vec<f64>>, Vec<f6
         }
     }
     // Convert flat vt to 2D
-    (u_mat, s, vt.iter().flat_map(|r| r.iter().copied()).collect::<Vec<_>>().chunks(cols).map(|c| c.to_vec()).collect())
+    (
+        u_mat,
+        s,
+        vt.iter()
+            .flat_map(|r| r.iter().copied())
+            .collect::<Vec<_>>()
+            .chunks(cols)
+            .map(|c| c.to_vec())
+            .collect(),
+    )
 }
 
 /// Symmetric Jacobi eigen-decomposition. Returns (eigenvalues, eigenvectors as columns).
 fn jacobi_eigen_sym(a: &[Vec<f64>], n: usize) -> (Vec<f64>, Vec<Vec<f64>>) {
     let mut mat = a.to_vec();
-    let mut vecs: Vec<Vec<f64>> = (0..n).map(|i| {
-        let mut row = vec![0.0; n];
-        row[i] = 1.0;
-        row
-    }).collect();
+    let mut vecs: Vec<Vec<f64>> = (0..n)
+        .map(|i| {
+            let mut row = vec![0.0; n];
+            row[i] = 1.0;
+            row
+        })
+        .collect();
 
     for _ in 0..100 {
         // Find off-diagonal element with largest absolute value
@@ -279,7 +294,9 @@ fn solve_linear_square(a: &[Vec<f64>], b: &[f64], n: usize) -> LinalgResult<Vec<
             }
         }
         if max_val < 1e-300 {
-            return Err(LinalgError::SingularMatrixError("Matrix is singular".to_string()));
+            return Err(LinalgError::SingularMatrixError(
+                "Matrix is singular".to_string(),
+            ));
         }
         mat.swap(col, max_row);
         rhs.swap(col, max_row);
@@ -300,7 +317,9 @@ fn solve_linear_square(a: &[Vec<f64>], b: &[f64], n: usize) -> LinalgResult<Vec<
             s -= mat[i][j] * x[j];
         }
         if mat[i][i].abs() < 1e-300 {
-            return Err(LinalgError::SingularMatrixError("Matrix is singular".to_string()));
+            return Err(LinalgError::SingularMatrixError(
+                "Matrix is singular".to_string(),
+            ));
         }
         x[i] = s / mat[i][i];
     }
@@ -313,9 +332,8 @@ fn random_gaussian_matrix(m: usize, k: usize, seed: u64) -> Vec<Vec<f64>> {
     use scirs2_core::random::rngs::SmallRng;
     use scirs2_core::random::{Distribution, Normal};
 
-    let normal = Normal::new(0.0f64, 1.0).unwrap_or_else(|_| {
-        Normal::new(0.0, 1.0 - f64::EPSILON).expect("normal distribution")
-    });
+    let normal = Normal::new(0.0f64, 1.0)
+        .unwrap_or_else(|_| Normal::new(0.0, 1.0 - f64::EPSILON).expect("normal distribution"));
     let mut rng = SmallRng::seed_from_u64(seed);
     (0..m)
         .map(|_| (0..k).map(|_| normal.sample(&mut rng)).collect())
@@ -518,7 +536,11 @@ pub fn nystrom_approximation(
     // Eigen-decompose W (symmetric)
     let (eigenvals_w, eigenvecs_w) = jacobi_eigen_sym(&w, l);
     let mut order: Vec<usize> = (0..l).collect();
-    order.sort_by(|&i, &j| eigenvals_w[j].partial_cmp(&eigenvals_w[i]).unwrap_or(std::cmp::Ordering::Equal));
+    order.sort_by(|&i, &j| {
+        eigenvals_w[j]
+            .partial_cmp(&eigenvals_w[i])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     // U = C * V_w * diag(1/sqrt(lambda_w)) (Nyström formula)
     let k_rank = k.min(l);
@@ -658,20 +680,27 @@ pub fn lsrn_solve(
     // LSQR on A_p * y = b
     let y = lsqr_solve(&ap, b, m, rank, max_iter, tol);
 
-    // Recover x = V * (diag(1/sigma) * y) = vr * diag(1/sigma) * y
+    // Recover x = Vr * y
+    // The preconditioner Vr contains the right singular vectors of the sketch SA.
+    // We solved min ||A*Vr*y - b|| for y, so x = Vr * y (no sigma scaling needed).
     let mut x = vec![0.0; n];
     for j in 0..rank {
-        let scale = if sigma[j] > 1e-14 { 1.0 / sigma[j] } else { 0.0 };
-        let yj_scaled = y[j] * scale;
         for i in 0..n {
-            x[i] += vr[i][j] * yj_scaled;
+            x[i] += vr[i][j] * y[j];
         }
     }
     x
 }
 
 /// LSQR algorithm for min ||Ax - b|| (m × n system).
-fn lsqr_solve(a: &[Vec<f64>], b: &[f64], m: usize, n: usize, max_iter: usize, tol: f64) -> Vec<f64> {
+fn lsqr_solve(
+    a: &[Vec<f64>],
+    b: &[f64],
+    m: usize,
+    n: usize,
+    max_iter: usize,
+    tol: f64,
+) -> Vec<f64> {
     let at = transpose(a, m, n);
 
     let mut x = vec![0.0f64; n];
@@ -702,7 +731,11 @@ fn lsqr_solve(a: &[Vec<f64>], b: &[f64], m: usize, n: usize, max_iter: usize, to
         // Bidiagonalization
         let av: Vec<f64> = (0..m).map(|i| dot(&a[i], &v)).collect();
         beta = {
-            let mut u_new: Vec<f64> = av.iter().enumerate().map(|(i, &v)| v - alpha * u[i]).collect();
+            let mut u_new: Vec<f64> = av
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| v - alpha * u[i])
+                .collect();
             let b_new = vec_norm(&u_new);
             if b_new > 1e-300 {
                 for x in u_new.iter_mut() {
@@ -715,7 +748,11 @@ fn lsqr_solve(a: &[Vec<f64>], b: &[f64], m: usize, n: usize, max_iter: usize, to
 
         atv = (0..n).map(|j| dot(&at[j], &u)).collect();
         alpha = {
-            let mut v_new: Vec<f64> = atv.iter().enumerate().map(|(i, &x)| x - beta * v[i]).collect();
+            let mut v_new: Vec<f64> = atv
+                .iter()
+                .enumerate()
+                .map(|(i, &x)| x - beta * v[i])
+                .collect();
             let a_new = vec_norm(&v_new);
             if a_new > 1e-300 {
                 for x in v_new.iter_mut() {
@@ -733,7 +770,7 @@ fn lsqr_solve(a: &[Vec<f64>], b: &[f64], m: usize, n: usize, max_iter: usize, to
         let theta = s * alpha;
         rho_bar = -c * alpha;
         let phi = c * phi_bar;
-        phi_bar = s * phi_bar;
+        phi_bar *= s;
 
         // Update x and w
         let phi_over_rho = if rho > 1e-300 { phi / rho } else { 0.0 };
@@ -761,12 +798,18 @@ mod tests {
     use super::*;
 
     fn rel_error(a: &[Vec<f64>], b: &[Vec<f64>], m: usize, n: usize) -> f64 {
-        let diff: Vec<Vec<f64>> = a.iter().enumerate().map(|(i, row)| {
-            row.iter().enumerate().map(|(j, &v)| v - b[i][j]).collect()
-        }).collect();
+        let diff: Vec<Vec<f64>> = a
+            .iter()
+            .enumerate()
+            .map(|(i, row)| row.iter().enumerate().map(|(j, &v)| v - b[i][j]).collect())
+            .collect();
         let fn_diff = frobenius_norm(&diff, m, n);
         let fn_b = frobenius_norm(b, m, n);
-        if fn_b > 1e-300 { fn_diff / fn_b } else { fn_diff }
+        if fn_b > 1e-300 {
+            fn_diff / fn_b
+        } else {
+            fn_diff
+        }
     }
 
     #[test]

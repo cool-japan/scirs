@@ -20,32 +20,156 @@ use std::collections::{HashMap, HashSet};
 pub fn english_stop_words() -> HashSet<String> {
     const WORDS: &[&str] = &[
         // Articles & conjunctions
-        "a", "an", "the", "and", "or", "but", "nor", "for", "yet", "so",
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "nor",
+        "for",
+        "yet",
+        "so",
         // Prepositions
-        "in", "on", "at", "to", "for", "of", "with", "by", "from", "as",
-        "into", "through", "during", "before", "after", "above", "below",
-        "between", "out", "off", "over", "under", "again", "further", "then",
-        "once", "about", "against", "along", "around", "up", "down",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "out",
+        "off",
+        "over",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "about",
+        "against",
+        "along",
+        "around",
+        "up",
+        "down",
         // Pronouns
-        "i", "me", "my", "myself", "we", "our", "ours", "ourselves",
-        "you", "your", "yours", "yourself", "yourselves",
-        "he", "him", "his", "himself", "she", "her", "hers", "herself",
-        "it", "its", "itself", "they", "them", "their", "theirs", "themselves",
-        "what", "which", "who", "whom", "this", "that", "these", "those",
+        "i",
+        "me",
+        "my",
+        "myself",
+        "we",
+        "our",
+        "ours",
+        "ourselves",
+        "you",
+        "your",
+        "yours",
+        "yourself",
+        "yourselves",
+        "he",
+        "him",
+        "his",
+        "himself",
+        "she",
+        "her",
+        "hers",
+        "herself",
+        "it",
+        "its",
+        "itself",
+        "they",
+        "them",
+        "their",
+        "theirs",
+        "themselves",
+        "what",
+        "which",
+        "who",
+        "whom",
+        "this",
+        "that",
+        "these",
+        "those",
         // Auxiliary verbs
-        "is", "am", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "having",
-        "do", "does", "did", "doing",
-        "will", "would", "shall", "should", "may", "might", "must",
-        "can", "could",
+        "is",
+        "am",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "having",
+        "do",
+        "does",
+        "did",
+        "doing",
+        "will",
+        "would",
+        "shall",
+        "should",
+        "may",
+        "might",
+        "must",
+        "can",
+        "could",
         // Common adverbs / adjectives
-        "not", "no", "nor", "very", "just", "here", "there", "when",
-        "where", "why", "how", "all", "each", "every", "both", "few",
-        "more", "most", "other", "some", "such", "only", "own", "same",
-        "than", "too", "also", "any", "because", "if", "while",
+        "not",
+        "no",
+        "nor",
+        "very",
+        "just",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "each",
+        "every",
+        "both",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "only",
+        "own",
+        "same",
+        "than",
+        "too",
+        "also",
+        "any",
+        "because",
+        "if",
+        "while",
         // Numbers spelled out
-        "one", "two", "three", "four", "five", "six", "seven", "eight",
-        "nine", "ten",
+        "one",
+        "two",
+        "three",
+        "four",
+        "five",
+        "six",
+        "seven",
+        "eight",
+        "nine",
+        "ten",
     ];
     WORDS.iter().map(|w| w.to_string()).collect()
 }
@@ -64,9 +188,8 @@ fn words_lower(text: &str) -> Vec<String> {
 fn split_sentences(text: &str) -> Vec<String> {
     let mut sentences: Vec<String> = Vec::new();
     let mut current = String::new();
-    let mut chars = text.chars().peekable();
 
-    while let Some(ch) = chars.next() {
+    for ch in text.chars() {
         current.push(ch);
         if matches!(ch, '.' | '!' | '?') {
             let tail = current.trim().to_string();
@@ -191,10 +314,7 @@ impl Rake {
             scored.push((phrase.clone(), score));
         }
 
-        scored.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
         scored.truncate(top_n);
         Ok(scored)
     }
@@ -320,7 +440,7 @@ impl Yake {
             let lower = ow.to_lowercase();
             *tf.entry(lower.clone()).or_insert(0) += 1;
             first_pos.entry(lower.clone()).or_insert(i);
-            let is_cap = ow.chars().next().map_or(false, |c| c.is_uppercase());
+            let is_cap = ow.chars().next().is_some_and(|c| c.is_uppercase());
             capitalized.entry(lower.clone()).or_insert(is_cap);
         }
 
@@ -329,7 +449,10 @@ impl Yake {
             for delta in 1..=self.window_size {
                 if i + delta < n {
                     let right = total_words[i + delta].clone();
-                    right_ctx.entry(word.clone()).or_default().insert(right.clone());
+                    right_ctx
+                        .entry(word.clone())
+                        .or_default()
+                        .insert(right.clone());
                     left_ctx.entry(right).or_default().insert(word.clone());
                 }
             }
@@ -350,7 +473,11 @@ impl Yake {
             let left_div = left_ctx.get(word).map_or(0, |s| s.len()) as f64;
             let right_div = right_ctx.get(word).map_or(0, |s| s.len()) as f64;
             let disp = (left_div + right_div + sigma) / (2.0 * freq as f64 + sigma);
-            let cap_bonus = if *capitalized.get(word).unwrap_or(&false) { 0.1 } else { 0.0 };
+            let cap_bonus = if *capitalized.get(word).unwrap_or(&false) {
+                0.1
+            } else {
+                0.0
+            };
             let score = (tf_norm * disp) / (rel_pos + cap_bonus + sigma);
             word_scores.insert(word.clone(), score);
         }
@@ -400,10 +527,7 @@ impl Yake {
             }
         }
 
-        ngram_scores.sort_by(|a, b| {
-            a.1.partial_cmp(&b.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        ngram_scores.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
         let deduped = self.deduplicate(ngram_scores);
         let mut result: Vec<(String, f64)> = deduped.into_iter().take(top_n).collect();
 
@@ -504,8 +628,16 @@ pub fn textrank_keywords(text: &str, top_n: usize, window: usize) -> Result<Vec<
             for j in (i + 1)..win.len() {
                 let a = &win[i];
                 let b = &win[j];
-                *graph.entry(a.clone()).or_default().entry(b.clone()).or_insert(0.0) += 1.0;
-                *graph.entry(b.clone()).or_default().entry(a.clone()).or_insert(0.0) += 1.0;
+                *graph
+                    .entry(a.clone())
+                    .or_default()
+                    .entry(b.clone())
+                    .or_insert(0.0) += 1.0;
+                *graph
+                    .entry(b.clone())
+                    .or_default()
+                    .entry(a.clone())
+                    .or_insert(0.0) += 1.0;
             }
         }
     }
@@ -552,7 +684,11 @@ pub fn textrank_keywords(text: &str, top_n: usize, window: usize) -> Result<Vec<
                 }
             }
         }
-        let diff: f64 = scores.iter().zip(&new_scores).map(|(a, b)| (a - b).abs()).sum();
+        let diff: f64 = scores
+            .iter()
+            .zip(&new_scores)
+            .map(|(a, b)| (a - b).abs())
+            .sum();
         scores = new_scores;
         if diff < EPS {
             break;
@@ -591,10 +727,7 @@ pub fn textrank_keywords(text: &str, top_n: usize, window: usize) -> Result<Vec<
         }
     }
 
-    unique.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    unique.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     unique.truncate(top_n);
     Ok(unique)
 }
@@ -607,8 +740,7 @@ pub fn textrank_keywords(text: &str, top_n: usize, window: usize) -> Result<Vec<
 mod tests {
     use super::*;
 
-    const SAMPLE_TEXT: &str =
-        "Rust is a systems programming language that runs blazingly fast, \
+    const SAMPLE_TEXT: &str = "Rust is a systems programming language that runs blazingly fast, \
          prevents segfaults, and guarantees thread safety. \
          Rust programming combines low-level control with high-level ergonomics. \
          Many developers choose Rust for building reliable and efficient software.";
@@ -728,7 +860,11 @@ mod tests {
         let keywords = yake.extract(SAMPLE_TEXT, 5).expect("ok");
         for (kw, _) in &keywords {
             let wc = kw.split_whitespace().count();
-            assert_eq!(wc, 1, "Unigram mode should return single words, got: {}", kw);
+            assert_eq!(
+                wc, 1,
+                "Unigram mode should return single words, got: {}",
+                kw
+            );
         }
     }
 
@@ -736,7 +872,9 @@ mod tests {
     fn test_yake_bigram_mode() {
         let yake = Yake::new(2);
         let keywords = yake.extract(SAMPLE_TEXT, 10).expect("ok");
-        let has_bigram = keywords.iter().any(|(kw, _)| kw.split_whitespace().count() == 2);
+        let has_bigram = keywords
+            .iter()
+            .any(|(kw, _)| kw.split_whitespace().count() == 2);
         assert!(has_bigram, "Bigram mode should include 2-word phrases");
     }
 

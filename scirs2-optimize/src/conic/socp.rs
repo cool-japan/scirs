@@ -26,8 +26,8 @@
 //! - [`portfolio_optimization_socp`]: Mean-variance portfolio with a
 //!   variance constraint written as a second-order cone.
 
-use crate::error::{OptimizeError, OptimizeResult};
 use crate::conic::sdp::{SDPProblem, SDPSolver, SDPSolverConfig};
+use crate::error::{OptimizeError, OptimizeResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_linalg::solve;
 
@@ -48,12 +48,7 @@ pub struct SOCConstraint {
 
 impl SOCConstraint {
     /// Create a new SOC constraint with dimension checks.
-    pub fn new(
-        a: Array2<f64>,
-        b: Array1<f64>,
-        c: Array1<f64>,
-        d: f64,
-    ) -> OptimizeResult<Self> {
+    pub fn new(a: Array2<f64>, b: Array1<f64>, c: Array1<f64>, d: f64) -> OptimizeResult<Self> {
         if a.nrows() != b.len() {
             return Err(OptimizeError::ValueError(format!(
                 "SOCConstraint: A has {} rows but b has {} elements",
@@ -423,11 +418,47 @@ pub fn socp_interior_point(
     // ── Initialise: x = 0, s_k = 1 (cone slack), u_k = 0 ──────────────
     let mut x = Array1::<f64>::zeros(n);
 
+    // Equality constraints  F x = g  (may be empty).
+    let p_eq = problem.eq_a.as_ref().map(|f| f.nrows()).unwrap_or(0usize);
+
+    // Feasibility warm-start: if there are equality constraints, project x
+    // onto the affine subspace  F x = g  so the first iterate is feasible.
+    if p_eq > 0 {
+        if let (Some(feq), Some(geq)) = (&problem.eq_a, &problem.eq_b) {
+            // Least-norm solution:  x₀ = F' (F F')⁻¹ g.
+            // Build F F' ∈ ℝ^{p×p}.
+            let mut fft = Array2::<f64>::zeros((p_eq, p_eq));
+            for r in 0..p_eq {
+                for s in 0..p_eq {
+                    let mut v = 0.0_f64;
+                    for j in 0..n {
+                        v += feq[[r, j]] * feq[[s, j]];
+                    }
+                    fft[[r, s]] = v;
+                }
+            }
+            // Regularise slightly.
+            for r in 0..p_eq {
+                fft[[r, r]] += 1e-12;
+            }
+            // Solve (F F') λ = g  for λ.
+            if let Ok(lam) = solve(&fft.view(), &geq.view(), None) {
+                // x₀ = F' λ.
+                for j in 0..n {
+                    let mut v = 0.0_f64;
+                    for r in 0..p_eq {
+                        v += feq[[r, j]] * lam[r];
+                    }
+                    x[j] = v;
+                }
+            }
+        }
+    }
+
     // For each constraint k, the cone variable is (t_k, u_k) where
     // t_k = c_k' x + d_k,  u_k = A_k x + b_k.
     // We maintain a slack τ_k > 0 such that t_k = ‖u_k‖ + τ_k (strict interior).
-    let mut tau: Vec<f64> = vec![1.0; k];          // Slack t_k above ‖u_k‖
-    let mut y: Array1<f64> = Array1::<f64>::zeros(n); // Dual variable
+    let mut tau: Vec<f64> = vec![1.0; k]; // Slack t_k above ‖u_k‖
 
     let mut n_iter = 0usize;
     let mut converged = false;
@@ -461,15 +492,36 @@ pub fn socp_interior_point(
             comp += (t_vals[ki] - u_norm).abs();
         }
 
+        // Equality constraint residual  ‖F x - g‖.
+        let eq_res = if p_eq > 0 {
+            if let (Some(feq), Some(geq)) = (&problem.eq_a, &problem.eq_b) {
+                let fx: Array1<f64> = feq.dot(&x);
+                fx.iter()
+                    .zip(geq.iter())
+                    .map(|(a, b)| (a - b) * (a - b))
+                    .sum::<f64>()
+                    .sqrt()
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
         // Dual residual
         let mut rd = problem.obj.clone();
         for ki in 0..k {
             let con = &problem.constraints[ki];
             let t = t_vals[ki].max(1e-15);
-            let u_norm = u_vecs[ki].iter().map(|v| v * v).sum::<f64>().sqrt().max(1e-15);
+            let u_norm = u_vecs[ki]
+                .iter()
+                .map(|v| v * v)
+                .sum::<f64>()
+                .sqrt()
+                .max(1e-15);
             let lambda = u_norm / t; // approximate multiplier
-            // d(‖A x + b‖ / t) / dx ≈ A' u / (u_norm * t)  - ...
-            // For convergence check only, use simplified form.
+                                     // d(‖A x + b‖ / t) / dx ≈ A' u / (u_norm * t)  - ...
+                                     // For convergence check only, use simplified form.
             for i in 0..n {
                 let mut grad_i = con.c[i] * lambda;
                 for r in 0..con.a.nrows() {
@@ -480,23 +532,26 @@ pub fn socp_interior_point(
         }
         let rd_norm = rd.iter().map(|v| v * v).sum::<f64>().sqrt();
 
-        if comp < cfg.tol && rd_norm < cfg.tol {
+        if comp < cfg.tol && rd_norm < cfg.tol && eq_res < cfg.tol {
             converged = true;
             message = format!(
-                "Converged in {} iterations (comp={:.2e}, rd={:.2e})",
-                n_iter, comp, rd_norm
+                "Converged in {} iterations (comp={:.2e}, rd={:.2e}, eq={:.2e})",
+                n_iter, comp, rd_norm, eq_res
             );
             break;
         }
 
-        // ── Newton step: condensed normal-equations system ────────────────
-        // Build the condensed Hessian H = Σ_k Hₖ + regularisation, where
-        // Hₖ = (1/tₖ) (cₖ cₖ' + Aₖ' Aₖ / tₖ²)
+        // ── Newton step: condensed normal-equations (augmented KKT) ──────
+        // With equality constraints  F x = g, we solve the augmented system:
+        //   [ H   F' ] [ dx ]   [ -g_bar ]
+        //   [ F   0  ] [ λ  ] = [ g - F x ]
+        // where g_bar is the barrier gradient and λ are KKT multipliers.
+        // When p_eq = 0 this reduces to H dx = -g_bar.
         let mut h = Array2::<f64>::zeros((n, n));
-        let mut g = Array1::<f64>::zeros(n); // gradient
+        let mut g_bar = Array1::<f64>::zeros(n); // barrier gradient
 
         for i in 0..n {
-            g[i] = problem.obj[i];
+            g_bar[i] = problem.obj[i];
         }
 
         for ki in 0..k {
@@ -504,7 +559,7 @@ pub fn socp_interior_point(
             let t = t_vals[ki].max(1e-12);
             let u = &u_vecs[ki];
             let u_norm2 = u.iter().map(|v| v * v).sum::<f64>();
-            let u_norm = u_norm2.sqrt().max(1e-15);
+            let _u_norm = u_norm2.sqrt().max(1e-15);
 
             // Cone barrier gradient: ∂φ/∂x = -(2/t) c - 2 A' u / (t² - ‖u‖²)
             // Using log-barrier φ = -log(t - ‖u‖) ≈ -log(t² - ‖u‖²)/2
@@ -514,7 +569,7 @@ pub fn socp_interior_point(
                 for r in 0..con.a.nrows() {
                     grad_i -= 2.0 * con.a[[r, i]] * u[r] / rho;
                 }
-                g[i] += grad_i;
+                g_bar[i] += grad_i;
             }
 
             // Cone barrier Hessian: ∂²φ/∂x²
@@ -533,8 +588,7 @@ pub fn socp_interior_point(
 
             for i in 0..n {
                 for j in 0..n {
-                    h[[i, j]] += inv_t2 * con.c[i] * con.c[j]
-                        + inv_rho2 * at_u[i] * at_u[j];
+                    h[[i, j]] += inv_t2 * con.c[i] * con.c[j] + inv_rho2 * at_u[i] * at_u[j];
                     // + inv_rho * A' A  (diagonal block)
                     for r in 0..con.a.nrows() {
                         h[[i, j]] += inv_rho * con.a[[r, i]] * con.a[[r, j]];
@@ -543,17 +597,70 @@ pub fn socp_interior_point(
             }
         }
 
-        // Regularise H
+        // Regularise H.
         let h_norm = h.iter().map(|v| v * v).sum::<f64>().sqrt().max(1.0);
         let eps = 1e-8 * h_norm;
         for i in 0..n {
             h[[i, i]] += eps;
         }
 
-        // Solve H dx = -g
-        let neg_g = g.map(|v| -v);
-        let dx = solve(&h.view(), &neg_g.view(), None)
-            .map_err(OptimizeError::from)?;
+        // Build augmented KKT system when equality constraints are present.
+        let dx = if p_eq == 0 {
+            // Pure Newton step: H dx = -g_bar.
+            let neg_g = g_bar.map(|v| -v);
+            solve(&h.view(), &neg_g.view(), None).map_err(OptimizeError::from)?
+        } else {
+            // Augmented KKT:
+            //   [ H   F' ] [dx]   [-g_bar    ]
+            //   [ F   0  ] [λ ]   [g - F x   ]
+            let total = n + p_eq;
+            let mut kkt = Array2::<f64>::zeros((total, total));
+            let mut rhs = Array1::<f64>::zeros(total);
+
+            // Upper-left block: H.
+            for i in 0..n {
+                for j in 0..n {
+                    kkt[[i, j]] = h[[i, j]];
+                }
+            }
+
+            // Upper-right / lower-left: F' / F.
+            if let Some(feq) = &problem.eq_a {
+                for r in 0..p_eq {
+                    for j in 0..n {
+                        kkt[[j, n + r]] = feq[[r, j]]; // F'
+                        kkt[[n + r, j]] = feq[[r, j]]; // F
+                    }
+                }
+            }
+
+            // RHS top: -g_bar.
+            for i in 0..n {
+                rhs[i] = -g_bar[i];
+            }
+
+            // RHS bottom: g - F x.
+            if let (Some(feq), Some(geq)) = (&problem.eq_a, &problem.eq_b) {
+                for r in 0..p_eq {
+                    let mut fx_r = 0.0_f64;
+                    for j in 0..n {
+                        fx_r += feq[[r, j]] * x[j];
+                    }
+                    rhs[n + r] = geq[r] - fx_r;
+                }
+            }
+
+            // Small regularisation on the (0,0) block to avoid near-singularity
+            // when H is very large and F is rank-deficient.
+            let kkt_reg = 1e-12 * kkt.iter().map(|v| v * v).sum::<f64>().sqrt().max(1.0);
+            for i in 0..total {
+                kkt[[i, i]] += kkt_reg;
+            }
+
+            let sol = solve(&kkt.view(), &rhs.view(), None).map_err(OptimizeError::from)?;
+            // Extract only the dx part (first n components).
+            sol.slice(scirs2_core::ndarray::s![..n]).to_owned()
+        };
 
         // ── Line search (Armijo) ──────────────────────────────────────────
         let mut alpha = 1.0_f64;
@@ -563,7 +670,12 @@ pub fn socp_interior_point(
 
         for _ in 0..40 {
             let x_trial = &x + &(&dx * alpha);
-            let f_trial: f64 = problem.obj.iter().zip(x_trial.iter()).map(|(c, xi)| c * xi).sum();
+            let f_trial: f64 = problem
+                .obj
+                .iter()
+                .zip(x_trial.iter())
+                .map(|(c, xi)| c * xi)
+                .sum();
             // Check cone feasibility (all τ_k > 0 after update).
             let feasible = (0..k).all(|ki| {
                 let con = &problem.constraints[ki];
@@ -595,8 +707,6 @@ pub fn socp_interior_point(
             let margin = (t_target - u_norm).max(0.0);
             tau[ki] = margin * 0.5 + 1e-8;
         }
-
-        let _ = y; // suppress unused-variable warning
     }
 
     let obj_val = problem.obj.iter().zip(x.iter()).map(|(c, xi)| c * xi).sum();
@@ -665,7 +775,9 @@ pub fn robust_ls_socp(
     if b.len() != m {
         return Err(OptimizeError::ValueError(format!(
             "A is {}×{} but b has {} elements",
-            m, n, b.len()
+            m,
+            n,
+            b.len()
         )));
     }
     if rho < 0.0 {
@@ -784,7 +896,10 @@ pub fn portfolio_optimization_socp(
     if sigma.nrows() != n || sigma.ncols() != n {
         return Err(OptimizeError::ValueError(format!(
             "sigma must be {}×{} but is {}×{}",
-            n, n, sigma.nrows(), sigma.ncols()
+            n,
+            n,
+            sigma.nrows(),
+            sigma.ncols()
         )));
     }
     if gamma < 0.0 {
@@ -854,8 +969,7 @@ pub fn portfolio_optimization_socp(
     }
     let g_eq = Array1::from_vec(vec![1.0]);
 
-    let problem = SOCPProblem::new(obj, all_cons)?
-        .with_equality(f_eq, g_eq)?;
+    let problem = SOCPProblem::new(obj, all_cons)?.with_equality(f_eq, g_eq)?;
 
     let result = socp_interior_point(&problem, None)?;
 
@@ -900,7 +1014,7 @@ mod tests {
     #[test]
     fn test_socp_constraint_dim_mismatch() {
         let a = Array2::<f64>::zeros((2, 3)); // 2 rows, 3 cols
-        let b = Array1::from_vec(vec![0.0]);   // 1 element, mismatch
+        let b = Array1::from_vec(vec![0.0]); // 1 element, mismatch
         let c = Array1::from_vec(vec![1.0, 0.0, 0.0]);
         let result = SOCConstraint::new(a, b, c, 0.0);
         assert!(result.is_err());

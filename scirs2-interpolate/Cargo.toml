@@ -58,6 +58,9 @@ parallel = ["scirs2-core/parallel"]
 # Enable scipy comparison benchmarks (requires Python with scipy/numpy)
 scipy-comparison = ["pyo3", "numpy"]
 
+# Enable GPU-accelerated k-d tree queries via wgpu linear-scan backend
+gpu_kdtree = []
+
 # Enable serialization support for data structures
 serde = ["dep:serde"]
 

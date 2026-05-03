@@ -271,9 +271,61 @@ where
         return Ok(result);
     }
 
-    // For general matrices, return a simplified error for now
-    // A full implementation would require complex eigenvalue handling
-    Err(LinalgError::ImplementationError(
-        "Matrix sign function for general matrices is not yet fully implemented".to_string(),
-    ))
+    // For general matrices, use the Newton-Schulz iteration for the matrix sign function.
+    //
+    // The matrix sign function sign(A) is defined via the Jordan decomposition:
+    // if A has no purely imaginary eigenvalues, then sign(A) satisfies
+    //   sign(A)^2 = I  and  sign(A) has the same eigenvectors as A
+    // with eigenvalues +1 (for eigenvectors with Re(lambda) > 0) and -1 otherwise.
+    //
+    // Newton's iteration: X_{k+1} = (X_k + X_k^{-1}) / 2
+    // converges quadratically to sign(A).
+    //
+    // Reference: Higham (2008), "Functions of Matrices", Chapter 5.
+    let half = F::from(0.5)
+        .ok_or_else(|| LinalgError::ComputationError("Failed to convert 0.5".to_string()))?;
+    let max_iter = 100usize;
+    let tol = F::from(1e-12).unwrap_or(F::epsilon());
+
+    let mut x = a.to_owned();
+
+    for _iter in 0..max_iter {
+        // Compute X^{-1} by solving X * X_inv = I
+        let eye = Array2::<F>::eye(n);
+        let x_inv = solve_multiple(&x.view(), &eye.view(), None)?;
+
+        // X_new = (X + X_inv) / 2
+        let x_new = (&x + &x_inv) * half;
+
+        // Check convergence: ||X_new - X||_F / ||X_new||_F
+        let diff_norm: F = x_new
+            .iter()
+            .zip(x.iter())
+            .map(|(&a, &b)| {
+                let d = a - b;
+                d * d
+            })
+            .fold(F::zero(), |acc, v| acc + v)
+            .sqrt();
+
+        let x_norm: F = x_new
+            .iter()
+            .map(|&v| v * v)
+            .fold(F::zero(), |acc, v| acc + v)
+            .sqrt();
+
+        x = x_new;
+
+        let rel_err = if x_norm > F::epsilon() {
+            diff_norm / x_norm
+        } else {
+            diff_norm
+        };
+
+        if rel_err < tol {
+            break;
+        }
+    }
+
+    Ok(x)
 }

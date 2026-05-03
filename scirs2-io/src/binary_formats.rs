@@ -199,8 +199,8 @@ fn baf_read_header<R: Read>(r: &mut R) -> Result<(u8, Vec<usize>)> {
 }
 
 fn open_for_read(path: &Path) -> Result<std::io::BufReader<File>> {
-    let file = File::open(path)
-        .map_err(|e| IoError::FileError(format!("cannot open {:?}: {e}", path)))?;
+    let file =
+        File::open(path).map_err(|e| IoError::FileError(format!("cannot open {:?}: {e}", path)))?;
     Ok(std::io::BufReader::new(file))
 }
 

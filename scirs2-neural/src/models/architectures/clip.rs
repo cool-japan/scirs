@@ -8,9 +8,7 @@
 
 use crate::error::Result;
 use crate::layers::{Dense, Layer, LayerNorm, Sequential};
-// TODO: Re-enable once PatchEmbedding is implemented
-// use crate::models::architectures::{ViTConfig, VisionTransformer};
-use crate::models::architectures::ViTConfig;
+use crate::models::architectures::{ViTConfig, VisionTransformer};
 use crate::transformer::TransformerEncoderLayer;
 use crate::utils::positional_encoding::{PositionalEncoding, SinusoidalPositionalEncoding};
 use scirs2_core::ndarray::{Array, Axis, IxDyn, ScalarOperand};
@@ -41,6 +39,7 @@ pub struct CLIPTextConfig {
     pub layer_norm_eps: f64,
 }
 /// Configuration for the CLIP model
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CLIPConfig {
     /// Text encoder configuration
     pub text_config: CLIPTextConfig,
@@ -219,8 +218,10 @@ impl<
         for layer in self.encoder_layers.iter().rev() {
             grad = layer.backward(&grad, &grad)?;
         }
-        // TODO: Backward through position embedding when backward method is implemented
-        // grad = self.position_embedding.backward(&grad, &grad)?;
+        // Backward through position embedding.
+        // SinusoidalPositionalEncoding is parameter-free; its backward is a pass-through
+        // (∂L/∂input = ∂L/∂output since output = input + fixed_encoding).
+        grad = self.position_embedding.backward(&grad, &grad)?;
         // Backward through token embedding
         let grad_input = self.token_embedding.backward(input, &grad)?;
         Ok(grad_input)
@@ -269,325 +270,340 @@ impl<
         self.token_embedding.is_training()
     }
 }
-// Vision encoder for CLIP model (uses Vision Transformer)
-// TODO: Re-enable once PatchEmbedding is implemented
-// pub struct CLIPVisionEncoder<
-//     F: Float + Debug + ScalarOperand + Send + Sync + 'static + scirs2_core::simd_ops::SimdUnifiedOps,
-// > {
-//     /// Vision Transformer
-//     pub vision_transformer: VisionTransformer<F>,
-//     /// Projection layer
-//     pub projection: Dense<F>,
-// }
-//
-// impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + scirs2_core::simd_ops::SimdUnifiedOps + NumAssign>
-//     CLIPVisionEncoder<F>
-// {
-//     /// Create a new CLIPVisionEncoder
-//     pub fn new(_config: ViTConfig, projection_dim: usize) -> Result<Self> {
-//         // Create ViT with a clone of the _config to avoid ownership issues
-//         let vision_transformer = VisionTransformer::<F>::new(_config.clone())?;
-//         // Projection layer
-//         let mut rng_proj = SmallRng::from_seed([42; 32]);
-//         let projection = Dense::<F>::new(_config.embed_dim, projection_dim, None, &mut rng_proj)?;
-//         Ok(Self {
-//             vision_transformer,
-//             projection,
-//         })
-//     }
-// }
-//
-// impl<
-//         F: Float
-//             + Debug
-//             + ScalarOperand
-//             + Send
-//             + Sync
-//             + scirs2_core::simd_ops::SimdUnifiedOps
-//             + 'static
-//             + NumAssign,
-//     > Layer<F> for CLIPVisionEncoder<F>
-// {
-//     fn as_any(&self) -> &dyn std::any::Any {
-//         self
-//     }
-//
-//     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-//         self
-//     }
-//
-//     fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
-//         // Apply vision transformer
-//         let x = self.vision_transformer.forward(input)?;
-//         // Apply projection
-//         let output = self.projection.forward(&x)?;
-//         Ok(output)
-//     }
-//
-//     fn backward(
-//         &self,
-//         input: &Array<F, IxDyn>,
-//         grad_output: &Array<F, IxDyn>,
-//     ) -> Result<Array<F, IxDyn>> {
-//         // CLIPVisionEncoder backward: reverse the forward pass
-//         // Backward through projection
-//         let grad_after_proj = self.projection.backward(grad_output, grad_output)?;
-//         // Backward through vision transformer
-//         let grad_input = self.vision_transformer.backward(input, &grad_after_proj)?;
-//         Ok(grad_input)
-//     }
-//
-//     fn update(&mut self, learning_rate: F) -> Result<()> {
-//         // Update projection
-//         self.projection.update(learning_rate)?;
-//         // Update vision transformer
-//         self.vision_transformer.update(learning_rate)?;
-//         Ok(())
-//     }
-//
-//     fn params(&self) -> Vec<Array<F, IxDyn>> {
-//         let mut params = Vec::new();
-//         params.extend(self.projection.params());
-//         params.extend(self.vision_transformer.params());
-//         params
-//     }
-//
-//     fn set_training(&mut self, training: bool) {
-//         self.projection.set_training(training);
-//         self.vision_transformer.set_training(training);
-//     }
-//
-//     fn is_training(&self) -> bool {
-//         self.vision_transformer.is_training()
-//     }
-// }
-// CLIP model implementation
-// TODO: Re-enable once PatchEmbedding is implemented
-// pub struct CLIP<
-//     F: Float + Debug + ScalarOperand + Send + Sync + 'static + scirs2_core::simd_ops::SimdUnifiedOps,
-// > {
-//     /// Vision encoder
-//     pub vision_encoder: CLIPVisionEncoder<F>,
-//     /// Text encoder
-//     pub text_encoder: CLIPTextEncoder<F>,
-//     /// Optional classifier for zero-shot classification
-//     pub classifier: Option<Dense<F>>,
-//     /// Model configuration
-//     pub _config: CLIPConfig,
-//     /// Temperature parameter for contrastive loss
-//     pub logit_scale: F,
-// }
+/// Vision encoder for CLIP model — wraps a `VisionTransformer` followed by a linear projection.
+pub struct CLIPVisionEncoder<
+    F: Float
+        + Debug
+        + ScalarOperand
+        + Send
+        + Sync
+        + Clone
+        + 'static
+        + scirs2_core::simd_ops::SimdUnifiedOps
+        + NumAssign,
+> {
+    /// Vision Transformer backbone
+    pub vision_transformer: VisionTransformer<F>,
+    /// Linear projection into shared embedding space
+    pub projection: Dense<F>,
+}
 
-// TODO: Re-enable once PatchEmbedding is implemented
-// impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + scirs2_core::simd_ops::SimdUnifiedOps + NumAssign>
-//     CLIP<F>
-// {
-//     /// Create a new CLIP model
-//     pub fn new(config: CLIPConfig) -> Result<Self> {
-//         // Create vision encoder
-//         let vision_encoder =
-//             CLIPVisionEncoder::<F>::new(config.vision_config.clone(), config.projection_dim)?;
-//         // Create text encoder
-//         let text_encoder =
-//             CLIPTextEncoder::<F>::new(config.text_config.clone(), config.projection_dim)?;
-//         // Create classifier if needed
-//         let classifier = if config.include_head {
-//             let mut rng_cls = SmallRng::from_seed([42; 32]);
-//             Some(Dense::<F>::new(
-//                 config.projection_dim,
-//                 config.num_classes,
-//                 None,
-//                 &mut rng_cls,
-//             )?)
-//         } else {
-//             None
-//         };
-//         // Initialize logit scale (typically ln(1/0.07))
-//         let logit_scale = F::from(2.6592).expect("Failed to convert constant to float");
-//         Ok(Self {
-//             vision_encoder,
-//             text_encoder,
-//             classifier,
-//             _config: config,
-//             logit_scale,
-//         })
-//     }
-//     /// Forward pass for image-text contrastive learning
-//     pub fn forward_contrastive(
-//         &self,
-//         image_input: &Array<F, IxDyn>,
-//         text_input: &Array<F, IxDyn>,
-//     ) -> Result<ClipOutput<F>> {
-//         // Get image and text embeddings
-//         let image_features = self.vision_encoder.forward(image_input)?;
-//         let text_features = self.text_encoder.forward(text_input)?;
-//         // Normalize embeddings
-//         let image_features_norm = normalize_features(&image_features)?;
-//         let text_features_norm = normalize_features(&text_features)?;
-//         // Compute similarity matrix (batch_size x batch_size)
-//         let logits_per_image =
-//             compute_similarity(&image_features_norm, &text_features_norm, self.logit_scale)?;
-//         // Transpose to get logits_pertext (currently unused but kept for API consistency)
-//         let _logits_pertext = logits_per_image.t().into_dyn();
-//         Ok((image_features, text_features, logits_per_image))
-//     }
-//
-//     /// Forward pass for zero-shot image classification using a text encoder
-//     pub fn forward_classification(
-//         &self,
-//         image_input: &Array<F, IxDyn>,
-//         text_embeddings: &Array<F, IxDyn>,
-//     ) -> Result<Array<F, IxDyn>> {
-//         // Get image embeddings
-//         let image_features = self.vision_encoder.forward(image_input)?;
-//         // Normalize image embeddings
-//         let image_features_norm = normalize_features(&image_features)?;
-//         // Compute similarity with text embeddings
-//         let logits = compute_similarity(&image_features_norm, text_embeddings, self.logit_scale)?;
-//         Ok(logits)
-//     }
-//     /// Create a CLIP model with default settings
-//     pub fn clip_base(num_classes: usize, include_head: bool) -> Result<Self> {
-//         let vision_config = ViTConfig {
-//             image_size: (224, 224),
-//             patch_size: (16, 16),
-//             in_channels: 3,
-//             num_classes,
-//             embed_dim: 768,
-//             num_heads: 12,
-//             mlp_dim: 3072,
-//             num_layers: 12,
-//             dropout_rate: 0.1,
-//             attention_dropout_rate: 0.1,
-//         };
-//         let text_config = CLIPTextConfig::default();
-//         let config = CLIPConfig {
-//             text_config,
-//             vision_config,
-//             projection_dim: 512,
-//             include_head,
-//             num_classes,
-//         };
-//         Self::new(config)
-//     }
-//     /// Create a small CLIP model
-//     pub fn clip_small(num_classes: usize, include_head: bool) -> Result<Self> {
-//         let vision_config = ViTConfig {
-//             image_size: (224, 224),
-//             patch_size: (16, 16),
-//             in_channels: 3,
-//             num_classes,
-//             embed_dim: 512,
-//             num_heads: 6,
-//             mlp_dim: 2048,
-//             num_layers: 8,
-//             dropout_rate: 0.1,
-//             attention_dropout_rate: 0.1,
-//         };
-//         let text_config = CLIPTextConfig {
-//             vocab_size: 49408,
-//             hidden_size: 384,
-//             intermediate_size: 1536,
-//             num_layers: 8,
-//             num_heads: 6,
-//             max_position_embeddings: 77,
-//             dropout_rate: 0.1,
-//             layer_norm_eps: 1e-5,
-//         };
-//         let config = CLIPConfig {
-//             text_config,
-//             vision_config,
-//             projection_dim: 256,
-//             include_head,
-//             num_classes,
-//         };
-//         Self::new(config)
-//     }
-// }
-//
-// impl<
-//         F: Float
-//             + Debug
-//             + ScalarOperand
-//             + Send
-//             + Sync
-//             + scirs2_core::simd_ops::SimdUnifiedOps
-//             + 'static
-//             + NumAssign,
-//     > Layer<F> for CLIP<F>
-// {
-//     fn as_any(&self) -> &dyn std::any::Any {
-//         self
-//     }
-//
-//     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-//         self
-//     }
-//
-//     fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
-//         // In a typical scenario, input would be an image
-//         // For classification tasks, we would need pre-computed text embeddings
-//         // Get image features
-//         let image_features = self.vision_encoder.forward(input)?;
-//         // If classifier is present, use it for direct classification
-//         if let Some(ref classifier) = self.classifier {
-//             return classifier.forward(&image_features);
-//         }
-//         Ok(image_features)
-//     }
-//
-//     fn backward(
-//         &self,
-//         input: &Array<F, IxDyn>,
-//         grad_output: &Array<F, IxDyn>,
-//     ) -> Result<Array<F, IxDyn>> {
-//         // CLIP backward: reverse the forward pass
-//         let mut grad = grad_output.clone();
-//         // Backward through classifier if present
-//         if let Some(ref classifier) = self.classifier {
-//             // For proper gradient computation, we need the intermediate features
-//             // This is a simplified version
-//             grad = classifier.backward(&grad, &grad)?;
-//         }
-//         // Backward through vision encoder
-//         let grad_input = self.vision_encoder.backward(input, &grad)?;
-//         Ok(grad_input)
-//     }
-//
-//     fn update(&mut self, learning_rate: F) -> Result<()> {
-//         // Update vision encoder
-//         self.vision_encoder.update(learning_rate)?;
-//         // Update text encoder
-//         self.text_encoder.update(learning_rate)?;
-//         // Update classifier if present
-//         if let Some(ref mut classifier) = self.classifier {
-//             classifier.update(learning_rate)?;
-//         }
-//         Ok(())
-//     }
-//
-//     fn params(&self) -> Vec<Array<F, IxDyn>> {
-//         let mut params = Vec::new();
-//         params.extend(self.vision_encoder.params());
-//         params.extend(self.text_encoder.params());
-//         if let Some(ref classifier) = self.classifier {
-//             params.extend(classifier.params());
-//         }
-//         params
-//     }
-//
-//     fn set_training(&mut self, training: bool) {
-//         self.vision_encoder.set_training(training);
-//         self.text_encoder.set_training(training);
-//         if let Some(ref mut classifier) = self.classifier {
-//             classifier.set_training(training);
-//         }
-//     }
-//
-//     fn is_training(&self) -> bool {
-//         self.vision_encoder.is_training()
-//     }
-// }
+impl<
+        F: Float
+            + Debug
+            + ScalarOperand
+            + Send
+            + Sync
+            + Clone
+            + 'static
+            + scirs2_core::simd_ops::SimdUnifiedOps
+            + NumAssign,
+    > CLIPVisionEncoder<F>
+{
+    /// Create a new CLIPVisionEncoder.
+    pub fn new(config: ViTConfig, projection_dim: usize) -> Result<Self> {
+        let embed_dim = config.embed_dim;
+        let vision_transformer = VisionTransformer::<F>::new(config)?;
+        let mut rng_proj = SmallRng::from_seed([42; 32]);
+        let projection = Dense::<F>::new(embed_dim, projection_dim, None, &mut rng_proj)?;
+        Ok(Self {
+            vision_transformer,
+            projection,
+        })
+    }
+}
+
+impl<
+        F: Float
+            + Debug
+            + ScalarOperand
+            + Send
+            + Sync
+            + Clone
+            + scirs2_core::simd_ops::SimdUnifiedOps
+            + 'static
+            + NumAssign,
+    > Layer<F> for CLIPVisionEncoder<F>
+{
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        let x = self.vision_transformer.forward(input)?;
+        self.projection.forward(&x)
+    }
+
+    fn backward(
+        &self,
+        input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
+    ) -> Result<Array<F, IxDyn>> {
+        let grad_after_proj = self.projection.backward(grad_output, grad_output)?;
+        self.vision_transformer.backward(input, &grad_after_proj)
+    }
+
+    fn update(&mut self, learning_rate: F) -> Result<()> {
+        self.projection.update(learning_rate)?;
+        self.vision_transformer.update(learning_rate)?;
+        Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        let mut params = Vec::new();
+        params.extend(self.projection.params());
+        params.extend(self.vision_transformer.params());
+        params
+    }
+
+    fn set_training(&mut self, training: bool) {
+        self.projection.set_training(training);
+        self.vision_transformer.set_training(training);
+    }
+
+    fn is_training(&self) -> bool {
+        self.vision_transformer.is_training()
+    }
+
+    fn layer_type(&self) -> &str {
+        "CLIPVisionEncoder"
+    }
+}
+
+/// CLIP — Contrastive Language-Image Pre-training model.
+///
+/// Combines a vision encoder (ViT) and a text encoder (Transformer) in a shared
+/// embedding space, optimised with a contrastive objective.
+pub struct CLIP<
+    F: Float
+        + Debug
+        + ScalarOperand
+        + Send
+        + Sync
+        + Clone
+        + 'static
+        + scirs2_core::simd_ops::SimdUnifiedOps
+        + NumAssign,
+> {
+    /// Vision encoder
+    pub vision_encoder: CLIPVisionEncoder<F>,
+    /// Text encoder
+    pub text_encoder: CLIPTextEncoder<F>,
+    /// Optional classifier for downstream classification
+    pub classifier: Option<Dense<F>>,
+    /// Model configuration
+    pub _config: CLIPConfig,
+    /// Log temperature parameter for contrastive loss
+    pub logit_scale: F,
+}
+
+impl<
+        F: Float
+            + Debug
+            + ScalarOperand
+            + Send
+            + Sync
+            + Clone
+            + 'static
+            + scirs2_core::simd_ops::SimdUnifiedOps
+            + NumAssign,
+    > CLIP<F>
+{
+    /// Create a new CLIP model from config.
+    pub fn new(config: CLIPConfig) -> Result<Self> {
+        let vision_encoder =
+            CLIPVisionEncoder::<F>::new(config.vision_config.clone(), config.projection_dim)?;
+        let text_encoder =
+            CLIPTextEncoder::<F>::new(config.text_config.clone(), config.projection_dim)?;
+        let classifier = if config.include_head {
+            let mut rng_cls = SmallRng::from_seed([42; 32]);
+            Some(Dense::<F>::new(
+                config.projection_dim,
+                config.num_classes,
+                None,
+                &mut rng_cls,
+            )?)
+        } else {
+            None
+        };
+        // ln(1/0.07) ≈ 2.6592
+        let logit_scale = F::from(2.6592_f64).ok_or_else(|| {
+            crate::error::NeuralError::InvalidArchitecture(
+                "CLIP: failed to convert logit_scale to float".to_string(),
+            )
+        })?;
+        Ok(Self {
+            vision_encoder,
+            text_encoder,
+            classifier,
+            _config: config,
+            logit_scale,
+        })
+    }
+
+    /// Forward pass for image-text contrastive learning.
+    /// Returns `(image_embeddings, text_embeddings, similarity_matrix)`.
+    pub fn forward_contrastive(
+        &self,
+        image_input: &Array<F, IxDyn>,
+        text_input: &Array<F, IxDyn>,
+    ) -> Result<ClipOutput<F>> {
+        let image_features = self.vision_encoder.forward(image_input)?;
+        let text_features = self.text_encoder.forward(text_input)?;
+        let image_features_norm = normalize_features(&image_features)?;
+        let text_features_norm = normalize_features(&text_features)?;
+        let logits_per_image =
+            compute_similarity(&image_features_norm, &text_features_norm, self.logit_scale)?;
+        Ok((image_features, text_features, logits_per_image))
+    }
+
+    /// Forward pass for zero-shot image classification using pre-computed text embeddings.
+    pub fn forward_classification(
+        &self,
+        image_input: &Array<F, IxDyn>,
+        text_embeddings: &Array<F, IxDyn>,
+    ) -> Result<Array<F, IxDyn>> {
+        let image_features = self.vision_encoder.forward(image_input)?;
+        let image_features_norm = normalize_features(&image_features)?;
+        compute_similarity(&image_features_norm, text_embeddings, self.logit_scale)
+    }
+
+    /// Create a CLIP-Base model (ViT-B/16 + 12-layer text encoder).
+    pub fn clip_base(num_classes: usize, include_head: bool) -> Result<Self> {
+        let vision_config = ViTConfig {
+            image_size: (224, 224),
+            patch_size: (16, 16),
+            in_channels: 3,
+            num_classes,
+            embed_dim: 768,
+            num_heads: 12,
+            mlp_dim: 3072,
+            num_layers: 12,
+            dropout_rate: 0.1,
+            attention_dropout_rate: 0.1,
+        };
+        Self::new(CLIPConfig {
+            text_config: CLIPTextConfig::default(),
+            vision_config,
+            projection_dim: 512,
+            include_head,
+            num_classes,
+        })
+    }
+
+    /// Create a small CLIP model.
+    pub fn clip_small(num_classes: usize, include_head: bool) -> Result<Self> {
+        let vision_config = ViTConfig {
+            image_size: (224, 224),
+            patch_size: (16, 16),
+            in_channels: 3,
+            num_classes,
+            embed_dim: 512,
+            num_heads: 6,
+            mlp_dim: 2048,
+            num_layers: 8,
+            dropout_rate: 0.1,
+            attention_dropout_rate: 0.1,
+        };
+        let text_config = CLIPTextConfig {
+            vocab_size: 49408,
+            hidden_size: 384,
+            intermediate_size: 1536,
+            num_layers: 8,
+            num_heads: 6,
+            max_position_embeddings: 77,
+            dropout_rate: 0.1,
+            layer_norm_eps: 1e-5,
+        };
+        Self::new(CLIPConfig {
+            text_config,
+            vision_config,
+            projection_dim: 256,
+            include_head,
+            num_classes,
+        })
+    }
+}
+
+impl<
+        F: Float
+            + Debug
+            + ScalarOperand
+            + Send
+            + Sync
+            + Clone
+            + scirs2_core::simd_ops::SimdUnifiedOps
+            + 'static
+            + NumAssign,
+    > Layer<F> for CLIP<F>
+{
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn forward(&self, input: &Array<F, IxDyn>) -> Result<Array<F, IxDyn>> {
+        let image_features = self.vision_encoder.forward(input)?;
+        if let Some(ref classifier) = self.classifier {
+            return classifier.forward(&image_features);
+        }
+        Ok(image_features)
+    }
+
+    fn backward(
+        &self,
+        input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
+    ) -> Result<Array<F, IxDyn>> {
+        let mut grad = grad_output.clone();
+        if let Some(ref classifier) = self.classifier {
+            grad = classifier.backward(&grad, &grad)?;
+        }
+        self.vision_encoder.backward(input, &grad)
+    }
+
+    fn update(&mut self, learning_rate: F) -> Result<()> {
+        self.vision_encoder.update(learning_rate)?;
+        self.text_encoder.update(learning_rate)?;
+        if let Some(ref mut classifier) = self.classifier {
+            classifier.update(learning_rate)?;
+        }
+        Ok(())
+    }
+
+    fn params(&self) -> Vec<Array<F, IxDyn>> {
+        let mut params = Vec::new();
+        params.extend(self.vision_encoder.params());
+        params.extend(self.text_encoder.params());
+        if let Some(ref classifier) = self.classifier {
+            params.extend(classifier.params());
+        }
+        params
+    }
+
+    fn set_training(&mut self, training: bool) {
+        self.vision_encoder.set_training(training);
+        self.text_encoder.set_training(training);
+        if let Some(ref mut classifier) = self.classifier {
+            classifier.set_training(training);
+        }
+    }
+
+    fn is_training(&self) -> bool {
+        self.vision_encoder.is_training()
+    }
+
+    fn layer_type(&self) -> &str {
+        "CLIP"
+    }
+}
 /// Normalize feature vectors (L2 normalization)
 #[allow(dead_code)]
 fn normalize_features<F: Float + Debug + ScalarOperand>(

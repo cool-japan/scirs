@@ -54,7 +54,7 @@
 pub mod methods;
 
 pub use methods::{
-    FidelityLevel, MfRbf, MfRbfOptions, MultigridOptimizer, MultigridOptions,
-    MultilevelOptions, MultilevelOptimizer, MultilevelResult, TrustHierarchy,
-    TrustHierarchyOptions, VariableFidelity, VariableFidelityOptions,
+    FidelityLevel, MfRbf, MfRbfOptions, MultigridOptimizer, MultigridOptions, MultilevelOptimizer,
+    MultilevelOptions, MultilevelResult, TrustHierarchy, TrustHierarchyOptions, VariableFidelity,
+    VariableFidelityOptions,
 };

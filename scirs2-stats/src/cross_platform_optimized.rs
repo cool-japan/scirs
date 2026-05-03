@@ -219,7 +219,7 @@ pub struct LibraryInfo {
     pub variant: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum TestingPriority {
     Low,
     Medium,
@@ -254,28 +254,28 @@ impl AdvancedCrossPlatformTester {
     pub fn new(config: AdvancedCrossPlatformConfig) -> Self {
         Self {
             platform_detector: Arc::new(RwLock::new(
-                PlatformDetector::new(&_config)
+                PlatformDetector::new(&config)
             )),
             consistency_tester: Arc::new(RwLock::new(
-                ConsistencyTester::new(&_config)
+                ConsistencyTester::new(&config)
             )),
             performance_analyzer: Arc::new(RwLock::new(
-                PerformanceVarianceAnalyzer::new(&_config)
+                PerformanceVarianceAnalyzer::new(&config)
             )),
             precision_validator: Arc::new(RwLock::new(
-                NumericalPrecisionValidator::new(&_config)
+                NumericalPrecisionValidator::new(&config)
             )),
             hardware_optimizer_tester: Arc::new(RwLock::new(
-                HardwareOptimizerTester::new(&_config)
+                HardwareOptimizerTester::new(&config)
             )),
             edge_case_generator: Arc::new(RwLock::new(
-                PlatformEdgeCaseGenerator::new(&_config)
+                PlatformEdgeCaseGenerator::new(&config)
             )),
             regression_detector: Arc::new(RwLock::new(
-                CrossPlatformRegressionDetector::new(&_config)
+                CrossPlatformRegressionDetector::new(&config)
             )),
             monitoring_system: Arc::new(RwLock::new(
-                ContinuousMonitoringSystem::new(&_config)
+                ContinuousMonitoringSystem::new(&config)
             )),
             result_aggregator: Arc::new(RwLock::new(
                 CrossPlatformResultAggregator::new()
@@ -420,8 +420,8 @@ impl AdvancedCrossPlatformTester {
         let test_duration = start_time.elapsed();
 
         Ok(PlatformTestResult {
-            _platform_id: target_platform.platform_id.clone(),
-            _platform_type: target_platform.platform_type,
+            platform_id: target_platform.platform_id.clone(),
+            platform_type: target_platform.platform_type,
             functional_results,
             performance_results,
             precision_results,
@@ -489,7 +489,7 @@ impl AdvancedCrossPlatformTester {
         &self,
         monitoring_config: ContinuousMonitoringConfig,
     ) -> StatsResult<MonitoringSession> {
-        if !self._config.enable_continuous_monitoring {
+        if !self.config.enable_continuous_monitoring {
             return Err(StatsError::dimension_mismatch(
                 "Continuous monitoring is not enabled".to_string()
             ));
@@ -548,18 +548,18 @@ impl AdvancedCrossPlatformTester {
         let start_time = Instant::now();
         
         // Execute the test function
-        let execution_result = match &test.test_function {
-            TestFunction::Mean(data) => {
+        let execution_result: TestExecutionResult<f64> = match &test.test_function {
+            TestFunction::Mean(_data) => {
                 // Placeholder - would call actual mean function
-                TestExecutionResult::Success(F::from(0.0).expect("Failed to convert constant to float"))
+                TestExecutionResult::Success(0.0_f64)
             }
-            TestFunction::Variance(data, ddof) => {
+            TestFunction::Variance(_data, _ddof) => {
                 // Placeholder - would call actual variance function
-                TestExecutionResult::Success(F::from(1.0).expect("Failed to convert constant to float"))
+                TestExecutionResult::Success(1.0_f64)
             }
-            TestFunction::Custom(__) => {
+            TestFunction::Custom(_, _) => {
                 // Placeholder - would execute custom function
-                TestExecutionResult::Success(F::from(0.0).expect("Failed to convert constant to float"))
+                TestExecutionResult::Success(0.0_f64)
             }
         };
 
@@ -612,8 +612,8 @@ impl AdvancedCrossPlatformTester {
             // Execute the test function (placeholder)
             let _result = match &test.test_function {
                 TestFunction::Mean(_) => F::from(0.0).expect("Failed to convert constant to float"),
-                TestFunction::Variance(__) => F::from(1.0).expect("Failed to convert constant to float"),
-                TestFunction::Custom(__) => F::from(0.0).expect("Failed to convert constant to float"),
+                TestFunction::Variance(__, _) => F::from(1.0).expect("Failed to convert constant to float"),
+                TestFunction::Custom(__, _) => F::from(0.0).expect("Failed to convert constant to float"),
             };
             
             let iter_time = iter_start.elapsed();
@@ -665,8 +665,8 @@ impl AdvancedCrossPlatformTester {
         // Execute precision test and compare with expected result
         let actual_result = match &test.test_function {
             TestFunction::Mean(_) => F::from(0.0).expect("Failed to convert constant to float"),
-            TestFunction::Variance(__) => F::from(1.0).expect("Failed to convert constant to float"),
-            TestFunction::Custom(__) => F::from(0.0).expect("Failed to convert constant to float"),
+            TestFunction::Variance(__, _) => F::from(1.0).expect("Failed to convert constant to float"),
+            TestFunction::Custom(__, _) => F::from(0.0).expect("Failed to convert constant to float"),
         };
 
         let precision_error = if let Some(expected) = test.expected_result {
@@ -792,7 +792,7 @@ impl AdvancedCrossPlatformTester {
         vec![] // Placeholder
     }
 
-    fn measure_hardware_utilization(&self, optimizationtype: &OptimizationType) -> HardwareUtilization {
+    fn measure_hardware_utilization(&self, optimization_type: &OptimizationType) -> HardwareUtilization {
         match optimization_type {
             OptimizationType::SIMD => HardwareUtilization {
                 resource_type: "SIMD".to_string(),
@@ -1818,7 +1818,7 @@ impl CrossPlatformRegressionDetector {
     }
 
     pub fn detect_regressions(
-        &self, _function_name: &str, baseline: &ComprehensiveCrossPlatformResult, current: &ComprehensiveCrossPlatformResult,
+        &self, function_name: &str, _baseline: &ComprehensiveCrossPlatformResult, _current: &ComprehensiveCrossPlatformResult,
     ) -> StatsResult<CrossPlatformRegressionResult> {
         // Placeholder implementation
         Ok(CrossPlatformRegressionResult {

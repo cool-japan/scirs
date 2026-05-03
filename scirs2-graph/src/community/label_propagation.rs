@@ -18,10 +18,10 @@
 
 use std::collections::HashMap;
 
-use scirs2_core::random::{Rng, SeedableRng, StdRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng, StdRng};
 
-use crate::error::{GraphError, Result};
 use super::louvain::compact_communities;
+use crate::error::{GraphError, Result};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal adjacency
@@ -41,11 +41,19 @@ fn build_adj(edges: &[(usize, usize, f64)], n: usize) -> Vec<Vec<(usize, f64)>> 
     adj
 }
 
-/// Pick the plurality label among neighbours. Returns `None` if the node is isolated.
+/// Pick the plurality label among neighbours.
+///
+/// When multiple labels are tied for the highest weight, the node's own current
+/// label (`current_label`) is preferred if it appears in the tie set.  This
+/// prevents oscillation in the synchronous variant where all nodes in a clique
+/// would otherwise simultaneously switch labels each round.
+///
+/// Returns `None` if the node is isolated (no neighbours).
 fn plurality_label(
     node: usize,
     adj: &[Vec<(usize, f64)>],
     labels: &[usize],
+    current_label: usize,
     rng: &mut impl Rng,
 ) -> Option<usize> {
     let mut label_weight: HashMap<usize, f64> = HashMap::new();
@@ -61,13 +69,17 @@ fn plurality_label(
         .values()
         .cloned()
         .fold(f64::NEG_INFINITY, f64::max);
-    let best: Vec<usize> = label_weight
+    let mut best: Vec<usize> = label_weight
         .iter()
         .filter(|(_, &w)| (w - max_w).abs() < 1e-12)
         .map(|(&l, _)| l)
         .collect();
+    best.sort_unstable();
     if best.len() == 1 {
         Some(best[0])
+    } else if best.contains(&current_label) {
+        // Break ties in favour of the current label to avoid oscillation
+        Some(current_label)
     } else {
         Some(best[rng.random_range(0..best.len())])
     }
@@ -96,7 +108,9 @@ pub fn label_propagation_edge_list(
     max_iter: usize,
 ) -> Result<Vec<usize>> {
     if n_nodes == 0 {
-        return Err(GraphError::InvalidGraph("label_propagation: n_nodes must be > 0".into()));
+        return Err(GraphError::InvalidGraph(
+            "label_propagation: n_nodes must be > 0".into(),
+        ));
     }
 
     let graph = build_adj(adj, n_nodes);
@@ -116,7 +130,8 @@ pub fn label_propagation_edge_list(
         }
 
         for &node in &order {
-            if let Some(chosen) = plurality_label(node, &graph, &prev_labels, &mut rng) {
+            let cur = prev_labels[node];
+            if let Some(chosen) = plurality_label(node, &graph, &prev_labels, cur, &mut rng) {
                 if chosen != labels[node] {
                     labels[node] = chosen;
                     changed = true;
@@ -177,7 +192,8 @@ pub fn async_label_propagation(
 
         for &node in &order {
             // Asynchronous: read current labels (which may already be updated this pass)
-            if let Some(chosen) = plurality_label(node, &graph, &labels, &mut rng) {
+            let cur = labels[node];
+            if let Some(chosen) = plurality_label(node, &graph, &labels, cur, &mut rng) {
                 if chosen != labels[node] {
                     labels[node] = chosen;
                     changed = true;

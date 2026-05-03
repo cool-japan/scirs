@@ -45,6 +45,11 @@ pub mod fem_1d;
 pub mod mol_enhanced;
 pub mod spectral_enhanced;
 
+// Additional PDE modules
+pub mod bem;
+pub mod finite_volume;
+pub mod time_fem;
+
 use scirs2_core::ndarray::{Array1, Array2};
 use std::ops::Range;
 

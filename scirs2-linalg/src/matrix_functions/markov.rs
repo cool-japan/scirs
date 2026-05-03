@@ -31,7 +31,10 @@ use crate::validation::validate_squarematrix;
 
 /// Euclidean norm of a 1-D array.
 fn norm2_1d<F: Float + Sum>(v: &Array1<F>) -> F {
-    v.iter().map(|&x| x * x).fold(F::zero(), |a, b| a + b).sqrt()
+    v.iter()
+        .map(|&x| x * x)
+        .fold(F::zero(), |a, b| a + b)
+        .sqrt()
 }
 
 /// L1 norm of a 1-D array (sum of absolute values).
@@ -163,9 +166,13 @@ where
     let n = transition_matrix.nrows();
 
     // Validate stochasticity
-    if !is_stochastic(transition_matrix, F::from(1e-6).unwrap_or(F::epsilon() * F::from(1000.0).unwrap_or(F::one()))) {
+    if !is_stochastic(
+        transition_matrix,
+        F::from(1e-6).unwrap_or(F::epsilon() * F::from(1000.0).unwrap_or(F::one())),
+    ) {
         return Err(LinalgError::InvalidInputError(
-            "Transition matrix must be row-stochastic (rows sum to 1, all entries non-negative)".to_string(),
+            "Transition matrix must be row-stochastic (rows sum to 1, all entries non-negative)"
+                .to_string(),
         ));
     }
 
@@ -176,18 +183,17 @@ where
     }
 
     // Initialise uniform distribution
-    let inv_n = F::one() / F::from(n).ok_or_else(|| {
-        LinalgError::ComputationError("Cannot convert n to float".to_string())
-    })?;
+    let inv_n = F::one()
+        / F::from(n).ok_or_else(|| {
+            LinalgError::ComputationError("Cannot convert n to float".to_string())
+        })?;
     let mut pi: Array1<F> = Array1::from_elem(n, inv_n);
 
     for _ in 0..max_iter {
         let pi_new = left_multiply_row(&pi, transition_matrix);
 
         // Check convergence
-        let diff: Array1<F> = Array1::from_iter(
-            pi_new.iter().zip(pi.iter()).map(|(&a, &b)| a - b)
-        );
+        let diff: Array1<F> = Array1::from_iter(pi_new.iter().zip(pi.iter()).map(|(&a, &b)| a - b));
         let change = norm2_1d(&diff);
 
         pi = pi_new;
@@ -236,9 +242,7 @@ where
 /// let z = fundamental_matrix(&p.view()).expect("Must succeed for ergodic chain");
 /// assert_eq!(z.nrows(), 2);
 /// ```
-pub fn fundamental_matrix<F>(
-    transition_matrix: &ArrayView2<F>,
-) -> LinalgResult<Array2<F>>
+pub fn fundamental_matrix<F>(transition_matrix: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
     F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static + std::fmt::Display,
 {
@@ -247,7 +251,11 @@ where
     let n = transition_matrix.nrows();
 
     // First compute stationary distribution
-    let pi = stationary_distribution(transition_matrix, F::from(1e-12).unwrap_or(F::epsilon()), 50_000)?;
+    let pi = stationary_distribution(
+        transition_matrix,
+        F::from(1e-12).unwrap_or(F::epsilon()),
+        50_000,
+    )?;
 
     // Build A = I - P + Π where Π[i,j] = pi[j]
     let mut a = Array2::zeros((n, n));
@@ -300,9 +308,7 @@ where
 /// // Mean recurrence time for state 0: 1/pi[0] = 7/4 ≈ 1.75
 /// assert!((mfpt[[0, 0]] - 7.0/4.0).abs() < 1e-6);
 /// ```
-pub fn mean_first_passage_time<F>(
-    transition_matrix: &ArrayView2<F>,
-) -> LinalgResult<Array2<F>>
+pub fn mean_first_passage_time<F>(transition_matrix: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
     F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static + std::fmt::Display,
 {
@@ -310,7 +316,11 @@ where
 
     let n = transition_matrix.nrows();
 
-    let pi = stationary_distribution(transition_matrix, F::from(1e-12).unwrap_or(F::epsilon()), 50_000)?;
+    let pi = stationary_distribution(
+        transition_matrix,
+        F::from(1e-12).unwrap_or(F::epsilon()),
+        50_000,
+    )?;
     let z = fundamental_matrix(transition_matrix)?;
 
     let mut m = Array2::zeros((n, n));
@@ -368,10 +378,7 @@ where
 /// let t_mix = mixing_time(&p.view(), 0.01).expect("Must succeed");
 /// assert!(t_mix >= 1);
 /// ```
-pub fn mixing_time<F>(
-    transition_matrix: &ArrayView2<F>,
-    epsilon: F,
-) -> LinalgResult<usize>
+pub fn mixing_time<F>(transition_matrix: &ArrayView2<F>, epsilon: F) -> LinalgResult<usize>
 where
     F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static + std::fmt::Display,
 {
@@ -394,10 +401,13 @@ where
     // Build matrix P^T P (for use in eigenvalue iteration)
     // Instead use direct power iteration on (P - π 1^T) to find λ₂.
 
-    let pi_res = stationary_distribution(transition_matrix, F::from(1e-12).unwrap_or(F::epsilon()), 50_000);
-    let pi = pi_res.unwrap_or_else(|_| {
-        Array1::from_elem(n, F::one() / F::from(n).unwrap_or(F::one()))
-    });
+    let pi_res = stationary_distribution(
+        transition_matrix,
+        F::from(1e-12).unwrap_or(F::epsilon()),
+        50_000,
+    );
+    let pi =
+        pi_res.unwrap_or_else(|_| Array1::from_elem(n, F::one() / F::from(n).unwrap_or(F::one())));
 
     // Build P_centered = P - Π  (Π[i,j] = π[j])
     // λ₂ of P_centered = λ₂ of P (shifted to remove eigenvalue 1 component)
@@ -496,7 +506,9 @@ where
     // Validate stochasticity
     let tol_stoch = F::from(1e-6).unwrap_or(F::epsilon());
     for i in 0..n {
-        let row_sum: F = (0..n).map(|j| transition_matrix[[i, j]]).fold(F::zero(), |a, b| a + b);
+        let row_sum: F = (0..n)
+            .map(|j| transition_matrix[[i, j]])
+            .fold(F::zero(), |a, b| a + b);
         if (row_sum - F::one()).abs() > tol_stoch {
             return Err(LinalgError::InvalidInputError(format!(
                 "Row {i} of transition matrix does not sum to 1 (sum = {row_sum})"
@@ -642,20 +654,12 @@ mod tests {
     }
 
     fn three_state_ergodic() -> Array2<f64> {
-        array![
-            [0.5_f64, 0.3, 0.2],
-            [0.2, 0.6, 0.2],
-            [0.3, 0.2, 0.5]
-        ]
+        array![[0.5_f64, 0.3, 0.2], [0.2, 0.6, 0.2], [0.3, 0.2, 0.5]]
     }
 
     fn absorbing_chain_3state() -> Array2<f64> {
         // States 0 and 2 are absorbing; state 1 is transient
-        array![
-            [1.0_f64, 0.0, 0.0],
-            [0.3, 0.4, 0.3],
-            [0.0, 0.0, 1.0],
-        ]
+        array![[1.0_f64, 0.0, 0.0], [0.3, 0.4, 0.3], [0.0, 0.0, 1.0],]
     }
 
     // ════════════════════════════════════════════════════
@@ -693,8 +697,7 @@ mod tests {
     #[test]
     fn test_stationary_distribution_two_state() {
         let p = two_state_chain();
-        let pi = stationary_distribution(&p.view(), 1e-12, 10_000)
-            .expect("Must converge");
+        let pi = stationary_distribution(&p.view(), 1e-12, 10_000).expect("Must converge");
         assert_relative_eq!(pi[0], 4.0 / 7.0, epsilon = 1e-8);
         assert_relative_eq!(pi[1], 3.0 / 7.0, epsilon = 1e-8);
     }
@@ -702,8 +705,7 @@ mod tests {
     #[test]
     fn test_stationary_distribution_three_state() {
         let p = three_state_ergodic();
-        let pi = stationary_distribution(&p.view(), 1e-12, 10_000)
-            .expect("Must converge");
+        let pi = stationary_distribution(&p.view(), 1e-12, 10_000).expect("Must converge");
         // Sum must be 1
         let sum: f64 = pi.iter().sum();
         assert_relative_eq!(sum, 1.0, epsilon = 1e-10);
@@ -729,8 +731,7 @@ mod tests {
     fn test_stationary_distribution_uniform() {
         // Doubly stochastic → uniform stationary distribution
         let p = array![[0.5_f64, 0.5], [0.5, 0.5]];
-        let pi = stationary_distribution(&p.view(), 1e-12, 10_000)
-            .expect("Must converge");
+        let pi = stationary_distribution(&p.view(), 1e-12, 10_000).expect("Must converge");
         assert_relative_eq!(pi[0], 0.5, epsilon = 1e-8);
         assert_relative_eq!(pi[1], 0.5, epsilon = 1e-8);
     }
@@ -824,7 +825,10 @@ mod tests {
         let p_slow = array![[0.99_f64, 0.01], [0.01, 0.99]];
         let t_fast = mixing_time(&p_fast.view(), 0.05).expect("Must succeed");
         let t_slow = mixing_time(&p_slow.view(), 0.05).expect("Must succeed");
-        assert!(t_slow > t_fast, "Slower chain should need more steps: {t_slow} vs {t_fast}");
+        assert!(
+            t_slow > t_fast,
+            "Slower chain should need more steps: {t_slow} vs {t_fast}"
+        );
     }
 
     #[test]
@@ -905,11 +909,7 @@ mod tests {
     #[test]
     fn test_absorption_probs_asymmetric() {
         // State 1 transitions: to 0 with 0.7, to 2 with 0.3 (no self-loop)
-        let p = array![
-            [1.0_f64, 0.0, 0.0],
-            [0.7, 0.0, 0.3],
-            [0.0, 0.0, 1.0],
-        ];
+        let p = array![[1.0_f64, 0.0, 0.0], [0.7, 0.0, 0.3], [0.0, 0.0, 1.0],];
         let chain = analyze_absorbing_chain(&p.view()).expect("Must succeed");
         let b = absorption_probabilities(&p.view(), &chain).expect("Must succeed");
         assert_relative_eq!(b[[0, 0]], 0.7, epsilon = 1e-8);

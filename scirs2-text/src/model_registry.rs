@@ -947,9 +947,15 @@ impl RegistrableModel for crate::transformer::TransformerModel {
         weights.insert("token_embeddings".to_string(), embed_weights);
         shapes.insert("token_embeddings".to_string(), embedshape);
 
-        // Serialize positional embeddings (placeholder - would need access to internal weights)
-        let pos_embed_weights = vec![0.0f64; self.config.max_seqlen * self.config.d_model];
-        let pos_embedshape = vec![self.config.max_seqlen, self.config.d_model];
+        // Serialize positional embeddings from the encoder's stored encodings
+        let pos_enc = self.encoder.get_position_encoding();
+        let pos_embed_weights = pos_enc
+            .as_slice()
+            .ok_or_else(|| {
+                TextError::InvalidInput("Positional encoding array is not contiguous".to_string())
+            })?
+            .to_vec();
+        let pos_embedshape = pos_enc.shape().to_vec();
         weights.insert("positional_embeddings".to_string(), pos_embed_weights);
         shapes.insert("positional_embeddings".to_string(), pos_embedshape);
 
@@ -1179,15 +1185,25 @@ impl RegistrableModel for crate::transformer::TransformerModel {
             data.weights.get("positional_embeddings"),
             data.shapes.get("positional_embeddings"),
         ) {
-            let _pos_embed_array = scirs2_core::ndarray::Array::from_shape_vec(
+            if pos_embedshape.len() != 2 {
+                return Err(TextError::InvalidInput(format!(
+                    "Positional embedding shape must be 2D, got {} dims",
+                    pos_embedshape.len()
+                )));
+            }
+            let pos_embed_array = scirs2_core::ndarray::Array::from_shape_vec(
                 (pos_embedshape[0], pos_embedshape[1]),
                 pos_embed_weights.clone(),
             )
             .map_err(|e| {
                 TextError::InvalidInput(format!("Invalid positional embedding shape: {e}"))
             })?;
-            // TODO: Restore positional encoding weights when available
-            // model.positional_encoding.set_embeddings(pos_embed_array)?;
+            model
+                .encoder
+                .set_position_encoding(pos_embed_array)
+                .map_err(|e| {
+                    TextError::InvalidInput(format!("Positional encoding dimension mismatch: {e}"))
+                })?;
         }
 
         // Restore encoder layer weights
@@ -1444,20 +1460,13 @@ impl RegistrableModel for crate::embeddings::Word2Vec {
             data.shapes.get("embeddings"),
         ) {
             // Restore the full model state from serialized data
-            let _embedding_matrix = scirs2_core::ndarray::Array::from_shape_vec(
+            let embedding_matrix = scirs2_core::ndarray::Array::from_shape_vec(
                 (embedshape[0], embedshape[1]),
                 embed_weights.clone(),
             )
             .map_err(|e| TextError::InvalidInput(format!("Invalid embedding shape: {e}")))?;
 
-            // Create vocabulary mapping
-            let mut word_to_index = HashMap::new();
-            for (i, word) in vocab.iter().enumerate() {
-                word_to_index.insert(word.clone(), i);
-            }
-
             // Create new Word2Vec model with restored parameters
-            // Note: Full model restoration would require internal API access
             let mut restored_word2vec = word2vec;
 
             // Apply configuration parameters if available
@@ -1481,8 +1490,10 @@ impl RegistrableModel for crate::embeddings::Word2Vec {
                 restored_word2vec = restored_word2vec.with_learning_rate(learning_rate);
             }
 
-            // TODO: Vocabulary and embedding restoration would require enhanced API
-            // For now, return the configured model
+            // Restore vocabulary and input embeddings using the validated API.
+            // `restore_weights` validates row/column dimensions and returns an
+            // error if they do not match — no panics.
+            restored_word2vec.restore_weights(vocab.clone(), embedding_matrix)?;
             return Ok(restored_word2vec);
         }
 
@@ -1565,5 +1576,299 @@ mod tests {
             ModelType::Custom("test".to_string()).to_string(),
             "custom_test"
         );
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Stub implementation tests
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// Build a minimal tiny-config TransformerModel + vocabulary
+    fn make_tiny_transformer() -> crate::transformer::TransformerModel {
+        let config = crate::transformer::TransformerConfig {
+            d_model: 4,
+            nheads: 2,
+            d_ff: 8,
+            n_encoder_layers: 1,
+            n_decoder_layers: 0,
+            max_seqlen: 8,
+            dropout: 0.0,
+            vocab_size: 4,
+        };
+        let vocab: Vec<String> = (0..4).map(|i| format!("tok{i}")).collect();
+        crate::transformer::TransformerModel::new(config, vocab).expect("tiny model creation")
+    }
+
+    /// Test 1: positional encoding set_encodings round-trip — values are preserved
+    #[test]
+    fn test_positional_encoding_set_roundtrip() {
+        use scirs2_core::ndarray::Array2;
+
+        let mut pos_enc = crate::transformer::PositionalEncoding::new(8, 4);
+
+        // Create a distinguishable set of values
+        let custom: Array2<f64> = Array2::from_shape_fn((8, 4), |(r, c)| (r * 10 + c) as f64 * 0.1);
+
+        pos_enc
+            .set_encodings(custom.clone())
+            .expect("set_encodings failed");
+
+        let restored = pos_enc.get_encodings();
+        for r in 0..8 {
+            for c in 0..4 {
+                assert!(
+                    (restored[[r, c]] - custom[[r, c]]).abs() < 1e-12,
+                    "mismatch at [{r},{c}]: {} vs {}",
+                    restored[[r, c]],
+                    custom[[r, c]]
+                );
+            }
+        }
+    }
+
+    /// Test 2: dimension mismatch on positional encoding returns an error, not a panic
+    #[test]
+    fn test_positional_encoding_dimension_mismatch_returns_error() {
+        use scirs2_core::ndarray::Array2;
+
+        let mut pos_enc = crate::transformer::PositionalEncoding::new(8, 4);
+
+        // Wrong shape: (5, 4) but expected (8, 4)
+        let wrong = Array2::<f64>::zeros((5, 4));
+        let result = pos_enc.set_encodings(wrong);
+        assert!(
+            result.is_err(),
+            "expected error for row count mismatch but got Ok"
+        );
+
+        // Wrong shape: (8, 3) but expected (8, 4)
+        let wrong_cols = Array2::<f64>::zeros((8, 3));
+        let result2 = pos_enc.set_encodings(wrong_cols);
+        assert!(
+            result2.is_err(),
+            "expected error for column count mismatch but got Ok"
+        );
+    }
+
+    /// Test 3: TransformerEncoder set_position_encoding + get_position_encoding round-trip
+    #[test]
+    fn test_encoder_set_position_encoding_roundtrip() {
+        use scirs2_core::ndarray::Array2;
+
+        let config = crate::transformer::TransformerConfig {
+            d_model: 4,
+            nheads: 2,
+            d_ff: 8,
+            n_encoder_layers: 1,
+            n_decoder_layers: 0,
+            max_seqlen: 6,
+            dropout: 0.0,
+            vocab_size: 4,
+        };
+        let mut encoder =
+            crate::transformer::TransformerEncoder::new(config).expect("encoder creation");
+
+        let custom: Array2<f64> =
+            Array2::from_shape_fn((6, 4), |(r, c)| (r as f64) * 0.5 + (c as f64) * 0.01);
+        encoder
+            .set_position_encoding(custom.clone())
+            .expect("set_position_encoding failed");
+
+        let restored = encoder.get_position_encoding();
+        for r in 0..6 {
+            for c in 0..4 {
+                assert!(
+                    (restored[[r, c]] - custom[[r, c]]).abs() < 1e-12,
+                    "mismatch at [{r},{c}]"
+                );
+            }
+        }
+    }
+
+    /// Test 4: Full TransformerModel serialize → deserialize preserves positional encoding values
+    #[test]
+    fn test_transformer_positional_encoding_serialize_deserialize() {
+        use scirs2_core::ndarray::Array2;
+
+        let model = make_tiny_transformer();
+
+        // Capture the original positional encoding
+        let original_enc = model.encoder.get_position_encoding().clone();
+
+        // Round-trip via RegistrableModel
+        let data = model.serialize().expect("serialize failed");
+        let restored =
+            crate::transformer::TransformerModel::deserialize(&data).expect("deserialize failed");
+
+        let restored_enc = restored.encoder.get_position_encoding();
+        assert_eq!(
+            original_enc.shape(),
+            restored_enc.shape(),
+            "shape mismatch after round-trip"
+        );
+        for r in 0..original_enc.shape()[0] {
+            for c in 0..original_enc.shape()[1] {
+                assert!(
+                    (original_enc[[r, c]] - restored_enc[[r, c]]).abs() < 1e-12,
+                    "positional encoding value mismatch at [{r},{c}]"
+                );
+            }
+        }
+    }
+
+    /// Test 5: Word2Vec restore_weights correctly sets vocabulary and embeddings
+    #[test]
+    fn test_word2vec_restore_weights_roundtrip() {
+        use crate::embeddings::{Word2Vec, Word2VecAlgorithm, Word2VecConfig};
+        use scirs2_core::ndarray::Array2;
+
+        let config = Word2VecConfig {
+            vector_size: 4,
+            window_size: 2,
+            min_count: 1,
+            epochs: 1,
+            learning_rate: 0.025,
+            algorithm: Word2VecAlgorithm::SkipGram,
+            negative_samples: 2,
+            subsample: 1e-3,
+            batch_size: 8,
+            hierarchical_softmax: false,
+        };
+        let mut model = Word2Vec::with_config(config);
+
+        let vocab: Vec<String> = vec!["hello".to_string(), "world".to_string(), "foo".to_string()];
+        let embeddings: Array2<f64> = Array2::from_shape_fn((3, 4), |(r, c)| (r * 4 + c) as f64);
+
+        model
+            .restore_weights(vocab.clone(), embeddings.clone())
+            .expect("restore_weights failed");
+
+        // Vocabulary should now be populated
+        let restored_vocab = model.get_vocabulary();
+        assert_eq!(restored_vocab.len(), vocab.len());
+        for word in &vocab {
+            assert!(restored_vocab.contains(word), "missing word: {word}");
+        }
+
+        // Embeddings matrix should match
+        let restored_embed = model
+            .get_embeddings_matrix()
+            .expect("embeddings should be set");
+        for r in 0..3 {
+            for c in 0..4 {
+                assert!(
+                    (restored_embed[[r, c]] - embeddings[[r, c]]).abs() < 1e-12,
+                    "embedding mismatch at [{r},{c}]"
+                );
+            }
+        }
+    }
+
+    /// Test 6: Word2Vec restore_weights rejects embedding dimension mismatch
+    #[test]
+    fn test_word2vec_restore_weights_dimension_mismatch() {
+        use crate::embeddings::{Word2Vec, Word2VecAlgorithm, Word2VecConfig};
+        use scirs2_core::ndarray::Array2;
+
+        let config = Word2VecConfig {
+            vector_size: 4,
+            window_size: 2,
+            min_count: 1,
+            epochs: 1,
+            learning_rate: 0.025,
+            algorithm: Word2VecAlgorithm::SkipGram,
+            negative_samples: 2,
+            subsample: 1e-3,
+            batch_size: 8,
+            hierarchical_softmax: false,
+        };
+        let mut model = Word2Vec::with_config(config);
+
+        let vocab = vec!["a".to_string(), "b".to_string()];
+
+        // Dimension mismatch: vector_size is 4, but embeddings have 5 columns
+        let wrong_cols = Array2::<f64>::zeros((2, 5));
+        let result = model.restore_weights(vocab.clone(), wrong_cols);
+        assert!(result.is_err(), "expected error for column mismatch");
+
+        // Dimension mismatch: vocab length is 2, but embeddings have 3 rows
+        let wrong_rows = Array2::<f64>::zeros((3, 4));
+        let result2 = model.restore_weights(vocab, wrong_rows);
+        assert!(result2.is_err(), "expected error for row count mismatch");
+    }
+
+    /// Test 7: Word2Vec full serialize → deserialize round-trip preserves vocabulary + embeddings
+    #[test]
+    fn test_word2vec_serialize_deserialize_roundtrip() {
+        use crate::embeddings::{Word2Vec, Word2VecAlgorithm, Word2VecConfig};
+        use scirs2_core::ndarray::Array2;
+
+        let config = Word2VecConfig {
+            vector_size: 3,
+            window_size: 2,
+            min_count: 1,
+            epochs: 1,
+            learning_rate: 0.025,
+            algorithm: Word2VecAlgorithm::CBOW,
+            negative_samples: 2,
+            subsample: 1e-3,
+            batch_size: 8,
+            hierarchical_softmax: false,
+        };
+        let mut model = Word2Vec::with_config(config);
+
+        let vocab: Vec<String> = vec!["alpha".to_string(), "beta".to_string(), "gamma".to_string()];
+        let embeddings: Array2<f64> =
+            Array2::from_shape_fn((3, 3), |(r, c)| ((r + 1) * (c + 1)) as f64 * 0.25);
+
+        model
+            .restore_weights(vocab.clone(), embeddings.clone())
+            .expect("restore_weights before serialize failed");
+
+        let data = model.serialize().expect("serialize failed");
+        let restored = Word2Vec::deserialize(&data).expect("deserialize failed");
+
+        let restored_vocab = restored.get_vocabulary();
+        assert_eq!(
+            restored_vocab.len(),
+            vocab.len(),
+            "vocabulary length mismatch"
+        );
+
+        let restored_embed = restored
+            .get_embeddings_matrix()
+            .expect("embeddings should be present after deserialize");
+        for r in 0..3 {
+            for c in 0..3 {
+                assert!(
+                    (restored_embed[[r, c]] - embeddings[[r, c]]).abs() < 1e-12,
+                    "embedding value mismatch at [{r},{c}] after full round-trip"
+                );
+            }
+        }
+    }
+
+    /// Test 8: corrupt / invalid data in SerializableModelData returns a descriptive error
+    #[test]
+    fn test_word2vec_deserialize_invalid_data_returns_error() {
+        use crate::embeddings::Word2Vec;
+
+        // Missing required config fields → should return TextError, not panic
+        let empty_data = SerializableModelData {
+            weights: Default::default(),
+            shapes: Default::default(),
+            vocabulary: None,
+            config: Default::default(),
+        };
+        let result = Word2Vec::deserialize(&empty_data);
+        assert!(
+            result.is_err(),
+            "expected error for missing config fields but got Ok"
+        );
+
+        // Check that the error message is descriptive (not empty)
+        if let Err(e) = result {
+            let msg = e.to_string();
+            assert!(!msg.is_empty(), "error message must not be empty");
+        }
     }
 }

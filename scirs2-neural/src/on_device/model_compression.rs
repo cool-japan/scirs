@@ -214,9 +214,13 @@ fn randomised_svd(
     for v in omega.iter_mut() {
         // Box-Muller pairs would be more correct but this linear congruential
         // approximation is sufficient for the sketch quality needed here.
-        state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
         let u1 = (state >> 33) as f64 / (u32::MAX as f64);
-        state = state.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
         let u2 = (state >> 33) as f64 / (u32::MAX as f64);
         // Box-Muller transform
         let r = (-2.0 * (u1 + f64::EPSILON).ln()).sqrt();
@@ -231,7 +235,7 @@ fn randomised_svd(
     for _ in 0..n_iter {
         // Y = A^T * Y
         let yt = a.t().dot(&y); // (cols, sketch_cols)
-        // Y = A * Y
+                                // Y = A * Y
         y = a.dot(&yt); // (rows, sketch_cols)
     }
 
@@ -252,10 +256,7 @@ fn randomised_svd(
 
 /// Thin, exact SVD using the Jacobi one-sided algorithm (compact, no external dep).
 /// Returns (U, s, Vt) truncated to `rank` singular values.
-fn thin_svd(
-    a: &Array2<f64>,
-    rank: usize,
-) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
+fn thin_svd(a: &Array2<f64>, rank: usize) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
     let (m, n) = a.dim();
     let k = rank.min(m).min(n);
 
@@ -390,8 +391,15 @@ fn orthonormalise_columns(a: &Array2<f64>) -> Result<Array2<f64>> {
 /// A Huffman tree node.
 #[derive(Debug)]
 enum HuffNode {
-    Leaf { symbol: i32, freq: usize },
-    Internal { freq: usize, left: Box<HuffNode>, right: Box<HuffNode> },
+    Leaf {
+        symbol: i32,
+        freq: usize,
+    },
+    Internal {
+        freq: usize,
+        left: Box<HuffNode>,
+        right: Box<HuffNode>,
+    },
 }
 
 impl HuffNode {
@@ -411,7 +419,12 @@ fn build_huffman_lengths(freq: &HashMap<i32, usize>) -> HashMap<i32, usize> {
     // Use a sorted Vec as a priority queue (min-heap by freq).
     let mut heap: Vec<Box<HuffNode>> = freq
         .iter()
-        .map(|(&sym, &f)| Box::new(HuffNode::Leaf { symbol: sym, freq: f }))
+        .map(|(&sym, &f)| {
+            Box::new(HuffNode::Leaf {
+                symbol: sym,
+                freq: f,
+            })
+        })
         .collect();
     heap.sort_by_key(|n| n.freq());
 
@@ -511,9 +524,7 @@ impl<F: Clone + Into<f64> + From<f64> + std::fmt::Debug> ModelCompressor<F> {
         match strategy {
             CompressionStrategy::Quantization(cfg) => self.apply_quantization(name, w, cfg),
             CompressionStrategy::Pruning(cfg) => self.apply_pruning(name, w, cfg),
-            CompressionStrategy::LowRankDecomposition(cfg) => {
-                self.apply_low_rank(name, w, cfg)
-            }
+            CompressionStrategy::LowRankDecomposition(cfg) => self.apply_low_rank(name, w, cfg),
             CompressionStrategy::HuffmanCoding(cfg) => self.apply_huffman(name, w, cfg),
             CompressionStrategy::KnowledgeDistillation(_cfg) => {
                 // Knowledge distillation does not modify individual weight tensors;
@@ -557,11 +568,12 @@ impl<F: Clone + Into<f64> + From<f64> + std::fmt::Debug> ModelCompressor<F> {
                 let mut out = Array2::<f64>::zeros((rows, cols));
                 for r in 0..rows {
                     let row = w.row(r);
-                    let abs_max = row
-                        .iter()
-                        .map(|x| x.abs())
-                        .fold(0.0_f64, f64::max);
-                    let channel_scale = if abs_max < 1e-12 { 1.0 } else { abs_max / scale };
+                    let abs_max = row.iter().map(|x| x.abs()).fold(0.0_f64, f64::max);
+                    let channel_scale = if abs_max < 1e-12 {
+                        1.0
+                    } else {
+                        abs_max / scale
+                    };
                     for c in 0..cols {
                         out[[r, c]] = (w[[r, c]] / channel_scale).round() * channel_scale;
                     }
@@ -569,7 +581,11 @@ impl<F: Clone + Into<f64> + From<f64> + std::fmt::Debug> ModelCompressor<F> {
                 out
             } else {
                 let abs_max = w.iter().map(|x| x.abs()).fold(0.0_f64, f64::max);
-                let s = if abs_max < 1e-12 { 1.0 } else { abs_max / scale };
+                let s = if abs_max < 1e-12 {
+                    1.0
+                } else {
+                    abs_max / scale
+                };
                 w.mapv(|x| (x / s).round() * s)
             }
         } else {
@@ -580,11 +596,12 @@ impl<F: Clone + Into<f64> + From<f64> + std::fmt::Debug> ModelCompressor<F> {
                 let mut out = Array2::<f64>::zeros((rows, cols));
                 for r in 0..rows {
                     let row = w.row(r);
-                    let abs_max = row
-                        .iter()
-                        .map(|x| x.abs())
-                        .fold(0.0_f64, f64::max);
-                    let scale = if abs_max < 1e-12 { 1.0 } else { abs_max / half_range };
+                    let abs_max = row.iter().map(|x| x.abs()).fold(0.0_f64, f64::max);
+                    let scale = if abs_max < 1e-12 {
+                        1.0
+                    } else {
+                        abs_max / half_range
+                    };
                     for c in 0..cols {
                         let q = (w[[r, c]] / scale).round().clamp(-half_range, half_range);
                         out[[r, c]] = q * scale;
@@ -651,8 +668,7 @@ impl<F: Clone + Into<f64> + From<f64> + std::fmt::Debug> ModelCompressor<F> {
             }
             PruningScope::StructuredRows => {
                 let (rows, cols) = pruned.dim();
-                let n_prune_rows =
-                    (rows as f64 * cfg.sparsity).round() as usize;
+                let n_prune_rows = (rows as f64 * cfg.sparsity).round() as usize;
                 // Rank rows by L2 norm ascending.
                 let mut row_norms: Vec<(f64, usize)> = (0..rows)
                     .map(|r| {
@@ -672,8 +688,7 @@ impl<F: Clone + Into<f64> + From<f64> + std::fmt::Debug> ModelCompressor<F> {
             }
             PruningScope::StructuredColumns => {
                 let (rows, cols) = pruned.dim();
-                let n_prune_cols =
-                    (cols as f64 * cfg.sparsity).round() as usize;
+                let n_prune_cols = (cols as f64 * cfg.sparsity).round() as usize;
                 let mut col_norms: Vec<(f64, usize)> = (0..cols)
                     .map(|c| {
                         let norm = pruned.column(c).iter().map(|x| x * x).sum::<f64>().sqrt();
@@ -926,13 +941,14 @@ mod tests {
     #[test]
     fn test_int8_quantization_idempotent_shape() {
         let weights = sample_weights(8, 16);
-        let compressor: ModelCompressor<f64> = ModelCompressor::new(vec![
-            CompressionStrategy::Quantization(QuantizationConfig {
-                precision: QuantizationPrecision::Int8,
-                quantize_activations: false,
-                per_channel: false,
-            }),
-        ]);
+        let compressor: ModelCompressor<f64> =
+            ModelCompressor::new(vec![CompressionStrategy::Quantization(
+                QuantizationConfig {
+                    precision: QuantizationPrecision::Int8,
+                    quantize_activations: false,
+                    per_channel: false,
+                },
+            )]);
         let (compressed, stats) = compressor
             .compress_weights("layer0", &weights)
             .expect("quantization must not fail");
@@ -945,13 +961,12 @@ mod tests {
     fn test_unstructured_pruning_sparsity() {
         let weights = sample_weights(10, 10);
         let sparsity = 0.5;
-        let compressor: ModelCompressor<f64> = ModelCompressor::new(vec![
-            CompressionStrategy::Pruning(PruningConfig {
+        let compressor: ModelCompressor<f64> =
+            ModelCompressor::new(vec![CompressionStrategy::Pruning(PruningConfig {
                 sparsity,
                 scope: PruningScope::Unstructured,
                 warmup_steps: 0,
-            }),
-        ]);
+            })]);
         let (compressed, _) = compressor
             .compress_weights("dense", &weights)
             .expect("pruning must not fail");
@@ -967,13 +982,12 @@ mod tests {
     #[test]
     fn test_structured_row_pruning() {
         let weights = sample_weights(8, 8);
-        let compressor: ModelCompressor<f64> = ModelCompressor::new(vec![
-            CompressionStrategy::Pruning(PruningConfig {
+        let compressor: ModelCompressor<f64> =
+            ModelCompressor::new(vec![CompressionStrategy::Pruning(PruningConfig {
                 sparsity: 0.25,
                 scope: PruningScope::StructuredRows,
                 warmup_steps: 0,
-            }),
-        ]);
+            })]);
         let (compressed, stats) = compressor
             .compress_weights("conv", &weights)
             .expect("structured pruning must not fail");
@@ -988,13 +1002,14 @@ mod tests {
     #[test]
     fn test_low_rank_reconstruction_shape() {
         let weights = sample_weights(12, 8);
-        let compressor: ModelCompressor<f64> = ModelCompressor::new(vec![
-            CompressionStrategy::LowRankDecomposition(LowRankConfig {
-                rank_fraction: 0.5,
-                fixed_rank: None,
-                randomised: false,
-            }),
-        ]);
+        let compressor: ModelCompressor<f64> =
+            ModelCompressor::new(vec![CompressionStrategy::LowRankDecomposition(
+                LowRankConfig {
+                    rank_fraction: 0.5,
+                    fixed_rank: None,
+                    randomised: false,
+                },
+            )]);
         let (compressed, stats) = compressor
             .compress_weights("embed", &weights)
             .expect("low-rank compression must not fail");
@@ -1006,9 +1021,10 @@ mod tests {
     #[test]
     fn test_huffman_coding_preserves_shape() {
         let weights = sample_weights(6, 6);
-        let compressor: ModelCompressor<f64> = ModelCompressor::new(vec![
-            CompressionStrategy::HuffmanCoding(HuffmanConfig { num_bins: 64 }),
-        ]);
+        let compressor: ModelCompressor<f64> =
+            ModelCompressor::new(vec![CompressionStrategy::HuffmanCoding(HuffmanConfig {
+                num_bins: 64,
+            })]);
         let (compressed, _) = compressor
             .compress_weights("layer", &weights)
             .expect("huffman compression must not fail");
@@ -1021,13 +1037,12 @@ mod tests {
         layers.insert("w1".to_string(), sample_weights(16, 8));
         layers.insert("w2".to_string(), sample_weights(8, 4));
 
-        let compressor: ModelCompressor<f64> = ModelCompressor::new(vec![
-            CompressionStrategy::Pruning(PruningConfig {
+        let compressor: ModelCompressor<f64> =
+            ModelCompressor::new(vec![CompressionStrategy::Pruning(PruningConfig {
                 sparsity: 0.5,
                 scope: PruningScope::Unstructured,
                 warmup_steps: 0,
-            }),
-        ]);
+            })]);
         let (compressed, result) = compressor
             .compress_model(&layers)
             .expect("batch compression must not fail");
@@ -1040,9 +1055,10 @@ mod tests {
     #[test]
     fn test_knowledge_distillation_passthrough() {
         let weights = sample_weights(4, 4);
-        let compressor: ModelCompressor<f64> = ModelCompressor::new(vec![
-            CompressionStrategy::KnowledgeDistillation(DistillationConfig::default()),
-        ]);
+        let compressor: ModelCompressor<f64> =
+            ModelCompressor::new(vec![CompressionStrategy::KnowledgeDistillation(
+                DistillationConfig::default(),
+            )]);
         let (compressed, stats) = compressor
             .compress_weights("layer", &weights)
             .expect("kd passthrough must not fail");
@@ -1078,13 +1094,12 @@ mod tests {
     #[test]
     fn test_invalid_sparsity_rejected() {
         let weights = sample_weights(4, 4);
-        let compressor: ModelCompressor<f64> = ModelCompressor::new(vec![
-            CompressionStrategy::Pruning(PruningConfig {
+        let compressor: ModelCompressor<f64> =
+            ModelCompressor::new(vec![CompressionStrategy::Pruning(PruningConfig {
                 sparsity: 1.5, // invalid
                 scope: PruningScope::Unstructured,
                 warmup_steps: 0,
-            }),
-        ]);
+            })]);
         let result = compressor.compress_weights("bad", &weights);
         assert!(result.is_err());
     }

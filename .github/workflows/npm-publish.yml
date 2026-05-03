@@ -92,6 +92,26 @@ jobs:
           echo "=== WASM size ==="
           ls -lh pkg-bundler/*.wasm
 
+      - name: Check WASM binary size budget
+        working-directory: scirs2-wasm
+        run: |
+          WASM_FILE="pkg-bundler/scirs2_wasm_bg.wasm"
+          if [ -f "${WASM_FILE}" ]; then
+            SIZE=$(wc -c < "${WASM_FILE}" | tr -d ' ')
+            LIMIT=2097152  # 2 MiB — matches WASM_BINARY_SIZE_LIMIT_BYTES
+            SIZE_KB=$(( SIZE / 1024 ))
+            LIMIT_KB=$(( LIMIT / 1024 ))
+            echo "WASM binary size: ${SIZE} bytes (${SIZE_KB} KiB), limit: ${LIMIT} bytes (${LIMIT_KB} KiB)"
+            if [ "${SIZE}" -gt "${LIMIT}" ]; then
+              OVER=$(( SIZE - LIMIT ))
+              echo "ERROR: WASM binary exceeds budget by ${OVER} bytes. Run 'wasm-opt -Oz' or audit deps."
+              exit 1
+            fi
+            echo "OK: WASM binary within budget."
+          else
+            echo "WARNING: WASM binary not found at ${WASM_FILE}, skipping size check."
+          fi
+
       - name: Upload bundler package
         uses: actions/upload-artifact@v4
         with:

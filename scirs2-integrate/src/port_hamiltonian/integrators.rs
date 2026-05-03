@@ -116,7 +116,11 @@ fn newton_solve(
         // Line search: simple backtracking
         let mut alpha = 1.0_f64;
         for _ in 0..10 {
-            let x_try: Vec<f64> = x.iter().zip(delta.iter()).map(|(xi, di)| xi + alpha * di).collect();
+            let x_try: Vec<f64> = x
+                .iter()
+                .zip(delta.iter())
+                .map(|(xi, di)| xi + alpha * di)
+                .collect();
             let fx_try = f(&x_try)?;
             let res_try: f64 = fx_try.iter().map(|v| v * v).sum::<f64>().sqrt();
             if res_try < res_norm {
@@ -125,7 +129,11 @@ fn newton_solve(
             alpha *= 0.5;
         }
 
-        x = x.iter().zip(delta.iter()).map(|(xi, di)| xi + alpha * di).collect();
+        x = x
+            .iter()
+            .zip(delta.iter())
+            .map(|(xi, di)| xi + alpha * di)
+            .collect();
     }
 
     Err(IntegrateError::ConvergenceError(format!(
@@ -196,7 +204,7 @@ fn gauss_legendre_01(n: usize) -> IntegrateResult<(Vec<f64>, Vec<f64>)> {
             vec![-0.774_596_669_241_483_4, 0.0, 0.774_596_669_241_483_4],
             vec![
                 0.555_555_555_555_555_6,
-                0.888_888_888_888_888_9,
+                0.888_888_888_888_889,
                 0.555_555_555_555_555_6,
             ],
         ),
@@ -397,11 +405,18 @@ impl DiscreteGradientGonzalez {
         // Initial guess: explicit Euler
         let x_init: Vec<f64> = {
             let rhs = system.rhs(x, u)?;
-            x.iter().zip(rhs.iter()).map(|(xi, fi)| xi + dt * fi).collect()
+            x.iter()
+                .zip(rhs.iter())
+                .map(|(xi, fi)| xi + dt * fi)
+                .collect()
         };
 
-        let (x_new, n_iters) =
-            newton_solve(&residual, &x_init, self.options.newton_tol, self.options.max_newton_iters)?;
+        let (x_new, n_iters) = newton_solve(
+            &residual,
+            &x_init,
+            self.options.newton_tol,
+            self.options.max_newton_iters,
+        )?;
 
         let energy = system.hamiltonian(&x_new)?;
         Ok(StepResult {
@@ -501,10 +516,8 @@ impl DiscreteGradientItohAbe {
                     // x^{n, k}: use x_new for indices < k, x_old for indices >= k
                     let mut x_lo: Vec<f64> = x_old.to_vec();
                     let mut x_hi: Vec<f64> = x_old.to_vec();
-                    for i in 0..k {
-                        x_lo[i] = x_new[i];
-                        x_hi[i] = x_new[i];
-                    }
+                    x_lo[..k].copy_from_slice(&x_new[..k]);
+                    x_hi[..k].copy_from_slice(&x_new[..k]);
                     x_hi[k] = x_new[k];
                     let h_lo = system.hamiltonian(&x_lo)?;
                     let h_hi = system.hamiltonian(&x_hi)?;
@@ -537,11 +550,18 @@ impl DiscreteGradientItohAbe {
 
         let x_init: Vec<f64> = {
             let rhs = system.rhs(x, u)?;
-            x.iter().zip(rhs.iter()).map(|(xi, fi)| xi + dt * fi).collect()
+            x.iter()
+                .zip(rhs.iter())
+                .map(|(xi, fi)| xi + dt * fi)
+                .collect()
         };
 
-        let (x_new, n_iters) =
-            newton_solve(&residual, &x_init, self.options.newton_tol, self.options.max_newton_iters)?;
+        let (x_new, n_iters) = newton_solve(
+            &residual,
+            &x_init,
+            self.options.newton_tol,
+            self.options.max_newton_iters,
+        )?;
 
         let energy = system.hamiltonian(&x_new)?;
         Ok(StepResult {
@@ -657,11 +677,18 @@ impl AverageVectorField {
         // Initial guess: explicit Euler
         let x_init: Vec<f64> = {
             let rhs = system.rhs(x, u)?;
-            x.iter().zip(rhs.iter()).map(|(xi, fi)| xi + dt * fi).collect()
+            x.iter()
+                .zip(rhs.iter())
+                .map(|(xi, fi)| xi + dt * fi)
+                .collect()
         };
 
-        let (x_new, n_iters) =
-            newton_solve(&residual, &x_init, self.options.newton_tol, self.options.max_newton_iters)?;
+        let (x_new, n_iters) = newton_solve(
+            &residual,
+            &x_init,
+            self.options.newton_tol,
+            self.options.max_newton_iters,
+        )?;
 
         let energy = system.hamiltonian(&x_new)?;
         Ok(StepResult {
@@ -758,11 +785,18 @@ impl ImplicitMidpoint {
 
         let x_init: Vec<f64> = {
             let rhs = system.rhs(x, u)?;
-            x.iter().zip(rhs.iter()).map(|(xi, fi)| xi + dt * fi).collect()
+            x.iter()
+                .zip(rhs.iter())
+                .map(|(xi, fi)| xi + dt * fi)
+                .collect()
         };
 
-        let (x_new, n_iters) =
-            newton_solve(&residual, &x_init, self.options.newton_tol, self.options.max_newton_iters)?;
+        let (x_new, n_iters) = newton_solve(
+            &residual,
+            &x_init,
+            self.options.newton_tol,
+            self.options.max_newton_iters,
+        )?;
 
         let energy = system.hamiltonian(&x_new)?;
         Ok(StepResult {
@@ -877,7 +911,8 @@ impl StormerVerletPH {
         for i in 0..n {
             // -∂H/∂q_i is grad_h[i] (from J), dissipation from R uses ∇_p H = grad_h[n+i]
             let r_pp_grad_p: f64 = (0..n).map(|j| r[[n + i, n + j]] * grad_h[n + j]).sum();
-            p_half[i] = p[i] - (dt / 2.0) * grad_h[i] - (dt / 2.0) * r_pp_grad_p + (dt / 2.0) * bu[n + i];
+            p_half[i] =
+                p[i] - (dt / 2.0) * grad_h[i] - (dt / 2.0) * r_pp_grad_p + (dt / 2.0) * bu[n + i];
         }
 
         // Step 2: Full-step position update q^{n+1}
@@ -894,7 +929,9 @@ impl StormerVerletPH {
 
         let mut q_new = vec![0.0_f64; n];
         for i in 0..n {
-            let r_qp_grad_p: f64 = (0..n).map(|j| r_half[[i, n + j]] * grad_h_half[n + j]).sum();
+            let r_qp_grad_p: f64 = (0..n)
+                .map(|j| r_half[[i, n + j]] * grad_h_half[n + j])
+                .sum();
             q_new[i] = q[i] + dt * grad_h_half[n + i] - dt * r_qp_grad_p + dt * bu_half[i];
         }
 
@@ -910,8 +947,11 @@ impl StormerVerletPH {
 
         let mut p_new = vec![0.0_f64; n];
         for i in 0..n {
-            let r_pp_grad_p: f64 = (0..n).map(|j| r_new[[n + i, n + j]] * grad_h_new[n + j]).sum();
-            p_new[i] = p_half[i] - (dt / 2.0) * grad_h_new[i] - (dt / 2.0) * r_pp_grad_p + (dt / 2.0) * bu_new[n + i];
+            let r_pp_grad_p: f64 = (0..n)
+                .map(|j| r_new[[n + i, n + j]] * grad_h_new[n + j])
+                .sum();
+            p_new[i] = p_half[i] - (dt / 2.0) * grad_h_new[i] - (dt / 2.0) * r_pp_grad_p
+                + (dt / 2.0) * bu_new[n + i];
         }
 
         let mut x_new = vec![0.0_f64; 2 * n];
@@ -1053,7 +1093,8 @@ impl Rattle {
         let mut p_half_base = vec![0.0_f64; n];
         for i in 0..n {
             let r_pp_grad: f64 = (0..n).map(|j| r[[n + i, n + j]] * grad_h[n + j]).sum();
-            p_half_base[i] = p[i] - (dt / 2.0) * grad_h[i] - (dt / 2.0) * r_pp_grad + (dt / 2.0) * bu[n + i];
+            p_half_base[i] =
+                p[i] - (dt / 2.0) * grad_h[i] - (dt / 2.0) * r_pp_grad + (dt / 2.0) * bu[n + i];
         }
 
         // Position after unconstrained step
@@ -1062,9 +1103,7 @@ impl Rattle {
         x_half[n..].copy_from_slice(&p_half_base);
         let grad_h_half = system.grad_hamiltonian(&x_half)?;
 
-        let q_pred: Vec<f64> = (0..n)
-            .map(|i| q[i] + dt * grad_h_half[n + i])
-            .collect();
+        let q_pred: Vec<f64> = (0..n).map(|i| q[i] + dt * grad_h_half[n + i]).collect();
 
         // Iteratively solve for Lagrange multipliers λ using Newton
         let jac_q = (self.constraint_jac)(&q)?;
@@ -1145,8 +1184,11 @@ impl Rattle {
 
         let mut p_new_base = vec![0.0_f64; n];
         for i in 0..n {
-            let r_pp_grad: f64 = (0..n).map(|j| r_new[[n + i, n + j]] * grad_h_new[n + j]).sum();
-            p_new_base[i] = p_half[i] - (dt / 2.0) * grad_h_new[i] - (dt / 2.0) * r_pp_grad + (dt / 2.0) * bu_new[n + i];
+            let r_pp_grad: f64 = (0..n)
+                .map(|j| r_new[[n + i, n + j]] * grad_h_new[n + j])
+                .sum();
+            p_new_base[i] = p_half[i] - (dt / 2.0) * grad_h_new[i] - (dt / 2.0) * r_pp_grad
+                + (dt / 2.0) * bu_new[n + i];
         }
 
         // Solve for μ: (∂g/∂q_new)^T * ∇_p H(p_new) = 0
@@ -1250,32 +1292,68 @@ trait SingleStepIntegrator {
 }
 
 impl SingleStepIntegrator for DiscreteGradientGonzalez {
-    fn step_impl(&self, s: &PortHamiltonianSystem, x: &[f64], u: &[f64], dt: f64) -> IntegrateResult<StepResult> {
+    fn step_impl(
+        &self,
+        s: &PortHamiltonianSystem,
+        x: &[f64],
+        u: &[f64],
+        dt: f64,
+    ) -> IntegrateResult<StepResult> {
         self.step(s, x, u, dt)
     }
 }
 impl SingleStepIntegrator for DiscreteGradientItohAbe {
-    fn step_impl(&self, s: &PortHamiltonianSystem, x: &[f64], u: &[f64], dt: f64) -> IntegrateResult<StepResult> {
+    fn step_impl(
+        &self,
+        s: &PortHamiltonianSystem,
+        x: &[f64],
+        u: &[f64],
+        dt: f64,
+    ) -> IntegrateResult<StepResult> {
         self.step(s, x, u, dt)
     }
 }
 impl SingleStepIntegrator for AverageVectorField {
-    fn step_impl(&self, s: &PortHamiltonianSystem, x: &[f64], u: &[f64], dt: f64) -> IntegrateResult<StepResult> {
+    fn step_impl(
+        &self,
+        s: &PortHamiltonianSystem,
+        x: &[f64],
+        u: &[f64],
+        dt: f64,
+    ) -> IntegrateResult<StepResult> {
         self.step(s, x, u, dt)
     }
 }
 impl SingleStepIntegrator for ImplicitMidpoint {
-    fn step_impl(&self, s: &PortHamiltonianSystem, x: &[f64], u: &[f64], dt: f64) -> IntegrateResult<StepResult> {
+    fn step_impl(
+        &self,
+        s: &PortHamiltonianSystem,
+        x: &[f64],
+        u: &[f64],
+        dt: f64,
+    ) -> IntegrateResult<StepResult> {
         self.step(s, x, u, dt)
     }
 }
 impl SingleStepIntegrator for StormerVerletPH {
-    fn step_impl(&self, s: &PortHamiltonianSystem, x: &[f64], u: &[f64], dt: f64) -> IntegrateResult<StepResult> {
+    fn step_impl(
+        &self,
+        s: &PortHamiltonianSystem,
+        x: &[f64],
+        u: &[f64],
+        dt: f64,
+    ) -> IntegrateResult<StepResult> {
         self.step(s, x, u, dt)
     }
 }
 impl SingleStepIntegrator for Rattle {
-    fn step_impl(&self, s: &PortHamiltonianSystem, x: &[f64], u: &[f64], dt: f64) -> IntegrateResult<StepResult> {
+    fn step_impl(
+        &self,
+        s: &PortHamiltonianSystem,
+        x: &[f64],
+        u: &[f64],
+        dt: f64,
+    ) -> IntegrateResult<StepResult> {
         self.step(s, x, u, dt)
     }
 }
@@ -1377,10 +1455,7 @@ mod tests {
 
     #[test]
     fn test_gauss_solve() {
-        let a = vec![
-            vec![2.0_f64, 1.0],
-            vec![1.0, 3.0],
-        ];
+        let a = vec![vec![2.0_f64, 1.0], vec![1.0, 3.0]];
         let b = vec![5.0_f64, 10.0];
         let x = gauss_solve(&a, &b).expect("Solve failed");
         assert!((x[0] - 1.0).abs() < 1e-12);

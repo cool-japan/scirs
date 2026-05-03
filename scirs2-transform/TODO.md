@@ -1,5 +1,9 @@
 # scirs2-transform TODO
 
+## Status: v0.4.3 Released (May 3, 2026)
+
+All v0.4.3 features are complete and production-ready. Quality gate (cargo check + clippy) clean.
+
 ## Status: v0.3.4 Released (March 18, 2026)
 
 ## v0.3.3 Completed

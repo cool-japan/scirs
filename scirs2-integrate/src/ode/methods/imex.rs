@@ -194,10 +194,10 @@ fn gaussian_elimination<F: IntegrateFloat>(
             let factor = a[[row, col]] / pivot;
             for j in col..n {
                 let update = factor * a[[col, j]];
-                a[[row, j]] = a[[row, j]] - update;
+                a[[row, j]] -= update;
             }
             let bupdate = factor * b[col];
-            b[row] = b[row] - bupdate;
+            b[row] -= bupdate;
         }
     }
 
@@ -207,7 +207,7 @@ fn gaussian_elimination<F: IntegrateFloat>(
         let mut sum = b[i];
         for j in (i + 1)..n {
             let ax = a[[i, j]] * x[j];
-            sum = sum - ax;
+            sum -= ax;
         }
         x[i] = sum / a[[i, i]];
     }
@@ -233,7 +233,7 @@ fn solve_imex_linear<F: IntegrateFloat>(
                 alpha - dt * jac[[i, j]]
             } else {
                 F::zero() - dt * jac[[i, j]]
-        };
+            };
         }
     }
     let mut rhs_copy = rhs.clone();
@@ -290,7 +290,7 @@ where
 
         // Update
         for i in 0..n {
-            y[i] = y[i] + delta[i];
+            y[i] += delta[i];
         }
     }
 
@@ -473,7 +473,7 @@ where
         let mut u = y_n.clone();
         // Add explicit term to predictor
         for i in 0..n {
-            u[i] = u[i] + expl_term[i];
+            u[i] += expl_term[i];
         }
 
         let mut n_iters_step = 0usize;
@@ -519,7 +519,7 @@ where
             let delta = gaussian_elimination(&mut mat, &mut rhs_copy)?;
 
             for i in 0..n {
-                u[i] = u[i] + delta[i];
+                u[i] += delta[i];
             }
         }
 
@@ -529,7 +529,7 @@ where
 
         total_newton += n_iters_step;
         y = u.clone();
-        t = t + step;
+        t += step;
         ts.push(t);
         ys.push(u);
         n_steps += 1;
@@ -595,11 +595,8 @@ where
         y_star[i] = y0[i] + dt * f_e0[i];
     }
     let zero_expl = Array1::<F>::zeros(n);
-    let (y1, newton0) =
-        newton_solve_implicit(sys, t0 + dt, &y_star, &zero_expl, dt, cfg)
-            .unwrap_or_else(|_| {
-                (y_star.clone(), cfg.max_iter_newton)
-            });
+    let (y1, newton0) = newton_solve_implicit(sys, t0 + dt, &y_star, &zero_expl, dt, cfg)
+        .unwrap_or_else(|_| (y_star.clone(), cfg.max_iter_newton));
 
     let t1 = t0 + dt;
 
@@ -636,9 +633,7 @@ where
         // rhs_const = 2*y_n - (1/2)*y_{n-1} + expl_rhs
         let mut rhs_const = Array1::<F>::zeros(n);
         for i in 0..n {
-            rhs_const[i] = to_f::<F>(2.0) * y_curr[i]
-                - to_f::<F>(0.5) * y_prev[i]
-                + expl_rhs[i];
+            rhs_const[i] = to_f::<F>(2.0) * y_curr[i] - to_f::<F>(0.5) * y_prev[i] + expl_rhs[i];
         }
 
         // BDF2 equation: (3/2)*y_{n+1} - step*f_I(t_{n+1}, y_{n+1}) = rhs_const
@@ -667,7 +662,7 @@ where
             let delta = solve_imex_linear(&jac, &neg_res, three_half, step)?;
 
             for i in 0..n {
-                u[i] = u[i] + delta[i];
+                u[i] += delta[i];
             }
 
             if _iter + 1 == cfg.max_iter_newton {
@@ -797,7 +792,7 @@ where
             let neg_res: Array1<F> = res.mapv(|r| F::zero() - r);
             let delta = solve_imex_linear(&jac, &neg_res, F::one(), step * gamma)?;
             for i in 0..n {
-                y1_i[i] = y1_i[i] + delta[i];
+                y1_i[i] += delta[i];
             }
             if _it + 1 == cfg.max_iter_newton {
                 n_iter1 = cfg.max_iter_newton;
@@ -833,10 +828,7 @@ where
             let f_i2 = sys.implicit_part(t_stage2, y2_i.view());
             let mut res = Array1::<F>::zeros(n);
             for i in 0..n {
-                res[i] = y2_i[i]
-                    - step * one_minus_gamma * k1_i[i]
-                    - step * gamma * f_i2[i]
-                    - y[i];
+                res[i] = y2_i[i] - step * one_minus_gamma * k1_i[i] - step * gamma * f_i2[i] - y[i];
             }
             let res_norm = res.iter().fold(F::zero(), |acc, &r| acc + r * r).sqrt();
             if res_norm < cfg.newton_tol {
@@ -847,7 +839,7 @@ where
             let neg_res: Array1<F> = res.mapv(|r| F::zero() - r);
             let delta = solve_imex_linear(&jac, &neg_res, F::one(), step * gamma)?;
             for i in 0..n {
-                y2_i[i] = y2_i[i] + delta[i];
+                y2_i[i] += delta[i];
             }
             if _it + 1 == cfg.max_iter_newton {
                 n_iter2 = cfg.max_iter_newton;
@@ -868,7 +860,7 @@ where
         }
 
         y = y_new.clone();
-        t = t + step;
+        t += step;
         ts.push(t);
         ys.push(y_new);
         n_steps += 1;
@@ -960,9 +952,8 @@ where
         let k1_e = sys.explicit_part(t, y.view());
 
         // Implicit stage 1: Y1 = y + step*γ*f_I(t_i1, Y1)
-        let (y1_i, ni1) = solve_sdirk_stage(
-            sys, t_i1, &y, &Array1::<F>::zeros(n), gamma, step, cfg
-        )?;
+        let (y1_i, ni1) =
+            solve_sdirk_stage(sys, t_i1, &y, &Array1::<F>::zeros(n), gamma, step, cfg)?;
         total_newton += ni1;
         let k1_i = sys.implicit_part(t_i1, y1_i.view());
 
@@ -980,9 +971,7 @@ where
         for i in 0..n {
             acc2[i] = step * one_minus_two_gamma * k1_i[i];
         }
-        let (y2_i, ni2) = solve_sdirk_stage(
-            sys, t_i2, &y, &acc2, gamma, step, cfg
-        )?;
+        let (y2_i, ni2) = solve_sdirk_stage(sys, t_i2, &y, &acc2, gamma, step, cfg)?;
         total_newton += ni2;
         let k2_i = sys.implicit_part(t_i2, y2_i.view());
 
@@ -1000,9 +989,7 @@ where
         for i in 0..n {
             acc3[i] = step * half_minus_gamma * k1_i[i];
         }
-        let (y3_i, ni3) = solve_sdirk_stage(
-            sys, t_i3, &y, &acc3, gamma, step, cfg
-        )?;
+        let (y3_i, ni3) = solve_sdirk_stage(sys, t_i3, &y, &acc3, gamma, step, cfg)?;
         total_newton += ni3;
         let k3_i = sys.implicit_part(t_i3, y3_i.view());
 
@@ -1018,7 +1005,7 @@ where
         }
 
         y = y_new.clone();
-        t = t + step;
+        t += step;
         ts.push(t);
         ys.push(y_new);
         n_steps += 1;
@@ -1081,7 +1068,7 @@ where
         let neg_res: Array1<F> = res.mapv(|r| F::zero() - r);
         let delta = solve_imex_linear(&jac, &neg_res, F::one(), alpha)?;
         for i in 0..n {
-            y[i] = y[i] + delta[i];
+            y[i] += delta[i];
         }
         if _it + 1 == cfg.max_iter_newton {
             n_iters = cfg.max_iter_newton;
@@ -1097,12 +1084,7 @@ where
 
 /// Estimate the ratio of stiffness by comparing spectral radii of J_I and J_E
 /// via the Gershgorin circle theorem (cheap upper bound).
-fn estimate_stiffness_ratio<F, Sys>(
-    sys: &Sys,
-    t: F,
-    y: &Array1<F>,
-    _dt: F,
-) -> IntegrateResult<F>
+fn estimate_stiffness_ratio<F, Sys>(sys: &Sys, t: F, y: &Array1<F>, _dt: F) -> IntegrateResult<F>
 where
     F: IntegrateFloat,
     Sys: SplitFunction<F>,
@@ -1129,7 +1111,7 @@ where
     let mut rho_e = F::zero();
     for col in 0..n {
         let mut y_pert = y.clone();
-        y_pert[col] = y_pert[col] + eps;
+        y_pert[col] += eps;
         let f_pert = sys.explicit_part(t, y_pert.view());
         let col_norm = (0..n)
             .fold(F::zero(), |s, row| {

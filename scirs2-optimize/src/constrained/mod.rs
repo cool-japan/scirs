@@ -52,10 +52,17 @@ use std::fmt;
 // Re-export optimization methods
 pub mod augmented_lagrangian;
 pub mod cobyla;
+pub mod enhanced_sqp;
+pub mod epsilon_constraint;
+pub mod feasibility_rules;
 pub mod interior_point;
+pub mod lp_qp_interior;
+pub mod penalty;
 pub mod slsqp;
 pub mod sqp;
+pub mod sqp_advanced;
 pub mod trust_constr;
+pub mod trust_constr_advanced;
 
 // Re-export main functions
 pub use augmented_lagrangian::{
@@ -313,11 +320,107 @@ where
             }
         }
         Method::AugmentedLagrangian => {
-            // Convert to augmented Lagrangian method format (simplified for now)
-            Err(crate::error::OptimizeError::NotImplementedError(
-                "Augmented Lagrangian method integration with minimize_constrained not yet implemented"
-                    .to_string(),
-            ))
+            use scirs2_core::ndarray::{Array1, ArrayView1};
+            use std::sync::Arc;
+
+            let x0_arr = Array1::from_vec(x0.to_vec());
+
+            // Partition constraints into equality and inequality groups
+            let eq_fns: Arc<Vec<ConstraintFn>> = Arc::new(
+                constraints
+                    .iter()
+                    .filter(|c| c.kind == ConstraintKind::Equality)
+                    .map(|c| c.fun)
+                    .collect(),
+            );
+
+            let ineq_fns: Arc<Vec<ConstraintFn>> = Arc::new(
+                constraints
+                    .iter()
+                    .filter(|c| c.kind == ConstraintKind::Inequality)
+                    .map(|c| c.fun)
+                    .collect(),
+            );
+
+            // Wrap the objective to accept an ArrayView
+            let func_clone = func.clone();
+            let al_fun = move |x: &ArrayView1<f64>| func_clone(x.as_slice().unwrap_or(&[]));
+
+            // Build combined equality constraint closure (Clone via Arc)
+            let al_options = AugmentedLagrangianOptions {
+                max_iter: options.maxiter.unwrap_or(100),
+                constraint_tol: options.ctol.unwrap_or(1e-8),
+                optimality_tol: options.gtol.unwrap_or(1e-8),
+                ..Default::default()
+            };
+
+            // Helper: emit a slice-backed value for a contiguous ArrayView1
+            #[inline]
+            fn view_to_slice(x: &ArrayView1<f64>) -> Vec<f64> {
+                x.iter().copied().collect()
+            }
+
+            let result = if !eq_fns.is_empty() && !ineq_fns.is_empty() {
+                let eq_arc = Arc::clone(&eq_fns);
+                let eq_closure = move |x: &ArrayView1<f64>| {
+                    let xs = view_to_slice(x);
+                    Array1::from_vec(eq_arc.iter().map(|f| f(&xs)).collect())
+                };
+                let ineq_arc = Arc::clone(&ineq_fns);
+                let ineq_closure = move |x: &ArrayView1<f64>| {
+                    let xs = view_to_slice(x);
+                    Array1::from_vec(ineq_arc.iter().map(|f| f(&xs)).collect())
+                };
+                minimize_augmented_lagrangian(
+                    al_fun,
+                    x0_arr,
+                    Some(eq_closure),
+                    Some(ineq_closure),
+                    Some(al_options),
+                )?
+            } else if !eq_fns.is_empty() {
+                let eq_arc = Arc::clone(&eq_fns);
+                let eq_closure = move |x: &ArrayView1<f64>| {
+                    let xs = view_to_slice(x);
+                    Array1::from_vec(eq_arc.iter().map(|f| f(&xs)).collect())
+                };
+                minimize_augmented_lagrangian(
+                    al_fun,
+                    x0_arr,
+                    Some(eq_closure),
+                    None::<fn(&ArrayView1<f64>) -> Array1<f64>>,
+                    Some(al_options),
+                )?
+            } else {
+                let ineq_arc = Arc::clone(&ineq_fns);
+                let ineq_closure = move |x: &ArrayView1<f64>| {
+                    let xs = view_to_slice(x);
+                    Array1::from_vec(ineq_arc.iter().map(|f| f(&xs)).collect())
+                };
+                minimize_augmented_lagrangian(
+                    al_fun,
+                    x0_arr,
+                    None::<fn(&ArrayView1<f64>) -> Array1<f64>>,
+                    Some(ineq_closure),
+                    Some(al_options),
+                )?
+            };
+
+            Ok(OptimizeResults::<f64> {
+                x: result.x,
+                fun: result.fun,
+                nit: result.nit,
+                nfev: result.nfev,
+                success: result.success,
+                message: result.message,
+                jac: None,
+                hess: None,
+                constr: None,
+                njev: 0,
+                nhev: 0,
+                maxcv: 0,
+                status: if result.success { 0 } else { 1 },
+            })
         }
         Method::SQP => sqp::minimize_sqp_compat(func, x0, constraints, &options),
     }

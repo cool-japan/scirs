@@ -18,14 +18,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Floating-point trait alias for advanced matrix functions.
-pub trait AdvFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<T> AdvFloat for T where
-    T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait AdvFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<T> AdvFloat for T where T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -34,7 +28,7 @@ impl<T> AdvFloat for T where
 fn frobenius_norm<F: AdvFloat>(m: &Array2<F>) -> F {
     let mut acc = F::zero();
     for &v in m.iter() {
-        acc = acc + v * v;
+        acc += v * v;
     }
     acc.sqrt()
 }
@@ -54,7 +48,7 @@ fn matmul<F: AdvFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<F>> 
         for l in 0..k {
             let aik = a[[i, l]];
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + aik * b[[l, j]];
+                c[[i, j]] += aik * b[[l, j]];
             }
         }
     }
@@ -265,12 +259,9 @@ pub fn matrix_sector<F: AdvFloat>(
 
     if symmetric {
         // Use real eigendecomposition for symmetric matrices
-        let (eigenvalues, eigenvectors) =
-            crate::eigen::eigh(a, None).map_err(|e| {
-                LinalgError::ComputationError(format!(
-                    "matrix_sector eigendecomposition failed: {e}"
-                ))
-            })?;
+        let (eigenvalues, eigenvectors) = crate::eigen::eigh(a, None).map_err(|e| {
+            LinalgError::ComputationError(format!("matrix_sector eigendecomposition failed: {e}"))
+        })?;
 
         let n_eig = eigenvalues.len();
         let mut sector_diag = Array2::<F>::zeros((n_eig, n_eig));
@@ -293,7 +284,11 @@ pub fn matrix_sector<F: AdvFloat>(
                 )));
             }
             let abs_lam = lam.abs();
-            let sign = if lam >= F::zero() { F::one() } else { -F::one() };
+            let sign = if lam >= F::zero() {
+                F::one()
+            } else {
+                -F::one()
+            };
             let root = abs_lam.powf(F::one() / F::from(m).expect("convert"));
             // Sector direction: sign * root (magnitude = root, same direction)
             // Normalized sector: sign(lam)
@@ -412,7 +407,10 @@ pub fn matrix_geometric_mean<F: AdvFloat>(
     if b.nrows() != m || b.ncols() != n {
         return Err(LinalgError::ShapeError(format!(
             "matrix_geometric_mean: A and B must have the same shape; A: {}x{}, B: {}x{}",
-            m, n, b.nrows(), b.ncols()
+            m,
+            n,
+            b.nrows(),
+            b.ncols()
         )));
     }
     if n == 0 {
@@ -473,10 +471,7 @@ pub fn matrix_geometric_mean<F: AdvFloat>(
 /// let d = bregman_divergence(&a.view(), &b.view()).expect("divergence");
 /// assert!((d).abs() < 1e-10); // D(A, A) = 0
 /// ```
-pub fn bregman_divergence<F: AdvFloat>(
-    a: &ArrayView2<F>,
-    b: &ArrayView2<F>,
-) -> LinalgResult<F> {
+pub fn bregman_divergence<F: AdvFloat>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> LinalgResult<F> {
     let (m, n) = (a.nrows(), a.ncols());
     if m != n {
         return Err(LinalgError::ShapeError(
@@ -498,7 +493,7 @@ pub fn bregman_divergence<F: AdvFloat>(
     // tr(A B^{-1})
     let mut trace_val = F::zero();
     for i in 0..n {
-        trace_val = trace_val + ab_inv[[i, i]];
+        trace_val += ab_inv[[i, i]];
     }
 
     // log det(A B^{-1}) = log det(A) - log det(B)
@@ -513,7 +508,7 @@ pub fn bregman_divergence<F: AdvFloat>(
                 "bregman_divergence: matrix A is not positive definite".to_string(),
             ));
         }
-        log_det_a = log_det_a + e.ln();
+        log_det_a += e.ln();
     }
 
     let mut log_det_b = F::zero();
@@ -523,7 +518,7 @@ pub fn bregman_divergence<F: AdvFloat>(
                 "bregman_divergence: matrix B is not positive definite".to_string(),
             ));
         }
-        log_det_b = log_det_b + e.ln();
+        log_det_b += e.ln();
     }
 
     let log_det_ratio = log_det_a - log_det_b;
@@ -595,12 +590,11 @@ pub fn matrix_pth_root<F: AdvFloat>(a: &ArrayView2<F>, p: u32) -> LinalgResult<A
 
     if symmetric {
         // SPD path: use eigendecomposition
-        let (eigenvalues, eigenvectors) =
-            crate::eigen::eigh(a, None).map_err(|e| {
-                LinalgError::ComputationError(format!(
-                    "matrix_pth_root: eigendecomposition failed: {e}"
-                ))
-            })?;
+        let (eigenvalues, eigenvectors) = crate::eigen::eigh(a, None).map_err(|e| {
+            LinalgError::ComputationError(format!(
+                "matrix_pth_root: eigendecomposition failed: {e}"
+            ))
+        })?;
 
         let n_eig = eigenvalues.len();
         let mut root_diag = Array2::<F>::zeros((n_eig, n_eig));
@@ -613,7 +607,11 @@ pub fn matrix_pth_root<F: AdvFloat>(a: &ArrayView2<F>, p: u32) -> LinalgResult<A
                     p
                 )));
             }
-            let sign = if lam >= F::zero() { F::one() } else { -F::one() };
+            let sign = if lam >= F::zero() {
+                F::one()
+            } else {
+                -F::one()
+            };
             root_diag[[i, i]] = sign * lam.abs().powf(F::one() / p_f);
         }
 
@@ -625,8 +623,15 @@ pub fn matrix_pth_root<F: AdvFloat>(a: &ArrayView2<F>, p: u32) -> LinalgResult<A
     // Better start: X_0 = A scaled to shrink the spectral radius.
 
     // Find approximate starting point: scale A so largest element ~ 1
-    let max_elem = a.iter().fold(F::zero(), |acc, &x| if x.abs() > acc { x.abs() } else { acc });
-    let scale = if max_elem > F::epsilon() { max_elem } else { F::one() };
+    let max_elem = a.iter().fold(
+        F::zero(),
+        |acc, &x| if x.abs() > acc { x.abs() } else { acc },
+    );
+    let scale = if max_elem > F::epsilon() {
+        max_elem
+    } else {
+        F::one()
+    };
     let a_scaled = a.mapv(|x| x / scale);
     let scale_root = scale.powf(F::one() / p_f);
 

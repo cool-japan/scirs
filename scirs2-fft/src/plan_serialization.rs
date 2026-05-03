@@ -4,8 +4,6 @@
 //! allowing for plan reuse across program executions. This can significantly improve
 //! performance for repeated FFT operations with the same parameters.
 
-#[cfg(feature = "rustfft-backend")]
-use rustfft::FftPlanner;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -328,49 +326,37 @@ fn system_time_as_millis() -> u64 {
         .as_millis() as u64
 }
 
-/// Create a plan with timing measurement (RustFFT backend)
-#[cfg(feature = "rustfft-backend")]
-#[allow(dead_code)]
-pub fn create_and_time_plan(size: usize, forward: bool) -> (Arc<dyn rustfft::Fft<f64>>, u64) {
-    let start = Instant::now();
-    let mut planner = FftPlanner::new();
-    let plan = if forward {
-        planner.plan_fft_forward(size)
-    } else {
-        planner.plan_fft_inverse(size)
-    };
-    let elapsed_ns = start.elapsed().as_nanos() as u64;
-
-    (plan, elapsed_ns)
-}
-
 /// Create a plan with timing measurement (OxiFFT backend)
 ///
-/// Note: OxiFFT uses a different plan management system via plan cache,
-/// so this function returns only the timing information.
-/// For actual FFT execution with OxiFFT, use the oxifft_backend module.
-#[cfg(all(feature = "oxifft", not(feature = "rustfft-backend")))]
+/// Executes a warm-up FFT to trigger plan creation/caching in OxiFFT,
+/// and returns the time taken in nanoseconds.
 #[allow(dead_code)]
-pub fn create_and_time_plan_timing_only(size: usize, forward: bool) -> u64 {
-    use crate::oxifft_plan_cache;
-    use oxifft::{Complex as OxiComplex, Direction};
+pub fn create_and_time_plan(size: usize, forward: bool) -> u64 {
+    #[cfg(feature = "oxifft")]
+    {
+        use crate::oxifft_plan_cache;
+        use oxifft::{Complex as OxiComplex, Direction};
 
-    let start = Instant::now();
+        let start = Instant::now();
 
-    // Create a dummy buffer for plan creation
-    let mut input = vec![OxiComplex::zero(); size];
-    let mut output = vec![OxiComplex::zero(); size];
+        let input = vec![OxiComplex::new(0.0, 0.0); size];
+        let mut output = vec![OxiComplex::new(0.0, 0.0); size];
 
-    // Execute to trigger plan creation and measure time
-    let direction = if forward {
-        Direction::Forward
-    } else {
-        Direction::Backward
-    };
-    let _ = oxifft_plan_cache::execute_c2c(&input, &mut output, direction);
+        let direction = if forward {
+            Direction::Forward
+        } else {
+            Direction::Backward
+        };
+        let _ = oxifft_plan_cache::execute_c2c(&input, &mut output, direction);
 
-    let elapsed_ns = start.elapsed().as_nanos() as u64;
-    elapsed_ns
+        start.elapsed().as_nanos() as u64
+    }
+
+    #[cfg(not(feature = "oxifft"))]
+    {
+        let _ = (size, forward);
+        0u64
+    }
 }
 
 #[cfg(test)]

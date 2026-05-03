@@ -54,7 +54,7 @@ distributed = []  # Distributed training support
 v0_2_0 = ["gpu", "higher_order", "symbolic", "distributed"]
 
 [dev-dependencies]
-criterion = { version = "0.8", features = ["html_reports"] }
+criterion = { workspace = true, features = ["html_reports"] }
 
 [[example]]
 name = "basic_autograd"

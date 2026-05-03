@@ -41,29 +41,16 @@ pub mod simplicial;
 
 // Core structures and free functions
 pub use core::{
-    clique_expansion,
-    hyperedge_centrality,
-    hypergraph_clustering_coefficient,
-    hypergraph_random_walk,
-    hypergraph_random_walk_seeded,
-    line_graph,
-    Hyperedge,
-    Hypergraph,
+    clique_expansion, hyperedge_centrality, hypergraph_clustering_coefficient,
+    hypergraph_random_walk, hypergraph_random_walk_seeded, line_graph, Hyperedge, Hypergraph,
     IndexedHypergraph,
 };
 
 // Algorithms
 pub use algorithms::{
-    betweenness_centrality as hypergraph_betweenness_centrality,
-    hyperedge_cut,
-    s_betweenness_centrality,
-    s_diameter,
-    s_distance,
-    s_reachability,
-    spectral_clustering,
-    stationary_distribution,
-    CutResult,
-    SpectralClusteringResult,
+    betweenness_centrality as hypergraph_betweenness_centrality, hyperedge_cut,
+    s_betweenness_centrality, s_diameter, s_distance, s_reachability, spectral_clustering,
+    stationary_distribution, CutResult, SpectralClusteringResult,
 };
 
 // Simplicial complexes
@@ -71,9 +58,6 @@ pub use simplicial::SimplicialComplex;
 
 // Higher-order analysis
 pub use higher_order::{
-    directed_motif_tensor,
-    trivial_sheaf_from_graph,
-    CellularSheaf,
-    MotifTensor,
+    directed_motif_tensor, trivial_sheaf_from_graph, CellularSheaf, MotifTensor,
     TopologicalFeatures,
 };

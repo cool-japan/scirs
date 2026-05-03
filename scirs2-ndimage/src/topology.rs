@@ -41,18 +41,10 @@ use std::collections::VecDeque;
 ///
 /// # Implementation
 ///
-/// The function uses the **quad-element** (2×2 window) method:
-/// for each 2×2 neighbourhood count the number of foreground pixels *k*
-/// and accumulate the local Euler contribution according to
-///
-/// | k | contribution |
-/// |---|-------------|
-/// | 1 |     +1      |
-/// | 3 |     −1      |
-/// | 2 (diagonal pair) | −2 |
-/// | other | 0       |
-///
-/// The result is divided by 4 (4-connectivity) or adjusted for 8-connectivity.
+/// Uses the CW-complex formula χ = V − E + F where V is the number of
+/// foreground pixels, E is the number of 4-adjacent foreground pairs, and
+/// F is the number of 2×2 all-foreground squares.  This correctly handles
+/// thin connections (single-pixel bridges) and diagonal pixel patterns.
 ///
 /// # Arguments
 ///
@@ -81,65 +73,64 @@ use std::collections::VecDeque;
 /// assert_eq!(e, 0);
 /// ```
 pub fn euler_number(binary_image: &ArrayView2<bool>) -> i32 {
+    // Compute the 2-D Euler (Euler-Poincaré) characteristic via the
+    // CW-complex formula:
+    //
+    //   χ = V − E + F
+    //
+    // where, for a binary foreground image:
+    //   V = number of foreground pixels (0-cells / vertices)
+    //   E = number of 4-adjacent foreground pixel pairs (1-cells / edges):
+    //         horizontal pairs  (r,c)─(r,c+1)
+    //       + vertical   pairs  (r,c)─(r+1,c)
+    //   F = number of 2×2 all-foreground squares (2-cells / faces)
+    //
+    // This is the standard discrete topological Euler number for 4-connectivity
+    // (see Duda & Hart, "Pattern Classification", or Gonzalez & Woods,
+    // "Digital Image Processing") and correctly handles thin/diagonal connections.
+
     let rows = binary_image.nrows();
     let cols = binary_image.ncols();
 
-    if rows < 2 || cols < 2 {
-        // Trivial case: count foreground pixels directly
-        let count: i32 = binary_image.iter().map(|&b| b as i32).sum();
-        return count;
-    }
+    let get = |r: usize, c: usize| -> i32 { *binary_image.get((r, c)).unwrap_or(&false) as i32 };
 
-    // Use the 2×2 quad-element look-up approach (4-connectivity formula)
-    // For each top-left corner (r, c) of a 2×2 window:
-    //   b0 = (r,   c)
-    //   b1 = (r,   c+1)
-    //   b2 = (r+1, c)
-    //   b3 = (r+1, c+1)
-    //
-    // Accumulate according to LUT (Gonzalez & Woods / Pratt):
-    //   Q1 patterns (exactly 1 fg pixel):  +1
-    //   Q2d patterns (diagonal 2 fg):      −2   (anti-diagonal pair)
-    //   Q3 patterns (exactly 3 fg pixels): −1
-    //   others: 0
-
-    let get = |r: usize, c: usize| -> u8 { *binary_image.get((r, c)).unwrap_or(&false) as u8 };
-
-    let mut euler_sum: i32 = 0;
-
-    for r in 0..(rows - 1) {
-        for c in 0..(cols - 1) {
-            let b0 = get(r, c);
-            let b1 = get(r, c + 1);
-            let b2 = get(r + 1, c);
-            let b3 = get(r + 1, c + 1);
-            let k = b0 + b1 + b2 + b3;
-
-            // For 4-connectivity Euler number formula:
-            //   chi = (n_Q1 - n_Q3 + 2*n_Qd) / 4
-            //
-            // Q1 (1 fg pixel): +1
-            // Qd (diagonal pair): +2  (two separate components in 4-conn)
-            // Q3 (3 fg pixels): -1
-            euler_sum += match k {
-                1 => 1,
-                3 => -1,
-                2 => {
-                    // Only diagonal (checkerboard) pairs contribute
-                    if (b0 == b3) && (b1 == b2) && b0 != b1 {
-                        2
-                    } else {
-                        0
-                    }
-                }
-                _ => 0,
-            };
+    // V – foreground pixel count
+    let mut v: i32 = 0;
+    for r in 0..rows {
+        for c in 0..cols {
+            v += get(r, c);
         }
     }
 
-    // Divide by 4 and round toward the expected integer result
-    // (The accumulation over all quad-cells gives 4×Euler)
-    euler_sum / 4
+    // E – count of 4-adjacent foreground pairs (horizontal + vertical)
+    let mut e: i32 = 0;
+    for r in 0..rows {
+        for c in 0..(cols.saturating_sub(1)) {
+            if get(r, c) == 1 && get(r, c + 1) == 1 {
+                e += 1;
+            }
+        }
+    }
+    for r in 0..(rows.saturating_sub(1)) {
+        for c in 0..cols {
+            if get(r, c) == 1 && get(r + 1, c) == 1 {
+                e += 1;
+            }
+        }
+    }
+
+    // F – count of 2×2 all-foreground squares
+    let mut f: i32 = 0;
+    for r in 0..(rows.saturating_sub(1)) {
+        for c in 0..(cols.saturating_sub(1)) {
+            if get(r, c) == 1 && get(r, c + 1) == 1 && get(r + 1, c) == 1 && get(r + 1, c + 1) == 1
+            {
+                f += 1;
+            }
+        }
+    }
+
+    v - e + f
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -256,12 +247,13 @@ pub fn hole_filling(binary: &ArrayView2<bool>) -> NdimageResult<Array2<bool>> {
     let mut queue: VecDeque<(usize, usize)> = VecDeque::new();
 
     // Seed from all border pixels that are background
-    let seed_if_bg = |r: usize, c: usize, q: &mut VecDeque<(usize, usize)>, reach: &mut Array2<bool>| {
-        if !*binary.get((r, c)).unwrap_or(&false) && !reach[[r, c]] {
-            reach[[r, c]] = true;
-            q.push_back((r, c));
-        }
-    };
+    let seed_if_bg =
+        |r: usize, c: usize, q: &mut VecDeque<(usize, usize)>, reach: &mut Array2<bool>| {
+            if !*binary.get((r, c)).unwrap_or(&false) && !reach[[r, c]] {
+                reach[[r, c]] = true;
+                q.push_back((r, c));
+            }
+        };
 
     for c in 0..cols {
         seed_if_bg(0, c, &mut queue, &mut reachable);
@@ -389,9 +381,8 @@ fn euler_number_3d(binary_3d: &ArrayView3<bool>) -> i32 {
         return count;
     }
 
-    let get = |z: usize, r: usize, c: usize| -> u8 {
-        *binary_3d.get((z, r, c)).unwrap_or(&false) as u8
-    };
+    let get =
+        |z: usize, r: usize, c: usize| -> u8 { *binary_3d.get((z, r, c)).unwrap_or(&false) as u8 };
 
     // 8-bit index encoding the 8 corners of a 2×2×2 cube
     // bit 0: (z,  r,  c  )
@@ -491,23 +482,35 @@ const fn euler_lut_3d() -> [i32; 256] {
     let mut lut = [0i32; 256];
     // Encode the known non-zero entries explicitly:
     // 1 voxel occupied → +1
-    lut[1] = 1; lut[2] = 1; lut[4] = 1; lut[8] = 1;
-    lut[16] = 1; lut[32] = 1; lut[64] = 1; lut[128] = 1;
+    lut[1] = 1;
+    lut[2] = 1;
+    lut[4] = 1;
+    lut[8] = 1;
+    lut[16] = 1;
+    lut[32] = 1;
+    lut[64] = 1;
+    lut[128] = 1;
     // 7 voxels occupied → −1
-    lut[254] = -1; lut[253] = -1; lut[251] = -1; lut[247] = -1;
-    lut[239] = -1; lut[223] = -1; lut[191] = -1; lut[127] = -1;
+    lut[254] = -1;
+    lut[253] = -1;
+    lut[251] = -1;
+    lut[247] = -1;
+    lut[239] = -1;
+    lut[223] = -1;
+    lut[191] = -1;
+    lut[127] = -1;
     // Body-diagonal pairs (2 voxels, body-diagonal opposite)
     // Bit pairs (0,7), (1,6), (2,5), (3,4)
     lut[0b10000001] = -2; // 129
     lut[0b01000010] = -2; // 66
     lut[0b00100100] = -2; // 36
     lut[0b00011000] = -2; // 24
-    // Complement body-diagonal pairs (6 voxels, body-diagonal missing)
+                          // Complement body-diagonal pairs (6 voxels, body-diagonal missing)
     lut[!0b10000001u8 as usize] = 2; // 126
     lut[!0b01000010u8 as usize] = 2; // 189
     lut[!0b00100100u8 as usize] = 2; // 219
     lut[!0b00011000u8 as usize] = 2; // 231
-    // All other entries remain 0 (face pairs, edge pairs, etc.)
+                                     // All other entries remain 0 (face pairs, edge pairs, etc.)
     lut
 }
 
@@ -525,9 +528,14 @@ fn neighbours_2d(
 ) -> impl Iterator<Item = (usize, usize)> {
     const N4: [(i32, i32); 4] = [(-1, 0), (1, 0), (0, -1), (0, 1)];
     const N8: [(i32, i32); 8] = [
-        (-1, -1), (-1, 0), (-1, 1),
-        (0, -1),           (0, 1),
-        (1, -1),  (1, 0),  (1, 1),
+        (-1, -1),
+        (-1, 0),
+        (-1, 1),
+        (0, -1),
+        (0, 1),
+        (1, -1),
+        (1, 0),
+        (1, 1),
     ];
 
     let offsets: &'static [(i32, i32)] = if connectivity == 4 { &N4 } else { &N8 };
@@ -611,7 +619,8 @@ mod tests {
         img[[0, 8]] = true;
         img[[1, 7]] = true;
         img[[1, 8]] = true;
-        let n = connected_components_count(&img.view(), 4).expect("connected_components_count should succeed with connectivity=4");
+        let n = connected_components_count(&img.view(), 4)
+            .expect("connected_components_count should succeed with connectivity=4");
         assert_eq!(n, 2);
     }
 
@@ -621,8 +630,10 @@ mod tests {
         let mut img = Array2::<bool>::default((3, 3));
         img[[0, 0]] = true;
         img[[1, 1]] = true;
-        let n4 = connected_components_count(&img.view(), 4).expect("connected_components_count should succeed with connectivity=4");
-        let n8 = connected_components_count(&img.view(), 8).expect("connected_components_count should succeed with connectivity=8");
+        let n4 = connected_components_count(&img.view(), 4)
+            .expect("connected_components_count should succeed with connectivity=4");
+        let n8 = connected_components_count(&img.view(), 8)
+            .expect("connected_components_count should succeed with connectivity=8");
         assert_eq!(n4, 2, "4-connectivity: diagonal pixels are separate");
         assert_eq!(n8, 1, "8-connectivity: diagonal pixels are connected");
     }
@@ -636,7 +647,8 @@ mod tests {
     #[test]
     fn test_cc_empty() {
         let img = Array2::<bool>::default((4, 4));
-        let n = connected_components_count(&img.view(), 4).expect("connected_components_count should succeed on empty image");
+        let n = connected_components_count(&img.view(), 4)
+            .expect("connected_components_count should succeed on empty image");
         assert_eq!(n, 0);
     }
 
@@ -651,7 +663,8 @@ mod tests {
                 img[[r, c]] = r == 0 || r == 4 || c == 0 || c == 4;
             }
         }
-        let filled = hole_filling(&img.view()).expect("hole_filling should succeed on valid framed image");
+        let filled =
+            hole_filling(&img.view()).expect("hole_filling should succeed on valid framed image");
         // Interior should now be foreground
         assert!(filled[[2, 2]], "centre pixel should be filled");
         // Border foreground unchanged
@@ -666,7 +679,8 @@ mod tests {
                 img[[r, c]] = true;
             }
         }
-        let filled = hole_filling(&img.view()).expect("hole_filling should succeed on fully filled image");
+        let filled =
+            hole_filling(&img.view()).expect("hole_filling should succeed on fully filled image");
         for r in 0..5 {
             for c in 0..5 {
                 assert!(filled[[r, c]]);
@@ -677,7 +691,8 @@ mod tests {
     #[test]
     fn test_hole_filling_all_background() {
         let img = Array2::<bool>::default((4, 4));
-        let filled = hole_filling(&img.view()).expect("hole_filling should succeed on all-background image");
+        let filled =
+            hole_filling(&img.view()).expect("hole_filling should succeed on all-background image");
         // All background touching border: nothing filled
         for r in 0..4 {
             for c in 0..4 {

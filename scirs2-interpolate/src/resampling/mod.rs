@@ -6,6 +6,10 @@
 //! - Scattered-to-grid conversion using inverse distance weighting (IDW)
 //! - Symbolic spline derivative (degree reduction)
 //! - Multiple extrapolation modes (Nearest, Linear, Polynomial, Reflection, Periodic, Zero, Constant)
+//! - N-D grid-spec resampling with `ArrayD` output (`grid_spec` sub-module)
+
+pub mod grid_spec;
+pub use grid_spec::{resample_scattered_to_grid, Aggregator, GridSpec, ResampleStrategy};
 
 use crate::error::InterpolateError;
 

@@ -15,6 +15,10 @@ use crate::error::{NeuralError, Result};
 use crate::gnn::gcn::{Activation, GCNLayer};
 use crate::gnn::graph::Graph;
 
+/// Type alias for DiffPool forward pass result:
+/// `(coarsened_features, coarsened_adjacency, link_pred_loss, entropy_loss)`
+type DiffPoolForwardResult = (Vec<Vec<f32>>, Vec<Vec<f32>>, f32, f32);
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Global pooling operators
 // ──────────────────────────────────────────────────────────────────────────────
@@ -197,11 +201,7 @@ impl DiffPool {
     ///
     /// # Returns
     /// `(coarsened_features, coarsened_adjacency, link_pred_loss, entropy_loss)`
-    pub fn forward(
-        &self,
-        graph: &Graph,
-        h: &[Vec<f32>],
-    ) -> Result<(Vec<Vec<f32>>, Vec<Vec<f32>>, f32, f32)> {
+    pub fn forward(&self, graph: &Graph, h: &[Vec<f32>]) -> Result<DiffPoolForwardResult> {
         let n = graph.num_nodes;
         if h.len() != n {
             return Err(NeuralError::InvalidArgument(format!(
@@ -262,8 +262,8 @@ impl DiffPool {
         let mut ss_t: Vec<Vec<f32>> = vec![vec![0.0_f32; n]; n];
         for i in 0..n {
             for j in 0..n {
-                for k in 0..self.n_clusters {
-                    ss_t[i][j] += s[i][k] * s[j][k];
+                for (s_ik, s_jk) in s[i].iter().zip(s[j].iter()).take(self.n_clusters) {
+                    ss_t[i][j] += s_ik * s_jk;
                 }
             }
         }
@@ -415,8 +415,7 @@ mod tests {
     fn test_diffpool_losses_non_negative() {
         let g = chain_graph(4, 4);
         let pool = DiffPool::new(4, 2);
-        let (_, _, lp_loss, ent_loss) =
-            pool.forward(&g, &g.node_features).expect("diffpool ok");
+        let (_, _, lp_loss, ent_loss) = pool.forward(&g, &g.node_features).expect("diffpool ok");
         assert!(lp_loss >= 0.0, "link pred loss must be >= 0, got {lp_loss}");
         assert!(ent_loss >= 0.0, "entropy loss must be >= 0, got {ent_loss}");
     }

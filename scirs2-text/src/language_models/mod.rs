@@ -69,7 +69,11 @@ impl UnigramLM {
     /// Log-probability of a word (returns `f64::NEG_INFINITY` for OOV).
     pub fn log_probability(&self, word: &str) -> f64 {
         let p = self.probability(word);
-        if p <= 0.0 { f64::NEG_INFINITY } else { p.ln() }
+        if p <= 0.0 {
+            f64::NEG_INFINITY
+        } else {
+            p.ln()
+        }
     }
 }
 
@@ -216,9 +220,8 @@ impl NgramLM {
             // Continuation counts for KN: unique left-contexts for each word
             for i in 1..padded.len() {
                 bigram_set.insert((padded[i - 1].clone(), padded[i].clone()));
-                *continuation_counts
-                    .entry(padded[i].clone())
-                    .or_insert(0) += 0; // ensure entry exists
+                *continuation_counts.entry(padded[i].clone()).or_insert(0) += 0;
+                // ensure entry exists
             }
         }
 
@@ -267,11 +270,7 @@ impl NgramLM {
             .collect();
 
         let c = self.counts.get(&ngram).copied().unwrap_or(0) as f64;
-        let c_ctx = self
-            .context_counts
-            .get(&used_ctx)
-            .copied()
-            .unwrap_or(0) as f64;
+        let c_ctx = self.context_counts.get(&used_ctx).copied().unwrap_or(0) as f64;
 
         if c_ctx == 0.0 {
             return self.kn_unigram(word);
@@ -281,11 +280,7 @@ impl NgramLM {
         let types_after_ctx = self
             .counts
             .iter()
-            .filter(|(k, &v)| {
-                v > 0
-                    && k.len() == self.n
-                    && k[..self.n - 1] == used_ctx[..]
-            })
+            .filter(|(k, &v)| v > 0 && k.len() == self.n && k[..self.n - 1] == used_ctx[..])
             .count() as f64;
 
         let lambda = self.discount * types_after_ctx / c_ctx;
@@ -304,7 +299,11 @@ impl NgramLM {
     /// Log-probability of `word` given `context`.
     pub fn log_probability(&self, word: &str, context: &[&str]) -> f64 {
         let p = self.probability(word, context);
-        if p <= 0.0 { f64::NEG_INFINITY } else { p.ln() }
+        if p <= 0.0 {
+            f64::NEG_INFINITY
+        } else {
+            p.ln()
+        }
     }
 }
 
@@ -335,11 +334,8 @@ impl PerplexityEval {
 
             for i in lm.n - 1..padded.len() {
                 let word = &padded[i];
-                let ctx_start = if i >= lm.n - 1 { i - (lm.n - 1) } else { 0 };
-                let context: Vec<&str> = padded[ctx_start..i]
-                    .iter()
-                    .map(String::as_str)
-                    .collect();
+                let ctx_start = i.saturating_sub(lm.n - 1);
+                let context: Vec<&str> = padded[ctx_start..i].iter().map(String::as_str).collect();
                 let lp = lm.log_probability(word, &context);
                 if lp.is_finite() {
                     log_prob_sum += lp;
@@ -438,13 +434,9 @@ mod tests {
         let train = corpus();
         let lm = NgramLM::train(2, &train).expect("train");
 
-        let train_pp =
-            PerplexityEval::compute(&lm, &train[..2]).expect("train perplexity");
-        let random_pp = PerplexityEval::compute(
-            &lm,
-            &[simple_tokenize("xyzzy blorp quux flerb")],
-        )
-        .expect("random perplexity");
+        let train_pp = PerplexityEval::compute(&lm, &train[..2]).expect("train perplexity");
+        let random_pp = PerplexityEval::compute(&lm, &[simple_tokenize("xyzzy blorp quux flerb")])
+            .expect("random perplexity");
 
         assert!(
             train_pp <= random_pp,

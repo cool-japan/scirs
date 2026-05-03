@@ -24,6 +24,7 @@ use crate::error::OptimizeResult;
 use crate::multiobjective::indicators::{dominates, non_dominated_sort};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::RngExt;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -204,13 +205,21 @@ where
                 let p2 = tournament_select(&population, &mut rng);
 
                 let (c1_genes, c2_genes) = if rng.random::<f64>() < config.crossover_rate {
-                    sbx_crossover(&population[p1].genes, &population[p2].genes, config.eta_c, bounds, &mut rng)
+                    sbx_crossover(
+                        &population[p1].genes,
+                        &population[p2].genes,
+                        config.eta_c,
+                        bounds,
+                        &mut rng,
+                    )
                 } else {
                     (population[p1].genes.clone(), population[p2].genes.clone())
                 };
 
-                let c1_genes = polynomial_mutation(c1_genes, mutation_rate, config.eta_m, bounds, &mut rng);
-                let c2_genes = polynomial_mutation(c2_genes, mutation_rate, config.eta_m, bounds, &mut rng);
+                let c1_genes =
+                    polynomial_mutation(c1_genes, mutation_rate, config.eta_m, bounds, &mut rng);
+                let c2_genes =
+                    polynomial_mutation(c2_genes, mutation_rate, config.eta_m, bounds, &mut rng);
 
                 let objs1 = objectives(&c1_genes);
                 let objs2 = objectives(&c2_genes);
@@ -234,17 +243,15 @@ where
     assign_ranks_and_crowding(&mut population);
 
     // Gather all fronts
-    let obj_vecs: Vec<Vec<f64>> = population.iter().map(|ind| ind.objectives.clone()).collect();
+    let obj_vecs: Vec<Vec<f64>> = population
+        .iter()
+        .map(|ind| ind.objectives.clone())
+        .collect();
     let front_indices = non_dominated_sort(&obj_vecs);
 
     let mut all_fronts: Vec<Vec<Individual>> = front_indices
         .iter()
-        .map(|idx_vec| {
-            idx_vec
-                .iter()
-                .map(|&i| population[i].clone())
-                .collect()
-        })
+        .map(|idx_vec| idx_vec.iter().map(|&i| population[i].clone()).collect())
         .collect();
 
     let pareto_front = if all_fronts.is_empty() {
@@ -254,16 +261,14 @@ where
     };
 
     // Reinsert front 0 that we just removed
-    let obj_vecs2: Vec<Vec<f64>> = population.iter().map(|ind| ind.objectives.clone()).collect();
+    let obj_vecs2: Vec<Vec<f64>> = population
+        .iter()
+        .map(|ind| ind.objectives.clone())
+        .collect();
     let front_indices2 = non_dominated_sort(&obj_vecs2);
     let all_fronts_final: Vec<Vec<Individual>> = front_indices2
         .iter()
-        .map(|idx_vec| {
-            idx_vec
-                .iter()
-                .map(|&i| population[i].clone())
-                .collect()
-        })
+        .map(|idx_vec| idx_vec.iter().map(|&i| population[i].clone()).collect())
         .collect();
 
     Ok(Nsga2Result {
@@ -284,7 +289,10 @@ pub(crate) fn assign_ranks_and_crowding(population: &mut [Individual]) {
         return;
     }
 
-    let obj_vecs: Vec<Vec<f64>> = population.iter().map(|ind| ind.objectives.clone()).collect();
+    let obj_vecs: Vec<Vec<f64>> = population
+        .iter()
+        .map(|ind| ind.objectives.clone())
+        .collect();
     let fronts = non_dominated_sort(&obj_vecs);
 
     for (rank, front_idx) in fronts.iter().enumerate() {
@@ -507,9 +515,7 @@ fn tournament_select(population: &[Individual], rng: &mut StdRng) -> usize {
     let ia = &population[a];
     let ib = &population[b];
 
-    if ia.rank < ib.rank
-        || (ia.rank == ib.rank && ia.crowding_distance > ib.crowding_distance)
-    {
+    if ia.rank < ib.rank || (ia.rank == ib.rank && ia.crowding_distance > ib.crowding_distance) {
         a
     } else {
         b
@@ -564,7 +570,8 @@ mod tests {
         cfg.population_size = 10;
         cfg.n_generations = 3;
 
-        let result = nsga2(2, &bounds, |x| vec![x[0], 1.0 - x[0]], cfg).expect("failed to create result");
+        let result =
+            nsga2(2, &bounds, |x| vec![x[0], 1.0 - x[0]], cfg).expect("failed to create result");
         // n_evaluations = pop_size + n_gen * pop_size (offspring)
         assert!(result.n_evaluations >= 10);
     }
@@ -600,12 +607,15 @@ mod tests {
         cfg.population_size = 20;
         cfg.n_generations = 10;
 
-        let result = nsga2(2, &bounds, |x| vec![x[0], 1.0 - x[0]], cfg).expect("failed to create result");
+        let result =
+            nsga2(2, &bounds, |x| vec![x[0], 1.0 - x[0]], cfg).expect("failed to create result");
 
         for ind in &result.pareto_front {
             for (i, &g) in ind.genes.iter().enumerate() {
-                assert!(g >= bounds[i].0 - 1e-9 && g <= bounds[i].1 + 1e-9,
-                    "gene[{i}]={g} outside bounds");
+                assert!(
+                    g >= bounds[i].0 - 1e-9 && g <= bounds[i].1 + 1e-9,
+                    "gene[{i}]={g} outside bounds"
+                );
             }
         }
     }
@@ -654,10 +664,16 @@ mod tests {
         for _ in 0..50 {
             let (c1, c2) = sbx_crossover(&p1, &p2, 20.0, &bounds, &mut rng);
             for (i, &v) in c1.iter().enumerate() {
-                assert!(v >= bounds[i].0 && v <= bounds[i].1, "c1[{i}]={v} out of bounds");
+                assert!(
+                    v >= bounds[i].0 && v <= bounds[i].1,
+                    "c1[{i}]={v} out of bounds"
+                );
             }
             for (i, &v) in c2.iter().enumerate() {
-                assert!(v >= bounds[i].0 && v <= bounds[i].1, "c2[{i}]={v} out of bounds");
+                assert!(
+                    v >= bounds[i].0 && v <= bounds[i].1,
+                    "c2[{i}]={v} out of bounds"
+                );
             }
         }
     }
@@ -671,7 +687,10 @@ mod tests {
         for _ in 0..100 {
             let mutated = polynomial_mutation(genes.clone(), 0.5, 20.0, &bounds, &mut rng);
             for (i, &v) in mutated.iter().enumerate() {
-                assert!(v >= bounds[i].0 && v <= bounds[i].1, "mutated[{i}]={v} out of bounds");
+                assert!(
+                    v >= bounds[i].0 && v <= bounds[i].1,
+                    "mutated[{i}]={v} out of bounds"
+                );
             }
         }
     }

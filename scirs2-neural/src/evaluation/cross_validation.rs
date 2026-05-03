@@ -6,11 +6,12 @@ use super::{EvaluationConfig, Evaluator, MetricType, ModelBuilder};
 use crate::data::Dataset;
 use crate::error::{NeuralError, Result};
 use crate::layers::Layer;
-use scirs2_core::random::SeedableRng;
 use scirs2_core::ndarray::ScalarOperand;
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
+use scirs2_core::random::SeedableRng;
 use std::collections::HashMap;
 use std::fmt::Debug;
+
 /// Cross-validation strategy
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum CrossValidationStrategy {
@@ -25,6 +26,7 @@ pub enum CrossValidationStrategy {
     /// Random shuffling cross-validation
     ShuffleSplit(usize, f64),
 }
+
 /// Configuration for cross-validation
 #[derive(Debug, Clone)]
 pub struct CrossValidationConfig {
@@ -42,6 +44,8 @@ pub struct CrossValidationConfig {
     pub metrics: Vec<MetricType>,
     /// Verbosity level
     pub verbose: usize,
+}
+
 impl Default for CrossValidationConfig {
     fn default() -> Self {
         Self {
@@ -54,6 +58,8 @@ impl Default for CrossValidationConfig {
             verbose: 1,
         }
     }
+}
+
 /// Cross-validation fold
 #[derive(Debug)]
 pub struct CrossValidationFold {
@@ -61,16 +67,74 @@ pub struct CrossValidationFold {
     pub train_indices: Vec<usize>,
     /// Validation indices
     pub val_indices: Vec<usize>,
+}
+
 /// Cross-validator for model evaluation
 pub struct CrossValidator<
-    F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send + Sync,
+    F: Float + Debug + ScalarOperand + FromPrimitive + NumAssign + std::fmt::Display + Send + Sync,
 > {
     /// Configuration for cross-validation
     pub config: CrossValidationConfig,
     /// Evaluator for validation metrics
     evaluator: Evaluator<F>,
-impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send + Sync>
-    CrossValidator<F>
+}
+
+/// Simple in-memory dataset subset
+struct DatasetSubset<
+    F: Float + Debug + ScalarOperand + FromPrimitive + NumAssign + Send + Sync + 'static,
+> {
+    data: Vec<(
+        scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>,
+        scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>,
+    )>,
+}
+
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + NumAssign + Send + Sync + 'static>
+    DatasetSubset<F>
+{
+    fn new(dataset: &dyn Dataset<F>, indices: &[usize]) -> Result<Self> {
+        let mut data = Vec::with_capacity(indices.len());
+        for &idx in indices {
+            let (input, target) = dataset.get(idx)?;
+            data.push((input, target));
+        }
+        Ok(Self { data })
+    }
+}
+
+impl<F: Float + Debug + ScalarOperand + FromPrimitive + NumAssign + Send + Sync + 'static>
+    Dataset<F> for DatasetSubset<F>
+{
+    fn len(&self) -> usize {
+        self.data.len()
+    }
+
+    fn get(
+        &self,
+        idx: usize,
+    ) -> Result<(
+        scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>,
+        scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>,
+    )> {
+        if idx >= self.data.len() {
+            return Err(crate::error::NeuralError::InferenceError(format!(
+                "Index out of bounds: {} >= {}",
+                idx,
+                self.data.len()
+            )));
+        }
+        Ok((self.data[idx].0.clone(), self.data[idx].1.clone()))
+    }
+
+    fn box_clone(&self) -> Box<dyn Dataset<F> + Send + Sync> {
+        let cloned_data = self.data.clone();
+        Box::new(Self { data: cloned_data })
+    }
+}
+
+impl<
+        F: Float + Debug + ScalarOperand + FromPrimitive + NumAssign + std::fmt::Display + Send + Sync,
+    > CrossValidator<F>
 {
     /// Create a new cross-validator
     pub fn new(config: CrossValidationConfig) -> Result<Self> {
@@ -85,6 +149,8 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
         };
         let evaluator = Evaluator::new(eval_config)?;
         Ok(Self { config, evaluator })
+    }
+
     /// Generate cross-validation folds
     pub fn create_folds(&self, dataset: &dyn Dataset<F>) -> Result<Vec<CrossValidationFold>> {
         let n_samples = dataset.len();
@@ -100,6 +166,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                         "Dataset size ({}) must be at least equal to k ({})",
                         n_samples, k
                     )));
+                }
                 // Create indices
                 let mut indices: Vec<usize> = (0..n_samples).collect();
                 // Shuffle if required
@@ -109,8 +176,10 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                         let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
                         indices.shuffle(&mut rng);
                     } else {
-                        let mut rng = rng();
+                        let mut rng = scirs2_core::random::rng();
+                        indices.shuffle(&mut rng);
                     }
+                }
                 // Calculate fold sizes
                 let fold_size = n_samples / k;
                 let remainder = n_samples % k;
@@ -121,6 +190,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                     // Adjust fold size to distribute remainder
                     let fold_size_adjusted = if i < remainder {
                         fold_size + 1
+                    } else {
                         fold_size
                     };
                     let end = start + fold_size_adjusted;
@@ -130,22 +200,24 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                     let mut train_indices = Vec::with_capacity(n_samples - val_indices.len());
                     for &idx in &indices[0..start] {
                         train_indices.push(idx);
+                    }
                     for &idx in &indices[end..] {
+                        train_indices.push(idx);
+                    }
                     folds.push(CrossValidationFold {
                         train_indices,
                         val_indices,
                     });
                     start = end;
+                }
                 Ok(folds)
             }
             CrossValidationStrategy::StratifiedKFold(k) => {
                 // For stratified k-fold, we need class labels
-                // This is a simplified implementation that assumes targets are class indices
-                // Get class labels for each sample
-                let mut class_indices = HashMap::new();
+                let mut class_indices: HashMap<usize, Vec<usize>> = HashMap::new();
                 for i in 0..n_samples {
                     let (_, target) = dataset.get(i)?;
-                    // Extract class index (assuming target is a class index)
+                    // Extract class index
                     let class_idx = if target.ndim() > 1 && target.shape()[1] > 1 {
                         // One-hot encoded: find max index
                         let mut max_idx = 0;
@@ -157,16 +229,19 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                             }
                         }
                         max_idx
+                    } else {
                         // Direct class index
                         target[[0]].to_usize().unwrap_or(0)
-                    class_indices
-                        .entry(class_idx)
-                        .or_insert_with(Vec::new)
-                        .push(i);
+                    };
+                    class_indices.entry(class_idx).or_default().push(i);
+                }
                 // Create folds with stratification
-                for _ in 0..k {
+                let mut folds: Vec<CrossValidationFold> = (0..k)
+                    .map(|_| CrossValidationFold {
                         train_indices: Vec::new(),
                         val_indices: Vec::new(),
+                    })
+                    .collect();
                 // Distribute indices by class
                 for (_, mut indices) in class_indices {
                     // Shuffle indices within class
@@ -176,63 +251,111 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                             let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
                             indices.shuffle(&mut rng);
                         } else {
-                            let mut rng = rng();
+                            let mut rng = scirs2_core::random::rng();
+                            indices.shuffle(&mut rng);
+                        }
+                    }
                     // Distribute indices to folds
                     for (i, &idx) in indices.iter().enumerate() {
                         let fold_idx = i % k;
                         folds[fold_idx].val_indices.push(idx);
+                    }
+                }
                 // Fill in training indices
-                for fold in folds.iter_mut().take(k) {
-                    let val_indices = &fold.val_indices;
-                    for i in 0..n_samples {
-                        if !val_indices.contains(&i) {
-                            train_indices.push(i);
+                for fold in &mut folds {
+                    let val_set: std::collections::HashSet<usize> =
+                        fold.val_indices.iter().cloned().collect();
+                    let train_indices: Vec<usize> =
+                        (0..n_samples).filter(|i| !val_set.contains(i)).collect();
                     fold.train_indices = train_indices;
+                }
+                Ok(folds)
+            }
             CrossValidationStrategy::LeaveOneOut => {
                 // Leave-one-out: each sample becomes a fold
                 let mut folds = Vec::with_capacity(n_samples);
+                for i in 0..n_samples {
                     let val_indices = vec![i];
                     let mut train_indices = Vec::with_capacity(n_samples - 1);
                     for j in 0..n_samples {
                         if j != i {
                             train_indices.push(j);
+                        }
+                    }
+                    folds.push(CrossValidationFold {
+                        train_indices,
+                        val_indices,
+                    });
+                }
+                Ok(folds)
+            }
             CrossValidationStrategy::LeavePOut(p) => {
                 if p >= n_samples {
+                    return Err(NeuralError::ValidationError(format!(
                         "p ({}) must be less than dataset size ({})",
                         p, n_samples
-                // This is a simplified implementation that doesn't generate all possible folds
-                // as that would be combinatorial and potentially too large
-                // Create n-p folds with p samples each
+                    )));
+                }
+                // Simplified: create n/p folds with p samples each
+                let indices: Vec<usize> = (0..n_samples).collect();
                 let n_folds = n_samples / p;
                 let mut folds = Vec::with_capacity(n_folds);
                 for i in 0..n_folds {
                     let start = i * p;
-                    let end = (i + 1) * p;
+                    let end = ((i + 1) * p).min(n_samples);
+                    let val_indices = indices[start..end].to_vec();
                     let mut train_indices = Vec::with_capacity(n_samples - p);
-                    for (j, &idx) in indices.iter().enumerate().take(n_samples) {
+                    for (j, &idx) in indices.iter().enumerate() {
                         if j < start || j >= end {
                             train_indices.push(idx);
+                        }
+                    }
+                    folds.push(CrossValidationFold {
+                        train_indices,
+                        val_indices,
+                    });
+                }
+                Ok(folds)
+            }
             CrossValidationStrategy::ShuffleSplit(n_splits, test_size) => {
                 if test_size <= 0.0 || test_size >= 1.0 {
+                    return Err(NeuralError::ValidationError(
                         "test_size must be between 0 and 1".to_string(),
+                    ));
+                }
                 let indices: Vec<usize> = (0..n_samples).collect();
                 // Calculate test set size
                 let test_count = (n_samples as f64 * test_size).ceil() as usize;
                 if test_count >= n_samples {
+                    return Err(NeuralError::ValidationError(
                         "test_size too large for dataset".to_string(),
+                    ));
+                }
                 let mut folds = Vec::with_capacity(n_splits);
-                let rng_with_seed = self
-                    .config
-                    .random_seed
-                    .map(scirs2_core::random::rngs::StdRng::from_seed);
                 for _ in 0..n_splits {
                     // Shuffle indices
                     let mut shuffled = indices.clone();
-                        if let Some(mut rng) = rng_with_seed.clone() {
-                            shuffled.shuffle(&mut rng);
+                    use scirs2_core::random::seq::SliceRandom;
+                    if let Some(seed) = self.config.random_seed {
+                        let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(seed);
+                        shuffled.shuffle(&mut rng);
+                    } else {
+                        let mut rng = scirs2_core::random::rng();
+                        shuffled.shuffle(&mut rng);
+                    }
                     // Split into train and validation
                     let val_indices = shuffled[0..test_count].to_vec();
                     let train_indices = shuffled[test_count..].to_vec();
+                    folds.push(CrossValidationFold {
+                        train_indices,
+                        val_indices,
+                    });
+                }
+                Ok(folds)
+            }
+        }
+    }
+
     /// Perform cross-validation on a model builder and dataset
     pub fn cross_validate<L: Layer<F> + Clone>(
         &mut self,
@@ -266,40 +389,7 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
         for (fold_idx, fold) in folds.iter().enumerate() {
             if self.config.verbose > 0 {
                 println!("Fold {}/{}", fold_idx + 1, folds.len());
-            // Create train and validation datasets
-            // Instead of using a DatasetView with references, we'll create an owned version
-            struct DatasetSubset<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> {
-                data: Vec<(
-                    scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>,
-                )>,
-            impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> DatasetSubset<F> {
-                fn new(dataset: &dyn Dataset<F>, indices: &[usize]) -> Result<Self> {
-                    let mut data = Vec::with_capacity(indices.len());
-                    for &idx in indices {
-                        let (input, target) = dataset.get(idx)?;
-                        data.push((input, target));
-                    Ok(Self { data })
-            impl<F: Float + Debug + ScalarOperand + FromPrimitive + Send + Sync> Dataset<F>
-                for DatasetSubset<F>
-            {
-                fn len(&self) -> usize {
-                    self.data.len()
-                fn get(
-                    &self,
-                    idx: usize,
-                ) -> Result<(
-                )> {
-                    if idx >= self.data.len() {
-                        return Err(crate::error::NeuralError::InferenceError(format!(
-                            "Index out of bounds: {} >= {}",
-                            idx,
-                            self.data.len()
-                        )));
-                    Ok((self.data[idx].0.clone(), self.data[idx].1.clone()))
-                fn box_clone(&self) -> Box<dyn Dataset<F> + Send + Sync> {
-                    // Create a new DatasetSubset with cloned data
-                    let cloned_data = self.data.clone();
-                    Box::new(Self { data: cloned_data })
+            }
             let _train_dataset = DatasetSubset::new(dataset, &fold.train_indices)?;
             let val_dataset = DatasetSubset::new(dataset, &fold.val_indices)?;
             // Build model
@@ -310,17 +400,24 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
             for (name, value) in fold_metrics {
                 if let Some(values) = results.get_mut(&name) {
                     values.push(value);
-        // Calculate mean and std of metrics
-        for (name, values) in &results {
-            if !values.is_empty() {
-                // Calculate mean
-                let sum = values.iter().fold(F::zero(), |acc, &x| acc + x);
-                let mean = sum / F::from(values.len()).expect("Operation failed");
-                // Calculate std
-                let variance_sum = values
-                    .iter()
-                    .fold(F::zero(), |acc, &x| acc + (x - mean) * (x - mean));
-                let std = (variance_sum / F::from(values.len()).expect("Operation failed")).sqrt();
-                if self.config.verbose > 0 {
+                }
+            }
+        }
+        // Print summary if verbose
+        if self.config.verbose > 0 {
+            for (name, values) in &results {
+                if !values.is_empty() {
+                    let sum = values.iter().fold(F::zero(), |acc, &x| acc + x);
+                    let mean = sum / F::from(values.len()).expect("Operation failed");
+                    let variance_sum = values
+                        .iter()
+                        .fold(F::zero(), |acc, &x| acc + (x - mean) * (x - mean));
+                    let std =
+                        (variance_sum / F::from(values.len()).expect("Operation failed")).sqrt();
                     println!("{}: {:.4} ± {:.4}", name, mean, std);
+                }
+            }
+        }
         Ok(results)
+    }
+}

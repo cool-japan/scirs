@@ -4,23 +4,19 @@
 //! financial applications including pricing, risk management, and portfolio optimization.
 //!
 //! # Modules
-//! - `volatility_forecast`: Volatility prediction models
-//! - `portfolio_optim`: ML-enhanced portfolio optimization
+//! - `volatility_forecast`: Volatility prediction models (GARCH, EWMA, Historical)
+//! - `portfolio_optim`: Mean-variance portfolio optimization
 //! - `neural_pricing`: Neural network-based derivative pricing
 
 pub mod neural_pricing;
 pub mod portfolio_optim;
 pub mod volatility_forecast;
 
-// Re-export commonly used items
+// Volatility forecasting
 pub use volatility_forecast::{EWMAModel, GarchModel, HistoricalVolatility, VolatilityForecaster};
 
-// Stub exports (to be implemented)
-pub use neural_pricing::NeuralPricer;
-pub use portfolio_optim::MLPortfolioOptimizer;
+// Neural pricing
+pub use neural_pricing::{generate_black_scholes_training_data, DeepPricingNetwork, NeuralPricer};
 
-// TODO: Implement common ML utilities for finance
-// - Feature engineering for financial time series
-// - Market regime detection
-// - Anomaly detection for risk management
-// - Reinforcement learning for trading strategies
+// Portfolio optimization
+pub use portfolio_optim::{MLPortfolioOptimizer, MeanVariancePortfolio};

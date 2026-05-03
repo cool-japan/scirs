@@ -1389,6 +1389,65 @@ where
     Ok((sorted_eigenvalues, sorted_eigenvectors))
 }
 
+/// Extract eigenvalues from a real quasi-upper-triangular (Schur) matrix.
+///
+/// In the real QR algorithm the matrix converges to a quasi-upper-triangular
+/// form where:
+/// - Real eigenvalues appear as 1×1 diagonal blocks (subdiagonal entry ~ 0).
+/// - Complex conjugate pairs appear as 2×2 diagonal blocks whose subdiagonal
+///   entry is non-zero.
+///
+/// This function scans through the blocks and extracts the corresponding
+/// complex eigenvalues.
+fn extract_schur_eigenvalues<F>(schur: &Array2<F>, n: usize) -> Array1<Complex<F>>
+where
+    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+{
+    let two = F::from(2.0).unwrap_or(F::one() + F::one());
+    let four = F::from(4.0).unwrap_or(two + two);
+    let tol = F::epsilon() * F::from(100.0).unwrap_or_else(|| F::from(1e-12).unwrap_or(F::one()));
+
+    let mut eigenvalues: Vec<Complex<F>> = Vec::with_capacity(n);
+    let mut i = 0usize;
+    while i < n {
+        if i + 1 < n && schur[[i + 1, i]].abs() > tol {
+            // 2×2 block: eigenvalues of [[a, b], [c, d]]
+            let a = schur[[i, i]];
+            let b = schur[[i, i + 1]];
+            let c = schur[[i + 1, i]];
+            let d = schur[[i + 1, i + 1]];
+            // Eigenvalues: ((a+d) ± sqrt((a-d)²+4bc)) / 2
+            let trace = a + d;
+            let discriminant = (a - d) * (a - d) + four * b * c;
+            if discriminant >= F::zero() {
+                // Real pair (shouldn't happen in this branch, but handle it)
+                let sq = discriminant.sqrt();
+                eigenvalues.push(Complex::new((trace + sq) / two, F::zero()));
+                eigenvalues.push(Complex::new((trace - sq) / two, F::zero()));
+            } else {
+                // Complex conjugate pair
+                let sq = (-discriminant).sqrt();
+                let re = trace / two;
+                let im = sq / two;
+                eigenvalues.push(Complex::new(re, im));
+                eigenvalues.push(Complex::new(re, -im));
+            }
+            i += 2;
+        } else {
+            // 1×1 block: real eigenvalue
+            eigenvalues.push(Complex::new(schur[[i, i]], F::zero()));
+            i += 1;
+        }
+    }
+
+    // Pad to length n if somehow short (shouldn't happen)
+    while eigenvalues.len() < n {
+        eigenvalues.push(Complex::new(F::zero(), F::zero()));
+    }
+
+    Array1::from(eigenvalues)
+}
+
 /// QR algorithm for general eigenvalue decomposition
 #[allow(dead_code)]
 fn solve_qr_algorithm<F>(a: &ArrayView2<F>) -> EigenResult<F>
@@ -1401,9 +1460,8 @@ where
     let max_iter = 100;
     let tol = F::epsilon() * F::from(100.0).expect("Failed to convert constant to float");
 
-    // Initialize eigenvalues and eigenvectors
-    let mut eigenvalues = Array1::zeros(n);
-    let mut eigenvectors = Array2::eye(n);
+    // Initialize eigenvectors accumulator
+    let mut eigenvectors: Array2<F> = Array2::eye(n);
 
     for _iter in 0..max_iter {
         // QR decomposition
@@ -1425,30 +1483,24 @@ where
         }
 
         if converged {
-            // Extract eigenvalues from diagonal
-            for i in 0..n {
-                eigenvalues[i] = Complex::new(a_next[[i, i]], F::zero());
-            }
-
-            // Return as complex values
+            // Extract eigenvalues from the real Schur form.
+            // Real QR converges to quasi-upper-triangular form:
+            // real eigenvalues are on the diagonal, complex-conjugate pairs
+            // appear as 2×2 blocks (when the subdiagonal entry is non-zero).
+            let extracted = extract_schur_eigenvalues::<F>(&a_next, n);
             let complex_eigenvectors = eigenvectors.mapv(|x| Complex::new(x, F::zero()));
-            return Ok((eigenvalues, complex_eigenvectors));
+            return Ok((extracted, complex_eigenvectors));
         }
 
         // If not converged, continue with next iteration
         a_k = a_next;
     }
 
-    // If we reached maximum iterations without convergence
-    // Check if we at least have a reasonable approximation
-    let mut eigenvals = Array1::zeros(n);
-    for i in 0..n {
-        eigenvals[i] = Complex::new(a_k[[i, i]], F::zero());
-    }
-
-    // Return the best approximation we have
+    // If we reached maximum iterations without convergence,
+    // extract the best approximation from the real Schur form.
+    let extracted = extract_schur_eigenvalues::<F>(&a_k, n);
     let complex_eigenvectors = eigenvectors.mapv(|x| Complex::new(x, F::zero()));
-    Ok((eigenvals, complex_eigenvectors))
+    Ok((extracted, complex_eigenvectors))
 }
 
 /// Solve symmetric matrices with power iteration (simplified implementation)

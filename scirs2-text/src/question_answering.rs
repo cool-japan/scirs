@@ -102,18 +102,15 @@ fn simple_tokenize(text: &str) -> Vec<String> {
 /// English stop-words used to suppress common terms in TF-IDF.
 fn stop_words() -> HashSet<&'static str> {
     [
-        "a", "an", "the", "is", "are", "was", "were", "be", "been", "being",
-        "have", "has", "had", "do", "does", "did", "will", "would", "shall",
-        "should", "may", "might", "must", "can", "could", "to", "of", "in",
-        "on", "at", "by", "for", "with", "about", "against", "between",
-        "into", "through", "during", "before", "after", "above", "below",
-        "from", "up", "down", "out", "off", "over", "under", "again",
-        "further", "then", "once", "and", "but", "or", "nor", "so", "yet",
-        "both", "either", "neither", "not", "only", "own", "same", "than",
-        "too", "very", "just", "i", "you", "he", "she", "it", "we", "they",
-        "me", "him", "her", "us", "them", "my", "your", "his", "its", "our",
-        "their", "what", "which", "who", "whom", "this", "that", "these",
-        "those", "am", "s", "t",
+        "a", "an", "the", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had",
+        "do", "does", "did", "will", "would", "shall", "should", "may", "might", "must", "can",
+        "could", "to", "of", "in", "on", "at", "by", "for", "with", "about", "against", "between",
+        "into", "through", "during", "before", "after", "above", "below", "from", "up", "down",
+        "out", "off", "over", "under", "again", "further", "then", "once", "and", "but", "or",
+        "nor", "so", "yet", "both", "either", "neither", "not", "only", "own", "same", "than",
+        "too", "very", "just", "i", "you", "he", "she", "it", "we", "they", "me", "him", "her",
+        "us", "them", "my", "your", "his", "its", "our", "their", "what", "which", "who", "whom",
+        "this", "that", "these", "those", "am", "s", "t",
     ]
     .iter()
     .cloned()
@@ -280,15 +277,10 @@ impl QAContext {
             return inter as f64 / q_set.len().max(1) as f64;
         }
 
-        let q_bigrams: HashSet<(&String, &String)> = query_tokens
-            .windows(2)
-            .map(|w| (&w[0], &w[1]))
-            .collect();
-        let s_bigrams: HashSet<(&String, &String)> = sentence
-            .tokens
-            .windows(2)
-            .map(|w| (&w[0], &w[1]))
-            .collect();
+        let q_bigrams: HashSet<(&String, &String)> =
+            query_tokens.windows(2).map(|w| (&w[0], &w[1])).collect();
+        let s_bigrams: HashSet<(&String, &String)> =
+            sentence.tokens.windows(2).map(|w| (&w[0], &w[1])).collect();
 
         let inter = q_bigrams.intersection(&s_bigrams).count();
         let union = q_bigrams.union(&s_bigrams).count();
@@ -402,7 +394,7 @@ impl QAContext {
                         continue;
                     }
                     let score = 0.5 + bonus;
-                    if best.map_or(true, |(_, _, s)| score > s) {
+                    if best.is_none_or(|(_, _, s)| score > s) {
                         best = Some((abs_start, abs_end, score));
                     }
                 }
@@ -417,11 +409,7 @@ impl QAContext {
     // ------------------------------------------------------------------
 
     /// Find the single best answer span for `question` using the given method.
-    pub fn find_answer_span(
-        &self,
-        question: &str,
-        method: QAMethod,
-    ) -> Result<Option<AnswerSpan>> {
+    pub fn find_answer_span(&self, question: &str, method: QAMethod) -> Result<Option<AnswerSpan>> {
         if self.sentences.is_empty() {
             return Ok(None);
         }
@@ -447,9 +435,7 @@ impl QAContext {
                         let idf = self.build_idf();
                         Self::tfidf_score(&q_tokens, sent, &idf, &stops)
                     }
-                    QAMethod::BigramOverlap => {
-                        Self::bigram_overlap_score(&q_tokens, sent)
-                    }
+                    QAMethod::BigramOverlap => Self::bigram_overlap_score(&q_tokens, sent),
                     QAMethod::WordEmbeddingMatch => {
                         if let Some(emb) = &self.embeddings {
                             Self::embedding_score(&q_tokens, sent, emb)
@@ -517,7 +503,12 @@ impl QAContext {
     // ------------------------------------------------------------------
 
     /// Rank all sentences and return the top-`k` answer spans.
-    pub fn find_top_k(&self, question: &str, method: QAMethod, k: usize) -> Result<Vec<AnswerSpan>> {
+    pub fn find_top_k(
+        &self,
+        question: &str,
+        method: QAMethod,
+        k: usize,
+    ) -> Result<Vec<AnswerSpan>> {
         if self.sentences.is_empty() || k == 0 {
             return Ok(Vec::new());
         }
@@ -539,12 +530,8 @@ impl QAContext {
             .enumerate()
             .map(|(i, sent)| {
                 let base = match &method {
-                    QAMethod::TfIdf => {
-                        Self::tfidf_score(&q_tokens, sent, &idf, &stops)
-                    }
-                    QAMethod::BigramOverlap => {
-                        Self::bigram_overlap_score(&q_tokens, sent)
-                    }
+                    QAMethod::TfIdf => Self::tfidf_score(&q_tokens, sent, &idf, &stops),
+                    QAMethod::BigramOverlap => Self::bigram_overlap_score(&q_tokens, sent),
                     QAMethod::WordEmbeddingMatch => {
                         if let Some(emb) = &self.embeddings {
                             Self::embedding_score(&q_tokens, sent, emb)
@@ -613,10 +600,7 @@ impl QAContext {
 /// Rank sentences in `context_sentences` by TF-IDF similarity to `query_tokens`.
 ///
 /// Returns a vector of scores parallel to `context_sentences`.
-pub fn tf_idf_similarity(
-    query_tokens: &[String],
-    context_sentences: &[Vec<String>],
-) -> Vec<f64> {
+pub fn tf_idf_similarity(query_tokens: &[String], context_sentences: &[Vec<String>]) -> Vec<f64> {
     if context_sentences.is_empty() || query_tokens.is_empty() {
         return vec![0.0; context_sentences.len()];
     }
@@ -681,8 +665,7 @@ fn cosine_sim(a: &[f64], b: &[f64]) -> f64 {
 mod tests {
     use super::*;
 
-    const DOC: &str =
-        "Marie Curie was born in Warsaw on 7 November 1867. \
+    const DOC: &str = "Marie Curie was born in Warsaw on 7 November 1867. \
          She conducted pioneering research on radioactivity. \
          In 1903 she won the Nobel Prize in Physics. \
          She also won the Nobel Prize in Chemistry in 1911. \
@@ -690,15 +673,24 @@ mod tests {
 
     #[test]
     fn test_classify_question() {
-        assert_eq!(classify_question("Who discovered radium?"), QuestionType::Who);
+        assert_eq!(
+            classify_question("Who discovered radium?"),
+            QuestionType::Who
+        );
         assert_eq!(classify_question("When was she born?"), QuestionType::When);
-        assert_eq!(classify_question("Where did she live?"), QuestionType::Where);
+        assert_eq!(
+            classify_question("Where did she live?"),
+            QuestionType::Where
+        );
         assert_eq!(classify_question("How did she win?"), QuestionType::How);
         assert_eq!(
             classify_question("What is radioactivity?"),
             QuestionType::What
         );
-        assert_eq!(classify_question("Why is science important?"), QuestionType::Why);
+        assert_eq!(
+            classify_question("Why is science important?"),
+            QuestionType::Why
+        );
     }
 
     #[test]
@@ -706,9 +698,11 @@ mod tests {
         let answers = extract_answer("When was Marie Curie born?", DOC, 3);
         assert!(!answers.is_empty());
         // The birth-date sentence should be highly ranked.
-        assert!(answers[0].text.to_lowercase().contains("born")
-            || answers[0].text.contains("1867")
-            || answers[0].text.to_lowercase().contains("november"));
+        assert!(
+            answers[0].text.to_lowercase().contains("born")
+                || answers[0].text.contains("1867")
+                || answers[0].text.to_lowercase().contains("november")
+        );
         assert!(answers[0].confidence > 0.0);
     }
 
@@ -716,11 +710,18 @@ mod tests {
     fn test_find_answer_span_bigram() {
         let ctx = QAContext::new(DOC);
         let ans = ctx
-            .find_answer_span("What prize did she win in Physics?", QAMethod::BigramOverlap)
+            .find_answer_span(
+                "What prize did she win in Physics?",
+                QAMethod::BigramOverlap,
+            )
             .expect("QA failed");
         assert!(ans.is_some());
         let span = ans.expect("should have a span");
-        assert!(span.text.to_lowercase().contains("physics") || span.text.contains("1903") || span.text.to_lowercase().contains("prize"));
+        assert!(
+            span.text.to_lowercase().contains("physics")
+                || span.text.contains("1903")
+                || span.text.to_lowercase().contains("prize")
+        );
     }
 
     #[test]

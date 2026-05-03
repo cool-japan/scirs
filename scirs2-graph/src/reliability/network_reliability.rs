@@ -15,7 +15,7 @@
 use std::collections::{HashMap, VecDeque};
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{Rng, SeedableRng, StdRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng, StdRng};
 
 use crate::error::{GraphError, Result};
 
@@ -239,9 +239,11 @@ impl NetworkReliability {
         for mask in 0u32..(1u32 << m) {
             let active: Vec<bool> = (0..m).map(|i| (mask >> i) & 1 == 1).collect();
             // Probability of this configuration
-            let prob: f64 = edges.iter().enumerate().map(|(i, &(_, _, p))| {
-                if active[i] { p } else { 1.0 - p }
-            }).product();
+            let prob: f64 = edges
+                .iter()
+                .enumerate()
+                .map(|(i, &(_, _, p))| if active[i] { p } else { 1.0 - p })
+                .product();
             if can_reach(n, &edges, &active, self.source, self.terminal) {
                 total += prob;
             }
@@ -319,9 +321,11 @@ impl AllTerminalReliability {
         let mut total = 0.0_f64;
         for mask in 0u32..(1u32 << m) {
             let active: Vec<bool> = (0..m).map(|i| (mask >> i) & 1 == 1).collect();
-            let prob: f64 = edges.iter().enumerate().map(|(i, &(_, _, p))| {
-                if active[i] { p } else { 1.0 - p }
-            }).product();
+            let prob: f64 = edges
+                .iter()
+                .enumerate()
+                .map(|(i, &(_, _, p))| if active[i] { p } else { 1.0 - p })
+                .product();
             if is_fully_connected(n, &edges, &active) {
                 total += prob;
             }
@@ -363,7 +367,15 @@ impl ReliabilityPolynomial {
         let n = adj.nrows();
         // Treat the adjacency matrix as unweighted for the polynomial
         let edges: Vec<(usize, usize)> = (0..n)
-            .flat_map(|i| (i + 1..n).filter_map(move |j| if adj[[i, j]] > 0.0 { Some((i, j)) } else { None }))
+            .flat_map(|i| {
+                (i + 1..n).filter_map(move |j| {
+                    if adj[[i, j]] > 0.0 {
+                        Some((i, j))
+                    } else {
+                        None
+                    }
+                })
+            })
             .collect();
         let m = edges.len();
         if m > 20 {
@@ -381,17 +393,19 @@ impl ReliabilityPolynomial {
             let k = mask.count_ones() as usize;
             let active: Vec<bool> = (0..m).map(|i| (mask >> i) & 1 == 1).collect();
             // Build edge list with p=1 for active check
-            let active_edges: Vec<(usize, usize, f64)> = edges
-                .iter()
-                .map(|&(u, v)| (u, v, 1.0))
-                .collect();
+            let active_edges: Vec<(usize, usize, f64)> =
+                edges.iter().map(|&(u, v)| (u, v, 1.0)).collect();
             let active_flags: Vec<bool> = (0..m).map(|i| active[i]).collect();
             if is_fully_connected(n, &active_edges, &active_flags) {
                 coeffs[k] += 1;
             }
         }
 
-        Ok(Self { coeffs, num_edges: m, num_nodes: n })
+        Ok(Self {
+            coeffs,
+            num_edges: m,
+            num_nodes: n,
+        })
     }
 
     /// Evaluate the reliability polynomial at survival probability `p`.
@@ -400,18 +414,25 @@ impl ReliabilityPolynomial {
     pub fn evaluate(&self, p: f64) -> f64 {
         let m = self.num_edges;
         let q = 1.0 - p;
-        self.coeffs.iter().enumerate().map(|(k, &c)| {
-            if c == 0 {
-                0.0
-            } else {
-                c as f64 * p.powi(k as i32) * q.powi((m - k) as i32)
-            }
-        }).sum()
+        self.coeffs
+            .iter()
+            .enumerate()
+            .map(|(k, &c)| {
+                if c == 0 {
+                    0.0
+                } else {
+                    c as f64 * p.powi(k as i32) * q.powi((m - k) as i32)
+                }
+            })
+            .sum()
     }
 
     /// Return the minimum cut size (the lowest `k` with `coeffs[k] > 0`).
     pub fn min_connected_edges(&self) -> usize {
-        self.coeffs.iter().position(|&c| c > 0).unwrap_or(self.num_edges)
+        self.coeffs
+            .iter()
+            .position(|&c| c > 0)
+            .unwrap_or(self.num_edges)
     }
 
     /// Return the total number of spanning subgraphs (sum of all coefficients).
@@ -467,7 +488,15 @@ impl BDD {
     pub fn build_all_terminal(adj: &Array2<f64>) -> Result<Self> {
         let n = adj.nrows();
         let edges: Vec<(usize, usize)> = (0..n)
-            .flat_map(|i| (i + 1..n).filter_map(move |j| if adj[[i, j]] > 0.0 { Some((i, j)) } else { None }))
+            .flat_map(|i| {
+                (i + 1..n).filter_map(move |j| {
+                    if adj[[i, j]] > 0.0 {
+                        Some((i, j))
+                    } else {
+                        None
+                    }
+                })
+            })
             .collect();
         let m = edges.len();
         if m > 20 {
@@ -513,7 +542,8 @@ impl BDD {
         if var == m {
             // All variables assigned; check if forced-on edges form connected graph
             let active: Vec<bool> = (0..m).map(|i| (forced_on >> i) & 1 == 1).collect();
-            let edge_data: Vec<(usize, usize, f64)> = edges.iter().map(|&(u, v)| (u, v, 1.0)).collect();
+            let edge_data: Vec<(usize, usize, f64)> =
+                edges.iter().map(|&(u, v)| (u, v, 1.0)).collect();
             let connected = is_fully_connected(n_nodes, &edge_data, &active);
             return if connected { 1 } else { 0 };
         }
@@ -566,7 +596,13 @@ impl BDD {
 
     fn eval_node(&self, node_idx: usize, probs: &[f64]) -> f64 {
         match &self.nodes[node_idx] {
-            BddNode::Terminal(t) => if *t { 1.0 } else { 0.0 },
+            BddNode::Terminal(t) => {
+                if *t {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
             BddNode::Internal { var, low, high } => {
                 let p = probs[*var];
                 let q = 1.0 - p;
@@ -676,8 +712,6 @@ impl ComponentFailureTree {
         Ok(tree)
     }
 
-
-
     /// Return all minimal cuts found during tree construction.
     pub fn minimal_cuts(&self) -> &[Vec<usize>] {
         &self.minimal_cuts
@@ -697,7 +731,6 @@ impl ComponentFailureTree {
         self_contribution + child_sum
     }
 }
-
 
 #[allow(clippy::too_many_arguments)]
 fn failure_tree_expand_node(
@@ -817,7 +850,10 @@ mod tests {
         // All-terminal reliability of triangle: at least 2 of 3 edges must be present
         // = C(3,2)*p^2*(1-p) + C(3,3)*p^3 = 3p²(1-p) + p³
         let expected = 3.0 * p * p * (1.0 - p) + p * p * p;
-        assert!((exact - expected).abs() < 1e-9, "Exact: {exact} vs {expected}");
+        assert!(
+            (exact - expected).abs() < 1e-9,
+            "Exact: {exact} vs {expected}"
+        );
         let mc = rel.monte_carlo(&adj, 50000, Some(7)).unwrap();
         assert!((mc - exact).abs() < 0.02);
     }
@@ -842,7 +878,10 @@ mod tests {
         let probs = vec![p; 3];
         let bdd_result = bdd.reliability(&probs).unwrap();
         let exact = AllTerminalReliability::new().exact(&adj).unwrap();
-        assert!((bdd_result - exact).abs() < 1e-9, "BDD: {bdd_result} vs exact: {exact}");
+        assert!(
+            (bdd_result - exact).abs() < 1e-9,
+            "BDD: {bdd_result} vs exact: {exact}"
+        );
     }
 
     #[test]
@@ -858,7 +897,7 @@ mod tests {
         let adj = path_adj_p(3, 0.9);
         let rel = NetworkReliability::new(0, 2);
         let (p_hat, hw) = rel.monte_carlo_with_ci(&adj, 10000, Some(1)).unwrap();
-        assert!(p_hat >= 0.0 && p_hat <= 1.0);
-        assert!(hw >= 0.0 && hw <= 0.1);
+        assert!((0.0..=1.0).contains(&p_hat));
+        assert!((0.0..=0.1).contains(&hw));
     }
 }

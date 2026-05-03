@@ -131,9 +131,7 @@ impl LearnedClause {
     /// `self` also appears in `other`.  A subsuming clause is strictly
     /// stronger (shorter or equal).
     pub fn subsumes(&self, other: &LearnedClause) -> bool {
-        self.literals
-            .iter()
-            .all(|lit| other.literals.contains(lit))
+        self.literals.iter().all(|lit| other.literals.contains(lit))
     }
 }
 
@@ -194,8 +192,7 @@ where
 
         let zero = F::zero();
         let one = F::one();
-        let frac_tol =
-            F::from_f64(1e-6).unwrap_or_else(|| F::from_f64(1e-6).unwrap_or(zero));
+        let frac_tol = F::from_f64(1e-6).unwrap_or_else(|| F::from_f64(1e-6).unwrap_or(zero));
 
         let mut best_idx: Option<usize> = None;
         let mut best_activity = F::neg_infinity();
@@ -240,8 +237,7 @@ where
         let clause = LearnedClause::new(literals);
 
         // Bump activity for all variables in the clause
-        let bump =
-            F::from_f64(self.config.activity_bump).unwrap_or(F::one());
+        let bump = F::from_f64(self.config.activity_bump).unwrap_or(F::one());
         for &(var_idx, _) in &clause.literals {
             if var_idx < self.n_vars {
                 self.activity[var_idx] += bump;
@@ -302,8 +298,7 @@ where
     /// heuristic, which prioritises variables that appeared in *recent*
     /// conflicts.
     pub fn decay_activities(&mut self) {
-        let decay =
-            F::from_f64(self.config.decay).unwrap_or(F::one());
+        let decay = F::from_f64(self.config.decay).unwrap_or(F::one());
         for act in &mut self.activity {
             *act *= decay;
         }
@@ -327,8 +322,7 @@ where
     /// Remove all learned clauses with activity below the configured threshold.
     pub fn prune_inactive_clauses(&mut self) {
         let threshold = self.config.min_activity_threshold;
-        self.learned_clauses
-            .retain(|c| c.activity >= threshold);
+        self.learned_clauses.retain(|c| c.activity >= threshold);
     }
 }
 
@@ -436,10 +430,7 @@ mod tests {
     #[test]
     fn test_record_conflict_creates_clause_correct_length() {
         let mut state = make_state(4);
-        let decisions = vec![
-            BranchingDecision::new(0, 1),
-            BranchingDecision::new(2, 0),
-        ];
+        let decisions = vec![BranchingDecision::new(0, 1), BranchingDecision::new(2, 0)];
         state.record_conflict(&decisions);
         assert!(!state.learned_clauses.is_empty());
         let clause = &state.learned_clauses[0];
@@ -449,10 +440,7 @@ mod tests {
     #[test]
     fn test_record_conflict_bumps_activity() {
         let mut state = make_state(3);
-        let decisions = vec![
-            BranchingDecision::new(0, 1),
-            BranchingDecision::new(1, 0),
-        ];
+        let decisions = vec![BranchingDecision::new(0, 1), BranchingDecision::new(1, 0)];
         state.record_conflict(&decisions);
         // After bump and one decay: activity = bump * decay
         let expected = 1.0 * 0.95;
@@ -476,7 +464,9 @@ mod tests {
     fn test_apply_clauses_no_violation() {
         let mut state = make_state(3);
         // Clause: (var 0 = 1) ∧ (var 1 = 0) — fires when both hold
-        state.learned_clauses.push(LearnedClause::new(vec![(0, 1), (1, 0)]));
+        state
+            .learned_clauses
+            .push(LearnedClause::new(vec![(0, 1), (1, 0)]));
         // Current decisions match only partially
         let current = vec![BranchingDecision::new(0, 1)]; // var 1 not set
         assert!(!state.apply_clauses(&current), "clause should not fire");
@@ -485,12 +475,11 @@ mod tests {
     #[test]
     fn test_apply_clauses_violation() {
         let mut state = make_state(3);
-        state.learned_clauses.push(LearnedClause::new(vec![(0, 1), (1, 0)]));
+        state
+            .learned_clauses
+            .push(LearnedClause::new(vec![(0, 1), (1, 0)]));
         // Both literals match → clause fires → prune
-        let current = vec![
-            BranchingDecision::new(0, 1),
-            BranchingDecision::new(1, 0),
-        ];
+        let current = vec![BranchingDecision::new(0, 1), BranchingDecision::new(1, 0)];
         assert!(state.apply_clauses(&current), "clause should fire");
     }
 
@@ -498,7 +487,10 @@ mod tests {
     fn test_apply_clauses_empty_trail_no_violation() {
         let mut state = make_state(3);
         state.learned_clauses.push(LearnedClause::new(vec![(0, 1)]));
-        assert!(!state.apply_clauses(&[]), "empty trail cannot satisfy any clause");
+        assert!(
+            !state.apply_clauses(&[]),
+            "empty trail cannot satisfy any clause"
+        );
     }
 
     // ── Activity decay ───────────────────────────────────────────────────────
@@ -521,8 +513,14 @@ mod tests {
         // Shorter clause {(0,1)} subsumes longer {(0,1), (1,0)}
         let short = LearnedClause::new(vec![(0, 1)]);
         let long = LearnedClause::new(vec![(0, 1), (1, 0)]);
-        assert!(short.subsumes(&long), "shorter clause should subsume longer");
-        assert!(!long.subsumes(&short), "longer clause should not subsume shorter");
+        assert!(
+            short.subsumes(&long),
+            "shorter clause should subsume longer"
+        );
+        assert!(
+            !long.subsumes(&short),
+            "longer clause should not subsume shorter"
+        );
     }
 
     #[test]
@@ -533,7 +531,11 @@ mod tests {
         let count_before = state.learned_clauses.len();
         // Record same conflict again — should not duplicate
         // (re-creates same clause; subsumption check prevents duplicate)
-        let decisions2 = vec![BranchingDecision::new(0, 1), BranchingDecision::new(1, 0), BranchingDecision::new(2, 1)];
+        let decisions2 = vec![
+            BranchingDecision::new(0, 1),
+            BranchingDecision::new(1, 0),
+            BranchingDecision::new(2, 1),
+        ];
         state.record_conflict(&decisions2);
         // The new (longer) clause is subsumed by the first — not added
         assert_eq!(

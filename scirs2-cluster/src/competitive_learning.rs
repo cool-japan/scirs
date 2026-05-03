@@ -37,10 +37,7 @@ use crate::error::{ClusteringError, Result};
 /// Squared Euclidean distance between two slices.
 #[inline]
 fn sq_euclid(a: &[f64], b: &[f64]) -> f64 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y) * (x - y))
-        .sum()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
 }
 
 /// Euclidean distance between two slices.
@@ -345,12 +342,7 @@ impl LearningVectorQuantization {
             ));
         }
 
-        let n_classes = labels
-            .iter()
-            .cloned()
-            .max()
-            .map(|m| m + 1)
-            .unwrap_or(0);
+        let n_classes = labels.iter().cloned().max().map(|m| m + 1).unwrap_or(0);
         if n_classes == 0 {
             return Err(ClusteringError::InvalidInput(
                 "No valid class labels found".into(),
@@ -409,10 +401,7 @@ impl LearningVectorQuantization {
                 // Find the nearest prototype.
                 let nearest = (0..n_proto)
                     .map(|j| (j, sq_euclid(&input, &proto_weights[j])))
-                    .min_by(|a, b| {
-                        a.1.partial_cmp(&b.1)
-                            .unwrap_or(std::cmp::Ordering::Equal)
-                    })
+                    .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
                     .map(|(j, _)| j)
                     .unwrap_or(0);
 
@@ -580,10 +569,7 @@ impl NeuralGas {
                     .enumerate()
                     .map(|(j, p)| (euclid(&input, p), j))
                     .collect();
-                ranked.sort_by(|a, b| {
-                    a.0.partial_cmp(&b.0)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
+                ranked.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
                 // Update each prototype with neighbourhood factor based on rank.
                 for (rank, (_, proto_idx)) in ranked.iter().enumerate() {
@@ -605,10 +591,7 @@ impl NeuralGas {
                 .iter()
                 .enumerate()
                 .map(|(j, p)| (j, sq_euclid(&row, p)))
-                .min_by(|a, b| {
-                    a.1.partial_cmp(&b.1)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                })
+                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
                 .unwrap_or((0, 0.0));
             labels_vec[i] = best;
             total_qe += best_dist;
@@ -791,10 +774,7 @@ impl GrowingNeuralGas {
                 .enumerate()
                 .map(|(j, n)| (sq_euclid(sample, &n.weights), j))
                 .collect();
-            dists.sort_by(|a, b| {
-                a.0.partial_cmp(&b.0)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
+            dists.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
             if dists.len() < 2 {
                 continue;
@@ -922,8 +902,16 @@ impl GrowingNeuralGas {
                     let qf_key = if q < f { (q, f) } else { (f, q) };
                     edge_map.remove(&qf_key);
 
-                    let qn_key = if q < new_idx { (q, new_idx) } else { (new_idx, q) };
-                    let fn_key = if f < new_idx { (f, new_idx) } else { (new_idx, f) };
+                    let qn_key = if q < new_idx {
+                        (q, new_idx)
+                    } else {
+                        (new_idx, q)
+                    };
+                    let fn_key = if f < new_idx {
+                        (f, new_idx)
+                    } else {
+                        (new_idx, f)
+                    };
                     edge_map.insert(qn_key, GngEdge { age: 0 });
                     edge_map.insert(fn_key, GngEdge { age: 0 });
                 }
@@ -949,10 +937,7 @@ impl GrowingNeuralGas {
                 .iter()
                 .enumerate()
                 .map(|(j, node)| (j, sq_euclid(row, &node.weights)))
-                .min_by(|a, b| {
-                    a.1.partial_cmp(&b.1)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                })
+                .min_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal))
                 .unwrap_or((0, 0.0));
             labels_vec[i] = best;
             total_qe += best_dist;
@@ -985,8 +970,8 @@ mod tests {
     fn two_cluster_data() -> (Array2<f64>, Vec<usize>) {
         let vals = vec![
             // Cluster 0  (~origin)
-            0.00, 0.00, 0.10, 0.00, 0.00, 0.10, 0.10, 0.10, 0.05, 0.05, -0.05, 0.05, -0.05,
-            -0.05, 0.10, -0.05, 0.00, 0.15, -0.10, 0.00, 0.15, 0.10, 0.00, 0.20,
+            0.00, 0.00, 0.10, 0.00, 0.00, 0.10, 0.10, 0.10, 0.05, 0.05, -0.05, 0.05, -0.05, -0.05,
+            0.10, -0.05, 0.00, 0.15, -0.10, 0.00, 0.15, 0.10, 0.00, 0.20,
             // Cluster 1  (~(5, 5))
             5.00, 5.00, 5.10, 5.00, 5.00, 5.10, 5.10, 5.10, 5.05, 5.05, 4.95, 5.05, 4.95, 4.95,
             5.10, 4.95, 5.00, 5.15, 4.90, 5.00, 5.15, 5.10, 5.00, 5.20,
@@ -1091,11 +1076,7 @@ mod tests {
         let preds = model.predict(x.view());
         assert_eq!(preds.len(), 24);
         // Well-separated data should be classified correctly.
-        let correct = preds
-            .iter()
-            .zip(y.iter())
-            .filter(|(&p, &t)| p == t)
-            .count();
+        let correct = preds.iter().zip(y.iter()).filter(|(&p, &t)| p == t).count();
         assert!(
             correct as f64 / 24.0 > 0.75,
             "accuracy should exceed 75%, got {}",

@@ -286,162 +286,211 @@ impl<F: Float + scirs2_core::ndarray::ScalarOperand> Op<F> for QRPivotOp {
 
 // Helper functions
 
-/// Compute SVD using Jacobi algorithm (more stable for small matrices)
+/// Compute SVD using one-sided Jacobi algorithm.
+///
+/// For an m×n matrix A, computes (U, σ, V^T) such that A = U diag(σ) V^T,
+/// where k = min(m, n):
+///
+/// - U is m×m orthogonal (if full_matrices=true) or m×k (if false)
+/// - σ is a length-k vector of non-negative singular values in descending order
+/// - V^T is k×n (if full_matrices=false) or n×n (if true)
+///
+/// Algorithm: one-sided Jacobi — iterates over column pairs (i,j) and applies
+/// Givens rotations to columns of A to annihilate A[:,i]·A[:,j].  Accumulates
+/// V.  After convergence σ_i = ‖A[:,i]‖ and U[:,i] = A[:,i]/σ_i.
 #[allow(dead_code)]
-fn compute_svd_jacobi<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
+pub(crate) fn compute_svd_jacobi<F: Float + scirs2_core::ndarray::ScalarOperand + FromPrimitive>(
     matrix: &scirs2_core::ndarray::ArrayView2<F>,
     full_matrices: bool,
 ) -> SVDResult<F> {
     let (m, n) = (matrix.shape()[0], matrix.shape()[1]);
     let k = m.min(n);
 
-    // For simplicity, use a hybrid approach
-    // First reduce to bidiagonal form, then apply Jacobi rotations
-
-    // Initialize U, S, V
-    let mut u = Array2::<F>::eye(m);
+    // Work on A (m×n copy) and accumulate V (n×n)
+    let mut a = matrix.to_owned();
+    // If m > n, we only need the first n columns; keep all m rows.
     let mut v = Array2::<F>::eye(n);
-    let mut b = matrix.to_owned();
 
-    // Bidiagonalization using Householder reflections
-    for i in 0..k {
-        // Left Householder for column i
-        if i < m - 1 {
-            let col = b.slice(s![i.., i]).to_owned();
-            let (h, _beta) = householder_vector(&col.view())?;
-            let h_mat = householder_matrix(&h, m - i);
+    let max_sweeps = 30;
+    let tol = F::epsilon() * F::from_f64(10.0).unwrap_or_else(|| F::from(10.0).unwrap_or(F::one()));
 
-            // Apply to B and U
-            let b_sub = b.slice(s![i.., i..]).to_owned();
-            let b_new = h_mat.dot(&b_sub);
-            b.slice_mut(s![i.., i..]).assign(&b_new);
-
-            let u_sub = u.slice(s![.., i..]).to_owned();
-            let u_new = u_sub.dot(&h_mat.t());
-            u.slice_mut(s![.., i..]).assign(&u_new);
-        }
-
-        // Right Householder for row i
-        if i < n - 2 {
-            let row = b.slice(s![i, i + 1..]).to_owned();
-            let (h, _beta) = householder_vector(&row.view())?;
-            let h_mat = householder_matrix(&h, n - i - 1);
-
-            // Apply to B and V
-            let b_sub = b.slice(s![i.., i + 1..]).to_owned();
-            let b_new = b_sub.dot(&h_mat);
-            b.slice_mut(s![i.., i + 1..]).assign(&b_new);
-
-            let v_sub = v.slice(s![i + 1.., ..]).to_owned();
-            let v_new = h_mat.t().dot(&v_sub);
-            v.slice_mut(s![i + 1.., ..]).assign(&v_new);
-        }
-    }
-
-    // Extract diagonal and superdiagonal
-    let mut diag = Array1::<F>::zeros(k);
-    let mut superdiag = Array1::<F>::zeros(k - 1);
-
-    for i in 0..k {
-        diag[i] = b[[i, i]];
-        if i < k - 1 {
-            superdiag[i] = b[[i, i + 1]];
-        }
-    }
-
-    // Apply Jacobi rotations to diagonalize
-    let max_iter = 100;
-    let tol = F::epsilon() * F::from(10.0).expect("Failed to convert constant to float");
-
-    for _ in 0..max_iter {
+    // One-sided Jacobi: sweep over all column pairs
+    'outer: for _sweep in 0..max_sweeps {
         let mut converged = true;
 
-        for i in 0..k - 1 {
-            if superdiag[i].abs() > tol {
+        for i in 0..n {
+            for j in (i + 1)..n {
+                // Compute entries of A[:,i]^T A[:,j] sub-matrix
+                let aii = col_dot_f(&a.view(), i, i, m);
+                let aij = col_dot_f(&a.view(), i, j, m);
+                let ajj = col_dot_f(&a.view(), j, j, m);
+
+                // Off-diagonal mass; skip if already small
+                if aij.abs() <= tol * (aii * ajj).sqrt() {
+                    continue;
+                }
+
                 converged = false;
 
-                // Compute Givens rotation
-                let a = diag[i];
-                let b = superdiag[i];
-                let c = diag[i + 1];
+                // Compute Jacobi rotation angle for the symmetric 2×2
+                // [[aii, aij],[aij, ajj]]
+                let tau = (ajj - aii) / (F::from(2.0).unwrap_or(F::one()) * aij);
 
-                let (cos, sin) = compute_givens_rotation(a, b, c);
+                let t = if tau >= F::zero() {
+                    F::one() / (tau + (F::one() + tau * tau).sqrt())
+                } else {
+                    -F::one() / (-tau + (F::one() + tau * tau).sqrt())
+                };
 
-                // Update _matrices
-                diag[i] = cos * cos * a
-                    + sin * sin * c
-                    + F::from(2.0).expect("Failed to convert constant to float") * cos * sin * b;
-                diag[i + 1] = sin * sin * a + cos * cos * c
-                    - F::from(2.0).expect("Failed to convert constant to float") * cos * sin * b;
-                superdiag[i] = F::zero();
+                let cos = F::one() / (F::one() + t * t).sqrt();
+                let sin = t * cos;
 
-                // Update U and V
-                apply_givens_left(&mut u, i, i + 1, cos, sin);
-                apply_givens_right(&mut v, i, i + 1, cos, sin);
+                // Apply rotation to columns i and j of A
+                for row in 0..m {
+                    let ai = a[[row, i]];
+                    let aj = a[[row, j]];
+                    a[[row, i]] = cos * ai - sin * aj;
+                    a[[row, j]] = sin * ai + cos * aj;
+                }
+
+                // Accumulate V
+                for row in 0..n {
+                    let vi = v[[row, i]];
+                    let vj = v[[row, j]];
+                    v[[row, i]] = cos * vi - sin * vj;
+                    v[[row, j]] = sin * vi + cos * vj;
+                }
             }
         }
 
         if converged {
-            break;
+            break 'outer;
         }
     }
 
-    // Ensure positive singular values
-    for i in 0..k {
-        if diag[i] < F::zero() {
-            diag[i] = -diag[i];
-            u.slice_mut(s![.., i]).mapv_inplace(|x| -x);
-        }
+    // Extract singular values as column norms for ALL n columns, then sort.
+    // For wide matrices (m < n), only k=m singular values are nonzero but we
+    // need to scan all n columns to find the k largest.
+    let mut all_sigma = Array1::<F>::zeros(n);
+    for i in 0..n {
+        all_sigma[i] = col_dot_f(&a.view(), i, i, m).sqrt();
     }
 
-    // Sort singular values in descending order
-    let mut indices: Vec<usize> = (0..k).collect();
-    indices.sort_by(|&i, &j| {
-        diag[j]
-            .abs()
-            .partial_cmp(&diag[i].abs())
-            .expect("Operation failed")
+    // Sort all n indices by descending sigma, then take the top k
+    let mut all_indices: Vec<usize> = (0..n).collect();
+    all_indices.sort_by(|&ia, &ib| {
+        all_sigma[ib]
+            .partial_cmp(&all_sigma[ia])
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let s = Array1::from_iter(indices.iter().map(|&i| diag[i]));
+    // Take top k indices
+    let indices: Vec<usize> = all_indices.into_iter().take(k).collect();
 
-    let u_sorted = if full_matrices {
-        let mut u_full = u.clone();
-        for (new_idx, &old_idx) in indices.iter().enumerate() {
-            u_full
-                .slice_mut(s![.., new_idx])
-                .assign(&u.slice(s![.., old_idx]));
+    // Build U from the selected k columns
+    let mut u_mat = Array2::<F>::zeros((m, k));
+    for (new_i, &old_i) in indices.iter().enumerate() {
+        let sigma_val = all_sigma[old_i];
+        if sigma_val > F::epsilon() {
+            for row in 0..m {
+                u_mat[[row, new_i]] = a[[row, old_i]] / sigma_val;
+            }
+        } else if new_i < m {
+            // Zero singular value: leave as zero (the gram-schmidt complement will fix full U)
         }
-        u_full
+    }
+
+    let sigma_sorted = Array1::from_iter(indices.iter().map(|&idx| all_sigma[idx]));
+
+    // u_mat is already built in sorted order; just wrap it appropriately
+    let mut u_sorted = if full_matrices {
+        // Pad to m×m with identity basis for extra columns
+        let mut uf = Array2::<F>::zeros((m, m));
+        for new_i in 0..k {
+            for row in 0..m {
+                uf[[row, new_i]] = u_mat[[row, new_i]];
+            }
+        }
+        // Fill remaining with standard basis (Gram-Schmidt will fix orthogonality)
+        for new_i in k..m {
+            if new_i < m {
+                uf[[new_i, new_i]] = F::one();
+            }
+        }
+        uf
     } else {
-        let mut u_reduced = Array2::<F>::zeros((m, k));
-        for (new_idx, &old_idx) in indices.iter().enumerate() {
-            u_reduced
-                .slice_mut(s![.., new_idx])
-                .assign(&u.slice(s![.., old_idx]));
-        }
-        u_reduced
+        u_mat
     };
 
+    // Ensure U columns are orthonormal (Gram-Schmidt polish for full case)
+    if full_matrices && m > k {
+        gram_schmidt_complement(&mut u_sorted, k, m);
+    }
+
+    // Reorder V columns, then transpose to get V^T
     let vt_sorted = if full_matrices {
-        let mut vt_full = v.t().to_owned();
-        for (new_idx, &old_idx) in indices.iter().enumerate() {
-            vt_full
-                .slice_mut(s![new_idx, ..])
-                .assign(&v.slice(s![.., old_idx]));
+        let mut vt = Array2::<F>::zeros((n, n));
+        for (new_i, &old_i) in indices.iter().enumerate() {
+            for col in 0..n {
+                vt[[new_i, col]] = v[[col, old_i]];
+            }
         }
-        vt_full
+        vt
     } else {
-        let mut vt_reduced = Array2::<F>::zeros((k, n));
-        for (new_idx, &old_idx) in indices.iter().enumerate() {
-            vt_reduced
-                .slice_mut(s![new_idx, ..])
-                .assign(&v.slice(s![.., old_idx]));
+        let mut vt = Array2::<F>::zeros((k, n));
+        for (new_i, &old_i) in indices.iter().enumerate() {
+            for col in 0..n {
+                vt[[new_i, col]] = v[[col, old_i]];
+            }
         }
-        vt_reduced
+        vt
     };
 
-    Ok((u_sorted, s, vt_sorted))
+    Ok((u_sorted, sigma_sorted, vt_sorted))
+}
+
+/// Dot product of column i and column j of matrix a (using first m rows).
+#[inline]
+fn col_dot_f<F: Float>(a: &scirs2_core::ndarray::ArrayView2<F>, i: usize, j: usize, m: usize) -> F {
+    let mut s = F::zero();
+    for row in 0..m {
+        s += a[[row, i]] * a[[row, j]];
+    }
+    s
+}
+
+/// Extend the first `k` orthonormal columns of `u` (m×m) to a full orthonormal
+/// basis using Gram-Schmidt for columns k..m.
+fn gram_schmidt_complement<F: Float>(u: &mut Array2<F>, k: usize, m: usize) {
+    // Generate candidate vectors; for each try basis vectors e_0, e_1, …
+    let mut filled = k;
+    let mut candidate = 0usize;
+    while filled < m && candidate < m {
+        // Build e_candidate
+        let mut v = Array1::<F>::zeros(m);
+        v[candidate] = F::one();
+        candidate += 1;
+
+        // Gram-Schmidt against all already-accepted columns
+        for j in 0..filled {
+            let mut dot = F::zero();
+            for i in 0..m {
+                dot += u[[i, j]] * v[i];
+            }
+            for i in 0..m {
+                v[i] -= dot * u[[i, j]];
+            }
+        }
+
+        // Normalize
+        let norm = v.iter().fold(F::zero(), |acc, &x| acc + x * x).sqrt();
+        if norm > F::epsilon() {
+            for i in 0..m {
+                u[[i, filled]] = v[i] / norm;
+            }
+            filled += 1;
+        }
+    }
 }
 
 /// Compute randomized SVD for large matrices

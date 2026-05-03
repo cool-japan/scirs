@@ -15,7 +15,11 @@
 use crate::auto_tuning::{AutoTuneConfig, AutoTuner, FftVariant};
 use crate::backend::BackendContext;
 use crate::error::{FFTError, FFTResult};
+#[cfg(feature = "oxifft")]
+use crate::oxifft_plan_cache;
 use crate::plan_serialization::{PlanMetrics, PlanSerializationManager};
+#[cfg(feature = "oxifft")]
+use oxifft::{Complex as OxiComplex, Direction};
 
 use scirs2_core::ndarray::{ArrayBase, Data, Dimension};
 use scirs2_core::numeric::Complex64;
@@ -76,11 +80,7 @@ pub struct FftPlan {
     /// Array shape the plan is optimized for
     shape: Vec<usize>,
     /// Whether the plan is for a forward or inverse transform
-    /// Kept for future compatibility
-    #[allow(dead_code)]
     forward: bool,
-    /// Backend-specific internal plan representation
-    internal_plan: Arc<dyn rustfft::Fft<f64>>,
     /// Performance metrics for this plan
     metrics: Option<PlanMetrics>,
     /// Backend used to create this plan
@@ -88,34 +88,20 @@ pub struct FftPlan {
     #[allow(dead_code)]
     backend: PlannerBackend,
     /// Auto-tuning information (if applicable)
-    auto_tune_info: Option<FftVariant>,
+    pub(crate) auto_tune_info: Option<FftVariant>,
     /// Last time this plan was used
-    last_used: Instant,
+    pub(crate) last_used: Instant,
     /// Number of times this plan has been used
-    usage_count: usize,
+    pub(crate) usage_count: usize,
 }
 
 impl FftPlan {
-    /// Create a new FFT plan for the given shape and direction
-    pub fn new(
-        shape: &[usize],
-        forward: bool,
-        planner: &mut rustfft::FftPlanner<f64>,
-        backend: PlannerBackend,
-    ) -> Self {
-        // For multidimensional transforms, we'll use the flattened size
-        let size = shape.iter().product();
-
-        let internal_plan = if forward {
-            planner.plan_fft_forward(size)
-        } else {
-            planner.plan_fft_inverse(size)
-        };
-
+    /// Create a new FFT plan for the given shape and direction.
+    /// Uses OxiFFT as the execution backend (COOLJAPAN Pure Rust policy).
+    pub fn new(shape: &[usize], forward: bool, backend: PlannerBackend) -> Self {
         Self {
             shape: shape.to_vec(),
             forward,
-            internal_plan,
             metrics: None,
             backend,
             auto_tune_info: None,
@@ -124,9 +110,9 @@ impl FftPlan {
         }
     }
 
-    /// Get the internal rustfft plan
-    pub fn get_internal(&self) -> Arc<dyn rustfft::Fft<f64>> {
-        self.internal_plan.clone()
+    /// Get the forward direction of this plan
+    pub fn is_forward(&self) -> bool {
+        self.forward
     }
 
     /// Record usage of this plan
@@ -160,7 +146,8 @@ impl FftPlan {
     }
 }
 
-/// Planner for FFT operations that combines caching, serialization and auto-tuning
+/// Planner for FFT operations that combines caching, serialization and auto-tuning.
+/// Uses OxiFFT as the execution backend (COOLJAPAN Pure Rust policy).
 pub struct AdvancedFftPlanner {
     /// Configuration options
     config: PlanningConfig,
@@ -170,17 +157,13 @@ pub struct AdvancedFftPlanner {
     serialization_manager: Option<PlanSerializationManager>,
     /// Auto-tuner (if enabled)
     auto_tuner: Option<AutoTuner>,
-    /// Internal rustfft planner
-    internal_planner: rustfft::FftPlanner<f64>,
 }
 
 /// Backend type for FFT operations
 #[derive(Clone, Debug, Hash, PartialEq, Eq, Default)]
 pub enum PlannerBackend {
-    /// Default rustfft backend
+    /// OxiFFT - Pure Rust high-performance FFT (default, COOLJAPAN policy)
     #[default]
-    RustFFT,
-    /// OxiFFT - Pure Rust high-performance FFT
     OxiFFT,
     /// CUDA-accelerated backend
     CUDA,
@@ -229,7 +212,6 @@ impl AdvancedFftPlanner {
             cache: Arc::new(Mutex::new(HashMap::new())),
             serialization_manager,
             auto_tuner,
-            internal_planner: rustfft::FftPlanner::new(),
         }
     }
 
@@ -339,7 +321,7 @@ impl AdvancedFftPlanner {
         // Measure plan creation time if enabled
         let start = Instant::now();
 
-        let plan = FftPlan::new(shape, forward, &mut self.internal_planner, backend);
+        let plan = FftPlan::new(shape, forward, backend);
 
         let elapsed = start.elapsed();
 
@@ -499,15 +481,9 @@ impl FftPlanExecutor {
         }
     }
 
-    /// Execute the plan on the given input/output buffers
+    /// Execute the plan on the given input/output buffers.
+    /// Uses OxiFFT as the backend (COOLJAPAN Pure Rust policy).
     pub fn execute(&self, input: &[Complex64], output: &mut [Complex64]) -> FFTResult<()> {
-        // In a real implementation, we would use the context and backend
-        // to select the appropriate execution strategy
-
-        // For now, just use the rustfft plan directly
-        let internal_plan = self.plan.get_internal();
-
-        // Ensure buffer sizes match expected size
         let expected_size: usize = self.plan.shape().iter().product();
         if input.len() != expected_size || output.len() != expected_size {
             return Err(FFTError::ValueError(format!(
@@ -518,23 +494,35 @@ impl FftPlanExecutor {
             )));
         }
 
-        // Execute the transform
-        // rustfft requires in-place execution, so copy input to output first
-        output.copy_from_slice(input);
+        #[cfg(feature = "oxifft")]
+        {
+            let direction = if self.plan.is_forward() {
+                Direction::Forward
+            } else {
+                Direction::Backward
+            };
+            let input_oxi: Vec<OxiComplex<f64>> =
+                input.iter().map(|c| OxiComplex::new(c.re, c.im)).collect();
+            let mut output_oxi: Vec<OxiComplex<f64>> =
+                vec![OxiComplex::new(0.0, 0.0); expected_size];
+            oxifft_plan_cache::execute_c2c(&input_oxi, &mut output_oxi, direction)?;
+            for (i, c) in output_oxi.iter().enumerate() {
+                output[i] = Complex64::new(c.re, c.im);
+            }
+            Ok(())
+        }
 
-        // Then execute in-place
-        let mut scratch = vec![Complex64::default(); internal_plan.get_inplace_scratch_len()];
-        internal_plan.process_with_scratch(output, &mut scratch);
-
-        Ok(())
+        #[cfg(not(feature = "oxifft"))]
+        {
+            Err(FFTError::ComputationError(
+                "No FFT backend available. Enable 'oxifft' feature.".to_string(),
+            ))
+        }
     }
 
-    /// Execute the plan in-place on the given buffer
+    /// Execute the plan in-place on the given buffer.
+    /// Uses OxiFFT as the backend (COOLJAPAN Pure Rust policy).
     pub fn execute_inplace(&self, buffer: &mut [Complex64]) -> FFTResult<()> {
-        // Similar to execute, but in-place
-        let internal_plan = self.plan.get_internal();
-
-        // Ensure buffer size matches expected size
         let expected_size: usize = self.plan.shape().iter().product();
         if buffer.len() != expected_size {
             return Err(FFTError::ValueError(format!(
@@ -544,11 +532,30 @@ impl FftPlanExecutor {
             )));
         }
 
-        // Execute the transform in-place
-        let mut scratch = vec![Complex64::default(); internal_plan.get_inplace_scratch_len()];
-        internal_plan.process_with_scratch(buffer, &mut scratch);
+        #[cfg(feature = "oxifft")]
+        {
+            let direction = if self.plan.is_forward() {
+                Direction::Forward
+            } else {
+                Direction::Backward
+            };
+            let input_oxi: Vec<OxiComplex<f64>> =
+                buffer.iter().map(|c| OxiComplex::new(c.re, c.im)).collect();
+            let mut output_oxi: Vec<OxiComplex<f64>> =
+                vec![OxiComplex::new(0.0, 0.0); expected_size];
+            oxifft_plan_cache::execute_c2c(&input_oxi, &mut output_oxi, direction)?;
+            for (i, c) in output_oxi.iter().enumerate() {
+                buffer[i] = Complex64::new(c.re, c.im);
+            }
+            Ok(())
+        }
 
-        Ok(())
+        #[cfg(not(feature = "oxifft"))]
+        {
+            Err(FFTError::ComputationError(
+                "No FFT backend available. Enable 'oxifft' feature.".to_string(),
+            ))
+        }
     }
 
     /// Get the plan this executor uses

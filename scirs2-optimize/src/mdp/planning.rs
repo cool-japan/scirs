@@ -7,14 +7,14 @@
 //! - State-action occupancy measure
 //! - Maximum Entropy Inverse Reinforcement Learning
 
-use std::cmp::Ordering;
-use std::collections::{BinaryHeap, HashSet};
-use scirs2_core::ndarray::Array2;
 use crate::error::OptimizeError;
 use crate::mdp::tabular::{
-    Mdp, MdpSolution, evaluate_policy, compute_bellman_residual,
-    lcg_next, lcg_index, sample_next_state,
+    compute_bellman_residual, evaluate_policy, lcg_index, lcg_next, sample_next_state, Mdp,
+    MdpSolution,
 };
+use scirs2_core::ndarray::Array2;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashSet};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Priority queue entry (max-heap by priority)
@@ -174,9 +174,7 @@ pub fn prioritized_sweeping(
         ));
     }
     if theta < 0.0 {
-        return Err(OptimizeError::ValueError(
-            "theta must be >= 0".to_string(),
-        ));
+        return Err(OptimizeError::ValueError("theta must be >= 0".to_string()));
     }
 
     let r = mdp.expected_reward();
@@ -483,9 +481,7 @@ pub fn max_entropy_irl(
         ));
     }
     if n_iter == 0 {
-        return Err(OptimizeError::ValueError(
-            "n_iter must be > 0".to_string(),
-        ));
+        return Err(OptimizeError::ValueError("n_iter must be > 0".to_string()));
     }
 
     let ns = mdp.n_states;
@@ -542,8 +538,7 @@ pub fn max_entropy_irl(
 
         // Expected state-action counts under soft policy (using uniform start distribution)
         let init_dist: Vec<f64> = vec![1.0 / ns as f64; ns];
-        let expected_counts =
-            state_action_occupancy_soft(mdp, &soft_policy, &init_dist);
+        let expected_counts = state_action_occupancy_soft(mdp, &soft_policy, &init_dist);
 
         // Gradient: empirical_counts - expected_counts
         for s in 0..ns {
@@ -560,12 +555,7 @@ pub fn max_entropy_irl(
 /// Soft value iteration for MaxEnt IRL.
 ///
 /// Computes `V_soft(s) = log Σ_a exp(θ(s,a) + γ Σ_{s'} T(s,a,s') V_soft(s'))`.
-fn soft_value_iteration(
-    mdp: &Mdp,
-    theta: &Array2<f64>,
-    tol: f64,
-    max_iter: usize,
-) -> Vec<f64> {
+fn soft_value_iteration(mdp: &Mdp, theta: &Array2<f64>, tol: f64, max_iter: usize) -> Vec<f64> {
     let ns = mdp.n_states;
     let na = mdp.n_actions;
     let mut v = vec![0.0_f64; ns];
@@ -576,9 +566,7 @@ fn soft_value_iteration(
             let log_sum_exp = {
                 let qs: Vec<f64> = (0..na)
                     .map(|a| {
-                        let fut: f64 = (0..ns)
-                            .map(|sp| mdp.transition[[s, a, sp]] * v[sp])
-                            .sum();
+                        let fut: f64 = (0..ns).map(|sp| mdp.transition[[s, a, sp]] * v[sp]).sum();
                         theta[[s, a]] + mdp.gamma * fut
                     })
                     .collect();
@@ -659,8 +647,8 @@ fn state_action_occupancy_soft(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mdp::tabular::{simulate, value_iteration};
     use scirs2_core::ndarray::{Array2, Array3};
-    use crate::mdp::tabular::{value_iteration, simulate};
 
     fn three_state_mdp() -> Mdp {
         let n = 3;
@@ -770,7 +758,11 @@ mod tests {
     fn test_ssp_goal_value_zero() {
         let mdp = three_state_mdp();
         let sol = stochastic_shortest_path(&mdp, 2, 10_000, 1e-9).expect("failed to create sol");
-        assert!(sol.value_function[2].abs() < 1e-9, "goal value = {}", sol.value_function[2]);
+        assert!(
+            sol.value_function[2].abs() < 1e-9,
+            "goal value = {}",
+            sol.value_function[2]
+        );
     }
 
     #[test]
@@ -794,8 +786,10 @@ mod tests {
         let ssp = stochastic_shortest_path(&mdp, 2, 10_000, 1e-9).expect("failed to create ssp");
         // Both should agree that state 0 has lower value than state 1 (further from goal)
         // or the ordering makes sense for the problem
-        assert!(vi.value_function[0] <= vi.value_function[1] + 1e-6
-            || ssp.value_function[0] <= ssp.value_function[1] + 1e-6);
+        assert!(
+            vi.value_function[0] <= vi.value_function[1] + 1e-6
+                || ssp.value_function[0] <= ssp.value_function[1] + 1e-6
+        );
     }
 
     // ── Occupancy measure ──────────────────────────────────────────────────────
@@ -829,7 +823,12 @@ mod tests {
         let d = state_action_occupancy(&mdp, &policy, &init);
         // Action 1 never taken under this policy
         for s in 0..3 {
-            assert!(d[[s, 1]].abs() < 1e-6, "d[{},1] = {} should be 0", s, d[[s, 1]]);
+            assert!(
+                d[[s, 1]].abs() < 1e-6,
+                "d[{},1] = {} should be 0",
+                s,
+                d[[s, 1]]
+            );
         }
     }
 
@@ -839,10 +838,7 @@ mod tests {
     fn test_maxent_irl_output_shape() {
         let mdp = three_state_mdp();
         // Demonstrate optimal policy (always move right)
-        let demos: Vec<Vec<(usize, usize)>> = vec![
-            vec![(0, 0), (1, 0)],
-            vec![(0, 0), (1, 0)],
-        ];
+        let demos: Vec<Vec<(usize, usize)>> = vec![vec![(0, 0), (1, 0)], vec![(0, 0), (1, 0)]];
         let reward = max_entropy_irl(&mdp, &demos, 0.01, 10).expect("failed to create reward");
         assert_eq!(reward.shape(), [3, 2]);
     }

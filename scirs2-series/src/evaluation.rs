@@ -1101,8 +1101,8 @@ mod tests {
         ];
         // f2 is close with small varying errors (cycling through 0.1, 0.2, 0.3)
         let f2 = array![
-            1.1, 2.2, 3.3, 4.1, 5.2, 6.3, 7.1, 8.2, 9.3, 10.1, 11.2, 12.3, 13.1, 14.2, 15.3,
-            16.1, 17.2, 18.3, 19.1, 20.2
+            1.1, 2.2, 3.3, 4.1, 5.2, 6.3, 7.1, 8.2, 9.3, 10.1, 11.2, 12.3, 13.1, 14.2, 15.3, 16.1,
+            17.2, 18.3, 19.1, 20.2
         ];
         let result = diebold_mariano(&actual, &f1, &f2, DMLossFunction::SquaredError, 1)
             .expect("DM test should succeed");

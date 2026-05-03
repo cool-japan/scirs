@@ -889,10 +889,10 @@ impl HDF5File {
             Ok(TypeDescriptor::Float(float_type)) => Ok(HDF5DataType::Float {
                 size: float_type as usize,
             }),
-            Ok(TypeDescriptor::FixedUnicode(size)) => Ok(HDF5DataType::String {
+            Ok(TypeDescriptor::FixedUnicode(_size)) => Ok(HDF5DataType::String {
                 encoding: StringEncoding::UTF8,
             }),
-            Ok(TypeDescriptor::FixedAscii(size)) => Ok(HDF5DataType::String {
+            Ok(TypeDescriptor::FixedAscii(_size)) => Ok(HDF5DataType::String {
                 encoding: StringEncoding::ASCII,
             }),
             Ok(TypeDescriptor::VarLenUnicode) => Ok(HDF5DataType::String {
@@ -901,14 +901,35 @@ impl HDF5File {
             Ok(TypeDescriptor::VarLenAscii) => Ok(HDF5DataType::String {
                 encoding: StringEncoding::ASCII,
             }),
-            // TODO: Handle Array type when available in HDF5 crate
-            // Ok(TypeDescriptor::Array(array_type)) => {
-            //     let base_type = Self::convert_hdf5_datatype(&array_type.base_type())?;
-            //     Ok(HDF5DataType::Array {
-            //         base_type: Box::new(base_type),
-            //         shape: array_type.shape().to_vec(),
-            //     })
-            // }
+            // Handle FixedArray: array with known element type and length
+            Ok(TypeDescriptor::FixedArray(elem_ty, len)) => {
+                // Recursively convert the element type by creating a temporary Datatype
+                let elem_datatype = hdf5::Datatype::from_descriptor(&elem_ty).map_err(|e| {
+                    IoError::FormatError(format!(
+                        "Failed to create element datatype for FixedArray: {e}"
+                    ))
+                })?;
+                let base_type = Self::convert_hdf5_datatype(&elem_datatype)?;
+                Ok(HDF5DataType::Array {
+                    base_type: Box::new(base_type),
+                    // FixedArray is 1-dimensional with the given length
+                    shape: vec![len],
+                })
+            }
+            // Handle VarLenArray: variable-length array with known element type
+            Ok(TypeDescriptor::VarLenArray(elem_ty)) => {
+                let elem_datatype = hdf5::Datatype::from_descriptor(&elem_ty).map_err(|e| {
+                    IoError::FormatError(format!(
+                        "Failed to create element datatype for VarLenArray: {e}"
+                    ))
+                })?;
+                let base_type = Self::convert_hdf5_datatype(&elem_datatype)?;
+                Ok(HDF5DataType::Array {
+                    base_type: Box::new(base_type),
+                    // Variable-length arrays have an unspecified (zero-length) shape dimension
+                    shape: vec![0],
+                })
+            }
             Ok(TypeDescriptor::Compound(comp_type)) => {
                 let mut fields = Vec::new();
                 for field in &comp_type.fields {
@@ -1702,8 +1723,132 @@ mod legacy_tests {
 
     #[test]
     fn test_hdf5_file_creation() {
-        let file = HDF5File::create("test.h5").expect("Operation failed");
+        let tmp = std::env::temp_dir();
+        let path = tmp.join("scirs2_test_hdf5.h5");
+        let file = HDF5File::create(path.to_str().unwrap()).expect("Operation failed");
         assert_eq!(file.mode, FileMode::Create);
         assert_eq!(file.root.name, "/");
+        let _ = std::fs::remove_file(&path);
+    }
+
+    // --- Tests for HDF5DataType::Array path coverage ---
+
+    /// Directly test that the HDF5DataType::Array variant round-trips correctly.
+    #[test]
+    fn test_hdf5_datatype_array_f32_roundtrip() {
+        let base = HDF5DataType::Float { size: 4 };
+        let array_type = HDF5DataType::Array {
+            base_type: Box::new(base),
+            shape: vec![8],
+        };
+        if let HDF5DataType::Array { base_type, shape } = &array_type {
+            assert!(matches!(**base_type, HDF5DataType::Float { size: 4 }));
+            assert_eq!(shape, &[8]);
+        } else {
+            panic!("Expected HDF5DataType::Array");
+        }
+    }
+
+    /// Test Array variant with f64 element type.
+    #[test]
+    fn test_hdf5_datatype_array_f64_roundtrip() {
+        let base = HDF5DataType::Float { size: 8 };
+        let array_type = HDF5DataType::Array {
+            base_type: Box::new(base),
+            shape: vec![16],
+        };
+        if let HDF5DataType::Array { base_type, shape } = &array_type {
+            assert!(matches!(**base_type, HDF5DataType::Float { size: 8 }));
+            assert_eq!(shape, &[16]);
+        } else {
+            panic!("Expected HDF5DataType::Array");
+        }
+    }
+
+    /// Test nested Array (array of arrays).
+    #[test]
+    fn test_hdf5_datatype_nested_array() {
+        let inner = HDF5DataType::Array {
+            base_type: Box::new(HDF5DataType::Integer {
+                size: 4,
+                signed: true,
+            }),
+            shape: vec![4],
+        };
+        let outer = HDF5DataType::Array {
+            base_type: Box::new(inner),
+            shape: vec![2],
+        };
+        if let HDF5DataType::Array {
+            base_type: outer_base,
+            shape: outer_shape,
+        } = &outer
+        {
+            assert_eq!(outer_shape, &[2]);
+            if let HDF5DataType::Array {
+                base_type: inner_base,
+                shape: inner_shape,
+            } = outer_base.as_ref()
+            {
+                assert_eq!(inner_shape, &[4]);
+                assert!(matches!(
+                    **inner_base,
+                    HDF5DataType::Integer {
+                        size: 4,
+                        signed: true
+                    }
+                ));
+            } else {
+                panic!("Expected inner HDF5DataType::Array");
+            }
+        } else {
+            panic!("Expected outer HDF5DataType::Array");
+        }
+    }
+
+    /// Test that scalar types (Integer, Float) still produce the expected HDF5DataType.
+    #[test]
+    fn test_hdf5_scalar_types_still_correct() {
+        let int_type = HDF5DataType::Integer {
+            size: 8,
+            signed: true,
+        };
+        let float_type = HDF5DataType::Float { size: 8 };
+        let str_type = HDF5DataType::String {
+            encoding: StringEncoding::UTF8,
+        };
+
+        assert!(matches!(
+            int_type,
+            HDF5DataType::Integer {
+                size: 8,
+                signed: true
+            }
+        ));
+        assert!(matches!(float_type, HDF5DataType::Float { size: 8 }));
+        assert!(matches!(
+            str_type,
+            HDF5DataType::String {
+                encoding: StringEncoding::UTF8
+            }
+        ));
+    }
+
+    /// Test that Array type with VarLen semantics (shape=[0]) represents variable-length.
+    #[test]
+    fn test_hdf5_varlen_array_marker() {
+        let base = HDF5DataType::Integer {
+            size: 4,
+            signed: false,
+        };
+        let varlen = HDF5DataType::Array {
+            base_type: Box::new(base),
+            shape: vec![0], // 0 marks variable-length
+        };
+        if let HDF5DataType::Array { shape, .. } = &varlen {
+            assert_eq!(shape[0], 0, "VarLen marker must be shape=[0]");
+        } else {
+            panic!("Expected HDF5DataType::Array");
+        }
     }
 }

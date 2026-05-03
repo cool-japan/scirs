@@ -676,8 +676,7 @@ impl AdvancedVisualizer {
             VisualizationExportFormat::JSONData => self.export_to_json(output, filename),
             VisualizationExportFormat::InteractiveHTML => self.export_to_html(output, filename),
             _ => {
-                // For other formats, return a placeholder implementation
-                println!("Export format not yet implemented, saving as JSON");
+                // Unsupported formats fall back to JSON export
                 self.export_to_json(output, filename)
             }
         }

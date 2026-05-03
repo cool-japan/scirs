@@ -352,10 +352,7 @@ impl StructuredDissipation {
     /// Create from a list of (block_size, block_matrix) pairs.
     pub fn new(blocks: Vec<(usize, Array2<f64>)>) -> IntegrateResult<Self> {
         let block_sizes: Vec<usize> = blocks.iter().map(|(s, _)| *s).collect();
-        let matrices: Vec<Array2<f64>> = blocks
-            .into_iter()
-            .map(|(_, m)| m)
-            .collect();
+        let matrices: Vec<Array2<f64>> = blocks.into_iter().map(|(_, m)| m).collect();
 
         for (i, (sz, m)) in block_sizes.iter().zip(matrices.iter()).enumerate() {
             if m.nrows() != *sz || m.ncols() != *sz {
@@ -419,8 +416,12 @@ fn solve_linear_system_left(a: &Array2<f64>, b: &Array2<f64>) -> IntegrateResult
     // Forward elimination with partial pivoting
     for col in 0..n {
         // Find pivot
-        let pivot_row = (col..n)
-            .max_by(|&r1, &r2| aug[r1][col].abs().partial_cmp(&aug[r2][col].abs()).unwrap_or(std::cmp::Ordering::Equal));
+        let pivot_row = (col..n).max_by(|&r1, &r2| {
+            aug[r1][col]
+                .abs()
+                .partial_cmp(&aug[r2][col].abs())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         let pivot_row = pivot_row.ok_or_else(|| {
             IntegrateError::LinearSolveError("Singular matrix in dissipation solve".into())
         })?;

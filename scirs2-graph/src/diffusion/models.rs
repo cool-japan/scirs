@@ -167,7 +167,12 @@ impl LinearThreshold {
 
     /// Run a single LT simulation.
     pub fn simulate(&self, seeds: &[usize]) -> Result<SimulationResult> {
-        simulate_lt(&self.adjacency, self.num_nodes, seeds, self.thresholds.as_deref())
+        simulate_lt(
+            &self.adjacency,
+            self.num_nodes,
+            seeds,
+            self.thresholds.as_deref(),
+        )
     }
 
     /// Estimate expected spread.
@@ -234,7 +239,12 @@ impl SIRModel {
     }
 
     /// Build from `(source, target)` edge list (unweighted).
-    pub fn from_edges(edges: &[(usize, usize)], num_nodes: usize, beta: f64, gamma: f64) -> Result<Self> {
+    pub fn from_edges(
+        edges: &[(usize, usize)],
+        num_nodes: usize,
+        beta: f64,
+        gamma: f64,
+    ) -> Result<Self> {
         let mut adjacency: AdjList = HashMap::new();
         for &(src, tgt) in edges {
             adjacency.entry(src).or_default().push((tgt, 1.0));
@@ -245,7 +255,13 @@ impl SIRModel {
 
     /// Run a single SIR simulation from initial infected set.
     pub fn simulate(&self, initial_infected: &[usize]) -> Result<SimulationResult> {
-        simulate_sir(&self.adjacency, self.num_nodes, initial_infected, self.beta, self.gamma)
+        simulate_sir(
+            &self.adjacency,
+            self.num_nodes,
+            initial_infected,
+            self.beta,
+            self.gamma,
+        )
     }
 }
 
@@ -382,15 +398,15 @@ pub fn simulate_ic(adjacency: &AdjList, seeds: &[usize]) -> Result<SimulationRes
 /// * `adjacency` — directed adjacency list with propagation probabilities.
 /// * `seeds` — initial seed set.
 /// * `num_simulations` — number of Monte-Carlo trials.
-pub fn expected_spread(adjacency: &AdjList, seeds: &[usize], num_simulations: usize) -> Result<f64> {
-    expected_spread_ic(adjacency, seeds, num_simulations)
-}
-
-fn expected_spread_ic(
+pub fn expected_spread(
     adjacency: &AdjList,
     seeds: &[usize],
     num_simulations: usize,
 ) -> Result<f64> {
+    expected_spread_ic(adjacency, seeds, num_simulations)
+}
+
+fn expected_spread_ic(adjacency: &AdjList, seeds: &[usize], num_simulations: usize) -> Result<f64> {
     if num_simulations == 0 {
         return Err(GraphError::InvalidParameter {
             param: "num_simulations".to_string(),
@@ -654,10 +670,7 @@ pub fn simulate_sis(
             // Try to infect susceptible neighbours
             if let Some(neighbors) = adjacency.get(&node) {
                 for &(nbr, _) in neighbors {
-                    if nbr < num_nodes
-                        && !infected.contains(&nbr)
-                        && rng.random::<f64>() < beta
-                    {
+                    if nbr < num_nodes && !infected.contains(&nbr) && rng.random::<f64>() < beta {
                         new_infections.insert(nbr);
                         ever_infected.insert(nbr);
                     }
@@ -727,8 +740,7 @@ mod tests {
             adj.entry(0).or_default().push((i, 1.0));
         }
         let thresholds = vec![0.5_f64; 4];
-        let result =
-            simulate_lt(&adj, 4, &[0], Some(&thresholds)).expect("lt simulation");
+        let result = simulate_lt(&adj, 4, &[0], Some(&thresholds)).expect("lt simulation");
         assert!(result.spread >= 1);
     }
 

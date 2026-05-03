@@ -308,9 +308,6 @@ pub fn linregress_py(
 ///     >>> result = scirs2.polyfit(x, y, deg=2)
 ///     >>> print(result["coefficients"])  # Should be close to [1, 2, 1]
 ///
-/// TODO: Registration issue - function compiles but doesn't register with PyO3
-/// See /tmp/scirs2_session10_polyfit_issue.md for details
-#[allow(dead_code)]
 #[pyfunction]
 pub fn polyfit_py(
     py: Python,

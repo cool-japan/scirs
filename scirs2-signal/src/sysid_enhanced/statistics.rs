@@ -4,11 +4,11 @@
 //! system identification results, including residual analysis, normality tests,
 //! and model diagnostics.
 
-use crate::error::{SignalError, SignalResult};
 use super::types::*;
+use crate::error::{SignalError, SignalResult};
+use scirs2_core::ndarray::ArrayStatCompat;
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Complex64;
-use scirs2_core::ndarray::ArrayStatCompat;
 
 /// Jarque-Bera test for normality of residuals
 ///
@@ -153,7 +153,7 @@ pub fn cross_correlation_test(residuals: &Array1<f64>, input: &Array1<f64>, max_
         return 1.0;
     }
 
-    let mut max_cross_corr = 0.0;
+    let mut max_cross_corr: f64 = 0.0;
 
     // Compute cross-correlations at different lags
     for lag in 0..=max_lag {
@@ -242,7 +242,11 @@ fn compute_autocorrelation(data: &Array1<f64>, max_lag: usize) -> Array1<f64> {
 }
 
 /// Compute cross-correlation function
-fn compute_cross_correlation(data1: &Array1<f64>, data2: &Array1<f64>, max_lag: usize) -> Array1<f64> {
+fn compute_cross_correlation(
+    data1: &Array1<f64>,
+    data2: &Array1<f64>,
+    max_lag: usize,
+) -> Array1<f64> {
     let n = data1.len().min(data2.len());
     let mean1 = data1.mean_or(0.0);
     let mean2 = data2.mean_or(0.0);
@@ -501,12 +505,16 @@ mod tests {
 
     #[test]
     fn test_information_criteria() {
-        let residuals = Array1::from_vec(vec![0.1, -0.2, 0.3, -0.1, 0.0]);
-        let (aic, bic, fpe) = compute_information_criteria(&residuals, 2).expect("Operation failed");
+        // Use n=10 so that ln(n) > 2, ensuring BIC penalises complexity more than AIC (BIC > AIC)
+        let residuals = Array1::from_vec(vec![
+            0.1, -0.2, 0.3, -0.1, 0.0, 0.05, -0.15, 0.2, -0.05, 0.1,
+        ]);
+        let (aic, bic, fpe) =
+            compute_information_criteria(&residuals, 2).expect("Operation failed");
 
         assert!(aic.is_finite());
         assert!(bic.is_finite());
         assert!(fpe > 0.0);
-        assert!(bic > aic); // BIC penalizes complexity more than AIC
+        assert!(bic > aic); // BIC penalizes complexity more than AIC (requires n > e^2 ≈ 7.4)
     }
 }

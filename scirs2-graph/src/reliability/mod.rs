@@ -40,16 +40,12 @@
 pub mod network_reliability;
 
 pub use network_reliability::{
-    AllTerminalReliability, ComponentFailureTree, BDD, NetworkReliability, ReliabilityPolynomial,
+    AllTerminalReliability, ComponentFailureTree, NetworkReliability, ReliabilityPolynomial, BDD,
 };
 
 pub mod reliability_extra;
 
 pub use reliability_extra::{
-    all_terminal_reliability_factoring,
-    two_terminal_reliability,
-    reliability_polynomial,
-    min_cut_reliability_bound,
-    k_edge_connectivity,
-    k_vertex_connectivity,
+    all_terminal_reliability_factoring, k_edge_connectivity, k_vertex_connectivity,
+    min_cut_reliability_bound, reliability_polynomial, two_terminal_reliability,
 };

@@ -18,6 +18,7 @@
 use crate::error::OptimizeError;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::RngExt;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Domination utilities
@@ -96,9 +97,7 @@ pub fn non_dominated_sort(points: &[Vec<f64>]) -> Vec<Vec<usize>> {
     }
 
     let mut fronts: Vec<Vec<usize>> = Vec::new();
-    let mut current_front: Vec<usize> = (0..n)
-        .filter(|&i| dominated_by_count[i] == 0)
-        .collect();
+    let mut current_front: Vec<usize> = (0..n).filter(|&i| dominated_by_count[i] == 0).collect();
 
     while !current_front.is_empty() {
         let mut next_front: Vec<usize> = Vec::new();
@@ -180,7 +179,11 @@ pub fn hypervolume_2d(pareto_front: &[Vec<f64>], reference_point: &[f64]) -> f64
     let mut volume = 0.0;
     for i in (0..np).rev() {
         let x_start = pareto_2d[i].0;
-        let x_end = if i + 1 < np { pareto_2d[i + 1].0 } else { ref_x };
+        let x_end = if i + 1 < np {
+            pareto_2d[i + 1].0
+        } else {
+            ref_x
+        };
         let y = pareto_2d[i].1;
         volume += (x_end - x_start) * (ref_y - y);
     }
@@ -514,10 +517,7 @@ pub fn delta_metric(front: &[Vec<f64>], true_extremes: &[Vec<f64>]) -> f64 {
     } else {
         // Sort front by first objective
         let mut sorted_front = front.to_vec();
-        sorted_front.sort_by(|a, b| {
-            a[0].partial_cmp(&b[0])
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        sorted_front.sort_by(|a, b| a[0].partial_cmp(&b[0]).unwrap_or(std::cmp::Ordering::Equal));
 
         let first = &sorted_front[0];
         let last = &sorted_front[n - 1];
@@ -663,12 +663,7 @@ pub fn r2_indicator(
 }
 
 /// Compute the scalarizing utility value for the R2 indicator.
-fn r2_utility_value(
-    f: &[f64],
-    weights: &[f64],
-    reference: &[f64],
-    utility: R2Utility,
-) -> f64 {
+fn r2_utility_value(f: &[f64], weights: &[f64], reference: &[f64], utility: R2Utility) -> f64 {
     match utility {
         R2Utility::Tchebycheff => f
             .iter()
@@ -965,7 +960,10 @@ mod tests {
         let tf = vec![vec![1.0, 1.0]];
         let af = vec![vec![0.5, 1.0]]; // a-t = (-0.5, 0.0) → max = 0.0
         let eps = additive_epsilon_indicator(&tf, &af);
-        assert!(eps <= 0.0, "approx is better: eps should be <= 0, got {eps}");
+        assert!(
+            eps <= 0.0,
+            "approx is better: eps should be <= 0, got {eps}"
+        );
     }
 
     #[test]
@@ -990,7 +988,10 @@ mod tests {
             .collect();
         let sp = spread(&front);
         // Perfectly uniform → std dev of nn_dists is 0
-        assert!(sp < 0.01, "Uniform front should have near-zero spread: {sp}");
+        assert!(
+            sp < 0.01,
+            "Uniform front should have near-zero spread: {sp}"
+        );
     }
 
     #[test]
@@ -1018,26 +1019,30 @@ mod tests {
 
     #[test]
     fn test_spacing_metric_non_uniform() {
-        // Clustered points should have higher spacing metric
+        // Points with asymmetric nearest-neighbour distances yield sp > 0.
+        // NNDs: d(0,1)=0.1, d(1,0)=0.1, d(2,3)=0.1, d(3,2)=0.1
+        // but we need the gaps to differ; use an odd-one-out layout:
+        // [0.0,1.0],[0.1,0.9],[0.5,0.5],[1.0,0.0]
+        // NN: pt0→pt1≈0.141, pt1→pt0≈0.141, pt2→pt1≈0.566, pt3→pt2≈0.707
+        // → mean≠individual dists, variance > 0
         let clustered = vec![
             vec![0.0, 1.0],
             vec![0.1, 0.9],
-            vec![0.9, 0.1],
+            vec![0.5, 0.5],
             vec![1.0, 0.0],
         ];
         let sp = spacing_metric(&clustered);
-        assert!(sp > 0.0, "clustered front should have nonzero spacing");
+        assert!(
+            sp > 0.0,
+            "clustered front should have nonzero spacing, got {sp}"
+        );
     }
 
     // ── delta_metric ─────────────────────────────────────────────────────────
 
     #[test]
     fn test_delta_metric_uniform_no_extremes() {
-        let front = vec![
-            vec![0.0, 1.0],
-            vec![0.5, 0.5],
-            vec![1.0, 0.0],
-        ];
+        let front = vec![vec![0.0, 1.0], vec![0.5, 0.5], vec![1.0, 0.0]];
         let d = delta_metric(&front, &[]);
         assert!(d >= 0.0, "delta metric should be non-negative, got {d}");
     }
@@ -1069,7 +1074,10 @@ mod tests {
         let tf = vec![vec![0.0, 1.0], vec![0.5, 0.5], vec![1.0, 0.0]];
         let af = tf.clone();
         let val = igd_plus(&tf, &af);
-        assert!(val < 1e-10, "IGD+ of identical fronts should be 0, got {val}");
+        assert!(
+            val < 1e-10,
+            "IGD+ of identical fronts should be 0, got {val}"
+        );
     }
 
     #[test]
@@ -1084,7 +1092,10 @@ mod tests {
         let tf = vec![vec![1.0, 1.0]];
         let af = vec![vec![0.5, 0.5]]; // dominates tf
         let val = igd_plus(&tf, &af);
-        assert!(val < 1e-10, "dominating approx should give IGD+=0, got {val}");
+        assert!(
+            val < 1e-10,
+            "dominating approx should give IGD+=0, got {val}"
+        );
     }
 
     #[test]
@@ -1094,7 +1105,10 @@ mod tests {
         let af = vec![vec![1.0, 1.0]];
         let val = igd_plus(&tf, &af);
         let expected = (1.0f64.powi(2) + 1.0f64.powi(2)).sqrt();
-        assert!((val - expected).abs() < 1e-10, "Expected {expected}, got {val}");
+        assert!(
+            (val - expected).abs() < 1e-10,
+            "Expected {expected}, got {val}"
+        );
     }
 
     #[test]
@@ -1104,7 +1118,10 @@ mod tests {
         let af = vec![vec![0.2, 0.8], vec![0.6, 0.4], vec![0.9, 0.1]];
         let igdp = igd_plus(&tf, &af);
         let igd_val = igd(&tf, &af);
-        assert!(igdp <= igd_val + 1e-10, "IGD+={igdp} should be <= IGD={igd_val}");
+        assert!(
+            igdp <= igd_val + 1e-10,
+            "IGD+={igdp} should be <= IGD={igd_val}"
+        );
     }
 
     // ── r2_indicator ─────────────────────────────────────────────────────────
@@ -1162,7 +1179,10 @@ mod tests {
         let r2_good = r2_indicator(&good_front, &weights, &z_star, R2Utility::Tchebycheff);
         let r2_bad = r2_indicator(&bad_front, &weights, &z_star, R2Utility::Tchebycheff);
 
-        assert!(r2_good < r2_bad, "Good front R2={r2_good} should be < bad front R2={r2_bad}");
+        assert!(
+            r2_good < r2_bad,
+            "Good front R2={r2_good} should be < bad front R2={r2_bad}"
+        );
     }
 
     // ── hypervolume_contribution ─────────────────────────────────────────────
@@ -1181,7 +1201,10 @@ mod tests {
         let total_hvc: f64 = hvc.iter().sum();
         let total_hv = hypervolume_2d(&front, &ref_pt);
         // Note: sum of exclusive contributions ≤ total HV (no overlaps in 2D for a Pareto front)
-        assert!(total_hvc <= total_hv + 1e-9, "Sum of HVC should not exceed total HV");
+        assert!(
+            total_hvc <= total_hv + 1e-9,
+            "Sum of HVC should not exceed total HV"
+        );
     }
 
     #[test]

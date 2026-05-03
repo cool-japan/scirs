@@ -55,7 +55,7 @@ fn main() {
 
     // Test 2: With specific backend (same as default in this case)
     println!("Test 2: With specific backend");
-    let _result2 = with_backend("rustfft", || {
+    let _result2 = with_backend("oxifft", || {
         println!("  Backend inside context: {}", get_backend_name());
         fft(&signal, None).expect("Operation failed")
     })
@@ -78,7 +78,7 @@ fn main() {
     println!("Test 4: Combined settings");
     let _result4 = with_fft_settings(
         fft_context()
-            .backend("rustfft")
+            .backend("oxifft")
             .workers(4)
             .cache_enabled(false),
         || {
@@ -103,7 +103,7 @@ fn main() {
 
     // Test 5: Nested contexts
     println!("Test 5: Nested contexts");
-    with_backend("rustfft", || {
+    with_backend("oxifft", || {
         println!("  Outer context - Backend: {}", get_backend_name());
 
         without_cache(|| {

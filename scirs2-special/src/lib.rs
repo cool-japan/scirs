@@ -44,7 +44,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-special = "0.4.2"
+//! scirs2-special = "0.4.3"
 //! ```
 //!
 //!
@@ -96,7 +96,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.2
+//! - **Version**: 0.4.3
 //! - **Release Date**: March 27, 2026
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
 
@@ -199,6 +199,8 @@ pub mod clebsch_gordan;
 pub mod clebsch_gordan_lie;
 // GPU auto-dispatch for batch evaluation of special functions
 pub mod gpu_dispatch;
+// GPU kernel sources and dispatch stubs (WGSL / CUDA / ROCm)
+pub mod gpu_kernels;
 // Hall polynomials for p-group extensions
 pub mod hall_polynomials;
 // Dedekind zeta function
@@ -565,6 +567,12 @@ pub use arbitrary_precision::{
     error_function::{erf_ap, erf_mp, erfc_ap, erfc_mp},
     gamma::{gamma_ap, gamma_mp, log_gamma_ap, log_gamma_mp},
     to_complex64, to_f64, PrecisionContext,
+};
+
+// MPFR-native API (available under both `high-precision` and `arbitrary_precision` features)
+#[cfg(feature = "high-precision")]
+pub use arbitrary_precision::{
+    bessel_j0_mpfr, bessel_k0_mpfr, digamma_mpfr, erf_mpfr, erfc_mpfr, gamma_mpfr, lgamma_mpfr,
 };
 
 #[cfg(test)]

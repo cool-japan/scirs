@@ -179,9 +179,7 @@ pub fn density_peaks(data: &Array2<f64>, config: DensityPeaksConfig) -> Result<D
         upper_tri[rank].max(1e-10)
     } else {
         if config.dc <= 0.0 {
-            return Err(ClusteringError::InvalidInput(
-                "dc must be positive".into(),
-            ));
+            return Err(ClusteringError::InvalidInput("dc must be positive".into()));
         }
         config.dc
     };
@@ -400,7 +398,9 @@ pub fn mean_shift(data: &Array2<f64>, config: MeanShiftConfig) -> Result<MeanShi
                     d
                 )));
             }
-            (0..s.nrows()).map(|i| (0..d).map(|f| s[[i, f]]).collect()).collect()
+            (0..s.nrows())
+                .map(|i| (0..d).map(|f| s[[i, f]]).collect())
+                .collect()
         }
         None => (0..n)
             .map(|i| (0..d).map(|f| data[[i, f]]).collect())
@@ -516,9 +516,8 @@ pub fn mean_shift(data: &Array2<f64>, config: MeanShiftConfig) -> Result<MeanShi
 
     // Build centers array
     let centers_flat: Vec<f64> = merged.iter().flat_map(|c| c.iter().cloned()).collect();
-    let centers = Array2::from_shape_vec((n_clusters, d), centers_flat).map_err(|e| {
-        ClusteringError::ComputationError(format!("Centers reshape error: {}", e))
-    })?;
+    let centers = Array2::from_shape_vec((n_clusters, d), centers_flat)
+        .map_err(|e| ClusteringError::ComputationError(format!("Centers reshape error: {}", e)))?;
 
     // --- Assign each data point to nearest mode ---
     let assignments: Vec<usize> = (0..n)
@@ -557,8 +556,8 @@ mod tests {
         Array2::from_shape_vec(
             (12, 2),
             vec![
-                0.0, 0.0, 0.2, 0.0, 0.0, 0.2, -0.2, 0.0, 0.1, 0.1, -0.1, 0.1,
-                8.0, 8.0, 8.2, 8.0, 8.0, 8.2, 7.8, 8.0, 8.1, 8.1, 7.9, 7.9,
+                0.0, 0.0, 0.2, 0.0, 0.0, 0.2, -0.2, 0.0, 0.1, 0.1, -0.1, 0.1, 8.0, 8.0, 8.2, 8.0,
+                8.0, 8.2, 7.8, 8.0, 8.1, 8.1, 7.9, 7.9,
             ],
         )
         .expect("create test data")
@@ -769,7 +768,8 @@ mod tests {
     #[test]
     fn test_mean_shift_with_explicit_seeds() {
         let data = two_cluster_data();
-        let seeds = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 8.0, 8.0]).expect("operation should succeed");
+        let seeds = Array2::from_shape_vec((2, 2), vec![0.0, 0.0, 8.0, 8.0])
+            .expect("operation should succeed");
         let config = MeanShiftConfig {
             bandwidth: 1.0,
             max_iter: 200,

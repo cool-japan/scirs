@@ -100,12 +100,28 @@ fn compute_derivatives(
 
     for r in 0..rows {
         for c in 0..cols {
-            let ip1 = if c + 1 < cols { prev[[r, c + 1]] } else { prev[[r, c]] };
-            let im1 = if c > 0 { prev[[r, c - 1]] } else { prev[[r, c]] };
+            let ip1 = if c + 1 < cols {
+                prev[[r, c + 1]]
+            } else {
+                prev[[r, c]]
+            };
+            let im1 = if c > 0 {
+                prev[[r, c - 1]]
+            } else {
+                prev[[r, c]]
+            };
             ix[[r, c]] = (ip1 - im1) / 2.0;
 
-            let jp1 = if r + 1 < rows { prev[[r + 1, c]] } else { prev[[r, c]] };
-            let jm1 = if r > 0 { prev[[r - 1, c]] } else { prev[[r, c]] };
+            let jp1 = if r + 1 < rows {
+                prev[[r + 1, c]]
+            } else {
+                prev[[r, c]]
+            };
+            let jm1 = if r > 0 {
+                prev[[r - 1, c]]
+            } else {
+                prev[[r, c]]
+            };
             iy[[r, c]] = (jp1 - jm1) / 2.0;
 
             it[[r, c]] = next[[r, c]] - prev[[r, c]];
@@ -146,9 +162,17 @@ fn laplacian(u: &Array2<f64>) -> Array2<f64> {
         for c in 0..cols {
             let sum_nb = {
                 let up = if r > 0 { u[[r - 1, c]] } else { u[[r, c]] };
-                let dn = if r + 1 < rows { u[[r + 1, c]] } else { u[[r, c]] };
+                let dn = if r + 1 < rows {
+                    u[[r + 1, c]]
+                } else {
+                    u[[r, c]]
+                };
                 let lt = if c > 0 { u[[r, c - 1]] } else { u[[r, c]] };
-                let rt = if c + 1 < cols { u[[r, c + 1]] } else { u[[r, c]] };
+                let rt = if c + 1 < cols {
+                    u[[r, c + 1]]
+                } else {
+                    u[[r, c]]
+                };
                 up + dn + lt + rt
             };
             out[[r, c]] = sum_nb / 4.0 - u[[r, c]];
@@ -185,7 +209,9 @@ pub fn lucas_kanade_flow(
     let rows = prev.nrows();
     let cols = prev.ncols();
     if rows == 0 || cols == 0 {
-        return Err(NdimageError::InvalidInput("Frames must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Frames must not be empty".into(),
+        ));
     }
     if prev.shape() != next.shape() {
         return Err(NdimageError::DimensionError(
@@ -303,7 +329,9 @@ pub fn horn_schunck_flow(
     let rows = prev.nrows();
     let cols = prev.ncols();
     if rows == 0 || cols == 0 {
-        return Err(NdimageError::InvalidInput("Frames must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Frames must not be empty".into(),
+        ));
     }
 
     let (ix, iy, it) = compute_derivatives(prev, next)?;
@@ -319,9 +347,17 @@ pub fn horn_schunck_flow(
             for r in 0..rows {
                 for c in 0..cols {
                     let up = if r > 0 { u[[r - 1, c]] } else { u[[r, c]] };
-                    let dn = if r + 1 < rows { u[[r + 1, c]] } else { u[[r, c]] };
+                    let dn = if r + 1 < rows {
+                        u[[r + 1, c]]
+                    } else {
+                        u[[r, c]]
+                    };
                     let lt = if c > 0 { u[[r, c - 1]] } else { u[[r, c]] };
-                    let rt = if c + 1 < cols { u[[r, c + 1]] } else { u[[r, c]] };
+                    let rt = if c + 1 < cols {
+                        u[[r, c + 1]]
+                    } else {
+                        u[[r, c]]
+                    };
                     a[[r, c]] = (up + dn + lt + rt) / 4.0;
                 }
             }
@@ -332,9 +368,17 @@ pub fn horn_schunck_flow(
             for r in 0..rows {
                 for c in 0..cols {
                     let up = if r > 0 { v[[r - 1, c]] } else { v[[r, c]] };
-                    let dn = if r + 1 < rows { v[[r + 1, c]] } else { v[[r, c]] };
+                    let dn = if r + 1 < rows {
+                        v[[r + 1, c]]
+                    } else {
+                        v[[r, c]]
+                    };
                     let lt = if c > 0 { v[[r, c - 1]] } else { v[[r, c]] };
-                    let rt = if c + 1 < cols { v[[r, c + 1]] } else { v[[r, c]] };
+                    let rt = if c + 1 < cols {
+                        v[[r, c + 1]]
+                    } else {
+                        v[[r, c]]
+                    };
                     a[[r, c]] = (up + dn + lt + rt) / 4.0;
                 }
             }
@@ -401,7 +445,9 @@ pub fn farneback_flow(
     let rows = prev.nrows();
     let cols = prev.ncols();
     if rows == 0 || cols == 0 {
-        return Err(NdimageError::InvalidInput("Frames must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Frames must not be empty".into(),
+        ));
     }
     if prev.shape() != next.shape() {
         return Err(NdimageError::DimensionError(
@@ -475,12 +521,22 @@ pub fn farneback_flow(
     let final_u = if flow_u.nrows() == rows && flow_u.ncols() == cols {
         flow_u
     } else {
-        upsample_flow(&flow_u, rows, cols, (rows as f64 / flow_u.nrows() as f64).max(1.0))
+        upsample_flow(
+            &flow_u,
+            rows,
+            cols,
+            (rows as f64 / flow_u.nrows() as f64).max(1.0),
+        )
     };
     let final_v = if flow_v.nrows() == rows && flow_v.ncols() == cols {
         flow_v
     } else {
-        upsample_flow(&flow_v, rows, cols, (rows as f64 / flow_v.nrows() as f64).max(1.0))
+        upsample_flow(
+            &flow_v,
+            rows,
+            cols,
+            (rows as f64 / flow_v.nrows() as f64).max(1.0),
+        )
     };
     for r in 0..rows {
         for c in 0..cols {
@@ -639,10 +695,7 @@ mod tests {
         let img = Array2::from_shape_fn((10, 10), |(r, c)| (r + c) as f64 * 0.1);
         let flow = lucas_kanade_flow(&img, &img, 5).expect("LK zero motion");
         // No motion → flow should be near zero
-        let max_flow = flow
-            .iter()
-            .cloned()
-            .fold(0.0f64, |acc, v| acc.max(v.abs()));
+        let max_flow = flow.iter().cloned().fold(0.0f64, |acc, v| acc.max(v.abs()));
         assert!(max_flow < 1e-6, "Expected near-zero flow, got {max_flow}");
     }
 
@@ -672,10 +725,7 @@ mod tests {
     fn test_horn_schunck_zero_motion() {
         let img = Array2::from_shape_fn((8, 8), |(r, c)| (r * c) as f64 * 0.01);
         let flow = horn_schunck_flow(&img, &img, 10.0, 20).expect("HS zero motion");
-        let max_flow = flow
-            .iter()
-            .cloned()
-            .fold(0.0f64, |acc, v| acc.max(v.abs()));
+        let max_flow = flow.iter().cloned().fold(0.0f64, |acc, v| acc.max(v.abs()));
         assert!(max_flow < 1e-6, "Expected near-zero flow, got {max_flow}");
     }
 
@@ -705,10 +755,7 @@ mod tests {
     fn test_farneback_zero_motion() {
         let img = Array2::from_shape_fn((8, 8), |(r, c)| (r + c) as f64 * 0.1);
         let flow = farneback_flow(&img, &img, 1, 3).expect("Farneback zero motion");
-        let max_flow = flow
-            .iter()
-            .cloned()
-            .fold(0.0f64, |acc, v| acc.max(v.abs()));
+        let max_flow = flow.iter().cloned().fold(0.0f64, |acc, v| acc.max(v.abs()));
         assert!(max_flow < 1e-4, "Expected near-zero flow, got {max_flow}");
     }
 

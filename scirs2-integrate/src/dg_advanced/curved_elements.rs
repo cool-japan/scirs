@@ -109,11 +109,87 @@ pub fn lagrange_basis_triangle(xi: f64, eta: f64, order: usize) -> IntegrateResu
                 phi0, phi1, phi2, phi3, phi4, phi5, phi6, phi7, phi8, phi9,
             ])
         }
-        _ => Err(IntegrateError::NotImplementedError(format!(
-            "Lagrange basis on triangle implemented for order 0-3, got {}",
-            order
-        ))),
+        _ => {
+            // General order: use the product-form simplex Lagrange basis.
+            // For multi-index (i,j) with k = third index = order-i-j:
+            //   φ_{(i,j,k)}(λ₁,λ₂,λ₃) = ℓ_i^p(λ₁) · ℓ_j^p(λ₂) · ℓ_k^p(λ₃)
+            // where ℓ_n^p(λ) = (1/n!) · ∏_{l=0}^{n-1} (p·λ − l), ℓ_0 = 1.
+            //
+            // Node enumeration: outer j in 0..=order, inner i in 0..=(order-j),
+            // matching `lagrange_nodes_triangle`.
+            lagrange_basis_triangle_general(lam1, lam2, lam3, order)
+        }
     }
+}
+
+/// Evaluate the 1D simplex Lagrange factor ℓ_n^p(λ).
+///
+/// ℓ_n^p(λ) = (1/n!) · ∏_{l=0}^{n-1} (p·λ − l), with ℓ_0 = 1.
+fn simplex_lagrange_1d(n: usize, p: f64, lam: f64) -> f64 {
+    if n == 0 {
+        return 1.0;
+    }
+    let mut val = 1.0_f64;
+    for l in 0..n {
+        val *= (p * lam - l as f64) / (l as f64 + 1.0);
+    }
+    val
+}
+
+/// Derivative of ℓ_n^p(λ) w.r.t. λ using the product rule.
+///
+/// d/dλ [ ℓ_n^p(λ) ] = Σ_{m=0}^{n-1} p/( m+1 ) · ∏_{l≠m} (p·λ − l) / (l+1)
+/// which simplifies to (p/ℓ_n^p) · Σ_{m=0}^{n-1} ℓ_n^p / (p·λ − m).
+/// We compute it directly as a sum of products to avoid division-by-zero.
+fn simplex_lagrange_1d_deriv(n: usize, p: f64, lam: f64) -> f64 {
+    if n == 0 {
+        return 0.0;
+    }
+    // Compute all factors (p·λ - l) / (l+1) first
+    let factors: Vec<f64> = (0..n)
+        .map(|l| (p * lam - l as f64) / (l as f64 + 1.0))
+        .collect();
+
+    // Derivative via logarithmic differentiation (avoiding zero issues):
+    // d/dλ ℓ_n = Σ_{m=0}^{n-1} p/(m+1) · ∏_{l≠m} factors[l]
+    let mut deriv = 0.0_f64;
+    for m in 0..n {
+        let mut term = p / (m as f64 + 1.0);
+        for l in 0..n {
+            if l != m {
+                term *= factors[l];
+            }
+        }
+        deriv += term;
+    }
+    deriv
+}
+
+/// General Lagrange basis on the reference triangle for arbitrary order p.
+///
+/// Returns n_basis = (p+1)(p+2)/2 values ordered as:
+/// outer j in 0..=p, inner i in 0..=(p-j), k = p-i-j.
+fn lagrange_basis_triangle_general(
+    lam1: f64,
+    lam2: f64,
+    lam3: f64,
+    order: usize,
+) -> IntegrateResult<Vec<f64>> {
+    let p = order as f64;
+    let n_basis = (order + 1) * (order + 2) / 2;
+    let mut phi = Vec::with_capacity(n_basis);
+
+    for j in 0..=order {
+        for i in 0..=(order - j) {
+            let k = order - i - j;
+            let val = simplex_lagrange_1d(i, p, lam2)
+                * simplex_lagrange_1d(j, p, lam3)
+                * simplex_lagrange_1d(k, p, lam1);
+            phi.push(val);
+        }
+    }
+
+    Ok(phi)
 }
 
 /// Derivatives of the Lagrange basis w.r.t. (ξ, η) on the reference triangle.
@@ -256,11 +332,65 @@ pub fn lagrange_basis_triangle_deriv(
                 ],
             ))
         }
-        _ => Err(IntegrateError::NotImplementedError(format!(
-            "Lagrange derivatives on triangle for order 0-3, got {}",
-            order
-        ))),
+        _ => {
+            // General order: use product-rule on the simplex Lagrange factors.
+            // φ_{(i,j,k)} = ℓ_i^p(λ₂) · ℓ_j^p(λ₃) · ℓ_k^p(λ₁), k = p-i-j.
+            //
+            // ∂φ/∂ξ = ∂φ/∂λ₁·(-1) + ∂φ/∂λ₂·(1) + ∂φ/∂λ₃·(0)
+            // ∂φ/∂η = ∂φ/∂λ₁·(-1) + ∂φ/∂λ₂·(0) + ∂φ/∂λ₃·(1)
+            lagrange_basis_triangle_deriv_general(lam1, lam2, lam3, order)
+        }
     }
+}
+
+/// General Lagrange basis derivatives for arbitrary order p.
+///
+/// Returns (dphi_dxi, dphi_deta) each of length (p+1)(p+2)/2, enumerated
+/// in the same (outer j, inner i) order as `lagrange_basis_triangle_general`.
+fn lagrange_basis_triangle_deriv_general(
+    lam1: f64,
+    lam2: f64,
+    lam3: f64,
+    order: usize,
+) -> IntegrateResult<(Vec<f64>, Vec<f64>)> {
+    let p = order as f64;
+    let n_basis = (order + 1) * (order + 2) / 2;
+    let mut dphi_dxi = Vec::with_capacity(n_basis);
+    let mut dphi_deta = Vec::with_capacity(n_basis);
+
+    // Barycentric chain rule constants:
+    //   dλ₁/dξ = -1,  dλ₂/dξ = 1,   dλ₃/dξ = 0
+    //   dλ₁/dη = -1,  dλ₂/dη = 0,   dλ₃/dη = 1
+
+    for j in 0..=order {
+        for i in 0..=(order - j) {
+            let k = order - i - j;
+
+            let li = simplex_lagrange_1d(i, p, lam2); // ℓ_i^p(λ₂)
+            let lj = simplex_lagrange_1d(j, p, lam3); // ℓ_j^p(λ₃)
+            let lk = simplex_lagrange_1d(k, p, lam1); // ℓ_k^p(λ₁)
+
+            let dli = simplex_lagrange_1d_deriv(i, p, lam2); // d/dλ₂
+            let dlj = simplex_lagrange_1d_deriv(j, p, lam3); // d/dλ₃
+            let dlk = simplex_lagrange_1d_deriv(k, p, lam1); // d/dλ₁
+
+            // ∂φ/∂λ₁ = lk' · li · lj
+            // ∂φ/∂λ₂ = li' · lj · lk
+            // ∂φ/∂λ₃ = lj' · li · lk
+            let dphi_dlam1 = dlk * li * lj;
+            let dphi_dlam2 = dli * lj * lk;
+            let dphi_dlam3 = dlj * li * lk;
+
+            // Chain rule to (ξ, η)
+            let d_dxi = -dphi_dlam1 + dphi_dlam2; // dphi_dlam3 * 0 omitted
+            let d_deta = -dphi_dlam1 + dphi_dlam3; // dphi_dlam2 * 0 omitted
+
+            dphi_dxi.push(d_dxi);
+            dphi_deta.push(d_deta);
+        }
+    }
+
+    Ok((dphi_dxi, dphi_deta))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -669,17 +799,32 @@ pub fn curved_quad_points_weights(
     element: &CurvedElement,
     n: usize,
 ) -> IntegrateResult<(Vec<[f64; 2]>, Vec<f64>)> {
-    // Determine mapping order from number of vertices
+    // Determine mapping order from number of vertices: n_nodes = (p+1)(p+2)/2
     let order = match element.vertices.len() {
         1 => 0,
         3 => 1,
         6 => 2,
         10 => 3,
-        _ => {
-            return Err(IntegrateError::ValueError(format!(
-                "curved_quad_points_weights: unexpected vertex count {}",
-                element.vertices.len()
-            )))
+        15 => 4,
+        21 => 5,
+        n => {
+            // Try to infer order for any valid triangular node count
+            let mut inferred = None;
+            for p in 6..=20 {
+                if (p + 1) * (p + 2) / 2 == n {
+                    inferred = Some(p);
+                    break;
+                }
+            }
+            match inferred {
+                Some(p) => p,
+                None => {
+                    return Err(IntegrateError::ValueError(format!(
+                        "curved_quad_points_weights: unexpected vertex count {}",
+                        n
+                    )))
+                }
+            }
         }
     };
 
@@ -802,5 +947,203 @@ mod tests {
         let (pts, wts) = curved_quad_points_weights(&element, 3).unwrap();
         assert_eq!(pts.len(), 3, "3-point rule should yield 3 points");
         assert_eq!(wts.len(), 3);
+    }
+
+    // ─── General high-order Lagrange basis tests ───────────────────────────
+
+    /// Verify node counts for orders 4 and 5.
+    #[test]
+    fn test_lagrange_basis_node_count_high_order() {
+        for order in 4..=5 {
+            let nodes = lagrange_nodes_triangle(order).unwrap();
+            let expected = (order + 1) * (order + 2) / 2;
+            assert_eq!(nodes.len(), expected, "order {order}: wrong node count");
+
+            let phi = lagrange_basis_triangle(0.25, 0.25, order).unwrap();
+            assert_eq!(phi.len(), expected, "order {order}: wrong basis count");
+
+            let (dx, dy) = lagrange_basis_triangle_deriv(0.25, 0.25, order).unwrap();
+            assert_eq!(dx.len(), expected, "order {order}: wrong deriv x count");
+            assert_eq!(dy.len(), expected, "order {order}: wrong deriv y count");
+        }
+    }
+
+    /// Lagrange property: φ_k(nodes[l]) = δ_{kl} for orders 4 and 5.
+    #[test]
+    fn test_lagrange_property_order4() {
+        let order = 4;
+        let nodes = lagrange_nodes_triangle(order).unwrap();
+        let n = nodes.len();
+        for l in 0..n {
+            let [xi, eta] = nodes[l];
+            let phi = lagrange_basis_triangle(xi, eta, order).unwrap();
+            for k in 0..n {
+                let expected = if k == l { 1.0 } else { 0.0 };
+                assert!(
+                    (phi[k] - expected).abs() < 1e-10,
+                    "order 4: φ_{k}(node[{l}]) = {}, expected {expected}",
+                    phi[k]
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_lagrange_property_order5() {
+        let order = 5;
+        let nodes = lagrange_nodes_triangle(order).unwrap();
+        let n = nodes.len();
+        for l in 0..n {
+            let [xi, eta] = nodes[l];
+            let phi = lagrange_basis_triangle(xi, eta, order).unwrap();
+            for k in 0..n {
+                let expected = if k == l { 1.0 } else { 0.0 };
+                assert!(
+                    (phi[k] - expected).abs() < 1e-10,
+                    "order 5: φ_{k}(node[{l}]) = {}, expected {expected}",
+                    phi[k]
+                );
+            }
+        }
+    }
+
+    /// Partition of unity: Σ φ_k(ξ,η) = 1 at interior points.
+    #[test]
+    fn test_partition_of_unity_high_order() {
+        let test_pts = [[0.1, 0.2], [1.0 / 3.0, 1.0 / 3.0], [0.5, 0.1], [0.2, 0.5]];
+        for order in 4..=5 {
+            for &[xi, eta] in &test_pts {
+                let phi = lagrange_basis_triangle(xi, eta, order).unwrap();
+                let sum: f64 = phi.iter().sum();
+                assert!(
+                    (sum - 1.0).abs() < 1e-12,
+                    "order {order} at ({xi},{eta}): partition of unity = {sum}"
+                );
+            }
+        }
+    }
+
+    /// Sum of derivatives = 0: Σ ∂φ_k/∂ξ = 0 and Σ ∂φ_k/∂η = 0.
+    #[test]
+    fn test_derivatives_sum_zero_high_order() {
+        let test_pts = [[0.1, 0.2], [1.0 / 3.0, 1.0 / 3.0], [0.4, 0.3]];
+        for order in 4..=5 {
+            for &[xi, eta] in &test_pts {
+                let (dxi, deta) = lagrange_basis_triangle_deriv(xi, eta, order).unwrap();
+                let sum_xi: f64 = dxi.iter().sum();
+                let sum_eta: f64 = deta.iter().sum();
+                assert!(
+                    sum_xi.abs() < 1e-11,
+                    "order {order} at ({xi},{eta}): sum dφ/dξ = {sum_xi}"
+                );
+                assert!(
+                    sum_eta.abs() < 1e-11,
+                    "order {order} at ({xi},{eta}): sum dφ/dη = {sum_eta}"
+                );
+            }
+        }
+    }
+
+    /// Finite-difference check of derivatives at an interior point for order 4.
+    #[test]
+    fn test_derivative_finite_difference_order4() {
+        let order = 4;
+        let xi = 0.3;
+        let eta = 0.25;
+        let h = 1e-6;
+
+        let phi_p = lagrange_basis_triangle(xi + h, eta, order).unwrap();
+        let phi_m = lagrange_basis_triangle(xi - h, eta, order).unwrap();
+        let (dxi_exact, _) = lagrange_basis_triangle_deriv(xi, eta, order).unwrap();
+
+        for k in 0..dxi_exact.len() {
+            let fd = (phi_p[k] - phi_m[k]) / (2.0 * h);
+            assert!(
+                (fd - dxi_exact[k]).abs() < 1e-7,
+                "order 4 FD dφ_{k}/dξ: fd={fd}, exact={}",
+                dxi_exact[k]
+            );
+        }
+
+        let phi_p_eta = lagrange_basis_triangle(xi, eta + h, order).unwrap();
+        let phi_m_eta = lagrange_basis_triangle(xi, eta - h, order).unwrap();
+        let (_, deta_exact) = lagrange_basis_triangle_deriv(xi, eta, order).unwrap();
+
+        for k in 0..deta_exact.len() {
+            let fd = (phi_p_eta[k] - phi_m_eta[k]) / (2.0 * h);
+            assert!(
+                (fd - deta_exact[k]).abs() < 1e-7,
+                "order 4 FD dφ_{k}/dη: fd={fd}, exact={}",
+                deta_exact[k]
+            );
+        }
+    }
+
+    /// Isoparametric map corners are exact for order 4 on a flat triangle.
+    #[test]
+    fn test_isoparametric_map_order4_corners() {
+        let order = 4;
+        // Flat (linear) triangle: all nodes are on the linear map of the reference triangle
+        // The physical corners
+        let x0 = [0.0_f64, 0.0];
+        let x1 = [3.0, 0.0];
+        let x2 = [0.0, 2.0];
+
+        // Build n_nodes = 15 nodes from the isoparametric mapping of a linear element:
+        // Each reference node (ξ_l, η_l) maps to x0*(1-ξ-η) + x1*ξ + x2*η
+        let ref_nodes = lagrange_nodes_triangle(order).unwrap();
+        let nodes: Vec<[f64; 2]> = ref_nodes
+            .iter()
+            .map(|&[xi, eta]| {
+                let l1 = 1.0 - xi - eta;
+                [
+                    l1 * x0[0] + xi * x1[0] + eta * x2[0],
+                    l1 * x0[1] + xi * x1[1] + eta * x2[1],
+                ]
+            })
+            .collect();
+
+        // Corner (0,0) → x0
+        let p = isoparametric_map([0.0, 0.0], &nodes, order).unwrap();
+        assert!((p[0] - x0[0]).abs() < 1e-11 && (p[1] - x0[1]).abs() < 1e-11);
+
+        // Corner (1,0) → x1
+        let p = isoparametric_map([1.0, 0.0], &nodes, order).unwrap();
+        assert!((p[0] - x1[0]).abs() < 1e-11 && (p[1] - x1[1]).abs() < 1e-11);
+
+        // Corner (0,1) → x2
+        let p = isoparametric_map([0.0, 1.0], &nodes, order).unwrap();
+        assert!((p[0] - x2[0]).abs() < 1e-11 && (p[1] - x2[1]).abs() < 1e-11);
+    }
+
+    /// curved_quad_points_weights works for order-4 element (15 nodes).
+    #[test]
+    fn test_curved_quad_order4_flat_area() {
+        let order = 4;
+        let x0 = [0.0_f64, 0.0];
+        let x1 = [1.0, 0.0];
+        let x2 = [0.0, 1.0];
+
+        let ref_nodes = lagrange_nodes_triangle(order).unwrap();
+        let vertices: Vec<[f64; 2]> = ref_nodes
+            .iter()
+            .map(|&[xi, eta]| {
+                let l1 = 1.0 - xi - eta;
+                [
+                    l1 * x0[0] + xi * x1[0] + eta * x2[0],
+                    l1 * x0[1] + xi * x1[1] + eta * x2[1],
+                ]
+            })
+            .collect();
+
+        use super::super::types::GeometricMap;
+        let element = CurvedElement::new(vertices, GeometricMap::Isoparametric);
+        let (_, wts) = curved_quad_points_weights(&element, 6).unwrap();
+        let area: f64 = wts.iter().sum();
+        // Area of unit right triangle = 0.5
+        assert!(
+            (area - 0.5).abs() < 1e-10,
+            "Order-4 element area = {area}, expected 0.5"
+        );
     }
 }

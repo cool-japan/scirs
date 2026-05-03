@@ -1,6 +1,6 @@
 # scirs2-datasets TODO
 
-## Status: v0.3.4 Released (March 18, 2026)
+## Status: v0.3.4 Released (March 18, 2026) — v0.4.3 in progress (2026-05-03)
 
 ## v0.3.3 Completed
 
@@ -76,23 +76,23 @@
 - [x] `DataLoader`-style batching API for neural network training — Implemented in v0.4.0 (`streaming/dataloader.rs`)
 
 ### HuggingFace Dataset Format Compatibility
-- [ ] Read `datasets` format (Arrow-backed, parquet shards)
+- [x] Read `datasets` format (Arrow-backed, parquet shards) — `src/arrow_dataset.rs` (`ArrowDataset`, `DatasetInfo`, `FeatureType`; magic-byte validation + directory scan in default builds; full IPC decoding with `parquet_io` feature)
 - [x] Support HuggingFace Hub metadata schema (dataset cards) — `src/huggingface.rs` (`HfDatasetCard`, `parse_dataset_card`, `load_dataset_card`, `to_hf_card`, `card_to_readme`)
 - [x] Load datasets from local HuggingFace cache directory — `load_dataset_card(dir: &Path)` in `src/huggingface.rs`
 - [x] Convert SciRS2 datasets to HuggingFace `datasets` format — `to_hf_card` + `card_to_readme` in `src/huggingface.rs`
 
 ### Additional Benchmark Datasets
-- [ ] M5 competition time series (retail forecasting)
-- [ ] Penn Treebank (language modelling)
-- [ ] WikiText-103 (NLP language modelling)
-- [ ] Criteo display advertising (click-through rate)
-- [ ] ImageNet subset (100-class synthetic)
+- [x] M5 competition time series (retail forecasting) — `src/m5_dataset.rs` (`M5Dataset`, `M5Config`, `M5Record`; Poisson demand + weekly seasonality + item trends)
+- [x] Penn Treebank (language modelling) — `src/penn_treebank.rs` (`PennTreebankDataset`, `PennTreebankConfig`; Zipf vocab + Poisson sentence lengths + `load_from_text`)
+- [x] WikiText-103 (NLP language modelling) — `src/wikitext103.rs` (`WikiText103Dataset`, `WikiText103Config`; article/paragraph hierarchy + `load_from_text`)
+- [x] Criteo display advertising (click-through rate) — `src/criteo.rs` (`CriteoDataset`, `CriteoConfig`, `CriteoRecord`; 13 int + 26 cat features, binary label)
+- [x] ImageNet subset (100-class synthetic) — `src/imagenet100.rs` (`ImageNet100Dataset`, `ImageNet100Config`; `Array4<f32>` NCHW, 100 classes, distinct class means)
 
 ### Distributed Dataset Processing
 - [x] Shard-aware loading for multi-process/multi-node training — `ShardedLoader` in `src/sharding/mod.rs`
 - [x] Dataset sharding API: split dataset into N equal parts by index — `ShardedLoader::get_shard`, `shard_by_index` in `src/sharding/mod.rs`
 - [x] Consistent random shuffling across shards with same seed — `ShardedLoader::global_permutation` + `consistent_shuffle` in `src/sharding/mod.rs`
-- [ ] Integration with `scirs2-core` distributed primitives
+- [x] Integration with `scirs2-core` distributed primitives — `src/distributed_core.rs` (`par_map_rows`, `par_fold_rows`, `core_par_map_chunks`, `core_map_reduce_chunks`, `par_feature_stats`; backed by `scirs2_core::distributed::par_iter` and `scirs2_core::distributed::primitives`; 14 tests)
 
 ### Enhanced Generators
 - [x] `make_low_rank` - Low-rank matrix completion benchmarks — `generators/low_rank.rs` + ndarray wrapper in `generators/ndarray_convenience.rs`
@@ -102,9 +102,9 @@
 - [x] `make_concept_drift` - Time series with distribution shift — `generators/concept_drift.rs` + ndarray wrapper
 
 ### Format Support
-- [ ] Native Parquet read via `scirs2-io`
-- [ ] HDF5 dataset containers
-- [ ] NetCDF for climate/geospatial datasets
+- [x] Native Parquet read via `scirs2-io` — `parquet_reader.rs` (`parquet_io` feature, `ParquetDataset` / `ColumnData`)
+- [x] HDF5 dataset containers — `hdf5_dataset.rs` (magic-byte check always; full read/write with `hdf5_io` feature)
+- [x] NetCDF for climate/geospatial datasets — `netcdf_dataset.rs` (pure Rust via `netcdf3`, always available)
 
 ## Known Issues
 

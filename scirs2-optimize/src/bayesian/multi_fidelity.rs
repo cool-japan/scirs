@@ -59,7 +59,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
 use crate::error::{OptimizeError, OptimizeResult};
 
@@ -135,11 +135,7 @@ impl AutoRegressiveGp {
     ///
     /// `x_list[l]` and `y_list[l]` are the observed inputs/outputs at level `l`.
     /// Levels must be ordered from lowest (0) to highest fidelity.
-    pub fn fit(
-        &mut self,
-        x_list: &[Array2<f64>],
-        y_list: &[Array1<f64>],
-    ) -> OptimizeResult<()> {
+    pub fn fit(&mut self, x_list: &[Array2<f64>], y_list: &[Array1<f64>]) -> OptimizeResult<()> {
         if x_list.len() != self.levels.len() || y_list.len() != self.levels.len() {
             return Err(OptimizeError::InvalidInput(format!(
                 "Expected {} fidelity levels, got x_list={} y_list={}",
@@ -192,12 +188,7 @@ impl AutoRegressiveGp {
     }
 
     /// Add a single new observation at a given fidelity level and refit.
-    pub fn update(
-        &mut self,
-        fidelity: usize,
-        x: Array1<f64>,
-        y: f64,
-    ) -> OptimizeResult<()> {
+    pub fn update(&mut self, fidelity: usize, x: Array1<f64>, y: f64) -> OptimizeResult<()> {
         if fidelity >= self.levels.len() {
             return Err(OptimizeError::InvalidInput(format!(
                 "Fidelity {} out of range (max {})",
@@ -287,11 +278,7 @@ impl AutoRegressiveGp {
     }
 
     /// Convenience: predict mean only for level `l`.
-    fn predict_mean_level(
-        &self,
-        level: usize,
-        x: &Array2<f64>,
-    ) -> OptimizeResult<Array1<f64>> {
+    fn predict_mean_level(&self, level: usize, x: &Array2<f64>) -> OptimizeResult<Array1<f64>> {
         let (mean, _) = self.predict_gp_level(level, x)?;
         Ok(mean)
     }
@@ -423,7 +410,11 @@ impl MultiFidelityBo {
                 )));
             }
         }
-        Ok(Self { levels, bounds, config })
+        Ok(Self {
+            levels,
+            bounds,
+            config,
+        })
     }
 
     /// Run multi-fidelity optimization.
@@ -476,8 +467,9 @@ impl MultiFidelityBo {
             Some(lhs_cfg),
         )?;
 
-        let mut init_data: Vec<(Array2<f64>, Array1<f64>)> =
-            (0..n_levels).map(|_| (Array2::zeros((0, self.bounds.len())), Array1::zeros(0))).collect();
+        let mut init_data: Vec<(Array2<f64>, Array1<f64>)> = (0..n_levels)
+            .map(|_| (Array2::zeros((0, self.bounds.len())), Array1::zeros(0)))
+            .collect();
 
         for i in 0..x_init.nrows() {
             let xi = x_init.row(i).to_owned();
@@ -625,13 +617,7 @@ impl MultiFidelityBo {
                         continue;
                     }
 
-                    let acq = match extended_ei(
-                        &x_mat,
-                        &model,
-                        l,
-                        self.config.xi,
-                        current_best,
-                    ) {
+                    let acq = match extended_ei(&x_mat, &model, l, self.config.xi, current_best) {
                         Ok(v) => v,
                         Err(_) => continue,
                     };
@@ -752,8 +738,16 @@ mod tests {
 
     fn make_two_level_fidelities() -> Vec<FidelityLevel> {
         vec![
-            FidelityLevel { cost: 1.0, noise: 0.05, correlation: 1.0 },
-            FidelityLevel { cost: 5.0, noise: 0.005, correlation: 0.9 },
+            FidelityLevel {
+                cost: 1.0,
+                noise: 0.05,
+                correlation: 1.0,
+            },
+            FidelityLevel {
+                cost: 5.0,
+                noise: 0.005,
+                correlation: 0.9,
+            },
         ]
     }
 
@@ -763,13 +757,11 @@ mod tests {
         let mut ar_gp = AutoRegressiveGp::new(&levels);
 
         // Level 0: 4 points of f0(x) = x^2
-        let x0 = Array2::from_shape_vec((4, 1), vec![0.0, 1.0, 2.0, 3.0])
-            .expect("shape");
+        let x0 = Array2::from_shape_vec((4, 1), vec![0.0, 1.0, 2.0, 3.0]).expect("shape");
         let y0 = array![0.0, 1.0, 4.0, 9.0];
 
         // Level 1: 3 points of f1(x) = x^2 (exactly correlated)
-        let x1 = Array2::from_shape_vec((3, 1), vec![0.5, 1.5, 2.5])
-            .expect("shape");
+        let x1 = Array2::from_shape_vec((3, 1), vec![0.5, 1.5, 2.5]).expect("shape");
         let y1 = array![0.25, 2.25, 6.25];
 
         ar_gp.fit(&[x0, x1], &[y0, y1]).expect("fit");
@@ -813,15 +805,27 @@ mod tests {
 
         let x_cand = Array2::from_shape_vec((1, 1), vec![0.5]).expect("shape");
         let ei = extended_ei(&x_cand, &ar_gp, 1, 0.01, 0.5).expect("ei");
-        assert!(ei.is_finite() && ei >= 0.0, "EI must be non-negative: {}", ei);
+        assert!(
+            ei.is_finite() && ei >= 0.0,
+            "EI must be non-negative: {}",
+            ei
+        );
     }
 
     #[test]
     fn test_mfbo_optimizes_simple_function() {
         // f_hf(x) = (x - 1)^2;  f_lf(x) = (x - 1)^2 + 0.3 * noise
         let levels = vec![
-            FidelityLevel { cost: 1.0, noise: 0.05, correlation: 1.0 },
-            FidelityLevel { cost: 3.0, noise: 0.001, correlation: 0.95 },
+            FidelityLevel {
+                cost: 1.0,
+                noise: 0.05,
+                correlation: 1.0,
+            },
+            FidelityLevel {
+                cost: 3.0,
+                noise: 0.001,
+                correlation: 0.95,
+            },
         ];
         let bounds = vec![(0.0_f64, 3.0_f64)];
         let config = MultiFidelityConfig {
@@ -836,12 +840,16 @@ mod tests {
             Box::new(|x: &[f64]| (x[0] - 1.0).powi(2)),
         ];
 
-        let result = mfbo_optimize(objectives, levels, bounds, 20.0, Some(config))
-            .expect("optimize");
+        let result =
+            mfbo_optimize(objectives, levels, bounds, 20.0, Some(config)).expect("optimize");
 
         assert!(result.f_best.is_finite());
         // Should get reasonably close to the minimum at x=1 (f=0).
-        assert!(result.f_best < 1.5, "Expected f_best < 1.5, got {}", result.f_best);
+        assert!(
+            result.f_best < 1.5,
+            "Expected f_best < 1.5, got {}",
+            result.f_best
+        );
         assert!(result.budget_spent <= 20.5); // allow small float tolerance
     }
 }

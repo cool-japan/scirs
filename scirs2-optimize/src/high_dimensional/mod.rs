@@ -11,7 +11,9 @@
 
 pub mod coordinate_descent;
 pub mod kaczmarz;
+pub mod randomized_svd;
 pub mod sketched_gd;
+pub mod stochastic_coordinate;
 
 pub use coordinate_descent::{
     BlockCoordinateDescent, CoordinateDescentConfig, CoordinateDescentResult,

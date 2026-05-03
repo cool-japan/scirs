@@ -159,14 +159,15 @@ where
     /// Create new advanced SIMD processor
     pub fn new() -> Self {
         Self {
-            config: AdvancedAdvancedSimdConfig::default(), _phantom: PhantomData,
+            config: AdvancedAdvancedSimdConfig::default(), phantom: PhantomData,
         }
     }
 
     /// Create with custom configuration
     pub fn with_config(config: AdvancedAdvancedSimdConfig) -> Self {
         Self {
-            _config_phantom: PhantomData,
+            config,
+            phantom: PhantomData,
         }
     }
 
@@ -428,7 +429,7 @@ where
                 let row_b = b.row(j);
                 
                 // Use SIMD dot product
-                result[[i, j]] = F::simd_dot_product(&row_a, &row_b);
+                result[[i, j]] = F::simd_dot(&row_a, &row_b);
             }
         }
 
@@ -481,7 +482,7 @@ where
                                 let a_chunk = a.slice(scirs2_core::ndarray::s![i, k_start..k_chunk_end]);
                                 let b_chunk = b.slice(scirs2_core::ndarray::s![j, k_start..k_chunk_end]);
                                 
-                                sum = sum + F::simd_dot_product(&a_chunk, &b_chunk);
+                                sum = sum + F::simd_dot(&a_chunk, &b_chunk);
                             }
 
                             // Handle remainder
@@ -535,7 +536,7 @@ where
         
         for i in 0..m {
             let row = matrix.row(i);
-            result[i] = F::simd_dot_product(&row, vector);
+            result[i] = F::simd_dot(&row, vector);
         }
 
         Ok(result)
@@ -558,7 +559,7 @@ where
         
         for j in 0..n {
             let column = matrix.column(j);
-            result[j] = F::simd_dot_product(&column, vector);
+            result[j] = F::simd_dot(&column, vector);
         }
 
         Ok(result)
@@ -579,7 +580,7 @@ where
         let mut result = Array1::zeros(a.len());
         
         // Use SIMD subtraction
-        F::simd_subtract(&a, &b, &mut result.view_mut());
+        result = F::simd_sub(&a, &b);
         
         Ok(result)
     }
@@ -597,9 +598,10 @@ where
         // Compute mean of y using SIMD
         let y_mean = F::simd_mean(y);
         
-        // Compute total sum of squares using SIMD
-        let tss = F::simd_sum_squared_deviations(y, y_mean);
-        
+        // Compute total sum of squares using SIMD (deviation from mean)
+        let y_centered = F::simd_sub(y, &scirs2_core::ndarray::Array1::from_elem(y.len(), y_mean).view());
+        let tss = F::simd_sum_squares(&y_centered.view());
+
         // Compute residual sum of squares using SIMD
         let rss = F::simd_sum_squares(residuals);
         
@@ -646,21 +648,21 @@ where
     }
 
     fn simd_compute_standard_errors(&self, xtxinv: &ArrayView2<F>, mse: F) -> StatsResult<Array1<F>> {
-        let diagonal = xtx_inv.diag();
+        let diagonal = xtxinv.diag();
         Ok(diagonal.mapv(|x| (x * mse).sqrt()))
     }
 
     fn simd_compute_t_statistics(&self, coefficients: &ArrayView1<F>, standarderrors: &ArrayView1<F>) -> StatsResult<Array1<F>> {
         let mut t_stats = Array1::zeros(coefficients.len());
         for i in 0..coefficients.len() {
-            t_stats[i] = coefficients[i] / standard_errors[i];
+            t_stats[i] = coefficients[i] / standarderrors[i];
         }
         Ok(t_stats)
     }
 
     fn simd_compute_p_values(&self, tstatistics: &ArrayView1<F>, df: usize) -> StatsResult<Array1<F>> {
         // Simplified p-value computation - would use proper t-distribution
-        Ok(t_statistics.mapv(|t| F::from(2.0).expect("Failed to convert constant to float") * (F::one() - F::from(0.95).expect("Failed to convert constant to float"))))
+        Ok(tstatistics.mapv(|t| F::from(2.0).expect("Failed to convert constant to float") * (F::one() - F::from(0.95).expect("Failed to convert constant to float"))))
     }
 
     fn simd_compute_confidence_intervals(
@@ -675,7 +677,7 @@ where
         let t_critical = F::from(1.96).expect("Failed to convert constant to float"); // Simplified - would use proper t-distribution
         
         for i in 0..n_params {
-            let margin = t_critical * standard_errors[i];
+            let margin = t_critical * standarderrors[i];
             ci[[i, 0]] = coefficients[i] - margin;
             ci[[i, 1]] = coefficients[i] + margin;
         }
@@ -693,7 +695,8 @@ where
         let n = y.len();
         let y_mean = F::simd_mean(y);
         
-        let ss_total = F::simd_sum_squared_deviations(y, y_mean);
+        let y_centered_anova = F::simd_sub(y, &scirs2_core::ndarray::Array1::from_elem(y.len(), y_mean).view());
+        let ss_total = F::simd_sum_squares(&y_centered_anova.view());
         let ss_residual = F::simd_sum_squares(residuals);
         let ss_regression = ss_total - ss_residual;
         
@@ -751,7 +754,7 @@ where
         let (n, p) = centereddata.dim();
         let mut cov_matrix = Array2::zeros((p, p));
         
-        let divisor = if bias_correction {
+        let divisor = if biascorrection {
             F::from(n - 1).expect("Failed to convert to float")
         } else {
             F::from(n).expect("Failed to convert to float")
@@ -761,7 +764,7 @@ where
             for j in i..p {
                 let col_i = centereddata.column(i);
                 let col_j = centereddata.column(j);
-                let covariance = F::simd_dot_product(&col_i, &col_j) / divisor;
+                let covariance = F::simd_dot(&col_i, &col_j) / divisor;
                 
                 cov_matrix[[i, j]] = covariance;
                 if i != j {
@@ -774,7 +777,7 @@ where
     }
 
     fn simd_correlation_from_covariance(&self, covmatrix: &ArrayView2<F>) -> StatsResult<Array2<F>> {
-        let p = cov_matrix.nrows();
+        let p = covmatrix.nrows();
         let mut corr_matrix = Array2::zeros((p, p));
         
         for i in 0..p {
@@ -782,9 +785,9 @@ where
                 if i == j {
                     corr_matrix[[i, j]] = F::one();
                 } else {
-                    let std_i = cov_matrix[[i, i]].sqrt();
-                    let std_j = cov_matrix[[j, j]].sqrt();
-                    corr_matrix[[i, j]] = cov_matrix[[i, j]] / (std_i * std_j);
+                    let std_i = covmatrix[[i, i]].sqrt();
+                    let std_j = covmatrix[[j, j]].sqrt();
+                    corr_matrix[[i, j]] = covmatrix[[i, j]] / (std_i * std_j);
                 }
             }
         }
@@ -808,7 +811,7 @@ where
     }
 
     fn simd_determinant_from_eigenvalues(&self, eigenvalues: &ArrayView1<F>) -> StatsResult<F> {
-        Ok(eigenvalues.iter().copied().product())
+        Ok(eigenvalues.iter().copied().fold(F::one(), |acc, x| acc * x))
     }
 
     fn simd_trace(&self, matrix: &ArrayView2<F>) -> StatsResult<F> {

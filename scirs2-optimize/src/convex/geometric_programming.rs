@@ -31,9 +31,9 @@
 //! which is a sum-of-exponentials (log-sum-exp) minimisation problem solved
 //! here by a barrier interior-point method.
 
-use std::fmt;
-use scirs2_core::ndarray::{Array1, Array2};
 use crate::error::{OptimizeError, OptimizeResult};
+use scirs2_core::ndarray::{Array1, Array2};
+use std::fmt;
 
 // ─── Monomial ────────────────────────────────────────────────────────────────
 
@@ -55,7 +55,10 @@ impl Monomial {
                 "monomial coefficient must be strictly positive".into(),
             ));
         }
-        Ok(Self { coefficient, exponents })
+        Ok(Self {
+            coefficient,
+            exponents,
+        })
     }
 
     /// Evaluate at x (all components must be > 0).
@@ -112,7 +115,9 @@ impl Posynomial {
     /// variable dimension.
     pub fn new(terms: Vec<Monomial>) -> OptimizeResult<Self> {
         if terms.is_empty() {
-            return Err(OptimizeError::ValueError("posynomial must have at least one term".into()));
+            return Err(OptimizeError::ValueError(
+                "posynomial must have at least one term".into(),
+            ));
         }
         let n = terms[0].n_vars();
         for (k, t) in terms.iter().enumerate() {
@@ -183,7 +188,9 @@ impl GPProblem {
             if c.n_vars() != n {
                 return Err(OptimizeError::ValueError(format!(
                     "inequality constraint {} has {} variables; expected {}",
-                    i, c.n_vars(), n
+                    i,
+                    c.n_vars(),
+                    n
                 )));
             }
         }
@@ -191,11 +198,17 @@ impl GPProblem {
             if c.n_vars() != n {
                 return Err(OptimizeError::ValueError(format!(
                     "equality constraint {} has {} variables; expected {}",
-                    j, c.n_vars(), n
+                    j,
+                    c.n_vars(),
+                    n
                 )));
             }
         }
-        Ok(Self { objective, ineq_constraints, eq_constraints })
+        Ok(Self {
+            objective,
+            ineq_constraints,
+            eq_constraints,
+        })
     }
 
     /// Number of primal variables.
@@ -316,7 +329,14 @@ pub fn gp_to_convex(prob: &GPProblem) -> LogConvexProblem {
         eq_b[j] = m.coefficient.ln();
     }
 
-    LogConvexProblem { obj_a, obj_b, con_a, con_b, eq_a, eq_b }
+    LogConvexProblem {
+        obj_a,
+        obj_b,
+        con_a,
+        con_b,
+        eq_a,
+        eq_b,
+    }
 }
 
 /// Build the exponent matrix (K×n) and log-coefficient vector (K,) for a
@@ -359,19 +379,23 @@ fn softmax(v: &[f64]) -> Vec<f64> {
 
 /// Evaluate the log-domain objective  lse(A·y + b).
 fn lse_objective(a: &Array2<f64>, b: &Array1<f64>, y: &[f64]) -> f64 {
-    let v: Vec<f64> = (0..a.nrows()).map(|k| {
-        let inner: f64 = (0..a.ncols()).map(|j| a[[k, j]] * y[j]).sum();
-        inner + b[k]
-    }).collect();
+    let v: Vec<f64> = (0..a.nrows())
+        .map(|k| {
+            let inner: f64 = (0..a.ncols()).map(|j| a[[k, j]] * y[j]).sum();
+            inner + b[k]
+        })
+        .collect();
     log_sum_exp(&v)
 }
 
 /// Gradient of  lse(A·y + b)  w.r.t. y:  Aᵀ · softmax(A·y + b).
 fn lse_gradient(a: &Array2<f64>, b: &Array1<f64>, y: &[f64]) -> Vec<f64> {
-    let v: Vec<f64> = (0..a.nrows()).map(|k| {
-        let inner: f64 = (0..a.ncols()).map(|j| a[[k, j]] * y[j]).sum();
-        inner + b[k]
-    }).collect();
+    let v: Vec<f64> = (0..a.nrows())
+        .map(|k| {
+            let inner: f64 = (0..a.ncols()).map(|j| a[[k, j]] * y[j]).sum();
+            inner + b[k]
+        })
+        .collect();
     let sm = softmax(&v);
     let n = a.ncols();
     let mut grad = vec![0.0_f64; n];
@@ -385,10 +409,12 @@ fn lse_gradient(a: &Array2<f64>, b: &Array1<f64>, y: &[f64]) -> Vec<f64> {
 
 /// Hessian of  lse(A·y + b)  w.r.t. y:  Aᵀ · diag(sm) · A − (Aᵀ sm)(Aᵀ sm)ᵀ.
 fn lse_hessian(a: &Array2<f64>, b: &Array1<f64>, y: &[f64]) -> Array2<f64> {
-    let v: Vec<f64> = (0..a.nrows()).map(|k| {
-        let inner: f64 = (0..a.ncols()).map(|j| a[[k, j]] * y[j]).sum();
-        inner + b[k]
-    }).collect();
+    let v: Vec<f64> = (0..a.nrows())
+        .map(|k| {
+            let inner: f64 = (0..a.ncols()).map(|j| a[[k, j]] * y[j]).sum();
+            inner + b[k]
+        })
+        .collect();
     let sm = softmax(&v);
     let n = a.ncols();
     let mut h = Array2::<f64>::zeros((n, n));
@@ -417,12 +443,14 @@ fn solve_newton_system(h: &Array2<f64>, g: &[f64]) -> Vec<f64> {
     // Regularise diagonal for robustness.
     let reg = 1e-12;
     // Gaussian elimination with partial pivoting.
-    let mut mat: Vec<Vec<f64>> = (0..n).map(|i| {
-        let mut row: Vec<f64> = (0..n).map(|j| h[[i, j]]).collect();
-        row[i] += reg;
-        row.push(-g[i]);
-        row
-    }).collect();
+    let mut mat: Vec<Vec<f64>> = (0..n)
+        .map(|i| {
+            let mut row: Vec<f64> = (0..n).map(|j| h[[i, j]]).collect();
+            row[i] += reg;
+            row.push(-g[i]);
+            row
+        })
+        .collect();
 
     for col in 0..n {
         // Find pivot.
@@ -532,16 +560,21 @@ fn find_feasible_point(lcp: &LogConvexProblem, y0: &[f64]) -> OptimizeResult<Vec
     }
 
     // Check current feasibility.
-    let infeasible = lcp.con_a.iter().zip(lcp.con_b.iter()).any(|(ca, cb)| {
-        lse_objective(ca, cb, y0) >= 0.0
-    });
+    let infeasible = lcp
+        .con_a
+        .iter()
+        .zip(lcp.con_b.iter())
+        .any(|(ca, cb)| lse_objective(ca, cb, y0) >= 0.0);
     if !infeasible {
         return Ok(y0.to_vec());
     }
 
     // Phase-I: minimise s s.t. lse(conᵢ(y)) − s ≤ 0 via gradient descent on s.
     // We embed: y_aug = [y; s], start with large s.
-    let max_lse: f64 = lcp.con_a.iter().zip(lcp.con_b.iter())
+    let max_lse: f64 = lcp
+        .con_a
+        .iter()
+        .zip(lcp.con_b.iter())
         .map(|(ca, cb)| lse_objective(ca, cb, y0))
         .fold(f64::NEG_INFINITY, f64::max);
     let s_init = max_lse + 1.0;
@@ -577,9 +610,11 @@ fn find_feasible_point(lcp: &LogConvexProblem, y0: &[f64]) -> OptimizeResult<Vec
     }
 
     // Final feasibility check.
-    let feasible = lcp.con_a.iter().zip(lcp.con_b.iter()).all(|(ca, cb)| {
-        lse_objective(ca, cb, &y_aug[..n]) < 0.0
-    });
+    let feasible = lcp
+        .con_a
+        .iter()
+        .zip(lcp.con_b.iter())
+        .all(|(ca, cb)| lse_objective(ca, cb, &y_aug[..n]) < 0.0);
     if feasible {
         Ok(y_aug[..n].to_vec())
     } else {
@@ -643,7 +678,11 @@ pub fn solve_gp(prob: &GPProblem, config: Option<GPSolverConfig>) -> OptimizeRes
             let delta = solve_newton_system(&hess, &grad);
 
             // Newton decrement λ² = -gᵀ Δ.
-            let newton_dec: f64 = grad.iter().zip(delta.iter()).map(|(g, d)| g * d).sum::<f64>();
+            let newton_dec: f64 = grad
+                .iter()
+                .zip(delta.iter())
+                .map(|(g, d)| g * d)
+                .sum::<f64>();
             if newton_dec.abs() < cfg.inner_tol {
                 break;
             }
@@ -656,8 +695,11 @@ pub fn solve_gp(prob: &GPProblem, config: Option<GPSolverConfig>) -> OptimizeRes
             let mut step = 1.0_f64;
             let ls_thresh = cfg.ls_alpha * newton_dec.abs();
             let y_new = loop {
-                let candidate: Vec<f64> =
-                    y.iter().zip(delta.iter()).map(|(yi, di)| yi + step * di).collect();
+                let candidate: Vec<f64> = y
+                    .iter()
+                    .zip(delta.iter())
+                    .map(|(yi, di)| yi + step * di)
+                    .collect();
                 if let Some(f_new) = barrier_value(&lcp, t, &candidate) {
                     if f0 - f_new >= step * ls_thresh {
                         break candidate;
@@ -734,12 +776,21 @@ mod tests {
         let m2 = Monomial::new(1.0, vec![-1.0]).expect("m2");
         let obj = Posynomial::new(vec![m1, m2]).expect("obj");
         let prob = GPProblem::new(obj, vec![], vec![]).expect("prob");
-        let cfg = GPSolverConfig { initial_y: Some(vec![0.5]), ..Default::default() };
+        let cfg = GPSolverConfig {
+            initial_y: Some(vec![0.5]),
+            ..Default::default()
+        };
         let result = solve_gp(&prob, Some(cfg)).expect("solve");
-        assert!(approx_eq(result.obj_value, 2.0, 0.01),
-            "expected ~2.0, got {}", result.obj_value);
-        assert!(approx_eq(result.x[0], 1.0, 0.05),
-            "expected x≈1, got {}", result.x[0]);
+        assert!(
+            approx_eq(result.obj_value, 2.0, 0.01),
+            "expected ~2.0, got {}",
+            result.obj_value
+        );
+        assert!(
+            approx_eq(result.x[0], 1.0, 0.05),
+            "expected x≈1, got {}",
+            result.x[0]
+        );
     }
 
     #[test]
@@ -760,8 +811,11 @@ mod tests {
             ..Default::default()
         };
         let result = solve_gp(&prob, Some(cfg)).expect("solve");
-        assert!(approx_eq(result.obj_value, 2.0, 0.05),
-            "expected ~2.0, got {}", result.obj_value);
+        assert!(
+            approx_eq(result.obj_value, 2.0, 0.05),
+            "expected ~2.0, got {}",
+            result.obj_value
+        );
     }
 
     #[test]

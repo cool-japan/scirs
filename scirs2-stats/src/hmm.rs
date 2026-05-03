@@ -382,14 +382,16 @@ pub fn viterbi(obs: &[usize], model: &DiscreteHmm) -> StatsResult<Vec<usize>> {
         .model
         .transition
         .mapv(|v| if v > 0.0 { v.ln() } else { f64::NEG_INFINITY });
-    let log_b: Array2<f64> = model
-        .model
-        .emission
-        .mapv(|v| if v > 0.0 { v.ln() } else { f64::NEG_INFINITY });
-    let log_pi: Array1<f64> = model
-        .model
-        .initial
-        .mapv(|v| if v > 0.0 { v.ln() } else { f64::NEG_INFINITY });
+    let log_b: Array2<f64> =
+        model
+            .model
+            .emission
+            .mapv(|v| if v > 0.0 { v.ln() } else { f64::NEG_INFINITY });
+    let log_pi: Array1<f64> =
+        model
+            .model
+            .initial
+            .mapv(|v| if v > 0.0 { v.ln() } else { f64::NEG_INFINITY });
 
     // delta[t, i] = max log P(s_1..s_t = *, s_t = i, o_1..o_t)
     let mut delta = Array2::<f64>::from_elem((t_len, n), f64::NEG_INFINITY);
@@ -560,11 +562,7 @@ pub fn baum_welch(
             let t_len = seq.len();
 
             // Rebuild model from current parameters
-            let current_model = DiscreteHmm::new(
-                trans.clone(),
-                emiss.clone(),
-                init.clone(),
-            )?;
+            let current_model = DiscreteHmm::new(trans.clone(), emiss.clone(), init.clone())?;
 
             let fwd = forward_algorithm(seq, &current_model)?;
             let beta = backward_algorithm(seq, &current_model, &fwd.scales)?;
@@ -745,10 +743,11 @@ pub fn gaussian_viterbi(obs: &[f64], model: &GaussianHmm) -> StatsResult<Vec<usi
         .model
         .transition
         .mapv(|v| if v > 0.0 { v.ln() } else { f64::NEG_INFINITY });
-    let log_pi: Array1<f64> = model
-        .model
-        .initial
-        .mapv(|v| if v > 0.0 { v.ln() } else { f64::NEG_INFINITY });
+    let log_pi: Array1<f64> =
+        model
+            .model
+            .initial
+            .mapv(|v| if v > 0.0 { v.ln() } else { f64::NEG_INFINITY });
 
     let mut delta = Array2::<f64>::from_elem((t_len, n), f64::NEG_INFINITY);
     let mut psi = Array2::<usize>::zeros((t_len, n));
@@ -756,7 +755,11 @@ pub fn gaussian_viterbi(obs: &[f64], model: &GaussianHmm) -> StatsResult<Vec<usi
     for i in 0..n {
         let log_b = {
             let p = model.emission_prob(i, obs[0]);
-            if p > 0.0 { p.ln() } else { f64::NEG_INFINITY }
+            if p > 0.0 {
+                p.ln()
+            } else {
+                f64::NEG_INFINITY
+            }
         };
         delta[[0, i]] = log_pi[i] + log_b;
     }
@@ -765,7 +768,11 @@ pub fn gaussian_viterbi(obs: &[f64], model: &GaussianHmm) -> StatsResult<Vec<usi
         for j in 0..n {
             let log_b = {
                 let p = model.emission_prob(j, obs[t]);
-                if p > 0.0 { p.ln() } else { f64::NEG_INFINITY }
+                if p > 0.0 {
+                    p.ln()
+                } else {
+                    f64::NEG_INFINITY
+                }
             };
             let mut best_val = f64::NEG_INFINITY;
             let mut best_i = 0;

@@ -25,14 +25,63 @@ pub struct SimdConfig {
 
 impl Default for SimdConfig {
     fn default() -> Self {
-        // Use conservative defaults for cross-platform compatibility
-        // TODO: Implement proper platform capability detection when available
-        let minsize = 128; // Conservative threshold for SIMD benefits
+        SimdConfig::detect()
+    }
+}
 
+impl SimdConfig {
+    /// Build a `SimdConfig` by detecting CPU capabilities at runtime.
+    ///
+    /// On x86-64 this uses `is_x86_feature_detected!` (a runtime CPUID check).
+    /// On AArch64 NEON is always present so a fixed unroll-4 is used.
+    /// All other platforms fall back to unroll-1 (scalar path).
+    pub fn detect() -> Self {
+        #[cfg(target_arch = "x86_64")]
+        {
+            // Runtime detection — does NOT require -C target-cpu=native.
+            if is_x86_feature_detected!("avx512f") {
+                // AVX-512: 512-bit registers → 8×f64 per lane
+                return Self {
+                    minsize: 256,
+                    use_aligned: true,
+                    unroll_factor: 8,
+                };
+            }
+            if is_x86_feature_detected!("avx2") {
+                // AVX2: 256-bit registers → 4×f64 per lane
+                return Self {
+                    minsize: 128,
+                    use_aligned: true,
+                    unroll_factor: 4,
+                };
+            }
+            if is_x86_feature_detected!("sse4.2") {
+                // SSE4.2: 128-bit registers → 2×f64 per lane
+                return Self {
+                    minsize: 64,
+                    use_aligned: false,
+                    unroll_factor: 2,
+                };
+            }
+        }
+
+        #[cfg(target_arch = "aarch64")]
+        {
+            // NEON is mandatory on AArch64; 128-bit registers, 2×f64 per lane,
+            // but 4-wide unroll is effective due to out-of-order execution.
+            return Self {
+                minsize: 64,
+                use_aligned: false,
+                unroll_factor: 4,
+            };
+        }
+
+        // Scalar fallback for all other architectures
+        #[allow(unreachable_code)]
         Self {
-            minsize,
-            use_aligned: true, // Enable alignment for better performance
-            unroll_factor: 4,  // Standard unroll factor
+            minsize: 32,
+            use_aligned: false,
+            unroll_factor: 1,
         }
     }
 }
@@ -407,5 +456,38 @@ mod tests {
         assert!((var - 2.5).abs() < 1e-10);
         assert!((min - 1.0).abs() < 1e-10);
         assert!((max__ - 5.0).abs() < 1e-10);
+    }
+
+    // --- Tests for SimdConfig::detect() ---
+
+    /// detect() must not panic on any supported platform.
+    #[test]
+    fn test_simd_config_detect_no_panic() {
+        let cfg = SimdConfig::detect();
+        // Just verify we got a value without panicking.
+        let _ = cfg;
+    }
+
+    /// On every platform the unroll_factor must be at least 1 (scalar fallback).
+    #[test]
+    fn test_simd_config_unroll_factor_geq_1() {
+        let cfg = SimdConfig::detect();
+        assert!(
+            cfg.unroll_factor >= 1,
+            "unroll_factor must be >= 1, got {}",
+            cfg.unroll_factor
+        );
+    }
+
+    /// The default SimdConfig must also not panic and have unroll_factor >= 1.
+    #[test]
+    fn test_simd_config_default_valid() {
+        let cfg = SimdConfig::default();
+        assert!(
+            cfg.unroll_factor >= 1,
+            "default unroll_factor must be >= 1, got {}",
+            cfg.unroll_factor
+        );
+        assert!(cfg.minsize > 0, "minsize must be > 0");
     }
 }

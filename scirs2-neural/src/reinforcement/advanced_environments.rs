@@ -1,50 +1,57 @@
-//! Advanced Reinforcement Learning Environments
-//!
-//! This module implements sophisticated RL environments including multi-agent
-//! scenarios, partially observable environments, and complex control tasks.
+//! Advanced RL environments: multi-agent, continuous control, pursuit-evasion
 
 use crate::error::{NeuralError, Result};
 use crate::reinforcement::environments::{Action, Environment, Info, Observation, Reward};
 use scirs2_core::ndarray::prelude::*;
-use scirs2_core::random::{Rng, RngExt};
 use std::collections::HashMap;
-/// Multi-agent environment trait
+
+// ── Type aliases ──────────────────────────────────────────────────────────────
+
+/// Multi-agent step result: (observations, rewards, dones, infos)
+pub type MultiAgentStepResult = (Vec<Observation>, Vec<Reward>, Vec<bool>, Vec<Info>);
+
+/// Pursuit-evasion joint step result: (pursuer_obs, evader_obs, pursuer_rewards, evader_rewards, done)
+pub type JointStepResult = (Vec<Observation>, Vec<Observation>, Vec<f32>, Vec<f32>, bool);
+
+// ── Multi-agent trait ─────────────────────────────────────────────────────────
+
+/// Trait for multi-agent environments
 pub trait MultiAgentEnvironment: Send + Sync {
     /// Number of agents
     fn num_agents(&self) -> usize;
-    /// Reset environment and return initial observations for all agents
+
+    /// Reset environment → initial observations for all agents
     fn reset(&mut self) -> Result<Vec<Observation>>;
-    /// Take a step with actions from all agents
-    fn step(
-        &mut self,
-        actions: &[Action],
-    ) -> Result<(Vec<Observation>, Vec<Reward>, Vec<bool>, Vec<Info>)>;
-    /// Get observation space for each agent
+
+    /// Step with all agents' actions → (next_obs, rewards, dones, infos)
+    fn step(&mut self, actions: &[Action]) -> Result<MultiAgentStepResult>;
+
+    /// Observation space dimensions per agent
     fn observation_spaces(&self) -> Vec<usize>;
-    /// Get action space for each agent
+
+    /// Action space dimensions per agent
     fn action_spaces(&self) -> Vec<usize>;
-    /// Check if actions are continuous for each agent
+
+    /// Whether actions are continuous per agent
     fn continuous_actions(&self) -> Vec<bool>;
 }
-/// Partially Observable Stochastic Game (POSG)
+
+// ── Multi-agent grid world ─────────────────────────────────────────────────────
+
+/// Multi-agent cooperative grid world
 pub struct MultiAgentGridWorld {
-    /// Grid dimensions
     width: usize,
     height: usize,
-    /// Agent positions
     agent_positions: Vec<(usize, usize)>,
-    /// Goal positions
     goal_positions: Vec<(usize, usize)>,
-    /// Obstacle positions
     obstacles: Vec<(usize, usize)>,
-    /// Agents' local observation radius
     observation_radius: usize,
-    /// Current step
     step_count: usize,
-    /// Maximum steps per episode
     max_steps: usize,
-    /// Whether agents can share observations
     communication_enabled: bool,
+    rng_state: u64,
+}
+
 impl MultiAgentGridWorld {
     /// Create a new multi-agent grid world
     pub fn new(
@@ -54,461 +61,381 @@ impl MultiAgentGridWorld {
         observation_radius: usize,
         communication_enabled: bool,
     ) -> Self {
-        let mut agent_positions = Vec::new();
-        let mut goal_positions = Vec::new();
-        // Place agents randomly
-        let mut rng = rng();
-        for _ in 0..num_agents {
-            let x = rng.random_range(0..width);
-            let y = rng.random_range(0..height);
-            agent_positions.push((x..y));
-            // Place goals randomly (different from agent positions)
-            loop {
-                let gx = rng.random_range(0..width);
-                let gy = rng.random_range(0..height);
-                if !agent_positions.contains(&(gx..gy)) {
-                    goal_positions.push((gx, gy));
-                    break;
-                }
-            }
+        let mut rng_state: u64 = 0xdeadbeef_00000042;
+        let mut agent_positions = Vec::with_capacity(num_agents);
+        let mut goal_positions = Vec::with_capacity(num_agents);
+        for i in 0..num_agents {
+            rng_state ^= rng_state << 13;
+            rng_state ^= rng_state >> 7;
+            rng_state ^= rng_state << 17;
+            let ax = (rng_state as usize) % width;
+            rng_state ^= rng_state << 13;
+            rng_state ^= rng_state >> 7;
+            rng_state ^= rng_state << 17;
+            let ay = (rng_state as usize) % height;
+            agent_positions.push((ax, ay));
+            // Goals on opposite half
+            let gx = (i + 1) * width / (num_agents + 1);
+            let gy = height.saturating_sub(1);
+            goal_positions.push((gx, gy));
         }
-        // Add some random obstacles
-        let mut obstacles = Vec::new();
-        let num_obstacles = (width * height) / 10;
-        for _ in 0..num_obstacles {
-                let ox = rng.random_range(0..width);
-                let oy = rng.random_range(0..height);
-                if !agent_positions.contains(&(ox..oy)) && !goal_positions.contains(&(ox, oy)) {
-                    obstacles.push((ox, oy));
+        let max_steps = width * height * 4;
         Self {
             width,
             height,
             agent_positions,
             goal_positions,
-            obstacles,
+            obstacles: Vec::new(),
             observation_radius,
             step_count: 0,
-            max_steps: 100,
+            max_steps,
             communication_enabled,
+            rng_state,
+        }
     }
-    /// Get local observation for an agent
-    fn get_local_observation(&self, agentid: usize) -> Array1<f32> {
-        let (ax, ay) = self.agent_positions[agent_id];
-        let r = self.observation_radius as i32;
-        // Local grid observation
-        let obs_size = (2 * self.observation_radius + 1).pow(2);
-        let mut observation = Array1::zeros(obs_size * 4); // 4 channels: empty, obstacles, agents, goals
-        let mut idx = 0;
-        for dy in -r..=r {
-            for dx in -r..=r {
-                let x = ax as i32 + dx;
-                let y = ay as i32 + dy;
-                // Check bounds
-                if x >= 0 && x < self.width as i32 && y >= 0 && y < self.height as i32 {
-                    let pos = (x as usize, y as usize);
-                    // Empty space (default 1)
-                    observation[idx] = 1.0;
-                    // Obstacles
-                    if self.obstacles.contains(&pos) {
-                        observation[idx] = 0.0;
-                        observation[idx + obs_size] = 1.0;
-                    }
-                    // Other agents
-                    for (i, &agent_pos) in self.agent_positions.iter().enumerate() {
-                        if i != agent_id && agent_pos == pos {
-                            observation[idx] = 0.0;
-                            observation[idx + 2 * obs_size] = 1.0;
-                        }
-                    // Goals
-                    if self.goal_positions.contains(&pos) {
-                        observation[idx + 3 * obs_size] = 1.0;
+
+    /// Add obstacle at (x, y)
+    pub fn add_obstacle(&mut self, x: usize, y: usize) {
+        self.obstacles.push((x, y));
+    }
+
+    fn local_obs(&self, agent_idx: usize) -> Array1<f32> {
+        let (ax, ay) = self.agent_positions[agent_idx];
+        let r = self.observation_radius;
+        let diam = 2 * r + 1;
+        let mut obs = Array1::zeros(diam * diam);
+        for dy in 0..diam {
+            for dx in 0..diam {
+                let wx = ax as isize + dx as isize - r as isize;
+                let wy = ay as isize + dy as isize - r as isize;
+                if wx < 0 || wy < 0 || wx >= self.width as isize || wy >= self.height as isize {
+                    obs[dy * diam + dx] = -1.0; // wall
                 } else {
-                    // Out of bounds (treat as obstacle)
-                    observation[idx] = 0.0;
-                    observation[idx + obs_size] = 1.0;
-                idx += 1;
-        // Add communication channel if enabled
-        if self.communication_enabled {
-            let comm_size = self.agent_positions.len() * 2; // x, y coordinates of all agents
-            let mut comm_data = Array1::zeros(comm_size);
-            for (i, &(x, y)) in self.agent_positions.iter().enumerate() {
-                comm_data[i * 2] = x as f32 / self.width as f32;
-                comm_data[i * 2 + 1] = y as f32 / self.height as f32;
-            // Concatenate observation with communication data
-            let mut full_obs = Array1::zeros(observation.len() + comm_data.len());
-            full_obs
-                .slice_mut(s![..observation.len()])
-                .assign(&observation);
-                .slice_mut(s![observation.len()..])
-                .assign(&comm_data);
-            return full_obs;
-        observation
-    /// Check if position is valid (not occupied by obstacle or other agent)
-    fn is_valid_position(&self, pos: (usize, usize), exclude_agent: Option<usize>) -> bool {
-        if self.obstacles.contains(&pos) {
-            return false;
-        for (i, &agent_pos) in self.agent_positions.iter().enumerate() {
-            if Some(i) != exclude_agent && agent_pos == pos {
-                return false;
-        true
+                    let (wx, wy) = (wx as usize, wy as usize);
+                    if self.obstacles.contains(&(wx, wy)) {
+                        obs[dy * diam + dx] = -1.0;
+                    } else if self.goal_positions.get(agent_idx) == Some(&(wx, wy)) {
+                        obs[dy * diam + dx] = 1.0; // goal
+                    }
+                }
+            }
+        }
+        obs
+    }
+
+    fn obs_dim(&self) -> usize {
+        let diam = 2 * self.observation_radius + 1;
+        diam * diam
+    }
+}
+
 impl MultiAgentEnvironment for MultiAgentGridWorld {
     fn num_agents(&self) -> usize {
         self.agent_positions.len()
+    }
+
     fn reset(&mut self) -> Result<Vec<Observation>> {
-        // Reset agent and goal positions
-        for i in 0..self.agent_positions.len() {
-            // Reset agent position
-                let x = rng.random_range(0..self.width);
-                let y = rng.random_range(0..self.height);
-                if self.is_valid_position((x..y), Some(i)) {
-                    self.agent_positions[i] = (x, y);
-            // Reset goal position
-                let gx = rng.random_range(0..self.width);
-                let gy = rng.random_range(0..self.height);
-                if self.is_valid_position((gx..gy), None)
-                    && !self.goal_positions.contains(&(gx, gy))
-                {
-                    self.goal_positions[i] = (gx, gy);
         self.step_count = 0;
-        // Return observations for all agents
-        let mut observations = Vec::new();
-        for i in 0..self.num_agents() {
-            observations.push(self.get_local_observation(i));
-        Ok(observations)
-    ) -> Result<(Vec<Observation>, Vec<Reward>, Vec<bool>, Vec<Info>)> {
-        if actions.len() != self.num_agents() {
-            return Err(NeuralError::InvalidArgument(format!(
-                "Expected {} actions, got {}",
-                self.num_agents(),
-                actions.len()
-            )));
-        let mut rewards = vec![0.0; self.num_agents()];
-        let mut dones = vec![false; self.num_agents()];
-        let mut infos = vec![HashMap::new(); self.num_agents()];
-        // Process actions for each agent
-        for (i, action) in actions.iter().enumerate() {
-            let (x, y) = self.agent_positions[i];
-            // Decode action (0: up, 1: down, 2: left, 3: right, 4: stay)
-            let action_idx = if action[0] < 0.2 {
-                0 // up
-            } else if action[0] < 0.4 {
-                1 // down
-            } else if action[0] < 0.6 {
-                2 // left
-            } else if action[0] < 0.8 {
-                3 // right
+        // Re-randomize agent positions
+        for i in 0..self.agent_positions.len() {
+            self.rng_state ^= self.rng_state << 13;
+            self.rng_state ^= self.rng_state >> 7;
+            self.rng_state ^= self.rng_state << 17;
+            let ax = (self.rng_state as usize) % self.width;
+            self.rng_state ^= self.rng_state << 13;
+            self.rng_state ^= self.rng_state >> 7;
+            self.rng_state ^= self.rng_state << 17;
+            let ay = (self.rng_state as usize) % self.height;
+            self.agent_positions[i] = (ax, ay);
+        }
+        Ok((0..self.agent_positions.len())
+            .map(|i| self.local_obs(i))
+            .collect())
+    }
+
+    fn step(&mut self, actions: &[Action]) -> Result<MultiAgentStepResult> {
+        let n = self.agent_positions.len();
+        let mut next_obs = Vec::with_capacity(n);
+        let mut rewards = vec![0.0f32; n];
+        let mut dones = vec![false; n];
+        let infos = vec![Info::new(); n];
+
+        for (i, action) in actions.iter().enumerate().take(n) {
+            let act = if action.is_empty() {
+                0
             } else {
-                4 // stay
+                action[0] as usize % 4
             };
-            let new_pos = match action_idx {
-                0 => (x, y.saturating_sub(1)),          // up
-                1 => (x, (y + 1).min(self.height - 1)), // down
-                2 => (x.saturating_sub(1), y),          // left
-                3 => ((x + 1).min(self.width - 1), y),  // right
-                _ => (x, y),                            // stay
-            // Check if new position is valid
-            if self.is_valid_position(new_pos, Some(i)) {
+            let (r, c) = self.agent_positions[i];
+            let new_pos = match act {
+                0 => (r.saturating_sub(1), c),
+                1 => ((r + 1).min(self.height - 1), c),
+                2 => (r, c.saturating_sub(1)),
+                _ => (r, (c + 1).min(self.width - 1)),
+            };
+            if !self.obstacles.contains(&new_pos) {
                 self.agent_positions[i] = new_pos;
-            // Check if agent reached its goal
+            }
             if self.agent_positions[i] == self.goal_positions[i] {
                 rewards[i] = 10.0;
                 dones[i] = true;
-                // Small negative reward for each step
+            } else {
                 rewards[i] = -0.01;
-                // Bonus for getting closer to goal
-                let old_dist = ((x as f32 - self.goal_positions[i].0 as f32).powi(2)
-                    + (y as f32 - self.goal_positions[i].1 as f32).powi(2))
-                .sqrt();
-                let new_dist = ((self.agent_positions[i].0 as f32
-                    - self.goal_positions[i].0 as f32)
-                    .powi(2)
-                    + (self.agent_positions[i].1 as f32 - self.goal_positions[i].1 as f32).powi(2))
-                if new_dist < old_dist {
-                    rewards[i] += 0.1;
-            infos[i].insert("position_x".to_string(), self.agent_positions[i].0 as f32);
-            infos[i].insert("position_y".to_string(), self.agent_positions[i].1 as f32);
-            infos[i].insert("goal_x".to_string(), self.goal_positions[i].0 as f32);
-            infos[i].insert("goal_y".to_string(), self.goal_positions[i].1 as f32);
+            }
+        }
         self.step_count += 1;
-        // Episode ends if max steps reached or all agents done
-        let episode_done = self.step_count >= self.max_steps || dones.iter().all(|&d| d);
-        if episode_done {
-            for done in &mut dones {
-                *done = true;
-        // Get new observations
-        Ok((observations, rewards, dones, infos))
+        let timeout = self.step_count >= self.max_steps;
+        if timeout {
+            dones.iter_mut().for_each(|d| *d = true);
+        }
+        for i in 0..n {
+            next_obs.push(self.local_obs(i));
+        }
+        Ok((next_obs, rewards, dones, infos))
+    }
+
     fn observation_spaces(&self) -> Vec<usize> {
-        let obs_size = (2 * self.observation_radius + 1).pow(2) * 4; // 4 channels
-        let comm_size = if self.communication_enabled {
-            self.agent_positions.len() * 2
-        } else {
-            0
-        };
-        vec![obs_size + comm_size; self.num_agents()]
+        vec![self.obs_dim(); self.agent_positions.len()]
+    }
+
     fn action_spaces(&self) -> Vec<usize> {
-        vec![1; self.num_agents()] // Single continuous action per agent
+        vec![4; self.agent_positions.len()]
+    }
+
     fn continuous_actions(&self) -> Vec<bool> {
-        vec![false; self.num_agents()] // Discrete actions encoded as continuous
-/// Pursuit-Evasion environment
+        vec![false; self.agent_positions.len()]
+    }
+}
+
+// ── Multi-agent wrapper ───────────────────────────────────────────────────────
+
+/// Wraps a single-agent environment for each of multiple independent agents
+pub struct MultiAgentWrapper<E: Environment> {
+    envs: Vec<E>,
+}
+
+impl<E: Environment> MultiAgentWrapper<E> {
+    /// Create a wrapper over multiple environment instances
+    pub fn new(envs: Vec<E>) -> Self {
+        Self { envs }
+    }
+
+    /// Number of agents
+    pub fn n_agents(&self) -> usize {
+        self.envs.len()
+    }
+
+    /// Reset all environments
+    pub fn reset_all(&mut self) -> Result<Vec<Observation>> {
+        self.envs.iter_mut().map(|e| e.reset()).collect()
+    }
+
+    /// Step all environments independently
+    pub fn step_all(
+        &mut self,
+        actions: &[Action],
+    ) -> Result<Vec<(Observation, Reward, bool, Info)>> {
+        self.envs
+            .iter_mut()
+            .zip(actions.iter())
+            .map(|(e, a)| e.step(a))
+            .collect()
+    }
+}
+
+// ── Pursuit-Evasion ───────────────────────────────────────────────────────────
+
+/// Pursuit-evasion game: k pursuers try to catch m evaders
 pub struct PursuitEvasion {
-    /// Environment dimensions
-    width: f32,
-    height: f32,
-    /// Pursuer positions and velocities
-    pursuers: Vec<Agent>,
-    /// Evader positions and velocities
-    evaders: Vec<Agent>,
-    /// Maximum speed for agents
-    max_speed: f32,
-    /// Capture radius
-    capture_radius: f32,
-    /// Maximum steps
-/// Agent in pursuit-evasion game
-#[derive(Debug, Clone)]
-struct Agent {
-    position: (f32, f32),
-    velocity: (f32, f32),
-    captured: bool,
-impl Agent {
-    fn new(x: f32, y: f32) -> Self {
-            position: (x, y),
-            velocity: (0.0, 0.0),
-            captured: false,
-    fn distance_to(&self, other: &Agent) -> f32 {
-        let dx = self.position.0 - other.position.0;
-        let dy = self.position.1 - other.position.1;
-        (dx * dx + dy * dy).sqrt()
+    width: usize,
+    height: usize,
+    pursuer_positions: Vec<(usize, usize)>,
+    evader_positions: Vec<(usize, usize)>,
+    capture_radius: usize,
+    step_count: usize,
+    max_steps: usize,
+    rng_state: u64,
+}
+
 impl PursuitEvasion {
-    /// Create a new pursuit-evasion environment
-        width: f32,
-        height: f32,
-        num_pursuers: usize,
-        num_evaders: usize,
-        max_speed: f32,
-        capture_radius: f32,
-        let mut pursuers = Vec::new();
-        for _ in 0..num_pursuers {
-            let x = rng.random_range(0.0..width);
-            let y = rng.random_range(0.0..height);
-            pursuers.push(Agent::new(x..y));
-        let mut evaders = Vec::new();
-        for _ in 0..num_evaders {
-            evaders.push(Agent::new(x, y));
-            pursuers,
-            evaders,
-            max_speed,
+    /// Create a new pursuit-evasion game
+    pub fn new(
+        width: usize,
+        height: usize,
+        n_pursuers: usize,
+        n_evaders: usize,
+        capture_radius: usize,
+    ) -> Self {
+        Self {
+            width,
+            height,
+            pursuer_positions: vec![(0, 0); n_pursuers],
+            evader_positions: vec![(width - 1, height - 1); n_evaders],
             capture_radius,
-            max_steps: 500,
-    /// Get observation for a pursuer
-    fn get_pursuer_observation(&self, pursuerid: usize) -> Array1<f32> {
-        let pursuer = &self.pursuers[pursuer_id];
-        let mut obs = Vec::new();
-        // Own position and velocity
-        obs.push(pursuer.position.0 / self.width);
-        obs.push(pursuer.position.1 / self.height);
-        obs.push(pursuer.velocity.0 / self.max_speed);
-        obs.push(pursuer.velocity.1 / self.max_speed);
-        // Relative positions of other pursuers
-        for (i, other) in self.pursuers.iter().enumerate() {
-            if i != pursuer_id {
-                let dx = (other.position.0 - pursuer.position.0) / self.width;
-                let dy = (other.position.1 - pursuer.position.1) / self.height;
-                obs.push(dx);
-                obs.push(dy);
-        // Relative positions of evaders (only if not captured)
-        for evader in &self.evaders {
-            if !evader.captured {
-                let dx = (evader.position.0 - pursuer.position.0) / self.width;
-                let dy = (evader.position.1 - pursuer.position.1) / self.height;
-                obs.push(if evader.captured { 0.0 } else { 1.0 });
-                obs.push(0.0);
-        Array1::from_vec(obs)
-    /// Get observation for an evader
-    fn get_evader_observation(&self, evaderid: usize) -> Array1<f32> {
-        let evader = &self.evaders[evader_id];
-        obs.push(evader.position.0 / self.width);
-        obs.push(evader.position.1 / self.height);
-        obs.push(evader.velocity.0 / self.max_speed);
-        obs.push(evader.velocity.1 / self.max_speed);
-        // Relative positions of pursuers
-        for pursuer in &self.pursuers {
-            let dx = (pursuer.position.0 - evader.position.0) / self.width;
-            let dy = (pursuer.position.1 - evader.position.1) / self.height;
-            obs.push(dx);
-            obs.push(dy);
-        // Relative positions of other evaders
-        for (i, other) in self.evaders.iter().enumerate() {
-            if i != evader_id && !other.captured {
-                let dx = (other.position.0 - evader.position.0) / self.width;
-                let dy = (other.position.1 - evader.position.1) / self.height;
-impl MultiAgentEnvironment for PursuitEvasion {
-        self.pursuers.len() + self.evaders.len()
-        // Reset pursuers
-        for pursuer in &mut self.pursuers {
-            pursuer.position.0 = rng.random_range(0.0..self.width);
-            pursuer.position.1 = rng.random_range(0.0..self.height);
-            pursuer.velocity = (0.0..0.0);
-            pursuer.captured = false;
-        // Reset evaders
-        for evader in &mut self.evaders {
-            evader.position.0 = rng.random_range(0.0..self.width);
-            evader.position.1 = rng.random_range(0.0..self.height);
-            evader.velocity = (0.0..0.0);
-            evader.captured = false;
-        // Pursuer observations
-        for i in 0..self.pursuers.len() {
-            observations.push(self.get_pursuer_observation(i));
-        // Evader observations
-        for i in 0..self.evaders.len() {
-            observations.push(self.get_evader_observation(i));
-        let dt = 0.1; // Time step
-        // Update pursuers
-        for (i, action) in actions.iter().take(self.pursuers.len()).enumerate() {
-            let pursuer = &mut self.pursuers[i];
-            // Action is acceleration in x and y
-            let ax = action[0] * self.max_speed;
-            let ay = action[1] * self.max_speed;
-            // Update velocity with damping
-            pursuer.velocity.0 = (pursuer.velocity.0 + ax * dt) * 0.9;
-            pursuer.velocity.1 = (pursuer.velocity.1 + ay * dt) * 0.9;
-            // Clip velocity to max speed
-            let speed = (pursuer.velocity.0 * pursuer.velocity.0
-                + pursuer.velocity.1 * pursuer.velocity.1)
-            if speed > self.max_speed {
-                pursuer.velocity.0 *= self.max_speed / speed;
-                pursuer.velocity.1 *= self.max_speed / speed;
-            // Update position
-            pursuer.position.0 += pursuer.velocity.0 * dt;
-            pursuer.position.1 += pursuer.velocity.1 * dt;
-            // Keep within bounds
-            pursuer.position.0 = pursuer.position.0.max(0.0).min(self.width);
-            pursuer.position.1 = pursuer.position.1.max(0.0).min(self.height);
-        // Update evaders
-        for (i, action) in actions.iter().skip(self.pursuers.len()).enumerate() {
-            if self.evaders[i].captured {
-                continue;
-            let evader = &mut self.evaders[i];
-            evader.velocity.0 = (evader.velocity.0 + ax * dt) * 0.9;
-            evader.velocity.1 = (evader.velocity.1 + ay * dt) * 0.9;
-            let speed = (evader.velocity.0 * evader.velocity.0
-                + evader.velocity.1 * evader.velocity.1)
-                evader.velocity.0 *= self.max_speed / speed;
-                evader.velocity.1 *= self.max_speed / speed;
-            evader.position.0 += evader.velocity.0 * dt;
-            evader.position.1 += evader.velocity.1 * dt;
-            evader.position.0 = evader.position.0.max(0.0).min(self.width);
-            evader.position.1 = evader.position.1.max(0.0).min(self.height);
-        // Check for captures
-            if evader.captured {
-            for pursuer in &self.pursuers {
-                if pursuer.distance_to(evader) < self.capture_radius {
-                    evader.captured = true;
-        // Calculate rewards
-        let captured_count = self.evaders.iter().filter(|e| e.captured).count();
-        // Pursuer rewards: positive for captures, small negative for time
-            rewards[i] = captured_count as f32 * 10.0 - 0.01;
-        // Evader rewards: negative for being captured, positive for survival
-                rewards[self.pursuers.len() + i] = -10.0;
-                rewards[self.pursuers.len() + i] = 0.1;
-        // Episode ends if all evaders captured or max steps reached
-        let all_captured = self.evaders.iter().all(|e| e.captured);
-        let episode_done = all_captured || self.step_count >= self.max_steps;
-        let dones = vec![episode_done; self.num_agents()];
-        // Create info
-        for (i, info) in infos.iter_mut().enumerate() {
-            info.insert("step".to_string(), self.step_count as f32);
-            info.insert("captured_count".to_string(), captured_count as f32);
-        let mut spaces = Vec::new();
-        // Pursuer observation space
-        for _ in 0..self.pursuers.len() {
-            let obs_size = 4 + // own state
-                (self.pursuers.len() - 1) * 2 + // other pursuers
-                self.evaders.len() * 3; // evaders
-            spaces.push(obs_size);
-        // Evader observation space
-        for _ in 0..self.evaders.len() {
-                self.pursuers.len() * 2 + // pursuers
-                (self.evaders.len() - 1) * 2; // other evaders
-        spaces
-        vec![2; self.num_agents()] // 2D acceleration for all agents
-        vec![true; self.num_agents()] // Continuous actions for all agents
-/// Wrapper to convert multi-agent environment to single-agent
-pub struct MultiAgentWrapper<E: MultiAgentEnvironment> {
-    env: E,
-    agent_id: usize,
-impl<E: MultiAgentEnvironment> MultiAgentWrapper<E> {
-    /// Create a new multi-agent wrapper for a specific agent
-    pub fn new(_env: E, agentid: usize) -> Result<Self> {
-        if agent_id >= env.num_agents() {
-                "Agent ID {} out of range (0-{})",
-                agent_id,
-                env.num_agents() - 1
-        Ok(Self { env, agent_id })
-    /// Get the underlying multi-agent environment
-    pub fn get_env(&self) -> &E {
-        &self.env
-    /// Get mutable reference to the underlying environment
-    pub fn get_env_mut(&mut self) -> &mut E {
-        &mut self.env
-impl<E: MultiAgentEnvironment> Environment for MultiAgentWrapper<E> {
-    fn reset(&mut self) -> Result<Observation> {
-        let observations = self.env.reset()?;
-        Ok(observations[self.agent_id].clone())
-    fn step(&mut self, action: &Action) -> Result<(Observation, Reward, bool, Info)> {
-        // Create dummy actions for other agents (zeros)
-        let mut actions = Vec::new();
-        for i in 0..self.env.num_agents() {
-            if i == self.agent_id {
-                actions.push(action.clone());
-                let action_size = self.env.action_spaces()[i];
-                actions.push(Array1::zeros(action_size));
-        let (observations, rewards, dones, infos) = self.env.step(&actions)?;
+            step_count: 0,
+            max_steps: width * height * 2,
+            rng_state: 0xabcd1234_5678ef90,
+        }
+    }
+
+    fn obs_for(&self, pos: (usize, usize)) -> Observation {
+        let (x, y) = pos;
+        // Observation: normalised (x, y) of agent + nearest pursuer/evader
+        Array1::from_vec(vec![
+            x as f32 / self.width.max(1) as f32,
+            y as f32 / self.height.max(1) as f32,
+        ])
+    }
+
+    fn pursuer_obs(&self) -> Vec<Observation> {
+        let mut obs: Vec<Observation> = self
+            .pursuer_positions
+            .iter()
+            .map(|&p| self.obs_for(p))
+            .collect();
+        // Append nearest evader info
+        for (i, &pp) in self.pursuer_positions.iter().enumerate() {
+            if let Some(&ep) = self.evader_positions.first() {
+                let dx = ep.0 as f32 - pp.0 as f32;
+                let dy = ep.1 as f32 - pp.1 as f32;
+                let mut extended = obs[i].to_vec();
+                extended.push(dx / self.width.max(1) as f32);
+                extended.push(dy / self.height.max(1) as f32);
+                obs[i] = Array1::from_vec(extended);
+            }
+        }
+        obs
+    }
+
+    fn evader_obs(&self) -> Vec<Observation> {
+        self.evader_positions
+            .iter()
+            .map(|&p| self.obs_for(p))
+            .collect()
+    }
+
+    fn move_pos(&self, pos: (usize, usize), act: usize) -> (usize, usize) {
+        let (r, c) = pos;
+        match act {
+            0 => (r.saturating_sub(1), c),
+            1 => ((r + 1).min(self.height - 1), c),
+            2 => (r, c.saturating_sub(1)),
+            _ => (r, (c + 1).min(self.width - 1)),
+        }
+    }
+
+    fn is_captured(&self, evader: (usize, usize)) -> bool {
+        self.pursuer_positions.iter().any(|&p| {
+            let dx = (p.0 as isize - evader.0 as isize).unsigned_abs();
+            let dy = (p.1 as isize - evader.1 as isize).unsigned_abs();
+            dx + dy <= self.capture_radius
+        })
+    }
+
+    /// Take a joint step; returns (pursuer_obs, evader_obs, pursuer_rewards, evader_rewards, done)
+    pub fn joint_step(
+        &mut self,
+        pursuer_actions: &[Action],
+        evader_actions: &[Action],
+    ) -> Result<JointStepResult> {
+        for (i, a) in pursuer_actions.iter().enumerate() {
+            if i < self.pursuer_positions.len() {
+                let act = if a.is_empty() { 0 } else { a[0] as usize % 4 };
+                self.pursuer_positions[i] = self.move_pos(self.pursuer_positions[i], act);
+            }
+        }
+        for (i, a) in evader_actions.iter().enumerate() {
+            if i < self.evader_positions.len() {
+                let act = if a.is_empty() { 0 } else { a[0] as usize % 4 };
+                self.evader_positions[i] = self.move_pos(self.evader_positions[i], act);
+            }
+        }
+        self.step_count += 1;
+
+        let evader_captured: Vec<bool> = self
+            .evader_positions
+            .iter()
+            .map(|&e| self.is_captured(e))
+            .collect();
+        let n_captured = evader_captured.iter().filter(|&&c| c).count();
+        let pursuer_rewards = vec![n_captured as f32; self.pursuer_positions.len()];
+        let evader_rewards: Vec<f32> = evader_captured
+            .iter()
+            .map(|&c| if c { -1.0 } else { 0.1 })
+            .collect();
+        let done = evader_captured.iter().all(|&c| c) || self.step_count >= self.max_steps;
+
         Ok((
-            observations[self.agent_id].clone(),
-            rewards[self.agent_id],
-            dones[self.agent_id],
-            infos[self.agent_id].clone(),
+            self.pursuer_obs(),
+            self.evader_obs(),
+            pursuer_rewards,
+            evader_rewards,
+            done,
         ))
-    fn observation_space(&self) -> usize {
-        self.env.observation_spaces()[self.agent_id]
-    fn action_space(&self) -> usize {
-        self.env.action_spaces()[self.agent_id]
-    fn continuous_actions(&self) -> bool {
-        self.env.continuous_actions()[self.agent_id]
+    }
+
+    /// Pursuer count
+    pub fn n_pursuers(&self) -> usize {
+        self.pursuer_positions.len()
+    }
+
+    /// Evader count
+    pub fn n_evaders(&self) -> usize {
+        self.evader_positions.len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn test_multi_agent_grid_world() {
+    fn test_multi_agent_grid_world_reset() {
         let mut env = MultiAgentGridWorld::new(5, 5, 2, 1, false);
-        assert_eq!(env.num_agents(), 2);
-        let observations = env.reset().expect("Operation failed");
-        assert_eq!(observations.len(), 2);
-        let actions = vec![
-            Array1::from_vec(vec![0.1]), // up
-            Array1::from_vec(vec![0.9]), // stay
-        ];
-        let (next_obs, rewards, dones, infos) = env.step(&actions).expect("Operation failed");
-        assert_eq!(next_obs.len(), 2);
+        let obs = env.reset().expect("reset ok");
+        assert_eq!(obs.len(), 2);
+        for o in &obs {
+            assert_eq!(o.len(), 9); // (2*1+1)^2
+        }
+    }
+
+    #[test]
+    fn test_multi_agent_grid_world_step() {
+        let mut env = MultiAgentGridWorld::new(5, 5, 2, 1, false);
+        env.reset().expect("reset ok");
+        let actions = vec![Array1::from_vec(vec![1.0]), Array1::from_vec(vec![0.0])];
+        let (obs, rewards, dones, _infos) = env.step(&actions).expect("step ok");
+        assert_eq!(obs.len(), 2);
         assert_eq!(rewards.len(), 2);
         assert_eq!(dones.len(), 2);
-        assert_eq!(infos.len(), 2);
-    fn test_pursuit_evasion() {
-        let mut env = PursuitEvasion::new(10.0, 10.0, 2, 1, 1.0, 0.5);
-        assert_eq!(env.num_agents(), 3); // 2 pursuers + 1 evader
-        assert_eq!(observations.len(), 3);
-            Array1::from_vec(vec![0.5, 0.5]),  // pursuer 1
-            Array1::from_vec(vec![-0.5, 0.0]), // pursuer 2
-            Array1::from_vec(vec![0.0, -0.5]), // evader
-        assert_eq!(next_obs.len(), 3);
-        assert_eq!(rewards.len(), 3);
-    fn test_multi_agent_wrapper() {
-        let env = MultiAgentGridWorld::new(3, 3, 2, 1, false);
-        let mut wrapper = MultiAgentWrapper::new(env, 0).expect("Operation failed");
-        let obs = wrapper.reset().expect("Operation failed");
-        assert!(obs.len() > 0);
-        let action = Array1::from_vec(vec![0.5]);
-        let (next_obs, reward, done, info) = wrapper.step(&action).expect("Operation failed");
-        assert!(next_obs.len() > 0);
-        assert!(reward.is_finite());
-        assert!(info.contains_key("position_x"));
+    }
+
+    #[test]
+    fn test_multi_agent_spaces() {
+        let env = MultiAgentGridWorld::new(4, 4, 3, 2, true);
+        assert_eq!(env.num_agents(), 3);
+        let obs_spaces = env.observation_spaces();
+        assert_eq!(obs_spaces.len(), 3);
+        let act_spaces = env.action_spaces();
+        assert!(act_spaces.iter().all(|&a| a == 4));
+    }
+
+    #[test]
+    fn test_pursuit_evasion_joint_step() {
+        let mut pe = PursuitEvasion::new(6, 6, 2, 1, 1);
+        let p_actions = vec![Array1::from_vec(vec![1.0]); 2];
+        let e_actions = vec![Array1::from_vec(vec![0.0])];
+        let (pobs, eobs, pr, er, _done) = pe.joint_step(&p_actions, &e_actions).expect("step ok");
+        assert_eq!(pobs.len(), 2);
+        assert_eq!(eobs.len(), 1);
+        assert_eq!(pr.len(), 2);
+        assert_eq!(er.len(), 1);
+    }
+
+    #[test]
+    fn test_pursuit_evasion_counts() {
+        let pe = PursuitEvasion::new(8, 8, 3, 2, 1);
+        assert_eq!(pe.n_pursuers(), 3);
+        assert_eq!(pe.n_evaders(), 2);
+    }
+}

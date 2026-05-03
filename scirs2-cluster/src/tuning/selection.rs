@@ -156,8 +156,10 @@ where
                         algorithm, result.best_score, result.total_time
                     );
 
-                    if F::from(result.best_score).expect("Failed to convert to float") > best_score {
-                        best_score = F::from(result.best_score).expect("Failed to convert to float");
+                    if F::from(result.best_score).expect("Failed to convert to float") > best_score
+                    {
+                        best_score =
+                            F::from(result.best_score).expect("Failed to convert to float");
                         best_algorithm = algorithm.clone();
                         best_parameters = result.best_parameters.clone();
                     }
@@ -269,7 +271,11 @@ where
 
         // Algorithm-specific recommendations
         let mut sorted_results: Vec<_> = results.iter().collect();
-        sorted_results.sort_by(|a, b| b.1.best_score.partial_cmp(&a.1.best_score).expect("Operation failed"));
+        sorted_results.sort_by(|a, b| {
+            b.1.best_score
+                .partial_cmp(&a.1.best_score)
+                .expect("Operation failed")
+        });
 
         if sorted_results.len() >= 2 {
             let best = &sorted_results[0];
@@ -289,7 +295,8 @@ where
             if let Some(dbscan_result) = results.get(&ClusteringAlgorithm::DBSCAN) {
                 if kmeans_result.total_time < dbscan_result.total_time * 0.5
                     && F::from(kmeans_result.best_score).expect("Failed to convert to float")
-                        > F::from(dbscan_result.best_score * 0.9).expect("Failed to convert to float")
+                        > F::from(dbscan_result.best_score * 0.9)
+                            .expect("Failed to convert to float")
                 {
                     recommendations
                         .push("K-means offers good speed/accuracy trade-off".to_string());

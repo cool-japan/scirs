@@ -5,6 +5,7 @@ use scirs2_core::ndarray::s;
 use scirs2_core::ndarray::{Array, Array1, Array2};
 use scirs2_core::numeric::{Complex64, ComplexFloat};
 use scirs2_fft;
+use std::f64::consts::PI;
 
 // Constant-Q Transform Implementation
 //
@@ -203,13 +204,13 @@ pub fn constant_q_transform(signal: &Array1<f64>, config: &CqtConfig) -> SignalR
         config.use_sparse,
     )?;
 
-    // If _signal is a single time frame, calculate the CQT directly
+    // If signal is a single time frame, calculate the CQT directly
     if let Some(hop_size) = config.hop_size {
         // Compute CQT spectrogram
-        compute_cqt_spectrogram(_signal, &kernel, hop_size)
+        compute_cqt_spectrogram(signal, &kernel, hop_size)
     } else {
         // Compute single frame CQT
-        let cqt = compute_cqt_frame(_signal, &kernel)?;
+        let cqt = compute_cqt_frame(signal, &kernel)?;
 
         // Reshape to 2D array (single time frame)
         let mut cqt_2d = Array2::<Complex64>::zeros((n_bins, 1));
@@ -356,12 +357,12 @@ fn compute_cqt_frame(signal: &Array1<f64>, kernel: &CqtKernel) -> SignalResult<V
     let n_signal = signal.len();
     let n_fft = kernel.n_fft;
 
-    // Check if _signal is long enough
+    // Check if signal is long enough
     if n_signal < n_fft {
-        // Zero-pad the _signal to n_fft
+        // Zero-pad the signal to n_fft
         let mut padded_signal = vec![Complex64::new(0.0, 0.0); n_fft];
         for i in 0..n_signal {
-            padded_signal[i] = Complex64::new(_signal[i], 0.0);
+            padded_signal[i] = Complex64::new(signal[i], 0.0);
         }
 
         // Compute FFT of padded _signal
@@ -398,7 +399,7 @@ fn compute_cqt_frame(signal: &Array1<f64>, kernel: &CqtKernel) -> SignalResult<V
             // Extract chunk and zero-pad if needed
             let mut padded_chunk = vec![Complex64::new(0.0, 0.0); n_fft];
             for i in start..end {
-                padded_chunk[i - start] = Complex64::new(_signal[i], 0.0);
+                padded_chunk[i - start] = Complex64::new(signal[i], 0.0);
             }
 
             // Compute FFT
@@ -484,7 +485,7 @@ fn compute_cqt_spectrogram(
 
 /// Create window function of specified type and length
 #[allow(dead_code)]
-fn create_window(windowtype: &str, length: usize) -> SignalResult<Vec<f64>> {
+fn create_window(window_type: &str, length: usize) -> SignalResult<Vec<f64>> {
     match window_type.to_lowercase().as_str() {
         "hann" | "hanning" => Ok(window::hann(length, true)?),
         "hamming" => Ok(window::hamming(length, true)?),
@@ -520,18 +521,18 @@ fn next_power_of_two(n: usize) -> usize {
 ///
 /// A 2D array containing the magnitude (or log magnitude) of the CQT coefficients
 #[allow(dead_code)]
-pub fn cqt_magnitude(_cqt: &CqtResult, log_scale: bool, refvalue: Option<f64>) -> Array2<f64> {
-    let mut magnitude = Array2::<f64>::zeros(_cqt.cqt.raw_dim());
+pub fn cqt_magnitude(cqt: &CqtResult, log_scale: bool, ref_value: Option<f64>) -> Array2<f64> {
+    let mut magnitude = Array2::<f64>::zeros(cqt.cqt.raw_dim());
 
     // Compute magnitude (absolute value) of complex coefficients
-    for i in 0.._cqt.cqt.shape()[0] {
-        for j in 0.._cqt.cqt.shape()[1] {
+    for i in 0..cqt.cqt.shape()[0] {
+        for j in 0..cqt.cqt.shape()[1] {
             magnitude[[i, j]] = cqt.cqt[[i, j]].norm();
         }
     }
 
     if log_scale {
-        // Find reference _value (maximum if not specified)
+        // Find reference value (maximum if not specified)
         let reference = ref_value.unwrap_or_else(|| magnitude.iter().cloned().fold(0.0, f64::max));
 
         // Convert to dB
@@ -558,11 +559,11 @@ pub fn cqt_magnitude(_cqt: &CqtResult, log_scale: bool, refvalue: Option<f64>) -
 /// A 2D array containing the phase of the CQT coefficients (in radians)
 #[allow(dead_code)]
 pub fn cqt_phase(cqt: &CqtResult) -> Array2<f64> {
-    let mut phase = Array2::<f64>::zeros(_cqt.cqt.raw_dim());
+    let mut phase = Array2::<f64>::zeros(cqt.cqt.raw_dim());
 
     // Compute phase (argument) of complex coefficients
-    for i in 0.._cqt.cqt.shape()[0] {
-        for j in 0.._cqt.cqt.shape()[1] {
+    for i in 0..cqt.cqt.shape()[0] {
+        for j in 0..cqt.cqt.shape()[1] {
             phase[[i, j]] = cqt.cqt[[i, j]].arg();
         }
     }
@@ -739,9 +740,9 @@ pub fn chromagram(
     });
 
     // Initialize chromagram
-    let mut _chroma = Array2::<f64>::zeros((n_chroma_bins, n_frames));
+    let mut chroma = Array2::<f64>::zeros((n_chroma_bins, n_frames));
 
-    // Map CQT bins to _chroma bins
+    // Map CQT bins to chroma bins
     for i in 0..n_bins {
         let midi_note = midi_frequencies[i];
         let chroma_bin = ((midi_note as isize) % n_chroma_bins as isize + n_chroma_bins as isize
@@ -766,7 +767,7 @@ pub fn chromagram(
         }
     }
 
-    Ok(_chroma)
+    Ok(chroma)
 }
 
 #[cfg(test)]
@@ -814,8 +815,8 @@ mod tests {
         let q = 1.0 / (2.0f64.powf(1.0 / bins_per_octave as f64) - 1.0);
         let fs = 22050.0;
 
-        let kernel =
-            compute_cqt_kernel(f_min, f_max, bins_per_octave, q, fs, "hann", None, true).expect("Operation failed");
+        let kernel = compute_cqt_kernel(f_min, f_max, bins_per_octave, q, fs, "hann", None, true)
+            .expect("Operation failed");
 
         // Check number of bins (should be exactly 36 bins for log2(440/55) * 12 = 3 * 12)
         let expected_bins = ((f_max / f_min).log2() * bins_per_octave as f64).ceil() as usize;
@@ -885,7 +886,7 @@ mod tests {
                     .partial_cmp(&(b - frequency).abs())
                     .expect("Operation failed")
             })
-            .map(|(idx_)| idx)
+            .map(|(idx_, _)| idx_)
             .expect("Operation failed");
 
         // Should be at or very close to the expected bin

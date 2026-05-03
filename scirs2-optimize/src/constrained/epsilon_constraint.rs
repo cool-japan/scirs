@@ -78,7 +78,10 @@ impl EpsilonConstraint {
                 epsilon.len()
             )));
         }
-        Ok(Self { primary_idx, epsilon })
+        Ok(Self {
+            primary_idx,
+            epsilon,
+        })
     }
 
     /// Create a new epsilon-constraint specification (panics on invalid input;
@@ -86,7 +89,10 @@ impl EpsilonConstraint {
     ///
     /// [`new_checked`]: Self::new_checked
     pub fn new(primary_idx: usize, epsilon: Vec<f64>) -> Self {
-        Self { primary_idx, epsilon }
+        Self {
+            primary_idx,
+            epsilon,
+        }
     }
 
     /// Index of the primary objective to minimize.
@@ -161,11 +167,7 @@ impl EpsilonConstraint {
     ///
     /// # Returns
     /// A closure `fn(&[f64]) -> f64` suitable for scalar minimization.
-    pub fn penalized_objective<F>(
-        &self,
-        objectives: F,
-        penalty: f64,
-    ) -> impl Fn(&[f64]) -> f64 + '_
+    pub fn penalized_objective<F>(&self, objectives: F, penalty: f64) -> impl Fn(&[f64]) -> f64 + '_
     where
         F: Fn(&[f64]) -> Vec<f64> + 'static,
     {
@@ -352,7 +354,11 @@ where
         .collect();
 
     // Enumerate all combinations using a multi-dimensional counter
-    let total_combos: usize = epsilon_grids.iter().map(|g| g.len()).product::<usize>().max(1);
+    let total_combos: usize = epsilon_grids
+        .iter()
+        .map(|g| g.len())
+        .product::<usize>()
+        .max(1);
 
     let mut pareto_approximation: Vec<Vec<f64>> = Vec::new();
     let mut decision_vectors: Vec<Vec<f64>> = Vec::new();
@@ -372,7 +378,8 @@ where
         let pen_fn = ec.penalized_objective(objectives.clone(), config.penalty);
 
         // Solve the penalized scalar problem using coordinate descent
-        let x_opt = coordinate_descent_minimize(&pen_fn, bounds, config.max_inner_iter, config.tolerance);
+        let x_opt =
+            coordinate_descent_minimize(&pen_fn, bounds, config.max_inner_iter, config.tolerance);
         n_solved += 1;
 
         let f_opt = objectives(&x_opt);
@@ -623,7 +630,10 @@ mod tests {
         let pen_fn = ec.penalized_objective(|x| vec![x[0], 1.0 - x[0]], 1e4);
         // x[0] = 0.5: f_1 = 0.5 > 0.3 (infeasible): penalty = 1e4 * (0.5-0.3)^2 = 400
         let val = pen_fn(&[0.5]);
-        assert!(val > 100.0, "infeasible point should be penalized, got {val}");
+        assert!(
+            val > 100.0,
+            "infeasible point should be penalized, got {val}"
+        );
     }
 
     // ── EpsilonSweepConfig ────────────────────────────────────────────────────
@@ -656,15 +666,11 @@ mod tests {
         // f(x) = [x[0], 1 - x[0]] on x in [0, 1]
         // True Pareto front is the line f_1 + f_2 = 1
         let bounds = vec![(0.0_f64, 1.0_f64)];
-        let config = EpsilonSweepConfig::new(2, 5, vec![0.0, 0.0], vec![1.0, 1.0]).expect("failed to create config");
+        let config = EpsilonSweepConfig::new(2, 5, vec![0.0, 0.0], vec![1.0, 1.0])
+            .expect("failed to create config");
 
-        let result = generate_pareto_front_epsilon(
-            |x| vec![x[0], 1.0 - x[0]],
-            &bounds,
-            0,
-            config,
-        )
-        .expect("unexpected None or Err");
+        let result = generate_pareto_front_epsilon(|x| vec![x[0], 1.0 - x[0]], &bounds, 0, config)
+            .expect("unexpected None or Err");
 
         assert!(result.n_solved > 0, "should have solved some subproblems");
         // At least some feasible solutions should be found
@@ -716,7 +722,15 @@ mod tests {
             100,
             1e-8,
         );
-        assert!((x_opt[0] - 0.3).abs() < 1e-4, "x[0] should be ~0.3, got {}", x_opt[0]);
-        assert!((x_opt[1] - 0.7).abs() < 1e-4, "x[1] should be ~0.7, got {}", x_opt[1]);
+        assert!(
+            (x_opt[0] - 0.3).abs() < 1e-4,
+            "x[0] should be ~0.3, got {}",
+            x_opt[0]
+        );
+        assert!(
+            (x_opt[1] - 0.7).abs() < 1e-4,
+            "x[1] should be ~0.7, got {}",
+            x_opt[1]
+        );
     }
 }

@@ -11,8 +11,6 @@ use crate::fft::algorithms::{parse_norm_mode, NormMode};
 use crate::oxifft_plan_cache;
 #[cfg(feature = "oxifft")]
 use oxifft::{Complex as OxiComplex, Direction};
-#[cfg(feature = "rustfft-backend")]
-use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
 use scirs2_core::ndarray::{Array2, Axis};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::NumCast;
@@ -277,7 +275,6 @@ where
             }
         }
 
-        #[cfg(not(feature = "rustfft-backend"))]
         {
             return Err(crate::FFTError::ComputationError(
                 "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature."
@@ -561,7 +558,6 @@ where
             }
         }
 
-        #[cfg(not(feature = "rustfft-backend"))]
         {
             return Err(crate::FFTError::ComputationError(
                 "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature."

@@ -346,7 +346,6 @@ mod tests {
 
     #[test]
     #[cfg(feature = "simd")]
-    #[ignore = "Panics in simd/dot.rs:1167 - Option::unwrap() on None value"]
     fn test_simd_gemm_f64_basic() {
         // Test C = A * B
         let a = array![[1.0f64, 2.0, 3.0], [4.0, 5.0, 6.0]];

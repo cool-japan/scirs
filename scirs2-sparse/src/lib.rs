@@ -39,7 +39,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-sparse = "0.4.2"
+//! scirs2-sparse = "0.4.3"
 //! ```
 //!
 //! ```rust
@@ -52,7 +52,7 @@
 //! let sparse = CsrArray::from_triplets(&rows, &cols, &data, (3, 3), false).expect("Operation failed");
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2 (March 27, 2026)
+//! ## 🔒 Version: 0.4.3 (March 27, 2026)
 //!
 //! ## Matrix vs. Array API
 //!
@@ -576,6 +576,12 @@ pub use csgraph::{
     // Enums and types
     ShortestPathMethod,
     TraversalOrder,
+};
+
+// Graph Laplacian and spectral graph operations
+pub mod graph_laplacian;
+pub use graph_laplacian::{
+    fiedler_vector, graph_laplacian, normalized_laplacian, random_walk_laplacian,
 };
 
 // Re-export warnings from scipy for compatibility

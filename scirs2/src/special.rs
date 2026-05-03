@@ -14,7 +14,51 @@ fn const_f64<T: Float + FromPrimitive>(value: f64) -> T {
     T::from(value).expect("Failed to convert constant to target float type")
 }
 
+/// Lanczos g=7 coefficients (Lanczos 1964, 9-term series, ~15-digit accuracy)
+const LANCZOS_G: f64 = 7.0;
+const LANCZOS_C: [f64; 9] = [
+    0.99999999999980993,
+    676.5203681218851,
+    -1259.1392167224028,
+    771.32342877765313,
+    -176.61502916214059,
+    12.507343278686905,
+    -0.13857109526572012,
+    9.9843695780195716e-6,
+    1.5056327351493116e-7,
+];
+
+/// Compute Γ(z) for z > 0.5 using the Lanczos approximation (g=7, n=9).
+/// Returns (value, is_finite) — value may be ±∞ for very large z.
+#[inline]
+fn lanczos_gamma_pos(z: f64) -> f64 {
+    // Lanczos approximation: Γ(z) = sqrt(2π) · t^(z-0.5) · e^(-t) · A_g(z-1)
+    // where t = (z - 1) + g + 0.5, and we use z shifted so A_g sums over k=1..8.
+    let z = z - 1.0; // shift to use A_g(z)
+    let mut ag = LANCZOS_C[0];
+    for (k, &ck) in LANCZOS_C[1..].iter().enumerate() {
+        ag += ck / (z + (k + 1) as f64);
+    }
+    let t = z + LANCZOS_G + 0.5;
+    (2.0 * std::f64::consts::PI).sqrt() * t.powf(z + 0.5) * (-t).exp() * ag
+}
+
+/// Compute ln|Γ(z)| for z > 0.5 using the Lanczos approximation.
+#[inline]
+fn lanczos_lgamma_pos(z: f64) -> f64 {
+    let z = z - 1.0;
+    let mut ag = LANCZOS_C[0];
+    for (k, &ck) in LANCZOS_C[1..].iter().enumerate() {
+        ag += ck / (z + (k + 1) as f64);
+    }
+    let t = z + LANCZOS_G + 0.5;
+    0.5 * (2.0 * std::f64::consts::PI).ln() + (z + 0.5) * t.ln() - t + ag.abs().ln()
+}
+
 /// Gamma function
+///
+/// Full Lanczos approximation (g=7, n=9, ~15-digit accuracy) for all real inputs.
+/// Returns +∞ at poles (non-positive integers) and NaN for NaN input.
 ///
 /// # Arguments
 ///
@@ -27,49 +71,62 @@ fn const_f64<T: Float + FromPrimitive>(value: f64) -> T {
 /// # Examples
 ///
 /// ```
-/// use scirs2::special::gamma;
+/// use scirs2::special_fns::gamma;
 /// let result = gamma(5.0);
 /// assert!((result - 24.0).abs() < 1e-10);
+/// assert!((gamma(0.5_f64) - 1.7724538509055159).abs() < 1e-10);
 /// ```
 #[allow(dead_code)]
 pub fn gamma<T: Float + FromPrimitive + FloatConst>(x: T) -> T {
-    // Simple implementation for integer and half-integer arguments
-    // A more comprehensive implementation would use a series expansion or numerical approximation
-    
-    if x <= T::zero() {
-        // For simplicity, we don't handle negative values here
+    let xf = match x.to_f64() {
+        Some(v) => v,
+        None => return T::nan(),
+    };
+
+    // NaN input
+    if xf.is_nan() {
         return T::nan();
     }
-    
-    // For integers, gamma(n) = (n-1)!
-    let n = x.round();
-    if (x - n).abs() < T::epsilon() {
-        let n_int = n.to_usize().unwrap_or(0);
-        if n_int <= 1 {
-            return T::one();
+
+    // Special case: x = 1 or x = 2 → exact
+    if (xf - 1.0).abs() < 1e-15 || (xf - 2.0).abs() < 1e-15 {
+        return T::one();
+    }
+
+    // Poles at non-positive integers
+    if xf <= 0.0 {
+        let nearest_int = xf.round();
+        if (xf - nearest_int).abs() < 1e-14 {
+            // pole: return ±∞ depending on sign convention (positive infinity for simplicity)
+            return T::infinity();
         }
-        let mut result = T::one();
-        for i in 1..n_int {
-            result = result * T::from(i).expect("Failed to convert to float");
+        // Reflection formula: Γ(x)·Γ(1-x) = π / sin(πx)
+        let pi = std::f64::consts::PI;
+        let sin_pi_x = (pi * xf).sin();
+        if sin_pi_x.abs() < f64::EPSILON {
+            return T::infinity();
         }
-        return result;
+        // Γ(x) = π / (sin(πx) · Γ(1-x))
+        let gamma_one_minus_x = lanczos_gamma_pos(1.0 - xf);
+        let val = pi / (sin_pi_x * gamma_one_minus_x);
+        return T::from_f64(val).unwrap_or(T::nan());
     }
-    
-    // TODO: Implement a more general approximation
-    // For now, we'll just handle a few half-integer cases
-    if (x - const_f64::<T>(1.5)).abs() < T::epsilon() {
-        return T::from_f64(0.5 * PI.sqrt()).expect("Test/example failed");
-    }
-    if (x - const_f64::<T>(2.5)).abs() < T::epsilon() {
-        return T::from_f64(0.75 * PI.sqrt()).expect("Test/example failed");
-    }
-    
-    // For other values, return NaN for now
-    // This would be replaced with a proper implementation
-    T::nan()
+
+    // x > 0: use Lanczos directly (shift small x into the stable region via recurrence)
+    // For 0 < x < 0.5, use: Γ(x) = Γ(x+1) / x
+    let val = if xf < 0.5 {
+        let gx1 = lanczos_gamma_pos(xf + 1.0);
+        gx1 / xf
+    } else {
+        lanczos_gamma_pos(xf)
+    };
+    T::from_f64(val).unwrap_or(T::nan())
 }
 
-/// Natural logarithm of the gamma function
+/// Natural logarithm of the absolute value of the gamma function: ln|Γ(x)|
+///
+/// Full Lanczos approximation (g=7, n=9, ~15-digit accuracy) for all real inputs.
+/// Returns +∞ at poles (non-positive integers).
 ///
 /// # Arguments
 ///
@@ -77,29 +134,48 @@ pub fn gamma<T: Float + FromPrimitive + FloatConst>(x: T) -> T {
 ///
 /// # Returns
 ///
-/// * Natural logarithm of the gamma function at x
+/// * Natural logarithm of |Γ(x)| at x
 #[allow(dead_code)]
 pub fn lgamma<T: Float + FromPrimitive + FloatConst>(x: T) -> T {
-    if x <= T::zero() {
+    let xf = match x.to_f64() {
+        Some(v) => v,
+        None => return T::nan(),
+    };
+
+    if xf.is_nan() {
         return T::nan();
     }
-    
-    // For integers
-    let n = x.round();
-    if (x - n).abs() < T::epsilon() {
-        let n_int = n.to_usize().unwrap_or(0);
-        if n_int <= 1 {
-            return T::zero();
+
+    // Poles at non-positive integers
+    if xf <= 0.0 {
+        let nearest_int = xf.round();
+        if (xf - nearest_int).abs() < 1e-14 {
+            return T::infinity();
         }
-        let mut result = T::zero();
-        for i in 1..n_int {
-            result = result + T::from(i).expect("Failed to convert to float").ln();
+        // Reflection: ln|Γ(x)| = ln(π) - ln|sin(πx)| - ln|Γ(1-x)|
+        let pi = std::f64::consts::PI;
+        let sin_pi_x = (pi * xf).sin().abs();
+        if sin_pi_x < f64::EPSILON {
+            return T::infinity();
         }
-        return result;
+        let lgamma_one_minus_x = lanczos_lgamma_pos(1.0 - xf);
+        let val = pi.ln() - sin_pi_x.ln() - lgamma_one_minus_x;
+        return T::from_f64(val).unwrap_or(T::nan());
     }
-    
-    // TODO: Implement a more general approximation
-    T::nan()
+
+    // x = 1 or x = 2: exact zeros
+    if (xf - 1.0).abs() < 1e-15 || (xf - 2.0).abs() < 1e-15 {
+        return T::zero();
+    }
+
+    // x > 0, apply recurrence for x < 0.5: lgamma(x) = lgamma(x+1) - ln(x)
+    let val = if xf < 0.5 {
+        let lgx1 = lanczos_lgamma_pos(xf + 1.0);
+        lgx1 - xf.ln()
+    } else {
+        lanczos_lgamma_pos(xf)
+    };
+    T::from_f64(val).unwrap_or(T::nan())
 }
 
 /// Beta function

@@ -384,7 +384,11 @@ where
 /// });
 /// ```
 #[allow(dead_code)]
-pub fn svd<'graph, A, F: Float + scirs2_core::ndarray::ScalarOperand>(
+pub fn svd<
+    'graph,
+    A,
+    F: Float + scirs2_core::ndarray::ScalarOperand + scirs2_core::numeric::FromPrimitive,
+>(
     x: A,
 ) -> (Tensor<'graph, F>, Tensor<'graph, F>, Tensor<'graph, F>)
 where

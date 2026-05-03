@@ -118,7 +118,11 @@ impl<F: Fn(&[f64]) -> f64> MultilevelOptimizer<F> {
     ///
     /// Levels should be ordered from coarsest (cheapest) to finest (most expensive).
     pub fn new(levels: Vec<FidelityLevel<F>>, x0: Vec<f64>, options: MultilevelOptions) -> Self {
-        MultilevelOptimizer { levels, x0, options }
+        MultilevelOptimizer {
+            levels,
+            x0,
+            options,
+        }
     }
 
     /// Run the multi-level optimization
@@ -223,7 +227,11 @@ impl<F: Fn(&[f64]) -> f64> MultilevelOptimizer<F> {
         }
 
         // Final evaluation at finest level
-        let final_f = self.levels.last().map(|l| l.eval(&x)).unwrap_or(f64::INFINITY);
+        let final_f = self
+            .levels
+            .last()
+            .map(|l| l.eval(&x))
+            .unwrap_or(f64::INFINITY);
         n_hifi += 1;
 
         Ok(MultilevelResult {
@@ -344,9 +352,7 @@ where
         budget_used += self.cost_low;
         n_lofi += 1;
 
-        while budget_used < self.options.total_budget * 0.7
-            && n_iter < self.options.max_iter
-        {
+        while budget_used < self.options.total_budget * 0.7 && n_iter < self.options.max_iter {
             n_iter += 1;
 
             // FD gradient using low-fi
@@ -462,6 +468,67 @@ where
 }
 
 // ---------------------------------------------------------------------------
+// Linear algebra helper
+// ---------------------------------------------------------------------------
+
+/// Solve the linear system A x = b using Gaussian elimination with partial
+/// pivoting.  Returns `None` if A is singular (or nearly so).
+fn gaussian_elimination(a: &[Vec<f64>], b: &[f64]) -> Option<Vec<f64>> {
+    let n = b.len();
+    debug_assert_eq!(a.len(), n);
+
+    // Build augmented matrix [A | b]
+    let mut mat: Vec<Vec<f64>> = a
+        .iter()
+        .zip(b.iter())
+        .map(|(row, &rhs)| {
+            let mut r = row.clone();
+            r.push(rhs);
+            r
+        })
+        .collect();
+
+    for col in 0..n {
+        // Partial pivot: find row with largest absolute value in this column
+        let pivot_row = (col..n)
+            .max_by(|&r1, &r2| {
+                mat[r1][col]
+                    .abs()
+                    .partial_cmp(&mat[r2][col].abs())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .unwrap_or(col);
+
+        mat.swap(col, pivot_row);
+
+        let pivot = mat[col][col];
+        if pivot.abs() < 1e-15 {
+            return None; // singular
+        }
+
+        // Eliminate below
+        for row in (col + 1)..n {
+            let factor = mat[row][col] / pivot;
+            for j in col..=n {
+                let val = mat[col][j] * factor;
+                mat[row][j] -= val;
+            }
+        }
+    }
+
+    // Back-substitution
+    let mut x = vec![0.0f64; n];
+    for i in (0..n).rev() {
+        let mut sum = mat[i][n];
+        for j in (i + 1)..n {
+            sum -= mat[i][j] * x[j];
+        }
+        x[i] = sum / mat[i][i];
+    }
+    Some(x)
+}
+
+// ---------------------------------------------------------------------------
 // MFRBF: Multi-Fidelity RBF Surrogate
 // ---------------------------------------------------------------------------
 
@@ -568,31 +635,19 @@ where
             for j in 0..ns {
                 phi[i][j] = self.rbf_kernel(&self.samples[i].x, &self.samples[j].x);
             }
-            // Regularization
-            phi[i][i] += 1e-10;
+            // Nugget regularization for numerical stability
+            phi[i][i] += 1e-6;
         }
 
         let corrections: Vec<f64> = self.samples.iter().map(|s| s.correction()).collect();
 
-        // Solve Φ w = δ using Jacobi (simple iterative for small ns)
-        let mut w = vec![0.0f64; ns];
-        for _iter in 0..200 {
-            let mut w_new = vec![0.0f64; ns];
-            for i in 0..ns {
-                let mut s = corrections[i];
-                for j in 0..ns {
-                    if j != i {
-                        s -= phi[i][j] * w[j];
-                    }
-                }
-                w_new[i] = s / phi[i][i];
-            }
-            let diff: f64 = w_new.iter().zip(w.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
-            w = w_new;
-            if diff < 1e-12 {
-                break;
-            }
-        }
+        // Solve Φ w = δ using Gaussian elimination with partial pivoting.
+        // Jacobi iteration diverges when Φ is not diagonally dominant (common for
+        // clustered RBF centres), so we need a direct solver here.
+        let w = match gaussian_elimination(&phi, &corrections) {
+            Some(sol) => sol,
+            None => return 0.0,
+        };
 
         // Evaluate surrogate: δ̂(x) = Σ w_i φ(||x - x_i||)
         w.iter()
@@ -643,8 +698,12 @@ where
             n_lofi += 1;
         }
 
-        // Optimize corrected surrogate using gradient descent
+        // Optimize corrected surrogate using gradient descent with Armijo line-search.
+        // Track the best point seen to avoid returning a worse solution when the RBF
+        // correction is perturbed by newly added high-fidelity samples.
         let mut f_prev = self.eval_corrected(&x);
+        let mut x_best = x.clone();
+        let mut f_best = f_prev;
 
         for _iter in 0..self.options.max_iter {
             n_iter += 1;
@@ -662,36 +721,61 @@ where
                 break;
             }
 
-            let step = 0.05f64;
+            // Armijo backtracking line-search: start with step=0.1 and halve until
+            // sufficient decrease is achieved (or a minimum step is reached).
+            let armijo_c = 1e-4;
+            let mut step = 0.1f64;
             let mut x_new = vec![0.0f64; n];
-            for i in 0..n {
-                x_new[i] = x[i] - step * grad[i];
+            let mut f_new = f_prev;
+            let mut descent_found = false;
+            for _ls in 0..20 {
+                for i in 0..n {
+                    x_new[i] = x[i] - step * grad[i];
+                }
+                f_new = self.eval_corrected(&x_new);
+                n_lofi += 1;
+                if f_new <= f_prev - armijo_c * step * gnorm * gnorm {
+                    descent_found = true;
+                    break;
+                }
+                step *= 0.5;
             }
-            let f_new = self.eval_corrected(&x_new);
 
-            if f_new < f_prev {
+            if descent_found || f_new < f_prev {
                 x = x_new.clone();
                 f_prev = f_new;
+
+                // Track the best point over all iterations so that RBF perturbations
+                // from new high-fidelity samples cannot cause us to return a worse x.
+                if f_new < f_best {
+                    x_best = x.clone();
+                    f_best = f_new;
+                }
 
                 // Refine with high-fidelity if budget allows
                 if n_hifi < self.options.hifi_budget {
                     self.add_sample(x.clone());
                     n_hifi += 1;
                     n_lofi += 1;
-                    // Recompute corrected value
+                    // Recompute corrected value with updated RBF
                     f_prev = self.eval_corrected(&x);
+                    // Retain best in case corrected value jumped up after new sample
+                    if f_prev < f_best {
+                        f_best = f_prev;
+                        x_best = x.clone();
+                    }
                 }
-            } else {
-                break;
             }
+            // No descent: gradient norm already checked above; continue to let
+            // subsequent iterations explore further rather than terminating early.
         }
 
-        // Final high-fidelity evaluation
-        let final_hifi = self.eval_high(&x);
+        // Final high-fidelity evaluation at the best surrogate point found
+        let final_hifi = self.eval_high(&x_best);
         n_hifi += 1;
 
         Ok(MultilevelResult {
-            x,
+            x: x_best,
             fun: final_hifi,
             n_hifi_evals: n_hifi,
             n_lofi_evals: n_lofi,
@@ -840,16 +924,15 @@ impl<F: Fn(&[f64]) -> f64> TrustHierarchy<F> {
 
             // Update trust region radius
             if rho < self.options.eta1 {
-                radii[finest_idx] = (radius * self.options.gamma_dec)
-                    .max(self.options.min_radius);
+                radii[finest_idx] = (radius * self.options.gamma_dec).max(self.options.min_radius);
             } else {
                 // Accept step
                 x = x_trial;
                 f_cur = f_trial;
 
                 if rho > self.options.eta2 {
-                    radii[finest_idx] = (radius * self.options.gamma_inc)
-                        .min(self.options.max_radius);
+                    radii[finest_idx] =
+                        (radius * self.options.gamma_inc).min(self.options.max_radius);
                 }
 
                 // Propagate radius changes to coarser levels
@@ -1030,12 +1113,7 @@ impl<F: Fn(&[f64]) -> f64> MultigridOptimizer<F> {
     }
 
     /// Perform one V-cycle starting at `level` (0 = finest)
-    fn v_cycle(
-        &self,
-        x: Vec<f64>,
-        level: usize,
-        nfev: &mut usize,
-    ) -> Vec<f64> {
+    fn v_cycle(&self, x: Vec<f64>, level: usize, nfev: &mut usize) -> Vec<f64> {
         let n = x.len();
 
         // Pre-smoothing
@@ -1071,12 +1149,7 @@ impl<F: Fn(&[f64]) -> f64> MultigridOptimizer<F> {
     }
 
     /// Perform one W-cycle (two coarse-level visits)
-    fn w_cycle(
-        &self,
-        x: Vec<f64>,
-        level: usize,
-        nfev: &mut usize,
-    ) -> Vec<f64> {
+    fn w_cycle(&self, x: Vec<f64>, level: usize, nfev: &mut usize) -> Vec<f64> {
         let n = x.len();
         let mut x = self.smooth(&x, self.options.n_smooth, self.options.smooth_step, nfev);
 
@@ -1234,7 +1307,9 @@ mod tests {
                 coarsening_factor: 2.0,
             },
         );
-        let result = optimizer.minimize(&[1.0, 1.0]).expect("failed to create result");
+        let result = optimizer
+            .minimize(&[1.0, 1.0])
+            .expect("failed to create result");
         assert!(result.fun < 0.1, "Expected fun < 0.1, got {}", result.fun);
     }
 
@@ -1253,7 +1328,9 @@ mod tests {
                 coarsening_factor: 2.0,
             },
         );
-        let result = optimizer.minimize(&[1.0, 1.0]).expect("failed to create result");
+        let result = optimizer
+            .minimize(&[1.0, 1.0])
+            .expect("failed to create result");
         assert!(result.fun < 0.1, "Expected fun < 0.1, got {}", result.fun);
     }
 
@@ -1270,7 +1347,9 @@ mod tests {
                 length_scale: 1.0,
             },
         );
-        let result = mfrbf.minimize(&[1.0, 1.0]).expect("failed to create result");
+        let result = mfrbf
+            .minimize(&[1.0, 1.0])
+            .expect("failed to create result");
         assert!(result.fun < 1.0, "Expected fun < 1.0, got {}", result.fun);
     }
 }

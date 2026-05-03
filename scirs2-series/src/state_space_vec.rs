@@ -42,26 +42,47 @@ struct FlatMat {
 
 impl FlatMat {
     fn zeros(rows: usize, cols: usize) -> Self {
-        FlatMat { rows, cols, data: vec![0.0; rows * cols] }
+        FlatMat {
+            rows,
+            cols,
+            data: vec![0.0; rows * cols],
+        }
     }
 
     fn eye(n: usize) -> Self {
         let mut m = Self::zeros(n, n);
-        for i in 0..n { m.set(i, i, 1.0); }
+        for i in 0..n {
+            m.set(i, i, 1.0);
+        }
         m
     }
 
-    #[inline] fn get(&self, r: usize, c: usize) -> f64 { self.data[r * self.cols + c] }
-    #[inline] fn set(&mut self, r: usize, c: usize, v: f64) { self.data[r * self.cols + c] = v; }
-    #[inline] fn add_at(&mut self, r: usize, c: usize, v: f64) { self.data[r * self.cols + c] += v; }
+    #[inline]
+    fn get(&self, r: usize, c: usize) -> f64 {
+        self.data[r * self.cols + c]
+    }
+    #[inline]
+    fn set(&mut self, r: usize, c: usize, v: f64) {
+        self.data[r * self.cols + c] = v;
+    }
+    #[inline]
+    fn add_at(&mut self, r: usize, c: usize, v: f64) {
+        self.data[r * self.cols + c] += v;
+    }
 
     fn mul(&self, rhs: &FlatMat) -> Self {
-        assert_eq!(self.cols, rhs.rows, "FlatMat mul: dimension mismatch {} × {} vs {} × {}", self.rows, self.cols, rhs.rows, rhs.cols);
+        assert_eq!(
+            self.cols, rhs.rows,
+            "FlatMat mul: dimension mismatch {} × {} vs {} × {}",
+            self.rows, self.cols, rhs.rows, rhs.cols
+        );
         let mut out = Self::zeros(self.rows, rhs.cols);
         for i in 0..self.rows {
             for k in 0..self.cols {
                 let a = self.get(i, k);
-                if a == 0.0 { continue; }
+                if a == 0.0 {
+                    continue;
+                }
                 for j in 0..rhs.cols {
                     let prev = out.get(i, j);
                     out.set(i, j, prev + a * rhs.get(k, j));
@@ -83,31 +104,59 @@ impl FlatMat {
 
     fn add(&self, rhs: &FlatMat) -> Self {
         assert_eq!((self.rows, self.cols), (rhs.rows, rhs.cols));
-        let data: Vec<f64> = self.data.iter().zip(&rhs.data).map(|(a, b)| a + b).collect();
-        FlatMat { rows: self.rows, cols: self.cols, data }
+        let data: Vec<f64> = self
+            .data
+            .iter()
+            .zip(&rhs.data)
+            .map(|(a, b)| a + b)
+            .collect();
+        FlatMat {
+            rows: self.rows,
+            cols: self.cols,
+            data,
+        }
     }
 
     fn sub(&self, rhs: &FlatMat) -> Self {
         assert_eq!((self.rows, self.cols), (rhs.rows, rhs.cols));
-        let data: Vec<f64> = self.data.iter().zip(&rhs.data).map(|(a, b)| a - b).collect();
-        FlatMat { rows: self.rows, cols: self.cols, data }
+        let data: Vec<f64> = self
+            .data
+            .iter()
+            .zip(&rhs.data)
+            .map(|(a, b)| a - b)
+            .collect();
+        FlatMat {
+            rows: self.rows,
+            cols: self.cols,
+            data,
+        }
     }
 
     fn scale(&self, s: f64) -> Self {
         let data: Vec<f64> = self.data.iter().map(|x| x * s).collect();
-        FlatMat { rows: self.rows, cols: self.cols, data }
+        FlatMat {
+            rows: self.rows,
+            cols: self.cols,
+            data,
+        }
     }
 
     /// Invert a square matrix via Gauss-Jordan with partial pivoting.
     fn inv(&self) -> Result<Self> {
         let n = self.rows;
         if n != self.cols {
-            return Err(TimeSeriesError::ComputationError("Non-square inversion".into()));
+            return Err(TimeSeriesError::ComputationError(
+                "Non-square inversion".into(),
+            ));
         }
         let mut aug: Vec<f64> = Vec::with_capacity(n * 2 * n);
         for i in 0..n {
-            for j in 0..n { aug.push(self.get(i, j)); }
-            for j in 0..n { aug.push(if i == j { 1.0 } else { 0.0 }); }
+            for j in 0..n {
+                aug.push(self.get(i, j));
+            }
+            for j in 0..n {
+                aug.push(if i == j { 1.0 } else { 0.0 });
+            }
         }
         let w = 2 * n;
         for col in 0..n {
@@ -115,30 +164,49 @@ impl FlatMat {
             let mut max_v = aug[col * w + col].abs();
             for row in (col + 1)..n {
                 let v = aug[row * w + col].abs();
-                if v > max_v { max_v = v; piv = row; }
+                if v > max_v {
+                    max_v = v;
+                    piv = row;
+                }
             }
             if max_v < 1e-15 {
-                return Err(TimeSeriesError::ComputationError("Singular matrix during inversion".into()));
+                return Err(TimeSeriesError::ComputationError(
+                    "Singular matrix during inversion".into(),
+                ));
             }
             if piv != col {
-                for j in 0..w { aug.swap(col * w + j, piv * w + j); }
+                for j in 0..w {
+                    aug.swap(col * w + j, piv * w + j);
+                }
             }
             let d = aug[col * w + col];
-            for j in 0..w { aug[col * w + j] /= d; }
+            for j in 0..w {
+                aug[col * w + j] /= d;
+            }
             for row in 0..n {
-                if row == col { continue; }
+                if row == col {
+                    continue;
+                }
                 let f = aug[row * w + col];
-                for j in 0..w { aug[row * w + j] -= f * aug[col * w + j]; }
+                for j in 0..w {
+                    aug[row * w + j] -= f * aug[col * w + j];
+                }
             }
         }
         let mut inv = Self::zeros(n, n);
-        for i in 0..n { for j in 0..n { inv.set(i, j, aug[i * w + (n + j)]); } }
+        for i in 0..n {
+            for j in 0..n {
+                inv.set(i, j, aug[i * w + (n + j)]);
+            }
+        }
         Ok(inv)
     }
 
     /// Convert to Vec<Vec<f64>>.
     fn to_nested(&self) -> Vec<Vec<f64>> {
-        (0..self.rows).map(|r| (0..self.cols).map(|c| self.get(r, c)).collect()).collect()
+        (0..self.rows)
+            .map(|r| (0..self.cols).map(|c| self.get(r, c)).collect())
+            .collect()
     }
 
     /// Build from Vec<Vec<f64>>.  All rows must have equal length.
@@ -156,12 +224,20 @@ impl FlatMat {
             }
         }
         let data: Vec<f64> = m.iter().flat_map(|r| r.iter().copied()).collect();
-        Ok(FlatMat { rows: m.len(), cols, data })
+        Ok(FlatMat {
+            rows: m.len(),
+            cols,
+            data,
+        })
     }
 
     /// Build from a flat Vec and a column vector dimension.
     fn from_col_vec(v: &[f64]) -> Self {
-        FlatMat { rows: v.len(), cols: 1, data: v.to_vec() }
+        FlatMat {
+            rows: v.len(),
+            cols: 1,
+            data: v.to_vec(),
+        }
     }
 
     /// Extract column c as a Vec.
@@ -176,7 +252,11 @@ impl FlatMat {
         let n = self.rows;
         let m = rhs.rows;
         let mut out = Self::zeros(n, m);
-        for i in 0..n { for j in 0..m { out.set(i, j, self.get(i, 0) * rhs.get(j, 0)); } }
+        for i in 0..n {
+            for j in 0..m {
+                out.set(i, j, self.get(i, 0) * rhs.get(j, 0));
+            }
+        }
         out
     }
 }
@@ -185,7 +265,9 @@ impl FlatMat {
 // Regularise a covariance matrix for numerical stability.
 fn regularise(p: &FlatMat, eps: f64) -> FlatMat {
     let mut out = p.clone();
-    for i in 0..p.rows { out.add_at(i, i, eps); }
+    for i in 0..p.rows {
+        out.add_at(i, i, eps);
+    }
     out
 }
 
@@ -227,19 +309,23 @@ impl StateSpace {
     /// * `y0`          – initial level guess (e.g., first observation)
     pub fn local_level(sigma_level: f64, sigma_obs: f64, y0: f64) -> Self {
         StateSpace {
-            f:  vec![vec![1.0]],
-            h:  vec![vec![1.0]],
-            q:  vec![vec![sigma_level * sigma_level]],
-            r:  vec![vec![sigma_obs * sigma_obs]],
+            f: vec![vec![1.0]],
+            h: vec![vec![1.0]],
+            q: vec![vec![sigma_level * sigma_level]],
+            r: vec![vec![sigma_obs * sigma_obs]],
             m0: vec![y0],
             p0: vec![vec![1e6]],
         }
     }
 
     /// State dimension n.
-    pub fn n_states(&self) -> usize { self.m0.len() }
+    pub fn n_states(&self) -> usize {
+        self.m0.len()
+    }
     /// Observation dimension p.
-    pub fn n_obs(&self) -> usize { self.r.len() }
+    pub fn n_obs(&self) -> usize {
+        self.r.len()
+    }
 
     fn to_flat(&self) -> Result<(FlatMat, FlatMat, FlatMat, FlatMat, FlatMat)> {
         Ok((
@@ -290,7 +376,9 @@ pub struct KalmanFilter {
 
 impl KalmanFilter {
     /// Create a new `KalmanFilter`.
-    pub fn new(model: StateSpace) -> Self { KalmanFilter { model } }
+    pub fn new(model: StateSpace) -> Self {
+        KalmanFilter { model }
+    }
 
     /// Run the forward Kalman filter on `obs`.
     ///
@@ -331,9 +419,9 @@ impl KalmanFilter {
         let mut pp = p0.clone();
 
         let mut filtered_means = Vec::with_capacity(t_len);
-        let mut filtered_covs  = Vec::with_capacity(t_len);
+        let mut filtered_covs = Vec::with_capacity(t_len);
         let mut predicted_means = Vec::with_capacity(t_len);
-        let mut predicted_covs  = Vec::with_capacity(t_len);
+        let mut predicted_covs = Vec::with_capacity(t_len);
         let mut log_lik = 0.0f64;
 
         for yt in obs.iter() {
@@ -433,7 +521,10 @@ fn log_det(m: &FlatMat) -> Result<f64> {
 pub fn smooth(filter_result: &KalmanFilterResult) -> Result<SmootherResult> {
     let t_len = filter_result.filtered_means.len();
     if t_len == 0 {
-        return Ok(SmootherResult { smoothed_means: vec![], smoothed_covs: vec![] });
+        return Ok(SmootherResult {
+            smoothed_means: vec![],
+            smoothed_covs: vec![],
+        });
     }
 
     let f = &filter_result.f_flat;
@@ -441,7 +532,9 @@ pub fn smooth(filter_result: &KalmanFilterResult) -> Result<SmootherResult> {
     let n = filter_result.filtered_means[0].len();
 
     let mut sm_means = filter_result.filtered_means.clone();
-    let mut sm_covs_flat: Vec<FlatMat> = filter_result.filtered_covs.iter()
+    let mut sm_covs_flat: Vec<FlatMat> = filter_result
+        .filtered_covs
+        .iter()
         .map(|m| FlatMat::from_nested(m).unwrap_or_else(|_| FlatMat::zeros(n, n)))
         .collect();
 
@@ -453,31 +546,34 @@ pub fn smooth(filter_result: &KalmanFilterResult) -> Result<SmootherResult> {
 
         // G_t = P_filt F' P_pred^{-1}
         let p_pred_reg = regularise(&p_pred, 1e-8);
-        let p_pred_inv = p_pred_reg.inv().map_err(|e| {
-            TimeSeriesError::ComputationError(format!("P_pred inversion: {e}"))
-        })?;
+        let p_pred_inv = p_pred_reg
+            .inv()
+            .map_err(|e| TimeSeriesError::ComputationError(format!("P_pred inversion: {e}")))?;
         let g = p_filt.mul(&f_t).mul(&p_pred_inv);
 
         // Smoothed mean: m̃_t = m_filt_t + G_t (m̃_{t+1} - m_pred_{t+1})
-        let sm_next  = &sm_means[t_idx + 1];
-        let mp_next  = &filter_result.predicted_means[t_idx + 1];
+        let sm_next = &sm_means[t_idx + 1];
+        let mp_next = &filter_result.predicted_means[t_idx + 1];
         let diff: Vec<f64> = (0..n).map(|i| sm_next[i] - mp_next[i]).collect();
         let g_diff = g.mul(&FlatMat::from_col_vec(&diff));
-        let m_filt  = &filter_result.filtered_means[t_idx];
+        let m_filt = &filter_result.filtered_means[t_idx];
         let m_smooth: Vec<f64> = (0..n).map(|i| m_filt[i] + g_diff.get(i, 0)).collect();
 
         // Smoothed cov: P̃_t = P_filt + G_t (P̃_{t+1} - P_pred_{t+1}) G_t'
-        let sp_next  = &sm_covs_flat[t_idx + 1].clone();
+        let sp_next = &sm_covs_flat[t_idx + 1].clone();
         let dp = sp_next.sub(&p_pred);
         let g_t = g.t();
         let p_smooth = p_filt.add(&g.mul(&dp).mul(&g_t));
 
-        sm_means[t_idx]    = m_smooth;
+        sm_means[t_idx] = m_smooth;
         sm_covs_flat[t_idx] = p_smooth;
     }
 
     let smoothed_covs = sm_covs_flat.iter().map(|m| m.to_nested()).collect();
-    Ok(SmootherResult { smoothed_means: sm_means, smoothed_covs })
+    Ok(SmootherResult {
+        smoothed_means: sm_means,
+        smoothed_covs,
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -520,13 +616,17 @@ pub fn em_fit(
 
     for _iter in 0..max_iter {
         // ----- E-step -----
-        let kf = KalmanFilter { model: model.clone() };
+        let kf = KalmanFilter {
+            model: model.clone(),
+        };
         let filt = kf.filter(obs)?;
-        let sm   = smooth(&filt)?;
-        let ll   = filt.log_likelihood;
+        let sm = smooth(&filt)?;
+        let ll = filt.log_likelihood;
 
         // ----- Convergence check -----
-        if (ll - prev_ll).abs() < tol && _iter > 2 { break; }
+        if (ll - prev_ll).abs() < tol && _iter > 2 {
+            break;
+        }
         prev_ll = ll;
 
         // Sufficient statistics
@@ -553,8 +653,12 @@ pub fn em_fit(
             let pf = FlatMat::from_nested(&sm.smoothed_covs[t])?;
             let exx = pf.add(&m.outer(&m));
 
-            if t < t_len - 1 { add_to(&mut sigma_00, &exx); }
-            if t > 0         { add_to(&mut sigma_11, &exx); }
+            if t < t_len - 1 {
+                add_to(&mut sigma_00, &exx);
+            }
+            if t > 0 {
+                add_to(&mut sigma_11, &exx);
+            }
 
             let y = FlatMat::from_col_vec(&obs[t]);
             add_to(&mut sigma_yy, &y.outer(&y));
@@ -569,17 +673,17 @@ pub fn em_fit(
         // We need the filtered covariances (before update) for G computation.
         for t in 1..t_len {
             let p_filt_tm1 = FlatMat::from_nested(&filt.filtered_covs[t - 1])?;
-            let p_pred_t   = FlatMat::from_nested(&filt.predicted_covs[t])?;
+            let p_pred_t = FlatMat::from_nested(&filt.predicted_covs[t])?;
             let p_pred_reg = regularise(&p_pred_t, 1e-8);
             let p_pred_inv = match p_pred_reg.inv() {
                 Ok(inv) => inv,
-                Err(_)  => continue,
+                Err(_) => continue,
             };
             let g = p_filt_tm1.mul(&f_flat.t()).mul(&p_pred_inv);
 
-            let ps_t   = FlatMat::from_nested(&sm.smoothed_covs[t])?;
-            let mt     = FlatMat::from_col_vec(&sm.smoothed_means[t]);
-            let mt_1   = FlatMat::from_col_vec(&sm.smoothed_means[t - 1]);
+            let ps_t = FlatMat::from_nested(&sm.smoothed_covs[t])?;
+            let mt = FlatMat::from_col_vec(&sm.smoothed_means[t]);
+            let mt_1 = FlatMat::from_col_vec(&sm.smoothed_means[t - 1]);
             // E[x_t x_{t-1}'] = P̃_t G_{t-1}' + m̃_t m̃_{t-1}'
             let lag = ps_t.mul(&g.t()).add(&mt.outer(&mt_1));
             add_to(&mut sigma_10, &lag);
@@ -589,12 +693,16 @@ pub fn em_fit(
         // Update F: F_new = Σ_10 Σ_00^{-1}
         let sigma_00_inv = match regularise(&sigma_00, 1e-8).inv() {
             Ok(inv) => inv,
-            Err(_)  => { continue; }
+            Err(_) => {
+                continue;
+            }
         };
         let f_new = sigma_10.mul(&sigma_00_inv);
 
         // Update Q: Q_new = (1/T) (Σ_11 - F_new Σ_10')
-        let q_new = sigma_11.sub(&f_new.mul(&sigma_10.t())).scale(1.0 / (t_len - 1) as f64);
+        let q_new = sigma_11
+            .sub(&f_new.mul(&sigma_10.t()))
+            .scale(1.0 / (t_len - 1) as f64);
 
         // Update H: H_new = Σ_yx Σ_xx^{-1}
         let mut sigma_xx = FlatMat::zeros(n_dim, n_dim);
@@ -605,12 +713,16 @@ pub fn em_fit(
         }
         let sigma_xx_inv = match regularise(&sigma_xx, 1e-8).inv() {
             Ok(inv) => inv,
-            Err(_)  => { continue; }
+            Err(_) => {
+                continue;
+            }
         };
         let h_new = sigma_yx.mul(&sigma_xx_inv);
 
         // Update R: R_new = (1/T) (Σ_yy - H_new Σ_yx')
-        let r_new = sigma_yy.sub(&h_new.mul(&sigma_yx.t())).scale(1.0 / t_len as f64);
+        let r_new = sigma_yy
+            .sub(&h_new.mul(&sigma_yx.t()))
+            .scale(1.0 / t_len as f64);
 
         // Update m0 and P0 from first smoothed state
         let m0_new = sm.smoothed_means[0].clone();
@@ -621,10 +733,10 @@ pub fn em_fit(
         let r_reg = regularise(&symmetrize(&r_new), 1e-10);
 
         model = StateSpace {
-            f:  f_new.to_nested(),
-            h:  h_new.to_nested(),
-            q:  q_reg.to_nested(),
-            r:  r_reg.to_nested(),
+            f: f_new.to_nested(),
+            h: h_new.to_nested(),
+            q: q_reg.to_nested(),
+            r: r_reg.to_nested(),
             m0: m0_new,
             p0: p0_new_mat.to_nested(),
         };
@@ -639,7 +751,9 @@ pub fn em_fit(
 fn add_to(lhs: &mut FlatMat, rhs: &FlatMat) {
     assert_eq!(lhs.rows, rhs.rows);
     assert_eq!(lhs.cols, rhs.cols);
-    for i in 0..lhs.data.len() { lhs.data[i] += rhs.data[i]; }
+    for i in 0..lhs.data.len() {
+        lhs.data[i] += rhs.data[i];
+    }
 }
 
 /// Symmetrize a matrix: (A + A') / 2.
@@ -701,7 +815,9 @@ pub fn arima_to_state_space(p: usize, d: usize, q: usize) -> StateSpace {
 
     // Shift rows: row i = e_{i-1} for i = 1..m-1
     for i in 1..m {
-        if i - 1 < m { f_data[i][i - 1] = 1.0; }
+        if i - 1 < m {
+            f_data[i][i - 1] = 1.0;
+        }
     }
 
     // Observation matrix H: selects the first state element (the series value).
@@ -723,7 +839,9 @@ pub fn arima_to_state_space(p: usize, d: usize, q: usize) -> StateSpace {
 
     // Initial covariance: diffuse (large diagonal).
     let mut p0 = vec![vec![0.0f64; m]; m];
-    for i in 0..m { p0[i][i] = 1e6; }
+    for i in 0..m {
+        p0[i][i] = 1e6;
+    }
 
     StateSpace {
         f: f_data,
@@ -770,7 +888,9 @@ pub fn predict_state_space(
     obs: &[Vec<f64>],
     h: usize,
 ) -> Result<Vec<Vec<f64>>> {
-    if h == 0 { return Ok(vec![]); }
+    if h == 0 {
+        return Ok(vec![]);
+    }
     if obs.is_empty() {
         return Err(TimeSeriesError::InsufficientData {
             message: "predict_state_space requires at least one observation".into(),
@@ -779,15 +899,19 @@ pub fn predict_state_space(
         });
     }
 
-    let kf = KalmanFilter { model: model.clone() };
+    let kf = KalmanFilter {
+        model: model.clone(),
+    };
     let filt = kf.filter(obs)?;
 
     let n = model.n_states();
     let p = model.n_obs();
-    let f  = FlatMat::from_nested(&model.f)?;
+    let f = FlatMat::from_nested(&model.f)?;
     let h_mat = FlatMat::from_nested(&model.h)?;
 
-    let mut m = filt.filtered_means.last()
+    let mut m = filt
+        .filtered_means
+        .last()
         .cloned()
         .unwrap_or_else(|| model.m0.clone());
 
@@ -857,7 +981,12 @@ mod tests {
         let obs = constant_obs(5.0, 100);
         let kf = KalmanFilter::new(m);
         let res = kf.filter(&obs).expect("filter ok");
-        let last_mean = res.filtered_means.last().and_then(|v| v.first()).copied().unwrap_or(0.0);
+        let last_mean = res
+            .filtered_means
+            .last()
+            .and_then(|v| v.first())
+            .copied()
+            .unwrap_or(0.0);
         assert!((last_mean - 5.0).abs() < 0.5, "last_mean={last_mean}");
     }
 
@@ -890,8 +1019,17 @@ mod tests {
         let kf = KalmanFilter::new(m);
         let res = kf.filter(&obs).expect("ok");
         let first = res.filtered_covs[0][0][0];
-        let last  = res.filtered_covs.last().and_then(|c| c.first()).and_then(|r| r.first()).copied().unwrap_or(f64::MAX);
-        assert!(last < first, "cov should decrease: first={first} last={last}");
+        let last = res
+            .filtered_covs
+            .last()
+            .and_then(|c| c.first())
+            .and_then(|r| r.first())
+            .copied()
+            .unwrap_or(f64::MAX);
+        assert!(
+            last < first,
+            "cov should decrease: first={first} last={last}"
+        );
     }
 
     // --- RTS smoother ---
@@ -900,9 +1038,9 @@ mod tests {
     fn test_smooth_lengths() {
         let m = StateSpace::local_level(0.1, 0.5, 0.0);
         let obs = constant_obs(3.0, 20);
-        let kf  = KalmanFilter::new(m);
+        let kf = KalmanFilter::new(m);
         let filt = kf.filter(&obs).expect("ok");
-        let sm   = smooth(&filt).expect("smooth ok");
+        let sm = smooth(&filt).expect("smooth ok");
         assert_eq!(sm.smoothed_means.len(), 20);
         assert_eq!(sm.smoothed_covs.len(), 20);
     }
@@ -930,13 +1068,16 @@ mod tests {
         // Smoother covariances should be ≤ filtered covariances.
         let m = StateSpace::local_level(0.1, 0.3, 0.0);
         let obs = constant_obs(4.0, 25);
-        let kf   = KalmanFilter::new(m);
+        let kf = KalmanFilter::new(m);
         let filt = kf.filter(&obs).expect("ok");
-        let sm   = smooth(&filt).expect("ok");
+        let sm = smooth(&filt).expect("ok");
         for t in 0..obs.len() {
             let p_filt = filt.filtered_covs[t][0][0];
-            let p_sm   = sm.smoothed_covs[t][0][0];
-            assert!(p_sm <= p_filt + 1e-10, "smoother cov > filtered at t={t}: {p_sm} vs {p_filt}");
+            let p_sm = sm.smoothed_covs[t][0][0];
+            assert!(
+                p_sm <= p_filt + 1e-10,
+                "smoother cov > filtered at t={t}: {p_sm} vs {p_filt}"
+            );
         }
     }
 
@@ -964,7 +1105,9 @@ mod tests {
             .map(|i| vec![2.0 + 0.5 * (i as f64 * 0.2).sin()])
             .collect();
         let init = StateSpace::local_level(0.3, 0.5, 0.0);
-        let kf_init = KalmanFilter { model: init.clone() };
+        let kf_init = KalmanFilter {
+            model: init.clone(),
+        };
         let ll_init = kf_init.filter(&obs).expect("ok").log_likelihood;
 
         let fitted = em_fit(&obs, init, 50, 1e-5).expect("em ok");
@@ -972,7 +1115,10 @@ mod tests {
         let ll_fit = kf_fit.filter(&obs).expect("ok").log_likelihood;
 
         // EM is non-decreasing in likelihood (allow tiny numerical slack).
-        assert!(ll_fit >= ll_init - 1.0, "EM degraded LL: {ll_init} -> {ll_fit}");
+        assert!(
+            ll_fit >= ll_init - 1.0,
+            "EM degraded LL: {ll_init} -> {ll_fit}"
+        );
     }
 
     // --- ARIMA to state space ---
@@ -992,7 +1138,10 @@ mod tests {
         let ss = arima_to_state_space(0, 1, 0);
         assert!(ss.n_states() >= 1);
         // F[0][0] == 1.0 (unit root)
-        assert!((ss.f[0][0] - 1.0).abs() < 1e-10, "F[0][0] should be 1 for I(1)");
+        assert!(
+            (ss.f[0][0] - 1.0).abs() < 1e-10,
+            "F[0][0] should be 1 for I(1)"
+        );
     }
 
     #[test]
@@ -1027,7 +1176,9 @@ mod tests {
         let obs = constant_obs(2.0, 15);
         let preds = predict_state_space(&m, &obs, 5).expect("predict ok");
         assert_eq!(preds.len(), 5);
-        for p in &preds { assert_eq!(p.len(), 1); }
+        for p in &preds {
+            assert_eq!(p.len(), 1);
+        }
     }
 
     #[test]
@@ -1057,7 +1208,9 @@ mod tests {
     #[test]
     fn test_predict_finite_values() {
         let m = StateSpace::local_level(0.1, 0.3, 0.0);
-        let obs: Vec<Vec<f64>> = (0..20).map(|i| vec![(i as f64 * 0.5).sin() * 3.0]).collect();
+        let obs: Vec<Vec<f64>> = (0..20)
+            .map(|i| vec![(i as f64 * 0.5).sin() * 3.0])
+            .collect();
         let preds = predict_state_space(&m, &obs, 10).expect("ok");
         for (i, p) in preds.iter().enumerate() {
             assert!(p[0].is_finite(), "pred[{i}] is not finite");
@@ -1072,6 +1225,8 @@ mod tests {
         let preds = predict_state_space(&m, &obs, 3).expect("ok");
         // Each successive prediction should continue the trend direction.
         assert_eq!(preds.len(), 3);
-        for p in &preds { assert!(p[0].is_finite()); }
+        for p in &preds {
+            assert!(p[0].is_finite());
+        }
     }
 }

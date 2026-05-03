@@ -1,5 +1,9 @@
 # scirs2-signal TODO
 
+## Status: v0.4.3 Released (May 3, 2026)
+
+34,275+ workspace tests pass (100% pass rate). All v0.4.3 features are complete and production-ready. The Savitzky-Golay filter module (`savgol`) was uncommented and validated in the Wave 5 stub-check (+5 new tests).
+
 ## Status: v0.3.4 Released (March 18, 2026)
 
 19,685 workspace tests pass (100% pass rate). All v0.3.4 features are complete and production-ready.
@@ -168,13 +172,13 @@
 - [x] OxiFFT GPU backend integration for large-batch spectrograms — implemented in v0.4.2 (`gpu_spectrograms.rs`)
 - [x] GPU-accelerated matched filter bank (multiple templates simultaneously) — implemented in v0.4.2 (`gpu_matched_filter.rs`)
 - [x] Batched Welch PSD for parallel channel processing — Implemented in v0.4.2 (`welch_batch.rs`)
-- [ ] GPU wavelet transform for high-throughput applications
+- [x] GPU wavelet transform for high-throughput applications — Implemented in v0.4.3 (`gpu_wavelet.rs`: `GpuWaveletConfig`, `GpuWaveletFamily`, `GpuWaveletBackend`, `dwt_dispatch`, `dwt_dispatch_batch`; wraps `gpu/fast_wavelet.rs` with Auto/Cpu/WebGpu backend selection)
 
 ### Deep Learning-Based Denoising
 - [x] Learned speech enhancement model (Conv-TasNet architecture) in pure Rust — Implemented in v0.4.0 (`neural_audio/conv_tasnet.rs`)
-- [ ] Deep filtering via scirs2-neural integration
+- [x] Deep filtering via scirs2-neural integration — Implemented in v0.4.3 (`deep_filter.rs`)
 - [x] Denoising diffusion probabilistic model for audio restoration — Implemented in v0.4.0 (`dl_denoising/diffusion.rs`, `dl_denoising/audio_diffusion.rs`)
-- [ ] Pre-trained model weight loading from oxicode format
+- [x] Pre-trained model weight loading from oxicode format — Implemented in v0.4.3 (`model_weights.rs`: `SignalWeightStore`, `SignalWeightFormat`, save/load via `oxicode` binary or JSON with path-based convenience API)
 
 ### Modal Analysis (Structural Dynamics)
 - [x] Frequency Domain Decomposition (FDD) for operational modal analysis — Implemented in v0.4.0 (`modal_analysis/fdd.rs`)

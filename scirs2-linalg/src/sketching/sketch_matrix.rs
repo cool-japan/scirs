@@ -21,7 +21,8 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
-use scirs2_core::random::{ChaCha8Rng, SeedableRng};
+use scirs2_core::random::{ChaCha8Rng, Rng, SeedableRng};
+use scirs2_core::RngExt;
 use std::fmt::Debug;
 use std::iter::Sum;
 
@@ -178,7 +179,7 @@ where
         // Rademacher signs
         let mut signs = Array1::zeros(input_dim);
         for i in 0..input_dim {
-            let bit: u8 = (rng.next_u32() & 1) as u8;
+            let bit: u8 = rng.random::<u8>() & 1;
             signs[i] = if bit == 0 { F::one() } else { -F::one() };
         }
 
@@ -296,12 +297,12 @@ where
             }
         };
 
-        let mut hash = Vec::with_capacity(input_dim);
-        let mut signs = Array1::zeros(input_dim);
+        let mut hash: Vec<usize> = Vec::with_capacity(input_dim);
+        let mut signs: Array1<F> = Array1::zeros(input_dim);
 
         for i in 0..input_dim {
-            hash.push((rng.next_u64() as usize) % sketch_dim);
-            let bit: u8 = (rng.next_u32() & 1) as u8;
+            hash.push((rng.random::<u64>() as usize) % sketch_dim);
+            let bit: u8 = rng.random::<u8>() & 1;
             signs[i] = if bit == 0 { F::one() } else { -F::one() };
         }
 
@@ -399,7 +400,9 @@ where
         // JL target dimension: m = ceil(4 ln N / (ε²/2 - ε³/3))
         let n_pts_f = (n_points.max(2) as f64).ln();
         let denom = eps_f64 * eps_f64 / 2.0 - eps_f64 * eps_f64 * eps_f64 / 3.0;
-        let target_dim = ((4.0 * n_pts_f / denom).ceil() as usize).max(1).min(source_dim);
+        let target_dim = ((4.0 * n_pts_f / denom).ceil() as usize)
+            .max(1)
+            .min(source_dim);
 
         let matrix = gaussian_random_matrix(target_dim, source_dim, seed)?;
         Ok(Self {
@@ -630,11 +633,11 @@ where
 /// Sample `k` distinct indices from [0, n) without replacement (Fisher-Yates).
 fn sample_without_replacement<R>(n: usize, k: usize, rng: &mut R) -> Vec<usize>
 where
-    R: scirs2_core::random::Rng,
+    R: Rng,
 {
     let mut pool: Vec<usize> = (0..n).collect();
     for i in 0..k {
-        let j = i + (rng.next_u64() as usize) % (n - i);
+        let j = i + (rng.random::<u64>() as usize) % (n - i);
         pool.swap(i, j);
     }
     pool[..k].to_vec()
@@ -776,8 +779,7 @@ mod tests {
             [0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
             [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0],
         ];
-        let transform =
-            JLTransform::with_target_dim(8, 4, 0.3f64, Some(7)).expect("jl transform");
+        let transform = JLTransform::with_target_dim(8, 4, 0.3f64, Some(7)).expect("jl transform");
         let emb = transform.embed_rows(&x.view()).expect("embed");
 
         // Check that all rows have roughly unit norm

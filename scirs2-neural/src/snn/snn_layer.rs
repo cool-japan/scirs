@@ -45,14 +45,10 @@ impl SpikingLayer {
     /// Returns an error if `n_in == 0` or `n_out == 0`.
     pub fn new(n_in: usize, n_out: usize, config: &LIFConfig, init_weight: f32) -> Result<Self> {
         if n_in == 0 {
-            return Err(NeuralError::InvalidArgument(
-                "n_in must be > 0".into(),
-            ));
+            return Err(NeuralError::InvalidArgument("n_in must be > 0".into()));
         }
         if n_out == 0 {
-            return Err(NeuralError::InvalidArgument(
-                "n_out must be > 0".into(),
-            ));
+            return Err(NeuralError::InvalidArgument("n_out must be > 0".into()));
         }
 
         let w = init_weight / n_in as f32;
@@ -80,7 +76,9 @@ impl SpikingLayer {
     pub fn from_weights(weights: &[Vec<f32>], config: &LIFConfig) -> Result<Self> {
         let n_out = weights.len();
         if n_out == 0 {
-            return Err(NeuralError::InvalidArgument("weights must be non-empty".into()));
+            return Err(NeuralError::InvalidArgument(
+                "weights must be non-empty".into(),
+            ));
         }
         let n_in = weights[0].len();
         if n_in == 0 {
@@ -100,11 +98,7 @@ impl SpikingLayer {
         let neurons: Vec<LIFNeuron> = (0..n_out).map(|_| LIFNeuron::new(config)).collect();
         let synapses: Vec<Vec<ExponentialSynapse>> = weights
             .iter()
-            .map(|row| {
-                row.iter()
-                    .map(|&w| ExponentialSynapse::ampa(w))
-                    .collect()
-            })
+            .map(|row| row.iter().map(|&w| ExponentialSynapse::ampa(w)).collect())
             .collect();
 
         Ok(Self {
@@ -185,12 +179,14 @@ impl SpikingLayer {
     pub fn set_weight(&mut self, out_idx: usize, in_idx: usize, weight: f32) -> Result<()> {
         if out_idx >= self.n_out {
             return Err(NeuralError::InvalidArgument(format!(
-                "out_idx {out_idx} >= n_out {}", self.n_out
+                "out_idx {out_idx} >= n_out {}",
+                self.n_out
             )));
         }
         if in_idx >= self.n_in {
             return Err(NeuralError::InvalidArgument(format!(
-                "in_idx {in_idx} >= n_in {}", self.n_in
+                "in_idx {in_idx} >= n_in {}",
+                self.n_in
             )));
         }
         self.synapses[out_idx][in_idx].weight = weight;
@@ -274,9 +270,9 @@ impl SpikingNetwork {
         // result[t][layer] = spike vector
         let mut result: Vec<Vec<Vec<bool>>> = Vec::with_capacity(t_steps);
 
-        for t in 0..t_steps {
+        for input_t in input_spikes.iter().take(t_steps) {
             let mut layer_spikes: Vec<Vec<bool>> = Vec::with_capacity(n_layers);
-            let mut current_input = input_spikes[t].clone();
+            let mut current_input = input_t.clone();
 
             for layer in self.layers.iter_mut() {
                 let out = layer.forward(&current_input, self.dt)?;
@@ -353,48 +349,60 @@ mod tests {
 
     #[test]
     fn spiking_layer_silent_input_silent_output() {
-        let mut layer = SpikingLayer::new(5, 3, &default_config(), 1.0).expect("operation should succeed");
+        let mut layer =
+            SpikingLayer::new(5, 3, &default_config(), 1.0).expect("operation should succeed");
         for _ in 0..100 {
-            let out = layer.forward(&[false; 5], 0.1).expect("operation should succeed");
+            let out = layer
+                .forward(&[false; 5], 0.1)
+                .expect("operation should succeed");
             assert!(out.iter().all(|&s| !s), "no input → no output");
         }
     }
 
     #[test]
     fn spiking_layer_strong_input_fires() {
-        let mut layer = SpikingLayer::new(4, 2, &default_config(), 100.0).expect("operation should succeed");
+        let mut layer =
+            SpikingLayer::new(4, 2, &default_config(), 100.0).expect("operation should succeed");
         let mut any_fired = false;
         for _ in 0..500 {
-            let out = layer.forward(&[true; 4], 0.5).expect("operation should succeed");
+            let out = layer
+                .forward(&[true; 4], 0.5)
+                .expect("operation should succeed");
             if out.iter().any(|&s| s) {
                 any_fired = true;
                 break;
             }
         }
-        assert!(any_fired, "Strong input should cause at least one output spike");
+        assert!(
+            any_fired,
+            "Strong input should cause at least one output spike"
+        );
     }
 
     #[test]
     fn spiking_layer_dimension_mismatch() {
-        let mut layer = SpikingLayer::new(4, 2, &default_config(), 1.0).expect("operation should succeed");
+        let mut layer =
+            SpikingLayer::new(4, 2, &default_config(), 1.0).expect("operation should succeed");
         let result = layer.forward(&[false; 3], 0.1);
         assert!(result.is_err());
     }
 
     #[test]
     fn spiking_layer_set_weight() {
-        let mut layer = SpikingLayer::new(3, 2, &default_config(), 1.0).expect("operation should succeed");
-        layer.set_weight(1, 2, 5.0).expect("operation should succeed");
+        let mut layer =
+            SpikingLayer::new(3, 2, &default_config(), 1.0).expect("operation should succeed");
+        layer
+            .set_weight(1, 2, 5.0)
+            .expect("operation should succeed");
         assert!((layer.synapses[1][2].weight - 5.0).abs() < 1e-6);
     }
 
     #[test]
     fn spiking_network_creates_and_simulates() {
         let config = default_config();
-        let mut net = SpikingNetwork::new(&[4, 3, 2], &config, 5.0, 0.1).expect("operation should succeed");
-        let input: Vec<Vec<bool>> = (0..50)
-            .map(|_| vec![true, false, true, false])
-            .collect();
+        let mut net =
+            SpikingNetwork::new(&[4, 3, 2], &config, 5.0, 0.1).expect("operation should succeed");
+        let input: Vec<Vec<bool>> = (0..50).map(|_| vec![true, false, true, false]).collect();
         let result = net.simulate(&input, 50).expect("operation should succeed");
         assert_eq!(result.len(), 50);
         assert_eq!(result[0].len(), 2); // 2 layers
@@ -405,7 +413,8 @@ mod tests {
     #[test]
     fn spiking_network_spike_count_statistics() {
         let config = default_config();
-        let mut net = SpikingNetwork::new(&[2, 3], &config, 20.0, 1.0).expect("operation should succeed");
+        let mut net =
+            SpikingNetwork::new(&[2, 3], &config, 20.0, 1.0).expect("operation should succeed");
         let input: Vec<Vec<bool>> = (0..100).map(|_| vec![true, true]).collect();
         let record = net.simulate(&input, 100).expect("operation should succeed");
         let total = SpikingNetwork::count_spikes(&record);
@@ -417,7 +426,8 @@ mod tests {
     #[test]
     fn spiking_network_rejects_bad_input_length() {
         let config = default_config();
-        let mut net = SpikingNetwork::new(&[2, 3], &config, 1.0, 0.1).expect("operation should succeed");
+        let mut net =
+            SpikingNetwork::new(&[2, 3], &config, 1.0, 0.1).expect("operation should succeed");
         // 5 steps provided but t_steps=3
         let input: Vec<Vec<bool>> = vec![vec![true, false]; 5];
         assert!(net.simulate(&input, 3).is_err());
@@ -425,11 +435,9 @@ mod tests {
 
     #[test]
     fn from_weights_roundtrip() {
-        let weights = vec![
-            vec![1.0, 2.0, 3.0],
-            vec![4.0, 5.0, 6.0],
-        ];
-        let layer = SpikingLayer::from_weights(&weights, &default_config()).expect("operation should succeed");
+        let weights = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
+        let layer = SpikingLayer::from_weights(&weights, &default_config())
+            .expect("operation should succeed");
         let recovered = layer.weights();
         for (r, expected) in recovered.iter().zip(weights.iter()) {
             for (&got, &exp) in r.iter().zip(expected.iter()) {

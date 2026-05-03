@@ -523,7 +523,7 @@ mod graph_enhancements;
 mod numerical_props;
 
 // Kronecker product
-mod kronecker_ops;
+pub(crate) mod kronecker_ops;
 
 // SIMD-accelerated tensor operations for ML performance
 #[cfg(feature = "simd")]
@@ -1851,7 +1851,6 @@ pub use linalg_ops::{
     diag as linalg_diag, extract_diag as linalg_extract_diag, eye as linalg_eye,
     trace as linalg_trace,
 };
-// matrix_sqrt not yet implemented
 pub use matrix_ops::{
     determinant as matrix_det, matrix_inverse as matrix_inv,
     pseudo_inverse as matrix_pseudo_inverse,

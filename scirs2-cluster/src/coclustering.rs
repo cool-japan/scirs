@@ -203,10 +203,8 @@ impl SpectralCoclustering {
         let col_features = l2_normalise_rows(col_feats);
 
         let mut rng = self.seed;
-        let row_labels_vec =
-            kmeans_labels(row_features.view(), n_rc, self.km_max_iter, &mut rng)?;
-        let col_labels_vec =
-            kmeans_labels(col_features.view(), n_cc, self.km_max_iter, &mut rng)?;
+        let row_labels_vec = kmeans_labels(row_features.view(), n_rc, self.km_max_iter, &mut rng)?;
+        let col_labels_vec = kmeans_labels(col_features.view(), n_cc, self.km_max_iter, &mut rng)?;
 
         Ok(CoclusterResult {
             row_labels: Array1::from_vec(row_labels_vec),
@@ -305,7 +303,12 @@ impl SpectralBiclustering {
         a.mapv_inplace(|v| (v + shift).max(self.epsilon));
 
         // Step 2: Bistochastic normalisation (Sinkhorn-Knopp).
-        bistochastise(&mut a, self.sinkhorn_max_iter, self.sinkhorn_tol, self.epsilon);
+        bistochastise(
+            &mut a,
+            self.sinkhorn_max_iter,
+            self.sinkhorn_tol,
+            self.epsilon,
+        );
 
         // Step 3: Log-transform and centre.
         a.mapv_inplace(|v| v.max(self.epsilon).ln());
@@ -331,22 +334,25 @@ impl SpectralBiclustering {
         let col_features = l2_normalise_rows(col_feats);
 
         let mut rng = self.seed;
-        let row_labels_vec =
-            kmeans_labels(row_features.view(), n_row_clusters, self.km_max_iter, &mut rng)?;
-        let col_labels_vec =
-            kmeans_labels(col_features.view(), n_col_clusters, self.km_max_iter, &mut rng)?;
+        let row_labels_vec = kmeans_labels(
+            row_features.view(),
+            n_row_clusters,
+            self.km_max_iter,
+            &mut rng,
+        )?;
+        let col_labels_vec = kmeans_labels(
+            col_features.view(),
+            n_col_clusters,
+            self.km_max_iter,
+            &mut rng,
+        )?;
 
         // Step 6: Build BiclusModules from Cartesian product of cluster pairs.
-        let mut biclusters: Vec<BiclusModule> =
-            Vec::with_capacity(n_row_clusters * n_col_clusters);
+        let mut biclusters: Vec<BiclusModule> = Vec::with_capacity(n_row_clusters * n_col_clusters);
         for rc in 0..n_row_clusters {
             for cc in 0..n_col_clusters {
-                let rows: Vec<usize> = (0..n_rows)
-                    .filter(|&r| row_labels_vec[r] == rc)
-                    .collect();
-                let cols: Vec<usize> = (0..n_cols)
-                    .filter(|&c| col_labels_vec[c] == cc)
-                    .collect();
+                let rows: Vec<usize> = (0..n_rows).filter(|&r| row_labels_vec[r] == rc).collect();
+                let cols: Vec<usize> = (0..n_cols).filter(|&c| col_labels_vec[c] == cc).collect();
 
                 let score = if rows.is_empty() || cols.is_empty() {
                     0.0
@@ -631,7 +637,11 @@ pub fn extract_biclusters(
     }
 
     // Sort by descending score for usability.
-    modules.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    modules.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
     modules
 }
 
@@ -828,11 +838,7 @@ fn gram_schmidt(a: ArrayView2<f64>) -> Result<Array2<f64>> {
 }
 
 /// Power-iteration eigen-decomposition of a symmetric matrix (top-k).
-fn power_iter_eig(
-    a: ArrayView2<f64>,
-    k: usize,
-    seed: u64,
-) -> Result<(Array2<f64>, Array1<f64>)> {
+fn power_iter_eig(a: ArrayView2<f64>, k: usize, seed: u64) -> Result<(Array2<f64>, Array1<f64>)> {
     let n = a.shape()[0];
     let k = k.min(n);
     let mut rng = seed;
@@ -1200,15 +1206,29 @@ mod tests {
         let x = block_matrix_2x2();
         let sb = SpectralBiclustering::default();
         let result = sb.fit(x.view(), 2, 2).expect("spectral bicluster");
-        // Every row should appear in exactly one bicluster.
-        let mut seen_rows = std::collections::HashSet::new();
+        // In biclustering, each row appears in exactly n_col_clusters biclusters
+        // (one per column-cluster combination via the Cartesian product).
+        // Verify that every row appears in at least one bicluster and row
+        // assignments are consistent with the flat row_labels.
+        let n_rows = result.row_labels.len();
+        let mut row_coverage = vec![0usize; n_rows];
         for bc in &result.biclusters {
             for &r in &bc.rows {
-                assert!(!seen_rows.contains(&r), "row {r} appears in multiple biclusters");
-                seen_rows.insert(r);
+                row_coverage[r] += 1;
             }
         }
-        assert_eq!(seen_rows.len(), 8, "Not all rows are covered");
+        // Every row must be covered (at least once).
+        for (r, &cnt) in row_coverage.iter().enumerate() {
+            assert!(cnt > 0, "row {r} not covered by any bicluster");
+        }
+        // Each row appears in exactly n_col_clusters biclusters.
+        for (r, &cnt) in row_coverage.iter().enumerate() {
+            assert_eq!(
+                cnt, result.n_col_clusters,
+                "row {r} appears in {cnt} biclusters, expected {}",
+                result.n_col_clusters
+            );
+        }
     }
 
     #[test]
@@ -1266,7 +1286,9 @@ mod tests {
             ..Default::default()
         };
         // With max_iter overridden to 5, should still produce valid result.
-        let result = ic.fit(x.view(), 2, 2, Some(5)).expect("info cocluster 5 iter");
+        let result = ic
+            .fit(x.view(), 2, 2, Some(5))
+            .expect("info cocluster 5 iter");
         assert_eq!(result.row_labels.len(), 12);
     }
 
@@ -1363,11 +1385,9 @@ mod tests {
 
     #[test]
     fn test_bistochastise_convergence() {
-        let mut m = Array2::from_shape_vec(
-            (3, 3),
-            vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0],
-        )
-        .expect("shape");
+        let mut m =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+                .expect("shape");
         bistochastise(&mut m, 100, 1e-9, 1e-12);
         // After Sinkhorn, all row sums and col sums should be ≈ 1.
         for r in 0..3 {
@@ -1383,8 +1403,11 @@ mod tests {
     #[test]
     fn test_compact_svd_reconstruction() {
         // Verify U S V^T ≈ original for a small rank-1 matrix.
-        let x = Array2::from_shape_vec((4, 3), vec![2.0, 4.0, 6.0, 1.0, 2.0, 3.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0])
-            .expect("shape");
+        let x = Array2::from_shape_vec(
+            (4, 3),
+            vec![2.0, 4.0, 6.0, 1.0, 2.0, 3.0, 3.0, 6.0, 9.0, 4.0, 8.0, 12.0],
+        )
+        .expect("shape");
         let (u, s, vt) = compact_svd(x.view(), 2, 1).expect("svd");
 
         // Reconstruct: X ≈ U diag(s) V^T.
@@ -1408,7 +1431,10 @@ mod tests {
             .map(|(a, b)| (a - b) * (a - b))
             .sum();
         let orig_sq: f64 = x.iter().map(|v| v * v).sum();
-        assert!(diff_sq / orig_sq < 0.1, "SVD reconstruction error too large");
+        assert!(
+            diff_sq / orig_sq < 0.1,
+            "SVD reconstruction error too large"
+        );
     }
 
     #[test]

@@ -54,7 +54,11 @@ impl BSplineBasis {
             )));
         }
         let n_basis = m - degree - 1;
-        Ok(Self { degree, knots, n_basis })
+        Ok(Self {
+            degree,
+            knots,
+            n_basis,
+        })
     }
 
     /// Create a **uniform open** (clamped) B-spline basis.
@@ -94,7 +98,11 @@ impl BSplineBasis {
             knots[degree + 1 + i] = (i + 1) as f64 / (n_interior + 1) as f64;
         }
 
-        Ok(Self { degree, knots, n_basis: n })
+        Ok(Self {
+            degree,
+            knots,
+            n_basis: n,
+        })
     }
 
     /// Find the knot span index i such that T[i] ≤ t < T[i+1].
@@ -175,12 +183,16 @@ impl BSplineBasis {
 
         // span - p is the start index of the non-zero basis functions.
         // The non-zero N_{j,p} for j = span-p, ..., span.
-        let start = if span >= p { span - p } else { 0 };
+        let start = span.saturating_sub(p);
         if i < start || i > span {
             return 0.0;
         }
         let local = i - start;
-        if local < vals.len() { vals[local] } else { 0.0 }
+        if local < vals.len() {
+            vals[local]
+        } else {
+            0.0
+        }
     }
 
     /// Evaluate the first derivative N'_{i,p}(t) of basis function i.
@@ -205,7 +217,7 @@ impl BSplineBasis {
 
         let right_denom = self.knots.get(i + p + 1).copied().unwrap_or(0.0)
             - self.knots.get(i + 1).copied().unwrap_or(0.0);
-        let right = if right_denom.abs() < 1e-300 || i + 1 >= n_basis + 1 {
+        let right = if right_denom.abs() < 1e-300 || i + 1 > n_basis {
             0.0
         } else {
             p_f * self.eval_lower(i + 1, p - 1, t) / right_denom
@@ -297,11 +309,19 @@ impl BSplineBasis {
                 } else {
                     k
                 };
-                let n_im1 = if local_idx < basis_p1.len() { basis_p1[local_idx] } else { 0.0 };
+                let n_im1 = if local_idx < basis_p1.len() {
+                    basis_p1[local_idx]
+                } else {
+                    0.0
+                };
                 let t_ip = self.knots.get(i + p).copied().unwrap_or(0.0);
                 let t_i = self.knots.get(i).copied().unwrap_or(0.0);
                 let denom = t_ip - t_i;
-                if denom.abs() < 1e-300 { 0.0 } else { n_im1 / denom }
+                if denom.abs() < 1e-300 {
+                    0.0
+                } else {
+                    n_im1 / denom
+                }
             };
 
             // Right term: N_{i+1,p-1} / (t_{i+p+1} - t_{i+1})
@@ -316,11 +336,19 @@ impl BSplineBasis {
                 } else {
                     k + 1
                 };
-                let n_i1p1 = if local_idx < basis_p1.len() { basis_p1[local_idx] } else { 0.0 };
+                let n_i1p1 = if local_idx < basis_p1.len() {
+                    basis_p1[local_idx]
+                } else {
+                    0.0
+                };
                 let t_ip1 = self.knots.get(i + p + 1).copied().unwrap_or(0.0);
                 let t_i1 = self.knots.get(i + 1).copied().unwrap_or(0.0);
                 let denom = t_ip1 - t_i1;
-                if denom.abs() < 1e-300 { 0.0 } else { n_i1p1 / denom }
+                if denom.abs() < 1e-300 {
+                    0.0
+                } else {
+                    n_i1p1 / denom
+                }
             };
 
             dn[k] = p as f64 * (left - right);
@@ -396,7 +424,11 @@ impl BSplineBasis {
     pub fn domain(&self) -> (f64, f64) {
         let p = self.degree;
         let t_min = self.knots.get(p).copied().unwrap_or(0.0);
-        let t_max = self.knots.get(self.knots.len() - p - 1).copied().unwrap_or(1.0);
+        let t_max = self
+            .knots
+            .get(self.knots.len() - p - 1)
+            .copied()
+            .unwrap_or(1.0);
         (t_min, t_max)
     }
 }
@@ -436,14 +468,17 @@ impl BSplineCurve {
                 basis.n_basis
             )));
         }
-        Ok(Self { basis, control_points })
+        Ok(Self {
+            basis,
+            control_points,
+        })
     }
 
     /// Evaluate the curve at parameter t.
     pub fn eval(&self, t: f64) -> [f64; 2] {
         let (span, n_vals) = self.basis.eval_basis_functions(t);
         let p = self.basis.degree;
-        let start = if span >= p { span - p } else { 0 };
+        let start = span.saturating_sub(p);
 
         let mut point = [0.0_f64; 2];
         for (k, &n_k) in n_vals.iter().enumerate() {
@@ -461,7 +496,7 @@ impl BSplineCurve {
     pub fn eval_deriv(&self, t: f64) -> [f64; 2] {
         let (span, dn_vals) = self.basis.eval_basis_derivatives(t);
         let p = self.basis.degree;
-        let start = if span >= p { span - p } else { 0 };
+        let start = span.saturating_sub(p);
 
         let mut deriv = [0.0_f64; 2];
         for (k, &dn_k) in dn_vals.iter().enumerate() {
@@ -545,7 +580,11 @@ impl BSplineSurface {
             }
         }
 
-        Ok(Self { basis_u, basis_v, control_points })
+        Ok(Self {
+            basis_u,
+            basis_v,
+            control_points,
+        })
     }
 
     /// Evaluate the surface at (u, v).
@@ -554,16 +593,20 @@ impl BSplineSurface {
         let (span_v, n_v) = self.basis_v.eval_basis_functions(v);
         let pu = self.basis_u.degree;
         let pv = self.basis_v.degree;
-        let start_u = if span_u >= pu { span_u - pu } else { 0 };
-        let start_v = if span_v >= pv { span_v - pv } else { 0 };
+        let start_u = span_u.saturating_sub(pu);
+        let start_v = span_v.saturating_sub(pv);
 
         let mut point = [0.0_f64; 3];
         for (ki, &n_ui) in n_u.iter().enumerate() {
             let i = start_u + ki;
-            if i >= self.control_points.len() { continue; }
+            if i >= self.control_points.len() {
+                continue;
+            }
             for (kj, &n_vj) in n_v.iter().enumerate() {
                 let j = start_v + kj;
-                if j >= self.control_points[i].len() { continue; }
+                if j >= self.control_points[i].len() {
+                    continue;
+                }
                 let cp = self.control_points[i][j];
                 point[0] += n_ui * n_vj * cp[0];
                 point[1] += n_ui * n_vj * cp[1];
@@ -579,16 +622,20 @@ impl BSplineSurface {
         let (span_v, n_v) = self.basis_v.eval_basis_functions(v);
         let pu = self.basis_u.degree;
         let pv = self.basis_v.degree;
-        let start_u = if span_u >= pu { span_u - pu } else { 0 };
-        let start_v = if span_v >= pv { span_v - pv } else { 0 };
+        let start_u = span_u.saturating_sub(pu);
+        let start_v = span_v.saturating_sub(pv);
 
         let mut deriv = [0.0_f64; 3];
         for (ki, &dn_ui) in dn_u.iter().enumerate() {
             let i = start_u + ki;
-            if i >= self.control_points.len() { continue; }
+            if i >= self.control_points.len() {
+                continue;
+            }
             for (kj, &n_vj) in n_v.iter().enumerate() {
                 let j = start_v + kj;
-                if j >= self.control_points[i].len() { continue; }
+                if j >= self.control_points[i].len() {
+                    continue;
+                }
                 let cp = self.control_points[i][j];
                 deriv[0] += dn_ui * n_vj * cp[0];
                 deriv[1] += dn_ui * n_vj * cp[1];
@@ -604,16 +651,20 @@ impl BSplineSurface {
         let (span_v, dn_v) = self.basis_v.eval_basis_derivatives(v);
         let pu = self.basis_u.degree;
         let pv = self.basis_v.degree;
-        let start_u = if span_u >= pu { span_u - pu } else { 0 };
-        let start_v = if span_v >= pv { span_v - pv } else { 0 };
+        let start_u = span_u.saturating_sub(pu);
+        let start_v = span_v.saturating_sub(pv);
 
         let mut deriv = [0.0_f64; 3];
         for (ki, &n_ui) in n_u.iter().enumerate() {
             let i = start_u + ki;
-            if i >= self.control_points.len() { continue; }
+            if i >= self.control_points.len() {
+                continue;
+            }
             for (kj, &dn_vj) in dn_v.iter().enumerate() {
                 let j = start_v + kj;
-                if j >= self.control_points[i].len() { continue; }
+                if j >= self.control_points[i].len() {
+                    continue;
+                }
                 let cp = self.control_points[i][j];
                 deriv[0] += n_ui * dn_vj * cp[0];
                 deriv[1] += n_ui * dn_vj * cp[1];
@@ -697,15 +748,16 @@ mod tests {
         let (t0, t1) = basis.domain();
         let knots = basis.knots.clone();
 
-        let curve = BSplineCurve::new(degree, knots, control_points.clone())
-            .expect("curve creation");
+        let curve =
+            BSplineCurve::new(degree, knots, control_points.clone()).expect("curve creation");
 
         // Check start endpoint
         let p_start = curve.eval(t0 + 1e-12);
         assert!(
             (p_start[0] - control_points[0][0]).abs() < 1e-6
                 && (p_start[1] - control_points[0][1]).abs() < 1e-6,
-            "Curve start {p_start:?} != control_points[0] {:?}", control_points[0]
+            "Curve start {p_start:?} != control_points[0] {:?}",
+            control_points[0]
         );
 
         // Check end endpoint
@@ -723,8 +775,7 @@ mod tests {
         let control_points = vec![[0.0, 0.0], [1.0, 0.0]];
         let degree = 1;
         let knots = vec![0.0, 0.0, 1.0, 1.0];
-        let curve = BSplineCurve::new(degree, knots, control_points)
-            .expect("straight line curve");
+        let curve = BSplineCurve::new(degree, knots, control_points).expect("straight line curve");
         let length = curve.arc_length(100);
         assert!((length - 1.0).abs() < 0.01, "Arc length = {length}");
     }
@@ -761,6 +812,9 @@ mod tests {
         let knots = vec![0.0, 0.0, 1.0, 1.0];
         let surf = BSplineSurface::new(1, 1, knots.clone(), knots, cp).expect("surface");
         let n = surf.unit_normal(0.5, 0.5);
-        assert!((n[2].abs() - 1.0).abs() < 1e-10, "Normal z-component should be 1");
+        assert!(
+            (n[2].abs() - 1.0).abs() < 1e-10,
+            "Normal z-component should be 1"
+        );
     }
 }

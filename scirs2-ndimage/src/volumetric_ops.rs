@@ -97,11 +97,7 @@ fn nearest_neighbor(volume: &Array3<f64>, z: f64, y: f64, x: f64) -> f64 {
     let iz = z.round() as isize;
     let iy = y.round() as isize;
     let ix = x.round() as isize;
-    if iz < 0 || iy < 0 || ix < 0
-        || iz as usize >= sz
-        || iy as usize >= sy
-        || ix as usize >= sx
-    {
+    if iz < 0 || iy < 0 || ix < 0 || iz as usize >= sz || iy as usize >= sy || ix as usize >= sx {
         return 0.0;
     }
     volume[[iz as usize, iy as usize, ix as usize]]
@@ -150,11 +146,7 @@ fn sample(volume: &Array3<f64>, z: f64, y: f64, x: f64, order: usize) -> f64 {
 /// let out = zoom3d(&vol, [2.0, 2.0, 2.0], 1).unwrap();
 /// assert_eq!(out.shape(), [8, 12, 16]);
 /// ```
-pub fn zoom3d(
-    volume: &Array3<f64>,
-    factors: [f64; 3],
-    order: usize,
-) -> NdimageResult<Array3<f64>> {
+pub fn zoom3d(volume: &Array3<f64>, factors: [f64; 3], order: usize) -> NdimageResult<Array3<f64>> {
     for (axis, &f) in factors.iter().enumerate() {
         if f <= 0.0 {
             return Err(NdimageError::InvalidInput(format!(
@@ -264,28 +256,23 @@ pub fn rotate3d(
     // Build the combined rotation matrix R = Rx * Ry * Rz (applied right-to-left)
     let (rx, ry, rz) = (angles[0], angles[1], angles[2]);
 
-    let cos_x = rx.cos(); let sin_x = rx.sin();
-    let cos_y = ry.cos(); let sin_y = ry.sin();
-    let cos_z = rz.cos(); let sin_z = rz.sin();
+    let cos_x = rx.cos();
+    let sin_x = rx.sin();
+    let cos_y = ry.cos();
+    let sin_y = ry.sin();
+    let cos_z = rz.cos();
+    let sin_z = rz.sin();
 
     // Rx
     let rx_mat = [
-        [1.0f64,  0.0,     0.0    ],
-        [0.0,     cos_x, -sin_x   ],
-        [0.0,     sin_x,  cos_x   ],
+        [1.0f64, 0.0, 0.0],
+        [0.0, cos_x, -sin_x],
+        [0.0, sin_x, cos_x],
     ];
     // Ry
-    let ry_mat = [
-        [ cos_y, 0.0, sin_y],
-        [ 0.0,   1.0, 0.0  ],
-        [-sin_y, 0.0, cos_y],
-    ];
+    let ry_mat = [[cos_y, 0.0, sin_y], [0.0, 1.0, 0.0], [-sin_y, 0.0, cos_y]];
     // Rz
-    let rz_mat = [
-        [cos_z, -sin_z, 0.0],
-        [sin_z,  cos_z, 0.0],
-        [0.0,    0.0,   1.0],
-    ];
+    let rz_mat = [[cos_z, -sin_z, 0.0], [sin_z, cos_z, 0.0], [0.0, 0.0, 1.0]];
 
     // R = Rx * Ry * Rz
     let ryx = mat3x3_mul(&rx_mat, &ry_mat);
@@ -305,7 +292,9 @@ pub fn rotate3d(
         let src_x = r_inv[2][0] * dz + r_inv[2][1] * dy + r_inv[2][2] * dx + cx;
 
         // Out-of-bounds → 0
-        if src_z < 0.0 || src_y < 0.0 || src_x < 0.0
+        if src_z < 0.0
+            || src_y < 0.0
+            || src_x < 0.0
             || src_z > (sz as f64 - 1.0)
             || src_y > (sy as f64 - 1.0)
             || src_x > (sx as f64 - 1.0)
@@ -373,9 +362,15 @@ pub fn affine_transform3d(
     }
 
     // Extract linear part and translation
-    let a00 = matrix[[0, 0]]; let a01 = matrix[[0, 1]]; let a02 = matrix[[0, 2]];
-    let a10 = matrix[[1, 0]]; let a11 = matrix[[1, 1]]; let a12 = matrix[[1, 2]];
-    let a20 = matrix[[2, 0]]; let a21 = matrix[[2, 1]]; let a22 = matrix[[2, 2]];
+    let a00 = matrix[[0, 0]];
+    let a01 = matrix[[0, 1]];
+    let a02 = matrix[[0, 2]];
+    let a10 = matrix[[1, 0]];
+    let a11 = matrix[[1, 1]];
+    let a12 = matrix[[1, 2]];
+    let a20 = matrix[[2, 0]];
+    let a21 = matrix[[2, 1]];
+    let a22 = matrix[[2, 2]];
 
     let (tz, ty, tx) = if mshape[0] == 4 {
         (matrix[[0, 3]], matrix[[1, 3]], matrix[[2, 3]])
@@ -395,7 +390,9 @@ pub fn affine_transform3d(
         let src_y = a10 * oz + a11 * oy + a12 * ox + ty;
         let src_x = a20 * oz + a21 * oy + a22 * ox + tx;
 
-        if src_z < 0.0 || src_y < 0.0 || src_x < 0.0
+        if src_z < 0.0
+            || src_y < 0.0
+            || src_x < 0.0
             || src_z > (sz as f64 - 1.0)
             || src_y > (sy as f64 - 1.0)
             || src_x > (sx as f64 - 1.0)
@@ -414,7 +411,7 @@ pub fn affine_transform3d(
 /// Translate a volume by a sub-voxel shift.
 ///
 /// Each output voxel at `(z, y, x)` is sampled from the source at
-/// `(z - shifts[0], y - shifts[1], x - shifts[2])`.  Fractional shifts
+/// `(z + shifts[0], y + shifts[1], x + shifts[2])`.  Fractional shifts
 /// are handled by trilinear interpolation (order = 1) or nearest-neighbour
 /// (order = 0).  Voxels shifted outside the volume boundary are set to 0.
 ///
@@ -438,11 +435,7 @@ pub fn affine_transform3d(
 /// let out = shift3d(&vol, [0.5, 0.5, 0.5], 1).unwrap();
 /// assert_eq!(out.shape(), [6, 6, 6]);
 /// ```
-pub fn shift3d(
-    volume: &Array3<f64>,
-    shifts: [f64; 3],
-    order: usize,
-) -> NdimageResult<Array3<f64>> {
+pub fn shift3d(volume: &Array3<f64>, shifts: [f64; 3], order: usize) -> NdimageResult<Array3<f64>> {
     if order > 1 {
         return Err(NdimageError::NotImplementedError(format!(
             "shift3d only supports order 0 or 1, got {}",
@@ -454,11 +447,13 @@ pub fn shift3d(
     let (sz, sy, sx) = (vs[0], vs[1], vs[2]);
 
     let out = Array3::from_shape_fn((sz, sy, sx), |(oz, oy, ox)| {
-        let src_z = oz as f64 - shifts[0];
-        let src_y = oy as f64 - shifts[1];
-        let src_x = ox as f64 - shifts[2];
+        let src_z = oz as f64 + shifts[0];
+        let src_y = oy as f64 + shifts[1];
+        let src_x = ox as f64 + shifts[2];
 
-        if src_z < 0.0 || src_y < 0.0 || src_x < 0.0
+        if src_z < 0.0
+            || src_y < 0.0
+            || src_x < 0.0
             || src_z > (sz as f64 - 1.0)
             || src_y > (sy as f64 - 1.0)
             || src_x > (sx as f64 - 1.0)
@@ -711,9 +706,7 @@ mod tests {
 
     #[test]
     fn test_rotate3d_identity_zero_angle() {
-        let vol = Array3::<f64>::from_shape_fn((8, 8, 8), |(z, y, x)| {
-            (z + y + x) as f64
-        });
+        let vol = Array3::<f64>::from_shape_fn((8, 8, 8), |(z, y, x)| (z + y + x) as f64);
         let out = rotate3d(&vol, [0.0, 0.0, 0.0], 1).expect("rotate3d identity");
         for iz in 1..7 {
             for iy in 1..7 {
@@ -721,7 +714,9 @@ mod tests {
                     assert!(
                         (out[[iz, iy, ix]] - vol[[iz, iy, ix]]).abs() < 1e-9,
                         "mismatch at [{},{},{}]",
-                        iz, iy, ix
+                        iz,
+                        iy,
+                        ix
                     );
                 }
             }
@@ -730,19 +725,20 @@ mod tests {
 
     #[test]
     fn test_rotate3d_360_deg() {
-        let vol = Array3::<f64>::from_shape_fn((8, 8, 8), |(z, y, x)| {
-            (z + y + x) as f64
-        });
+        let vol = Array3::<f64>::from_shape_fn((8, 8, 8), |(z, y, x)| (z + y + x) as f64);
         // Full rotation should nearly restore the original
-        let out = rotate3d(&vol, [0.0, 0.0, 2.0 * std::f64::consts::PI], 1)
-            .expect("rotate3d 360");
+        let out = rotate3d(&vol, [0.0, 0.0, 2.0 * std::f64::consts::PI], 1).expect("rotate3d 360");
         for iz in 2..6 {
             for iy in 2..6 {
                 for ix in 2..6 {
                     assert!(
                         (out[[iz, iy, ix]] - vol[[iz, iy, ix]]).abs() < 1e-8,
                         "mismatch at [{},{},{}]: {} vs {}",
-                        iz, iy, ix, out[[iz, iy, ix]], vol[[iz, iy, ix]]
+                        iz,
+                        iy,
+                        ix,
+                        out[[iz, iy, ix]],
+                        vol[[iz, iy, ix]]
                     );
                 }
             }
@@ -760,9 +756,7 @@ mod tests {
 
     #[test]
     fn test_affine_identity_4x4() {
-        let vol = Array3::<f64>::from_shape_fn((6, 6, 6), |(z, y, x)| {
-            (z * 36 + y * 6 + x) as f64
-        });
+        let vol = Array3::<f64>::from_shape_fn((6, 6, 6), |(z, y, x)| (z * 36 + y * 6 + x) as f64);
         let identity = Array2::eye(4);
         let out = affine_transform3d(&vol, &identity, 1).expect("affine identity");
         for iz in 0..6 {
@@ -771,7 +765,9 @@ mod tests {
                     assert!(
                         (out[[iz, iy, ix]] - vol[[iz, iy, ix]]).abs() < 1e-10,
                         "identity mismatch at [{},{},{}]",
-                        iz, iy, ix
+                        iz,
+                        iy,
+                        ix
                     );
                 }
             }
@@ -800,9 +796,7 @@ mod tests {
 
     #[test]
     fn test_shift3d_zero_shift() {
-        let vol = Array3::<f64>::from_shape_fn((6, 6, 6), |(z, y, x)| {
-            (z + y + x) as f64
-        });
+        let vol = Array3::<f64>::from_shape_fn((6, 6, 6), |(z, y, x)| (z + y + x) as f64);
         let out = shift3d(&vol, [0.0, 0.0, 0.0], 1).expect("shift3d zero");
         for iz in 0..6 {
             for iy in 0..6 {
@@ -823,7 +817,10 @@ mod tests {
         // Shift by (1, 0, 0) => the 1.0 should appear at (4, 3, 3) in output
         let out = shift3d(&vol, [-1.0, 0.0, 0.0], 0).expect("shift3d integer");
         assert_eq!(out.shape(), [8, 8, 8]);
-        assert!((out[[4, 3, 3]] - 1.0).abs() < 1e-10, "shifted voxel not found");
+        assert!(
+            (out[[4, 3, 3]] - 1.0).abs() < 1e-10,
+            "shifted voxel not found"
+        );
     }
 
     #[test]
@@ -865,9 +862,7 @@ mod tests {
 
     #[test]
     fn test_flip3d_double_flip_identity() {
-        let vol = Array3::<f64>::from_shape_fn((5, 5, 5), |(z, y, x)| {
-            (z * 25 + y * 5 + x) as f64
-        });
+        let vol = Array3::<f64>::from_shape_fn((5, 5, 5), |(z, y, x)| (z * 25 + y * 5 + x) as f64);
         for axis in 0..3 {
             let flipped = flip3d(&vol, axis).expect("first flip");
             let restored = flip3d(&flipped, axis).expect("second flip");
@@ -875,7 +870,8 @@ mod tests {
                 for iy in 0..5 {
                     for ix in 0..5 {
                         assert_eq!(
-                            restored[[iz, iy, ix]], vol[[iz, iy, ix]],
+                            restored[[iz, iy, ix]],
+                            vol[[iz, iy, ix]],
                             "double flip mismatch on axis {}",
                             axis
                         );
@@ -896,16 +892,15 @@ mod tests {
     #[test]
     fn test_pad3d_zero_shape() {
         let vol = Array3::<f64>::ones((3, 4, 5));
-        let out = pad3d(&vol, [(1, 2), (0, 1), (2, 2)], PadMode3D::Zero, 0.0)
-            .expect("pad3d zero");
+        let out = pad3d(&vol, [(1, 2), (0, 1), (2, 2)], PadMode3D::Zero, 0.0).expect("pad3d zero");
         assert_eq!(out.shape(), [6, 5, 9]);
     }
 
     #[test]
     fn test_pad3d_zero_values() {
         let vol = Array3::<f64>::ones((3, 3, 3));
-        let out = pad3d(&vol, [(1, 1), (1, 1), (1, 1)], PadMode3D::Zero, 0.0)
-            .expect("pad3d zero values");
+        let out =
+            pad3d(&vol, [(1, 1), (1, 1), (1, 1)], PadMode3D::Zero, 0.0).expect("pad3d zero values");
         // Corners should be 0
         assert_eq!(out[[0, 0, 0]], 0.0);
         // Interior (shifted by 1) should be 1
@@ -919,29 +914,24 @@ mod tests {
     fn test_pad3d_edge_mode() {
         let mut vol = Array3::<f64>::zeros((3, 3, 3));
         vol[[0, 0, 0]] = 5.0;
-        let out = pad3d(&vol, [(1, 0), (1, 0), (1, 0)], PadMode3D::Edge, 0.0)
-            .expect("pad3d edge");
+        let out = pad3d(&vol, [(1, 0), (1, 0), (1, 0)], PadMode3D::Edge, 0.0).expect("pad3d edge");
         // The padded corner should replicate vol[[0,0,0]] = 5.0
         assert_eq!(out[[0, 0, 0]], 5.0);
     }
 
     #[test]
     fn test_pad3d_reflect_mode() {
-        let vol = Array3::<f64>::from_shape_fn((4, 4, 4), |(z, y, x)| {
-            (z + y + x) as f64
-        });
-        let out = pad3d(&vol, [(2, 2), (2, 2), (2, 2)], PadMode3D::Reflect, 0.0)
-            .expect("pad3d reflect");
+        let vol = Array3::<f64>::from_shape_fn((4, 4, 4), |(z, y, x)| (z + y + x) as f64);
+        let out =
+            pad3d(&vol, [(2, 2), (2, 2), (2, 2)], PadMode3D::Reflect, 0.0).expect("pad3d reflect");
         assert_eq!(out.shape(), [8, 8, 8]);
     }
 
     #[test]
     fn test_pad3d_no_padding() {
-        let vol = Array3::<f64>::from_shape_fn((3, 4, 5), |(z, y, x)| {
-            (z * 20 + y * 5 + x) as f64
-        });
-        let out = pad3d(&vol, [(0, 0), (0, 0), (0, 0)], PadMode3D::Zero, 0.0)
-            .expect("pad3d no padding");
+        let vol = Array3::<f64>::from_shape_fn((3, 4, 5), |(z, y, x)| (z * 20 + y * 5 + x) as f64);
+        let out =
+            pad3d(&vol, [(0, 0), (0, 0), (0, 0)], PadMode3D::Zero, 0.0).expect("pad3d no padding");
         assert_eq!(out.shape(), [3, 4, 5]);
         for iz in 0..3 {
             for iy in 0..4 {

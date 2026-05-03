@@ -391,8 +391,8 @@ impl<W: Write + Seek> OrcLiteWriter<W> {
         }
 
         // Footer length (from FOOT_MAGIC to here, not including the length field itself)
-        let footer_length = (self.inner.stream_position().map_err(IoError::Io)?
-            - footer_offset) as u32;
+        let footer_length =
+            (self.inner.stream_position().map_err(IoError::Io)? - footer_offset) as u32;
         self.inner
             .write_all(&footer_length.to_le_bytes())
             .map_err(IoError::Io)?;
@@ -452,15 +452,14 @@ impl<R: Read + Seek> OrcLiteReader<R> {
 
         // Seek to footer start
         let footer_start = file_size - 4 - footer_length;
-        br.seek(SeekFrom::Start(footer_start)).map_err(IoError::Io)?;
+        br.seek(SeekFrom::Start(footer_start))
+            .map_err(IoError::Io)?;
 
         // Validate footer magic
         let mut fmagic = [0u8; 4];
         br.read_exact(&mut fmagic).map_err(IoError::Io)?;
         if &fmagic != FOOTER_MAGIC {
-            return Err(IoError::FormatError(
-                "ORC-lite: bad footer magic".into(),
-            ));
+            return Err(IoError::FormatError("ORC-lite: bad footer magic".into()));
         }
 
         // Read number of stripes
@@ -501,17 +500,11 @@ impl<R: Read + Seek> OrcLiteReader<R> {
             });
         }
 
-        Ok(OrcLiteReader {
-            inner: br,
-            stripes,
-        })
+        Ok(OrcLiteReader { inner: br, stripes })
     }
 
     /// Read all columns from stripe `stripe_idx`.
-    pub fn read_stripe(
-        &mut self,
-        stripe_idx: usize,
-    ) -> Result<HashMap<String, OrcColumnData>> {
+    pub fn read_stripe(&mut self, stripe_idx: usize) -> Result<HashMap<String, OrcColumnData>> {
         let stripe = self.stripes.get(stripe_idx).ok_or_else(|| {
             IoError::NotFound(format!(
                 "ORC-lite: stripe index {} out of range",
@@ -530,9 +523,7 @@ impl<R: Read + Seek> OrcLiteReader<R> {
         let mut smagic = [0u8; 4];
         self.inner.read_exact(&mut smagic).map_err(IoError::Io)?;
         if &smagic != STRIPE_MAGIC {
-            return Err(IoError::FormatError(
-                "ORC-lite: bad stripe magic".into(),
-            ));
+            return Err(IoError::FormatError("ORC-lite: bad stripe magic".into()));
         }
 
         // Skip num_rows and num_cols (already known from footer)
@@ -540,23 +531,17 @@ impl<R: Read + Seek> OrcLiteReader<R> {
         self.inner.read_exact(&mut skip8).map_err(IoError::Io)?;
 
         // Read column headers
-        let mut col_headers: Vec<(String, ColumnEncoding, u8, u32)> =
-            Vec::with_capacity(num_cols);
+        let mut col_headers: Vec<(String, ColumnEncoding, u8, u32)> = Vec::with_capacity(num_cols);
         for _ in 0..num_cols {
             let mut len_bytes = [0u8; 2];
-            self.inner
-                .read_exact(&mut len_bytes)
-                .map_err(IoError::Io)?;
+            self.inner.read_exact(&mut len_bytes).map_err(IoError::Io)?;
             let name_len = u16::from_le_bytes(len_bytes) as usize;
             let mut name_bytes = vec![0u8; name_len];
             self.inner
                 .read_exact(&mut name_bytes)
                 .map_err(IoError::Io)?;
             let name = String::from_utf8(name_bytes).map_err(|e| {
-                IoError::FormatError(format!(
-                    "ORC-lite stripe: invalid UTF-8 column name: {}",
-                    e
-                ))
+                IoError::FormatError(format!("ORC-lite stripe: invalid UTF-8 column name: {}", e))
             })?;
 
             let mut enc_byte = [0u8; 1];
@@ -714,7 +699,7 @@ fn decode_column(
         }
         1 => {
             // Float64
-            if data.len() % 8 != 0 {
+            if !data.len().is_multiple_of(8) {
                 return Err(IoError::FormatError(
                     "ORC-lite: f64 column data not multiple of 8 bytes".into(),
                 ));
@@ -744,9 +729,9 @@ fn decode_column(
             for i in 0..count {
                 let byte_idx = 4 + i / 8;
                 let bit_idx = i % 8;
-                let byte = data
-                    .get(byte_idx)
-                    .ok_or_else(|| IoError::FormatError("ORC-lite: boolean bitmap truncated".into()))?;
+                let byte = data.get(byte_idx).ok_or_else(|| {
+                    IoError::FormatError("ORC-lite: boolean bitmap truncated".into())
+                })?;
                 values.push((byte >> bit_idx) & 1 == 1);
             }
             Ok(OrcColumnData::Boolean(values))
@@ -857,23 +842,16 @@ fn concat_columns(dst: &mut OrcColumnData, src: OrcColumnData) -> Result<()> {
 // ──────────────────────────────────────────────────────────────────────────────
 
 /// Write columnar data to an ORC-lite file on disk.
-pub fn write_orc_lite<P: AsRef<Path>>(
-    path: P,
-    columns: &[(String, OrcColumnData)],
-) -> Result<()> {
-    let file =
-        std::fs::File::create(path.as_ref()).map_err(IoError::Io)?;
+pub fn write_orc_lite<P: AsRef<Path>>(path: P, columns: &[(String, OrcColumnData)]) -> Result<()> {
+    let file = std::fs::File::create(path.as_ref()).map_err(IoError::Io)?;
     let mut writer = OrcLiteWriter::new(file)?;
     writer.write_stripe(columns)?;
     writer.finalize()
 }
 
 /// Read all data from an ORC-lite file on disk.
-pub fn read_orc_lite<P: AsRef<Path>>(
-    path: P,
-) -> Result<HashMap<String, OrcColumnData>> {
-    let file =
-        std::fs::File::open(path.as_ref()).map_err(IoError::Io)?;
+pub fn read_orc_lite<P: AsRef<Path>>(path: P) -> Result<HashMap<String, OrcColumnData>> {
+    let file = std::fs::File::open(path.as_ref()).map_err(IoError::Io)?;
     let mut reader = OrcLiteReader::open(file)?;
     reader.read_all()
 }
@@ -927,12 +905,7 @@ mod tests {
 
     #[test]
     fn test_string_roundtrip() {
-        let vals: Vec<String> = vec![
-            "hello".into(),
-            "world".into(),
-            "ORC-lite".into(),
-            "".into(),
-        ];
+        let vals: Vec<String> = vec!["hello".into(), "world".into(), "ORC-lite".into(), "".into()];
         let cols = vec![("names".to_string(), OrcColumnData::String(vals.clone()))];
         let result = roundtrip(&cols);
         assert_eq!(result["names"], OrcColumnData::String(vals));

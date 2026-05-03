@@ -12,7 +12,7 @@
 //! - Powell, M.J.D. (2009). "The BOBYQA algorithm for bound constrained optimization
 //!   without derivatives." Technical Report DAMTP 2009/NA06, Cambridge University.
 
-use super::{clip, DfOptResult, DerivativeFreeOptimizer};
+use super::{clip, DerivativeFreeOptimizer, DfOptResult};
 use crate::error::{OptimizeError, OptimizeResult};
 use scirs2_core::ndarray::Array1;
 
@@ -307,7 +307,11 @@ impl DerivativeFreeOptimizer for BOBYQASolver {
             let fnew = func(&xnew);
 
             // Predicted reduction (linear model)
-            let pred = -g.iter().zip(d.iter()).map(|(&gi, &di)| gi * di).sum::<f64>();
+            let pred = -g
+                .iter()
+                .zip(d.iter())
+                .map(|(&gi, &di)| gi * di)
+                .sum::<f64>();
 
             // Actual reduction
             let actual = fx - fnew;

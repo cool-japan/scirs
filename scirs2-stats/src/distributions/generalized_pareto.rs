@@ -27,6 +27,7 @@ use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::rand_distributions::Distribution as _;
 use scirs2_core::random::Uniform as RandUniform;
 
 /// Generalized Pareto Distribution
@@ -243,7 +244,13 @@ impl<F: Float + NumCast + std::fmt::Display> GeneralizedPareto<F> {
     {
         let exceedances: Vec<F> = data
             .iter()
-            .filter_map(|&x| if x > threshold { Some(x - threshold) } else { None })
+            .filter_map(|&x| {
+                if x > threshold {
+                    Some(x - threshold)
+                } else {
+                    None
+                }
+            })
             .collect();
 
         if exceedances.len() < 3 {
@@ -253,9 +260,8 @@ impl<F: Float + NumCast + std::fmt::Display> GeneralizedPareto<F> {
         }
 
         let n = exceedances.len();
-        let n_f = F::from(n).ok_or_else(|| {
-            StatsError::ComputationError("Failed to convert n to F".to_string())
-        })?;
+        let n_f = F::from(n)
+            .ok_or_else(|| StatsError::ComputationError("Failed to convert n to F".to_string()))?;
 
         // L1 (mean of sorted exceedances)
         let mut sorted = exceedances.clone();
@@ -268,9 +274,8 @@ impl<F: Float + NumCast + std::fmt::Display> GeneralizedPareto<F> {
         for (i, &x) in sorted.iter().enumerate() {
             let two = F::from(2.0).unwrap_or(F::one() + F::one());
             let one = F::one();
-            let pi = F::from(i + 1).ok_or_else(|| {
-                StatsError::ComputationError("Conversion error".to_string())
-            })?;
+            let pi = F::from(i + 1)
+                .ok_or_else(|| StatsError::ComputationError("Conversion error".to_string()))?;
             let weight = (two * pi - one) / n_f - one;
             l2_sum = l2_sum + weight * x;
         }
@@ -291,13 +296,15 @@ impl<F: Float + NumCast + std::fmt::Display> GeneralizedPareto<F> {
     }
 }
 
-impl<F: Float + NumCast + std::fmt::Display> SampleableDistribution<F>
-    for GeneralizedPareto<F>
-{
+impl<F: Float + NumCast + std::fmt::Display> SampleableDistribution<F> for GeneralizedPareto<F> {
     fn rvs(&self, size: usize) -> StatsResult<Vec<F>> {
-        use scirs2_core::random::SmallRng;
+        use scirs2_core::random::rngs::SmallRng;
         use scirs2_core::random::SeedableRng;
-        let mut rng = SmallRng::from_entropy();
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0x9e3779b97f4a7c15);
+        let mut rng = SmallRng::seed_from_u64(seed);
         let mut samples = Vec::with_capacity(size);
         for _ in 0..size {
             let u: f64 = self.rand_distr.sample(&mut rng);

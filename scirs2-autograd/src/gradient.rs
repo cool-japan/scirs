@@ -458,6 +458,21 @@ fn compute_grad_for_input<'graph, F: Float>(
         || op_name.contains("ConvertToTensor")
     {
         Some(gy)
+    } else if op_name == "Kronecker" {
+        // Kronecker product gradient: C = A ⊗ B, C is (mp × nq)
+        // ∂L/∂A[i,j] = Σ_{k,l} (∂L/∂C)[i*p+k, j*q+l] * B[k,l]
+        // ∂L/∂B[k,l] = Σ_{i,j} (∂L/∂C)[i*p+k, j*q+l] * A[i,j]
+        //
+        // Use KroneckerGradOp to compute this symbolically.
+        let a_input = y_tensor.get_backprop_input(0);
+        let b_input = y_tensor.get_backprop_input(1);
+        let grad_op = crate::tensor_ops::kronecker_ops::KroneckerGradOp { input_index: i };
+        let gx = crate::tensor::Tensor::builder(g)
+            .append_input(gy, false)
+            .append_input(a_input, false)
+            .append_input(b_input, false)
+            .build(grad_op);
+        Some(gx)
     } else {
         // Default case: pass through gradient for unknown ops.
         // This is generally safer than returning None (zero gradient)

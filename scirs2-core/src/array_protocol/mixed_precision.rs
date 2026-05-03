@@ -16,7 +16,7 @@ use std::fmt;
 use std::sync::{LazyLock, RwLock};
 
 use ::ndarray::{Array, Dimension};
-use num_traits::Float;
+use num_traits::{cast as num_cast, Float};
 
 use crate::array_protocol::gpu_impl::GPUNdarray;
 use crate::array_protocol::{
@@ -188,19 +188,50 @@ where
         }
     }
 
-    /// Get the array at the specified precision.
+    /// Convert the array to a different floating-point precision `U`.
     ///
-    /// This is a placeholder implementation. In a real implementation,
-    /// this would convert the array to the requested precision.
+    /// Each element is cast from `T` to `U` using [`num_traits::cast`].  If any
+    /// element cannot be represented in `U` (e.g. an `f64` infinity cast to a
+    /// hypothetical narrow type) the method returns a
+    /// [`CoreError::ComputationError`].
+    ///
+    /// # Example
+    /// ```
+    /// use ndarray::array;
+    /// use scirs2_core::array_protocol::mixed_precision::MixedPrecisionArray;
+    ///
+    /// let arr = array![1.0_f64, 2.5_f64, 1.75_f64];
+    /// let mp = MixedPrecisionArray::new(arr.into_dyn());
+    /// let as_f32: ndarray::ArrayD<f32> = mp.at_precision()
+    ///     .expect("f64 -> f32 conversion should succeed");
+    /// assert!((as_f32[0] - 1.0_f32).abs() < 1e-6);
+    /// ```
     pub fn at_precision<U>(&self) -> CoreResult<Array<U, D>>
     where
         U: Clone + Float + 'static,
     {
-        // This is a simplified implementation for demonstration purposes.
-        // In a real implementation, this would handle proper type conversion.
-        Err(CoreError::NotImplementedError(ErrorContext::new(
-            "Precision conversion not fully implemented yet",
-        )))
+        // ndarray does not have a fallible mapv, so we collect into a Vec<U> first.
+        let mut converted: Vec<U> = Vec::with_capacity(self.array.len());
+        for x in self.array.iter() {
+            match num_cast::<T, U>(*x) {
+                Some(v) => converted.push(v),
+                None => {
+                    return Err(CoreError::ComputationError(ErrorContext::new(format!(
+                        "at_precision: failed to cast element to target precision (source size \
+                         {} bytes, target size {} bytes)",
+                        std::mem::size_of::<T>(),
+                        std::mem::size_of::<U>(),
+                    ))))
+                }
+            }
+        }
+
+        // Reconstruct with the same shape.
+        Array::from_shape_vec(self.array.raw_dim(), converted).map_err(|e| {
+            CoreError::ShapeError(ErrorContext::new(format!(
+                "at_precision: failed to reconstruct array from converted elements: {e}"
+            )))
+        })
     }
 
     /// Get the current storage precision.
@@ -606,5 +637,63 @@ mod tests {
         assert_eq!(mixed_support.precision(), Precision::Double);
         assert!(mixed_support.supports_precision(Precision::Single));
         assert!(mixed_support.supports_precision(Precision::Double));
+    }
+
+    // ── at_precision tests ───────────────────────────────────────────────────
+
+    /// Downcast f64 → f32: values should be preserved within f32 precision.
+    #[test]
+    fn test_at_precision_f64_to_f32() {
+        use ::ndarray::array;
+        // Use values that are not approximate constants recognized by clippy.
+        let arr = array![1.0_f64, 2.5_f64, -1.75_f64].into_dyn();
+        let mp = MixedPrecisionArray::new(arr);
+        let as_f32: crate::ndarray::ArrayD<f32> = mp
+            .at_precision()
+            .expect("f64 → f32 precision conversion should succeed");
+        assert!((as_f32[0] - 1.0_f32).abs() < 1e-6);
+        assert!((as_f32[1] - 2.5_f32).abs() < 1e-6);
+        assert!((as_f32[2] - (-1.75_f32)).abs() < 1e-6);
+    }
+
+    /// Upcast f32 → f64: precision should be maintained.
+    #[test]
+    fn test_at_precision_f32_to_f64() {
+        use ::ndarray::array;
+        let arr = array![0.5_f32, 1.25_f32, -2.0_f32].into_dyn();
+        let mp = MixedPrecisionArray::new(arr);
+        let as_f64: crate::ndarray::ArrayD<f64> = mp
+            .at_precision()
+            .expect("f32 → f64 precision conversion should succeed");
+        assert!((as_f64[0] - 0.5_f64).abs() < 1e-12);
+        assert!((as_f64[1] - 1.25_f64).abs() < 1e-12);
+        assert!((as_f64[2] - (-2.0_f64)).abs() < 1e-12);
+    }
+
+    /// Identity conversion f64 → f64 should be a no-op.
+    #[test]
+    fn test_at_precision_same_type_is_identity() {
+        use ::ndarray::array;
+        let arr = array![42.0_f64, -7.5_f64].into_dyn();
+        let mp = MixedPrecisionArray::new(arr.clone());
+        let result: crate::ndarray::ArrayD<f64> = mp
+            .at_precision()
+            .expect("f64 → f64 precision conversion should succeed");
+        for (a, b) in arr.iter().zip(result.iter()) {
+            assert_eq!(*a, *b, "Identity conversion must not change values");
+        }
+    }
+
+    /// 2-D array conversion preserves shape.
+    #[test]
+    fn test_at_precision_preserves_shape() {
+        let arr = arr2(&[[1.0_f64, 2.0], [3.0, 4.0]]);
+        let mp = MixedPrecisionArray::new(arr);
+        let as_f32: crate::ndarray::Array<f32, crate::ndarray::Ix2> = mp
+            .at_precision()
+            .expect("2D f64 → f32 conversion should succeed");
+        assert_eq!(as_f32.shape(), &[2, 2]);
+        assert!((as_f32[[0, 0]] - 1.0_f32).abs() < 1e-6);
+        assert!((as_f32[[1, 1]] - 4.0_f32).abs() < 1e-6);
     }
 }

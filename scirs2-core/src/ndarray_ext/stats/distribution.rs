@@ -601,8 +601,155 @@ where
     if result_type == "indices" {
         Ok(result)
     } else if result_type == "values" {
-        Err("'values' result_type is not yet implemented")
+        Err("use digitize_values() to return bin-edge values instead of indices")
     } else {
         Err("result_type must be 'indices' or 'values'")
+    }
+}
+
+/// Return the bin-edge values corresponding to each element in the input array.
+///
+/// For each input value, this finds which bin it falls in (same logic as [`digitize`])
+/// and returns the corresponding bin edge value. Values that fall before the first edge
+/// return the first edge; values past the last edge return the last edge.
+///
+/// # Arguments
+///
+/// * `array` - Input array
+/// * `bins` - Array of bin edges (must be monotonically increasing)
+/// * `right` - If `true`, intervals are `(edge, next_edge]`; if `false`, `[edge, next_edge)`
+///
+/// # Returns
+///
+/// Array of bin-edge values with the same length as `array`
+///
+/// # Examples
+///
+/// ```
+/// use ::ndarray::array;
+/// use scirs2_core::ndarray_ext::stats::digitize_values;
+///
+/// let data = array![1.2f64, 3.5, 5.1, 0.8, 2.9];
+/// let bins = array![1.0f64, 3.0, 5.0];
+/// let values = digitize_values(data.view(), bins.view(), false).expect("Operation failed");
+///
+/// assert_eq!(values[0], 1.0); // 1.2 falls in bin starting at 1.0
+/// assert_eq!(values[1], 3.0); // 3.5 falls in bin starting at 3.0
+/// assert_eq!(values[2], 5.0); // 5.1 is past all edges, returns last edge
+/// assert_eq!(values[3], 1.0); // 0.8 is before first edge, returns first edge
+/// ```
+#[allow(dead_code)]
+pub fn digitize_values<T>(
+    array: ArrayView<T, Ix1>,
+    bins: ArrayView<T, Ix1>,
+    right: bool,
+) -> Result<Array<T, Ix1>, &'static str>
+where
+    T: Clone + Float + FromPrimitive,
+{
+    if array.is_empty() {
+        return Err("Cannot digitize an empty array");
+    }
+
+    if bins.is_empty() {
+        return Err("Bins array cannot be empty");
+    }
+
+    for i in 1..bins.len() {
+        if bins[i] <= bins[i.saturating_sub(1)] {
+            return Err("Bins must be monotonically increasing");
+        }
+    }
+
+    let last_idx = bins.len() - 1;
+    let mut result: Vec<T> = Vec::with_capacity(array.len());
+
+    for &val in array.iter() {
+        let mut bin_idx = 0usize;
+
+        if right {
+            for j in 0..bins.len() {
+                if val <= bins[j] {
+                    bin_idx = j;
+                    break;
+                }
+                bin_idx = bins.len();
+            }
+        } else {
+            for j in 0..bins.len() {
+                if val < bins[j] {
+                    bin_idx = j;
+                    break;
+                }
+                bin_idx = bins.len();
+            }
+        }
+
+        // Map bin index to lower bin-edge value.
+        // bin_idx==0 means before the first edge, so use bins[0].
+        // bin_idx==k (1..=bins.len()-1) means in the k-th interval, lower edge is bins[k-1].
+        // bin_idx==bins.len() means past the last edge, so use bins[last_idx].
+        let edge_idx = bin_idx.saturating_sub(1).min(last_idx);
+        result.push(bins[edge_idx]);
+    }
+
+    Ok(Array::from_vec(result))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ::ndarray::array;
+
+    #[test]
+    fn test_digitize_values_basic() {
+        let data = array![1.2f64, 3.5, 5.1, 0.8, 2.9];
+        let bins = array![1.0f64, 3.0, 5.0];
+        let values =
+            digitize_values(data.view(), bins.view(), false).expect("digitize_values failed");
+
+        assert_eq!(values[0], 1.0); // 1.2 in [1.0, 3.0)
+        assert_eq!(values[1], 3.0); // 3.5 in [3.0, 5.0)
+        assert_eq!(values[2], 5.0); // 5.1 past last edge, clamps to 5.0
+        assert_eq!(values[3], 1.0); // 0.8 before first edge, returns first edge
+        assert_eq!(values[4], 1.0); // 2.9 in [1.0, 3.0)
+    }
+
+    #[test]
+    fn test_digitize_values_right_inclusive() {
+        // With right=true, bin intervals are right-closed: (-inf,1.0], (1.0,3.0], (3.0,5.0], (5.0,+inf)
+        // digitize_values returns the lower edge of the containing interval.
+        let data = array![0.5f64, 1.5, 3.5];
+        let bins = array![1.0f64, 3.0, 5.0];
+        let values =
+            digitize_values(data.view(), bins.view(), true).expect("digitize_values right failed");
+
+        // 0.5 is in (-inf, 1.0], bin_idx=0, lower-edge = bins[0] = 1.0
+        assert_eq!(values[0], 1.0);
+        // 1.5 is in (1.0, 3.0], bin_idx=1, lower-edge = bins[0] = 1.0
+        assert_eq!(values[1], 1.0);
+        // 3.5 is in (3.0, 5.0], bin_idx=2, lower-edge = bins[1] = 3.0
+        assert_eq!(values[2], 3.0);
+    }
+
+    #[test]
+    fn test_digitize_values_past_last_bin() {
+        let data = array![100.0f64];
+        let bins = array![1.0f64, 2.0, 3.0];
+        let values = digitize_values(data.view(), bins.view(), false)
+            .expect("digitize_values overflow failed");
+        // Value past last bin clamps to last edge
+        assert_eq!(values[0], 3.0);
+    }
+
+    #[test]
+    fn test_digitize_values_errors() {
+        let data = array![1.0f64];
+        let empty_bins: Array<f64, Ix1> = Array::zeros(0);
+        assert!(digitize_values(data.view(), empty_bins.view(), false).is_err());
+
+        let empty_data: Array<f64, Ix1> = Array::zeros(0);
+        let bins = array![1.0f64, 2.0];
+        assert!(digitize_values(empty_data.view(), bins.view(), false).is_err());
     }
 }

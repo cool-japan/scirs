@@ -192,7 +192,8 @@ impl DDPMForwardProcess {
                 let betas: Vec<f64> = (0..t)
                     .map(|i| {
                         config.beta_start
-                            + (config.beta_end - config.beta_start) * (i as f64 / (t - 1).max(1) as f64)
+                            + (config.beta_end - config.beta_start)
+                                * (i as f64 / (t - 1).max(1) as f64)
                     })
                     .collect();
                 Ok(betas)
@@ -334,11 +335,7 @@ fn group_norm(x: &[f32], n_channels: usize, n_groups: usize) -> Vec<f32> {
         }
         let slice = &x[start..end];
         let mean = slice.iter().sum::<f32>() / slice.len() as f32;
-        let var = slice
-            .iter()
-            .map(|&v| (v - mean) * (v - mean))
-            .sum::<f32>()
-            / slice.len() as f32;
+        let var = slice.iter().map(|&v| (v - mean) * (v - mean)).sum::<f32>() / slice.len() as f32;
         let std = (var + 1e-5).sqrt();
         for (i, &v) in slice.iter().enumerate() {
             out[start + i] = (v - mean) / std;
@@ -406,7 +403,13 @@ pub struct ResBlock {
 
 impl ResBlock {
     /// Create a new ResBlock with Xavier-ish weight initialisation via LCG.
-    pub fn new(in_ch: usize, hidden_ch: usize, time_dim: usize, n_groups: usize, rng: &mut u64) -> Result<Self> {
+    pub fn new(
+        in_ch: usize,
+        hidden_ch: usize,
+        time_dim: usize,
+        n_groups: usize,
+        rng: &mut u64,
+    ) -> Result<Self> {
         if in_ch == 0 || hidden_ch == 0 || time_dim == 0 {
             return Err(NeuralError::InvalidArgument(
                 "ResBlock: in_ch, hidden_ch, and time_dim must be > 0".to_string(),
@@ -466,8 +469,8 @@ impl ResBlock {
 
         // time projection: time_emb → hidden_ch
         let time_dim = time_emb.len();
-        for j in 0..self.hidden_ch {
-            let row_start = j * time_dim.min(self.time_w.len() / self.hidden_ch.max(1));
+        for (j, h_j) in h.iter_mut().enumerate().take(self.hidden_ch) {
+            let _row_start = j * time_dim.min(self.time_w.len() / self.hidden_ch.max(1));
             let t_contrib: f32 = time_emb
                 .iter()
                 .enumerate()
@@ -477,7 +480,7 @@ impl ResBlock {
                 })
                 .sum();
             let t_bias = self.time_b.get(j).copied().unwrap_or(0.0);
-            h[j] += t_contrib + t_bias;
+            *h_j += t_contrib + t_bias;
         }
 
         // GroupNorm + SiLU
@@ -491,9 +494,7 @@ impl ResBlock {
                 let dot: f32 = h_act
                     .iter()
                     .enumerate()
-                    .map(|(i, &hi)| {
-                        self.w2.get(row_start + i).copied().unwrap_or(0.0) * hi
-                    })
+                    .map(|(i, &hi)| self.w2.get(row_start + i).copied().unwrap_or(0.0) * hi)
                     .sum();
                 dot + self.b2.get(j).copied().unwrap_or(0.0)
             })
@@ -666,7 +667,7 @@ impl SimpleUNet {
     /// * `x`           — Noisy input, length `in_channels`.
     /// * `t`           — Diffusion timestep index.
     /// * `input_shape` — (height, width) for 2-D spatial inputs; currently unused
-    ///                   (kept for API compatibility with the full UNet).
+    ///   (kept for API compatibility with the full UNet).
     pub fn forward(&self, x: &[f32], t: usize, _input_shape: (usize, usize)) -> Result<Vec<f32>> {
         if x.len() != self.in_ch {
             return Err(NeuralError::ShapeMismatch(format!(
@@ -704,7 +705,13 @@ impl SimpleUNet {
                 let dot: f32 = h
                     .iter()
                     .enumerate()
-                    .map(|(i, &hi)| self.out_proj_w.get(j * self.in_ch + i).copied().unwrap_or(0.0) * hi)
+                    .map(|(i, &hi)| {
+                        self.out_proj_w
+                            .get(j * self.in_ch + i)
+                            .copied()
+                            .unwrap_or(0.0)
+                            * hi
+                    })
                     .sum();
                 dot + self.out_proj_b.get(j).copied().unwrap_or(0.0)
             })
@@ -756,7 +763,7 @@ impl DDPMReverseProcess {
     /// # Arguments
     /// * `x_t` — Noisy sample at timestep t.
     /// * `t`   — Timestep index in [0, T).
-    ///           At t = 0 no noise is added (final denoising step).
+    ///   At t = 0 no noise is added (final denoising step).
     pub fn reverse_step(&mut self, x_t: &[f32], t: usize) -> Result<Vec<f32>> {
         let fwd = &self.forward;
         if t >= fwd.config.timesteps {
@@ -934,7 +941,7 @@ mod tests {
         let fwd = DDPMForwardProcess::new(&cfg).expect("cosine schedule");
         assert_eq!(fwd.betas.len(), 10);
         for &b in &fwd.betas {
-            assert!(b >= 0.0 && b < 1.0, "beta out of range: {b}");
+            assert!((0.0..1.0).contains(&b), "beta out of range: {b}");
         }
     }
 
@@ -965,7 +972,10 @@ mod tests {
         let xt = fwd.add_noise(&x0, t, &noise).expect("add_noise");
         let recovered = fwd.noise_at(&xt, &x0, t).expect("noise_at");
         for (&r, &n) in recovered.iter().zip(&noise) {
-            assert!((r - n).abs() < 1e-4, "noise roundtrip mismatch: got {r}, want {n}");
+            assert!(
+                (r - n).abs() < 1e-4,
+                "noise roundtrip mismatch: got {r}, want {n}"
+            );
         }
     }
 

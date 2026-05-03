@@ -311,7 +311,9 @@ pub mod conv;
 pub mod dense;
 pub mod dropout;
 pub mod graph_conv;
+pub mod layer_norm_2d;
 pub mod normalization;
+pub mod patch_embed;
 pub mod recurrent;
 
 // Additional layer modules
@@ -340,8 +342,10 @@ pub use graph_conv::{
 pub use grouped_query_attention::{
     GqaKvCache, GroupedQueryAttention, GroupedQueryAttentionConfig, RotaryPositionEmbedding,
 };
+pub use layer_norm_2d::LayerNorm2D;
 pub use multi_query_attention::{KvCache, MultiQueryAttention, MultiQueryAttentionConfig};
 pub use normalization::{BatchNorm, LayerNorm};
+pub use patch_embed::PatchEmbedding;
 pub use recurrent::rnn::{RNNConfig, RecurrentActivation as RecurrentActivationRNN};
 pub use recurrent::{LSTM, RNN};
 pub use regularization::{

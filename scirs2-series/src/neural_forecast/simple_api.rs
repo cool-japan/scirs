@@ -21,7 +21,9 @@ use crate::error::{Result, TimeSeriesError};
 
 /// Lightweight LCG pseudo-random number generator.
 fn lcg_next(state: &mut u64) -> f64 {
-    *state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    *state = state
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
     ((*state >> 33) as f64) / (u32::MAX as f64)
 }
 
@@ -145,9 +147,8 @@ impl NBeatsBlock {
         let mut rng: u64 = 0xdeadbeef_cafebabe;
 
         // Xavier std-dev helper
-        let xavier = |fan_in: usize, fan_out: usize| -> f64 {
-            (2.0 / (fan_in + fan_out) as f64).sqrt()
-        };
+        let xavier =
+            |fan_in: usize, fan_out: usize| -> f64 { (2.0 / (fan_in + fan_out) as f64).sqrt() };
 
         let init_mat = |rows: usize, cols: usize, rng: &mut u64| -> Vec<f64> {
             let std = xavier(cols, rows);
@@ -372,20 +373,12 @@ impl NBeats {
     ///
     /// # Returns
     /// Loss history (MSE per epoch).
-    pub fn fit(
-        &mut self,
-        train_data: &[f64],
-        epochs: usize,
-        lr: f64,
-    ) -> Result<Vec<f64>> {
+    pub fn fit(&mut self, train_data: &[f64], epochs: usize, lr: f64) -> Result<Vec<f64>> {
         let n = train_data.len();
         let window = self.backcast_size + self.forecast_size;
         if n < window {
             return Err(TimeSeriesError::InsufficientData {
-                message: format!(
-                    "N-BEATS fit requires at least {} data points",
-                    window
-                ),
+                message: format!("N-BEATS fit requires at least {} data points", window),
                 required: window,
                 actual: n,
             });
@@ -407,13 +400,18 @@ impl NBeats {
 
             for &start in &indices {
                 let x_raw = &train_data[start..start + self.backcast_size];
-                let y_raw =
-                    &train_data[start + self.backcast_size..start + window];
+                let y_raw = &train_data[start + self.backcast_size..start + window];
 
                 let (x_norm, x_mean, x_std) = normalize_window(x_raw);
                 let y_norm: Vec<f64> = y_raw
                     .iter()
-                    .map(|&v| if x_std > 1e-10 { (v - x_mean) / x_std } else { 0.0 })
+                    .map(|&v| {
+                        if x_std > 1e-10 {
+                            (v - x_mean) / x_std
+                        } else {
+                            0.0
+                        }
+                    })
                     .collect();
 
                 let pred = self.forward_pass(&x_norm);
@@ -426,13 +424,11 @@ impl NBeats {
                 let eps = 1e-4_f64;
                 for stack_idx in 0..self.stacks.len() {
                     let block_idx = self.stacks[stack_idx].len().saturating_sub(1);
-                    let theta_f_w_len =
-                        self.stacks[stack_idx][block_idx].theta_f_w.len();
+                    let theta_f_w_len = self.stacks[stack_idx][block_idx].theta_f_w.len();
                     // Only update a random subset for speed
                     let sample_count = theta_f_w_len.min(8);
                     for _ in 0..sample_count {
-                        let wi =
-                            (lcg_next(&mut rng) * theta_f_w_len as f64) as usize;
+                        let wi = (lcg_next(&mut rng) * theta_f_w_len as f64) as usize;
                         let wi = wi.min(theta_f_w_len - 1);
 
                         self.stacks[stack_idx][block_idx].theta_f_w[wi] += eps;
@@ -446,13 +442,16 @@ impl NBeats {
                         self.stacks[stack_idx][block_idx].theta_f_w[wi] += eps; // restore
 
                         let grad = (loss_plus - loss_minus) / (2.0 * eps);
-                        self.stacks[stack_idx][block_idx].theta_f_w[wi] -=
-                            lr * grad;
+                        self.stacks[stack_idx][block_idx].theta_f_w[wi] -= lr * grad;
                     }
                 }
             }
 
-            let avg_loss = if count > 0 { epoch_loss / count as f64 } else { 0.0 };
+            let avg_loss = if count > 0 {
+                epoch_loss / count as f64
+            } else {
+                0.0
+            };
             self.loss_history.push(avg_loss);
         }
 
@@ -617,15 +616,9 @@ impl EtsModel {
         }
 
         // Optimise alpha via golden-section search
-        if self.trend_type == EtsTrendType::None
-            && self.seasonal_type == EtsSeasonalType::None
-        {
+        if self.trend_type == EtsTrendType::None && self.seasonal_type == EtsSeasonalType::None {
             let data_clone = data.to_vec();
-            let opt_alpha = golden_section(
-                |a| ets_sse_simple(&data_clone, a),
-                1e-4,
-                0.999,
-            );
+            let opt_alpha = golden_section(|a| ets_sse_simple(&data_clone, a), 1e-4, 0.999);
             self.alpha = opt_alpha;
         } else {
             // For trend/seasonal models, do a coarse grid search
@@ -730,7 +723,11 @@ impl EtsModel {
             let s_t = if self.seasonal_type != EtsSeasonalType::None {
                 seasonals[t % p]
             } else {
-                if self.seasonal_type == EtsSeasonalType::Multiplicative { 1.0 } else { 0.0 }
+                if self.seasonal_type == EtsSeasonalType::Multiplicative {
+                    1.0
+                } else {
+                    0.0
+                }
             };
 
             // One-step forecast
@@ -769,22 +766,19 @@ impl EtsModel {
                     new_s = 0.0;
                 }
                 (EtsTrendType::Additive, EtsSeasonalType::Additive) => {
-                    new_l = self.alpha * (data[t] - s_t)
-                        + (1.0 - self.alpha) * (l + b_trend);
+                    new_l = self.alpha * (data[t] - s_t) + (1.0 - self.alpha) * (l + b_trend);
                     new_b = self.beta * (new_l - l) + (1.0 - self.beta) * b_trend;
                     new_s = self.gamma * (data[t] - new_l) + (1.0 - self.gamma) * s_t;
                 }
                 (EtsTrendType::Additive, EtsSeasonalType::Multiplicative) => {
                     let safe_s = if s_t.abs() > 1e-10 { s_t } else { 1.0 };
-                    new_l = self.alpha * (data[t] / safe_s)
-                        + (1.0 - self.alpha) * (l + b_trend);
+                    new_l = self.alpha * (data[t] / safe_s) + (1.0 - self.alpha) * (l + b_trend);
                     new_b = self.beta * (new_l - l) + (1.0 - self.beta) * b_trend;
                     let safe_nl = if new_l.abs() > 1e-10 { new_l } else { 1.0 };
                     new_s = self.gamma * (data[t] / safe_nl) + (1.0 - self.gamma) * s_t;
                 }
                 (EtsTrendType::AdditiveDamped, EtsSeasonalType::None) => {
-                    new_l = self.alpha * data[t]
-                        + (1.0 - self.alpha) * (l + self.phi * b_trend);
+                    new_l = self.alpha * data[t] + (1.0 - self.alpha) * (l + self.phi * b_trend);
                     new_b = self.beta * (new_l - l) + (1.0 - self.beta) * self.phi * b_trend;
                     new_s = 0.0;
                 }
@@ -884,10 +878,7 @@ impl EtsModel {
                             for si in 0..n_seasons.min(3) {
                                 let idx = si * p + j;
                                 if idx < data.len() {
-                                    let sm = season_means
-                                        .get(si)
-                                        .copied()
-                                        .unwrap_or(overall_mean);
+                                    let sm = season_means.get(si).copied().unwrap_or(overall_mean);
                                     if sm.abs() > 1e-10 {
                                         total += data[idx] / sm;
                                         count += 1;
@@ -989,19 +980,18 @@ impl FittedEts {
         let final_level = self.level.last().copied().unwrap_or(0.0);
         let final_trend = self.trend.last().copied().unwrap_or(0.0);
 
-        let final_seasonals: Vec<f64> = if self.model.seasonal_type != EtsSeasonalType::None
-            && !self.seasonal.is_empty()
-        {
-            // Last p seasonal values
-            let start = if self.seasonal.len() >= p {
-                self.seasonal.len() - p
+        let final_seasonals: Vec<f64> =
+            if self.model.seasonal_type != EtsSeasonalType::None && !self.seasonal.is_empty() {
+                // Last p seasonal values
+                let start = if self.seasonal.len() >= p {
+                    self.seasonal.len() - p
+                } else {
+                    0
+                };
+                self.seasonal[start..].to_vec()
             } else {
-                0
+                vec![]
             };
-            self.seasonal[start..].to_vec()
-        } else {
-            vec![]
-        };
 
         (1..=h)
             .map(|step| {
@@ -1021,7 +1011,8 @@ impl FittedEts {
                         0.0
                     }
                 };
-                self.model.compute_forecast(final_level, final_trend, s, step)
+                self.model
+                    .compute_forecast(final_level, final_trend, s, step)
             })
             .collect()
     }
@@ -1087,7 +1078,11 @@ pub fn auto_ets(data: &[f64], seasonal_period: usize) -> Result<FittedEts> {
         });
     }
 
-    let trends = [EtsTrendType::None, EtsTrendType::Additive, EtsTrendType::AdditiveDamped];
+    let trends = [
+        EtsTrendType::None,
+        EtsTrendType::Additive,
+        EtsTrendType::AdditiveDamped,
+    ];
     let seasonals = if seasonal_period >= 2 {
         vec![
             EtsSeasonalType::None,
@@ -1127,9 +1122,7 @@ pub fn auto_ets(data: &[f64], seasonal_period: usize) -> Result<FittedEts> {
         }
     }
 
-    best.ok_or_else(|| {
-        TimeSeriesError::FittingError("auto_ets: no model converged".to_string())
-    })
+    best.ok_or_else(|| TimeSeriesError::FittingError("auto_ets: no model converged".to_string()))
 }
 
 // ---------------------------------------------------------------------------
@@ -1201,11 +1194,7 @@ impl ThetaModel {
 
         // Optimal SES alpha on theta-line 2
         let theta2_clone = theta2.clone();
-        let alpha = golden_section(
-            |a| ses_sse(&theta2_clone, a),
-            1e-6,
-            1.0 - 1e-10,
-        );
+        let alpha = golden_section(|a| ses_sse(&theta2_clone, a), 1e-6, 1.0 - 1e-10);
         let ses_level = ses_final_level(&theta2, alpha);
 
         // Combine: 0.5 * f0 + 0.5 * f2
@@ -1335,7 +1324,11 @@ mod tests {
         assert_eq!(fc.len(), 4);
         // SES forecasts are constant
         for w in fc.windows(2) {
-            assert!((w[1] - w[0]).abs() < 1e-8, "SES forecasts should be flat: {:?}", fc);
+            assert!(
+                (w[1] - w[0]).abs() < 1e-8,
+                "SES forecasts should be flat: {:?}",
+                fc
+            );
         }
     }
 
@@ -1353,7 +1346,11 @@ mod tests {
         let fc = fitted.forecast(4);
         assert_eq!(fc.len(), 4);
         for w in fc.windows(2) {
-            assert!(w[1] > w[0] - 1e-6, "Holt forecasts should increase: {:?}", fc);
+            assert!(
+                w[1] > w[0] - 1e-6,
+                "Holt forecasts should increase: {:?}",
+                fc
+            );
         }
     }
 

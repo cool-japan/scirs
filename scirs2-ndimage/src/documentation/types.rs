@@ -28,7 +28,7 @@ pub struct DocumentationSite {
 }
 
 /// Documentation for a single module
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ModuleDoc {
     /// Module name
     pub name: String,
@@ -41,7 +41,7 @@ pub struct ModuleDoc {
 }
 
 /// Documentation for a single function
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct FunctionDoc {
     /// Function name
     pub name: String,
@@ -60,7 +60,7 @@ pub struct FunctionDoc {
 }
 
 /// Function parameter documentation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Parameter {
     /// Parameter name
     pub name: String,
@@ -73,7 +73,7 @@ pub struct Parameter {
 }
 
 /// Tutorial content structure
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Tutorial {
     /// Tutorial title
     pub title: String,
@@ -88,7 +88,7 @@ pub struct Tutorial {
 }
 
 /// Code example structure
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct Example {
     /// Example title
     pub title: String,
@@ -402,6 +402,11 @@ mod tests {
         );
 
         assert!(example_with_output.expected_output.is_some());
-        assert_eq!(example_with_output.expected_output.expect("Operation failed"), "4");
+        assert_eq!(
+            example_with_output
+                .expected_output
+                .expect("Operation failed"),
+            "4"
+        );
     }
 }

@@ -183,12 +183,55 @@ where
             )
         })
     } else {
-        // For higher dimensions, we'll need a more general approach
-        // For now, return a placeholder until we implement the full n-dimensional version
-        Err(NdimageError::NotImplementedError(
-            "Laplace filter not yet implemented for arrays with more than 2 dimensions".into(),
-        ))
+        // For higher dimensions, compute the Laplacian as the sum of second derivatives
+        // along each axis: L = sum_i d²f/dx_i² = sum_i (corr1d(f, [-1,0,1]) along axis i)?
+        // More precisely, use the 1D Laplacian kernel [-1, 2, -1] along each axis and sum
+        laplace_nd(input, &border_mode)
     }
+}
+
+/// N-dimensional Laplacian: sum of second-order finite-difference along each axis.
+///
+/// Uses the symmetric kernel [-1, 2, -1] along each axis. The n-D Laplacian
+/// equals the sum of these per-axis operators, so the net centre weight is 2*ndim
+/// and each neighbour in axis direction receives -1.
+#[allow(dead_code)]
+fn laplace_nd<T, D>(input: &Array<T, D>, mode: &BorderMode) -> NdimageResult<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+    D: Dimension + 'static,
+{
+    use super::convolve::correlate1d;
+    use scirs2_core::ndarray::Array1;
+
+    let neg_two = T::from_f64(-2.0)
+        .ok_or_else(|| NdimageError::ComputationError("Failed to convert -2 to float".into()))?;
+
+    // The 1D finite-difference kernel for second derivative: [1, -2, 1]
+    // This gives d²f/dx² ≈ f[i-1] - 2*f[i] + f[i+1]
+    // For a 3D impulse at centre, summing over 3 axes gives -6 (negative at centre).
+    let kernel = Array1::from(vec![T::one(), neg_two, T::one()]);
+
+    // Accumulate the per-axis second-derivative into `acc`
+    // Start with zeros and add each axis contribution
+    let mut acc: Array<T, D> = Array::zeros(input.raw_dim());
+
+    for ax in 0..input.ndim() {
+        let d2 = correlate1d(input, &kernel, ax, Some(*mode), None)?;
+        // Element-wise accumulation: subtract `two * input` and add `d2`
+        // because the kernel already produces the full second derivative including centre
+        // We just need to sum them: acc += correlate1d(input, [-1,2,-1], ax)
+        // After ndim axes, the centre of acc will have 2*ndim*centre - sum of neighbours
+        for (a, b) in acc.iter_mut().zip(d2.iter()) {
+            *a = *a + *b;
+        }
+    }
+
+    // Each per-axis result is:
+    //   correlate1d(input, [1,-2,1], ax)[i] = input[i-1,ax] - 2*input[i] + input[i+1,ax]
+    // Summing over all ndim axes yields the N-D discrete Laplacian.
+
+    Ok(acc)
 }
 
 /// Apply a Prewitt filter to calculate gradients in an n-dimensional array
@@ -275,12 +318,43 @@ where
             )
         })
     } else {
-        // For higher dimensions, we'll need a more general approach
-        // For now, return a placeholder until we implement the full n-dimensional version
-        Err(NdimageError::NotImplementedError(
-            "Prewitt filter not yet implemented for arrays with more than 2 dimensions".into(),
-        ))
+        // For higher dimensions, use separable 1D approach:
+        // derivative filter [-1, 0, 1] along `axis`, smoothing [1, 1, 1] along all other axes
+        prewitt_nd(input, axis, &border_mode)
     }
+}
+
+/// N-dimensional Prewitt filter via separable 1D convolutions.
+///
+/// Applies the derivative kernel `[-1, 0, 1]` along `axis` and the smoothing
+/// kernel `[1, 1, 1]` (normalised to `[1/3, 1/3, 1/3]`) along every other axis.
+#[allow(dead_code)]
+fn prewitt_nd<T, D>(
+    input: &Array<T, D>,
+    axis: usize,
+    mode: &BorderMode,
+) -> NdimageResult<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+    D: Dimension + 'static,
+{
+    use super::convolve::correlate1d;
+    use scirs2_core::ndarray::Array1;
+
+    // Derivative kernel along `axis`
+    let deriv_kernel = Array1::from(vec![-T::one(), T::zero(), T::one()]);
+    // Smoothing kernel along other axes: [1, 1, 1]
+    let smooth_kernel = Array1::from(vec![T::one(), T::one(), T::one()]);
+
+    let mut result = correlate1d(input, &deriv_kernel, axis, Some(*mode), None)?;
+
+    for ax in 0..input.ndim() {
+        if ax != axis {
+            result = correlate1d(&result, &smooth_kernel, ax, Some(*mode), None)?;
+        }
+    }
+
+    Ok(result)
 }
 
 /// Apply a Roberts Cross filter to detect edges in an n-dimensional array
@@ -379,10 +453,61 @@ where
             )
         })
     } else {
-        // For higher dimensions, we'll need a more general approach
-        Err(NdimageError::NotImplementedError(
-            "Roberts filter not yet implemented for arrays with more than 2 dimensions".into(),
-        ))
+        // For higher dimensions, apply Roberts-like cross-difference along axis pairs.
+        // Generalised: compute the square root of the sum of squared cross-differences
+        // between adjacent axis pairs (i, i+1).  If `axis` is specified, only return
+        // the difference along that axis; otherwise return the combined magnitude.
+        roberts_nd(input, axis, &border_mode)
+    }
+}
+
+/// N-dimensional Roberts-like filter.
+///
+/// For each consecutive pair of axes `(ax, ax+1)`, computes the cross-differences
+/// `d1 = x[i,j] - x[i+1,j+1]` and `d2 = x[i+1,j] - x[i,j+1]` and accumulates
+/// their squares into the magnitude.  When `axis` is `Some(k)`, only the
+/// forward difference along axis `k` is returned.
+#[allow(dead_code)]
+fn roberts_nd<T, D>(
+    input: &Array<T, D>,
+    axis: Option<usize>,
+    mode: &BorderMode,
+) -> NdimageResult<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+    D: Dimension + 'static,
+{
+    use super::convolve::correlate1d;
+    use scirs2_core::ndarray::Array1;
+
+    // Forward-difference kernel [−1, 1] along a given axis
+    let fwd_kernel = Array1::from(vec![-T::one(), T::one()]);
+
+    if let Some(ax) = axis {
+        // Single axis: simple forward difference
+        if ax >= input.ndim() {
+            return Err(NdimageError::InvalidInput(format!(
+                "Axis {} is out of bounds for array of dimension {}",
+                ax,
+                input.ndim()
+            )));
+        }
+        correlate1d(input, &fwd_kernel, ax, Some(*mode), None)
+    } else {
+        // Magnitude: sqrt(sum over all axes of (forward difference)^2)
+        let ndim = input.ndim();
+        let mut acc: Array<T, D> = Array::zeros(input.raw_dim());
+
+        for ax in 0..ndim {
+            let d = correlate1d(input, &fwd_kernel, ax, Some(*mode), None)?;
+            for (a, b) in acc.iter_mut().zip(d.iter()) {
+                *a = *a + *b * *b;
+            }
+        }
+
+        // Element-wise sqrt
+        let result = acc.mapv(|v| v.sqrt());
+        Ok(result)
     }
 }
 
@@ -499,11 +624,45 @@ where
             )
         })
     } else {
-        // For higher dimensions, we'll need a more general approach
-        Err(NdimageError::NotImplementedError(
-            "Gradient magnitude not yet implemented for arrays with more than 2 dimensions".into(),
-        ))
+        // For N-D: compute gradient along each axis using the requested method, then take magnitude
+        gradient_magnitude_nd(input, method_str, &border_mode)
     }
+}
+
+/// N-dimensional gradient magnitude: sqrt(sum_i g_i^2) where g_i is the gradient along axis i.
+#[allow(dead_code)]
+fn gradient_magnitude_nd<T, D>(
+    input: &Array<T, D>,
+    method: &str,
+    mode: &BorderMode,
+) -> NdimageResult<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+    D: Dimension + 'static,
+{
+    let ndim = input.ndim();
+    let mut acc: Array<T, D> = Array::zeros(input.raw_dim());
+
+    for ax in 0..ndim {
+        let grad = match method.to_lowercase().as_str() {
+            "sobel" => sobel_nd(input, ax, mode)?,
+            "prewitt" => prewitt_nd(input, ax, mode)?,
+            "scharr" => scharr_nd(input, ax, mode)?,
+            "roberts" => roberts_nd(input, Some(ax), mode)?,
+            _ => {
+                return Err(NdimageError::InvalidInput(format!(
+                    "Invalid method: {}, must be one of: sobel, prewitt, roberts, scharr",
+                    method
+                )));
+            }
+        };
+        for (a, b) in acc.iter_mut().zip(grad.iter()) {
+            *a = *a + *b * *b;
+        }
+    }
+
+    let result = acc.mapv(|v| v.sqrt());
+    Ok(result)
 }
 
 // Helper function to apply Prewitt filter along y-axis (vertical gradient)
@@ -765,12 +924,48 @@ where
             )
         })
     } else {
-        // For higher dimensions, we'll need a more general approach
-        // For now, return a placeholder until we implement the full n-dimensional version
-        Err(NdimageError::NotImplementedError(
-            "Scharr filter not yet implemented for arrays with more than 2 dimensions".into(),
-        ))
+        // For higher dimensions, use separable 1D approach with Scharr coefficients
+        scharr_nd(input, axis, &border_mode)
     }
+}
+
+/// N-dimensional Scharr filter via separable 1D convolutions.
+///
+/// The Scharr operator uses derivative kernel `[-1, 0, 1]` (same as Prewitt/Sobel)
+/// along `axis` and a weighted smoothing kernel `[3, 10, 3]` (unnormalised)
+/// along every other axis, giving better rotational symmetry than Sobel.
+#[allow(dead_code)]
+fn scharr_nd<T, D>(
+    input: &Array<T, D>,
+    axis: usize,
+    mode: &BorderMode,
+) -> NdimageResult<Array<T, D>>
+where
+    T: Float + FromPrimitive + Debug + std::ops::AddAssign + std::ops::DivAssign + Clone + 'static,
+    D: Dimension + 'static,
+{
+    use super::convolve::correlate1d;
+    use scirs2_core::ndarray::Array1;
+
+    let three = T::from_f64(3.0)
+        .ok_or_else(|| NdimageError::ComputationError("Failed to convert 3 to float".into()))?;
+    let ten = T::from_f64(10.0)
+        .ok_or_else(|| NdimageError::ComputationError("Failed to convert 10 to float".into()))?;
+
+    // Derivative kernel along `axis`: [-1, 0, 1]
+    let deriv_kernel = Array1::from(vec![-T::one(), T::zero(), T::one()]);
+    // Weighted smoothing kernel along other axes: [3, 10, 3]
+    let smooth_kernel = Array1::from(vec![three, ten, three]);
+
+    let mut result = correlate1d(input, &deriv_kernel, axis, Some(*mode), None)?;
+
+    for ax in 0..input.ndim() {
+        if ax != axis {
+            result = correlate1d(&result, &smooth_kernel, ax, Some(*mode), None)?;
+        }
+    }
+
+    Ok(result)
 }
 
 // Helper function to apply Scharr filter along y-axis (vertical gradient)
@@ -1165,5 +1360,161 @@ mod tests {
 
         assert!(max_z > max_x, "Z gradient should be strongest");
         assert!(max_z > max_y, "Z gradient should be strongest");
+    }
+
+    #[test]
+    fn test_laplace_3d() {
+        use scirs2_core::ndarray::Array3;
+
+        // 3D volume with an isolated hot spot at the centre
+        let mut volume = Array3::<f64>::zeros((5, 5, 5));
+        volume[[2, 2, 2]] = 1.0;
+
+        let result = laplace(&volume, None, None).expect("laplace 3D should succeed");
+        assert_eq!(result.shape(), volume.shape());
+
+        // Centre of the Laplacian of a delta should be negative (sum of second derivatives)
+        assert!(
+            result[[2, 2, 2]] < 0.0,
+            "Centre of Laplacian should be negative"
+        );
+
+        // Face-neighbours should be positive
+        assert!(result[[1, 2, 2]] > 0.0);
+        assert!(result[[3, 2, 2]] > 0.0);
+        assert!(result[[2, 1, 2]] > 0.0);
+        assert!(result[[2, 3, 2]] > 0.0);
+        assert!(result[[2, 2, 1]] > 0.0);
+        assert!(result[[2, 2, 3]] > 0.0);
+    }
+
+    #[test]
+    fn test_prewitt_3d() {
+        use scirs2_core::ndarray::Array3;
+
+        let mut volume = Array3::<f64>::zeros((5, 5, 5));
+        // Flat ramp along axis 2
+        for k in 0..5usize {
+            for i in 0..5usize {
+                for j in 0..5usize {
+                    volume[[i, j, k]] = k as f64;
+                }
+            }
+        }
+
+        // Prewitt along axis 2 should give positive gradient everywhere (ramp up)
+        let result = prewitt(&volume, 2, None).expect("prewitt 3D axis-2 should succeed");
+        assert_eq!(result.shape(), volume.shape());
+
+        // Interior values should be approximately 2 (forward difference * 2, before smoothing)
+        // The exact value depends on smoothing but they should all be positive
+        for i in 1..4 {
+            for j in 1..4 {
+                for k in 1..4 {
+                    assert!(
+                        result[[i, j, k]] > 0.0,
+                        "Ramp gradient should be positive interior"
+                    );
+                }
+            }
+        }
+
+        // Prewitt along axis 0 should give ~0 (no variation along axis 0)
+        let result_ax0 = prewitt(&volume, 0, None).expect("prewitt 3D axis-0 should succeed");
+        for i in 1..4 {
+            for j in 1..4 {
+                for k in 1..4 {
+                    assert!(
+                        result_ax0[[i, j, k]].abs() < 1e-12,
+                        "Constant-axis gradient should be zero"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_scharr_3d() {
+        use scirs2_core::ndarray::Array3;
+
+        let mut volume = Array3::<f64>::zeros((5, 5, 5));
+        volume[[2, 2, 2]] = 1.0;
+
+        let result = scharr(&volume, 0, None).expect("scharr 3D axis-0 should succeed");
+        assert_eq!(result.shape(), volume.shape());
+
+        // Gradient along axis 0 around the impulse: neighbours at (1,2,2) and (3,2,2)
+        assert!(result[[1, 2, 2]] > 0.0, "Scharr: axis-0 positive lobe");
+        assert!(result[[3, 2, 2]] < 0.0, "Scharr: axis-0 negative lobe");
+    }
+
+    #[test]
+    fn test_gradient_magnitude_3d() {
+        use scirs2_core::ndarray::Array3;
+
+        // Volume with a ramp along axis 2 — gradient_magnitude should be positive in interior
+        let mut volume = Array3::<f64>::zeros((5, 5, 5));
+        for k in 0..5usize {
+            for i in 0..5usize {
+                for j in 0..5usize {
+                    volume[[i, j, k]] = k as f64;
+                }
+            }
+        }
+
+        for method in &["sobel", "prewitt", "scharr", "roberts"] {
+            let result = gradient_magnitude(&volume, None, Some(method))
+                .unwrap_or_else(|e| panic!("gradient_magnitude 3D {method} should succeed: {e}"));
+            assert_eq!(result.shape(), volume.shape());
+
+            // Interior gradient along the ramp axis should be positive
+            for i in 1..4 {
+                for j in 1..4 {
+                    for k in 1..4 {
+                        assert!(
+                            result[[i, j, k]] > 0.0,
+                            "{method}: interior gradient should be > 0"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_roberts_3d() {
+        use scirs2_core::ndarray::Array3;
+
+        let mut volume = Array3::<f64>::zeros((5, 5, 5));
+        volume[[2, 2, 2]] = 1.0;
+
+        // Roberts N-D on axis 2 = forward difference along axis 2.
+        // correlate1d with kernel [-1,1] and left-pad-1 gives output at position i:
+        //   out[i] = input[i-1]*(-1) + input[i]*(1)
+        // At i=2 (impulse at 2, input[1]=0, input[2]=1): out[2] = 0*(-1)+1*1 = +1
+        let result = roberts(&volume, None, Some(2)).expect("roberts 3D axis-2 should succeed");
+        assert_eq!(result.shape(), volume.shape());
+
+        // The response at the impulse position should be non-zero
+        assert!(
+            result[[2, 2, 2]].abs() > 0.0,
+            "Roberts axis-2 should respond at impulse"
+        );
+
+        // Neighbouring positions should also have non-zero response (transition region)
+        // The key invariant: sum of the response is zero (conservation)
+        let response_sum: f64 = result.iter().sum();
+        assert!(
+            response_sum.abs() < 1e-10,
+            "Forward-difference response should sum to 0"
+        );
+
+        // Roberts magnitude: sqrt over all axes
+        let mag = roberts(&volume, None, None).expect("roberts 3D magnitude should succeed");
+        assert_eq!(mag.shape(), volume.shape());
+        assert!(
+            mag[[2, 2, 2]] > 0.0,
+            "Roberts magnitude at impulse should be positive"
+        );
     }
 }

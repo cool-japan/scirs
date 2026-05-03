@@ -13,7 +13,6 @@ use scirs2_core::simd_ops::PlatformCapabilities;
 use std::arch::x86_64::*;
 use std::fmt::Debug;
 
-use super::types::{Dwt2dResult, MemoryPool, ThresholdMethod};
 use super::functions_3::apply_threshold;
 
 #[allow(unused_imports)]
@@ -36,7 +35,7 @@ pub fn simd_threshold_coefficients(
     let caps = PlatformCapabilities::detect();
     let simd_threshold = 64;
     if coeffs.len() >= simd_threshold && caps.simd_available {
-        simd_threshold_avx2(_coeffs, threshold, method);
+        simd_threshold_avx2(coeffs, threshold, method);
     } else {
         for coeff in coeffs.iter_mut() {
             *coeff = apply_threshold(*coeff, threshold, method);
@@ -52,34 +51,34 @@ fn simd_threshold_avx2(coeffs: &mut [f64], threshold: f64, method: ThresholdMeth
     let simd_len = len - (len % 4);
     unsafe {
         let threshold_vec = _mm256_set1_pd(threshold);
-        let neg_threshold_vec = _mm256_set1_pd(-threshold);
         let zero_vec = _mm256_setzero_pd();
         let one_vec = _mm256_set1_pd(1.0);
         for i in (0..simd_len).step_by(4) {
-            let data = _mm256_loadu_pd(_coeffs.as_ptr().add(i));
+            let data = _mm256_loadu_pd(coeffs.as_ptr().add(i));
             let result = match method {
                 ThresholdMethod::Hard => {
                     let abs_data = _mm256_andnot_pd(_mm256_set1_pd(-0.0), data);
-                    let mask = _mm256_cmp_pd(abs_data, threshold_vec_CMP_GT_OQ);
+                    let mask = _mm256_cmp_pd(abs_data, threshold_vec, _CMP_GT_OQ);
                     _mm256_and_pd(data, mask)
                 }
                 ThresholdMethod::Soft => {
                     let abs_data = _mm256_andnot_pd(_mm256_set1_pd(-0.0), data);
-                    let mask = _mm256_cmp_pd(abs_data, threshold_vec_CMP_GT_OQ);
-                    let sign_mask = _mm256_cmp_pd(data, zero_vec_CMP_GE_OQ);
+                    let mask = _mm256_cmp_pd(abs_data, threshold_vec, _CMP_GT_OQ);
+                    let sign_mask = _mm256_cmp_pd(data, zero_vec, _CMP_GE_OQ);
                     let sign = _mm256_blendv_pd(
                         _mm256_set1_pd(-1.0),
                         one_vec,
                         sign_mask,
                     );
                     let shrunk = _mm256_mul_pd(
-                        sign_mm256_sub_pd(abs_data, threshold_vec),
+                        sign,
+                        _mm256_sub_pd(abs_data, threshold_vec),
                     );
                     _mm256_and_pd(shrunk, mask)
                 }
                 ThresholdMethod::Garrote => {
                     let abs_data = _mm256_andnot_pd(_mm256_set1_pd(-0.0), data);
-                    let mask = _mm256_cmp_pd(abs_data, threshold_vec_CMP_GT_OQ);
+                    let mask = _mm256_cmp_pd(abs_data, threshold_vec, _CMP_GT_OQ);
                     let threshold_sq = _mm256_mul_pd(threshold_vec, threshold_vec);
                     let data_sq = _mm256_mul_pd(data, data);
                     let ratio = _mm256_div_pd(threshold_sq, data_sq);
@@ -88,7 +87,7 @@ fn simd_threshold_avx2(coeffs: &mut [f64], threshold: f64, method: ThresholdMeth
                     _mm256_and_pd(result, mask)
                 }
             };
-            _mm256_storeu_pd(_coeffs.as_mut_ptr().add(i), result);
+            _mm256_storeu_pd(coeffs.as_mut_ptr().add(i), result);
         }
     }
     for coeff in &mut coeffs[simd_len..] {
@@ -111,7 +110,7 @@ pub(super) fn simd_calculate_energy(data: &[f64]) -> f64 {
     let caps = PlatformCapabilities::detect();
     let simd_threshold = 64;
     if data.len() >= simd_threshold && caps.simd_available {
-        simd_energy_avx2(_data)
+        simd_energy_avx2(data)
     } else {
         data.iter().map(|&x| x * x).sum()
     }
@@ -127,7 +126,7 @@ fn simd_energy_avx2(data: &[f64]) -> f64 {
     unsafe {
         let mut sum_vec = _mm256_setzero_pd();
         for i in (0..simd_len).step_by(4) {
-            let data_vec = _mm256_loadu_pd(_data.as_ptr().add(i));
+            let data_vec = _mm256_loadu_pd(data.as_ptr().add(i));
             let squared = _mm256_mul_pd(data_vec, data_vec);
             sum_vec = _mm256_add_pd(sum_vec, squared);
         }
@@ -151,12 +150,12 @@ thread_local! {
 /// Get a temporary buffer from the thread-local memory pool
 #[allow(dead_code)]
 pub(super) fn get_temp_buffer(size: usize) -> Vec<f64> {
-    MEMORY_POOL.with(|pool| pool.borrow_mut().get_buffer(_size))
+    MEMORY_POOL.with(|pool| pool.borrow_mut().get_buffer(size))
 }
 /// Return a temporary buffer to the thread-local memory pool
 #[allow(dead_code)]
 pub(super) fn return_temp_buffer(buffer: Vec<f64>) {
-    MEMORY_POOL.with(|pool| pool.borrow_mut().return_buffer(_buffer));
+    MEMORY_POOL.with(|pool| pool.borrow_mut().return_buffer(buffer));
 }
 #[cfg(feature = "parallel")]
 /// Type alias for column processing results to reduce complexity

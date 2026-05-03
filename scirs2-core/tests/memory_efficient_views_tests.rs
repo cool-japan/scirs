@@ -81,17 +81,42 @@ mod tests {
         }
     }
 
-    // The view_as and view_mut_as functions are unsafe and not fully implemented
-    // in our placeholder, so we don't test them extensively here.
+    // view_as with differing element sizes (f64 → u8, 8 vs 1 byte) cannot be represented
+    // within the same generic dimension D and must return NotImplementedError.
     #[test]
-    #[should_panic(expected = "not yet implemented")]
-    fn test_view_as_unimplemented() {
+    fn test_view_as_differing_sizes_not_implemented() {
+        use scirs2_core::memory_efficient::view_as;
+
         let data = Array2::from_shape_fn((3, 4), |(i, j)| i as f64 * 10.0 + j as f64);
 
-        // This should panic with "not yet implemented"
-        unsafe {
-            let _: ArrayView<u8, scirs2_core::ndarray::Ix2> =
-                scirs2_core::memory_efficient::view_as(&data).expect("Test: operation failed");
+        // SAFETY: We expect an Err before any memory is accessed.
+        let result = unsafe { view_as::<f64, u8, _, _>(&data) };
+
+        assert!(
+            result.is_err(),
+            "view_as with different element sizes must fail"
+        );
+        match result.expect_err("expected an error") {
+            CoreError::NotImplementedError(_) => {}
+            other => panic!("Expected NotImplementedError for differing sizes, got: {other:?}"),
         }
+    }
+
+    // view_as with same-size types (f64 → i64, both 8 bytes) must succeed.
+    #[test]
+    fn test_view_as_same_size_succeeds() {
+        use scirs2_core::memory_efficient::view_as;
+
+        let data = Array2::from_shape_fn((2, 2), |(i, j)| (i * 2 + j) as f64);
+
+        // SAFETY: i64 is valid for any 8-byte bit pattern produced by f64.
+        let result = unsafe { view_as::<f64, i64, _, _>(&data) };
+        assert!(
+            result.is_ok(),
+            "view_as should succeed for f64 → i64 (same size)"
+        );
+        let view = result.expect("view_as returned Err unexpectedly");
+        // Shape must be preserved.
+        assert_eq!(view.shape(), data.shape());
     }
 }

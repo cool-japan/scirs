@@ -547,7 +547,12 @@ impl<F: Float + FromPrimitive + Debug> CrossformerLayer<F> {
     ) -> Result<Self> {
         Ok(Self {
             cross_time: CrossTimeAttention::new(d_model, n_heads, seed)?,
-            cross_dim: CrossDimAttention::new(d_model, n_heads, router_size, seed.wrapping_add(1000))?,
+            cross_dim: CrossDimAttention::new(
+                d_model,
+                n_heads,
+                router_size,
+                seed.wrapping_add(1000),
+            )?,
             ffn: FeedForward::new(d_model, d_ff, seed.wrapping_add(2000)),
             d_model,
             ln_gamma1: Array1::ones(d_model),
@@ -560,12 +565,7 @@ impl<F: Float + FromPrimitive + Debug> CrossformerLayer<F> {
     }
 
     /// Apply layer norm to each (segment, channel) token in a 3D tensor.
-    fn layer_norm_3d(
-        &self,
-        x: &Array3<F>,
-        gamma: &Array1<F>,
-        beta: &Array1<F>,
-    ) -> Array3<F> {
+    fn layer_norm_3d(&self, x: &Array3<F>, gamma: &Array1<F>, beta: &Array1<F>) -> Array3<F> {
         let (n_segs, n_ch, d_model) = x.dim();
         let mut out = Array3::zeros((n_segs, n_ch, d_model));
         let eps = F::from(1e-5).unwrap_or_else(|| F::zero());
@@ -923,8 +923,8 @@ mod tests {
         let d_model = 32;
         let n_heads = 4;
         let router_size = 5;
-        let cda =
-            CrossDimAttention::<f64>::new(d_model, n_heads, router_size, 42).expect("creation failed");
+        let cda = CrossDimAttention::<f64>::new(d_model, n_heads, router_size, 42)
+            .expect("creation failed");
         let x = Array3::zeros((n_segs, n_ch, d_model));
         let out = cda.forward(&x).expect("forward failed");
         assert_eq!(out.dim(), (n_segs, n_ch, d_model));
@@ -967,8 +967,8 @@ mod tests {
 
     #[test]
     fn test_forecast_shape_default_config() {
-        let model =
-            CrossformerModel::<f64>::new(CrossformerConfig::default()).expect("model creation failed");
+        let model = CrossformerModel::<f64>::new(CrossformerConfig::default())
+            .expect("model creation failed");
         let input = make_input(96, 7);
         let output = model.forecast(&input).expect("forecast failed");
         assert_eq!(output.dim(), (24, 7));
@@ -993,10 +993,7 @@ mod tests {
         let output = model.forecast(&input).expect("forecast failed");
         for t in 0..6 {
             for ch in 0..3 {
-                assert!(
-                    output[[t, ch]].is_finite(),
-                    "Non-finite at [{t},{ch}]"
-                );
+                assert!(output[[t, ch]].is_finite(), "Non-finite at [{t},{ch}]");
             }
         }
     }

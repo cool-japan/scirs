@@ -213,7 +213,11 @@ where
         let mut alpha = 1.0_f64;
 
         for _ls in 0..20 {
-            let xnew: Vec<f64> = x.iter().zip(d.iter()).map(|(&xi, &di)| xi + alpha * di).collect();
+            let xnew: Vec<f64> = x
+                .iter()
+                .zip(d.iter())
+                .map(|(&xi, &di)| xi + alpha * di)
+                .collect();
             *nfev += 1;
             let fnew = penalty_fn(&xnew);
             if fnew <= fx + 1e-4 * alpha * dg.min(0.0) {
@@ -222,12 +226,24 @@ where
             alpha *= 0.5;
         }
 
-        let xnew: Vec<f64> = x.iter().zip(d.iter()).map(|(&xi, &di)| xi + alpha * di).collect();
+        let xnew: Vec<f64> = x
+            .iter()
+            .zip(d.iter())
+            .map(|(&xi, &di)| xi + alpha * di)
+            .collect();
         let gnew = compute_grad(&xnew, nfev);
 
         // L-BFGS update
-        let s: Vec<f64> = xnew.iter().zip(x.iter()).map(|(&xni, &xi)| xni - xi).collect();
-        let y: Vec<f64> = gnew.iter().zip(g.iter()).map(|(&gni, &gi)| gni - gi).collect();
+        let s: Vec<f64> = xnew
+            .iter()
+            .zip(x.iter())
+            .map(|(&xni, &xi)| xni - xi)
+            .collect();
+        let y: Vec<f64> = gnew
+            .iter()
+            .zip(g.iter())
+            .map(|(&gni, &gi)| gni - gi)
+            .collect();
         let sy: f64 = s.iter().zip(y.iter()).map(|(&si, &yi)| si * yi).sum();
 
         if sy > 1e-10 {
@@ -267,12 +283,7 @@ impl PenaltyMethod {
     }
 
     /// Compute constraint violation at x
-    fn compute_violation<E, G>(
-        &self,
-        x: &[f64],
-        eq_cons: &[E],
-        ineq_cons: &[G],
-    ) -> f64
+    fn compute_violation<E, G>(&self, x: &[f64], eq_cons: &[E], ineq_cons: &[G]) -> f64
     where
         E: Fn(&[f64]) -> f64,
         G: Fn(&[f64]) -> f64,
@@ -326,18 +337,24 @@ impl PenaltyMethod {
             let arr = Array1::from_vec(x.to_vec());
             f(&arr.view())
         };
-        let eq_slice: Vec<Box<dyn Fn(&[f64]) -> f64>> = eq_cons.iter().map(|e| {
-            Box::new(move |x: &[f64]| {
-                let arr = Array1::from_vec(x.to_vec());
-                e(&arr.view())
-            }) as Box<dyn Fn(&[f64]) -> f64>
-        }).collect();
-        let ineq_slice: Vec<Box<dyn Fn(&[f64]) -> f64>> = ineq_cons.iter().map(|g| {
-            Box::new(move |x: &[f64]| {
-                let arr = Array1::from_vec(x.to_vec());
-                g(&arr.view())
-            }) as Box<dyn Fn(&[f64]) -> f64>
-        }).collect();
+        let eq_slice: Vec<Box<dyn Fn(&[f64]) -> f64>> = eq_cons
+            .iter()
+            .map(|e| {
+                Box::new(move |x: &[f64]| {
+                    let arr = Array1::from_vec(x.to_vec());
+                    e(&arr.view())
+                }) as Box<dyn Fn(&[f64]) -> f64>
+            })
+            .collect();
+        let ineq_slice: Vec<Box<dyn Fn(&[f64]) -> f64>> = ineq_cons
+            .iter()
+            .map(|g| {
+                Box::new(move |x: &[f64]| {
+                    let arr = Array1::from_vec(x.to_vec());
+                    g(&arr.view())
+                }) as Box<dyn Fn(&[f64]) -> f64>
+            })
+            .collect();
 
         let x0_slice: Vec<f64> = x0.iter().copied().collect();
         self.solve_slice(f_slice, &eq_slice, &ineq_slice, &x0_slice)
@@ -367,8 +384,14 @@ impl PenaltyMethod {
             // Build penalty function capturing current state
             let penalty_at = |xv: &[f64]| -> f64 {
                 let obj = f(xv);
-                let penalty: f64 = eq_cons.iter().map(|e| mu_local * e(xv).powi(2)).sum::<f64>()
-                    + ineq_cons.iter().map(|g| mu_local * g(xv).max(0.0).powi(2)).sum::<f64>();
+                let penalty: f64 = eq_cons
+                    .iter()
+                    .map(|e| mu_local * e(xv).powi(2))
+                    .sum::<f64>()
+                    + ineq_cons
+                        .iter()
+                        .map(|g| mu_local * g(xv).max(0.0).powi(2))
+                        .sum::<f64>();
                 obj + penalty
             };
 
@@ -455,14 +478,17 @@ impl PenaltyMethod {
 
             let barrier_fn = |xv: &[f64]| -> f64 {
                 let obj = f(xv);
-                let barrier: f64 = ineq_cons.iter().map(|g| {
-                    let gv = g(xv);
-                    if gv < -1e-15 {
-                        -mu_local * gv.abs().ln()
-                    } else {
-                        f64::INFINITY
-                    }
-                }).sum();
+                let barrier: f64 = ineq_cons
+                    .iter()
+                    .map(|g| {
+                        let gv = g(xv);
+                        if gv < -1e-15 {
+                            -mu_local * gv.abs().ln()
+                        } else {
+                            f64::INFINITY
+                        }
+                    })
+                    .sum();
                 obj + barrier
             };
 
@@ -656,10 +682,7 @@ where
                 .iter()
                 .map(|g| penalty_coeff * g(x).max(0.0).powi(2))
                 .sum();
-            let eq_pen: f64 = eq_cons
-                .iter()
-                .map(|h| penalty_coeff * h(x).powi(2))
-                .sum();
+            let eq_pen: f64 = eq_cons.iter().map(|h| penalty_coeff * h(x).powi(2)).sum();
             f_val + ineq_pen + eq_pen
         }
         PenaltyKind::Interior => {
@@ -681,10 +704,7 @@ where
                 .iter()
                 .map(|g| penalty_coeff * g(x).max(0.0))
                 .sum();
-            let eq_pen: f64 = eq_cons
-                .iter()
-                .map(|h| penalty_coeff * h(x).abs())
-                .sum();
+            let eq_pen: f64 = eq_cons.iter().map(|h| penalty_coeff * h(x).abs()).sum();
             f_val + ineq_pen + eq_pen
         }
     }
@@ -1377,15 +1397,13 @@ mod tests {
 
         ap.update(1.0); // seed prev_violation
         let p1 = ap.update(0.5); // 50% improvement, well above 10% threshold
-        // Penalty should NOT increase (allow_decrease=false by default)
+                                 // Penalty should NOT increase (allow_decrease=false by default)
         assert_abs_diff_eq!(p1, 1.0, epsilon = 1e-12);
     }
 
     #[test]
     fn test_adaptive_penalty_capped_at_max() {
-        let mut ap = AdaptivePenalty::with_config(
-            1e9, 1e-3, 1e10, 1000.0, 0.5, 0.1, false, 1,
-        );
+        let mut ap = AdaptivePenalty::with_config(1e9, 1e-3, 1e10, 1000.0, 0.5, 0.1, false, 1);
         ap.update(1.0);
         let p = ap.update(1.0); // no improvement → multiply by 1000 → capped at 1e10
         assert!(p <= 1e10, "Penalty exceeded max; got {p}");
@@ -1412,8 +1430,11 @@ mod tests {
             .solve(f, &[h], &[] as &[fn(&[f64]) -> f64], &[0.0, 0.0])
             .expect("AugLag solve failed");
 
-        assert!(result.success || result.constraint_violation < 1e-2,
-            "cv={}", result.constraint_violation);
+        assert!(
+            result.success || result.constraint_violation < 1e-2,
+            "cv={}",
+            result.constraint_violation
+        );
         assert_abs_diff_eq!(result.fun, 0.5, epsilon = 0.05);
     }
 

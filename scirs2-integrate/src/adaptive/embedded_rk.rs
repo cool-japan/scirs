@@ -44,12 +44,7 @@ impl Dopri5DenseOutput {
         let t1 = 1.0 - theta;
         self.coeffs
             .iter()
-            .map(|c| {
-                c[0]
-                    + theta
-                        * (c[1]
-                            + t1 * (c[2] + theta * (c[3] + t1 * (c[4] * theta))))
-            })
+            .map(|c| c[0] + theta * (c[1] + t1 * (c[2] + theta * (c[3] + t1 * (c[4] * theta)))))
             .collect()
     }
 }
@@ -153,34 +148,20 @@ where
 
     // k5
     let y5: Vec<f64> = (0..n)
-        .map(|i| {
-            y[i] + h * (A51 * k1[i] + A52 * k2[i] + A53 * k3[i] + A54 * k4[i])
-        })
+        .map(|i| y[i] + h * (A51 * k1[i] + A52 * k2[i] + A53 * k3[i] + A54 * k4[i]))
         .collect();
     let k5 = f(t + C5 * h, &y5);
 
     // k6
     let y6: Vec<f64> = (0..n)
-        .map(|i| {
-            y[i] + h
-                * (A61 * k1[i]
-                    + A62 * k2[i]
-                    + A63 * k3[i]
-                    + A64 * k4[i]
-                    + A65 * k5[i])
-        })
+        .map(|i| y[i] + h * (A61 * k1[i] + A62 * k2[i] + A63 * k3[i] + A64 * k4[i] + A65 * k5[i]))
         .collect();
     let k6 = f(t + h, &y6);
 
     // 5th-order solution (used as propagating solution with local extrapolation)
     let y_5th: Vec<f64> = (0..n)
         .map(|i| {
-            y[i] + h
-                * (B5_1 * k1[i]
-                    + B5_3 * k3[i]
-                    + B5_4 * k4[i]
-                    + B5_5 * k5[i]
-                    + B5_6 * k6[i])
+            y[i] + h * (B5_1 * k1[i] + B5_3 * k3[i] + B5_4 * k4[i] + B5_5 * k5[i] + B5_6 * k6[i])
         })
         .collect();
 
@@ -246,21 +227,12 @@ fn build_dense_output(
             let c1 = dy;
             let c2 = h * k1[i] - dy;
             let c3 = 2.0 * dy - h * (k1[i] + k7[i]);
-            let c4 = h
-                * (D1 * k1[i]
-                    + D3 * k3[i]
-                    + D4 * k4[i]
-                    + D5 * k5[i]
-                    + D6 * k6[i]
-                    + D7 * k7[i]);
+            let c4 =
+                h * (D1 * k1[i] + D3 * k3[i] + D4 * k4[i] + D5 * k5[i] + D6 * k6[i] + D7 * k7[i]);
             [c0, c1, c2, c3, c4]
         })
         .collect();
-    Dopri5DenseOutput {
-        t_prev,
-        h,
-        coeffs,
-    }
+    Dopri5DenseOutput { t_prev, h, coeffs }
 }
 
 /// Solve an ODE using the Dormand-Prince (DOPRI5) method.
@@ -336,9 +308,7 @@ where
         }
 
         // Clip step to not overshoot
-        if h_sign > 0.0 && t + h > t_end {
-            h = t_end - t;
-        } else if h_sign < 0.0 && t + h < t_end {
+        if (h_sign > 0.0 && t + h > t_end) || (h_sign < 0.0 && t + h < t_end) {
             h = t_end - t;
         }
 
@@ -440,9 +410,7 @@ where
             )));
         }
 
-        if h_sign > 0.0 && t + h > t_end {
-            h = t_end - t;
-        } else if h_sign < 0.0 && t + h < t_end {
+        if (h_sign > 0.0 && t + h > t_end) || (h_sign < 0.0 && t + h < t_end) {
             h = t_end - t;
         }
 
@@ -507,7 +475,16 @@ fn dopri5_step_with_stages<F>(
     y: &[f64],
     h: f64,
     k1: &[f64],
-) -> (Vec<f64>, Vec<f64>, Vec<f64>, usize, Vec<f64>, Vec<f64>, Vec<f64>, Vec<f64>)
+) -> (
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+    usize,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+    Vec<f64>,
+)
 where
     F: Fn(f64, &[f64]) -> Vec<f64>,
 {
@@ -528,32 +505,18 @@ where
     let k4 = f(t + C4 * h, &y4);
 
     let y5: Vec<f64> = (0..n)
-        .map(|i| {
-            y[i] + h * (A51 * k1[i] + A52 * k2[i] + A53 * k3[i] + A54 * k4[i])
-        })
+        .map(|i| y[i] + h * (A51 * k1[i] + A52 * k2[i] + A53 * k3[i] + A54 * k4[i]))
         .collect();
     let k5 = f(t + C5 * h, &y5);
 
     let y6: Vec<f64> = (0..n)
-        .map(|i| {
-            y[i] + h
-                * (A61 * k1[i]
-                    + A62 * k2[i]
-                    + A63 * k3[i]
-                    + A64 * k4[i]
-                    + A65 * k5[i])
-        })
+        .map(|i| y[i] + h * (A61 * k1[i] + A62 * k2[i] + A63 * k3[i] + A64 * k4[i] + A65 * k5[i]))
         .collect();
     let k6 = f(t + h, &y6);
 
     let y_5th: Vec<f64> = (0..n)
         .map(|i| {
-            y[i] + h
-                * (B5_1 * k1[i]
-                    + B5_3 * k3[i]
-                    + B5_4 * k4[i]
-                    + B5_5 * k5[i]
-                    + B5_6 * k6[i])
+            y[i] + h * (B5_1 * k1[i] + B5_3 * k3[i] + B5_4 * k4[i] + B5_5 * k5[i] + B5_6 * k6[i])
         })
         .collect();
 
@@ -671,9 +634,7 @@ where
             )));
         }
 
-        if h_sign > 0.0 && t + h > t_end {
-            h = t_end - t;
-        } else if h_sign < 0.0 && t + h < t_end {
+        if (h_sign > 0.0 && t + h > t_end) || (h_sign < 0.0 && t + h < t_end) {
             h = t_end - t;
         }
 
@@ -704,9 +665,7 @@ where
 
         // 2nd-order solution
         let y2nd: Vec<f64> = (0..n)
-            .map(|i| {
-                y[i] + h * (B2_1 * k1[i] + B2_2 * k2[i] + B2_3 * k3[i] + B2_4 * k4[i])
-            })
+            .map(|i| y[i] + h * (B2_1 * k1[i] + B2_2 * k2[i] + B2_3 * k3[i] + B2_4 * k4[i]))
             .collect();
 
         let y_err: Vec<f64> = (0..n).map(|i| y3rd[i] - y2nd[i]).collect();
@@ -852,9 +811,7 @@ where
             )));
         }
 
-        if h_sign > 0.0 && t + h > t_end {
-            h = t_end - t;
-        } else if h_sign < 0.0 && t + h < t_end {
+        if (h_sign > 0.0 && t + h > t_end) || (h_sign < 0.0 && t + h < t_end) {
             h = t_end - t;
         }
 
@@ -877,19 +834,12 @@ where
             .collect();
         let k4 = f(t + C4 * h, &y4);
         let y5: Vec<f64> = (0..n)
-            .map(|i| {
-                y[i] + h * (A51 * k1[i] + A52 * k2[i] + A53 * k3[i] + A54 * k4[i])
-            })
+            .map(|i| y[i] + h * (A51 * k1[i] + A52 * k2[i] + A53 * k3[i] + A54 * k4[i]))
             .collect();
         let k5 = f(t + h, &y5);
         let y6: Vec<f64> = (0..n)
             .map(|i| {
-                y[i] + h
-                    * (A61 * k1[i]
-                        + A62 * k2[i]
-                        + A63 * k3[i]
-                        + A64 * k4[i]
-                        + A65 * k5[i])
+                y[i] + h * (A61 * k1[i] + A62 * k2[i] + A63 * k3[i] + A64 * k4[i] + A65 * k5[i])
             })
             .collect();
         let k6 = f(t + C6 * h, &y6);
@@ -897,20 +847,14 @@ where
 
         // 5th-order solution
         let y5th: Vec<f64> = (0..n)
-            .map(|i| {
-                y[i] + h * (B5_1 * k1[i] + B5_3 * k3[i] + B5_4 * k4[i] + B5_6 * k6[i])
-            })
+            .map(|i| y[i] + h * (B5_1 * k1[i] + B5_3 * k3[i] + B5_4 * k4[i] + B5_6 * k6[i]))
             .collect();
 
         // 4th-order solution
         let y4th: Vec<f64> = (0..n)
             .map(|i| {
                 y[i] + h
-                    * (B4_1 * k1[i]
-                        + B4_3 * k3[i]
-                        + B4_4 * k4[i]
-                        + B4_5 * k5[i]
-                        + B4_6 * k6[i])
+                    * (B4_1 * k1[i] + B4_3 * k3[i] + B4_4 * k4[i] + B4_5 * k5[i] + B4_6 * k6[i])
             })
             .collect();
 
@@ -970,7 +914,10 @@ mod tests {
         let t_end = *res.t.last().expect("empty result");
         let y_end = res.y.last().expect("empty result")[0];
         assert!((t_end - 5.0).abs() < 1e-12, "t_end mismatch: {t_end}");
-        assert!((y_end - (-5.0_f64).exp()).abs() < 1e-7, "y_end mismatch: {y_end}");
+        assert!(
+            (y_end - (-5.0_f64).exp()).abs() < 1e-7,
+            "y_end mismatch: {y_end}"
+        );
         assert!(res.n_rejected == 0 || res.n_rejected < res.n_steps);
     }
 
@@ -999,9 +946,15 @@ mod tests {
 
     #[test]
     fn dopri5_dense_output() {
-        let (res, dense) =
-            dopri5_dense(harmonic, 0.0, &[1.0, 0.0], 2.0 * std::f64::consts::PI, 1e-8, 1e-10)
-                .expect("dopri5_dense failed");
+        let (res, dense) = dopri5_dense(
+            harmonic,
+            0.0,
+            &[1.0, 0.0],
+            2.0 * std::f64::consts::PI,
+            1e-8,
+            1e-10,
+        )
+        .expect("dopri5_dense failed");
         // Evaluate at t = pi/2
         let t_query = std::f64::consts::FRAC_PI_2;
         // Find the step containing t_query

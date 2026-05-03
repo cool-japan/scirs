@@ -13,9 +13,10 @@ use super::config::{
     EmergentProcessingResult, ProcessorType, QuantumAIConsciousnessConfig,
     QuantumAIConsciousnessState, SelectionAlgorithm, SpontaneousInsight, SuperintelligentResult,
 };
-use super::consciousness_simulation::{update_consciousness_simulation, ConsciousnessAwakening};
+use super::consciousness_simulation::ConsciousnessAwakening;
 use super::quantum_core::{
-    get_quantum_metrics, update_quantum_core, ConsciousnessSynchronizationState as CoreSyncState,
+    get_quantum_metrics, initialize_quantum_core, update_quantum_core,
+    ConsciousnessSynchronizationState as CoreSyncState,
     QuantumEntanglementNetwork as CoreQuantumNetwork,
 };
 use crate::error::{NdimageError, NdimageResult};
@@ -43,25 +44,24 @@ where
         initialize_or_evolve_consciousness(consciousnessstate, (height, width), config)?;
 
     // Stage 1: Consciousness Awakening and Self-Awareness
+    // Fix for borrow conflict: instead of calling update_consciousness_simulation which takes
+    // both &mut state.consciousness_evolution and &mut state simultaneously, we inline the two
+    // operations so each borrow is separate and non-overlapping.
     let mut consciousness_awakening = ConsciousnessAwakening::new();
-    // TODO: Fix borrow conflict - need to restructure this call
-    // update_consciousness_simulation(
-    //     &mut consciousness_awakening,
-    //     &mut state.consciousness_evolution,
-    //     &image,
-    //     &mut state,
-    //     config,
-    // )?;
+    consciousness_awakening =
+        consciousness_awakening.awaken_consciousness(&image, &mut state, config)?;
+    state
+        .consciousness_evolution
+        .update_evolution(&image, &consciousness_awakening, config)?;
 
     // Stage 2: Quantum Core Processing
-    // TODO: Fix type mismatch between config and quantum_core types
-    // update_quantum_core(
-    //     &mut state.quantum_entanglement_network,
-    //     &mut state.synchronization_state,
-    //     &image,
-    //     config,
-    //     1.0,
-    // )?;
+    // Fix for type mismatch: QuantumAIConsciousnessState stores placeholder types from config.rs
+    // while update_quantum_core expects the richer quantum_core types. We maintain a local
+    // CoreQuantumNetwork / CoreSyncState, run the update, then expose metrics via get_quantum_metrics.
+    let (mut qcore_network, mut qcore_sync): (CoreQuantumNetwork, CoreSyncState) =
+        initialize_quantum_core(config)?;
+    update_quantum_core(&mut qcore_network, &mut qcore_sync, &image, config, 1.0)?;
+    let _quantum_metrics = get_quantum_metrics(&qcore_network, &qcore_sync);
 
     // Stage 3: Transcendent Pattern Recognition
     let transcendent_patterns = if config.transcendent_patterns {

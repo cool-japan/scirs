@@ -6,8 +6,8 @@
 //! Generic over the scalar type `F` so that both `f32` and `f64` networks are
 //! supported.
 
-use scirs2_core::num_traits::Float;
 use scirs2_core::ndarray::{Array1, Array2, Axis};
+use scirs2_core::num_traits::Float;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Transition (batch output)
@@ -120,11 +120,11 @@ impl<F: Float + Default + Clone + 'static> ReplayBuffer<F> {
             capacity,
             obs_dim,
             act_dim,
-            states:      Array2::zeros((capacity, obs_dim)),
-            actions:     Array2::zeros((capacity, act_dim)),
-            rewards:     Array1::zeros(capacity),
+            states: Array2::zeros((capacity, obs_dim)),
+            actions: Array2::zeros((capacity, act_dim)),
+            rewards: Array1::zeros(capacity),
             next_states: Array2::zeros((capacity, obs_dim)),
-            dones:       Array1::from_elem(capacity, false),
+            dones: Array1::from_elem(capacity, false),
             ptr: 0,
             size: 0,
         }
@@ -142,7 +142,11 @@ impl<F: Float + Default + Clone + 'static> ReplayBuffer<F> {
     ) {
         debug_assert_eq!(state.len(), self.obs_dim, "state dimension mismatch");
         debug_assert_eq!(action.len(), self.act_dim, "action dimension mismatch");
-        debug_assert_eq!(next_state.len(), self.obs_dim, "next_state dimension mismatch");
+        debug_assert_eq!(
+            next_state.len(),
+            self.obs_dim,
+            "next_state dimension mismatch"
+        );
 
         self.states.row_mut(self.ptr).assign(&state);
         self.actions.row_mut(self.ptr).assign(&action);
@@ -161,9 +165,7 @@ impl<F: Float + Default + Clone + 'static> ReplayBuffer<F> {
     pub fn sample<R: Rng>(&self, batch_size: usize, rng: &mut R) -> Transition<F> {
         assert!(self.size > 0, "cannot sample from empty buffer");
 
-        let indices: Vec<usize> = (0..batch_size)
-            .map(|_| rng.next_usize(self.size))
-            .collect();
+        let indices: Vec<usize> = (0..batch_size).map(|_| rng.next_usize(self.size)).collect();
 
         self.gather(&indices)
     }
@@ -222,21 +224,33 @@ impl<F: Float + Default + Clone + 'static> ReplayBuffer<F> {
 
     fn gather(&self, indices: &[usize]) -> Transition<F> {
         let n = indices.len();
-        let mut states      = Array2::zeros((n, self.obs_dim));
-        let mut actions     = Array2::zeros((n, self.act_dim));
-        let mut rewards     = Array1::zeros(n);
+        let mut states = Array2::zeros((n, self.obs_dim));
+        let mut actions = Array2::zeros((n, self.act_dim));
+        let mut rewards = Array1::zeros(n);
         let mut next_states = Array2::zeros((n, self.obs_dim));
-        let mut dones       = Array1::from_elem(n, false);
+        let mut dones = Array1::from_elem(n, false);
 
         for (out_i, &buf_i) in indices.iter().enumerate() {
-            states.row_mut(out_i).assign(&self.states.index_axis(Axis(0), buf_i));
-            actions.row_mut(out_i).assign(&self.actions.index_axis(Axis(0), buf_i));
+            states
+                .row_mut(out_i)
+                .assign(&self.states.index_axis(Axis(0), buf_i));
+            actions
+                .row_mut(out_i)
+                .assign(&self.actions.index_axis(Axis(0), buf_i));
             rewards[out_i] = self.rewards[buf_i];
-            next_states.row_mut(out_i).assign(&self.next_states.index_axis(Axis(0), buf_i));
+            next_states
+                .row_mut(out_i)
+                .assign(&self.next_states.index_axis(Axis(0), buf_i));
             dones[out_i] = self.dones[buf_i];
         }
 
-        Transition { states, actions, rewards, next_states, dones }
+        Transition {
+            states,
+            actions,
+            rewards,
+            next_states,
+            dones,
+        }
     }
 }
 
@@ -258,8 +272,13 @@ mod tests {
         let mut buf: ReplayBuffer<f64> = ReplayBuffer::new(10, 4, 2);
         assert_eq!(buf.len(), 0);
         assert!(buf.is_empty());
-        buf.push(array![0.0, 1.0, 2.0, 3.0], array![0.5, -0.5], 1.0,
-                 array![0.1, 1.1, 2.1, 3.1], false);
+        buf.push(
+            array![0.0, 1.0, 2.0, 3.0],
+            array![0.5, -0.5],
+            1.0,
+            array![0.1, 1.1, 2.1, 3.1],
+            false,
+        );
         assert_eq!(buf.len(), 1);
         assert!(!buf.is_empty());
     }
@@ -269,7 +288,13 @@ mod tests {
         let mut buf: ReplayBuffer<f64> = ReplayBuffer::new(3, 2, 1);
         for i in 0..5u64 {
             let fi = i as f64;
-            buf.push(array![fi, fi], array![fi], fi, array![fi + 1.0, fi + 1.0], false);
+            buf.push(
+                array![fi, fi],
+                array![fi],
+                fi,
+                array![fi + 1.0, fi + 1.0],
+                false,
+            );
         }
         // Buffer capacity is 3; should hold the last 3 transitions.
         assert_eq!(buf.len(), 3);
@@ -280,8 +305,13 @@ mod tests {
         let mut buf: ReplayBuffer<f64> = ReplayBuffer::new(100, 4, 2);
         for i in 0..50u64 {
             let fi = i as f64;
-            buf.push(array![fi, fi, fi, fi], array![fi, fi], fi,
-                     array![fi + 1.0, fi + 1.0, fi + 1.0, fi + 1.0], i % 5 == 0);
+            buf.push(
+                array![fi, fi, fi, fi],
+                array![fi, fi],
+                fi,
+                array![fi + 1.0, fi + 1.0, fi + 1.0, fi + 1.0],
+                i % 5 == 0,
+            );
         }
         let mut rng = make_rng();
         let tr = buf.sample(16, &mut rng);
@@ -297,7 +327,13 @@ mod tests {
         let mut buf: ReplayBuffer<f32> = ReplayBuffer::new(20, 2, 1);
         for i in 0..20u64 {
             let fi = i as f32;
-            buf.push(array![fi, fi], array![fi], fi, array![fi + 1.0, fi + 1.0], false);
+            buf.push(
+                array![fi, fi],
+                array![fi],
+                fi,
+                array![fi + 1.0, fi + 1.0],
+                false,
+            );
         }
         let mut rng = make_rng();
         let tr = buf.sample_no_replace(10, &mut rng);
@@ -309,8 +345,13 @@ mod tests {
         let mut buf: ReplayBuffer<f64> = ReplayBuffer::new(50, 3, 1);
         for i in 0..50u64 {
             let fi = i as f64;
-            buf.push(array![fi, fi, fi], array![fi], fi * 0.1,
-                     array![fi + 1.0, fi + 1.0, fi + 1.0], false);
+            buf.push(
+                array![fi, fi, fi],
+                array![fi],
+                fi * 0.1,
+                array![fi + 1.0, fi + 1.0, fi + 1.0],
+                false,
+            );
         }
         let mut rng = make_rng();
         let tr = buf.sample(32, &mut rng);

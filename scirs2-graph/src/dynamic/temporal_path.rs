@@ -309,8 +309,8 @@ mod tests {
     #[test]
     fn test_earliest_arrival_two_hop() {
         let edges = small_edges();
-        let path = TemporalDijkstra::earliest_arrival(0, 2, 0.0, &edges, 3)
-            .expect("path should exist");
+        let path =
+            TemporalDijkstra::earliest_arrival(0, 2, 0.0, &edges, 3).expect("path should exist");
         // Via 0→1 (arr=2) then 1→2 (arr=4) is earlier than 0→2 direct (arr=6)
         assert_eq!(path.nodes, vec![0, 1, 2], "nodes={:?}", path.nodes);
         assert!((path.arrival_time() - 4.0).abs() < 1e-9);
@@ -320,8 +320,8 @@ mod tests {
     fn test_earliest_arrival_direct_faster() {
         // 0→2 direct at t=1 (arr=2) vs 0→1 at t=1 (arr=2) then 1→2 at t=5 (arr=6)
         let edges = vec![(0, 1, 1.0, 1.0), (1, 2, 5.0, 1.0), (0, 2, 1.0, 1.0)];
-        let path = TemporalDijkstra::earliest_arrival(0, 2, 0.0, &edges, 3)
-            .expect("path should exist");
+        let path =
+            TemporalDijkstra::earliest_arrival(0, 2, 0.0, &edges, 3).expect("path should exist");
         assert_eq!(path.nodes, vec![0, 2], "expected direct path");
         assert!((path.arrival_time() - 2.0).abs() < 1e-9);
     }
@@ -337,9 +337,12 @@ mod tests {
     #[test]
     fn test_fastest_path() {
         let edges = small_edges();
-        let path = TemporalDijkstra::fastest_path(0, 2, 0.0, &edges, 3)
-            .expect("path should exist");
+        let path = TemporalDijkstra::fastest_path(0, 2, 0.0, &edges, 3).expect("path should exist");
         // Duration via 0→1→2 = 4.0; via direct 0→2 = 6.0
-        assert!(path.total_duration <= 4.0 + 1e-9, "duration={}", path.total_duration);
+        assert!(
+            path.total_duration <= 4.0 + 1e-9,
+            "duration={}",
+            path.total_duration
+        );
     }
 }

@@ -112,8 +112,8 @@ fn interpolate_1d<F: Float + FromPrimitive>(signal: &Array1<F>, target_len: usiz
         return Array1::from_elem(target_len, signal[0]);
     }
     let mut out = Array1::zeros(target_len);
-    let scale = F::from((src_len - 1) as f64 / (target_len - 1).max(1) as f64)
-        .unwrap_or_else(|| F::one());
+    let scale =
+        F::from((src_len - 1) as f64 / (target_len - 1).max(1) as f64).unwrap_or_else(|| F::one());
     for i in 0..target_len {
         let pos = F::from(i as f64).unwrap_or_else(|| F::zero()) * scale;
         let lo = pos.floor();

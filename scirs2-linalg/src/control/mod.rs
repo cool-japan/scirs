@@ -35,8 +35,8 @@
 //! - Skogestad, S. & Postlethwaite, I. (2005). *Multivariable Feedback Design*, 2nd ed.
 //! - Lancaster, P. & Rodman, L. (1995). *Algebraic Riccati Equations*. Oxford.
 
-pub mod lyapunov;
 pub mod lqr;
+pub mod lyapunov;
 pub mod riccati;
 pub mod stability;
 

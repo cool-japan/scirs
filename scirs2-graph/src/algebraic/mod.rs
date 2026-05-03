@@ -87,7 +87,11 @@ pub fn algebraic_connectivity(edges: &[(usize, usize, f64)], n_nodes: usize) -> 
     let mut eigenvalues = jacobi_eigenvalues(&lap, n_nodes);
     eigenvalues.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     // eigenvalues[0] ≈ 0 (always), eigenvalues[1] = Fiedler value
-    if eigenvalues.len() > 1 { eigenvalues[1] } else { 0.0 }
+    if eigenvalues.len() > 1 {
+        eigenvalues[1]
+    } else {
+        0.0
+    }
 }
 
 /// Returns the Fiedler vector: the eigenvector corresponding to the second
@@ -111,7 +115,11 @@ pub fn fiedler_vector(edges: &[(usize, usize, f64)], n_nodes: usize) -> Vec<f64>
         .map(|(i, v)| (v, i))
         .collect();
     indexed.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-    let fiedler_idx = if indexed.len() > 1 { indexed[1].1 } else { indexed[0].1 };
+    let fiedler_idx = if indexed.len() > 1 {
+        indexed[1].1
+    } else {
+        indexed[0].1
+    };
     (0..n_nodes).map(|i| eigenvectors[i][fiedler_idx]).collect()
 }
 
@@ -167,10 +175,38 @@ pub fn graph_automorphisms_count(edges: &[(usize, usize)], n_nodes: usize) -> us
     count
 }
 
+/// Remaps arbitrary node indices in `edges` to the range `[0, k)` where `k`
+/// is the number of distinct nodes seen, preserving edge structure.
+///
+/// This allows isomorphism checks on edge lists whose node labels are not
+/// necessarily contiguous from 0 (e.g. nodes 3, 4, 5 become 0, 1, 2).
+fn canonicalize_edges(edges: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    let mut map: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+    let mut next = 0usize;
+    let mut result = Vec::with_capacity(edges.len());
+    for &(u, v) in edges {
+        let cu = *map.entry(u).or_insert_with(|| {
+            let k = next;
+            next += 1;
+            k
+        });
+        let cv = *map.entry(v).or_insert_with(|| {
+            let k = next;
+            next += 1;
+            k
+        });
+        result.push((cu, cv));
+    }
+    result
+}
+
 /// Tests graph isomorphism using the VF2 algorithm with degree-sequence
 /// pre-filtering.
 ///
 /// Returns `true` if graphs `(adj1, n1)` and `(adj2, n2)` are isomorphic.
+/// Node labels in the edge lists need not start at 0; they are canonicalized
+/// internally so that, e.g., edges `[(3,4),(4,5),(3,5)]` with `n=3` are
+/// treated equivalently to `[(0,1),(1,2),(0,2)]` with `n=3`.
 pub fn is_isomorphic(
     adj1: &[(usize, usize)],
     n1: usize,
@@ -183,22 +219,25 @@ pub fn is_isomorphic(
     if n1 == 0 {
         return true;
     }
-    let e1 = count_edges(adj1, n1);
-    let e2 = count_edges(adj2, n2);
+    // Remap node labels to [0, k) so that offset graphs compare correctly.
+    let adj1c = canonicalize_edges(adj1);
+    let adj2c = canonicalize_edges(adj2);
+    let e1 = count_edges(&adj1c, n1);
+    let e2 = count_edges(&adj2c, n2);
     if e1 != e2 {
         return false;
     }
     // Degree sequence check
-    let mut deg1 = degree_sequence(adj1, n1);
-    let mut deg2 = degree_sequence(adj2, n2);
+    let mut deg1 = degree_sequence(&adj1c, n1);
+    let mut deg2 = degree_sequence(&adj2c, n2);
     deg1.sort_unstable();
     deg2.sort_unstable();
     if deg1 != deg2 {
         return false;
     }
     // VF2 backtracking
-    let a1 = build_bool_adj(adj1, n1);
-    let a2 = build_bool_adj(adj2, n2);
+    let a1 = build_bool_adj(&adj1c, n1);
+    let a2 = build_bool_adj(&adj2c, n2);
     let mut mapping = vec![usize::MAX; n1];
     vf2_match(&a1, &a2, n1, &mut mapping, 0)
 }
@@ -374,9 +413,7 @@ fn faddeev_leverrier(a: &[Vec<f64>], n: usize) -> Vec<f64> {
 
     // M_k recurrence:  M_1 = A, c_{n-1} = -tr(M_1)
     // M_k = A * (M_{k-1} + c_{n-k+1} * I)
-    let mut m: Vec<Vec<f64>> = (0..n)
-        .map(|i| (0..n).map(|j| if i == j { 0.0 } else { 0.0 }).collect())
-        .collect();
+    let mut m: Vec<Vec<f64>> = (0..n).map(|_i| (0..n).map(|_j| 0.0).collect()).collect();
 
     for k in 1..=n {
         // M_k = A * (M_{k-1} + c_{n-k+1} * I)
@@ -446,12 +483,7 @@ fn vf2_match(
 
 // ───────────────────────── Automorphism counting ─────────────────────────────
 
-fn count_automorphisms(
-    adj: &[Vec<bool>],
-    base: &[usize],
-    n: usize,
-    count: &mut usize,
-) {
+fn count_automorphisms(adj: &[Vec<bool>], base: &[usize], n: usize, count: &mut usize) {
     // Iterative permutation generation via Heap's algorithm check
     // We enumerate all permutations of {0..n} and check if each is an automorphism.
     let mut perm: Vec<usize> = (0..n).collect();
@@ -478,7 +510,7 @@ fn is_automorphism(adj: &[Vec<bool>], perm: &[usize], n: usize) -> bool {
     true
 }
 
-fn next_permutation(v: &mut Vec<usize>) -> bool {
+fn next_permutation(v: &mut [usize]) -> bool {
     let n = v.len();
     if n <= 1 {
         return false;
@@ -557,7 +589,11 @@ mod tests {
         let spec = graph_spectrum(&edges, 4);
         assert_eq!(spec.len(), 4);
         // Largest eigenvalue should be 3
-        assert!((spec[0] - 3.0).abs() < 1e-6, "largest eigenvalue = {}", spec[0]);
+        assert!(
+            (spec[0] - 3.0).abs() < 1e-6,
+            "largest eigenvalue = {}",
+            spec[0]
+        );
     }
 
     #[test]

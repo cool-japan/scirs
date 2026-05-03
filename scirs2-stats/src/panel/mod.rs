@@ -88,15 +88,15 @@ pub mod random_effects;
 // ── Re-exports for convenience ──────────────────────────────────────────────
 
 pub use count_models::{
-    CountDistribution, CountPanelResult, NegBinomFE, PoissonFE, ZeroInflated,
-    ZeroInflatedResult,
+    CountDistribution, CountPanelResult, NegBinomFE, PoissonFE, ZeroInflated, ZeroInflatedResult,
 };
 pub use dynamic::{
-    ARTestResult, ArellanoBlond, BlundellBond, DynamicPanelResult, SarganTest,
-    SarganTestResult,
+    ARTestResult, ArellanoBlond, BlundellBond, DynamicPanelResult, SarganTest, SarganTestResult,
 };
-pub use fixed_effects::{FEResult, FirstDiffEstimator, FixedEffectsModel, TwoWayFE, WithinTransform};
+pub use fixed_effects::{
+    FEResult, FirstDiffEstimator, FixedEffectsModel, TwoWayFE, WithinTransform,
+};
 pub use random_effects::{
-    HausmanTest, HausmanTestResult, LinearMixedModel, LmmConfig, LmmResult, REML,
-    REResult, RandomEffectsModel,
+    HausmanTest, HausmanTestResult, LinearMixedModel, LmmConfig, LmmResult, REResult,
+    RandomEffectsModel, REML,
 };

@@ -117,16 +117,18 @@ pub fn mstl(data: &[f64], periods: &[usize]) -> Result<MstlResult> {
         let all_seasonal_sum: Vec<f64> = (0..n)
             .map(|t| seasonals.iter().map(|s| s[t]).sum::<f64>())
             .collect();
-        let deseasonalised: Vec<f64> = (0..n)
-            .map(|t| data[t] - all_seasonal_sum[t])
-            .collect();
+        let deseasonalised: Vec<f64> = (0..n).map(|t| data[t] - all_seasonal_sum[t]).collect();
 
         // Adaptive trend window: ~ 1.5 × n / (longest period), forced odd
         let longest_period = *periods.iter().max().unwrap_or(&1);
         let trend_span = {
             let raw = (1.5 * n as f64 / longest_period as f64).ceil() as usize;
             let raw = raw.max(5).min(n);
-            if raw % 2 == 0 { raw + 1 } else { raw }
+            if raw % 2 == 0 {
+                raw + 1
+            } else {
+                raw
+            }
         };
         trend = loess_1d(&deseasonalised, trend_span);
     }
@@ -380,9 +382,7 @@ fn natural_cubic_spline_eval(xs: &[f64], ys: &[f64], n: usize) -> Vec<f64> {
         } else {
             0.0
         };
-        return (0..n)
-            .map(|t| ys[0] + slope * (t as f64 - xs[0]))
-            .collect();
+        return (0..n).map(|t| ys[0] + slope * (t as f64 - xs[0])).collect();
     }
 
     // Compute natural cubic spline second derivatives via Thomas algorithm
@@ -405,67 +405,78 @@ fn natural_cubic_spline_eval(xs: &[f64], ys: &[f64], n: usize) -> Vec<f64> {
         } else {
             0.0
         };
-        return (0..n)
-            .map(|t| ys[0] + slope * (t as f64 - xs[0]))
-            .collect();
+        return (0..n).map(|t| ys[0] + slope * (t as f64 - xs[0])).collect();
     }
 
-    let mut diag = vec![0.0_f64; size];
-    let mut rhs = vec![0.0_f64; size];
-    let mut lower = vec![0.0_f64; size - 1];
-    let mut upper = vec![0.0_f64; size - 1];
+    // Build second-derivative vector sigma (natural spline: sigma[0] = sigma[m-1] = 0)
+    let mut sigma = vec![0.0_f64; m];
 
-    for i in 0..size {
-        // i corresponds to interior node i+1 (1-indexed)
-        let idx = i + 1;
-        diag[i] = 2.0 * (h[idx - 1] + h[idx]);
-        rhs[i] = 3.0
-            * ((ys[idx + 1] - ys[idx]) / h[idx]
-                - (ys[idx] - ys[idx - 1]) / h[idx - 1]);
-        if i > 0 {
-            lower[i - 1] = h[idx - 1];
-        }
-        if i < size - 1 {
-            upper[i] = h[idx];
-        }
-    }
-
-    // Thomas algorithm (forward sweep)
-    let mut c_prime = vec![0.0_f64; size];
-    let mut d_prime = vec![0.0_f64; size];
-
-    c_prime[0] = if diag[0].abs() > 1e-14 {
-        upper[0] / diag[0]
+    if size == 1 {
+        // Only one interior knot — tridiagonal is 1×1, no off-diagonal entries.
+        let diag0 = 2.0 * (h[0] + h[1]);
+        let rhs0 = 3.0 * ((ys[2] - ys[1]) / h[1] - (ys[1] - ys[0]) / h[0]);
+        sigma[1] = if diag0.abs() > 1e-14 {
+            rhs0 / diag0
+        } else {
+            0.0
+        };
     } else {
-        0.0
-    };
-    d_prime[0] = if diag[0].abs() > 1e-14 {
-        rhs[0] / diag[0]
-    } else {
-        0.0
-    };
+        let mut diag = vec![0.0_f64; size];
+        let mut rhs = vec![0.0_f64; size];
+        let mut lower = vec![0.0_f64; size - 1];
+        let mut upper = vec![0.0_f64; size - 1];
 
-    for i in 1..size {
-        let denom = diag[i] - lower[i - 1] * c_prime[i - 1];
-        if i < size - 1 {
-            c_prime[i] = if denom.abs() > 1e-14 {
-                upper[i] / denom
+        for i in 0..size {
+            // i corresponds to interior node i+1 (1-indexed)
+            let idx = i + 1;
+            diag[i] = 2.0 * (h[idx - 1] + h[idx]);
+            rhs[i] =
+                3.0 * ((ys[idx + 1] - ys[idx]) / h[idx] - (ys[idx] - ys[idx - 1]) / h[idx - 1]);
+            if i > 0 {
+                lower[i - 1] = h[idx - 1];
+            }
+            if i < size - 1 {
+                upper[i] = h[idx];
+            }
+        }
+
+        // Thomas algorithm (forward sweep)
+        let mut c_prime = vec![0.0_f64; size];
+        let mut d_prime = vec![0.0_f64; size];
+
+        // For size >= 2, upper has size-1 elements, so upper[0] is valid.
+        c_prime[0] = if diag[0].abs() > 1e-14 {
+            upper[0] / diag[0]
+        } else {
+            0.0
+        };
+        d_prime[0] = if diag[0].abs() > 1e-14 {
+            rhs[0] / diag[0]
+        } else {
+            0.0
+        };
+
+        for i in 1..size {
+            let denom = diag[i] - lower[i - 1] * c_prime[i - 1];
+            if i < size - 1 {
+                c_prime[i] = if denom.abs() > 1e-14 {
+                    upper[i] / denom
+                } else {
+                    0.0
+                };
+            }
+            d_prime[i] = if denom.abs() > 1e-14 {
+                (rhs[i] - lower[i - 1] * d_prime[i - 1]) / denom
             } else {
                 0.0
             };
         }
-        d_prime[i] = if denom.abs() > 1e-14 {
-            (rhs[i] - lower[i - 1] * d_prime[i - 1]) / denom
-        } else {
-            0.0
-        };
-    }
 
-    // Back substitution
-    let mut sigma = vec![0.0_f64; m]; // second derivatives
-    sigma[size] = d_prime[size - 1];
-    for i in (0..size - 1).rev() {
-        sigma[i + 1] = d_prime[i] - c_prime[i] * sigma[i + 2];
+        // Back substitution
+        sigma[size] = d_prime[size - 1];
+        for i in (0..size - 1).rev() {
+            sigma[i + 1] = d_prime[i] - c_prime[i] * sigma[i + 2];
+        }
     }
     // Natural boundary: sigma[0] = sigma[m-1] = 0
 
@@ -583,13 +594,16 @@ pub fn ssa(data: &[f64], window_length: usize, n_components: usize) -> Result<Ss
     // Power iteration SVD to get top n_comp singular triplets
     let (u_vecs, sv_vals, v_vecs) = power_iteration_svd(&x_mat, l, k, n_comp);
 
-    // SVD may return fewer components than requested (when residual becomes negligible)
+    // SVD may return fewer components than requested (when residual becomes negligible).
+    // We always produce exactly n_comp components, padding with zeros when needed.
     let actual_n_comp = sv_vals.len();
 
-    let eigenvalues: Vec<f64> = sv_vals.iter().map(|&s| s * s).collect();
+    let mut eigenvalues: Vec<f64> = sv_vals.iter().map(|&s| s * s).collect();
+    // Pad eigenvalues to n_comp
+    eigenvalues.resize(n_comp, 0.0);
 
     // Reconstruct each component via rank-1 outer product + diagonal averaging
-    let components: Vec<Vec<f64>> = (0..actual_n_comp)
+    let mut components: Vec<Vec<f64>> = (0..actual_n_comp)
         .map(|c| {
             // Rank-1 matrix: r[i][j] = sigma_c * u_c[i] * v_c[j]
             let sigma = sv_vals[c];
@@ -605,6 +619,10 @@ pub fn ssa(data: &[f64], window_length: usize, n_components: usize) -> Result<Ss
             diagonal_average(&rank1, l, k, n)
         })
         .collect();
+    // Pad with zero-components if SVD returned fewer than requested
+    while components.len() < n_comp {
+        components.push(vec![0.0; n]);
+    }
 
     // Compute w-correlation matrix
     // w-correlation: corr(c_i, c_j) = <c_i, c_j>_w / sqrt(<c_i,c_i>_w * <c_j,c_j>_w)
@@ -972,8 +990,7 @@ mod tests {
 
         // Sum of all IMFs + residue must equal original
         for t in 0..n {
-            let sum: f64 = result.imfs.iter().map(|imf| imf[t]).sum::<f64>()
-                + result.residue[t];
+            let sum: f64 = result.imfs.iter().map(|imf| imf[t]).sum::<f64>() + result.residue[t];
             assert!(
                 (sum - data[t]).abs() < 1e-8,
                 "IMFs + residue != data at t={}: sum={} data={}",
@@ -1052,11 +1069,7 @@ mod tests {
             .map(|(r, d)| (r - d).powi(2))
             .sum::<f64>()
             / n as f64;
-        assert!(
-            mse < 5.0,
-            "SSA reconstruction MSE too high: {}",
-            mse
-        );
+        assert!(mse < 5.0, "SSA reconstruction MSE too high: {}", mse);
     }
 
     #[test]

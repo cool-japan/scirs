@@ -113,8 +113,15 @@ impl SparseSubspaceClustering {
         let gram = compute_gram(x);
 
         // ADMM for elastic-net self-expression.
-        let c_mat =
-            ssc_admm_elasticnet(&gram, lambda1, self.lambda2, self.rho, max_it, self.tol, self.gs_iter)?;
+        let c_mat = ssc_admm_elasticnet(
+            &gram,
+            lambda1,
+            self.lambda2,
+            self.rho,
+            max_it,
+            self.tol,
+            self.gs_iter,
+        )?;
 
         // Symmetric affinity W = |C| + |Cᵀ|.
         let affinity = symmetrise_abs(&c_mat);
@@ -281,9 +288,7 @@ impl ThresholdingSubspace {
         let x_norm = l2_normalise_rows_copy(x);
 
         // Step 2: Random projection (Gaussian, n_features → proj_dim).
-        let proj_dim = ((d as f64 * self.proj_ratio).ceil() as usize)
-            .max(1)
-            .min(d);
+        let proj_dim = ((d as f64 * self.proj_ratio).ceil() as usize).max(1).min(d);
         let mut rng = self.seed;
         let proj_mat = random_gaussian_matrix(d, proj_dim, &mut rng);
 
@@ -878,15 +883,19 @@ fn compact_svd(
     let b = mat_mul_arr_t(q.view(), x);
 
     // B Bᵀ  (k × k).
-    let bbt = mat_mul_arr(b.view(), {
-        let mut bt = Array2::<f64>::zeros((n, k));
-        for i in 0..k {
-            for j in 0..n {
-                bt[[j, i]] = b[[i, j]];
+    let bbt = mat_mul_arr(
+        b.view(),
+        {
+            let mut bt = Array2::<f64>::zeros((n, k));
+            for i in 0..k {
+                for j in 0..n {
+                    bt[[j, i]] = b[[i, j]];
+                }
             }
+            bt
         }
-        bt
-    }.view());
+        .view(),
+    );
 
     let (ub, sigma) = power_iter_eig_local(bbt.view(), k, seed.wrapping_add(1))?;
     let s: Array1<f64> = sigma.mapv(|v| v.max(0.0).sqrt());
@@ -1054,7 +1063,9 @@ mod tests {
         let mut rng = 0xABCDEF_u64;
 
         fn lcg(s: &mut u64) -> f64 {
-            *s = s.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1_442_695_040_888_963_407);
+            *s = s
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
             (*s >> 11) as f64 / (1u64 << 53) as f64 - 0.5
         }
 
@@ -1109,7 +1120,9 @@ mod tests {
             ..Default::default()
         };
         // Override lambda and max_iter via parameters.
-        let labels = ssc.fit(x.view(), Some(0.2), Some(50), 3).expect("SSC lambda override");
+        let labels = ssc
+            .fit(x.view(), Some(0.2), Some(50), 3)
+            .expect("SSC lambda override");
         assert_eq!(labels.len(), 30);
     }
 
@@ -1170,7 +1183,9 @@ mod tests {
     fn test_lrsc_lambda_override() {
         let x = three_subspace_data();
         let lrsc = LowRankSubspaceClustering::default();
-        let labels = lrsc.fit(x.view(), Some(2.0), Some(30), 3).expect("LRSC lambda override");
+        let labels = lrsc
+            .fit(x.view(), Some(2.0), Some(30), 3)
+            .expect("LRSC lambda override");
         assert_eq!(labels.len(), 30);
     }
 
@@ -1215,7 +1230,9 @@ mod tests {
             k_neighbors: 3,
             ..Default::default()
         };
-        let labels = ts.fit(x.view(), Some(0.4), 3).expect("Thresholding override");
+        let labels = ts
+            .fit(x.view(), Some(0.4), 3)
+            .expect("Thresholding override");
         assert_eq!(labels.len(), 30);
     }
 
@@ -1247,7 +1264,9 @@ mod tests {
             k_neighbors: 4,
             ..Default::default()
         };
-        let labels = ts.fit(data.view(), None, 2).expect("Thresholding 2 subspaces");
+        let labels = ts
+            .fit(data.view(), None, 2)
+            .expect("Thresholding 2 subspaces");
         assert_eq!(labels.len(), 12);
     }
 
@@ -1283,11 +1302,8 @@ mod tests {
 
     #[test]
     fn test_symmetrise_abs_symmetry() {
-        let c = Array2::from_shape_vec(
-            (3, 3),
-            vec![0.0, 0.3, -0.5, 0.1, 0.0, 0.4, -0.2, 0.6, 0.0],
-        )
-        .expect("shape");
+        let c = Array2::from_shape_vec((3, 3), vec![0.0, 0.3, -0.5, 0.1, 0.0, 0.4, -0.2, 0.6, 0.0])
+            .expect("shape");
         let w = symmetrise_abs(&c);
         for i in 0..3 {
             for j in 0..3 {

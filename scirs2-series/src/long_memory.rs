@@ -151,12 +151,8 @@ fn davies_harte_fgn(h: f64, n: usize, seed: u64) -> Result<Vec<f64>> {
 
     // Generate 2m standard normals
     let mut rng = seeded_rng(seed);
-    let normals: Array1<f64> = random_normal_array(
-        scirs2_core::ndarray::Ix1(2 * m),
-        0.0,
-        1.0,
-        &mut rng,
-    );
+    let normals: Array1<f64> =
+        random_normal_array(scirs2_core::ndarray::Ix1(2 * m), 0.0, 1.0, &mut rng);
 
     // Build complex noise in frequency domain: W_j = sqrt(lambda_j/2) * (z1 + i*z2)
     // Then IDFT gives the circulant process.  We only need the real part [0..n].
@@ -331,11 +327,7 @@ impl Arfima {
     ///
     /// Uses a truncated binomial expansion; lags with `|coefficient| < threshold`
     /// are discarded.
-    pub fn fractional_diff(
-        series: &Array1<f64>,
-        d: f64,
-        threshold: f64,
-    ) -> Result<Array1<f64>> {
+    pub fn fractional_diff(series: &Array1<f64>, d: f64, threshold: f64) -> Result<Array1<f64>> {
         let n = series.len();
         if n == 0 {
             return Err(TimeSeriesError::InsufficientData {
@@ -408,8 +400,7 @@ impl Arfima {
 
         let sigma2 = self.sigma * self.sigma;
         let sum_sq: f64 = residuals.iter().map(|r| r * r).sum();
-        let ll = -0.5 * n as f64 * (2.0 * PI * sigma2).ln()
-            - 0.5 * sum_sq / sigma2;
+        let ll = -0.5 * n as f64 * (2.0 * PI * sigma2).ln() - 0.5 * sum_sq / sigma2;
         Ok(ll)
     }
 }
@@ -417,10 +408,7 @@ impl Arfima {
 /// Fit ARFIMA(0, d, 0) using the specified estimation method.
 ///
 /// Returns `(d_hat, std_error)`.
-pub fn fit_arfima_d(
-    series: &Array1<f64>,
-    method: FitMethod,
-) -> Result<(f64, f64)> {
+pub fn fit_arfima_d(series: &Array1<f64>, method: FitMethod) -> Result<(f64, f64)> {
     match method {
         FitMethod::GPH => {
             let (d_hat, std_err, _p) = gph_estimate(series, None)?;
@@ -434,12 +422,7 @@ pub fn fit_arfima_d(
             Ok((d_hat, std_err))
         }
         FitMethod::R2 => {
-            let (hurst, _, _) = HurstEstimator::rs_analysis(
-                series,
-                8,
-                series.len() / 2,
-                10,
-            )?;
+            let (hurst, _, _) = HurstEstimator::rs_analysis(series, 8, series.len() / 2, 10)?;
             let d_hat = hurst - 0.5;
             // Approximate std error for R/S-based estimate
             let std_err = 0.5 / (series.len() as f64).ln().max(1.0);
@@ -512,14 +495,14 @@ impl HurstEstimator {
             for seg in 0..n_segments {
                 let start = seg * ws;
                 let end = start + ws;
-                let segment: Vec<f64> = series.slice(scirs2_core::ndarray::s![start..end])
+                let segment: Vec<f64> = series
+                    .slice(scirs2_core::ndarray::s![start..end])
                     .iter()
                     .copied()
                     .collect();
                 let mean = segment.iter().sum::<f64>() / ws as f64;
                 let std = {
-                    let var = segment.iter().map(|v| (v - mean).powi(2)).sum::<f64>()
-                        / ws as f64;
+                    let var = segment.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / ws as f64;
                     var.sqrt()
                 };
                 if std < f64::EPSILON {
@@ -791,7 +774,11 @@ fn fit_polynomial_trend(data: &[f64], order: usize) -> Result<Vec<f64>> {
     let mut aty = vec![0.0_f64; cols];
     for i in 0..cols {
         for j in 0..cols {
-            ata[i][j] = design[i].iter().zip(design[j].iter()).map(|(a, b)| a * b).sum();
+            ata[i][j] = design[i]
+                .iter()
+                .zip(design[j].iter())
+                .map(|(a, b)| a * b)
+                .sum();
         }
         aty[i] = design[i].iter().zip(data.iter()).map(|(a, b)| a * b).sum();
     }
@@ -867,10 +854,7 @@ fn solve_small_ls(a: &[Vec<f64>], b: &[f64]) -> Result<Vec<f64>> {
 /// frequencies.  The slope estimate is `−2 d_hat`.
 ///
 /// Returns `(d_hat, std_error, p_value)`.
-pub fn gph_estimate(
-    series: &Array1<f64>,
-    bandwidth: Option<usize>,
-) -> Result<(f64, f64, f64)> {
+pub fn gph_estimate(series: &Array1<f64>, bandwidth: Option<usize>) -> Result<(f64, f64, f64)> {
     let n = series.len();
     if n < 10 {
         return Err(TimeSeriesError::InsufficientData {
@@ -881,7 +865,10 @@ pub fn gph_estimate(
     }
 
     // Bandwidth m: default m = floor(n^0.5)
-    let m = bandwidth.unwrap_or_else(|| (n as f64).sqrt() as usize).max(2).min(n / 2);
+    let m = bandwidth
+        .unwrap_or_else(|| (n as f64).sqrt() as usize)
+        .max(2)
+        .min(n / 2);
 
     // Frequencies ω_j = 2π j / n for j = 1, ..., m
     let data: Vec<f64> = series.iter().copied().collect();
@@ -927,11 +914,7 @@ pub fn gph_estimate(
 ///
 /// Minimises the Whittle contrast function over a grid of `d` values in
 /// `(-0.49, 0.49)`.
-pub fn whittle_estimate(
-    series: &Array1<f64>,
-    _p: usize,
-    _q: usize,
-) -> Result<f64> {
+pub fn whittle_estimate(series: &Array1<f64>, _p: usize, _q: usize) -> Result<f64> {
     let n = series.len();
     if n < 10 {
         return Err(TimeSeriesError::InsufficientData {
@@ -1089,9 +1072,7 @@ fn cholesky_fgn(hurst: f64, n: usize, seed: u64) -> Result<Vec<f64>> {
 /// Test whether a time series exhibits statistically significant long memory.
 ///
 /// Uses GPH estimation; returns `(d_estimate, p_value, significant_at_5%)`.
-pub fn long_memory_test(
-    series: &Array1<f64>,
-) -> Result<(f64, f64, bool)> {
+pub fn long_memory_test(series: &Array1<f64>) -> Result<(f64, f64, bool)> {
     let (d_hat, _se, p_value) = gph_estimate(series, None)?;
     Ok((d_hat, p_value, p_value < 0.05))
 }
@@ -1100,10 +1081,7 @@ pub fn long_memory_test(
 ///
 /// Returns a vector of length `min(max_level, floor(log2(n)))` with the
 /// estimated variance at each dyadic scale.
-pub fn wavelet_variance(
-    series: &Array1<f64>,
-    max_level: usize,
-) -> Result<Vec<f64>> {
+pub fn wavelet_variance(series: &Array1<f64>, max_level: usize) -> Result<Vec<f64>> {
     let n = series.len();
     if n < 4 {
         return Err(TimeSeriesError::InsufficientData {
@@ -1135,8 +1113,7 @@ pub fn wavelet_variance(
         }
         // Variance of detail coefficients at this level
         let mean = detail.iter().sum::<f64>() / detail.len() as f64;
-        let var = detail.iter().map(|&v| (v - mean).powi(2)).sum::<f64>()
-            / detail.len() as f64;
+        let var = detail.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / detail.len() as f64;
         variances.push(var);
         coeffs = approx;
     }
@@ -1169,7 +1146,11 @@ fn normal_sf(x: f64) -> f64 {
     let k = 1.0 / (1.0 + p * t);
     let poly = ((((b5 * k + b4) * k + b3) * k + b2) * k + b1) * k;
     let sf = e * poly / (2.0 * PI).sqrt();
-    if x >= 0.0 { sf.max(0.0) } else { 1.0 - sf }
+    if x >= 0.0 {
+        sf.max(0.0)
+    } else {
+        1.0 - sf
+    }
 }
 
 // ===========================================================================
@@ -1196,8 +1177,7 @@ mod tests {
     fn test_frac_diff_d0_is_identity() {
         // d = 0 → w_0 = 1, all other weights zero → identity
         let series = Array1::from(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
-        let result = Arfima::fractional_diff(&series, 0.0, 1e-12)
-            .expect("fractional_diff failed");
+        let result = Arfima::fractional_diff(&series, 0.0, 1e-12).expect("fractional_diff failed");
         for (a, b) in result.iter().zip(series.iter()) {
             assert!(
                 (a - b).abs() < 1e-10,
@@ -1212,8 +1192,8 @@ mod tests {
     fn test_frac_diff_d1_is_first_difference() {
         // d = 1 → (1-L)^1: output[t] = series[t] - series[t-1] (output[0] = series[0])
         let series = Array1::from(vec![10.0, 12.0, 15.0, 13.0, 18.0]);
-        let result = Arfima::fractional_diff(&series, 1.0, 1e-9)
-            .expect("fractional_diff d=1 failed");
+        let result =
+            Arfima::fractional_diff(&series, 1.0, 1e-9).expect("fractional_diff d=1 failed");
         // index 0 is unchanged (series[0] itself, no lag available)
         assert!((result[0] - series[0]).abs() < 1e-9);
         // subsequent values should be first differences
@@ -1233,8 +1213,8 @@ mod tests {
     fn test_frac_diff_intermediate_d() {
         // d = 0.3: weights should decay, first weight = 1
         let series = white_noise(50, 1);
-        let result = Arfima::fractional_diff(&series, 0.3, 1e-9)
-            .expect("fractional_diff d=0.3 failed");
+        let result =
+            Arfima::fractional_diff(&series, 0.3, 1e-9).expect("fractional_diff d=0.3 failed");
         assert_eq!(result.len(), series.len());
         // All finite
         for v in result.iter() {
@@ -1260,7 +1240,9 @@ mod tests {
         let mut m = model;
         m.ar = vec![0.5];
         m.ma = vec![0.2];
-        let sim = m.simulate(100, 99).expect("ARFIMA(1,0.4,1) simulation failed");
+        let sim = m
+            .simulate(100, 99)
+            .expect("ARFIMA(1,0.4,1) simulation failed");
         for v in sim.iter() {
             assert!(v.is_finite(), "Simulation should produce finite values");
         }
@@ -1270,7 +1252,9 @@ mod tests {
     fn test_arfima_d0_resembles_arma() {
         // d=0 ARFIMA should behave like regular ARMA
         let model = Arfima::arfima(0, 0.0, 0);
-        let sim = model.simulate(500, 7).expect("ARFIMA(0,0,0) simulation failed");
+        let sim = model
+            .simulate(500, 7)
+            .expect("ARFIMA(0,0,0) simulation failed");
         assert_eq!(sim.len(), 500);
         // Mean should be near 0
         let mean = sim.iter().sum::<f64>() / 500.0;
@@ -1292,8 +1276,8 @@ mod tests {
     fn test_rs_white_noise_hurst_near_half() {
         // White noise should have H ≈ 0.5
         let wn = white_noise(1024, 123);
-        let (h, log_ns, log_rs) = HurstEstimator::rs_analysis(&wn, 8, 256, 12)
-            .expect("R/S analysis failed");
+        let (h, log_ns, log_rs) =
+            HurstEstimator::rs_analysis(&wn, 8, 256, 12).expect("R/S analysis failed");
         assert!(!log_ns.is_empty());
         assert!(!log_rs.is_empty());
         // H for white noise should be in [0.3, 0.7]
@@ -1309,8 +1293,7 @@ mod tests {
         // ARFIMA with d=0.4 → H ≈ 0.9; at least > 0.5
         let model = Arfima::arfima(0, 0.4, 0);
         let sim = model.simulate(1024, 77).expect("Simulation failed");
-        let (h, _, _) = HurstEstimator::rs_analysis(&sim, 8, 256, 10)
-            .expect("R/S analysis failed");
+        let (h, _, _) = HurstEstimator::rs_analysis(&sim, 8, 256, 10).expect("R/S analysis failed");
         assert!(
             h > 0.5,
             "Long memory series (d=0.4) should have H > 0.5, got {}",
@@ -1325,8 +1308,7 @@ mod tests {
     fn test_dfa_white_noise_alpha_near_half() {
         let wn = white_noise(512, 42);
         let scales: Vec<usize> = (2..=7).map(|j| 2_usize.pow(j)).collect();
-        let (alpha, log_s, log_f) = HurstEstimator::dfa(&wn, &scales, 1)
-            .expect("DFA failed");
+        let (alpha, log_s, log_f) = HurstEstimator::dfa(&wn, &scales, 1).expect("DFA failed");
         assert!(!log_s.is_empty());
         assert!(!log_f.is_empty());
         // DFA alpha for white noise should be near 0.5 (± 0.25 slack)
@@ -1341,8 +1323,7 @@ mod tests {
     fn test_dfa_returns_log_scale_log_f() {
         let wn = white_noise(256, 7);
         let scales = vec![8, 16, 32, 64];
-        let (_, log_s, log_f) = HurstEstimator::dfa(&wn, &scales, 1)
-            .expect("DFA failed");
+        let (_, log_s, log_f) = HurstEstimator::dfa(&wn, &scales, 1).expect("DFA failed");
         assert_eq!(log_s.len(), log_f.len());
         for v in log_f.iter() {
             assert!(v.is_finite());
@@ -1358,8 +1339,7 @@ mod tests {
         let scales = vec![8, 16, 32, 64];
         let q_vals = vec![-2.0, 0.0, 2.0, 4.0];
         let (q_out, fq_matrix) =
-            HurstEstimator::mfdfa(&wn, &scales, &q_vals, 1)
-                .expect("MFDFA failed");
+            HurstEstimator::mfdfa(&wn, &scales, &q_vals, 1).expect("MFDFA failed");
         assert_eq!(q_out.len(), q_vals.len());
         assert_eq!(fq_matrix.len(), q_vals.len());
         // Each F_q should have at most as many entries as valid scales
@@ -1443,8 +1423,7 @@ mod tests {
     fn test_fgn_hurst_half_is_white_noise() {
         // H = 0.5 → fGn should be uncorrelated
         let fgn = fgn_simulate(0.5, 512, 4).expect("fGn H=0.5 failed");
-        let (h, _, _) = HurstEstimator::rs_analysis(&fgn, 8, 128, 8)
-            .expect("R/S on fGn failed");
+        let (h, _, _) = HurstEstimator::rs_analysis(&fgn, 8, 128, 8).expect("R/S on fGn failed");
         // Should be near 0.5 (allow generous tolerance)
         assert!(
             (0.25..=0.75).contains(&h),
@@ -1459,8 +1438,7 @@ mod tests {
     #[test]
     fn test_long_memory_test_white_noise_not_significant() {
         let wn = white_noise(512, 66);
-        let (d_hat, p_val, _sig) = long_memory_test(&wn)
-            .expect("long_memory_test failed");
+        let (d_hat, p_val, _sig) = long_memory_test(&wn).expect("long_memory_test failed");
         assert!(d_hat.is_finite());
         assert!((0.0..=1.0).contains(&p_val));
     }
@@ -1470,8 +1448,7 @@ mod tests {
         // ARFIMA(0, 0.45, 0) should be detected as long memory
         let model = Arfima::arfima(0, 0.45, 0);
         let sim = model.simulate(512, 13).expect("Simulation failed");
-        let (d_hat, _p, sig) = long_memory_test(&sim)
-            .expect("long_memory_test failed");
+        let (d_hat, _p, sig) = long_memory_test(&sim).expect("long_memory_test failed");
         assert!(
             d_hat > 0.0,
             "d_hat should be positive for long memory series, got {}",
@@ -1498,10 +1475,13 @@ mod tests {
     #[test]
     fn test_wavelet_hurst_white_noise() {
         let wn = white_noise(512, 11);
-        let h = HurstEstimator::wavelet_hurst(&wn)
-            .expect("wavelet_hurst failed");
+        let h = HurstEstimator::wavelet_hurst(&wn).expect("wavelet_hurst failed");
         // Wavelet Hurst for white noise should be in (0, 1)
-        assert!((0.0..=1.0).contains(&h), "Wavelet Hurst out of range: {}", h);
+        assert!(
+            (0.0..=1.0).contains(&h),
+            "Wavelet Hurst out of range: {}",
+            h
+        );
     }
 
     // ------------------------------------------------------------------
@@ -1511,8 +1491,7 @@ mod tests {
     fn test_fit_arfima_d_gph() {
         let model = Arfima::arfima(0, 0.3, 0);
         let sim = model.simulate(256, 17).expect("Simulation failed");
-        let (d_hat, se) = fit_arfima_d(&sim, FitMethod::GPH)
-            .expect("fit_arfima_d GPH failed");
+        let (d_hat, se) = fit_arfima_d(&sim, FitMethod::GPH).expect("fit_arfima_d GPH failed");
         assert!(d_hat.is_finite());
         assert!(se >= 0.0);
     }
@@ -1521,8 +1500,8 @@ mod tests {
     fn test_fit_arfima_d_whittle() {
         let model = Arfima::arfima(0, 0.3, 0);
         let sim = model.simulate(256, 21).expect("Simulation failed");
-        let (d_hat, se) = fit_arfima_d(&sim, FitMethod::Whittle)
-            .expect("fit_arfima_d Whittle failed");
+        let (d_hat, se) =
+            fit_arfima_d(&sim, FitMethod::Whittle).expect("fit_arfima_d Whittle failed");
         assert!(d_hat.is_finite());
         assert!(se >= 0.0);
     }
@@ -1531,8 +1510,7 @@ mod tests {
     fn test_fit_arfima_d_r2() {
         let model = Arfima::arfima(0, 0.3, 0);
         let sim = model.simulate(512, 29).expect("Simulation failed");
-        let (d_hat, se) = fit_arfima_d(&sim, FitMethod::R2)
-            .expect("fit_arfima_d R2 failed");
+        let (d_hat, se) = fit_arfima_d(&sim, FitMethod::R2).expect("fit_arfima_d R2 failed");
         assert!(d_hat.is_finite());
         assert!(se >= 0.0);
     }

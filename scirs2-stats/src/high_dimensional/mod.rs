@@ -24,8 +24,12 @@
 //! - Lambda path generation (log-spaced)
 //! - Partial correlation extraction
 
+pub mod clime;
+pub mod factor_adjusted_testing;
 mod glasso;
+pub mod hd_tests;
 mod model_selection;
+pub mod neighborhood_selection;
 
 pub use glasso::{GraphicalLasso, GraphicalLassoConfig, GraphicalLassoResult, PrecisionMatrix};
 pub use model_selection::{

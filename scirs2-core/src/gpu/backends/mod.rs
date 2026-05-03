@@ -46,7 +46,7 @@ pub use cuda::{get_optimizer_kernels, CudaContext, CudaStream};
 pub use opencl::OpenCLContext;
 
 #[cfg(feature = "wgpu_backend")]
-pub use wgpu::WebGPUContext;
+pub use wgpu::{run_vector_add_wgsl, try_compile_wgsl, WebGPUContext, WgpuComputePipeline};
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
 pub use metal::{MetalBufferOptions, MetalContext, MetalStorageMode};

@@ -57,9 +57,7 @@ impl Default for SparseAttentionConfig {
 
 fn lcg_weights(rows: usize, cols: usize, seed: u64) -> Vec<Vec<f32>> {
     let std_dev = (2.0 / (rows + cols) as f64).sqrt() as f32;
-    let mut state = seed
-        .wrapping_mul(6_364_136_223_846_793_005)
-        .wrapping_add(1);
+    let mut state = seed.wrapping_mul(6_364_136_223_846_793_005).wrapping_add(1);
     let mut w = vec![vec![0.0f32; cols]; rows];
     for row in w.iter_mut() {
         for cell in row.iter_mut() {
@@ -302,8 +300,7 @@ impl StridedGlobalAttention {
             // Each position attends to global tokens
             for i in 0..seq {
                 let q_i = vec![q_all[i].clone()];
-                let attended =
-                    scaled_dot_product_attention_2d(&q_i, &k_global, &v_global, false);
+                let attended = scaled_dot_product_attention_2d(&q_i, &k_global, &v_global, false);
                 if let Some(row) = attended.first() {
                     out[b][i] = row.clone();
                 }
@@ -313,8 +310,7 @@ impl StridedGlobalAttention {
             let q_g = linear_project(&global_tokens, &self.g_q_proj);
             let k_g = linear_project(&global_tokens, &self.g_k_proj);
             let v_g = linear_project(&global_tokens, &self.g_v_proj);
-            let global_out =
-                scaled_dot_product_attention_2d(&q_g, &k_g, &v_g, false);
+            let global_out = scaled_dot_product_attention_2d(&q_g, &k_g, &v_g, false);
 
             // Write global outputs back to their stride positions
             for (gi, &idx) in global_indices.iter().enumerate() {
@@ -393,8 +389,7 @@ impl SparseHierarchicalAttention {
             for t in 0..seq {
                 for dim in 0..d {
                     let g = gate_vals[dim];
-                    out[b][t][dim] =
-                        g * local_out[b][t][dim] + (1.0 - g) * global_out[b][t][dim];
+                    out[b][t][dim] = g * local_out[b][t][dim] + (1.0 - g) * global_out[b][t][dim];
                 }
             }
         }
@@ -444,11 +439,7 @@ impl ChunkedAttention {
 
     /// Forward pass with explicit `chunk_size`.  `x` is
     /// `[batch][seq_len][d_model]`.
-    pub fn forward(
-        &self,
-        x: &[Vec<Vec<f32>>],
-        chunk_size: usize,
-    ) -> Result<Vec<Vec<Vec<f32>>>> {
+    pub fn forward(&self, x: &[Vec<Vec<f32>>], chunk_size: usize) -> Result<Vec<Vec<Vec<f32>>>> {
         let batch = x.len();
         if batch == 0 {
             return Ok(vec![]);
@@ -486,8 +477,7 @@ impl ChunkedAttention {
                 let k_ctx = k_all[context_start..context_end].to_vec();
                 let v_ctx = v_all[context_start..context_end].to_vec();
 
-                let attended =
-                    scaled_dot_product_attention_2d(&q_chunk, &k_ctx, &v_ctx, false);
+                let attended = scaled_dot_product_attention_2d(&q_chunk, &k_ctx, &v_ctx, false);
 
                 for (local_i, i) in (chunk_start..chunk_end).enumerate() {
                     if local_i < attended.len() {
@@ -754,11 +744,7 @@ mod tests {
         // so the output at position 0 should equal value[0] (only attends to itself)
         let q = vec![vec![1.0f32, 0.0], vec![0.0, 1.0], vec![1.0, 1.0]];
         let k = q.clone();
-        let v = vec![
-            vec![10.0f32, 0.0],
-            vec![0.0, 10.0],
-            vec![5.0, 5.0],
-        ];
+        let v = vec![vec![10.0f32, 0.0], vec![0.0, 10.0], vec![5.0, 5.0]];
         let out = scaled_dot_product_attention_2d(&q, &k, &v, true);
         // Position 0 can only see position 0 → output[0] = v[0]
         assert!((out[0][0] - 10.0).abs() < 0.5, "out[0][0] = {}", out[0][0]);

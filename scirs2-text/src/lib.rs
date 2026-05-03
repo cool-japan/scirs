@@ -34,7 +34,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-text = "0.4.2"
+//! scirs2-text = "0.4.3"
 //! ```
 //!
 //! ```rust,no_run
@@ -50,7 +50,7 @@
 //! let matrix = vectorizer.fit_transform(&docs).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2 (March 27, 2026)
+//! ## 🔒 Version: 0.4.3 (March 27, 2026)
 //!
 //! ## Quick Start
 //!
@@ -123,6 +123,8 @@ pub mod gpt_bpe;
 pub mod huggingface_compat;
 pub mod information_extraction;
 pub mod language_model;
+/// Statistical language models (Unigram, Bigram, N-gram with Kneser-Ney).
+pub mod language_models;
 pub mod lemmatization;
 pub mod ml_integration;
 pub mod ml_sentiment;
@@ -182,12 +184,42 @@ pub mod hdp;
 pub mod sentence_embeddings;
 // Semantic similarity with embedding-based search
 pub mod similarity;
+// Advanced tokenization algorithms (BPE, WordPiece, language-agnostic Unicode)
+pub mod tokenization;
 // Tokenizer implementations (HuggingFace, byte-level BPE, Unicode)
 pub mod tokenizers;
 // Transliteration
 pub mod transliteration;
 // Topic modelling (HDP automatic topic selection)
 pub mod topic;
+
+// Additional text processing modules
+pub mod abstractive_summary;
+pub mod advanced_classification;
+pub mod advanced_distance;
+pub mod alignment;
+pub mod bpe_tokenizer;
+pub mod coreference;
+pub mod dialog;
+pub mod discourse;
+pub mod doc_similarity;
+pub mod event_extraction;
+pub mod keywords;
+pub mod multilingual_ext;
+pub mod ner;
+pub mod pos_tagging_original;
+// TODO: pos_tagging_original_tests uses the pre-refactor API (single-arg lemmatize,
+// remove_word, add_lemma, add_exception, MorphologicalAnalyzer::analyze, etc.) which
+// no longer matches the current pos_tagging module. Re-enable once updated to new API.
+// #[cfg(test)]
+// pub mod pos_tagging_original_tests;
+pub mod question_answering;
+pub mod regex_lite;
+pub mod segmentation;
+pub mod summarize_advanced;
+pub mod text_classification;
+pub mod text_preprocess;
+pub mod topic_model;
 
 // Re-export commonly used items
 pub use classification::{
@@ -243,7 +275,7 @@ pub use model_registry::{
 pub use multilingual::{
     is_cjk_char, is_combining_mark, is_cyrillic, Language, LanguageDetectionResult,
     LanguageDetector, MultilingualProcessor, ProcessedText, ScriptFamily, StopWords,
-    Transliterator, UnicodeTokenizer, UnicodeTokenizerConfig,
+    Transliterator as MultilingualTransliterator, UnicodeTokenizer, UnicodeTokenizerConfig,
 };
 pub use neural_architectures::{
     ActivationFunction, AdditiveAttention, BiLSTM, CNNLSTMHybrid, Conv1D, CrossAttention, Dropout,
@@ -368,10 +400,26 @@ pub use sentence_embeddings::{
 };
 
 // topic module re-exports (HDP with automatic topic selection)
-pub use topic::hdp::{Hdp, HdpConfig as HdpAutoConfig, HdpState, TopicError};
+pub use topic::hdp::{
+    Hdp, HdpConfig as HdpAutoConfig, HdpState, HdpTopicConfig, HdpTopicModel, TopicError,
+};
 
 // tokenizers module (Unicode tokenizer from tokenizers crate kept accessible via path)
 pub use embeddings::sentence_encoder::{
     PoolingStrategy as SentencePoolingStrategy, SemanticSimilarity as EmbeddingSearch,
     SentenceEncoder as ProjSentenceEncoder, SimCseConfig, SimCseTrainer as ProjSimCseTrainer,
+};
+
+// Transliteration: trait + concrete transliterators
+pub use transliteration::{
+    CyrillicScheme, CyrillicTransliterator, HepburnTransliterator, PinyinStyle,
+    PinyinTransliterator, Transliterator,
+};
+
+// Neural NLP: transformer encoder, attention viz, BERT classifier, neural NER
+pub mod neural_nlp;
+pub use neural_nlp::{
+    AttentionHeatmap, AttentionVisualization, BertClassifier, BertClassifierConfig, NerTag,
+    NeuralNer, NeuralNerConfig, TransformerEncoderConfig as NeuralEncoderConfig,
+    TransformerTextEncoder,
 };

@@ -5,7 +5,7 @@
 
 use super::types::*;
 use crate::dwt::{wavedec, waverec, DecompositionResult};
-// use crate::dwt2d::dwt2d_decompose; // TODO: Enable when dwt2d module is available
+use crate::dwt2d_advanced::{wavedec2, waverec2, EdgeMode2D};
 use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::parallel_ops::*;
@@ -33,31 +33,85 @@ pub fn denoise_wavelet_2d(
     }
 
     let (rows, cols) = image.dim();
-    let max_levels = ((rows.min(cols)) as f64).log2().floor() as usize - 1;
-    let levels = config.levels.unwrap_or(max_levels.min(4));
+    // Guard against underflow: need at least rows/cols >= 4 to compute max_levels
+    let min_dim = rows.min(cols);
+    if min_dim < 4 {
+        return Err(SignalError::ValueError(
+            "Image dimensions must be at least 4x4 for 2D wavelet denoising".to_string(),
+        ));
+    }
+    let max_levels = (min_dim as f64).log2().floor() as usize - 1;
+    let levels = config.levels.unwrap_or(max_levels.min(4)).max(1);
 
-    // Store results for each level
-    let all_h_thresholds: Vec<f64> = Vec::with_capacity(levels);
-    let all_v_thresholds: Vec<f64> = Vec::with_capacity(levels);
-    let all_d_thresholds: Vec<f64> = Vec::with_capacity(levels);
-    let all_h_retention: Vec<f64> = Vec::with_capacity(levels);
-    let all_v_retention: Vec<f64> = Vec::with_capacity(levels);
-    let all_d_retention: Vec<f64> = Vec::with_capacity(levels);
+    // Perform multi-level 2D DWT decomposition
+    let mut decomp = wavedec2(image, config.wavelet, levels, EdgeMode2D::Symmetric)?;
 
-    // Start with the image
-    let current = image.clone();
-    let approximations: Vec<Array2<f64>> = Vec::new();
-    let h_details: Vec<Array2<f64>> = Vec::new();
-    let v_details: Vec<Array2<f64>> = Vec::new();
-    let d_details: Vec<Array2<f64>> = Vec::new();
+    // Estimate noise from the finest-level HH (diagonal) detail coefficients
+    let noise_sigma = if !decomp.details.is_empty() {
+        let (_, _, ref hh) = decomp.details[decomp.details.len() - 1];
+        estimate_noise_2d(hh)
+    } else {
+        1.0
+    };
 
-    // TODO: Enable when dwt2d module is available
-    // Multilevel decomposition with thresholding would go here
+    // Collect per-level thresholds and retention rates
+    let mut h_thresholds = Vec::with_capacity(levels);
+    let mut v_thresholds = Vec::with_capacity(levels);
+    let mut d_thresholds = Vec::with_capacity(levels);
+    let mut h_retention = Vec::with_capacity(levels);
+    let mut v_retention = Vec::with_capacity(levels);
+    let mut d_retention = Vec::with_capacity(levels);
 
-    // Temporary placeholder - return simplified result
-    Err(SignalError::NotImplemented(
-        "2D wavelet denoising requires dwt2d module".to_string(),
-    ))
+    // Threshold each detail subband in-place
+    for level_idx in 0..decomp.details.len() {
+        let (lh, hl, hh) = &decomp.details[level_idx].clone();
+
+        let (h_thresh, lh_thresholded, h_ret) =
+            threshold_subband(lh, noise_sigma, level_idx, config)?;
+        let (v_thresh, hl_thresholded, v_ret) =
+            threshold_subband(hl, noise_sigma, level_idx, config)?;
+        let (d_thresh, hh_thresholded, d_ret) =
+            threshold_subband(hh, noise_sigma, level_idx, config)?;
+
+        decomp.details[level_idx] = (lh_thresholded, hl_thresholded, hh_thresholded);
+
+        h_thresholds.push(h_thresh);
+        v_thresholds.push(v_thresh);
+        d_thresholds.push(d_thresh);
+        h_retention.push(h_ret);
+        v_retention.push(v_ret);
+        d_retention.push(d_ret);
+    }
+
+    // Reconstruct denoised image
+    let reconstructed = waverec2(&decomp)?;
+
+    // Crop to original dimensions if reconstruction produced a larger array
+    let denoised = if reconstructed.dim() != (rows, cols) {
+        reconstructed.slice(s![..rows, ..cols]).to_owned()
+    } else {
+        reconstructed
+    };
+
+    // Compute quality metrics
+    let quality =
+        compute_quality_metrics(image, &denoised, &h_retention, &v_retention, &d_retention);
+
+    Ok(Denoise2dResult {
+        image: denoised,
+        noise_sigma,
+        thresholds: SubbandThresholds {
+            horizontal: h_thresholds,
+            vertical: v_thresholds,
+            diagonal: d_thresholds,
+        },
+        retention_rates: SubbandRetention {
+            horizontal: h_retention,
+            vertical: v_retention,
+            diagonal: d_retention,
+        },
+        quality,
+    })
 }
 
 /// Standard wavelet denoising implementation
@@ -519,14 +573,133 @@ mod tests {
             .expect("Operation failed");
         let config = DenoiseConfig::default();
         let result = denoise_wavelet_2d(&image, &config);
-        // Currently 2D denoising is not implemented, so we expect an error
-        assert!(result.is_err());
-        match result.err().expect("Operation failed") {
-            crate::error::SignalError::NotImplemented(_) => {
-                // Expected error type
-            }
-            other => panic!("Expected NotImplemented error, got: {:?}", other),
+        assert!(
+            result.is_ok(),
+            "2D denoising should succeed: {:?}",
+            result.err()
+        );
+        let denoised = result.expect("Operation failed");
+        assert_eq!(
+            denoised.image.dim(),
+            (8, 8),
+            "Denoised image should have same shape"
+        );
+        assert!(denoised.noise_sigma > 0.0, "Noise sigma should be positive");
+    }
+
+    #[test]
+    fn test_dwt2d_round_trip_reconstruction() {
+        use crate::dwt::Wavelet;
+        use crate::dwt2d_advanced::{wavedec2, waverec2, EdgeMode2D};
+
+        // 8x8 test image with known smooth content
+        let image = Array2::from_shape_fn((8, 8), |(i, j)| (i + j) as f64);
+
+        let decomp = wavedec2(&image, Wavelet::Haar, 2, EdgeMode2D::Symmetric)
+            .expect("decomposition should succeed");
+        let reconstructed = waverec2(&decomp).expect("reconstruction should succeed");
+
+        // Crop to original size if needed
+        let (rows, cols) = image.dim();
+        let recon_slice = reconstructed
+            .slice(scirs2_core::ndarray::s![..rows, ..cols])
+            .to_owned();
+
+        // Verify round-trip reconstruction accuracy within 1e-10
+        for (orig, recon) in image.iter().zip(recon_slice.iter()) {
+            assert!(
+                (orig - recon).abs() < 1e-10,
+                "Round-trip error too large: |{} - {}| = {}",
+                orig,
+                recon,
+                (orig - recon).abs()
+            );
         }
+    }
+
+    #[test]
+    fn test_denoise_2d_reduces_noise() {
+        use crate::dwt::Wavelet;
+
+        // Create a smooth 8x8 signal
+        let clean = Array2::from_shape_fn((16, 16), |(i, j)| {
+            (i as f64 / 4.0).sin() + (j as f64 / 4.0).cos()
+        });
+
+        // Add structured noise (deterministic for reproducibility)
+        let noisy = Array2::from_shape_fn((16, 16), |(i, j)| {
+            let signal = (i as f64 / 4.0).sin() + (j as f64 / 4.0).cos();
+            let noise = 0.5 * ((i * 7 + j * 13) as f64 % 3.0 - 1.5);
+            signal + noise
+        });
+
+        let mut config = DenoiseConfig::default();
+        config.wavelet = Wavelet::Haar;
+        config.levels = Some(2);
+
+        let result = denoise_wavelet_2d(&noisy, &config).expect("2D denoising should succeed");
+
+        // RMSE against clean signal should be less for denoised vs noisy
+        let noisy_rmse: f64 = {
+            let sum: f64 = noisy
+                .iter()
+                .zip(clean.iter())
+                .map(|(n, c)| (n - c) * (n - c))
+                .sum();
+            (sum / noisy.len() as f64).sqrt()
+        };
+        let denoised_rmse: f64 = {
+            let sum: f64 = result
+                .image
+                .iter()
+                .zip(clean.iter())
+                .map(|(d, c)| (d - c) * (d - c))
+                .sum();
+            (sum / result.image.len() as f64).sqrt()
+        };
+
+        assert!(
+            denoised_rmse < noisy_rmse,
+            "Denoised RMSE ({}) should be less than noisy RMSE ({})",
+            denoised_rmse,
+            noisy_rmse
+        );
+    }
+
+    #[test]
+    fn test_dwt2d_parseval_energy_preservation() {
+        use crate::dwt::Wavelet;
+        use crate::dwt2d_advanced::{wavedec2, EdgeMode2D};
+
+        let image = Array2::from_shape_fn((8, 8), |(i, j)| ((i + 1) * (j + 1)) as f64);
+
+        let input_energy: f64 = image.iter().map(|&x| x * x).sum();
+
+        let decomp = wavedec2(&image, Wavelet::Haar, 1, EdgeMode2D::Symmetric)
+            .expect("decomposition should succeed");
+
+        // Single-level: energy = approx + lh + hl + hh
+        let approx_energy: f64 = decomp.approx.iter().map(|&x| x * x).sum();
+        let detail_energy: f64 = decomp
+            .details
+            .iter()
+            .map(|(lh, hl, hh)| {
+                let e_lh: f64 = lh.iter().map(|&x| x * x).sum();
+                let e_hl: f64 = hl.iter().map(|&x| x * x).sum();
+                let e_hh: f64 = hh.iter().map(|&x| x * x).sum();
+                e_lh + e_hl + e_hh
+            })
+            .sum();
+
+        let subband_energy = approx_energy + detail_energy;
+
+        // Energy should be approximately preserved within 5% (Haar DWT is orthonormal)
+        let ratio = subband_energy / input_energy;
+        assert!(
+            (ratio - 1.0).abs() < 0.05,
+            "Energy ratio {} should be close to 1.0 (within 5%)",
+            ratio
+        );
     }
 
     #[test]

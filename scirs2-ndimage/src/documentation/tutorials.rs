@@ -442,11 +442,7 @@ println!("Analysis complete: {} regions found", regions.len());
 }
 
 /// Helper function to create a comprehensive tutorial with common sections
-pub fn create_comprehensive_tutorial(
-    title: &str,
-    description: &str,
-    difficulty: &str,
-) -> Tutorial {
+pub fn create_comprehensive_tutorial(title: &str, description: &str, difficulty: &str) -> Tutorial {
     let mut tutorial = Tutorial::new(title, description, "", difficulty);
 
     // Add common sections that most tutorials would have

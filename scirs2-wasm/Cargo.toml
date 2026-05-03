@@ -16,12 +16,8 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # Core SciRS2 dependencies
 scirs2-core = { workspace = true, features = ["array", "random", "serialization"], default-features = false }
-scirs2-linalg = { workspace = true, default-features = false }
-scirs2-stats = { workspace = true, default-features = false }
 scirs2-fft = { workspace = true, default-features = false, features = ["oxifft"] }
 scirs2-signal = { workspace = true, default-features = false }
-scirs2-integrate = { workspace = true, default-features = false }
-scirs2-optimize = { workspace = true, default-features = false }
 scirs2-interpolate = { workspace = true, default-features = false }
 
 # WASM bindings
@@ -37,6 +33,8 @@ web-sys = { workspace = true, features = [
     "Navigator",
     "WorkerGlobalScope",
     "DedicatedWorkerGlobalScope",
+    "ReadableStream",
+    "ReadableStreamDefaultReader",
 ] }
 serde-wasm-bindgen = { workspace = true }
 console_error_panic_hook = { workspace = true, optional = true }
@@ -62,6 +60,15 @@ uuid = { workspace = true, features = ["js"] }
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 approx = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "wasm_bench"
+harness = false
+
+[[bench]]
+name = "speedup_target"
+harness = false
 
 [features]
 default = ["console_error_panic_hook"]

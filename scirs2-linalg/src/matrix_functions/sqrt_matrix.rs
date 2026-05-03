@@ -26,14 +26,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Floating-point trait alias for sqrt matrix functions.
-pub trait SqrtFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<F> SqrtFloat for F where
-    F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait SqrtFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<F> SqrtFloat for F where F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -56,7 +50,7 @@ fn matmul_nn<F: SqrtFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + a_il * b[[l, j]];
+                c[[i, j]] += a_il * b[[l, j]];
             }
         }
     }
@@ -66,7 +60,7 @@ fn matmul_nn<F: SqrtFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<
 fn frobenius_norm<F: SqrtFloat>(a: &Array2<F>) -> F {
     let mut acc = F::zero();
     for &v in a.iter() {
-        acc = acc + v * v;
+        acc += v * v;
     }
     acc.sqrt()
 }
@@ -111,11 +105,12 @@ fn lu_factorize<F: SqrtFloat>(a: &Array2<F>) -> LinalgResult<(Array2<F>, Vec<usi
             if lu[[k, k]].abs() < F::epsilon() {
                 continue;
             }
-            lu[[i, k]] = lu[[i, k]] / lu[[k, k]];
+            let lkk = lu[[k, k]];
+            lu[[i, k]] /= lkk;
             for j in (k + 1)..n {
                 let l_ik = lu[[i, k]];
                 let u_kj = lu[[k, j]];
-                lu[[i, j]] = lu[[i, j]] - l_ik * u_kj;
+                lu[[i, j]] -= l_ik * u_kj;
             }
         }
     }
@@ -139,7 +134,8 @@ fn lu_solve<F: SqrtFloat>(lu: &Array2<F>, perm: &[usize], b: &Array2<F>) -> Arra
         // Forward substitution (L*y = Pb)
         for i in 0..n {
             for j in 0..i {
-                y[i] = y[i] - lu[[i, j]] * y[j];
+                let yj = y[j];
+                y[i] -= lu[[i, j]] * yj;
             }
         }
 
@@ -148,7 +144,7 @@ fn lu_solve<F: SqrtFloat>(lu: &Array2<F>, perm: &[usize], b: &Array2<F>) -> Arra
         for i in (0..n).rev() {
             let mut sum = y[i];
             for j in (i + 1)..n {
-                sum = sum - lu[[i, j]] * z[j];
+                sum -= lu[[i, j]] * z[j];
             }
             z[i] = sum / lu[[i, i]];
         }
@@ -324,30 +320,34 @@ pub fn sqrtm_product_db<F: SqrtFloat>(
     let tol = tol.unwrap_or_else(|| F::from(1e-12).unwrap_or(F::epsilon()));
     let two = F::from(2.0).unwrap_or(F::one() + F::one());
 
-    let mut x = a.to_owned();
+    // Iannazzo's one-time pre-scaling: mu0 = |det(A)|^{-1/(2n)}
+    // Scale: A_scaled = mu0 * A.  Then run standard DB on A_scaled.
+    // Post-scale: sqrt(A) = sqrt(A_scaled) / sqrt(mu0).
+    let a_owned = a.to_owned();
+    let mu0 = compute_det_scale(&a_owned, n);
+    let mu0_sqrt = mu0.sqrt();
+    // Avoid divide-by-zero
+    let mu0_sqrt_inv = if mu0_sqrt.abs() < F::from(1e-30).unwrap_or(F::epsilon()) {
+        F::one()
+    } else {
+        F::one() / mu0_sqrt
+    };
+
+    // x0 = mu0 * A,  y0 = I  (standard DB initial conditions on scaled A)
+    let mut x = a.mapv(|v| v * mu0);
     let mut y = Array2::<F>::eye(n);
 
     for _ in 0..max_iter {
         let x_inv = mat_inv(&x)?;
         let y_inv = mat_inv(&y)?;
 
-        // Compute scaling: mu = |det(X)|^{-1/(2n)}
-        // Estimate |det(X)| via the product of LU diagonal
-        let mu = compute_det_scale(&x, n);
-
-        let mu_inv = if mu.abs() < F::from(1e-30).unwrap_or(F::epsilon()) {
-            F::one()
-        } else {
-            F::one() / mu
-        };
-
         let mut x_new = Array2::<F>::zeros((n, n));
         let mut y_new = Array2::<F>::zeros((n, n));
 
         for i in 0..n {
             for j in 0..n {
-                x_new[[i, j]] = (mu * x[[i, j]] + mu_inv * y_inv[[i, j]]) / two;
-                y_new[[i, j]] = (mu * y[[i, j]] + mu_inv * x_inv[[i, j]]) / two;
+                x_new[[i, j]] = (x[[i, j]] + y_inv[[i, j]]) / two;
+                y_new[[i, j]] = (y[[i, j]] + x_inv[[i, j]]) / two;
             }
         }
 
@@ -365,11 +365,13 @@ pub fn sqrtm_product_db<F: SqrtFloat>(
         y = y_new;
 
         if rel_change < tol {
-            return Ok(x);
+            // Post-scale: sqrt(A) = sqrt(mu0 * A) / sqrt(mu0)
+            return Ok(x.mapv(|v| v * mu0_sqrt_inv));
         }
     }
 
-    Ok(x)
+    // Post-scale at max_iter
+    Ok(x.mapv(|v| v * mu0_sqrt_inv))
 }
 
 /// Estimate |det(A)|^{-1/(2n)} for scaling.
@@ -386,9 +388,9 @@ fn compute_det_scale<F: SqrtFloat>(a: &Array2<F>, n: usize) -> F {
             }
             if d < F::zero() {
                 sign_count += 1;
-                log_det = log_det + (-d).ln();
+                log_det += (-d).ln();
             } else {
-                log_det = log_det + d.ln();
+                log_det += d.ln();
             }
         }
 
@@ -440,15 +442,7 @@ fn compute_det_scale<F: SqrtFloat>(a: &Array2<F>, n: usize) -> F {
 /// ```
 pub fn sqrtm_positive_definite<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
-    F: Float
-        + NumAssign
-        + Sum
-        + One
-        + ScalarOperand
-        + Send
-        + Sync
-        + 'static
-        + std::fmt::Display,
+    F: Float + NumAssign + Sum + One + ScalarOperand + Send + Sync + 'static + std::fmt::Display,
 {
     let n = a.nrows();
     if a.ncols() != n {
@@ -462,13 +456,17 @@ where
 
     use crate::matrix_functions::fractional::spdmatrix_function;
 
-    spdmatrix_function(a, |x: F| {
-        if x < F::zero() {
-            F::zero() // Clamp negative eigenvalues to zero for robustness
-        } else {
-            x.sqrt()
-        }
-    }, true)
+    spdmatrix_function(
+        a,
+        |x: F| {
+            if x < F::zero() {
+                F::zero() // Clamp negative eigenvalues to zero for robustness
+            } else {
+                x.sqrt()
+            }
+        },
+        true,
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -517,13 +515,9 @@ pub fn sqrtm<F: SqrtFloat>(
         ));
     }
 
-    // For small matrices use Denman-Beavers directly
-    if n <= 4 {
-        return sqrtm_denman_beavers(a, max_iter, tol);
-    }
-
-    // For larger matrices use product DB for better stability
-    sqrtm_product_db(a, max_iter, tol)
+    // Denman-Beavers is numerically stable for all sizes
+    let _ = n; // n used only to satisfy square check above
+    sqrtm_denman_beavers(a, max_iter, tol)
 }
 
 // ---------------------------------------------------------------------------
@@ -607,8 +601,8 @@ mod tests {
         // A = [[4, 2], [0, 9]]; sqrt is [[2, r], [0, 3]]
         // where r = 2 / (2 + 3) = 0.4
         let a = array![[4.0_f64, 2.0], [0.0, 9.0]];
-        let s = sqrtm_denman_beavers(&a.view(), Some(200), Some(1e-12))
-            .expect("sqrtm_db triangular");
+        let s =
+            sqrtm_denman_beavers(&a.view(), Some(200), Some(1e-12)).expect("sqrtm_db triangular");
         let s2 = matmul_nn(&s, &s).expect("s2 matmul triangular");
         for i in 0..2 {
             for j in 0..2 {

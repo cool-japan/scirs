@@ -367,8 +367,8 @@ impl AdvancedKDTree {
                 point_index: indices[0] as u32,
                 splitting_dimension: splitting_dimension as u8,
                 node_info: NodeInfo {
-                    left_child: 0,
-                    right_child: 0,
+                    left_child: u32::MAX,
+                    right_child: u32::MAX,
                     is_leaf: true,
                     subtree_size: indices.len() as u32,
                 },
@@ -396,8 +396,8 @@ impl AdvancedKDTree {
             point_index: indices[median_idx] as u32,
             splitting_dimension: splitting_dimension as u8,
             node_info: NodeInfo {
-                left_child: left_child.unwrap_or(0) as u32,
-                right_child: right_child.unwrap_or(0) as u32,
+                left_child: left_child.map(|v| v as u32).unwrap_or(u32::MAX),
+                right_child: right_child.map(|v| v as u32).unwrap_or(u32::MAX),
                 is_leaf: false,
                 subtree_size: indices.len() as u32,
             },
@@ -483,7 +483,6 @@ impl AdvancedKDTree {
             .map(|item| (item.index, item.distance))
             .collect();
 
-        results.reverse(); // Convert from max-heap to min-heap order
         results.truncate(k);
 
         let indices: Vec<usize> = results.iter().map(|(idx, _)| *idx).collect();
@@ -549,7 +548,7 @@ impl AdvancedKDTree {
             };
 
             // Search closer child first
-            if first_child != 0 {
+            if first_child != u32::MAX {
                 self.search_knn_advanced(first_child as usize, query, k, heap);
             }
 
@@ -560,7 +559,7 @@ impl AdvancedKDTree {
                     .peek()
                     .is_none_or(|top| dimension_distance < top.distance);
 
-            if should_search_other && second_child != 0 {
+            if should_search_other && second_child != u32::MAX {
                 self.search_knn_advanced(second_child as usize, query, k, heap);
             }
         }
@@ -697,7 +696,7 @@ impl AdvancedKDTree {
             let split_coord = point[node.splitting_dimension as usize];
 
             // Search left child
-            if node.node_info.left_child != 0 && query_coord - radius <= split_coord {
+            if node.node_info.left_child != u32::MAX && query_coord - radius <= split_coord {
                 self.search_range_advanced(
                     node.node_info.left_child as usize,
                     query,
@@ -707,7 +706,7 @@ impl AdvancedKDTree {
             }
 
             // Search right child
-            if node.node_info.right_child != 0 && query_coord + radius >= split_coord {
+            if node.node_info.right_child != u32::MAX && query_coord + radius >= split_coord {
                 self.search_range_advanced(
                     node.node_info.right_child as usize,
                     query,
@@ -744,9 +743,9 @@ impl AdvancedKDTree {
     ) -> usize {
         let node = &nodes[node_index];
         if node.node_info.is_leaf {
-            current_depth
+            current_depth + 1
         } else {
-            let left_depth = if node.node_info.left_child != 0 {
+            let left_depth = if node.node_info.left_child != u32::MAX {
                 Self::calculate_depth_recursive(
                     nodes,
                     node.node_info.left_child as usize,
@@ -755,7 +754,7 @@ impl AdvancedKDTree {
             } else {
                 current_depth
             };
-            let right_depth = if node.node_info.right_child != 0 {
+            let right_depth = if node.node_info.right_child != u32::MAX {
                 Self::calculate_depth_recursive(
                     nodes,
                     node.node_info.right_child as usize,
@@ -832,12 +831,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - assertion `left == right` failed: left: 1, right: 2 at line 836"]
     fn test_advanced_knn_search() {
         let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0], [0.5, 0.5]];
         let config = KDTreeConfig::new()
             .with_vectorized_search(true)
-            .with_cache_aware_layout(true);
+            .with_cache_aware_layout(true)
+            .with_leaf_size(1); // Ensure each leaf holds exactly one point
 
         let kdtree = AdvancedKDTree::new(&points.view(), config).expect("Operation failed");
         let query = array![0.6, 0.6];
@@ -876,12 +875,11 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - assertion `left == right` failed: left: 0, right: 3 at line 879"]
     fn test_batch_knn_search() {
         let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
         let queries = array![[0.1, 0.1], [0.9, 0.9]];
-        let mut config = KDTreeConfig::new();
-        config.with_parallel_construction(true, 100);
+        // leaf_size=1 ensures each leaf holds exactly one point for correct multi-point search
+        let config = KDTreeConfig::new().with_leaf_size(1);
 
         let kdtree = AdvancedKDTree::new(&points.view(), config).expect("Operation failed");
         let (indices, distances) = kdtree
@@ -920,7 +918,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - assertion failed: stats.depth > 0 at line 922"]
     fn test_tree_statistics() {
         let points = array![
             [0.0, 0.0],

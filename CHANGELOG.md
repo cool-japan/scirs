@@ -5,6 +5,50 @@ All notable changes to the SciRS2 project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3] - 2026-05-03
+
+### Added
+
+#### Wave 46: Refactoring, Stability, and Symbolic Mathematics
+- **scirs2-symbolic**: New crate — symbolic expression trees, symbolic differentiation (`diff`, `diff_n`), algebraic simplification (`simplify`, `simplify_full`), and numeric evaluation (`eval`). Pure Rust, no external dependencies beyond `thiserror`.
+- **scirs2-fft**: Inverse wavelet packet transform (IWPT) for signal reconstruction
+- **scirs2-neural**: Quantum-inspired machine learning and classical adaptation modules
+- **scirs2-special**: Additional special mathematical functions mirroring SciPy's special module
+
+#### Wave 47–52: WASM TypeScript Bindings, SIMD Examples, and Build Infrastructure
+- **scirs2-wasm**: Full TypeScript type declarations (`ts-src/index.d.ts`, 1425 lines, ~96 exported symbols) across 19 API sections: stats, signal processing, linear algebra, FFT, `WasmMatrix` class, SciRS2 facade, ML models (`WasmKMeans`, `WasmNaiveBayes`), streaming (`OnlineStats`, `RollingWindow`, `StreamingFFT`), SIMD128 functions (8 ops: `dot_product`, `matmul`, `softmax`, `relu`, `sigmoid`, `add`, `mul`, `l2_norm`), and Web Worker utilities (`TransferableArray`, `WorkerPool`)
+- **scirs2-wasm**: React hooks package: `useScirs2`, `useScirs2Compute`, `useScirs2Array` (`js/react-hooks/useScirs2.js`)
+- **scirs2-wasm**: Web Worker communication helpers: `js/worker.js`, `www/worker.js`
+- **scirs2-wasm**: `FinalizationRegistry`-based WASM memory management (`js/finalization.js`)
+- **scirs2-wasm**: Node.js usage example (`examples/node_example.js`) and browser benchmark vs TF.js-WASM (`benches/js/comparison_bench.js`)
+- **scirs2-core**: 5 new SIMD example programs: `simd_ml_operations_demo`, `simd_perf_comparison`, `simd_ultra_benchmark`, `simd_ultra_benchmark_csv`, `norm_l2_comparison`
+- **scirs2-python**: Enhanced async test setup with `pyo3-async-runtimes`
+- **Build**: Vendored `bitflags` 0.6.0 patch for CUDA dependency chain compatibility; `pathfinder_simd` ARM NEON build patch refinement; nextest configuration updates
+
+### Changed
+- Version bump from 0.4.2 to 0.4.3
+- **scirs2-autograd**: Refactored tensor operations (advanced decompositions, Kronecker, special matrices)
+- **scirs2-cluster**: Refactored biclustering, co-clustering, deep clustering, stability analysis, and visualization export
+- **scirs2-core**: Refactored GPU backends (Metal MPS, WGPU), JIT, memory views, and random ecosystem integration
+- **scirs2-graph**: Refactored algebraic operations, centrality, and community detection modules
+- **Dependencies**: Upgraded `rayon` to 1.12, `rand` to 0.10.1, `nalgebra` to 0.34.2, `oxiarc-*` to 0.2.7, `blake3` to 1.8.5, `uuid` to 1.23.1
+- **scirs2-special**: `printpdf` moved behind a new optional `pdf` feature gate (no longer in default features)
+
+### Fixed
+- No-unwrap policy improvements across multiple crates (`scirs2-cluster`, `scirs2-core`, `scirs2-autograd`)
+- GPU dispatch reliability improvements in `scirs2-core` Metal and WGPU backends
+- Compilation stability improvements across `scirs2-optimize`, `scirs2-stats`, `scirs2-special`
+- Doctest stabilization across the workspace (25+ doctest fixes during the 2026-05-02 release-check pass)
+- Vendored ARM NEON intrinsic patch for `pathfinder_simd` 0.5.6 under `patches/pathfinder_simd-0.5.6/`
+
+### Quality Gate
+- cargo check --workspace --all-features: PASS (0 errors, 0 warnings)
+- cargo clippy --workspace --all-features: PASS (0 warnings)
+- cargo nextest (excl. python/datasets): 34,299 passed
+- scirs2-datasets --lib: 584 passed
+- **Total tests: 34,883 passing**
+- No-unwrap policy: PASS
+
 ## [0.4.2] - 2026-04-12
 
 ### Added

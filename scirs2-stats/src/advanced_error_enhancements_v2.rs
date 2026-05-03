@@ -587,7 +587,7 @@ impl AdvancedErrorEngine {
         if context.data_characteristics.size_info.total_elements == 0 {
             if let Some(pos) = causes
                 .iter()
-                .position(|(cause_)| cause.contains("Insufficient"))
+                .position(|(cause_, _)| cause_.contains("Insufficient"))
             {
                 causes[pos].1 = 0.95;
             }
@@ -598,7 +598,7 @@ impl AdvancedErrorEngine {
     }
 
     /// Find related errors that often occur together
-    fn find_related_errors(&self, &StatsError) -> Vec<String> {
+    fn find_related_errors(&self, _error: &StatsError) -> Vec<String> {
         // In a real implementation, this would use machine learning
         // to find patterns in _error co-occurrence
         vec![
@@ -666,7 +666,8 @@ impl AdvancedErrorEngine {
         let (time_complexity, space_complexity) = match context.function_name.as_str() {
             name if name.contains("sort") => ("O(n log n)".to_string(), "O(n)".to_string()),
             name if name.contains("corr") => ("O(n)".to_string(), "O(1)".to_string()),
-            name if name.contains("matrix") => ("O(n³)".to_string(), "O(n²)".to_string(), _ => ("O(n)".to_string(), "O(1)".to_string()),
+            name if name.contains("matrix") => ("O(n³)".to_string(), "O(n²)".to_string()),
+            _ => ("O(n)".to_string(), "O(1)".to_string()),
         };
 
         ComplexityAnalysis {
@@ -825,7 +826,8 @@ fn add_ridge_regularization(matrix: &mut Array2<f64>, lambda: f64) {
 
     /// Assess performance impact
     fn assess_performance_impact(
-        &self, &StatsError,
+        &self,
+        _error: &StatsError,
         context: &OperationContext,
     ) -> PerformanceAssessment {
         let baseline = PerformanceMetrics {
@@ -861,7 +863,8 @@ fn add_ridge_regularization(matrix: &mut Array2<f64>, lambda: f64) {
     /// Generate UX recommendations
     fn generate_ux_recommendations(
         &self,
-        error: &StatsError, diagnostics: &IntelligentDiagnostics,
+        error: &StatsError,
+        diagnostics: &IntelligentDiagnostics,
     ) -> UXRecommendations {
         UXRecommendations {
             message_improvements: vec![
@@ -957,8 +960,8 @@ pub fn create_enhanced_error_context(
                 cachesizes: vec![32_768, 262_144, 8_388_608], // L1, L2, L3
             },
             memory_info: MemoryInfo {
-                total_memory: 16_000_000_000,    // 16GB
-                available_memory: 8_000_000_000, // 8GB
+                total_memory: 16_000_000_000u64 as usize,    // 16GB (saturates on 32-bit)
+                available_memory: 8_000_000_000u64 as usize, // 8GB (saturates on 32-bit)
                 memory_pressure: 0.3,
             },
             optimization_level: OptimizationLevel::Release,

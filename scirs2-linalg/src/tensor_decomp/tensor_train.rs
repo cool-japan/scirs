@@ -200,8 +200,7 @@ impl TensorTrain {
 ///
 /// 1. Start: `C = reshape(tensor_data, [1 * n_1, n_2 * n_3 * ... * n_d])`.
 /// 2. For `k = 1, ..., d-1`:
-///    a. SVD `C = U S V^T`, truncate to rank `r_k ≤ max_rank` such that
-///       `(sum of discarded singular values²) / (sum of all²) ≤ eps²`.
+///    a. SVD `C = U S V^T`, keep top `r_k ≤ max_rank` singular values (accuracy `eps`).
 ///    b. `G_k = reshape(U, [r_{k-1}, n_k, r_k])`.
 ///    c. `C = diag(S) V^T`, reshape to `[r_k * n_{k+1}, remaining]`.
 /// 3. `G_d = reshape(C, [r_{d-1}, n_d, 1])`.
@@ -243,7 +242,11 @@ pub fn tt_svd(
 
     // Scale factor for singular value truncation
     // We use a per-step truncation so that cumulative error ≤ eps.
-    let step_eps = if d > 1 { eps / ((d - 1) as f64).sqrt() } else { eps };
+    let step_eps = if d > 1 {
+        eps / ((d - 1) as f64).sqrt()
+    } else {
+        eps
+    };
 
     let mut cores: Vec<TTCore> = Vec::with_capacity(d);
     let mut r_left = 1_usize;
@@ -328,13 +331,16 @@ pub fn tt_svd(
         r_left = r_k;
     }
 
-    // Last core: c is [r_{d-1} × n_d], reshape to (r_{d-1}, n_d, 1)
+    // Last core: c is [r_{d-1} * n_d × 1], reshape to (r_{d-1}, n_d, 1)
+    // After the loop with k=d-2: new_rows = r_k * n_next = r_left * n_d, new_cols = 1
+    // so c has shape [r_left * n_d, 1], NOT [r_left, n_d]
     let n_d = shape[d - 1];
     let mut last_core = TTCore::zeros((r_left, n_d, 1));
     for rl in 0..r_left {
         for ni in 0..n_d {
-            let v = if rl < c.len() && ni < c[rl].len() {
-                c[rl][ni]
+            let flat_row = rl * n_d + ni;
+            let v = if flat_row < c.len() && !c[flat_row].is_empty() {
+                c[flat_row][0]
             } else {
                 0.0
             };
@@ -729,7 +735,10 @@ fn fill_dense(tt: &TensorTrain, out: &mut [f64]) -> LinalgResult<()> {
         Ok(())
     }
 
-    let stride = total / tt.shape[0];
+    // The initial stride is the total number of elements. `fill_recursive` divides
+    // the stride by `n_k` at each mode level, so passing `total / shape[0]` here
+    // would skip the first mode's contribution and produce wrong indices.
+    let stride = total;
     let init_transfer = vec![1.0_f64]; // r_0 = 1
     fill_recursive(tt, 0, &init_transfer, 1, 0, stride, out)
 }
@@ -816,7 +825,10 @@ mod tests {
         let ip = inner_product(&tt, &tt).expect("inner ok");
         // <X, X> = ‖X‖² = sum of squares of 1..24
         let expected: f64 = data.iter().map(|v| v * v).sum();
-        assert!((ip - expected).abs() < 1e-4, "inner product {ip} != {expected}");
+        assert!(
+            (ip - expected).abs() < 1e-4,
+            "inner product {ip} != {expected}"
+        );
     }
 
     #[test]

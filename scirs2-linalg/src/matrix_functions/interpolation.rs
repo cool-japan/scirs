@@ -256,7 +256,9 @@ impl ArnoldiIteration {
         }
 
         // Truncate V to n × actual_m
-        let v_out = v_mat.slice(scirs2_core::ndarray::s![.., ..actual_m]).to_owned();
+        let v_out = v_mat
+            .slice(scirs2_core::ndarray::s![.., ..actual_m])
+            .to_owned();
         let h_out = h_mat
             .slice(scirs2_core::ndarray::s![..actual_m + 1, ..actual_m])
             .to_owned();
@@ -402,7 +404,9 @@ impl LanczosIteration {
             }
         }
 
-        let v_out = v_mat.slice(scirs2_core::ndarray::s![.., ..actual_m]).to_owned();
+        let v_out = v_mat
+            .slice(scirs2_core::ndarray::s![.., ..actual_m])
+            .to_owned();
         let alpha_out = Array1::from_vec(alpha_vec[..actual_m].to_vec());
         let beta_out = if actual_m > 1 {
             Array1::from_vec(beta_vec[..actual_m - 1].to_vec())
@@ -946,7 +950,10 @@ fn dense_sinm(a: &ArrayView2<f64>) -> LinalgResult<Array2<f64>> {
 
     for k in 1..=16usize {
         let two_k_plus_1 = 2 * k + 1;
-        apow = matmul_dense(&matmul_dense(&apow.view(), &a2.view()).view(), &Array2::eye(n).view());
+        apow = matmul_dense(
+            &matmul_dense(&apow.view(), &a2.view()).view(),
+            &Array2::eye(n).view(),
+        );
         apow = matmul_dense(&apow.view(), &a2.view());
         let mut fact = 1.0f64;
         for i in 1..=(two_k_plus_1 as u64) {
@@ -1109,8 +1116,7 @@ mod tests {
         ];
         let v = array![1.0, 0.0, 0.0, 0.0];
 
-        let result = ArnoldiIteration::run(&a.view(), &v.view(), 3, None)
-            .expect("Arnoldi failed");
+        let result = ArnoldiIteration::run(&a.view(), &v.view(), 3, None).expect("Arnoldi failed");
 
         // V should have orthonormal columns
         let vt_v = matmul_dense(&result.v.t(), &result.v.view());
@@ -1139,8 +1145,7 @@ mod tests {
         ];
         let v = array![1.0, 0.0, 0.0, 0.0];
 
-        let result = LanczosIteration::run(&a.view(), &v.view(), 3, None)
-            .expect("Lanczos failed");
+        let result = LanczosIteration::run(&a.view(), &v.view(), 3, None).expect("Lanczos failed");
 
         // V should have orthonormal columns
         let vt_v = matmul_dense(&result.v.t(), &result.v.view());
@@ -1223,15 +1228,10 @@ mod tests {
 
     #[test]
     fn test_lanczos_tridiagonal() {
-        let a = array![
-            [3.0, 1.0, 0.0],
-            [1.0, 3.0, 1.0],
-            [0.0, 1.0, 3.0],
-        ];
+        let a = array![[3.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 3.0],];
         let v = array![1.0, 1.0, 1.0];
 
-        let result = LanczosIteration::run(&a.view(), &v.view(), 3, None)
-            .expect("Lanczos failed");
+        let result = LanczosIteration::run(&a.view(), &v.view(), 3, None).expect("Lanczos failed");
         let t = LanczosIteration::tridiagonal_matrix(&result);
 
         // T must be symmetric

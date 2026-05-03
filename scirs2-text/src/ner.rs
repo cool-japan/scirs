@@ -82,6 +82,7 @@ pub struct Entity {
 }
 
 /// Configuration for [`NerExtractor`].
+#[derive(Default)]
 pub struct NerConfig {
     /// Whether pattern matching is case-sensitive.
     pub case_sensitive: bool,
@@ -89,16 +90,6 @@ pub struct NerConfig {
     pub custom_patterns: Vec<(String, EntityType)>,
     /// Gazetteer: maps exact tokens (words) to entity types.
     pub gazetteer: HashMap<String, EntityType>,
-}
-
-impl Default for NerConfig {
-    fn default() -> Self {
-        Self {
-            case_sensitive: false,
-            custom_patterns: Vec::new(),
-            gazetteer: HashMap::new(),
-        }
-    }
 }
 
 impl NerConfig {
@@ -170,27 +161,112 @@ lazy_static! {
 
 fn default_location_gazetteer() -> &'static [&'static str] {
     &[
-        "Africa", "America", "Antarctica", "Arctic", "Asia", "Australia", "Europe",
-        "China", "France", "Germany", "India", "Italy", "Japan", "Russia", "Spain",
-        "United States", "United Kingdom", "Canada", "Brazil", "Mexico", "Argentina",
-        "South Korea", "North Korea", "Saudi Arabia", "South Africa",
-        "New York", "London", "Paris", "Tokyo", "Beijing", "Shanghai", "Sydney",
-        "Moscow", "Berlin", "Madrid", "Rome", "Seoul", "Mumbai", "Dubai",
-        "Los Angeles", "Chicago", "San Francisco", "Houston", "Phoenix",
-        "California", "Texas", "Florida", "Illinois", "Pennsylvania",
-        "Ohio", "Georgia", "Michigan", "New Jersey", "Virginia",
-        "Washington", "Arizona", "Massachusetts", "Tennessee", "Indiana",
+        "Africa",
+        "America",
+        "Antarctica",
+        "Arctic",
+        "Asia",
+        "Australia",
+        "Europe",
+        "China",
+        "France",
+        "Germany",
+        "India",
+        "Italy",
+        "Japan",
+        "Russia",
+        "Spain",
+        "United States",
+        "United Kingdom",
+        "Canada",
+        "Brazil",
+        "Mexico",
+        "Argentina",
+        "South Korea",
+        "North Korea",
+        "Saudi Arabia",
+        "South Africa",
+        "New York",
+        "London",
+        "Paris",
+        "Tokyo",
+        "Beijing",
+        "Shanghai",
+        "Sydney",
+        "Moscow",
+        "Berlin",
+        "Madrid",
+        "Rome",
+        "Seoul",
+        "Mumbai",
+        "Dubai",
+        "Los Angeles",
+        "Chicago",
+        "San Francisco",
+        "Houston",
+        "Phoenix",
+        "California",
+        "Texas",
+        "Florida",
+        "Illinois",
+        "Pennsylvania",
+        "Ohio",
+        "Georgia",
+        "Michigan",
+        "New Jersey",
+        "Virginia",
+        "Washington",
+        "Arizona",
+        "Massachusetts",
+        "Tennessee",
+        "Indiana",
     ]
 }
 
 fn default_org_gazetteer() -> &'static [&'static str] {
     &[
-        "Google", "Apple", "Microsoft", "Amazon", "Meta", "Netflix", "Tesla",
-        "IBM", "Intel", "Oracle", "SAP", "Adobe", "Salesforce", "Twitter", "LinkedIn",
-        "Facebook", "WhatsApp", "Instagram", "YouTube", "TikTok", "Snapchat",
-        "Uber", "Lyft", "Airbnb", "Spotify", "Slack", "Zoom", "Dropbox",
-        "NASA", "CIA", "FBI", "NSA", "UN", "NATO", "WHO", "IMF", "WTO",
-        "Harvard", "MIT", "Stanford", "Oxford", "Cambridge",
+        "Google",
+        "Apple",
+        "Microsoft",
+        "Amazon",
+        "Meta",
+        "Netflix",
+        "Tesla",
+        "IBM",
+        "Intel",
+        "Oracle",
+        "SAP",
+        "Adobe",
+        "Salesforce",
+        "Twitter",
+        "LinkedIn",
+        "Facebook",
+        "WhatsApp",
+        "Instagram",
+        "YouTube",
+        "TikTok",
+        "Snapchat",
+        "Uber",
+        "Lyft",
+        "Airbnb",
+        "Spotify",
+        "Slack",
+        "Zoom",
+        "Dropbox",
+        "NASA",
+        "CIA",
+        "FBI",
+        "NSA",
+        "UN",
+        "NATO",
+        "WHO",
+        "IMF",
+        "WTO",
+        "Harvard",
+        "MIT",
+        "Stanford",
+        "Oxford",
+        "Cambridge",
     ]
 }
 
@@ -224,9 +300,7 @@ impl NerExtractor {
         let compiled_custom: Vec<(Regex, EntityType)> = config
             .custom_patterns
             .iter()
-            .filter_map(|(pattern, etype)| {
-                Regex::new(pattern).ok().map(|re| (re, etype.clone()))
-            })
+            .filter_map(|(pattern, etype)| Regex::new(pattern).ok().map(|re| (re, etype.clone())))
             .collect();
 
         let mut effective_gazetteer: HashMap<String, EntityType> = HashMap::new();
@@ -302,11 +376,29 @@ impl NerExtractor {
         // 1. Built-in regex patterns (score = 1.0)
         self.apply_pattern(text, &RE_EMAIL, EntityType::Email, 1.0, &mut candidates);
         self.apply_pattern(text, &RE_URL, EntityType::Url, 1.0, &mut candidates);
-        self.apply_pattern(text, &RE_PHONE, EntityType::PhoneNumber, 1.0, &mut candidates);
+        self.apply_pattern(
+            text,
+            &RE_PHONE,
+            EntityType::PhoneNumber,
+            1.0,
+            &mut candidates,
+        );
         self.apply_pattern(text, &RE_DATE, EntityType::Date, 1.0, &mut candidates);
         self.apply_pattern(text, &RE_TIME, EntityType::Time, 1.0, &mut candidates);
-        self.apply_pattern(text, &RE_CURRENCY, EntityType::Currency, 1.0, &mut candidates);
-        self.apply_pattern(text, &RE_PERCENTAGE, EntityType::Percentage, 1.0, &mut candidates);
+        self.apply_pattern(
+            text,
+            &RE_CURRENCY,
+            EntityType::Currency,
+            1.0,
+            &mut candidates,
+        );
+        self.apply_pattern(
+            text,
+            &RE_PERCENTAGE,
+            EntityType::Percentage,
+            1.0,
+            &mut candidates,
+        );
         self.apply_pattern(text, &RE_NUMBER, EntityType::Number, 1.0, &mut candidates);
 
         // 2. Heuristic person detection via title prefix
@@ -387,7 +479,7 @@ impl NerExtractor {
         };
 
         let mut entries: Vec<(&String, &EntityType)> = self.effective_gazetteer.iter().collect();
-        entries.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        entries.sort_by_key(|(k, _)| std::cmp::Reverse(k.len()));
 
         for (entry, etype) in entries {
             let escaped = regex::escape(entry);
@@ -491,9 +583,7 @@ mod tests {
     #[test]
     fn test_phone_extraction() {
         let extractor = default_extractor();
-        let entities = extractor
-            .extract("Call us at (800) 555-1234.")
-            .expect("ok");
+        let entities = extractor.extract("Call us at (800) 555-1234.").expect("ok");
         assert!(
             entities
                 .iter()
@@ -512,7 +602,9 @@ mod tests {
     #[test]
     fn test_written_date() {
         let extractor = default_extractor();
-        let entities = extractor.extract("He was born on March 5, 1990.").expect("ok");
+        let entities = extractor
+            .extract("He was born on March 5, 1990.")
+            .expect("ok");
         assert!(entities.iter().any(|e| e.entity_type == EntityType::Date));
     }
 
@@ -547,7 +639,9 @@ mod tests {
     #[test]
     fn test_person_with_title() {
         let extractor = default_extractor();
-        let entities = extractor.extract("We met Dr. Jane Smith yesterday.").expect("ok");
+        let entities = extractor
+            .extract("We met Dr. Jane Smith yesterday.")
+            .expect("ok");
         assert!(
             entities.iter().any(|e| e.entity_type == EntityType::Person),
             "Should detect person with title"
@@ -569,7 +663,9 @@ mod tests {
     #[test]
     fn test_gazetteer_location() {
         let extractor = default_extractor();
-        let entities = extractor.extract("The summit was held in Paris.").expect("ok");
+        let entities = extractor
+            .extract("The summit was held in Paris.")
+            .expect("ok");
         assert!(
             entities.iter().any(|e| {
                 e.entity_type == EntityType::Location && e.text.to_lowercase() == "paris"
@@ -581,7 +677,9 @@ mod tests {
     #[test]
     fn test_gazetteer_organization() {
         let extractor = default_extractor();
-        let entities = extractor.extract("Google announced new products.").expect("ok");
+        let entities = extractor
+            .extract("Google announced new products.")
+            .expect("ok");
         assert!(
             entities
                 .iter()

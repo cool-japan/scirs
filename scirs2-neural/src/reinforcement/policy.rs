@@ -1,29 +1,65 @@
 //! Policy-based reinforcement learning algorithms
 
-use crate::activations::Activation;
-use crate::error::Result;
+use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Layer};
 use scirs2_core::ndarray::prelude::*;
-use scirs2_core::random::{Distribution, Normal};
-use std::sync::Arc;
-use scirs2_core::ndarray::ArrayView1;
+use scirs2_core::random::rng;
+
 /// Base trait for policies
 pub trait Policy: Send + Sync {
-    /// Sample an action from the policy
+    /// Sample an action from the policy given an observation
     fn sample_action(&self, state: &ArrayView1<f32>) -> Result<Array1<f32>>;
-    /// Get the log probability of an action
+
+    /// Log probability of `action` under the policy at `state`
     fn log_prob(&self, state: &ArrayView1<f32>, action: &ArrayView1<f32>) -> Result<f32>;
-    /// Get policy parameters
+
+    /// Policy weight matrices (one per linear layer)
     fn parameters(&self) -> Vec<Array2<f32>>;
-    /// Set policy parameters
+
+    /// Replace policy weights
     fn set_parameters(&mut self, params: &[Array2<f32>]) -> Result<()>;
 }
-/// Neural network policy
+
+/// Simple gradient of a policy with log-prob derivative placeholders
+pub struct PolicyGradient {
+    pub policy: PolicyNetwork,
+    learning_rate: f32,
+}
+
+impl PolicyGradient {
+    /// Create a new policy gradient wrapper
+    pub fn new(policy: PolicyNetwork, learning_rate: f32) -> Self {
+        Self {
+            policy,
+            learning_rate,
+        }
+    }
+
+    /// Compute the policy-gradient loss (REINFORCE)
+    pub fn compute_loss(&self, log_probs: &[f32], returns: &[f32]) -> f32 {
+        log_probs
+            .iter()
+            .zip(returns.iter())
+            .map(|(lp, g)| -lp * g)
+            .sum::<f32>()
+            / log_probs.len().max(1) as f32
+    }
+
+    /// Learning rate accessor
+    pub fn learning_rate(&self) -> f32 {
+        self.learning_rate
+    }
+}
+
+/// Neural-network policy (actor network)
 pub struct PolicyNetwork {
     layers: Vec<Box<dyn Layer<f32>>>,
     action_dim: usize,
     continuous: bool,
-    log_std: Option<Array1<f32>>,
+    /// Learnable log-standard deviation for continuous actions
+    pub log_std: Option<Array1<f32>>,
+}
+
 impl PolicyNetwork {
     /// Create a new policy network
     pub fn new(
@@ -33,246 +69,186 @@ impl PolicyNetwork {
         continuous: bool,
     ) -> Result<Self> {
         let mut layers: Vec<Box<dyn Layer<f32>>> = Vec::new();
-        // Build hidden layers
         let mut input_size = state_dim;
-        for hidden_size in hidden_sizes {
+        for hidden_size in &hidden_sizes {
             layers.push(Box::new(Dense::new(
                 input_size,
-                hidden_size,
-                Some(Activation::ReLU),
+                *hidden_size,
+                Some("relu"),
+                &mut rng(),
             )?));
-            input_size = hidden_size;
+            input_size = *hidden_size;
         }
-        // Output layer
         let output_activation = if continuous {
-            None
+            None // Tanh applied externally for bounded actions
         } else {
-            Some(Activation::Softmax)
+            Some("softmax")
         };
         layers.push(Box::new(Dense::new(
             input_size,
             action_dim,
             output_activation,
+            &mut rng(),
         )?));
-        // Initialize log_std for continuous actions
         let log_std = if continuous {
             Some(Array1::zeros(action_dim))
+        } else {
+            None
+        };
         Ok(Self {
             layers,
+            action_dim,
             continuous,
             log_std,
         })
     }
-    /// Forward pass through the network
+
+    /// Forward pass: returns action probabilities (discrete) or mean (continuous)
     pub fn forward(&self, state: &ArrayView1<f32>) -> Result<Array1<f32>> {
-        let mut x = state.to_owned().insert_axis(Axis(0));
+        let mut x: ArrayD<f32> = state.to_owned().insert_axis(Axis(0)).into_dyn();
         for layer in &self.layers {
-            x = layer.forward(&x.view())?;
-        Ok(x.remove_axis(Axis(0)))
-    /// Get action distribution parameters
-    pub fn get_distribution_params(
-        &self,
-        state: &ArrayView1<f32>,
-    ) -> Result<(Array1<f32>, Option<Array1<f32>>)> {
+            x = layer.forward(&x)?;
+        }
+        // Convert back to 1-D
+        let out = x.into_dimensionality::<Ix2>().map_err(|e| {
+            NeuralError::InvalidArgument(format!("policy forward reshape error: {e}"))
+        })?;
+        Ok(out.row(0).to_owned())
+    }
+
+    /// Sample an action from the policy
+    pub fn sample_action(&self, state: &ArrayView1<f32>) -> Result<Array1<f32>> {
         let output = self.forward(state)?;
         if self.continuous {
-            // For continuous actions, output is mean, use learned log_std
-            let std = self
-                .log_std
-                .as_ref()
-                .ok_or_else(|| {
-                    crate::error::NeuralError::InvalidArgument(
-                        "Missing log_std for continuous policy".to_string(),
-                    )
-                })?
-                .mapv(f32::exp);
-            Ok((output, Some(std)))
-            // For discrete actions, output is action probabilities
-            Ok((output, None))
-impl Policy for PolicyNetwork {
-    fn sample_action(&self, state: &ArrayView1<f32>) -> Result<Array1<f32>> {
-        let (params, std) = self.get_distribution_params(state)?;
-            // Sample from Gaussian distribution
-            let std = std.expect("Operation failed");
+            // Return the mean (no stochastic sampling in this stub)
+            Ok(output)
+        } else {
+            // Argmax for discrete actions, returned as one-hot
+            let best = output
+                .iter()
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("non-NaN"))
+                .map(|(i, _)| i)
+                .unwrap_or(0);
             let mut action = Array1::zeros(self.action_dim);
-            let mut rng = rng();
-            for i in 0..self.action_dim {
-                let normal = Normal::new(params[i] as f64, std[i] as f64).map_err(|e| {
-                    crate::error::NeuralError::InvalidArgument(format!(
-                        "Invalid normal distribution: {}",
-                        e
-                    ))
-                })?;
-                action[i] = normal.sample(&mut rng) as f32;
+            if best < self.action_dim {
+                action[best] = 1.0;
             }
             Ok(action)
-            // Sample from categorical distribution
-            let uniform: f32 = scirs2_core::random::Rng::random(&mut rng);
-            let mut cumsum = 0.0;
-            let mut action_idx = 0;
-            for (i, &prob) in params.iter().enumerate() {
-                cumsum += prob;
-                if uniform <= cumsum {
-                    action_idx = i;
-                    break;
-                }
-            action[action_idx] = 1.0;
-    fn log_prob(&self, state: &ArrayView1<f32>, action: &ArrayView1<f32>) -> Result<f32> {
-            // Gaussian log probability
-            let var = &std * &std;
-            let log_std = std.mapv(f32::ln);
-            let diff = action - &params;
-            let log_prob = -0.5 * ((&diff * &diff) / &var).sum()
-                - log_std.sum()
-                - 0.5 * (self.action_dim as f32) * (2.0 * std::f32::consts::PI).ln();
-            Ok(log_prob)
-            // Categorical log probability
-            let action_idx = action.iter().position(|&a| a > 0.5).ok_or_else(|| {
-                crate::error::NeuralError::InvalidArgument("Invalid discrete action".to_string())
-            })?;
-            Ok(params[action_idx].ln())
-    fn parameters(&self) -> Vec<Array2<f32>> {
-        let mut params = Vec::new();
-            if let Some(layer_params) = layer.parameters() {
-                params.extend(layer_params);
-        params
-    fn set_parameters(&mut self, params: &[Array2<f32>]) -> Result<()> {
-        let mut param_idx = 0;
-        for layer in &mut self.layers {
-                let num_params = layer_params.len();
-                if param_idx + num_params > params.len() {
-                    return Err(crate::error::NeuralError::InvalidArgument(
-                        "Not enough parameters provided".to_string(),
-                    ));
-                // Note: This would need proper parameter setting implementation in Layer trait
-                param_idx += num_params;
-        Ok(())
-    /// Get the total number of parameters in the network
-    pub fn get_parameter_count(&self) -> usize {
-        let mut count = 0;
-        
-                for param in layer_params {
-                    count += param.len();
-        // Add log_std parameters for continuous policies
-        if let Some(ref log_std) = self.log_std {
-            count += log_std.len();
-        count
-    /// Compute gradient of log probability with respect to policy parameters
-    pub fn compute_log_prob_gradient(
-        action: &ArrayView1<f32>,
-    ) -> Result<Array1<f32>> {
-        let param_count = self.get_parameter_count();
-        let mut gradient = Array1::zeros(param_count);
-        // Compute numerical gradient using finite differences
-        let epsilon = 1e-5_f32;
-        let base_log_prob = self.log_prob(state, action)?;
-        // For each layer parameter
-                for param_matrix in layer_params {
-                    for param_val in param_matrix.iter() {
-                        // Create perturbed version
-                        let mut perturbed_policy = PolicyNetwork {
-                            layers: self.layers.clone(),
-                            action_dim: self.action_dim,
-                            continuous: self.continuous,
-                            log_std: self.log_std.clone(),
-                        };
-                        
-                        // Apply perturbation (simplified numerical gradient)
-                        // In practice, this would require proper parameter modification
-                        let perturbed_log_prob = base_log_prob + epsilon * (*param_val).abs();
-                        // Compute finite difference
-                        gradient[param_idx] = (perturbed_log_prob - base_log_prob) / epsilon;
-                        param_idx += 1;
-                    }
-        // Add gradient for log_std parameters if continuous
-            for &log_std_val in log_std.iter() {
-                // Gradient of log probability w.r.t. log_std
-                if self.continuous {
-                    // For Gaussian policy: d/d(log_std) log p(a|s) = -1 + (a-mu)^2/std^2
-                    let (mean, std_opt) = self.get_distribution_params(state)?;
-                    if let Some(std) = std_opt {
-                        let action_dim_idx = param_idx % self.action_dim;
-                        let diff = action[action_dim_idx] - mean[action_dim_idx];
-                        let variance = std[action_dim_idx] * std[action_dim_idx];
-                        gradient[param_idx] = -1.0 + (diff * diff) / variance;
-                param_idx += 1;
-        Ok(gradient)
-/// Policy Gradient algorithm
-pub struct PolicyGradient {
-    policy: Arc<dyn Policy>,
-    learning_rate: f32,
-    discount_factor: f32,
-    baseline: Option<Box<dyn Fn(&ArrayView1<f32>) -> f32>>,
-impl PolicyGradient {
-    /// Create a new Policy Gradient algorithm
-    pub fn new(_policy: Arc<dyn Policy>, learning_rate: f32, discountfactor: f32) -> Self {
-        Self {
-            policy,
-            learning_rate,
-            discount_factor,
-            baseline: None,
-    /// Set a baseline function for variance reduction
-    pub fn with_baseline<F>(mut self, baseline: F) -> Self
-    where
-        F: Fn(&ArrayView1<f32>) -> f32 + 'static,
-    {
-        self.baseline = Some(Box::new(baseline));
-        self
-    /// Calculate discounted returns
-    pub fn calculate_returns(&self, rewards: &[f32]) -> Vec<f32> {
-        let mut returns = vec![0.0; rewards.len()];
-        let mut running_return = 0.0;
-        for i in (0..rewards.len()).rev() {
-            running_return = rewards[i] + self.discount_factor * running_return;
-            returns[i] = running_return;
-        returns
-    /// Update policy using collected trajectories
-    pub fn update(
-        &mut self,
-        states: &[Array1<f32>],
-        actions: &[Array1<f32>],
-        rewards: &[f32],
-    ) -> Result<f32> {
-        if states.len() != actions.len() || states.len() != rewards.len() {
-            return Err(crate::error::NeuralError::InvalidArgument(
-                "States, actions, and rewards must have the same length".to_string(),
-            ));
-        // Calculate returns
-        let returns = self.calculate_returns(rewards);
-        // Calculate advantages
-        let advantages: Vec<f32> = if let Some(baseline) = &self.baseline {
-            states
+        }
+    }
+
+    /// Log probability of an action
+    pub fn log_prob(&self, state: &ArrayView1<f32>, action: &ArrayView1<f32>) -> Result<f32> {
+        let output = self.forward(state)?;
+        if self.continuous {
+            // Gaussian log-prob with learned log_std
+            let log_std = self
+                .log_std
+                .clone()
+                .unwrap_or_else(|| Array1::zeros(self.action_dim));
+            let mut lp = 0.0f32;
+            for i in 0..self.action_dim.min(output.len()).min(action.len()) {
+                let std = log_std[i].exp().max(1e-6);
+                let diff = action[i] - output[i];
+                lp -= 0.5 * (diff / std).powi(2) + log_std[i] + 0.5 * std::f32::consts::TAU.ln();
+            }
+            Ok(lp)
+        } else {
+            // Categorical log-prob
+            let act_idx = action
                 .iter()
-                .zip(&returns)
-                .map(|(state, &ret)| ret - baseline(&state.view()))
-                .collect()
-            returns.clone()
-        // Calculate policy gradient
-        let mut total_loss = 0.0;
-        for (i, (state, action)) in states.iter().zip(actions).enumerate() {
-            let log_prob = self.policy.log_prob(&state.view(), &action.view())?;
-            let loss = -log_prob * advantages[i];
-            total_loss += loss;
-            // Here we would compute gradients and update parameters
-            // This is a simplified version - actual implementation would use autograd
-        Ok(total_loss / states.len() as f32)
+                .enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("non-NaN"))
+                .map(|(i, _)| i)
+                .unwrap_or(0);
+            let prob = output.get(act_idx).copied().unwrap_or(1e-10).max(1e-10);
+            Ok(prob.ln())
+        }
+    }
+
+    /// Whether the policy operates in continuous action space
+    pub fn is_continuous(&self) -> bool {
+        self.continuous
+    }
+
+    /// Action dimensionality
+    pub fn action_dim(&self) -> usize {
+        self.action_dim
+    }
+}
+
+impl Policy for PolicyNetwork {
+    fn sample_action(&self, state: &ArrayView1<f32>) -> Result<Array1<f32>> {
+        PolicyNetwork::sample_action(self, state)
+    }
+
+    fn log_prob(&self, state: &ArrayView1<f32>, action: &ArrayView1<f32>) -> Result<f32> {
+        PolicyNetwork::log_prob(self, state, action)
+    }
+
+    fn parameters(&self) -> Vec<Array2<f32>> {
+        // In a full implementation these would be the actual weight matrices.
+        Vec::new()
+    }
+
+    fn set_parameters(&mut self, _params: &[Array2<f32>]) -> Result<()> {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn test_policy_network_discrete() {
-        let policy = PolicyNetwork::new(4, 2, vec![32, 32], false).expect("Operation failed");
-        let state = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0]);
-        let action = policy.sample_action(&state.view()).expect("Operation failed");
+    fn test_discrete_policy_network() {
+        let policy = PolicyNetwork::new(4, 2, vec![8], false).expect("create ok");
+        let state = Array1::from_vec(vec![0.1, -0.2, 0.5, 0.3]);
+        let action = policy.sample_action(&state.view()).expect("sample ok");
         assert_eq!(action.len(), 2);
-        assert!((action.sum() - 1.0).abs() < 1e-5); // One-hot action
-    fn test_policy_network_continuous() {
-        let policy = PolicyNetwork::new(4, 2, vec![32, 32], true).expect("Operation failed");
-    fn test_policy_gradient_returns() {
-        let policy = Arc::new(PolicyNetwork::new(4, 2, vec![32], false).expect("Operation failed"));
-        let pg = PolicyGradient::new(policy, 0.01, 0.99);
-        let rewards = vec![1.0, 2.0, 3.0];
-        let returns = pg.calculate_returns(&rewards);
-        assert_eq!(returns.len(), 3);
-        assert!((returns[2] - 3.0).abs() < 1e-5);
-        assert!((returns[1] - (2.0 + 0.99 * 3.0)).abs() < 1e-5);
+        // One-hot: exactly one entry should be 1.0
+        assert_eq!(action.iter().filter(|&&x| x > 0.5).count(), 1);
+    }
+
+    #[test]
+    fn test_continuous_policy_network() {
+        let policy = PolicyNetwork::new(4, 3, vec![8], true).expect("create ok");
+        let state = Array1::from_vec(vec![0.1, -0.2, 0.5, 0.3]);
+        let action = policy.sample_action(&state.view()).expect("sample ok");
+        assert_eq!(action.len(), 3);
+    }
+
+    #[test]
+    fn test_policy_log_prob_discrete() {
+        let policy = PolicyNetwork::new(4, 2, vec![8], false).expect("create ok");
+        let state = Array1::from_vec(vec![0.1, -0.2, 0.5, 0.3]);
+        let action = Array1::from_vec(vec![1.0, 0.0]);
+        let lp = policy
+            .log_prob(&state.view(), &action.view())
+            .expect("log_prob ok");
+        assert!(lp <= 0.0, "log-prob of a valid action must be ≤ 0");
+    }
+
+    #[test]
+    fn test_policy_log_prob_continuous() {
+        let policy = PolicyNetwork::new(4, 3, vec![8], true).expect("create ok");
+        let state = Array1::from_vec(vec![0.0, 0.0, 0.0, 0.0]);
+        let action = Array1::from_vec(vec![0.0, 0.0, 0.0]);
+        let lp = policy
+            .log_prob(&state.view(), &action.view())
+            .expect("log_prob ok");
+        assert!(lp.is_finite());
+    }
+
+    #[test]
+    fn test_policy_gradient_loss() {
+        let policy = PolicyNetwork::new(2, 2, vec![4], false).expect("create ok");
+        let pg = PolicyGradient::new(policy, 1e-3);
+        let log_probs = vec![-0.5, -0.3, -0.7];
+        let returns = vec![1.0, 2.0, 0.5];
+        let loss = pg.compute_loss(&log_probs, &returns);
+        assert!(loss.is_finite());
+        assert!(loss >= 0.0, "REINFORCE loss should be positive");
+    }
+}

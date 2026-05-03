@@ -6,25 +6,25 @@ use crate::error::{SignalError, SignalResult};
 use crate::lti::{StateSpace, TransferFunction};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::prelude::*;
+use scirs2_linalg::inv;
 
-use super::types::{EnhancedSysIdConfig, EnhancedSysIdResult, ModelStructure, ParameterEstimate, SystemModel};
+use super::functions::enhanced_system_identification;
 use super::functions::median;
 use super::functions_2::simulate_model;
 use super::functions_5::mad;
+use super::types::{
+    EnhancedSysIdConfig, EnhancedSysIdResult, ModelStructure, ParameterEstimate, SystemModel,
+};
 
 /// Convert transfer function to state space representation
 #[allow(dead_code)]
-pub(super) fn transfer_function_to_state_space(
-    tf: &TransferFunction,
-) -> SignalResult<StateSpace> {
-    let num = &_tf.num;
-    let den = &_tf.den;
+pub(super) fn transfer_function_to_state_space(tf: &TransferFunction) -> SignalResult<StateSpace> {
+    let num = &tf.num;
+    let den = &tf.den;
     if den.is_empty() || den[0] == 0.0 {
-        return Err(
-            SignalError::ValueError(
-                "Invalid denominator in transfer function".to_string(),
-            ),
-        );
+        return Err(SignalError::ValueError(
+            "Invalid denominator in transfer function".to_string(),
+        ));
     }
     let n = den.len() - 1;
     if n == 0 {
@@ -88,33 +88,42 @@ pub(super) fn simulate_state_space(
     ss: &StateSpace,
     input: &Array1<f64>,
 ) -> SignalResult<Array1<f64>> {
-    let n_states = ss.a.nrows();
-    let n_inputs = ss.b.ncols();
-    let n_outputs = ss.c.nrows();
+    let n_states = ss.n_states;
+    let n_inputs = ss.n_inputs;
+    let n_outputs = ss.n_outputs;
     let n_samples = input.len();
     if n_inputs != 1 {
-        return Err(
-            SignalError::ValueError("Only single-input systems supported".to_string()),
-        );
+        return Err(SignalError::ValueError(
+            "Only single-input systems supported".to_string(),
+        ));
     }
     if n_outputs != 1 {
-        return Err(
-            SignalError::ValueError("Only single-output systems supported".to_string()),
-        );
+        return Err(SignalError::ValueError(
+            "Only single-output systems supported".to_string(),
+        ));
     }
-    let mut x = Array1::zeros(n_states);
+    let mut x = vec![0.0f64; n_states];
     let mut output = Array1::zeros(n_samples);
+    // Helper closures to index into row-major flat matrices
+    // a: n_states x n_states
+    let a_get = |i: usize, j: usize| ss.a.get(i * n_states + j).copied().unwrap_or(0.0);
+    // b: n_states x n_inputs (n_inputs == 1)
+    let b_get = |i: usize| ss.b.get(i).copied().unwrap_or(0.0);
+    // c: n_outputs x n_states (n_outputs == 1)
+    let c_get = |i: usize| ss.c.get(i).copied().unwrap_or(0.0);
+    // d: n_outputs x n_inputs (scalar)
+    let d_val = ss.d.first().copied().unwrap_or(0.0);
     for k in 0..n_samples {
-        let mut y = ss.d[[0, 0]] * input[k];
+        let mut y = d_val * input[k];
         for i in 0..n_states {
-            y += ss.c[[0, i]] * x[i];
+            y += c_get(i) * x[i];
         }
         output[k] = y;
-        let mut x_next = Array1::zeros(n_states);
+        let mut x_next = vec![0.0f64; n_states];
         for i in 0..n_states {
-            x_next[i] = ss.b[[i, 0]] * input[k];
+            x_next[i] = b_get(i) * input[k];
             for j in 0..n_states {
-                x_next[i] += ss.a[[i, j]] * x[j];
+                x_next[i] += a_get(i, j) * x[j];
             }
         }
         x = x_next;
@@ -124,7 +133,7 @@ pub(super) fn simulate_state_space(
 /// Get number of model parameters
 #[allow(dead_code)]
 pub(super) fn get_model_parameters(model: &SystemModel) -> usize {
-    match _model {
+    match model {
         SystemModel::ARX { a, b, .. } => a.len() + b.len(),
         SystemModel::ARMAX { a, b, c, .. } => a.len() + b.len() + c.len(),
         SystemModel::OE { b, f, .. } => b.len() + f.len(),
@@ -160,13 +169,10 @@ fn parallel_block_identification(
     let overlap = 500;
     let n_blocks = (n + block_size - overlap - 1) / (block_size - overlap);
     let block_results: Vec<_> = (0..n_blocks)
-        .into_par_iter()
         .map(|i| {
             let start = i * (block_size - overlap);
             let end = (start + block_size).min(n);
-            let block_input = input
-                .slice(scirs2_core::ndarray::s![start..end])
-                .to_owned();
+            let block_input = input.slice(scirs2_core::ndarray::s![start..end]).to_owned();
             let block_output = output
                 .slice(scirs2_core::ndarray::s![start..end])
                 .to_owned();
@@ -177,26 +183,25 @@ fn parallel_block_identification(
 }
 /// Aggregate results from parallel blocks
 #[allow(dead_code)]
-fn aggregate_block_results(
-    results: &[EnhancedSysIdResult],
-) -> SignalResult<EnhancedSysIdResult> {
+fn aggregate_block_results(results: &[EnhancedSysIdResult]) -> SignalResult<EnhancedSysIdResult> {
     if results.is_empty() {
-        return Err(SignalError::ValueError("No _results to aggregate".to_string()));
+        return Err(SignalError::ValueError(
+            "No _results to aggregate".to_string(),
+        ));
     }
-    let first = &_results[0];
+    let first = &results[0];
     let mut aggregated = first.clone();
-    let weights: Vec<f64> = _results
+    let weights: Vec<f64> = results
         .iter()
         .map(|r| 1.0 / (r.diagnostics.final_cost + 1e-10))
         .collect();
     let total_weight: f64 = weights.iter().sum();
     let mut weighted_params = Array1::zeros(first.parameters.values.len());
     for (result, &weight) in results.iter().zip(weights.iter()) {
-        weighted_params = weighted_params
-            + &result.parameters.values * (weight / total_weight);
+        weighted_params = weighted_params + &result.parameters.values * (weight / total_weight);
     }
     aggregated.parameters.values = weighted_params;
-    aggregated.diagnostics.final_cost = _results
+    aggregated.diagnostics.final_cost = results
         .iter()
         .zip(weights.iter())
         .map(|(r, &w)| r.diagnostics.final_cost * w / total_weight)
@@ -215,11 +220,7 @@ pub fn robust_system_identification(
     let mut clean_input = input.clone();
     let mut clean_output = output.clone();
     for _iter in 0..max_iterations {
-        let result = enhanced_system_identification(
-            &clean_input,
-            &clean_output,
-            config,
-        )?;
+        let result = enhanced_system_identification(&clean_input, &clean_output, config)?;
         let y_pred = simulate_model(&result.model, &clean_input)?;
         let residuals = &clean_output - &y_pred;
         let outlier_mask = detect_outliers_mad(&residuals, outlier_threshold);
@@ -245,10 +246,12 @@ pub fn robust_system_identification(
 /// Detect outliers using Median Absolute Deviation
 #[allow(dead_code)]
 fn detect_outliers_mad(data: &Array1<f64>, threshold: f64) -> Vec<bool> {
-    let median = compute_median(&_data.to_vec());
+    let median = compute_median(&data.to_vec());
     let deviations: Vec<f64> = data.iter().map(|&x| (x - median).abs()).collect();
     let mad = compute_median(&deviations) / 0.6745;
-    _data.iter().map(|&x| (x - median).abs() > threshold * mad).collect()
+    data.iter()
+        .map(|&x| (x - median).abs() > threshold * mad)
+        .collect()
 }
 /// Compute median of a vector
 #[allow(dead_code)]
@@ -284,11 +287,7 @@ pub fn mimo_system_identification(
             }
             combined / n_inputs as f64
         };
-        let result = enhanced_system_identification(
-            &combined_input,
-            &output_signal,
-            config,
-        )?;
+        let result = enhanced_system_identification(&combined_input, &output_signal, config)?;
         results.push(result);
     }
     Ok(results)
@@ -321,29 +320,24 @@ pub fn advanced_model_selection(
     }
     match best_result {
         Some(result) => Ok((best_structure, result)),
-        None => {
-            Err(
-                SignalError::ComputationError(
-                    "No valid models found during selection".to_string(),
-                ),
-            )
-        }
+        None => Err(SignalError::ComputationError(
+            "No valid models found during selection".to_string(),
+        )),
     }
 }
 /// Compute penalized likelihood for model selection
 #[allow(dead_code)]
 fn compute_penalized_likelihood(result: &EnhancedSysIdResult) -> f64 {
     let n = result.parameters.values.len() as f64;
-    let k = get_model_parameters(&_result.model) as f64;
+    let k = get_model_parameters(&result.model) as f64;
     result.validation.aic + 2.0 * k * (k + 1.0) / (n - k - 1.0).max(1.0)
 }
-/// Compute condition number
+/// Compute condition number using Frobenius norms
 #[allow(dead_code)]
 pub(super) fn compute_condition_number(params: &ParameterEstimate) -> f64 {
-    use scirs2_core::ndarray_linalg::Norm;
-    if let Ok(inv) = params.covariance.inv() {
-        params.covariance.norm() * inv.norm()
-    } else {
-        f64::INFINITY
+    let frobenius_norm = |m: &Array2<f64>| -> f64 { m.iter().map(|&x| x * x).sum::<f64>().sqrt() };
+    match inv(&params.covariance.view(), None) {
+        Ok(inv_cov) => frobenius_norm(&params.covariance) * frobenius_norm(&inv_cov),
+        Err(_) => f64::INFINITY,
     }
 }

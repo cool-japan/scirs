@@ -154,14 +154,14 @@ impl SpikeEncoder {
         let range = (x_max - x_min).max(1e-6);
         let mut spikes = vec![false; n_neurons];
 
-        for i in 0..n_neurons {
+        for (i, spike) in spikes.iter_mut().enumerate().take(n_neurons) {
             let mu = x_min + i as f32 * range / (n_neurons.saturating_sub(1).max(1)) as f32;
             let diff = (value - mu) / tuning_width;
             let rate = (-0.5 * diff * diff).exp(); // in [0, 1]
             self.phase[i] += rate * dt;
             if self.phase[i] >= 1.0 {
                 self.phase[i] -= 1.0;
-                spikes[i] = true;
+                *spike = true;
             }
         }
         Ok(spikes)
@@ -353,13 +353,16 @@ mod tests {
         // With value=0.5 and dt=1.0, rate = 0.5 spikes/ms
         let mut count = 0;
         for _ in 0..1000 {
-            if enc.encode_scalar(0.5, 1.0, 0).expect("operation should succeed") {
+            if enc
+                .encode_scalar(0.5, 1.0, 0)
+                .expect("operation should succeed")
+            {
                 count += 1;
             }
         }
         // Expect roughly 500 spikes (±50 tolerance)
         assert!(
-            (count as i32 - 500).abs() <= 50,
+            (count - 500_i32).abs() <= 50,
             "Expected ~500 spikes, got {count}"
         );
     }
@@ -369,7 +372,9 @@ mod tests {
         let mut enc = SpikeEncoder::new(SpikeEncoding::RateCoding { period: 10.0 });
         enc.init(1);
         for _ in 0..1000 {
-            assert!(!enc.encode_scalar(0.0, 1.0, 0).expect("operation should succeed"));
+            assert!(!enc
+                .encode_scalar(0.0, 1.0, 0)
+                .expect("operation should succeed"));
         }
     }
 
@@ -382,9 +387,11 @@ mod tests {
             x_max: 1.0,
         });
         // Run for 1000 steps, stimulus near neuron 5's preferred value (0.5)
-        let mut counts = vec![0usize; 10];
+        let mut counts = [0usize; 10];
         for _ in 0..1000 {
-            let spikes = enc.encode_population(0.5, 1.0).expect("operation should succeed");
+            let spikes = enc
+                .encode_population(0.5, 1.0)
+                .expect("operation should succeed");
             for (i, &s) in spikes.iter().enumerate() {
                 if s {
                     counts[i] += 1;
@@ -392,7 +399,12 @@ mod tests {
             }
         }
         // Neuron index 4 or 5 (preferred ~0.44 or ~0.56) should fire most
-        let max_idx = counts.iter().enumerate().max_by_key(|&(_, c)| c).map(|(i, _)| i).expect("operation should succeed");
+        let max_idx = counts
+            .iter()
+            .enumerate()
+            .max_by_key(|&(_, c)| c)
+            .map(|(i, _)| i)
+            .expect("operation should succeed");
         assert!(
             (max_idx as i32 - 4).abs() <= 2,
             "Max firing neuron {max_idx} should be near centre"
@@ -404,7 +416,8 @@ mod tests {
         let mut dec = SpikeDecoder::new(3);
         // 10 steps: neuron 0 fires all, neuron 1 fires half, neuron 2 never
         for i in 0..10 {
-            dec.accumulate(&[true, i % 2 == 0, false]).expect("operation should succeed");
+            dec.accumulate(&[true, i % 2 == 0, false])
+                .expect("operation should succeed");
         }
         let rates = dec.firing_rates();
         assert!((rates[0] - 1.0).abs() < 1e-5);

@@ -151,15 +151,16 @@ impl WaveletPacket {
         }
 
         // Perform one level of inverse DWT
-        let reconstructed = dwt_reconstruct(&_left.data, &right.data, left.wavelet)?;
+        let reconstructed = dwt_reconstruct(&left.data, &right.data, left.wavelet)?;
 
         // Create parent node
         let parent = WaveletPacket::new(
             left.level - 1,
-            left.parent_position().expect("Operation failed"),
+            left.parent_position()
+                .ok_or_else(|| SignalError::ValueError("Root node has no parent".to_string()))?,
             reconstructed,
             left.wavelet,
-            &_left.mode,
+            &left.mode,
         );
 
         Ok(parent)
@@ -208,7 +209,7 @@ impl WaveletPacketTree {
         T: Float + NumCast + Debug,
     {
         // Convert input to f64
-        let signal: Vec<f64> = _data
+        let signal: Vec<f64> = data
             .iter()
             .map(|&val| {
                 NumCast::from(val).ok_or_else(|| {
@@ -290,7 +291,7 @@ impl WaveletPacketTree {
     pub fn get_level(&self, level: usize) -> Vec<&WaveletPacket> {
         self.nodes
             .iter()
-            .filter(|&((l, _))| *l == level)
+            .filter(|&((l, _), _)| *l == level)
             .map(|(_, node)| node)
             .collect()
     }
@@ -640,42 +641,245 @@ impl WaveletPacketTree {
         min_orthogonality
     }
 
-    /// Get the best basis using a cost function
-    pub fn get_best_basis(&self, costfunction: &str) -> SignalResult<Vec<(usize, usize)>> {
-        // For now, implement a simple best basis selection using Shannon entropy
-        let mut best_basis = Vec::new();
-        
-        // Start from the deepest level and work backwards
-        for level in (0..=self.max_level).rev() {
-            let nodes = self.get_level(level);
-            for node in nodes {
-                // Calculate cost based on the function type
-                let _cost = match cost_function {
-                    "shannon" => {
-                        // Shannon entropy: -sum(p * log(p))
-                        let total_energy: f64 = node.data.iter().map(|x| x * x).sum();
-                        if total_energy > 1e-12 {
-                            node.data.iter()
-                                .map(|&x| {
-                                    let p = (x * x) / total_energy;
-                                    if p > 1e-12 { -p * p.ln() } else { 0.0 }
-                                })
-                                .sum::<f64>()
+    /// Compute the entropy cost for a single coefficient sequence.
+    ///
+    /// Supported cost functions:
+    /// * `"shannon"` — Shannon entropy: -sum(p * log(p)) where p = x²/||x||²
+    /// * `"threshold"` — Count of coefficients with |c| > 1
+    /// * `"norm"` — L1 norm of coefficients
+    fn node_cost(data: &[f64], cost_function: &str) -> f64 {
+        match cost_function {
+            "shannon" => {
+                let total_energy: f64 = data.iter().map(|x| x * x).sum();
+                if total_energy < 1e-14 {
+                    return 0.0;
+                }
+                data.iter()
+                    .map(|&x| {
+                        let p = (x * x) / total_energy;
+                        if p > 1e-14 {
+                            -p * p.ln()
                         } else {
                             0.0
                         }
-                    },
-                    _ => 0.0, // Default cost
-                };
-                
-                // Simple selection - include all leaf nodes for now
-                if level == self.max_level {
-                    best_basis.push((node.level, node.position));
+                    })
+                    .sum::<f64>()
+            }
+            "threshold" => data.iter().filter(|&&x| x.abs() > 1.0).count() as f64,
+            "norm" => data.iter().map(|x| x.abs()).sum::<f64>(),
+            _ => {
+                // Default: Shannon entropy
+                let total_energy: f64 = data.iter().map(|x| x * x).sum();
+                if total_energy < 1e-14 {
+                    return 0.0;
+                }
+                data.iter()
+                    .map(|&x| {
+                        let p = (x * x) / total_energy;
+                        if p > 1e-14 {
+                            -p * p.ln()
+                        } else {
+                            0.0
+                        }
+                    })
+                    .sum::<f64>()
+            }
+        }
+    }
+
+    /// Get the best basis using the Coifman-Wickerhauser algorithm.
+    ///
+    /// This performs a bottom-up comparison: for each internal node, if the
+    /// sum of child costs is lower than the parent cost, we prefer the children.
+    /// The result is the set of leaf nodes of the best-basis subtree.
+    ///
+    /// # Arguments
+    ///
+    /// * `cost_function` — One of `"shannon"`, `"threshold"`, or `"norm"`
+    ///
+    /// # Returns
+    ///
+    /// A `Vec<(level, position)>` of best-basis leaf nodes.
+    pub fn get_best_basis(&self, cost_function: &str) -> SignalResult<Vec<(usize, usize)>> {
+        if self.max_level == 0 {
+            return Ok(vec![(0, 0)]);
+        }
+
+        // Compute cost for every node in the tree.
+        let mut cost_table: HashMap<(usize, usize), f64> = HashMap::new();
+        for (&key, node) in &self.nodes {
+            cost_table.insert(key, Self::node_cost(&node.data, cost_function));
+        }
+
+        // Bottom-up pass: for each internal node, replace its cost with
+        // min(parent_cost, left_child_cost + right_child_cost) and record
+        // whether the parent won.
+        // We store "use_children" so we know which subtrees to expand.
+        let mut use_children: HashMap<(usize, usize), bool> = HashMap::new();
+
+        for level in (0..self.max_level).rev() {
+            let node_keys: Vec<(usize, usize)> = self
+                .nodes
+                .keys()
+                .filter(|&&(l, _)| l == level)
+                .cloned()
+                .collect();
+
+            for (lvl, pos) in node_keys {
+                let left_key = (lvl + 1, pos * 2);
+                let right_key = (lvl + 1, pos * 2 + 1);
+
+                // Only compare if both children exist.
+                if let (Some(&left_cost), Some(&right_cost)) =
+                    (cost_table.get(&left_key), cost_table.get(&right_key))
+                {
+                    let parent_cost = cost_table
+                        .get(&(lvl, pos))
+                        .copied()
+                        .unwrap_or(f64::INFINITY);
+                    let children_cost = left_cost + right_cost;
+
+                    if children_cost < parent_cost {
+                        // Children give a better (lower) cost — prefer them.
+                        cost_table.insert((lvl, pos), children_cost);
+                        use_children.insert((lvl, pos), true);
+                    } else {
+                        use_children.insert((lvl, pos), false);
+                    }
+                } else {
+                    // One or both children are missing (too short to split).
+                    use_children.insert((lvl, pos), false);
                 }
             }
         }
-        
+
+        // Collect best-basis leaves by traversing from the root.
+        let mut best_basis = Vec::new();
+        let mut stack: Vec<(usize, usize)> = vec![(0, 0)];
+
+        while let Some((level, pos)) = stack.pop() {
+            let expand = use_children.get(&(level, pos)).copied().unwrap_or(false);
+            if expand {
+                stack.push((level + 1, pos * 2));
+                stack.push((level + 1, pos * 2 + 1));
+            } else {
+                best_basis.push((level, pos));
+            }
+        }
+
         Ok(best_basis)
+    }
+
+    /// Reconstruct a signal from a set of best-basis leaf nodes.
+    ///
+    /// Unlike `reconstruct_selective` (which only handles complete same-level
+    /// sets), this method handles the mixed-level leaf sets produced by
+    /// `get_best_basis`.
+    ///
+    /// # Algorithm
+    ///
+    /// We perform a bottom-up inverse DWT, working from `max_level` to 0.
+    /// For nodes that are in `best_basis_leaves`, their (possibly modified)
+    /// data is used directly. For nodes not in the best-basis set, their data
+    /// comes from merging their children.
+    ///
+    /// # Arguments
+    ///
+    /// * `best_basis_leaves` — The `(level, position)` pairs returned by `get_best_basis`.
+    /// * `node_data_override` — Optional map from `(level, position)` to replacement
+    ///   coefficient data (used for denoising: pass thresholded coefficients here).
+    pub fn reconstruct_best_basis(
+        &self,
+        best_basis_leaves: &[(usize, usize)],
+        node_data_override: Option<&HashMap<(usize, usize), Vec<f64>>>,
+    ) -> SignalResult<Vec<f64>> {
+        let leaf_set: std::collections::HashSet<(usize, usize)> =
+            best_basis_leaves.iter().cloned().collect();
+
+        // Build a mutable working set of node data, starting from the
+        // best-basis leaves (using overrides where provided).
+        let mut working: HashMap<(usize, usize), Vec<f64>> = HashMap::new();
+
+        for &(lvl, pos) in &leaf_set {
+            let data = if let Some(override_map) = node_data_override {
+                if let Some(d) = override_map.get(&(lvl, pos)) {
+                    d.clone()
+                } else {
+                    self.nodes
+                        .get(&(lvl, pos))
+                        .map(|n| n.data.clone())
+                        .ok_or_else(|| {
+                            SignalError::ValueError(format!(
+                                "Best-basis leaf ({}, {}) not found in tree",
+                                lvl, pos
+                            ))
+                        })?
+                }
+            } else {
+                self.nodes
+                    .get(&(lvl, pos))
+                    .map(|n| n.data.clone())
+                    .ok_or_else(|| {
+                        SignalError::ValueError(format!(
+                            "Best-basis leaf ({}, {}) not found in tree",
+                            lvl, pos
+                        ))
+                    })?
+            };
+            working.insert((lvl, pos), data);
+        }
+
+        // Determine the maximum level from which we need to reconstruct.
+        let max_leaf_level = best_basis_leaves.iter().map(|&(l, _)| l).max().unwrap_or(0);
+
+        // Bottom-up reconstruction from max_leaf_level to 0.
+        for level in (0..max_leaf_level).rev() {
+            let nodes_at_level: Vec<usize> = self
+                .nodes
+                .keys()
+                .filter(|&&(l, _)| l == level)
+                .map(|&(_, p)| p)
+                .collect();
+
+            for pos in nodes_at_level {
+                // If this node is already a best-basis leaf, skip — it's done.
+                if leaf_set.contains(&(level, pos)) {
+                    continue;
+                }
+
+                let left_key = (level + 1, pos * 2);
+                let right_key = (level + 1, pos * 2 + 1);
+
+                if let (Some(left_data), Some(right_data)) =
+                    (working.get(&left_key), working.get(&right_key))
+                {
+                    // Retrieve wavelet info from the original nodes.
+                    let (wavelet, mode) = self
+                        .nodes
+                        .get(&left_key)
+                        .map(|n| (n.wavelet, n.mode.clone()))
+                        .ok_or_else(|| {
+                            SignalError::ValueError(format!(
+                                "Node ({}, {}) not in tree",
+                                level + 1,
+                                pos * 2
+                            ))
+                        })?;
+
+                    let reconstructed =
+                        crate::dwt::dwt_reconstruct(left_data, right_data, wavelet)?;
+
+                    let parent_node = WaveletPacket::new(level, pos, reconstructed, wavelet, &mode);
+                    working.insert((level, pos), parent_node.data);
+                }
+            }
+        }
+
+        working.remove(&(0, 0)).ok_or_else(|| {
+            SignalError::ComputationError(
+                "Failed to reconstruct root node from best-basis leaves".to_string(),
+            )
+        })
     }
 
     /// Get the depth (maximum level) of the tree
@@ -695,49 +899,37 @@ impl WaveletPacketTree {
     /// Get all leaf nodes (nodes that don't have children)
     pub fn get_leaf_nodes(&self) -> Vec<(usize, usize)> {
         let mut leaf_nodes = Vec::new();
-        
+
         for &(level, position) in self.nodes.keys() {
             // A node is a leaf if it has no children
             let left_child = (level + 1, position * 2);
             let right_child = (level + 1, position * 2 + 1);
-            
+
             if !self.nodes.contains_key(&left_child) && !self.nodes.contains_key(&right_child) {
                 leaf_nodes.push((level, position));
             }
         }
-        
+
         leaf_nodes
     }
 
-    /// Compute all costs for nodes in the tree using the specified entropy type
-    /// This is a placeholder implementation
+    /// Compute all costs for nodes in the tree using the specified entropy type.
+    ///
+    /// Delegates to `node_cost` for consistent cost calculation.
+    ///
+    /// Supported values for `entropy_type`: `"shannon"`, `"threshold"`, `"norm"`.
     #[allow(dead_code)]
-    pub fn compute_all_costs(&self, entropytype: &str) -> SignalResult<HashMap<(usize, usize), f64>> {
+    pub fn compute_all_costs(
+        &self,
+        entropy_type: &str,
+    ) -> SignalResult<HashMap<(usize, usize), f64>> {
         let mut costs = HashMap::new();
-        
-        for ((level, position), node) in &self.nodes {
-            let cost = match entropy_type {
-                "shannon" => {
-                    // Simple Shannon entropy calculation
-                    let energy: f64 = node.data.iter().map(|x| x * x).sum();
-                    if energy > 0.0 {
-                        -energy.ln()
-                    } else {
-                        0.0
-                    }
-                },
-                "norm" => {
-                    // L2 norm
-                    node.data.iter().map(|x| x * x).sum::<f64>().sqrt()
-                },
-                _ => {
-                    // Default to energy
-                    node.data.iter().map(|x| x * x).sum()
-                }
-            };
-            costs.insert((*level, *position), cost);
+
+        for (&(level, position), node) in &self.nodes {
+            let cost = Self::node_cost(&node.data, entropy_type);
+            costs.insert((level, position), cost);
         }
-        
+
         Ok(costs)
     }
 }
@@ -883,6 +1075,33 @@ pub fn reconstruct_from_nodes(
 mod tests {
     use super::*;
     use approx::assert_relative_eq;
+    #[test]
+    fn test_reconstruct_best_basis_roundtrip() {
+        // Verify that reconstruct_best_basis with no thresholding is a lossless round-trip.
+        let n = 64usize;
+        let signal: Vec<f64> = (0..n)
+            .map(|i| (i as f64 / n as f64 * std::f64::consts::TAU).sin())
+            .collect();
+        let tree = wp_decompose(&signal, Wavelet::Haar, 2, None).expect("decompose failed");
+        let best_basis = tree.get_best_basis("shannon").expect("best_basis failed");
+        let reconstructed = tree
+            .reconstruct_best_basis(&best_basis, None)
+            .expect("reconstruct failed");
+
+        let len = reconstructed.len().min(n);
+        let mse: f64 = signal[..len]
+            .iter()
+            .zip(reconstructed[..len].iter())
+            .map(|(a, b)| (a - b).powi(2))
+            .sum::<f64>()
+            / len as f64;
+        assert!(
+            mse < 1e-10,
+            "Reconstruction MSE should be near zero, got {:.6e}",
+            mse
+        );
+    }
+
     #[test]
     fn test_wavelet_packet_path() {
         // Create some test nodes

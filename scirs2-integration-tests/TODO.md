@@ -1,6 +1,6 @@
 # scirs2-integration-tests TODO
 
-## Status: v0.3.4
+## Status: v0.4.3 Released (2026-05-03)
 
 ## Purpose
 
@@ -31,3 +31,11 @@ Cross-crate integration tests for SciRS2 ecosystem.
 ## Running Tests
 
 cargo nextest run --all-features -p scirs2-integration-tests
+
+## v0.4.3 Status (2026-05-03)
+
+- ~251 `#[test]` functions across baseline scenarios + Wave 42/44 pipelines
+- All tests passing on cargo check + clippy clean workspace
+- Pipelines covered: ML (`ml_pipeline.rs`), signal, computer vision (`vision_pipeline.rs`), graph ML, scientific computing, NLP
+- Cross-crate numerical: `numerical_crosscrate.rs` (16 tests), `numerical_validation.rs` (40 tests)
+- Workspace version 0.4.3 verified; all dependencies path-based via `workspace = true`

@@ -1114,11 +1114,13 @@ mod tests {
             }
         }
 
-        // Corners should still be 1.0 as they're outside the influence of the minimum
-        assert_eq!(result[[0, 0]], 0.0); // This is 0 because of reflect padding
-        assert_eq!(result[[0, 4]], 0.0); // This is 0 because of reflect padding
-        assert_eq!(result[[4, 0]], 0.0); // This is 0 because of reflect padding
-        assert_eq!(result[[4, 4]], 0.0); // This is 0 because of reflect padding
+        // Corners are outside the influence zone of the minimum at (2,2).
+        // With correct reflect padding, the padded corner values are reflected from
+        // the interior (all 1.0), so the minimum filter gives 1.0 at the corners.
+        assert_eq!(result[[0, 0]], 1.0);
+        assert_eq!(result[[0, 4]], 1.0);
+        assert_eq!(result[[4, 0]], 1.0);
+        assert_eq!(result[[4, 4]], 1.0);
     }
 
     #[test]

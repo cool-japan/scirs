@@ -17,7 +17,8 @@ pub use descriptive::{
 
 // Re-exports from distribution-related module
 pub use distribution::{
-    bincount, digitize, histogram, histogram2d, quantile, Histogram2dResult, HistogramResult,
+    bincount, digitize, digitize_values, histogram, histogram2d, quantile, Histogram2dResult,
+    HistogramResult,
 };
 
 // Re-exports from correlation module

@@ -31,9 +31,15 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_core::numeric::Float;
 
 // Re-export all regression functionality
-pub use self::linear::{linear_regression, linregress, multilinear_regression, odr};
+pub use self::linear::{
+    linear_regression, linregress, multilinear_regression, odr, FittedLinearRegression,
+    LinearRegression,
+};
 pub use self::polynomial::polyfit;
-pub use self::regularized::{elastic_net, group_lasso, lasso_regression, ridge_regression};
+pub use self::regularized::{
+    elastic_net, group_lasso, lasso_regression, ridge_regression, FittedRidgeRegression,
+    RidgeRegression,
+};
 pub use self::robust::{
     bisquare_regression, huber_regression, lts_regression, ransac, theilslopes, HuberT, LtsResult,
     TheilSlopesResult,

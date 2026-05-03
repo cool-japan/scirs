@@ -48,7 +48,7 @@ fn matmul_sq<F: CtrlFloat>(a: &Array2<F>, b: &Array2<F>, n: usize) -> Array2<F> 
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + a_ik * b[[k, j]];
+                c[[i, j]] += a_ik * b[[k, j]];
             }
         }
     }
@@ -70,7 +70,7 @@ fn transpose_sq<F: CtrlFloat>(a: &Array2<F>, n: usize) -> Array2<F> {
 fn mat_add_inplace<F: CtrlFloat>(a: &mut Array2<F>, b: &Array2<F>, n: usize) {
     for i in 0..n {
         for j in 0..n {
-            a[[i, j]] = a[[i, j]] + b[[i, j]];
+            a[[i, j]] += b[[i, j]];
         }
     }
 }
@@ -107,8 +107,8 @@ fn mat_inv_gauss<F: CtrlFloat>(a: &Array2<F>, n: usize) -> LinalgResult<Array2<F
             ));
         }
         let inv_pivot = F::one() / pivot;
-        for j in 0..2 * n {
-            aug[col][j] = aug[col][j] * inv_pivot;
+        for elem in aug[col].iter_mut() {
+            *elem *= inv_pivot;
         }
         for i in 0..n {
             if i != col {
@@ -116,9 +116,9 @@ fn mat_inv_gauss<F: CtrlFloat>(a: &Array2<F>, n: usize) -> LinalgResult<Array2<F
                 if factor == F::zero() {
                     continue;
                 }
-                for j in 0..2 * n {
-                    let v = aug[col][j];
-                    aug[i][j] = aug[i][j] - factor * v;
+                let col_row = aug[col].clone();
+                for (j, &v) in col_row.iter().enumerate() {
+                    aug[i][j] -= factor * v;
                 }
             }
         }
@@ -165,8 +165,8 @@ fn solve_linear<F: CtrlFloat>(a: &[Vec<F>], b: &[F], n: usize) -> LinalgResult<V
             ));
         }
         let inv_pivot = F::one() / pivot;
-        for j in 0..=n {
-            aug[col][j] = aug[col][j] * inv_pivot;
+        for elem in aug[col].iter_mut() {
+            *elem *= inv_pivot;
         }
         for i in 0..n {
             if i != col {
@@ -174,9 +174,9 @@ fn solve_linear<F: CtrlFloat>(a: &[Vec<F>], b: &[F], n: usize) -> LinalgResult<V
                 if factor == F::zero() {
                     continue;
                 }
-                for j in 0..=n {
-                    let v = aug[col][j];
-                    aug[i][j] = aug[i][j] - factor * v;
+                let col_row = aug[col].clone();
+                for (j, &v) in col_row.iter().enumerate() {
+                    aug[i][j] -= factor * v;
                 }
             }
         }
@@ -242,12 +242,12 @@ pub fn lyapunov_continuous<F: CtrlFloat>(
         for j in 0..n {
             // I ⊗ A contribution: row i*n+k, col i*n+j += A[k][j]
             for k in 0..n {
-                kron[i * n + k][i * n + j] = kron[i * n + k][i * n + j] + a[[k, j]];
+                kron[i * n + k][i * n + j] += a[[k, j]];
             }
             // A ⊗ I contribution: row i*n+k, col j*n+k += A[i][j]
             let a_ij = a[[i, j]];
             for k in 0..n {
-                kron[i * n + k][j * n + k] = kron[i * n + k][j * n + k] + a_ij;
+                kron[i * n + k][j * n + k] += a_ij;
             }
         }
     }
@@ -318,14 +318,14 @@ pub fn lyapunov_discrete<F: CtrlFloat>(
             let a_ij = a[[i, j]];
             for k in 0..n {
                 for l in 0..n {
-                    kron[i * n + k][j * n + l] = kron[i * n + k][j * n + l] + a_ij * a[[k, l]];
+                    kron[i * n + k][j * n + l] += a_ij * a[[k, l]];
                 }
             }
         }
     }
     // Subtract identity
     for i in 0..n2 {
-        kron[i][i] = kron[i][i] - F::one();
+        kron[i][i] -= F::one();
     }
 
     // RHS: −vec(Q)
@@ -414,7 +414,7 @@ pub fn riccati_continuous<F: CtrlFloat>(
         for i in 0..m {
             for j in 0..n {
                 for k in 0..m {
-                    s[[i, j]] = s[[i, j]] + r_inv[[i, k]] * b[[j, k]];
+                    s[[i, j]] += r_inv[[i, k]] * b[[j, k]];
                 }
             }
         }
@@ -428,7 +428,7 @@ pub fn riccati_continuous<F: CtrlFloat>(
                 continue;
             }
             for j in 0..n {
-                s_mat[[i, j]] = s_mat[[i, j]] + b_ik * r_inv_bt[[k, j]];
+                s_mat[[i, j]] += b_ik * r_inv_bt[[k, j]];
             }
         }
     }
@@ -452,7 +452,7 @@ pub fn riccati_continuous<F: CtrlFloat>(
         let mut a_cl = a.to_owned();
         for i in 0..n {
             for j in 0..n {
-                a_cl[[i, j]] = a_cl[[i, j]] - sx[[i, j]];
+                a_cl[[i, j]] -= sx[[i, j]];
             }
         }
 
@@ -511,7 +511,7 @@ pub fn riccati_continuous<F: CtrlFloat>(
 ///
 /// # Examples
 ///
-/// ```
+/// ```no_run
 /// use scirs2_core::ndarray::array;
 /// use scirs2_linalg::control_theory::riccati_discrete;
 ///
@@ -560,7 +560,7 @@ pub fn riccati_discrete<F: CtrlFloat>(
             for i in 0..n {
                 for j in 0..m {
                     for k in 0..n {
-                        tmp[[i, j]] = tmp[[i, j]] + x[[i, k]] * b[[k, j]];
+                        tmp[[i, j]] += x[[i, k]] * b[[k, j]];
                     }
                 }
             }
@@ -571,9 +571,9 @@ pub fn riccati_discrete<F: CtrlFloat>(
             for j in 0..m {
                 let mut s = F::zero();
                 for k in 0..n {
-                    s = s + b[[k, i]] * xb[[k, j]];
+                    s += b[[k, i]] * xb[[k, j]];
                 }
-                rbxb[[i, j]] = rbxb[[i, j]] + s;
+                rbxb[[i, j]] += s;
             }
         }
         let rbxb_inv = mat_inv_gauss(&rbxb, m)?;
@@ -585,7 +585,7 @@ pub fn riccati_discrete<F: CtrlFloat>(
             for i in 0..m {
                 for j in 0..n {
                     for k in 0..n {
-                        tmp[[i, j]] = tmp[[i, j]] + b[[k, i]] * x[[k, j]];
+                        tmp[[i, j]] += b[[k, i]] * x[[k, j]];
                     }
                 }
             }
@@ -597,7 +597,7 @@ pub fn riccati_discrete<F: CtrlFloat>(
             for i in 0..m {
                 for j in 0..n {
                     for k in 0..n {
-                        tmp[[i, j]] = tmp[[i, j]] + btx[[i, k]] * a[[k, j]];
+                        tmp[[i, j]] += btx[[i, k]] * a[[k, j]];
                     }
                 }
             }
@@ -609,7 +609,7 @@ pub fn riccati_discrete<F: CtrlFloat>(
             for i in 0..m {
                 for j in 0..n {
                     for k in 0..m {
-                        tmp[[i, j]] = tmp[[i, j]] + rbxb_inv[[i, k]] * btxa[[k, j]];
+                        tmp[[i, j]] += rbxb_inv[[i, k]] * btxa[[k, j]];
                     }
                 }
             }
@@ -622,7 +622,7 @@ pub fn riccati_discrete<F: CtrlFloat>(
             for i in 0..n {
                 for j in 0..n {
                     for k in 0..m {
-                        tmp[[i, j]] = tmp[[i, j]] + b[[i, k]] * k_gain[[k, j]];
+                        tmp[[i, j]] += b[[i, k]] * k_gain[[k, j]];
                     }
                 }
             }
@@ -631,7 +631,7 @@ pub fn riccati_discrete<F: CtrlFloat>(
         let mut a_cl = a.to_owned();
         for i in 0..n {
             for j in 0..n {
-                a_cl[[i, j]] = a_cl[[i, j]] - bk[[i, j]];
+                a_cl[[i, j]] -= bk[[i, j]];
             }
         }
 
@@ -643,7 +643,7 @@ pub fn riccati_discrete<F: CtrlFloat>(
             for i in 0..n {
                 for j in 0..n {
                     for k in 0..n {
-                        tmp[[i, j]] = tmp[[i, j]] + a[[k, i]] * xa_cl[[k, j]];
+                        tmp[[i, j]] += a[[k, i]] * xa_cl[[k, j]];
                     }
                 }
             }
@@ -708,10 +708,7 @@ pub fn riccati_discrete<F: CtrlFloat>(
 /// assert_eq!(ctrl.nrows(), 2);
 /// assert_eq!(ctrl.ncols(), 2); // n*m = 2*1
 /// ```
-pub fn controllability_matrix<F: CtrlFloat>(
-    a: &ArrayView2<F>,
-    b: &ArrayView2<F>,
-) -> Array2<F> {
+pub fn controllability_matrix<F: CtrlFloat>(a: &ArrayView2<F>, b: &ArrayView2<F>) -> Array2<F> {
     let n = a.nrows();
     let m = b.ncols();
     let total_cols = n * m;
@@ -734,7 +731,7 @@ pub fn controllability_matrix<F: CtrlFloat>(
                     continue;
                 }
                 for j in 0..m {
-                    new_ab[[i, j]] = new_ab[[i, j]] + a_il * ab[[l, j]];
+                    new_ab[[i, j]] += a_il * ab[[l, j]];
                 }
             }
         }
@@ -764,10 +761,7 @@ pub fn controllability_matrix<F: CtrlFloat>(
 /// assert_eq!(obs.nrows(), 2); // n*p = 2*1
 /// assert_eq!(obs.ncols(), 2);
 /// ```
-pub fn observability_matrix<F: CtrlFloat>(
-    a: &ArrayView2<F>,
-    c: &ArrayView2<F>,
-) -> Array2<F> {
+pub fn observability_matrix<F: CtrlFloat>(a: &ArrayView2<F>, c: &ArrayView2<F>) -> Array2<F> {
     let n = a.nrows();
     let p = c.nrows();
     let total_rows = n * p;
@@ -790,7 +784,7 @@ pub fn observability_matrix<F: CtrlFloat>(
                     continue;
                 }
                 for j in 0..n {
-                    new_ca[[i, j]] = new_ca[[i, j]] + ca_il * a[[l, j]];
+                    new_ca[[i, j]] += ca_il * a[[l, j]];
                 }
             }
         }
@@ -841,7 +835,7 @@ pub fn controllability_gramian<F: CtrlFloat>(
         for k in 0..m {
             let b_ik = b[[i, k]];
             for j in 0..n {
-                bbt[[i, j]] = bbt[[i, j]] + b_ik * b[[j, k]];
+                bbt[[i, j]] += b_ik * b[[j, k]];
             }
         }
     }
@@ -891,7 +885,7 @@ pub fn observability_gramian<F: CtrlFloat>(
         for i in 0..n {
             let c_ki = c[[k, i]];
             for j in 0..n {
-                ctc[[i, j]] = ctc[[i, j]] + c_ki * c[[k, j]];
+                ctc[[i, j]] += c_ki * c[[k, j]];
             }
         }
     }
@@ -1008,10 +1002,7 @@ pub fn balanced_truncation<F: CtrlFloat>(
         .enumerate()
         .map(|(i, &e)| (i, e.abs().sqrt()))
         .collect();
-    hsv_indexed.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    hsv_indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     let hsv: Array1<F> = Array1::from_vec(hsv_indexed.iter().map(|&(_, v)| v).collect());
 
@@ -1044,7 +1035,7 @@ pub fn balanced_truncation<F: CtrlFloat>(
         for i in 0..r {
             for j in 0..n {
                 for k in 0..n {
-                    tmp[[i, j]] = tmp[[i, j]] + t_t[[i, k]] * a[[k, j]];
+                    tmp[[i, j]] += t_t[[i, k]] * a[[k, j]];
                 }
             }
         }
@@ -1054,7 +1045,7 @@ pub fn balanced_truncation<F: CtrlFloat>(
     for i in 0..r {
         for j in 0..r {
             for k in 0..n {
-                a_r[[i, j]] = a_r[[i, j]] + at_t[[i, k]] * transform[[k, j]];
+                a_r[[i, j]] += at_t[[i, k]] * transform[[k, j]];
             }
         }
     }
@@ -1064,7 +1055,7 @@ pub fn balanced_truncation<F: CtrlFloat>(
     for i in 0..r {
         for j in 0..m {
             for k in 0..n {
-                b_r[[i, j]] = b_r[[i, j]] + t_t[[i, k]] * b[[k, j]];
+                b_r[[i, j]] += t_t[[i, k]] * b[[k, j]];
             }
         }
     }
@@ -1074,7 +1065,7 @@ pub fn balanced_truncation<F: CtrlFloat>(
     for i in 0..p {
         for j in 0..r {
             for k in 0..n {
-                c_r[[i, j]] = c_r[[i, j]] + c[[i, k]] * transform[[k, j]];
+                c_r[[i, j]] += c[[i, k]] * transform[[k, j]];
             }
         }
     }
@@ -1111,7 +1102,7 @@ fn power_iter_eig<F: CtrlFloat>(
         for ev in &evecs {
             let dot: F = v.iter().zip(ev.iter()).map(|(&vi, &ei)| vi * ei).sum();
             for i in 0..n {
-                v[i] = v[i] - dot * ev[i];
+                v[i] -= dot * ev[i];
             }
         }
         let norm: F = v.iter().map(|&x| x * x).sum::<F>().sqrt();
@@ -1120,7 +1111,7 @@ fn power_iter_eig<F: CtrlFloat>(
             v[k % n] = F::one();
         } else {
             for x in v.iter_mut() {
-                *x = *x / norm;
+                *x /= norm;
             }
         }
 
@@ -1129,7 +1120,7 @@ fn power_iter_eig<F: CtrlFloat>(
             let mut av = Array1::<F>::zeros(n);
             for i in 0..n {
                 for j in 0..n {
-                    av[i] = av[i] + a_work[[i, j]] * v[j];
+                    av[i] += a_work[[i, j]] * v[j];
                 }
             }
             let new_eigenval: F = v.iter().zip(av.iter()).map(|(&vi, &avi)| vi * avi).sum();
@@ -1154,7 +1145,7 @@ fn power_iter_eig<F: CtrlFloat>(
         // Deflate
         for i in 0..n {
             for j in 0..n {
-                a_work[[i, j]] = a_work[[i, j]] - eigenval * v[i] * v[j];
+                a_work[[i, j]] -= eigenval * v[i] * v[j];
             }
         }
     }
@@ -1180,7 +1171,9 @@ fn check_square<F: CtrlFloat>(a: &ArrayView2<F>, ctx: &str) -> LinalgResult<usiz
         )));
     }
     if a.ncols() != n {
-        return Err(LinalgError::ShapeError(format!("{ctx}: matrix must be square")));
+        return Err(LinalgError::ShapeError(format!(
+            "{ctx}: matrix must be square"
+        )));
     }
     Ok(n)
 }

@@ -1,6 +1,6 @@
 # scirs2-spatial TODO
 
-## Status: v0.3.4 Released (March 18, 2026)
+## Status: v0.4.3 Released (May 3, 2026)
 
 ## v0.3.3 Completed
 

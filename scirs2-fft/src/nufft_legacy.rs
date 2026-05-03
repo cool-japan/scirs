@@ -10,7 +10,8 @@ use crate::error::{FFTError, FFTResult};
 use crate::oxifft_plan_cache;
 #[cfg(feature = "oxifft")]
 use oxifft::{Complex as OxiComplex, Direction};
-#[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+// NOTE: rustfft-backend removed; this block is now dead code
+#[cfg(not(feature = "oxifft"))]
 use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::Zero;
@@ -227,7 +228,8 @@ fn fft_backend_legacy(data: &[Complex64]) -> FFTResult<Vec<Complex64>> {
         Ok(output.into_iter().map(|c| Complex64::new(c.re, c.im)).collect())
     }
 
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         let mut planner = FftPlanner::new();
         let fft = planner.plan_fft_forward(n);
@@ -237,7 +239,7 @@ fn fft_backend_legacy(data: &[Complex64]) -> FFTResult<Vec<Complex64>> {
         Ok(buffer.into_iter().map(|c| Complex64::new(c.re, c.im)).collect())
     }
 
-    #[cfg(all(not(feature = "oxifft"), not(feature = "rustfft-backend")))]
+    #[cfg(not(feature = "oxifft"))]
     {
         let _ = n;
         Err(FFTError::ComputationError(
@@ -262,7 +264,8 @@ fn ifft_backend_legacy(data: &[Complex64]) -> FFTResult<Vec<Complex64>> {
             .collect())
     }
 
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         let mut planner = FftPlanner::new();
         let ifft = planner.plan_fft_inverse(n);
@@ -276,7 +279,7 @@ fn ifft_backend_legacy(data: &[Complex64]) -> FFTResult<Vec<Complex64>> {
             .collect())
     }
 
-    #[cfg(all(not(feature = "oxifft"), not(feature = "rustfft-backend")))]
+    #[cfg(not(feature = "oxifft"))]
     {
         let _ = n;
         Err(FFTError::ComputationError(

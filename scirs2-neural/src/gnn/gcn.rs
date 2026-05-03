@@ -54,7 +54,9 @@ fn xavier_init(fan_in: usize, fan_out: usize, seed_offset: u64) -> Vec<Vec<f32>>
     // Simple LCG PRNG seeded deterministically so tests are reproducible.
     let mut state: u64 = 12345678901234567_u64.wrapping_add(seed_offset);
     let lcg_next = |s: &mut u64| -> f32 {
-        *s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        *s = s
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         let bits = ((*s >> 33) as u32) as f64 / u32::MAX as f64;
         (bits as f32) * 2.0 * limit - limit
     };
@@ -171,12 +173,12 @@ impl GCNLayer {
         // Step 3: (Â H) @ W + b, then apply activation
         let mut out: Vec<Vec<f32>> = vec![vec![0.0_f32; self.out_features]; n];
         for i in 0..n {
-            for o in 0..self.out_features {
+            for (o, out_io) in out[i].iter_mut().enumerate().take(self.out_features) {
                 let mut val = if self.use_bias { self.bias[o] } else { 0.0 };
-                for f in 0..self.in_features {
-                    val += agg[i][f] * self.weights[f][o];
+                for (f, &agg_if) in agg[i].iter().enumerate().take(self.in_features) {
+                    val += agg_if * self.weights[f][o];
                 }
-                out[i][o] = self.activation.apply(val);
+                *out_io = self.activation.apply(val);
             }
         }
         Ok(out)
@@ -250,7 +252,8 @@ mod tests {
             g.add_undirected_edge(i, i + 1).expect("edge ok");
         }
         for i in 0..n {
-            g.set_node_features(i, vec![1.0_f32; feat_dim]).expect("feat ok");
+            g.set_node_features(i, vec![1.0_f32; feat_dim])
+                .expect("feat ok");
         }
         g
     }

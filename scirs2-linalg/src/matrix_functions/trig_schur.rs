@@ -2,7 +2,7 @@
 //!
 //! Provides numerically accurate implementations using Schur decomposition
 //! + pointwise computation on the quasi-triangular factor, as an alternative
-//! to the truncated Taylor series in `trigonometric.rs` and `hyperbolic.rs`.
+//!   to the truncated Taylor series in `trigonometric.rs` and `hyperbolic.rs`.
 //!
 //! # Available functions
 //!
@@ -37,14 +37,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Trait alias for floating-point bounds used in trig Schur methods.
-pub trait TrigFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<T> TrigFloat for T where
-    T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait TrigFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<T> TrigFloat for T where T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -61,7 +55,7 @@ fn matmul_nn<F: TrigFloat>(a: &Array2<F>, b: &Array2<F>) -> Array2<F> {
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + aik * b[[k, j]];
+                c[[i, j]] += aik * b[[k, j]];
             }
         }
     }
@@ -78,16 +72,20 @@ fn parlett_recurrence<F: TrigFloat>(
     t: &Array2<F>,
     f_diag: &[F],
     n: usize,
+    scalar_fn: fn(F) -> F,
 ) -> Array2<F> {
     // We work on the divided differences of f.
     // For f applied to upper-triangular T:
     //   f(T)_{ii} = f(t_{ii})
-    //   f(T)_{ij} for j > i: f(T)_{ij} satisfies:
-    //     (f(t_{jj}) - f(t_{ii})) f(T)_{ij} = t_{ij} f'(t_{ii})  ... (1x1 case)
-    //     In general: f(T)_{ij} (t_{ii} - t_{jj}) = f(T)_{ii} t_{ij} - t_{ij} f(T)_{jj}
-    //                                                - sum_{k=i+1}^{j-1} (f(T)_{ik} t_{kj} - t_{ik} f(T)_{kj})
+    //   f(T)_{ij} for j > i satisfies the Sylvester-like recurrence:
+    //     (t_{jj} - t_{ii}) f(T)_{ij} = f(T)_{ii} t_{ij} - t_{ij} f(T)_{jj}
+    //                                   + sum_{k=i+1}^{j-1} (f(T)_{ik} t_{kj} - t_{ik} f(T)_{kj})
     //
-    // This is the standard Parlett recurrence for f applied to upper-triangular matrices.
+    //   When t_{ii} ≈ t_{jj} (coalescent eigenvalues), the divided difference
+    //   [f; t_{ii}, t_{jj}] → f'(t_{ii}), so f(T)_{ij} → f'(t_{ii}) * t_{ij}  (for adjacent pair).
+    //   For the general case we compute the inner sum as well.
+    //
+    // Reference: Higham (2008), "Functions of Matrices", §4.6.
     let mut ft = Array2::<F>::zeros((n, n));
 
     // Diagonal
@@ -95,7 +93,9 @@ fn parlett_recurrence<F: TrigFloat>(
         ft[[i, i]] = f_diag[i];
     }
 
-    // Super-diagonal columns
+    let thresh = F::epsilon() * F::from(100.0).unwrap_or(F::one());
+
+    // Super-diagonal columns (column-wise for cache locality)
     for j in 1..n {
         for i in (0..j).rev() {
             let fii = ft[[i, i]];
@@ -103,31 +103,18 @@ fn parlett_recurrence<F: TrigFloat>(
             let tij = t[[i, j]];
             let denom = t[[j, j]] - t[[i, i]];
 
-            if denom.abs() < F::epsilon() * F::from(100.0).unwrap_or(F::one()) {
-                // Nearly-repeated eigenvalues: use first-order approximation
-                // This is the derivative divided-difference: f'(t_{ii})
-                // Approximate via small finite difference of the function values
-                // (t_{ii} ≈ t_{jj} so f'(t) ≈ (f(t+h) - f(t-h))/(2h))
-                // We don't have easy access to f' here, so use the off-diagonal
-                // contribution from Sylvester:
-                let mut inner_sum = F::zero();
-                for k in (i + 1)..j {
-                    inner_sum = inner_sum + ft[[i, k]] * t[[k, j]] - t[[i, k]] * ft[[k, j]];
-                }
-                // Use fii * tij - tij * fjj = 0 (since fii ~ fjj), so contribution is:
-                ft[[i, j]] = (fii - fjj) / (if denom.abs() > F::zero() { denom } else { F::epsilon() }) * tij
-                    - inner_sum / (if denom.abs() > F::zero() { denom } else { F::epsilon() });
-                // Better approximation for degenerate case using just inner_sum:
-                // When eigenvalues coincide, the off-diagonal entries are proportional to f'(lambda)*t_{ij}
-                // We approximate f'(lambda) ≈ (fii + fjj) * 0 = use L'Hopital approach
-                // For practical purposes, set to zero (safe for smooth functions with close eigenvalues)
-                let _ = tij;
-                ft[[i, j]] = F::zero();
+            let mut inner_sum = F::zero();
+            for k in (i + 1)..j {
+                inner_sum = inner_sum + ft[[i, k]] * t[[k, j]] - t[[i, k]] * ft[[k, j]];
+            }
+
+            if denom.abs() < thresh {
+                // Coalescent eigenvalues: use the first divided difference f'(t_{ii}).
+                // Computed via symmetric finite differences for accuracy.
+                let f_prime = numerical_derivative(scalar_fn, t[[i, i]]);
+                ft[[i, j]] = f_prime * tij + inner_sum;
             } else {
-                let mut numer = (fii - fjj) * tij;
-                for k in (i + 1)..j {
-                    numer = numer + ft[[i, k]] * t[[k, j]] - t[[i, k]] * ft[[k, j]];
-                }
+                let numer = (fii - fjj) * tij + inner_sum;
                 ft[[i, j]] = numer / denom;
             }
         }
@@ -136,12 +123,23 @@ fn parlett_recurrence<F: TrigFloat>(
     ft
 }
 
+/// Numerically differentiate `f` at `x` using a symmetric finite difference.
+///
+/// Used for the Parlett recurrence when two eigenvalues coincide (degenerate case).
+fn numerical_derivative<F: TrigFloat>(f: fn(F) -> F, x: F) -> F {
+    // Step h ≈ eps^(1/3) * max(1, |x|) gives O(eps^(2/3)) error in the derivative
+    let h = F::from(1e-5).unwrap_or(F::epsilon()) * (F::one() + x.abs());
+    (f(x + h) - f(x - h)) / (F::from(2.0).unwrap_or(F::one()) * h)
+}
+
 /// Generic Schur-based matrix function computation.
 ///
 /// Computes f(A) using:
 ///   1. A = Q T Q^T (Schur decomposition)
 ///   2. f(T) via Parlett recurrence on upper-triangular T
 ///   3. f(A) = Q f(T) Q^T
+///
+/// This is the internal implementation; use the public `schur_apply` for external calls.
 fn schur_function<F: TrigFloat>(
     a: &ArrayView2<F>,
     scalar_fn: fn(F) -> F,
@@ -168,11 +166,29 @@ fn schur_function<F: TrigFloat>(
     // Apply scalar function to diagonal
     let f_diag: Vec<F> = (0..n).map(|i| scalar_fn(t[[i, i]])).collect();
 
-    // Propagate via Parlett recurrence
-    let ft = parlett_recurrence(&t, &f_diag, n);
+    // Propagate via Parlett recurrence (pass scalar_fn for derivative estimation)
+    let ft = parlett_recurrence(&t, &f_diag, n, scalar_fn);
 
     // Back-transform: f(A) = Q f(T) Q^T
     Ok(q.dot(&ft).dot(&q.t()))
+}
+
+/// Public entry point: apply a scalar function f to a matrix via Schur decomposition.
+///
+/// This is a general-purpose helper that lets other modules (e.g. `trigonometric.rs`)
+/// apply arbitrary scalar functions to matrices without exposing the internal
+/// `schur_function` helper.
+///
+/// # Arguments
+/// * `a`         - Input square matrix
+/// * `scalar_fn` - Scalar function applied to each diagonal element of the Schur form
+/// * `name`      - Function name used in error messages
+pub fn schur_apply<F: TrigFloat>(
+    a: &ArrayView2<F>,
+    scalar_fn: fn(F) -> F,
+    name: &str,
+) -> LinalgResult<Array2<F>> {
+    schur_function(a, scalar_fn, name)
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +274,9 @@ pub fn cosm_schur<F: TrigFloat>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
 pub fn tanm_schur<F: TrigFloat>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
     let n = a.nrows();
     if a.ncols() != n {
-        return Err(LinalgError::ShapeError("tanm_schur: matrix must be square".into()));
+        return Err(LinalgError::ShapeError(
+            "tanm_schur: matrix must be square".into(),
+        ));
     }
 
     let sin_a = sinm_schur(a)?;
@@ -350,7 +368,9 @@ pub fn coshm_schur<F: TrigFloat>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
 pub fn tanhm_schur<F: TrigFloat>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
     let n = a.nrows();
     if a.ncols() != n {
-        return Err(LinalgError::ShapeError("tanhm_schur: matrix must be square".into()));
+        return Err(LinalgError::ShapeError(
+            "tanhm_schur: matrix must be square".into(),
+        ));
     }
 
     let sinh_a = sinhm_schur(a)?;
@@ -434,33 +454,216 @@ pub fn apply_schur<F: TrigFloat>(
 pub fn sincos_expm<F: TrigFloat>(a: &ArrayView2<F>) -> LinalgResult<(Array2<F>, Array2<F>)> {
     let n = a.nrows();
     if a.ncols() != n {
-        return Err(LinalgError::ShapeError("sincos_expm: matrix must be square".into()));
+        return Err(LinalgError::ShapeError(
+            "sincos_expm: matrix must be square".into(),
+        ));
     }
 
-    // Build 2n x 2n matrix [[0, -A], [A, 0]]
-    let n2 = 2 * n;
-    let mut aug = Array2::<F>::zeros((n2, n2));
-    for i in 0..n {
-        for j in 0..n {
-            aug[[i, j + n]] = -a[[i, j]]; // top-right: -A
-            aug[[i + n, j]] = a[[i, j]]; // bottom-left: A
+    // Compute cos(A) and sin(A) simultaneously using the doubled real system.
+    //
+    // The identity exp([[0,-A],[A,0]]) = [[cos(A), -sin(A)],[sin(A), cos(A)]] holds
+    // for SYMMETRIC A (where [[0,-A],[A,0]] is skew-symmetric and real exp gives cosines).
+    //
+    // For general A we fall back to two independent Schur-based evaluations.
+    // This is still efficient as both share the same Schur decomposition of A.
+    //
+    // A future optimization could use a single 2n×2n Schur decomposition, but
+    // correctness takes priority here.
+
+    // First check if A is symmetric (so the doubled-system trick is valid)
+    let is_symmetric = {
+        let mut sym = true;
+        'outer: for i in 0..n {
+            for j in (i + 1)..n {
+                if (a[[i, j]] - a[[j, i]]).abs() > F::epsilon() * F::from(10.0).unwrap_or(F::one())
+                {
+                    sym = false;
+                    break 'outer;
+                }
+            }
         }
+        sym
+    };
+
+    if is_symmetric {
+        // For symmetric A, use the doubled-up augmented matrix trick.
+        // aug = [[0,-A],[A,0]] is skew-symmetric, so exp(aug) is an orthogonal matrix.
+        let n2 = 2 * n;
+        let mut aug = Array2::<F>::zeros((n2, n2));
+        for i in 0..n {
+            for j in 0..n {
+                aug[[i, j + n]] = -a[[i, j]]; // top-right: -A
+                aug[[i + n, j]] = a[[i, j]]; // bottom-left: A
+            }
+        }
+
+        let exp_aug = crate::matrix_functions::pade::pade_expm(&aug.view())?;
+
+        // For skew-symmetric aug: exp_aug = [[cos(A), -sin(A)], [sin(A), cos(A)]]
+        let mut cos_a = Array2::<F>::zeros((n, n));
+        let mut sin_a = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                cos_a[[i, j]] = exp_aug[[i, j]]; // top-left
+                sin_a[[i, j]] = exp_aug[[i + n, j]]; // bottom-left
+            }
+        }
+        Ok((cos_a, sin_a))
+    } else {
+        // For non-symmetric A (possibly with complex eigenvalues), use eigendecomposition.
+        // A = V D V^{-1}  =>  f(A) = V f(D) V^{-1}
+        // f(D) is diagonal with f(lambda_k) on the diagonal.
+        // We take the real part of the result (which is real for real-analytic functions
+        // applied to matrices whose complex eigenvalues come in conjugate pairs).
+        sincos_via_eig(a, n)
     }
+}
 
-    // Compute exp([[0,-A],[A,0]])
-    let exp_aug = crate::matrix_functions::pade::pade_expm(&aug.view())?;
+/// Compute sin(A) and cos(A) via eigendecomposition for matrices with complex eigenvalues.
+///
+/// Uses `A = V D V^{-1}`, computes `cos(A) = V cos(D) V^{-1}` and `sin(A) = V sin(D) V^{-1}`.
+fn sincos_via_eig<F: TrigFloat>(
+    a: &ArrayView2<F>,
+    n: usize,
+) -> LinalgResult<(Array2<F>, Array2<F>)> {
+    use scirs2_core::numeric::Complex;
 
-    // Extract cos(A) from top-left block, sin(A) from top-right block
+    // Compute eigendecomposition: (eigenvalues, eigenvectors)
+    let (eigenvals, eigenvecs) = crate::eigen::eig(a, None)?;
+
+    // Apply cos and sin to eigenvalues (complex)
+    let cos_eigs: Vec<Complex<F>> = eigenvals
+        .iter()
+        .map(|&lam| {
+            // cos(a + bi) = cos(a)*cosh(b) - i*sin(a)*sinh(b)
+            let (a, b) = (lam.re, lam.im);
+            let ca = a.cos();
+            let cb = b.cosh();
+            let sa = a.sin();
+            let sb = b.sinh();
+            Complex::new(ca * cb, -(sa * sb))
+        })
+        .collect();
+
+    let sin_eigs: Vec<Complex<F>> = eigenvals
+        .iter()
+        .map(|&lam| {
+            // sin(a + bi) = sin(a)*cosh(b) + i*cos(a)*sinh(b)
+            let (a, b) = (lam.re, lam.im);
+            let ca = a.cos();
+            let cb = b.cosh();
+            let sa = a.sin();
+            let sb = b.sinh();
+            Complex::new(sa * cb, ca * sb)
+        })
+        .collect();
+
+    // Build cos(D) and sin(D) as complex diagonal matrices
+    let cos_d: Array2<Complex<F>> =
+        Array2::from_diag(&cos_eigs.iter().copied().collect::<Array1<_>>());
+    let sin_d: Array2<Complex<F>> =
+        Array2::from_diag(&sin_eigs.iter().copied().collect::<Array1<_>>());
+
+    // cos(A) = V * cos(D) * V^{-1} — take real part for real matrix result
+    let v_cos_d = eigenvecs.dot(&cos_d);
+    let v_sin_d = eigenvecs.dot(&sin_d);
+
+    // Compute V^{-1} via conjugate transpose (for normal matrices V is unitary, V^{-1} = V^H)
+    // For non-normal matrices, we solve V * X = I.  Use the real system of equations.
+    // To stay in real arithmetic, solve via the least-squares approach on the real part.
+    // Since the matrix is real and the eigenvalues come in conjugate pairs, the real part
+    // of V cos(D) V^{-1} is the correct real result.
+    let v_inv = complex_inv(&eigenvecs, n)?;
+
+    let cos_a_complex = v_cos_d.dot(&v_inv);
+    let sin_a_complex = v_sin_d.dot(&v_inv);
+
+    // Extract real parts
     let mut cos_a = Array2::<F>::zeros((n, n));
     let mut sin_a = Array2::<F>::zeros((n, n));
     for i in 0..n {
         for j in 0..n {
-            cos_a[[i, j]] = exp_aug[[i, j]];
-            sin_a[[i, j]] = exp_aug[[i, j + n]];
+            cos_a[[i, j]] = cos_a_complex[[i, j]].re;
+            sin_a[[i, j]] = sin_a_complex[[i, j]].re;
         }
     }
 
     Ok((cos_a, sin_a))
+}
+
+use scirs2_core::ndarray::Array1;
+
+/// Invert a complex matrix via Gaussian elimination with partial pivoting.
+fn complex_inv<F: TrigFloat>(
+    m: &Array2<scirs2_core::numeric::Complex<F>>,
+    n: usize,
+) -> LinalgResult<Array2<scirs2_core::numeric::Complex<F>>> {
+    use scirs2_core::numeric::Complex;
+
+    let mut a = m.to_owned();
+    let mut inv = Array2::<Complex<F>>::zeros((n, n));
+    // Identity
+    for i in 0..n {
+        inv[[i, i]] = Complex::new(F::one(), F::zero());
+    }
+
+    for col in 0..n {
+        // Find pivot
+        let mut max_row = col;
+        let mut max_val = a[[col, col]].norm_sqr();
+        for row in (col + 1)..n {
+            let v = a[[row, col]].norm_sqr();
+            if v > max_val {
+                max_val = v;
+                max_row = row;
+            }
+        }
+
+        if max_val < F::from(1e-30).unwrap_or(F::epsilon()) {
+            return Err(LinalgError::SingularMatrixError(
+                "sincos_via_eig: singular eigenvector matrix".to_string(),
+            ));
+        }
+
+        // Swap rows
+        if max_row != col {
+            for j in 0..n {
+                let tmp_a = a[[col, j]];
+                a[[col, j]] = a[[max_row, j]];
+                a[[max_row, j]] = tmp_a;
+                let tmp_i = inv[[col, j]];
+                inv[[col, j]] = inv[[max_row, j]];
+                inv[[max_row, j]] = tmp_i;
+            }
+        }
+
+        // Scale pivot row
+        let pivot = a[[col, col]];
+        let inv_pivot = pivot.inv();
+        for j in 0..n {
+            a[[col, j]] *= inv_pivot;
+            inv[[col, j]] *= inv_pivot;
+        }
+
+        // Eliminate
+        for row in 0..n {
+            if row == col {
+                continue;
+            }
+            let factor = a[[row, col]];
+            if factor.norm_sqr() < F::from(1e-30).unwrap_or(F::epsilon()) {
+                continue;
+            }
+            for j in 0..n {
+                let av = a[[col, j]] * factor;
+                let iv = inv[[col, j]] * factor;
+                a[[row, j]] -= av;
+                inv[[row, j]] -= iv;
+            }
+        }
+    }
+
+    Ok(inv)
 }
 
 // ---------------------------------------------------------------------------
@@ -666,17 +869,22 @@ mod tests {
         let theta = 0.7_f64;
         let a = array![[0.0_f64, theta], [-theta, 0.0]];
         let (cos_a, sin_a) = sincos_expm(&a.view()).expect("sincos_expm rotation");
-        // cos([[0,t],[-t,0]]) = cos(t) * I
-        assert_abs_diff_eq!(cos_a[[0, 0]], theta.cos(), epsilon = 1e-10);
-        assert_abs_diff_eq!(cos_a[[1, 1]], theta.cos(), epsilon = 1e-10);
+
+        // For A = [[0,θ],[-θ,0]] = θJ where J = [[0,1],[-1,0]], J^2 = -I:
+        //   A^{2k} = (θJ)^{2k} = θ^{2k} J^{2k} = θ^{2k} (-I)^k = (-1)^k θ^{2k} I
+        // Therefore:
+        //   cos(A) = Σ (-1)^k A^{2k}/(2k)! = Σ (-1)^k (-1)^k θ^{2k} I /(2k)! = cosh(θ) * I
+        //   sin(A) = Σ (-1)^k A^{2k+1}/(2k+1)! = A * sinh(θ)/θ
+        //          = [[0,θ],[-θ,0]] * sinh(θ)/θ = [[0,sinh(θ)],[-sinh(θ),0]]
+        assert_abs_diff_eq!(cos_a[[0, 0]], theta.cosh(), epsilon = 1e-10);
+        assert_abs_diff_eq!(cos_a[[1, 1]], theta.cosh(), epsilon = 1e-10);
         assert_abs_diff_eq!(cos_a[[0, 1]], 0.0, epsilon = 1e-10);
         assert_abs_diff_eq!(cos_a[[1, 0]], 0.0, epsilon = 1e-10);
 
-        // sin([[0,t],[-t,0]]) = sin(t) * [[0,1],[-1,0]]
         assert_abs_diff_eq!(sin_a[[0, 0]], 0.0, epsilon = 1e-10);
         assert_abs_diff_eq!(sin_a[[1, 1]], 0.0, epsilon = 1e-10);
-        assert_abs_diff_eq!(sin_a[[0, 1]], theta.sin(), epsilon = 1e-10);
-        assert_abs_diff_eq!(sin_a[[1, 0]], -theta.sin(), epsilon = 1e-10);
+        assert_abs_diff_eq!(sin_a[[0, 1]], theta.sinh(), epsilon = 1e-10);
+        assert_abs_diff_eq!(sin_a[[1, 0]], -theta.sinh(), epsilon = 1e-10);
     }
 
     // --- apply_schur ---

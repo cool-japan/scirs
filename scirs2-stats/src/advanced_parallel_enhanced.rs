@@ -116,18 +116,18 @@ impl AdvancedParallelProcessor {
         let memory_hierarchy = detect_memory_hierarchy();
 
         Self {
-            performance_predictor: Arc::new(RwLock::new(PerformancePredictor::new(&_config))),
+            performance_predictor: Arc::new(RwLock::new(PerformancePredictor::new(&config))),
             load_balancer: Arc::new(RwLock::new(IntelligentLoadBalancer::new(
-                &_config,
+                &config,
                 &numa_topology,
             ))),
             numa_optimizer: Arc::new(RwLock::new(NumaOptimizer::new(numa_topology))),
             memory_manager: Arc::new(RwLock::new(AdvancedMemoryManager::new(
-                &_config,
+                &config,
                 memory_hierarchy,
             ))),
             performance_monitor: Arc::new(RwLock::new(RealTimePerformanceMonitor::new())),
-            thread_pool_manager: Arc::new(RwLock::new(ThreadPoolManager::new(&_config))),
+            thread_pool_manager: Arc::new(RwLock::new(ThreadPoolManager::new(&config))),
             config,
         }
     }
@@ -467,7 +467,7 @@ impl AdvancedParallelProcessor {
 
     fn analyze_chunk_characteristics<D>(&self, buffer: &StreamingBuffer<D>) -> ChunkCharacteristics
     where
-        D: Send + Sync,
+        D: Sync,
     {
         ChunkCharacteristics {
             chunksize: buffer.currentsize(),
@@ -516,7 +516,7 @@ impl AdvancedParallelProcessor {
     // Placeholder execution methods
 
     fn execute_parallel_operations<F, D>(
-        &self, &ArrayBase<D, Ix1>, _operations: &[StatisticalOperation], _strategy: &ExecutionStrategy_memory, layout: &MemoryLayout_load, _config: &LoadBalancingConfig,
+        &self, _data: &ArrayBase<D, Ix1>, _operations: &[StatisticalOperation], _strategy: &ExecutionStrategy, _layout: &MemoryLayout, _config: &LoadBalancingConfig,
     ) -> StatsResult<AdvancedParallelStatisticsResult<F>>
     where
         F: Float + NumCast + Send + Sync + Copy,
@@ -533,7 +533,7 @@ impl AdvancedParallelProcessor {
     }
 
     fn execute_parallel_matrix_operations<F>(
-        &self, _metrics: &[Array2<F>], _operation: &MatrixOperationType, strategy: &MatrixExecutionStrategy_numa, _layout: &NumaMatrixLayout,
+        &self, _metrics: &[Array2<F>], _operation: &MatrixOperationType, _strategy: &MatrixExecutionStrategy, _layout: &NumaMatrixLayout,
     ) -> StatsResult<AdvancedParallelMatrixResult<F>>
     where
         F: Float + NumCast + Send + Sync + Copy
@@ -549,12 +549,11 @@ impl AdvancedParallelProcessor {
     }
 
     fn process_streaming_chunk<F, D>(
-        &self, &StreamingBuffer<D>, _operations: &[StreamingOperation], _strategy: &StreamingProcessingStrategy,
+        &self, _buffer: &StreamingBuffer<D>, _operations: &[StreamingOperation], _strategy: &StreamingProcessingStrategy,
     ) -> StatsResult<StreamingChunkResult<F>>
     where
         F: Float + NumCast + Send + Sync + Copy,
-        D: Data<Elem = F> + Sync
-        + std::fmt::Display,
+        D: Data<Elem = F> + Sync,
     {
         // Placeholder implementation
         Ok(StreamingChunkResult {
@@ -565,7 +564,7 @@ impl AdvancedParallelProcessor {
     }
 
     fn execute_batch_processing<F, D>(
-        &self, _metrics: &[ArrayBase<D, Ix1>], _operations: &[BatchOperation], _strategy: &BatchProcessingStrategy_numa, schedule: &NumaBatchSchedule,
+        &self, _metrics: &[ArrayBase<D, Ix1>], _operations: &[BatchOperation], _strategy: &BatchProcessingStrategy, _schedule: &NumaBatchSchedule,
     ) -> StatsResult<Vec<BatchProcessingResult<F>>>
     where
         F: Float + NumCast + Send + Sync + Copy,
@@ -584,41 +583,50 @@ impl AdvancedParallelProcessor {
     // Performance update methods
 
     fn update_performance_models(
-        &self, &DataCharacteristics, _strategy: &ExecutionStrategy_execution, time: Duration, _metrics: &PerformanceMetrics,
+        &self, _characteristics: &DataCharacteristics, _strategy: &ExecutionStrategy, _time: Duration, _metrics: &PerformanceMetrics,
     ) -> StatsResult<()> {
         // Placeholder for ML model updates
         Ok(())
     }
 
     fn update_matrix_performance_models(
-        &self, &MatrixCharacteristics, _strategy: &MatrixExecutionStrategy_execution, time: Duration, _metrics: &MatrixPerformanceMetrics,
+        &self, _characteristics: &MatrixCharacteristics, _strategy: &MatrixExecutionStrategy, _time: Duration, _metrics: &MatrixPerformanceMetrics,
     ) -> StatsResult<()> {
         // Placeholder for matrix ML model updates
         Ok(())
     }
 
-    fn update_batch_performance_models(
-        &self, &BatchCharacteristics, _strategy: &BatchProcessingStrategy_execution, time: Duration, _results: &[BatchProcessingResult<f64>],
-    ) -> StatsResult<()> {
+    fn update_batch_performance_models<F>(
+        &self, _characteristics: &BatchCharacteristics, _strategy: &BatchProcessingStrategy, _time: Duration, _results: &[BatchProcessingResult<F>],
+    ) -> StatsResult<()>
+    where
+        F: Float + Copy,
+    {
         // Placeholder for batch ML model updates
         Ok(())
     }
 
     // Efficiency calculation methods
 
-    fn calculate_batch_efficiency(
-        &self, _metrics: &[BatchProcessingResult<f64>], _total_time: Duration,
-    ) -> f64 {
+    fn calculate_batch_efficiency<F>(
+        &self, _metrics: &[BatchProcessingResult<F>], _total_time: Duration,
+    ) -> f64
+    where
+        F: Float + Copy,
+    {
         0.85 // Placeholder
     }
 
-    fn calculate_numa_efficiency(&self, &NumaBatchSchedule) -> f64 {
+    fn calculate_numa_efficiency(&self, _schedule: &NumaBatchSchedule) -> f64 {
         0.90 // Placeholder
     }
 
-    fn generate_adaptive_recommendations(
-        &self, _metrics: &[BatchProcessingResult<f64>],
-    ) -> Vec<AdaptiveRecommendation> {
+    fn generate_adaptive_recommendations<F>(
+        &self, _metrics: &[BatchProcessingResult<F>],
+    ) -> Vec<AdaptiveRecommendation>
+    where
+        F: Float + Copy,
+    {
         vec![] // Placeholder
     }
 }
@@ -767,7 +775,7 @@ pub struct ExecutionStrategy {
 impl Default for ExecutionStrategy {
     fn default() -> Self {
         Self {
-            thread_count: num_threads(),
+            thread_count: current_num_threads(),
             chunksize: 1000,
             memory_strategy: MemoryStrategy::Standard,
             load_balancing: LoadBalancingStrategy::Dynamic,
@@ -1100,21 +1108,21 @@ impl PerformancePredictor {
     }
 
     pub fn predict_optimal_strategy(
-        &self, &DataCharacteristics, _operations: &[StatisticalOperation],
+        &self, _characteristics: &DataCharacteristics, _operations: &[StatisticalOperation],
     ) -> StatsResult<ExecutionStrategy> {
         // Placeholder implementation
         Ok(ExecutionStrategy::default())
     }
 
     pub fn predict_matrix_strategy(
-        &self, &MatrixCharacteristics, _operation: &MatrixOperationType,
+        &self, _characteristics: &MatrixCharacteristics, _operation: &MatrixOperationType,
     ) -> StatsResult<MatrixExecutionStrategy> {
         // Placeholder implementation
         Ok(MatrixExecutionStrategy::default())
     }
 
     pub fn predict_batch_strategy(
-        &self, &BatchCharacteristics, _operations: &[BatchOperation],
+        &self, _characteristics: &BatchCharacteristics, _operations: &[BatchOperation],
     ) -> StatsResult<BatchProcessingStrategy> {
         // Placeholder implementation
         Ok(BatchProcessingStrategy::default())
@@ -1135,7 +1143,7 @@ pub struct IntelligentLoadBalancer {
 }
 
 impl IntelligentLoadBalancer {
-    pub fn new(_config: &AdvancedParallelConfig, numatopology: &NumaTopology) -> Self {
+    pub fn new(_config: &AdvancedParallelConfig, numa_topology: &NumaTopology) -> Self {
         Self {
             strategy: LoadBalancingIntelligence::MachineLearning,
             numa_topology: numa_topology.clone(),
@@ -1144,11 +1152,11 @@ impl IntelligentLoadBalancer {
     }
 
     pub fn generate_load_balancing_config(
-        &self, &ExecutionStrategy, _characteristics: &DataCharacteristics,
+        &self, _strategy: &ExecutionStrategy, _characteristics: &DataCharacteristics,
     ) -> StatsResult<LoadBalancingConfig> {
         // Placeholder implementation
         Ok(LoadBalancingConfig {
-            _strategy: LoadBalancingStrategy::Dynamic,
+            strategy: LoadBalancingStrategy::Dynamic,
             chunksize_min: 100,
             chunksize_max: 10000,
             load_threshold: 0.8,
@@ -1177,21 +1185,21 @@ impl NumaOptimizer {
     }
 
     pub fn optimizedata_placement(
-        &self, &DataCharacteristics,
+        &self, _characteristics: &DataCharacteristics,
     ) -> StatsResult<MemoryLayout> {
         // Placeholder implementation
         Ok(MemoryLayout::default())
     }
 
     pub fn optimize_matrix_placement(
-        &self, &MatrixCharacteristics,
+        &self, _characteristics: &MatrixCharacteristics,
     ) -> StatsResult<NumaMatrixLayout> {
         // Placeholder implementation
         Ok(NumaMatrixLayout::default())
     }
 
     pub fn schedule_batches(
-        &self, &BatchCharacteristics, _strategy: &BatchProcessingStrategy,
+        &self, _characteristics: &BatchCharacteristics, _strategy: &BatchProcessingStrategy,
     ) -> StatsResult<NumaBatchSchedule> {
         // Placeholder implementation
         Ok(NumaBatchSchedule::default())
@@ -1227,7 +1235,7 @@ pub struct AdvancedMemoryManager {
 }
 
 impl AdvancedMemoryManager {
-    pub fn new(_config: &AdvancedParallelConfig, memoryhierarchy: MemoryHierarchy) -> Self {
+    pub fn new(_config: &AdvancedParallelConfig, memory_hierarchy: MemoryHierarchy) -> Self {
         Self {
             memory_hierarchy,
             allocation_strategy: AllocationStrategy::NumaLocal,
@@ -1349,7 +1357,7 @@ impl StreamingPerformancePredictor {
     }
 
     pub fn predict_chunk_strategy(
-        &self, &ChunkCharacteristics, _operations: &[StreamingOperation],
+        &self, _characteristics: &ChunkCharacteristics, _operations: &[StreamingOperation],
     ) -> StatsResult<StreamingProcessingStrategy> {
         // Placeholder implementation
         Ok(StreamingProcessingStrategy {
@@ -1360,7 +1368,7 @@ impl StreamingPerformancePredictor {
     }
 
     pub fn update_model(
-        &mut self_characteristics: &ChunkCharacteristics, _strategy: &StreamingProcessingStrategy,
+        &mut self, _characteristics: &ChunkCharacteristics, _strategy: &StreamingProcessingStrategy,
     ) {
         // Placeholder for model updates
     }
@@ -1465,9 +1473,9 @@ pub struct StreamingBuffer<D> {
 }
 
 impl<D> StreamingBuffer<D> {
-    pub fn new(_maxsize: usize) -> Self {
+    pub fn new(maxsize: usize) -> Self {
         Self {
-            data: VecDeque::with_capacity(_maxsize),
+            data: VecDeque::with_capacity(maxsize),
             maxsize,
             current_memory_footprint: 0,
         }

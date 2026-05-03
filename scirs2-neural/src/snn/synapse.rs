@@ -226,9 +226,7 @@ impl STDPSynapse {
             ));
         }
         if w_max <= 0.0 {
-            return Err(NeuralError::InvalidArgument(
-                "w_max must be > 0".into(),
-            ));
+            return Err(NeuralError::InvalidArgument("w_max must be > 0".into()));
         }
         Ok(Self {
             w: w.clamp(0.0, w_max),
@@ -427,13 +425,17 @@ mod tests {
             let g = s.update(false, 0.1);
             peak = peak.max(g);
         }
-        assert!(peak > 0.01, "alpha synapse should produce non-zero response");
+        assert!(
+            peak > 0.01,
+            "alpha synapse should produce non-zero response"
+        );
         assert!(s.g < 1e-4, "conductance should decay to near zero");
     }
 
     #[test]
     fn stdp_potentiation_when_post_before_pre() {
-        let mut s = STDPSynapse::new(0.5, 20.0, 20.0, 0.01, -0.01, 1.0).expect("operation should succeed");
+        let mut s =
+            STDPSynapse::new(0.5, 20.0, 20.0, 0.01, -0.01, 1.0).expect("operation should succeed");
         // Post-synaptic fires first (y trace builds up), then pre fires → LTP
         s.update(false, true, 1.0);
         let w_before = s.w;

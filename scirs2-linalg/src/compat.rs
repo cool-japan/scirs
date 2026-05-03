@@ -493,6 +493,9 @@ where
 }
 
 /// Solve triangular system
+///
+/// Solves Ax = b where A is either lower-triangular (lower=true) or
+/// upper-triangular (lower=false) using forward/backward substitution.
 pub fn solve_triangular<A, S1, S2>(
     a: &ArrayBase<S1, Ix2>,
     b: &ArrayBase<S2, Ix1>,
@@ -503,10 +506,55 @@ where
     S1: Data<Elem = A>,
     S2: Data<Elem = A>,
 {
-    let _ = (a, b, lower);
-    Err(LinalgError::ComputationError(
-        "solve_triangular not yet implemented".to_string(),
-    ))
+    let n = a.nrows();
+    if a.ncols() != n {
+        return Err(LinalgError::ShapeError(
+            "solve_triangular: coefficient matrix must be square".to_string(),
+        ));
+    }
+    if b.len() != n {
+        return Err(LinalgError::ShapeError(format!(
+            "solve_triangular: b length {} does not match matrix size {}",
+            b.len(),
+            n
+        )));
+    }
+
+    let mut x = Array1::<A>::zeros(n);
+
+    if lower {
+        // Forward substitution: L x = b
+        for i in 0..n {
+            let mut val = b[i];
+            for k in 0..i {
+                val -= a[[i, k]] * x[k];
+            }
+            let diag = a[[i, i]];
+            if diag.abs() < A::epsilon() {
+                return Err(LinalgError::SingularMatrixError(format!(
+                    "solve_triangular: zero pivot at ({i},{i})"
+                )));
+            }
+            x[i] = val / diag;
+        }
+    } else {
+        // Backward substitution: U x = b
+        for i in (0..n).rev() {
+            let mut val = b[i];
+            for k in (i + 1)..n {
+                val -= a[[i, k]] * x[k];
+            }
+            let diag = a[[i, i]];
+            if diag.abs() < A::epsilon() {
+                return Err(LinalgError::SingularMatrixError(format!(
+                    "solve_triangular: zero pivot at ({i},{i})"
+                )));
+            }
+            x[i] = val / diag;
+        }
+    }
+
+    Ok(x)
 }
 
 /// Least squares solution
@@ -734,4 +782,50 @@ where
     }
 
     result
+}
+
+#[cfg(test)]
+mod tests_compat {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+    use scirs2_core::ndarray::array;
+
+    #[test]
+    fn test_solve_triangular_lower_2x2() {
+        // L = [[2, 0], [3, 4]], b = [4, 17]  =>  x = [2, (17-6)/4] = [2, 11/4]
+        let l = array![[2.0_f64, 0.0], [3.0, 4.0]];
+        let b = array![4.0_f64, 17.0];
+        let x = solve_triangular(&l, &b, true).expect("lower triangular solve");
+        assert_abs_diff_eq!(x[0], 2.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(x[1], 11.0 / 4.0, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn test_solve_triangular_upper_2x2() {
+        // U = [[3, 1], [0, 2]], b = [7, 4]  =>  x[1] = 2, x[0] = (7-2)/3 = 5/3
+        let u = array![[3.0_f64, 1.0], [0.0, 2.0]];
+        let b = array![7.0_f64, 4.0];
+        let x = solve_triangular(&u, &b, false).expect("upper triangular solve");
+        assert_abs_diff_eq!(x[1], 2.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(x[0], 5.0 / 3.0, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn test_solve_triangular_identity() {
+        let eye = array![[1.0_f64, 0.0], [0.0, 1.0]];
+        let b = array![3.0_f64, 5.0];
+        let x_l = solve_triangular(&eye, &b, true).expect("lower");
+        let x_u = solve_triangular(&eye, &b, false).expect("upper");
+        assert_abs_diff_eq!(x_l[0], 3.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(x_l[1], 5.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(x_u[0], 3.0, epsilon = 1e-12);
+        assert_abs_diff_eq!(x_u[1], 5.0, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn test_solve_triangular_singular_error() {
+        let singular = array![[0.0_f64, 0.0], [1.0, 2.0]];
+        let b = array![1.0_f64, 1.0];
+        assert!(solve_triangular(&singular, &b, true).is_err());
+    }
 }

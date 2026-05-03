@@ -410,7 +410,7 @@ pub fn sqrt_mod_prime(n: u64, p: u64) -> Option<u64> {
     let mut m = s;
     let mut c = mod_pow(z, q, p);
     let mut t = mod_pow(n, q, p);
-    let mut r = mod_pow(n, (q + 1) / 2, p);
+    let mut r = mod_pow(n, q.div_ceil(2), p);
 
     loop {
         if t == 1 {
@@ -457,7 +457,7 @@ pub fn sqrt_mod_prime(n: u64, p: u64) -> Option<u64> {
 /// ntt(&mut a, true, MOD, g);
 /// assert_eq!(a, b);
 /// ```
-pub fn ntt(a: &mut Vec<i64>, invert: bool, modulus: i64, primitive_root: i64) {
+pub fn ntt(a: &mut [i64], invert: bool, modulus: i64, primitive_root: i64) {
     let n = a.len();
     // Bit-reversal permutation
     let mut j = 0usize;
@@ -477,7 +477,11 @@ pub fn ntt(a: &mut Vec<i64>, invert: bool, modulus: i64, primitive_root: i64) {
     while len <= n {
         let w = if invert {
             // w = primitive_root^((modulus-1) - (modulus-1)/len) mod modulus
-            mod_pow_i64(primitive_root, modulus - 1 - (modulus - 1) / len as i64, modulus)
+            mod_pow_i64(
+                primitive_root,
+                modulus - 1 - (modulus - 1) / len as i64,
+                modulus,
+            )
         } else {
             mod_pow_i64(primitive_root, (modulus - 1) / len as i64, modulus)
         };
@@ -486,7 +490,8 @@ pub fn ntt(a: &mut Vec<i64>, invert: bool, modulus: i64, primitive_root: i64) {
             let mut wn = 1i64;
             for jj in 0..len / 2 {
                 let u = a[i + jj];
-                let v = (a[i + jj + len / 2] as i128 * wn as i128).rem_euclid(modulus as i128) as i64;
+                let v =
+                    (a[i + jj + len / 2] as i128 * wn as i128).rem_euclid(modulus as i128) as i64;
                 a[i + jj] = (u + v).rem_euclid(modulus);
                 a[i + jj + len / 2] = (u - v).rem_euclid(modulus);
                 wn = (wn as i128 * w as i128).rem_euclid(modulus as i128) as i64;
@@ -665,7 +670,9 @@ fn mod_pow_i64(base: i64, exp: i64, modulus: i64) -> i64 {
 /// Wrapper for [`crt`] that returns a [`LinalgResult`].
 pub fn crt_result(remainders: &[i64], moduli: &[i64]) -> LinalgResult<i64> {
     crt(remainders, moduli).ok_or_else(|| {
-        LinalgError::ComputationError("CRT: no solution exists (moduli not pairwise coprime?)".into())
+        LinalgError::ComputationError(
+            "CRT: no solution exists (moduli not pairwise coprime?)".into(),
+        )
     })
 }
 

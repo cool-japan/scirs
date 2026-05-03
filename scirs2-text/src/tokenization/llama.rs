@@ -542,10 +542,7 @@ mod tests {
     fn new_minimal_byte_tokens_at_correct_ids() {
         let tok = make_tokenizer();
         assert_eq!(tok.token_to_id("<0x00>"), Some(BYTE_TOKEN_OFFSET));
-        assert_eq!(
-            tok.token_to_id("<0xFF>"),
-            Some(BYTE_TOKEN_OFFSET + 255)
-        );
+        assert_eq!(tok.token_to_id("<0xFF>"), Some(BYTE_TOKEN_OFFSET + 255));
     }
 
     #[test]
@@ -571,8 +568,10 @@ mod tests {
 
     #[test]
     fn encode_empty_string_without_bos() {
-        let mut config = LlamaTokenizerConfig::default();
-        config.add_bos = false;
+        let config = LlamaTokenizerConfig {
+            add_bos: false,
+            ..Default::default()
+        };
         let tok = LlamaTokenizer::new_minimal(512, config);
         let ids = tok.encode("");
         assert!(ids.is_empty());
@@ -580,8 +579,10 @@ mod tests {
 
     #[test]
     fn encode_no_bos_no_bos_prefix() {
-        let mut config = LlamaTokenizerConfig::default();
-        config.add_bos = false;
+        let config = LlamaTokenizerConfig {
+            add_bos: false,
+            ..Default::default()
+        };
         let tok = LlamaTokenizer::new_minimal(512, config);
         let ids = tok.encode("hello");
         // First token should NOT be BOS (1)

@@ -14,8 +14,13 @@
 //! - **DP Gaussian Mixture Model (DP-GMM)**: Infinite mixture of Gaussians with
 //!   collapsed Gibbs sampling using the Normal-Inverse-Wishart conjugate prior.
 
+pub mod beta_process;
 pub mod dirichlet_process;
 pub mod dp_mixture;
+pub mod hdp;
+pub mod hdp_topic_model;
+pub mod ibp_linear_gaussian;
+pub mod nrmi;
 
 pub use dirichlet_process::{
     chinese_restaurant_process, crp_posterior_tables, crp_predictive, estimate_alpha_from_clusters,

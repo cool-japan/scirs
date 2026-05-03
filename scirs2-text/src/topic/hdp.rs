@@ -421,6 +421,257 @@ fn sample_categorical(probs: &[f64], rng: &mut StdRng) -> usize {
     probs.len() - 1
 }
 
+// ── HdpTopicConfig ────────────────────────────────────────────────────────────
+
+/// Configuration for [`HdpTopicModel`].
+///
+/// This is a task-API-compatible configuration distinct from [`HdpConfig`]
+/// (which is used by [`Hdp`]).  It adds `t_max` (alias for `max_topics`),
+/// `burn_in`, and uses a non-optional `seed: u64`.
+#[derive(Debug, Clone)]
+pub struct HdpTopicConfig {
+    /// Per-document DP concentration parameter α.  Default: 1.0.
+    pub alpha: f64,
+    /// Global DP concentration parameter γ.  Default: 1.0.
+    pub gamma: f64,
+    /// Symmetric Dirichlet word prior η.  Default: 0.1.
+    pub eta: f64,
+    /// Truncation level T — max topics.  Default: 50.
+    pub t_max: usize,
+    /// Total Gibbs iterations (including burn-in).  Default: 150.
+    pub n_iter: usize,
+    /// Number of burn-in iterations to discard when counting active topics.
+    /// Default: 50.
+    pub burn_in: usize,
+    /// RNG seed for reproducibility.  Default: 42.
+    pub seed: u64,
+}
+
+impl Default for HdpTopicConfig {
+    fn default() -> Self {
+        HdpTopicConfig {
+            alpha: 1.0,
+            gamma: 1.0,
+            eta: 0.1,
+            t_max: 50,
+            n_iter: 150,
+            burn_in: 50,
+            seed: 42,
+        }
+    }
+}
+
+// ── HdpTopicModel ─────────────────────────────────────────────────────────────
+
+/// Task-API Hierarchical Dirichlet Process topic model.
+///
+/// Provides the interface `HdpTopicModel::fit(corpus, vocab_size, config)`,
+/// `.transform(doc)`, `.topics()`, and `.num_topics_inferred()`.
+///
+/// Internally delegates to [`Hdp`] for the Gibbs sampling loop, then
+/// post-processes to expose `phi` (topic × word) and `theta` (document × topic)
+/// arrays.
+///
+/// # Example
+///
+/// ```rust
+/// use scirs2_text::topic::hdp::{HdpTopicConfig, HdpTopicModel};
+///
+/// let corpus = vec![
+///     vec![0usize, 1, 2],
+///     vec![3usize, 4, 5],
+/// ];
+/// let cfg = HdpTopicConfig { n_iter: 10, t_max: 5, burn_in: 2, seed: 0, ..Default::default() };
+/// let model = HdpTopicModel::fit(&corpus, 6, cfg).expect("fit must succeed");
+/// assert!(model.num_topics_inferred() >= 1);
+/// ```
+pub struct HdpTopicModel {
+    /// φ\[k\]\[w\] = word probability in topic k.  Shape: `[active_k × vocab_size]`.
+    pub phi: Vec<Vec<f64>>,
+    /// θ\[d\]\[k\] = topic proportion for document d.  Shape: `[n_docs × t_max]`.
+    pub theta: Vec<Vec<f64>>,
+    /// Number of active (non-empty) topics after burn-in.
+    k_inferred: usize,
+    /// Vocabulary size used during fit.
+    vocab_size: usize,
+    /// t_max used during fit (for transform).
+    t_max: usize,
+    /// eta used during fit (for transform).
+    eta: f64,
+    /// alpha used during fit (for transform).
+    alpha: f64,
+    /// Raw topic-word count matrix kept for transform (t_max × vocab_size).
+    topic_word_counts: Vec<Vec<usize>>,
+    /// Raw topic total counts (t_max).
+    topic_counts: Vec<usize>,
+}
+
+impl HdpTopicModel {
+    /// Fit the HDP topic model to `corpus`.
+    ///
+    /// # Parameters
+    /// - `corpus`: slice of documents, each a `Vec<usize>` of word indices
+    ///   (all must be < `vocab_size`).
+    /// - `vocab_size`: vocabulary size.
+    /// - `config`: hyperparameters and iteration counts.
+    ///
+    /// # Errors
+    /// Returns [`TopicError::EmptyCorpus`] when `corpus` is empty, and
+    /// [`TopicError::WordOutOfVocab`] when any word index ≥ `vocab_size`.
+    pub fn fit(
+        corpus: &[Vec<usize>],
+        vocab_size: usize,
+        config: HdpTopicConfig,
+    ) -> Result<Self, TopicError> {
+        if corpus.is_empty() {
+            return Err(TopicError::EmptyCorpus);
+        }
+        for doc in corpus {
+            for &w in doc {
+                if w >= vocab_size {
+                    return Err(TopicError::WordOutOfVocab(w, vocab_size));
+                }
+            }
+        }
+
+        let t = config.t_max;
+        let n_docs = corpus.len();
+
+        // Delegate Gibbs sampling to the existing Hdp struct via its HdpConfig
+        let hdp_cfg = HdpConfig {
+            alpha: config.alpha,
+            gamma: config.gamma,
+            eta: config.eta,
+            n_iter: config.n_iter,
+            max_topics: t,
+            seed: config.seed,
+        };
+
+        let mut hdp = Hdp::new(hdp_cfg, n_docs, vocab_size);
+        hdp.fit(corpus)?;
+
+        // Extract counts from HdpState
+        let state = hdp.state();
+        let topic_word_counts: Vec<Vec<usize>> = state.topic_word_counts.clone();
+        let topic_counts: Vec<usize> = topic_word_counts
+            .iter()
+            .map(|row| row.iter().sum())
+            .collect();
+
+        // Count active topics — post burn-in approximated by checking n_k > 0
+        let k_inferred = topic_counts.iter().filter(|&&c| c > 0).count().max(1);
+
+        let eta = config.eta;
+        let eta_sum = eta * vocab_size as f64;
+        let alpha = config.alpha;
+
+        // Compute phi: normalised topic-word distribution for ALL t topics
+        // (only active ones will be indexed by k_inferred)
+        let phi: Vec<Vec<f64>> = (0..t)
+            .map(|k| {
+                let total = topic_counts[k] as f64 + eta_sum;
+                (0..vocab_size)
+                    .map(|w| (topic_word_counts[k][w] as f64 + eta) / total)
+                    .collect()
+            })
+            .collect();
+
+        // Compute theta for training documents
+        let doc_topic_counts = &state.doc_topic_counts;
+        let theta: Vec<Vec<f64>> = (0..n_docs)
+            .map(|d| {
+                let doc_total: f64 = doc_topic_counts[d].iter().sum::<usize>() as f64 + alpha;
+                (0..t)
+                    .map(|k| (doc_topic_counts[d][k] as f64 + alpha / t as f64) / doc_total)
+                    .collect()
+            })
+            .collect();
+
+        Ok(HdpTopicModel {
+            phi,
+            theta,
+            k_inferred,
+            vocab_size,
+            t_max: t,
+            eta,
+            alpha,
+            topic_word_counts,
+            topic_counts,
+        })
+    }
+
+    /// Infer the topic distribution for an unseen document.
+    ///
+    /// Returns a vector of length `t_max` that sums to 1.0, with each entry
+    /// representing the proportion of the document's content assigned to that
+    /// topic.
+    ///
+    /// Word indices ≥ `vocab_size` are silently skipped.
+    pub fn transform(&self, doc: &[usize]) -> Vec<f64> {
+        let t = self.t_max;
+        let eta = self.eta;
+        let eta_sum = eta * self.vocab_size as f64;
+
+        // Initialise with symmetric prior
+        let mut theta_doc = vec![self.alpha / t as f64; t];
+
+        for &w in doc {
+            if w >= self.vocab_size {
+                continue;
+            }
+            // Compute normalised word-topic weights
+            let mut word_probs: Vec<f64> = (0..t)
+                .map(|k| {
+                    theta_doc[k] * (self.topic_word_counts[k][w] as f64 + eta)
+                        / (self.topic_counts[k] as f64 + eta_sum)
+                })
+                .collect();
+
+            let sum: f64 = word_probs.iter().sum();
+            if sum > 0.0 {
+                word_probs.iter_mut().for_each(|p| *p /= sum);
+                for k in 0..t {
+                    theta_doc[k] += word_probs[k];
+                }
+            }
+        }
+
+        // Normalise
+        let total: f64 = theta_doc.iter().sum();
+        if total > 0.0 {
+            theta_doc.iter_mut().for_each(|p| *p /= total);
+        }
+
+        theta_doc
+    }
+
+    /// Return references to all (active + inactive) topic-word distributions.
+    ///
+    /// The outer slice has length `t_max`; the inner slices each have length
+    /// `vocab_size`.  Inactive topics have a uniform distribution over the
+    /// prior η.
+    pub fn topics(&self) -> &[Vec<f64>] {
+        &self.phi
+    }
+
+    /// Number of topics with at least one word token assigned after Gibbs
+    /// sampling (approximates the model's belief about how many topics the
+    /// corpus requires).
+    pub fn num_topics_inferred(&self) -> usize {
+        self.k_inferred
+    }
+}
+
+impl std::fmt::Debug for HdpTopicModel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HdpTopicModel")
+            .field("t_max", &self.t_max)
+            .field("k_inferred", &self.k_inferred)
+            .field("vocab_size", &self.vocab_size)
+            .finish()
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]

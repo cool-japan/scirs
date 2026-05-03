@@ -60,10 +60,7 @@ use scirs2_core::numeric::Complex64;
 /// let spectrum = fftn_complex(&x, None).expect("fftn failed");
 /// assert_eq!(spectrum.shape(), x.shape());
 /// ```
-pub fn fftn_complex(
-    x: &ArrayD<Complex64>,
-    axes: Option<&[usize]>,
-) -> FFTResult<ArrayD<Complex64>> {
+pub fn fftn_complex(x: &ArrayD<Complex64>, axes: Option<&[usize]>) -> FFTResult<ArrayD<Complex64>> {
     let ndim = x.ndim();
     let axes_to_transform: Vec<usize> = match axes {
         Some(a) => {
@@ -208,7 +205,7 @@ pub fn ifftshift2(x: &Array2<Complex64>) -> Array2<Complex64> {
 ///
 /// * `shape` - Shape of the N-D array (one entry per dimension).
 /// * `d`     - Sample spacing for each dimension.  Must have the same length as
-///             `shape`; a value of `1.0` gives frequencies in cycles/sample.
+/// `shape`; a value of `1.0` gives frequencies in cycles/sample.
 ///
 /// # Returns
 ///
@@ -331,7 +328,7 @@ fn fftfreq_1d(n: usize, d: f64) -> FFTResult<Vec<f64>> {
     // Positive frequencies: 0, 1, ..., p  (for even n, p = n/2; for odd, p = (n-1)/2)
     // But for even n the Nyquist bin n/2 is represented as *negative* (-n/2)
     for i in 0..n as i64 {
-        let k = if i <= p as i64 - (if n % 2 == 0 { 1 } else { 0 }) {
+        let k = if i <= p - (if n % 2 == 0 { 1 } else { 0 }) as i64 {
             // Positive frequencies: 0 .. floor((n-1)/2)
             i
         } else {
@@ -518,9 +515,9 @@ mod tests {
 
     #[test]
     fn test_fftfreq_nd_mismatch_error() {
-        assert!(fftfreq_nd(&[4, 8], &[1.0]).is_err());       // lengths differ
-        assert!(fftfreq_nd(&[4], &[0.0]).is_err());           // zero spacing
-        assert!(fftfreq_nd(&[4], &[-1.0]).is_err());          // negative spacing
+        assert!(fftfreq_nd(&[4, 8], &[1.0]).is_err()); // lengths differ
+        assert!(fftfreq_nd(&[4], &[0.0]).is_err()); // zero spacing
+        assert!(fftfreq_nd(&[4], &[-1.0]).is_err()); // negative spacing
     }
 
     #[test]
@@ -562,8 +559,8 @@ mod tests {
             .map(|k| {
                 let r = k / n;
                 let c = k % n;
-                let re = (2.0 * PI * r as f64 / n as f64).cos()
-                    * (2.0 * PI * c as f64 / n as f64).cos();
+                let re =
+                    (2.0 * PI * r as f64 / n as f64).cos() * (2.0 * PI * c as f64 / n as f64).cos();
                 Complex64::new(re, 0.0)
             })
             .collect();

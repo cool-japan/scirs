@@ -19,8 +19,8 @@
 //! ```
 
 use crate::error::{LinalgError, LinalgResult};
-use scirs2_core::num_complex::Complex;
 use scirs2_core::ndarray::{Array2, ScalarOperand};
+use scirs2_core::num_complex::Complex;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Public API
@@ -239,8 +239,8 @@ pub fn char_poly_from_roots(roots: &[Complex<f64>]) -> Vec<f64> {
         // Multiply the current complex coefficient vector by (x - lambda)
         let mut new_p = vec![Complex::new(0.0, 0.0); p_complex.len() + 1];
         for (i, &c) in p_complex.iter().enumerate() {
-            new_p[i] = new_p[i] + c;
-            new_p[i + 1] = new_p[i + 1] - c * lambda;
+            new_p[i] += c;
+            new_p[i + 1] -= c * lambda;
         }
         p_complex = new_p;
     }
@@ -342,8 +342,7 @@ pub fn refine_roots_laguerre(
 
             let h = dpz / pz;
             let g2 = h * h - d2pz / pz;
-            let inner = (n_complex - Complex::new(1.0, 0.0))
-                * (n_complex * g2 - h * h);
+            let inner = (n_complex - Complex::new(1.0, 0.0)) * (n_complex * g2 - h * h);
             let sqrt_inner = complex_sqrt(inner);
 
             // Choose the denominator with larger magnitude (Kahan's trick)
@@ -361,7 +360,7 @@ pub fn refine_roots_laguerre(
             }
 
             let dz = n_complex / denom;
-            z = z - dz;
+            z -= dz;
 
             if dz.norm() < tol {
                 converged = true;
@@ -399,14 +398,93 @@ fn quadratic_roots_f64(a: f64, b: f64, c: f64) -> LinalgResult<Vec<Complex<f64>>
     }
 }
 
-/// Compute eigenvalues of a real matrix via `crate::eigen::eig`.
-fn companion_eigenvalues_f64(comp: &Array2<f64>) -> LinalgResult<Vec<Complex<f64>>>
-where
-    f64: ScalarOperand,
-{
-    use crate::eigen::eig;
-    let (eigenvalues, _) = eig(&comp.view(), None)?;
-    Ok(eigenvalues.to_vec())
+/// Compute polynomial roots via the Durand-Kerner (Weierstrass) simultaneous
+/// root-finding method. This is more robust than companion-matrix eigenvalues
+/// for polynomials with equal-magnitude roots (e.g., x^n - 1 = 0).
+fn companion_eigenvalues_f64(comp: &Array2<f64>) -> LinalgResult<Vec<Complex<f64>>> {
+    let n = comp.nrows();
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+
+    // Reconstruct monic polynomial coefficients from companion matrix.
+    // Standard companion form: sub-diagonal ones, last column = -coeffs[1..]/coeffs[0].
+    // comp[[i, n-1]] = -(a_{n-1-i} / a_n) where a_{n-1-i} are the non-leading coefficients.
+    // So a_{n-1-i} = -comp[[i, n-1]] * a_n, with a_n = 1 (monic after normalization).
+    // Reconstruct: coeffs[0]=1, coeffs[n-i] = -comp[[i, n-1]] for i=0..n-1
+    let mut coeffs = vec![Complex::new(0.0_f64, 0.0); n + 1];
+    coeffs[0] = Complex::new(1.0, 0.0);
+    for i in 0..n {
+        coeffs[n - i] = Complex::new(-comp[[i, n - 1]], 0.0);
+    }
+
+    durand_kerner_complex(&coeffs, n)
+}
+
+/// Durand-Kerner (Weierstrass) simultaneous root-finding.
+///
+/// Given a monic degree-n polynomial with complex coefficients, returns all n roots.
+/// Converges for all polynomials including those with equal-magnitude roots.
+fn durand_kerner_complex(coeffs: &[Complex<f64>], n: usize) -> LinalgResult<Vec<Complex<f64>>> {
+    use std::f64::consts::PI;
+
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+    if n == 1 {
+        // a*x + b = 0  →  x = -b/a
+        let root = -coeffs[1] / coeffs[0];
+        return Ok(vec![root]);
+    }
+
+    // Initialize roots on a circle of radius slightly > 1.
+    // For x^n - c = 0, the roots lie on a circle of radius |c|^(1/n).
+    // General init: use unit circle with golden-ratio-spaced angles.
+    let mut roots: Vec<Complex<f64>> = (0..n)
+        .map(|k| {
+            let angle = 2.0 * PI * (k as f64) / (n as f64) + 0.1; // slight offset to break symmetry
+            Complex::new(angle.cos(), angle.sin())
+        })
+        .collect();
+
+    // Evaluate polynomial at a complex point (Horner)
+    let eval = |z: Complex<f64>| -> Complex<f64> {
+        let mut acc = coeffs[0];
+        for &c in &coeffs[1..] {
+            acc = acc * z + c;
+        }
+        acc
+    };
+
+    let max_iter = 1000;
+    let tol = 1e-14;
+
+    for _ in 0..max_iter {
+        let prev_roots = roots.clone();
+        let mut max_change = 0.0_f64;
+
+        for i in 0..n {
+            // Denominator: product of (roots[i] - roots[j]) for j != i
+            let denom: Complex<f64> = (0..n)
+                .filter(|&j| j != i)
+                .map(|j| prev_roots[i] - prev_roots[j])
+                .fold(Complex::new(1.0, 0.0), |acc, x| acc * x);
+
+            if denom.norm() < f64::EPSILON {
+                continue;
+            }
+
+            let correction = eval(prev_roots[i]) / denom;
+            roots[i] = prev_roots[i] - correction;
+            max_change = max_change.max(correction.norm());
+        }
+
+        if max_change < tol {
+            break;
+        }
+    }
+
+    Ok(roots)
 }
 
 /// Evaluate a polynomial with complex coefficients at a complex point (Horner).

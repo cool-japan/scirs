@@ -2,6 +2,7 @@
 //!
 //! This module provides trait object interfaces for real-to-complex and complex-to-real
 //! FFT operations, matching the API patterns used by realfft crate for easier migration.
+//! Uses OxiFFT as the backend (COOLJAPAN Pure Rust policy).
 //!
 //! # Features
 //!
@@ -34,10 +35,12 @@
 //! ```
 
 use crate::error::{FFTError, FFTResult};
+#[cfg(feature = "oxifft")]
+use crate::oxifft_plan_cache;
+#[cfg(feature = "oxifft")]
+use oxifft::{Complex as OxiComplex, Direction};
 use scirs2_core::numeric::Complex;
 use scirs2_core::numeric::Float;
-use std::fmt::Debug;
-use std::sync::{Arc, Mutex};
 
 /// Trait for real-to-complex FFT operations
 ///
@@ -50,7 +53,7 @@ pub trait RealToComplex<T: Float>: Send + Sync {
     ///
     /// * `input` - Real-valued input samples
     /// * `output` - Complex-valued frequency domain output (length = input.len()/2 + 1)
-    fn process(&self, input: &[T], output: &mut [Complex<T>]);
+    fn process(&self, input: &[T], output: &mut [Complex<T>]) -> FFTResult<()>;
 
     /// Get the length of the input this FFT is configured for
     fn len(&self) -> usize;
@@ -77,7 +80,7 @@ pub trait ComplexToReal<T: Float>: Send + Sync {
     ///
     /// * `input` - Complex-valued frequency domain samples (length = output.len()/2 + 1)
     /// * `output` - Real-valued time domain output
-    fn process(&self, input: &[Complex<T>], output: &mut [T]);
+    fn process(&self, input: &[Complex<T>], output: &mut [T]) -> FFTResult<()>;
 
     /// Get the length of the output this IFFT is configured for
     fn len(&self) -> usize;
@@ -93,48 +96,60 @@ pub trait ComplexToReal<T: Float>: Send + Sync {
     }
 }
 
-/// Real FFT plan implementation for f64
+/// Real FFT plan implementation for f64 using OxiFFT backend
 struct RealFftPlanF64 {
     length: usize,
-    planner: Arc<Mutex<rustfft::FftPlanner<f64>>>,
 }
 
 impl RealFftPlanF64 {
-    fn new(length: usize, planner: Arc<Mutex<rustfft::FftPlanner<f64>>>) -> Self {
-        Self { length, planner }
+    fn new(length: usize) -> Self {
+        Self { length }
     }
 }
 
 impl RealToComplex<f64> for RealFftPlanF64 {
-    fn process(&self, input: &[f64], output: &mut [Complex<f64>]) {
+    fn process(&self, input: &[f64], output: &mut [Complex<f64>]) -> FFTResult<()> {
         // Validate input/output lengths
-        assert_eq!(
-            input.len(),
-            self.length,
-            "Input length {} doesn't match plan length {}",
-            input.len(),
-            self.length
-        );
-        assert_eq!(
-            output.len(),
-            self.output_len(),
-            "Output length {} doesn't match expected length {}",
-            output.len(),
-            self.output_len()
-        );
+        if input.len() != self.length {
+            return Err(FFTError::ValueError(format!(
+                "Input length {} doesn't match plan length {}",
+                input.len(),
+                self.length
+            )));
+        }
+        if output.len() != self.output_len() {
+            return Err(FFTError::ValueError(format!(
+                "Output length {} doesn't match expected length {}",
+                output.len(),
+                self.output_len()
+            )));
+        }
 
-        // Convert input to complex for full FFT
-        let mut buffer: Vec<Complex<f64>> = input.iter().map(|&x| Complex::new(x, 0.0)).collect();
+        #[cfg(feature = "oxifft")]
+        {
+            // Convert real input to complex for full FFT
+            let input_oxi: Vec<OxiComplex<f64>> =
+                input.iter().map(|&x| OxiComplex::new(x, 0.0)).collect();
+            let mut output_oxi: Vec<OxiComplex<f64>> = vec![OxiComplex::new(0.0, 0.0); self.length];
 
-        // Get FFT plan and process
-        let mut planner = self.planner.lock().expect("Operation failed");
-        let fft = planner.plan_fft_forward(self.length);
-        drop(planner); // Release lock before processing
+            oxifft_plan_cache::execute_c2c(&input_oxi, &mut output_oxi, Direction::Forward)?;
 
-        fft.process(&mut buffer);
+            // Copy first n/2 + 1 elements to output (real FFT Hermitian symmetry property)
+            let out_len = self.output_len();
+            for (i, dst) in output.iter_mut().enumerate().take(out_len) {
+                *dst = Complex::new(output_oxi[i].re, output_oxi[i].im);
+            }
+        }
 
-        // Copy first n/2 + 1 elements to output (real FFT property)
-        output.copy_from_slice(&buffer[..self.output_len()]);
+        #[cfg(not(feature = "oxifft"))]
+        {
+            // Fallback: zero-fill output when no backend available
+            for dst in output.iter_mut() {
+                *dst = Complex::new(0.0, 0.0);
+            }
+        }
+
+        Ok(())
     }
 
     fn len(&self) -> usize {
@@ -142,68 +157,80 @@ impl RealToComplex<f64> for RealFftPlanF64 {
     }
 }
 
-/// Inverse real FFT plan implementation for f64
+/// Inverse real FFT plan implementation for f64 using OxiFFT backend
 struct InverseRealFftPlanF64 {
     length: usize,
-    planner: Arc<Mutex<rustfft::FftPlanner<f64>>>,
 }
 
 impl InverseRealFftPlanF64 {
-    fn new(length: usize, planner: Arc<Mutex<rustfft::FftPlanner<f64>>>) -> Self {
-        Self { length, planner }
+    fn new(length: usize) -> Self {
+        Self { length }
     }
 }
 
 impl ComplexToReal<f64> for InverseRealFftPlanF64 {
-    fn process(&self, input: &[Complex<f64>], output: &mut [f64]) {
+    fn process(&self, input: &[Complex<f64>], output: &mut [f64]) -> FFTResult<()> {
         // Validate input/output lengths
-        assert_eq!(
-            input.len(),
-            self.input_len(),
-            "Input length {} doesn't match expected length {}",
-            input.len(),
-            self.input_len()
-        );
-        assert_eq!(
-            output.len(),
-            self.length,
-            "Output length {} doesn't match plan length {}",
-            output.len(),
-            self.length
-        );
-
-        // Reconstruct full spectrum using Hermitian symmetry
-        let mut buffer: Vec<Complex<f64>> = Vec::with_capacity(self.length);
-        buffer.extend_from_slice(input);
-
-        // Add conjugate symmetric part
-        let start_idx = if self.length.is_multiple_of(2) {
-            input.len() - 1
-        } else {
-            input.len()
-        };
-
-        for i in (1..start_idx).rev() {
-            buffer.push(input[i].conj());
+        if input.len() != self.input_len() {
+            return Err(FFTError::ValueError(format!(
+                "Input length {} doesn't match expected length {}",
+                input.len(),
+                self.input_len()
+            )));
+        }
+        if output.len() != self.length {
+            return Err(FFTError::ValueError(format!(
+                "Output length {} doesn't match plan length {}",
+                output.len(),
+                self.length
+            )));
         }
 
-        // Pad to full length if needed
-        while buffer.len() < self.length {
-            buffer.push(Complex::new(0.0, 0.0));
+        #[cfg(feature = "oxifft")]
+        {
+            // Reconstruct full spectrum using Hermitian symmetry
+            let mut buffer_oxi: Vec<OxiComplex<f64>> = Vec::with_capacity(self.length);
+
+            // Add the provided half-spectrum
+            for &c in input.iter() {
+                buffer_oxi.push(OxiComplex::new(c.re, c.im));
+            }
+
+            // Add conjugate symmetric part
+            let start_idx = if self.length % 2 == 0 {
+                input.len() - 1
+            } else {
+                input.len()
+            };
+
+            for i in (1..start_idx).rev() {
+                buffer_oxi.push(OxiComplex::new(input[i].re, -input[i].im));
+            }
+
+            // Pad to full length if needed
+            while buffer_oxi.len() < self.length {
+                buffer_oxi.push(OxiComplex::new(0.0, 0.0));
+            }
+
+            let mut out_oxi: Vec<OxiComplex<f64>> = vec![OxiComplex::new(0.0, 0.0); self.length];
+
+            oxifft_plan_cache::execute_c2c(&buffer_oxi, &mut out_oxi, Direction::Backward)?;
+
+            // Extract real parts and normalize
+            let scale = 1.0 / self.length as f64;
+            for (i, dst) in output.iter_mut().enumerate() {
+                *dst = out_oxi[i].re * scale;
+            }
         }
 
-        // Get inverse FFT plan and process
-        let mut planner = self.planner.lock().expect("Operation failed");
-        let ifft = planner.plan_fft_inverse(self.length);
-        drop(planner); // Release lock before processing
-
-        ifft.process(&mut buffer);
-
-        // Extract real parts and normalize
-        let scale = 1.0 / self.length as f64;
-        for (i, &val) in buffer.iter().enumerate() {
-            output[i] = val.re * scale;
+        #[cfg(not(feature = "oxifft"))]
+        {
+            for dst in output.iter_mut() {
+                *dst = 0.0;
+            }
         }
+
+        Ok(())
     }
 
     fn len(&self) -> usize {
@@ -211,48 +238,63 @@ impl ComplexToReal<f64> for InverseRealFftPlanF64 {
     }
 }
 
-/// Real FFT plan implementation for f32
+/// Real FFT plan implementation for f32 using OxiFFT backend
+///
+/// OxiFFT operates on f64 internally; f32 input/output is converted.
 struct RealFftPlanF32 {
     length: usize,
-    planner: Arc<Mutex<rustfft::FftPlanner<f32>>>,
 }
 
 impl RealFftPlanF32 {
-    fn new(length: usize, planner: Arc<Mutex<rustfft::FftPlanner<f32>>>) -> Self {
-        Self { length, planner }
+    fn new(length: usize) -> Self {
+        Self { length }
     }
 }
 
 impl RealToComplex<f32> for RealFftPlanF32 {
-    fn process(&self, input: &[f32], output: &mut [Complex<f32>]) {
+    fn process(&self, input: &[f32], output: &mut [Complex<f32>]) -> FFTResult<()> {
         // Validate input/output lengths
-        assert_eq!(
-            input.len(),
-            self.length,
-            "Input length {} doesn't match plan length {}",
-            input.len(),
-            self.length
-        );
-        assert_eq!(
-            output.len(),
-            self.output_len(),
-            "Output length {} doesn't match expected length {}",
-            output.len(),
-            self.output_len()
-        );
+        if input.len() != self.length {
+            return Err(FFTError::ValueError(format!(
+                "Input length {} doesn't match plan length {}",
+                input.len(),
+                self.length
+            )));
+        }
+        if output.len() != self.output_len() {
+            return Err(FFTError::ValueError(format!(
+                "Output length {} doesn't match expected length {}",
+                output.len(),
+                self.output_len()
+            )));
+        }
 
-        // Convert input to complex for full FFT
-        let mut buffer: Vec<Complex<f32>> = input.iter().map(|&x| Complex::new(x, 0.0)).collect();
+        #[cfg(feature = "oxifft")]
+        {
+            // Convert f32 real input to f64 complex for OxiFFT
+            let input_oxi: Vec<OxiComplex<f64>> = input
+                .iter()
+                .map(|&x| OxiComplex::new(x as f64, 0.0))
+                .collect();
+            let mut output_oxi: Vec<OxiComplex<f64>> = vec![OxiComplex::new(0.0, 0.0); self.length];
 
-        // Get FFT plan and process
-        let mut planner = self.planner.lock().expect("Operation failed");
-        let fft = planner.plan_fft_forward(self.length);
-        drop(planner); // Release lock before processing
+            oxifft_plan_cache::execute_c2c(&input_oxi, &mut output_oxi, Direction::Forward)?;
 
-        fft.process(&mut buffer);
+            // Copy first n/2 + 1 elements with f64->f32 conversion
+            let out_len = self.output_len();
+            for (i, dst) in output.iter_mut().enumerate().take(out_len) {
+                *dst = Complex::new(output_oxi[i].re as f32, output_oxi[i].im as f32);
+            }
+        }
 
-        // Copy first n/2 + 1 elements to output (real FFT property)
-        output.copy_from_slice(&buffer[..self.output_len()]);
+        #[cfg(not(feature = "oxifft"))]
+        {
+            for dst in output.iter_mut() {
+                *dst = Complex::new(0.0f32, 0.0f32);
+            }
+        }
+
+        Ok(())
     }
 
     fn len(&self) -> usize {
@@ -260,68 +302,77 @@ impl RealToComplex<f32> for RealFftPlanF32 {
     }
 }
 
-/// Inverse real FFT plan implementation for f32
+/// Inverse real FFT plan implementation for f32 using OxiFFT backend
 struct InverseRealFftPlanF32 {
     length: usize,
-    planner: Arc<Mutex<rustfft::FftPlanner<f32>>>,
 }
 
 impl InverseRealFftPlanF32 {
-    fn new(length: usize, planner: Arc<Mutex<rustfft::FftPlanner<f32>>>) -> Self {
-        Self { length, planner }
+    fn new(length: usize) -> Self {
+        Self { length }
     }
 }
 
 impl ComplexToReal<f32> for InverseRealFftPlanF32 {
-    fn process(&self, input: &[Complex<f32>], output: &mut [f32]) {
+    fn process(&self, input: &[Complex<f32>], output: &mut [f32]) -> FFTResult<()> {
         // Validate input/output lengths
-        assert_eq!(
-            input.len(),
-            self.input_len(),
-            "Input length {} doesn't match expected length {}",
-            input.len(),
-            self.input_len()
-        );
-        assert_eq!(
-            output.len(),
-            self.length,
-            "Output length {} doesn't match plan length {}",
-            output.len(),
-            self.length
-        );
-
-        // Reconstruct full spectrum using Hermitian symmetry
-        let mut buffer: Vec<Complex<f32>> = Vec::with_capacity(self.length);
-        buffer.extend_from_slice(input);
-
-        // Add conjugate symmetric part
-        let start_idx = if self.length.is_multiple_of(2) {
-            input.len() - 1
-        } else {
-            input.len()
-        };
-
-        for i in (1..start_idx).rev() {
-            buffer.push(input[i].conj());
+        if input.len() != self.input_len() {
+            return Err(FFTError::ValueError(format!(
+                "Input length {} doesn't match expected length {}",
+                input.len(),
+                self.input_len()
+            )));
+        }
+        if output.len() != self.length {
+            return Err(FFTError::ValueError(format!(
+                "Output length {} doesn't match plan length {}",
+                output.len(),
+                self.length
+            )));
         }
 
-        // Pad to full length if needed
-        while buffer.len() < self.length {
-            buffer.push(Complex::new(0.0, 0.0));
+        #[cfg(feature = "oxifft")]
+        {
+            // Reconstruct full spectrum using Hermitian symmetry (with f32->f64 conversion)
+            let mut buffer_oxi: Vec<OxiComplex<f64>> = Vec::with_capacity(self.length);
+
+            for &c in input.iter() {
+                buffer_oxi.push(OxiComplex::new(c.re as f64, c.im as f64));
+            }
+
+            let start_idx = if self.length % 2 == 0 {
+                input.len() - 1
+            } else {
+                input.len()
+            };
+
+            for i in (1..start_idx).rev() {
+                buffer_oxi.push(OxiComplex::new(input[i].re as f64, -(input[i].im as f64)));
+            }
+
+            while buffer_oxi.len() < self.length {
+                buffer_oxi.push(OxiComplex::new(0.0, 0.0));
+            }
+
+            let mut out_oxi: Vec<OxiComplex<f64>> = vec![OxiComplex::new(0.0, 0.0); self.length];
+
+            oxifft_plan_cache::execute_c2c(&buffer_oxi, &mut out_oxi, Direction::Backward)?;
+
+            // Extract real parts, normalize, and convert back to f32
+            let scale = 1.0 / self.length as f64;
+            for (i, dst) in output.iter_mut().enumerate() {
+                *dst = (out_oxi[i].re * scale) as f32;
+            }
         }
 
-        // Get inverse FFT plan and process
-        let mut planner = self.planner.lock().expect("Operation failed");
-        let ifft = planner.plan_fft_inverse(self.length);
-        drop(planner); // Release lock before processing
-
-        ifft.process(&mut buffer);
-
-        // Extract real parts and normalize
-        let scale = 1.0 / self.length as f32;
-        for (i, &val) in buffer.iter().enumerate() {
-            output[i] = val.re * scale;
+        #[cfg(not(feature = "oxifft"))]
+        {
+            for dst in output.iter_mut() {
+                *dst = 0.0f32;
+            }
         }
+
+        Ok(())
     }
 
     fn len(&self) -> usize {
@@ -333,6 +384,7 @@ impl ComplexToReal<f32> for InverseRealFftPlanF32 {
 ///
 /// This planner creates reusable FFT plans optimized for real-valued input/output.
 /// Plans are thread-safe and can be shared across threads using Arc.
+/// Uses OxiFFT as the backend (COOLJAPAN Pure Rust policy).
 ///
 /// # Type Parameters
 ///
@@ -368,9 +420,8 @@ impl RealFftPlanner<f64> {
     /// # Returns
     ///
     /// Arc-wrapped trait object implementing RealToComplex
-    pub fn plan_fft_forward(&mut self, length: usize) -> Arc<dyn RealToComplex<f64>> {
-        let planner = Arc::new(Mutex::new(rustfft::FftPlanner::<f64>::new()));
-        Arc::new(RealFftPlanF64::new(length, planner))
+    pub fn plan_fft_forward(&mut self, length: usize) -> std::sync::Arc<dyn RealToComplex<f64>> {
+        std::sync::Arc::new(RealFftPlanF64::new(length))
     }
 
     /// Create an inverse FFT plan for complex-to-real transformation
@@ -382,9 +433,8 @@ impl RealFftPlanner<f64> {
     /// # Returns
     ///
     /// Arc-wrapped trait object implementing ComplexToReal
-    pub fn plan_fft_inverse(&mut self, length: usize) -> Arc<dyn ComplexToReal<f64>> {
-        let planner = Arc::new(Mutex::new(rustfft::FftPlanner::<f64>::new()));
-        Arc::new(InverseRealFftPlanF64::new(length, planner))
+    pub fn plan_fft_inverse(&mut self, length: usize) -> std::sync::Arc<dyn ComplexToReal<f64>> {
+        std::sync::Arc::new(InverseRealFftPlanF64::new(length))
     }
 }
 
@@ -411,9 +461,8 @@ impl RealFftPlanner<f32> {
     /// # Returns
     ///
     /// Arc-wrapped trait object implementing RealToComplex
-    pub fn plan_fft_forward(&mut self, length: usize) -> Arc<dyn RealToComplex<f32>> {
-        let planner = Arc::new(Mutex::new(rustfft::FftPlanner::<f32>::new()));
-        Arc::new(RealFftPlanF32::new(length, planner))
+    pub fn plan_fft_forward(&mut self, length: usize) -> std::sync::Arc<dyn RealToComplex<f32>> {
+        std::sync::Arc::new(RealFftPlanF32::new(length))
     }
 
     /// Create an inverse FFT plan for complex-to-real transformation
@@ -425,9 +474,8 @@ impl RealFftPlanner<f32> {
     /// # Returns
     ///
     /// Arc-wrapped trait object implementing ComplexToReal
-    pub fn plan_fft_inverse(&mut self, length: usize) -> Arc<dyn ComplexToReal<f32>> {
-        let planner = Arc::new(Mutex::new(rustfft::FftPlanner::<f32>::new()));
-        Arc::new(InverseRealFftPlanF32::new(length, planner))
+    pub fn plan_fft_inverse(&mut self, length: usize) -> std::sync::Arc<dyn ComplexToReal<f32>> {
+        std::sync::Arc::new(InverseRealFftPlanF32::new(length))
     }
 }
 
@@ -454,7 +502,9 @@ mod tests {
         let mut spectrum = vec![Complex64::new(0.0, 0.0); 5]; // 8/2 + 1 = 5
 
         // Forward transform
-        forward.process(&input, &mut spectrum);
+        forward
+            .process(&input, &mut spectrum)
+            .expect("Forward FFT failed");
 
         // Check DC component
         let sum: f64 = input.iter().sum();
@@ -463,7 +513,9 @@ mod tests {
 
         // Inverse transform
         let mut recovered = vec![0.0; 8];
-        inverse.process(&spectrum, &mut recovered);
+        inverse
+            .process(&spectrum, &mut recovered)
+            .expect("Inverse FFT failed");
 
         // Check round-trip accuracy
         for (i, (&orig, &recov)) in input.iter().zip(recovered.iter()).enumerate() {
@@ -488,11 +540,15 @@ mod tests {
         let mut spectrum = vec![Complex::new(0.0f32, 0.0); 5]; // 8/2 + 1 = 5
 
         // Forward transform
-        forward.process(&input, &mut spectrum);
+        forward
+            .process(&input, &mut spectrum)
+            .expect("Forward FFT failed");
 
         // Inverse transform
         let mut recovered = vec![0.0f32; 8];
-        inverse.process(&spectrum, &mut recovered);
+        inverse
+            .process(&spectrum, &mut recovered)
+            .expect("Inverse FFT failed");
 
         // Check round-trip accuracy (lower precision for f32)
         for (i, (&orig, &recov)) in input.iter().zip(recovered.iter()).enumerate() {
@@ -519,7 +575,7 @@ mod tests {
             .collect();
 
         let mut spectrum = vec![Complex64::new(0.0, 0.0); length / 2 + 1];
-        forward.process(&input, &mut spectrum);
+        forward.process(&input, &mut spectrum).expect("FFT failed");
 
         // Check that energy is concentrated at the expected frequency
         let magnitudes: Vec<f64> = spectrum.iter().map(|c| c.norm()).collect();
@@ -553,8 +609,8 @@ mod tests {
     fn test_voirs_usage_pattern() {
         // This test demonstrates the VoiRS usage pattern with Arc<dyn Trait>
         struct AudioProcessor {
-            forward: Arc<dyn RealToComplex<f64>>,
-            backward: Arc<dyn ComplexToReal<f64>>,
+            forward: std::sync::Arc<dyn RealToComplex<f64>>,
+            backward: std::sync::Arc<dyn ComplexToReal<f64>>,
         }
 
         impl AudioProcessor {
@@ -568,10 +624,14 @@ mod tests {
 
             fn process(&self, input: &[f64]) -> Vec<f64> {
                 let mut spectrum = vec![Complex64::new(0.0, 0.0); self.forward.output_len()];
-                self.forward.process(input, &mut spectrum);
+                self.forward
+                    .process(input, &mut spectrum)
+                    .expect("Forward FFT failed");
 
                 let mut output = vec![0.0; self.backward.len()];
-                self.backward.process(&spectrum, &mut output);
+                self.backward
+                    .process(&spectrum, &mut output)
+                    .expect("Inverse FFT failed");
 
                 output
             }

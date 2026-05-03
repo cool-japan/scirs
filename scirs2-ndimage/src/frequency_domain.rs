@@ -18,8 +18,8 @@
 
 use crate::error::{NdimageError, NdimageResult};
 use scirs2_core::ndarray::Array2;
-use scirs2_fft::{fft2, fftfreq, fftshift2, ifft2, ifftshift2};
 use scirs2_core::numeric::Complex64;
+use scirs2_fft::{fft2, fftfreq, fftshift2, ifft2, ifftshift2};
 use std::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
@@ -161,10 +161,8 @@ pub fn frequency_filter(
     for r in 0..rows {
         for c in 0..cols {
             let gain = filter_fn(u_grid[[r, c]], v_grid[[r, c]]);
-            spectrum[[r, c]] = Complex64::new(
-                spectrum[[r, c]].re * gain,
-                spectrum[[r, c]].im * gain,
-            );
+            spectrum[[r, c]] =
+                Complex64::new(spectrum[[r, c]].re * gain, spectrum[[r, c]].im * gain);
         }
     }
 
@@ -185,18 +183,19 @@ pub fn frequency_filter(
 /// Returns [`NdimageError`] on FFT failure or if `cutoff ≤ 0`.
 pub fn lowpass_filter(image: &Array2<f64>, cutoff: f64) -> NdimageResult<Array2<f64>> {
     if cutoff <= 0.0 {
-        return Err(NdimageError::InvalidInput(
-            "cutoff must be positive".into(),
-        ));
+        return Err(NdimageError::InvalidInput("cutoff must be positive".into()));
     }
     let cutoff2 = cutoff * cutoff;
-    frequency_filter(image, move |u, v| {
-        if u * u + v * v <= cutoff2 {
-            1.0
-        } else {
-            0.0
-        }
-    })
+    frequency_filter(
+        image,
+        move |u, v| {
+            if u * u + v * v <= cutoff2 {
+                1.0
+            } else {
+                0.0
+            }
+        },
+    )
 }
 
 /// Ideal (brick-wall) high-pass filter.
@@ -209,18 +208,19 @@ pub fn lowpass_filter(image: &Array2<f64>, cutoff: f64) -> NdimageResult<Array2<
 /// Returns [`NdimageError`] on FFT failure or if `cutoff ≤ 0`.
 pub fn highpass_filter(image: &Array2<f64>, cutoff: f64) -> NdimageResult<Array2<f64>> {
     if cutoff <= 0.0 {
-        return Err(NdimageError::InvalidInput(
-            "cutoff must be positive".into(),
-        ));
+        return Err(NdimageError::InvalidInput("cutoff must be positive".into()));
     }
     let cutoff2 = cutoff * cutoff;
-    frequency_filter(image, move |u, v| {
-        if u * u + v * v > cutoff2 {
-            1.0
-        } else {
-            0.0
-        }
-    })
+    frequency_filter(
+        image,
+        move |u, v| {
+            if u * u + v * v > cutoff2 {
+                1.0
+            } else {
+                0.0
+            }
+        },
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -372,10 +372,7 @@ pub fn gaussian_freq_filter(
 /// // Zero shift expected for identical images
 /// assert!((dr.abs() + dc.abs()) < 2.0);
 /// ```
-pub fn phase_correlation(
-    image1: &Array2<f64>,
-    image2: &Array2<f64>,
-) -> NdimageResult<(f64, f64)> {
+pub fn phase_correlation(image1: &Array2<f64>, image2: &Array2<f64>) -> NdimageResult<(f64, f64)> {
     let (rows, cols) = (image1.nrows(), image1.ncols());
     if rows != image2.nrows() || cols != image2.ncols() {
         return Err(NdimageError::DimensionError(
@@ -395,7 +392,8 @@ pub fn phase_correlation(
     let mut cross_power = Array2::<Complex64>::zeros((rows, cols));
     for r in 0..rows {
         for c in 0..cols {
-            let product = f1[[r, c]] * f2[[r, c]].conj();
+            // conj(F1) * F2 yields a IFFT peak at +d when img2 = img1 shifted by d.
+            let product = f1[[r, c]].conj() * f2[[r, c]];
             let mag = product.norm();
             cross_power[[r, c]] = if mag > 1e-12 {
                 Complex64::new(product.re / mag, product.im / mag)
@@ -499,10 +497,7 @@ mod tests {
         let out = frequency_filter(&img, |_u, _v| 1.0).expect("ok");
         for ((r, c), &orig) in img.indexed_iter() {
             let rec = out[[r, c]];
-            assert!(
-                (orig - rec).abs() < 1e-8,
-                "Unity filter error at ({r},{c})"
-            );
+            assert!((orig - rec).abs() < 1e-8, "Unity filter error at ({r},{c})");
         }
     }
 
@@ -511,13 +506,16 @@ mod tests {
     #[test]
     fn lowpass_reduces_high_frequencies() {
         // A checkerboard has maximum high-frequency energy
-        let img = Array2::from_shape_fn((32, 32), |(r, c)| {
-            if (r + c) % 2 == 0 {
-                1.0f64
-            } else {
-                -1.0f64
-            }
-        });
+        let img = Array2::from_shape_fn(
+            (32, 32),
+            |(r, c)| {
+                if (r + c) % 2 == 0 {
+                    1.0f64
+                } else {
+                    -1.0f64
+                }
+            },
+        );
         let filtered = lowpass_filter(&img, 0.1).expect("lowpass failed");
         // Energy should be significantly reduced
         let orig_energy: f64 = img.iter().map(|&v| v * v).sum();
@@ -606,10 +604,7 @@ mod tests {
         let img = Array2::<f64>::from_elem((16, 16), 1.0);
         let out = gaussian_freq_filter(&img, 0.1, true).expect("ok");
         let max_abs = out.iter().map(|&v| v.abs()).fold(0.0f64, f64::max);
-        assert!(
-            max_abs < 0.5,
-            "Gaussian HP on constant: max {max_abs}"
-        );
+        assert!(max_abs < 0.5, "Gaussian HP on constant: max {max_abs}");
     }
 
     #[test]

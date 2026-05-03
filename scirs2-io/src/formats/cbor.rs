@@ -551,9 +551,9 @@ mod tests {
 
     #[test]
     fn test_float() {
-        let v = CborValue::Float(3.141592653589793);
+        let v = CborValue::Float(std::f64::consts::PI);
         if let CborValue::Float(f) = round_trip(v) {
-            assert!((f - 3.141592653589793).abs() < 1e-15);
+            assert!((f - std::f64::consts::PI).abs() < 1e-15);
         } else {
             panic!("expected Float");
         }
@@ -568,10 +568,7 @@ mod tests {
 
     #[test]
     fn test_nested() {
-        let inner = CborValue::Map(vec![(
-            CborValue::Text("x".into()),
-            CborValue::Unsigned(99),
-        )]);
+        let inner = CborValue::Map(vec![(CborValue::Text("x".into()), CborValue::Unsigned(99))]);
         let outer = CborValue::Array(vec![inner, CborValue::Null]);
         assert_eq!(round_trip(outer.clone()), outer);
     }
@@ -579,14 +576,13 @@ mod tests {
 
 // ─────────────────────────────── File I/O helpers ────────────────────────────
 
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 /// Read a CBOR file from `path` and decode the first item.
 pub fn read_cbor_file(path: impl AsRef<Path>) -> Result<CborValue, IoError> {
-    let bytes = fs::read(path.as_ref()).map_err(|e| {
-        IoError::SerializationError(format!("CBOR: cannot read file: {e}"))
-    })?;
+    let bytes = fs::read(path.as_ref())
+        .map_err(|e| IoError::SerializationError(format!("CBOR: cannot read file: {e}")))?;
     let (value, _) = decode_cbor(&bytes)?;
     Ok(value)
 }
@@ -594,9 +590,8 @@ pub fn read_cbor_file(path: impl AsRef<Path>) -> Result<CborValue, IoError> {
 /// Encode `value` and write the bytes to `path`.
 pub fn write_cbor_file(path: impl AsRef<Path>, value: &CborValue) -> Result<(), IoError> {
     let bytes = encode_cbor(value);
-    fs::write(path.as_ref(), &bytes).map_err(|e| {
-        IoError::SerializationError(format!("CBOR: cannot write file: {e}"))
-    })
+    fs::write(path.as_ref(), &bytes)
+        .map_err(|e| IoError::SerializationError(format!("CBOR: cannot write file: {e}")))
 }
 
 #[cfg(test)]
@@ -607,7 +602,10 @@ mod file_tests {
     #[test]
     fn test_roundtrip_file() {
         let value = CborValue::Map(vec![
-            (CborValue::Text("project".into()), CborValue::Text("scirs2".into())),
+            (
+                CborValue::Text("project".into()),
+                CborValue::Text("scirs2".into()),
+            ),
             (CborValue::Text("version".into()), CborValue::Unsigned(3)),
         ]);
         let path = temp_dir().join("cbor_roundtrip_test.cbor");

@@ -353,7 +353,15 @@ where
     })
 }
 
-/// Center of mass with SciPy-compatible interface
+/// Center of mass with SciPy-compatible interface.
+///
+/// Matches `scipy.ndimage.center_of_mass(input, labels=None, index=None)` semantics:
+///
+/// - **No labels**: returns a single center for the whole array.
+/// - **labels only**: returns one center per unique label found in `labels`.
+/// - **labels + index**: returns one center per label value in `index`, in that order.
+///
+/// Each returned center is `[c0, c1, ...]` (one f64 per dimension).
 #[allow(dead_code)]
 pub fn center_of_mass<T, D>(
     input: &ArrayBase<impl Data<Elem = T>, D>,
@@ -364,12 +372,112 @@ where
     T: Float + FromPrimitive + Debug + Clone + NumAssign + Send + Sync + 'static,
     D: Dimension + 'static,
 {
-    // The measurements module's center_of_mass only takes the input array
-    // TODO: Handle labels and index parameters if needed
-    let input_array = input.to_owned();
-    crate::measurements::center_of_mass(&input_array)
-        .map(|com| vec![com.into_iter().map(|x| x.to_f64().unwrap_or(0.0)).collect()])
-    // Convert to f64
+    let input_dyn = input.to_owned().into_dyn();
+    let ndim = input_dyn.ndim();
+    let shape = input_dyn.shape().to_vec();
+
+    match labels {
+        None => {
+            // No labels: compute global center of mass
+            let com = crate::measurements::center_of_mass(&input.to_owned())?;
+            Ok(vec![com
+                .into_iter()
+                .map(|x| x.to_f64().unwrap_or(0.0))
+                .collect()])
+        }
+        Some(lbl) => {
+            // Build the set of label values to compute (from `index` if given, else all unique)
+            let lbl_dyn = lbl.to_owned().into_dyn();
+
+            // Collect all unique label values in sorted order
+            let mut unique: Vec<i32> = lbl_dyn.iter().copied().collect();
+            unique.sort_unstable();
+            unique.dedup();
+
+            let targets: Vec<i32> = match index {
+                Some(ref idx) => idx.clone(),
+                None => unique,
+            };
+
+            let mut result = Vec::with_capacity(targets.len());
+            for &label_val in &targets {
+                // Compute center of mass for elements where lbl == label_val
+                let mut total_mass = 0.0_f64;
+                let mut com = vec![0.0_f64; ndim];
+
+                for (raw_idx, &val) in input_dyn.indexed_iter() {
+                    // Check if label at this position equals label_val
+                    let idx_slice: Vec<usize> = raw_idx.as_array_view().iter().copied().collect();
+                    // Build the dynamic index for lbl_dyn
+                    let mut lbl_idx = scirs2_core::ndarray::IxDyn(
+                        &idx_slice[..idx_slice.len().min(lbl_dyn.ndim())],
+                    );
+                    // Guard: only proceed if shape matches
+                    if idx_slice.len() == lbl_dyn.ndim() {
+                        let lbl_idx_arr: Vec<usize> = idx_slice.clone();
+                        // Safety: check bounds
+                        let in_bounds = lbl_idx_arr
+                            .iter()
+                            .zip(lbl_dyn.shape())
+                            .all(|(&i, &s)| i < s);
+                        if in_bounds {
+                            let _ = lbl_idx; // suppress unused
+                                             // Construct IxDyn manually
+                            let lbl_val_at_pos = lbl_dyn[scirs2_core::ndarray::IxDyn(&lbl_idx_arr)];
+                            if lbl_val_at_pos == label_val {
+                                let mass = val.to_f64().unwrap_or(0.0);
+                                total_mass += mass;
+                                for (dim, &coord) in idx_slice.iter().enumerate() {
+                                    if dim < ndim {
+                                        com[dim] += coord as f64 * mass;
+                                    }
+                                }
+                            }
+                        }
+                    } else if idx_slice.len() > lbl_dyn.ndim() {
+                        // input has more dims than labels — compare only the first dims
+                        let lbl_idx_arr: Vec<usize> = idx_slice[..lbl_dyn.ndim()].to_vec();
+                        let in_bounds = lbl_idx_arr
+                            .iter()
+                            .zip(lbl_dyn.shape())
+                            .all(|(&i, &s)| i < s);
+                        if in_bounds {
+                            let _ = lbl_idx;
+                            let lbl_val_at_pos = lbl_dyn[scirs2_core::ndarray::IxDyn(&lbl_idx_arr)];
+                            if lbl_val_at_pos == label_val {
+                                let mass = val.to_f64().unwrap_or(0.0);
+                                total_mass += mass;
+                                for (dim, &coord) in idx_slice.iter().enumerate() {
+                                    if dim < ndim {
+                                        com[dim] += coord as f64 * mass;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Normalize
+                if total_mass != 0.0 {
+                    for c in com.iter_mut() {
+                        *c /= total_mass;
+                    }
+                } else {
+                    // Zero mass → geometric center of the dimension
+                    for (dim, c) in com.iter_mut().enumerate() {
+                        *c = if dim < shape.len() {
+                            shape[dim] as f64 / 2.0
+                        } else {
+                            0.0
+                        };
+                    }
+                }
+
+                result.push(com);
+            }
+            Ok(result)
+        }
+    }
 }
 
 /// Affine transform with SciPy-compatible interface
@@ -437,15 +545,23 @@ where
     ))
 }
 
-/// Map coordinates with SciPy-compatible interface
+/// Map coordinates with SciPy-compatible interface.
+///
+/// Samples the input array at the given coordinates using spline interpolation.
+/// `coordinates` has shape `[ndim, n_points]`: each column specifies the
+/// position of one output sample in the input's index space.
 ///
 /// # Arguments
-/// * `input` - Input array
-/// * `coordinates` - The coordinates at which input is evaluated
-/// * `order` - The order of the spline interpolation (0-5)
-/// * `mode` - How to handle boundaries
-/// * `cval` - Value to use for constant mode
-/// * `prefilter` - Whether to apply spline prefilter
+/// * `input` - Input array (any dimensionality)
+/// * `coordinates` - Coordinates matrix of shape `[ndim, n_points]`
+/// * `order` - Spline interpolation order (0–3; default 3)
+/// * `mode` - Boundary mode string (e.g. `"constant"`, `"reflect"`, `"wrap"`)
+/// * `cval` - Fill value for constant mode (default 0)
+/// * `prefilter` - Whether to apply spline prefilter (default true)
+///
+/// # Returns
+///
+/// `Array1<T>` of length `n_points` with the interpolated values.
 #[allow(dead_code)]
 pub fn map_coordinates<T, D>(
     input: &ArrayBase<impl Data<Elem = T>, D>,
@@ -459,17 +575,196 @@ where
     T: Float + FromPrimitive + Debug + Clone + NumAssign + Send + Sync + 'static,
     D: Dimension + 'static,
 {
-    let mode = mode
+    let mode_enum = mode
         .map(Mode::from_str)
         .transpose()?
         .unwrap_or(Mode::Constant);
-    let boundary_mode = mode.to_interpolation_boundary_mode();
+    let boundary_mode = mode_enum.to_interpolation_boundary_mode();
 
-    // This function has complex dimension requirements that need specific implementations
-    // For now, return an error indicating this needs to be implemented
-    Err(NdimageError::ImplementationError(
-        "map_coordinates with generic dimensions not yet implemented".into(),
-    ))
+    let ndim = input.ndim();
+    let n_points = if coordinates.nrows() == ndim {
+        coordinates.ncols()
+    } else if coordinates.ncols() == ndim {
+        // Accept transposed layout too
+        coordinates.nrows()
+    } else {
+        return Err(NdimageError::DimensionError(format!(
+            "coordinates must have shape [ndim, n_points] or [n_points, ndim]; \
+             input ndim={}, coordinates shape={:?}",
+            ndim,
+            coordinates.shape()
+        )));
+    };
+
+    let shape = input.shape();
+    let cval_val = cval.unwrap_or(T::zero());
+    let do_prefilter = prefilter.unwrap_or(true);
+    let interp_order = order.unwrap_or(3).min(3);
+
+    // Convert input to owned IxDyn array
+    let input_dyn = input
+        .to_owned()
+        .into_dimensionality::<IxDyn>()
+        .map_err(|_| NdimageError::DimensionError("Failed to convert input to IxDyn".into()))?;
+
+    // Optionally apply spline prefilter (only meaningful for order >= 2).
+    // spline_filter takes an order as usize (degree of spline, e.g. 3 = cubic)
+    let filtered_input = if do_prefilter && interp_order >= 2 {
+        crate::interpolation::spline_filter(&input_dyn, Some(interp_order))
+            .unwrap_or_else(|_| input_dyn.clone())
+    } else {
+        input_dyn.clone()
+    };
+
+    // Sample each output point
+    let mut output = Array1::zeros(n_points);
+    let coords_rows_are_axes = coordinates.nrows() == ndim;
+
+    for p in 0..n_points {
+        // Gather coordinates for this point
+        let point_coords: Vec<f64> = (0..ndim)
+            .map(|ax| {
+                if coords_rows_are_axes {
+                    coordinates[[ax, p]]
+                } else {
+                    coordinates[[p, ax]]
+                }
+            })
+            .collect();
+
+        // Apply boundary mode to each coordinate
+        let clamped: Vec<f64> = point_coords
+            .iter()
+            .enumerate()
+            .map(|(ax, &c)| {
+                let max_idx = shape[ax] as f64 - 1.0;
+                match boundary_mode {
+                    InterpolationBoundaryMode::Constant => c, // OOB handled at sampling
+                    InterpolationBoundaryMode::Nearest => c.clamp(0.0, max_idx),
+                    InterpolationBoundaryMode::Reflect => {
+                        // Periodic reflection
+                        if max_idx <= 0.0 {
+                            return 0.0;
+                        }
+                        let period = 2.0 * max_idx;
+                        let c = c % period;
+                        let c = if c < 0.0 { c + period } else { c };
+                        if c <= max_idx {
+                            c
+                        } else {
+                            period - c
+                        }
+                    }
+                    InterpolationBoundaryMode::Wrap => {
+                        if shape[ax] == 0 {
+                            return 0.0;
+                        }
+                        let n = shape[ax] as f64;
+                        let c = c % n;
+                        if c < 0.0 {
+                            c + n
+                        } else {
+                            c
+                        }
+                    }
+                    _ => c.clamp(0.0, max_idx),
+                }
+            })
+            .collect();
+
+        // Check OOB for constant mode
+        let oob = if matches!(boundary_mode, InterpolationBoundaryMode::Constant) {
+            clamped
+                .iter()
+                .enumerate()
+                .any(|(ax, &c)| c < 0.0 || c > shape[ax] as f64 - 1.0)
+        } else {
+            false
+        };
+
+        if oob {
+            output[p] = cval_val;
+            continue;
+        }
+
+        // Linear (order ≤ 1) or trilinear/n-linear interpolation
+        // We implement multilinear (order 1) as it generalises cleanly; for order 0
+        // we round to nearest.
+        let value = if interp_order == 0 {
+            // Nearest neighbour
+            let idx: Vec<usize> = clamped
+                .iter()
+                .enumerate()
+                .map(|(ax, &c)| c.round() as usize % shape[ax].max(1))
+                .collect();
+            let dyn_idx = scirs2_core::ndarray::IxDyn(&idx);
+            filtered_input[dyn_idx]
+        } else {
+            // N-linear interpolation via recursive n-d linear interp
+            multilinear_nd_sample(&filtered_input, &clamped, shape)?
+        };
+
+        output[p] = value;
+    }
+
+    Ok(output)
+}
+
+/// Multilinear interpolation at a fractional coordinate in an N-D array.
+fn multilinear_nd_sample<T>(
+    arr: &Array<T, IxDyn>,
+    coords: &[f64],
+    shape: &[usize],
+) -> NdimageResult<T>
+where
+    T: Float + FromPrimitive + Debug + Clone + 'static,
+{
+    // Recursive 2^ndim corner evaluation
+    let ndim = coords.len();
+    let mut result = T::zero();
+
+    // Enumerate all 2^ndim corners
+    let n_corners = 1usize << ndim;
+    for corner in 0..n_corners {
+        let mut weight = T::one();
+        let mut idx = vec![0usize; ndim];
+        let mut valid = true;
+
+        for ax in 0..ndim {
+            let c = coords[ax];
+            let lo = c.floor() as isize;
+            let hi = lo + 1;
+            let frac = c - lo as f64;
+
+            let use_hi = (corner >> ax) & 1 == 1;
+            let raw_idx = if use_hi { hi } else { lo };
+
+            if raw_idx < 0 || raw_idx >= shape[ax] as isize {
+                valid = false;
+                break;
+            }
+
+            idx[ax] = raw_idx as usize;
+
+            let w = if use_hi {
+                T::from_f64(frac).ok_or_else(|| {
+                    NdimageError::ComputationError("Float conversion failed".into())
+                })?
+            } else {
+                T::from_f64(1.0 - frac).ok_or_else(|| {
+                    NdimageError::ComputationError("Float conversion failed".into())
+                })?
+            };
+            weight = weight * w;
+        }
+
+        if valid {
+            let dyn_idx = scirs2_core::ndarray::IxDyn(&idx);
+            result = result + arr[dyn_idx] * weight;
+        }
+    }
+
+    Ok(result)
 }
 
 /// Zoom array with SciPy-compatible interface
@@ -1209,5 +1504,141 @@ mod tests {
         )
         .expect("Test: operation failed");
         assert_eq!(result.shape(), input.shape());
+    }
+
+    // ─── center_of_mass tests ──────────────────────────────────────────────
+
+    #[test]
+    fn test_center_of_mass_no_labels() {
+        // 2×2 array with mass concentrated at bottom-right
+        let input = array![[0.0_f64, 0.0], [0.0, 1.0]];
+        let com = center_of_mass(&input, None::<&scirs2_core::ndarray::Array2<i32>>, None)
+            .expect("center_of_mass failed");
+        assert_eq!(com.len(), 1);
+        // Only the bottom-right element has mass → COM = (1, 1)
+        assert!((com[0][0] - 1.0).abs() < 1e-12);
+        assert!((com[0][1] - 1.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_center_of_mass_with_labels() {
+        // 2×4 input: two regions separated by label
+        // Label 1 → left half, Label 2 → right half
+        let input = array![[1.0_f64, 1.0, 2.0, 2.0]];
+        let labels = array![[1_i32, 1, 2, 2]];
+        let com = center_of_mass(&input, Some(&labels), None).expect("center_of_mass failed");
+        // Two labels: 1 and 2
+        assert_eq!(com.len(), 2);
+        // Label 1: mass at cols 0,1 → COM col = (0*1 + 1*1)/(1+1) = 0.5
+        assert!((com[0][1] - 0.5).abs() < 1e-12);
+        // Label 2: mass at cols 2,3 → COM col = (2*2 + 3*2)/(2+2) = 2.5
+        assert!((com[1][1] - 2.5).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_center_of_mass_with_labels_and_index() {
+        // Same as above but request only label 2
+        let input = array![[1.0_f64, 1.0, 2.0, 2.0]];
+        let labels = array![[1_i32, 1, 2, 2]];
+        let com =
+            center_of_mass(&input, Some(&labels), Some(vec![2])).expect("center_of_mass failed");
+        assert_eq!(com.len(), 1);
+        // Label 2: mass at cols 2,3 → COM col = 2.5
+        assert!((com[0][1] - 2.5).abs() < 1e-12);
+    }
+
+    // ─── map_coordinates tests ────────────────────────────────────────────
+
+    #[test]
+    fn test_map_coordinates_exact_grid_2d() {
+        // Sample at exact integer grid points — should return the exact values
+        let input = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0],];
+
+        // Coordinates to sample: (0,0), (1,1), (2,2) → values 1, 5, 9
+        let coords = scirs2_core::ndarray::Array2::from_shape_vec(
+            (2, 3),
+            vec![0.0, 1.0, 2.0, 0.0, 1.0, 2.0],
+        )
+        .expect("coords");
+
+        let result = map_coordinates(&input, &coords, Some(1), Some("constant"), None, None)
+            .expect("map_coordinates should succeed");
+
+        assert_eq!(result.len(), 3);
+        assert!(
+            (result[0] - 1.0).abs() < 1e-10,
+            "Expected 1.0, got {}",
+            result[0]
+        );
+        assert!(
+            (result[1] - 5.0).abs() < 1e-10,
+            "Expected 5.0, got {}",
+            result[1]
+        );
+        assert!(
+            (result[2] - 9.0).abs() < 1e-10,
+            "Expected 9.0, got {}",
+            result[2]
+        );
+    }
+
+    #[test]
+    fn test_map_coordinates_oob_constant_mode() {
+        // Out-of-bounds coordinates should return cval (0.0 by default) in constant mode
+        let input = array![[1.0_f64, 2.0], [3.0, 4.0]];
+
+        // Coordinate (-1, 0) is out of bounds
+        let coords = scirs2_core::ndarray::Array2::from_shape_vec((2, 1), vec![-1.0_f64, 0.0])
+            .expect("coords");
+
+        let result = map_coordinates(&input, &coords, Some(1), Some("constant"), Some(0.0), None)
+            .expect("map_coordinates OOB should succeed");
+
+        assert_eq!(result.len(), 1);
+        assert!(
+            (result[0] - 0.0).abs() < 1e-10,
+            "OOB should return cval=0.0, got {}",
+            result[0]
+        );
+    }
+
+    #[test]
+    fn test_map_coordinates_nearest_mode() {
+        // Nearest mode: clamp to border
+        let input = array![[10.0_f64, 20.0], [30.0, 40.0]];
+
+        // Sample at (-0.5, -0.5) → nearest is (0,0) = 10.0
+        let coords = scirs2_core::ndarray::Array2::from_shape_vec((2, 1), vec![-0.5_f64, -0.5])
+            .expect("coords");
+
+        let result = map_coordinates(&input, &coords, Some(1), Some("nearest"), None, None)
+            .expect("map_coordinates nearest should succeed");
+
+        assert_eq!(result.len(), 1);
+        assert!(
+            (result[0] - 10.0).abs() < 1e-9,
+            "Nearest clamped should be 10.0, got {}",
+            result[0]
+        );
+    }
+
+    #[test]
+    fn test_map_coordinates_interpolation_2d() {
+        // Linear interpolation at the centre of a 2×2 constant array should return the constant
+        let input = array![[5.0_f64, 5.0], [5.0, 5.0]];
+
+        // Centre of the 2×2 = (0.5, 0.5)
+        let coords = scirs2_core::ndarray::Array2::from_shape_vec((2, 1), vec![0.5_f64, 0.5])
+            .expect("coords");
+
+        let result = map_coordinates(&input, &coords, Some(1), Some("reflect"), None, None)
+            .expect("map_coordinates interpolation should succeed");
+
+        assert_eq!(result.len(), 1);
+        assert!(
+            (result[0] - 5.0).abs() < 1e-10,
+            "Interpolation of constant should be constant, got {}",
+            result[0]
+        );
     }
 }

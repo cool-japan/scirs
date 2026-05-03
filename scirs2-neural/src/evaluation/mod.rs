@@ -7,18 +7,19 @@ mod cross_validation;
 mod metrics;
 mod test;
 mod validation;
-pub use cross_validation::*;
-pub use metrics::*;
-pub use test::*;
-pub use validation::*;
 use crate::data::Dataset;
 use crate::error::{Error, Result};
 use crate::layers::Layer;
+pub use cross_validation::*;
+pub use metrics::*;
 use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::hash::Hash;
+pub use test::*;
+pub use validation::*;
+
 /// Configuration for model evaluation
 #[derive(Debug, Clone)]
 pub struct EvaluationConfig {
@@ -35,6 +36,7 @@ pub struct EvaluationConfig {
     /// Verbosity level (0 = silent, 1 = progress bar, 2 = batch updates)
     pub verbose: usize,
 }
+
 impl Default for EvaluationConfig {
     fn default() -> Self {
         Self {
@@ -46,12 +48,16 @@ impl Default for EvaluationConfig {
             verbose: 1,
         }
     }
+}
+
 /// Trait for building models
-pub trait ModelBuilder<F: Float + Debug + ScalarOperand> {
+pub trait ModelBuilder<F: Float + Debug + ScalarOperand + NumAssign> {
     /// The model type that will be built by this builder
     type Model: Layer<F> + Clone;
     /// Build a new model instance
     fn build(&self) -> Result<Self::Model>;
+}
+
 /// Types of evaluation metrics
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum MetricType {
@@ -75,23 +81,28 @@ pub enum MetricType {
     AUC,
     /// Custom metric
     Custom(String),
+}
+
 /// Model evaluator for assessing model performance
 #[derive(Debug)]
 pub struct Evaluator<
-    F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send + Sync,
+    F: Float + Debug + ScalarOperand + FromPrimitive + NumAssign + std::fmt::Display + Send + Sync,
 > {
     /// Configuration for evaluation
     pub config: EvaluationConfig,
     /// Metrics to compute
     metrics: HashMap<MetricType, Box<dyn Metric<F>>>,
-impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send + Sync>
-    Evaluator<F>
+}
+
+impl<
+        F: Float + Debug + ScalarOperand + FromPrimitive + NumAssign + std::fmt::Display + Send + Sync,
+    > Evaluator<F>
 {
     /// Create a new evaluator with the given configuration
     pub fn new(config: EvaluationConfig) -> Result<Self> {
         let mut metrics = HashMap::new();
         // Initialize metrics
-        for metric_type in &_config.metrics {
+        for metric_type in &config.metrics {
             let metric: Box<dyn Metric<F>> = match metric_type {
                 MetricType::Loss => Box::new(LossMetric::new()),
                 MetricType::Accuracy => Box::new(AccuracyMetric::new()),
@@ -110,7 +121,10 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 }
             };
             metrics.insert(metric_type.clone(), metric);
+        }
         Ok(Self { config, metrics })
+    }
+
     /// Evaluate a model on a dataset
     pub fn evaluate<L: Layer<F> + ?Sized, D: Dataset<F> + ?Sized>(
         &mut self,
@@ -118,8 +132,6 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
         dataset: &D,
         loss_fn: Option<&dyn crate::losses::Loss<F>>,
     ) -> Result<HashMap<String, F>> {
-        // We can't use DataLoader directly with &dyn Dataset<F>
-        // Implement a manual batch iteration similar to what we did in test.rs
         // Calculate number of batches
         let num_samples = dataset.len();
         let num_batches = num_samples / self.config.batch_size
@@ -127,9 +139,11 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 1
             } else {
                 0
+            };
         // Reset metrics
         for metric in self.metrics.values_mut() {
             metric.reset();
+        }
         // Number of steps to evaluate
         let steps = self.config.steps.unwrap_or(num_batches);
         // Show progress based on verbosity
@@ -139,16 +153,16 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 dataset.len(),
                 steps
             );
-        // Loop through batches
-        let mut batch_count = 0;
+        }
         // Generate indices
         let mut indices: Vec<usize> = (0..dataset.len()).collect();
         if self.config.shuffle {
-            // use scirs2_core::random::rngs::SmallRng;
             use scirs2_core::random::seq::SliceRandom;
-            // use scirs2_core::random::SeedableRng;
-            let mut rng = rng();
+            let mut rng = scirs2_core::random::rng();
             indices.shuffle(&mut rng);
+        }
+        // Loop through batches
+        let mut batch_count = 0;
         // Process each batch
         for batch_idx in 0..steps.min(num_batches) {
             // Determine batch range
@@ -167,8 +181,9 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 .chain(first_x.shape())
                 .cloned()
                 .collect::<Vec<_>>();
-            let batch_yshape = [batch_indices.len()]
-                .chain(first_y.shape())
+            let batch_yshape = std::iter::once(batch_indices.len())
+                .chain(first_y.shape().iter().cloned())
+                .collect::<Vec<_>>();
             let mut batch_x = Array::zeros(IxDyn(&batch_xshape));
             let mut batch_y = Array::zeros(IxDyn(&batch_yshape));
             // Fill batch arrays
@@ -179,25 +194,30 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 batch_x_slice.assign(&x);
                 let mut batch_y_slice = batch_y.slice_mut(scirs2_core::ndarray::s![i, ..]);
                 batch_y_slice.assign(&y);
+            }
             // Forward pass
             let outputs = model.forward(&batch_x)?;
             // Compute loss if needed
-            if self.metrics.contains_key(&MetricType::Loss) && loss_fn.is_some() {
+            if self.metrics.contains_key(&MetricType::Loss) {
                 if let Some(loss_fn) = loss_fn {
                     let loss = loss_fn.forward(&outputs, &batch_y)?;
-                    self.metrics.get_mut(&MetricType::Loss).expect("Operation failed").update(
-                        &outputs,
-                        &batch_y,
-                        Some(loss),
-                    );
+                    if let Some(m) = self.metrics.get_mut(&MetricType::Loss) {
+                        m.update(&outputs, &batch_y, Some(loss));
+                    }
+                }
+            }
             // Update other metrics
             for (metric_type, metric) in self.metrics.iter_mut() {
                 if *metric_type != MetricType::Loss {
                     metric.update(&outputs, &batch_y, None);
+                }
+            }
             batch_count += 1;
             // Print progress if verbose
             if self.config.verbose == 2 {
                 println!("Batch {}/{}", batch_count, steps);
+            }
+        }
         // Collect results
         let mut results = HashMap::new();
         for (metric_type, metric) in &self.metrics {
@@ -213,19 +233,31 @@ impl<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send
                 MetricType::RSquared => "r2".to_string(),
                 MetricType::AUC => "auc".to_string(),
                 MetricType::Custom(name) => name.clone(),
+            };
             results.insert(name, value);
+        }
         // Print results if verbose
+        if self.config.verbose > 0 {
             println!("Evaluation results:");
             for (name, value) in &results {
                 println!("  {}: {:.4}", name, value);
+            }
+        }
         Ok(results)
+    }
+
     /// Add a custom metric to the evaluator
     pub fn add_metric(&mut self, name: &str, metric: Box<dyn Metric<F>>) {
         self.metrics
             .insert(MetricType::Custom(name.to_string()), metric);
+    }
+}
+
 /// Metric interface for model evaluation
-pub trait Metric<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Display + Send + Sync>:
-    Debug
+pub trait Metric<
+    F: Float + Debug + ScalarOperand + FromPrimitive + NumAssign + std::fmt::Display + Send + Sync,
+>: Debug
+{
     /// Update the metric with new predictions and targets
     fn update(&mut self, predictions: &Array<F, IxDyn>, targets: &Array<F, IxDyn>, loss: Option<F>);
     /// Reset the metric for a new evaluation
@@ -234,3 +266,4 @@ pub trait Metric<F: Float + Debug + ScalarOperand + FromPrimitive + std::fmt::Di
     fn result(&self) -> F;
     /// Get the name of the metric
     fn name(&self) -> &str;
+}

@@ -156,9 +156,10 @@ impl ORCWriter {
     }
 
     fn set_n_rows(&mut self, n: usize) -> Result<()> {
-        let builder = self.current_stripe.as_mut().ok_or_else(|| {
-            IoError::FormatError("ORC: no active stripe".into())
-        })?;
+        let builder = self
+            .current_stripe
+            .as_mut()
+            .ok_or_else(|| IoError::FormatError("ORC: no active stripe".into()))?;
         match builder.n_rows {
             None => builder.n_rows = Some(n),
             Some(prev) if prev == n => {}
@@ -177,9 +178,10 @@ impl ORCWriter {
         self.set_n_rows(data.len())?;
         let (encoding, encoded) = encode_i64(data);
         let present = full_present_stream(data.len());
-        let builder = self.current_stripe.as_mut().ok_or_else(|| {
-            IoError::FormatError("ORC: no active stripe".into())
-        })?;
+        let builder = self
+            .current_stripe
+            .as_mut()
+            .ok_or_else(|| IoError::FormatError("ORC: no active stripe".into()))?;
         builder.columns.push(ORCColumn {
             name: name.to_owned(),
             type_kind: ORCType::Int64,
@@ -194,11 +196,15 @@ impl ORCWriter {
     pub fn add_column_f64(&mut self, name: &str, data: &[f64]) -> Result<()> {
         self.ensure_stripe();
         self.set_n_rows(data.len())?;
-        let encoded: Vec<u8> = data.iter().flat_map(|v| v.to_bits().to_le_bytes()).collect();
+        let encoded: Vec<u8> = data
+            .iter()
+            .flat_map(|v| v.to_bits().to_le_bytes())
+            .collect();
         let present = full_present_stream(data.len());
-        let builder = self.current_stripe.as_mut().ok_or_else(|| {
-            IoError::FormatError("ORC: no active stripe".into())
-        })?;
+        let builder = self
+            .current_stripe
+            .as_mut()
+            .ok_or_else(|| IoError::FormatError("ORC: no active stripe".into()))?;
         builder.columns.push(ORCColumn {
             name: name.to_owned(),
             type_kind: ORCType::Float64,
@@ -215,9 +221,10 @@ impl ORCWriter {
         self.set_n_rows(data.len())?;
         let encoded = encode_dict_strings(data);
         let present = full_present_stream(data.len());
-        let builder = self.current_stripe.as_mut().ok_or_else(|| {
-            IoError::FormatError("ORC: no active stripe".into())
-        })?;
+        let builder = self
+            .current_stripe
+            .as_mut()
+            .ok_or_else(|| IoError::FormatError("ORC: no active stripe".into()))?;
         builder.columns.push(ORCColumn {
             name: name.to_owned(),
             type_kind: ORCType::String,
@@ -234,9 +241,10 @@ impl ORCWriter {
         self.set_n_rows(data.len())?;
         let encoded = encode_bool_rle(data);
         let present = full_present_stream(data.len());
-        let builder = self.current_stripe.as_mut().ok_or_else(|| {
-            IoError::FormatError("ORC: no active stripe".into())
-        })?;
+        let builder = self
+            .current_stripe
+            .as_mut()
+            .ok_or_else(|| IoError::FormatError("ORC: no active stripe".into()))?;
         builder.columns.push(ORCColumn {
             name: name.to_owned(),
             type_kind: ORCType::Boolean,
@@ -401,11 +409,9 @@ impl ORCReader {
                         .data
                         .chunks_exact(8)
                         .map(|c| {
-                            Ok(f64::from_bits(u64::from_le_bytes(
-                                c.try_into().map_err(|_| {
-                                    IoError::FormatError("ORC: bad f64 bytes".into())
-                                })?,
-                            )))
+                            Ok(f64::from_bits(u64::from_le_bytes(c.try_into().map_err(
+                                |_| IoError::FormatError("ORC: bad f64 bytes".into()),
+                            )?)))
                         })
                         .collect::<Result<Vec<_>>>()?;
                     out.extend(vals);
@@ -462,9 +468,7 @@ fn check_magic<R: Read>(r: &mut R) -> Result<()> {
     let mut magic = [0u8; 8];
     r.read_exact(&mut magic).map_err(IoError::Io)?;
     if &magic != FILE_MAGIC {
-        return Err(IoError::FormatError(
-            "ORC: bad file magic".into(),
-        ));
+        return Err(IoError::FormatError("ORC: bad file magic".into()));
     }
     Ok(())
 }
@@ -481,7 +485,8 @@ fn read_all_stripes(path: &Path) -> Result<Vec<ORCStripe>> {
     r.read_exact(&mut fl_buf).map_err(IoError::Io)?;
     let footer_len = u32::from_le_bytes(fl_buf) as i64;
 
-    r.seek(SeekFrom::End(-(4 + footer_len))).map_err(IoError::Io)?;
+    r.seek(SeekFrom::End(-(4 + footer_len)))
+        .map_err(IoError::Io)?;
     let mut ns_buf = [0u8; 4];
     r.read_exact(&mut ns_buf).map_err(IoError::Io)?;
     let n_stripes = u32::from_le_bytes(ns_buf) as usize;
@@ -496,7 +501,8 @@ fn read_all_stripes(path: &Path) -> Result<Vec<ORCStripe>> {
         // skip n_rows (u32), n_cols (u32)
         let mut skip_buf = [0u8; 8];
         r.read_exact(&mut skip_buf).map_err(IoError::Io)?;
-        let n_cols_footer = u32::from_le_bytes([skip_buf[4], skip_buf[5], skip_buf[6], skip_buf[7]]);
+        let n_cols_footer =
+            u32::from_le_bytes([skip_buf[4], skip_buf[5], skip_buf[6], skip_buf[7]]);
         // skip column name+type entries
         for _ in 0..n_cols_footer {
             let mut nl_buf = [0u8; 2];
@@ -624,19 +630,25 @@ fn decode_i64(data: &[u8], encoding: ColumnEncoding, n_rows: usize) -> Result<Ve
             if data.len() < 8 {
                 return Err(IoError::FormatError("ORC: truncated delta i64".into()));
             }
-            let first = i64::from_le_bytes(data[0..8].try_into().map_err(|_| {
-                IoError::FormatError("ORC: bad first i64 in delta".into())
-            })?);
+            let first = i64::from_le_bytes(
+                data[0..8]
+                    .try_into()
+                    .map_err(|_| IoError::FormatError("ORC: bad first i64 in delta".into()))?,
+            );
             if n_rows == 1 {
                 return Ok(vec![first]);
             }
-            let n_deltas = u64::from_le_bytes(data[8..16].try_into().map_err(|_| {
-                IoError::FormatError("ORC: bad n_deltas".into())
-            })?) as usize;
+            let n_deltas = u64::from_le_bytes(
+                data[8..16]
+                    .try_into()
+                    .map_err(|_| IoError::FormatError("ORC: bad n_deltas".into()))?,
+            ) as usize;
             let delta = if n_deltas > 0 && data.len() >= 24 {
-                i64::from_le_bytes(data[16..24].try_into().map_err(|_| {
-                    IoError::FormatError("ORC: bad delta value".into())
-                })?)
+                i64::from_le_bytes(
+                    data[16..24]
+                        .try_into()
+                        .map_err(|_| IoError::FormatError("ORC: bad delta value".into()))?,
+                )
             } else {
                 0
             };
@@ -716,9 +728,7 @@ fn decode_dict_strings(data: &[u8], n_rows: usize) -> Result<Vec<String>> {
         ) as usize;
         pos += 4;
         let val = dict.get(idx).ok_or_else(|| {
-            IoError::FormatError(format!(
-                "ORC: dict index {idx} out of range {n_dict}"
-            ))
+            IoError::FormatError(format!("ORC: dict index {idx} out of range {n_dict}"))
         })?;
         out.push(val.clone());
     }
@@ -765,7 +775,8 @@ fn decode_bool_rle(data: &[u8], n_rows: usize) -> Result<Vec<bool>> {
             return Err(IoError::FormatError("ORC: truncated bool run".into()));
         }
         let v = data[pos] != 0;
-        let count = u32::from_le_bytes([data[pos + 1], data[pos + 2], data[pos + 3], data[pos + 4]]) as usize;
+        let count = u32::from_le_bytes([data[pos + 1], data[pos + 2], data[pos + 3], data[pos + 4]])
+            as usize;
         pos += 5;
         for _ in 0..count {
             out.push(v);
@@ -855,8 +866,7 @@ mod tests {
         w.add_column_i64("id", &[1, 2, 3]).expect("add col");
         w.add_column_f64("score", &[0.1, 0.2, 0.3])
             .expect("add col");
-        w.add_column_str("name", &["a", "b", "c"])
-            .expect("add col");
+        w.add_column_str("name", &["a", "b", "c"]).expect("add col");
         w.write(&path).expect("write");
 
         let schema = ORCReader::read_schema(&path).expect("schema");

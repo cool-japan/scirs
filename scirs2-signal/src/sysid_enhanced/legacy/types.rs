@@ -2,11 +2,11 @@
 //!
 //! 🤖 Generated with [SplitRS](https://github.com/cool-japan/splitrs)
 
+use super::functions::enhanced_system_identification;
 use crate::error::{SignalError, SignalResult};
 use crate::lti::{StateSpace, TransferFunction};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::random::prelude::*;
-
 
 /// Adaptive identification with time-varying parameters
 pub struct AdaptiveIdentifier {
@@ -32,12 +32,11 @@ impl AdaptiveIdentifier {
         output: &Array1<f64>,
     ) -> SignalResult<bool> {
         let result = enhanced_system_identification(input, output, &self.config)?;
-        let should_adapt = if let Some(ref current_params) = self
-            .parameter_history
-            .last()
-        {
-            let param_change = (&result.parameters.values - current_params).norm()
-                / current_params.norm();
+        let should_adapt = if let Some(ref current_params) = self.parameter_history.last() {
+            let diff = &result.parameters.values - *current_params;
+            let diff_norm = diff.iter().map(|&x| x * x).sum::<f64>().sqrt();
+            let curr_norm = current_params.iter().map(|&x| x * x).sum::<f64>().sqrt();
+            let param_change = diff_norm / curr_norm.max(1e-15);
             param_change > self.adaptation_threshold
         } else {
             true
@@ -59,11 +58,13 @@ impl AdaptiveIdentifier {
             return None;
         }
         let recent_len = 10.min(self.parameter_history.len());
-        let recent = &self
-            .parameter_history[self.parameter_history.len() - recent_len..];
+        let recent = &self.parameter_history[self.parameter_history.len() - recent_len..];
         let mut drift_sum = 0.0;
         for i in 1..recent.len() {
-            let change = (&recent[i] - &recent[i - 1]).norm() / recent[i - 1].norm();
+            let diff = &recent[i] - &recent[i - 1];
+            let diff_norm = diff.iter().map(|&x| x * x).sum::<f64>().sqrt();
+            let prev_norm = recent[i - 1].iter().map(|&x| x * x).sum::<f64>().sqrt();
+            let change = diff_norm / prev_norm.max(1e-15);
             drift_sum += change;
         }
         Some(drift_sum / (recent.len() - 1) as f64)
@@ -103,7 +104,10 @@ pub enum NonlinearFunction {
     /// Polynomial nonlinearity
     Polynomial(Vec<f64>),
     /// Piecewise linear
-    PiecewiseLinear { breakpoints: Vec<f64>, slopes: Vec<f64> },
+    PiecewiseLinear {
+        breakpoints: Vec<f64>,
+        slopes: Vec<f64>,
+    },
     /// Sigmoid function
     Sigmoid { scale: f64, offset: f64 },
     /// Dead zone
@@ -190,7 +194,7 @@ pub struct RecursiveSysId {
 }
 impl RecursiveSysId {
     /// Create new recursive identifier
-    pub fn new(_initialparams: Array1<f64>, config: &EnhancedSysIdConfig) -> Self {
+    pub fn new(initial_params: Array1<f64>, config: &EnhancedSysIdConfig) -> Self {
         let n_params = initial_params.len();
         Self {
             parameters: initial_params,
@@ -216,8 +220,7 @@ impl RecursiveSysId {
                 .view()
                 .insert_axis(Axis(1))
                 .dot(&phi.view().insert_axis(Axis(0)));
-            self.covariance = (&self.covariance - &outer.dot(&self.covariance))
-                / self.lambda;
+            self.covariance = (&self.covariance - &outer.dot(&self.covariance)) / self.lambda;
         }
         self.n_updates += 1;
         Ok(error)
@@ -268,13 +271,32 @@ pub enum SystemModel {
     /// State-space model
     StateSpace(StateSpace),
     /// ARX model
-    ARX { a: Array1<f64>, b: Array1<f64>, delay: usize },
+    ARX {
+        a: Array1<f64>,
+        b: Array1<f64>,
+        delay: usize,
+    },
     /// ARMAX model
-    ARMAX { a: Array1<f64>, b: Array1<f64>, c: Array1<f64>, delay: usize },
+    ARMAX {
+        a: Array1<f64>,
+        b: Array1<f64>,
+        c: Array1<f64>,
+        delay: usize,
+    },
     /// Output-Error model
-    OE { b: Array1<f64>, f: Array1<f64>, delay: usize },
+    OE {
+        b: Array1<f64>,
+        f: Array1<f64>,
+        delay: usize,
+    },
     /// Box-Jenkins model
-    BJ { b: Array1<f64>, c: Array1<f64>, d: Array1<f64>, f: Array1<f64>, delay: usize },
+    BJ {
+        b: Array1<f64>,
+        c: Array1<f64>,
+        d: Array1<f64>,
+        f: Array1<f64>,
+        delay: usize,
+    },
     /// Hammerstein-Wiener model
     HammersteinWiener {
         linear: Box<SystemModel>,

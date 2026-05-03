@@ -1,0 +1,24 @@
+[package]
+name = "scirs2-symbolic"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Symbolic mathematics for SciRS2 — expression trees, differentiation, simplification"
+keywords = ["symbolic", "differentiation", "computer-algebra", "calculus"]
+categories = ["mathematics", "science"]
+
+[lints]
+workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+# Pure Rust, no external dependencies for the symbolic core
+thiserror = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }

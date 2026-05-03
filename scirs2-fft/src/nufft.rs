@@ -19,8 +19,6 @@ use crate::error::{FFTError, FFTResult};
 use crate::oxifft_plan_cache;
 #[cfg(feature = "oxifft")]
 use oxifft::{Complex as OxiComplex, Direction};
-#[cfg(feature = "rustfft-backend")]
-use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::Zero;
 use std::f64::consts::PI;
@@ -377,7 +375,6 @@ fn fft_backend(data: &[Complex64]) -> FFTResult<Vec<Complex64>> {
                 .collect())
         }
 
-        #[cfg(not(feature = "rustfft-backend"))]
         {
             Err(FFTError::ComputationError(
                 "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature."
@@ -435,7 +432,6 @@ fn ifft_backend(data: &[Complex64]) -> FFTResult<Vec<Complex64>> {
                 .collect())
         }
 
-        #[cfg(not(feature = "rustfft-backend"))]
         {
             Err(FFTError::ComputationError(
                 "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature."

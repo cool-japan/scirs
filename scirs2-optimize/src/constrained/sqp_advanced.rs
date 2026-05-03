@@ -62,7 +62,11 @@ impl Default for SqpSolver {
 impl SqpSolver {
     /// Create a new solver with the given iteration limit and tolerance.
     pub fn new(max_iter: usize, tol: f64) -> Self {
-        Self { max_iter, tol, ..Default::default() }
+        Self {
+            max_iter,
+            tol,
+            ..Default::default()
+        }
     }
 }
 
@@ -214,25 +218,22 @@ impl SqpSolver {
             }
 
             // ── Solve QP subproblem ────────────────────────────────────────
-            let step = solve_qp_subproblem(
-                &bfgs_h,
-                &gf,
-                &h_jac,
-                &h_vals,
-                &g_jac,
-                &g_vals,
-                n,
-            );
+            let step = solve_qp_subproblem(&bfgs_h, &gf, &h_jac, &h_vals, &g_jac, &g_vals, n);
 
             // ── Line search (L1 merit function) ───────────────────────────
             let mut alpha = 1.0;
             let merit0 = l1_merit(&f, &g_ineq, &h_eq, &x, rho);
-            let d_merit = directional_derivative_l1(&gf, &g_jac, &lam_ineq, &h_jac, &lam_eq, &step, rho);
+            let d_merit =
+                directional_derivative_l1(&gf, &g_jac, &lam_ineq, &h_jac, &lam_eq, &step, rho);
 
             let mut x_new = x.clone();
             let mut ls_ok = false;
             for _ls in 0..self.max_ls_iter {
-                x_new = x.iter().zip(&step).map(|(&xi, &di)| xi + alpha * di).collect();
+                x_new = x
+                    .iter()
+                    .zip(&step)
+                    .map(|(&xi, &di)| xi + alpha * di)
+                    .collect();
                 // Apply bounds if given
                 if let Some(bds) = bounds {
                     for (xi, &(lb, ub)) in x_new.iter_mut().zip(bds.iter()) {
@@ -248,7 +249,11 @@ impl SqpSolver {
             }
             if !ls_ok {
                 // Accept a small step anyway to avoid stagnation
-                x_new = x.iter().zip(&step).map(|(&xi, &di)| xi + alpha * di).collect();
+                x_new = x
+                    .iter()
+                    .zip(&step)
+                    .map(|(&xi, &di)| xi + alpha * di)
+                    .collect();
                 if let Some(bds) = bounds {
                     for (xi, &(lb, ub)) in x_new.iter_mut().zip(bds.iter()) {
                         *xi = xi.clamp(lb, ub);
@@ -412,13 +417,7 @@ pub fn solve_qp_subproblem(
 
 /// Solve an equality-constrained QP: min ½dᵀHd + gᵀd  s.t. Ad = rhs
 /// via the KKT system  [H  Aᵀ; A  0] [d; λ] = [-g; rhs].
-fn solve_eq_qp(
-    h: &[Vec<f64>],
-    g: &[f64],
-    a: &[Vec<f64>],
-    rhs: &[f64],
-    n: usize,
-) -> Vec<f64> {
+fn solve_eq_qp(h: &[Vec<f64>], g: &[f64], a: &[Vec<f64>], rhs: &[f64], n: usize) -> Vec<f64> {
     let m = a.len();
     let sz = n + m;
     let mut mat = vec![vec![0.0f64; sz]; sz];
@@ -437,8 +436,8 @@ fn solve_eq_qp(
     // A / Aᵀ blocks
     for (ci, row) in a.iter().enumerate() {
         for (j, &aij) in row.iter().enumerate() {
-            mat[n + ci][j] = aij;   // A
-            mat[j][n + ci] = aij;   // Aᵀ
+            mat[n + ci][j] = aij; // A
+            mat[j][n + ci] = aij; // Aᵀ
         }
         rh[n + ci] = rhs[ci];
     }
@@ -460,9 +459,7 @@ fn compute_qp_multipliers(
         return vec![];
     }
     // Residual r = H*d + g
-    let r: Vec<f64> = (0..n)
-        .map(|i| dot(&h[i], d) + g[i])
-        .collect();
+    let r: Vec<f64> = (0..n).map(|i| dot(&h[i], d) + g[i]).collect();
 
     // Least-squares solve Aᵀ λ = r  →  (A Aᵀ) λ = A r
     let aat = mat_mul_t(a, a); // m × m
@@ -479,8 +476,12 @@ fn gaussian_eliminate(mat: &[Vec<f64>], rhs: &[f64]) -> OptimizeResult<Vec<f64>>
     for col in 0..n {
         // Partial pivot
         let pivot_row = (col..n)
-            .max_by(|&r1, &r2| a[r1][col].abs().partial_cmp(&a[r2][col].abs())
-                .unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|&r1, &r2| {
+                a[r1][col]
+                    .abs()
+                    .partial_cmp(&a[r2][col].abs())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .unwrap_or(col);
 
         a.swap(col, pivot_row);
@@ -610,13 +611,7 @@ fn kkt_residual(
     res
 }
 
-fn l1_merit<F, G, H>(
-    f: &F,
-    g_ineq: &Option<G>,
-    h_eq: &Option<H>,
-    x: &[f64],
-    rho: f64,
-) -> f64
+fn l1_merit<F, G, H>(f: &F, g_ineq: &Option<G>, h_eq: &Option<H>, x: &[f64], rho: f64) -> f64
 where
     F: Fn(&[f64]) -> f64,
     G: Fn(&[f64]) -> Vec<f64>,
@@ -714,11 +709,51 @@ where
     (0..n)
         .map(|i| {
             let lag_new = gf_new[i]
-                + lam_ineq.iter().enumerate().map(|(j, &l)| l * g_jac_new.get(j).and_then(|r| r.get(i)).copied().unwrap_or(0.0)).sum::<f64>()
-                + lam_eq.iter().enumerate().map(|(j, &l)| l * h_jac_new.get(j).and_then(|r| r.get(i)).copied().unwrap_or(0.0)).sum::<f64>();
+                + lam_ineq
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &l)| {
+                        l * g_jac_new
+                            .get(j)
+                            .and_then(|r| r.get(i))
+                            .copied()
+                            .unwrap_or(0.0)
+                    })
+                    .sum::<f64>()
+                + lam_eq
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &l)| {
+                        l * h_jac_new
+                            .get(j)
+                            .and_then(|r| r.get(i))
+                            .copied()
+                            .unwrap_or(0.0)
+                    })
+                    .sum::<f64>();
             let lag_old = gf_old[i]
-                + lam_ineq.iter().enumerate().map(|(j, &l)| l * g_jac_old.get(j).and_then(|r| r.get(i)).copied().unwrap_or(0.0)).sum::<f64>()
-                + lam_eq.iter().enumerate().map(|(j, &l)| l * h_jac_old.get(j).and_then(|r| r.get(i)).copied().unwrap_or(0.0)).sum::<f64>();
+                + lam_ineq
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &l)| {
+                        l * g_jac_old
+                            .get(j)
+                            .and_then(|r| r.get(i))
+                            .copied()
+                            .unwrap_or(0.0)
+                    })
+                    .sum::<f64>()
+                + lam_eq
+                    .iter()
+                    .enumerate()
+                    .map(|(j, &l)| {
+                        l * h_jac_old
+                            .get(j)
+                            .and_then(|r| r.get(i))
+                            .copied()
+                            .unwrap_or(0.0)
+                    })
+                    .sum::<f64>();
             lag_new - lag_old
         })
         .collect()
@@ -740,7 +775,11 @@ fn bfgs_update_damped(h: &mut Vec<Vec<f64>>, s: &[f64], y: &[f64], theta: f64) {
             0.0
         };
         let hs: Vec<f64> = (0..n).map(|i| dot(&h[i], s)).collect();
-        let y_damp: Vec<f64> = y.iter().zip(&hs).map(|(&yi, &hsi)| factor * hsi + (1.0 - factor) * yi).collect();
+        let y_damp: Vec<f64> = y
+            .iter()
+            .zip(&hs)
+            .map(|(&yi, &hsi)| factor * hsi + (1.0 - factor) * yi)
+            .collect();
         (s.to_vec(), y_damp)
     } else {
         (s.to_vec(), y.to_vec())
@@ -790,9 +829,7 @@ fn update_multipliers(
 
     // Solve  JᵀJ λ = Jᵀ(-∇f)  in a least-squares sense
     let jtj = mat_mul_t(&jac, &jac); // n_c × n_c
-    let jt_neg_gf: Vec<f64> = (0..n_c)
-        .map(|i| -dot(&jac[i], gf))
-        .collect();
+    let jt_neg_gf: Vec<f64> = (0..n_c).map(|i| -dot(&jac[i], gf)).collect();
 
     if let Ok(lam_all) = gaussian_eliminate(&jtj, &jt_neg_gf) {
         for (i, lam) in lam_ineq.iter_mut().enumerate() {
@@ -884,7 +921,11 @@ mod tests {
             "constraint violated: cv={}",
             res.constraint_violation
         );
-        assert!(res.f_val < 1.0, "objective should be small, got {}", res.f_val);
+        assert!(
+            res.f_val < 1.0,
+            "objective should be small, got {}",
+            res.f_val
+        );
     }
 
     #[test]

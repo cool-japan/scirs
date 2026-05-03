@@ -31,12 +31,11 @@
 //! ```
 
 pub mod bspline;
-pub mod nurbs;
 pub mod iga_solver;
+pub mod nurbs;
 
 pub use bspline::{BSplineBasis, BSplineCurve, BSplineSurface};
-pub use nurbs::{NurbsCurve, NurbsSurface};
 pub use iga_solver::{
-    IGASolver, IGASolver1D, IGASolver1DConfig, IGASolution1D,
-    IGASolver2D, IGASolution2D,
+    IGASolution1D, IGASolution2D, IGASolver, IGASolver1D, IGASolver1DConfig, IGASolver2D,
 };
+pub use nurbs::{NurbsCurve, NurbsSurface};

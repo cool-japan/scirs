@@ -11,9 +11,9 @@
 use super::core::{clique_expansion, hyperedge_centrality, IndexedHypergraph};
 use crate::error::{GraphError, Result};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{Rng, SeedableRng};
-use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, HashSet, VecDeque};
 
 // ============================================================================
 // Internal helpers
@@ -814,7 +814,7 @@ mod tests {
         hg.add_hyperedge(vec![0, 1], 1.0).expect("ok");
         hg.add_hyperedge(vec![2, 3], 1.0).expect("ok");
         hg.add_hyperedge(vec![1, 2], 1.0).expect("ok"); // crosses partition
-        // Partition: {0,1} vs {2,3}
+                                                        // Partition: {0,1} vs {2,3}
         let part = vec![true, true, false, false];
         let res = hyperedge_cut(&hg, &part).expect("cut ok");
         assert_eq!(res.cut, 1);

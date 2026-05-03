@@ -17,17 +17,13 @@ use std::collections::HashSet;
 fn builtin_abbreviations() -> HashSet<String> {
     [
         // Titles
-        "Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Gen", "Col", "Capt",
-        "Lt", "Sgt", "Cpl", "Pte", "Sr", "Jr",
-        // Geographic
-        "St", "Ave", "Blvd", "Rd", "Ln", "Ct", "Pl", "Mt", "Ft",
-        // Time / month
-        "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-        "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun",
-        // Miscellaneous
-        "etc", "vs", "approx", "est", "dept", "corp", "co", "inc",
-        "Fig", "fig", "Vol", "vol", "No", "Nos", "pp", "Ch", "Sec",
-        "e.g", "i.e", "et", "al", "n.b", "N.B", "Esq",
+        "Mr", "Mrs", "Ms", "Miss", "Dr", "Prof", "Rev", "Gen", "Col", "Capt", "Lt", "Sgt", "Cpl",
+        "Pte", "Sr", "Jr", // Geographic
+        "St", "Ave", "Blvd", "Rd", "Ln", "Ct", "Pl", "Mt", "Ft", // Time / month
+        "Jan", "Feb", "Mar", "Apr", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec", "Mon", "Tue",
+        "Wed", "Thu", "Fri", "Sat", "Sun", // Miscellaneous
+        "etc", "vs", "approx", "est", "dept", "corp", "co", "inc", "Fig", "fig", "Vol", "vol",
+        "No", "Nos", "pp", "Ch", "Sec", "e.g", "i.e", "et", "al", "n.b", "N.B", "Esq",
     ]
     .iter()
     .map(|s| s.to_string())
@@ -172,9 +168,7 @@ impl SentenceSegmenter {
                 // Find end of punctuation cluster
                 let mut end_i = i + 1;
                 while end_i < n
-                    && (chars[end_i].1 == '!'
-                        || chars[end_i].1 == '?'
-                        || chars[end_i].1 == '.')
+                    && (chars[end_i].1 == '!' || chars[end_i].1 == '?' || chars[end_i].1 == '.')
                 {
                     end_i += 1;
                 }
@@ -207,7 +201,7 @@ impl SentenceSegmenter {
             .unwrap_or("");
         self.abbreviations.contains(word)
             || self.abbreviations.contains(&word.to_lowercase())
-            || (word.len() == 1 && word.chars().next().map_or(false, |c| c.is_uppercase()))
+            || (word.len() == 1 && word.chars().next().is_some_and(|c| c.is_uppercase()))
     }
 
     fn is_decimal_period(&self, text: &str, period_byte: usize) -> bool {
@@ -215,11 +209,11 @@ impl SentenceSegmenter {
         let before = text[..period_byte]
             .chars()
             .next_back()
-            .map_or(false, |c| c.is_ascii_digit());
+            .is_some_and(|c| c.is_ascii_digit());
         let after = text[period_byte + 1..]
             .chars()
             .next()
-            .map_or(false, |c| c.is_ascii_digit());
+            .is_some_and(|c| c.is_ascii_digit());
         before && after
     }
 
@@ -232,7 +226,7 @@ impl SentenceSegmenter {
         if trimmed.is_empty() {
             return true;
         }
-        trimmed.chars().next().map_or(false, |c| {
+        trimmed.chars().next().is_some_and(|c| {
             c.is_uppercase()
                 || c.is_ascii_digit()
                 || matches!(c, '"' | '\'' | '(' | '[' | '\u{201C}' | '\u{2018}')
@@ -466,7 +460,12 @@ mod tests {
     fn test_basic_segmentation() {
         let seg = SentenceSegmenter::new();
         let sentences = seg.segment("Hello world. How are you? I am fine.");
-        assert_eq!(sentences.len(), 3, "Expected 3 sentences, got {:?}", sentences);
+        assert_eq!(
+            sentences.len(),
+            3,
+            "Expected 3 sentences, got {:?}",
+            sentences
+        );
     }
 
     #[test]

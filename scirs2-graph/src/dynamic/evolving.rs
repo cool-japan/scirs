@@ -206,8 +206,11 @@ mod tests {
     fn test_node_attribute() {
         let mut g = EvolvingGraph::new();
         g.apply_change(1.0, GraphChange::AddNode(0));
-        g.apply_change(2.0, GraphChange::UpdateNodeAttribute(0, "weight".to_string(), 3.14));
-        assert!((g.node_attribute(0, "weight").unwrap_or(0.0) - 3.14).abs() < 1e-9);
+        g.apply_change(
+            2.0,
+            GraphChange::UpdateNodeAttribute(0, "weight".to_string(), std::f64::consts::PI),
+        );
+        assert!((g.node_attribute(0, "weight").unwrap_or(0.0) - std::f64::consts::PI).abs() < 1e-9);
     }
 
     #[test]

@@ -477,7 +477,7 @@ impl DantzigWolfe {
             // Add new column
             columns.push(proposal);
             weights.push(0.01); // small initial weight
-            // Renormalize
+                                // Renormalize
             let sum: f64 = weights.iter().sum();
             for wj in weights.iter_mut() {
                 *wj /= sum;
@@ -610,12 +610,7 @@ impl Admm {
     /// * `f_obj` - Smooth objective f(x)
     /// * `prox_g` - Proximal operator for g: prox_{g/ρ}(v) = argmin_z g(z) + (ρ/2)||z-v||²
     /// * `x0` - Initial x
-    pub fn solve<F, PG>(
-        &self,
-        f_obj: F,
-        prox_g: PG,
-        x0: &[f64],
-    ) -> OptimizeResult<AdmmResult>
+    pub fn solve<F, PG>(&self, f_obj: F, prox_g: PG, x0: &[f64]) -> OptimizeResult<AdmmResult>
     where
         F: Fn(&[f64]) -> f64,
         PG: Fn(&[f64], f64) -> Vec<f64>, // prox_g(v, rho) -> z
@@ -662,7 +657,11 @@ impl Admm {
                     break;
                 }
                 let step = 1.0 / (rho + gnorm);
-                let mut x_new: Vec<f64> = x.iter().zip(grad.iter()).map(|(xi, gi)| xi - step * gi).collect();
+                let mut x_new: Vec<f64> = x
+                    .iter()
+                    .zip(grad.iter())
+                    .map(|(xi, gi)| xi - step * gi)
+                    .collect();
                 let f_new = x_aug(&x_new);
                 if f_new < f_x {
                     x = x_new;
@@ -671,7 +670,11 @@ impl Admm {
                     // Backtrack
                     let mut s = step * 0.5;
                     for _ in 0..20 {
-                        x_new = x.iter().zip(grad.iter()).map(|(xi, gi)| xi - s * gi).collect();
+                        x_new = x
+                            .iter()
+                            .zip(grad.iter())
+                            .map(|(xi, gi)| xi - s * gi)
+                            .collect();
                         let fn2 = x_aug(&x_new);
                         if fn2 < f_x {
                             x = x_new;
@@ -695,8 +698,18 @@ impl Admm {
             }
 
             // Compute residuals
-            let primal_res: f64 = x.iter().zip(z.iter()).map(|(xi, zi)| (xi - zi).powi(2)).sum::<f64>().sqrt();
-            let dual_res: f64 = z.iter().zip(z_prev.iter()).map(|(zi, zpi)| (rho * (zi - zpi)).powi(2)).sum::<f64>().sqrt();
+            let primal_res: f64 = x
+                .iter()
+                .zip(z.iter())
+                .map(|(xi, zi)| (xi - zi).powi(2))
+                .sum::<f64>()
+                .sqrt();
+            let dual_res: f64 = z
+                .iter()
+                .zip(z_prev.iter())
+                .map(|(zi, zpi)| (rho * (zi - zpi)).powi(2))
+                .sum::<f64>()
+                .sqrt();
 
             // Adaptive ρ
             if self.options.rho_adapt {
@@ -729,7 +742,12 @@ impl Admm {
             }
         }
 
-        let primal_res: f64 = x.iter().zip(z.iter()).map(|(xi, zi)| (xi - zi).powi(2)).sum::<f64>().sqrt();
+        let primal_res: f64 = x
+            .iter()
+            .zip(z.iter())
+            .map(|(xi, zi)| (xi - zi).powi(2))
+            .sum::<f64>()
+            .sqrt();
         let dual_res = 0.0f64; // approximation at max iter
         let f_val = f_obj(&x);
 
@@ -857,11 +875,7 @@ impl ProximalBundle {
     /// * `func` - Objective function (can be nonsmooth)
     /// * `subgrad` - Subgradient of f at x: returns (f(x), g ∈ ∂f(x))
     /// * `x0` - Initial point
-    pub fn minimize<FS>(
-        &self,
-        func: FS,
-        x0: &[f64],
-    ) -> OptimizeResult<ProximalBundleResult>
+    pub fn minimize<FS>(&self, func: FS, x0: &[f64]) -> OptimizeResult<ProximalBundleResult>
     where
         FS: Fn(&[f64]) -> (f64, Vec<f64>), // returns (value, subgradient)
     {
@@ -921,11 +935,22 @@ impl ProximalBundle {
                     for j in 0..n {
                         agg_g[j] += li * be.g[j];
                     }
-                    sum_fg += li * (be.f - be.g.iter().zip(be.x.iter()).map(|(gj, xj)| gj * xj).sum::<f64>());
+                    sum_fg += li
+                        * (be.f
+                            - be.g
+                                .iter()
+                                .zip(be.x.iter())
+                                .map(|(gj, xj)| gj * xj)
+                                .sum::<f64>());
                 }
                 let agg_norm_sq: f64 = agg_g.iter().map(|g| g * g).sum();
                 // Dual objective (to maximize, so negate for minimization):
-                -(sum_fg - agg_g.iter().zip(y.iter()).map(|(gj, yj)| gj * yj).sum::<f64>()
+                -(sum_fg
+                    - agg_g
+                        .iter()
+                        .zip(y.iter())
+                        .map(|(gj, yj)| gj * yj)
+                        .sum::<f64>()
                     - 0.5 / mu * agg_norm_sq)
             };
 
@@ -975,7 +1000,11 @@ impl ProximalBundle {
                     agg_g[j] += li * be.g[j];
                 }
             }
-            let x_trial: Vec<f64> = y.iter().zip(agg_g.iter()).map(|(yj, gj)| yj - gj / mu).collect();
+            let x_trial: Vec<f64> = y
+                .iter()
+                .zip(agg_g.iter())
+                .map(|(yj, gj)| yj - gj / mu)
+                .collect();
 
             // Evaluate at trial point
             let (f_trial, g_trial) = func(&x_trial);
@@ -984,13 +1013,12 @@ impl ProximalBundle {
             let f_model: f64 = bundle
                 .iter()
                 .map(|be| {
-                    let gx: f64 = be
-                        .g
-                        .iter()
-                        .zip(x_trial.iter())
-                        .zip(be.x.iter())
-                        .map(|((gi, xi), xi_k)| gi * (xi - xi_k))
-                        .sum();
+                    let gx: f64 =
+                        be.g.iter()
+                            .zip(x_trial.iter())
+                            .zip(be.x.iter())
+                            .map(|((gi, xi), xi_k)| gi * (xi - xi_k))
+                            .sum();
                     be.f + gx
                 })
                 .fold(f64::NEG_INFINITY, f64::max);
@@ -1063,7 +1091,11 @@ mod tests {
                 &[0.0],
             )
             .expect("unexpected None or Err");
-        assert!(result.upper_bound < 2.0, "Upper bound {} should be < 2.0", result.upper_bound);
+        assert!(
+            result.upper_bound < 2.0,
+            "Upper bound {} should be < 2.0",
+            result.upper_bound
+        );
     }
 
     #[test]
@@ -1093,14 +1125,16 @@ mod tests {
         let result = Admm::default()
             .solve(
                 |x: &[f64]| x[0].powi(2),
-                |v: &[f64], rho: f64| {
-                    vec![(1.0 + rho * 0.5 * v[0]) / (1.0 + rho * 0.5)]
-                },
+                |v: &[f64], rho: f64| vec![(1.0 + rho * 0.5 * v[0]) / (1.0 + rho * 0.5)],
                 &[1.0],
             )
             .expect("unexpected None or Err");
-        assert!((result.x[0] - 0.5).abs() < 0.1 || result.fun < 1.0,
-            "fun = {}, x = {:?}", result.fun, result.x);
+        assert!(
+            (result.x[0] - 0.5).abs() < 0.1 || result.fun < 1.0,
+            "fun = {}, x = {:?}",
+            result.fun,
+            result.x
+        );
     }
 
     #[test]
@@ -1109,7 +1143,9 @@ mod tests {
         // prox_{|.|/ρ}(v) = soft-threshold(v, 1/ρ)
         let soft_thresh = |v: &[f64], rho: f64| -> Vec<f64> {
             let thresh = 1.0 / rho;
-            v.iter().map(|vi| vi.signum() * (vi.abs() - thresh).max(0.0)).collect()
+            v.iter()
+                .map(|vi| vi.signum() * (vi.abs() - thresh).max(0.0))
+                .collect()
         };
 
         let result = Admm::new(AdmmOptions {
@@ -1119,11 +1155,7 @@ mod tests {
             eps_dual: 1e-5,
             ..Default::default()
         })
-        .solve(
-            |x: &[f64]| (x[0] - 3.0).powi(2),
-            soft_thresh,
-            &[0.0],
-        )
+        .solve(|x: &[f64]| (x[0] - 3.0).powi(2), soft_thresh, &[0.0])
         .expect("unexpected None or Err");
         // Optimal x ≈ 2.5 (balance between pulling toward 3 and L1 penalty)
         assert!(result.fun < 5.0, "fun = {}", result.fun);
@@ -1133,10 +1165,7 @@ mod tests {
     fn test_proximal_bundle_smooth() {
         // Test on smooth convex function (f = x^2, g = 2x)
         let result = ProximalBundle::default()
-            .minimize(
-                |x: &[f64]| (x[0].powi(2), vec![2.0 * x[0]]),
-                &[2.0],
-            )
+            .minimize(|x: &[f64]| (x[0].powi(2), vec![2.0 * x[0]]), &[2.0])
             .expect("unexpected None or Err");
         assert!(result.fun < 0.5, "Expected fun < 0.5, got {}", result.fun);
     }
@@ -1152,12 +1181,22 @@ mod tests {
         .minimize(
             |x: &[f64]| {
                 let v = x[0].abs();
-                let g = if x[0] > 0.0 { 1.0 } else if x[0] < 0.0 { -1.0 } else { 0.0 };
+                let g = if x[0] > 0.0 {
+                    1.0
+                } else if x[0] < 0.0 {
+                    -1.0
+                } else {
+                    0.0
+                };
                 (v, vec![g])
             },
             &[2.0],
         )
         .expect("unexpected None or Err");
-        assert!(result.fun < 0.5, "Expected |x| < 0.5 at optimum, got {}", result.fun);
+        assert!(
+            result.fun < 0.5,
+            "Expected |x| < 0.5 at optimum, got {}",
+            result.fun
+        );
     }
 }

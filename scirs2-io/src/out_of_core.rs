@@ -486,9 +486,9 @@ impl<T: ScientificNumber + Clone> OutOfCoreArray<T> {
                 Ok(data)
             }
         } else {
-            Err(IoError::ParseError(
-                "Array not opened for reading".to_string(),
-            ))
+            // Array was opened in create mode (no mmap); unwritten chunks are zero-initialised.
+            let chunk_size = self.metadata.chunkshape.iter().product::<usize>();
+            Ok(vec![T::zero(); chunk_size])
         }
     }
 
@@ -827,10 +827,33 @@ impl<T: ScientificNumber + Clone> OutOfCoreArray<T> {
                 }
             }
             _ => {
-                // For higher dimensions, use recursive approach or flatten
-                return Err(IoError::ParseError(
-                    "High dimensional copying not yet implemented".to_string(),
-                ));
+                // General N-D case: iterate over all multi-index combinations
+                let ndim = chunkshape.len();
+                let region_shape: Vec<usize> =
+                    (0..ndim).map(|d| src_end[d] - src_start[d]).collect();
+                let total_elements: usize = region_shape.iter().product();
+
+                for flat in 0..total_elements {
+                    // Decompose flat index into per-dimension offsets within the region
+                    let mut offsets = vec![0usize; ndim];
+                    let mut rem = flat;
+                    for d in (0..ndim).rev() {
+                        offsets[d] = rem % region_shape[d];
+                        rem /= region_shape[d];
+                    }
+
+                    // Source flat index in chunk_data (row-major)
+                    let src_flat: usize =
+                        offsets.iter().enumerate().fold(0usize, |acc, (d, &off)| {
+                            acc * chunkshape[d] + src_start[d] + off
+                        });
+
+                    // Destination multi-dimensional index
+                    let dst_idx: Vec<usize> =
+                        (0..ndim).map(|d| dst_start[d] + offsets[d]).collect();
+
+                    result[&dst_idx[..]] = chunk_data[src_flat];
+                }
             }
         }
 
@@ -1007,9 +1030,35 @@ impl<T: ScientificNumber + Clone> OutOfCoreArray<T> {
                 }
             }
             _ => {
-                return Err(IoError::ParseError(
-                    "High dimensional writing not yet implemented".to_string(),
-                ));
+                // General N-D case: iterate over all multi-index combinations in the overlap region
+                let ndim = chunkshape.len();
+                let region_shape: Vec<usize> = (0..ndim)
+                    .map(|d| overlap_end[d] - overlap_start[d])
+                    .collect();
+                let total_elements: usize = region_shape.iter().product();
+
+                for flat in 0..total_elements {
+                    // Decompose flat index into per-dimension offsets within the overlap region
+                    let mut offsets = vec![0usize; ndim];
+                    let mut rem = flat;
+                    for d in (0..ndim).rev() {
+                        offsets[d] = rem % region_shape[d];
+                        rem /= region_shape[d];
+                    }
+
+                    // Destination flat index in chunk_data (row-major)
+                    let chunk_flat: usize =
+                        offsets.iter().enumerate().fold(0usize, |acc, (d, &off)| {
+                            acc * chunkshape[d] + chunk_local_start[d] + off
+                        });
+
+                    // Source multi-dimensional index
+                    let src_idx: Vec<usize> = (0..ndim)
+                        .map(|d| source_local_start[d] + offsets[d])
+                        .collect();
+
+                    chunk_data[chunk_flat] = source_data[&src_idx[..]];
+                }
             }
         }
 
@@ -1377,6 +1426,105 @@ mod tests {
 
         // Should have (100-10)/5 + 1 = 19 windows in each dimension
         assert_eq!(windows.len(), 19 * 19);
+
+        Ok(())
+    }
+
+    /// Test that the N-D `copy_chunk_region` code path is exercised via the public
+    /// `view_window` API on a real 3-D `OutOfCoreArray`.
+    ///
+    /// Strategy: write a known pattern into a 3-D array using `write_window` (which stores
+    /// chunks in the write cache), then read back a sub-window with `view_window` on the same
+    /// object (cache hit → `copy_chunk_region` N-D path) and verify every element.
+    #[test]
+    fn test_copy_chunk_region_nd_3d() -> Result<()> {
+        let temp_dir = TempDir::new().expect("TempDir creation failed");
+        let file_path = temp_dir.path().join("test_3d_copy.ooc");
+
+        // Create a 4×4×4 out-of-core array.  The chunk shape for 64 elements fits the
+        // whole array in one chunk, so the N-D copy_chunk_region path is exercised on
+        // every view_window call whose shape matches.
+        let mut array = OutOfCoreArray::<f64>::create(&file_path, &[4, 4, 4])?;
+
+        // Build a source window whose values equal the linear index:
+        //   value[i,j,k] = i*16 + j*4 + k  (row-major, indices 0..64)
+        let data_vec: Vec<f64> = (0u32..64).map(|x| x as f64).collect();
+        let source = Array::<f64, IxDyn>::from_shape_vec(IxDyn(&[4, 4, 4]), data_vec)
+            .expect("Shape must be valid");
+
+        // Write the entire array via the public write_window API (exercises write_to_chunk_region).
+        // Written chunks are cached as dirty; view_window will read from cache (copy_chunk_region).
+        array.write_window(&[0, 0, 0], &source.view())?;
+
+        // Read a sub-window [1..3, 1..3, 1..3] (2×2×2 = 8 elements) from the same object.
+        // This exercises copy_chunk_region's N-D path (chunk is 3-D in cache).
+        let window = array.view_window(&[1, 1, 1], &[2, 2, 2])?;
+
+        // Verify each element against the known pattern.
+        // window[i,j,k] = source[1+i, 1+j, 1+k] = (1+i)*16 + (1+j)*4 + (1+k)
+        for i in 0..2usize {
+            for j in 0..2usize {
+                for k in 0..2usize {
+                    let expected = ((1 + i) * 16 + (1 + j) * 4 + (1 + k)) as f64;
+                    assert_eq!(
+                        window[[i, j, k]],
+                        expected,
+                        "Mismatch at [{i},{j},{k}]: expected {expected}, got {}",
+                        window[[i, j, k]]
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Test that the N-D `write_to_chunk_region` code path is exercised via the public
+    /// `write_window` + `view_window` round-trip on a real 3-D `OutOfCoreArray`.
+    ///
+    /// Strategy: write two non-overlapping sub-windows with distinct values, then read them
+    /// back with `view_window` on the same object (cache hit path) and confirm correctness.
+    #[test]
+    fn test_write_to_chunk_region_nd_3d() -> Result<()> {
+        let temp_dir = TempDir::new().expect("TempDir creation failed");
+        let file_path = temp_dir.path().join("test_3d_write.ooc");
+
+        let mut array = OutOfCoreArray::<f64>::create(&file_path, &[4, 4, 4])?;
+
+        // Write 1.0 into the lower-left 2×2×2 sub-window [0..2, 0..2, 0..2].
+        let ones = Array::<f64, IxDyn>::from_elem(IxDyn(&[2, 2, 2]), 1.0);
+        array.write_window(&[0, 0, 0], &ones.view())?;
+
+        // Write 2.0 into the upper-right 2×2×2 sub-window [2..4, 2..4, 2..4].
+        let twos = Array::<f64, IxDyn>::from_elem(IxDyn(&[2, 2, 2]), 2.0);
+        array.write_window(&[2, 2, 2], &twos.view())?;
+
+        // Read back both sub-windows from the same (cached) object.
+        let lower = array.view_window(&[0, 0, 0], &[2, 2, 2])?;
+        for i in 0..2usize {
+            for j in 0..2usize {
+                for k in 0..2usize {
+                    assert_eq!(
+                        lower[[i, j, k]],
+                        1.0,
+                        "Lower sub-window mismatch at [{i},{j},{k}]"
+                    );
+                }
+            }
+        }
+
+        let upper = array.view_window(&[2, 2, 2], &[2, 2, 2])?;
+        for i in 0..2usize {
+            for j in 0..2usize {
+                for k in 0..2usize {
+                    assert_eq!(
+                        upper[[i, j, k]],
+                        2.0,
+                        "Upper sub-window mismatch at [{i},{j},{k}]"
+                    );
+                }
+            }
+        }
 
         Ok(())
     }

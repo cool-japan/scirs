@@ -50,6 +50,7 @@ pub mod generalized;
 pub mod iterative;
 pub mod sparse;
 pub mod standard;
+pub mod tridiagonal;
 pub mod zolotarev;
 
 // Re-export key types for convenience

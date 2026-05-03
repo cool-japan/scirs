@@ -171,6 +171,17 @@ impl MaskedArray {
 /// Create a 1-D masked array from parallel data and mask vectors.
 ///
 /// This mirrors `numpy.ma.array(data, mask=mask)`.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_numpy::masked::masked_array;
+///
+/// // Third element (index 2) is masked.
+/// let ma = masked_array(vec![1.0, 2.0, 3.0], vec![false, false, true]).unwrap();
+/// assert_eq!(ma.count(), 2);
+/// assert!((ma.sum() - 3.0).abs() < 1e-12); // 1.0 + 2.0
+/// ```
 #[pyfunction]
 pub fn masked_array(data: Vec<f64>, mask: Vec<bool>) -> PyResult<MaskedArray> {
     let n = data.len();
@@ -180,6 +191,17 @@ pub fn masked_array(data: Vec<f64>, mask: Vec<bool>) -> PyResult<MaskedArray> {
 /// Create a 1-D masked array with all elements below `threshold` masked.
 ///
 /// Mirrors `numpy.ma.masked_less(data, threshold)`.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_numpy::masked::masked_less;
+///
+/// // Values < 3.0 are masked: [1.0, 2.0] masked, [3.0, 4.0, 5.0] valid.
+/// let ma = masked_less(vec![1.0, 2.0, 3.0, 4.0, 5.0], 3.0);
+/// assert_eq!(ma.count(), 3);
+/// assert!((ma.sum() - 12.0).abs() < 1e-12); // 3.0 + 4.0 + 5.0
+/// ```
 #[pyfunction]
 pub fn masked_less(data: Vec<f64>, threshold: f64) -> MaskedArray {
     let n = data.len();

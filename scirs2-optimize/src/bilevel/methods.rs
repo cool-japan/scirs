@@ -380,11 +380,7 @@ where
     };
 
     // Penalized objective: F(x,y) + rho * ||∇_y f(x,y)||^2
-    let penalized_obj = |x: &[f64],
-                         y: &[f64],
-                         rho: f64,
-                         nfev: &mut usize|
-     -> f64 {
+    let penalized_obj = |x: &[f64], y: &[f64], rho: f64, nfev: &mut usize| -> f64 {
         let f_upper = problem.eval_upper(x, y);
         *nfev += 1;
         let grad_y = lower_grad_y(x, y, nfev);
@@ -398,8 +394,7 @@ where
         n_outer = outer + 1;
 
         // Step 1: Solve lower-level for current x
-        let (y_new, _lower_f, inner_nfev) =
-            solve_lower_level(&problem, &x, &y, &options.solver);
+        let (y_new, _lower_f, inner_nfev) = solve_lower_level(&problem, &x, &y, &options.solver);
         n_inner += 1;
         total_nfev += inner_nfev;
         y = y_new;
@@ -469,8 +464,8 @@ where
     // Check convergence quality: lower-level gradient at solution
     let grad_y_final = lower_grad_y(&x, &y, &mut total_nfev);
     let gnorm: f64 = grad_y_final.iter().map(|g| g * g).sum::<f64>().sqrt();
-    let success = gnorm < options.solver.outer_tol.sqrt()
-        || n_outer < options.solver.max_outer_iter;
+    let success =
+        gnorm < options.solver.outer_tol.sqrt() || n_outer < options.solver.max_outer_iter;
 
     Ok(BilevelResult {
         x_upper: x,
@@ -524,10 +519,7 @@ impl ReplacementAlgorithm {
     }
 
     /// Solve the bilevel problem by replacing lower level with optimal reaction
-    pub fn solve<F, G>(
-        &self,
-        problem: BilevelProblem<F, G>,
-    ) -> OptimizeResult<BilevelResult>
+    pub fn solve<F, G>(&self, problem: BilevelProblem<F, G>) -> OptimizeResult<BilevelResult>
     where
         F: Fn(&[f64], &[f64]) -> f64,
         G: Fn(&[f64], &[f64]) -> f64,
@@ -683,10 +675,7 @@ impl SingleLevelReduction {
     }
 
     /// Solve via KKT single-level reformulation
-    pub fn solve<F, G>(
-        &self,
-        problem: BilevelProblem<F, G>,
-    ) -> OptimizeResult<BilevelResult>
+    pub fn solve<F, G>(&self, problem: BilevelProblem<F, G>) -> OptimizeResult<BilevelResult>
     where
         F: Fn(&[f64], &[f64]) -> f64,
         G: Fn(&[f64], &[f64]) -> f64,
@@ -785,7 +774,8 @@ where
         let upper_viol: f64 = problem.upper_constraint_violation(x, y);
         *nfev += problem.upper_constraints.len();
 
-        f_upper + kkt_penalty * (stat_norm_sq + dual_feas + compl)
+        f_upper
+            + kkt_penalty * (stat_norm_sq + dual_feas + compl)
             + kkt_penalty * upper_viol.powi(2)
     };
 
@@ -862,7 +852,7 @@ where
         y_lower: y_sol,
         upper_fun,
         lower_fun,
-        n_outer_iter: 0,    // merged into single-level iterations
+        n_outer_iter: 0, // merged into single-level iterations
         n_inner_solves: 0,
         nfev: total_nfev,
         success: true,
@@ -903,7 +893,11 @@ mod tests {
         };
         let result = solve_bilevel_psoa(problem, options).expect("failed to create result");
         // Lower level optimal is y* = 0
-        assert!((result.y_lower[0]).abs() < 0.1, "y should be near 0, got {}", result.y_lower[0]);
+        assert!(
+            (result.y_lower[0]).abs() < 0.1,
+            "y should be near 0, got {}",
+            result.y_lower[0]
+        );
     }
 
     #[test]
@@ -916,8 +910,13 @@ mod tests {
             inner_tol: 1e-8,
             verbose: false,
         };
-        let result = solve_bilevel_replacement(problem, options, 0.05).expect("failed to create result");
-        assert!((result.y_lower[0]).abs() < 0.1, "y should be near 0, got {}", result.y_lower[0]);
+        let result =
+            solve_bilevel_replacement(problem, options, 0.05).expect("failed to create result");
+        assert!(
+            (result.y_lower[0]).abs() < 0.1,
+            "y should be near 0, got {}",
+            result.y_lower[0]
+        );
     }
 
     #[test]
@@ -930,7 +929,8 @@ mod tests {
             inner_tol: 1e-7,
             verbose: false,
         };
-        let result = solve_bilevel_single_level(problem, 1e-4, 10.0, &options).expect("failed to create result");
+        let result = solve_bilevel_single_level(problem, 1e-4, 10.0, &options)
+            .expect("failed to create result");
         assert!(result.success);
     }
 

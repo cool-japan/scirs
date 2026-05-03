@@ -94,7 +94,13 @@
 
 ### WebGPU Backend Preparation
 - [x] `wgpu`-based GPU buffer abstraction — implemented in `gpu/backends/wgpu.rs`
-- [ ] Compute shader dispatch via WebGPU
+- [x] Compute shader dispatch via WebGPU (implemented 2026-04-17)
+  - **Goal:** `scirs2-core` runs a real WGSL compute shader end-to-end through the `wgpu` backend — WGSL source → `wgpu::ShaderModule` → `wgpu::ComputePipeline` → bind group → `compute_pass.dispatch_workgroups(...)` → GPU buffer read-back matching the expected result of a deterministic kernel (vector-add). The current mock (line 31 `type WgpuComputePipeline = *mut std::ffi::c_void`; line 455 `Ok(0x3 as WgpuComputePipeline)`) is replaced with a `WgpuComputePipeline` struct wrapping the real `wgpu::ComputePipeline` + `wgpu::BindGroupLayout`. `scirs2-core/TODO.md` flips `[ ]` → `[x]` only after the real path runs.
+  - **Design:** In `scirs2-core/src/gpu/backends/wgpu.rs`, replace the `*mut c_void` alias with a proper `WgpuComputePipeline { pipeline: wgpu::ComputePipeline, bind_group_layout: wgpu::BindGroupLayout, workgroup_size: [u32; 3] }`. Implement `compile_wgsl(source: &str) -> Result<WgpuComputePipeline>` using `device.create_shader_module(ShaderModuleDescriptor { source: ShaderSource::Wgsl(...) })` + `device.create_compute_pipeline(...)`. Implement `dispatch(pipeline, bindings, workgroups)` using the real `CommandEncoder` → `ComputePass` path. Retain a **headless-adapter fallback** (request `PowerPreference::LowPower` + `backends: PRIMARY`) so tests can run on CI runners with llvmpipe / Vulkan SW. If no adapter is available on the host, skip at runtime with `#[ignore]`.
+  - **Files:** `scirs2-core/src/gpu/backends/wgpu.rs` (replace mock, add real pipeline struct + compile + dispatch), `scirs2-core/tests/webgpu_compute_smoke.rs` (new), `scirs2-core/TODO.md`.
+  - **Prerequisites:** `wgpu = "29"` is already a workspace dep. Confirm `wgpu::Instance::new(...)` compiles.
+  - **Tests:** `webgpu_compute_smoke::vector_add_runs_on_real_gpu_when_available` (acquires adapter via `wgpu::Instance`; if `None`, emit `#[ignore]` message and pass); `webgpu_compute_smoke::wgsl_compile_rejects_invalid_source`; `webgpu_compute_smoke::pipeline_struct_is_send_sync` (static assertion).
+  - **Risk:** Real `wgpu` device creation is async on some backends; use `pollster::block_on` at the FFI boundary. Large risk: adapter unavailable in headless CI → mitigated by runtime-detect + skip. If file exceeds 2000 lines after edits, split via `splitrs` into `wgpu/pipeline.rs` + `wgpu/dispatch.rs`.
 - [x] Browser-compatible feature flag (`target_arch = "wasm32"`) — WASM backend in `gpu/backends/wasm.rs`
 
 ### Distributed Computing Enhancements

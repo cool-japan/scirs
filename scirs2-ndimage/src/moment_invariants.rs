@@ -23,6 +23,7 @@
 
 use crate::error::{NdimageError, NdimageResult};
 use scirs2_core::ndarray::{Array2, ArrayView2};
+use scirs2_core::numeric::Complex64;
 use std::f64::consts::PI;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -204,17 +205,13 @@ pub fn hu_moments(image: &ArrayView2<f64>) -> [f64; 7] {
     let h4 = (e30 + e12).powi(2) + (e21 + e03).powi(2);
 
     let h5 = (e30 - 3.0 * e12) * (e30 + e12) * ((e30 + e12).powi(2) - 3.0 * (e21 + e03).powi(2))
-        + (3.0 * e21 - e03)
-            * (e21 + e03)
-            * (3.0 * (e30 + e12).powi(2) - (e21 + e03).powi(2));
+        + (3.0 * e21 - e03) * (e21 + e03) * (3.0 * (e30 + e12).powi(2) - (e21 + e03).powi(2));
 
     let h6 = (e20 - e02) * ((e30 + e12).powi(2) - (e21 + e03).powi(2))
         + 4.0 * e11 * (e30 + e12) * (e21 + e03);
 
     let h7 = (3.0 * e21 - e03) * (e30 + e12) * ((e30 + e12).powi(2) - 3.0 * (e21 + e03).powi(2))
-        - (e30 - 3.0 * e12)
-            * (e21 + e03)
-            * (3.0 * (e30 + e12).powi(2) - (e21 + e03).powi(2));
+        - (e30 - 3.0 * e12) * (e21 + e03) * (3.0 * (e30 + e12).powi(2) - (e21 + e03).powi(2));
 
     [h1, h2, h3, h4, h5, h6, h7]
 }
@@ -269,7 +266,7 @@ pub fn zernike_moment(
     n: u32,
     m: i32,
     radius: Option<f64>,
-) -> NdimageResult<num_complex::Complex<f64>> {
+) -> NdimageResult<Complex64> {
     let m_abs = m.unsigned_abs();
     if m_abs > n {
         return Err(NdimageError::InvalidInput(format!(
@@ -316,7 +313,7 @@ pub fn zernike_moment(
     }
 
     let scale = (n + 1) as f64 / PI;
-    Ok(num_complex::Complex::new(re_sum * scale, im_sum * scale))
+    Ok(Complex64::new(re_sum * scale, im_sum * scale))
 }
 
 /// Zernike radial polynomial R_n^|m|(ρ).
@@ -397,7 +394,7 @@ fn factorial(n: u32) -> u64 {
 /// assert_eq!(recon.shape(), &[16, 16]);
 /// ```
 pub fn reconstruct_from_zernike(
-    moments: &[(u32, i32, num_complex::Complex<f64>)],
+    moments: &[(u32, i32, Complex64)],
     order: u32,
     size: (usize, usize),
 ) -> NdimageResult<Array2<f64>> {
@@ -580,7 +577,8 @@ mod tests {
     #[test]
     fn test_zernike_moment_zero_order() {
         let img = disk_image(20, 5.0);
-        let z = zernike_moment(&img.view(), 0, 0, None).expect("zernike_moment should succeed for order (0,0) on valid image");
+        let z = zernike_moment(&img.view(), 0, 0, None)
+            .expect("zernike_moment should succeed for order (0,0) on valid image");
         // Z_{0,0} = (1/π) * sum of pixels in unit disc / (r_disc^2 π)
         // Just ensure it's a real positive number
         assert!(z.re > 0.0, "Z00.re={}", z.re);
@@ -609,7 +607,8 @@ mod tests {
                 }
             }
         }
-        let recon = reconstruct_from_zernike(&moments, 4, (16, 16)).expect("reconstruct_from_zernike should succeed with valid moments");
+        let recon = reconstruct_from_zernike(&moments, 4, (16, 16))
+            .expect("reconstruct_from_zernike should succeed with valid moments");
         assert_eq!(recon.shape(), &[16, 16]);
     }
 

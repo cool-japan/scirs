@@ -26,7 +26,9 @@ impl fmt::Display for ODEError {
             ODEError::Convergence => write!(f, "Failed to converge to a solution"),
             ODEError::StepSizeTooSmall => write!(f, "Step size became too small"),
             ODEError::MaxStepsExceeded => write!(f, "Exceeded maximum number of steps"),
-            ODEError::NumericalInstability => write!(f, "Encountered numerical instability (NaN or Inf)"),
+            ODEError::NumericalInstability => {
+                write!(f, "Encountered numerical instability (NaN or Inf)")
+            }
             ODEError::InvalidInput(msg) => write!(f, "Invalid input: {}", msg),
             ODEError::General(msg) => write!(f, "Error: {}", msg),
         }

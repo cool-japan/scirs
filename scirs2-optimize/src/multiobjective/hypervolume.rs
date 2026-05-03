@@ -87,7 +87,11 @@ pub fn hypervolume_2d(front: &[(f64, f64)], reference: (f64, f64)) -> OptimizeRe
     let mut hv = 0.0_f64;
     let n = non_dom.len();
     for i in 0..n {
-        let f1_next = if i + 1 < n { non_dom[i + 1].0 } else { reference.0 };
+        let f1_next = if i + 1 < n {
+            non_dom[i + 1].0
+        } else {
+            reference.0
+        };
         let width = f1_next - non_dom[i].0;
         let height = reference.1 - non_dom[i].1;
         if width > 0.0 && height > 0.0 {
@@ -140,36 +144,37 @@ pub fn hypervolume_3d(front: &[[f64; 3]], reference: &[f64; 3]) -> OptimizeResul
     // Sort by f3 (z-axis) ascending
     pts.sort_by(|a, b| a[2].partial_cmp(&b[2]).unwrap_or(std::cmp::Ordering::Equal));
 
-    // Collect unique z breakpoints: include all f3 values + reference[2]
+    // Collect unique z breakpoints (ascending order)
     let mut z_vals: Vec<f64> = pts.iter().map(|p| p[2]).collect();
     z_vals.dedup_by(|a, b| (*a - *b).abs() < 1e-15);
 
+    // Slice-and-sweep: for the slab [z_vals[i], z_vals[i+1]) use active set
+    // of all points with p[2] <= z_vals[i].  The first point that becomes
+    // active at z_vals[0] contributes from z_vals[0] upward, so there is no
+    // slab below z_vals[0].
     let mut hv = 0.0_f64;
-    let mut prev_z = z_vals[0]; // start at first f3 value
+    let n_z = z_vals.len();
 
-    for &z_cut in &z_vals {
-        // At slice z = z_cut, include all points with p[2] <= z_cut
+    for i in 0..n_z {
+        // Active set: all points that entered at or before z_vals[i]
         let active: Vec<(f64, f64)> = pts
             .iter()
-            .filter(|p| p[2] <= z_cut)
+            .filter(|p| p[2] <= z_vals[i])
             .map(|p| (p[0], p[1]))
             .collect();
 
-        if !active.is_empty() {
-            let hv_2d = hypervolume_2d(&active, (reference[0], reference[1]))?;
-            let dz = z_cut - prev_z;
-            if dz > 0.0 {
-                hv += hv_2d * dz;
-            }
+        if active.is_empty() {
+            continue;
         }
-        prev_z = z_cut;
-    }
 
-    // Final slab: from last z_val to reference[2]
-    let all_2d: Vec<(f64, f64)> = pts.iter().map(|p| (p[0], p[1])).collect();
-    if !all_2d.is_empty() {
-        let hv_2d = hypervolume_2d(&all_2d, (reference[0], reference[1]))?;
-        let dz = reference[2] - prev_z;
+        let hv_2d = hypervolume_2d(&active, (reference[0], reference[1]))?;
+        // This 2D cross-section is valid from z_vals[i] up to the next breakpoint
+        let z_next = if i + 1 < n_z {
+            z_vals[i + 1]
+        } else {
+            reference[2]
+        };
+        let dz = z_next - z_vals[i];
         if dz > 0.0 {
             hv += hv_2d * dz;
         }
@@ -259,10 +264,12 @@ fn wfg_recurse(pts: &mut Vec<Vec<f64>>, reference: &[f64]) -> f64 {
         return vol;
     }
 
-    // Sort by last objective descending (largest last-obj first)
+    // Sort by last objective ASCENDING (smallest last-obj first).
+    // Each point i "owns" the slab from its z up to the next point's z
+    // (or the reference if it is the last point).
     pts.sort_by(|a, b| {
-        b[d - 1]
-            .partial_cmp(&a[d - 1])
+        a[d - 1]
+            .partial_cmp(&b[d - 1])
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
@@ -270,30 +277,27 @@ fn wfg_recurse(pts: &mut Vec<Vec<f64>>, reference: &[f64]) -> f64 {
     let non_dom = filter_nd_non_dominated(pts);
     let n_nd = non_dom.len();
 
-    // WFG summation: H(P) = sum_{i=1}^{|P|} (-1)^{i+1} * H_i
-    // where H_i is a "slice" hypervolume
+    // Slice-sweep: HV(P, R) = Σ_i hv_{d-1}(non_dom[0..=i] projected, R') × dz_i
+    // where dz_i is the slice thickness from non_dom[i][d-1] to the next boundary.
     let mut total = 0.0_f64;
 
     for i in 0..n_nd {
-        // Reference for this "slice" has last dim updated by the i-th point's last objective
-        let ref_last = if i + 1 < n_nd {
+        // Upper boundary of this point's slab in the last dimension
+        let z_next = if i + 1 < n_nd {
             non_dom[i + 1][d - 1]
         } else {
             reference[d - 1]
         };
 
-        // depth of slice = ref_last - point[d-1]
-        let dz = ref_last - non_dom[i][d - 1];
+        let dz = z_next - non_dom[i][d - 1];
         if dz <= 0.0 {
             continue;
         }
 
         // Project to d-1 dimensions: take all points up to and including i
         let sub_ref: Vec<f64> = reference[..d - 1].to_vec();
-        let mut sub_pts: Vec<Vec<f64>> = non_dom[..=i]
-            .iter()
-            .map(|p| p[..d - 1].to_vec())
-            .collect();
+        let mut sub_pts: Vec<Vec<f64>> =
+            non_dom[..=i].iter().map(|p| p[..d - 1].to_vec()).collect();
 
         let hv_sub = wfg_recurse(&mut sub_pts, &sub_ref);
         total += hv_sub * dz;
@@ -578,9 +582,12 @@ mod tests {
     fn test_hvc_sum_leq_total() {
         let front = vec![vec![0.0, 1.0], vec![0.5, 0.5], vec![1.0, 0.0]];
         let total = hypervolume_wfg(&front, &[2.0, 2.0]).expect("failed to create total");
-        let hvc0 = hypervolume_contribution_wfg(&front, &[2.0, 2.0], 0).expect("failed to create hvc0");
-        let hvc1 = hypervolume_contribution_wfg(&front, &[2.0, 2.0], 1).expect("failed to create hvc1");
-        let hvc2 = hypervolume_contribution_wfg(&front, &[2.0, 2.0], 2).expect("failed to create hvc2");
+        let hvc0 =
+            hypervolume_contribution_wfg(&front, &[2.0, 2.0], 0).expect("failed to create hvc0");
+        let hvc1 =
+            hypervolume_contribution_wfg(&front, &[2.0, 2.0], 1).expect("failed to create hvc1");
+        let hvc2 =
+            hypervolume_contribution_wfg(&front, &[2.0, 2.0], 2).expect("failed to create hvc2");
         // All contributions should be non-negative
         assert!(hvc0 >= 0.0 && hvc1 >= 0.0 && hvc2 >= 0.0);
         // No single contribution exceeds total
@@ -632,7 +639,11 @@ mod tests {
         let front = vec![vec![0.5, 0.5], vec![1.0, 1.0]];
         let hvc = exclusive_hypervolume(&front, &[2.0, 2.0]).expect("failed to create hvc");
         // Dominated point should contribute 0 (within floating tolerance)
-        assert!(hvc[1] < 1e-10, "dominated point contribution = {} should ~0", hvc[1]);
+        assert!(
+            hvc[1] < 1e-10,
+            "dominated point contribution = {} should ~0",
+            hvc[1]
+        );
     }
 
     #[test]

@@ -804,7 +804,7 @@ fn time_single_thread_operation(data: &Array1<f64>) -> std::time::Duration {
 #[allow(dead_code)]
 fn time_multi_thread_operation(data: &Array1<f64>) -> std::time::Duration {
     let start = Instant::now();
-    let _result = crate::parallel_stats::mean_parallel(&data.view(), None);
+    let _result = crate::parallel_stats::mean_parallel(&data.view());
     start.elapsed()
 }
 

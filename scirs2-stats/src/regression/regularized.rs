@@ -1795,3 +1795,156 @@ where
 
     Ok(std_errors)
 }
+
+// ---------------------------------------------------------------------------
+// Sklearn-style Ridge estimator
+// ---------------------------------------------------------------------------
+
+/// Fitted result produced by [`RidgeRegression::fit`].
+pub struct FittedRidgeRegression<F>
+where
+    F: Float + std::fmt::Debug + std::fmt::Display + 'static,
+{
+    inner: crate::regression::RegressionResults<F>,
+}
+
+impl<F> FittedRidgeRegression<F>
+where
+    F: Float
+        + std::iter::Sum<F>
+        + std::ops::Div<Output = F>
+        + std::fmt::Debug
+        + std::fmt::Display
+        + 'static
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
+{
+    /// Predict target values for a new design matrix.
+    pub fn predict(
+        &self,
+        x: &scirs2_core::ndarray::ArrayView2<F>,
+    ) -> crate::error::StatsResult<scirs2_core::ndarray::Array1<F>> {
+        if x.ncols() != self.inner.coefficients.len() {
+            return Err(crate::error::StatsError::DimensionMismatch(format!(
+                "predict: x has {} columns but model has {} coefficients",
+                x.ncols(),
+                self.inner.coefficients.len()
+            )));
+        }
+        Ok(x.dot(&self.inner.coefficients))
+    }
+
+    /// Return the fitted coefficients.
+    pub fn coefficients(&self) -> &scirs2_core::ndarray::Array1<F> {
+        &self.inner.coefficients
+    }
+}
+
+/// L2-regularised (ridge) regression estimator.
+///
+/// This is a thin, sklearn-style wrapper around [`ridge_regression`].
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_core::ndarray::{array, Array2};
+/// use scirs2_stats::regression::RidgeRegression;
+///
+/// let x = Array2::from_shape_vec((5, 2), vec![
+///     1.0_f64, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0,
+/// ]).expect("shape ok");
+/// let y = array![1.0_f64, 3.0, 5.0, 7.0, 9.0];
+///
+/// let mut model = RidgeRegression::new(0.5);
+/// let fitted = model.fit(&x.view(), &y.view()).expect("fit ok");
+/// let preds = fitted.predict(&x.view()).expect("predict ok");
+/// assert_eq!(preds.len(), 5);
+/// ```
+#[derive(Debug, Clone)]
+pub struct RidgeRegression {
+    alpha: f64,
+}
+
+impl RidgeRegression {
+    /// Create a new (unfitted) ridge regression model.
+    ///
+    /// # Arguments
+    ///
+    /// * `alpha` – Regularisation strength. Larger values specify stronger regularisation.
+    pub fn new(alpha: f64) -> Self {
+        Self { alpha }
+    }
+
+    /// Fit the model to training data `(x, y)`.
+    pub fn fit(
+        &mut self,
+        x: &scirs2_core::ndarray::ArrayView2<f64>,
+        y: &scirs2_core::ndarray::ArrayView1<f64>,
+    ) -> crate::error::StatsResult<FittedRidgeRegression<f64>> {
+        // Use fit_intercept=false so the caller controls the design matrix layout,
+        // matching the behaviour of LinearRegression::fit (which calls linear_regression
+        // and never adds an implicit intercept column).
+        let inner = ridge_regression(x, y, Some(self.alpha), Some(false), None, None, None, None)?;
+        Ok(FittedRidgeRegression { inner })
+    }
+}
+
+#[cfg(test)]
+mod ridge_regression_struct_tests {
+    use super::*;
+    use scirs2_core::ndarray::{array, Array2};
+
+    fn make_dataset() -> (Array2<f64>, scirs2_core::ndarray::Array1<f64>) {
+        let x = Array2::from_shape_vec(
+            (6, 2),
+            vec![1.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0, 1.0, 5.0],
+        )
+        .expect("shape ok");
+        let y = array![1.0_f64, 3.0, 5.0, 7.0, 9.0, 11.0];
+        (x, y)
+    }
+
+    /// RidgeRegression is publicly accessible (compile test).
+    #[test]
+    fn test_ridge_regression_is_pub() {
+        let _ = RidgeRegression::new(1.0);
+    }
+
+    /// RidgeRegression::fit returns a result without error.
+    #[test]
+    fn test_ridge_regression_fit() {
+        let (x, y) = make_dataset();
+        let mut model = RidgeRegression::new(0.5);
+        let result = model.fit(&x.view(), &y.view());
+        assert!(
+            result.is_ok(),
+            "Ridge fit should succeed: {:?}",
+            result.err()
+        );
+    }
+
+    /// Predictions from FittedRidgeRegression have the correct shape.
+    #[test]
+    fn test_ridge_regression_predict_shape() {
+        let (x, y) = make_dataset();
+        let mut model = RidgeRegression::new(1.0);
+        let fitted = model.fit(&x.view(), &y.view()).expect("fit ok");
+        let preds = fitted.predict(&x.view()).expect("predict ok");
+        assert_eq!(preds.len(), x.nrows());
+    }
+
+    /// Ridge with a very small alpha should still yield reasonable predictions.
+    #[test]
+    fn test_ridge_regression_low_alpha() {
+        let (x, y) = make_dataset();
+        let mut model = RidgeRegression::new(1e-8);
+        let fitted = model.fit(&x.view(), &y.view()).expect("fit ok");
+        let preds = fitted.predict(&x.view()).expect("predict ok");
+        for (p, t) in preds.iter().zip(y.iter()) {
+            assert!((p - t).abs() < 0.5, "pred={p} target={t}");
+        }
+    }
+}

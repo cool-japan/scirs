@@ -244,11 +244,7 @@ fn decode_document(data: &[u8], offset: usize) -> Result<(BsonDocument, usize), 
     Ok((doc, offset + doc_len))
 }
 
-fn decode_value(
-    type_byte: u8,
-    data: &[u8],
-    offset: usize,
-) -> Result<(BsonValue, usize), IoError> {
+fn decode_value(type_byte: u8, data: &[u8], offset: usize) -> Result<(BsonValue, usize), IoError> {
     match type_byte {
         TYPE_DOUBLE => {
             if offset + 8 > data.len() {
@@ -312,7 +308,10 @@ fn decode_value(
                     "BSON: truncated binary data".into(),
                 ));
             }
-            Ok((BsonValue::Binary(data[start..start + len].to_vec()), start + len))
+            Ok((
+                BsonValue::Binary(data[start..start + len].to_vec()),
+                start + len,
+            ))
         }
 
         TYPE_OBJECT_ID => {
@@ -416,9 +415,8 @@ fn decode_bson_string(data: &[u8], offset: usize) -> Result<(String, usize), IoE
             "BSON: invalid string length".into(),
         ));
     }
-    let s = std::str::from_utf8(&data[start..start + len - 1]).map_err(|e| {
-        IoError::DeserializationError(format!("BSON: invalid string UTF-8: {e}"))
-    })?;
+    let s = std::str::from_utf8(&data[start..start + len - 1])
+        .map_err(|e| IoError::DeserializationError(format!("BSON: invalid string UTF-8: {e}")))?;
     Ok((s.to_string(), start + len))
 }
 
@@ -492,10 +490,7 @@ mod tests {
     #[test]
     fn test_binary() {
         let mut doc = BsonDocument::new();
-        doc.insert(
-            "data".into(),
-            BsonValue::Binary(vec![0x01, 0x02, 0x03]),
-        );
+        doc.insert("data".into(), BsonValue::Binary(vec![0x01, 0x02, 0x03]));
         let out = round_trip(doc);
         assert_eq!(out["data"], BsonValue::Binary(vec![0x01, 0x02, 0x03]));
     }
@@ -522,23 +517,21 @@ mod tests {
 
 // ─────────────────────────────── File I/O helpers ────────────────────────────
 
-use std::path::Path;
 use std::fs;
+use std::path::Path;
 
 /// Read a BSON file from `path` and decode it as a [`BsonDocument`].
 pub fn read_bson_file(path: impl AsRef<Path>) -> Result<BsonDocument, IoError> {
-    let bytes = fs::read(path.as_ref()).map_err(|e| {
-        IoError::SerializationError(format!("BSON: cannot read file: {e}"))
-    })?;
+    let bytes = fs::read(path.as_ref())
+        .map_err(|e| IoError::SerializationError(format!("BSON: cannot read file: {e}")))?;
     decode_bson(&bytes)
 }
 
 /// Encode `doc` as BSON bytes and write them to `path`.
 pub fn write_bson_file(path: impl AsRef<Path>, doc: &BsonDocument) -> Result<(), IoError> {
     let bytes = encode_bson(doc);
-    fs::write(path.as_ref(), &bytes).map_err(|e| {
-        IoError::SerializationError(format!("BSON: cannot write file: {e}"))
-    })
+    fs::write(path.as_ref(), &bytes)
+        .map_err(|e| IoError::SerializationError(format!("BSON: cannot write file: {e}")))
 }
 
 #[cfg(test)]

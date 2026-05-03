@@ -124,38 +124,22 @@ pub fn digamma<
 
     let mut result = F::zero();
 
-    // Use recursion formula for small values: ψ(x) = ψ(x+1) - 1/x
+    // Use recursion formula ψ(x) = ψ(x+1) - 1/x to raise x into [1, ∞)
     while x < F::one() {
         result -= F::one() / x;
         x += F::one();
     }
 
-    // For large values, use the asymptotic expansion
-    if x > F::from(20.0).expect("Failed to convert constant to float") {
-        return asymptotic_digamma(x) + result;
+    // Use the recursion ψ(x+1) = ψ(x) + 1/x to raise x above the asymptotic threshold.
+    // The Stirling-type asymptotic expansion (implemented in asymptotic_digamma) achieves
+    // sub-nanosecond accuracy for x > 6, so we only need a few recurrence steps.
+    let asymptotic_threshold = F::from(6.0).expect("Failed to convert constant to float");
+    while x < asymptotic_threshold {
+        result -= F::one() / x;
+        x += F::one();
     }
 
-    // For values where 1 <= x <= 20, use recursion and then the rational approximation
-    // For x = 1, return -gamma (Euler-Mascheroni constant)
-    if x == F::one() {
-        return -gamma + result;
-    }
-
-    // For x in (1, 2), use a rational approximation
-    if x < F::from(2.0).expect("Failed to convert constant to float") {
-        let z = x - F::one();
-        return rational_digamma_1_to_2(z) + result;
-    }
-
-    // For values in [2, 20], use forward recurrence to get to (1,2) interval
-    while x > F::from(2.0).expect("Failed to convert constant to float") {
-        x -= F::one();
-        result += F::one() / x;
-    }
-
-    // Now x is in (1,2)
-    let z = x - F::one();
-    rational_digamma_1_to_2(z) + result
+    asymptotic_digamma(x) + result
 }
 
 /// Digamma function with full error handling and validation.

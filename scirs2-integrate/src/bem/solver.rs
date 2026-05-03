@@ -15,10 +15,10 @@
 //! Given Neumann BCs (q prescribed), rearrange to solve for u.
 //! Mixed BCs are handled by column-swapping.
 
-use crate::error::{IntegrateError, IntegrateResult};
-use super::kernels::BEMKernel;
 use super::boundary_mesh::BoundaryMesh;
+use super::kernels::BEMKernel;
 use super::panel_method::gaussian_elimination;
+use crate::error::{IntegrateError, IntegrateResult};
 
 // ---------------------------------------------------------------------------
 // BEMSolver
@@ -48,7 +48,11 @@ impl<K: BEMKernel> BEMSolver<K> {
     /// * `kernel` — Fundamental solution to use.
     /// * `n_gauss` — Quadrature order per element (3–5 is usually sufficient).
     pub fn new(mesh: BoundaryMesh, kernel: K, n_gauss: usize) -> Self {
-        Self { mesh, kernel, n_gauss }
+        Self {
+            mesh,
+            kernel,
+            n_gauss,
+        }
     }
 
     /// Assemble the **H** matrix.
@@ -69,11 +73,7 @@ impl<K: BEMKernel> BEMSolver<K> {
                     .map(|(y, w)| w * self.kernel.dg_dn(xi, *y, ej.normal))
                     .sum();
 
-                h[i][j] = if i == j {
-                    integral + 0.5
-                } else {
-                    integral
-                };
+                h[i][j] = if i == j { integral + 0.5 } else { integral };
             }
         }
         h
@@ -306,12 +306,7 @@ impl<K: BEMKernel> BEMSolver<K> {
     /// * `p` — Interior evaluation point.
     /// * `u_boundary` — u values at collocation points from the BEM solve.
     /// * `q_boundary` — q = ∂u/∂n values at collocation points.
-    pub fn evaluate_interior(
-        &self,
-        p: [f64; 2],
-        u_boundary: &[f64],
-        q_boundary: &[f64],
-    ) -> f64 {
+    pub fn evaluate_interior(&self, p: [f64; 2], u_boundary: &[f64], q_boundary: &[f64]) -> f64 {
         let n = self.mesh.n_elements;
         let mut result = 0.0;
 
@@ -346,9 +341,9 @@ impl<K: BEMKernel> BEMSolver<K> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use super::super::kernels::LaplaceKernel;
     use super::super::boundary_mesh::BoundaryMesh;
+    use super::super::kernels::LaplaceKernel;
+    use super::*;
 
     #[test]
     fn test_bem_assemble_dimensions() {
@@ -397,10 +392,7 @@ mod tests {
         match solver.solve_dirichlet(&u_bc) {
             Ok(q) => {
                 for (i, &q_val) in q.iter().enumerate() {
-                    assert!(
-                        q_val.is_finite(),
-                        "q[{i}] = {q_val} is not finite"
-                    );
+                    assert!(q_val.is_finite(), "q[{i}] = {q_val} is not finite");
                 }
             }
             Err(e) => {

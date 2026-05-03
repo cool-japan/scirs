@@ -1,10 +1,9 @@
 //! Cross-lingual NLP and multilingual utilities (v0.3.0)
 //!
-//! This module re-exports the Script-based multilingual API that lives in
-//! [`crate::multilingual`].  It exists so that callers can import either from
-//! `multilingual` or `multilingual_ext` without ambiguity.
+//! This module re-exports the Script-based multilingual API from related modules.
+//! It exists so that callers can import either from `multilingual` or `multilingual_ext`
+//! without ambiguity.
 
-pub use crate::multilingual::{
-    cross_lingual_similarity, detect_script, language_profile, strip_diacritics,
-    unicode_normalize, NormForm, Script,
-};
+pub use crate::multilingual::ScriptFamily;
+pub use crate::tokenization::unicode_normalizer::{NormForm, Script};
+pub use crate::transliteration::strip_diacritics;

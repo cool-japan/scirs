@@ -395,6 +395,12 @@ impl PerformanceSummary {
     }
 }
 
+/// Comprehensive summary of validation and performance results
+///
+/// This is a type alias for [`PerformanceSummary`], providing a more descriptive
+/// name when used as the final output of a complete validation run.
+pub type ComprehensiveSummary = PerformanceSummary;
+
 /// Enhanced Advanced processing with validation
 #[allow(dead_code)]
 pub fn validated_advanced_processing<T>(

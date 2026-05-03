@@ -35,9 +35,9 @@ pub(crate) fn gauss_legendre_nodes(npts: usize) -> (Vec<f64>, Vec<f64>) {
         3 => (
             vec![-0.774_596_669_241_483_4, 0.0, 0.774_596_669_241_483_4],
             vec![
-                0.555_555_555_555_555_6,
-                0.888_888_888_888_888_9,
-                0.555_555_555_555_555_6,
+                0.555_555_555_555_556,
+                0.888_888_888_888_889,
+                0.555_555_555_555_556,
             ],
         ),
         4 => (
@@ -56,16 +56,16 @@ pub(crate) fn gauss_legendre_nodes(npts: usize) -> (Vec<f64>, Vec<f64>) {
         ),
         5 => (
             vec![
-                -0.906_179_845_938_664_0,
+                -0.906_179_845_938_664,
                 -0.538_469_310_105_683_1,
                 0.0,
                 0.538_469_310_105_683_1,
-                0.906_179_845_938_664_0,
+                0.906_179_845_938_664,
             ],
             vec![
                 0.236_926_885_056_189_1,
                 0.478_628_670_499_366_5,
-                0.568_888_888_888_888_9,
+                0.568_888_888_888_889,
                 0.478_628_670_499_366_5,
                 0.236_926_885_056_189_1,
             ],
@@ -74,10 +74,10 @@ pub(crate) fn gauss_legendre_nodes(npts: usize) -> (Vec<f64>, Vec<f64>) {
             vec![
                 -0.960_289_856_497_536_3,
                 -0.796_666_477_413_626_7,
-                -0.525_532_409_916_329_0,
+                -0.525_532_409_916_329,
                 -0.183_434_642_495_649_8,
                 0.183_434_642_495_649_8,
-                0.525_532_409_916_329_0,
+                0.525_532_409_916_329,
                 0.796_666_477_413_626_7,
                 0.960_289_856_497_536_3,
             ],
@@ -85,8 +85,8 @@ pub(crate) fn gauss_legendre_nodes(npts: usize) -> (Vec<f64>, Vec<f64>) {
                 0.101_228_536_290_376_3,
                 0.222_381_034_453_374_5,
                 0.313_706_645_877_887_3,
-                0.362_683_783_378_362_0,
-                0.362_683_783_378_362_0,
+                0.362_683_783_378_362,
+                0.362_683_783_378_362,
                 0.313_706_645_877_887_3,
                 0.222_381_034_453_374_5,
                 0.101_228_536_290_376_3,
@@ -108,12 +108,12 @@ pub(crate) fn gauss_legendre_nodes(npts: usize) -> (Vec<f64>, Vec<f64>) {
             vec![
                 0.066_671_344_086_681_0,
                 0.149_451_349_150_580_6,
-                0.219_086_362_515_982_0,
+                0.219_086_362_515_982,
                 0.269_266_719_309_996_4,
                 0.295_524_224_714_752_9,
                 0.295_524_224_714_752_9,
                 0.269_266_719_309_996_4,
-                0.219_086_362_515_982_0,
+                0.219_086_362_515_982,
                 0.149_451_349_150_580_6,
                 0.066_671_344_086_681_0,
             ],
@@ -275,10 +275,7 @@ pub struct FredholmSolver {
 
 impl FredholmSolver {
     /// Create a new solver with the given kernel and config.
-    pub fn new(
-        kernel: impl Fn(f64, f64) -> f64 + 'static,
-        config: FredholmSolverConfig,
-    ) -> Self {
+    pub fn new(kernel: impl Fn(f64, f64) -> f64 + 'static, config: FredholmSolverConfig) -> Self {
         Self {
             kernel: Box::new(kernel),
             config,
@@ -301,10 +298,7 @@ impl FredholmSolver {
     /// # Errors
     ///
     /// Returns [`IntegrateError::LinearSolveError`] if the system is singular.
-    pub fn nystrom_method(
-        &self,
-        f: impl Fn(f64) -> f64,
-    ) -> IntegrateResult<FredholmSolution> {
+    pub fn nystrom_method(&self, f: impl Fn(f64) -> f64) -> IntegrateResult<FredholmSolution> {
         nystrom_method(&self.kernel, &f, &self.config)
     }
 
@@ -353,10 +347,7 @@ impl FredholmSolver {
     ///
     /// Returns [`IntegrateError::ConvergenceError`] if the series does not converge
     /// within `config.neumann_max_terms` iterations.
-    pub fn neumann_series(
-        &self,
-        f: impl Fn(f64) -> f64,
-    ) -> IntegrateResult<FredholmSolution> {
+    pub fn neumann_series(&self, f: impl Fn(f64) -> f64) -> IntegrateResult<FredholmSolution> {
         fredholm_neumann(&self.kernel, &f, &self.config)
     }
 }
@@ -649,9 +640,8 @@ pub fn fredholm_neumann(
 
     // Neumann iteration: u_{n+1}[i] = f[i] + λ Σⱼ wⱼ K[i][j] u_n[j]
     let mut u_prev = f_vals.clone();
-    let mut n_terms = 0usize;
 
-    for _iter in 0..cfg.neumann_max_terms {
+    for iter in 0..cfg.neumann_max_terms {
         let mut u_next = vec![0.0_f64; nq];
         for i in 0..nq {
             let integral: f64 = (0..nq).map(|j| weights[j] * k_mat[i][j] * u_prev[j]).sum();
@@ -666,7 +656,6 @@ pub fn fredholm_neumann(
             .fold(0.0_f64, f64::max);
 
         u_prev = u_next;
-        n_terms += 1;
 
         if max_diff < cfg.neumann_tol {
             return Ok(FredholmSolution {
@@ -674,7 +663,7 @@ pub fn fredholm_neumann(
                 weights,
                 u: u_prev,
                 condition_estimate: 0.0,
-                n_terms_used: n_terms,
+                n_terms_used: iter + 1,
             });
         }
     }
@@ -793,11 +782,7 @@ mod tests {
         let sol = degenerate_kernel(&cfg, &f, &basis_a, &basis_b, &eval_pts)
             .expect("degenerate constant kernel failed");
         for &ui in &sol.u {
-            assert!(
-                (ui - 2.0).abs() < 1e-10,
-                "u = {} != 2.0",
-                ui
-            );
+            assert!((ui - 2.0).abs() < 1e-10, "u = {} != 2.0", ui);
         }
     }
 
@@ -878,11 +863,7 @@ mod tests {
         let sol = fredholm_neumann(&kernel, &f, &cfg).expect("neumann constant kernel failed");
         // u(x) = 2
         for &ui in &sol.u {
-            assert!(
-                (ui - 2.0).abs() < 1e-4,
-                "neumann constant: u = {} != 2",
-                ui
-            );
+            assert!((ui - 2.0).abs() < 1e-4, "neumann constant: u = {} != 2", ui);
         }
     }
 

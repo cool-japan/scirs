@@ -332,10 +332,7 @@ pub fn winsorized_mean(data: &[f64], limits: (f64, f64)) -> StatsResult<f64> {
     let lo_val = sorted[lo_idx];
     let hi_val = sorted[hi_idx];
 
-    let sum: f64 = sorted
-        .iter()
-        .map(|&x| x.clamp(lo_val, hi_val))
-        .sum();
+    let sum: f64 = sorted.iter().map(|&x| x.clamp(lo_val, hi_val)).sum();
     Ok(sum / n as f64)
 }
 
@@ -574,7 +571,9 @@ impl TheilSen {
 
     /// Generate predictions for the given predictor values.
     pub fn predict(&self, x: &[f64]) -> Vec<f64> {
-        x.iter().map(|&xi| self.slope * xi + self.intercept).collect()
+        x.iter()
+            .map(|&xi| self.slope * xi + self.intercept)
+            .collect()
     }
 
     /// Return the estimated slope.
@@ -671,7 +670,11 @@ impl PassingBablok {
 
                 let s = if dx.abs() < f64::EPSILON {
                     // Vertical pair: infinite slope
-                    if dy > 0.0 { f64::INFINITY } else { f64::NEG_INFINITY }
+                    if dy > 0.0 {
+                        f64::INFINITY
+                    } else {
+                        f64::NEG_INFINITY
+                    }
                 } else {
                     dy / dx
                 };
@@ -849,9 +852,7 @@ mod tests {
     #[test]
     fn test_mad_normal_scale() {
         // For N(0,1) data MAD ≈ σ with the consistency factor
-        let data = vec![
-            -2.0, -1.0, -0.5, -0.2, 0.0, 0.1, 0.3, 0.7, 1.0, 1.5,
-        ];
+        let data = vec![-2.0, -1.0, -0.5, -0.2, 0.0, 0.1, 0.3, 0.7, 1.0, 1.5];
         let m = mad(&data).expect("ok");
         assert!(m > 0.0, "MAD should be positive");
     }
@@ -917,8 +918,16 @@ mod tests {
         let x: Vec<f64> = (0..=5).map(|i| i as f64).collect();
         let y: Vec<f64> = x.iter().map(|&xi| 3.0 * xi + 1.0).collect();
         let model = TheilSen::fit(&x, &y).expect("ok");
-        assert!((model.slope() - 3.0).abs() < 1e-10, "slope={}", model.slope());
-        assert!((model.intercept() - 1.0).abs() < 1e-10, "intercept={}", model.intercept());
+        assert!(
+            (model.slope() - 3.0).abs() < 1e-10,
+            "slope={}",
+            model.slope()
+        );
+        assert!(
+            (model.intercept() - 1.0).abs() < 1e-10,
+            "intercept={}",
+            model.intercept()
+        );
     }
 
     #[test]
@@ -959,7 +968,11 @@ mod tests {
         let y = x.clone();
         let model = PassingBablok::fit(&x, &y).expect("ok");
         assert!((model.slope() - 1.0).abs() < 0.1, "slope={}", model.slope());
-        assert!(model.intercept().abs() < 0.5, "intercept={}", model.intercept());
+        assert!(
+            model.intercept().abs() < 0.5,
+            "intercept={}",
+            model.intercept()
+        );
     }
 
     #[test]

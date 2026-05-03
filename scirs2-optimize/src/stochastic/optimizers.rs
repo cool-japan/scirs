@@ -93,18 +93,25 @@ impl LrSchedule {
         match self {
             LrSchedule::Constant(lr) => *lr,
 
-            LrSchedule::ExponentialDecay { initial, decay } => {
-                initial * decay.powi(step as i32)
-            }
+            LrSchedule::ExponentialDecay { initial, decay } => initial * decay.powi(step as i32),
 
-            LrSchedule::CosineAnnealing { lr_max, lr_min, t_max } => {
+            LrSchedule::CosineAnnealing {
+                lr_max,
+                lr_min,
+                t_max,
+            } => {
                 let t = (step % (2 * (*t_max).max(1))) as f64;
                 let t_m = *t_max as f64;
                 let cos_inner = PI * t / t_m;
                 lr_min + 0.5 * (lr_max - lr_min) * (1.0 + cos_inner.cos())
             }
 
-            LrSchedule::WarmupCosine { warmup_steps, lr_peak, lr_min, total_steps } => {
+            LrSchedule::WarmupCosine {
+                warmup_steps,
+                lr_peak,
+                lr_min,
+                total_steps,
+            } => {
                 let ws = *warmup_steps;
                 let ts = (*total_steps).max(ws + 1);
                 if step < ws {
@@ -117,7 +124,11 @@ impl LrSchedule {
                 }
             }
 
-            LrSchedule::StepLr { initial, step_size, gamma } => {
+            LrSchedule::StepLr {
+                initial,
+                step_size,
+                gamma,
+            } => {
                 let n_decays = step / (*step_size).max(1);
                 initial * gamma.powi(n_decays as i32)
             }
@@ -318,7 +329,12 @@ pub struct AdaGrad {
 impl AdaGrad {
     /// Create a new AdaGrad optimizer.
     pub fn new(lr: f64) -> Self {
-        Self { lr, eps: 1e-8, weight_decay: 0.0, sum_sq_grad: Vec::new() }
+        Self {
+            lr,
+            eps: 1e-8,
+            weight_decay: 0.0,
+            sum_sq_grad: Vec::new(),
+        }
     }
 
     /// Perform one AdaGrad update step.
@@ -602,8 +618,7 @@ impl Svrg {
 
         // Variance-reduced gradient estimate
         for i in 0..n {
-            let g_tilde =
-                stochastic_grad[i] - snapshot_grad_i[i] + self.snapshot_grad[i];
+            let g_tilde = stochastic_grad[i] - snapshot_grad_i[i] + self.snapshot_grad[i];
             params[i] -= self.lr * g_tilde;
         }
 
@@ -656,7 +671,10 @@ mod tests {
 
     #[test]
     fn test_exponential_decay_schedule() {
-        let s = LrSchedule::ExponentialDecay { initial: 0.1, decay: 0.9 };
+        let s = LrSchedule::ExponentialDecay {
+            initial: 0.1,
+            decay: 0.9,
+        };
         assert_abs_diff_eq!(s.lr_at(0), 0.1, epsilon = 1e-12);
         assert_abs_diff_eq!(s.lr_at(1), 0.09, epsilon = 1e-10);
         assert_abs_diff_eq!(s.lr_at(10), 0.1 * 0.9_f64.powi(10), epsilon = 1e-10);
@@ -664,14 +682,22 @@ mod tests {
 
     #[test]
     fn test_cosine_annealing_at_zero() {
-        let s = LrSchedule::CosineAnnealing { lr_max: 0.1, lr_min: 0.0, t_max: 100 };
+        let s = LrSchedule::CosineAnnealing {
+            lr_max: 0.1,
+            lr_min: 0.0,
+            t_max: 100,
+        };
         // At step 0: cos(0) = 1 → lr = lr_min + 0.5*(lr_max-lr_min)*2 = lr_max
         assert_abs_diff_eq!(s.lr_at(0), 0.1, epsilon = 1e-10);
     }
 
     #[test]
     fn test_cosine_annealing_at_t_max() {
-        let s = LrSchedule::CosineAnnealing { lr_max: 0.1, lr_min: 0.001, t_max: 50 };
+        let s = LrSchedule::CosineAnnealing {
+            lr_max: 0.1,
+            lr_min: 0.001,
+            t_max: 50,
+        };
         // At step t_max: cos(π) = -1 → lr = lr_min
         assert_abs_diff_eq!(s.lr_at(50), 0.001, epsilon = 1e-10);
     }
@@ -688,12 +714,20 @@ mod tests {
         assert_abs_diff_eq!(s.lr_at(5), 0.05, epsilon = 1e-10);
         // After warmup start: lr = lr_peak at step 10 (cos(0) phase)
         let lr10 = s.lr_at(10);
-        assert!(lr10 >= 0.09 && lr10 <= 0.1 + 1e-9, "lr at warmup end ≈ peak, got {}", lr10);
+        assert!(
+            lr10 >= 0.09 && lr10 <= 0.1 + 1e-9,
+            "lr at warmup end ≈ peak, got {}",
+            lr10
+        );
     }
 
     #[test]
     fn test_step_lr_schedule() {
-        let s = LrSchedule::StepLr { initial: 0.1, step_size: 10, gamma: 0.5 };
+        let s = LrSchedule::StepLr {
+            initial: 0.1,
+            step_size: 10,
+            gamma: 0.5,
+        };
         assert_abs_diff_eq!(s.lr_at(0), 0.1, epsilon = 1e-12);
         assert_abs_diff_eq!(s.lr_at(9), 0.1, epsilon = 1e-12);
         assert_abs_diff_eq!(s.lr_at(10), 0.05, epsilon = 1e-12);
@@ -728,7 +762,10 @@ mod tests {
 
     #[test]
     fn test_sgd_nesterov() {
-        let mut opt = Sgd { nesterov: true, ..Sgd::new(0.05, 0.9) };
+        let mut opt = Sgd {
+            nesterov: true,
+            ..Sgd::new(0.05, 0.9)
+        };
         let mut p = vec![1.0, 1.0];
         for _ in 0..500 {
             let g = quadratic_grad(&p);
@@ -739,7 +776,10 @@ mod tests {
 
     #[test]
     fn test_sgd_weight_decay() {
-        let mut opt = Sgd { weight_decay: 0.1, ..Sgd::new(0.01, 0.0) };
+        let mut opt = Sgd {
+            weight_decay: 0.1,
+            ..Sgd::new(0.01, 0.0)
+        };
         let mut p = vec![1.0];
         opt.step(&mut p, &[0.0]).expect("step failed");
         // Weight decay pulls toward 0: p_new = p - lr * wd * p = p * (1 - lr*wd)
@@ -789,7 +829,10 @@ mod tests {
 
     #[test]
     fn test_adam_weight_decay_coupled() {
-        let mut opt = Adam { weight_decay: 0.01, ..Adam::new(0.001) };
+        let mut opt = Adam {
+            weight_decay: 0.01,
+            ..Adam::new(0.001)
+        };
         let mut p = vec![1.0];
         let p_before = p[0];
         opt.step(&mut p, &[0.0]).expect("step failed");
@@ -835,7 +878,10 @@ mod tests {
 
     #[test]
     fn test_rmsprop_with_momentum() {
-        let mut opt = RmsProp { momentum: 0.9, ..RmsProp::new(0.01) };
+        let mut opt = RmsProp {
+            momentum: 0.9,
+            ..RmsProp::new(0.01)
+        };
         let mut p = vec![1.0, 1.0];
         for _ in 0..500 {
             let g = quadratic_grad(&p);
@@ -855,7 +901,10 @@ mod tests {
 
     #[test]
     fn test_adamw_decoupled_wd() {
-        let mut opt = AdamW { weight_decay: 0.1, ..AdamW::new(0.001) };
+        let mut opt = AdamW {
+            weight_decay: 0.1,
+            ..AdamW::new(0.001)
+        };
         let mut p = vec![1.0];
         let p_before = p[0];
         opt.step(&mut p, &[0.0]).expect("step failed");
@@ -865,7 +914,10 @@ mod tests {
 
     #[test]
     fn test_adamw_converges() {
-        let mut opt = AdamW { weight_decay: 0.0, ..AdamW::new(0.01) };
+        let mut opt = AdamW {
+            weight_decay: 0.0,
+            ..AdamW::new(0.01)
+        };
         let mut p = vec![2.0, -2.0];
         for _ in 0..1000 {
             let g = quadratic_grad(&p);

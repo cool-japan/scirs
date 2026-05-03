@@ -43,8 +43,11 @@ use pyo3::prelude::*;
 
 // Core modules (always available)
 pub mod async_ops;
+pub mod dlpack;
 pub mod error;
+pub mod gpu_ops;
 pub mod pandas_compat;
+pub mod parallel;
 
 // Submodules
 #[cfg(feature = "cluster")]
@@ -128,9 +131,12 @@ fn scirs2(m: &Bound<'_, PyModule>) -> PyResult<()> {
         "COOLJAPAN OU (Team KitaSan) <contact@cooljapan.tech>",
     )?;
 
-    // Register core modules (async and pandas support)
+    // Register core modules (async, pandas support, DLPack interop, parallel batch, GPU ops)
     async_ops::register_async_module(m)?;
     pandas_compat::register_pandas_module(m)?;
+    dlpack::register_dlpack_module(m)?;
+    parallel::register_parallel_module(m)?;
+    gpu_ops::register_gpu_module(m)?;
 
     // Register classes and functions directly in main module
     #[cfg(feature = "cluster")]

@@ -74,14 +74,28 @@ as well as the [`PyReadonlyArray::try_as_matrix`] and [`PyReadwriteArray::try_as
 pub mod array;
 mod array_like;
 pub mod array_protocol;
+pub mod array_subclass;
 pub mod borrow;
 pub mod convert;
 pub mod datetime;
 pub mod dlpack;
+/// GPU tensor passthrough via DLPack without CPU roundtrip.
+///
+/// Provides device-aware dispatch: CPU tensors are zero-copy viewed as
+/// `ndarray`, while CUDA/ROCm/Metal tensors are returned as [`dlpack_cuda::CudaTensorInfo`]
+/// without touching device memory.
+pub mod dlpack_cuda;
 mod dtype;
 mod error;
+pub mod extended_int;
 pub mod masked;
 pub mod npyffi;
+/// SIMD-accelerated copy for non-contiguous-to-contiguous coercion.
+///
+/// Use these routines when a Python caller passes a strided (non-contiguous)
+/// NumPy array that must be gathered into a flat, contiguous `Vec` before
+/// further processing.
+pub mod simd_copy;
 mod slice_container;
 mod strings;
 mod structured;
@@ -107,6 +121,9 @@ pub use crate::array_protocol::{
     parse_typestr, register_array_protocol_module, ArrayInterfaceDict, ArrayProtocol,
     ArrayProtocolError, NdArrayWrapper,
 };
+pub use crate::array_subclass::{
+    from_array_like_f32, from_array_like_f64, register_array_subclass_module, SubclassArrayWrapper,
+};
 pub use crate::borrow::{
     PyReadonlyArray, PyReadonlyArray0, PyReadonlyArray1, PyReadonlyArray2, PyReadonlyArray3,
     PyReadonlyArray4, PyReadonlyArray5, PyReadonlyArray6, PyReadonlyArrayDyn, PyReadwriteArray,
@@ -115,12 +132,22 @@ pub use crate::borrow::{
 };
 pub use crate::convert::{IntoPyArray, NpyIndex, ToNpyDims, ToPyArray};
 pub use crate::dlpack::{
-    dlpack_from_slice, dlpack_to_vec_f64, register_dlpack_module, validate_dlpack_tensor,
-    DLDataType, DLDataTypeCode, DLDevice, DLDeviceType, DLManagedTensor, DLPackCapsule, DLTensor,
-    DLTensorInfo, DlpackError,
+    array_from_dlpack_f32, array_from_dlpack_f64, check_tensor_contiguous, dlarray_from_torch_f32,
+    dlarray_from_torch_f64, dlpack_from_slice, dlpack_to_vec_f64, jax_device_type,
+    register_dlpack_module, validate_dlpack_tensor, validate_jax_dlpack_tensor,
+    validate_torch_dlpack_tensor, DLDataType, DLDataTypeCode, DLDevice, DLDeviceType,
+    DLManagedTensor, DLPackCapsule, DLTensor, DLTensorInfo, DlpackError, JaxDeviceType,
+    DL_DEVICE_TYPE_TPU,
+};
+pub use crate::dlpack_cuda::{
+    cuda_tensor_info, cuda_tensor_info_from_dltensor, get_cuda_tensor_info,
+    register_dlpack_cuda_module, CudaTensorInfo, DLPackDispatchResult,
 };
 pub use crate::dtype::{dtype, Complex32, Complex64, Element, PyArrayDescr, PyArrayDescrMethods};
 pub use crate::error::{BorrowError, FromVecError, NotContiguousError};
+pub use crate::extended_int::{
+    from_i128, from_u128, register_extended_int_module, to_i128, to_u128, I128Array, U128Array,
+};
 pub use crate::masked::{masked_array, masked_less, register_masked_module, MaskedArray};
 pub use crate::npyffi::{PY_ARRAY_API, PY_UFUNC_API};
 pub use crate::strings::{PyFixedString, PyFixedUnicode};

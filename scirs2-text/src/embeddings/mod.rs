@@ -137,6 +137,7 @@ pub mod fasttext;
 pub mod glove;
 pub mod sentence;
 pub mod sentence_encoder;
+pub mod universal;
 
 // Re-export
 pub use fasttext::{FastText, FastTextConfig};
@@ -1366,6 +1367,45 @@ impl Word2Vec {
     /// Check if hierarchical softmax is enabled
     pub fn uses_hierarchical_softmax(&self) -> bool {
         self.config.hierarchical_softmax
+    }
+
+    /// Restore vocabulary and input embeddings from serialized state.
+    ///
+    /// Validates that:
+    /// - `embeddings` row count equals `vocabulary.len()`
+    /// - `embeddings` column count equals `self.config.vector_size`
+    ///
+    /// Returns an error on any dimension mismatch; never panics.
+    pub fn restore_weights(
+        &mut self,
+        vocabulary: Vec<String>,
+        embeddings: Array2<f64>,
+    ) -> Result<()> {
+        let embed_shape = embeddings.shape();
+        let n_words = vocabulary.len();
+
+        if embed_shape[0] != n_words {
+            return Err(TextError::EmbeddingError(format!(
+                "Embedding row count {} does not match vocabulary size {}",
+                embed_shape[0], n_words
+            )));
+        }
+
+        if embed_shape[1] != self.config.vector_size {
+            return Err(TextError::EmbeddingError(format!(
+                "Embedding dimension {} does not match configured vector_size {}",
+                embed_shape[1], self.config.vector_size
+            )));
+        }
+
+        // Rebuild the vocabulary index
+        self.vocabulary = Vocabulary::new();
+        for word in &vocabulary {
+            self.vocabulary.add_token(word);
+        }
+
+        self.input_embeddings = Some(embeddings);
+        Ok(())
     }
 
     // ─── Hierarchical Softmax Training ──────────────────────────────────

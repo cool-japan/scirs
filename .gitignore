@@ -99,3 +99,4 @@ scirs2-text/*.w2v
 **/.hypothesis/
 **/rustc-ice-*.txt
 **/.doctest-exclude
+**/target-pdf/

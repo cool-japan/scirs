@@ -32,14 +32,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Trait alias for floating-point scalars used throughout this module.
-pub trait PencilFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<T> PencilFloat for T where
-    T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait PencilFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<T> PencilFloat for T where T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Internal matrix utilities
@@ -62,7 +56,7 @@ fn matmul<F: PencilFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<F
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + a_il * b[[l, j]];
+                c[[i, j]] += a_il * b[[l, j]];
             }
         }
     }
@@ -73,7 +67,7 @@ fn matmul<F: PencilFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<F
 fn frobenius<F: PencilFloat>(m: &Array2<F>) -> F {
     let mut acc = F::zero();
     for &v in m.iter() {
-        acc = acc + v * v;
+        acc += v * v;
     }
     acc.sqrt()
 }
@@ -153,7 +147,7 @@ fn det_estimate<F: PencilFloat>(a: &Array2<F>) -> F {
     let (_, u, perm) = lu_factor(a);
     let mut d = F::one();
     for i in 0..n {
-        d = d * u[[i, i]];
+        d *= u[[i, i]];
     }
     // Count permutation sign
     let mut visited = vec![false; n];
@@ -275,14 +269,7 @@ fn givens_params<F: PencilFloat>(a: F, b: F) -> (F, F) {
 }
 
 /// Apply left Givens rotation to rows i, j of matrix m.
-fn apply_givens_left<F: PencilFloat>(
-    m: &mut Array2<F>,
-    c: F,
-    s: F,
-    i: usize,
-    j: usize,
-    n: usize,
-) {
+fn apply_givens_left<F: PencilFloat>(m: &mut Array2<F>, c: F, s: F, i: usize, j: usize, n: usize) {
     for k in 0..n {
         let xi = m[[i, k]];
         let xj = m[[j, k]];
@@ -292,14 +279,7 @@ fn apply_givens_left<F: PencilFloat>(
 }
 
 /// Apply right Givens rotation to columns i, j of matrix m.
-fn apply_givens_right<F: PencilFloat>(
-    m: &mut Array2<F>,
-    c: F,
-    s: F,
-    i: usize,
-    j: usize,
-    n: usize,
-) {
+fn apply_givens_right<F: PencilFloat>(m: &mut Array2<F>, c: F, s: F, i: usize, j: usize, n: usize) {
     for k in 0..n {
         let xi = m[[k, i]];
         let xj = m[[k, j]];
@@ -322,7 +302,7 @@ fn upper_hessenberg<F: PencilFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
         let norm_v = {
             let mut s = F::zero();
             for &vi in &v {
-                s = s + vi * vi;
+                s += vi * vi;
             }
             s.sqrt()
         };
@@ -334,11 +314,11 @@ fn upper_hessenberg<F: PencilFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
         } else {
             -F::one()
         };
-        v[0] = v[0] + sign * norm_v;
+        v[0] += sign * norm_v;
         let norm_v2 = {
             let mut s = F::zero();
             for &vi in &v {
-                s = s + vi * vi;
+                s += vi * vi;
             }
             s.sqrt()
         };
@@ -346,37 +326,37 @@ fn upper_hessenberg<F: PencilFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
             continue;
         }
         for vi in v.iter_mut() {
-            *vi = *vi / norm_v2;
+            *vi /= norm_v2;
         }
         // Apply Householder reflector H = I - 2*v*v^T from left
         let two = F::from(2.0).unwrap_or(F::one() + F::one());
         for j in k..n {
             let mut dot = F::zero();
             for i in 0..col_len {
-                dot = dot + v[i] * h[[k + 1 + i, j]];
+                dot += v[i] * h[[k + 1 + i, j]];
             }
             for i in 0..col_len {
-                h[[k + 1 + i, j]] = h[[k + 1 + i, j]] - two * v[i] * dot;
+                h[[k + 1 + i, j]] -= two * v[i] * dot;
             }
         }
         // Apply from right
         for i in 0..n {
             let mut dot = F::zero();
             for j in 0..col_len {
-                dot = dot + h[[i, k + 1 + j]] * v[j];
+                dot += h[[i, k + 1 + j]] * v[j];
             }
             for j in 0..col_len {
-                h[[i, k + 1 + j]] = h[[i, k + 1 + j]] - two * dot * v[j];
+                h[[i, k + 1 + j]] -= two * dot * v[j];
             }
         }
         // Accumulate Q
         for i in 0..n {
             let mut dot = F::zero();
             for j in 0..col_len {
-                dot = dot + q[[i, k + 1 + j]] * v[j];
+                dot += q[[i, k + 1 + j]] * v[j];
             }
             for j in 0..col_len {
-                q[[i, k + 1 + j]] = q[[i, k + 1 + j]] - two * dot * v[j];
+                q[[i, k + 1 + j]] -= two * dot * v[j];
             }
         }
     }
@@ -398,7 +378,7 @@ fn upper_triangular_qr<F: PencilFloat>(b: &Array2<F>) -> (Array2<F>, Array2<F>) 
         let norm_v = {
             let mut s = F::zero();
             for &vi in &v {
-                s = s + vi * vi;
+                s += vi * vi;
             }
             s.sqrt()
         };
@@ -410,11 +390,11 @@ fn upper_triangular_qr<F: PencilFloat>(b: &Array2<F>) -> (Array2<F>, Array2<F>) 
         } else {
             -F::one()
         };
-        v[0] = v[0] + sign * norm_v;
+        v[0] += sign * norm_v;
         let norm_v2 = {
             let mut s = F::zero();
             for &vi in &v {
-                s = s + vi * vi;
+                s += vi * vi;
             }
             s.sqrt()
         };
@@ -422,26 +402,26 @@ fn upper_triangular_qr<F: PencilFloat>(b: &Array2<F>) -> (Array2<F>, Array2<F>) 
             continue;
         }
         for vi in v.iter_mut() {
-            *vi = *vi / norm_v2;
+            *vi /= norm_v2;
         }
         // Apply from left
         for j in k..n {
             let mut dot = F::zero();
             for i in 0..col_len {
-                dot = dot + v[i] * r[[k + i, j]];
+                dot += v[i] * r[[k + i, j]];
             }
             for i in 0..col_len {
-                r[[k + i, j]] = r[[k + i, j]] - two * v[i] * dot;
+                r[[k + i, j]] -= two * v[i] * dot;
             }
         }
         // Accumulate Q (applied from left, so Q^T is orthogonal basis)
         for j in 0..n {
             let mut dot = F::zero();
             for i in 0..col_len {
-                dot = dot + v[i] * q[[k + i, j]];
+                dot += v[i] * q[[k + i, j]];
             }
             for i in 0..col_len {
-                q[[k + i, j]] = q[[k + i, j]] - two * v[i] * dot;
+                q[[k + i, j]] -= two * v[i] * dot;
             }
         }
     }
@@ -451,6 +431,7 @@ fn upper_triangular_qr<F: PencilFloat>(b: &Array2<F>) -> (Array2<F>, Array2<F>) 
 /// QZ algorithm: compute generalised Schur form of (A, B).
 /// Returns (S, T, Q, Z) such that Q^T A Z = S and Q^T B Z = T,
 /// with S upper quasi-triangular and T upper triangular.
+#[allow(clippy::type_complexity)]
 fn qz_algorithm<F: PencilFloat>(
     a: &Array2<F>,
     b: &Array2<F>,
@@ -534,10 +515,7 @@ fn qz_algorithm<F: PencilFloat>(
 }
 
 /// Extract eigenvalues from QZ Schur form.
-fn extract_qz_eigenvalues<F: PencilFloat>(
-    s: &Array2<F>,
-    t: &Array2<F>,
-) -> Vec<Complex<F>> {
+fn extract_qz_eigenvalues<F: PencilFloat>(s: &Array2<F>, t: &Array2<F>) -> Vec<Complex<F>> {
     let n = s.nrows();
     let mut eigenvalues = Vec::with_capacity(n);
     let eps = F::epsilon() * F::from(100.0).unwrap_or(F::one());
@@ -751,9 +729,7 @@ impl<F: PencilFloat> MatrixPencil<F> {
             // Estimate rank via LU
             let (_, u, _) = lu_factor(&self.a);
             let eps = F::epsilon() * F::from(1e6).unwrap_or(F::one());
-            let rank = (0..n)
-                .filter(|&i| u[[i, i]].abs() > eps)
-                .count();
+            let rank = (0..n).filter(|&i| u[[i, i]].abs() > eps).count();
             return Ok(KroneckerResult {
                 is_regular: false,
                 finite_eigenvalues: Vec::new(),
@@ -806,6 +782,150 @@ fn array2_to_f64<F: PencilFloat>(a: &Array2<F>) -> Array2<f64> {
     out
 }
 
+/// QR iteration to extract eigenvalues of a real matrix (for standard eig Av=λv).
+/// Used as a fast path in gen_eig when B ≈ I.
+fn solve_qr_algorithm_for_geneig<F: PencilFloat>(a: &Array2<F>) -> LinalgResult<Vec<Complex<F>>> {
+    let n = a.nrows();
+    if n == 0 {
+        return Ok(Vec::new());
+    }
+    if n == 1 {
+        return Ok(vec![Complex::new(a[[0, 0]], F::zero())]);
+    }
+
+    let max_iter = 500;
+    let tol = F::epsilon() * F::from(100.0).unwrap_or(F::one());
+    let mut ak = a.clone();
+
+    for _iter in 0..max_iter {
+        // Wilkinson shift: use eigenvalue of bottom-right 2×2 submatrix closest to ak[n-1,n-1]
+        let shift = if n >= 2 {
+            let a11 = ak[[n - 2, n - 2]];
+            let a12 = ak[[n - 2, n - 1]];
+            let a21 = ak[[n - 1, n - 2]];
+            let a22 = ak[[n - 1, n - 1]];
+            let tr = a11 + a22;
+            let det = a11 * a22 - a12 * a21;
+            let two = F::one() + F::one();
+            let four = two + two;
+            let disc = tr * tr - four * det;
+            if disc >= F::zero() {
+                let sq = disc.sqrt();
+                let mu1 = (tr + sq) / two;
+                let mu2 = (tr - sq) / two;
+                if (mu1 - a22).abs() < (mu2 - a22).abs() {
+                    mu1
+                } else {
+                    mu2
+                }
+            } else {
+                ak[[n - 1, n - 1]]
+            }
+        } else {
+            ak[[0, 0]]
+        };
+
+        // Shift: A_k - shift*I
+        for i in 0..n {
+            ak[[i, i]] -= shift;
+        }
+
+        // QR decomposition via Gram-Schmidt
+        let (q, r) = gram_schmidt_qr(&ak)?;
+
+        // A_{k+1} = R * Q + shift * I
+        ak = matmul(&r, &q)?;
+        for i in 0..n {
+            ak[[i, i]] += shift;
+        }
+
+        // Check convergence: subdiagonals all small
+        let mut converged = true;
+        for i in 1..n {
+            let scale = ak[[i - 1, i - 1]].abs().max(ak[[i, i]].abs()).max(F::one());
+            if ak[[i, i - 1]].abs() > tol * scale {
+                converged = false;
+                break;
+            }
+        }
+        if converged {
+            break;
+        }
+    }
+
+    // Extract eigenvalues from quasi-upper-triangular result
+    let two = F::one() + F::one();
+    let four = two + two;
+    let mut eigenvalues = Vec::with_capacity(n);
+    let mut i = 0;
+    while i < n {
+        if i + 1 < n {
+            let sub = ak[[i + 1, i]].abs();
+            let scale = ak[[i, i]].abs().max(ak[[i + 1, i + 1]].abs()).max(F::one());
+            if sub > tol * scale {
+                // 2×2 block: complex conjugate pair
+                let tr = ak[[i, i]] + ak[[i + 1, i + 1]];
+                let det = ak[[i, i]] * ak[[i + 1, i + 1]] - ak[[i, i + 1]] * ak[[i + 1, i]];
+                let disc = tr * tr - four * det;
+                if disc < F::zero() {
+                    let sq = (-disc).sqrt();
+                    eigenvalues.push(Complex::new(tr / two, sq / two));
+                    eigenvalues.push(Complex::new(tr / two, -(sq / two)));
+                } else {
+                    let sq = disc.sqrt();
+                    eigenvalues.push(Complex::new((tr + sq) / two, F::zero()));
+                    eigenvalues.push(Complex::new((tr - sq) / two, F::zero()));
+                }
+                i += 2;
+                continue;
+            }
+        }
+        eigenvalues.push(Complex::new(ak[[i, i]], F::zero()));
+        i += 1;
+    }
+    Ok(eigenvalues)
+}
+
+/// Gram-Schmidt QR decomposition for use in the QR iteration.
+fn gram_schmidt_qr<F: PencilFloat>(a: &Array2<F>) -> LinalgResult<(Array2<F>, Array2<F>)> {
+    let n = a.nrows();
+    let m = a.ncols();
+    let mut q = Array2::<F>::zeros((n, m));
+    let mut r = Array2::<F>::zeros((m, m));
+
+    for j in 0..m {
+        let mut v: Vec<F> = (0..n).map(|i| a[[i, j]]).collect();
+        // Orthogonalize against already-computed columns of Q
+        for k in 0..j {
+            let dot: F = (0..n)
+                .map(|i| q[[i, k]] * v[i])
+                .fold(F::zero(), |acc, x| acc + x);
+            r[[k, j]] = dot;
+            for i in 0..n {
+                v[i] -= dot * q[[i, k]];
+            }
+        }
+        let norm: F = v
+            .iter()
+            .map(|&x| x * x)
+            .fold(F::zero(), |acc, x| acc + x)
+            .sqrt();
+        r[[j, j]] = norm;
+        if norm > F::epsilon() * F::from(10.0).unwrap_or(F::one()) {
+            for i in 0..n {
+                q[[i, j]] = v[i] / norm;
+            }
+        } else {
+            // Near-zero column: keep orthogonal with unit vector
+            if j < n {
+                q[[j, j]] = F::one();
+            }
+        }
+    }
+    Ok((q, r))
+}
+
+#[allow(clippy::type_complexity)]
 fn qz_algorithm_f64(
     a: &Array2<f64>,
     b: &Array2<f64>,
@@ -853,14 +973,42 @@ pub fn gen_eig<F: PencilFloat + std::fmt::Debug + std::fmt::Display>(
 ) -> LinalgResult<GenEigResult<F>> {
     let n = a.nrows();
     if a.ncols() != n {
-        return Err(LinalgError::ShapeError(
-            "gen_eig: A must be square".into(),
-        ));
+        return Err(LinalgError::ShapeError("gen_eig: A must be square".into()));
     }
     if b.nrows() != n || b.ncols() != n {
         return Err(LinalgError::ShapeError(
             "gen_eig: B must have the same shape as A".into(),
         ));
+    }
+
+    // Fast path: if B ≈ I, the generalized eigenvalue problem reduces to
+    // the standard eigenvalue problem A v = λ v.  We detect B ≈ I by checking
+    // that all diagonal entries are ≈ 1 and all off-diagonal entries are ≈ 0.
+    let tol_id = F::epsilon() * F::from(1000.0).unwrap_or(F::one());
+    let b_is_identity = {
+        let mut ok = true;
+        'outer: for i in 0..n {
+            for j in 0..n {
+                let expected = if i == j { F::one() } else { F::zero() };
+                if (b[[i, j]] - expected).abs() > tol_id {
+                    ok = false;
+                    break 'outer;
+                }
+            }
+        }
+        ok
+    };
+
+    if b_is_identity {
+        // Use the QR eigenvalue algorithm directly on A (avoids QZ which is
+        // less stable when B is identity).
+        let a_owned = a.to_owned();
+        let eigenvalues = solve_qr_algorithm_for_geneig(&a_owned)?;
+        return Ok(GenEigResult {
+            eigenvalues,
+            right_vecs: None,
+            left_vecs: None,
+        });
     }
 
     let a_owned = a.to_owned();
@@ -1235,11 +1383,7 @@ mod tests {
         let b = array![[1.0_f64, 0.0], [0.0, 1.0]];
         let res = gen_eig(&a.view(), &b.view()).expect("gen_eig");
         assert_eq!(res.eigenvalues.len(), 2);
-        let mut evs: Vec<f64> = res
-            .eigenvalues
-            .iter()
-            .map(|e| e.re)
-            .collect();
+        let mut evs: Vec<f64> = res.eigenvalues.iter().map(|e| e.re).collect();
         evs.sort_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
         assert_relative_eq!(evs[0], 2.0, epsilon = 0.2);
         assert_relative_eq!(evs[1], 4.0, epsilon = 0.2);

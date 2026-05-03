@@ -448,22 +448,26 @@ where
 
         // Forward orthogonalization
         for i in 0..cores.len() - 1 {
-            // Reshape core tensor to a matrix
+            // Reshape core tensor to a matrix.
+            // Use as_standard_layout() to ensure C-order before reshape, because cores may
+            // have been assigned from QR outputs that produce Fortran-layout arrays.
             let core = &cores[i];
             let (r1, n, r2) = (core.shape()[0], core.shape()[1], core.shape()[2]);
             let core_mat = core
-                .clone()
+                .as_standard_layout()
+                .to_owned()
                 .into_shape_with_order((r1 * n, r2))
                 .map_err(|e| LinalgError::ComputationError(format!("Reshape error: {}", e)))?;
 
             // QR decomposition
             let (q, r) = qr_decomposition(&core_mat)?;
 
-            // Get the shape value before moving q
+            // q may be in Fortran order (from q.t().to_owned() in lapack QR),
+            // so ensure standard layout before reshaping.
             let qshape1 = q.shape()[1];
-
-            // Update the current core
             cores[i] = q
+                .as_standard_layout()
+                .to_owned()
                 .into_shape_with_order((r1, n, qshape1))
                 .map_err(|e| LinalgError::ComputationError(format!("Reshape error: {}", e)))?;
 
@@ -477,7 +481,8 @@ where
 
             // Contract R with the next core
             let next_core_mat = next_core
-                .clone()
+                .as_standard_layout()
+                .to_owned()
                 .into_shape_with_order((next_r1, next_n * next_r2))
                 .map_err(|e| LinalgError::ComputationError(format!("Reshape error: {}", e)))?;
 
@@ -489,11 +494,14 @@ where
 
         // Backward truncation and orthogonalization
         for i in (1..cores.len()).rev() {
-            // Reshape core tensor to a matrix
+            // Reshape core tensor to a matrix.
+            // Use as_standard_layout() to ensure C-order before reshape, because cores may have
+            // been assigned from QR/SVD outputs that produce Fortran-layout arrays via .t().to_owned().
             let core = &cores[i];
             let (r1, n, r2) = (core.shape()[0], core.shape()[1], core.shape()[2]);
             let core_mat = core
-                .clone()
+                .as_standard_layout()
+                .to_owned()
                 .into_shape_with_order((r1, n * r2))
                 .map_err(|e| LinalgError::ComputationError(format!("Reshape error: {}", e)))?;
 
@@ -501,31 +509,43 @@ where
             let (u, s, vt) = svd_with_truncation(&core_mat, epsilon)?;
 
             // Update ranks
-            ranks[i] = u.shape()[1];
+            let new_rank = u.shape()[1];
+            ranks[i] = new_rank;
 
-            // Update the current core
+            // Update the current core — vt may be in Fortran order (from v.t().to_owned() in SVD),
+            // so ensure standard layout before reshaping.
             cores[i] = vt
-                .into_shape_with_order((u.shape()[1], n, r2))
+                .as_standard_layout()
+                .to_owned()
+                .into_shape_with_order((new_rank, n, r2))
                 .map_err(|e| LinalgError::ComputationError(format!("Reshape error: {}", e)))?;
 
             // Update the previous core
             let prev_core = &cores[i - 1];
-            let (prev_r1, prev_n, prev_r2) = (
+            let (prev_r1, prev_n, _prev_r2) = (
                 prev_core.shape()[0],
                 prev_core.shape()[1],
                 prev_core.shape()[2],
             );
 
-            // Contract u*s with the previous core
-            let u_s = Array2::from_diag(&s).dot(&u.t());
+            // Contract U·S with the previous core (standard TT-SVD backward sweep).
+            // u has shape (r1, new_rank), diag(s) has shape (new_rank, new_rank),
+            // so u_s = u.dot(diag(s)) has shape (r1, new_rank).
+            // prev_core_mat has shape (prev_r1*prev_n, r1), so the result is
+            // (prev_r1*prev_n, new_rank), which reshapes to (prev_r1, prev_n, new_rank).
+            let u_s = u
+                .as_standard_layout()
+                .to_owned()
+                .dot(&Array2::from_diag(&s));
             let prev_core_mat = prev_core
-                .clone()
-                .into_shape_with_order((prev_r1 * prev_n, prev_r2))
+                .as_standard_layout()
+                .to_owned()
+                .into_shape_with_order((prev_r1 * prev_n, r1))
                 .map_err(|e| LinalgError::ComputationError(format!("Reshape error: {}", e)))?;
 
             let updated_prev_core = prev_core_mat.dot(&u_s);
             cores[i - 1] = updated_prev_core
-                .into_shape_with_order((prev_r1, prev_n, u.shape()[1]))
+                .into_shape_with_order((prev_r1, prev_n, new_rank))
                 .map_err(|e| LinalgError::ComputationError(format!("Reshape error: {}", e)))?;
         }
 
@@ -905,7 +925,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "SVD fails for small matrices due to unimplemented eigendecomposition"]
     fn test_tensor_train_decomposition_with_truncation() {
         // Create a 4x3x2x2 tensor with some structure
         let mut tensor = ArrayD::<f64>::zeros(scirs2_core::ndarray::IxDyn(&[4, 3, 2, 2]));
@@ -973,7 +992,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "SVD fails for small matrices due to unimplemented eigendecomposition"]
     fn test_round_tensor_train() {
         // Create a 3x4x3x2 tensor
         let mut tensor = ArrayD::<f64>::zeros(scirs2_core::ndarray::IxDyn(&[3, 4, 3, 2]));

@@ -43,7 +43,6 @@ quickcheck_macros = { workspace = true }
 rand = { workspace = true }
 approx = { workspace = true }
 proptest = { workspace = true }
-scirs2-optimize = { path = "../scirs2-optimize", default-features = false }
 
 [features]
 default = []

@@ -338,8 +338,16 @@ where
     }
 
     // Two-sided function evaluations
-    let x_fwd: Array1<f64> = x.iter().zip(delta.iter()).map(|(&xi, &di)| xi + ck * di).collect();
-    let x_bwd: Array1<f64> = x.iter().zip(delta.iter()).map(|(&xi, &di)| xi - ck * di).collect();
+    let x_fwd: Array1<f64> = x
+        .iter()
+        .zip(delta.iter())
+        .map(|(&xi, &di)| xi + ck * di)
+        .collect();
+    let x_bwd: Array1<f64> = x
+        .iter()
+        .zip(delta.iter())
+        .map(|(&xi, &di)| xi - ck * di)
+        .collect();
     let f_fwd = f(&x_fwd.view());
     let f_bwd = f(&x_bwd.view());
 

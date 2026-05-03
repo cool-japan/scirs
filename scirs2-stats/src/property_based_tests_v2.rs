@@ -7,7 +7,7 @@
 use crate::error::{StatsError, StatsResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::numeric::{Float, NumCast, One, Zero};
-use scirs2_core::random::{rngs::StdRng, rng, Rng, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, rng, Rng, RngExt, SeedableRng};
 use scirs2_core::{
     parallel_ops::*,
     simd_ops::SimdUnifiedOps,
@@ -145,12 +145,13 @@ where
     pub fn new(config: PropertyTestConfig) -> Self {
         let rng = match config.seed {
             Some(seed) => StdRng::seed_from_u64(seed),
-            None => StdRng::from_rng(scirs2_core::random::thread_rng()),
+            None => StdRng::from_rng(&mut scirs2_core::random::thread_rng()),
         };
 
         Self {
             config,
-            rng_phantom: PhantomData,
+            rng,
+            phantom: PhantomData,
         }
     }
 
@@ -916,7 +917,7 @@ where
     }
 
     fn compile_test_results(
-        &self..results: Vec<PropertyTestResult>,
+        &self, results: Vec<PropertyTestResult>,
         total_duration: std::time::Duration,) -> TestSuiteResult {
         let total_tests = results.len();
         let passed_tests = results.iter().filter(|r| r.status == TestStatus::Pass).count();

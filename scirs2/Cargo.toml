@@ -50,10 +50,13 @@ scirs2-datasets = { workspace = true, optional = true }
 scirs2-graph = { workspace = true, optional = true }
 scirs2-vision = { workspace = true, optional = true }
 scirs2-autograd = { workspace = true, optional = true }
+scirs2-wasm = { workspace = true, optional = true }
+scirs2-symbolic = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
 criterion = { workspace = true }
+trybuild = { workspace = true }
 
 [features]
 default = ["standard"]
@@ -107,11 +110,24 @@ autograd = ["dep:scirs2-autograd"]
 
 # --- v0.4.2 feature groups ---
 
-# Gates GPU-accelerated paths when CUDA kernels land (future)
-cuda = []
+# Gates GPU-accelerated paths in sub-crates that declare the `cuda` feature.
+# When scirs2-cuda platform crates land, add them here.
+cuda = [
+    "scirs2-core/cuda",
+    "scirs2-linalg?/cuda",
+    "scirs2-fft?/cuda",
+    "scirs2-cluster?/cuda",
+    "scirs2-spatial?/cuda",
+    "scirs2-ndimage?/cuda",
+]
 
-# AMD GPU acceleration (future)
-rocm = []
+# AMD GPU acceleration — propagates to sub-crates with a `rocm` feature.
+rocm = [
+    "scirs2-core/rocm",
+    "scirs2-linalg?/rocm",
+    "scirs2-cluster?/rocm",
+    "scirs2-spatial?/rocm",
+]
 
 # Cluster/distributed computing abstractions via scirs2-core
 distributed = ["scirs2-core/array_protocol_distributed"]
@@ -119,14 +135,20 @@ distributed = ["scirs2-core/array_protocol_distributed"]
 # JAX-style JIT functional transformations — requires autograd
 jit = ["autograd"]
 
-# iOS Metal + Android NNAPI gated paths (future)
-mobile = []
+# Mobile-optimized build: iOS Metal + Android NNAPI gated paths.
+# Enables Metal backend in scirs2-core on Apple platforms.
+mobile = [
+    "scirs2-core/metal",
+]
 
 # Neural architecture re-exports under scirs2::nn
 nn = ["neural"]
 
-# Planned scirs2-symbolic crate integration (future)
-symbolic = []
+# Symbolic math — expression trees, differentiation, simplification
+symbolic = ["dep:scirs2-symbolic"]
 
 # Expose benchmark helpers from scirs2-datasets
 benchmarks = ["datasets"]
+
+# WebAssembly bindings — re-exports scirs2-wasm as scirs2::wasm
+wasm = ["dep:scirs2-wasm"]

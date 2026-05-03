@@ -17,6 +17,7 @@ pub mod config;
 pub mod consensus;
 pub mod fault_tolerance;
 pub mod sharding;
+pub mod transport;
 
 // Re-export main types for easier access
 pub use config::*;

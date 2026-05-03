@@ -365,7 +365,11 @@ pub fn hautus_controllability_check<F: StabilityFloat>(
         let mut mat = Array2::<F>::zeros((n, n + m));
         for r in 0..n {
             for c in 0..n {
-                mat[[r, c]] = if r == c { lambda - a_owned[[r, c]] } else { -a_owned[[r, c]] };
+                mat[[r, c]] = if r == c {
+                    lambda - a_owned[[r, c]]
+                } else {
+                    -a_owned[[r, c]]
+                };
             }
             for c in 0..m {
                 mat[[r, n + c]] = b_owned[[r, c]];
@@ -407,7 +411,11 @@ pub fn hautus_observability_check<F: StabilityFloat>(
         let mut mat = Array2::<F>::zeros((n + p, n));
         for r in 0..n {
             for c in 0..n {
-                mat[[r, c]] = if r == c { lambda - a_owned[[r, c]] } else { -a_owned[[r, c]] };
+                mat[[r, c]] = if r == c {
+                    lambda - a_owned[[r, c]]
+                } else {
+                    -a_owned[[r, c]]
+                };
             }
         }
         for r in 0..p {
@@ -548,7 +556,11 @@ fn hessenberg_inplace<F: StabilityFloat>(h: &mut Array2<F>, n: usize) {
             continue;
         }
         let norm = norm_sq.sqrt();
-        let sign = if v[0] >= F::zero() { F::one() } else { -F::one() };
+        let sign = if v[0] >= F::zero() {
+            F::one()
+        } else {
+            -F::one()
+        };
         v[0] += sign * norm;
         let norm2_sq: F = v.iter().map(|&x| x * x).sum();
         if norm2_sq < F::from(1e-28).unwrap_or(F::epsilon()) {
@@ -599,10 +611,14 @@ fn francis_qr_step<F: StabilityFloat>(h: &mut Array2<F>, active: usize) {
 
     let x = h00 * h00 + h[[0, 1]] * h10 - trace * h00 + det;
     let y = h10 * (h00 + h[[1, 1]] - trace);
-    let z = if active > 2 { h10 * h[[2, 1]] } else { F::zero() };
+    let z = if active > 2 {
+        h10 * h[[2, 1]]
+    } else {
+        F::zero()
+    };
 
     // Chase the bulge with Householder reflectors
-    let limit = if active > 2 { active - 2 } else { 0 };
+    let limit = active.saturating_sub(2);
     for k in 0..=limit {
         let v0;
         let v1;
@@ -628,9 +644,7 @@ fn francis_qr_step<F: StabilityFloat>(h: &mut Array2<F>, active: usize) {
             };
         }
 
-        let norm_sq = v0 * v0
-            + v1 * v1
-            + v2_opt.map_or(F::zero(), |v| v * v);
+        let norm_sq = v0 * v0 + v1 * v1 + v2_opt.map_or(F::zero(), |v| v * v);
         if norm_sq < F::from(1e-28).unwrap_or(F::epsilon()) {
             continue;
         }
@@ -677,8 +691,8 @@ mod tests {
     #[test]
     fn test_controllability_matrix_double_integrator() {
         let (a, b) = double_integrator();
-        let ctrl = controllability_matrix(&a.view(), &b.view())
-            .expect("controllability_matrix failed");
+        let ctrl =
+            controllability_matrix(&a.view(), &b.view()).expect("controllability_matrix failed");
         // Expected: [B | AB] = [[0,1],[1,0]]
         assert_eq!(ctrl.nrows(), 2);
         assert_eq!(ctrl.ncols(), 2);
@@ -709,8 +723,7 @@ mod tests {
         // A=[[0,1],[0,0]], C=[[1,0]] (observe position)
         let a = array![[0.0_f64, 1.0], [0.0, 0.0]];
         let c = array![[1.0_f64, 0.0]];
-        let obs = observability_matrix(&a.view(), &c.view())
-            .expect("observability_matrix failed");
+        let obs = observability_matrix(&a.view(), &c.view()).expect("observability_matrix failed");
         // Expected: [C; CA] = [[1,0],[0,1]]
         assert_eq!(obs.nrows(), 2);
         assert_eq!(obs.ncols(), 2);
@@ -742,8 +755,8 @@ mod tests {
         // Stable 2x2 system: A=diag(-1,-2), B=I
         let a = array![[-1.0_f64, 0.0], [0.0, -2.0]];
         let b = array![[1.0_f64, 0.0], [0.0, 1.0]];
-        let wc = controllability_gramian(&a.view(), &b.view())
-            .expect("controllability_gramian failed");
+        let wc =
+            controllability_gramian(&a.view(), &b.view()).expect("controllability_gramian failed");
         // W_c should be positive definite: diagonal entries > 0
         assert!(wc[[0, 0]] > 0.0, "W_c[0,0] must be positive");
         assert!(wc[[1, 1]] > 0.0, "W_c[1,1] must be positive");
@@ -759,8 +772,7 @@ mod tests {
     fn test_observability_gramian_stable() {
         let a = array![[-1.0_f64, 0.0], [0.0, -2.0]];
         let c = array![[1.0_f64, 0.0], [0.0, 1.0]];
-        let wo = observability_gramian(&a.view(), &c.view())
-            .expect("observability_gramian failed");
+        let wo = observability_gramian(&a.view(), &c.view()).expect("observability_gramian failed");
         assert!(wo[[0, 0]] > 0.0, "W_o[0,0] must be positive");
         // Verify: Aᵀ W_o + W_o A + Cᵀ C ≈ 0
         let q = mm(&c.t().to_owned(), &c);
@@ -775,8 +787,8 @@ mod tests {
     fn test_controllability_measure() {
         let a = array![[-1.0_f64, 0.0], [0.0, -2.0]];
         let b = array![[1.0_f64, 0.0], [0.0, 1.0]];
-        let measure = controllability_measure(&a.view(), &b.view())
-            .expect("controllability_measure failed");
+        let measure =
+            controllability_measure(&a.view(), &b.view()).expect("controllability_measure failed");
         assert!(measure > 0.0, "Controllability measure should be positive");
     }
 }

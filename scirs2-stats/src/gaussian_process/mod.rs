@@ -78,6 +78,7 @@
 //! gpr.fit(&x_train, &y_train).expect("Operation failed");
 //! ```
 
+pub mod extended;
 pub mod gp;
 pub mod kernel;
 pub mod prior;

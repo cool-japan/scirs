@@ -36,6 +36,7 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use scirs2_core::ndarray;
 use scirs2_core::ndarray::{Array, Array2, ArrayView2, ArrayViewMut2, Axis, Ix2};
 use scirs2_core::numeric::{Float, FromPrimitive, NumCast, Zero};
 
@@ -149,7 +150,8 @@ impl<T: Float + FromPrimitive + Clone> MappedImage<T> {
 
             // Convert bytes to T values
             for i in 0..region_cols {
-                let value = self.bytes_to_value(&row_buffer[i * element_size..(i + 1) * element_size])?;
+                let value =
+                    self.bytes_to_value(&row_buffer[i * element_size..(i + 1) * element_size])?;
                 data.push(value);
             }
         }
@@ -193,8 +195,7 @@ impl<T: Float + FromPrimitive + Clone> MappedImage<T> {
                 let bytes = self.value_to_bytes(data[[local_row, col]]);
                 row_buffer.extend_from_slice(&bytes);
             }
-            file.write_all(&row_buffer)
-                .map_err(NdimageError::IoError)?;
+            file.write_all(&row_buffer).map_err(NdimageError::IoError)?;
         }
 
         Ok(())
@@ -237,16 +238,14 @@ impl<T: Float + FromPrimitive + Clone> MappedImage<T> {
             let arr: [u8; 8] = bytes.try_into().map_err(|_| {
                 NdimageError::ComputationError("Failed to convert bytes to f64".into())
             })?;
-            T::from_f64(f64::from_le_bytes(arr)).ok_or_else(|| {
-                NdimageError::ComputationError("Failed to convert f64 to T".into())
-            })
+            T::from_f64(f64::from_le_bytes(arr))
+                .ok_or_else(|| NdimageError::ComputationError("Failed to convert f64 to T".into()))
         } else if element_size == 4 {
             let arr: [u8; 4] = bytes.try_into().map_err(|_| {
                 NdimageError::ComputationError("Failed to convert bytes to f32".into())
             })?;
-            T::from_f32(f32::from_le_bytes(arr)).ok_or_else(|| {
-                NdimageError::ComputationError("Failed to convert f32 to T".into())
-            })
+            T::from_f32(f32::from_le_bytes(arr))
+                .ok_or_else(|| NdimageError::ComputationError("Failed to convert f32 to T".into()))
         } else {
             Err(NdimageError::InvalidInput(format!(
                 "Unsupported element size: {}",
@@ -613,10 +612,8 @@ impl<T: Float + FromPrimitive + Clone + Send + Sync + Zero + 'static> StreamingP
                 let src_row = i + (chunk_start - read_start);
                 if src_row + nrows <= chunk.nrows() {
                     for j in 0..(cols - ncols + 1) {
-                        let neighborhood = chunk.slice(ndarray::s![
-                            src_row..src_row + nrows,
-                            j..j + ncols
-                        ]);
+                        let neighborhood =
+                            chunk.slice(ndarray::s![src_row..src_row + nrows, j..j + ncols]);
                         result[[i, j]] = op(&neighborhood);
                     }
                 }
@@ -707,8 +704,9 @@ mod tests {
 
     #[test]
     fn test_lazy_transform_array() {
-        let input = Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
-            .expect("Shape should be valid");
+        let input =
+            Array2::from_shape_vec((3, 3), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0])
+                .expect("Shape should be valid");
 
         let transform = LazyTransform::new().map(|x: f64| x * 2.0);
         let output = transform.apply(&input.view());
@@ -726,8 +724,8 @@ mod tests {
         let data = Array2::<f64>::from_shape_fn((10, 10), |(i, j)| (i * 10 + j) as f64);
 
         // Write to mapped image
-        let mapped = MappedImage::from_array(&temp_path, &data.view())
-            .expect("Should create mapped image");
+        let mapped =
+            MappedImage::from_array(&temp_path, &data.view()).expect("Should create mapped image");
 
         // Read back
         let read_data = mapped.to_array().expect("Should read array");
@@ -746,11 +744,13 @@ mod tests {
         let data = Array2::<f64>::from_shape_fn((20, 20), |(i, j)| (i * 20 + j) as f64);
 
         // Write to mapped image
-        let mapped = MappedImage::from_array(&temp_path, &data.view())
-            .expect("Should create mapped image");
+        let mapped =
+            MappedImage::from_array(&temp_path, &data.view()).expect("Should create mapped image");
 
         // Read a region
-        let region = mapped.read_region(5..10, 5..15).expect("Should read region");
+        let region = mapped
+            .read_region(5..10, 5..15)
+            .expect("Should read region");
 
         assert_eq!(region.shape(), &[5, 10]);
         assert_eq!(region[[0, 0]], 5.0 * 20.0 + 5.0);
@@ -812,12 +812,14 @@ mod tests {
         let data = Array2::<f64>::ones((100, 100));
 
         // Write to mapped image
-        let mapped = MappedImage::from_array(&temp_path, &data.view())
-            .expect("Should create mapped image");
+        let mapped =
+            MappedImage::from_array(&temp_path, &data.view()).expect("Should create mapped image");
 
         // Apply chunked transform
         let transform = LazyTransform::new().map(|x: f64| x * 2.0);
-        let result = transform.apply_chunked(&mapped, 10).expect("Should apply transform");
+        let result = transform
+            .apply_chunked(&mapped, 10)
+            .expect("Should apply transform");
 
         // Verify result
         for val in result.iter() {

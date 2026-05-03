@@ -74,38 +74,20 @@ pub mod pareto;
 
 // ── hypervolume module re-exports ────────────────────────────────────────────
 pub use hypervolume::{
-    exclusive_hypervolume,
-    hypervolume_2d as hv_2d,
-    hypervolume_3d,
-    hypervolume_contribution_wfg,
+    exclusive_hypervolume, hypervolume_2d as hv_2d, hypervolume_3d, hypervolume_contribution_wfg,
     hypervolume_wfg,
 };
 
 // ── indicators module re-exports ──────────────────────────────────────────────
 pub use indicators::{
-    additive_epsilon_indicator,
-    delta_metric,
-    dominates,
-    generational_distance,
-    hypervolume_2d,
-    hypervolume_contribution,
-    hypervolume_mc,
-    igd,
-    igd_plus,
-    non_dominated_sort,
-    r2_indicator,
-    spacing_metric,
-    spread,
-    R2Utility,
+    additive_epsilon_indicator, delta_metric, dominates, generational_distance, hypervolume_2d,
+    hypervolume_contribution, hypervolume_mc, igd, igd_plus, non_dominated_sort, r2_indicator,
+    spacing_metric, spread, R2Utility,
 };
 
 // ── MOEA/D re-exports ─────────────────────────────────────────────────────────
 pub use moead::{
-    build_neighborhood,
-    generate_weight_vectors,
-    moead,
-    tchebycheff_scalarization,
-    MoeadConfig,
+    build_neighborhood, generate_weight_vectors, moead, tchebycheff_scalarization, MoeadConfig,
     MoeadResult,
 };
 
@@ -114,28 +96,14 @@ pub use nsga2::{nsga2, Individual, Nsga2Config, Nsga2Result};
 
 // ── NSGA-III re-exports ───────────────────────────────────────────────────────
 pub use nsga3::{
-    adapt_reference_points,
-    associate_to_reference_points,
-    generate_reference_points,
-    generate_reference_points_inner,
-    nsga3,
-    reference_line_distance,
-    Nsga3Config,
-    Nsga3Result,
+    adapt_reference_points, associate_to_reference_points, generate_reference_points,
+    generate_reference_points_inner, nsga3, reference_line_distance, Nsga3Config, Nsga3Result,
 };
 
 // ── pareto module re-exports ──────────────────────────────────────────────────
 pub use pareto::{
-    crowding_distance,
-    dominates as pareto_dominates,
-    epsilon_indicator,
-    generational_distance as pareto_gd,
-    hypervolume_2d as pareto_hv2d,
-    hypervolume_indicator as pareto_hv,
-    igd as pareto_igd,
-    non_dominated_sort as pareto_nds,
-    pareto_front,
-    pareto_front_2d,
-    pareto_rank,
-    spread_metric,
+    crowding_distance, dominates as pareto_dominates, epsilon_indicator,
+    generational_distance as pareto_gd, hypervolume_2d as pareto_hv2d,
+    hypervolume_indicator as pareto_hv, igd as pareto_igd, non_dominated_sort as pareto_nds,
+    pareto_front, pareto_front_2d, pareto_rank, spread_metric,
 };

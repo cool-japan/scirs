@@ -3,7 +3,7 @@
 //! This module provides specialized solvers for tridiagonal matrices,
 //! which are much faster than general eigenvalue solvers.
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ScalarOperand};
 use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
@@ -28,7 +28,7 @@ pub fn tridiagonal_eigvalsh<F>(
     off_diagonal: &ArrayView1<F>,
 ) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = diagonal.len();
 
@@ -174,7 +174,7 @@ pub fn tridiagonal_eigh<F>(
     off_diagonal: &ArrayView1<F>,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = diagonal.len();
 
@@ -222,7 +222,9 @@ where
         let mut is_converged = true;
         for i in 0..n {
             for j in 0..n {
-                if i != j && temp[[i, j]].abs() > F::epsilon() * F::from(100.0).expect("Operation failed") {
+                if i != j
+                    && temp[[i, j]].abs() > F::epsilon() * F::from(100.0).expect("Operation failed")
+                {
                     is_converged = false;
                     break;
                 }
@@ -244,7 +246,11 @@ where
 
             // Sort eigenvalues and corresponding eigenvectors
             let mut indices: Vec<usize> = (0..n).collect();
-            indices.sort_by(|&i, &j| eigenvalues[i].partial_cmp(&eigenvalues[j]).expect("Operation failed"));
+            indices.sort_by(|&i, &j| {
+                eigenvalues[i]
+                    .partial_cmp(&eigenvalues[j])
+                    .expect("Operation failed")
+            });
 
             let mut sorted_eigenvalues = Array1::zeros(n);
             let mut sorted_eigenvectors = Array2::zeros((n, n));

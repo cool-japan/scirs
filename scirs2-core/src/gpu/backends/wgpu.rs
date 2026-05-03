@@ -30,6 +30,62 @@ type WgpuBuffer = *mut std::ffi::c_void;
 #[cfg(not(feature = "wgpu_backend"))]
 type WgpuComputePipeline = *mut std::ffi::c_void;
 
+/// A compiled WebGPU compute pipeline, containing all state needed to dispatch a compute shader.
+///
+/// Created by [`try_compile_wgsl`]. On hosts without a GPU adapter this is never constructed
+/// and that function returns an error instead.
+#[cfg(feature = "wgpu_backend")]
+pub struct WgpuComputePipeline {
+    /// The underlying wgpu compute pipeline.
+    pub pipeline: ComputePipeline,
+    /// The bind group layout derived from WGSL source inspection.
+    pub bind_group_layout: BindGroupLayout,
+    /// Workgroup size extracted from the `@workgroup_size(...)` attribute; defaults to `[64, 1, 1]`.
+    pub workgroup_size: [u32; 3],
+}
+
+#[cfg(feature = "wgpu_backend")]
+// SAFETY: wgpu's `ComputePipeline` and `BindGroupLayout` are `Send + Sync` on all native backends.
+unsafe impl Send for WgpuComputePipeline {}
+#[cfg(feature = "wgpu_backend")]
+unsafe impl Sync for WgpuComputePipeline {}
+
+/// Attempt to compile `source` as a WGSL compute shader and return a [`WgpuComputePipeline`].
+///
+/// # Errors
+/// - Returns an error if no wgpu adapter is available on the host (e.g. headless CI without GPU).
+/// - Returns an error if `source` contains invalid WGSL (wgpu panics on truly invalid WGSL;
+///   syntactically valid but semantically broken shaders will fail at pipeline creation).
+///
+/// # Example
+/// ```rust,no_run
+/// # #[cfg(feature = "wgpu_backend")]
+/// # {
+/// use scirs2_core::gpu::backends::try_compile_wgsl;
+/// let pipeline = try_compile_wgsl(r#"
+///     @group(0) @binding(0) var<storage, read_write> out: array<f32>;
+///     @compute @workgroup_size(64)
+///     fn main(@builtin(global_invocation_id) gid: vec3<u32>) { out[gid.x] = f32(gid.x); }
+/// "#).expect("shader compiled");
+/// let _ = pipeline;
+/// # }
+/// ```
+#[cfg(feature = "wgpu_backend")]
+pub fn try_compile_wgsl(source: &str) -> Result<WgpuComputePipeline, GpuError> {
+    let ctx = WebGPUContext::new()?;
+    ctx.compile_to_pipeline(source)
+}
+
+/// Run a vector-add compute shader end-to-end on the GPU.
+///
+/// Uploads `a` and `b` to device buffers, dispatches the WGSL kernel, then reads back the result.
+/// Returns `Ok(result_vec)` on success. Returns `Err` if no adapter is available.
+#[cfg(feature = "wgpu_backend")]
+pub fn run_vector_add_wgsl(a: &[f32], b: &[f32]) -> Result<Vec<f32>, GpuError> {
+    let ctx = WebGPUContext::new()?;
+    ctx.run_vector_add(a, b)
+}
+
 // WebGPU shader source templates
 #[allow(dead_code)]
 const ADAM_SHADER_WGSL: &str = r#"
@@ -262,11 +318,14 @@ impl WebGPUContext {
                         cache: None,
                     });
 
+            let workgroup_size = extract_workgroup_size(source);
+
             Ok(WebGPUShader {
                 pipeline: compute_pipeline,
                 bind_group_layout,
                 name: name.to_string(),
                 binding_infos,
+                workgroup_size,
             })
         }
         #[cfg(not(feature = "wgpu_backend"))]
@@ -279,6 +338,7 @@ impl WebGPUContext {
                 bind_group_layout: std::ptr::null_mut(),
                 name: name.to_string(),
                 binding_infos: Vec::new(),
+                workgroup_size: [64, 1, 1],
             })
         }
     }
@@ -455,6 +515,218 @@ impl WebGPUContext {
         Ok(0x3 as WgpuComputePipeline)
     }
 
+    /// Compile WGSL source into a [`WgpuComputePipeline`] (real-wgpu path only).
+    ///
+    /// This exposes the same compilation path as [`try_compile_wgsl`] but operates
+    /// on an already-created context so the adapter/device creation overhead is
+    /// incurred only once.
+    #[cfg(feature = "wgpu_backend")]
+    pub fn compile_to_pipeline(&self, source: &str) -> Result<WgpuComputePipeline, GpuError> {
+        let shader = self.compile_shader_internal(source, "scirs2-pipeline")?;
+        Ok(WgpuComputePipeline {
+            pipeline: shader.pipeline,
+            bind_group_layout: shader.bind_group_layout,
+            workgroup_size: shader.workgroup_size,
+        })
+    }
+
+    /// Run a vector-add end-to-end: upload `a` and `b`, dispatch, read back `result`.
+    #[cfg(feature = "wgpu_backend")]
+    pub fn run_vector_add(&self, a: &[f32], b: &[f32]) -> Result<Vec<f32>, GpuError> {
+        use wgpu::{util::DeviceExt as _, BufferUsages};
+
+        let n = a.len();
+        if n != b.len() {
+            return Err(GpuError::InvalidParameter(
+                "vectors must have equal length".into(),
+            ));
+        }
+
+        const VECTOR_ADD_WGSL: &str = r#"
+@group(0) @binding(0) var<storage, read>       a      : array<f32>;
+@group(0) @binding(1) var<storage, read>       b      : array<f32>;
+@group(0) @binding(2) var<storage, read_write> result : array<f32>;
+
+@compute @workgroup_size(64)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let idx = global_id.x;
+    if idx < arrayLength(&result) {
+        result[idx] = a[idx] + b[idx];
+    }
+}
+"#;
+
+        // Compile shader
+        let shader_module = self.device.create_shader_module(ShaderModuleDescriptor {
+            label: Some("vector-add"),
+            source: ShaderSource::Wgsl(VECTOR_ADD_WGSL.into()),
+        });
+
+        // Build bind group layout explicitly (3 storage bindings)
+        let bgl = self
+            .device
+            .create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("vector-add-bgl"),
+                entries: &[
+                    // binding 0: a (read-only storage)
+                    BindGroupLayoutEntry {
+                        binding: 0,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // binding 1: b (read-only storage)
+                    BindGroupLayoutEntry {
+                        binding: 1,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: true },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                    // binding 2: result (read-write storage)
+                    BindGroupLayoutEntry {
+                        binding: 2,
+                        visibility: ShaderStages::COMPUTE,
+                        ty: BindingType::Buffer {
+                            ty: BufferBindingType::Storage { read_only: false },
+                            has_dynamic_offset: false,
+                            min_binding_size: None,
+                        },
+                        count: None,
+                    },
+                ],
+            });
+
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: Some("vector-add-layout"),
+                bind_group_layouts: &[Some(&bgl)],
+                ..Default::default()
+            });
+
+        let pipeline = self
+            .device
+            .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("vector-add-pipeline"),
+                layout: Some(&pipeline_layout),
+                module: &shader_module,
+                entry_point: Some("main"),
+                compilation_options: Default::default(),
+                cache: None,
+            });
+
+        // Upload input buffers
+        let a_bytes: Vec<u8> = a.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let b_bytes: Vec<u8> = b.iter().flat_map(|f| f.to_le_bytes()).collect();
+        let result_size = std::mem::size_of_val(a) as u64;
+
+        let buf_a = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("vector-add-a"),
+                contents: &a_bytes,
+                usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
+            });
+        let buf_b = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("vector-add-b"),
+                contents: &b_bytes,
+                usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC,
+            });
+        let buf_result = self.device.create_buffer(&BufferDescriptor {
+            label: Some("vector-add-result"),
+            size: result_size,
+            usage: BufferUsages::STORAGE | BufferUsages::COPY_SRC | BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+
+        // Bind group
+        let bind_group = self.device.create_bind_group(&BindGroupDescriptor {
+            label: Some("vector-add-bg"),
+            layout: &bgl,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: buf_a.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 1,
+                    resource: buf_b.as_entire_binding(),
+                },
+                BindGroupEntry {
+                    binding: 2,
+                    resource: buf_result.as_entire_binding(),
+                },
+            ],
+        });
+
+        // Encode and dispatch
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("vector-add-encoder"),
+            });
+        {
+            let mut cpass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
+                label: Some("vector-add-pass"),
+                timestamp_writes: None,
+            });
+            cpass.set_pipeline(&pipeline);
+            cpass.set_bind_group(0, &bind_group, &[]);
+            let workgroups = (n as u32 + 63) / 64;
+            cpass.dispatch_workgroups(workgroups, 1, 1);
+        }
+
+        // Readback via staging buffer
+        let staging = self.device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("vector-add-staging"),
+            size: result_size,
+            usage: wgpu::BufferUsages::MAP_READ | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
+        encoder.copy_buffer_to_buffer(&buf_result, 0, &staging, 0, result_size);
+        self.queue.submit(Some(encoder.finish()));
+
+        // Poll until GPU work completes (required on native backends before map_async fires)
+        self.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| GpuError::Other(format!("GPU poll error: {e:?}")))?;
+
+        let slice = staging.slice(0..result_size);
+        let (tx, rx) = std::sync::mpsc::channel();
+        slice.map_async(wgpu::MapMode::Read, move |r| {
+            let _ = tx.send(r);
+        });
+
+        // Poll again to drive the map callback to completion
+        self.device
+            .poll(wgpu::PollType::wait_indefinitely())
+            .map_err(|e| GpuError::Other(format!("GPU poll error during map: {e:?}")))?;
+
+        rx.recv()
+            .map_err(|_| GpuError::Other("Channel closed during map_async".into()))?
+            .map_err(|e| GpuError::Other(format!("map_async failed: {e:?}")))?;
+
+        let mapped = slice.get_mapped_range();
+        let result: Vec<f32> = mapped
+            .chunks_exact(4)
+            .map(|b| f32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+            .collect();
+        drop(mapped);
+        staging.unmap();
+
+        Ok(result)
+    }
+
     /// Extract the entry point function name from WGSL source code
     fn extract_entry_point(source: &str) -> Option<&str> {
         let lines: Vec<&str> = source.lines().collect();
@@ -586,6 +858,8 @@ struct WebGPUShader {
     name: String,
     #[allow(dead_code)]
     binding_infos: Vec<BindingInfo>, // basic reflection info (names may be synthetic when parser can't extract)
+    #[allow(dead_code)]
+    workgroup_size: [u32; 3],
 }
 
 // WebGPU shader handles are safe to send between threads when properly synchronized
@@ -686,6 +960,31 @@ struct BindingInfo {
     kind: BindingKind,
 }
 
+/// Extract the `@workgroup_size(x [, y [, z]])` values from WGSL source.
+/// Returns `[64, 1, 1]` as a sensible default if the attribute is not present or unparseable.
+fn extract_workgroup_size(source: &str) -> [u32; 3] {
+    for line in source.lines() {
+        let trimmed = line.trim();
+        if let Some(start) = trimmed.find("@workgroup_size(") {
+            let after = &trimmed[start + "@workgroup_size(".len()..];
+            if let Some(end) = after.find(')') {
+                let inner = &after[..end];
+                let parts: Vec<u32> = inner
+                    .split(',')
+                    .filter_map(|s| s.trim().parse::<u32>().ok())
+                    .collect();
+                return match parts.as_slice() {
+                    [x] => [*x, 1, 1],
+                    [x, y] => [*x, *y, 1],
+                    [x, y, z, ..] => [*x, *y, *z],
+                    _ => [64, 1, 1],
+                };
+            }
+        }
+    }
+    [64, 1, 1]
+}
+
 fn extract_var_name(line: &str) -> Option<&str> {
     if let Some(var_start) = line.find("var<") {
         let after_var = &line[var_start..];
@@ -705,28 +1004,33 @@ fn extract_var_name(line: &str) -> Option<&str> {
 
 impl GpuKernelImpl for WebGPUKernelHandle {
     fn set_buffer(&self, name: &str, buffer: &Arc<dyn GpuBufferImpl>) {
-        let mut params = self.params.lock().expect("Operation failed");
-        params.insert(name.to_string(), KernelParam::Buffer(Arc::clone(buffer)));
+        if let Ok(mut params) = self.params.lock() {
+            params.insert(name.to_string(), KernelParam::Buffer(Arc::clone(buffer)));
+        }
     }
 
     fn set_u32(&self, name: &str, value: u32) {
-        let mut params = self.params.lock().expect("Operation failed");
-        params.insert(name.to_string(), KernelParam::U32(value));
+        if let Ok(mut params) = self.params.lock() {
+            params.insert(name.to_string(), KernelParam::U32(value));
+        }
     }
 
     fn set_i32(&self, name: &str, value: i32) {
-        let mut params = self.params.lock().expect("Operation failed");
-        params.insert(name.to_string(), KernelParam::I32(value));
+        if let Ok(mut params) = self.params.lock() {
+            params.insert(name.to_string(), KernelParam::I32(value));
+        }
     }
 
     fn set_f32(&self, name: &str, value: f32) {
-        let mut params = self.params.lock().expect("Operation failed");
-        params.insert(name.to_string(), KernelParam::F32(value));
+        if let Ok(mut params) = self.params.lock() {
+            params.insert(name.to_string(), KernelParam::F32(value));
+        }
     }
 
     fn set_f64(&self, name: &str, value: f64) {
-        let mut params = self.params.lock().expect("Operation failed");
-        params.insert(name.to_string(), KernelParam::F64(value));
+        if let Ok(mut params) = self.params.lock() {
+            params.insert(name.to_string(), KernelParam::F64(value));
+        }
     }
 
     #[allow(dead_code)]
@@ -736,9 +1040,15 @@ impl GpuKernelImpl for WebGPUKernelHandle {
         #[cfg(feature = "wgpu_backend")]
         {
             // Real WebGPU compute dispatch
-            let shaders = self.compiled_shaders.lock().expect("Operation failed");
+            let shaders = match self.compiled_shaders.lock() {
+                Ok(g) => g,
+                Err(_) => return,
+            };
             if let Some(shader) = shaders.get(&self.shader_name) {
-                let params = self.params.lock().expect("Operation failed");
+                let params = match self.params.lock() {
+                    Ok(g) => g,
+                    Err(_) => return,
+                };
 
                 // Create command encoder
                 let mut encoder =
@@ -760,12 +1070,8 @@ impl GpuKernelImpl for WebGPUKernelHandle {
 
                     if let Ok(bind_group) = self.create_bind_group_from_params(shader, &params) {
                         compute_pass.set_bind_group(0, &bind_group, &[]);
-                    } else {
-                        eprintln!(
-                            "Warning: Failed to create bind group for shader {}",
-                            self.shader_name
-                        );
                     }
+                    // else: bind group creation failed; dispatch will proceed but produce undefined results
 
                     // Dispatch the compute shader
                     compute_pass.dispatch_workgroups(workgroups[0], workgroups[1], workgroups[2]);
@@ -774,18 +1080,13 @@ impl GpuKernelImpl for WebGPUKernelHandle {
                 // Submit the command buffer
                 let command_buffer = encoder.finish();
                 self.queue.submit(std::iter::once(command_buffer));
-
-                eprintln!(
-                    "WebGPU compute shader {} dispatched with workgroups: {:?}",
-                    self.shader_name, workgroups
-                );
             }
         }
         #[cfg(not(feature = "wgpu_backend"))]
         {
-            // Fallback implementation - just log the execution
-            eprintln!("Executing WebGPU shader {} (simulated)", self.shader_name);
-            eprintln!("Work groups: {:?}", workgroups);
+            // Fallback: no GPU available; dispatch is a no-op
+            let _ = workgroups;
+            let _ = &self.shader_name;
         }
     }
 }
@@ -877,12 +1178,19 @@ impl GpuBufferImpl for WebGPUBuffer {
                         });
                 encoder.copy_buffer_to_buffer(buffer, 0, &staging, 0, size as u64);
                 self.queue.submit(Some(encoder.finish()));
+
+                // Poll the device until all submitted work completes before mapping.
+                // This is required on all native wgpu backends (Vulkan, Metal, DX12)
+                // to ensure the copy completes before the slice can be mapped.
+                let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
+
                 let slice = staging.slice(0..size as u64);
                 let (tx, rx) = std::sync::mpsc::channel();
                 slice.map_async(wgpu::MapMode::Read, move |r| {
                     let _ = tx.send(r);
                 });
-                // TODO: explicit device.poll if necessary for certain platforms
+                // Drive map callback to completion
+                let _ = self.device.poll(wgpu::PollType::wait_indefinitely());
                 if let Ok(Ok(())) = rx.recv() {
                     let mapped = slice.get_mapped_range();
                     let dst = std::slice::from_raw_parts_mut(data, size);

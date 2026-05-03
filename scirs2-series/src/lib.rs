@@ -36,7 +36,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-series = "0.4.2"
+//! scirs2-series = "0.4.3"
 //! ```
 //!
 //! ```rust,no_run
@@ -50,7 +50,7 @@
 //! // result.trend, result.seasonal, result.residual
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2 (March 27, 2026)
+//! ## 🔒 Version: 0.4.3 (March 27, 2026)
 //! - Change point detection
 //!   - PELT (Pruned Exact Linear Time) algorithm
 //!   - Binary segmentation
@@ -234,6 +234,7 @@ pub mod streaming;
 pub mod tests;
 pub mod transformations;
 pub mod trends;
+pub mod ts_cv;
 pub mod utils;
 pub mod validation;
 pub mod var_models;
@@ -276,6 +277,60 @@ pub mod simd_ops;
 // Optional WASM bindings for browser-based time series analysis
 #[cfg(feature = "wasm")]
 pub mod wasm_bindings;
+
+// Additional modules (previously orphaned)
+// Single-variable anomaly detection helpers
+pub mod anomaly_single;
+// BATS (Box-Cox, ARMA errors, Trend, Seasonal components) model
+pub mod bats;
+// Advanced decomposition extensions
+pub mod decomposition_advanced;
+// Ensemble forecasting (bagging, stacking, ensemble weighting)
+pub mod ensemble_forecast;
+// Forecast evaluation metrics and procedures
+pub mod evaluation;
+// Extreme Value Theory for time series
+pub mod evt;
+// Exponential smoothing models (Holt-Winters, ETS)
+pub mod exponential_smoothing;
+// Factor models for time series
+pub mod factor;
+// Frequency domain methods (periodogram, spectral density)
+pub mod frequency_domain;
+// Intermittent demand forecasting (Croston, SBA, TSB)
+pub mod intermittent;
+// Kalman filtering and smoothing
+pub mod kalman;
+// Long-memory and ARFIMA models
+pub mod long_memory;
+// Online streaming algorithms for time series
+pub mod online;
+pub mod online_algorithms;
+// Prophet-style additive model (pure-Rust)
+pub mod prophet;
+// Prophet cross-validation and diagnostics
+pub mod prophet_cv;
+// Hierarchical forecast reconciliation
+pub mod reconciliation;
+// Regime-switching and Markov-switching models
+pub mod regime;
+// Reservoir sampling for streaming data
+pub mod reservoir_sampling;
+// Spectral methods for time series
+pub mod spectral_methods;
+// State-space models (single-output Kalman, DLM)
+pub mod state_space_single;
+// State-space models (vector, Vec<Vec<f64>>-based)
+pub mod state_space_vec;
+// Structural time series (trend + seasonal + irregular)
+pub mod structural;
+// TBATS (Trigonometric, Box-Cox, ARMA, Trend, Seasonal) model
+pub mod tbats;
+// Theta method for forecasting
+pub mod theta;
+// Note: neuromorphic_computing_tests and quantum_forecasting_tests are included
+// via #[path] directives in their respective parent modules (neuromorphic_computing/mod.rs
+// and quantum_forecasting.rs). No need to declare them here.
 
 // Python API wrappers that use scirs2-core conversion utilities
 // These provide ndarray16-compatible interfaces to internal ndarray17 functions

@@ -55,21 +55,21 @@ pub struct SACConfig {
 impl Default for SACConfig {
     fn default() -> Self {
         Self {
-            buffer_size:     1_000_000,
-            batch_size:      256,
-            gradient_steps:  1,
+            buffer_size: 1_000_000,
+            batch_size: 256,
+            gradient_steps: 1,
             learning_starts: 1_000,
-            gamma:           0.99,
-            tau:             0.005,
-            alpha:           0.2,
-            auto_alpha:      true,
-            target_entropy:  None, // set to -act_dim at construction time
-            actor_lr:        3e-4,
-            critic_lr:       3e-4,
-            alpha_lr:        3e-4,
-            hidden_dims:     vec![256, 256],
-            log_std_min:     -20.0,
-            log_std_max:     2.0,
+            gamma: 0.99,
+            tau: 0.005,
+            alpha: 0.2,
+            auto_alpha: true,
+            target_entropy: None, // set to -act_dim at construction time
+            actor_lr: 3e-4,
+            critic_lr: 3e-4,
+            alpha_lr: 3e-4,
+            hidden_dims: vec![256, 256],
+            log_std_min: -20.0,
+            log_std_max: 2.0,
         }
     }
 }
@@ -91,8 +91,11 @@ pub struct SACInfo {
     pub alpha_loss: f64,
 }
 
+// Type alias for the complex return type of Mlp::forward_cache.
+type MlpForwardCache = (Array2<f64>, Vec<(Array2<f64>, Array2<f64>)>);
+
 // ──────────────────────────────────────────────────────────────────────────────
-// Minimal MLP (re-uses same construction as ppo.rs but in this file for independence)
+// Minimal Mlp (re-uses same construction as ppo.rs but in this file for independence)
 // ──────────────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -147,25 +150,32 @@ fn relu_bwd(pre: &Array2<f64>, g: &Array2<f64>) -> Array2<f64> {
 }
 
 #[derive(Debug, Clone)]
-struct MLP {
+struct Mlp {
     layers: Vec<Linear>,
 }
 
-impl MLP {
+impl Mlp {
     fn new(in_d: usize, hidden: &[usize], out_d: usize, rng: &mut XorShift64) -> Self {
         let mut dims = vec![in_d];
         dims.extend_from_slice(hidden);
         dims.push(out_d);
-        let layers = dims.windows(2).map(|w| Linear::new(w[0], w[1], rng)).collect();
+        let layers = dims
+            .windows(2)
+            .map(|w| Linear::new(w[0], w[1], rng))
+            .collect();
         Self { layers }
     }
 
-    fn forward_cache(&self, x: &Array2<f64>) -> (Array2<f64>, Vec<(Array2<f64>, Array2<f64>)>) {
+    fn forward_cache(&self, x: &Array2<f64>) -> MlpForwardCache {
         let mut cur = x.clone();
         let mut cache = Vec::new();
         for (i, l) in self.layers.iter().enumerate() {
             let pre = l.forward(&cur);
-            let post = if i < self.layers.len() - 1 { relu(&pre) } else { pre.clone() };
+            let post = if i < self.layers.len() - 1 {
+                relu(&pre)
+            } else {
+                pre.clone()
+            };
             cache.push((cur.clone(), pre));
             cur = post;
         }
@@ -203,7 +213,7 @@ impl MLP {
         }
     }
 
-    fn polyak_update(&mut self, other: &MLP, tau: f64) {
+    fn polyak_update(&mut self, other: &Mlp, tau: f64) {
         for (a, b) in self.layers.iter_mut().zip(other.layers.iter()) {
             a.polyak_update(b, tau);
         }
@@ -219,7 +229,7 @@ impl MLP {
 /// The network maps observations to `(mean, log_std)`, samples actions from
 /// the Gaussian and squashes them through tanh.
 pub struct StochasticActor {
-    net: MLP,
+    net: Mlp,
     act_dim: usize,
     log_std_min: f64,
     log_std_max: f64,
@@ -235,8 +245,13 @@ impl StochasticActor {
         rng: &mut XorShift64,
     ) -> Self {
         // Network outputs 2 * act_dim: first half = mean, second half = log_std
-        let net = MLP::new(obs_dim, hidden, act_dim * 2, rng);
-        Self { net, act_dim, log_std_min, log_std_max }
+        let net = Mlp::new(obs_dim, hidden, act_dim * 2, rng);
+        Self {
+            net,
+            act_dim,
+            log_std_min,
+            log_std_max,
+        }
     }
 
     /// Sample a squashed action and its log-probability.
@@ -245,28 +260,25 @@ impl StochasticActor {
     fn sample(&self, obs: &Array2<f64>, rng: &mut XorShift64) -> (Array2<f64>, Array1<f64>) {
         let out = self.net.forward(obs);
         let batch = obs.shape()[0];
-        let mut actions   = Array2::zeros((batch, self.act_dim));
+        let mut actions = Array2::zeros((batch, self.act_dim));
         let mut log_probs = Array1::zeros(batch);
 
         for b in 0..batch {
             let mut lp = 0.0_f64;
             for a in 0..self.act_dim {
                 let mu = out[[b, a]];
-                let ls = out[[b, self.act_dim + a]]
-                    .clamp(self.log_std_min, self.log_std_max);
+                let ls = out[[b, self.act_dim + a]].clamp(self.log_std_min, self.log_std_max);
                 let sig = ls.exp().max(1e-6);
 
                 // Box-Muller
                 let u1 = (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64 + 1e-20;
                 let u2 = (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64;
-                let z  = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+                let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 let raw = mu + sig * z;
                 let act = raw.tanh();
 
                 // log π(a|s) = log N(raw|mu,sig) - log(1 - tanh(raw)^2 + ε)
-                let log_n = -0.5 * (z * z)
-                    - sig.ln()
-                    - 0.5 * (2.0 * std::f64::consts::PI).ln();
+                let log_n = -0.5 * (z * z) - sig.ln() - 0.5 * (2.0 * std::f64::consts::PI).ln();
                 let log_jac = (1.0 - act * act + 1e-6).ln();
                 lp += log_n - log_jac;
 
@@ -324,8 +336,8 @@ impl StochasticActor {
         let out = self.net.forward(obs);
         for b in 0..obs.shape()[0] {
             for a in 0..self.act_dim {
-                let mu  = out[[b, a]];
-                let ls  = out[[b, self.act_dim + a]].clamp(self.log_std_min, self.log_std_max);
+                let mu = out[[b, a]];
+                let ls = out[[b, self.act_dim + a]].clamp(self.log_std_min, self.log_std_max);
                 let sig = ls.exp().max(1e-6);
                 let act = actions[[b, a]]; // squashed action = tanh(raw)
                 let raw = act.clamp(-0.9999, 0.9999).atanh(); // inverse tanh
@@ -337,8 +349,8 @@ impl StochasticActor {
                 //   d/d_ls [log N] = (raw-mu)^2/sig^2 - 1  (chain rule through sig)
                 let g_ls_lp = (raw - mu).powi(2) / (sig * sig) - 1.0;
 
-                g_out[[b, a]]                  = alpha * g_mu_lp / batch;
-                g_out[[b, self.act_dim + a]]  = alpha * g_ls_lp / batch;
+                g_out[[b, a]] = alpha * g_mu_lp / batch;
+                g_out[[b, self.act_dim + a]] = alpha * g_ls_lp / batch;
                 // Subtract Q gradient (Q is monotone w.r.t. action direction)
                 // Approximate: push action toward higher Q via tanh'·sign(q_advantage)
                 let dtanh = 1.0 - act * act + 1e-6;
@@ -359,12 +371,12 @@ impl StochasticActor {
 
 /// Soft Q-function: maps `(observation, action)` → scalar Q-value.
 pub struct Critic {
-    net: MLP,
+    net: Mlp,
 }
 
 impl Critic {
     fn new(obs_dim: usize, act_dim: usize, hidden: &[usize], rng: &mut XorShift64) -> Self {
-        let net = MLP::new(obs_dim + act_dim, hidden, 1, rng);
+        let net = Mlp::new(obs_dim + act_dim, hidden, 1, rng);
         Self { net }
     }
 
@@ -407,8 +419,8 @@ impl Critic {
 
 fn ndarray_hstack(a: &Array2<f64>, b: &Array2<f64>) -> Array2<f64> {
     let rows = a.shape()[0];
-    let ca   = a.shape()[1];
-    let cb   = b.shape()[1];
+    let ca = a.shape()[1];
+    let cb = b.shape()[1];
     let mut out = Array2::zeros((rows, ca + cb));
     out.slice_mut(scirs2_core::ndarray::s![.., ..ca]).assign(a);
     out.slice_mut(scirs2_core::ndarray::s![.., ca..]).assign(b);
@@ -460,9 +472,7 @@ pub struct SAC<F> {
 impl<F: 'static> SAC<F> {
     /// Construct a new SAC agent.
     pub fn new(obs_dim: usize, act_dim: usize, config: SACConfig) -> Self {
-        let mut rng = XorShift64::new(
-            obs_dim as u64 ^ act_dim as u64 ^ 0xcafef00d,
-        );
+        let mut rng = XorShift64::new(obs_dim as u64 ^ act_dim as u64 ^ 0xcafef00d);
         let actor = StochasticActor::new(
             obs_dim,
             act_dim,
@@ -471,8 +481,8 @@ impl<F: 'static> SAC<F> {
             config.log_std_max,
             &mut rng,
         );
-        let critic1        = Critic::new(obs_dim, act_dim, &config.hidden_dims.clone(), &mut rng);
-        let critic2        = Critic::new(obs_dim, act_dim, &config.hidden_dims.clone(), &mut rng);
+        let critic1 = Critic::new(obs_dim, act_dim, &config.hidden_dims.clone(), &mut rng);
+        let critic2 = Critic::new(obs_dim, act_dim, &config.hidden_dims.clone(), &mut rng);
         let target_critic1 = Critic::new(obs_dim, act_dim, &config.hidden_dims.clone(), &mut rng);
         let target_critic2 = Critic::new(obs_dim, act_dim, &config.hidden_dims.clone(), &mut rng);
 
@@ -516,12 +526,18 @@ impl<F: 'static> SAC<F> {
         let alpha = self.log_alpha.exp();
         let batch_size = self.config.batch_size;
         let gamma = self.config.gamma;
-        let tau   = self.config.tau;
+        let tau = self.config.tau;
         let critic_lr = self.config.critic_lr;
-        let actor_lr  = self.config.actor_lr;
+        let actor_lr = self.config.actor_lr;
 
         let tr = self.replay_buffer.sample(batch_size, &mut self.rng);
-        let Transition { states, actions, rewards, next_states, dones } = tr;
+        let Transition {
+            states,
+            actions,
+            rewards,
+            next_states,
+            dones,
+        } = tr;
 
         // ── Critic targets ───────────────────────────────────────────────
         let (next_actions, next_log_probs) = self.actor.sample(&next_states, &mut self.rng);
@@ -553,7 +569,11 @@ impl<F: 'static> SAC<F> {
         let (new_actions, new_log_probs) = self.actor.sample(&states, &mut self.rng);
         let q1_new = self.critic1.forward(&states, &new_actions);
         let q2_new = self.critic2.forward(&states, &new_actions);
-        let q_min: Array1<f64> = q1_new.iter().zip(q2_new.iter()).map(|(a, b)| a.min(*b)).collect();
+        let q_min: Array1<f64> = q1_new
+            .iter()
+            .zip(q2_new.iter())
+            .map(|(a, b)| a.min(*b))
+            .collect();
 
         let actor_loss = self.actor.update_actor(
             &states,
@@ -590,11 +610,7 @@ impl<F: 'static> SAC<F> {
     /// Full training loop.
     ///
     /// Returns episodic rewards (one entry per completed episode).
-    pub fn train<E>(
-        &mut self,
-        env: &mut E,
-        total_timesteps: usize,
-    ) -> Vec<f64>
+    pub fn train<E>(&mut self, env: &mut E, total_timesteps: usize) -> Vec<f64>
     where
         E: Environment<State = Array1<f64>, Action = Array1<f64>>,
     {
@@ -602,8 +618,8 @@ impl<F: 'static> SAC<F> {
         let mut ep_reward = 0.0_f64;
         let mut state = env.reset();
         let learning_starts = self.config.learning_starts;
-        let gradient_steps  = self.config.gradient_steps;
-        let batch_size      = self.config.batch_size;
+        let gradient_steps = self.config.gradient_steps;
+        let batch_size = self.config.batch_size;
 
         for t in 0..total_timesteps {
             // Random actions during warm-up
@@ -620,13 +636,8 @@ impl<F: 'static> SAC<F> {
             let (next_state, reward, done) = env.step(&action);
             ep_reward += reward;
 
-            self.replay_buffer.push(
-                state.clone(),
-                action,
-                reward,
-                next_state.clone(),
-                done,
-            );
+            self.replay_buffer
+                .push(state.clone(), action, reward, next_state.clone(), done);
 
             if done {
                 episode_rewards.push(ep_reward);
@@ -659,11 +670,11 @@ mod tests {
 
     fn small_config() -> SACConfig {
         SACConfig {
-            buffer_size:     1_000,
-            batch_size:      32,
-            gradient_steps:  1,
+            buffer_size: 1_000,
+            batch_size: 32,
+            gradient_steps: 1,
             learning_starts: 50,
-            hidden_dims:     vec![32, 32],
+            hidden_dims: vec![32, 32],
             ..Default::default()
         }
     }
@@ -695,7 +706,9 @@ mod tests {
         for _ in 0..60 {
             let act = agent.select_action(&state);
             let (ns, r, done) = env.step(&act);
-            agent.replay_buffer.push(state.clone(), act, r, ns.clone(), done);
+            agent
+                .replay_buffer
+                .push(state.clone(), act, r, ns.clone(), done);
             state = if done { env.reset() } else { ns };
         }
         assert!(agent.replay_buffer.len() > 0);
@@ -712,7 +725,9 @@ mod tests {
         for _ in 0..cfg.batch_size * 2 {
             let act = agent.select_action(&state);
             let (ns, r, done) = env.step(&act);
-            agent.replay_buffer.push(state.clone(), act, r, ns.clone(), done);
+            agent
+                .replay_buffer
+                .push(state.clone(), act, r, ns.clone(), done);
             state = if done { env.reset() } else { ns };
         }
 
@@ -725,10 +740,10 @@ mod tests {
     #[test]
     fn sac_short_train_loop() {
         let cfg = SACConfig {
-            buffer_size:     500,
-            batch_size:      16,
+            buffer_size: 500,
+            batch_size: 16,
             learning_starts: 32,
-            hidden_dims:     vec![16, 16],
+            hidden_dims: vec![16, 16],
             ..Default::default()
         };
         let mut agent: SAC<f64> = SAC::new(4, 1, cfg);

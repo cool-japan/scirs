@@ -99,9 +99,7 @@ impl KGDataset {
     ///
     /// Entity and relation vocabularies are inferred from the data in the order
     /// they are first encountered.
-    pub fn from_str_triples(
-        triples: &[(&str, &str, &str)],
-    ) -> Self {
+    pub fn from_str_triples(triples: &[(&str, &str, &str)]) -> Self {
         let mut entity_map: HashMap<String, usize> = HashMap::new();
         let mut relation_map: HashMap<String, usize> = HashMap::new();
         let mut entity_labels: Vec<String> = Vec::new();
@@ -207,7 +205,7 @@ fn l2_norm(v: &[f64]) -> f64 {
 }
 
 /// L2-normalise a vector in place.
-fn l2_normalize(v: &mut Vec<f64>) {
+fn l2_normalize(v: &mut [f64]) {
     let norm = l2_norm(v).max(1e-12);
     v.iter_mut().for_each(|x| *x /= norm);
 }
@@ -334,20 +332,26 @@ impl TransE {
                 // Gradients for positive triple: minimise ‖h + r - t‖
                 let g_pos: Vec<f64> = (0..dim)
                     .map(|k| {
-                        let diff = self.entity_embeddings[h][k]
-                            + self.relation_embeddings[r][k]
+                        let diff = self.entity_embeddings[h][k] + self.relation_embeddings[r][k]
                             - self.entity_embeddings[t][k];
-                        if diff >= 0.0 { 1.0 } else { -1.0 }
+                        if diff >= 0.0 {
+                            1.0
+                        } else {
+                            -1.0
+                        }
                     })
                     .collect();
 
                 // Gradients for negative triple: maximise ‖nh + nr - nt‖
                 let g_neg: Vec<f64> = (0..dim)
                     .map(|k| {
-                        let diff = self.entity_embeddings[nh][k]
-                            + self.relation_embeddings[nr][k]
+                        let diff = self.entity_embeddings[nh][k] + self.relation_embeddings[nr][k]
                             - self.entity_embeddings[nt][k];
-                        if diff >= 0.0 { 1.0 } else { -1.0 }
+                        if diff >= 0.0 {
+                            1.0
+                        } else {
+                            -1.0
+                        }
                     })
                     .collect();
 

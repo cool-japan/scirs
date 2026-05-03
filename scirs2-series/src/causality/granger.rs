@@ -853,6 +853,49 @@ pub fn granger_causality_auto(
     granger_test(x, y, &config)
 }
 
+// =============================================================================
+// Ergonomic Wrapper: GrangerCausalityTest
+// =============================================================================
+
+/// Ergonomic builder-style wrapper around the Granger causality test.
+///
+/// # Example
+/// ```
+/// use scirs2_core::ndarray::Array1;
+/// use scirs2_series::causality::GrangerCausalityTest;
+/// let x = Array1::from_vec(vec![1.0f64, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0]);
+/// let y = Array1::from_vec(vec![0.0f64, 1.0, 2.0, 3.0, 2.0, 1.0, 2.0, 3.0, 2.0, 1.0]);
+/// let result = GrangerCausalityTest::new(2).test(&x, &y);
+/// ```
+#[derive(Debug, Clone)]
+pub struct GrangerCausalityTest {
+    max_lag: usize,
+}
+
+impl GrangerCausalityTest {
+    /// Create a new test with the given maximum lag.
+    pub fn new(max_lag: usize) -> Self {
+        Self { max_lag }
+    }
+
+    /// Run the Granger causality test (does `x` Granger-cause `y`?).
+    ///
+    /// Delegates to the underlying `granger_causality_test` function.
+    pub fn test(
+        &self,
+        x: &Array1<f64>,
+        y: &Array1<f64>,
+    ) -> CausalityResult<GrangerCausalityResult> {
+        granger_causality_test(x, y, self.max_lag)
+    }
+}
+
+impl Default for GrangerCausalityTest {
+    fn default() -> Self {
+        Self { max_lag: 4 }
+    }
+}
+
 // ---- Internal helpers ----
 
 fn find_min_index(values: &[f64]) -> usize {

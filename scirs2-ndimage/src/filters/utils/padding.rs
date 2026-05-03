@@ -268,9 +268,66 @@ where
                     }
                 }
 
-                // Pad corners
-                // This is a simplification - proper implementation would reflect diagonally
-                // For now, we'll just fill corners from the nearest edge
+                // Pad corners using diagonal reflection
+                // Top-left corner
+                for i in 0..pad_width[0].0 {
+                    for j in 0..pad_width[1].0 {
+                        let src_i = pad_width[0].0 - i;
+                        let src_j = pad_width[1].0 - j;
+                        if src_i < input_rows && src_j < input_cols {
+                            output_array2[[i, j]] = input_array2[[src_i, src_j]];
+                        }
+                    }
+                }
+                // Top-right corner
+                for i in 0..pad_width[0].0 {
+                    for j in 0..pad_width[1].1 {
+                        let src_i = pad_width[0].0 - i;
+                        let src_j = if input_cols >= 2 && input_cols > 2 + j {
+                            input_cols - 2 - j
+                        } else {
+                            (input_cols - 1).saturating_sub(j % input_cols.max(1))
+                        };
+                        if src_i < input_rows && src_j < input_cols {
+                            output_array2[[i, start_j + input_cols + j]] =
+                                input_array2[[src_i, src_j]];
+                        }
+                    }
+                }
+                // Bottom-left corner
+                for i in 0..pad_width[0].1 {
+                    for j in 0..pad_width[1].0 {
+                        let src_i = if input_rows >= 2 && input_rows > 2 + i {
+                            input_rows - 2 - i
+                        } else {
+                            (input_rows - 1).saturating_sub(i % input_rows.max(1))
+                        };
+                        let src_j = pad_width[1].0 - j;
+                        if src_i < input_rows && src_j < input_cols {
+                            output_array2[[start_i + input_rows + i, j]] =
+                                input_array2[[src_i, src_j]];
+                        }
+                    }
+                }
+                // Bottom-right corner
+                for i in 0..pad_width[0].1 {
+                    for j in 0..pad_width[1].1 {
+                        let src_i = if input_rows >= 2 && input_rows > 2 + i {
+                            input_rows - 2 - i
+                        } else {
+                            (input_rows - 1).saturating_sub(i % input_rows.max(1))
+                        };
+                        let src_j = if input_cols >= 2 && input_cols > 2 + j {
+                            input_cols - 2 - j
+                        } else {
+                            (input_cols - 1).saturating_sub(j % input_cols.max(1))
+                        };
+                        if src_i < input_rows && src_j < input_cols {
+                            output_array2[[start_i + input_rows + i, start_j + input_cols + j]] =
+                                input_array2[[src_i, src_j]];
+                        }
+                    }
+                }
             }
             BorderMode::Mirror => {
                 // Implementation for Mirror mode would go here
@@ -305,6 +362,41 @@ where
                     for i in 0..input_rows {
                         output_array2[[start_i + i, start_j + input_cols + j]] =
                             input_array2[[i, src_j]];
+                    }
+                }
+
+                // Pad corners for Mirror mode
+                // Top-left corner
+                for i in 0..pad_width[0].0 {
+                    for j in 0..pad_width[1].0 {
+                        let src_i = i % input_rows;
+                        let src_j = j % input_cols;
+                        output_array2[[i, j]] = input_array2[[src_i, src_j]];
+                    }
+                }
+                // Top-right corner
+                for i in 0..pad_width[0].0 {
+                    for j in 0..pad_width[1].1 {
+                        let src_i = i % input_rows;
+                        let src_j = (input_cols - 1) - (j % input_cols);
+                        output_array2[[i, start_j + input_cols + j]] = input_array2[[src_i, src_j]];
+                    }
+                }
+                // Bottom-left corner
+                for i in 0..pad_width[0].1 {
+                    for j in 0..pad_width[1].0 {
+                        let src_i = (input_rows - 1) - (i % input_rows);
+                        let src_j = j % input_cols;
+                        output_array2[[start_i + input_rows + i, j]] = input_array2[[src_i, src_j]];
+                    }
+                }
+                // Bottom-right corner
+                for i in 0..pad_width[0].1 {
+                    for j in 0..pad_width[1].1 {
+                        let src_i = (input_rows - 1) - (i % input_rows);
+                        let src_j = (input_cols - 1) - (j % input_cols);
+                        output_array2[[start_i + input_rows + i, start_j + input_cols + j]] =
+                            input_array2[[src_i, src_j]];
                     }
                 }
             }

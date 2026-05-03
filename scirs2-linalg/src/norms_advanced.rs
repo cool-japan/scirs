@@ -192,7 +192,7 @@ pub fn numerical_rank(a: &ArrayView2<f64>, tol: Option<f64>) -> LinalgResult<usi
 /// # Arguments
 /// * `a`   - Input matrix (m×n)
 /// * `tol` - Threshold below which singular values are treated as zero
-///           (None = machine-epsilon based default)
+///   (None = machine-epsilon based default)
 ///
 /// # Returns
 /// Pseudoinverse matrix (n×m)
@@ -217,8 +217,11 @@ pub fn pinv(a: &ArrayView2<f64>, tol: Option<f64>) -> LinalgResult<Array2<f64>> 
     let m = a.nrows();
     let n = a.ncols();
 
-    // Full SVD: A = U * S * Vt  (shapes: m×m, min(m,n), n×n)
-    let (u, s, vt) = crate::decomposition::svd(a, true, None)?;
+    // Use OxiBLAS SVD (reliable for degenerate cases including repeated singular values).
+    // svd_f64_lapack returns (u, s, vt) where u may be m×m or m×k, vt may be k×n or n×n.
+    // We use `svd(a, false, None)` (thin SVD) which gives u: m×k, s: k, vt: k×n,
+    // where k = min(m, n).  This is sufficient for the pseudoinverse.
+    let (u, s, vt) = crate::decomposition::svd_f64_lapack(a, false)?;
 
     let sigma_max = s.iter().cloned().fold(0.0_f64, f64::max);
     let threshold = tol.unwrap_or_else(|| {
@@ -226,20 +229,23 @@ pub fn pinv(a: &ArrayView2<f64>, tol: Option<f64>) -> LinalgResult<Array2<f64>> 
         eps * (m.max(n) as f64) * sigma_max
     });
 
-    let k = s.len();
+    let k = s.len(); // = min(m, n)
 
-    // Build Σ† (k×k diagonal-like): invert singular values above threshold
-    // pinv = V * Σ†^T * U^T = Vt^T * diag(s_inv) * U^T
-    // = sum_i (1/s_i) * V[:, i] * U[:, i]^T   for s_i > threshold
+    // A† = V * Σ† * U^T  where V = Vt^T
+    //   = sum_i (1/s_i) * v_i * u_i^T   for s_i > threshold
+    // v_i = row i of Vt (length n)
+    // u_i = column i of U (length m)
+    // Result shape: A† is (n × m).
 
     let mut result = Array2::<f64>::zeros((n, m));
     for i in 0..k {
         if s[i] > threshold {
             let inv_si = 1.0 / s[i];
-            // v_i = Vt^T[:, i] = Vt[i, :]^T  (column i of V = row i of Vt transposed)
-            let v_i = vt.row(i); // shape (n,)
-            let u_i = u.column(i); // shape (m,)
-                                   // outer product v_i * u_i^T scaled by inv_si
+            // v_i = row i of Vt (length n = a.ncols())
+            let v_i = vt.row(i);
+            // u_i = column i of U (length m = a.nrows())
+            let u_i = u.column(i);
+            // outer product: result[r, c] += inv_si * v_i[r] * u_i[c]
             for r in 0..n {
                 for c in 0..m {
                     result[[r, c]] += inv_si * v_i[r] * u_i[c];
@@ -631,7 +637,7 @@ mod tests {
         // Stable rank should be between 1 and rank
         let a = array![[3.0_f64, 1.0], [1.0, 2.0]];
         let sr = stable_rank(&a.view()).expect("stable_rank bounds");
-        assert!(sr >= 1.0 - 1e-10 && sr <= 2.0 + 1e-10);
+        assert!((1.0 - 1e-10..=2.0 + 1e-10).contains(&sr));
     }
 
     // ---- Incoherence ----

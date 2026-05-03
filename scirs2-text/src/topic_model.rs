@@ -42,7 +42,7 @@
 
 use crate::error::{Result, TextError};
 use scirs2_core::ndarray::{Array1, Array2};
-use scirs2_core::random::{rngs::StdRng, Rng, SeedableRng};
+use scirs2_core::random::{rngs::StdRng, Rng, RngExt, SeedableRng};
 use std::collections::{HashMap, HashSet};
 
 // ---------------------------------------------------------------------------
@@ -1181,7 +1181,7 @@ mod tests {
     fn test_select_n_topics() {
         let docs = sample_docs();
         let (best_k, scores) = select_n_topics(&docs, 2, 3, 30, 42).expect("select failed");
-        assert!(best_k >= 2 && best_k <= 3);
+        assert!((2..=3).contains(&best_k));
         assert_eq!(scores.len(), 2);
     }
 

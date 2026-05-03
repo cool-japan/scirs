@@ -231,7 +231,11 @@ fn slope_ratio(values: &[f64], i: usize, ghost_left: f64, ghost_right: f64) -> f
     let n = values.len();
     let u_left = if i == 0 { ghost_left } else { values[i - 1] };
     let u_center = values[i];
-    let u_right = if i + 1 >= n { ghost_right } else { values[i + 1] };
+    let u_right = if i + 1 >= n {
+        ghost_right
+    } else {
+        values[i + 1]
+    };
 
     let denom = u_right - u_center;
     let numer = u_center - u_left;
@@ -240,7 +244,11 @@ fn slope_ratio(values: &[f64], i: usize, ghost_left: f64, ghost_right: f64) -> f
             1.0 // flat → no limiting needed
         } else {
             // Different signs → strong oscillation; clip
-            if numer * denom >= 0.0 { f64::INFINITY } else { -f64::INFINITY }
+            if numer * denom >= 0.0 {
+                f64::INFINITY
+            } else {
+                -f64::INFINITY
+            }
         }
     } else {
         numer / denom
@@ -268,10 +276,7 @@ fn slope_ratio(values: &[f64], i: usize, ghost_left: f64, ghost_right: f64) -> f
 ///
 /// `limiter` should be one of [`minmod_limiter`], [`superbee_limiter`], or
 /// [`van_leer_limiter`].
-pub fn muscl_reconstruct(
-    cells: &[f64],
-    limiter: impl Fn(f64) -> f64,
-) -> (Vec<f64>, Vec<f64>) {
+pub fn muscl_reconstruct(cells: &[f64], limiter: impl Fn(f64) -> f64) -> (Vec<f64>, Vec<f64>) {
     let n = cells.len();
     // Ghost cells — outflow (zero-gradient) extrapolation
     let g_left = cells.first().copied().unwrap_or(0.0);

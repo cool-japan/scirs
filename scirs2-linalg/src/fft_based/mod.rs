@@ -74,7 +74,7 @@ fn fft_inplace(data: &mut [C64], inverse: bool) {
                 let v = w * data[i + j + h];
                 data[i + j] = u + v;
                 data[i + j + h] = u - v;
-                w = w * w_n;
+                w *= w_n;
             }
             i += 2 * h;
         }
@@ -84,7 +84,7 @@ fn fft_inplace(data: &mut [C64], inverse: bool) {
     if inverse {
         let scale = 1.0 / n as f64;
         for d in data.iter_mut() {
-            *d = *d * scale;
+            *d *= scale;
         }
     }
 }
@@ -109,6 +109,43 @@ fn rfft(x: &[f64]) -> Vec<C64> {
 fn irfft(x: &mut [C64]) -> Vec<f64> {
     fft_inplace(x, true);
     x.iter().map(|c| c.re).collect()
+}
+
+/// Exact n-point DFT of a real-valued sequence (O(n²), but exact for any n).
+///
+/// This is used for circulant eigenvalue computation where padding to a
+/// power-of-2 would give wrong eigenvalues when n is not a power of 2.
+fn dft_exact(x: &[f64]) -> Vec<C64> {
+    let n = x.len();
+    let mut out = vec![C64::new(0.0, 0.0); n];
+    let two_pi_over_n = 2.0 * std::f64::consts::PI / (n as f64);
+    for k in 0..n {
+        let mut sum = C64::new(0.0, 0.0);
+        for (j, &xj) in x.iter().enumerate() {
+            let angle = -(j as f64) * (k as f64) * two_pi_over_n;
+            sum += C64::new(xj * angle.cos(), xj * angle.sin());
+        }
+        out[k] = sum;
+    }
+    out
+}
+
+/// Exact n-point IDFT returning the real part only.
+///
+/// Computes IDFT[k] = (1/n) * sum_j X[j] * exp(+2πi*j*k/n).
+fn idft_exact(x: &[C64]) -> Vec<f64> {
+    let n = x.len();
+    let two_pi_over_n = 2.0 * std::f64::consts::PI / (n as f64);
+    let mut out = vec![0.0f64; n];
+    for k in 0..n {
+        let mut sum = C64::new(0.0, 0.0);
+        for (j, &xj) in x.iter().enumerate() {
+            let angle = (j as f64) * (k as f64) * two_pi_over_n;
+            sum += xj * C64::new(angle.cos(), angle.sin());
+        }
+        out[k] = sum.re / (n as f64);
+    }
+    out
 }
 
 // ============================================================================
@@ -409,13 +446,15 @@ impl FFTBasedSolver {
             ));
         }
 
-        let m = n.next_power_of_two();
-        let mut c_ext = c.to_vec();
-        c_ext.resize(m, 0.0);
-        let fft_buf = rfft(&c_ext);
+        // Use exact n-point DFT so eigenvalues are correct for any n,
+        // not just powers of 2.
+        let fft_buf = dft_exact(c);
 
-        // Check that all eigenvalues (FFT values) are non-zero
-        let min_abs = fft_buf.iter().map(|z| z.norm()).fold(f64::INFINITY, f64::min);
+        // Check that all eigenvalues (DFT values) are non-zero
+        let min_abs = fft_buf
+            .iter()
+            .map(|z| z.norm())
+            .fold(f64::INFINITY, f64::min);
         if min_abs < 1e-300 {
             return Err(LinalgError::SingularMatrixError(
                 "FFTBasedSolver: circulant matrix is singular (zero eigenvalue)".to_string(),
@@ -533,17 +572,18 @@ impl FFTBasedSolver {
         }
     }
 
-    /// Exact O(n log n) circulant solve via FFT eigendecomposition.
+    /// Exact circulant solve via DFT eigendecomposition.
+    ///
+    /// Circulant eigenvalues are the exact n-point DFT of c.
+    /// Solution: x = IDFT(DFT(b) / DFT(c)).
     fn solve_circulant(&self, b: &[f64]) -> LinalgResult<Vec<f64>> {
         let n = self.n;
-        let m = n.next_power_of_two();
 
-        let mut b_ext = b.to_vec();
-        b_ext.resize(m, 0.0);
-        let b_fft = rfft(&b_ext);
+        // Use exact n-point DFT for b as well
+        let b_fft = dft_exact(b);
 
-        // Divide in frequency domain
-        let mut x_fft: Vec<C64> = b_fft
+        // Divide in frequency domain: x_fft[k] = b_fft[k] / c_fft[k]
+        let x_fft: Vec<C64> = b_fft
             .iter()
             .zip(self.fft_buf.iter())
             .map(|(&bf, &cf)| {
@@ -552,25 +592,18 @@ impl FFTBasedSolver {
                     C64::new(0.0, 0.0) // fallback for near-zero eigenvalue
                 } else {
                     // Division: bf / cf = bf * conj(cf) / |cf|^2
-                    C64::new(
-                        (bf * cf.conj()).re / denom,
-                        (bf * cf.conj()).im / denom,
-                    )
+                    C64::new((bf * cf.conj()).re / denom, (bf * cf.conj()).im / denom)
                 }
             })
             .collect();
 
-        let x_full = irfft(&mut x_fft);
-        Ok(x_full[..n].to_vec())
+        // Use exact IDFT to recover x
+        let x = idft_exact(&x_fft);
+        Ok(x[..n].to_vec())
     }
 
     /// Preconditioned CG for Toeplitz system T x = b with circulant preconditioner.
-    fn solve_toeplitz_pcg(
-        &self,
-        b: &[f64],
-        max_iter: usize,
-        tol: f64,
-    ) -> LinalgResult<Vec<f64>> {
+    fn solve_toeplitz_pcg(&self, b: &[f64], max_iter: usize, tol: f64) -> LinalgResult<Vec<f64>> {
         let n = self.n;
         let m = n.next_power_of_two();
 
@@ -593,10 +626,7 @@ impl FFTBasedSolver {
                     if denom < 1e-300 {
                         C64::new(0.0, 0.0)
                     } else {
-                        C64::new(
-                            (rf * cf.conj()).re / denom,
-                            (rf * cf.conj()).im / denom,
-                        )
+                        C64::new((rf * cf.conj()).re / denom, (rf * cf.conj()).im / denom)
                     }
                 })
                 .collect();
@@ -945,7 +975,10 @@ mod tests {
         let x = vec![3.0, 1.0, 4.0];
         let y = circulant_matmul(&c, &x).expect("circulant_matmul failed");
         for i in 0..3 {
-            assert!((y[i] - x[i]).abs() < 1e-10, "Identity circulant failed at {i}");
+            assert!(
+                (y[i] - x[i]).abs() < 1e-10,
+                "Identity circulant failed at {i}"
+            );
         }
     }
 
@@ -971,7 +1004,11 @@ mod tests {
         let x = vec![3.0, 1.0, 4.0];
         let y = toeplitz_matmul(&t, &x).expect("toeplitz_matmul failed");
         for i in 0..3 {
-            assert!((y[i] - x[i]).abs() < 1e-9, "Identity Toeplitz failed at {i}: got {}", y[i]);
+            assert!(
+                (y[i] - x[i]).abs() < 1e-9,
+                "Identity Toeplitz failed at {i}: got {}",
+                y[i]
+            );
         }
     }
 
@@ -1036,7 +1073,9 @@ mod tests {
         let x_true = vec![1.0, -1.0, 2.0, 0.5];
         let b = toeplitz_matmul(&t, &x_true).expect("matvec for b failed");
 
-        let x_sol = solver.solve(&b, Some(100), Some(1e-10)).expect("solve failed");
+        let x_sol = solver
+            .solve(&b, Some(100), Some(1e-10))
+            .expect("solve failed");
         for i in 0..n {
             assert!(
                 (x_sol[i] - x_true[i]).abs() < 1e-6,

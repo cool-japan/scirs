@@ -4,10 +4,9 @@
 // such as calculating filter norms, checking properties, and other
 // common operations used across the wavelet transform modules.
 
-use crate::error::SignalResult;
+use super::filters::WaveletFilters;
 use crate::dwt::Wavelet;
 use crate::error::SignalResult;
-use super::filters::WaveletFilters;
 
 #[allow(unused_imports)]
 /// Calculate the squared norm (energy) of a filter
@@ -66,51 +65,54 @@ pub fn check_perfect_reconstruction(
     tol: Option<f64>,
 ) -> SignalResult<bool> {
     let tolerance = tol.unwrap_or(1e-10);
-    
+
     // Check filter lengths
-    if filters.dec_lo.len() != filters.dec_hi.len() ||
-       filters.rec_lo.len() != filters.rec_hi.len() ||
-       filters.dec_lo.len() != filters.rec_lo.len() {
+    if filters.dec_lo.len() != filters.dec_hi.len()
+        || filters.rec_lo.len() != filters.rec_hi.len()
+        || filters.dec_lo.len() != filters.rec_lo.len()
+    {
         return Ok(false);
     }
-    
+
     // Orthogonal wavelets: Sum of lowpass filter should be sqrt(2)
     // This is the DC gain of the filter
     let sum_lo = filters.dec_lo.iter().sum::<f64>();
     if (sum_lo - 2.0_f64.sqrt()).abs() > tolerance {
         return Ok(false);
     }
-    
+
     // Sum of highpass filter should be approximately 0
     // This ensures the highpass filter has zero DC gain
     let sum_hi = filters.dec_hi.iter().sum::<f64>();
     if sum_hi.abs() > tolerance {
         return Ok(false);
     }
-    
+
     // Check filter energies (should be 1 for normalized filters)
     let energy_dec_lo = filter_energy(&filters.dec_lo);
     let energy_dec_hi = filter_energy(&filters.dec_hi);
-    
-    if ((energy_dec_lo - 1.0) as f64).abs() > tolerance || ((energy_dec_hi - 1.0) as f64).abs() > tolerance {
+
+    if ((energy_dec_lo - 1.0) as f64).abs() > tolerance
+        || ((energy_dec_hi - 1.0) as f64).abs() > tolerance
+    {
         return Ok(false);
     }
-    
+
     // Check orthogonality condition between lowpass and highpass
     let mut ortho_sum = 0.0;
     for i in 0..filters.dec_lo.len() {
         for j in 0..filters.dec_hi.len() {
             // Only consider overlapping indices
-            if i + 2 * j < filters.dec_lo.len() && i + 2 * j >= 0 {
+            if i + 2 * j < filters.dec_lo.len() {
                 ortho_sum += filters.dec_lo[i] * filters.dec_hi[j];
             }
         }
     }
-    
+
     if ortho_sum.abs() > tolerance {
         return Ok(false);
     }
-    
+
     // All checks passed
     Ok(true)
 }
@@ -142,15 +144,15 @@ pub fn check_perfect_reconstruction(
 pub fn center_frequency(filter: &[f64]) -> f64 {
     let pi = std::f64::consts::PI;
     let n = filter.len();
-    
+
     // Calculate the first moment of the squared magnitude response
     let mut num = 0.0;
     let mut den = 0.0;
-    
+
     let points = 1024;
     for k in 0..points {
         let omega = pi * k as f64 / points as f64;
-        
+
         // Calculate frequency response at this frequency
         let mut resp_re = 0.0;
         let mut resp_im = 0.0;
@@ -158,15 +160,15 @@ pub fn center_frequency(filter: &[f64]) -> f64 {
             resp_re += filter[i] * (omega * i as f64).cos();
             resp_im -= filter[i] * (omega * i as f64).sin();
         }
-        
+
         // Squared magnitude response
         let magnitude_squared = resp_re * resp_re + resp_im * resp_im;
-        
+
         // Accumulate weighted by frequency
         num += (k as f64 / points as f64 / 2.0) * magnitude_squared;
         den += magnitude_squared;
     }
-    
+
     // Return normalized center frequency
     if den.abs() < 1e-10 {
         0.0 // Avoid division by zero
@@ -201,26 +203,26 @@ pub fn center_frequency(filter: &[f64]) -> f64 {
 /// assert_eq!(moments, 4); // DB4 has 4 vanishing moments
 /// ```
 #[allow(dead_code)]
-pub fn estimate_vanishing_moments(_highpassfilter: &[f64], tol: Option<f64>) -> usize {
+pub fn estimate_vanishing_moments(highpass_filter: &[f64], tol: Option<f64>) -> usize {
     let tolerance = tol.unwrap_or(1e-10);
     let mut n_moments = 0;
-    
+
     // Calculate moments until one is non-zero
-    for k in 0.._highpass_filter.len() {
-        let mut moment = 0.0;
-        
-        // Calculate the k-th moment of the highpass _filter
+    for k in 0..highpass_filter.len() {
+        let mut moment = 0.0_f64;
+
+        // Calculate the k-th moment of the highpass filter
         for (i, &coef) in highpass_filter.iter().enumerate() {
             moment += coef * (i as f64).powi(k as i32);
         }
-        
+
         if moment.abs() > tolerance {
             break;
         }
-        
+
         n_moments += 1;
     }
-    
+
     n_moments
 }
 
@@ -248,19 +250,19 @@ pub fn estimate_vanishing_moments(_highpassfilter: &[f64], tol: Option<f64>) -> 
 pub fn effective_filter_length(filter: &[f64], tol: Option<f64>) -> usize {
     let tolerance = tol.unwrap_or(1e-10);
     let n = filter.len();
-    
+
     // Find first non-zero coefficient
     let mut start = 0;
     while start < n && filter[start].abs() <= tolerance {
         start += 1;
     }
-    
+
     // Find last non-zero coefficient
     let mut end = n;
     while end > start && filter[end - 1].abs() <= tolerance {
         end -= 1;
     }
-    
+
     // Return effective length
     end - start
 }

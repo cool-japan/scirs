@@ -630,10 +630,140 @@ impl EnvironmentalAnalysis {
                     }
                 }
             }
-            _ => {
-                return Err(TimeSeriesError::InvalidInput(
-                    "Anomaly method not yet implemented".to_string(),
-                ));
+            ClimateAnomalyMethod::Climatological { threshold } => {
+                // Detect anomalies across all available data sources using z-score
+                // thresholding against long-term mean and standard deviation.
+                // Apply to: temperature, precipitation (via SPI), atmospheric pressure.
+
+                if let Some(ref temp_analysis) = self.temperature {
+                    let values = &temp_analysis.temperatures;
+                    let mean = values.mean();
+                    let std = values.std(0.0);
+                    if std > 0.0 {
+                        for (i, &v) in values.iter().enumerate() {
+                            let z = (v - mean) / std;
+                            if z.abs() > threshold {
+                                let label = if z > 0.0 {
+                                    "High Temperature Anomaly"
+                                } else {
+                                    "Low Temperature Anomaly"
+                                };
+                                anomalies.push((label.to_string(), i, i));
+                            }
+                        }
+                    }
+                }
+
+                if let Some(ref precip_analysis) = self.precipitation {
+                    let values = &precip_analysis.precipitation;
+                    let mean = values.mean();
+                    let std = values.std(0.0);
+                    if std > 0.0 {
+                        for (i, &v) in values.iter().enumerate() {
+                            let z = (v - mean) / std;
+                            if z.abs() > threshold {
+                                let label = if z > 0.0 {
+                                    "High Precipitation Anomaly"
+                                } else {
+                                    "Low Precipitation Anomaly"
+                                };
+                                anomalies.push((label.to_string(), i, i));
+                            }
+                        }
+                    }
+                }
+
+                if let Some(ref atm_analysis) = self.atmospheric {
+                    let values = &atm_analysis.pressure;
+                    let mean = values.mean();
+                    let std = values.std(0.0);
+                    if std > 0.0 {
+                        for (i, &v) in values.iter().enumerate() {
+                            let z = (v - mean) / std;
+                            if z.abs() > threshold {
+                                let label = if z > 0.0 {
+                                    "High Pressure Anomaly"
+                                } else {
+                                    "Low Pressure Anomaly"
+                                };
+                                anomalies.push((label.to_string(), i, i));
+                            }
+                        }
+                    }
+                }
+            }
+            ClimateAnomalyMethod::Percentile { lower, upper } => {
+                // Detect values outside the [lower, upper] percentile range.
+
+                let percentile_value = |values: &Array1<f64>, pct: f64| -> f64 {
+                    let mut sorted: Vec<f64> = values.iter().cloned().collect();
+                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    let n = sorted.len();
+                    if n == 0 {
+                        return 0.0;
+                    }
+                    // Linear interpolation
+                    let idx = pct / 100.0 * (n as f64 - 1.0);
+                    let lo = idx.floor() as usize;
+                    let hi = (lo + 1).min(n - 1);
+                    let frac = idx - lo as f64;
+                    sorted[lo] * (1.0 - frac) + sorted[hi] * frac
+                };
+
+                if let Some(ref temp_analysis) = self.temperature {
+                    let values = &temp_analysis.temperatures;
+                    let lo_val = percentile_value(values, lower);
+                    let hi_val = percentile_value(values, upper);
+                    for (i, &v) in values.iter().enumerate() {
+                        if v < lo_val {
+                            anomalies.push((
+                                "Temperature Below Lower Percentile".to_string(),
+                                i,
+                                i,
+                            ));
+                        } else if v > hi_val {
+                            anomalies.push((
+                                "Temperature Above Upper Percentile".to_string(),
+                                i,
+                                i,
+                            ));
+                        }
+                    }
+                }
+
+                if let Some(ref precip_analysis) = self.precipitation {
+                    let values = &precip_analysis.precipitation;
+                    let lo_val = percentile_value(values, lower);
+                    let hi_val = percentile_value(values, upper);
+                    for (i, &v) in values.iter().enumerate() {
+                        if v < lo_val {
+                            anomalies.push((
+                                "Precipitation Below Lower Percentile".to_string(),
+                                i,
+                                i,
+                            ));
+                        } else if v > hi_val {
+                            anomalies.push((
+                                "Precipitation Above Upper Percentile".to_string(),
+                                i,
+                                i,
+                            ));
+                        }
+                    }
+                }
+
+                if let Some(ref atm_analysis) = self.atmospheric {
+                    let values = &atm_analysis.pressure;
+                    let lo_val = percentile_value(values, lower);
+                    let hi_val = percentile_value(values, upper);
+                    for (i, &v) in values.iter().enumerate() {
+                        if v < lo_val {
+                            anomalies.push(("Pressure Below Lower Percentile".to_string(), i, i));
+                        } else if v > hi_val {
+                            anomalies.push(("Pressure Above Upper Percentile".to_string(), i, i));
+                        }
+                    }
+                }
             }
         }
 
@@ -756,5 +886,79 @@ mod tests {
 
         // Check that power density increases with wind speed cubed
         assert!(power_density[2] > power_density[1]); // 15 m/s > 10 m/s
+    }
+
+    #[test]
+    fn test_detect_climate_anomalies_climatological() {
+        // Inject a single extreme outlier (10 sigma) into the temperature data
+        let mut temps: Vec<f64> = (0..50).map(|i| (i as f64 * 0.5) % 10.0).collect();
+        temps[25] = 1000.0; // very large outlier
+        let temps = arr1(&temps);
+        let times = Array1::from_shape_fn(50, |i| i as i64);
+
+        let temp_analysis =
+            TemperatureAnalysis::new(temps, times, (1990, 2020)).expect("TemperatureAnalysis::new");
+
+        let env = EnvironmentalAnalysis::new().with_temperature(temp_analysis);
+
+        let anomalies = env
+            .detect_climate_anomalies(ClimateAnomalyMethod::Climatological { threshold: 3.0 })
+            .expect("detect_climate_anomalies should succeed");
+
+        // The outlier at index 25 must be detected
+        assert!(
+            anomalies.iter().any(|(_, start, _)| *start == 25),
+            "Climatological method should detect the extreme outlier at index 25"
+        );
+    }
+
+    #[test]
+    fn test_detect_climate_anomalies_percentile() {
+        // Constant background with one spike at index 45
+        let mut precip: Vec<f64> = vec![5.0; 50];
+        precip[45] = 999.0; // very high precipitation
+        precip[5] = -999.0; // shouldn't happen physically, but tests lower bound
+
+        // Clip negatives for a valid PrecipitationAnalysis
+        let precip: Vec<f64> = precip.iter().map(|&x| x.max(0.0)).collect();
+        let precip = arr1(&precip);
+        let times = Array1::from_shape_fn(50, |i| i as i64);
+
+        let pa = PrecipitationAnalysis::new(precip, times).expect("PrecipitationAnalysis::new");
+        let env = EnvironmentalAnalysis::new().with_precipitation(pa);
+
+        let anomalies = env
+            .detect_climate_anomalies(ClimateAnomalyMethod::Percentile {
+                lower: 5.0,
+                upper: 95.0,
+            })
+            .expect("detect_climate_anomalies percentile should succeed");
+
+        // The spike at index 45 should appear in anomalies
+        assert!(
+            anomalies.iter().any(|(_, start, _)| *start == 45),
+            "Percentile method should detect the spike at index 45"
+        );
+    }
+
+    #[test]
+    fn test_detect_climate_anomalies_no_false_positives_constant() {
+        // Constant temperature: no anomalies should be detected
+        let temps = Array1::from_elem(30, 20.0_f64);
+        let times = Array1::from_shape_fn(30, |i| i as i64);
+
+        let ta =
+            TemperatureAnalysis::new(temps, times, (1990, 2020)).expect("TemperatureAnalysis::new");
+        let env = EnvironmentalAnalysis::new().with_temperature(ta);
+
+        let anomalies = env
+            .detect_climate_anomalies(ClimateAnomalyMethod::Climatological { threshold: 2.0 })
+            .expect("detect_climate_anomalies should succeed on constant series");
+
+        // Standard deviation of a constant series is 0; no anomalies should fire
+        assert!(
+            anomalies.is_empty(),
+            "Constant temperature should produce no climatological anomalies"
+        );
     }
 }

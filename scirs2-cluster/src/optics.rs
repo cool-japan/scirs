@@ -107,10 +107,7 @@ impl Ord for SeedEntry {
 /// Squared Euclidean distance between two row slices.
 #[inline]
 fn sq_euclid(a: &[f64], b: &[f64]) -> f64 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y) * (x - y))
-        .sum()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
 }
 
 /// Euclidean distance between two row slices.
@@ -165,10 +162,7 @@ fn core_distance(
     if neighbours.len() + 1 < min_pts {
         return None;
     }
-    let mut dists: Vec<f64> = neighbours
-        .iter()
-        .map(|&j| dm[[point_idx, j]])
-        .collect();
+    let mut dists: Vec<f64> = neighbours.iter().map(|&j| dm[[point_idx, j]]).collect();
     dists.sort_by(|a: &f64, b: &f64| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     // The min_pts-th nearest (0-indexed) is index min_pts - 2 (excluding self).
     dists.get(min_pts.saturating_sub(2)).cloned()
@@ -238,14 +232,10 @@ pub fn optics(
         return Err(ClusteringError::InvalidInput("Empty input data".into()));
     }
     if min_pts < 2 {
-        return Err(ClusteringError::InvalidInput(
-            "min_pts must be >= 2".into(),
-        ));
+        return Err(ClusteringError::InvalidInput("min_pts must be >= 2".into()));
     }
     if max_eps <= 0.0 {
-        return Err(ClusteringError::InvalidInput(
-            "max_eps must be > 0".into(),
-        ));
+        return Err(ClusteringError::InvalidInput("max_eps must be > 0".into()));
     }
 
     let dm = build_distance_matrix(data);
@@ -421,9 +411,7 @@ pub fn extract_dbscan(reachability: &[ReachabilityPoint], eps: f64) -> Vec<i32> 
 /// Returns an error if `xi` is not in `(0, 1)`.
 pub fn extract_xi_clusters(reachability: &[ReachabilityPoint], xi: f64) -> Result<Vec<i32>> {
     if xi <= 0.0 || xi >= 1.0 {
-        return Err(ClusteringError::InvalidInput(
-            "xi must be in (0, 1)".into(),
-        ));
+        return Err(ClusteringError::InvalidInput("xi must be in (0, 1)".into()));
     }
 
     let n = reachability.len();
@@ -450,7 +438,10 @@ pub fn extract_xi_clusters(reachability: &[ReachabilityPoint], xi: f64) -> Resul
         1.0
     };
 
-    let rf: Vec<f64> = reach.iter().map(|&r| if r.is_finite() { r } else { fill }).collect();
+    let rf: Vec<f64> = reach
+        .iter()
+        .map(|&r| if r.is_finite() { r } else { fill })
+        .collect();
 
     // --- Detect steep-down and steep-up start positions ---
 
@@ -463,15 +454,16 @@ pub fn extract_xi_clusters(reachability: &[ReachabilityPoint], xi: f64) -> Resul
         if i + 1 >= n {
             return false;
         }
-        rf[i] > 0.0 && rf[i].is_finite() && rf[i + 1].is_finite()
-            && rf[i] * (1.0 - xi) >= rf[i + 1]
+        rf[i] > 0.0 && rf[i].is_finite() && rf[i + 1].is_finite() && rf[i] * (1.0 - xi) >= rf[i + 1]
     };
 
     let is_steep_up = |i: usize| -> bool {
         if i + 1 >= n {
             return false;
         }
-        rf[i + 1] > 0.0 && rf[i].is_finite() && rf[i + 1].is_finite()
+        rf[i + 1] > 0.0
+            && rf[i].is_finite()
+            && rf[i + 1].is_finite()
             && rf[i] * (1.0 - xi) <= rf[i + 1]
     };
 
@@ -719,7 +711,11 @@ mod tests {
 
         if !within_reaches.is_empty() {
             let avg: f64 = within_reaches.iter().sum::<f64>() / within_reaches.len() as f64;
-            assert!(avg < 2.0, "expected small within-cluster reach, got {}", avg);
+            assert!(
+                avg < 2.0,
+                "expected small within-cluster reach, got {}",
+                avg
+            );
         }
     }
 

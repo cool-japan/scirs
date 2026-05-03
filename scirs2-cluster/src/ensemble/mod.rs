@@ -103,6 +103,7 @@ pub mod advanced;
 pub mod algorithms;
 pub mod convenience;
 pub mod core;
+pub mod weighted;
 
 // Re-export main types for convenience
 pub use algorithms::EnsembleClusterer;

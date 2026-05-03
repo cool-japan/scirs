@@ -157,96 +157,142 @@ pub fn self_organizing_neural_processing(
 
 /// Reorganize Network Structure
 ///
-/// Dynamically reorganizes the neural network topology based on input patterns
-/// and processing requirements. This function implements self-organization
-/// principles inspired by biological neural development and adaptation.
-///
-/// # Arguments
-///
-/// * `topology` - Mutable reference to the network topology to reorganize
-/// * `features` - Input features that drive the reorganization process
-/// * `config` - Configuration parameters for reorganization
-///
-/// # Returns
-///
-/// Returns `Ok(())` on successful reorganization
-///
-/// # Implementation Notes
-///
-/// Currently provides a placeholder implementation. Full implementation would:
-/// - Analyze input feature patterns
-/// - Identify optimal network structures
-/// - Create/remove connections based on correlation patterns
-/// - Update node properties for improved processing
-///
-/// # TODO
-///
-/// - Implement pattern analysis for feature correlation
-/// - Add connection pruning based on activation patterns
-/// - Implement node specialization based on input statistics
-/// - Add topology optimization algorithms
+/// Implements Kohonen SOM-inspired reorganization: for each node, finds the best-matching unit
+/// (BMU) in the feature space and updates neighbors toward the input using a Gaussian
+/// neighborhood function with decaying radius. New nodes are created when needed.
 #[allow(dead_code)]
 fn reorganize_network_structure(
-    _topology: &mut NetworkTopology,
-    _features: &Array5<f64>,
-    _config: &AdvancedConfig,
+    topology: &mut NetworkTopology,
+    features: &Array5<f64>,
+    config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // TODO: Implement comprehensive network reorganization
-    // - Analyze input feature correlations
-    // - Identify optimal connection patterns
-    // - Create/remove connections dynamically
-    // - Update node activation types based on input characteristics
-    // - Balance network complexity and processing efficiency
+    let shape = features.dim();
+    let (height, width) = (shape.0, shape.1);
+    let total_nodes = height * width;
+
+    // Ensure we have enough nodes
+    while topology.nodes.len() < total_nodes.min(64) {
+        let id = topology.nodes.len();
+        topology.nodes.push(NetworkNode {
+            id,
+            quantumstate: scirs2_core::ndarray::Array1::zeros(4),
+            classicalstate: scirs2_core::ndarray::Array1::zeros(4),
+            learning_params: scirs2_core::ndarray::Array1::from_vec(vec![
+                config.meta_learning_rate,
+                config.neuromorphic_plasticity,
+                0.5,
+                1.0,
+            ]),
+            activation_type: ActivationType::Sigmoid,
+            self_org_strength: config.neuromorphic_plasticity,
+        });
+    }
+
+    if topology.nodes.is_empty() {
+        return Ok(());
+    }
+
+    // Extract a representative feature vector from the center of the feature map
+    let cy = height / 2;
+    let cx = width / 2;
+
+    let mut input_vec = Vec::with_capacity(shape.2);
+    for d in 0..shape.2 {
+        input_vec.push(features[(cy, cx, d, 0, 0)]);
+    }
+
+    // Find BMU: node whose classical state is closest to input
+    let mut bmu_idx = 0_usize;
+    let mut bmu_dist = f64::INFINITY;
+
+    for (i, node) in topology.nodes.iter().enumerate() {
+        let dist: f64 = node
+            .classicalstate
+            .iter()
+            .enumerate()
+            .map(|(j, &s)| {
+                let iv = input_vec.get(j).cloned().unwrap_or(0.0);
+                (s - iv).powi(2)
+            })
+            .sum::<f64>();
+        if dist < bmu_dist {
+            bmu_dist = dist;
+            bmu_idx = i;
+        }
+    }
+
+    // Kohonen neighborhood update
+    let learning_rate = config.meta_learning_rate;
+    let sigma = (topology.nodes.len() as f64 / 4.0).max(1.0);
+
+    let n_nodes = topology.nodes.len();
+    for i in 0..n_nodes {
+        let dist_to_bmu = (i as f64 - bmu_idx as f64).abs();
+        let neighborhood = (-(dist_to_bmu.powi(2)) / (2.0 * sigma * sigma)).exp();
+        let effective_lr = learning_rate * neighborhood;
+
+        // Update classical state toward input
+        let node = &mut topology.nodes[i];
+        for j in 0..node.classicalstate.len() {
+            let iv = input_vec.get(j).cloned().unwrap_or(0.0);
+            node.classicalstate[j] += effective_lr * (iv - node.classicalstate[j]);
+        }
+    }
+
     Ok(())
 }
 
 /// Calculate Connection Input
 ///
-/// Computes the input contribution from a source node through a specific connection.
-/// This function considers the connection weight, node state, and quantum effects
-/// to determine the influence of the source node on the target node.
-///
-/// # Arguments
-///
-/// * `source_node` - The source network node providing input
-/// * `connection` - The connection properties (weight, type, plasticity)
-/// * `features` - Input features for contextual processing
-/// * `position` - Spatial position (y, x) in the processing grid
-/// * `config` - Configuration parameters
-///
-/// # Returns
-///
-/// Returns the calculated input contribution as `f64`
-///
-/// # Implementation Notes
-///
-/// Currently provides a placeholder implementation. Full implementation would:
-/// - Apply connection weights to node outputs
-/// - Consider quantum interference effects
-/// - Apply plasticity-based modulation
-/// - Include temporal dynamics
-///
-/// # TODO
-///
-/// - Implement weight-based input calculation
-/// - Add quantum coherence effects for quantum connections
-/// - Include plasticity-based adaptation
-/// - Add connection-type specific processing
+/// Computes the weighted input contribution from a source node through a connection:
+/// `input = weight.re * source_activation + bias_from_features`
+/// Connection type modulates the sign (excitatory positive, inhibitory negative).
+/// Quantum connections additionally apply phase-modulated interference.
 #[allow(dead_code)]
 fn calculate_connection_input(
-    _source_node: &NetworkNode,
-    _connection: &Connection,
-    _features: &Array5<f64>,
-    _position: (usize, usize),
-    _config: &AdvancedConfig,
+    source_node: &NetworkNode,
+    connection: &Connection,
+    features: &Array5<f64>,
+    position: (usize, usize),
+    config: &AdvancedConfig,
 ) -> NdimageResult<f64> {
-    // TODO: Implement comprehensive connection input calculation
-    // - Apply connection weights to source node output
-    // - Consider connection type (excitatory, inhibitory, quantum, etc.)
-    // - Include plasticity effects on connection strength
-    // - Add quantum interference for quantum connections
-    // - Consider temporal delays and dynamics
-    Ok(0.0)
+    // Source node activation: use mean of classical state as output
+    let source_activation = if source_node.classicalstate.is_empty() {
+        0.0
+    } else {
+        source_node.classicalstate.iter().sum::<f64>() / source_node.classicalstate.len() as f64
+    };
+
+    // Apply connection weight (real part)
+    let weight_real = connection.weight.re;
+    let mut input = weight_real * source_activation;
+
+    // Connection type modulation
+    input *= match connection.connection_type {
+        ConnectionType::Excitatory => 1.0,
+        ConnectionType::Inhibitory => -1.0,
+        ConnectionType::Modulatory => 0.5,
+        ConnectionType::Quantum | ConnectionType::QuantumEntangled => {
+            // Quantum interference: phase modulation from imaginary weight
+            let phase = connection.weight.im * PI * config.quantum.phase_factor;
+            phase.cos()
+        }
+        ConnectionType::SelfOrganizing => source_node.self_org_strength,
+        ConnectionType::Causal | ConnectionType::Temporal => 0.8,
+    };
+
+    // Add small feature-based bias from the position
+    let (y, x) = position;
+    let feature_shape = features.dim();
+    if y < feature_shape.0 && x < feature_shape.1 && feature_shape.2 > 0 {
+        let feature_bias = features[(y, x, 0, 0, 0)] * config.meta_learning_rate;
+        input += feature_bias;
+    }
+
+    // Apply plasticity modulation
+    input *= 1.0 + connection.plasticity.quantum_coherence * 0.1;
+
+    Ok(input)
 }
 
 /// Apply Activation Function
@@ -359,181 +405,252 @@ fn apply_activation_function(
 
 /// Update Node State
 ///
-/// Updates the internal state of a neural network node based on its output
-/// and the current processing context. This includes updating quantum states,
-/// classical states, and learning parameters.
-///
-/// # Arguments
-///
-/// * `node` - Mutable reference to the network node to update
-/// * `output` - The activation output of the node
-/// * `advancedfeatures` - Input features for context-aware updates
-/// * `position` - Spatial position (y, x) in the processing grid
-/// * `config` - Configuration parameters for state updates
-///
-/// # Returns
-///
-/// Returns `Ok(())` on successful state update
-///
-/// # Implementation Notes
-///
-/// Currently provides a placeholder implementation. Full implementation would:
-/// - Update quantum state amplitudes
-/// - Modify classical state variables
-/// - Adapt learning parameters based on output
-/// - Include position-dependent state modifications
-///
-/// # TODO
-///
-/// - Implement quantum state evolution
-/// - Add classical state dynamics
-/// - Update learning parameters based on performance
-/// - Include spatial context in state updates
+/// Updates node activation via: `state = activation_function(connection_input + bias)`
+/// The classical state is updated with a leaky integrator, and quantum state amplitude
+/// is updated based on the output magnitude.
 #[allow(dead_code)]
 fn update_nodestate(
-    _node: &mut NetworkNode,
-    _output: f64,
-    _advancedfeatures: &Array5<f64>,
-    _position: (usize, usize),
-    _config: &AdvancedConfig,
+    node: &mut NetworkNode,
+    output: f64,
+    advancedfeatures: &Array5<f64>,
+    position: (usize, usize),
+    config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // TODO: Implement comprehensive node state updates
-    // - Update quantum state amplitudes based on output
-    // - Modify classical state variables for temporal dynamics
-    // - Adapt learning parameters based on activation patterns
-    // - Include position-dependent state modifications
-    // - Update self-organization strength based on network activity
+    // Activation function: apply to connection_input + bias
+    let bias = if node.learning_params.len() > 2 {
+        node.learning_params[2]
+    } else {
+        0.0
+    };
+    let combined_input = output + bias;
+
+    // Apply activation function to get new state
+    let new_activation = apply_activation_function(combined_input, &node.activation_type, config)?;
+
+    // Update classical state with leaky integration: s' = decay * s + (1-decay) * output
+    let decay = (1.0 - config.neuromorphic_plasticity).clamp(0.0, 1.0);
+    let (y, x) = position;
+    let feature_shape = advancedfeatures.dim();
+
+    for (j, state_val) in node.classicalstate.iter_mut().enumerate() {
+        // Leaky integration of activation
+        *state_val = decay * (*state_val) + (1.0 - decay) * new_activation;
+
+        // Add small feature-based modulation
+        if y < feature_shape.0 && x < feature_shape.1 {
+            let d_idx = j.min(feature_shape.2.saturating_sub(1));
+            if feature_shape.2 > 0 && feature_shape.3 > 0 && feature_shape.4 > 0 {
+                let feat = advancedfeatures[(y, x, d_idx, 0, 0)];
+                *state_val += config.meta_learning_rate * feat * 0.01;
+            }
+        }
+
+        // Clamp to valid range
+        *state_val = state_val.clamp(-10.0, 10.0);
+    }
+
+    // Update quantum state: amplitude based on output magnitude
+    let amplitude = new_activation.abs().min(1.0);
+    let qs_len = node.quantumstate.len().max(1);
+    for (j, qs_val) in node.quantumstate.iter_mut().enumerate() {
+        let phase = (j as f64 * PI / qs_len as f64) * new_activation;
+        *qs_val = Complex::new(amplitude * phase.cos(), amplitude * phase.sin());
+    }
+
+    // Update self-organization strength based on activation
+    node.self_org_strength =
+        (node.self_org_strength * 0.99 + new_activation.abs() * 0.01).clamp(0.0, 1.0);
+
     Ok(())
 }
 
 /// Apply Self-Organization Learning (Safe Version)
 ///
-/// Applies self-organization learning rules to the network topology in a
-/// thread-safe manner. This function updates connection weights, creates
-/// new connections, and prunes ineffective ones based on network activity.
-///
-/// # Arguments
-///
-/// * `topology` - Mutable reference to the network topology
-/// * `node_id` - ID of the node to apply learning to
-/// * `config` - Configuration parameters for self-organization
-///
-/// # Returns
-///
-/// Returns `Ok(())` on successful learning application
-///
-/// # Implementation Notes
-///
-/// Currently provides a placeholder implementation to avoid borrowing conflicts.
-/// Full implementation would:
-/// - Update connection weights based on correlation patterns
-/// - Create new connections for strongly correlated nodes
-/// - Prune weak or ineffective connections
-/// - Update plasticity parameters
-///
-/// # TODO
-///
-/// - Implement Hebbian-like learning rules
-/// - Add connection creation/pruning algorithms
-/// - Update plasticity parameters based on activity
-/// - Include anti-Hebbian mechanisms for stability
+/// Safe Kohonen-style update with bounds checking.
+/// Updates connection weights toward the current node activation with a gradually decaying
+/// learning rate based on the node's learning_params history.
 #[allow(dead_code)]
 fn apply_self_organization_learning_safe(
-    _topology: &mut NetworkTopology,
-    _node_id: usize,
-    _config: &AdvancedConfig,
+    topology: &mut NetworkTopology,
+    node_id: usize,
+    config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // TODO: Implement safe self-organization learning
-    // - Apply Hebbian learning to strengthen correlated connections
-    // - Implement anti-Hebbian mechanisms for stability
-    // - Create new connections based on activity correlations
-    // - Prune connections below threshold strength
-    // - Update plasticity parameters based on learning history
+    if node_id >= topology.nodes.len() {
+        return Ok(());
+    }
+
+    // Get node activation (mean of classical state)
+    let node_activation = if topology.nodes[node_id].classicalstate.is_empty() {
+        0.0
+    } else {
+        topology.nodes[node_id].classicalstate.iter().sum::<f64>()
+            / topology.nodes[node_id].classicalstate.len() as f64
+    };
+
+    // Gradually reduce learning rate (using learning_params[0] as a decaying counter)
+    let base_lr = config.meta_learning_rate;
+    let decay_factor = if !topology.nodes[node_id].learning_params.is_empty() {
+        let calls = topology.nodes[node_id].learning_params[0].max(1.0);
+        1.0 / (1.0 + calls * 0.01)
+    } else {
+        1.0
+    };
+    let effective_lr = (base_lr * decay_factor).clamp(1e-6, 1.0);
+
+    // Update learning_params[0] as call counter
+    if !topology.nodes[node_id].learning_params.is_empty() {
+        topology.nodes[node_id].learning_params[0] += 1.0;
+    }
+
+    // Update connections for this node: Hebbian rule with bounds check
+    if let Some(connections) = topology.connections.get_mut(&node_id) {
+        for connection in connections.iter_mut() {
+            if connection.target < topology.nodes.len() {
+                let target_activation =
+                    if topology.nodes[connection.target].classicalstate.is_empty() {
+                        0.0
+                    } else {
+                        topology.nodes[connection.target]
+                            .classicalstate
+                            .iter()
+                            .sum::<f64>()
+                            / topology.nodes[connection.target].classicalstate.len() as f64
+                    };
+
+                // Hebbian update: Δw = lr * source * target
+                let delta_w = effective_lr * node_activation * target_activation;
+                connection.weight = Complex::new(
+                    (connection.weight.re + delta_w).clamp(-10.0, 10.0),
+                    connection.weight.im * (1.0 - connection.plasticity.decay_rate),
+                );
+            }
+        }
+    }
+
     Ok(())
 }
 
 /// Update Global Network Properties
 ///
-/// Updates network-wide properties such as coherence, self-organization index,
-/// consciousness emergence, and processing efficiency. These global measures
-/// help monitor and guide the overall network evolution.
-///
-/// # Arguments
-///
-/// * `topology` - Mutable reference to the network topology
-/// * `config` - Configuration parameters for global updates
-///
-/// # Returns
-///
-/// Returns `Ok(())` on successful global property updates
-///
-/// # Global Properties
-///
-/// - **Coherence**: Measure of network synchronization and harmony
-/// - **Self-Organization Index**: Degree of autonomous structural adaptation
-/// - **Consciousness Emergence**: Level of integrated information processing
-/// - **Efficiency**: Ratio of information processing to computational cost
-///
-/// # Implementation Notes
-///
-/// Currently provides a placeholder implementation. Full implementation would:
-/// - Calculate network coherence metrics
-/// - Measure self-organization effectiveness
-/// - Assess consciousness emergence indicators
-/// - Evaluate processing efficiency
-///
-/// # TODO
-///
-/// - Implement coherence calculation algorithms
-/// - Add self-organization index computation
-/// - Measure consciousness emergence using information integration
-/// - Calculate processing efficiency metrics
+/// Computes average activation across all nodes, average connection strength,
+/// self-organization index, and efficiency ratio. Updates global_properties in place.
 #[allow(dead_code)]
 fn update_global_network_properties(
-    _topology: &mut NetworkTopology,
-    _config: &AdvancedConfig,
+    topology: &mut NetworkTopology,
+    config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // TODO: Implement comprehensive global property updates
-    // - Calculate network coherence based on synchronization
-    // - Measure self-organization index from structural changes
-    // - Assess consciousness emergence using integrated information theory
-    // - Evaluate processing efficiency metrics
-    // - Update global properties for network optimization
+    if topology.nodes.is_empty() {
+        return Ok(());
+    }
+
+    let n = topology.nodes.len() as f64;
+
+    // Average activation across all nodes
+    let avg_activation: f64 = topology
+        .nodes
+        .iter()
+        .map(|node| {
+            if node.classicalstate.is_empty() {
+                0.0
+            } else {
+                node.classicalstate.iter().sum::<f64>() / node.classicalstate.len() as f64
+            }
+        })
+        .sum::<f64>()
+        / n;
+
+    // Activation variance (for coherence measure)
+    let var_activation: f64 = topology
+        .nodes
+        .iter()
+        .map(|node| {
+            let act = if node.classicalstate.is_empty() {
+                0.0
+            } else {
+                node.classicalstate.iter().sum::<f64>() / node.classicalstate.len() as f64
+            };
+            (act - avg_activation).powi(2)
+        })
+        .sum::<f64>()
+        / n;
+
+    // Coherence: inverse of normalized variance (high variance = low coherence)
+    let coherence = 1.0 / (1.0 + var_activation);
+
+    // Average connection strength
+    let total_connections: usize = topology.connections.values().map(|c| c.len()).sum();
+    let avg_connection_strength = if total_connections > 0 {
+        topology
+            .connections
+            .values()
+            .flat_map(|cs| cs.iter().map(|c| c.weight.re.abs()))
+            .sum::<f64>()
+            / total_connections as f64
+    } else {
+        0.0
+    };
+
+    // Self-organization index: mean self_org_strength across nodes
+    let self_org_index = topology
+        .nodes
+        .iter()
+        .map(|n| n.self_org_strength)
+        .sum::<f64>()
+        / topology.nodes.len() as f64;
+
+    // Consciousness emergence: geometric mean of coherence and self-org
+    let consciousness_emergence = (coherence * self_org_index).sqrt();
+
+    // Efficiency: information flow relative to connection overhead
+    let efficiency = if total_connections > 0 {
+        (avg_activation.abs() * coherence)
+            / (1.0 + avg_connection_strength * total_connections as f64 / n)
+    } else {
+        avg_activation.abs() * coherence
+    };
+
+    topology.global_properties.coherence = coherence;
+    topology.global_properties.self_organization_index = self_org_index;
+    topology.global_properties.consciousness_emergence = consciousness_emergence;
+    topology.global_properties.efficiency = efficiency.clamp(0.0, 1.0);
+
     Ok(())
 }
 
 /// Apply Self-Organization Learning
 ///
-/// Legacy function for applying self-organization learning to individual nodes.
-/// This version operates on node-connection pairs directly.
-///
-/// # Arguments
-///
-/// * `node` - Mutable reference to the network node
-/// * `connections` - Mutable reference to connection map
-/// * `node_id` - ID of the node to apply learning to
-/// * `config` - Configuration parameters for learning
-///
-/// # Returns
-///
-/// Returns `Ok(())` on successful learning application
-///
-/// # Note
-///
-/// This function is kept for compatibility but `apply_self_organization_learning_safe`
-/// should be preferred for thread-safe operations.
+/// Fast path (no bounds checking) for applying Kohonen-style weight updates to a specific node.
+/// Updates connection weights directly using Hebbian correlation without safety checks.
 #[allow(dead_code)]
 fn apply_self_organization_learning(
-    _node: &mut NetworkNode,
-    _connections: &mut HashMap<usize, Vec<Connection>>,
-    _node_id: usize,
-    _config: &AdvancedConfig,
+    node: &mut NetworkNode,
+    connections: &mut HashMap<usize, Vec<Connection>>,
+    node_id: usize,
+    config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // TODO: Implement node-specific self-organization learning
-    // - Update node learning parameters
-    // - Modify incoming and outgoing connections
-    // - Apply plasticity-based weight updates
-    // - Include node-specific adaptation mechanisms
+    // Node activation: mean of classical state
+    let node_activation = if node.classicalstate.is_empty() {
+        0.0
+    } else {
+        node.classicalstate.iter().sum::<f64>() / node.classicalstate.len() as f64
+    };
+
+    let lr = config.meta_learning_rate;
+
+    // Update outgoing connections for this node
+    if let Some(conns) = connections.get_mut(&node_id) {
+        for connection in conns.iter_mut() {
+            // Faster path: use node_activation as both pre- and post-synaptic proxy
+            let delta_w = lr * node_activation * node_activation;
+            let new_real = (connection.weight.re + delta_w).clamp(-10.0, 10.0);
+            let new_imag = connection.weight.im * (1.0 - connection.plasticity.decay_rate);
+            connection.weight = Complex::new(new_real, new_imag);
+        }
+    }
+
+    // Update self-organization strength
+    node.self_org_strength = (node.self_org_strength + lr * node_activation.abs()).clamp(0.0, 1.0);
+
     Ok(())
 }
 
@@ -643,5 +760,58 @@ mod tests {
         let result = apply_activation_function(-1000.0, &ActivationType::Sigmoid, &config)
             .expect("Operation failed");
         assert!(result >= -10.0 && result <= 10.0);
+    }
+
+    #[test]
+    fn test_network_node_update_bounded() {
+        use scirs2_core::ndarray::{Array1, Array5};
+
+        let mut node = NetworkNode {
+            id: 0,
+            quantumstate: Array1::zeros(4),
+            classicalstate: Array1::from_vec(vec![0.5, -0.3, 0.1, 0.8]),
+            learning_params: Array1::from_vec(vec![1.0, 0.1, 0.0, 0.0]),
+            activation_type: ActivationType::Sigmoid,
+            self_org_strength: 0.5,
+        };
+
+        let features = Array5::zeros((8, 8, 2, 2, 2));
+        let config = AdvancedConfig::default();
+
+        // Apply update with a range of extreme outputs
+        for output in [-100.0_f64, -1.0, 0.0, 1.0, 100.0] {
+            let result = update_nodestate(&mut node, output, &features, (0, 0), &config);
+            assert!(
+                result.is_ok(),
+                "update_nodestate failed for output={}",
+                output
+            );
+
+            // All classical state values must be bounded in [-10, 10]
+            for &state_val in node.classicalstate.iter() {
+                assert!(
+                    state_val.is_finite() && state_val >= -10.0 && state_val <= 10.0,
+                    "classical state out of bounds: {} (output was {})",
+                    state_val,
+                    output
+                );
+            }
+
+            // Quantum state norms should be <= 1
+            for qs in node.quantumstate.iter() {
+                assert!(
+                    qs.norm() <= 1.0 + 1e-10,
+                    "quantum state norm exceeded 1: {}",
+                    qs.norm()
+                );
+            }
+
+            // self_org_strength must be in [0, 1]
+            assert!(
+                node.self_org_strength >= 0.0 && node.self_org_strength <= 1.0,
+                "self_org_strength out of range: {}",
+                node.self_org_strength
+            );
+        }
     }
 }

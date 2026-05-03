@@ -1035,6 +1035,156 @@ pub fn cleanup_cache() {
     rug::float::free_cache(rug::float::FreeCache::All);
 }
 
+// ---------------------------------------------------------------------------
+// MPFR-native API: gamma_mpfr, erf_mpfr, bessel_j0_mpfr, bessel_k0_mpfr
+// These provide a simpler interface that takes precision_bits directly and
+// returns a `rug::Float` at that precision, delegating to MPFR built-ins.
+// ---------------------------------------------------------------------------
+
+/// Compute the gamma function Γ(x) at arbitrary precision via MPFR.
+///
+/// # Arguments
+/// * `x` - The argument as a `rug::Float` (must be positive real for finite result)
+/// * `precision_bits` - MPFR precision in bits (53 = f64 precision, 500+ for extended)
+///
+/// # Returns
+/// Γ(x) as a `rug::Float` at the requested precision.
+pub fn gamma_mpfr(x: &Float, precision_bits: u32) -> Float {
+    let mut result = Float::with_val(precision_bits, x);
+    result.gamma_mut();
+    result
+}
+
+/// Compute the log-gamma function ln(Γ(x)) at arbitrary precision via MPFR.
+pub fn lgamma_mpfr(x: &Float, precision_bits: u32) -> Float {
+    let mut result = Float::with_val(precision_bits, x);
+    result.ln_gamma_mut();
+    result
+}
+
+/// Compute the digamma function ψ(x) = d/dx ln(Γ(x)) at arbitrary precision via MPFR.
+pub fn digamma_mpfr(x: &Float, precision_bits: u32) -> Float {
+    let mut result = Float::with_val(precision_bits, x);
+    result.digamma_mut();
+    result
+}
+
+/// Compute the error function erf(x) at arbitrary precision via MPFR.
+pub fn erf_mpfr(x: &Float, precision_bits: u32) -> Float {
+    let mut result = Float::with_val(precision_bits, x);
+    result.erf_mut();
+    result
+}
+
+/// Compute the complementary error function erfc(x) at arbitrary precision via MPFR.
+pub fn erfc_mpfr(x: &Float, precision_bits: u32) -> Float {
+    let mut result = Float::with_val(precision_bits, x);
+    result.erfc_mut();
+    result
+}
+
+/// Compute the Bessel function J₀(x) at arbitrary precision via MPFR.
+///
+/// Delegates to MPFR's native `j0` implementation for full precision near zeros.
+pub fn bessel_j0_mpfr(x: &Float, precision_bits: u32) -> Float {
+    let mut result = Float::with_val(precision_bits, x);
+    result.j0_mut();
+    result
+}
+
+/// Compute the modified Bessel function K₀(x) at arbitrary precision.
+///
+/// K₀(x) = −(ln(x/2) + γ) I₀(x) + Σ_{k=1}^∞ H_k (x/2)^{2k} / (k!)²
+///
+/// where γ is the Euler-Mascheroni constant, H_k = 1 + 1/2 + ... + 1/k,
+/// and I₀ is the modified Bessel function of the first kind (all positive series).
+///
+/// Uses a convergent power series valid for all finite x > 0.
+/// MPFR does not expose K₀ directly; this implementation uses the standard
+/// Abramowitz & Stegun series with rug arithmetic.
+pub fn bessel_k0_mpfr(x: &Float, precision_bits: u32) -> Float {
+    let prec = precision_bits;
+
+    let half_x = Float::with_val(prec, x) * Float::with_val(prec, 0.5_f64);
+    let half_x_sq = Float::with_val(prec, &half_x * &half_x);
+
+    // Euler-Mascheroni constant γ via MPFR built-in constant
+    let gamma_em = Float::with_val(prec, rug::float::Constant::Euler);
+    let ln_half_x = Float::with_val(prec, half_x.clone()).ln();
+    let log_term = Float::with_val(prec, &ln_half_x + &gamma_em);
+
+    // I₀(x) = Σ_{k=0}^∞ (x/2)^{2k} / (k!)²  (all positive terms)
+    let i0 = bessel_i0_mpfr_internal(x, prec);
+
+    // Second sum: Σ_{k=1}^∞ H_k * (x/2)^{2k} / (k!)²
+    let mut second_sum = Float::with_val(prec, 0.0_f64);
+    let mut factorial_sq = Float::with_val(prec, 1.0_f64);
+    let mut power = Float::with_val(prec, 1.0_f64); // (x/2)^{2k}
+    let mut harmonic = Float::with_val(prec, 0.0_f64); // H_k
+
+    // Convergence threshold: 2^{-(precision_bits - 4)} relative to sum magnitude
+    let n_terms = ((prec as usize) / 3).max(80);
+    for k in 1..=n_terms {
+        let k_f = k as f64;
+        power *= Float::with_val(prec, &half_x_sq);
+        factorial_sq *= Float::with_val(prec, k_f * k_f);
+        harmonic += Float::with_val(prec, 1.0_f64 / k_f);
+
+        let term = Float::with_val(
+            prec,
+            Float::with_val(prec, &harmonic * &power) / Float::with_val(prec, &factorial_sq),
+        );
+        let term_abs = term.clone().abs();
+        let second_abs = second_sum.clone().abs();
+
+        second_sum += &term;
+
+        // Stop when term is negligible relative to accumulated sum
+        if !second_abs.is_zero() {
+            let ratio = Float::with_val(prec, &term_abs / &second_abs);
+            let threshold = Float::with_val(prec, 2.0_f64).pow(-((prec - 4) as i32));
+            if ratio < threshold {
+                break;
+            }
+        }
+    }
+
+    // K₀(x) = −(ln(x/2) + γ) I₀(x) + second_sum
+    Float::with_val(prec, -Float::with_val(prec, &i0 * &log_term) + &second_sum)
+}
+
+/// Internal helper: compute I₀(x) = Σ_{k=0}^∞ (x/2)^{2k} / (k!)²
+///
+/// All terms are positive, so no cancellation issues. Uses the same
+/// precision as the caller.
+fn bessel_i0_mpfr_internal(x: &Float, prec: u32) -> Float {
+    let half_x = Float::with_val(prec, x) * Float::with_val(prec, 0.5_f64);
+    let half_x_sq = Float::with_val(prec, &half_x * &half_x);
+
+    let mut sum = Float::with_val(prec, 1.0_f64);
+    let mut term = Float::with_val(prec, 1.0_f64);
+
+    let n_terms = ((prec as usize) / 3).max(80);
+    for k in 1..=n_terms {
+        let k_f = k as f64;
+        term *= Float::with_val(prec, &half_x_sq);
+        term /= Float::with_val(prec, k_f * k_f);
+
+        let term_abs = term.clone().abs();
+        let sum_abs = sum.clone().abs();
+        sum += &term;
+
+        if !sum_abs.is_zero() {
+            let ratio = Float::with_val(prec, &term_abs / &sum_abs);
+            let threshold = Float::with_val(prec, 2.0_f64).pow(-((prec - 4) as i32));
+            if ratio < threshold {
+                break;
+            }
+        }
+    }
+    sum
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

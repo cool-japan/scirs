@@ -548,3 +548,53 @@ where
         upper,
     })
 }
+
+// ---------------------------------------------------------------------------
+// High-level struct API
+// ---------------------------------------------------------------------------
+
+/// High-level robust trend filter with a simple constructor API.
+///
+/// Wraps [`robust_trend_filter`] using the Hodrick-Prescott filter by default.
+/// The `lambda` parameter controls the degree of smoothing: higher values
+/// produce a smoother trend.
+///
+/// # Examples
+///
+/// ```rust
+/// use scirs2_series::trends::RobustTrendFilter;
+/// use scirs2_core::ndarray::Array1;
+///
+/// let data = Array1::linspace(0.0_f64, 10.0, 100);
+/// let filter = RobustTrendFilter::new(1600.0);
+/// let trend = filter.filter(&data).expect("should succeed");
+/// assert_eq!(trend.len(), data.len());
+/// ```
+pub struct RobustTrendFilter {
+    lambda: f64,
+}
+
+impl RobustTrendFilter {
+    /// Create a new `RobustTrendFilter` with the given smoothing parameter.
+    ///
+    /// * `lambda` — Smoothing strength. Typical values:
+    ///   - `1600` for quarterly macroeconomic data (Hodrick-Prescott convention)
+    ///   - `100` for annual data
+    ///   - Higher values → smoother trend
+    pub fn new(lambda: f64) -> Self {
+        Self { lambda }
+    }
+
+    /// Apply the filter to a time series, returning the estimated trend.
+    pub fn filter<F>(&self, ts: &Array1<F>) -> crate::error::Result<Array1<F>>
+    where
+        F: Float + FromPrimitive + Debug + 'static,
+    {
+        let options = RobustFilterOptions {
+            method: RobustFilterMethod::HodrickPrescott,
+            lambda: self.lambda,
+            ..Default::default()
+        };
+        robust_trend_filter(ts, &options)
+    }
+}

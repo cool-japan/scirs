@@ -44,8 +44,8 @@ pub type CausalityResult<T> = Result<T, TimeSeriesError>;
 // Re-export key types from submodules
 pub use granger::{
     granger_causality_bidirectional, granger_causality_test, granger_causality_test_with_alpha,
-    GrangerCausalityResult, GrangerConfig, LagSelectionCriterion, LagSelectionResult,
-    MultivariateCausalityResult, SpectralGrangerResult,
+    GrangerCausalityResult, GrangerCausalityTest, GrangerConfig, LagSelectionCriterion,
+    LagSelectionResult, MultivariateCausalityResult, SpectralGrangerResult,
 };
 pub use transfer_entropy::{
     ConditionalTransferEntropyConfig, EffectiveTransferEntropyConfig, RenyiTransferEntropyConfig,
@@ -504,7 +504,12 @@ impl Default for CausalityTester {
 
 // ---- Shared utility functions ----
 
-/// Solve a linear system Ax = b using Gauss-Seidel iteration
+/// Solve a linear system Ax = b using Gaussian elimination with partial pivoting.
+///
+/// This replaces the previous Jacobi/Gauss-Seidel iteration which does not
+/// converge reliably when A is X^T X from OLS (not guaranteed diagonally dominant).
+/// Gaussian elimination with partial pivoting is numerically stable for
+/// symmetric positive (semi-)definite matrices such as X^T X.
 pub(crate) fn solve_linear_system(
     a: &Array2<f64>,
     b: &Array1<f64>,
@@ -516,40 +521,60 @@ pub(crate) fn solve_linear_system(
         ));
     }
 
-    let mut x = Array1::zeros(n);
-    let max_iter = 1000;
-    let tolerance = 1e-10;
+    // Build augmented matrix [A | b] with Tikhonov regularisation on the diagonal
+    // to keep the system solvable when X^T X is nearly singular.
+    let ridge = 1e-10;
+    let mut aug: Vec<Vec<f64>> = (0..n)
+        .map(|i| {
+            let mut row: Vec<f64> = (0..n).map(|j| a[[i, j]]).collect();
+            row[i] += ridge; // regularise diagonal
+            row.push(b[i]);
+            row
+        })
+        .collect();
 
-    // Add regularization
-    let mut a_reg = a.clone();
-    for i in 0..n {
-        a_reg[[i, i]] += 1e-10;
-    }
+    // Forward elimination with partial (row) pivoting
+    for col in 0..n {
+        // Find the row with the maximum absolute value in this column
+        let pivot_row = (col..n)
+            .max_by(|&r1, &r2| {
+                aug[r1][col]
+                    .abs()
+                    .partial_cmp(&aug[r2][col].abs())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .unwrap_or(col);
 
-    for _iter in 0..max_iter {
-        let mut x_new = x.clone();
+        aug.swap(col, pivot_row);
 
-        for i in 0..n {
-            let mut sum = 0.0;
-            for j in 0..n {
-                if i != j {
-                    sum += a_reg[[i, j]] * x[j];
-                }
-            }
-            if a_reg[[i, i]].abs() > 1e-15 {
-                x_new[i] = (b[i] - sum) / a_reg[[i, i]];
-            }
+        let pivot = aug[col][col];
+        if pivot.abs() < 1e-15 {
+            // Column is numerically zero — leave as zero (least-norm solution)
+            continue;
         }
 
-        let diff = (&x_new - &x).mapv(|v| v.abs()).sum();
-        x = x_new;
-
-        if diff < tolerance {
-            break;
+        // Eliminate rows below the pivot
+        for row in (col + 1)..n {
+            let factor = aug[row][col] / pivot;
+            for k in col..=n {
+                let val = aug[col][k];
+                aug[row][k] -= factor * val;
+            }
         }
     }
 
-    Ok(x)
+    // Back substitution
+    let mut x = vec![0.0f64; n];
+    for i in (0..n).rev() {
+        let mut rhs = aug[i][n];
+        for j in (i + 1)..n {
+            rhs -= aug[i][j] * x[j];
+        }
+        let diag = aug[i][i];
+        x[i] = if diag.abs() > 1e-15 { rhs / diag } else { 0.0 };
+    }
+
+    Ok(Array1::from_vec(x))
 }
 
 /// Compute residual sum of squares for OLS regression
@@ -749,7 +774,12 @@ pub(crate) fn f_distribution_p_value(fstat: f64, df1: usize, df2: usize) -> f64 
     1.0 - incomplete_beta(x, alpha, beta)
 }
 
-/// Incomplete beta function approximation
+/// Regularized incomplete beta function I_x(a, b).
+///
+/// Uses the Numerical Recipes continued fraction (Lentz algorithm) for
+/// numerical stability with large parameters.  The symmetry relation
+/// I_x(a,b) = 1 - I_{1-x}(b,a) is applied when x > (a+1)/(a+b+2) so that
+/// evaluation always uses the converging branch of the CF.
 pub(crate) fn incomplete_beta(x: f64, a: f64, b: f64) -> f64 {
     if x <= 0.0 {
         return 0.0;
@@ -758,33 +788,129 @@ pub(crate) fn incomplete_beta(x: f64, a: f64, b: f64) -> f64 {
         return 1.0;
     }
 
-    let mut result = x.powf(a) * (1.0 - x).powf(b) / a;
-    let mut term = result;
+    // Front factor: x^a * (1-x)^b / (a * B(a,b)), computed in log-space.
+    let bt = (log_gamma_function(a + b) - log_gamma_function(a) - log_gamma_function(b)
+        + a * x.ln()
+        + b * (1.0 - x).ln())
+    .exp();
 
-    for n in 1..100 {
-        let n_f = n as f64;
-        term *= (a + n_f - 1.0) * x / n_f;
-        result += term;
-        if term.abs() < 1e-10 {
+    if x < (a + 1.0) / (a + b + 2.0) {
+        bt * betacf(a, b, x) / a
+    } else {
+        1.0 - bt * betacf(b, a, 1.0 - x) / b
+    }
+}
+
+/// Continued fraction helper for the regularized incomplete beta (Numerical Recipes).
+///
+/// Evaluates the CF that appears in the standard incomplete beta continued
+/// fraction representation.  Uses the modified Lentz algorithm.
+fn betacf(a: f64, b: f64, x: f64) -> f64 {
+    const MAX_ITER: usize = 200;
+    const EPS: f64 = 3e-7;
+    const FPMIN: f64 = 1e-300;
+
+    let qab = a + b;
+    let qap = a + 1.0;
+    let qam = a - 1.0;
+    let mut c = 1.0;
+    let mut d = 1.0 - qab * x / qap;
+    if d.abs() < FPMIN {
+        d = FPMIN;
+    }
+    d = 1.0 / d;
+    let mut h = d;
+
+    for m in 1..=MAX_ITER {
+        let m_f = m as f64;
+        let m2_f = (2 * m) as f64;
+
+        // Even step
+        let aa = m_f * (b - m_f) * x / ((qam + m2_f) * (a + m2_f));
+        d = 1.0 + aa * d;
+        if d.abs() < FPMIN {
+            d = FPMIN;
+        }
+        c = 1.0 + aa / c;
+        if c.abs() < FPMIN {
+            c = FPMIN;
+        }
+        d = 1.0 / d;
+        h *= d * c;
+
+        // Odd step
+        let aa = -(a + m_f) * (qab + m_f) * x / ((a + m2_f) * (qap + m2_f));
+        d = 1.0 + aa * d;
+        if d.abs() < FPMIN {
+            d = FPMIN;
+        }
+        c = 1.0 + aa / c;
+        if c.abs() < FPMIN {
+            c = FPMIN;
+        }
+        d = 1.0 / d;
+        let del = d * c;
+        h *= del;
+
+        if (del - 1.0).abs() < EPS {
             break;
         }
     }
-
-    result / beta_function(a, b)
+    h
 }
 
-/// Beta function via gamma function relation
-pub(crate) fn beta_function(a: f64, b: f64) -> f64 {
-    gamma_function(a) * gamma_function(b) / gamma_function(a + b)
+/// Natural logarithm of the beta function B(a, b) = Γ(a)Γ(b)/Γ(a+b).
+///
+/// Uses `log_gamma_function` for numerical stability with large arguments.
+pub(crate) fn log_beta_function(a: f64, b: f64) -> f64 {
+    log_gamma_function(a) + log_gamma_function(b) - log_gamma_function(a + b)
 }
 
-/// Gamma function (Stirling's approximation)
-pub(crate) fn gamma_function(x: f64) -> f64 {
-    if x < 1.0 {
-        return gamma_function(x + 1.0) / x;
+/// Natural logarithm of Γ(x) using Lanczos approximation (g=7, n=9).
+///
+/// This is accurate to ~15 decimal places for x > 0 and avoids the
+/// catastrophic cancellation that occurs when computing Γ(x) as a plain
+/// product for large x.
+pub(crate) fn log_gamma_function(x: f64) -> f64 {
+    // Lanczos coefficients (g=7, n=9) from Numerical Recipes
+    let c = [
+        0.999_999_999_999_809_93,
+        676.520_368_121_885_10,
+        -1259.139_216_722_402_8,
+        771.323_428_777_653_13,
+        -176.615_029_162_140_60,
+        12.507_343_278_686_905,
+        -0.138_571_095_265_720_12,
+        9.984_369_578_019_572e-6,
+        1.505_632_735_149_311_6e-7,
+    ];
+    if x < 0.5 {
+        // Reflection formula: Γ(x) = π / (sin(πx) * Γ(1-x))
+        std::f64::consts::PI.ln()
+            - (std::f64::consts::PI * x).sin().abs().ln()
+            - log_gamma_function(1.0 - x)
+    } else {
+        let xm1 = x - 1.0;
+        let t = xm1 + 7.5; // g + 0.5
+        let mut ser = c[0];
+        for (k, &ck) in c[1..].iter().enumerate() {
+            ser += ck / (xm1 + (k + 1) as f64);
+        }
+        (2.0 * std::f64::consts::PI).sqrt().ln() + ser.ln() + (xm1 + 0.5) * t.ln() - t
     }
+}
 
-    (2.0 * std::f64::consts::PI / x).sqrt() * (x / std::f64::consts::E).powf(x)
+/// Beta function B(a, b) = Γ(a)Γ(b)/Γ(a+b) computed via log-space for stability.
+pub(crate) fn beta_function(a: f64, b: f64) -> f64 {
+    log_beta_function(a, b).exp()
+}
+
+/// Gamma function Γ(x) computed via log-space for stability.
+///
+/// Uses the Lanczos-based `log_gamma_function` internally; prefer
+/// `log_gamma_function` when working with large values.
+pub(crate) fn gamma_function(x: f64) -> f64 {
+    log_gamma_function(x).exp()
 }
 
 /// Chi-squared p-value approximation using Wilson-Hilferty normal approximation

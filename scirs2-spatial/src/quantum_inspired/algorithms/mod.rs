@@ -13,5 +13,7 @@ pub use quantum_clustering::QuantumClusterer;
 pub use quantum_optimization::QuantumSpatialOptimizer;
 pub use quantum_search::QuantumNearestNeighbor;
 
-// TODO: Add these modules as they are implemented
-// pub mod quantum_machine_learning;
+pub mod quantum_machine_learning;
+
+// Re-export key types from quantum_machine_learning
+pub use quantum_machine_learning::{QuantumClassifier, QuantumSVMModel};

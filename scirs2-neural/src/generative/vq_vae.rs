@@ -161,8 +161,7 @@ impl VQEmbedding {
                         let bits2 = lcg_next(&mut rng) >> 11;
                         let u1 = (bits1 as f64 + 1.0) / ((1u64 << 53) as f64 + 1.0);
                         let u2 = bits2 as f64 / (1u64 << 53) as f64;
-                        let n = (-2.0 * u1.ln()).sqrt()
-                            * (2.0 * std::f64::consts::PI * u2).cos();
+                        let n = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                         (n as f32) * scale
                     })
                     .collect()
@@ -313,14 +312,14 @@ impl VQEmbedding {
         let eps = self.config.laplace_eps;
         for i in 0..k {
             self.usage_counts[i] = gamma * self.usage_counts[i] + (1.0 - gamma) * batch_counts[i];
-            for j in 0..d {
+            for (j, bsij) in batch_sums[i].iter().enumerate().take(d) {
                 self.ema_cluster_sum[i][j] =
-                    gamma * self.ema_cluster_sum[i][j] + (1.0 - gamma) * batch_sums[i][j];
+                    gamma * self.ema_cluster_sum[i][j] + (1.0 - gamma) * bsij;
             }
             // Update codebook: e_i = m_i / N_i  (with Laplace smoothing)
             let n = self.usage_counts[i] + eps;
-            for j in 0..d {
-                self.codebook[i][j] = (self.ema_cluster_sum[i][j] / n) as f32;
+            for (j, cb) in self.codebook[i].iter_mut().enumerate().take(d) {
+                *cb = (self.ema_cluster_sum[i][j] / n) as f32;
             }
         }
         Ok(())
@@ -564,11 +563,17 @@ mod tests {
         let z_e: Vec<Vec<f32>> = (0..batch).map(|_| vec![0.5f32; d]).collect();
         let z_q: Vec<Vec<f32>> = (0..batch).map(|_| vec![0.4f32; d]).collect();
 
-        let (recon, vq, commit) = VQVAELoss::compute(&x_recon, &x, &z_e, &z_q, 0.25)
-            .expect("vqvae loss");
-        assert!(recon >= 0.0 && recon.is_finite(), "recon loss invalid: {recon}");
+        let (recon, vq, commit) =
+            VQVAELoss::compute(&x_recon, &x, &z_e, &z_q, 0.25).expect("vqvae loss");
+        assert!(
+            recon >= 0.0 && recon.is_finite(),
+            "recon loss invalid: {recon}"
+        );
         assert!(vq >= 0.0 && vq.is_finite(), "vq loss invalid: {vq}");
-        assert!(commit >= 0.0 && commit.is_finite(), "commit loss invalid: {commit}");
+        assert!(
+            commit >= 0.0 && commit.is_finite(),
+            "commit loss invalid: {commit}"
+        );
     }
 
     #[test]
@@ -579,9 +584,15 @@ mod tests {
 
         let (recon, vq, commit) =
             VQVAELoss::compute(&x, &x, &z_e, &z_q, 0.25).expect("perfect recon");
-        assert!(recon.abs() < 1e-6, "recon not 0 for perfect reconstruction: {recon}");
+        assert!(
+            recon.abs() < 1e-6,
+            "recon not 0 for perfect reconstruction: {recon}"
+        );
         assert!(vq.abs() < 1e-6, "vq not 0 for identical z_e/z_q: {vq}");
-        assert!(commit.abs() < 1e-6, "commit not 0 for identical z_e/z_q: {commit}");
+        assert!(
+            commit.abs() < 1e-6,
+            "commit not 0 for identical z_e/z_q: {commit}"
+        );
     }
 
     #[test]
@@ -662,6 +673,9 @@ mod tests {
         }
         emb.update_ema(&z_e, &indices).expect("ema");
         // Codebook cluster 0 should now be close to [10, 10]
-        assert!((emb.codebook[0][0] - 10.0).abs() < 1.0, "codebook[0] should be near 10");
+        assert!(
+            (emb.codebook[0][0] - 10.0).abs() < 1.0,
+            "codebook[0] should be near 10"
+        );
     }
 }

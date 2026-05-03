@@ -71,11 +71,7 @@ pub fn find_saddle_point(payoff: ArrayView2<f64>) -> Option<(usize, usize, f64)>
 
     // Row minima
     let row_min: Vec<f64> = (0..m)
-        .map(|i| {
-            (0..n)
-                .map(|j| payoff[[i, j]])
-                .fold(f64::INFINITY, f64::min)
-        })
+        .map(|i| (0..n).map(|j| payoff[[i, j]]).fold(f64::INFINITY, f64::min))
         .collect();
 
     // Column maxima
@@ -115,9 +111,7 @@ pub fn find_saddle_point(payoff: ArrayView2<f64>) -> Option<(usize, usize, f64)>
 ///
 /// # Returns
 /// `(remaining_rows, remaining_cols)` — indices of non-dominated strategies.
-pub fn remove_dominated_strategies(
-    payoff: &mut Array2<f64>,
-) -> (Vec<usize>, Vec<usize>) {
+pub fn remove_dominated_strategies(payoff: &mut Array2<f64>) -> (Vec<usize>, Vec<usize>) {
     let m = payoff.nrows();
     let n = payoff.ncols();
 
@@ -135,10 +129,12 @@ pub fn remove_dominated_strategies(
                 if i2 == i {
                     return false;
                 }
-                let weakly_dominates =
-                    active_cols.iter().all(|&j| payoff[[i2, j]] >= payoff[[i, j]]);
-                let strictly_somewhere =
-                    active_cols.iter().any(|&j| payoff[[i2, j]] > payoff[[i, j]]);
+                let weakly_dominates = active_cols
+                    .iter()
+                    .all(|&j| payoff[[i2, j]] >= payoff[[i, j]]);
+                let strictly_somewhere = active_cols
+                    .iter()
+                    .any(|&j| payoff[[i2, j]] > payoff[[i, j]]);
                 weakly_dominates && strictly_somewhere
             });
             if is_dominated {
@@ -156,10 +152,12 @@ pub fn remove_dominated_strategies(
                 if j2 == j {
                     return false;
                 }
-                let weakly_dominates =
-                    active_rows.iter().all(|&i| payoff[[i, j2]] <= payoff[[i, j]]);
-                let strictly_somewhere =
-                    active_rows.iter().any(|&i| payoff[[i, j2]] < payoff[[i, j]]);
+                let weakly_dominates = active_rows
+                    .iter()
+                    .all(|&i| payoff[[i, j2]] <= payoff[[i, j]]);
+                let strictly_somewhere = active_rows
+                    .iter()
+                    .any(|&i| payoff[[i, j2]] < payoff[[i, j]]);
                 weakly_dominates && strictly_somewhere
             });
             if is_dominated {
@@ -186,14 +184,13 @@ pub fn row_best_response(payoff: ArrayView2<f64>, col_mixed: &[f64]) -> Vec<usiz
     }
 
     let row_payoffs: Vec<f64> = (0..m)
-        .map(|i| {
-            (0..n)
-                .map(|j| payoff[[i, j]] * col_mixed[j])
-                .sum::<f64>()
-        })
+        .map(|i| (0..n).map(|j| payoff[[i, j]] * col_mixed[j]).sum::<f64>())
         .collect();
 
-    let max_payoff = row_payoffs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let max_payoff = row_payoffs
+        .iter()
+        .cloned()
+        .fold(f64::NEG_INFINITY, f64::max);
     (0..m)
         .filter(|&i| (row_payoffs[i] - max_payoff).abs() < 1e-9)
         .collect()
@@ -215,9 +212,7 @@ pub fn row_best_response(payoff: ArrayView2<f64>, col_mixed: &[f64]) -> Vec<usiz
 ///
 /// # Errors
 /// Returns `OptimizeError::ComputationError` if the simplex method fails.
-pub fn linear_program_minimax(
-    payoff: ArrayView2<f64>,
-) -> Result<MinimaxResult, OptimizeError> {
+pub fn linear_program_minimax(payoff: ArrayView2<f64>) -> Result<MinimaxResult, OptimizeError> {
     let m = payoff.nrows();
     let n = payoff.ncols();
 
@@ -228,10 +223,7 @@ pub fn linear_program_minimax(
     }
 
     // Shift payoff matrix so all entries are positive
-    let min_val = payoff
-        .iter()
-        .cloned()
-        .fold(f64::INFINITY, f64::min);
+    let min_val = payoff.iter().cloned().fold(f64::INFINITY, f64::min);
     let shift = if min_val <= 0.0 { -min_val + 1.0 } else { 0.0 };
     let shifted: Vec<f64> = payoff.iter().map(|&v| v + shift).collect();
 
@@ -261,11 +253,7 @@ pub fn linear_program_minimax(
 /// Then v = 1 / sum(x) and p = x * v.
 ///
 /// Returns (normalized strategy, game_value_shifted).
-fn solve_row_lp(
-    shifted: &[f64],
-    m: usize,
-    n: usize,
-) -> Result<(Vec<f64>, f64), OptimizeError> {
+fn solve_row_lp(shifted: &[f64], m: usize, n: usize) -> Result<(Vec<f64>, f64), OptimizeError> {
     // Standard form with surplus + artificial variables:
     //   min  sum(x_i) + M * sum(a_j)
     //   s.t. sum_i A'[i,j] x_i - s_j + a_j = 1   for j = 0..n
@@ -343,11 +331,7 @@ fn solve_row_lp(
 /// Then w = 1 / sum(y) and q = y * w.
 ///
 /// Returns (normalized strategy, game_value_shifted).
-fn solve_col_lp(
-    shifted: &[f64],
-    m: usize,
-    n: usize,
-) -> Result<(Vec<f64>, f64), OptimizeError> {
+fn solve_col_lp(shifted: &[f64], m: usize, n: usize) -> Result<(Vec<f64>, f64), OptimizeError> {
     // Standard form with slack variables (no artificials needed for <= constraints):
     //   min  -sum(y_j)        [= max sum(y_j)]
     //   s.t. sum_j A'[i,j] y_j + s_i = 1   for i = 0..m
@@ -455,9 +439,7 @@ fn simplex_method(
         }
 
         let pivot_row = pivot_row.ok_or_else(|| {
-            OptimizeError::ComputationError(
-                "Simplex: problem is unbounded".to_string(),
-            )
+            OptimizeError::ComputationError("Simplex: problem is unbounded".to_string())
         })?;
 
         // Pivot
@@ -557,10 +539,7 @@ pub fn fictitious_play(
         let col_payoffs: Vec<f64> = (0..n)
             .map(|j| (0..m).map(|i| payoff[[i, j]] * row_freq[i]).sum::<f64>())
             .collect();
-        let min_col = col_payoffs
-            .iter()
-            .cloned()
-            .fold(f64::INFINITY, f64::min);
+        let min_col = col_payoffs.iter().cloned().fold(f64::INFINITY, f64::min);
         col_strat_idx = col_payoffs
             .iter()
             .position(|&v| (v - min_col).abs() < 1e-12)
@@ -616,13 +595,11 @@ pub fn security_strategies(
     // Row maximin: pure strategy gives lower bound
     // Row player's maximin (pure): max_i min_j A[i,j]
     let pure_maximin_row = (0..m)
-        .map(|i| {
-            (0..n)
-                .map(|j| payoff[[i, j]])
-                .fold(f64::INFINITY, f64::min)
-        })
+        .map(|i| (0..n).map(|j| payoff[[i, j]]).fold(f64::INFINITY, f64::min))
         .enumerate()
-        .max_by(|(_, a): &(usize, f64), (_, b): &(usize, f64)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        .max_by(|(_, a): &(usize, f64), (_, b): &(usize, f64)| {
+            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+        });
 
     // Col minimax: pure strategy gives upper bound
     // Col player's minimax (pure): min_j max_i A[i,j]
@@ -633,7 +610,9 @@ pub fn security_strategies(
                 .fold(f64::NEG_INFINITY, f64::max)
         })
         .enumerate()
-        .min_by(|(_, a): &(usize, f64), (_, b): &(usize, f64)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        .min_by(|(_, a): &(usize, f64), (_, b): &(usize, f64)| {
+            a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+        });
 
     let (maximin_idx, maximin_val) = pure_maximin_row
         .ok_or_else(|| OptimizeError::ComputationError("Empty row set".to_string()))?;
@@ -662,8 +641,8 @@ pub fn security_strategies(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
     use approx::assert_relative_eq;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_find_saddle_point_exists() {
@@ -695,8 +674,11 @@ mod tests {
         // maximin=2, minimax=3 → no saddle point, mixed strategy needed
         let result = minimax_solve(payoff.view()).expect("solve succeeds");
         // Game value should be between 2 and 3
-        assert!(result.game_value >= 1.9 && result.game_value <= 3.1,
-            "game_value = {}", result.game_value);
+        assert!(
+            result.game_value >= 1.9 && result.game_value <= 3.1,
+            "game_value = {}",
+            result.game_value
+        );
         // Strategies should sum to 1
         let sum_row: f64 = result.row_player_strategy.iter().sum();
         let sum_col: f64 = result.col_player_strategy.iter().sum();

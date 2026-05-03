@@ -121,80 +121,223 @@ impl TriggerLexicon {
 
         // Move
         for w in &[
-            "moved", "moving", "move", "traveled", "travel", "travelled",
-            "fled", "flee", "departed", "depart", "arrived", "arrive",
-            "entered", "enter", "left", "evacuated", "evacuate", "migrated",
-            "migrate", "relocated", "relocate", "walked", "ran", "run",
+            "moved",
+            "moving",
+            "move",
+            "traveled",
+            "travel",
+            "travelled",
+            "fled",
+            "flee",
+            "departed",
+            "depart",
+            "arrived",
+            "arrive",
+            "entered",
+            "enter",
+            "left",
+            "evacuated",
+            "evacuate",
+            "migrated",
+            "migrate",
+            "relocated",
+            "relocate",
+            "walked",
+            "ran",
+            "run",
         ] {
             lex.insert(*w, EventType::Move);
         }
 
         // Attack
         for w in &[
-            "attacked", "attack", "assaulted", "assault", "bombed", "bomb",
-            "shot", "shoot", "fired", "fire", "struck", "strike", "hit",
-            "targeted", "target", "raided", "raid", "invaded", "invade",
-            "detonated", "detonate", "launched", "launch", "stabbed", "stab",
+            "attacked",
+            "attack",
+            "assaulted",
+            "assault",
+            "bombed",
+            "bomb",
+            "shot",
+            "shoot",
+            "fired",
+            "fire",
+            "struck",
+            "strike",
+            "hit",
+            "targeted",
+            "target",
+            "raided",
+            "raid",
+            "invaded",
+            "invade",
+            "detonated",
+            "detonate",
+            "launched",
+            "launch",
+            "stabbed",
+            "stab",
         ] {
             lex.insert(*w, EventType::Attack);
         }
 
         // Meet
         for w in &[
-            "met", "meet", "meeting", "gathered", "gather", "assembled",
-            "assemble", "convened", "convene", "discussed", "discuss",
-            "negotiated", "negotiate", "talked", "talk", "conferenced",
-            "conferred", "confer", "visited", "visit",
+            "met",
+            "meet",
+            "meeting",
+            "gathered",
+            "gather",
+            "assembled",
+            "assemble",
+            "convened",
+            "convene",
+            "discussed",
+            "discuss",
+            "negotiated",
+            "negotiate",
+            "talked",
+            "talk",
+            "conferenced",
+            "conferred",
+            "confer",
+            "visited",
+            "visit",
         ] {
             lex.insert(*w, EventType::Meet);
         }
 
         // Arrest
         for w in &[
-            "arrested", "arrest", "detained", "detain", "apprehended",
-            "apprehend", "captured", "capture", "jailed", "jail",
-            "imprisoned", "imprison", "charged", "charge", "indicted",
-            "indict", "booked", "book", "handcuffed", "handcuff",
+            "arrested",
+            "arrest",
+            "detained",
+            "detain",
+            "apprehended",
+            "apprehend",
+            "captured",
+            "capture",
+            "jailed",
+            "jail",
+            "imprisoned",
+            "imprison",
+            "charged",
+            "charge",
+            "indicted",
+            "indict",
+            "booked",
+            "book",
+            "handcuffed",
+            "handcuff",
         ] {
             lex.insert(*w, EventType::Arrest);
         }
 
         // Die
         for w in &[
-            "died", "die", "killed", "kill", "murdered", "murder", "executed",
-            "execute", "slain", "slayed", "slay", "perished", "perish",
-            "deceased", "assassinated", "assassinate", "fatally",
+            "died",
+            "die",
+            "killed",
+            "kill",
+            "murdered",
+            "murder",
+            "executed",
+            "execute",
+            "slain",
+            "slayed",
+            "slay",
+            "perished",
+            "perish",
+            "deceased",
+            "assassinated",
+            "assassinate",
+            "fatally",
         ] {
             lex.insert(*w, EventType::Die);
         }
 
         // Transfer
         for w in &[
-            "transferred", "transfer", "sold", "sell", "purchased", "purchase",
-            "bought", "buy", "donated", "donate", "paid", "pay", "sent",
-            "send", "received", "receive", "wired", "wire", "awarded",
-            "award", "granted", "grant",
+            "transferred",
+            "transfer",
+            "sold",
+            "sell",
+            "purchased",
+            "purchase",
+            "bought",
+            "buy",
+            "donated",
+            "donate",
+            "paid",
+            "pay",
+            "sent",
+            "send",
+            "received",
+            "receive",
+            "wired",
+            "wire",
+            "awarded",
+            "award",
+            "granted",
+            "grant",
         ] {
             lex.insert(*w, EventType::Transfer);
         }
 
         // Create
         for w in &[
-            "created", "create", "built", "build", "developed", "develop",
-            "founded", "found", "established", "establish", "launched",
-            "produced", "produce", "manufactured", "manufacture", "invented",
-            "invent", "designed", "design", "wrote", "write", "authored",
-            "author", "published", "publish", "formed", "form",
+            "created",
+            "create",
+            "built",
+            "build",
+            "developed",
+            "develop",
+            "founded",
+            "found",
+            "established",
+            "establish",
+            "launched",
+            "produced",
+            "produce",
+            "manufactured",
+            "manufacture",
+            "invented",
+            "invent",
+            "designed",
+            "design",
+            "wrote",
+            "write",
+            "authored",
+            "author",
+            "published",
+            "publish",
+            "formed",
+            "form",
         ] {
             lex.insert(*w, EventType::Create);
         }
 
         // Destroy
         for w in &[
-            "destroyed", "destroy", "demolished", "demolish", "burned",
-            "burn", "razed", "raze", "collapsed", "collapse", "ruined",
-            "ruin", "dismantled", "dismantle", "obliterated", "obliterate",
-            "wrecked", "wreck", "shattered", "shatter",
+            "destroyed",
+            "destroy",
+            "demolished",
+            "demolish",
+            "burned",
+            "burn",
+            "razed",
+            "raze",
+            "collapsed",
+            "collapse",
+            "ruined",
+            "ruin",
+            "dismantled",
+            "dismantle",
+            "obliterated",
+            "obliterate",
+            "wrecked",
+            "wreck",
+            "shattered",
+            "shatter",
         ] {
             lex.insert(*w, EventType::Destroy);
         }
@@ -315,11 +458,7 @@ fn detect_np_spans(
         // Capitalised token (not the very first in sentence at offset 0)
         if word.starts_with(|c: char| c.is_uppercase()) && abs_start > sent_start_abs {
             let mut j = i;
-            while j < tokens.len()
-                && tokens[j]
-                    .2
-                    .starts_with(|c: char| c.is_uppercase())
-            {
+            while j < tokens.len() && tokens[j].2.starts_with(|c: char| c.is_uppercase()) {
                 j += 1;
             }
             if j > i {
@@ -344,22 +483,49 @@ fn detect_np_spans(
 
 /// Detect temporal tokens: patterns like "yesterday", "today", "Monday",
 /// month names, years, "N days ago", etc.
-fn detect_time_spans(tokens: &[(usize, usize, String)], sent_start_abs: usize)
--> Vec<(usize, usize, String)> {
+fn detect_time_spans(
+    tokens: &[(usize, usize, String)],
+    sent_start_abs: usize,
+) -> Vec<(usize, usize, String)> {
     const DAYS: &[&str] = &[
-        "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+        "monday",
+        "tuesday",
+        "wednesday",
+        "thursday",
+        "friday",
+        "saturday",
+        "sunday",
     ];
     const MONTHS: &[&str] = &[
-        "january", "february", "march", "april", "may", "june",
-        "july", "august", "september", "october", "november", "december",
-        "jan", "feb", "mar", "apr", "jun", "jul", "aug", "sep", "oct",
-        "nov", "dec",
+        "january",
+        "february",
+        "march",
+        "april",
+        "may",
+        "june",
+        "july",
+        "august",
+        "september",
+        "october",
+        "november",
+        "december",
+        "jan",
+        "feb",
+        "mar",
+        "apr",
+        "jun",
+        "jul",
+        "aug",
+        "sep",
+        "oct",
+        "nov",
+        "dec",
     ];
     const ABSOLUTE_TEMPS: &[&str] = &["yesterday", "today", "tomorrow", "now", "recently"];
     const REL_ANCHORS: &[&str] = &["last", "next", "this", "coming", "previous"];
     const UNITS: &[&str] = &[
-        "second", "seconds", "minute", "minutes", "hour", "hours",
-        "day", "days", "week", "weeks", "month", "months", "year", "years",
+        "second", "seconds", "minute", "minutes", "hour", "hours", "day", "days", "week", "weeks",
+        "month", "months", "year", "years",
     ];
 
     let mut spans: Vec<(usize, usize, String)> = Vec::new();
@@ -420,7 +586,7 @@ fn detect_time_spans(tokens: &[(usize, usize, String)], sent_start_abs: usize)
 
         // 4-digit year (1000–2099)
         if lower.len() == 4
-            && lower.starts_with(|c: char| c == '1' || c == '2')
+            && lower.starts_with(['1', '2'])
             && lower.chars().all(|c| c.is_ascii_digit())
         {
             spans.push((abs_s, abs_e, word.clone()));
@@ -449,9 +615,7 @@ fn detect_location_spans(
                 let next_abs_s = sent_start_abs + next.0;
                 let next_abs_e = sent_start_abs + next.1;
                 // Look for an NP that starts right here
-                let found = np_spans
-                    .iter()
-                    .find(|(ns, _ne, _surf)| *ns == next_abs_s);
+                let found = np_spans.iter().find(|(ns, _ne, _surf)| *ns == next_abs_s);
                 if let Some((ns, ne, surf)) = found {
                     locs.push((*ns, *ne, surf.clone()));
                 } else if next.2.starts_with(|c: char| c.is_uppercase()) {
@@ -592,16 +756,10 @@ fn event_similarity(e1: &Event, e2: &Event) -> f64 {
     }
 
     // Shared argument texts
-    let texts1: std::collections::HashSet<String> = e1
-        .arguments
-        .iter()
-        .map(|a| a.text.to_lowercase())
-        .collect();
-    let texts2: std::collections::HashSet<String> = e2
-        .arguments
-        .iter()
-        .map(|a| a.text.to_lowercase())
-        .collect();
+    let texts1: std::collections::HashSet<String> =
+        e1.arguments.iter().map(|a| a.text.to_lowercase()).collect();
+    let texts2: std::collections::HashSet<String> =
+        e2.arguments.iter().map(|a| a.text.to_lowercase()).collect();
 
     let shared = texts1.intersection(&texts2).count();
     let total = texts1.len().max(texts2.len());
@@ -690,10 +848,7 @@ pub fn event_coref_with_threshold(events: &[Event], threshold: f64) -> Vec<Vec<u
     }
 
     // Keep only chains with > 1 member (actual coreference)
-    let mut result: Vec<Vec<usize>> = chains
-        .into_values()
-        .filter(|v| v.len() >= 2)
-        .collect();
+    let mut result: Vec<Vec<usize>> = chains.into_values().filter(|v| v.len() >= 2).collect();
     result.sort_by_key(|v| v[0]);
     result
 }

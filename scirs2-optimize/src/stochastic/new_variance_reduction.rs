@@ -243,12 +243,17 @@ impl SarahOptimizer {
             ));
         }
 
+        // Save the pre-update parameters as the new snapshot BEFORE modifying params.
+        // If we saved AFTER the update, the next outer-loop call to `prev_params()`
+        // would return params_{k+1} instead of params_k, making the stochastic gradient
+        // terms equal (grad_current ≡ grad_prev) and zeroing out the recursive correction.
+        let old_params = params.clone();
         for i in 0..n {
-            // Recursive gradient update
+            // Recursive gradient update: v_{k+1} = ∇f_s(θ_{k+1}) − ∇f_s(θ_k) + v_k
             self.v[i] = grad_current[i] - grad_prev[i] + self.v[i];
             params[i] -= self.lr * self.v[i];
         }
-        self.prev_params = params.clone();
+        self.prev_params = old_params;
         self.inner_step += 1;
         Ok(())
     }
@@ -448,10 +453,8 @@ mod tests {
 
         for _epoch in 0..50 {
             let fg = full_grad(&params);
-            opt.run_epoch(&mut params, fg, |p, snap| {
-                (full_grad(p), full_grad(snap))
-            })
-            .expect("epoch failed");
+            opt.run_epoch(&mut params, fg, |p, snap| (full_grad(p), full_grad(snap)))
+                .expect("epoch failed");
         }
         for &p in &params {
             assert_abs_diff_eq!(p, 0.0, epsilon = 1e-3);
@@ -470,8 +473,7 @@ mod tests {
             let mut p = params.clone();
             let fg = full_grad(&p);
             let sg = full_grad(&snap);
-            opt.step(&mut p, &fg, &sg)
-                .expect("step failed");
+            opt.step(&mut p, &fg, &sg).expect("step failed");
         }
         assert!(opt.epoch_done());
     }
@@ -483,10 +485,8 @@ mod tests {
 
         for _epoch in 0..50 {
             let fg = full_grad(&params);
-            opt.run_epoch(&mut params, fg, |p, prev| {
-                (full_grad(p), full_grad(prev))
-            })
-            .expect("epoch failed");
+            opt.run_epoch(&mut params, fg, |p, prev| (full_grad(p), full_grad(prev)))
+                .expect("epoch failed");
         }
         for &p in &params {
             assert_abs_diff_eq!(p, 0.0, epsilon = 1e-2);

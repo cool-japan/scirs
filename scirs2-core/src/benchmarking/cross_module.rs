@@ -311,8 +311,7 @@ impl CrossModuleBenchmarkRunner {
 
         // Perform regression analysis
         let regression_analysis = if self.config.enable_regression_detection {
-            // TODO: Implement regression analysis
-            None // Some(self.analyze_regressions(&measurements)?)
+            Some(self.analyze_regressions(&measurements)?)
         } else {
             None
         };
@@ -1188,17 +1187,139 @@ impl CrossModuleBenchmarkRunner {
         })
     }
 
-    /// Analyze performance regressions
-    fn measurements(measurements: &[PerformanceMeasurement]) -> CoreResult<RegressionAnalysis> {
-        // In a real implementation, this would compare against saved baseline data
-        let regression_analysis = RegressionAnalysis {
-            regression_detected: false,
-            regressions: Vec::new(),
-            improvements: Vec::new(),
-            overall_change_percent: 0.0,
-        };
+    /// Analyze performance regressions against a statistical baseline derived from
+    /// the current measurement set. Each benchmark's timing is compared to the
+    /// fleet-wide mean; an entry is a regression when its duration exceeds
+    /// `mean + 2 * std_dev` (simplified z-score outlier) or when the
+    /// configured `max_regression_percent` threshold is crossed relative to a
+    /// stored external baseline (if `baseline_file` is set).
+    ///
+    /// When no external baseline is available the method uses intra-suite
+    /// statistics so regressions can still be detected from a single run
+    /// (e.g. one benchmark taking abnormally longer than all others).
+    fn analyze_regressions(
+        &self,
+        measurements: &[PerformanceMeasurement],
+    ) -> CoreResult<RegressionAnalysis> {
+        if measurements.is_empty() {
+            return Ok(RegressionAnalysis {
+                regression_detected: false,
+                regressions: Vec::new(),
+                improvements: Vec::new(),
+                overall_change_percent: 0.0,
+            });
+        }
 
-        Ok(regression_analysis)
+        // --- Step 1: compute per-benchmark duration statistics (nanos) ---
+        let durations_ns: Vec<f64> = measurements
+            .iter()
+            .map(|m| m.avg_duration.as_nanos() as f64)
+            .collect();
+
+        let n = durations_ns.len() as f64;
+        let mean_ns = durations_ns.iter().sum::<f64>() / n;
+        let variance_ns = durations_ns
+            .iter()
+            .map(|&d| {
+                let diff = d - mean_ns;
+                diff * diff
+            })
+            .sum::<f64>()
+            / n;
+        let std_ns = variance_ns.sqrt();
+
+        // --- Step 2: load optional external baseline ---
+        // When a baseline_file path is configured and the file exists on disk,
+        // each line is expected to be: `<benchmark_name> <avg_nanos>`.
+        // Missing entries fall back to the intra-suite mean.
+        let mut baseline_map: HashMap<String, f64> = HashMap::new();
+        if let Some(ref path) = self.config.baseline_file {
+            if let Ok(contents) = std::fs::read_to_string(path) {
+                for line in contents.lines() {
+                    let parts: Vec<&str> = line.splitn(2, ' ').collect();
+                    if parts.len() == 2 {
+                        if let Ok(nanos) = parts[1].trim().parse::<f64>() {
+                            baseline_map.insert(parts[0].trim().to_string(), nanos);
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- Step 3: classify each measurement ---
+        let mut regressions: Vec<RegressionResult> = Vec::new();
+        let mut improvements: Vec<RegressionResult> = Vec::new();
+        let mut total_change_sum = 0.0_f64;
+
+        let threshold_factor = self.config.max_regression_percent / 100.0;
+
+        for m in measurements {
+            let current_ns = m.avg_duration.as_nanos() as f64;
+
+            // Prefer external baseline; fall back to intra-suite mean.
+            let baseline_ns = baseline_map.get(&m.name).copied().unwrap_or(mean_ns);
+
+            // Avoid division by zero when all durations are zero.
+            let change_percent = if baseline_ns > 0.0 {
+                (current_ns - baseline_ns) / baseline_ns * 100.0
+            } else {
+                0.0
+            };
+
+            // Also compute z-score for intra-suite outlier detection.
+            let z_score = if std_ns > 0.0 {
+                (current_ns - mean_ns) / std_ns
+            } else {
+                0.0
+            };
+
+            // A measurement is a regression when:
+            //   a) change_percent exceeds the configured threshold, OR
+            //   b) z-score exceeds +2 (statistical outlier on the slow side)
+            let is_regression = change_percent > threshold_factor * 100.0 || z_score > 2.0;
+            let is_improvement = change_percent < -(threshold_factor * 100.0) || z_score < -2.0;
+
+            let significance = {
+                let abs_change = change_percent.abs();
+                if abs_change < 5.0 {
+                    RegressionSignificance::Negligible
+                } else if abs_change < 15.0 {
+                    RegressionSignificance::Minor
+                } else if abs_change < 30.0 {
+                    RegressionSignificance::Moderate
+                } else if abs_change < 50.0 {
+                    RegressionSignificance::Major
+                } else {
+                    RegressionSignificance::Critical
+                }
+            };
+
+            let result = RegressionResult {
+                benchmark_name: m.name.clone(),
+                baseline_duration: Duration::from_nanos(baseline_ns.max(0.0) as u64),
+                current_duration: m.avg_duration,
+                change_percent,
+                significance,
+            };
+
+            if is_regression {
+                regressions.push(result);
+            } else if is_improvement {
+                improvements.push(result);
+            }
+
+            total_change_sum += change_percent;
+        }
+
+        let overall_change_percent = total_change_sum / measurements.len() as f64;
+        let regression_detected = !regressions.is_empty();
+
+        Ok(RegressionAnalysis {
+            regression_detected,
+            regressions,
+            improvements,
+            overall_change_percent,
+        })
     }
 
     /// Analyze scalability characteristics
@@ -1513,5 +1634,185 @@ mod tests {
                 // Don't fail the test as this might be expected in CI environments
             }
         }
+    }
+
+    /// Helper: build a runner with regression detection enabled/disabled.
+    fn make_runner(enable_regression: bool) -> CrossModuleBenchmarkRunner {
+        let config = CrossModuleBenchConfig {
+            iterations: 2,
+            warmup_iterations: 1,
+            datasizes: vec![1024],
+            ns: vec![1],
+            memory_limits: vec![64 * 1024 * 1024],
+            enable_profiling: false,
+            enable_regression_detection: enable_regression,
+            baseline_file: None,
+            max_regression_percent: 5.0,
+            timeout: Duration::from_secs(30),
+        };
+        CrossModuleBenchmarkRunner::new(config)
+    }
+
+    /// Helper: build a `PerformanceMeasurement` with a specific avg duration.
+    fn make_measurement(name: &str, avg_nanos: u64) -> PerformanceMeasurement {
+        let mut m = PerformanceMeasurement::new(name.to_string(), vec!["test-module".to_string()]);
+        m.avg_duration = Duration::from_nanos(avg_nanos);
+        m.datasize = 1024;
+        m.operations_count = 10;
+        m.memory_usage = 1024;
+        m
+    }
+
+    /// Test 1: no-regression case — uniform measurements should produce no regressions.
+    #[test]
+    fn test_analyze_regressions_no_regression() {
+        let runner = make_runner(true);
+
+        // All benchmarks take the same time — no outliers, no regressions.
+        let measurements = vec![
+            make_measurement("bench_a", 1_000_000),
+            make_measurement("bench_b", 1_000_000),
+            make_measurement("bench_c", 1_000_000),
+            make_measurement("bench_d", 1_000_000),
+            make_measurement("bench_e", 1_000_000),
+        ];
+
+        let result = runner
+            .analyze_regressions(&measurements)
+            .expect("analyze_regressions should not fail");
+
+        assert!(
+            !result.regression_detected,
+            "Uniform measurements must not trigger regression detection"
+        );
+        assert!(
+            result.regressions.is_empty(),
+            "No regression entries expected for uniform timings"
+        );
+        // overall_change_percent is relative to the intra-suite mean (itself), so ~0.
+        assert!(
+            result.overall_change_percent.abs() < 1.0,
+            "Overall change should be near zero for uniform timings"
+        );
+    }
+
+    /// Test 2: regression detected — one benchmark is dramatically slower (z > 2).
+    #[test]
+    fn test_analyze_regressions_outlier_detected() {
+        let runner = make_runner(true);
+
+        // Four benchmarks at ~1 ms; one at 100 ms — clear statistical outlier.
+        let measurements = vec![
+            make_measurement("bench_normal_1", 1_000_000),
+            make_measurement("bench_normal_2", 1_000_000),
+            make_measurement("bench_normal_3", 1_000_000),
+            make_measurement("bench_normal_4", 1_000_000),
+            make_measurement("bench_slow", 100_000_000), // 100 ms — huge outlier
+        ];
+
+        let result = runner
+            .analyze_regressions(&measurements)
+            .expect("analyze_regressions should not fail");
+
+        assert!(
+            result.regression_detected,
+            "A 100x slower benchmark should trigger regression detection"
+        );
+        // Exactly one regression expected — the slow benchmark.
+        // The 4 fast benchmarks are ~95% below mean: they appear in improvements, not regressions.
+        assert_eq!(
+            result.regressions.len(),
+            1,
+            "Exactly 1 regression expected (bench_slow); got {:?}",
+            result
+                .regressions
+                .iter()
+                .map(|r| &r.benchmark_name)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            result.regressions[0].benchmark_name, "bench_slow",
+            "The regressed benchmark should be bench_slow"
+        );
+        // The slow entry should be classified at least Minor or above.
+        assert!(
+            result.regressions[0].significance != RegressionSignificance::Negligible,
+            "A 100x regression cannot be Negligible"
+        );
+        // The 4 fast entries should be in improvements (z-score < -2).
+        assert_eq!(
+            result.improvements.len(),
+            4,
+            "The 4 normal benchmarks should appear as improvements"
+        );
+    }
+
+    /// Test 3: disabled regression detection gate — the conditional block in
+    /// `run_benchmarks()` must produce `None` for `regression_analysis`.
+    /// This test exercises the gate directly to ensure detect is skipped.
+    #[test]
+    fn test_regression_detection_disabled_gate() {
+        let runner = make_runner(false);
+
+        let measurements = vec![
+            make_measurement("bench_normal", 1_000_000),
+            make_measurement("bench_slow", 100_000_000),
+        ];
+
+        // Mirror the exact gate logic from run_benchmarks():
+        let regression_analysis: Option<RegressionAnalysis> =
+            if runner.config.enable_regression_detection {
+                Some(
+                    runner
+                        .analyze_regressions(&measurements)
+                        .expect("analyze_regressions failed"),
+                )
+            } else {
+                None
+            };
+
+        assert!(
+            regression_analysis.is_none(),
+            "When enable_regression_detection is false, analysis must be None"
+        );
+    }
+
+    /// Test 4: empty measurements — should return clean zeroed analysis.
+    #[test]
+    fn test_analyze_regressions_empty() {
+        let runner = make_runner(true);
+        let result = runner
+            .analyze_regressions(&[])
+            .expect("Empty input should not fail");
+        assert!(!result.regression_detected);
+        assert!(result.regressions.is_empty());
+        assert!(result.improvements.is_empty());
+        assert_eq!(result.overall_change_percent, 0.0);
+    }
+
+    /// Test 5: run_benchmarks with regression detection enabled produces Some analysis.
+    #[test]
+    fn test_run_benchmarks_regression_analysis_present() {
+        let runner = make_runner(true);
+        let suite = runner
+            .run_benchmarks()
+            .expect("run_benchmarks should succeed with detection enabled");
+        assert!(
+            suite.regression_analysis.is_some(),
+            "regression_analysis should be Some when detection is enabled"
+        );
+    }
+
+    /// Test 6: run_benchmarks with regression detection disabled produces None.
+    #[test]
+    fn test_run_benchmarks_regression_analysis_absent() {
+        let runner = make_runner(false);
+        let suite = runner
+            .run_benchmarks()
+            .expect("run_benchmarks should succeed with detection disabled");
+        assert!(
+            suite.regression_analysis.is_none(),
+            "regression_analysis should be None when detection is disabled"
+        );
     }
 }

@@ -256,10 +256,9 @@ impl CsvStreamReader {
         let mut line = String::new();
         loop {
             line.clear();
-            let n = self
-                .inner
-                .read_line(&mut line)
-                .map_err(|e| IoError::FileError(format!("read error at row {}: {e}", self.rows_yielded + 1)))?;
+            let n = self.inner.read_line(&mut line).map_err(|e| {
+                IoError::FileError(format!("read error at row {}: {e}", self.rows_yielded + 1))
+            })?;
             if n == 0 {
                 self.finished = true;
                 return Ok(None);
@@ -304,7 +303,11 @@ impl Iterator for CsvStreamReader {
 /// # Errors
 ///
 /// Returns an error if the file cannot be opened or read.
-pub fn infer_schema<P: AsRef<Path>>(path: P, delimiter: u8, n_rows: usize) -> Result<Vec<ColumnType>> {
+pub fn infer_schema<P: AsRef<Path>>(
+    path: P,
+    delimiter: u8,
+    n_rows: usize,
+) -> Result<Vec<ColumnType>> {
     let path = path.as_ref();
     let mut reader = CsvStreamReader::new(path, delimiter, true)?;
 
@@ -445,7 +448,10 @@ mod tests {
             "name,age,score\nAlice,30,9.5\nBob,25,8.1\n",
         );
         let mut r = CsvStreamReader::new(&path, b',', true).expect("open");
-        assert_eq!(r.headers(), Some(vec!["name".to_string(), "age".to_string(), "score".to_string()].as_slice()));
+        assert_eq!(
+            r.headers(),
+            Some(vec!["name".to_string(), "age".to_string(), "score".to_string()].as_slice())
+        );
 
         let rows: Vec<_> = r.by_ref().map(|x| x.expect("row ok")).collect();
         assert_eq!(rows.len(), 2);
@@ -534,7 +540,10 @@ mod tests {
     fn test_tab_delimiter() {
         let path = write_temp_csv("tab.csv", "a\tb\tc\n10\t20\t30\n");
         let mut r = CsvStreamReader::new(&path, b'\t', true).expect("open");
-        assert_eq!(r.headers(), Some(vec!["a".to_string(), "b".to_string(), "c".to_string()].as_slice()));
+        assert_eq!(
+            r.headers(),
+            Some(vec!["a".to_string(), "b".to_string(), "c".to_string()].as_slice())
+        );
         let row = r.next().expect("some").expect("ok");
         assert_eq!(row, vec!["10", "20", "30"]);
     }
@@ -596,13 +605,13 @@ mod tests {
             ColumnType::Boolean,
             ColumnType::Text,
         ];
-        let raw: Vec<String> = vec!["42", "3.14", "true", "hello"]
+        let raw: Vec<String> = vec!["42", "2.5", "true", "hello"]
             .into_iter()
             .map(String::from)
             .collect();
         let typed = read_typed_row(&raw, &schema).expect("parse");
         assert!(matches!(typed[0], TypedValue::Integer(42)));
-        assert!(matches!(typed[1], TypedValue::Float(f) if (f - 3.14).abs() < 1e-10));
+        assert!(matches!(typed[1], TypedValue::Float(f) if (f - 2.5).abs() < 1e-10));
         assert!(matches!(typed[2], TypedValue::Boolean(true)));
         assert!(matches!(typed[3], TypedValue::Text(ref s) if s == "hello"));
     }
@@ -630,10 +639,7 @@ mod tests {
     #[test]
     fn test_read_typed_row_extra_columns_text() {
         let schema = vec![ColumnType::Integer];
-        let raw: Vec<String> = vec!["1", "extra"]
-            .into_iter()
-            .map(String::from)
-            .collect();
+        let raw: Vec<String> = vec!["1", "extra"].into_iter().map(String::from).collect();
         let typed = read_typed_row(&raw, &schema).expect("parse");
         assert_eq!(typed.len(), 2);
         assert!(matches!(typed[1], TypedValue::Text(_)));

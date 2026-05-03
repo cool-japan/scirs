@@ -279,9 +279,8 @@ impl D2Q9Lbm {
     fn collide(&mut self) {
         for x in 0..self.nx {
             for y in 0..self.ny {
-                match self.boundary[x][y] {
-                    BoundaryType::Wall => continue, // no collision on wall nodes
-                    _ => {}
+                if self.boundary[x][y] == BoundaryType::Wall {
+                    continue; // no collision on wall nodes
                 }
                 let rho = self.density[x][y];
                 let ux = self.velocity_x[x][y];
@@ -691,7 +690,11 @@ mod tests {
         let m0 = lbm.total_mass();
         lbm.run(50);
         let m1 = lbm.total_mass();
-        assert!((m1 - m0).abs() < 1e-8, "mass not conserved: Δm={:.2e}", m1 - m0);
+        assert!(
+            (m1 - m0).abs() < 1e-8,
+            "mass not conserved: Δm={:.2e}",
+            m1 - m0
+        );
     }
 
     #[test]
@@ -728,14 +731,18 @@ mod tests {
         let mut lbm = lid_driven_cavity(16, 16, 0.1, 0.1);
         lbm.run(50);
         // Kinetic energy should be nonzero after driving
-        let ke: f64 = (0..16).flat_map(|x| (0..16).map(move |y| (x, y)))
+        let ke: f64 = (0..16)
+            .flat_map(|x| (0..16).map(move |y| (x, y)))
             .map(|(x, y)| {
                 let ux = lbm.velocity_x[x][y];
                 let uy = lbm.velocity_y[x][y];
                 0.5 * lbm.density[x][y] * (ux * ux + uy * uy)
             })
             .sum();
-        assert!(ke > 0.0, "kinetic energy should be positive after lid driving");
+        assert!(
+            ke > 0.0,
+            "kinetic energy should be positive after lid driving"
+        );
     }
 
     #[test]
@@ -758,7 +765,11 @@ mod tests {
         let m0 = lbm.total_mass();
         lbm.run(20);
         let m1 = lbm.total_mass();
-        assert!((m1 - m0).abs() < 1e-7, "3D mass not conserved: Δm={:.2e}", m1 - m0);
+        assert!(
+            (m1 - m0).abs() < 1e-7,
+            "3D mass not conserved: Δm={:.2e}",
+            m1 - m0
+        );
     }
 
     #[test]

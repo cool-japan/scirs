@@ -108,20 +108,22 @@ impl VoteRankCentrality {
             }
 
             // Select node with highest score (ties broken by lowest index)
-            let best = (0..n)
-                .filter(|&i| !is_selected[i])
-                .max_by(|&a, &b| {
-                    scores[a]
-                        .partial_cmp(&scores[b])
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
+            let best = (0..n).filter(|&i| !is_selected[i]).max_by(|&a, &b| {
+                scores[a]
+                    .partial_cmp(&scores[b])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
 
             match best {
                 Some(node) if scores[node] > 0.0 => {
                     is_selected[node] = true;
                     selected.push(node);
                     // Reduce voting ability of neighbours
-                    let deg_inv = if degree[node] > 0.0 { 1.0 / degree[node] } else { 0.0 };
+                    let deg_inv = if degree[node] > 0.0 {
+                        1.0 / degree[node]
+                    } else {
+                        0.0
+                    };
                     for j in 0..n {
                         if adj[[node, j]] != 0.0 {
                             vote_ability[j] = (vote_ability[j] - deg_inv).max(0.0);
@@ -163,18 +165,20 @@ impl VoteRankCentrality {
                     }
                 }
             }
-            let best = (0..n)
-                .filter(|&i| !is_selected[i])
-                .max_by(|&a, &b| {
-                    scores[a]
-                        .partial_cmp(&scores[b])
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
+            let best = (0..n).filter(|&i| !is_selected[i]).max_by(|&a, &b| {
+                scores[a]
+                    .partial_cmp(&scores[b])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
             match best {
                 Some(node) if scores[node] > 0.0 => {
                     is_selected[node] = true;
                     selected.push((node, scores[node]));
-                    let deg_inv = if degree[node] > 0.0 { 1.0 / degree[node] } else { 0.0 };
+                    let deg_inv = if degree[node] > 0.0 {
+                        1.0 / degree[node]
+                    } else {
+                        0.0
+                    };
                     for j in 0..n {
                         if adj[[node, j]] != 0.0 {
                             vote_ability[j] = (vote_ability[j] - deg_inv).max(0.0);
@@ -536,44 +540,87 @@ impl CoreDecomposition {
             .map(|i| (0..n).filter(|&j| adj[[i, j]] != 0.0).count())
             .collect();
         let mut core_numbers = vec![0usize; n];
-        let mut removed = vec![false; n];
+        let mut processed = vec![false; n];
 
-        // Bin-sort by degree for O(m) peeling (Batagelj & Zaversnik 2003)
+        // Iterative degree-peeling (Batagelj & Zaversnik 2003).
+        //
+        // Canonical implementation: nodes are stored in a sorted array `vert[0..n]`
+        // ordered by degree, with `bin[d]` marking the first index of bin d and
+        // `pos[v]` giving each node's position in `vert`.  When a node's degree is
+        // decremented the algorithm swaps it to the front of its current bin
+        // (no duplicates are ever inserted).
         let max_deg = degree.iter().copied().max().unwrap_or(0);
-        let mut bins: Vec<Vec<usize>> = vec![Vec::new(); max_deg + 1];
-        for i in 0..n {
-            bins[degree[i]].push(i);
+
+        // bin[d] = first index in `vert` of the degree-d bucket.
+        // Build by counting nodes per degree, then computing prefix sums.
+        let mut bin = vec![0usize; max_deg + 2];
+        for &d in &degree {
+            bin[d] += 1;
+        }
+        // Convert counts to start positions (bin[d] becomes the first index)
+        let mut start = 0usize;
+        for d in 0..=max_deg {
+            let cnt = bin[d];
+            bin[d] = start;
+            start += cnt;
+        }
+        bin[max_deg + 1] = n;
+
+        // vert[i] = node at position i (sorted by degree ascending)
+        // pos[v]  = position of node v in vert
+        let mut vert = vec![0usize; n];
+        let mut pos = vec![0usize; n];
+        let mut tmp_bin = bin.clone();
+        for v in 0..n {
+            let d = degree[v];
+            pos[v] = tmp_bin[d];
+            vert[tmp_bin[d]] = v;
+            tmp_bin[d] += 1;
         }
 
-        let mut current_core = 0usize;
-        let mut order: Vec<usize> = Vec::with_capacity(n);
+        for i in 0..n {
+            let v = vert[i];
+            core_numbers[v] = degree[v];
+            processed[v] = true;
 
-        for d in 0..=max_deg {
-            // Collect bin contents first to avoid simultaneous borrow of `bins`
-            // when we need to push into bins[degree[u]] during the inner loop.
-            let bin_nodes: Vec<usize> = bins[d].clone();
-            for &v in &bin_nodes {
-                if removed[v] {
+            for u in 0..n {
+                if adj[[v, u]] == 0.0 || processed[u] {
                     continue;
                 }
-                current_core = current_core.max(d);
-                core_numbers[v] = current_core;
-                removed[v] = true;
-                order.push(v);
-                // Reduce degree of neighbours
-                for u in 0..n {
-                    if adj[[v, u]] != 0.0 && !removed[u] {
-                        degree[u] = degree[u].saturating_sub(1);
-                        bins[degree[u]].push(u);
-                    }
+                // Only decrement u's degree if it is strictly higher than v's
+                // core number.  This is the canonical Batagelj-Zaversnik condition:
+                // if deg[u] == deg[v] they are in the same k-core and u keeps its
+                // current effective degree.
+                if degree[u] <= core_numbers[v] {
+                    continue;
                 }
+                // Move u to the front of its current degree-bucket (swap with the
+                // node at bin[du]) then advance bin[du], placing u into the next
+                // lower bin.  This keeps `vert` sorted by current degree.
+                let du = degree[u];
+                let pu = pos[u];
+                let pw = bin[du]; // first position of bin du (may be within processed range)
+                let w = vert[pw]; // node currently at that position
+                if u != w {
+                    vert[pu] = w;
+                    vert[pw] = u;
+                    pos[w] = pu;
+                    pos[u] = pw;
+                }
+                bin[du] += 1;
+                degree[u] -= 1;
             }
         }
 
         let max_core = core_numbers.iter().copied().max().unwrap_or(0);
         let shell_index = core_numbers.clone();
 
-        Self { core_numbers, shell_index, max_core, num_nodes: n }
+        Self {
+            core_numbers,
+            shell_index,
+            max_core,
+            num_nodes: n,
+        }
     }
 
     /// Return the set of node indices in the k-core (core number >= k).
@@ -703,7 +750,11 @@ impl EffectiveResistance {
             }
         }
 
-        Ok(Self { l_plus, resistance_matrix: r, num_nodes: n })
+        Ok(Self {
+            l_plus,
+            resistance_matrix: r,
+            num_nodes: n,
+        })
     }
 
     /// Return the effective resistance between nodes `i` and `j`.
@@ -738,9 +789,9 @@ impl EffectiveResistance {
     /// (the "resistance centre" of the graph).
     pub fn resistance_centre(&self) -> usize {
         let n = self.num_nodes;
-        let avg_resistance: Vec<f64> = (0..n).map(|i| {
-            (0..n).map(|j| self.resistance_matrix[[i, j]]).sum::<f64>() / n as f64
-        }).collect();
+        let avg_resistance: Vec<f64> = (0..n)
+            .map(|i| (0..n).map(|j| self.resistance_matrix[[i, j]]).sum::<f64>() / n as f64)
+            .collect();
         avg_resistance
             .iter()
             .enumerate()
@@ -840,9 +891,12 @@ mod tests {
 
     fn path4() -> Array2<f64> {
         let mut adj = Array2::<f64>::zeros((4, 4));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[2, 3]] = 1.0; adj[[3, 2]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[2, 3]] = 1.0;
+        adj[[3, 2]] = 1.0;
         adj
     }
 
@@ -882,7 +936,10 @@ mod tests {
         let h_vals: Vec<f64> = h.to_vec();
         let max_h = h_vals.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         let min_h = h_vals.iter().cloned().fold(f64::INFINITY, f64::min);
-        assert!((max_h - min_h).abs() < 1e-6, "Hub scores should be equal on K4: max={max_h}, min={min_h}");
+        assert!(
+            (max_h - min_h).abs() < 1e-6,
+            "Hub scores should be equal on K4: max={max_h}, min={min_h}"
+        );
     }
 
     #[test]
@@ -903,9 +960,12 @@ mod tests {
     fn test_trust_centrality_balanced_triangle() {
         // Balanced signed triangle: all positive
         let mut adj = Array2::<f64>::zeros((3, 3));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[0, 2]] = 1.0; adj[[2, 0]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[0, 2]] = 1.0;
+        adj[[2, 0]] = 1.0;
         let res = TrustCentrality::compute(&adj).unwrap();
         assert_eq!(res.global_balance_score, 1.0); // all positive → balanced
         for &nt in res.net_trust.iter() {
@@ -917,9 +977,12 @@ mod tests {
     fn test_trust_centrality_imbalanced() {
         // Unbalanced triangle: two positive, one negative
         let mut adj = Array2::<f64>::zeros((3, 3));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[0, 2]] = -1.0; adj[[2, 0]] = -1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[0, 2]] = -1.0;
+        adj[[2, 0]] = -1.0;
         let res = TrustCentrality::compute(&adj).unwrap();
         // One negative edge → some distrust
         assert!((res.global_balance_score - 0.0).abs() < 1e-9);

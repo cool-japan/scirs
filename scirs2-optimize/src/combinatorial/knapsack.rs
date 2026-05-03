@@ -374,7 +374,12 @@ pub fn multi_knapsack_greedy(
 
     for (idx, _) in &indexed {
         let item = &items[*idx];
-        if item.weights.iter().enumerate().all(|(dim, &w)| w <= remaining[dim]) {
+        if item
+            .weights
+            .iter()
+            .enumerate()
+            .all(|(dim, &w)| w <= remaining[dim])
+        {
             selected[*idx] = true;
             total += item.value;
             for (dim, &w) in item.weights.iter().enumerate() {
@@ -400,14 +405,10 @@ pub fn multi_knapsack_greedy(
                 if delta_v <= 0 {
                     continue;
                 }
-                let feasible = items[in_idx]
-                    .weights
-                    .iter()
-                    .enumerate()
-                    .all(|(dim, &w)| {
-                        let freed = items[out_idx].weights[dim];
-                        freed + remaining[dim] >= w
-                    });
+                let feasible = items[in_idx].weights.iter().enumerate().all(|(dim, &w)| {
+                    let freed = items[out_idx].weights[dim];
+                    freed + remaining[dim] >= w
+                });
                 if feasible {
                     for dim in 0..d {
                         remaining[dim] += items[out_idx].weights[dim];
@@ -442,10 +443,22 @@ mod tests {
     fn classic_items() -> Vec<KnapsackItem> {
         // Classic 4-item problem, capacity 5 → optimal value 8 (items 1 and 3)
         vec![
-            KnapsackItem { weight: 2, value: 3 },
-            KnapsackItem { weight: 3, value: 4 },
-            KnapsackItem { weight: 2, value: 5 },
-            KnapsackItem { weight: 3, value: 6 },
+            KnapsackItem {
+                weight: 2,
+                value: 3,
+            },
+            KnapsackItem {
+                weight: 3,
+                value: 4,
+            },
+            KnapsackItem {
+                weight: 2,
+                value: 5,
+            },
+            KnapsackItem {
+                weight: 3,
+                value: 6,
+            },
         ]
     }
 
@@ -453,10 +466,8 @@ mod tests {
     fn test_dp_classic() {
         let items = classic_items();
         let (val, sel) = knapsack_dp(&items, 5).expect("unexpected None or Err");
-        assert_eq!(val, 9, "expected value 9, got {val}");
-        // Items with indices that sum weight ≤ 5 and value 9
-        // item0(2,3) + item2(2,5) = weight 4, val 8
-        // item1(3,4) + item2(2,5) = weight 5, val 9 ✓
+        // Optimal: item2(w=2,v=5) + item3(w=3,v=6) = weight 5, value 11
+        assert_eq!(val, 11, "expected value 11, got {val}");
         let total_weight: u64 = sel.iter().map(|&i| items[i].weight).sum();
         assert!(total_weight <= 5);
         let total_val: u64 = sel.iter().map(|&i| items[i].value).sum();
@@ -499,7 +510,8 @@ mod tests {
     fn test_branch_bound_classic() {
         let items = classic_items();
         let (val, sel) = knapsack_branch_bound(&items, 5).expect("unexpected None or Err");
-        assert_eq!(val, 9);
+        // Optimal: item2(w=2,v=5) + item3(w=3,v=6) = weight 5, value 11
+        assert_eq!(val, 11);
         let total_weight: u64 = sel.iter().map(|&i| items[i].weight).sum();
         assert!(total_weight <= 5);
     }
@@ -507,9 +519,18 @@ mod tests {
     #[test]
     fn test_bb_equals_dp() {
         let items = vec![
-            KnapsackItem { weight: 1, value: 6 },
-            KnapsackItem { weight: 2, value: 10 },
-            KnapsackItem { weight: 3, value: 12 },
+            KnapsackItem {
+                weight: 1,
+                value: 6,
+            },
+            KnapsackItem {
+                weight: 2,
+                value: 10,
+            },
+            KnapsackItem {
+                weight: 3,
+                value: 12,
+            },
         ];
         let cap = 5;
         let (dp_val, _) = knapsack_dp(&items, cap).expect("unexpected None or Err");
@@ -520,9 +541,18 @@ mod tests {
     #[test]
     fn test_multi_knapsack() {
         let items = vec![
-            MultiKnapsackItem { weights: vec![2, 1], value: 5 },
-            MultiKnapsackItem { weights: vec![1, 2], value: 5 },
-            MultiKnapsackItem { weights: vec![3, 3], value: 8 },
+            MultiKnapsackItem {
+                weights: vec![2, 1],
+                value: 5,
+            },
+            MultiKnapsackItem {
+                weights: vec![1, 2],
+                value: 5,
+            },
+            MultiKnapsackItem {
+                weights: vec![3, 3],
+                value: 8,
+            },
         ];
         let caps = vec![4, 4];
         let (val, sel) = multi_knapsack_greedy(&items, &caps).expect("unexpected None or Err");

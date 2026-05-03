@@ -86,11 +86,7 @@ impl SgdOptimizer {
     /// # Errors
     /// Returns `OptimizeError::ValueError` if `params` and `grad` have
     /// different lengths.
-    pub fn step(
-        &mut self,
-        params: &mut Vec<f64>,
-        grad: &[f64],
-    ) -> Result<(), OptimizeError> {
+    pub fn step(&mut self, params: &mut Vec<f64>, grad: &[f64]) -> Result<(), OptimizeError> {
         let n = params.len();
         if grad.len() != n {
             return Err(OptimizeError::ValueError(format!(
@@ -177,11 +173,7 @@ impl AdaGradOptimizer {
     ///
     /// # Errors
     /// Returns `OptimizeError::ValueError` if length mismatch.
-    pub fn step(
-        &mut self,
-        params: &mut Vec<f64>,
-        grad: &[f64],
-    ) -> Result<(), OptimizeError> {
+    pub fn step(&mut self, params: &mut Vec<f64>, grad: &[f64]) -> Result<(), OptimizeError> {
         let n = params.len();
         if grad.len() != n {
             return Err(OptimizeError::ValueError(format!(
@@ -261,11 +253,7 @@ impl AdaDeltaOptimizer {
     ///
     /// # Errors
     /// Returns `OptimizeError::ValueError` if length mismatch.
-    pub fn step(
-        &mut self,
-        params: &mut Vec<f64>,
-        grad: &[f64],
-    ) -> Result<(), OptimizeError> {
+    pub fn step(&mut self, params: &mut Vec<f64>, grad: &[f64]) -> Result<(), OptimizeError> {
         let n = params.len();
         if grad.len() != n {
             return Err(OptimizeError::ValueError(format!(

@@ -150,8 +150,7 @@ impl AndersonMattinglyScheme {
             ));
         }
         let dx = cfg.domain_length / (n + 1) as f64;
-        let x_coords =
-            Array1::linspace(dx, cfg.domain_length - dx, n);
+        let x_coords = Array1::linspace(dx, cfg.domain_length - dx, n);
 
         // Build exponential covariance matrix C[i,j] = exp(-|xi-xj|/ℓ)
         let mut cov = vec![0.0_f64; n * n];
@@ -168,7 +167,8 @@ impl AndersonMattinglyScheme {
         // Heat semigroup weights for sine modes: exp(-D (k pi/L)^2 dt)
         let heat_weights: Vec<f64> = (1..=n)
             .map(|k| {
-                let lam = cfg.diffusion * (k as f64 * std::f64::consts::PI / cfg.domain_length).powi(2);
+                let lam =
+                    cfg.diffusion * (k as f64 * std::f64::consts::PI / cfg.domain_length).powi(2);
                 (-lam * cfg.dt).exp()
             })
             .collect();
@@ -205,9 +205,8 @@ impl AndersonMattinglyScheme {
             ));
         }
 
-        let normal = Normal::new(0.0_f64, 1.0).map_err(|e| {
-            IntegrateError::ComputationError(format!("Normal distribution: {e}"))
-        })?;
+        let normal = Normal::new(0.0_f64, 1.0)
+            .map_err(|e| IntegrateError::ComputationError(format!("Normal distribution: {e}")))?;
 
         let n_steps = ((t_end - t0) / self.cfg.dt).ceil() as usize;
         let capacity = (n_steps / self.save_every + 2).max(2);
@@ -230,7 +229,7 @@ impl AndersonMattinglyScheme {
 
             // Step 2: Add stochastic increment: Δu = σ L ξ * sqrt(dt)
             //   where L is the Cholesky factor of the covariance
-            let xi: Vec<f64> = (0..n).map(|_| rng.sample(&normal)).collect();
+            let xi: Vec<f64> = (0..n).map(|_| rng.sample(normal)).collect();
             let correlated_noise = self.apply_cholesky(&xi);
             let noise_scale = self.cfg.sigma * actual_dt.sqrt();
             for i in 0..n {
@@ -275,8 +274,7 @@ impl AndersonMattinglyScheme {
         // Multiply each mode by the heat kernel weight
         let weights: Vec<f64> = (0..n)
             .map(|k| {
-                let lam = self.cfg.diffusion
-                    * ((k + 1) as f64 * std::f64::consts::PI / l).powi(2);
+                let lam = self.cfg.diffusion * ((k + 1) as f64 * std::f64::consts::PI / l).powi(2);
                 (-lam * dt).exp()
             })
             .collect();
@@ -288,9 +286,7 @@ impl AndersonMattinglyScheme {
             let mut val = 0.0_f64;
             for k in 0..n {
                 let mode = k + 1;
-                val += weights[k]
-                    * a[k]
-                    * (mode as f64 * std::f64::consts::PI * xi / l).sin();
+                val += weights[k] * a[k] * (mode as f64 * std::f64::consts::PI * xi / l).sin();
             }
             u_new[i] = val;
         }
@@ -452,9 +448,8 @@ impl ImexParabolicSolver {
             ));
         }
 
-        let normal = Normal::new(0.0_f64, 1.0).map_err(|e| {
-            IntegrateError::ComputationError(format!("Normal distribution: {e}"))
-        })?;
+        let normal = Normal::new(0.0_f64, 1.0)
+            .map_err(|e| IntegrateError::ComputationError(format!("Normal distribution: {e}")))?;
 
         let n_steps = ((t_end - t0) / self.dt).ceil() as usize;
         let capacity = (n_steps / self.save_every + 2).max(2);
@@ -481,7 +476,7 @@ impl ImexParabolicSolver {
             // Assemble RHS: u^n + dt * F(u^n) + noise
             let mut rhs = Array1::zeros(self.n_nodes);
             for i in 0..self.n_nodes {
-                let xi = rng.sample(&normal);
+                let xi = rng.sample(normal);
                 rhs[i] = u[i] + actual_dt * f_u[i] + ns * xi;
             }
 
@@ -630,9 +625,7 @@ impl SpectralGalerkinSolver {
         }
         let n = cfg.n_modes;
         let lambda: Vec<f64> = (1..=n)
-            .map(|k| {
-                cfg.diffusion * (k as f64 * std::f64::consts::PI / cfg.domain_length).powi(2)
-            })
+            .map(|k| cfg.diffusion * (k as f64 * std::f64::consts::PI / cfg.domain_length).powi(2))
             .collect();
 
         let sigma_k: Vec<f64> = if let Some(ref ms) = cfg.mode_sigmas {
@@ -687,12 +680,13 @@ impl SpectralGalerkinSolver {
             ));
         }
         if dt <= 0.0 {
-            return Err(IntegrateError::InvalidInput("dt must be positive".to_string()));
+            return Err(IntegrateError::InvalidInput(
+                "dt must be positive".to_string(),
+            ));
         }
 
-        let normal = Normal::new(0.0_f64, 1.0).map_err(|e| {
-            IntegrateError::ComputationError(format!("Normal distribution: {e}"))
-        })?;
+        let normal = Normal::new(0.0_f64, 1.0)
+            .map_err(|e| IntegrateError::ComputationError(format!("Normal distribution: {e}")))?;
 
         let n_steps = ((t_end - t0) / dt).ceil() as usize;
         let capacity = (n_steps / self.save_every + 2).max(2);
@@ -708,7 +702,8 @@ impl SpectralGalerkinSolver {
         let mut basis = vec![0.0_f64; n * ng]; // basis[k * ng + g]
         for k in 0..n {
             for g in 0..ng {
-                basis[k * ng + g] = ((k + 1) as f64 * std::f64::consts::PI * eval_grid[g] / l).sin();
+                basis[k * ng + g] =
+                    ((k + 1) as f64 * std::f64::consts::PI * eval_grid[g] / l).sin();
             }
         }
 
@@ -747,7 +742,7 @@ impl SpectralGalerkinSolver {
                     self.sigma_k[k] * self.sigma_k[k] * actual_dt
                 };
                 let std_k = var_k.max(0.0).sqrt();
-                let xi = rng.sample(&normal);
+                let xi = rng.sample(normal);
                 a[k] = e_lam * a[k] + std_k * xi;
             }
 
@@ -831,10 +826,13 @@ mod tests {
             n_nodes: 16,
             domain_length: 1.0,
         };
-        let solver = AndersonMattinglyScheme::new(cfg, 5).expect("AndersonMattinglyScheme::new should succeed");
+        let solver = AndersonMattinglyScheme::new(cfg, 5)
+            .expect("AndersonMattinglyScheme::new should succeed");
         let u0 = Array1::zeros(16);
         let mut rng = make_rng();
-        let sol = solver.solve(&u0, 0.0, 0.05, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&u0, 0.0, 0.05, &mut rng)
+            .expect("solver.solve should succeed");
         assert!(!sol.is_empty());
         for snap in &sol.snapshots {
             assert!(snap.iter().all(|v| v.is_finite()));
@@ -852,10 +850,13 @@ mod tests {
             n_nodes: 10,
             domain_length: 1.0,
         };
-        let solver = AndersonMattinglyScheme::new(cfg, 1).expect("AndersonMattinglyScheme::new should succeed");
+        let solver = AndersonMattinglyScheme::new(cfg, 1)
+            .expect("AndersonMattinglyScheme::new should succeed");
         let u0 = Array1::from_vec(vec![1.0_f64; 10]);
         let mut rng = make_rng();
-        let sol = solver.solve(&u0, 0.0, 0.1, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&u0, 0.0, 0.1, &mut rng)
+            .expect("solver.solve should succeed");
         let u_final = sol.snapshots.last().expect("solution has snapshots");
         let norm_final: f64 = u_final.iter().map(|v| v * v).sum::<f64>().sqrt();
         let norm_init: f64 = 10.0_f64.sqrt();
@@ -869,7 +870,8 @@ mod tests {
 
     #[test]
     fn test_imex_zero_nonlinear_runs() {
-        let solver = ImexParabolicSolver::new(0.1, 0.05, 1e-3, 1.0, 16, 5).expect("ImexParabolicSolver::new should succeed");
+        let solver = ImexParabolicSolver::new(0.1, 0.05, 1e-3, 1.0, 16, 5)
+            .expect("ImexParabolicSolver::new should succeed");
         let u0 = Array1::zeros(16);
         let mut rng = make_rng();
         // F(u) = 0 (pure stochastic heat)
@@ -884,7 +886,8 @@ mod tests {
 
     #[test]
     fn test_imex_with_nonlinear_term() {
-        let solver = ImexParabolicSolver::new(0.1, 0.05, 1e-3, 1.0, 10, 10).expect("ImexParabolicSolver::new should succeed");
+        let solver = ImexParabolicSolver::new(0.1, 0.05, 1e-3, 1.0, 10, 10)
+            .expect("ImexParabolicSolver::new should succeed");
         let u0 = Array1::from_vec(vec![0.5_f64; 10]);
         let mut rng = make_rng();
         // Logistic growth: F(u) = u(1 - u)
@@ -911,11 +914,14 @@ mod tests {
             n_modes: 8,
             domain_length: 1.0,
         };
-        let solver = SpectralGalerkinSolver::new(cfg, 10).expect("SpectralGalerkinSolver::new should succeed");
+        let solver = SpectralGalerkinSolver::new(cfg, 10)
+            .expect("SpectralGalerkinSolver::new should succeed");
         let a0 = Array1::zeros(8);
         let grid = Array1::linspace(0.05, 0.95, 10);
         let mut rng = make_rng();
-        let sol = solver.solve(&a0, 1e-3, &grid, 0.0, 0.1, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&a0, 1e-3, &grid, 0.0, 0.1, &mut rng)
+            .expect("solver.solve should succeed");
         assert!(!sol.is_empty());
         for snap in &sol.physical_snapshots {
             assert!(snap.iter().all(|v| v.is_finite()));
@@ -931,11 +937,14 @@ mod tests {
             n_modes: 4,
             domain_length: 1.0,
         };
-        let solver = SpectralGalerkinSolver::new(cfg, 1).expect("SpectralGalerkinSolver::new should succeed");
+        let solver = SpectralGalerkinSolver::new(cfg, 1)
+            .expect("SpectralGalerkinSolver::new should succeed");
         let a0 = Array1::zeros(4);
         let grid = Array1::linspace(0.1, 0.9, 5);
         let mut rng = make_rng();
-        let sol = solver.solve(&a0, 1e-3, &grid, 0.0, 0.05, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&a0, 1e-3, &grid, 0.0, 0.05, &mut rng)
+            .expect("solver.solve should succeed");
         let energies = sol.modal_energy_series();
         assert_eq!(energies.len(), sol.len());
         for &e in &energies {
@@ -953,15 +962,21 @@ mod tests {
             n_modes: 4,
             domain_length: 1.0,
         };
-        let solver = SpectralGalerkinSolver::new(cfg, 1).expect("SpectralGalerkinSolver::new should succeed");
+        let solver = SpectralGalerkinSolver::new(cfg, 1)
+            .expect("SpectralGalerkinSolver::new should succeed");
         let a0 = Array1::from_vec(vec![1.0, 0.5, 0.25, 0.1]);
         let grid = Array1::linspace(0.1, 0.9, 5);
         let mut rng = make_rng();
-        let sol = solver.solve(&a0, 1e-3, &grid, 0.0, 0.1, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&a0, 1e-3, &grid, 0.0, 0.1, &mut rng)
+            .expect("solver.solve should succeed");
         let energies = sol.modal_energy_series();
         let e0 = energies[0];
         let ef = *energies.last().expect("energies series is non-empty");
-        assert!(ef < e0, "Energy should decay without noise: e0={e0:.6}, ef={ef:.6}");
+        assert!(
+            ef < e0,
+            "Energy should decay without noise: e0={e0:.6}, ef={ef:.6}"
+        );
     }
 
     #[test]
@@ -977,15 +992,25 @@ mod tests {
             n_modes: n,
             domain_length: 1.0,
         };
-        let solver = SpectralGalerkinSolver::new(cfg, 10).expect("SpectralGalerkinSolver::new should succeed");
+        let solver = SpectralGalerkinSolver::new(cfg, 10)
+            .expect("SpectralGalerkinSolver::new should succeed");
         let a0 = Array1::zeros(n);
         let grid = Array1::linspace(0.1, 0.9, 10);
         let mut rng = make_rng();
-        let sol = solver.solve(&a0, 1e-3, &grid, 0.0, 0.5, &mut rng).expect("solver.solve should succeed");
-        let a_final = sol.modal_snapshots.last().expect("modal snapshots is non-empty");
+        let sol = solver
+            .solve(&a0, 1e-3, &grid, 0.0, 0.5, &mut rng)
+            .expect("solver.solve should succeed");
+        let a_final = sol
+            .modal_snapshots
+            .last()
+            .expect("modal snapshots is non-empty");
         // Mode 2+ should have negligible amplitude compared to mode 1
         let a1_abs = a_final[0].abs();
-        let rest_max = a_final.iter().skip(1).map(|v| v.abs()).fold(0.0_f64, f64::max);
+        let rest_max = a_final
+            .iter()
+            .skip(1)
+            .map(|v| v.abs())
+            .fold(0.0_f64, f64::max);
         // Not strict: just check no NaN and mode 1 is largest
         assert!(a_final.iter().all(|v| v.is_finite()));
     }

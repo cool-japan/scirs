@@ -1,28 +1,11 @@
 use crate::callbacks::{Callback, CallbackContext, CallbackTiming};
 use crate::error::Result;
-// TODO: Re-enable when visualization module is fixed
-// use crate::utils::visualization::{ascii_plot, PlotOptions};
+use crate::utils::visualization::{float_vec_to_f64, plot_metrics, PlotOptions};
 use scirs2_core::ndarray::ScalarOperand;
 use scirs2_core::numeric::{Float, NumAssign};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::path::PathBuf;
-
-// Temporary placeholder until visualization module is fixed
-#[derive(Debug, Clone)]
-pub struct PlotOptions {
-    pub width: usize,
-    pub height: usize,
-}
-
-impl Default for PlotOptions {
-    fn default() -> Self {
-        Self {
-            width: 80,
-            height: 20,
-        }
-    }
-}
 
 /// Callback for visualizing training metrics in real-time
 pub struct VisualizationCallback<F: Float + Debug + ScalarOperand> {
@@ -78,6 +61,14 @@ impl<F: Float + Debug + ScalarOperand + NumAssign> VisualizationCallback<F> {
     pub fn with_plot_options(mut self, options: PlotOptions) -> Self {
         self.plot_options = options;
         self
+    }
+
+    /// Convert epoch_history (Vec<F>) to Vec<f64> for visualization.
+    fn history_as_f64(&self) -> HashMap<String, Vec<f64>> {
+        self.epoch_history
+            .iter()
+            .filter_map(|(key, values)| float_vec_to_f64(values).ok().map(|v| (key.clone(), v)))
+            .collect()
     }
 }
 
@@ -135,46 +126,43 @@ impl<F: Float + Debug + ScalarOperand + std::fmt::Display + NumAssign> Callback<
                     && self.show_plots
                     && !self.epoch_history.is_empty()
                 {
-                    // TODO: Re-enable when visualization module is fixed
-                    // if let Ok(plot) = ascii_plot(
-                    //     &self.epoch_history,
-                    //     Some("Training Metrics"),
-                    //     Some(self.plot_options.clone()),
-                    // ) {
-                    //     println!("\n{}", plot);
-                    // }
-                    println!("\nTraining Metrics visualization disabled (visualization module under maintenance)");
+                    let history_f64 = self.history_as_f64();
+                    if let Ok(plot) = plot_metrics(
+                        &history_f64,
+                        Some("Training Metrics"),
+                        Some(self.plot_options.clone()),
+                    ) {
+                        println!("\n{plot}");
+                    }
                 }
             }
             CallbackTiming::AfterTraining => {
                 // Display final visualization
                 if self.show_plots && !self.epoch_history.is_empty() {
-                    // TODO: Re-enable when visualization module is fixed
-                    // if let Ok(plot) = ascii_plot(
-                    //     &self.epoch_history,
-                    //     Some("Final Training Metrics"),
-                    //     Some(self.plot_options.clone()),
-                    // ) {
-                    //     println!("\n{}", plot);
-                    // }
-                    println!("\nFinal Training Metrics visualization disabled (visualization module under maintenance)");
+                    let history_f64 = self.history_as_f64();
+                    if let Ok(plot) = plot_metrics(
+                        &history_f64,
+                        Some("Final Training Metrics"),
+                        Some(self.plot_options.clone()),
+                    ) {
+                        println!("\n{plot}");
+                    }
                 }
 
                 // Save final visualization if save_path is provided
-                if let Some(_save_path) = &self.save_path {
-                    // TODO: Re-enable when visualization module is fixed
-                    // if let Ok(plot) = ascii_plot(
-                    //     &self.epoch_history,
-                    //     Some("Final Training Metrics"),
-                    //     Some(self.plot_options.clone()),
-                    // ) {
-                    //     if let Err(e) = std::fs::write(save_path, plot) {
-                    //         eprintln!("Failed to save plot to {}: {}", save_path.display(), e);
-                    //     } else {
-                    //         println!("Plot saved to {}", save_path.display());
-                    //     }
-                    // }
-                    println!("Plot saving disabled (visualization module under maintenance)");
+                if let Some(save_path) = &self.save_path {
+                    let history_f64 = self.history_as_f64();
+                    if let Ok(plot) = plot_metrics(
+                        &history_f64,
+                        Some("Final Training Metrics"),
+                        Some(self.plot_options.clone()),
+                    ) {
+                        if let Err(e) = std::fs::write(save_path, &plot) {
+                            eprintln!("Failed to save plot to {}: {}", save_path.display(), e);
+                        } else {
+                            println!("Plot saved to {}", save_path.display());
+                        }
+                    }
                 }
             }
             _ => {}

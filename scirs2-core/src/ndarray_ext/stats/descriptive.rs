@@ -961,19 +961,51 @@ where
     }
 
     match axis {
-        Some(_) => {
-            // For higher dimensional arrays, we need to implement axis-specific logic
-            // This is a placeholder for now
-            Err("Axis-specific median for arbitrary dimension arrays not yet implemented")
+        Some(ax) => {
+            // Axis-specific median for arbitrary-dimension arrays.
+            let ndim = array.ndim();
+            if ax.index() >= ndim {
+                return Err("Axis index out of bounds");
+            }
+
+            // Pre-compute the divisor for the even-length averaging branch
+            // outside the closure so we can surface conversion failures via
+            // `?` rather than panicking inside `map_axis`.
+            let two = T::from_f64(2.0).ok_or("Cannot convert 2.0 into element type")?;
+
+            // Compute median along each lane along `ax`. `map_axis` walks
+            // every 1D slice perpendicular to `ax` and yields the reduced
+            // array of shape `D::Smaller`.
+            let reduced = array.map_axis(ax, |lane| {
+                let mut values: Vec<T> = lane.iter().copied().collect();
+                values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                let len = values.len();
+                if len.is_multiple_of(2) {
+                    let mid = len / 2;
+                    (values[mid - 1] + values[mid]) / two
+                } else {
+                    values[len / 2]
+                }
+            });
+
+            // Flatten the reduced array (shape `D::Smaller`) into 1D using
+            // the same `to_shape` style as the surrounding `mean`/`variance`
+            // implementations.
+            let flat_result = reduced
+                .to_shape((reduced.len(),))
+                .map_err(|_| "Failed to reshape median result to 1D")?;
+
+            Ok(flat_result.into_owned())
         }
         None => {
             // Global median
             let mut values: Vec<_> = array.iter().copied().collect();
             values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-            let median_value = if values.len() % 2 == 0 {
+            let median_value = if values.len().is_multiple_of(2) {
                 let mid = values.len() / 2;
-                (values[mid - 1] + values[mid]) / T::from_f64(2.0).expect("Operation failed")
+                let two = T::from_f64(2.0).ok_or("Cannot convert 2.0 into element type")?;
+                (values[mid - 1] + values[mid]) / two
             } else {
                 values[values.len() / 2]
             };
@@ -1271,10 +1303,60 @@ where
     }
 
     match axis {
-        Some(_) => {
-            // For higher dimensional arrays, we need to implement axis-specific logic
-            // This is a placeholder for now
-            Err("Axis-specific percentile for arbitrary dimension arrays not yet implemented")
+        Some(ax) => {
+            // Axis-specific percentile for arbitrary-dimension arrays.
+            let ndim = array.ndim();
+            if ax.index() >= ndim {
+                return Err("Axis index out of bounds");
+            }
+
+            // We need to convert two distinct floating weights into `T` per
+            // lane. To keep the closure inside `map_axis` infallible while
+            // still respecting the no-unwrap policy, do a probe conversion
+            // up front: if `T::from_f64` cannot represent `q / 100.0` (a
+            // value within `[0, 1]`), the conversion path is broken for this
+            // type and we surface that as an error.
+            //
+            // We also pre-compute the closest-rank (boundary) cases — `q == 0`
+            // returns the per-lane minimum and `q == 100` returns the
+            // per-lane maximum — to avoid floating-point edge cases at the
+            // endpoints (e.g. `pos.ceil() as usize` overflowing the slice).
+            T::from_f64(q / 100.0).ok_or("Cannot convert percentile weight into element type")?;
+
+            let reduced = array.map_axis(ax, |lane| {
+                let mut values: Vec<T> = lane.iter().copied().collect();
+                values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+                let n = values.len();
+                if n == 0 {
+                    // `array.is_empty()` is checked above, but defensively
+                    // handle a degenerate lane by returning zero.
+                    return T::zero();
+                }
+
+                // Linear interpolation matching the None-branch.
+                let pos = (q / 100.0) * (n as f64 - 1.0);
+                let idx_low = pos.floor() as usize;
+                let idx_high = pos.ceil() as usize;
+
+                if idx_low == idx_high {
+                    values[idx_low]
+                } else {
+                    let weight_high = pos - (idx_low as f64);
+                    let weight_low = 1.0 - weight_high;
+
+                    let w_low = T::from_f64(weight_low).unwrap_or_else(T::zero);
+                    let w_high = T::from_f64(weight_high).unwrap_or_else(T::zero);
+
+                    values[idx_low] * w_low + values[idx_high] * w_high
+                }
+            });
+
+            let flat_result = reduced
+                .to_shape((reduced.len(),))
+                .map_err(|_| "Failed to reshape percentile result to 1D")?;
+
+            Ok(flat_result.into_owned())
         }
         None => {
             // Global percentile
@@ -1292,11 +1374,177 @@ where
                 let weight_high = pos - (idx_low as f64);
                 let weight_low = 1.0 - weight_high;
 
-                values[idx_low] * T::from_f64(weight_low).expect("Operation failed")
-                    + values[idx_high] * T::from_f64(weight_high).expect("Operation failed")
+                let w_low = T::from_f64(weight_low)
+                    .ok_or("Cannot convert percentile weight into element type")?;
+                let w_high = T::from_f64(weight_high)
+                    .ok_or("Cannot convert percentile weight into element type")?;
+
+                values[idx_low] * w_low + values[idx_high] * w_high
             };
 
             Ok(Array::from_elem(1, result))
         }
+    }
+}
+
+#[cfg(test)]
+mod axis_reduction_tests {
+    use super::{median, percentile};
+    use ::ndarray::{array, Array3, Axis};
+
+    fn approx_eq(a: f64, b: f64) -> bool {
+        (a - b).abs() < 1e-9
+    }
+
+    // -------- median --------
+
+    #[test]
+    fn test_median_2d_axis0_columns() {
+        // 3x3, columns sorted: col0=[1,4,7] median=4, col1=[2,5,8]=5, col2=[3,6,9]=6
+        let a = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        let result = median(&a.view(), Some(Axis(0))).expect("axis median");
+        assert_eq!(result.len(), 3);
+        assert!(approx_eq(result[0], 4.0));
+        assert!(approx_eq(result[1], 5.0));
+        assert!(approx_eq(result[2], 6.0));
+    }
+
+    #[test]
+    fn test_median_2d_axis1_rows() {
+        let a = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        let result = median(&a.view(), Some(Axis(1))).expect("axis median");
+        assert_eq!(result.len(), 3);
+        assert!(approx_eq(result[0], 2.0));
+        assert!(approx_eq(result[1], 5.0));
+        assert!(approx_eq(result[2], 8.0));
+    }
+
+    #[test]
+    fn test_median_2d_axis1_even_lane_averaging() {
+        // Each row has 4 elements -> median = average of two middle values.
+        let a = array![[1.0_f64, 2.0, 3.0, 4.0], [10.0, 20.0, 30.0, 40.0]];
+        let result = median(&a.view(), Some(Axis(1))).expect("axis median");
+        assert_eq!(result.len(), 2);
+        // Row 0 sorted: 1,2,3,4 -> (2+3)/2 = 2.5
+        assert!(approx_eq(result[0], 2.5));
+        // Row 1: (20+30)/2 = 25
+        assert!(approx_eq(result[1], 25.0));
+    }
+
+    #[test]
+    fn test_median_3d_each_axis() {
+        // 2x3x4 array with values 0..23.
+        let mut a = Array3::<f64>::zeros((2, 3, 4));
+        let mut counter = 0.0;
+        for i in 0..2 {
+            for j in 0..3 {
+                for k in 0..4 {
+                    a[[i, j, k]] = counter;
+                    counter += 1.0;
+                }
+            }
+        }
+
+        // Axis 0: each lane has 2 elements -> average of pair.
+        let med0 = median(&a.view(), Some(Axis(0))).expect("axis median");
+        assert_eq!(med0.len(), 12);
+        // For (j=0, k=0): values are a[0,0,0]=0 and a[1,0,0]=12 -> 6.
+        assert!(approx_eq(med0[0], 6.0));
+
+        // Axis 1: each lane has 3 elements -> middle element.
+        let med1 = median(&a.view(), Some(Axis(1))).expect("axis median");
+        assert_eq!(med1.len(), 8);
+
+        // Axis 2: each lane has 4 elements -> average of two middle values.
+        let med2 = median(&a.view(), Some(Axis(2))).expect("axis median");
+        assert_eq!(med2.len(), 6);
+        // For (i=0, j=0): values are 0,1,2,3 -> (1+2)/2 = 1.5.
+        assert!(approx_eq(med2[0], 1.5));
+    }
+
+    #[test]
+    fn test_median_axis_out_of_bounds() {
+        let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
+        let err = median(&a.view(), Some(Axis(5))).expect_err("must reject out-of-bounds");
+        assert!(err.contains("out of bounds"));
+    }
+
+    // -------- percentile --------
+
+    #[test]
+    fn test_percentile_2d_axis0_q50_matches_median() {
+        let a = array![[1.0_f64, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]];
+        let pct = percentile(&a.view(), 50.0, Some(Axis(0))).expect("axis pct");
+        let med = median(&a.view(), Some(Axis(0))).expect("axis median");
+        for k in 0..3 {
+            assert!(approx_eq(pct[k], med[k]));
+        }
+    }
+
+    #[test]
+    fn test_percentile_2d_axis1_extrema() {
+        let a = array![[1.0_f64, 7.0, 5.0, 3.0], [10.0, 0.0, 2.0, 8.0]];
+
+        // q = 0  -> per-row min
+        let pct_min = percentile(&a.view(), 0.0, Some(Axis(1))).expect("min");
+        assert_eq!(pct_min.len(), 2);
+        assert!(approx_eq(pct_min[0], 1.0));
+        assert!(approx_eq(pct_min[1], 0.0));
+
+        // q = 100 -> per-row max
+        let pct_max = percentile(&a.view(), 100.0, Some(Axis(1))).expect("max");
+        assert_eq!(pct_max.len(), 2);
+        assert!(approx_eq(pct_max[0], 7.0));
+        assert!(approx_eq(pct_max[1], 10.0));
+    }
+
+    #[test]
+    fn test_percentile_2d_axis1_quartiles() {
+        // Row 0 sorted: 1,3,5,7. Linear interp at q=25: pos=0.75 -> 0.25*1+0.75*3 = 2.5
+        // q=75: pos = 2.25 -> 0.75*5 + 0.25*7 = 5.5
+        let a = array![[1.0_f64, 7.0, 5.0, 3.0]];
+        let q25 = percentile(&a.view(), 25.0, Some(Axis(1))).expect("q25");
+        let q75 = percentile(&a.view(), 75.0, Some(Axis(1))).expect("q75");
+        assert!(approx_eq(q25[0], 2.5), "got {}", q25[0]);
+        assert!(approx_eq(q75[0], 5.5), "got {}", q75[0]);
+    }
+
+    #[test]
+    fn test_percentile_3d_axis2() {
+        let mut a = Array3::<f64>::zeros((2, 2, 5));
+        for i in 0..2 {
+            for j in 0..2 {
+                for k in 0..5 {
+                    // Fill with k so percentile is independent of (i, j).
+                    a[[i, j, k]] = k as f64;
+                }
+            }
+        }
+        // Each lane is 0,1,2,3,4. q=50 -> pos=2 -> exact value 2.
+        let pct = percentile(&a.view(), 50.0, Some(Axis(2))).expect("axis pct");
+        assert_eq!(pct.len(), 4);
+        for v in pct.iter() {
+            assert!(approx_eq(*v, 2.0));
+        }
+    }
+
+    #[test]
+    fn test_percentile_invalid_q_axis() {
+        // Axis branch must still respect the q range guard, since the guard
+        // happens before the axis match.
+        let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
+        let err = percentile(&a.view(), -1.0, Some(Axis(0))).expect_err("must reject negative q");
+        assert!(err.contains("between 0 and 100"));
+
+        let err2 = percentile(&a.view(), 101.0, Some(Axis(1))).expect_err("must reject q > 100");
+        assert!(err2.contains("between 0 and 100"));
+    }
+
+    #[test]
+    fn test_percentile_axis_out_of_bounds() {
+        let a = array![[1.0_f64, 2.0], [3.0, 4.0]];
+        let err =
+            percentile(&a.view(), 50.0, Some(Axis(5))).expect_err("must reject out-of-bounds axis");
+        assert!(err.contains("out of bounds"));
     }
 }

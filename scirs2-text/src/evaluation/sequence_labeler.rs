@@ -65,11 +65,7 @@ impl ViterbiDecoder {
     /// `transitions`: \[n_tags\]\[n_tags\] log-probability of transitioning from tag *i* to tag *j*.
     ///
     /// Returns the most likely tag index sequence.
-    pub fn decode(
-        &self,
-        emissions: &[Vec<f64>],
-        transitions: &[Vec<f64>],
-    ) -> Result<Vec<usize>> {
+    pub fn decode(&self, emissions: &[Vec<f64>], transitions: &[Vec<f64>]) -> Result<Vec<usize>> {
         let seq_len = emissions.len();
         if seq_len == 0 {
             return Err(TextError::InvalidInput(
@@ -322,11 +318,7 @@ mod tests {
         // 3 positions, 2 tags (0 and 1)
         let decoder = ViterbiDecoder::new(vec!["O".into(), "B-PER".into()]);
         // emissions strongly prefer 0, 1, 0
-        let emissions = vec![
-            vec![-0.1, -10.0],
-            vec![-10.0, -0.1],
-            vec![-0.1, -10.0],
-        ];
+        let emissions = vec![vec![-0.1, -10.0], vec![-10.0, -0.1], vec![-0.1, -10.0]];
         // uniform transitions
         let transitions = vec![vec![0.0, 0.0], vec![0.0, 0.0]];
         let path = decoder.decode(&emissions, &transitions).unwrap();
@@ -337,15 +329,9 @@ mod tests {
     fn test_viterbi_all_same() {
         // All emissions identical — transitions govern
         let decoder = ViterbiDecoder::new(vec!["O".into(), "B-LOC".into()]);
-        let emissions = vec![
-            vec![0.0, 0.0],
-            vec![0.0, 0.0],
-        ];
+        let emissions = vec![vec![0.0, 0.0], vec![0.0, 0.0]];
         // transitions: prefer staying in tag 1
-        let transitions = vec![
-            vec![-1.0, 0.0],
-            vec![0.0, 1.0],
-        ];
+        let transitions = vec![vec![-1.0, 0.0], vec![0.0, 1.0]];
         let path = decoder.decode(&emissions, &transitions).unwrap();
         // Second tag (1) should dominate due to self-loop reward
         // At t=0 both equal; at t=1 tag 1 gets +1 from stay
@@ -368,11 +354,7 @@ mod tests {
     #[test]
     fn test_extract_entities_basic() {
         // B-PER I-PER O = one PER entity at positions 0..2
-        let tags = vec![
-            BioTag::B("PER".into()),
-            BioTag::I("PER".into()),
-            BioTag::O,
-        ];
+        let tags = vec![BioTag::B("PER".into()), BioTag::I("PER".into()), BioTag::O];
         let entities = ViterbiDecoder::extract_entities(&tags);
         assert_eq!(entities.len(), 1);
         assert_eq!(entities[0], ("PER".to_owned(), 0, 2));

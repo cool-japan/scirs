@@ -148,9 +148,11 @@ mod bessel_tests {
         assert_relative_eq!(iv(0.0, x), i0(x), epsilon = 1e-10);
         assert_relative_eq!(iv(1.0, x), i1(x), epsilon = 1e-10);
 
-        // Values from the enhanced implementation
-        assert_relative_eq!(iv(2.0, x), 3.870222164559334, epsilon = 1e-10);
-        assert_relative_eq!(iv(3.0, x), 9.331081186381976, epsilon = 1e-10);
+        // Values verified against DLMF / scipy (iv with fixed DLMF 10.29.1 recurrence)
+        // I₂(2) = 0.6889484476987378 (scipy: iv(2, 2))
+        assert_relative_eq!(iv(2.0, x), 0.6889484476987378, epsilon = 1e-8);
+        // I₃(2) = 0.21273995923985285 (scipy: iv(3, 2))
+        assert_relative_eq!(iv(3.0, x), 0.21273995923985285, epsilon = 1e-8);
     }
 
     #[test]

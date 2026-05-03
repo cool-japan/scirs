@@ -42,7 +42,10 @@ pub fn geodesic_dilation(
                     for &(dr, dc) in &neighbors {
                         let nr = r as isize + dr;
                         let nc = c as isize + dc;
-                        if nr >= 0 && nc >= 0 && (nr as usize) < rows && (nc as usize) < cols
+                        if nr >= 0
+                            && nc >= 0
+                            && (nr as usize) < rows
+                            && (nc as usize) < cols
                             && current[nr as usize][nc as usize]
                         {
                             set = true;
@@ -128,7 +131,9 @@ pub fn reconstruction_by_dilation(
 ) -> NdimageResult<Vec<Vec<bool>>> {
     let rows = seed.len();
     if rows == 0 {
-        return Err(NdimageError::InvalidInput("Inputs must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Inputs must not be empty".into(),
+        ));
     }
     let cols = seed[0].len();
     // BFS-based reconstruction for efficiency
@@ -332,12 +337,7 @@ pub fn skeletonize(binary: &[Vec<bool>]) -> NdimageResult<Vec<Vec<bool>>> {
                 let (p2, p3, p4, p5, p6, p7, p8, p9) = zhang_suen_neighbors(&img, r, c);
                 let b = (p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9) as usize;
                 let a = transitions_01(&[p2, p3, p4, p5, p6, p7, p8, p9]);
-                if b >= 2
-                    && b <= 6
-                    && a == 1
-                    && (p2 * p4 * p6 == 0)
-                    && (p4 * p6 * p8 == 0)
-                {
+                if b >= 2 && b <= 6 && a == 1 && (p2 * p4 * p6 == 0) && (p4 * p6 * p8 == 0) {
                     to_delete.push((r, c));
                 }
             }
@@ -357,12 +357,7 @@ pub fn skeletonize(binary: &[Vec<bool>]) -> NdimageResult<Vec<Vec<bool>>> {
                 let (p2, p3, p4, p5, p6, p7, p8, p9) = zhang_suen_neighbors(&img, r, c);
                 let b = (p2 + p3 + p4 + p5 + p6 + p7 + p8 + p9) as usize;
                 let a = transitions_01(&[p2, p3, p4, p5, p6, p7, p8, p9]);
-                if b >= 2
-                    && b <= 6
-                    && a == 1
-                    && (p2 * p4 * p8 == 0)
-                    && (p2 * p6 * p8 == 0)
-                {
+                if b >= 2 && b <= 6 && a == 1 && (p2 * p4 * p8 == 0) && (p2 * p6 * p8 == 0) {
                     to_delete.push((r, c));
                 }
             }
@@ -440,7 +435,9 @@ pub fn medial_axis(binary: &[Vec<bool>]) -> NdimageResult<(Vec<Vec<bool>>, Vec<V
 
 fn validate_binary_pair(a: &[Vec<bool>], b: &[Vec<bool>]) -> NdimageResult<()> {
     if a.is_empty() || b.is_empty() {
-        return Err(NdimageError::InvalidInput("Inputs must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Inputs must not be empty".into(),
+        ));
     }
     if a.len() != b.len() || a[0].len() != b[0].len() {
         return Err(NdimageError::InvalidInput(
@@ -464,9 +461,14 @@ fn neighbor_offsets(connectivity: u8) -> Vec<(isize, isize)> {
         vec![(-1, 0), (1, 0), (0, -1), (0, 1)]
     } else {
         vec![
-            (-1, -1), (-1, 0), (-1, 1),
-            (0, -1),           (0, 1),
-            (1, -1),  (1, 0),  (1, 1),
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (0, 1),
+            (1, -1),
+            (1, 0),
+            (1, 1),
         ]
     }
 }
@@ -474,7 +476,9 @@ fn neighbor_offsets(connectivity: u8) -> Vec<(isize, isize)> {
 /// Grayscale dilation with a flat structuring element.
 fn gray_dilate(image: &[Vec<f64>], selem: &[Vec<bool>]) -> NdimageResult<Vec<Vec<f64>>> {
     if image.is_empty() || selem.is_empty() {
-        return Err(NdimageError::InvalidInput("Inputs must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Inputs must not be empty".into(),
+        ));
     }
     let rows = image.len();
     let cols = image[0].len();
@@ -511,7 +515,9 @@ fn gray_dilate(image: &[Vec<f64>], selem: &[Vec<bool>]) -> NdimageResult<Vec<Vec
 /// Grayscale erosion with a flat structuring element.
 fn gray_erode(image: &[Vec<f64>], selem: &[Vec<bool>]) -> NdimageResult<Vec<Vec<f64>>> {
     if image.is_empty() || selem.is_empty() {
-        return Err(NdimageError::InvalidInput("Inputs must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Inputs must not be empty".into(),
+        ));
     }
     let rows = image.len();
     let cols = image[0].len();
@@ -731,7 +737,11 @@ mod tests {
 
     fn make_rect_binary(rows: usize, cols: usize) -> Vec<Vec<bool>> {
         (0..rows)
-            .map(|r| (0..cols).map(|c| r > 0 && r < rows - 1 && c > 0 && c < cols - 1).collect())
+            .map(|r| {
+                (0..cols)
+                    .map(|c| r > 0 && r < rows - 1 && c > 0 && c < cols - 1)
+                    .collect()
+            })
             .collect()
     }
 
@@ -742,7 +752,11 @@ mod tests {
 
     fn make_gray(rows: usize, cols: usize) -> Vec<Vec<f64>> {
         (0..rows)
-            .map(|r| (0..cols).map(|c| (r + c) as f64 / (rows + cols) as f64).collect())
+            .map(|r| {
+                (0..cols)
+                    .map(|c| (r + c) as f64 / (rows + cols) as f64)
+                    .collect()
+            })
             .collect()
     }
 
@@ -758,7 +772,8 @@ mod tests {
             vec![false, true, true, false],
             vec![false, false, false, false],
         ];
-        let result = geodesic_dilation(&marker, &mask, 4, 100).expect("geodesic_dilation should succeed with valid marker and mask");
+        let result = geodesic_dilation(&marker, &mask, 4, 100)
+            .expect("geodesic_dilation should succeed with valid marker and mask");
         // Marker should fill the reachable mask region
         assert!(result[0][1] || result[1][1]);
     }
@@ -767,7 +782,8 @@ mod tests {
     fn test_geodesic_erosion_runs() {
         let marker = make_rect_binary(8, 8);
         let mask = make_rect_binary(8, 8);
-        let result = geodesic_erosion(&marker, &mask, 4, 10).expect("geodesic_erosion should succeed with valid marker and mask");
+        let result = geodesic_erosion(&marker, &mask, 4, 10)
+            .expect("geodesic_erosion should succeed with valid marker and mask");
         assert_eq!(result.len(), 8);
         assert_eq!(result[0].len(), 8);
     }
@@ -784,7 +800,8 @@ mod tests {
             vec![true, true, true],
             vec![false, true, false],
         ];
-        let result = reconstruction_by_dilation(&seed, &mask).expect("reconstruction_by_dilation should succeed with valid seed and mask");
+        let result = reconstruction_by_dilation(&seed, &mask)
+            .expect("reconstruction_by_dilation should succeed with valid seed and mask");
         assert!(result[0][1]);
         assert!(result[1][0]);
     }
@@ -793,7 +810,8 @@ mod tests {
     fn test_white_tophat_shape() {
         let img = make_gray(16, 16);
         let se = square_selem(2);
-        let out = white_tophat(&img, &se).expect("white_tophat should succeed with valid image and SE");
+        let out =
+            white_tophat(&img, &se).expect("white_tophat should succeed with valid image and SE");
         assert_eq!(out.len(), 16);
         assert_eq!(out[0].len(), 16);
         // White tophat values must be non-negative
@@ -808,7 +826,8 @@ mod tests {
     fn test_black_tophat_shape() {
         let img = make_gray(16, 16);
         let se = square_selem(2);
-        let out = black_tophat(&img, &se).expect("black_tophat should succeed with valid image and SE");
+        let out =
+            black_tophat(&img, &se).expect("black_tophat should succeed with valid image and SE");
         assert_eq!(out.len(), 16);
         assert_eq!(out[0].len(), 16);
     }
@@ -817,7 +836,8 @@ mod tests {
     fn test_morphological_gradient() {
         let img = make_gray(16, 16);
         let se = square_selem(1);
-        let out = morphological_gradient(&img, &se).expect("morphological_gradient should succeed with valid image and SE");
+        let out = morphological_gradient(&img, &se)
+            .expect("morphological_gradient should succeed with valid image and SE");
         assert_eq!(out.len(), 16);
         for row in &out {
             for &v in row {
@@ -829,7 +849,8 @@ mod tests {
     #[test]
     fn test_rolling_ball_background() {
         let img = make_gray(20, 20);
-        let bg = rolling_ball_background(&img, 3.0).expect("rolling_ball_background should succeed with valid image and radius");
+        let bg = rolling_ball_background(&img, 3.0)
+            .expect("rolling_ball_background should succeed with valid image and radius");
         assert_eq!(bg.len(), 20);
         assert_eq!(bg[0].len(), 20);
     }
@@ -841,7 +862,8 @@ mod tests {
         binary[4][12] = true;
         binary[12][4] = true;
         binary[12][12] = true;
-        let hull = convex_hull_image(&binary).expect("convex_hull_image should succeed with valid binary image");
+        let hull = convex_hull_image(&binary)
+            .expect("convex_hull_image should succeed with valid binary image");
         assert_eq!(hull.len(), 16);
         // Center should be inside hull
         assert!(hull[8][8]);
@@ -850,7 +872,8 @@ mod tests {
     #[test]
     fn test_skeletonize() {
         let binary = make_rect_binary(16, 16);
-        let skel = skeletonize(&binary).expect("skeletonize should succeed with valid binary image");
+        let skel =
+            skeletonize(&binary).expect("skeletonize should succeed with valid binary image");
         assert_eq!(skel.len(), 16);
         assert_eq!(skel[0].len(), 16);
     }
@@ -858,7 +881,8 @@ mod tests {
     #[test]
     fn test_medial_axis_shape() {
         let binary = make_rect_binary(12, 12);
-        let (skel, dt) = medial_axis(&binary).expect("medial_axis should succeed with valid binary image");
+        let (skel, dt) =
+            medial_axis(&binary).expect("medial_axis should succeed with valid binary image");
         assert_eq!(skel.len(), 12);
         assert_eq!(dt.len(), 12);
         // Distance at border should be 0

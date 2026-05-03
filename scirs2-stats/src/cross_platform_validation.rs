@@ -610,7 +610,7 @@ impl CrossPlatformValidator {
     }
 
     /// Test SIMD compatibility
-    fn test_simd_compatibility(&self, &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
+    fn test_simd_compatibility(&self, _issues: &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
         let mut results = Vec::new();
 
         // Test SIMD mean calculation
@@ -759,7 +759,7 @@ impl CrossPlatformValidator {
     }
 
     /// Test parallel processing compatibility
-    fn test_parallel_compatibility(&self, &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
+    fn test_parallel_compatibility(&self, _issues: &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
         let mut results = Vec::new();
 
         // Test parallel mean calculation
@@ -784,8 +784,7 @@ impl CrossPlatformValidator {
         // Compare parallel and serial implementations
         let serial_mean = crate::descriptive::mean(&testdata.view())?;
         let parallel_result = crate::parallel_stats::mean_parallel(
-            &testdata.view(),
-            num_threads()
+            &testdata.view()
         );
         
         let (status, accuracy_metrics) = match parallel_result {
@@ -794,7 +793,7 @@ impl CrossPlatformValidator {
                 let relative_error = absolute_error / serial_mean.abs();
                 
                 notes.push(format!("Parallel mean computation successful"));
-                notes.push(format!("Threads used: {}", num_threads()));
+                notes.push(format!("Threads used: {}", std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4)));
                 notes.push(format!("Relative error: {:.2e}", relative_error));
                 
                 let metrics = AccuracyMetrics {
@@ -885,7 +884,7 @@ impl CrossPlatformValidator {
         let mut notes = Vec::new();
 
         // Test work-stealing scheduler if available
-        let thread_count = num_threads();
+        let thread_count = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
         notes.push(format!("Available threads: {}", thread_count));
         notes.push(format!("Work-stealing supported: {}", thread_count > 1));
 
@@ -907,7 +906,7 @@ impl CrossPlatformValidator {
     }
 
     /// Test memory allocation patterns
-    fn test_memory_allocation(&self, &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
+    fn test_memory_allocation(&self, _issues: &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
         let mut results = Vec::new();
 
         // Test large allocation handling
@@ -930,7 +929,7 @@ impl CrossPlatformValidator {
         // Test allocation of large arrays
         let largesize = 1_000_000;
         let allocation_result = std::panic::catch_unwind(|| {
-            Array1::zeros(largesize)
+            Array1::<f64>::zeros(largesize)
         });
 
         let status = match allocation_result {
@@ -961,8 +960,8 @@ impl CrossPlatformValidator {
         let mut notes = Vec::new();
 
         // Test memory alignment for SIMD operations
-        let test_array = Array1::zeros(1000);
-        let ptr = test_array.as_ptr() as usize;
+        let test_array = Array1::<f64>::zeros(1000);
+        let ptr = test_array.as_ptr() as *const _ as usize;
         let alignment = ptr % 64; // Check 64-byte alignment
         
         notes.push(format!("Array pointer alignment: {} bytes", 64 - alignment));
@@ -991,7 +990,7 @@ impl CrossPlatformValidator {
         
         for i in 0..100 {
             let size = 1000 + (i % 10) * 100;
-            let array = Array1::zeros(size);
+            let array = Array1::<f64>::zeros(size);
             allocations.push(array);
             
             // Periodically drop some allocations
@@ -1015,7 +1014,7 @@ impl CrossPlatformValidator {
     }
 
     /// Test architecture-specific optimizations
-    fn test_architecture_optimizations(&self, &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
+    fn test_architecture_optimizations(&self, _issues: &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
         let mut results = Vec::new();
 
         // Test CPU cache optimization
@@ -1088,7 +1087,7 @@ impl CrossPlatformValidator {
     }
 
     /// Test OS-specific behavior
-    fn test_os_specific_behavior(&self, &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
+    fn test_os_specific_behavior(&self, _issues: &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
         let mut results = Vec::new();
 
         // Test OS-specific optimizations
@@ -1145,7 +1144,7 @@ impl CrossPlatformValidator {
     }
 
     /// Test endianness handling
-    fn test_endianness_handling(&self, &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
+    fn test_endianness_handling(&self, _issues: &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
         let mut results = Vec::new();
 
         // Test byte order consistency
@@ -1193,7 +1192,7 @@ impl CrossPlatformValidator {
     }
 
     /// Test threading models
-    fn test_threading_models(&self, &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
+    fn test_threading_models(&self, _issues: &mut Vec<CompatibilityIssue>) -> StatsResult<Vec<TestResult>> {
         let mut results = Vec::new();
 
         // Test threading model compatibility
@@ -1254,7 +1253,7 @@ impl CrossPlatformValidator {
     }
 
     /// Determine overall validation status
-    fn determine_overall_status(&self, testresults: &[TestResult], issues: &[CompatibilityIssue]) -> ValidationStatus {
+    fn determine_overall_status(&self, test_results: &[TestResult], issues: &[CompatibilityIssue]) -> ValidationStatus {
         let total_tests = test_results.len();
         let passed_tests = test_results.iter().filter(|t| matches!(t.status, TestStatus::Passed)).count();
         let failed_tests = test_results.iter().filter(|t| matches!(t.status, TestStatus::Failed)).count();
@@ -1325,7 +1324,7 @@ impl CrossPlatformValidator {
         PlatformInfo {
             os: std::env::consts::OS.to_string(),
             arch: std::env::consts::ARCH.to_string(),
-            cpu_cores: num_threads(),
+            cpu_cores: std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4),
             simd_capabilities: Self::detect_simd_capabilities(),
             endianness: Self::detect_endianness(),
             float_model: Self::detect_float_model(),
@@ -1383,7 +1382,7 @@ impl CrossPlatformValidator {
     fn detect_threading_model() -> ThreadingModel {
         ThreadingModel {
             work_stealing: true, // Assume work-stealing is available
-            default_threads: num_threads(),
+            default_threads: std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4),
             thread_affinity: false, // Simplified
             numa_aware: false, // Simplified
         }

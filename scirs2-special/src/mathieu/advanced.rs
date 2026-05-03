@@ -309,6 +309,8 @@ pub fn mathieu_a(n: usize, q: f64) -> f64 {
         *eigenvalues.get(idx).unwrap_or(&f64::NAN)
     } else {
         // Odd n: basis functions cos((2k+1)x), k=0,1,...
+        // The period-2π boundary condition for a_{2m+1} shifts diagonal[0] by +q.
+        // Reference: DLMF 28.4.7–28.4.8.
         let half = size / 2;
         let mut diag = Vec::with_capacity(half);
         let mut off_diag = Vec::with_capacity(half - 1);
@@ -319,8 +321,10 @@ pub fn mathieu_a(n: usize, q: f64) -> f64 {
                 off_diag.push(q);
             }
         }
-        // For n=1: the first off-diagonal is also q (n=1 means m=0 in (2m+1) scheme)
-        // Adjust first off-diagonal for n=1 (ce_1 boundary condition): M[0,1] = q
+        // Apply the period-2π correction: diagonal[0] += q
+        if !diag.is_empty() {
+            diag[0] += q;
+        }
         let eigenvalues = tridiag_eigenvalues(&diag, &off_diag);
         let idx = (n - 1) / 2;
         *eigenvalues.get(idx).unwrap_or(&f64::NAN)
@@ -360,6 +364,8 @@ pub fn mathieu_b(n: usize, q: f64) -> f64 {
         *eigenvalues.get(idx).unwrap_or(&f64::NAN)
     } else {
         // Odd n: basis functions sin((2k+1)x), k=0,1,...
+        // The period-2π boundary condition for b_{2m+1} shifts diagonal[0] by -q.
+        // Reference: DLMF 28.4.9–28.4.10.
         let half = size / 2;
         let mut diag = Vec::with_capacity(half);
         let mut off_diag = Vec::with_capacity(half - 1);
@@ -370,7 +376,10 @@ pub fn mathieu_b(n: usize, q: f64) -> f64 {
                 off_diag.push(q);
             }
         }
-        // For n=1: M[0,1] = q, not 2q
+        // Apply the period-2π correction: diagonal[0] -= q
+        if !diag.is_empty() {
+            diag[0] -= q;
+        }
         let eigenvalues = tridiag_eigenvalues(&diag, &off_diag);
         let idx = (n - 1) / 2;
         *eigenvalues.get(idx).unwrap_or(&f64::NAN)

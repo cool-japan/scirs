@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-cluster = "0.4.2"
+//! scirs2-cluster = "0.4.3"
 //! ```
 //!
 //! ```rust
@@ -53,7 +53,7 @@
 //! let (centroids, labels) = kmeans(data.view(), 2, None, None, None, None).expect("operation should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2 (March 27, 2026)
+//! ## 🔒 Version: 0.4.3 (March 27, 2026)
 //!
 //! ## Features
 //!
@@ -413,6 +413,32 @@ pub mod utils;
 pub mod visualization;
 pub mod vq;
 
+// Additional clustering algorithm modules
+pub mod biclustering;
+pub mod cluster_metrics;
+pub mod coclustering;
+pub mod competitive_learning;
+pub mod consensus;
+pub mod deep_cluster;
+pub mod density_enhanced;
+pub mod density_peaks;
+pub mod density_ratio;
+pub mod fuzzy;
+pub mod fuzzy_cmeans;
+pub mod hierarchical_enhanced;
+// TODO: native_plotting has unimplemented stub methods - re-enable once complete
+// #[cfg(any(feature = "plotters", feature = "egui"))]
+// pub mod native_plotting;
+pub mod optics;
+pub mod prototype_enhanced;
+pub mod soft_clustering;
+pub mod som;
+pub mod stability_advanced;
+pub mod streaming_cluster;
+pub mod subspace;
+pub mod subspace_enhanced;
+pub mod topological_clustering;
+
 // Re-exports
 pub use advanced::{
     adaptive_online_clustering, deep_embedded_clustering, qaoa_clustering, quantum_kmeans,
@@ -583,31 +609,12 @@ pub use serialization::{
 
 // Re-export compatibility utilities for scikit-learn and SciPy integration
 pub use serialization::compatibility::{
-    create_sklearn_param_grid,
-    // TODO: Fix these function imports (they may be methods, not functions)
-    // export_to_scipy_json,
-    // export_to_sklearn_json,
-    from_joblib_format,
-    from_numpy_format,
-    from_sklearn_format,
-    generate_sklearn_model_summary,
-    // import_scipy_hierarchy,
-    // Import functions for external model formats
-    // import_sklearn_kmeans,
-    to_arrow_schema,
-    to_huggingface_card,
-    to_joblib_format,
-    to_mlflow_format,
-    to_numpy_format,
-    to_onnx_metadata,
-    to_pandas_clustering_report,
-    to_pandas_format,
-    to_pickle_like_format,
-    to_pytorch_checkpoint,
-    to_r_format,
-    to_scipy_dendrogram_format,
-    to_scipy_linkage_format,
-    to_sklearn_clustering_result,
+    create_sklearn_param_grid, export_to_scipy_json, export_to_sklearn_json, from_joblib_format,
+    from_numpy_format, from_sklearn_format, generate_sklearn_model_summary, import_scipy_hierarchy,
+    import_sklearn_kmeans, to_arrow_schema, to_huggingface_card, to_joblib_format,
+    to_mlflow_format, to_numpy_format, to_onnx_metadata, to_pandas_clustering_report,
+    to_pandas_format, to_pickle_like_format, to_pytorch_checkpoint, to_r_format,
+    to_scipy_dendrogram_format, to_scipy_linkage_format, to_sklearn_clustering_result,
     to_sklearn_format,
 };
 pub use sparse::{

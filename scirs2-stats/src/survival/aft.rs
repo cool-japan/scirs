@@ -89,7 +89,11 @@ fn norm_ppf(p: f64) -> f64 {
         let r = (-r.ln()).sqrt();
         let x = (((2.321_213_5 * r + 4.850_091_7) * r - 2.297_460_0) * r - 2.787_688_0)
             / ((1.637_547_9 * r + 3.543_889_2) * r + 1.0);
-        if q < 0.0 { -x } else { x }
+        if q < 0.0 {
+            -x
+        } else {
+            x
+        }
     }
 }
 
@@ -102,7 +106,7 @@ fn logistic_ppf(p: f64) -> f64 {
 /// Gumbel quantile: log(-log(1-p))
 fn gumbel_ppf(p: f64) -> f64 {
     let p = p.clamp(1e-15, 1.0 - 1e-15);
-    (-(-p).ln_1p()).ln()   // log(-log(1-p))
+    (-(-p).ln_1p()).ln() // log(-log(1-p))
 }
 
 // ---------------------------------------------------------------------------
@@ -154,18 +158,22 @@ impl AftModel {
 
         // Validation
         if n == 0 {
-            return Err(StatsError::InvalidArgument("times must not be empty".to_string()));
+            return Err(StatsError::InvalidArgument(
+                "times must not be empty".to_string(),
+            ));
         }
         if events.len() != n {
             return Err(StatsError::DimensionMismatch(format!(
                 "times length {} != events length {}",
-                n, events.len()
+                n,
+                events.len()
             )));
         }
         if x.nrows() != n {
             return Err(StatsError::DimensionMismatch(format!(
                 "x rows {} != times length {}",
-                x.nrows(), n
+                x.nrows(),
+                n
             )));
         }
         for &t in times {
@@ -225,7 +233,7 @@ impl AftModel {
 
             // Step size via backtracking
             let step = aft_backtrack(
-                &log_times, events, &xc, &theta, &grad, dist, fix_scale, n, p, 30
+                &log_times, events, &xc, &theta, &grad, dist, fix_scale, n, p, 30,
             );
 
             for k in 0..dim {
@@ -336,7 +344,11 @@ fn aft_log_likelihood(
     n: usize,
     p: usize,
 ) -> f64 {
-    let sigma = if fix_scale { 1.0 } else { theta[p + 1].exp().max(1e-300) };
+    let sigma = if fix_scale {
+        1.0
+    } else {
+        theta[p + 1].exp().max(1e-300)
+    };
     let log_sigma = sigma.ln();
 
     let mut ll = 0.0_f64;
@@ -363,11 +375,9 @@ fn aft_log_likelihood(
             // Censored: log[S(t | x)] = log[1 - F_ε(z)]
             let log_s = match dist {
                 AftDistribution::Weibull | AftDistribution::Exponential => {
-                    -z.exp()  // log(exp(-exp(z)))
+                    -z.exp() // log(exp(-exp(z)))
                 }
-                AftDistribution::LogNormal => {
-                    (1.0 - norm_cdf(z)).max(1e-300).ln()
-                }
+                AftDistribution::LogNormal => (1.0 - norm_cdf(z)).max(1e-300).ln(),
                 AftDistribution::LogLogistic => {
                     // S = 1 - logistic(z) = 1 / (1 + exp(z))
                     -(1.0 + z.exp()).ln()
@@ -390,7 +400,11 @@ fn aft_gradient(
     n: usize,
     p: usize,
 ) -> Vec<f64> {
-    let sigma = if fix_scale { 1.0 } else { theta[p + 1].exp().max(1e-300) };
+    let sigma = if fix_scale {
+        1.0
+    } else {
+        theta[p + 1].exp().max(1e-300)
+    };
     let dim = theta.len();
     let mut grad = vec![0.0_f64; dim];
 
@@ -415,7 +429,7 @@ fn aft_gradient(
             }
             AftDistribution::LogLogistic => {
                 // f = logistic_pdf(z), ∂log(f)/∂z = 1 - 2*logistic(z) ... simplifies
-                // log f = log(e^{-z}) - 2 log(1 + e^{-z}) → ∂/∂z = -1 + 2/(1 + e^{-z}) - 1... 
+                // log f = log(e^{-z}) - 2 log(1 + e^{-z}) → ∂/∂z = -1 + 2/(1 + e^{-z}) - 1...
                 // Actually: ∂/∂z log(f_logistic(z)) = 1 - 2 * logistic_cdf(z)
                 // S = 1 - logistic_cdf(z), ∂log(S)/∂z = -logistic_pdf(z) / (1 - logistic_cdf(z))
                 let lp = logistic_pdf(z);
@@ -537,15 +551,18 @@ mod tests {
         let (times, events, cov) = weibull_data();
         let model = AftModel::fit(&times, &events, &cov, AftDistribution::Exponential)
             .expect("Exponential AFT fit failed");
-        assert!((model.scale - 1.0).abs() < 1e-12, "Exponential scale must be 1.0");
+        assert!(
+            (model.scale - 1.0).abs() < 1e-12,
+            "Exponential scale must be 1.0"
+        );
         assert!(model.log_likelihood.is_finite());
     }
 
     #[test]
     fn test_aft_predict_median_positive() {
         let (times, events, cov) = weibull_data();
-        let model = AftModel::fit(&times, &events, &cov, AftDistribution::Weibull)
-            .expect("AFT fit");
+        let model =
+            AftModel::fit(&times, &events, &cov, AftDistribution::Weibull).expect("AFT fit");
         let med = model.predict_median_survival(&cov);
         for &m in med.iter() {
             assert!(m > 0.0, "median {m} must be positive");
@@ -556,8 +573,8 @@ mod tests {
     #[test]
     fn test_aft_predict_quantile_monotone() {
         let (times, events, cov) = weibull_data();
-        let model = AftModel::fit(&times, &events, &cov, AftDistribution::LogNormal)
-            .expect("AFT fit");
+        let model =
+            AftModel::fit(&times, &events, &cov, AftDistribution::LogNormal).expect("AFT fit");
         // q=0.25 should be less than q=0.75
         let q25 = model.predict_quantile(&cov, 0.25);
         let q75 = model.predict_quantile(&cov, 0.75);
@@ -565,7 +582,9 @@ mod tests {
             assert!(
                 q25[i] <= q75[i] + 1e-10,
                 "q25={} > q75={} at index {}",
-                q25[i], q75[i], i
+                q25[i],
+                q75[i],
+                i
             );
         }
     }
@@ -573,8 +592,8 @@ mod tests {
     #[test]
     fn test_aft_predict_survival_bounded() {
         let (times, events, cov) = weibull_data();
-        let model = AftModel::fit(&times, &events, &cov, AftDistribution::Weibull)
-            .expect("AFT fit");
+        let model =
+            AftModel::fit(&times, &events, &cov, AftDistribution::Weibull).expect("AFT fit");
         let surv = model.predict_survival(&cov, 3.0);
         for &s in surv.iter() {
             assert!(s >= 0.0 && s <= 1.0 + 1e-12, "survival {s} out of [0,1]");

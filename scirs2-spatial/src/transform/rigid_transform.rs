@@ -390,12 +390,13 @@ impl RigidTransform {
     /// // Should have a translation of [1.0, 1.0, 0.0]
     /// ```
     pub fn compose(&self, other: &RigidTransform) -> SpatialResult<RigidTransform> {
-        // Compose rotations
-        let rotation = self.rotation.compose(&other.rotation);
+        // Compose rotations: T2(T1(p)) = R2*(R1*p + t1) + t2
+        // Rotation: R2 * R1 = other.rotation applied after self.rotation
+        let rotation = other.rotation.compose(&self.rotation);
 
-        // Compose translations: self.translation + self.rotation * other.translation
-        let rotated_trans = self.rotation.apply(&other.translation.view())?;
-        let translation = &self.translation + &rotated_trans;
+        // Translation: R2*t1 + t2
+        let rotated_trans = other.rotation.apply(&self.translation.view())?;
+        let translation = &rotated_trans + &other.translation;
 
         Ok(RigidTransform {
             rotation,
@@ -642,7 +643,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - assert_relative_eq! failed at line 662: left=2.22e-16, right=1.0"]
     fn test_rigid_transform_composition() {
         // Create two transforms and compose them
         let t1 = RigidTransform::from_rotation_and_translation(

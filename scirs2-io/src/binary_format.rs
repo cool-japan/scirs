@@ -521,9 +521,9 @@ pub fn read_scirs<P: AsRef<Path>>(path: P) -> Result<Vec<(String, DataRecord)>> 
     let mut records = Vec::with_capacity(n_records);
 
     for rec_idx in 0..n_records {
-        let name = r.read_string().map_err(|e| {
-            IoError::ParseError(format!("record {rec_idx}: name read error: {e}"))
-        })?;
+        let name = r
+            .read_string()
+            .map_err(|e| IoError::ParseError(format!("record {rec_idx}: name read error: {e}")))?;
         let tag = r.read_u8().map_err(|e| {
             IoError::ParseError(format!("record {rec_idx} '{name}': tag read error: {e}"))
         })?;
@@ -573,9 +573,7 @@ pub fn read_scirs<P: AsRef<Path>>(path: P) -> Result<Vec<(String, DataRecord)>> 
             }
             3 => {
                 let s = r.read_string().map_err(|e| {
-                    IoError::ParseError(format!(
-                        "record {rec_idx} '{name}': Text read error: {e}"
-                    ))
+                    IoError::ParseError(format!("record {rec_idx} '{name}': Text read error: {e}"))
                 })?;
                 DataRecord::Text(s)
             }
@@ -696,11 +694,11 @@ mod tests {
     fn test_f32_roundtrip() {
         let path = temp_path("f32.bin");
         let mut w = BinaryWriter::create(&path).expect("create");
-        w.write_f32(2.718_28_f32).expect("write");
+        w.write_f32(std::f32::consts::E).expect("write");
         w.flush().expect("flush");
         let mut r = BinaryReader::open(&path).expect("open");
         let v = r.read_f32().expect("read");
-        assert!((v - 2.718_28_f32).abs() < 1e-5);
+        assert!((v - std::f32::consts::E).abs() < 1e-5);
     }
 
     #[test]
@@ -780,7 +778,10 @@ mod tests {
     #[test]
     fn test_scirs_scalar_roundtrip() {
         let path = temp_path("scalar.scirs2");
-        let records = vec![DataRecord::named("pi", DataRecord::Scalar(std::f64::consts::PI))];
+        let records = vec![DataRecord::named(
+            "pi",
+            DataRecord::Scalar(std::f64::consts::PI),
+        )];
         write_scirs(&path, &records).expect("write");
         let loaded = read_scirs(&path).expect("read");
         assert_eq!(loaded.len(), 1);
@@ -846,7 +847,7 @@ mod tests {
         let path = temp_path("multi.scirs2");
         let records = vec![
             DataRecord::named("alpha", DataRecord::Scalar(1.0)),
-            DataRecord::named("beta",  DataRecord::Vector(vec![10.0, 20.0, 30.0])),
+            DataRecord::named("beta", DataRecord::Vector(vec![10.0, 20.0, 30.0])),
             DataRecord::named(
                 "gamma",
                 DataRecord::Matrix(vec![vec![1.0, 2.0], vec![3.0, 4.0]]),

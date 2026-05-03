@@ -144,35 +144,24 @@ fn test_kronecker_gradient() {
 
         let grads = grad(&[&sum_c], &[&a, &b]);
 
-        // TODO: Fix gradient shape issue - currently returns scalars instead of matrices
-        // See KNOWN_ISSUES.md for details
-        // The grad function has issues with gradient computation that affect the values
-        // For now, just check that gradients can be computed without error
         let grad_a_val = grads[0].eval(g).expect("Test: operation failed");
         let grad_b_val = grads[1].eval(g).expect("Test: operation failed");
 
-        // Print actual values for debugging
-        println!(
-            "Gradient w.r.t. a: {:?}, shape: {:?}",
-            grad_a_val,
-            grad_a_val.shape()
+        // Verify gradients are matrices with correct dimensions (1x1 matching input shape)
+        assert_eq!(
+            grad_a_val.shape(),
+            &[1, 1],
+            "Gradient w.r.t. a should be a 1x1 matrix"
         );
-        println!(
-            "Gradient w.r.t. b: {:?}, shape: {:?}",
-            grad_b_val,
-            grad_b_val.shape()
+        assert_eq!(
+            grad_b_val.shape(),
+            &[1, 1],
+            "Gradient w.r.t. b should be a 1x1 matrix"
         );
 
-        // Just verify gradients were computed (values may be incorrect due to grad function issues)
-        // Note: gradients might be scalars (0-dimensional) for certain operations
-        assert!(
-            !grad_a_val.is_empty(),
-            "Gradient w.r.t. a should have elements"
-        );
-        assert!(
-            !grad_b_val.is_empty(),
-            "Gradient w.r.t. b should have elements"
-        );
+        // d/da kron(a, b).sum() = b = 3.0; d/db kron(a, b).sum() = a = 2.0
+        assert_relative_eq!(grad_a_val[[0, 0]], 3.0, epsilon = 1e-10);
+        assert_relative_eq!(grad_b_val[[0, 0]], 2.0, epsilon = 1e-10);
     });
 }
 

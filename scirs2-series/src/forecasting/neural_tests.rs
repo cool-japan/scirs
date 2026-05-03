@@ -1,6 +1,5 @@
 use super::*;
 
-use super::*;
 use approx::assert_abs_diff_eq;
 use scirs2_core::ndarray::Array2;
 

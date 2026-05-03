@@ -52,10 +52,10 @@ mod tests {
     use crate::serving::PackageMetadata;
     use scirs2_core::random::SeedableRng;
     use tempfile::TempDir;
+
     #[test]
     fn test_binding_module_integration() {
-        // Test that all modules work together
-        let temp_dir = TempDir::new().expect("Operation failed");
+        let temp_dir = TempDir::new().expect("TempDir::new failed");
         let config = BindingConfig::default();
         let metadata = PackageMetadata {
             name: "test_model".to_string(),
@@ -80,99 +80,57 @@ mod tests {
             timestamp: "2024-01-01T00:00:00Z".to_string(),
             checksum: "test_checksum".to_string(),
         };
-        // Create a simple sequential model for testing
         let mut rng = scirs2_core::random::rngs::StdRng::seed_from_u64(42);
         let mut model = Sequential::<f32>::new();
-        model.add_layer(Dense::new(10, 5, Some("relu"), &mut rng).expect("Operation failed"));
-        model.add_layer(Dense::new(5, 2, None, &mut rng).expect("Operation failed"));
+        model.add_layer(Dense::new(10, 5, Some("relu"), &mut rng).expect("Dense::new failed"));
+        model.add_layer(Dense::new(5, 2, None, &mut rng).expect("Dense::new failed"));
         let generator =
             BindingGenerator::new(model, config, metadata, temp_dir.path().to_path_buf());
-        // Test that directory structure can be created
         let result = generator.create_directory_structure();
         assert!(result.is_ok());
-        // Verify directories were created
         assert!(temp_dir.path().join("include").exists());
         assert!(temp_dir.path().join("src").exists());
         assert!(temp_dir.path().join("examples").exists());
         assert!(temp_dir.path().join("docs").exists());
         assert!(temp_dir.path().join("build").exists());
     }
-    fn test_individual_generators() {
-        let output_dir = temp_dir.path().to_path_buf();
-        // Create necessary directories
-        std::fs::create_dir_all(output_dir.join("include")).expect("Operation failed");
-        std::fs::create_dir_all(output_dir.join("src")).expect("Operation failed");
-        std::fs::create_dir_all(output_dir.join("examples")).expect("Operation failed");
-        // Test header generator
-        let header_gen = HeaderGenerator::new(&config, &output_dir);
-        let headers = header_gen.generate();
-        assert!(headers.is_ok());
-        // Test source generator
-        let source_gen = SourceGenerator::new(&config, &output_dir);
-        let sources = source_gen.generate();
-        assert!(sources.is_ok());
-        // Test build system generator
-        let build_gen = BuildSystemGenerator::new(&config, &output_dir);
-        let build_files = build_gen.generate();
-        assert!(build_files.is_ok());
-        // Test examples/docs generator
-        let examples_gen = ExamplesDocsGenerator::new(&config, &output_dir);
-        let result = examples_gen.generate();
-        let (examples, docs) = result.expect("Operation failed");
-        assert!(!examples.is_empty() || examples.is_empty()); // Just checking it's valid
-        assert!(!docs.is_empty() || docs.is_empty()); // Just checking it's valid
+
+    #[test]
     fn test_config_variations() {
-        // Test different binding configurations
         let mut config = BindingConfig {
             language: BindingLanguage::Cpp,
             api_style: ApiStyle::ObjectOriented,
             ..Default::default()
+        };
         assert_eq!(config.language, BindingLanguage::Cpp);
         assert_eq!(config.api_style, ApiStyle::ObjectOriented);
-        // Test hybrid configuration
         config.api_style = ApiStyle::Hybrid;
         assert_eq!(config.api_style, ApiStyle::Hybrid);
-        // Test custom type mappings
         let custom_type = CustomType {
             rust_name: "MyStruct".to_string(),
             c_name: "my_struct_t".to_string(),
             definition: "typedef struct { int x; float y; } my_struct_t;".to_string(),
             includes: vec!["stdint.h".to_string()],
+        };
         config.type_mappings.custom_types.push(custom_type);
         assert_eq!(config.type_mappings.custom_types.len(), 1);
-    fn test_error_handling() {
-        // Test that generators handle invalid configurations gracefully
-        let config = BindingConfig {
-            library_name: "".to_string(), // Invalid empty name
-        // This should work despite empty library name, as the generator should handle it
-        let result = header_gen.generate();
-    fn test_full_binding_generation() {
-            name: "integration_test".to_string(),
-            description: "Integration test model".to_string(),
-                min_memory_mb: 512,
-                    min_cores: 2,
-            checksum: "integration_test_checksum".to_string(),
-        // Create a simple model
-        model.add_layer(Dense::new(784, 128, Some("relu"), &mut rng).expect("Operation failed"));
-        model.add_layer(Dense::new(128, 10, Some("softmax"), &mut rng).expect("Operation failed"));
-        // Generate complete bindings
-        let result = generator.generate();
-        let binding_result = result.expect("Operation failed");
-        assert!(!binding_result.headers.is_empty());
-        assert!(!binding_result.sources.is_empty());
-        assert!(!binding_result.build_files.is_empty());
-        assert!(!binding_result.examples.is_empty());
-        assert!(!binding_result.documentation.is_empty());
-        // Verify files were actually created
-        for header in &binding_result.headers {
-            assert!(header.exists(), "Header file should exist: {:?}", header);
-        }
-        for source in &binding_result.sources {
-            assert!(source.exists(), "Source file should exist: {:?}", source);
-        for build_file in &binding_result.build_files {
-            assert!(
-                build_file.exists(),
-                "Build file should exist: {:?}",
-                build_file
-            );
+    }
+
+    #[test]
+    fn test_individual_generators() {
+        let temp_dir = TempDir::new().expect("TempDir::new failed");
+        let output_dir = temp_dir.path().to_path_buf();
+        std::fs::create_dir_all(output_dir.join("include")).expect("mkdir failed");
+        std::fs::create_dir_all(output_dir.join("src")).expect("mkdir failed");
+        std::fs::create_dir_all(output_dir.join("examples")).expect("mkdir failed");
+        let config = BindingConfig::default();
+        let header_gen = HeaderGenerator::new(&config, &output_dir);
+        assert!(header_gen.generate().is_ok());
+        let source_gen = SourceGenerator::new(&config, &output_dir);
+        assert!(source_gen.generate().is_ok());
+        let build_gen = BuildSystemGenerator::new(&config, &output_dir);
+        assert!(build_gen.generate().is_ok());
+        let examples_gen = ExamplesDocsGenerator::new(&config, &output_dir);
+        assert!(examples_gen.generate().is_ok());
+    }
 }

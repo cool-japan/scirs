@@ -167,10 +167,7 @@ impl<N, E> AttributedGraph<N, E> {
 
     /// Iterate over all node ids and their data.
     pub fn nodes(&self) -> impl Iterator<Item = (NodeId, &N)> {
-        self.nodes
-            .iter()
-            .enumerate()
-            .map(|(i, n)| (NodeId(i), n))
+        self.nodes.iter().enumerate().map(|(i, n)| (NodeId(i), n))
     }
 
     /// Iterate over all edges as `(src, dst, &E)`.
@@ -247,11 +244,11 @@ impl<N, E> AttributedGraph<N, E> {
 /// let a = builder.node(1.0);
 /// let b = builder.node(2.0);
 /// builder.edge(a, b, 0.5_f32);
-/// let graph = builder.build();
+/// let graph = builder.build().expect("build failed");
 /// assert_eq!(graph.node_count(), 2);
 /// assert_eq!(graph.edge_count(), 1);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct AttributedGraphBuilder<N, E> {
     graph: AttributedGraph<N, E>,
     /// Accumulated errors from `edge()` calls
@@ -374,7 +371,7 @@ where
     }
 
     // Compute features for all nodes
-    let features: Vec<Vec<f64>> = graph.nodes.iter().map(|nd| feature_fn(nd)).collect();
+    let features: Vec<Vec<f64>> = graph.nodes.iter().map(feature_fn).collect();
 
     let dim = features[0].len();
     if dim == 0 {
@@ -657,13 +654,7 @@ where
         .nodes
         .iter()
         .enumerate()
-        .filter_map(|(i, n)| {
-            if predicate(n) {
-                Some(NodeId(i))
-            } else {
-                None
-            }
-        })
+        .filter_map(|(i, n)| if predicate(n) { Some(NodeId(i)) } else { None })
         .collect()
 }
 
@@ -764,7 +755,7 @@ mod tests {
         let mut b = AttributedGraphBuilder::<i32, f64>::new();
         let a = b.node(1);
         let bb = b.node(2);
-        b.edge(a, bb, 3.14);
+        b.edge(a, bb, std::f64::consts::PI);
         let g = b.build().unwrap();
         assert_eq!(g.node_count(), 2);
         assert_eq!(g.edge_count(), 1);
@@ -928,10 +919,8 @@ mod tests {
     #[test]
     fn test_edges_iterator() {
         let g = make_graph();
-        let edges: Vec<(NodeId, NodeId, f64)> = g
-            .edges_iter()
-            .map(|(s, d, e)| (s, d, e.weight))
-            .collect();
+        let edges: Vec<(NodeId, NodeId, f64)> =
+            g.edges_iter().map(|(s, d, e)| (s, d, e.weight)).collect();
         assert_eq!(edges.len(), 3);
     }
 }

@@ -27,6 +27,12 @@ pub mod multirate;
 pub mod solver;
 pub mod utils;
 
+// Additional ODE modules
+pub mod common;
+pub mod error;
+pub mod options;
+pub mod result;
+
 // Re-export core types
 pub use self::types::{MassMatrix, MassMatrixType, ODEMethod, ODEOptions, ODEResult};
 

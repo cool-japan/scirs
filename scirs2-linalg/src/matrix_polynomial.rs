@@ -32,14 +32,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Trait bound for matrix polynomial scalar types.
-pub trait MatPolyFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<F> MatPolyFloat for F where
-    F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait MatPolyFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<F> MatPolyFloat for F where F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -62,7 +56,7 @@ fn matmul<F: MatPolyFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + a_il * b[[l, j]];
+                c[[i, j]] += a_il * b[[l, j]];
             }
         }
     }
@@ -73,7 +67,7 @@ fn matmul<F: MatPolyFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<
 fn frobenius<F: MatPolyFloat>(m: &Array2<F>) -> F {
     let mut acc = F::zero();
     for &v in m.iter() {
-        acc = acc + v * v;
+        acc += v * v;
     }
     acc.sqrt()
 }
@@ -153,7 +147,7 @@ fn solve_lower<F: MatPolyFloat>(l: &Array2<F>, b: &Array1<F>) -> Array1<F> {
     for i in 0..n {
         let mut s = b[i];
         for j in 0..i {
-            s = s - l[[i, j]] * x[j];
+            s -= l[[i, j]] * x[j];
         }
         x[i] = s; // diagonal = 1
     }
@@ -167,7 +161,7 @@ fn solve_upper<F: MatPolyFloat>(u: &Array2<F>, b: &Array1<F>) -> LinalgResult<Ar
     for i in (0..n).rev() {
         let mut s = b[i];
         for j in (i + 1)..n {
-            s = s - u[[i, j]] * x[j];
+            s -= u[[i, j]] * x[j];
         }
         let uii = u[[i, i]];
         if uii.abs() < F::epsilon() * F::from(1e6).unwrap_or(F::one()) {
@@ -214,7 +208,7 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
         let norm_v = {
             let mut s = F::zero();
             for &vi in &v {
-                s = s + vi * vi;
+                s += vi * vi;
             }
             s.sqrt()
         };
@@ -226,11 +220,11 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
         } else {
             -F::one()
         };
-        v[0] = v[0] + sign * norm_v;
+        v[0] += sign * norm_v;
         let norm_v2 = {
             let mut s = F::zero();
             for &vi in &v {
-                s = s + vi * vi;
+                s += vi * vi;
             }
             s.sqrt()
         };
@@ -238,33 +232,33 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
             continue;
         }
         for vi in v.iter_mut() {
-            *vi = *vi / norm_v2;
+            *vi /= norm_v2;
         }
         for j in k..n {
             let mut dot = F::zero();
             for i in 0..col_len {
-                dot = dot + v[i] * t[[k + 1 + i, j]];
+                dot += v[i] * t[[k + 1 + i, j]];
             }
             for i in 0..col_len {
-                t[[k + 1 + i, j]] = t[[k + 1 + i, j]] - two * v[i] * dot;
+                t[[k + 1 + i, j]] -= two * v[i] * dot;
             }
         }
         for i in 0..n {
             let mut dot = F::zero();
             for j in 0..col_len {
-                dot = dot + t[[i, k + 1 + j]] * v[j];
+                dot += t[[i, k + 1 + j]] * v[j];
             }
             for j in 0..col_len {
-                t[[i, k + 1 + j]] = t[[i, k + 1 + j]] - two * dot * v[j];
+                t[[i, k + 1 + j]] -= two * dot * v[j];
             }
         }
         for i in 0..n {
             let mut dot = F::zero();
             for j in 0..col_len {
-                dot = dot + q[[i, k + 1 + j]] * v[j];
+                dot += q[[i, k + 1 + j]] * v[j];
             }
             for j in 0..col_len {
-                q[[i, k + 1 + j]] = q[[i, k + 1 + j]] - two * dot * v[j];
+                q[[i, k + 1 + j]] -= two * dot * v[j];
             }
         }
     }
@@ -279,9 +273,7 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
         // Deflation
         let mut deflated = false;
         for k in (0..m.saturating_sub(1)).rev() {
-            if t[[k + 1, k]].abs()
-                <= eps * (t[[k, k]].abs() + t[[k + 1, k + 1]].abs())
-            {
+            if t[[k + 1, k]].abs() <= eps * (t[[k, k]].abs() + t[[k + 1, k + 1]].abs()) {
                 t[[k + 1, k]] = F::zero();
                 m = k + 1;
                 deflated = true;
@@ -300,8 +292,7 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
         let det = t11 * t22 - t12 * t21;
         let four = two + two;
         // Compute bulge-chasing vector for double-shift
-        let p1 = t[[0, 0]] * t[[0, 0]] - tr * t[[0, 0]] + det
-            + t[[0, 1]] * t[[1, 0]];
+        let p1 = t[[0, 0]] * t[[0, 0]] - tr * t[[0, 0]] + det + t[[0, 1]] * t[[1, 0]];
         let p2 = t[[1, 0]] * (t[[0, 0]] + t[[1, 1]] - tr);
         let p3 = if m > 2 {
             t[[2, 1]] * t[[1, 0]]
@@ -325,11 +316,11 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
             } else {
                 -F::one()
             };
-            v3[0] = v3[0] + sign * norm012;
+            v3[0] += sign * norm012;
             let nv = (v3[0] * v3[0] + v3[1] * v3[1] + v3[2] * v3[2]).sqrt();
             if nv > eps {
                 for vi in v3.iter_mut() {
-                    *vi = *vi / nv;
+                    *vi /= nv;
                 }
                 // Apply 3x3 Householder from left & right
                 apply_house3_left(&mut t, &v3, 0, m, n);
@@ -352,7 +343,7 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
             let nvc = {
                 let mut s = F::zero();
                 for &vi in &vc {
-                    s = s + vi * vi;
+                    s += vi * vi;
                 }
                 s.sqrt()
             };
@@ -364,11 +355,11 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
             } else {
                 -F::one()
             };
-            vc[0] = vc[0] + sign * nvc;
+            vc[0] += sign * nvc;
             let nvc2 = {
                 let mut s = F::zero();
                 for &vi in &vc {
-                    s = s + vi * vi;
+                    s += vi * vi;
                 }
                 s.sqrt()
             };
@@ -376,34 +367,34 @@ fn schur_decomp<F: MatPolyFloat>(a: &Array2<F>) -> (Array2<F>, Array2<F>) {
                 continue;
             }
             for vi in vc.iter_mut() {
-                *vi = *vi / nvc2;
+                *vi /= nvc2;
             }
             // Apply Householder reflector (generalised for variable size)
             for j in 0..n {
                 let mut dot = F::zero();
                 for i in 0..col_len {
-                    dot = dot + vc[i] * t[[i0 + i, j]];
+                    dot += vc[i] * t[[i0 + i, j]];
                 }
                 for i in 0..col_len {
-                    t[[i0 + i, j]] = t[[i0 + i, j]] - two * vc[i] * dot;
+                    t[[i0 + i, j]] -= two * vc[i] * dot;
                 }
             }
             for i in 0..n {
                 let mut dot = F::zero();
                 for j in 0..col_len {
-                    dot = dot + t[[i, i0 + j]] * vc[j];
+                    dot += t[[i, i0 + j]] * vc[j];
                 }
                 for j in 0..col_len {
-                    t[[i, i0 + j]] = t[[i, i0 + j]] - two * dot * vc[j];
+                    t[[i, i0 + j]] -= two * dot * vc[j];
                 }
             }
             for i in 0..n {
                 let mut dot = F::zero();
                 for j in 0..col_len {
-                    dot = dot + q[[i, i0 + j]] * vc[j];
+                    dot += q[[i, i0 + j]] * vc[j];
                 }
                 for j in 0..col_len {
-                    q[[i, i0 + j]] = q[[i, i0 + j]] - two * dot * vc[j];
+                    q[[i, i0 + j]] -= two * dot * vc[j];
                 }
             }
         }
@@ -426,10 +417,10 @@ fn apply_house3_left<F: MatPolyFloat>(
     for j in 0..n {
         let mut dot = F::zero();
         for i in 0..col_len {
-            dot = dot + v[i] * m[[r + i, j]];
+            dot += v[i] * m[[r + i, j]];
         }
         for i in 0..col_len {
-            m[[r + i, j]] = m[[r + i, j]] - two * v[i] * dot;
+            m[[r + i, j]] -= two * v[i] * dot;
         }
     }
 }
@@ -448,10 +439,10 @@ fn apply_house3_right<F: MatPolyFloat>(
     for i in 0..n {
         let mut dot = F::zero();
         for j in 0..col_len {
-            dot = dot + m[[i, r + j]] * v[j];
+            dot += m[[i, r + j]] * v[j];
         }
         for j in 0..col_len {
-            m[[i, r + j]] = m[[i, r + j]] - two * dot * v[j];
+            m[[i, r + j]] -= two * dot * v[j];
         }
     }
 }
@@ -600,7 +591,7 @@ impl<F: MatPolyFloat> MatrixPoly<F> {
         let (m, n) = (self.coeffs[0].nrows(), self.coeffs[0].ncols());
         let mut result = Array2::<F>::zeros((m, n));
         for coeff in self.coeffs.iter().rev() {
-            // result = result * x + coeff
+            // result = result * x + coeff  (Horner step)
             for i in 0..m {
                 for j in 0..n {
                     result[[i, j]] = result[[i, j]] * x + coeff[[i, j]];
@@ -686,16 +677,14 @@ impl<F: MatPolyFloat> MatrixPoly<F> {
         let dc = da + db - 1;
         let (m, _) = (self.coeffs[0].nrows(), self.coeffs[0].ncols());
         let n2 = other.coeffs[0].ncols();
-        let mut result: Vec<Array2<F>> = (0..dc)
-            .map(|_| Array2::<F>::zeros((m, n2)))
-            .collect();
+        let mut result: Vec<Array2<F>> = (0..dc).map(|_| Array2::<F>::zeros((m, n2))).collect();
         for i in 0..da {
             for j in 0..db {
                 let prod = matmul(&self.coeffs[i], &other.coeffs[j])?;
                 let r = &mut result[i + j];
                 for ii in 0..m {
                     for jj in 0..n2 {
-                        r[[ii, jj]] = r[[ii, jj]] + prod[[ii, jj]];
+                        r[[ii, jj]] += prod[[ii, jj]];
                     }
                 }
             }
@@ -758,20 +747,20 @@ pub fn char_poly<F: MatPolyFloat>(a: &ArrayView2<F>) -> LinalgResult<Vec<F>> {
         let prev = &p[k];
         // (λ - h[k,k]) * prev:
         for (i, &c) in prev.iter().enumerate() {
-            pk[i + 1] = pk[i + 1] + c; // multiply by λ
-            pk[i] = pk[i] - h[[k, k]] * c; // multiply by -h[k,k]
+            pk[i + 1] += c; // multiply by λ
+            pk[i] -= h[[k, k]] * c; // multiply by -h[k,k]
         }
         // Subtract subdiagonal chain contributions
         let mut chain = F::one();
         for j in (0..k).rev() {
-            chain = chain * h[[j + 1, j]];
+            chain *= h[[j + 1, j]];
             if chain.abs() < F::epsilon() {
                 break;
             }
             let hj_k = h[[j, k]];
             let pj_prev = &p[j]; // p[j-1] has degree j-1
             for (i, &c) in pj_prev.iter().enumerate() {
-                pk[i] = pk[i] - chain * hj_k * c;
+                pk[i] -= chain * hj_k * c;
             }
         }
         p.push(pk);
@@ -796,7 +785,7 @@ fn hessenberg_reduce<F: MatPolyFloat>(a: &Array2<F>) -> Array2<F> {
         let norm_v = {
             let mut s = F::zero();
             for &vi in &v {
-                s = s + vi * vi;
+                s += vi * vi;
             }
             s.sqrt()
         };
@@ -808,11 +797,11 @@ fn hessenberg_reduce<F: MatPolyFloat>(a: &Array2<F>) -> Array2<F> {
         } else {
             -F::one()
         };
-        v[0] = v[0] + sign * norm_v;
+        v[0] += sign * norm_v;
         let norm_v2 = {
             let mut s = F::zero();
             for &vi in &v {
-                s = s + vi * vi;
+                s += vi * vi;
             }
             s.sqrt()
         };
@@ -820,24 +809,24 @@ fn hessenberg_reduce<F: MatPolyFloat>(a: &Array2<F>) -> Array2<F> {
             continue;
         }
         for vi in v.iter_mut() {
-            *vi = *vi / norm_v2;
+            *vi /= norm_v2;
         }
         for j in k..n {
             let mut dot = F::zero();
             for i in 0..col_len {
-                dot = dot + v[i] * h[[k + 1 + i, j]];
+                dot += v[i] * h[[k + 1 + i, j]];
             }
             for i in 0..col_len {
-                h[[k + 1 + i, j]] = h[[k + 1 + i, j]] - two * v[i] * dot;
+                h[[k + 1 + i, j]] -= two * v[i] * dot;
             }
         }
         for i in 0..n {
             let mut dot = F::zero();
             for j in 0..col_len {
-                dot = dot + h[[i, k + 1 + j]] * v[j];
+                dot += h[[i, k + 1 + j]] * v[j];
             }
             for j in 0..col_len {
-                h[[i, k + 1 + j]] = h[[i, k + 1 + j]] - two * dot * v[j];
+                h[[i, k + 1 + j]] -= two * dot * v[j];
             }
         }
     }
@@ -908,7 +897,7 @@ pub fn minimal_polynomial<F: MatPolyFloat>(a: &ArrayView2<F>) -> LinalgResult<Ve
                     let mut next = Array1::<F>::zeros(n);
                     for i in 0..n {
                         for k in 0..n {
-                            next[i] = next[i] + a_owned[[i, k]] * cur[k];
+                            next[i] += a_owned[[i, k]] * cur[k];
                         }
                     }
                     cur = next;
@@ -936,15 +925,22 @@ fn krylov_min_degree<F: MatPolyFloat>(krylov: &Array2<F>, n: usize) -> usize {
         // Check if col is in span of basis via Gram-Schmidt
         let mut residual = col.clone();
         for b in &basis {
-            let dot = (0..n).map(|i| b[i] * residual[i]).fold(F::zero(), |acc, x| acc + x);
-            let bnorm_sq = (0..n).map(|i| b[i] * b[i]).fold(F::zero(), |acc, x| acc + x);
+            let dot = (0..n)
+                .map(|i| b[i] * residual[i])
+                .fold(F::zero(), |acc, x| acc + x);
+            let bnorm_sq = (0..n)
+                .map(|i| b[i] * b[i])
+                .fold(F::zero(), |acc, x| acc + x);
             if bnorm_sq > eps {
                 for i in 0..n {
-                    residual[i] = residual[i] - (dot / bnorm_sq) * b[i];
+                    residual[i] -= (dot / bnorm_sq) * b[i];
                 }
             }
         }
-        let res_norm = (0..n).map(|i| residual[i] * residual[i]).fold(F::zero(), |acc, x| acc + x).sqrt();
+        let res_norm = (0..n)
+            .map(|i| residual[i] * residual[i])
+            .fold(F::zero(), |acc, x| acc + x)
+            .sqrt();
         if res_norm < eps * F::from(n as f64).unwrap_or(F::one()) {
             return j;
         }
@@ -954,11 +950,7 @@ fn krylov_min_degree<F: MatPolyFloat>(krylov: &Array2<F>, n: usize) -> usize {
 }
 
 /// Extract minimal polynomial coefficients from Krylov data.
-fn extract_min_poly_coeffs<F: MatPolyFloat>(
-    krylov: &Array2<F>,
-    n: usize,
-    deg: usize,
-) -> Vec<F> {
+fn extract_min_poly_coeffs<F: MatPolyFloat>(krylov: &Array2<F>, n: usize, deg: usize) -> Vec<F> {
     if deg == 0 {
         return vec![F::one()];
     }
@@ -977,7 +969,7 @@ fn extract_min_poly_coeffs<F: MatPolyFloat>(
         for i in 0..deg {
             for j in 0..deg {
                 for k in 0..n {
-                    m[[i, j]] = m[[i, j]] + system[[k, i]] * system[[k, j]];
+                    m[[i, j]] += system[[k, i]] * system[[k, j]];
                 }
             }
         }
@@ -987,7 +979,7 @@ fn extract_min_poly_coeffs<F: MatPolyFloat>(
         let mut v = Array1::<F>::zeros(deg);
         for i in 0..deg {
             for k in 0..n {
-                v[i] = v[i] + system[[k, i]] * rhs[k];
+                v[i] += system[[k, i]] * rhs[k];
             }
         }
         v
@@ -1064,10 +1056,7 @@ pub fn cayley_hamilton_check<F: MatPolyFloat>(a: &ArrayView2<F>) -> LinalgResult
 /// // For diagonal A: p(diag(1,2)) = diag(p(1), p(2)) = diag(0, 0)
 /// assert!(result[[0,0]].abs() < 1e-10);
 /// ```
-pub fn matrix_eval_poly<F: MatPolyFloat>(
-    a: &ArrayView2<F>,
-    poly: &[F],
-) -> LinalgResult<Array2<F>> {
+pub fn matrix_eval_poly<F: MatPolyFloat>(a: &ArrayView2<F>, poly: &[F]) -> LinalgResult<Array2<F>> {
     let n = check_square(a, "matrix_eval_poly")?;
     if poly.is_empty() {
         return Ok(Array2::<F>::zeros((n, n)));
@@ -1087,7 +1076,7 @@ pub fn matrix_eval_poly<F: MatPolyFloat>(
         h = matmul(&a_owned, &h)?;
         // h += c_k * I
         for i in 0..n {
-            h[[i, i]] = h[[i, i]] + poly[k];
+            h[[i, i]] += poly[k];
         }
     }
     Ok(h)
@@ -1121,7 +1110,9 @@ pub fn matrix_eval_poly<F: MatPolyFloat>(
 /// assert!((s[[0, 0]] - 2.0).abs() < 1e-8);
 /// assert!((s[[1, 1]] - 3.0).abs() < 1e-8);
 /// ```
-pub fn matrix_sqrt_schur<F: MatPolyFloat + std::fmt::Debug>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
+pub fn matrix_sqrt_schur<F: MatPolyFloat + std::fmt::Debug>(
+    a: &ArrayView2<F>,
+) -> LinalgResult<Array2<F>> {
     let n = check_square(a, "matrix_sqrt_schur")?;
     let a_owned = a.to_owned();
     let (t, q) = schur_decomp(&a_owned);
@@ -1142,7 +1133,7 @@ pub fn matrix_sqrt_schur<F: MatPolyFloat + std::fmt::Debug>(a: &ArrayView2<F>) -
         for i in (0..j).rev() {
             let mut s = t[[i, j]];
             for k in (i + 1)..j {
-                s = s - u[[i, k]] * u[[k, j]];
+                s -= u[[i, k]] * u[[k, j]];
             }
             let denom = u[[i, i]] + u[[j, j]];
             if denom.abs() < F::epsilon() {
@@ -1214,7 +1205,7 @@ pub fn matrix_log_schur<F: MatPolyFloat + std::fmt::Debug>(
         for i in (0..j).rev() {
             let mut s = t[[i, j]];
             for k in (i + 1)..j {
-                s = s - l[[i, k]] * l[[k, j]];
+                s -= l[[i, k]] * l[[k, j]];
             }
             let diff = t[[j, j]] - t[[i, i]];
             if diff.abs() < F::epsilon() * F::from(1e4).unwrap_or(F::one()) {
@@ -1353,11 +1344,7 @@ mod tests {
     fn test_matrix_poly_eval_scalar() {
         // P(x) = 2I + 3x*I; eval at x=4 => 14*I
         let i2 = Array2::<f64>::eye(2);
-        let p = MatrixPoly::new(vec![
-            2.0 * &i2,
-            3.0 * &i2,
-        ])
-        .expect("MatrixPoly");
+        let p = MatrixPoly::new(vec![2.0 * &i2, 3.0 * &i2]).expect("MatrixPoly");
         let val = p.eval(4.0_f64);
         assert_relative_eq!(val[[0, 0]], 14.0, epsilon = 1e-12);
         assert_relative_eq!(val[[1, 1]], 14.0, epsilon = 1e-12);

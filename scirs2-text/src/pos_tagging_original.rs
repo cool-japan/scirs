@@ -1462,7 +1462,11 @@ impl MorphologicalAnalyzer {
             return "123number".to_string();
         }
         if has_upper && has_lower {
-            if word.chars().next().expect("Operation failed").is_uppercase()
+            if word
+                .chars()
+                .next()
+                .expect("Operation failed")
+                .is_uppercase()
                 && word.chars().skip(1).all(|c| c.is_lowercase())
             {
                 return "Title".to_string();
@@ -1733,7 +1737,6 @@ impl crate::stemming::Stemmer for PosAwareLemmatizer {
         Ok(words.iter().map(|word| self.lemmatize(word)).collect())
     }
 }
-
 
 #[cfg(test)]
 #[path = "pos_tagging_original_tests.rs"]

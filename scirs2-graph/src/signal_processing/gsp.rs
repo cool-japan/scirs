@@ -107,10 +107,10 @@ fn symmetric_eigen(a: &Array2<f64>) -> Result<(Array1<f64>, Array2<f64>)> {
                 new_m[[q, r]] = new_m[[r, q]];
             }
         }
-        new_m[[p, p]] = cos_t * cos_t * m[[p, p]] - 2.0 * sin_t * cos_t * m[[p, q]]
-            + sin_t * sin_t * m[[q, q]];
-        new_m[[q, q]] = sin_t * sin_t * m[[p, p]] + 2.0 * sin_t * cos_t * m[[p, q]]
-            + cos_t * cos_t * m[[q, q]];
+        new_m[[p, p]] =
+            cos_t * cos_t * m[[p, p]] - 2.0 * sin_t * cos_t * m[[p, q]] + sin_t * sin_t * m[[q, q]];
+        new_m[[q, q]] =
+            sin_t * sin_t * m[[p, p]] + 2.0 * sin_t * cos_t * m[[p, q]] + cos_t * cos_t * m[[q, q]];
         new_m[[p, q]] = 0.0;
         new_m[[q, p]] = 0.0;
         m = new_m;
@@ -128,7 +128,11 @@ fn symmetric_eigen(a: &Array2<f64>) -> Result<(Array1<f64>, Array2<f64>)> {
 
     // Sort eigenvalues (and eigenvectors) in ascending order
     let mut idx: Vec<usize> = (0..n).collect();
-    idx.sort_by(|&a, &b| eigenvalues[a].partial_cmp(&eigenvalues[b]).unwrap_or(std::cmp::Ordering::Equal));
+    idx.sort_by(|&a, &b| {
+        eigenvalues[a]
+            .partial_cmp(&eigenvalues[b])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let sorted_evals = Array1::from_iter(idx.iter().map(|&i| eigenvalues[i]));
     let mut sorted_evecs = Array2::<f64>::zeros((n, n));
@@ -174,13 +178,19 @@ impl GraphFourierTransform {
         }
         let lap = graph_laplacian(adj);
         let (eigenvalues, eigenvectors) = symmetric_eigen(&lap)?;
-        Ok(Self { eigenvalues, eigenvectors })
+        Ok(Self {
+            eigenvalues,
+            eigenvectors,
+        })
     }
 
     /// Build a GFT directly from a precomputed Laplacian matrix.
     pub fn from_laplacian(laplacian: &Array2<f64>) -> Result<Self> {
         let (eigenvalues, eigenvectors) = symmetric_eigen(laplacian)?;
-        Ok(Self { eigenvalues, eigenvectors })
+        Ok(Self {
+            eigenvalues,
+            eigenvectors,
+        })
     }
 
     /// Number of nodes (= size of frequency basis).
@@ -417,7 +427,11 @@ impl GraphWavelet {
         }
         let n = gft.num_nodes();
         // h(λ) = exp(−t λ)
-        let h: Vec<f64> = gft.eigenvalues.iter().map(|&lam| (-scale * lam).exp()).collect();
+        let h: Vec<f64> = gft
+            .eigenvalues
+            .iter()
+            .map(|&lam| (-scale * lam).exp())
+            .collect();
 
         // K_t[i,j] = sum_k U[i,k] h[k] U[j,k]
         let mut kernel = Array2::<f64>::zeros((n, n));
@@ -614,7 +628,10 @@ mod tests {
         // The smoothed signal should have lower total variation
         let tv_orig = GraphSignalSmoother::total_variation(&adj, &signal).unwrap();
         let tv_smooth = GraphSignalSmoother::total_variation(&adj, &smoothed).unwrap();
-        assert!(tv_smooth < tv_orig, "LP filter should reduce TV: {tv_smooth} vs {tv_orig}");
+        assert!(
+            tv_smooth < tv_orig,
+            "LP filter should reduce TV: {tv_smooth} vs {tv_orig}"
+        );
     }
 
     #[test]

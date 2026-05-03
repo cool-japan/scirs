@@ -20,8 +20,8 @@
 //! - Estrada, E. & Rodriguez-Velazquez, J. A. (2005). Subgraph centrality.
 //! - Estrada, E. & Hatano, N. (2008). Communicability in complex networks.
 
-use std::collections::{BinaryHeap, HashMap};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap};
 
 use crate::error::{GraphError, Result};
 
@@ -86,7 +86,9 @@ pub fn katz_centrality(
     beta: f64,
 ) -> Result<Vec<f64>> {
     if n_nodes == 0 {
-        return Err(GraphError::InvalidGraph("katz_centrality: n_nodes must be > 0".into()));
+        return Err(GraphError::InvalidGraph(
+            "katz_centrality: n_nodes must be > 0".into(),
+        ));
     }
     if alpha <= 0.0 {
         return Err(GraphError::InvalidParameter {
@@ -166,7 +168,10 @@ fn dijkstra(adj: &[Vec<(usize, f64)>], source: usize, n: usize) -> Vec<f64> {
     let mut dist = vec![f64::INFINITY; n];
     dist[source] = 0.0;
     let mut heap = BinaryHeap::new();
-    heap.push(DijkEntry { dist: 0.0, node: source });
+    heap.push(DijkEntry {
+        dist: 0.0,
+        node: source,
+    });
 
     while let Some(DijkEntry { dist: d, node: u }) = heap.pop() {
         if d > dist[u] {
@@ -195,7 +200,9 @@ fn dijkstra(adj: &[Vec<(usize, f64)>], source: usize, n: usize) -> Vec<f64> {
 /// * `n_nodes` – Total number of nodes.
 pub fn harmonic_centrality(adj: &[(usize, usize, f64)], n_nodes: usize) -> Result<Vec<f64>> {
     if n_nodes == 0 {
-        return Err(GraphError::InvalidGraph("harmonic_centrality: n_nodes must be > 0".into()));
+        return Err(GraphError::InvalidGraph(
+            "harmonic_centrality: n_nodes must be > 0".into(),
+        ));
     }
 
     let graph = build_adj(adj, n_nodes);
@@ -362,7 +369,9 @@ fn betweenness_contribution(
 /// Returns an error if `n_nodes` is zero or > 500 (to avoid O(n³) OOM).
 pub fn subgraph_centrality(adj: &[(usize, usize, f64)], n_nodes: usize) -> Result<Vec<f64>> {
     if n_nodes == 0 {
-        return Err(GraphError::InvalidGraph("subgraph_centrality: n_nodes must be > 0".into()));
+        return Err(GraphError::InvalidGraph(
+            "subgraph_centrality: n_nodes must be > 0".into(),
+        ));
     }
     if n_nodes > 500 {
         return Err(GraphError::InvalidParameter {
@@ -401,7 +410,9 @@ pub fn subgraph_centrality(adj: &[(usize, usize, f64)], n_nodes: usize) -> Resul
 /// Returns an error if `n_nodes` is zero or > 500.
 pub fn communicability(adj: &[(usize, usize, f64)], n_nodes: usize) -> Result<Vec<Vec<f64>>> {
     if n_nodes == 0 {
-        return Err(GraphError::InvalidGraph("communicability: n_nodes must be > 0".into()));
+        return Err(GraphError::InvalidGraph(
+            "communicability: n_nodes must be > 0".into(),
+        ));
     }
     if n_nodes > 500 {
         return Err(GraphError::InvalidParameter {
@@ -446,8 +457,15 @@ fn matrix_exp(a: &[Vec<f64>], n: usize) -> Vec<Vec<f64>> {
 
     // Padé(6) coefficients
     // p_6 = Σ c_k A^k,  q_6 = Σ c_k (-A)^k
-    let c = [1.0, 0.5, 0.12, 1.833333333333333e-2, 1.992753623188406e-3,
-             1.630434782608696e-4, 1.035196687370100e-5];
+    let c = [
+        1.0,
+        0.5,
+        0.12,
+        1.833333333333333e-2,
+        1.992753623188406e-3,
+        1.630434782608696e-4,
+        1.035_196_687_370_1e-5,
+    ];
 
     // Compute powers: A^0=I, A^1, A^2, A^3, A^4, A^5, A^6
     let mut powers: Vec<Vec<Vec<f64>>> = Vec::with_capacity(7);
@@ -534,13 +552,12 @@ fn mat_solve(a: &[Vec<f64>], b: &[Vec<f64>], n: usize) -> Option<Vec<Vec<f64>>> 
 
     for col in 0..n {
         // Partial pivoting
-        let pivot_row = (col..n)
-            .max_by(|&r1, &r2| {
-                aug[r1][col]
-                    .abs()
-                    .partial_cmp(&aug[r2][col].abs())
-                    .unwrap_or(Ordering::Equal)
-            })?;
+        let pivot_row = (col..n).max_by(|&r1, &r2| {
+            aug[r1][col]
+                .abs()
+                .partial_cmp(&aug[r2][col].abs())
+                .unwrap_or(Ordering::Equal)
+        })?;
 
         if aug[pivot_row][col].abs() < 1e-14 {
             return None; // Singular
@@ -610,7 +627,10 @@ mod tests {
         }
         // Unit norm
         let norm: f64 = katz.iter().map(|v| v * v).sum::<f64>().sqrt();
-        assert!((norm - 1.0).abs() < 1e-6, "katz should have unit norm: {norm}");
+        assert!(
+            (norm - 1.0).abs() < 1e-6,
+            "katz should have unit norm: {norm}"
+        );
     }
 
     #[test]
@@ -630,7 +650,12 @@ mod tests {
             assert!(v >= 0.0, "harmonic centrality non-negative: {v}");
         }
         // Middle nodes (higher connectivity) should have higher centrality
-        assert!(hc[2] >= hc[0], "middle node >= endpoint: {} >= {}", hc[2], hc[0]);
+        assert!(
+            hc[2] >= hc[0],
+            "middle node >= endpoint: {} >= {}",
+            hc[2],
+            hc[0]
+        );
     }
 
     #[test]
@@ -695,7 +720,8 @@ mod tests {
                 assert!(
                     (comm[i][j] - comm[j][i]).abs() < 1e-9,
                     "communicability should be symmetric: [{i}][{j}]={} vs [{j}][{i}]={}",
-                    comm[i][j], comm[j][i]
+                    comm[i][j],
+                    comm[j][i]
                 );
             }
         }
@@ -710,7 +736,8 @@ mod tests {
             assert!(
                 (comm[i][i] - sc[i]).abs() < 1e-9,
                 "communicability diagonal should equal subgraph centrality: {} vs {}",
-                comm[i][i], sc[i]
+                comm[i][i],
+                sc[i]
             );
         }
     }
@@ -745,7 +772,10 @@ mod tests {
         let katz = katz_centrality(&edges, 5, 0.1, 1.0).expect("katz complete");
         let first = katz[0];
         for &v in &katz {
-            assert!((v - first).abs() < 1e-6, "uniform graph katz: {v} vs {first}");
+            assert!(
+                (v - first).abs() < 1e-6,
+                "uniform graph katz: {v} vs {first}"
+            );
         }
     }
 

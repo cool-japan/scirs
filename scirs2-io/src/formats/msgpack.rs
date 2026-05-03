@@ -476,9 +476,8 @@ impl<'a> MsgPackReader<'a> {
             FMT_INT64 => {
                 let b = self.read_bytes(8)?;
                 Ok(MsgPackValue::Int(i64::from_be_bytes(
-                    b.try_into().map_err(|_| {
-                        IoError::FormatError("MsgPack: bad i64 bytes".into())
-                    })?,
+                    b.try_into()
+                        .map_err(|_| IoError::FormatError("MsgPack: bad i64 bytes".into()))?,
                 )))
             }
             FMT_FIXEXT1 => self.read_ext_data(1),
@@ -559,9 +558,7 @@ impl<R: Read> MsgPackStreamReader<R> {
     /// Create from a `Read` source, eagerly reading all bytes into memory.
     pub fn from_reader(mut source: R) -> Result<Self> {
         let mut buf = Vec::new();
-        source
-            .read_to_end(&mut buf)
-            .map_err(IoError::Io)?;
+        source.read_to_end(&mut buf).map_err(IoError::Io)?;
         Ok(Self {
             inner: Cursor::new(buf),
             _source: std::marker::PhantomData,
@@ -576,8 +573,7 @@ impl<R: Read> MsgPackStreamReader<R> {
         let mut reader = MsgPackReader::new(remaining);
         let value = reader.read_value()?;
         let consumed = reader.position();
-        self.inner
-            .set_position((pos + consumed) as u64);
+        self.inner.set_position((pos + consumed) as u64);
         Ok(value)
     }
 
@@ -648,7 +644,17 @@ mod tests {
 
     #[test]
     fn test_uint_roundtrip() {
-        let vals: &[u64] = &[0, 127, 128, 255, 256, 65535, 65536, u32::MAX as u64, u64::MAX];
+        let vals: &[u64] = &[
+            0,
+            127,
+            128,
+            255,
+            256,
+            65535,
+            65536,
+            u32::MAX as u64,
+            u64::MAX,
+        ];
         for &v in vals {
             let enc = msgpack_encode(&MsgPackValue::UInt(v));
             let (dec, _) = msgpack_decode(&enc).expect("decode");
@@ -662,8 +668,8 @@ mod tests {
 
     #[test]
     fn test_float32_roundtrip() {
-        let v = MsgPackValue::Float32(3.14_f32);
-        assert_eq!(rt(v), MsgPackValue::Float32(3.14_f32));
+        let v = MsgPackValue::Float32(std::f32::consts::PI);
+        assert_eq!(rt(v), MsgPackValue::Float32(std::f32::consts::PI));
     }
 
     #[test]
@@ -708,12 +714,10 @@ mod tests {
 
     #[test]
     fn test_map_roundtrip() {
-        let map = MsgPackValue::Map(vec![
-            (
-                MsgPackValue::Str("key".into()),
-                MsgPackValue::Int(99),
-            ),
-        ]);
+        let map = MsgPackValue::Map(vec![(
+            MsgPackValue::Str("key".into()),
+            MsgPackValue::Int(99),
+        )]);
         assert_eq!(rt(map.clone()), map);
     }
 

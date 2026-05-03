@@ -120,11 +120,7 @@ impl DisplacementField {
                 "DisplacementField::get_3d: index out of bounds".to_string(),
             ));
         }
-        Ok([
-            self.field[base],
-            self.field[base + 1],
-            self.field[base + 2],
-        ])
+        Ok([self.field[base], self.field[base + 1], self.field[base + 2]])
     }
 
     /// Compose two displacement fields: `result(x) = self(x) + other(x + self(x))`.
@@ -171,9 +167,8 @@ impl DisplacementField {
 
         // Smooth each component independently
         for comp in 0..2 {
-            let mut component: Vec<f64> = (0..rows * cols)
-                .map(|i| self.field[i * 2 + comp])
-                .collect();
+            let mut component: Vec<f64> =
+                (0..rows * cols).map(|i| self.field[i * 2 + comp]).collect();
             gaussian_smooth_1d_separable(&mut component, rows, cols, sigma);
             for i in 0..rows * cols {
                 self.field[i * 2 + comp] = component[i];
@@ -400,7 +395,9 @@ pub struct DemonsDiffeo {
 impl DemonsDiffeo {
     /// Create a new diffeomorphic demons registrar with default configuration.
     pub fn new() -> Self {
-        Self { config: DemonsConfig::default() }
+        Self {
+            config: DemonsConfig::default(),
+        }
     }
 
     /// Create with custom configuration.
@@ -450,10 +447,26 @@ impl DemonsDiffeo {
                     let diff = f_val - m_val;
 
                     // Gradient of fixed image (central difference)
-                    let f_gn = if r > 0 { fixed[[r - 1, c]] } else { fixed[[r, c]] };
-                    let f_gp = if r + 1 < rows { fixed[[r + 1, c]] } else { fixed[[r, c]] };
-                    let f_gcn = if c > 0 { fixed[[r, c - 1]] } else { fixed[[r, c]] };
-                    let f_gcp = if c + 1 < cols { fixed[[r, c + 1]] } else { fixed[[r, c]] };
+                    let f_gn = if r > 0 {
+                        fixed[[r - 1, c]]
+                    } else {
+                        fixed[[r, c]]
+                    };
+                    let f_gp = if r + 1 < rows {
+                        fixed[[r + 1, c]]
+                    } else {
+                        fixed[[r, c]]
+                    };
+                    let f_gcn = if c > 0 {
+                        fixed[[r, c - 1]]
+                    } else {
+                        fixed[[r, c]]
+                    };
+                    let f_gcp = if c + 1 < cols {
+                        fixed[[r, c + 1]]
+                    } else {
+                        fixed[[r, c]]
+                    };
                     let gx = (f_gp - f_gn) * 0.5;
                     let gy = (f_gcp - f_gcn) * 0.5;
                     let denom = gx * gx + gy * gy + diff * diff + 1e-10;
@@ -549,7 +562,9 @@ pub struct FluidRegistration {
 impl FluidRegistration {
     /// Create with default configuration.
     pub fn new() -> Self {
-        Self { config: FluidConfig::default() }
+        Self {
+            config: FluidConfig::default(),
+        }
     }
 
     /// Create with custom configuration.
@@ -596,10 +611,26 @@ impl FluidRegistration {
                     ssd += diff * diff;
 
                     // Gradient of warped image
-                    let w_rn = if r > 0 { warped[(r - 1) * cols + c] } else { warped[r * cols + c] };
-                    let w_rp = if r + 1 < rows { warped[(r + 1) * cols + c] } else { warped[r * cols + c] };
-                    let w_cn = if c > 0 { warped[r * cols + c - 1] } else { warped[r * cols + c] };
-                    let w_cp = if c + 1 < cols { warped[r * cols + c + 1] } else { warped[r * cols + c] };
+                    let w_rn = if r > 0 {
+                        warped[(r - 1) * cols + c]
+                    } else {
+                        warped[r * cols + c]
+                    };
+                    let w_rp = if r + 1 < rows {
+                        warped[(r + 1) * cols + c]
+                    } else {
+                        warped[r * cols + c]
+                    };
+                    let w_cn = if c > 0 {
+                        warped[r * cols + c - 1]
+                    } else {
+                        warped[r * cols + c]
+                    };
+                    let w_cp = if c + 1 < cols {
+                        warped[r * cols + c + 1]
+                    } else {
+                        warped[r * cols + c]
+                    };
                     let gy = (w_rp - w_rn) * 0.5;
                     let gx = (w_cp - w_cn) * 0.5;
 
@@ -701,7 +732,9 @@ pub struct FreeFormDeformation {
 impl FreeFormDeformation {
     /// Create with default configuration.
     pub fn new() -> Self {
-        Self { config: FfdConfig::default() }
+        Self {
+            config: FfdConfig::default(),
+        }
     }
 
     /// Create with custom configuration.
@@ -713,11 +746,7 @@ impl FreeFormDeformation {
     }
 
     /// Register `moving` to `fixed`.
-    pub fn register(
-        &self,
-        fixed: &Array2<f64>,
-        moving: &Array2<f64>,
-    ) -> NdimageResult<FfdResult> {
+    pub fn register(&self, fixed: &Array2<f64>, moving: &Array2<f64>) -> NdimageResult<FfdResult> {
         let fshape = fixed.shape();
         if fshape != moving.shape() {
             return Err(NdimageError::DimensionError(format!(
@@ -759,10 +788,26 @@ impl FreeFormDeformation {
                     ssd += diff * diff;
 
                     // Image gradient at warped position
-                    let w_rn = if r > 0 { warped[(r - 1) * cols + c] } else { warped[r * cols + c] };
-                    let w_rp = if r + 1 < rows { warped[(r + 1) * cols + c] } else { warped[r * cols + c] };
-                    let w_cn = if c > 0 { warped[r * cols + c - 1] } else { warped[r * cols + c] };
-                    let w_cp = if c + 1 < cols { warped[r * cols + c + 1] } else { warped[r * cols + c] };
+                    let w_rn = if r > 0 {
+                        warped[(r - 1) * cols + c]
+                    } else {
+                        warped[r * cols + c]
+                    };
+                    let w_rp = if r + 1 < rows {
+                        warped[(r + 1) * cols + c]
+                    } else {
+                        warped[r * cols + c]
+                    };
+                    let w_cn = if c > 0 {
+                        warped[r * cols + c - 1]
+                    } else {
+                        warped[r * cols + c]
+                    };
+                    let w_cp = if c + 1 < cols {
+                        warped[r * cols + c + 1]
+                    } else {
+                        warped[r * cols + c]
+                    };
                     let gy = (w_rp - w_rn) * 0.5;
                     let gx = (w_cp - w_cn) * 0.5;
 
@@ -798,10 +843,16 @@ impl FreeFormDeformation {
             // Add regularisation gradient (Laplacian of control points)
             for r in 1..gr - 1 {
                 for c in 1..gc - 1 {
-                    let lap_dy = ctrl_dy[[r - 1, c]] - 2.0 * ctrl_dy[[r, c]] + ctrl_dy[[r + 1, c]]
-                        + ctrl_dy[[r, c - 1]] - 2.0 * ctrl_dy[[r, c]] + ctrl_dy[[r, c + 1]];
-                    let lap_dx = ctrl_dx[[r - 1, c]] - 2.0 * ctrl_dx[[r, c]] + ctrl_dx[[r + 1, c]]
-                        + ctrl_dx[[r, c - 1]] - 2.0 * ctrl_dx[[r, c]] + ctrl_dx[[r, c + 1]];
+                    let lap_dy = ctrl_dy[[r - 1, c]] - 2.0 * ctrl_dy[[r, c]]
+                        + ctrl_dy[[r + 1, c]]
+                        + ctrl_dy[[r, c - 1]]
+                        - 2.0 * ctrl_dy[[r, c]]
+                        + ctrl_dy[[r, c + 1]];
+                    let lap_dx = ctrl_dx[[r - 1, c]] - 2.0 * ctrl_dx[[r, c]]
+                        + ctrl_dx[[r + 1, c]]
+                        + ctrl_dx[[r, c - 1]]
+                        - 2.0 * ctrl_dx[[r, c]]
+                        + ctrl_dx[[r, c + 1]];
                     grad_dy[[r, c]] -= self.config.regularisation * lap_dy;
                     grad_dx[[r, c]] -= self.config.regularisation * lap_dx;
                 }
@@ -945,10 +996,7 @@ fn bilinear_interpolate(image: &Array2<f64>, r: f64, c: f64) -> f64 {
     let v10 = image[[r1u, c0u]];
     let v11 = image[[r1u, c1u]];
 
-    v00 * (1.0 - fr) * (1.0 - fc)
-        + v01 * (1.0 - fr) * fc
-        + v10 * fr * (1.0 - fc)
-        + v11 * fr * fc
+    v00 * (1.0 - fr) * (1.0 - fc) + v01 * (1.0 - fr) * fc + v10 * fr * (1.0 - fc) + v11 * fr * fc
 }
 
 /// Bilinearly sample a 2D displacement field at fractional coordinates.
@@ -1086,8 +1134,11 @@ mod tests {
     #[test]
     fn test_displacement_field_create_and_access() {
         let mut df = DisplacementField::zeros_2d(10, 10);
-        df.set_2d(3, 4, 1.5, -2.0).expect("set_2d should succeed for valid coordinates");
-        let [dy, dx] = df.get_2d(3, 4).expect("get_2d should succeed for valid coordinates");
+        df.set_2d(3, 4, 1.5, -2.0)
+            .expect("set_2d should succeed for valid coordinates");
+        let [dy, dx] = df
+            .get_2d(3, 4)
+            .expect("get_2d should succeed for valid coordinates");
         assert!((dy - 1.5).abs() < 1e-10);
         assert!((dx + 2.0).abs() < 1e-10);
     }
@@ -1096,14 +1147,17 @@ mod tests {
     fn test_displacement_field_compose_identity() {
         let a = DisplacementField::zeros_2d(8, 8);
         let b = DisplacementField::zeros_2d(8, 8);
-        let composed = a.compose_2d(&b).expect("compose_2d should succeed with identical-size fields");
+        let composed = a
+            .compose_2d(&b)
+            .expect("compose_2d should succeed with identical-size fields");
         assert!(composed.rms_magnitude() < 1e-10);
     }
 
     #[test]
     fn test_jacobian_determinant_identity() {
         let field = DisplacementField::zeros_2d(10, 10);
-        let det = JacobianDeterminant::compute_2d(&field).expect("compute_2d should succeed on identity field");
+        let det = JacobianDeterminant::compute_2d(&field)
+            .expect("compute_2d should succeed on identity field");
         // Identity deformation → all determinants should be 1
         for v in det.iter() {
             assert!((v - 1.0).abs() < 1e-8, "Expected det≈1, got {}", v);
@@ -1113,7 +1167,8 @@ mod tests {
     #[test]
     fn test_jacobian_folding_fraction_zero_for_identity() {
         let field = DisplacementField::zeros_2d(10, 10);
-        let frac = JacobianDeterminant::folding_fraction_2d(&field).expect("folding_fraction_2d should succeed on identity field");
+        let frac = JacobianDeterminant::folding_fraction_2d(&field)
+            .expect("folding_fraction_2d should succeed on identity field");
         assert!(frac < 1e-10);
     }
 
@@ -1122,7 +1177,9 @@ mod tests {
         let fixed = make_test_image(16, 16, 0.0);
         let moving = make_test_image(16, 16, 0.3);
         let reg = DemonsDiffeo::new();
-        let result = reg.register(&fixed, &moving).expect("DemonsDiffeo register should succeed on valid images");
+        let result = reg
+            .register(&fixed, &moving)
+            .expect("DemonsDiffeo register should succeed on valid images");
         assert!(result.iterations > 0);
         // The field should have some non-zero displacements
         let _ = result.field;
@@ -1133,7 +1190,9 @@ mod tests {
         let fixed = make_test_image(16, 16, 0.0);
         let moving = make_test_image(16, 16, 0.3);
         let reg = FluidRegistration::new();
-        let result = reg.register(&fixed, &moving).expect("FluidRegistration register should succeed on valid images");
+        let result = reg
+            .register(&fixed, &moving)
+            .expect("FluidRegistration register should succeed on valid images");
         assert!(result.iterations > 0);
     }
 
@@ -1142,14 +1201,18 @@ mod tests {
         let fixed = make_test_image(16, 16, 0.0);
         let moving = make_test_image(16, 16, 0.3);
         let reg = FreeFormDeformation::new();
-        let result = reg.register(&fixed, &moving).expect("FreeFormDeformation register should succeed on valid images");
+        let result = reg
+            .register(&fixed, &moving)
+            .expect("FreeFormDeformation register should succeed on valid images");
         assert!(result.iterations > 0);
     }
 
     #[test]
     fn test_composite_transform_identity() {
         let t = CompositeTransform::identity();
-        let (nr, nc) = t.apply_to_point(5.0, 7.0).expect("apply_to_point should succeed for identity transform");
+        let (nr, nc) = t
+            .apply_to_point(5.0, 7.0)
+            .expect("apply_to_point should succeed for identity transform");
         assert!((nr - 5.0).abs() < 1e-10);
         assert!((nc - 7.0).abs() < 1e-10);
     }
@@ -1157,10 +1220,14 @@ mod tests {
     #[test]
     fn test_gaussian_smooth_does_not_panic() {
         let mut df = DisplacementField::zeros_2d(8, 8);
-        df.set_2d(4, 4, 10.0, -5.0).expect("set_2d should succeed for valid coordinates");
-        df.gaussian_smooth_2d(1.0).expect("gaussian_smooth_2d should succeed with sigma=1");
+        df.set_2d(4, 4, 10.0, -5.0)
+            .expect("set_2d should succeed for valid coordinates");
+        df.gaussian_smooth_2d(1.0)
+            .expect("gaussian_smooth_2d should succeed with sigma=1");
         // After smoothing the peak should be reduced
-        let [dy, _dx] = df.get_2d(4, 4).expect("get_2d should succeed for valid coordinates");
+        let [dy, _dx] = df
+            .get_2d(4, 4)
+            .expect("get_2d should succeed for valid coordinates");
         assert!(dy < 10.0);
     }
 }

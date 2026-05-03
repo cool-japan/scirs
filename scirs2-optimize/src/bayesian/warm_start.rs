@@ -43,7 +43,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
 use crate::error::{OptimizeError, OptimizeResult};
 
@@ -344,31 +344,29 @@ impl WarmStartBo {
         let surrogate = GpSurrogate::new(Box::new(kernel), gp_config);
 
         // Build ensemble surrogates for each prior run.
-        let ensemble_surrogates = if matches!(
-            config.blend_strategy,
-            BlendStrategy::WeightedEnsemble
-        ) {
-            let mut ensemble = Vec::new();
-            for run in &config.prior_runs {
-                if run.x.nrows() < 2 {
-                    continue;
+        let ensemble_surrogates =
+            if matches!(config.blend_strategy, BlendStrategy::WeightedEnsemble) {
+                let mut ensemble = Vec::new();
+                for run in &config.prior_runs {
+                    if run.x.nrows() < 2 {
+                        continue;
+                    }
+                    let mut gp = GpSurrogate::new(
+                        Box::new(RbfKernel::default()),
+                        GpSurrogateConfig {
+                            noise_variance: 1e-4,
+                            optimize_hyperparams: false,
+                            ..Default::default()
+                        },
+                    );
+                    if gp.fit(&run.x, &run.y).is_ok() {
+                        ensemble.push((gp, run.weight));
+                    }
                 }
-                let mut gp = GpSurrogate::new(
-                    Box::new(RbfKernel::default()),
-                    GpSurrogateConfig {
-                        noise_variance: 1e-4,
-                        optimize_hyperparams: false,
-                        ..Default::default()
-                    },
-                );
-                if gp.fit(&run.x, &run.y).is_ok() {
-                    ensemble.push((gp, run.weight));
-                }
-            }
-            ensemble
-        } else {
-            Vec::new()
-        };
+                ensemble
+            } else {
+                Vec::new()
+            };
 
         Ok(Self {
             bounds,
@@ -423,9 +421,8 @@ impl WarmStartBo {
                 }
 
                 let n_prior = all_y.len();
-                let x_prior = Array2::from_shape_vec((n_prior, ndim), all_x_rows).map_err(
-                    |e| OptimizeError::ComputationError(format!("shape error: {}", e)),
-                )?;
+                let x_prior = Array2::from_shape_vec((n_prior, ndim), all_x_rows)
+                    .map_err(|e| OptimizeError::ComputationError(format!("shape error: {}", e)))?;
                 let y_prior = Array1::from_vec(all_y);
 
                 // Use higher noise for prior points to down-weight them.
@@ -437,10 +434,8 @@ impl WarmStartBo {
                     optimize_hyperparams: false,
                     ..Default::default()
                 };
-                let new_surrogate = GpSurrogate::new(
-                    self.surrogate.kernel().clone_box(),
-                    noisy_config,
-                );
+                let new_surrogate =
+                    GpSurrogate::new(self.surrogate.kernel().clone_box(), noisy_config);
                 self.surrogate = new_surrogate;
                 self.surrogate.fit(&x_prior, &y_prior)?;
 
@@ -496,9 +491,8 @@ impl WarmStartBo {
                 }
 
                 let n_prior = all_y.len();
-                let x_prior = Array2::from_shape_vec((n_prior, ndim), all_x_rows).map_err(
-                    |e| OptimizeError::ComputationError(format!("shape error: {}", e)),
-                )?;
+                let x_prior = Array2::from_shape_vec((n_prior, ndim), all_x_rows)
+                    .map_err(|e| OptimizeError::ComputationError(format!("shape error: {}", e)))?;
                 let y_prior = Array1::from_vec(all_y);
 
                 self.surrogate.fit(&x_prior, &y_prior)?;
@@ -529,8 +523,7 @@ impl WarmStartBo {
             None,
         )?;
 
-        let acquisition: Box<dyn AcquisitionFn> =
-            self.config.acquisition.build(self.f_best, None);
+        let acquisition: Box<dyn AcquisitionFn> = self.config.acquisition.build(self.f_best, None);
 
         let mut best_acq = f64::NEG_INFINITY;
         let mut best_x = candidates.row(0).to_vec();
@@ -542,7 +535,9 @@ impl WarmStartBo {
             {
                 // Blend: weighted average of acquisition values from each surrogate.
                 let target_val = if self.surrogate.n_train() > 0 {
-                    acquisition.evaluate(&row, &self.surrogate).unwrap_or(f64::NEG_INFINITY)
+                    acquisition
+                        .evaluate(&row, &self.surrogate)
+                        .unwrap_or(f64::NEG_INFINITY)
                 } else {
                     0.0
                 };
@@ -556,9 +551,7 @@ impl WarmStartBo {
 
                 let mut blended = target_val;
                 for (gp, w) in &self.ensemble_surrogates {
-                    let acq_val = acquisition
-                        .evaluate(&row, gp)
-                        .unwrap_or(f64::NEG_INFINITY);
+                    let acq_val = acquisition.evaluate(&row, gp).unwrap_or(f64::NEG_INFINITY);
                     blended += w * acq_val;
                 }
                 blended / total_weight
@@ -614,7 +607,11 @@ impl WarmStartBo {
     }
 
     /// Run the full optimization loop.
-    pub fn optimize<F>(&mut self, mut objective: F, n_calls: usize) -> OptimizeResult<WarmStartResult>
+    pub fn optimize<F>(
+        &mut self,
+        mut objective: F,
+        n_calls: usize,
+    ) -> OptimizeResult<WarmStartResult>
     where
         F: FnMut(&[f64]) -> f64,
     {
@@ -734,7 +731,9 @@ impl MultiTaskBo {
     /// Create a new multi-task BO instance.
     pub fn new(tasks: Vec<Task>, config: MultiTaskBoConfig) -> OptimizeResult<Self> {
         if tasks.is_empty() {
-            return Err(OptimizeError::InvalidInput("tasks must not be empty".into()));
+            return Err(OptimizeError::InvalidInput(
+                "tasks must not be empty".into(),
+            ));
         }
         if config.target_task_idx >= tasks.len() {
             return Err(OptimizeError::InvalidInput(format!(
@@ -774,9 +773,11 @@ impl MultiTaskBo {
                 // Compute spatial overlap.
                 let n_in_bounds: usize = (0..task.observations_x.nrows())
                     .filter(|&j| {
-                        task.observations_x.row(j).iter().zip(target_bounds.iter()).all(
-                            |(&v, &(lo, hi))| v >= lo && v <= hi,
-                        )
+                        task.observations_x
+                            .row(j)
+                            .iter()
+                            .zip(target_bounds.iter())
+                            .all(|(&v, &(lo, hi))| v >= lo && v <= hi)
                     })
                     .count();
                 let frac = n_in_bounds as f64 / task.observations_x.nrows().max(1) as f64;
@@ -827,7 +828,12 @@ impl MultiTaskBo {
             let row = candidates.row(i);
             let mut val = 0.0_f64;
 
-            for (t, (gp, w)) in self.surrogates.iter().zip(self.task_weights.iter()).enumerate() {
+            for (t, (gp, w)) in self
+                .surrogates
+                .iter()
+                .zip(self.task_weights.iter())
+                .enumerate()
+            {
                 if gp.n_train() == 0 {
                     continue;
                 }
@@ -983,8 +989,7 @@ mod tests {
             seed: Some(42),
             ..Default::default()
         };
-        let mut bo =
-            WarmStartBo::new(vec![(0.0, 4.0)], config).expect("create");
+        let mut bo = WarmStartBo::new(vec![(0.0, 4.0)], config).expect("create");
         let result = bo
             .optimize(|x: &[f64]| (x[0] - 2.0_f64).powi(2), 8)
             .expect("optimize");
@@ -1051,8 +1056,7 @@ mod tests {
 
     #[test]
     fn test_multi_task_bo_runs() {
-        let src_x =
-            Array2::from_shape_vec((4, 1), vec![0.0, 1.0, 2.0, 3.0]).expect("shape");
+        let src_x = Array2::from_shape_vec((4, 1), vec![0.0, 1.0, 2.0, 3.0]).expect("shape");
         let src_y = Array1::from_vec(vec![4.0, 1.0, 0.0, 1.0]);
         let source_task = Task {
             name: "source".into(),
@@ -1073,8 +1077,7 @@ mod tests {
             seed: Some(42),
             ..Default::default()
         };
-        let mut mtbo =
-            MultiTaskBo::new(vec![source_task, target_task], config).expect("create");
+        let mut mtbo = MultiTaskBo::new(vec![source_task, target_task], config).expect("create");
         let result = mtbo
             .optimize(|x: &[f64]| (x[0] - 2.0_f64).powi(2))
             .expect("optimize");

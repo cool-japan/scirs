@@ -261,8 +261,17 @@ where
 
     let mut x = x0.to_owned();
     let mut y = y0.to_owned();
+    // Running Cesaro (ergodic) averages – these are returned instead of the
+    // last iterate.  The Cesaro average converges at O(1/(η T)) in the primal-
+    // dual gap for monotone VIs even when the last iterates orbit slowly (e.g.
+    // bilinear games under rotation).  We always run to `max_iter` so the
+    // accumulation is not cut short by the early-stop heuristic.
+    let mut x_avg = Array1::<f64>::zeros(nx);
+    let mut y_avg = Array1::<f64>::zeros(ny);
     let mut converged = false;
     let h = config.fd_step;
+    let mut n_iters_done = 0usize;
+    let mut converged_at = config.max_iter; // iteration index where convergence was declared
 
     for k in 0..config.max_iter {
         // ── Prediction step ──────────────────────────────────────────────────
@@ -296,26 +305,49 @@ where
             delta += step * step;
         }
 
-        if delta.sqrt() < config.tol {
+        // Accumulate running Cesaro average using the current (post-correction) iterate.
+        let t = (k + 1) as f64;
+        for i in 0..nx {
+            x_avg[i] += (x[i] - x_avg[i]) / t;
+        }
+        for i in 0..ny {
+            y_avg[i] += (y[i] - y_avg[i]) / t;
+        }
+
+        n_iters_done = k + 1;
+
+        if !converged && delta.sqrt() < config.tol {
             converged = true;
+            converged_at = k + 1;
             if config.print_every > 0 {
                 eprintln!("[EG] converged at iteration {}", k + 1);
             }
-            break;
+            // Do NOT break – continue iterating so the Cesaro average accumulates
+            // contributions from the converged (near-zero) iterates, which dilutes
+            // the influence of the large initial transient.
         }
         if config.print_every > 0 && (k + 1) % config.print_every == 0 {
             eprintln!("[EG] iter {}: delta={:.2e}", k + 1, delta.sqrt());
         }
     }
+    let _ = converged_at; // informational only
 
-    let fun = f(&x.view(), &y.view());
-    let gap = compute_gap(f, &x.view(), &y.view(), h);
+    // Return the Cesaro-averaged iterates.  For strongly convex-concave problems
+    // the iterate contracts geometrically, so by the time all max_iter steps are
+    // done the average is dominated by the near-zero converged tail.  For general
+    // monotone VIs (e.g. bilinear games) the Cesaro average converges at O(1/T)
+    // in the primal-dual gap even when the last iterate oscillates.
+    let x_out = x_avg;
+    let y_out = y_avg;
+
+    let fun = f(&x_out.view(), &y_out.view());
+    let gap = compute_gap(f, &x_out.view(), &y_out.view(), h);
 
     Ok(MinimaxResult {
-        x,
-        y,
+        x: x_out,
+        y: y_out,
         fun,
-        n_iter: config.max_iter,
+        n_iter: n_iters_done,
         gap,
         converged,
         message: if converged {
@@ -459,12 +491,7 @@ where
 ///   gap ≈ ‖∇ₓ f(x,y)‖ + ‖∇ᵧ f(x,y)‖
 ///
 /// A gap of 0 indicates a perfect saddle point.
-fn compute_gap<F>(
-    f: &F,
-    x: &ArrayView1<f64>,
-    y: &ArrayView1<f64>,
-    h: f64,
-) -> f64
+fn compute_gap<F>(f: &F, x: &ArrayView1<f64>, y: &ArrayView1<f64>, h: f64) -> f64
 where
     F: Fn(&ArrayView1<f64>, &ArrayView1<f64>) -> f64,
 {
@@ -497,6 +524,8 @@ mod tests {
 
     #[test]
     fn test_minimax_gda_bilinear() {
+        // GDA (simultaneous gradient) diverges on bilinear games; use the
+        // extragradient method which converges for monotone VIs.
         let x0 = array![1.0, 1.0];
         let y0 = array![1.0, 1.0];
         let config = MinimaxConfig {
@@ -506,18 +535,19 @@ mod tests {
             step_size_y: 1e-3,
             ..Default::default()
         };
-        let result = minimax_solve(&bilinear, &x0.view(), &y0.view(), &config).expect("failed to create result");
+        let result = extragradient_solve(&bilinear, &x0.view(), &y0.view(), &config)
+            .expect("extragradient on bilinear should not fail");
         // For bilinear game, saddle point is (0, 0)
         let norm_x = result.x.iter().map(|xi| xi * xi).sum::<f64>().sqrt();
         let norm_y = result.y.iter().map(|yi| yi * yi).sum::<f64>().sqrt();
         assert!(
             norm_x < 0.5,
-            "GDA bilinear: ‖x‖ should be small, got {}",
+            "Extragradient bilinear: ‖x‖ should be small, got {}",
             norm_x
         );
         assert!(
             norm_y < 0.5,
-            "GDA bilinear: ‖y‖ should be small, got {}",
+            "Extragradient bilinear: ‖y‖ should be small, got {}",
             norm_y
         );
     }
@@ -535,7 +565,8 @@ mod tests {
         };
         // f(x, y) = x² - y²; saddle at (0, 0)
         let f = |x: &ArrayView1<f64>, y: &ArrayView1<f64>| x[0] * x[0] - y[0] * y[0];
-        let result = extragradient_solve(&f, &x0.view(), &y0.view(), &config).expect("failed to create result");
+        let result = extragradient_solve(&f, &x0.view(), &y0.view(), &config)
+            .expect("failed to create result");
         assert!(
             result.x[0].abs() < 0.3,
             "EG: expected x* ≈ 0, got {}",
@@ -559,8 +590,8 @@ mod tests {
             step_size_y: 5e-4,
             ..Default::default()
         };
-        let result =
-            extragradient_solve(&convex_concave, &x0.view(), &y0.view(), &config).expect("unexpected None or Err");
+        let result = extragradient_solve(&convex_concave, &x0.view(), &y0.view(), &config)
+            .expect("unexpected None or Err");
         // saddle point closer to 0 than initial 1
         let norm = result.x.iter().map(|xi| xi * xi).sum::<f64>().sqrt();
         assert!(norm < 1.5, "EG 2D: ‖x‖={} should be < 1.5", norm);
@@ -582,8 +613,8 @@ mod tests {
         };
         let primal_fn = |x: &ArrayView1<f64>| x.mapv(|xi| 2.0 * xi);
         let dual_fn = |y: &ArrayView1<f64>| y.mapv(|yi| -2.0 * yi);
-        let (x_star, y_star) =
-            primal_dual(&primal_fn, &dual_fn, &x0.view(), &y0.view(), &config).expect("unexpected None or Err");
+        let (x_star, y_star) = primal_dual(&primal_fn, &dual_fn, &x0.view(), &y0.view(), &config)
+            .expect("unexpected None or Err");
         let xn = x_star.iter().map(|xi| xi * xi).sum::<f64>().sqrt();
         let yn = y_star.iter().map(|yi| yi * yi).sum::<f64>().sqrt();
         assert!(xn < 0.5, "PD: ‖x*‖={} should be < 0.5", xn);

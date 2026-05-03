@@ -181,8 +181,9 @@ impl CapsNet {
     /// Return the number of trainable parameters (weights + biases).
     pub fn n_params(&self) -> usize {
         // PrimaryCaps: weights + bias
-        let primary_params = self.config.input_size * self.config.primary_caps * self.config.primary_dim
-            + self.config.primary_caps * self.config.primary_dim;
+        let primary_params =
+            self.config.input_size * self.config.primary_caps * self.config.primary_dim
+                + self.config.primary_caps * self.config.primary_dim;
         // DigitCaps: n_classes × n_primary × (cap_dim × primary_dim)
         let digit_params = self.config.digit_caps
             * self.config.primary_caps

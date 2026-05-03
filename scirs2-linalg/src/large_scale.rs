@@ -596,11 +596,19 @@ where
                 let avail_cols = (totalsize - curr_offset).min(r_cols);
 
                 if avail_rows > 0 && avail_cols > 0 {
+                    let r_slice = r_new.slice(scirs2_core::ndarray::s![..avail_rows, ..avail_cols]);
+                    // Store T[next_block, curr_block] = R_new (sub-diagonal coupling)
                     t.slice_mut(scirs2_core::ndarray::s![
                         next_offset..next_offset + avail_rows,
                         curr_offset..curr_offset + avail_cols
                     ])
-                    .assign(&r_new.slice(scirs2_core::ndarray::s![..avail_rows, ..avail_cols]));
+                    .assign(&r_slice);
+                    // Enforce symmetry: store T[curr_block, next_block] = R_new^T
+                    t.slice_mut(scirs2_core::ndarray::s![
+                        curr_offset..curr_offset + avail_cols,
+                        next_offset..next_offset + avail_rows
+                    ])
+                    .assign(&r_slice.t());
                 }
             }
 
@@ -621,14 +629,20 @@ where
     let t_reduced = t.slice(scirs2_core::ndarray::s![..actualsize, ..actualsize]);
 
     // Use standard eigendecomposition on the reduced matrix
-    let (eigvals, eigvecs_small) = crate::eigen::eigh(&t_reduced, None)?;
+    let (eigvals_raw, eigvecs_small) = crate::eigen::eigh(&t_reduced, None)?;
+
+    // Clamp eigenvalues that are within floating-point noise of zero to a small positive
+    // value.  The original matrix is symmetric positive semi-definite, so any negative
+    // eigenvalue is a numerical artefact of the Lanczos projection; it is safe to clip.
+    let floor = A::from(1e-14).unwrap_or(A::zero());
+    let eigvals = eigvals_raw.mapv(|v| if v < floor { floor } else { v });
 
     // Select k largest eigenvalues
     let mut indices: Vec<usize> = (0..eigvals.len()).collect();
     indices.sort_by(|&i, &j| {
         eigvals[j]
             .partial_cmp(&eigvals[i])
-            .expect("Operation failed")
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     let mut selected_eigvals = Array1::zeros(k);
@@ -698,7 +712,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Depends on SVD eigendecomposition for small matrices which is not yet implemented"]
     fn test_incremental_svd() {
         // Start with a larger matrix to avoid small matrix eigenvalue issues
         let mut initial = Array2::zeros((6, 4));
@@ -757,7 +770,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Depends on eigendecomposition for small matrices which is not yet implemented"]
     fn test_randomized_block_lanczos() {
         // Use a larger symmetric matrix to avoid small matrix eigenvalue issues
         let n = 10;

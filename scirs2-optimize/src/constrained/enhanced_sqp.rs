@@ -85,7 +85,9 @@ impl SQPSolver {
     {
         let n = x0.len();
         if n == 0 {
-            return Err(OptimizeError::InvalidInput("x0 must be non-empty".to_string()));
+            return Err(OptimizeError::InvalidInput(
+                "x0 must be non-empty".to_string(),
+            ));
         }
 
         let mut x = x0.to_vec();
@@ -214,12 +216,26 @@ impl SQPSolver {
 
             // BFGS update of Hessian (Powell damping)
             if let (Some(ref px), Some(ref pg)) = (&prev_x, &prev_grad_lag) {
-                let s: Vec<f64> = x.iter().zip(px.iter()).map(|(&xi, &pxi)| xi - pxi).collect();
-                let y: Vec<f64> = grad_lag.iter().zip(pg.iter()).map(|(&gi, &pgi)| gi - pgi).collect();
+                let s: Vec<f64> = x
+                    .iter()
+                    .zip(px.iter())
+                    .map(|(&xi, &pxi)| xi - pxi)
+                    .collect();
+                let y: Vec<f64> = grad_lag
+                    .iter()
+                    .zip(pg.iter())
+                    .map(|(&gi, &pgi)| gi - pgi)
+                    .collect();
                 let sy: f64 = s.iter().zip(y.iter()).map(|(&si, &yi)| si * yi).sum();
                 // Hessian-vector product Hs
                 let hs: Vec<f64> = (0..n)
-                    .map(|i| hess[i].iter().zip(s.iter()).map(|(&h, &si)| h * si).sum::<f64>())
+                    .map(|i| {
+                        hess[i]
+                            .iter()
+                            .zip(s.iter())
+                            .map(|(&h, &si)| h * si)
+                            .sum::<f64>()
+                    })
                     .collect();
                 let sths: f64 = s.iter().zip(hs.iter()).map(|(&si, &hsi)| si * hsi).sum();
 
@@ -238,19 +254,28 @@ impl SQPSolver {
             prev_x = Some(x.clone());
             prev_grad_lag = Some(grad_lag.clone());
 
-            // Solve QP subproblem (simplified: steepest descent on Lagrangian with
-            // constraint linearization)
-            // Full QP: min 0.5 d^T H d + grad_f^T d
-            //          s.t. J_eq d + c_eq = 0
-            //               J_ineq d + c_ineq <= 0 (for active constraints)
+            // Solve QP subproblem using the full KKT system for equality constraints.
+            // Active-set treatment for inequality constraints (active if c_i > -tol).
             //
-            // We use a projected gradient approach for simplicity:
-            // d = -H^{-1} grad_f (Newton step on Lagrangian)
-            let d = solve_newton_step(&hess, &grad_lag, n);
+            // KKT system for equality-constrained QP:
+            //   [H    J_A^T] [d       ]   [-grad_f]
+            //   [J_A  0    ] [delta_mu] = [-c_A   ]
+            //
+            // where J_A contains the Jacobians of all equality constraints and
+            // active inequality constraints.
+            let active_flags: Vec<bool> = (0..n_ineq).map(|i| c_vals[n_eq + i] > -1e-3).collect();
+            let n_active = n_eq + active_flags.iter().filter(|&&a| a).count();
 
-            // Line search along merit function
+            let d = if n_active > 0 {
+                solve_kkt_step(&hess, &grad, &c_jac, &c_vals, n_eq, &active_flags, n)
+            } else {
+                solve_newton_step(&hess, &grad, n)
+            };
+
+            // Merit function: exact L1 penalty ψ(x) = f(x) + μ*(||c_eq||₁ + ||max(0,c_ineq)||₁)
+            // μ must exceed ||λ||_∞ to be an exact merit function (Nocedal&Wright §18.3)
             let mu_merit = lambda.iter().map(|v| v.abs()).fold(1.0_f64, f64::max) + 1.0;
-            let mut merit = |xv: &[f64]| -> f64 {
+            let mut merit_fn = |xv: &[f64]| -> f64 {
                 let fv = f(xv);
                 nfev += 1;
                 let cv_eq: f64 = eq_cons.iter().map(|e| e(xv).abs()).sum::<f64>();
@@ -258,24 +283,34 @@ impl SQPSolver {
                 fv + mu_merit * (cv_eq + cv_ineq)
             };
 
-            let merit0 = merit(&x);
-            let d_merit: f64 = grad_lag.iter().zip(d.iter()).map(|(&gi, &di)| gi * di).sum::<f64>();
+            let merit0 = merit_fn(&x);
+            // Directional derivative of L1 merit: grad_f^T d - μ*(||c_eq||₁ + ||max(0,c_ineq)||₁)
+            let d_obj: f64 = grad.iter().zip(d.iter()).map(|(&gi, &di)| gi * di).sum();
+            let d_merit = d_obj - mu_merit * (eq_viol + ineq_viol);
 
             let mut alpha = 1.0_f64;
             let armijo_c = 1e-4;
             let backtrack = 0.5;
-            let max_ls = 20;
+            let max_ls = 30;
 
             for _ls in 0..max_ls {
-                let xnew: Vec<f64> = x.iter().zip(d.iter()).map(|(&xi, &di)| xi + alpha * di).collect();
-                let m_new = merit(&xnew);
-                if m_new <= merit0 + armijo_c * alpha * d_merit.min(0.0) {
+                let xnew: Vec<f64> = x
+                    .iter()
+                    .zip(d.iter())
+                    .map(|(&xi, &di)| xi + alpha * di)
+                    .collect();
+                let m_new = merit_fn(&xnew);
+                if m_new <= merit0 + armijo_c * alpha * d_merit {
                     break;
                 }
                 alpha *= backtrack;
             }
 
-            let xnew: Vec<f64> = x.iter().zip(d.iter()).map(|(&xi, &di)| xi + alpha * di).collect();
+            let xnew: Vec<f64> = x
+                .iter()
+                .zip(d.iter())
+                .map(|(&xi, &di)| xi + alpha * di)
+                .collect();
             x = xnew;
 
             // Update Lagrange multipliers via least squares on KKT
@@ -313,14 +348,174 @@ impl SQPSolver {
             njev,
             nhev: 0,
             maxcv: 0,
-            message: format!(
-                "Maximum iterations reached (cv={:.2e})",
-                cv
-            ),
+            message: format!("Maximum iterations reached (cv={:.2e})", cv),
             success: cv <= self.constraint_tol,
             status: if cv <= self.constraint_tol { 0 } else { 1 },
         })
     }
+}
+
+/// Solve the KKT system for the SQP subproblem:
+///
+/// ```text
+/// [H    J_A^T] [d       ]   [-grad_f]
+/// [J_A  0    ] [delta_mu] = [-c_A   ]
+/// ```
+///
+/// where J_A is the stacked Jacobian of active constraints (all equality + active ineq).
+/// Returns the primal step `d` of length `n`.
+fn solve_kkt_step(
+    hess: &[Vec<f64>],
+    grad_f: &[f64],
+    c_jac: &[Vec<f64>],
+    c_vals: &[f64],
+    n_eq: usize,
+    active_flags: &[bool],
+    n: usize,
+) -> Vec<f64> {
+    // Gather active constraint Jacobians and values
+    let mut j_active: Vec<Vec<f64>> = Vec::new();
+    let mut c_active: Vec<f64> = Vec::new();
+    for j in 0..n_eq {
+        j_active.push(c_jac[j].clone());
+        c_active.push(c_vals[j]);
+    }
+    for (k, &is_active) in active_flags.iter().enumerate() {
+        if is_active {
+            j_active.push(c_jac[n_eq + k].clone());
+            c_active.push(c_vals[n_eq + k]);
+        }
+    }
+
+    let m = j_active.len();
+    if m == 0 {
+        return solve_newton_step_slice(hess, grad_f, n);
+    }
+
+    // Build the (n+m) x (n+m) KKT matrix:
+    // [ H   J^T ]
+    // [ J    0  ]
+    let total = n + m;
+    let mut kkt: Vec<Vec<f64>> = vec![vec![0.0; total]; total];
+    let mut rhs: Vec<f64> = vec![0.0; total];
+
+    // Top-left block: H (n x n)
+    for i in 0..n {
+        for j in 0..n {
+            kkt[i][j] = hess[i][j];
+        }
+        // Small regularization for numerical stability
+        kkt[i][i] += 1e-8;
+    }
+
+    // Top-right block: J^T (n x m)
+    for k in 0..m {
+        for i in 0..n {
+            kkt[i][n + k] = j_active[k][i];
+        }
+    }
+
+    // Bottom-left block: J (m x n)
+    for k in 0..m {
+        for j in 0..n {
+            kkt[n + k][j] = j_active[k][j];
+        }
+    }
+
+    // Right-hand side: [-grad_f; -c_A]
+    for i in 0..n {
+        rhs[i] = -grad_f[i];
+    }
+    for k in 0..m {
+        rhs[n + k] = -c_active[k];
+    }
+
+    // Solve via Gaussian elimination with partial pivoting
+    let sol = gaussian_elimination(&mut kkt, &mut rhs, total);
+    match sol {
+        Some(x) => {
+            let d = x[0..n].to_vec();
+            // Clamp step size
+            let dn = d.iter().map(|v| v * v).sum::<f64>().sqrt();
+            if dn > 10.0 {
+                let scale = 10.0 / dn;
+                d.iter().map(|&v| v * scale).collect()
+            } else {
+                d
+            }
+        }
+        None => {
+            // Fall back to unconstrained Newton step
+            solve_newton_step_slice(hess, grad_f, n)
+        }
+    }
+}
+
+/// Unconstrained Newton step: d = -H^{-1} grad (used as fallback)
+fn solve_newton_step_slice(hess: &[Vec<f64>], grad: &[f64], n: usize) -> Vec<f64> {
+    let mut a: Vec<Vec<f64>> = hess.iter().map(|row| row.to_vec()).collect();
+    let mut b: Vec<f64> = grad.iter().map(|&gi| -gi).collect();
+    // Add regularization
+    for i in 0..n {
+        a[i][i] += 1e-8;
+    }
+    match gaussian_elimination(&mut a, &mut b, n) {
+        Some(d) => {
+            let dn = d.iter().map(|v| v * v).sum::<f64>().sqrt();
+            if dn > 10.0 {
+                let scale = 10.0 / dn;
+                d.iter().map(|&v| v * scale).collect()
+            } else {
+                d
+            }
+        }
+        None => grad.iter().map(|&gi| -gi * 0.01).collect(),
+    }
+}
+
+/// Gaussian elimination with partial pivoting for square system Ax = b.
+/// Modifies `a` and `b` in place; returns solution vector or None if singular.
+fn gaussian_elimination(a: &mut Vec<Vec<f64>>, b: &mut Vec<f64>, n: usize) -> Option<Vec<f64>> {
+    for col in 0..n {
+        // Find pivot
+        let mut max_row = col;
+        let mut max_val = a[col][col].abs();
+        for row in (col + 1)..n {
+            if a[row][col].abs() > max_val {
+                max_val = a[row][col].abs();
+                max_row = row;
+            }
+        }
+        if max_val < 1e-14 {
+            return None;
+        }
+        a.swap(col, max_row);
+        b.swap(col, max_row);
+
+        let pivot = a[col][col];
+        for row in (col + 1)..n {
+            let factor = a[row][col] / pivot;
+            for k in col..n {
+                let val = a[col][k] * factor;
+                a[row][k] -= val;
+            }
+            let bv = b[col] * factor;
+            b[row] -= bv;
+        }
+    }
+
+    let mut x = vec![0.0; n];
+    for i in (0..n).rev() {
+        let mut sum = b[i];
+        for j in (i + 1)..n {
+            sum -= a[i][j] * x[j];
+        }
+        if a[i][i].abs() < 1e-14 {
+            return None;
+        }
+        x[i] = sum / a[i][i];
+    }
+    Some(x)
 }
 
 /// Solve Newton step d = -H^{-1} g using Gaussian elimination
@@ -408,10 +603,18 @@ fn update_lagrange_multipliers(
 
     for i in 0..m {
         for j in 0..m {
-            let dot: f64 = c_jac[i].iter().zip(c_jac[j].iter()).map(|(&a, &b)| a * b).sum();
+            let dot: f64 = c_jac[i]
+                .iter()
+                .zip(c_jac[j].iter())
+                .map(|(&a, &b)| a * b)
+                .sum();
             jjt[i][j] = dot;
         }
-        jg[i] = c_jac[i].iter().zip(grad.iter()).map(|(&a, &b)| a * b).sum::<f64>();
+        jg[i] = c_jac[i]
+            .iter()
+            .zip(grad.iter())
+            .map(|(&a, &b)| a * b)
+            .sum::<f64>();
     }
 
     // Regularize
@@ -562,13 +765,7 @@ mod tests {
 
         let solver = SQPSolver::default();
         let result = solver
-            .solve(
-                f,
-                Some(gf),
-                &[h],
-                &[] as &[fn(&[f64]) -> f64],
-                &[0.0, 0.0],
-            )
+            .solve(f, Some(gf), &[h], &[] as &[fn(&[f64]) -> f64], &[0.0, 0.0])
             .expect("solve failed");
 
         assert_abs_diff_eq!(result.x[0], 1.0, epsilon = 1e-3);
@@ -590,13 +787,7 @@ mod tests {
             ..Default::default()
         };
         let result = solver
-            .solve(
-                f,
-                None::<fn(&[f64]) -> Vec<f64>>,
-                &[h],
-                &[g],
-                &[1.0, 2.0],
-            )
+            .solve(f, None::<fn(&[f64]) -> Vec<f64>>, &[h], &[g], &[1.0, 2.0])
             .expect("solve failed");
 
         // Solution: on constraint x+y=3 with x<=2: x=2,y=1 -> f=0+1=1, or x=1.5,y=1.5->f=0.25+0.25=0.5

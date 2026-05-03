@@ -5,7 +5,7 @@
 
 use scirs2_core::ndarray::Array2;
 use scirs2_core::numeric::{Float, FromPrimitive};
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
@@ -215,7 +215,7 @@ where
                         rng.random_range(0..choices.len()) as f64
                     }
                     HyperParameter::Boolean => {
-                        if rng.random_range(0.0..1.0) < 0.5 {
+                        if rng.random_range::<f64, _>(0.0..1.0) < 0.5 {
                             1.0
                         } else {
                             0.0
@@ -374,17 +374,18 @@ where
                 let parent2 = self.tournament_selection(&population, &mut rng)?;
 
                 // Crossover
-                let (mut child1, mut child2) = if rng.random_range(0.0..1.0) < crossover_rate {
-                    self.crossover(&parent1, &parent2, search_space, &mut rng)?
-                } else {
-                    (parent1.clone(), parent2.clone())
-                };
+                let (mut child1, mut child2) =
+                    if rng.random_range::<f64, _>(0.0..1.0) < crossover_rate {
+                        self.crossover(&parent1, &parent2, search_space, &mut rng)?
+                    } else {
+                        (parent1.clone(), parent2.clone())
+                    };
 
                 // Mutation
-                if rng.random_range(0.0..1.0) < mutation_rate {
+                if rng.random_range::<f64, _>(0.0..1.0) < mutation_rate {
                     self.mutate(&mut child1, search_space, &mut rng)?;
                 }
-                if rng.random_range(0.0..1.0) < mutation_rate {
+                if rng.random_range::<f64, _>(0.0..1.0) < mutation_rate {
                     self.mutate(&mut child2, search_space, &mut rng)?;
                 }
 
@@ -447,7 +448,7 @@ where
             let val2 = parent2.get(param_name).copied().unwrap_or(0.0);
 
             // Uniform crossover
-            if rng.random_range(0.0..1.0) < 0.5 {
+            if rng.random_range::<f64, _>(0.0..1.0) < 0.5 {
                 child1.insert(param_name.clone(), val1);
                 child2.insert(param_name.clone(), val2);
             } else {
@@ -467,7 +468,7 @@ where
         rng: &mut scirs2_core::random::rngs::StdRng,
     ) -> Result<()> {
         for (param_name, param_spec) in &search_space.parameters {
-            if rng.random_range(0.0..1.0) < 0.1 {
+            if rng.random_range::<f64, _>(0.0..1.0) < 0.1 {
                 // 10% chance to mutate each parameter
                 let new_value = self.sample_parameter(param_spec, rng);
                 individual.insert(param_name.clone(), new_value);
@@ -477,13 +478,17 @@ where
     }
 
     /// Sample a value from a parameter specification
-    fn sample_parameter(&self, param_spec: &HyperParameter, rng: &mut scirs2_core::random::rngs::StdRng) -> f64 {
+    fn sample_parameter(
+        &self,
+        param_spec: &HyperParameter,
+        rng: &mut scirs2_core::random::rngs::StdRng,
+    ) -> f64 {
         match param_spec {
             HyperParameter::Integer { min, max } => rng.random_range(*min..=*max) as f64,
             HyperParameter::Float { min, max } => rng.random_range(*min..=*max),
             HyperParameter::Categorical { choices } => rng.random_range(0..choices.len()) as f64,
             HyperParameter::Boolean => {
-                if rng.random_range(0.0..1.0) < 0.5 {
+                if rng.random_range::<f64, _>(0.0..1.0) < 0.5 {
                     1.0
                 } else {
                     0.0
@@ -650,7 +655,7 @@ where
             AcquisitionFunction::ThompsonSampling => {
                 // Sample from posterior
                 let mut rng = scirs2_core::random::thread_rng();
-                let sample: f64 = rng.random_range(0.0..1.0);
+                let sample: f64 = rng.random_range::<f64, _>(0.0..1.0);
                 mean + std_dev * self.inverse_normal_cdf(sample)
             }
         }

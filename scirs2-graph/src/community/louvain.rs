@@ -18,7 +18,7 @@
 
 use std::collections::HashMap;
 
-use scirs2_core::random::{Rng, SeedableRng, StdRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng, StdRng};
 
 use crate::error::{GraphError, Result};
 
@@ -88,11 +88,7 @@ impl SparseAdj {
 /// * `edges`    – Weighted edge list `(src, dst, weight)`.
 /// * `n_nodes`  – Total number of nodes.
 /// * `communities` – Community assignment for each node.
-pub fn modularity(
-    edges: &[(usize, usize, f64)],
-    n_nodes: usize,
-    communities: &[usize],
-) -> f64 {
+pub fn modularity(edges: &[(usize, usize, f64)], n_nodes: usize, communities: &[usize]) -> f64 {
     if n_nodes == 0 || communities.len() != n_nodes {
         return 0.0;
     }
@@ -141,7 +137,9 @@ pub fn louvain(
     resolution: f64,
 ) -> Result<LouvainCommunity> {
     if n_nodes == 0 {
-        return Err(GraphError::InvalidGraph("louvain: n_nodes must be > 0".into()));
+        return Err(GraphError::InvalidGraph(
+            "louvain: n_nodes must be > 0".into(),
+        ));
     }
 
     // Use fixed seed for reproducibility
@@ -236,7 +234,7 @@ pub fn louvain(
 /// Single phase-1 pass. Returns `true` if any assignment changed.
 fn louvain_phase1(
     g: &SparseAdj,
-    assignments: &mut Vec<usize>,
+    assignments: &mut [usize],
     two_m: f64,
     resolution: f64,
     rng: &mut impl Rng,
@@ -288,10 +286,13 @@ fn louvain_phase1(
                 continue;
             }
             // Ensure sigma_tot is large enough
-            let sigma_c = if c < sigma_tot.len() { sigma_tot[c] } else { 0.0 };
-            let gain = k_i_in_c / two_m
-                - resolution * sigma_c * k_i / (two_m * two_m)
-                - remove_gain;
+            let sigma_c = if c < sigma_tot.len() {
+                sigma_tot[c]
+            } else {
+                0.0
+            };
+            let gain =
+                k_i_in_c / two_m - resolution * sigma_c * k_i / (two_m * two_m) - remove_gain;
             if gain > best_gain {
                 best_gain = gain;
                 best_comm = c;
@@ -343,7 +344,7 @@ fn aggregate_graph(
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Renumber community IDs to be contiguous `0..n_comms`.
-pub(crate) fn compact_communities(assignments: &mut Vec<usize>) {
+pub(crate) fn compact_communities(assignments: &mut [usize]) {
     let mut mapping: HashMap<usize, usize> = HashMap::new();
     let mut next_id = 0usize;
     for a in assignments.iter_mut() {
@@ -389,16 +390,28 @@ mod tests {
     fn test_louvain_two_cliques() {
         let (edges, n) = two_clique_edges(4);
         let result = louvain(&edges, n, 1.0).expect("louvain");
-        assert!(result.modularity > 0.0, "modularity should be positive: {}", result.modularity);
+        assert!(
+            result.modularity > 0.0,
+            "modularity should be positive: {}",
+            result.modularity
+        );
         assert_eq!(result.n_communities, 2, "should find 2 communities");
         // All nodes in clique 1 should have the same community
         let c0 = result.assignments[0];
         for i in 1..4 {
-            assert_eq!(result.assignments[i], c0, "clique1 node {} wrong community", i);
+            assert_eq!(
+                result.assignments[i], c0,
+                "clique1 node {} wrong community",
+                i
+            );
         }
         let c1 = result.assignments[4];
         for i in 5..8 {
-            assert_eq!(result.assignments[i], c1, "clique2 node {} wrong community", i);
+            assert_eq!(
+                result.assignments[i], c1,
+                "clique2 node {} wrong community",
+                i
+            );
         }
         assert_ne!(c0, c1, "the two cliques must be in different communities");
     }
@@ -408,7 +421,10 @@ mod tests {
         let (edges, n) = two_clique_edges(3);
         let assignments: Vec<usize> = (0..6).map(|i| if i < 3 { 0 } else { 1 }).collect();
         let q = modularity(&edges, n, &assignments);
-        assert!(q > 0.0, "modularity for perfect partition should be positive: {q}");
+        assert!(
+            q > 0.0,
+            "modularity for perfect partition should be positive: {q}"
+        );
     }
 
     #[test]
@@ -418,16 +434,17 @@ mod tests {
 
     #[test]
     fn test_louvain_no_edges() {
-        // Isolated nodes: each forms its own community
-        let result = louvain(&[], 5, 1.0).unwrap_err();
-        let _ = result; // already checked is_err above
-        let result2 = louvain(&[], 5, 1.0);
-        assert!(result2.is_err()); // n_nodes=5 but we return error for n_nodes==0 only
-        let result3 = louvain(&[], 3, 1.0);
-        // Actually n_nodes=3 > 0 so we should get a valid result with 0 edges
-        // Wait - n_nodes=3 passes the check. Let's re-check:
-        // The function returns error only for n_nodes == 0
-        drop(result3);
+        // Isolated nodes (n_nodes > 0, no edges): each node forms its own community.
+        // The function returns Ok (error only for n_nodes == 0).
+        let result = louvain(&[], 5, 1.0).expect("isolated nodes should succeed");
+        assert_eq!(
+            result.n_communities, 5,
+            "each isolated node is its own community"
+        );
+        assert_eq!(result.modularity, 0.0, "no edges → zero modularity");
+        // Each assignment index should be distinct
+        let unique: std::collections::HashSet<usize> = result.assignments.iter().cloned().collect();
+        assert_eq!(unique.len(), 5, "all nodes have distinct community IDs");
     }
 
     #[test]

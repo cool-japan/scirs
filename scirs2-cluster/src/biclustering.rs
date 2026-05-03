@@ -58,18 +58,14 @@ impl Bicluster {
         let row_means: Vec<f64> = self
             .rows
             .iter()
-            .map(|&r| {
-                self.cols.iter().map(|&c| x[[r, c]]).sum::<f64>() / n_c
-            })
+            .map(|&r| self.cols.iter().map(|&c| x[[r, c]]).sum::<f64>() / n_c)
             .collect();
 
         // Col means within bicluster.
         let col_means: Vec<f64> = self
             .cols
             .iter()
-            .map(|&c| {
-                self.rows.iter().map(|&r| x[[r, c]]).sum::<f64>() / n_r
-            })
+            .map(|&c| self.rows.iter().map(|&r| x[[r, c]]).sum::<f64>() / n_r)
             .collect();
 
         let mut total = 0.0f64;
@@ -136,7 +132,9 @@ impl SpectralBiclustering {
             return Err(ClusteringError::InvalidInput("Empty input matrix".into()));
         }
         if n_clusters == 0 {
-            return Err(ClusteringError::InvalidInput("n_clusters must be > 0".into()));
+            return Err(ClusteringError::InvalidInput(
+                "n_clusters must be > 0".into(),
+            ));
         }
         if n_clusters > n_rows || n_clusters > n_cols {
             return Err(ClusteringError::InvalidInput(format!(
@@ -147,7 +145,11 @@ impl SpectralBiclustering {
 
         // Step 1: Log-normalise (shift to positive range first).
         let min_val = x.iter().cloned().fold(f64::INFINITY, f64::min);
-        let shift = if min_val <= 0.0 { (-min_val) + 1.0 } else { 0.0 };
+        let shift = if min_val <= 0.0 {
+            (-min_val) + 1.0
+        } else {
+            0.0
+        };
         let mut norm = x.to_owned();
         norm.mapv_inplace(|v| (v + shift).max(1e-12).ln());
 
@@ -178,8 +180,10 @@ impl SpectralBiclustering {
         let col_features = vt.t().to_owned(); // (n_cols, n_components)
 
         let mut rng = self.seed;
-        let row_labels = kmeans_1d_labels(row_features.view(), n_clusters, self.km_max_iter, &mut rng)?;
-        let col_labels = kmeans_1d_labels(col_features.view(), n_clusters, self.km_max_iter, &mut rng)?;
+        let row_labels =
+            kmeans_1d_labels(row_features.view(), n_clusters, self.km_max_iter, &mut rng)?;
+        let col_labels =
+            kmeans_1d_labels(col_features.view(), n_clusters, self.km_max_iter, &mut rng)?;
 
         // Step 6: Build biclusters.
         let mut biclusters: Vec<Bicluster> = (0..n_clusters)
@@ -244,18 +248,15 @@ impl ChengChurch {
     /// * `x` – Data matrix.
     /// * `n_clusters` – Maximum number of biclusters.
     /// * `delta` – MSR threshold; lower means tighter/smaller biclusters.
-    pub fn fit(
-        &self,
-        x: ArrayView2<f64>,
-        n_clusters: usize,
-        delta: f64,
-    ) -> Result<Vec<Bicluster>> {
+    pub fn fit(&self, x: ArrayView2<f64>, n_clusters: usize, delta: f64) -> Result<Vec<Bicluster>> {
         let (n_rows, n_cols) = (x.shape()[0], x.shape()[1]);
         if n_rows == 0 || n_cols == 0 {
             return Err(ClusteringError::InvalidInput("Empty input matrix".into()));
         }
         if n_clusters == 0 {
-            return Err(ClusteringError::InvalidInput("n_clusters must be > 0".into()));
+            return Err(ClusteringError::InvalidInput(
+                "n_clusters must be > 0".into(),
+            ));
         }
         if delta < 0.0 {
             return Err(ClusteringError::InvalidInput("delta must be >= 0".into()));
@@ -407,7 +408,11 @@ fn compute_msr(
     x: ArrayView2<f64>,
     rows: &HashSet<usize>,
     cols: &HashSet<usize>,
-) -> (f64, std::collections::HashMap<usize, f64>, std::collections::HashMap<usize, f64>) {
+) -> (
+    f64,
+    std::collections::HashMap<usize, f64>,
+    std::collections::HashMap<usize, f64>,
+) {
     let n_r = rows.len() as f64;
     let n_c = cols.len() as f64;
     if n_r == 0.0 || n_c == 0.0 {
@@ -443,10 +448,12 @@ fn compute_msr(
     let total: f64 = rows
         .iter()
         .flat_map(|&r| {
-            cols.iter().map(|&c| {
-                let res = x[[r, c]] - row_means[&r] - col_means[&c] + x_mean;
-                res * res
-            }).collect::<Vec<_>>()
+            cols.iter()
+                .map(|&c| {
+                    let res = x[[r, c]] - row_means[&r] - col_means[&c] + x_mean;
+                    res * res
+                })
+                .collect::<Vec<_>>()
         })
         .sum::<f64>()
         / (n_r * n_c);
@@ -624,8 +631,8 @@ impl PLAID {
 
         for _bfit in 0..self.backfit_iter {
             // Update μ: mean of active cells minus row/col effects.
-            let active_count = row_mem.iter().filter(|&&v| v).count()
-                * col_mem.iter().filter(|&&v| v).count();
+            let active_count =
+                row_mem.iter().filter(|&&v| v).count() * col_mem.iter().filter(|&&v| v).count();
             if active_count == 0 {
                 break;
             }
@@ -888,11 +895,7 @@ fn gram_schmidt(a: ArrayView2<f64>) -> Result<Array2<f64>> {
 }
 
 /// Power iteration to find top-k eigenvectors/values of a symmetric matrix.
-fn power_iter_eig(
-    a: ArrayView2<f64>,
-    k: usize,
-    seed: u64,
-) -> Result<(Array2<f64>, Array1<f64>)> {
+fn power_iter_eig(a: ArrayView2<f64>, k: usize, seed: u64) -> Result<(Array2<f64>, Array1<f64>)> {
     let n = a.shape()[0];
     let k = k.min(n);
     let mut rng = seed;
@@ -918,9 +921,7 @@ fn power_iter_eig(
             }
             // Orthogonalise against already-found vectors.
             for prev in 0..col {
-                let dot: f64 = (0..n)
-                    .map(|i| av[i] * eigvecs[[i, prev]])
-                    .sum();
+                let dot: f64 = (0..n).map(|i| av[i] * eigvecs[[i, prev]]).sum();
                 for i in 0..n {
                     av[i] -= dot * eigvecs[[i, prev]];
                 }
@@ -1159,7 +1160,10 @@ mod tests {
             residue: 0.0,
         };
         let msr = bc.msr(x.view());
-        assert!(msr.abs() < 1e-10, "constant matrix MSR should be 0, got {msr}");
+        assert!(
+            msr.abs() < 1e-10,
+            "constant matrix MSR should be 0, got {msr}"
+        );
     }
 
     #[test]

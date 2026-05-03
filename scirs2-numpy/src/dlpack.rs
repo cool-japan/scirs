@@ -365,6 +365,12 @@ pub enum DlpackError {
     /// The tensor's data pointer is null.
     #[error("null data pointer")]
     NullPointer,
+
+    /// The tensor has non-contiguous (strided) memory layout.
+    ///
+    /// The consumer requires a C-order (row-major) contiguous layout.
+    #[error("non-contiguous tensor: strides do not match C-order layout")]
+    NonContiguous,
 }
 
 /// Validate a [`DLTensor`] and extract structured metadata.
@@ -381,6 +387,21 @@ pub enum DlpackError {
 ///
 /// `tensor.shape` must point to at least `tensor.ndim` valid `i64` values.
 /// The caller must ensure the tensor is not concurrently mutated.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_numpy::dlpack::{dlpack_from_slice, validate_dlpack_tensor, DLDataTypeCode};
+///
+/// let data = vec![1.0_f64, 2.0, 3.0];
+/// let shape = vec![3_i64];
+/// let tensor = dlpack_from_slice(&data, &shape);
+///
+/// let info = validate_dlpack_tensor(&tensor).unwrap();
+/// assert_eq!(info.shape, vec![3_i64]);
+/// assert_eq!(info.dtype_bits, 64);
+/// assert_eq!(info.dtype_code, DLDataTypeCode::Float);
+/// ```
 pub fn validate_dlpack_tensor(tensor: &DLTensor) -> Result<DLTensorInfo, DlpackError> {
     // 1. Null-pointer guard.
     if tensor.data.is_null() {
@@ -424,6 +445,21 @@ pub fn validate_dlpack_tensor(tensor: &DLTensor) -> Result<DLTensorInfo, DlpackE
 ///
 /// The returned struct does **not** own the memory it points at; no destructor
 /// is called for `data` or `shape` when the `DLTensor` is dropped.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_numpy::dlpack::{dlpack_from_slice, DLDeviceType, DLDataTypeCode};
+///
+/// let data = vec![1.0_f64, 2.0, 3.0, 4.0];
+/// let shape = vec![2_i64, 2];
+/// let tensor = dlpack_from_slice(&data, &shape);
+///
+/// assert_eq!(tensor.ndim, 2);
+/// assert_eq!(tensor.dtype.bits, 64);
+/// assert_eq!(tensor.device.device_type, DLDeviceType::Cpu as i32);
+/// assert!(!tensor.data.is_null());
+/// ```
 pub fn dlpack_from_slice(data: &[f64], shape: &[i64]) -> DLTensor {
     DLTensor {
         // SAFETY: We cast a shared reference to a mut-pointer to satisfy the
@@ -461,6 +497,20 @@ pub fn dlpack_from_slice(data: &[f64], shape: &[i64]) -> DLTensor {
 /// `tensor.data` must point to at least `product(tensor.shape) * 8` valid
 /// bytes of `f64` values in native byte order.  Caller must ensure the tensor
 /// is valid for the duration of this call.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_numpy::dlpack::{dlpack_from_slice, dlpack_to_vec_f64};
+///
+/// let original = vec![1.0_f64, 2.0, 3.0];
+/// let shape = vec![3_i64];
+/// let tensor = dlpack_from_slice(&original, &shape);
+///
+/// // tensor borrows `original` and `shape`; both are live here.
+/// let recovered = dlpack_to_vec_f64(&tensor).unwrap();
+/// assert_eq!(recovered, original);
+/// ```
 pub fn dlpack_to_vec_f64(tensor: &DLTensor) -> Result<Vec<f64>, DlpackError> {
     // Guard: non-null data.
     if tensor.data.is_null() {
@@ -517,6 +567,367 @@ fn decode_device_type(raw: i32) -> DLDeviceType {
         8 => DLDeviceType::Metal,
         10 => DLDeviceType::Rocm,
         _ => DLDeviceType::Cpu, // conservative fallback
+    }
+}
+
+// ─── PyTorch & JAX interoperability ──────────────────────────────────────────
+
+/// Device type constant for JAX TPU tensors.
+///
+/// Note: The canonical DLPack spec (DMLC) assigns code 13 to `kDLCUDAManaged`.
+/// JAX may use device code 13 for TPU in practice via extension; this constant
+/// reflects the code used by JAX's DLPack implementation.
+pub const DL_DEVICE_TYPE_TPU: i32 = 13;
+
+/// Known device types as reported by JAX DLPack tensors.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum JaxDeviceType {
+    /// Standard host CPU (DLPack device type 1).
+    Cpu,
+    /// TPU accelerator (JAX extension, code 13).
+    Tpu,
+    /// CUDA GPU (device type 2).
+    Gpu,
+}
+
+/// Check that a [`DLTensor`]'s strides represent a C-order (row-major) contiguous layout.
+///
+/// A tensor is contiguous if its `strides` pointer is null (which is the DLPack
+/// convention for C-contiguous tensors) or if the non-null strides match the
+/// row-major pattern: `strides[i] == product(shape[i+1..])`.
+///
+/// Returns `Ok(())` when contiguous, `Err(DlpackError::NonContiguous)` otherwise.
+///
+/// # Safety
+///
+/// When `tensor.strides` is non-null, it must be valid for `tensor.ndim` elements.
+/// When `tensor.shape` is non-null, it must be valid for `tensor.ndim` elements.
+pub fn check_tensor_contiguous(tensor: &DLTensor) -> Result<(), DlpackError> {
+    // Null strides = C-contiguous by DLPack convention.
+    if tensor.strides.is_null() {
+        return Ok(());
+    }
+    // Zero-dimensional tensors are trivially contiguous.
+    if tensor.ndim <= 0 || tensor.shape.is_null() {
+        return Ok(());
+    }
+    let ndim = tensor.ndim as usize;
+    // SAFETY: Both pointers are non-null and valid for ndim elements (caller contract).
+    let shape = unsafe { std::slice::from_raw_parts(tensor.shape as *const i64, ndim) };
+    let strides = unsafe { std::slice::from_raw_parts(tensor.strides as *const i64, ndim) };
+
+    // Compute expected C-order strides: last dim = 1, each preceding = product of later dims.
+    let mut expected = 1_i64;
+    for i in (0..ndim).rev() {
+        if strides[i] != expected {
+            return Err(DlpackError::NonContiguous);
+        }
+        expected *= shape[i];
+    }
+    Ok(())
+}
+
+/// Validate that a [`DLTensor`] is compatible with PyTorch DLPack interop.
+///
+/// Checks:
+/// - `data` pointer is non-null,
+/// - device type is CPU (`DLDeviceType::Cpu`),
+/// - memory layout is C-order contiguous (null strides or row-major strides),
+/// - dtype code is float (code 2),
+/// - dtype bits are either 32 or 64.
+///
+/// Returns `Ok(())` on success, or a [`DlpackError`] describing the first
+/// unsatisfied constraint.
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_numpy::dlpack::{dlpack_from_slice, validate_torch_dlpack_tensor};
+///
+/// let data = vec![1.0_f64, 2.0, 3.0];
+/// let shape = vec![3_i64];
+/// let tensor = dlpack_from_slice(&data, &shape);
+/// assert!(validate_torch_dlpack_tensor(&tensor).is_ok());
+/// ```
+pub fn validate_torch_dlpack_tensor(tensor: &DLTensor) -> Result<(), DlpackError> {
+    // 1. Null pointer check.
+    if tensor.data.is_null() {
+        return Err(DlpackError::NullPointer);
+    }
+    // 2. CPU device required.
+    if tensor.device.device_type != DLDeviceType::Cpu as i32 {
+        return Err(DlpackError::NonCpuDevice);
+    }
+    // 3. Contiguous memory layout required.
+    check_tensor_contiguous(tensor)?;
+    // 4. Float dtype required (code 2), 32- or 64-bit.
+    if tensor.dtype.code != DLDataTypeCode::Float as u8
+        || (tensor.dtype.bits != 32 && tensor.dtype.bits != 64)
+    {
+        return Err(DlpackError::UnsupportedDtype {
+            code: tensor.dtype.code,
+            bits: tensor.dtype.bits,
+        });
+    }
+    Ok(())
+}
+
+/// Convert a raw `DLTensor` pointer (from a PyTorch DLPack capsule) to an
+/// `ndarray` dynamic array view of `f32` elements.
+///
+/// # Safety
+///
+/// The caller must guarantee that:
+/// - `tensor` is a valid, aligned, non-null pointer to a `DLTensor`.
+/// - The tensor's `data` field points to at least `product(shape) * 4` valid
+///   bytes of `f32` values in native byte order.
+/// - The tensor (and its data) remains live and unmodified for the lifetime
+///   of the returned view `'a`.
+///
+/// # Errors
+///
+/// Returns [`DlpackError`] if the tensor is not a 32-bit float CPU tensor.
+pub unsafe fn dlarray_from_torch_f32<'a>(
+    tensor: *const DLTensor,
+) -> Result<ndarray::ArrayViewD<'a, f32>, DlpackError> {
+    // SAFETY: caller guarantees tensor is valid and non-null.
+    let t = unsafe { &*tensor };
+    validate_torch_dlpack_tensor(t)?;
+    // Must be f32 (32 bits).
+    if t.dtype.bits != 32 {
+        return Err(DlpackError::UnsupportedDtype {
+            code: t.dtype.code,
+            bits: t.dtype.bits,
+        });
+    }
+    // Build shape vector.
+    let shape = build_shape_vec(t);
+    // Compute element count.
+    let n_elems: usize = shape.iter().product();
+    // SAFETY: data is valid, non-null, aligned, and lives for 'a (caller contract).
+    let base = unsafe { (t.data as *const u8).add(t.byte_offset as usize) as *const f32 };
+    let slice = unsafe { std::slice::from_raw_parts(base, n_elems) };
+    ndarray::ArrayViewD::from_shape(shape.as_slice(), slice).map_err(|_| {
+        DlpackError::UnsupportedDtype {
+            code: t.dtype.code,
+            bits: t.dtype.bits,
+        }
+    })
+}
+
+/// Convert a raw `DLTensor` pointer (from a PyTorch DLPack capsule) to an
+/// `ndarray` dynamic array view of `f64` elements.
+///
+/// # Safety
+///
+/// Same invariants as [`dlarray_from_torch_f32`], but the data must be 64-bit
+/// floating-point (`f64`).
+///
+/// # Errors
+///
+/// Returns [`DlpackError`] if the tensor is not a 64-bit float CPU tensor.
+pub unsafe fn dlarray_from_torch_f64<'a>(
+    tensor: *const DLTensor,
+) -> Result<ndarray::ArrayViewD<'a, f64>, DlpackError> {
+    // SAFETY: caller guarantees tensor is valid and non-null.
+    let t = unsafe { &*tensor };
+    validate_torch_dlpack_tensor(t)?;
+    // Must be f64 (64 bits).
+    if t.dtype.bits != 64 {
+        return Err(DlpackError::UnsupportedDtype {
+            code: t.dtype.code,
+            bits: t.dtype.bits,
+        });
+    }
+    // Build shape vector.
+    let shape = build_shape_vec(t);
+    // Compute element count.
+    let n_elems: usize = shape.iter().product();
+    // SAFETY: data is valid, non-null, aligned, and lives for 'a (caller contract).
+    let base = unsafe { (t.data as *const u8).add(t.byte_offset as usize) as *const f64 };
+    let slice = unsafe { std::slice::from_raw_parts(base, n_elems) };
+    ndarray::ArrayViewD::from_shape(shape.as_slice(), slice).map_err(|_| {
+        DlpackError::UnsupportedDtype {
+            code: t.dtype.code,
+            bits: t.dtype.bits,
+        }
+    })
+}
+
+/// Validate that a [`DLTensor`] is compatible with JAX DLPack interop.
+///
+/// JAX supports CPU, GPU (CUDA), and TPU tensors. Unlike the PyTorch validator
+/// this function accepts non-CPU devices; use [`jax_device_type`] afterwards to
+/// inspect which device the tensor lives on.
+///
+/// Returns `Ok(())` if the tensor has a non-null data pointer and a recognised
+/// float dtype (32- or 64-bit).
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_numpy::dlpack::{dlpack_from_slice, validate_jax_dlpack_tensor};
+///
+/// let data = vec![1.0_f32, 2.0, 3.0];
+/// let shape = vec![3_i64];
+/// // Build a float-32 CPU tensor for testing.
+/// let mut tensor = dlpack_from_slice(
+///     &[1.0_f64, 2.0, 3.0],
+///     &[3_i64],
+/// );
+/// // Adjust to f32
+/// tensor.dtype.bits = 32;
+/// tensor.data = data.as_ptr() as *mut std::ffi::c_void;
+/// assert!(validate_jax_dlpack_tensor(&tensor).is_ok());
+/// ```
+pub fn validate_jax_dlpack_tensor(tensor: &DLTensor) -> Result<(), DlpackError> {
+    // 1. Null pointer check.
+    if tensor.data.is_null() {
+        return Err(DlpackError::NullPointer);
+    }
+    // 2. Float dtype required (code 2), 32- or 64-bit.
+    if tensor.dtype.code != DLDataTypeCode::Float as u8
+        || (tensor.dtype.bits != 32 && tensor.dtype.bits != 64)
+    {
+        return Err(DlpackError::UnsupportedDtype {
+            code: tensor.dtype.code,
+            bits: tensor.dtype.bits,
+        });
+    }
+    Ok(())
+}
+
+/// Classify the device reported by a [`DLTensor`] as a [`JaxDeviceType`].
+///
+/// Returns `Some(JaxDeviceType)` for recognised JAX device codes, or `None`
+/// for unrecognised codes.
+///
+/// | Code | Device |
+/// |------|--------|
+/// | 1    | CPU    |
+/// | 2    | GPU (CUDA) |
+/// | 13   | TPU (JAX extension) |
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_numpy::dlpack::{dlpack_from_slice, jax_device_type, JaxDeviceType};
+///
+/// let data = vec![0.0_f64; 4];
+/// let shape = vec![4_i64];
+/// let tensor = dlpack_from_slice(&data, &shape);
+/// assert_eq!(jax_device_type(&tensor), Some(JaxDeviceType::Cpu));
+/// ```
+pub fn jax_device_type(tensor: &DLTensor) -> Option<JaxDeviceType> {
+    match tensor.device.device_type {
+        1 => Some(JaxDeviceType::Cpu),
+        2 => Some(JaxDeviceType::Gpu),
+        DL_DEVICE_TYPE_TPU => Some(JaxDeviceType::Tpu),
+        _ => None,
+    }
+}
+
+/// Generic DLPack array construction — accepts `f32` tensors from any framework.
+///
+/// Builds an `ndarray` view backed by the tensor's data pointer.  Only CPU
+/// tensors are supported; non-CPU tensors return [`DlpackError::NonCpuDevice`].
+///
+/// # Safety
+///
+/// The caller must guarantee that:
+/// - `tensor` is a valid, aligned, non-null pointer to a `DLTensor`.
+/// - The tensor's `data` field points to at least `product(shape) * 4` bytes of
+///   valid `f32` values in native byte order.
+/// - The tensor remains live and unmodified for the lifetime of the returned
+///   view `'a`.
+///
+/// # Errors
+///
+/// Returns [`DlpackError`] if the tensor is not CPU-resident or not `f32`.
+pub unsafe fn array_from_dlpack_f32<'a>(
+    tensor: *const DLTensor,
+) -> Result<ndarray::ArrayViewD<'a, f32>, DlpackError> {
+    // SAFETY: caller guarantees tensor is valid and non-null.
+    let t = unsafe { &*tensor };
+    if t.data.is_null() {
+        return Err(DlpackError::NullPointer);
+    }
+    if t.device.device_type != DLDeviceType::Cpu as i32 {
+        return Err(DlpackError::NonCpuDevice);
+    }
+    if t.dtype.code != DLDataTypeCode::Float as u8 || t.dtype.bits != 32 {
+        return Err(DlpackError::UnsupportedDtype {
+            code: t.dtype.code,
+            bits: t.dtype.bits,
+        });
+    }
+    let shape = build_shape_vec(t);
+    let n_elems: usize = shape.iter().product();
+    let base = unsafe { (t.data as *const u8).add(t.byte_offset as usize) as *const f32 };
+    let slice = unsafe { std::slice::from_raw_parts(base, n_elems) };
+    ndarray::ArrayViewD::from_shape(shape.as_slice(), slice).map_err(|_| {
+        DlpackError::UnsupportedDtype {
+            code: t.dtype.code,
+            bits: t.dtype.bits,
+        }
+    })
+}
+
+/// Generic DLPack array construction — accepts `f64` tensors from any framework.
+///
+/// Same as [`array_from_dlpack_f32`] but for 64-bit float tensors.
+///
+/// # Safety
+///
+/// Same invariants as [`array_from_dlpack_f32`], but data must be `f64`.
+///
+/// # Errors
+///
+/// Returns [`DlpackError`] if the tensor is not CPU-resident or not `f64`.
+pub unsafe fn array_from_dlpack_f64<'a>(
+    tensor: *const DLTensor,
+) -> Result<ndarray::ArrayViewD<'a, f64>, DlpackError> {
+    // SAFETY: caller guarantees tensor is valid and non-null.
+    let t = unsafe { &*tensor };
+    if t.data.is_null() {
+        return Err(DlpackError::NullPointer);
+    }
+    if t.device.device_type != DLDeviceType::Cpu as i32 {
+        return Err(DlpackError::NonCpuDevice);
+    }
+    if t.dtype.code != DLDataTypeCode::Float as u8 || t.dtype.bits != 64 {
+        return Err(DlpackError::UnsupportedDtype {
+            code: t.dtype.code,
+            bits: t.dtype.bits,
+        });
+    }
+    let shape = build_shape_vec(t);
+    let n_elems: usize = shape.iter().product();
+    let base = unsafe { (t.data as *const u8).add(t.byte_offset as usize) as *const f64 };
+    let slice = unsafe { std::slice::from_raw_parts(base, n_elems) };
+    ndarray::ArrayViewD::from_shape(shape.as_slice(), slice).map_err(|_| {
+        DlpackError::UnsupportedDtype {
+            code: t.dtype.code,
+            bits: t.dtype.bits,
+        }
+    })
+}
+
+/// Build a shape `Vec<usize>` from the `ndim` / `shape` fields of a [`DLTensor`].
+///
+/// Returns an empty vector for zero-dimensional tensors.
+///
+/// # Safety
+///
+/// `tensor.shape` must be valid for `tensor.ndim` elements.
+fn build_shape_vec(tensor: &DLTensor) -> Vec<usize> {
+    if tensor.ndim <= 0 || tensor.shape.is_null() {
+        Vec::new()
+    } else {
+        // SAFETY: shape ptr is valid for ndim elements (caller contract).
+        let raw =
+            unsafe { std::slice::from_raw_parts(tensor.shape as *const i64, tensor.ndim as usize) };
+        raw.iter().map(|&d| d as usize).collect()
     }
 }
 
@@ -669,5 +1080,214 @@ mod tests {
             DLDataTypeCode::BFloat
         );
         assert!(DLDataTypeCode::try_from(99u8).is_err());
+    }
+
+    // ─── Item 1: PyTorch tensor interop tests ────────────────────────────────
+
+    #[test]
+    fn dlpack_device_type_cpu_is_1() {
+        assert_eq!(DLDeviceType::Cpu as i32, 1);
+    }
+
+    #[test]
+    fn dlpack_dtype_float32_code_is_2() {
+        // DLPack spec: kDLFloat = 2
+        assert_eq!(DLDataTypeCode::Float as u8, 2);
+    }
+
+    #[test]
+    fn dlpack_validate_non_contiguous_fails() {
+        // Build a 2-D tensor with non-row-major strides to simulate a transposed
+        // PyTorch tensor.  Shape = [2, 3], but strides = [1, 2] (column-major).
+        let data = [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let shape = [2_i64, 3];
+        // Column-major strides (Fortran order): stride[0]=1, stride[1]=2
+        let strides = [1_i64, 2];
+        let tensor = DLTensor {
+            data: data.as_ptr() as *mut c_void,
+            device: DLDevice {
+                device_type: DLDeviceType::Cpu as i32,
+                device_id: 0,
+            },
+            ndim: 2,
+            dtype: DLDataType {
+                code: DLDataTypeCode::Float as u8,
+                bits: 32,
+                lanes: 1,
+            },
+            shape: shape.as_ptr() as *mut i64,
+            strides: strides.as_ptr() as *mut i64,
+            byte_offset: 0,
+        };
+        assert!(
+            matches!(
+                validate_torch_dlpack_tensor(&tensor),
+                Err(DlpackError::NonContiguous)
+            ),
+            "expected NonContiguous error for column-major strides"
+        );
+    }
+
+    #[test]
+    fn dlpack_validate_2d_float_tensor_passes() {
+        let data = [1.0_f32, 2.0, 3.0, 4.0, 5.0, 6.0];
+        let shape = [2_i64, 3];
+        let tensor = DLTensor {
+            data: data.as_ptr() as *mut c_void,
+            device: DLDevice {
+                device_type: DLDeviceType::Cpu as i32,
+                device_id: 0,
+            },
+            ndim: 2,
+            dtype: DLDataType {
+                code: DLDataTypeCode::Float as u8,
+                bits: 32,
+                lanes: 1,
+            },
+            shape: shape.as_ptr() as *mut i64,
+            strides: std::ptr::null_mut(),
+            byte_offset: 0,
+        };
+        assert!(validate_torch_dlpack_tensor(&tensor).is_ok());
+    }
+
+    #[test]
+    fn dlpack_validate_non_cpu_tensor_fails() {
+        let data = [1.0_f32; 4];
+        let shape = [4_i64];
+        let tensor = DLTensor {
+            data: data.as_ptr() as *mut c_void,
+            device: DLDevice {
+                device_type: DLDeviceType::Cuda as i32,
+                device_id: 0,
+            },
+            ndim: 1,
+            dtype: DLDataType {
+                code: DLDataTypeCode::Float as u8,
+                bits: 32,
+                lanes: 1,
+            },
+            shape: shape.as_ptr() as *mut i64,
+            strides: std::ptr::null_mut(),
+            byte_offset: 0,
+        };
+        assert!(matches!(
+            validate_torch_dlpack_tensor(&tensor),
+            Err(DlpackError::NonCpuDevice)
+        ));
+    }
+
+    #[test]
+    fn dlarray_from_torch_f32_round_trip() {
+        let data = [1.0_f32, 2.0, 3.0, 4.0];
+        let shape = [2_i64, 2];
+        let tensor = DLTensor {
+            data: data.as_ptr() as *mut c_void,
+            device: DLDevice {
+                device_type: DLDeviceType::Cpu as i32,
+                device_id: 0,
+            },
+            ndim: 2,
+            dtype: DLDataType {
+                code: DLDataTypeCode::Float as u8,
+                bits: 32,
+                lanes: 1,
+            },
+            shape: shape.as_ptr() as *mut i64,
+            strides: std::ptr::null_mut(),
+            byte_offset: 0,
+        };
+        // SAFETY: tensor is valid, data and shape are alive.
+        let view = unsafe { dlarray_from_torch_f32(&tensor as *const DLTensor) }
+            .expect("dlarray_from_torch_f32 failed");
+        assert_eq!(view.shape(), &[2, 2]);
+        assert_eq!(view[[0, 0]], 1.0_f32);
+        assert_eq!(view[[1, 1]], 4.0_f32);
+    }
+
+    #[test]
+    fn dlarray_from_torch_f64_round_trip() {
+        let data = [10.0_f64, 20.0, 30.0];
+        let shape = [3_i64];
+        let tensor = DLTensor {
+            data: data.as_ptr() as *mut c_void,
+            device: DLDevice {
+                device_type: DLDeviceType::Cpu as i32,
+                device_id: 0,
+            },
+            ndim: 1,
+            dtype: DLDataType {
+                code: DLDataTypeCode::Float as u8,
+                bits: 64,
+                lanes: 1,
+            },
+            shape: shape.as_ptr() as *mut i64,
+            strides: std::ptr::null_mut(),
+            byte_offset: 0,
+        };
+        // SAFETY: tensor is valid, data and shape are alive.
+        let view = unsafe { dlarray_from_torch_f64(&tensor as *const DLTensor) }
+            .expect("dlarray_from_torch_f64 failed");
+        assert_eq!(view.shape(), &[3]);
+        assert_eq!(view[2], 30.0_f64);
+    }
+
+    // ─── Item 2: JAX array interop tests ─────────────────────────────────────
+
+    #[test]
+    fn dlpack_jax_cpu_tensor_valid() {
+        let data = [1.0_f64, 2.0, 3.0];
+        let shape = [3_i64];
+        let tensor = dlpack_from_slice(&data, &shape);
+        assert!(validate_jax_dlpack_tensor(&tensor).is_ok());
+        assert_eq!(jax_device_type(&tensor), Some(JaxDeviceType::Cpu));
+    }
+
+    #[test]
+    fn dlpack_jax_tpu_device_recognized() {
+        let data = [1.0_f64];
+        let shape = [1_i64];
+        let mut tensor = dlpack_from_slice(&data, &shape);
+        tensor.device.device_type = DL_DEVICE_TYPE_TPU;
+        // JAX validator does not require CPU — only float dtype.
+        assert!(validate_jax_dlpack_tensor(&tensor).is_ok());
+        assert_eq!(jax_device_type(&tensor), Some(JaxDeviceType::Tpu));
+    }
+
+    #[test]
+    fn dlpack_generic_from_dlpack_handles_both_torch_and_jax() {
+        // f32 torch-style tensor
+        let data_f32 = [0.5_f32, 1.5, 2.5, 3.5];
+        let shape = [2_i64, 2];
+        let tensor_f32 = DLTensor {
+            data: data_f32.as_ptr() as *mut c_void,
+            device: DLDevice {
+                device_type: DLDeviceType::Cpu as i32,
+                device_id: 0,
+            },
+            ndim: 2,
+            dtype: DLDataType {
+                code: DLDataTypeCode::Float as u8,
+                bits: 32,
+                lanes: 1,
+            },
+            shape: shape.as_ptr() as *mut i64,
+            strides: std::ptr::null_mut(),
+            byte_offset: 0,
+        };
+        // SAFETY: tensor_f32 is valid; data_f32 and shape are alive.
+        let view_f32 = unsafe { array_from_dlpack_f32(&tensor_f32 as *const DLTensor) }
+            .expect("array_from_dlpack_f32 failed");
+        assert_eq!(view_f32.shape(), &[2, 2]);
+
+        // f64 jax-style tensor (same CPU device)
+        let data_f64 = [1.0_f64, 2.0, 3.0, 4.0];
+        let shape_f64 = [4_i64];
+        let tensor_f64 = dlpack_from_slice(&data_f64, &shape_f64);
+        // SAFETY: tensor_f64 is valid; data_f64 and shape_f64 are alive.
+        let view_f64 = unsafe { array_from_dlpack_f64(&tensor_f64 as *const DLTensor) }
+            .expect("array_from_dlpack_f64 failed");
+        assert_eq!(view_f64.shape(), &[4]);
+        assert_eq!(view_f64[3], 4.0_f64);
     }
 }

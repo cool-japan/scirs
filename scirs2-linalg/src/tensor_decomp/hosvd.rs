@@ -135,11 +135,7 @@ pub fn hosvd_truncated(x: &Tensor3D, ranks: [usize; 3]) -> LinalgResult<HOSVDDec
     let g = mode_n_product(&g2, &u2t, 2)?;
 
     let u_arr = [us.remove(0), us.remove(0), us.remove(0)];
-    Ok(HOSVDDecomp {
-        g,
-        u: u_arr,
-        ranks,
-    })
+    Ok(HOSVDDecomp { g, u: u_arr, ranks })
 }
 
 // ---------------------------------------------------------------------------
@@ -258,8 +254,7 @@ mod tests {
         let data: Vec<f64> = (0..3_usize)
             .flat_map(|i| {
                 (0..4_usize).flat_map(move |j| {
-                    (0..5_usize)
-                        .map(move |k| ((i + 1) * (j + 1)) as f64 + k as f64)
+                    (0..5_usize).map(move |k| ((i + 1) * (j + 1)) as f64 + k as f64)
                 })
             })
             .collect();
@@ -322,11 +317,8 @@ mod tests {
 
     #[test]
     fn test_hooi_full_rank_lossless() {
-        let t = Tensor3D::new(
-            (0..27_usize).map(|x| x as f64 + 1.0).collect(),
-            [3, 3, 3],
-        )
-        .expect("ok");
+        let t =
+            Tensor3D::new((0..27_usize).map(|x| x as f64 + 1.0).collect(), [3, 3, 3]).expect("ok");
         let d = hooi(&t, [3, 3, 3], 10, 1e-12).expect("ok");
         let err = d.relative_error(&t).expect("err");
         assert!(err < 1e-7, "full-rank HOOI error {err:.2e}");

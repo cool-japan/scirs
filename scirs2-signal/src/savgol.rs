@@ -420,6 +420,36 @@ where
     dp
 }
 
+/// Differentiate a polynomial whose coefficients are given in ascending-power order.
+///
+/// If `p` represents `p(x) = p[0] + p[1]*x + p[2]*x^2 + ...`, this returns
+/// the coefficients of the `m`-th derivative in the same ascending-power form.
+#[allow(dead_code)]
+fn polyder_ascending<S>(p: &ArrayBase<S, Ix1>, m: usize) -> Array1<f64>
+where
+    S: Data<Elem = f64>,
+{
+    if m == 0 {
+        return p.to_owned();
+    }
+    let n = p.len();
+    if n <= m {
+        return Array1::from_vec(vec![0.0]);
+    }
+
+    // One differentiation step: coeffs_new[j] = (j+1)*coeffs[j+1]
+    let mut current = p.to_owned();
+    for _ in 0..m {
+        let next_len = current.len().saturating_sub(1).max(1);
+        let mut next = Array1::zeros(next_len);
+        for j in 0..current.len().saturating_sub(1) {
+            next[j] = (j + 1) as f64 * current[j + 1];
+        }
+        current = next;
+    }
+    current
+}
+
 /// Fit a polynomial to a slice of data and evaluate it at specified points.
 ///
 /// # Arguments
@@ -480,32 +510,31 @@ where
     let b = Array1::from_vec(x_edge);
 
     // Solve the least squares problem: min ||A*c - b||^2
+    // coeffs[j] is the coefficient for x^j (ascending-power order)
     let coeffs = solve_lstsq(a.t().dot(&a), a.t().dot(&b))?;
 
-    // Compute the derivative if needed
+    // Compute the m-th derivative coefficients in ascending-power convention.
+    // If p(x) = sum_j coeffs[j] * x^j, then
+    // p'(x) = sum_j (j+1)*coeffs[j+1] * x^j, etc.
     let deriv_coeffs = if config.deriv > 0 {
-        polyder(&coeffs, config.deriv)
+        polyder_ascending(&coeffs, config.deriv)
     } else {
         coeffs.clone()
     };
 
-    // Evaluate the polynomial at the interpolation points
+    // Evaluate the polynomial at the interpolation points using ascending-power form.
     let i_range: Vec<f64> = (config.interp_start - config.window_start
         ..config.interp_stop - config.window_start)
         .map(|i| i as f64)
         .collect();
 
     let mut values = Vec::with_capacity(i_range.len());
-    for i in i_range {
-        let mut result = 0.0;
-        for (j, &coef) in deriv_coeffs.iter().enumerate() {
-            let power = if j < deriv_coeffs.len() {
-                (deriv_coeffs.len() - 1 - j) as i32
-            } else {
-                0
-            };
-            result += coef * i.powi(power);
-        }
+    for x_val in i_range {
+        // Horner's method for ascending powers: c0 + x*(c1 + x*(c2 + ...))
+        let result = deriv_coeffs
+            .iter()
+            .rev()
+            .fold(0.0_f64, |acc, &c| acc * x_val + c);
         values.push(result / config.delta.powi(config.deriv as i32));
     }
 
@@ -695,24 +724,51 @@ where
 
             // Apply the filter to the interior points (convolution)
             let halflen = window_length / 2;
-            let mut y = Vec::with_capacity(x.len());
+            let n = x.len();
+            let mut output = vec![0.0f64; n];
 
-            // Apply the convolution to the middle part of the signal
-            for i in halflen..x.len() - halflen {
+            // Apply the filter to the interior points.
+            // coeffs are in convolution-ready order (use_conv=true means reversed),
+            // so the proper application is: output[i] = sum_j coeffs[j] * x[i + halflen - j]
+            for i in halflen..n - halflen {
                 let mut sum = 0.0;
                 for j in 0..window_length {
-                    sum += coeffs[j] * x_f64[i - halflen + j];
+                    sum += coeffs[j] * x_f64[i + halflen - j];
                 }
-                y.push(sum);
+                output[i] = sum;
             }
 
-            // Prepend and append to match the input size (will be replaced by edge fitting)
-            let mut padded_y = vec![0.0; halflen];
-            padded_y.extend(y);
-            padded_y.extend(vec![0.0; halflen]);
+            // Handle the edges using polynomial interpolation (fits edges into output)
+            let n_input = x.len();
+            let left_edge = fit_edge(
+                x,
+                EdgeFitConfig {
+                    window_start: 0,
+                    window_stop: window_length,
+                    interp_start: 0,
+                    interp_stop: halflen,
+                    polyorder,
+                    deriv: deriv_val,
+                    delta: delta_val,
+                },
+            )?;
+            output[..halflen].copy_from_slice(&left_edge);
 
-            // Handle the edges using polynomial interpolation
-            fit_edges_polyfit(x, window_length, polyorder, deriv_val, delta_val)
+            let right_edge = fit_edge(
+                x,
+                EdgeFitConfig {
+                    window_start: n_input - window_length,
+                    window_stop: n_input,
+                    interp_start: n_input - halflen,
+                    interp_stop: n_input,
+                    polyorder,
+                    deriv: deriv_val,
+                    delta: delta_val,
+                },
+            )?;
+            output[n_input - halflen..].copy_from_slice(&right_edge);
+
+            Ok(output)
         }
         "mirror" | "constant" | "nearest" | "wrap" => {
             // Get filter coefficients
@@ -917,11 +973,16 @@ mod tests {
         let x: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
 
         // Test different modes
-        let interp = savgol_filter(&x, 5, 2, None, None, Some("interp"), None).expect("Operation failed");
-        let mirror = savgol_filter(&x, 5, 2, None, None, Some("mirror"), None).expect("Operation failed");
-        let constant = savgol_filter(&x, 5, 2, None, None, Some("constant"), None).expect("Operation failed");
-        let nearest = savgol_filter(&x, 5, 2, None, None, Some("nearest"), None).expect("Operation failed");
-        let wrap = savgol_filter(&x, 5, 2, None, None, Some("wrap"), None).expect("Operation failed");
+        let interp =
+            savgol_filter(&x, 5, 2, None, None, Some("interp"), None).expect("Operation failed");
+        let mirror =
+            savgol_filter(&x, 5, 2, None, None, Some("mirror"), None).expect("Operation failed");
+        let constant =
+            savgol_filter(&x, 5, 2, None, None, Some("constant"), None).expect("Operation failed");
+        let nearest =
+            savgol_filter(&x, 5, 2, None, None, Some("nearest"), None).expect("Operation failed");
+        let wrap =
+            savgol_filter(&x, 5, 2, None, None, Some("wrap"), None).expect("Operation failed");
 
         // Ensure all results have the same length as the input
         assert_eq!(interp.len(), x.len());

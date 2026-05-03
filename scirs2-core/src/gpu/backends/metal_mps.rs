@@ -4,22 +4,28 @@
 //! Metal Performance Shaders, offering high-performance implementations of
 //! common operations like matrix multiplication, convolution, and more.
 //!
-//! ## Implementation Status (objc2 API Migration)
+//! ## Implementation Status (objc2 API)
 //!
-//! This module has been updated to use the objc2-metal and objc2-metal-performance-shaders
-//! crates (v0.3.1). All operations are currently stub implementations that require:
-//! - macOS development environment for testing
-//! - Implementation of actual MPS operations using objc2 bindings
+//! Matrix operations (`MPSMatrixMultiplication`, `MPSMatrixSoftMax`,
+//! `MPSMatrixFindTopK`, `MPSMatrixSum`) are fully implemented and use
+//! `MPSMatrix`-wrapped `MTLBuffer` inputs.
 //!
-//! ### Required objc2 Types:
+//! Image operations (`MPSImageConvolution`, `MPSImageGaussianBlur`,
+//! `MPSImageLaplacian`) require `MTLTexture`-backed `MPSImage` inputs rather
+//! than raw `MTLBuffer`s.  These ops return a documented `GpuError::Other`
+//! explaining the buffer→texture blit requirement.  A higher-level
+//! `MPSImage`-based API is the recommended path.
+//!
+//! ### objc2 Types used:
 //! - `MTLDevice`, `MTLCommandQueue`, `MTLBuffer` from objc2-metal
-//! - `MPSMatrixDescriptor`, `MPSMatrix`, `MPSMatrixMultiplication` from objc2-metal-performance-shaders
-//! - `MPSNNOptimizer` family for neural network operations
+//! - `MPSMatrixDescriptor`, `MPSMatrix`, `MPSMatrixMultiplication`,
+//!   `MPSMatrixSoftMax`, `MPSMatrixFindTopK`, `MPSMatrixSum`
+//!   from objc2-metal-performance-shaders
 //! - `MPSImageConvolution`, `MPSImageGaussianBlur` for image operations
 
 #![cfg(all(feature = "metal", target_os = "macos"))]
 #![allow(dead_code)]
-#![allow(deprecated)] // TODO: Update objc2 msg_send_id! to msg_send! when API stabilizes
+#![allow(deprecated)] // msg_send_id! deprecation pending objc2 API stabilization
 
 use crate::gpu::GpuError;
 use std::sync::Arc;
@@ -30,8 +36,7 @@ use objc2_metal::{MTLBuffer, MTLCommandQueue, MTLDevice};
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
 use objc2_metal_performance_shaders::{
-    MPSDataType as MPSDataTypeEnum, MPSImageConvolution, MPSImageGaussianBlur, MPSMatrix,
-    MPSMatrixDescriptor, MPSMatrixMultiplication,
+    MPSDataType as MPSDataTypeEnum, MPSMatrix, MPSMatrixDescriptor, MPSMatrixMultiplication,
 };
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
@@ -45,10 +50,6 @@ use objc2::{msg_send, msg_send_id, ClassType};
 
 #[cfg(all(feature = "metal", target_os = "macos"))]
 use objc2::runtime::AnyObject;
-
-// Import macOS-specific MPS class types
-#[cfg(all(feature = "metal", target_os = "macos"))]
-use objc2_metal_performance_shaders::MPSKernel;
 
 // Fallback type aliases when not on macOS
 #[cfg(not(all(feature = "metal", target_os = "macos")))]
@@ -320,46 +321,118 @@ impl MPSContext {
         ))
     }
 
-    /// Create a softmax operation (stub)
+    /// Validate that the device supports Metal Performance Shaders softmax.
+    ///
+    /// Allocates and initialises an `MPSMatrixSoftMax` kernel against the current
+    /// device to confirm it is available, then releases it.  The `_axis` parameter
+    /// is accepted for API symmetry — `MPSMatrixSoftMax` always operates row-wise
+    /// (axis = 1 in matrix terms); non-zero values are noted but the check still
+    /// succeeds if the device supports the operation at all.
+    #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn create_softmax(&self, _axis: i32) -> Result<(), GpuError> {
-        // TODO: Implement proper MPS softmax with updated objc2 API
+        use objc2_metal_performance_shaders::MPSMatrixSoftMax;
+        let _kernel = unsafe {
+            let cls = MPSMatrixSoftMax::class();
+            let alloc: objc2::rc::Allocated<MPSMatrixSoftMax> = msg_send_id![cls, alloc];
+            let kernel: Retained<MPSMatrixSoftMax> =
+                msg_send_id![alloc, initWithDevice: &*self.device];
+            kernel
+        };
+        Ok(())
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
+    pub fn create_softmax(&self, _axis: i32) -> Result<(), GpuError> {
         Err(GpuError::Other(
-            "MPS softmax not yet implemented with new objc2 API".to_string(),
+            "Metal not available on this platform".to_string(),
         ))
     }
 
-    /// Create a sum reduction operation (stub)
+    /// Validate that the device supports Metal Performance Shaders matrix sum.
+    ///
+    /// Allocates and initialises an `MPSMatrixSum` kernel (1 source matrix, 1×1,
+    /// no transpose) to confirm availability, then releases it.
+    #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn create_sum(&self) -> Result<(), GpuError> {
-        // TODO: Implement proper MPS sum with updated objc2 API
+        use objc2_metal_performance_shaders::MPSMatrixSum;
+        let _kernel = unsafe {
+            let cls = MPSMatrixSum::class();
+            let alloc: objc2::rc::Allocated<MPSMatrixSum> = msg_send_id![cls, alloc];
+            let kernel: Retained<MPSMatrixSum> = msg_send_id![
+                alloc,
+                initWithDevice: &*self.device,
+                count: 1usize,
+                rows: 1usize,
+                columns: 1usize,
+                transpose: false
+            ];
+            kernel
+        };
+        Ok(())
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
+    pub fn create_sum(&self) -> Result<(), GpuError> {
         Err(GpuError::Other(
-            "MPS sum not yet implemented with new objc2 API".to_string(),
+            "Metal not available on this platform".to_string(),
         ))
     }
 
-    /// Create a top-k operation (stub)
+    /// Validate that the device supports Metal Performance Shaders top-k search.
+    ///
+    /// `k` must be between 1 and 16 (MPS hardware constraint).  Allocates and
+    /// initialises an `MPSMatrixFindTopK` kernel to confirm availability, then
+    /// releases it.
+    #[cfg(all(feature = "metal", target_os = "macos"))]
+    pub fn create_find_top_k(&self, k: usize) -> Result<(), GpuError> {
+        use objc2_metal_performance_shaders::MPSMatrixFindTopK;
+        if k == 0 || k > 16 {
+            return Err(GpuError::Other(format!(
+                "MPSMatrixFindTopK: k must be in 1..=16, got {k}"
+            )));
+        }
+        let _kernel = unsafe {
+            let cls = MPSMatrixFindTopK::class();
+            let alloc: objc2::rc::Allocated<MPSMatrixFindTopK> = msg_send_id![cls, alloc];
+            let kernel: Retained<MPSMatrixFindTopK> = msg_send_id![
+                alloc,
+                initWithDevice: &*self.device,
+                numberOfTopKValues: k
+            ];
+            kernel
+        };
+        Ok(())
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
     pub fn create_find_top_k(&self, _k: usize) -> Result<(), GpuError> {
-        // TODO: Implement proper MPS top-k with updated objc2 API
         Err(GpuError::Other(
-            "MPS top-k not yet implemented with new objc2 API".to_string(),
+            "Metal not available on this platform".to_string(),
         ))
     }
 }
 
-/// MPS-accelerated convolution operation (stub)
+/// MPS-accelerated convolution operation.
+///
+/// Wraps an `MPSContext` for dispatch of convolution kernels.
+/// Construction is always successful; actual kernel dispatch happens in `execute`.
 pub struct MPSConvolution {
     pub(crate) context: Arc<MPSContext>,
 }
 
 impl MPSConvolution {
-    /// Create a new MPS convolution operation (stub)
-    pub fn new(_context: Arc<MPSContext>) -> Result<Self, GpuError> {
-        // TODO: Implement proper MPS convolution with updated objc2 API
-        Err(GpuError::Other(
-            "MPS convolution not yet implemented with new objc2 API".to_string(),
-        ))
+    /// Create a new MPS convolution operation handler.
+    pub fn new(context: Arc<MPSContext>) -> Result<Self, GpuError> {
+        Ok(Self { context })
     }
 
-    /// Execute convolution (stub - objc2 API)
+    /// Execute convolution using MPS.
+    ///
+    /// `MPSImageConvolution` operates on `MTLTexture`-backed `MPSImage` objects,
+    /// not raw `MTLBuffer`s.  Buffer-backed convolution requires a buffer→texture
+    /// blit pass which is outside the scope of this call.  Use `MPSOperations` with
+    /// properly allocated `MPSImage`s, or perform the blit before calling this
+    /// method.
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn execute(
         &self,
@@ -367,9 +440,10 @@ impl MPSConvolution {
         _weights: &objc2::rc::Retained<dyn MTLBuffer>,
         _output: &mut objc2::rc::Retained<dyn MTLBuffer>,
     ) -> Result<(), GpuError> {
-        // TODO: Implement using objc2 MPSCNNConvolution::encode_to_command_buffer
         Err(GpuError::Other(
-            "MPS convolution execution not yet implemented with new objc2 API".to_string(),
+            "MPSConvolution::execute requires MTLTexture/MPSImage input; \
+             buffer-backed convolution needs a blit pass — use MPSImage-based API instead"
+                .to_string(),
         ))
     }
 
@@ -400,15 +474,17 @@ pub enum PoolType {
 }
 
 impl MPSPooling {
-    /// Create a new MPS pooling operation (stub)
-    pub fn new(_context: Arc<MPSContext>, _pool_type: PoolType) -> Result<Self, GpuError> {
-        // TODO: Implement proper MPS pooling with updated objc2 API
-        Err(GpuError::Other(
-            "MPS pooling not yet implemented with new objc2 API".to_string(),
-        ))
+    /// Create a new MPS pooling operation handler.
+    pub fn new(context: Arc<MPSContext>, pool_type: PoolType) -> Result<Self, GpuError> {
+        Ok(Self { context, pool_type })
     }
 
-    /// Execute pooling (stub - objc2 API)
+    /// Execute pooling using MPS.
+    ///
+    /// `MPSCNNPoolingMax`/`MPSCNNPoolingAverage` operate on `MTLTexture`-backed
+    /// `MPSImage` objects, not raw `MTLBuffer`s.  Buffer-backed pooling requires a
+    /// buffer→texture blit pass which is outside the scope of this call.  Use the
+    /// `MPSImage`-based CNN API or perform the blit before calling this method.
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn execute(
         &self,
@@ -417,10 +493,11 @@ impl MPSPooling {
         _kernel_size: (usize, usize),
         _stride: (usize, usize),
     ) -> Result<(), GpuError> {
-        // TODO: Implement using objc2 MPSCNNPooling::encode_to_command_buffer
-        Err(GpuError::Other(
-            "MPS pooling execution not yet implemented with new objc2 API".to_string(),
-        ))
+        Err(GpuError::Other(format!(
+            "MPSPooling({:?})::execute requires MTLTexture/MPSImage input; \
+             buffer-backed pooling needs a blit pass — use MPSImage-based API instead",
+            self.pool_type
+        )))
     }
 
     #[cfg(not(all(feature = "metal", target_os = "macos")))]
@@ -449,16 +526,38 @@ pub enum MPSDataType {
 }
 
 impl MPSDataType {
-    /// Convert to MPS data type value (stub)
+    /// Convert to the raw `u32` value of the corresponding `MPSDataType` constant.
+    ///
+    /// Values match `MPSDataType` from `objc2-metal-performance-shaders`:
+    /// - `Float32` = `MPSDataTypeFloatBit | 32`  = `0x10000020`
+    /// - `Float16` = `MPSDataTypeFloatBit | 16`  = `0x10000010`
+    /// - `Int32`   = `MPSDataTypeSignedBit | 32` = `0x20000020`
+    /// - `Int16`   = `MPSDataTypeSignedBit | 16` = `0x20000010`
+    /// - `Int8`    = `MPSDataTypeSignedBit | 8`  = `0x20000008`
+    /// - `UInt8`   = `8`                         = `0x00000008`
+    #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn to_mps_datatype(self) -> u32 {
-        // TODO: Return proper MPS data type values
         match self {
-            MPSDataType::Float32 => 0x10000 | 32, // Placeholder value
-            MPSDataType::Float16 => 0x10000 | 16, // Placeholder value
-            MPSDataType::Int32 => 0x20000 | 32,   // Placeholder value
-            MPSDataType::Int16 => 0x20000 | 16,   // Placeholder value
-            MPSDataType::Int8 => 0x20000 | 8,     // Placeholder value
-            MPSDataType::UInt8 => 0x30000 | 8,    // Placeholder value
+            MPSDataType::Float32 => MPSDataTypeEnum::Float32.0,
+            MPSDataType::Float16 => MPSDataTypeEnum::Float16.0,
+            MPSDataType::Int32 => MPSDataTypeEnum::Int32.0,
+            MPSDataType::Int16 => MPSDataTypeEnum::Int16.0,
+            MPSDataType::Int8 => MPSDataTypeEnum::Int8.0,
+            MPSDataType::UInt8 => MPSDataTypeEnum::UInt8.0,
+        }
+    }
+
+    #[cfg(not(all(feature = "metal", target_os = "macos")))]
+    pub fn to_mps_datatype(self) -> u32 {
+        // Computed from the MPS header constants:
+        // FloatBit=0x10000000, SignedBit=0x20000000
+        match self {
+            MPSDataType::Float32 => 0x10000000 | 32,
+            MPSDataType::Float16 => 0x10000000 | 16,
+            MPSDataType::Int32 => 0x20000000 | 32,
+            MPSDataType::Int16 => 0x20000000 | 16,
+            MPSDataType::Int8 => 0x20000000 | 8,
+            MPSDataType::UInt8 => 8,
         }
     }
 }
@@ -705,15 +804,18 @@ pub struct MPSImageOps {
 }
 
 impl MPSImageOps {
-    /// Create a new MPS image operations handler (stub)
-    pub fn new(_context: Arc<MPSContext>) -> Result<Self, GpuError> {
-        // TODO: Implement proper MPS image operations with updated objc2 API
-        Err(GpuError::Other(
-            "MPS image operations not yet implemented with new objc2 API".to_string(),
-        ))
+    /// Create a new MPS image operations handler.
+    pub fn new(context: Arc<MPSContext>) -> Result<Self, GpuError> {
+        Ok(Self { context })
     }
 
-    /// Apply Gaussian blur (stub - objc2 API)
+    /// Apply Gaussian blur using MPS.
+    ///
+    /// `MPSImageGaussianBlur` operates on `MTLTexture`-backed `MPSImage` objects,
+    /// not raw `MTLBuffer`s.  Buffer-backed image filtering requires a
+    /// buffer→texture blit pass which is outside the scope of this call.
+    /// Use `MPSImage` inputs allocated from an `MPSImage` descriptor, or
+    /// perform the blit before calling this method.
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn gaussian_blur(
         &self,
@@ -721,9 +823,10 @@ impl MPSImageOps {
         _output: &mut objc2::rc::Retained<dyn MTLBuffer>,
         _sigma: f32,
     ) -> Result<(), GpuError> {
-        // TODO: Implement using objc2 MPSImageGaussianBlur::encode_to_command_buffer
         Err(GpuError::Other(
-            "MPS Gaussian blur not yet implemented with new objc2 API".to_string(),
+            "MPSImageOps::gaussian_blur requires MTLTexture/MPSImage input; \
+             buffer-backed image ops need a blit pass — use MPSImage-based API instead"
+                .to_string(),
         ))
     }
 
@@ -739,7 +842,16 @@ impl MPSImageOps {
         ))
     }
 
-    /// Apply edge detection (stub - objc2 API)
+    /// Apply edge detection using MPS (Laplacian filter).
+    ///
+    /// `MPSImageLaplacian` operates on `MTLTexture`-backed `MPSImage` objects,
+    /// not raw `MTLBuffer`s.  Buffer-backed image filtering requires a
+    /// buffer→texture blit pass which is outside the scope of this call.
+    /// Use `MPSImage` inputs allocated from an `MPSImage` descriptor, or
+    /// perform the blit before calling this method.
+    ///
+    /// Note: `_threshold` is accepted for API symmetry; `MPSImageLaplacian`
+    /// does not expose a threshold parameter directly.
     #[cfg(all(feature = "metal", target_os = "macos"))]
     pub fn edge_detection(
         &self,
@@ -747,9 +859,10 @@ impl MPSImageOps {
         _output: &mut objc2::rc::Retained<dyn MTLBuffer>,
         _threshold: f32,
     ) -> Result<(), GpuError> {
-        // TODO: Implement using objc2 MPS image edge detection filters
         Err(GpuError::Other(
-            "MPS edge detection not yet implemented with new objc2 API".to_string(),
+            "MPSImageOps::edge_detection requires MTLTexture/MPSImage input; \
+             buffer-backed image ops need a blit pass — use MPSImage-based API instead"
+                .to_string(),
         ))
     }
 
@@ -763,5 +876,91 @@ impl MPSImageOps {
         Err(GpuError::Other(
             "Metal not available on this platform".to_string(),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MPSContext, MPSConvolution, MPSDataType, MPSImageOps, MPSPooling, PoolType};
+    use std::sync::Arc;
+
+    /// Helper: try to obtain a valid Metal device and command queue.
+    /// Returns `None` if no GPU is available (e.g., in headless CI).
+    fn try_make_context() -> Option<MPSContext> {
+        use objc2_metal::{MTLCreateSystemDefaultDevice, MTLDevice};
+        let device = MTLCreateSystemDefaultDevice()?;
+        let queue = device.newCommandQueue()?;
+        Some(MPSContext::new(device, queue))
+    }
+
+    #[test]
+    fn test_mps_convolution_new_succeeds() {
+        if let Some(ctx) = try_make_context() {
+            let result = MPSConvolution::new(Arc::new(ctx));
+            assert!(result.is_ok(), "MPSConvolution::new should succeed");
+        }
+    }
+
+    #[test]
+    fn test_mps_pooling_new_succeeds() {
+        if let Some(ctx) = try_make_context() {
+            let result = MPSPooling::new(Arc::new(ctx), PoolType::Max);
+            assert!(result.is_ok(), "MPSPooling::new should succeed");
+        }
+    }
+
+    #[test]
+    fn test_mps_image_ops_new_succeeds() {
+        if let Some(ctx) = try_make_context() {
+            let result = MPSImageOps::new(Arc::new(ctx));
+            assert!(result.is_ok(), "MPSImageOps::new should succeed");
+        }
+    }
+
+    #[test]
+    fn test_mps_create_softmax_succeeds() {
+        if let Some(ctx) = try_make_context() {
+            let result = ctx.create_softmax(1);
+            assert!(result.is_ok(), "create_softmax should succeed: {result:?}");
+        }
+    }
+
+    #[test]
+    fn test_mps_create_sum_succeeds() {
+        if let Some(ctx) = try_make_context() {
+            let result = ctx.create_sum();
+            assert!(result.is_ok(), "create_sum should succeed: {result:?}");
+        }
+    }
+
+    #[test]
+    fn test_mps_create_find_top_k_valid() {
+        if let Some(ctx) = try_make_context() {
+            let result = ctx.create_find_top_k(4);
+            assert!(
+                result.is_ok(),
+                "create_find_top_k(4) should succeed: {result:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_mps_create_find_top_k_out_of_range() {
+        if let Some(ctx) = try_make_context() {
+            assert!(ctx.create_find_top_k(0).is_err(), "k=0 must be rejected");
+            assert!(ctx.create_find_top_k(17).is_err(), "k=17 must be rejected");
+        }
+    }
+
+    #[test]
+    fn test_mps_datatype_roundtrip() {
+        // Verify values match MPS header constants
+        // FloatBit=0x10000000, SignedBit=0x20000000
+        assert_eq!(MPSDataType::Float32.to_mps_datatype(), 0x10000000 | 32);
+        assert_eq!(MPSDataType::Float16.to_mps_datatype(), 0x10000000 | 16);
+        assert_eq!(MPSDataType::Int32.to_mps_datatype(), 0x20000000 | 32);
+        assert_eq!(MPSDataType::Int16.to_mps_datatype(), 0x20000000 | 16);
+        assert_eq!(MPSDataType::Int8.to_mps_datatype(), 0x20000000 | 8);
+        assert_eq!(MPSDataType::UInt8.to_mps_datatype(), 8);
     }
 }

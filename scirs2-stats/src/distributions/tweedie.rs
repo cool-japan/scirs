@@ -37,6 +37,7 @@ use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::rand_distributions::Distribution as _;
 use scirs2_core::random::Uniform as RandUniform;
 use std::f64::consts::PI;
 
@@ -239,14 +240,7 @@ impl<F: Float + NumCast + std::fmt::Display> Tweedie<F> {
 
     // ── Compound Poisson-Gamma series (Dunn & Smyth 2005) ─────────────────────
 
-    fn log_pdf_cpg(
-        &self,
-        x: f64,
-        mu: f64,
-        phi: f64,
-        p: f64,
-        max_terms: usize,
-    ) -> f64 {
+    fn log_pdf_cpg(&self, x: f64, mu: f64, phi: f64, p: f64, max_terms: usize) -> f64 {
         let alpha = (2.0 - p) / (p - 1.0); // > 0
         let lambda = mu.powf(2.0 - p) / (phi * (2.0 - p));
         let theta = -mu.powf(1.0 - p) / (1.0 - p);
@@ -394,9 +388,7 @@ impl<F: Float + NumCast + std::fmt::Display> Tweedie<F> {
                 continue;
             }
             let u3: f64 = self.uniform_distr.sample(rng);
-            if u3 < 1.0 - 0.0331 * z.powi(4)
-                || u3.ln() < 0.5 * z * z + d * (1.0 - v + v.ln())
-            {
+            if u3 < 1.0 - 0.0331 * z.powi(4) || u3.ln() < 0.5 * z * z + d * (1.0 - v + v.ln()) {
                 return d * v * scale;
             }
         }
@@ -426,9 +418,13 @@ impl<F: Float + NumCast + std::fmt::Display> Tweedie<F> {
 
 impl<F: Float + NumCast + std::fmt::Display> SampleableDistribution<F> for Tweedie<F> {
     fn rvs(&self, size: usize) -> StatsResult<Vec<F>> {
-        use scirs2_core::random::SmallRng;
+        use scirs2_core::random::rngs::SmallRng;
         use scirs2_core::random::SeedableRng;
-        let mut rng = SmallRng::from_entropy();
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0x9e3779b97f4a7c15);
+        let mut rng = SmallRng::seed_from_u64(seed);
         self.rvs(size, &mut rng)
     }
 }
@@ -436,7 +432,7 @@ impl<F: Float + NumCast + std::fmt::Display> SampleableDistribution<F> for Tweed
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::random::{SmallRng, SeedableRng};
+    use scirs2_core::random::{rngs::SmallRng, SeedableRng};
 
     #[test]
     fn test_normal_special_case_p0() {
@@ -462,7 +458,12 @@ mod tests {
         let p0 = tw.prob_zero();
         let lambda = 2.0_f64.powf(0.5) / (1.0 * 0.5);
         let expected = (-lambda).exp();
-        assert!((p0 - expected).abs() < 1e-12, "p0={} expected={}", p0, expected);
+        assert!(
+            (p0 - expected).abs() < 1e-12,
+            "p0={} expected={}",
+            p0,
+            expected
+        );
     }
 
     #[test]
@@ -505,7 +506,12 @@ mod tests {
         // log_pdf at x=0 should equal log(prob_zero)
         let log_p0 = tw.log_pdf(0.0f64, 100);
         let expected = tw.prob_zero().ln();
-        assert!((log_p0 - expected).abs() < 1e-10, "log_p0={} expected={}", log_p0, expected);
+        assert!(
+            (log_p0 - expected).abs() < 1e-10,
+            "log_p0={} expected={}",
+            log_p0,
+            expected
+        );
 
         // log_pdf at x>0 should be finite
         let log_p1 = tw.log_pdf(1.0f64, 100);

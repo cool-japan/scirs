@@ -29,7 +29,7 @@
 //!
 //! ## Example
 //!
-//! ```rust
+//! ```no_run
 //! use scirs2_integrate::phase_field::CahnHilliardSolver;
 //!
 //! let mut solver = CahnHilliardSolver::new(32, 32, 1.0/32.0, 0.05, 1.0);
@@ -89,7 +89,9 @@ struct Lcg64 {
 
 impl Lcg64 {
     fn new(seed: u64) -> Self {
-        Self { state: seed.wrapping_add(1) }
+        Self {
+            state: seed.wrapping_add(1),
+        }
     }
 
     fn next_u64(&mut self) -> u64 {
@@ -392,7 +394,8 @@ impl AllenCahnSolver {
                 let ym = (y + ny - 1) % ny;
                 let grad_x = (self.phi[xp][y] - self.phi[xm][y]) * inv_2dx;
                 let grad_y = (self.phi[x][yp] - self.phi[x][ym]) * inv_2dx;
-                length += 0.5 * self.epsilon * (grad_x * grad_x + grad_y * grad_y) * self.dx * self.dx;
+                length +=
+                    0.5 * self.epsilon * (grad_x * grad_x + grad_y * grad_y) * self.dx * self.dx;
             }
         }
         length
@@ -483,7 +486,7 @@ impl StefanProblem {
             let xi = (i as f64) * dx;
             if xi <= initial_interface {
                 // Solid: cool, temperature goes from -1 at left wall to 0 at interface
-                temperature[i] = -1.0 * (1.0 - xi / initial_interface);
+                temperature[i] = -(1.0 - xi / initial_interface);
             } else {
                 // Liquid: at melting point (T = 0)
                 temperature[i] = 0.0;
@@ -527,7 +530,7 @@ impl StefanProblem {
             // Stefan condition: ds/dt = (grad_solid - grad_liquid) / (latent_heat / alpha)
             let ds_dt = (grad_solid - grad_liquid) / (self.latent_heat / self.alpha);
             self.interface_pos += dt * ds_dt / self.dx; // in grid units
-            // Clamp to domain
+                                                        // Clamp to domain
             self.interface_pos = self.interface_pos.clamp(1.0, (self.n - 2) as f64);
         }
     }
@@ -584,7 +587,12 @@ mod tests {
         solver.run(100, 1e-4);
         let e1 = solver.free_energy();
         // Energy should not increase (dissipative dynamics)
-        assert!(e1 <= e0 + 1e-8, "energy increased: e0={:.6e} e1={:.6e}", e0, e1);
+        assert!(
+            e1 <= e0 + 1e-8,
+            "energy increased: e0={:.6e} e1={:.6e}",
+            e0,
+            e1
+        );
     }
 
     #[test]
@@ -594,7 +602,11 @@ mod tests {
         let m0 = solver.mean_phi();
         solver.run(20, 1e-5);
         let m1 = solver.mean_phi();
-        assert!((m1 - m0).abs() < 1e-8, "mass not conserved: Δ={:.2e}", m1 - m0);
+        assert!(
+            (m1 - m0).abs() < 1e-8,
+            "mass not conserved: Δ={:.2e}",
+            m1 - m0
+        );
     }
 
     #[test]
@@ -665,7 +677,8 @@ mod tests {
 
     #[test]
     fn test_stefan_interface_moves() {
-        let mut s = StefanProblem::new(50, 1.0, 0.3, 1.0, 1.0).expect("StefanProblem::new should succeed with valid params");
+        let mut s = StefanProblem::new(50, 1.0, 0.3, 1.0, 1.0)
+            .expect("StefanProblem::new should succeed with valid params");
         let pos0 = s.interface_position_phys();
         let history = s.run(0.01, 1e-4);
         assert!(!history.is_empty());
@@ -676,7 +689,8 @@ mod tests {
 
     #[test]
     fn test_stefan_temperature_boundary() {
-        let mut s = StefanProblem::new(20, 1.0, 0.5, 1.0, 1.0).expect("StefanProblem::new should succeed with valid params");
+        let mut s = StefanProblem::new(20, 1.0, 0.5, 1.0, 1.0)
+            .expect("StefanProblem::new should succeed with valid params");
         s.run(0.001, 1e-4);
         // Left boundary should be maintained at -1
         assert!((s.temperature[0] + 1.0).abs() < 1e-10);

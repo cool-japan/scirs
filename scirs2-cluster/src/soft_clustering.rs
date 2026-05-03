@@ -137,11 +137,7 @@ fn cholesky_solve(l: &Array2<f64>, b: ArrayView1<f64>) -> Array1<f64> {
 /// Uses the Cholesky factor `l` of Sigma.
 fn log_mvn(x: ArrayView1<f64>, mu: ArrayView1<f64>, l: &Array2<f64>) -> f64 {
     let d = x.len() as f64;
-    let diff: Array1<f64> = x
-        .iter()
-        .zip(mu.iter())
-        .map(|(&xi, &mi)| xi - mi)
-        .collect();
+    let diff: Array1<f64> = x.iter().zip(mu.iter()).map(|(&xi, &mi)| xi - mi).collect();
     let z = cholesky_solve(l, diff.view());
     let maha: f64 = z.iter().map(|&v| v * v).sum();
     let log_det_l: f64 = (0..l.shape()[0]).map(|i| l[[i, i]].ln()).sum::<f64>();
@@ -154,7 +150,10 @@ fn kmeans_pp_init(data: ArrayView2<f64>, k: usize, seed: u64) -> Array2<f64> {
     let d = data.shape()[1];
 
     let mut rng_state = seed;
-    let lcg = |s: u64| s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    let lcg = |s: u64| {
+        s.wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407)
+    };
     let rand_f64 = |s: &mut u64| -> f64 {
         *s = lcg(*s);
         (*s >> 11) as f64 / (1u64 << 53) as f64
@@ -252,11 +251,7 @@ impl GmmParams {
                     continue;
                 }
                 log_resp[[i, c]] = self.weights[c].ln()
-                    + log_mvn(
-                        data.row(i),
-                        self.means.row(c),
-                        &self.chol_covs[c],
-                    );
+                    + log_mvn(data.row(i), self.means.row(c), &self.chol_covs[c]);
             }
             // Normalise in log space
             let row: Vec<f64> = (0..k).map(|c| log_resp[[i, c]]).collect();
@@ -299,11 +294,7 @@ impl GmmParams {
                 if self.weights[c] > 0.0 {
                     log_terms.push(
                         self.weights[c].ln()
-                            + log_mvn(
-                                data.row(i),
-                                self.means.row(c),
-                                &self.chol_covs[c],
-                            ),
+                            + log_mvn(data.row(i), self.means.row(c), &self.chol_covs[c]),
                     );
                 }
             }
@@ -420,8 +411,7 @@ impl GaussianMixtureModel {
         }
 
         // Initial M-step from hard assignments
-        let (mut weights, mut means, mut chol_covs) =
-            Self::m_step(data, resp.view(), k, d, reg)?;
+        let (mut weights, mut means, mut chol_covs) = Self::m_step(data, resp.view(), k, d, reg)?;
 
         let mut prev_ll = f64::NEG_INFINITY;
         let mut n_iter = 0;
@@ -565,10 +555,8 @@ impl GaussianMixtureModel {
             let mut log_terms: Vec<f64> = Vec::with_capacity(k);
             for c in 0..k {
                 if weights[c] > 0.0 {
-                    log_terms.push(
-                        weights[c].ln()
-                            + log_mvn(data.row(i), means.row(c), &chol_covs[c]),
-                    );
+                    log_terms
+                        .push(weights[c].ln() + log_mvn(data.row(i), means.row(c), &chol_covs[c]));
                 }
             }
             total += logsumexp_row(&log_terms);
@@ -797,9 +785,11 @@ impl DirichletProcessMixtureModel {
                                 + 1.0 / beta_k[k]
                         })
                         .sum();
-                    log_rho.push(e_log_pi[k] + 0.5 * e_log_lam[k]
-                        - 0.5 * d as f64 * (2.0 * PI).ln()
-                        - 0.5 * trace_term);
+                    log_rho.push(
+                        e_log_pi[k] + 0.5 * e_log_lam[k]
+                            - 0.5 * d as f64 * (2.0 * PI).ln()
+                            - 0.5 * trace_term,
+                    );
                 }
                 let lse = logsumexp_row(&log_rho);
                 for k in 0..t {
@@ -852,18 +842,7 @@ impl DirichletProcessMixtureModel {
 
             // ── Compute ELBO (simplified) ─────────────────────────────────
             let elbo = Self::compute_elbo(
-                data,
-                &phi,
-                &a_gamma,
-                &b_gamma,
-                &m,
-                &beta_k,
-                &nu_k,
-                &w_k,
-                alpha,
-                n,
-                d,
-                t,
+                data, &phi, &a_gamma, &b_gamma, &m, &beta_k, &nu_k, &w_k, alpha, n, d, t,
             );
 
             if (elbo - prev_elbo).abs() < self.tol {
@@ -974,8 +953,7 @@ impl DirichletProcessMixtureModel {
         let beta_entropy: f64 = (0..t)
             .map(|k| {
                 let ab = a_gamma[k] + b_gamma[k];
-                let ent = (beta_k[k]).ln() - (a_gamma[k] - 1.0) * digamma(a_gamma[k])
-                    + (ab).ln()
+                let ent = (beta_k[k]).ln() - (a_gamma[k] - 1.0) * digamma(a_gamma[k]) + (ab).ln()
                     - (b_gamma[k] - 1.0) * digamma(b_gamma[k])
                     + digamma(ab);
                 ent
@@ -997,8 +975,8 @@ mod tests {
         Array2::from_shape_vec(
             (12, 2),
             vec![
-                1.0, 1.0, 1.1, 0.9, 0.9, 1.1, 1.0, 1.0, 0.8, 1.2, 1.2, 0.8,
-                5.0, 5.0, 5.1, 4.9, 4.9, 5.1, 5.0, 5.0, 4.8, 5.2, 5.2, 4.8,
+                1.0, 1.0, 1.1, 0.9, 0.9, 1.1, 1.0, 1.0, 0.8, 1.2, 1.2, 0.8, 5.0, 5.0, 5.1, 4.9,
+                4.9, 5.1, 5.0, 5.0, 4.8, 5.2, 5.2, 4.8,
             ],
         )
         .expect("data")
@@ -1007,8 +985,7 @@ mod tests {
     #[test]
     fn test_gmm_fit_basic() {
         let data = two_cluster_data();
-        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4)
-            .expect("gmm fit");
+        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4).expect("gmm fit");
         assert_eq!(params.n_components(), 2);
         assert_eq!(params.n_features(), 2);
         assert!(params.converged || params.n_iter > 0);
@@ -1017,8 +994,7 @@ mod tests {
     #[test]
     fn test_gmm_predict_proba() {
         let data = two_cluster_data();
-        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4)
-            .expect("gmm fit");
+        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4).expect("gmm fit");
         let proba = params.predict_proba(data.view()).expect("predict_proba");
         assert_eq!(proba.shape(), [12, 2]);
         // Each row should sum to 1
@@ -1031,8 +1007,7 @@ mod tests {
     #[test]
     fn test_gmm_predict_hard() {
         let data = two_cluster_data();
-        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4)
-            .expect("gmm fit");
+        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4).expect("gmm fit");
         let labels = params.predict(data.view()).expect("predict");
         assert_eq!(labels.len(), 12);
         // Two distinct clusters expected
@@ -1043,8 +1018,7 @@ mod tests {
     #[test]
     fn test_gmm_score_finite() {
         let data = two_cluster_data();
-        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4)
-            .expect("gmm fit");
+        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4).expect("gmm fit");
         let score = params.score(data.view()).expect("score");
         assert!(score.is_finite(), "score must be finite, got {score}");
     }
@@ -1052,8 +1026,7 @@ mod tests {
     #[test]
     fn test_gmm_bic_aic() {
         let data = two_cluster_data();
-        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4)
-            .expect("gmm fit");
+        let params = GaussianMixtureModel::fit(data.view(), 2, 100, 1e-4).expect("gmm fit");
         let bic = params.bic(data.view()).expect("bic");
         let aic = params.aic(data.view()).expect("aic");
         assert!(bic.is_finite());
@@ -1065,8 +1038,7 @@ mod tests {
     #[test]
     fn test_gmm_k1_trivial() {
         let data = two_cluster_data();
-        let params = GaussianMixtureModel::fit(data.view(), 1, 50, 1e-4)
-            .expect("gmm k=1");
+        let params = GaussianMixtureModel::fit(data.view(), 1, 50, 1e-4).expect("gmm k=1");
         let labels = params.predict(data.view()).expect("predict k=1");
         // All labels should be 0
         assert!(labels.iter().all(|&l| l == 0));

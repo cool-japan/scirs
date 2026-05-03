@@ -441,14 +441,21 @@ mod tests {
             let cc = 8usize;
             let dr = r as f64 - cr as f64;
             let dc = c as f64 - cc as f64;
-            if dr * dr + dc * dc < 4.0 { 0.0 } else { 0.9 }
+            if dr * dr + dc * dc < 4.0 {
+                0.0
+            } else {
+                0.9
+            }
         });
         let se = StructuringElement::disk(3);
         let bh = black_hat(&img, &se).expect("black hat failed");
         assert_eq!(bh.shape(), img.shape());
         let cr = img.nrows() / 2;
         let cc = img.ncols() / 2;
-        assert!(bh[[cr, cc]] > 0.0, "Dark hole should be detected by black-hat");
+        assert!(
+            bh[[cr, cc]] > 0.0,
+            "Dark hole should be detected by black-hat"
+        );
     }
 
     #[test]
@@ -510,7 +517,7 @@ mod tests {
         img[[4, 4]] = 1.0;
         let fg_se = StructuringElement::disk(0); // 1×1 foreground SE
         let bg_se = StructuringElement::disk(0); // 1×1 background SE (will not overlap with same anchor)
-        // Use a cross: centre is fg, arms are bg
+                                                 // Use a cross: centre is fg, arms are bg
         let fg_se = StructuringElement {
             mask: {
                 let mut m = Array2::from_elem((3, 3), false);
@@ -541,9 +548,6 @@ mod tests {
         let se = StructuringElement::square(1);
         let hom = hit_or_miss(&img, &se, &se).expect("hit or miss uniform");
         // On a uniform image, erosion == dilation, so erosion(fg) <= dilation(bg): no hits
-        assert!(
-            !hom.iter().any(|&v| v),
-            "Uniform image should have no hits"
-        );
+        assert!(!hom.iter().any(|&v| v), "Uniform image should have no hits");
     }
 }

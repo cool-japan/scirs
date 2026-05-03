@@ -306,3 +306,101 @@ pub fn register_async_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(minimize_async, m)?)?;
     Ok(())
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use pyo3::prelude::*;
+    use scirs2_core::Array1;
+    use scirs2_core::Array2;
+    use scirs2_numpy::{IntoPyArray, PyArray1, PyArray2};
+
+    /// Boot the embedded interpreter and register a fresh asyncio event loop as the
+    /// current thread's "running" loop, so that `pyo3_async_runtimes::tokio::future_into_py`
+    /// (which internally calls `asyncio.get_running_loop()`) succeeds in plain Rust tests.
+    fn install_running_loop(py: Python<'_>) {
+        let asyncio = py.import("asyncio").expect("import asyncio");
+        let loop_ = asyncio
+            .call_method0("new_event_loop")
+            .expect("new_event_loop");
+        let events = py.import("asyncio.events").expect("import asyncio.events");
+        events
+            .call_method1("_set_running_loop", (loop_,))
+            .expect("_set_running_loop");
+    }
+
+    /// Verify `fft_async` produces an awaitable (Bound<PyAny>) without panicking.
+    ///
+    /// We cannot `.await` the coroutine from plain Rust tests without a running
+    /// asyncio event loop, but we can confirm that:
+    ///   1. The function succeeds and returns a Python object.
+    ///   2. The returned object claims to be a coroutine / awaitable.
+    #[test]
+    fn fft_async_returns_awaitable() {
+        pyo3::Python::initialize();
+        Python::attach(|py| {
+            install_running_loop(py);
+            let data: Array1<f64> = Array1::from_vec(vec![1.0, 0.0, -1.0, 0.0]);
+            let py_arr: Bound<'_, PyArray1<f64>> = data.into_pyarray(py);
+
+            let result = super::fft_async(py, &py_arr);
+            assert!(result.is_ok(), "fft_async returned Err: {:?}", result.err());
+            // The returned object should have a `__await__` method (i.e. be a coroutine).
+            let obj = result.expect("fft_async should succeed");
+            assert!(
+                obj.hasattr("__await__").unwrap_or(false)
+                    || obj.hasattr("send").unwrap_or(false)
+                    || obj.hasattr("__next__").unwrap_or(false),
+                "returned object is not awaitable"
+            );
+        });
+    }
+
+    /// Verify `svd_async` produces an awaitable for a small square matrix.
+    #[test]
+    fn svd_async_returns_awaitable() {
+        pyo3::Python::initialize();
+        Python::attach(|py| {
+            install_running_loop(py);
+            // 2×2 identity matrix
+            let data: Array2<f64> =
+                Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).expect("shape ok");
+            let py_arr: Bound<'_, PyArray2<f64>> = data.into_pyarray(py);
+
+            let result = super::svd_async(py, &py_arr, Some(false));
+            assert!(result.is_ok(), "svd_async returned Err: {:?}", result.err());
+            let obj = result.expect("svd_async should succeed");
+            assert!(
+                obj.hasattr("__await__").unwrap_or(false)
+                    || obj.hasattr("send").unwrap_or(false)
+                    || obj.hasattr("__next__").unwrap_or(false),
+                "returned object is not awaitable"
+            );
+        });
+    }
+
+    /// Verify `qr_async` produces an awaitable for a small matrix.
+    #[test]
+    fn qr_async_returns_awaitable() {
+        pyo3::Python::initialize();
+        Python::attach(|py| {
+            install_running_loop(py);
+            let data: Array2<f64> =
+                Array2::from_shape_vec((2, 2), vec![1.0, 2.0, 3.0, 4.0]).expect("shape ok");
+            let py_arr: Bound<'_, PyArray2<f64>> = data.into_pyarray(py);
+
+            let result = super::qr_async(py, &py_arr);
+            assert!(result.is_ok(), "qr_async returned Err: {:?}", result.err());
+            let obj = result.expect("qr_async should succeed");
+            assert!(
+                obj.hasattr("__await__").unwrap_or(false)
+                    || obj.hasattr("send").unwrap_or(false)
+                    || obj.hasattr("__next__").unwrap_or(false),
+                "returned object is not awaitable"
+            );
+        });
+    }
+}

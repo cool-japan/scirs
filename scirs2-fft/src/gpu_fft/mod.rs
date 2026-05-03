@@ -28,19 +28,27 @@
 //!
 //! | Sub-module | Contents |
 //! |------------|----------|
-//! | `types`    | Configuration (`GpuFftConfig`), error (`GpuFftError`), plan (`GpuFftPlan`), result structs |
-//! | `kernels`  | Simulated GPU kernels: twiddles, bit-reversal, butterfly, Cooley-Tukey, Bluestein, tiling, normalisation |
-//! | `pipeline` | `GpuFftPipeline` — plan cache, single/batch/R2C/C2R/signal execution |
+//! | `types`       | Configuration (`GpuFftConfig`), error (`GpuFftError`), plan (`GpuFftPlan`), result structs |
+//! | `kernels`     | Simulated GPU kernels: twiddles, bit-reversal, butterfly, Cooley-Tukey, Bluestein, tiling, normalisation |
+//! | `pipeline`    | `GpuFftPipeline` — plan cache, single/batch/R2C/C2R/signal execution |
+//! | `dispatch`    | `fft_auto_dispatch`, `fft_batch_gpu` — CPU/GPU auto-dispatch layer |
+//! | `overlap_save`| `overlap_save_gpu` — FFT-based overlap-save (OLS) convolution |
+//! | `wgpu_backend`| wgpu compute shader back-end (feature `wgpu_fft`) |
 
+pub mod dispatch;
 pub mod kernels;
+pub mod overlap_save;
 pub mod pipeline;
 pub mod types;
+pub mod wgpu_backend;
 
 // Flat re-exports for ergonomic usage.
+pub use dispatch::{fft_auto_dispatch, fft_batch_gpu, AutoDispatchConfig, DispatchFftOutput};
 pub use kernels::{
     apply_normalization, bit_reverse_permute_gpu, bluestein_gpu, butterfly_pass_gpu,
     compute_inverse_twiddles_gpu, compute_twiddles_gpu, cooley_tukey_gpu, tiled_fft_1d,
 };
+pub use overlap_save::overlap_save_gpu;
 pub use pipeline::GpuFftPipeline;
 pub use types::{
     BatchFftResult, FftDirection, GpuFftConfig, GpuFftError, GpuFftPlan, GpuFftResult,

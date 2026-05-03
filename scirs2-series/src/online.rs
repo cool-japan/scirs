@@ -90,13 +90,8 @@ impl PageHinkleyTest {
     pub fn update(&mut self, value: f64) -> bool {
         self.n_obs += 1;
         // Warm-up: update running mean with a decaying alpha
-        let effective_alpha = if self.n_obs == 1 {
-            1.0
-        } else {
-            self.alpha
-        };
-        self.running_mean =
-            (1.0 - effective_alpha) * self.running_mean + effective_alpha * value;
+        let effective_alpha = if self.n_obs == 1 { 1.0 } else { self.alpha };
+        self.running_mean = (1.0 - effective_alpha) * self.running_mean + effective_alpha * value;
 
         // Page-Hinkley cumulative sum
         self.cumsum += value - self.running_mean - self.lambda;
@@ -206,8 +201,7 @@ impl Adwin {
 
             // Hoeffding bound
             let m_inv = 1.0 / na + 1.0 / nb;
-            let epsilon_cut =
-                ((m_inv / 2.0) * (1.0 / self.delta).ln()).sqrt();
+            let epsilon_cut = ((m_inv / 2.0) * (1.0 / self.delta).ln()).sqrt();
 
             if (mean_a - mean_b).abs() >= epsilon_cut {
                 cut_point = i;
@@ -277,9 +271,9 @@ pub struct OnlineArima {
     ma_params: Vec<f64>,
     /// RLS gain matrix (p + q) × (p + q), stored row-major
     rls_p: Vec<f64>,
-    history: VecDeque<f64>,   // raw level values
+    history: VecDeque<f64>,      // raw level values
     diff_history: VecDeque<f64>, // differenced values (order d)
-    errors: VecDeque<f64>,   // recent prediction errors
+    errors: VecDeque<f64>,       // recent prediction errors
     n_obs: usize,
 }
 
@@ -405,7 +399,11 @@ impl OnlineArima {
 
         // RLS update: K = P·φ / (λ + φᵀ·P·φ)
         let p_phi: Vec<f64> = (0..dim)
-            .map(|i| (0..dim).map(|j| self.rls_p[i * dim + j] * phi[j]).sum::<f64>())
+            .map(|i| {
+                (0..dim)
+                    .map(|j| self.rls_p[i * dim + j] * phi[j])
+                    .sum::<f64>()
+            })
             .collect();
         let phi_p_phi: f64 = (0..dim).map(|j| phi[j] * p_phi[j]).sum::<f64>();
         let denom = self.forgetting_factor + phi_p_phi;
@@ -471,7 +469,9 @@ impl OnlineArima {
     ///
     /// Uses the current AR/MA parameters and recursively extends the history.
     pub fn predict(&self, h: usize) -> Vec<f64> {
-        if h == 0 { return Vec::new(); }
+        if h == 0 {
+            return Vec::new();
+        }
 
         let mut dh: Vec<f64> = self.diff_history.iter().cloned().collect();
         let mut errors: Vec<f64> = self.errors.iter().cloned().collect();
@@ -602,8 +602,7 @@ impl AdaptiveExpSmoothing {
         self.alpha = (self.alpha - self.lr * grad).clamp(self.alpha_min, self.alpha_max);
 
         // Update derivative for next step
-        self.d_level_d_alpha =
-            (1.0 - self.alpha) * self.d_level_d_alpha + (value - self.level);
+        self.d_level_d_alpha = (1.0 - self.alpha) * self.d_level_d_alpha + (value - self.level);
 
         // Update level
         self.level = self.alpha * value + (1.0 - self.alpha) * self.level;
@@ -836,6 +835,9 @@ mod tests {
     fn test_aes_first_prediction_equals_first_value() {
         let mut aes = AdaptiveExpSmoothing::new(0.4);
         let pred = aes.update(5.0);
-        assert!((pred - 5.0).abs() < 1e-10, "first pred should equal first value");
+        assert!(
+            (pred - 5.0).abs() < 1e-10,
+            "first pred should equal first value"
+        );
     }
 }

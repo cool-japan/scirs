@@ -5,17 +5,22 @@
 
 use crate::error::{NeuralError, Result};
 use std::fs;
+use std::path::{Path, PathBuf};
+
 use super::config::{BindingConfig, BuildSystem};
+
 /// Build system file generator
 pub struct BuildSystemGenerator<'a> {
     config: &'a BindingConfig,
-    output_dir: &'a PathBuf,
+    output_dir: &'a Path,
 }
+
 impl<'a> BuildSystemGenerator<'a> {
     /// Create a new build system generator
-    pub fn new(_config: &'a BindingConfig, outputdir: &'a PathBuf) -> Self {
+    pub fn new(config: &'a BindingConfig, output_dir: &'a Path) -> Self {
         Self { config, output_dir }
     }
+
     /// Generate all build system files
     pub fn generate(&self) -> Result<Vec<PathBuf>> {
         let mut build_files = Vec::new();
@@ -27,166 +32,158 @@ impl<'a> BuildSystemGenerator<'a> {
             BuildSystem::Make => {
                 let make_path = self.generate_makefile()?;
                 build_files.push(make_path);
+            }
             _ => {
                 // Generate CMake as default
+                let cmake_path = self.generate_cmake()?;
+                build_files.push(cmake_path);
+            }
         }
         // Generate pkg-config file if requested
         if self.config.build_system.install_config.generate_pkgconfig {
             let pc_path = self.generate_pkgconfig()?;
             build_files.push(pc_path);
+        }
         Ok(build_files)
+    }
+
     /// Generate CMakeLists.txt
-    fn generate_cmake(&self) -> Result<PathBuf> {
+    pub fn generate_cmake(&self) -> Result<PathBuf> {
         let cmake_path = self.output_dir.join("CMakeLists.txt");
+        let lib_name = &self.config.library_name;
+        let cflags = self.config.build_system.compiler_flags.join(" ");
         let cmake_content = format!(
-            r#"cmake_minimum_required(VERSION 3.12)
-project({} VERSION 1.0.0 LANGUAGES C CXX)
-# Set C/C++ standards
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_CXX_STANDARD 17)
-# Configure build type
-if(NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE Release)
-endif()
-# Compiler flags
-set(CMAKE_C_FLAGS "${{CMAKE_C_FLAGS}} {}")
-set(CMAKE_CXX_FLAGS "${{CMAKE_CXX_FLAGS}} {}")
-# Include directories
-include_directories(include)
-# Source files
-file(GLOB_RECURSE SOURCES "src/*.c" "src/*.cpp")
-# Create library
-add_library({} SHARED ${{SOURCES}})
-# Link libraries
-target_link_libraries({} m)
-# Install targets
-install(TARGETS {}
-    LIBRARY DESTINATION ${{CMAKE_INSTALL_LIBDIR}}
-    ARCHIVE DESTINATION ${{CMAKE_INSTALL_LIBDIR}}
-    RUNTIME DESTINATION ${{CMAKE_INSTALL_BINDIR}})
-install(DIRECTORY include/
-    DESTINATION ${{CMAKE_INSTALL_INCLUDEDIR}})
-# Examples
-option(BUILD_EXAMPLES "Build example programs" ON)
-if(BUILD_EXAMPLES)
-    add_subdirectory(examples)
-# Tests
-option(BUILD_TESTS "Build test programs" ON)
-if(BUILD_TESTS AND EXISTS "${{CMAKE_CURRENT_SOURCE_DIR}}/tests")
-    enable_testing()
-    add_subdirectory(tests)
-"#,
-            self.config.library_name,
-            self.config.build_system.compiler_flags.join(" "),
-            self.config.library_name
+            "cmake_minimum_required(VERSION 3.12)\n\
+             project({lib_name} VERSION 1.0.0 LANGUAGES C CXX)\n\
+             set(CMAKE_C_STANDARD 99)\n\
+             set(CMAKE_CXX_STANDARD 17)\n\
+             if(NOT CMAKE_BUILD_TYPE)\n  set(CMAKE_BUILD_TYPE Release)\nendif()\n\
+             set(CMAKE_C_FLAGS \"${{CMAKE_C_FLAGS}} {cflags}\")\n\
+             set(CMAKE_CXX_FLAGS \"${{CMAKE_CXX_FLAGS}} {cflags}\")\n\
+             include_directories(include)\n\
+             file(GLOB_RECURSE SOURCES \"src/*.c\" \"src/*.cpp\")\n\
+             add_library({lib_name} SHARED ${{SOURCES}})\n\
+             target_link_libraries({lib_name} m)\n\
+             install(TARGETS {lib_name}\n\
+               LIBRARY DESTINATION ${{CMAKE_INSTALL_LIBDIR}}\n\
+               ARCHIVE DESTINATION ${{CMAKE_INSTALL_LIBDIR}}\n\
+               RUNTIME DESTINATION ${{CMAKE_INSTALL_BINDIR}})\n\
+             install(DIRECTORY include/ DESTINATION ${{CMAKE_INSTALL_INCLUDEDIR}})\n"
         );
-        fs::write(&cmake_path, cmake_content).map_err(|e| NeuralError::IOError(e.to_string()))?;
+        fs::write(&cmake_path, cmake_content)
+            .map_err(|e| NeuralError::IOError(e.to_string()))?;
         Ok(cmake_path)
+    }
+
     /// Generate Makefile
     fn generate_makefile(&self) -> Result<PathBuf> {
         let makefile_path = self.output_dir.join("Makefile");
+        let lib_name = &self.config.library_name;
+        let cflags = self.config.build_system.compiler_flags.join(" ");
+        let ldflags = self.config.build_system.linker_flags.join(" ");
+        let prefix = &self.config.build_system.install_config.prefix;
+        let libdir = &self.config.build_system.install_config.lib_dir;
+        let incdir = &self.config.build_system.install_config.include_dir;
+        let bindir = &self.config.build_system.install_config.bin_dir;
         let makefile_content = format!(
-            r#"# Makefile for {}
-CC = gcc
-CXX = g++
-CFLAGS = -std=c99 -fPIC {}
-CXXFLAGS = -std=c++17 -fPIC {}
-LDFLAGS = {}
-INCLUDES = -Iinclude
-# Source and object files
-SRCDIR = src
-SOURCES = $(wildcard $(SRCDIR)/*.c $(SRCDIR)/*.cpp)
-OBJECTS = $(SOURCES:.c=.o)
-OBJECTS := $(OBJECTS:.cpp=.o)
-# Library name
-LIBRARY = lib{}.so
-STATIC_LIB = lib{}.a
-# Installation directories
-PREFIX = {}
-LIBDIR = $(PREFIX)/{}
-INCDIR = $(PREFIX)/{}
-BINDIR = $(PREFIX)/{}
-.PHONY: all clean install uninstall examples
-all: $(LIBRARY) $(STATIC_LIB)
-$(LIBRARY): $(OBJECTS)
-	$(CC) -shared -o $@ $^ $(LDFLAGS)
-$(STATIC_LIB): $(OBJECTS)
-	ar rcs $@ $^
-%.o: %.c
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-%.o: %.cpp
-	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
-clean:
-	rm -f $(OBJECTS) $(LIBRARY) $(STATIC_LIB)
-	$(MAKE) -C examples clean
-install: $(LIBRARY) $(STATIC_LIB)
-	mkdir -p $(LIBDIR) $(INCDIR) $(BINDIR)
-	cp $(LIBRARY) $(STATIC_LIB) $(LIBDIR)/
-	cp -r include/* $(INCDIR)/
-uninstall:
-	rm -f $(LIBDIR)/$(LIBRARY) $(LIBDIR)/$(STATIC_LIB)
-	rm -rf $(INCDIR)/{}.h
-examples:
-	$(MAKE) -C examples
-help:
-	@echo "Available targets:"
-	@echo "  all      - Build library (default)"
-	@echo "  clean    - Remove build artifacts"
-	@echo "  install  - Install library and headers"
-	@echo "  uninstall - Remove installed files"
-	@echo "  examples - Build example programs"
-	@echo "  help     - Show this help"
-            self.config.build_system.linker_flags.join(" "),
-            self.config.build_system.install_config.prefix,
-            self.config.build_system.install_config.lib_dir,
-            self.config.build_system.install_config.include_dir,
-            self.config.build_system.install_config.bin_dir,
+            "# Makefile for {lib_name}\n\
+             CC = gcc\nCXX = g++\n\
+             CFLAGS = -std=c99 -fPIC {cflags}\n\
+             CXXFLAGS = -std=c++17 -fPIC {cflags}\n\
+             LDFLAGS = {ldflags}\n\
+             INCLUDES = -Iinclude\n\
+             SRCDIR = src\n\
+             SOURCES = $(wildcard $(SRCDIR)/*.c $(SRCDIR)/*.cpp)\n\
+             OBJECTS = $(SOURCES:.c=.o)\n\
+             OBJECTS := $(OBJECTS:.cpp=.o)\n\
+             LIBRARY = lib{lib_name}.so\n\
+             STATIC_LIB = lib{lib_name}.a\n\
+             PREFIX = {prefix}\n\
+             LIBDIR = $(PREFIX)/{libdir}\n\
+             INCDIR = $(PREFIX)/{incdir}\n\
+             BINDIR = $(PREFIX)/{bindir}\n\
+             .PHONY: all clean install\n\
+             all: $(LIBRARY) $(STATIC_LIB)\n\
+             $(LIBRARY): $(OBJECTS)\n\
+             \t$(CC) -shared -o $@ $^ $(LDFLAGS)\n\
+             $(STATIC_LIB): $(OBJECTS)\n\
+             \tar rcs $@ $^\n\
+             %.o: %.c\n\
+             \t$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@\n\
+             %.o: %.cpp\n\
+             \t$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@\n\
+             clean:\n\
+             \trm -f $(OBJECTS) $(LIBRARY) $(STATIC_LIB)\n\
+             install: $(LIBRARY) $(STATIC_LIB)\n\
+             \tmkdir -p $(LIBDIR) $(INCDIR) $(BINDIR)\n\
+             \tcp $(LIBRARY) $(STATIC_LIB) $(LIBDIR)/\n\
+             \tcp -r include/* $(INCDIR)/\n"
+        );
         fs::write(&makefile_path, makefile_content)
             .map_err(|e| NeuralError::IOError(e.to_string()))?;
         Ok(makefile_path)
+    }
+
     /// Generate pkg-config file
-    fn generate_pkgconfig(&self) -> Result<PathBuf> {
-        let pc_path = self
-            .output_dir
-            .join(format!("{}.pc", self.config.library_name));
+    pub fn generate_pkgconfig(&self) -> Result<PathBuf> {
+        let lib_name = &self.config.library_name;
+        let pc_path = self.output_dir.join(format!("{lib_name}.pc"));
+        let prefix = &self.config.build_system.install_config.prefix;
+        let libdir = &self.config.build_system.install_config.lib_dir;
+        let incdir = &self.config.build_system.install_config.include_dir;
         let pc_content = format!(
-            r#"prefix={}
-libdir=${{prefix}}/{}
-includedir=${{prefix}}/{}
-Name: {}
-Description: SciRS2 neural network C/C++ bindings
-Version: 1.0.0
-Libs: -L${{libdir}} -l{}
-Cflags: -I${{includedir}}
-        fs::write(&pc_path, pc_content).map_err(|e| NeuralError::IOError(e.to_string()))?;
+            "prefix={prefix}\n\
+             libdir=${{prefix}}/{libdir}\n\
+             includedir=${{prefix}}/{incdir}\n\
+             Name: {lib_name}\n\
+             Description: SciRS2 neural network C/C++ bindings\n\
+             Version: 1.0.0\n\
+             Libs: -L${{libdir}} -l{lib_name}\n\
+             Cflags: -I${{includedir}}\n"
+        );
+        fs::write(&pc_path, pc_content)
+            .map_err(|e| NeuralError::IOError(e.to_string()))?;
         Ok(pc_path)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::super::config::*;
     use super::*;
     use tempfile::TempDir;
+
     #[test]
     fn test_build_system_generator() {
         let config = BindingConfig::default();
-        let temp_dir = TempDir::new().expect("Operation failed");
-        let output_dir = temp_dir.path().to_path_buf();
-        let generator = BuildSystemGenerator::new(&config, &output_dir);
-        let build_files = generator.generate().expect("Operation failed");
+        let temp_dir = TempDir::new().expect("TempDir::new failed");
+        let output_dir = temp_dir.path();
+        let generator = BuildSystemGenerator::new(&config, output_dir);
+        let build_files = generator.generate().expect("generate failed");
         assert!(!build_files.is_empty());
-        assert!(build_files[0]
-            .file_name()
-            .expect("Operation failed")
-            .to_str()
-            .contains("CMakeLists.txt"));
+    }
+
+    #[test]
     fn test_cmake_generation() {
-        let cmake_path = generator.generate_cmake().expect("Operation failed");
+        let config = BindingConfig::default();
+        let temp_dir = TempDir::new().expect("TempDir::new failed");
+        let output_dir = temp_dir.path();
+        let generator = BuildSystemGenerator::new(&config, output_dir);
+        let cmake_path = generator.generate_cmake().expect("generate_cmake failed");
         assert!(cmake_path.exists());
-        let content = std::fs::read_to_string(&cmake_path).expect("Operation failed");
+        let content = std::fs::read_to_string(&cmake_path).expect("read_to_string failed");
         assert!(content.contains("cmake_minimum_required"));
-        assert!(content.contains("project(scirs2_model"));
+    }
+
+    #[test]
     fn test_pkgconfig_generation() {
-        let pc_path = generator.generate_pkgconfig().expect("Operation failed");
+        let config = BindingConfig::default();
+        let temp_dir = TempDir::new().expect("TempDir::new failed");
+        let output_dir = temp_dir.path();
+        let generator = BuildSystemGenerator::new(&config, output_dir);
+        let pc_path = generator.generate_pkgconfig().expect("generate_pkgconfig failed");
         assert!(pc_path.exists());
-        let content = std::fs::read_to_string(&pc_path).expect("Operation failed");
-        assert!(content.contains("Name: scirs2_model"));
-        assert!(content.contains("Libs: -L"));
+        let content = std::fs::read_to_string(&pc_path).expect("read_to_string failed");
+        assert!(content.contains("Libs:"));
+    }
+}

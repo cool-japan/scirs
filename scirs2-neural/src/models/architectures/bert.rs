@@ -13,11 +13,12 @@ use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive, NumAssign, ToPrimitive};
 use scirs2_core::random::SeedableRng;
 use scirs2_core::simd_ops::SimdUnifiedOps;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
 /// Configuration for a BERT model
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BertConfig {
     /// Vocabulary size
     pub vocab_size: usize,

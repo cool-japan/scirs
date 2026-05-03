@@ -392,10 +392,11 @@ where
 
     // If no peaks found, fall back to max bin
     if peaks.is_empty() {
-        if let Some((k, &p)) = power.iter().enumerate().max_by(|a, b| {
-            a.1.partial_cmp(b.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        }) {
+        if let Some((k, &p)) = power
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
+        {
             peaks.push((p, hz[k]));
         }
     }
@@ -549,7 +550,12 @@ where
     let total_power: f64 = power.iter().sum();
 
     let centroid = if total_power > 0.0 {
-        power.iter().zip(hz.iter()).map(|(&p, &f)| p * f).sum::<f64>() / total_power
+        power
+            .iter()
+            .zip(hz.iter())
+            .map(|(&p, &f)| p * f)
+            .sum::<f64>()
+            / total_power
     } else {
         0.0
     };
@@ -624,8 +630,7 @@ mod tests {
 
     fn sine_wave(n: usize, freq_hz: f64, fs: f64) -> Array1<f64> {
         Array1::from_iter(
-            (0..n)
-                .map(|i| (2.0 * std::f64::consts::PI * freq_hz * i as f64 / fs).sin()),
+            (0..n).map(|i| (2.0 * std::f64::consts::PI * freq_hz * i as f64 / fs).sin()),
         )
     }
 

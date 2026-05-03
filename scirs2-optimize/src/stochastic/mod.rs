@@ -6,9 +6,16 @@
 
 pub mod adam;
 pub mod adamw;
+pub mod approximation;
 pub mod momentum;
+pub mod new_adam;
+pub mod new_sgd;
+pub mod new_variance_reduction;
+pub mod optimizers;
 pub mod rmsprop;
+pub mod schedules;
 pub mod sgd;
+pub mod variance_reduction;
 
 // Re-export commonly used items
 pub use adam::{minimize_adam, AdamOptions};

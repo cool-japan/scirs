@@ -19,3 +19,6 @@ pub use functions_2::*;
 pub use functions_3::*;
 pub use functions_4::*;
 pub use types::*;
+
+// Note: neural_tests.rs is included via #[path = "neural_tests.rs"] inside neural.rs.
+// No need to declare it here as a separate module.

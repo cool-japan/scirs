@@ -79,7 +79,9 @@ impl DQNReplayBuffer {
     /// Sample `batch_size` transitions uniformly at random (with replacement).
     pub fn sample(&mut self, batch_size: usize) -> Result<Vec<Experience>> {
         if self.size == 0 {
-            return Err(NeuralError::InvalidState("cannot sample from empty replay buffer".into()));
+            return Err(NeuralError::InvalidState(
+                "cannot sample from empty replay buffer".into(),
+            ));
         }
         let samples: Vec<Experience> = (0..batch_size)
             .map(|_| self.buffer[self.rng.usize_below(self.size)].clone())
@@ -310,7 +312,8 @@ impl DQNAgent {
             if qs.len() != num_actions {
                 return Err(NeuralError::ShapeMismatch(format!(
                     "Q-value length {} != num_actions {}",
-                    qs.len(), num_actions
+                    qs.len(),
+                    num_actions
                 )));
             }
 
@@ -322,11 +325,9 @@ impl DQNAgent {
                     // Double DQN: online selects action, target evaluates it
                     let best_next_action = self.online_net.greedy_action(&exp.next_state)?;
                     let target_qs = self.target_net.q_values(&exp.next_state)?;
-                    target_qs.get(best_next_action)
-                        .copied()
-                        .ok_or_else(|| NeuralError::ComputationError(
-                            "best_next_action out of range".into()
-                        ))?
+                    target_qs.get(best_next_action).copied().ok_or_else(|| {
+                        NeuralError::ComputationError("best_next_action out of range".into())
+                    })?
                 } else {
                     // Standard DQN: max Q from target net
                     let target_qs = self.target_net.q_values(&exp.next_state)?;
@@ -340,7 +341,9 @@ impl DQNAgent {
             targets[exp.action] = td_target;
 
             // Single-action update (zero gradient on all other actions)
-            let loss = self.online_net.update_action(&exp.state, exp.action, td_target, lr)?;
+            let loss = self
+                .online_net
+                .update_action(&exp.state, exp.action, td_target, lr)?;
             total_loss += loss;
         }
 
@@ -406,7 +409,10 @@ mod tests {
 
     #[test]
     fn dqn_agent_select_action_in_range() {
-        let cfg = DQNConfig { hidden_dims: vec![16], ..Default::default() };
+        let cfg = DQNConfig {
+            hidden_dims: vec![16],
+            ..Default::default()
+        };
         let mut agent = DQNAgent::new(4, 3, cfg);
         let obs = vec![0.1_f32; 4];
         let a = agent.select_action(&obs).expect("select_action failed");
@@ -428,7 +434,10 @@ mod tests {
         for _ in 0..10 {
             let _ = agent.select_action(&obs).expect("act");
         }
-        assert!((agent.epsilon() - 0.1).abs() < 0.05, "epsilon should reach eps_end");
+        assert!(
+            (agent.epsilon() - 0.1).abs() < 0.05,
+            "epsilon should reach eps_end"
+        );
     }
 
     #[test]
@@ -464,7 +473,10 @@ mod tests {
             });
         }
         let result = agent.update().expect("update failed");
-        assert!(result.is_some(), "should produce a loss after learning_starts");
+        assert!(
+            result.is_some(),
+            "should produce a loss after learning_starts"
+        );
         let loss = result.expect("operation should succeed");
         assert!(loss.is_finite(), "loss must be finite; got {}", loss);
     }
@@ -537,7 +549,10 @@ mod tests {
         for i in 0..20 {
             agent.store_transition(make_exp(4, i % 2));
         }
-        let loss = agent.update().expect("update").expect("should produce loss");
+        let loss = agent
+            .update()
+            .expect("update")
+            .expect("should produce loss");
         assert!(loss.is_finite());
     }
 }

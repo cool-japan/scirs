@@ -1099,26 +1099,23 @@ mod tests {
         ));
     }
 
-    #[test]
-    #[ignore] // GPU testing requires async runtime
-    fn test_gpu_distance_matrix() {
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_gpu_distance_matrix() {
         let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
 
         let gpu_matrix = GpuDistanceMatrix::new().expect("Operation failed");
-        // GPU functionality not available in this configuration
         let points_view = points.view();
-        let _result = gpu_matrix.compute_parallel(&points_view);
+        let result = gpu_matrix.compute_parallel(&points_view).await;
 
-        // GPU functionality not available in this configuration
-        // Tests are disabled pending proper async runtime setup
-        // assert!(result.is_ok());
-        // let matrix = result.expect("Operation failed");
-        // assert_eq!(matrix.dim(), (4, 4));
+        assert!(result.is_ok());
+        let matrix = result.expect("Operation failed");
+        assert_eq!(matrix.dim(), (4, 4));
     }
 
-    #[test]
-    #[ignore] // GPU testing requires async runtime
-    fn test_gpu_kmeans() {
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_gpu_kmeans() {
         let points = array![
             [0.0, 0.0],
             [0.1, 0.1],
@@ -1129,35 +1126,29 @@ mod tests {
         ];
 
         let gpu_kmeans = GpuKMeans::new(2).expect("Operation failed");
-        // GPU functionality not available in this configuration
         let points_view = points.view();
-        let _result = gpu_kmeans.fit(&points_view);
+        let result = gpu_kmeans.fit(&points_view).await;
 
-        // GPU functionality not available in this configuration
-        // Tests are disabled pending proper async runtime setup
-        // assert!(result.is_ok());
-        // let (centroids, assignments) = result.expect("Operation failed");
+        assert!(result.is_ok());
+        let (centroids, _assignments) = result.expect("Operation failed");
+        assert_eq!(centroids.nrows(), 2);
     }
 
-    #[test]
-    #[ignore] // GPU testing requires async runtime
-    fn test_gpu_nearest_neighbors() {
+    #[cfg(feature = "async")]
+    #[tokio::test]
+    async fn test_gpu_nearest_neighbors() {
         let data_points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.0, 1.0]];
         let query_points = array![[0.1, 0.1], [0.9, 0.9]];
 
         let gpu_nn = GpuNearestNeighbors::new().expect("Operation failed");
         let query_view = query_points.view();
         let data_view = data_points.view();
-        let _result = gpu_nn.knn_search(&query_view, &data_view, 2);
+        let result = gpu_nn.knn_search(&query_view, &data_view, 2).await;
 
-        // GPU functionality not available in this configuration
-        // Tests are disabled pending proper async runtime setup
-        // assert!(result.is_ok());
-        // let (indices, distances) = result.expect("Operation failed");
-
-        // GPU functionality not available in this configuration
+        assert!(result.is_ok());
+        let (indices, _distances) = result.expect("Operation failed");
         // Verify results make sense (closest to first query should be [0,0])
-        // assert_eq!(indices[[0, 0]], 0);  // Point [0,0] should be closest to [0.1, 0.1]
+        assert_eq!(indices[[0, 0]], 0); // Point [0,0] should be closest to [0.1, 0.1]
     }
 
     #[test]

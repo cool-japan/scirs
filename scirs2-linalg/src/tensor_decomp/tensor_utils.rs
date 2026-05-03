@@ -562,6 +562,7 @@ fn solve_with_damping(a: &[Vec<f64>], b: &[Vec<f64>]) -> LinalgResult<Vec<Vec<f6
 /// and `k = min(min(m,n), rank)`.
 ///
 /// Uses iterative power-iteration warm-start for numerical stability.
+#[allow(clippy::type_complexity)]
 pub(crate) fn truncated_svd(
     mat: &[Vec<f64>],
     rank: usize,
@@ -575,11 +576,7 @@ pub(crate) fn truncated_svd(
     let n = mat[0].len();
     let k = rank.min(m).min(n);
     if k == 0 {
-        return Ok((
-            vec![vec![0.0; 0]; m],
-            Vec::new(),
-            vec![vec![0.0; n]; 0],
-        ));
+        return Ok((vec![vec![0.0; 0]; m], Vec::new(), Vec::<Vec<f64>>::new()));
     }
 
     // Build AᵀA (or AAᵀ if m < n) for eigendecomposition
@@ -590,6 +587,7 @@ pub(crate) fn truncated_svd(
 
 /// Full SVD via Householder bidiagonalisation + QR sweep, returning top-k
 /// components.  Correct for all matrix shapes.
+#[allow(clippy::type_complexity)]
 fn full_svd_truncated(
     mat: &[Vec<f64>],
     k: usize,
@@ -599,17 +597,15 @@ fn full_svd_truncated(
 
     // Use the scirs2-linalg SVD (ndarray based)
     // We convert our Vec<Vec<f64>> to a flat ndarray::Array2 and call SVD.
-    use scirs2_core::ndarray::{Array2, s};
+    use scirs2_core::ndarray::{s, Array2};
 
     let flat: Vec<f64> = mat.iter().flat_map(|row| row.iter().copied()).collect();
     let a = Array2::from_shape_vec((m, n), flat)
         .map_err(|e| LinalgError::ShapeError(format!("SVD reshape: {e}")))?;
 
     // Call linalg SVD
-    let (u_full, s_arr, vt_full) =
-        crate::decomposition::svd(&a.view(), true, None).map_err(|e| {
-            LinalgError::ComputationError(format!("SVD failed: {e}"))
-        })?;
+    let (u_full, s_arr, vt_full) = crate::decomposition::svd(&a.view(), true, None)
+        .map_err(|e| LinalgError::ComputationError(format!("SVD failed: {e}")))?;
 
     // Truncate to k
     let k_actual = k.min(s_arr.len());

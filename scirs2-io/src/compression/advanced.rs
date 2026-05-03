@@ -166,7 +166,7 @@ impl RunLengthEncoding {
 
     /// Decode RLE-encoded bytes.  Returns the original byte sequence.
     pub fn decode(encoded: &[u8]) -> Result<Vec<u8>> {
-        if encoded.len() % 2 != 0 {
+        if !encoded.len().is_multiple_of(2) {
             return Err(IoError::DecompressionError(
                 "RLE: encoded length must be even".to_string(),
             ));
@@ -231,9 +231,11 @@ impl DeltaEncoding {
         if encoded.len() < 8 {
             return Err(IoError::DecompressionError("Delta: too short".to_string()));
         }
-        let n = u64::from_le_bytes(encoded[..8].try_into().map_err(|_| {
-            IoError::DecompressionError("Delta: bad length prefix".to_string())
-        })?) as usize;
+        let n = u64::from_le_bytes(
+            encoded[..8]
+                .try_into()
+                .map_err(|_| IoError::DecompressionError("Delta: bad length prefix".to_string()))?,
+        ) as usize;
         if n == 0 {
             return Ok(Vec::new());
         }
@@ -243,16 +245,19 @@ impl DeltaEncoding {
             ));
         }
         let mut out = Vec::with_capacity(n);
-        let first = i64::from_le_bytes(encoded[8..16].try_into().map_err(|_| {
-            IoError::DecompressionError("Delta: bad first value".to_string())
-        })?);
+        let first = i64::from_le_bytes(
+            encoded[8..16]
+                .try_into()
+                .map_err(|_| IoError::DecompressionError("Delta: bad first value".to_string()))?,
+        );
         out.push(first);
         let mut prev = first;
         for i in 1..n {
             let offset = 8 + i * 8;
-            let delta = i64::from_le_bytes(encoded[offset..offset + 8].try_into().map_err(|_| {
-                IoError::DecompressionError("Delta: bad delta value".to_string())
-            })?);
+            let delta =
+                i64::from_le_bytes(encoded[offset..offset + 8].try_into().map_err(|_| {
+                    IoError::DecompressionError("Delta: bad delta value".to_string())
+                })?);
             let val = prev.wrapping_add(delta);
             out.push(val);
             prev = val;
@@ -265,10 +270,7 @@ impl DeltaEncoding {
     /// Values are multiplied by `scale` and rounded to `i64` before delta encoding.
     /// Decoding divides by `scale` to recover approximate floats.
     pub fn encode_f64(data: &[f64], scale: f64) -> Vec<u8> {
-        let ints: Vec<i64> = data
-            .iter()
-            .map(|&v| (v * scale).round() as i64)
-            .collect();
+        let ints: Vec<i64> = data.iter().map(|&v| (v * scale).round() as i64).collect();
         Self::encode_i64(&ints)
     }
 
@@ -387,7 +389,9 @@ impl FrameCompressor {
         let mut pos = 10usize;
         for _ in 0..num_frames {
             if pos + 8 > data.len() {
-                return Err(IoError::DecompressionError("Frame: truncated header".to_string()));
+                return Err(IoError::DecompressionError(
+                    "Frame: truncated header".to_string(),
+                ));
             }
             let comp_size =
                 u32::from_le_bytes([data[pos], data[pos + 1], data[pos + 2], data[pos + 3]])
@@ -397,7 +401,9 @@ impl FrameCompressor {
                     as usize;
             pos += 8;
             if pos + comp_size > data.len() {
-                return Err(IoError::DecompressionError("Frame: truncated data".to_string()));
+                return Err(IoError::DecompressionError(
+                    "Frame: truncated data".to_string(),
+                ));
             }
             let frame_data = &data[pos..pos + comp_size];
             pos += comp_size;
@@ -524,14 +530,26 @@ impl CompressionBenchmark {
     pub fn bench_zstd(&self, data: &[u8]) -> Result<BenchmarkResult> {
         let c = ZstdCompressor::new();
         let compressed = c.compress(data)?;
-        self.measure("Zstd", data, &compressed, || c.compress(data), || c.decompress(&compressed))
+        self.measure(
+            "Zstd",
+            data,
+            &compressed,
+            || c.compress(data),
+            || c.decompress(&compressed),
+        )
     }
 
     /// Benchmark `LZ4Compressor` on `data`.
     pub fn bench_lz4(&self, data: &[u8]) -> Result<BenchmarkResult> {
         let c = LZ4Compressor::new();
         let compressed = c.compress(data)?;
-        self.measure("LZ4", data, &compressed, || c.compress(data), || c.decompress(&compressed))
+        self.measure(
+            "LZ4",
+            data,
+            &compressed,
+            || c.compress(data),
+            || c.decompress(&compressed),
+        )
     }
 
     /// Benchmark `RunLengthEncoding` on `data`.
@@ -656,7 +674,8 @@ mod tests {
     use super::*;
 
     const REPETITIVE: &[u8] = b"aaaaaaaaabbbbbbbbbbccccccccddddddddeeeeeeee";
-    const TEXT: &[u8] = b"The quick brown fox jumps over the lazy dog. Scientific data compression!";
+    const TEXT: &[u8] =
+        b"The quick brown fox jumps over the lazy dog. Scientific data compression!";
 
     #[test]
     fn test_zstd_roundtrip() {
@@ -724,7 +743,9 @@ mod tests {
     #[test]
     fn test_frame_compressor_roundtrip_lz4() {
         let data: Vec<u8> = (0u8..=255).cycle().take(200_000).collect();
-        let fc = FrameCompressor::new().with_frame_size(16 * 1024).with_codec(FrameCodec::Lz4);
+        let fc = FrameCompressor::new()
+            .with_frame_size(16 * 1024)
+            .with_codec(FrameCodec::Lz4);
         let enc = fc.compress(&data).unwrap();
         let dec = fc.decompress(&enc).unwrap();
         assert_eq!(dec, data);
@@ -749,7 +770,9 @@ mod tests {
     #[test]
     fn test_benchmark_runs() {
         let data: Vec<u8> = (0u8..=255).cycle().take(10_000).collect();
-        let bm = CompressionBenchmark::new().with_warmup(0).with_timed_runs(1);
+        let bm = CompressionBenchmark::new()
+            .with_warmup(0)
+            .with_timed_runs(1);
         let results = bm.run_all(&data);
         // At least zstd and lz4 should succeed
         assert!(results.len() >= 2);

@@ -320,7 +320,11 @@ where
 
             // Check improvement condition using K = K_upper (the tightest upper bound).
             // If K_upper is infinite (no larger rectangles), use K = K_lower >= 0.
-            let k_use = if k_upper.is_finite() { k_upper } else { k_lower };
+            let k_use = if k_upper.is_finite() {
+                k_upper
+            } else {
+                k_lower
+            };
             let f_projected = f_i - k_use * d_i;
             if f_projected <= f_min - epsilon * f_min.abs() {
                 selected.push(idx);

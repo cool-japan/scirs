@@ -21,10 +21,4 @@
 
 pub mod krylov;
 
-pub use krylov::{
-    IterativeSolveResult,
-    bicgstab,
-    conjugate_gradient,
-    gmres,
-    minres,
-};
+pub use krylov::{bicgstab, conjugate_gradient, gmres, minres, IterativeSolveResult};

@@ -50,7 +50,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-integrate = "0.4.2"
+//! scirs2-integrate = "0.4.3"
 //! ```
 
 //!
@@ -232,7 +232,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.2
+//! - **Version**: 0.4.3
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-integrate](https://docs.rs/scirs2-integrate)
@@ -315,6 +315,9 @@ pub mod dde;
 
 // ODE module is now fully implemented in ode/
 
+#[cfg(feature = "async")]
+pub mod async_ode;
+pub mod gpu_fem;
 pub mod gpu_lbm;
 pub mod gpu_ode_ensemble;
 pub mod qmc;
@@ -341,6 +344,24 @@ pub mod pinn;
 pub mod polynomial_chaos;
 // Uncertainty quantification
 pub mod uncertainty;
+
+// Additional integration methods
+pub mod dg;
+pub mod lbm;
+pub mod monte_carlo_advanced;
+pub mod phase_field;
+pub mod quasi_monte_carlo;
+pub mod sde_simple;
+
+// Additional submodule crates
+pub mod adaptive;
+pub mod bem;
+pub mod continuation;
+pub mod iga;
+pub mod integral_equations;
+pub mod port_hamiltonian;
+pub mod shooting;
+pub mod spde;
 
 // Re-exports for convenience
 pub use acceleration::{AcceleratorOptions, AitkenAccelerator, AndersonAccelerator};
@@ -469,11 +490,12 @@ pub use specialized::{
     HydrogenAtom,
     JumpProcess,
     LESolver,
+    MultiBodyEigenResult,
+    MultiBodyQuantumSolver,
     NavierStokesParams,
     NavierStokesSolver,
     OptionStyle,
     OptionType,
-    // MultiBodyQuantumSolver, - TODO: Add when implemented
     ParticleInBox,
     QuantumAnnealer,
     QuantumPotential,
@@ -484,7 +506,6 @@ pub use specialized::{
     SGSModel,
     SchrodingerMethod,
     SchrodingerSolver,
-    // VariationalQuantumEigensolver, - TODO: Add when implemented
     // Quantum ML exports - TODO: Add when implemented
     // EntanglementPattern,
     // QuantumFeatureMap,
@@ -493,6 +514,7 @@ pub use specialized::{
     // QuantumSupportVectorMachine,
     SpectralNavierStokesSolver,
     StochasticPDESolver,
+    VariationalQuantumEigensolver,
     VolatilityModel,
 };
 // Export geometric integration methods

@@ -124,7 +124,11 @@ impl<F: TensorScalar> TTCore<F> {
         for core in &cores {
             ranks.push(core.shape()[2]);
         }
-        Ok(Self { cores, mode_sizes, ranks })
+        Ok(Self {
+            cores,
+            mode_sizes,
+            ranks,
+        })
     }
 
     /// Number of modes (dimensions).
@@ -167,7 +171,7 @@ impl<F: TensorScalar> TTCore<F> {
             let mut v_new = vec![F::zero(); r_right];
             for l in 0..left_rank {
                 for r in 0..r_right {
-                    v_new[r] = v_new[r] + v[l] * core[[l, idx, r]];
+                    v_new[r] += v[l] * core[[l, idx, r]];
                 }
             }
             v = v_new;
@@ -197,7 +201,11 @@ impl<F: TensorScalar> TTCore<F> {
             let idx: usize = multi.iter().zip(strides.iter()).map(|(i, s)| i * s).sum();
             data[idx] = val;
         }
-        Ok(Tensor { data, shape, strides })
+        Ok(Tensor {
+            data,
+            shape,
+            strides,
+        })
     }
 
     /// Frobenius norm of the TT tensor (computed via full reconstruction).
@@ -243,7 +251,9 @@ impl<F: TensorScalar> TTCore<F> {
 pub fn tt_svd<F: TensorScalar>(tensor: &Tensor<F>, eps: F) -> LinalgResult<TTCore<F>> {
     let d = tensor.ndim();
     if d == 0 {
-        return Err(LinalgError::ShapeError("tensor must have at least 1 mode".to_string()));
+        return Err(LinalgError::ShapeError(
+            "tensor must have at least 1 mode".to_string(),
+        ));
     }
     let shape = &tensor.shape;
     let tensor_norm = tensor.frobenius_norm();
@@ -263,7 +273,7 @@ pub fn tt_svd<F: TensorScalar>(tensor: &Tensor<F>, eps: F) -> LinalgResult<TTCor
 
     for k in 0..(d - 1) {
         let n_k = shape[k];
-        // Reshape C to (r_{k-1} * n_k, numel / (r_{k-1} * n_k ... 1)) 
+        // Reshape C to (r_{k-1} * n_k, numel / (r_{k-1} * n_k ... 1))
         // i.e. (r_prev * n_k, remaining)
         let new_rows = c_rows * n_k;
         let new_cols = c_cols / n_k;
@@ -304,7 +314,9 @@ pub fn tt_svd<F: TensorScalar>(tensor: &Tensor<F>, eps: F) -> LinalgResult<TTCor
     if c_data.len() != r_prev * n_last {
         return Err(LinalgError::ShapeError(format!(
             "TT-SVD last core data size mismatch: {} != {} * {}",
-            c_data.len(), r_prev, n_last
+            c_data.len(),
+            r_prev,
+            n_last
         )));
     }
     let mut last_core = Array3::<F>::zeros((r_prev, n_last, 1));
@@ -361,7 +373,9 @@ where
 {
     let d = shape.len();
     if d == 0 {
-        return Err(LinalgError::ShapeError("shape must be non-empty".to_string()));
+        return Err(LinalgError::ShapeError(
+            "shape must be non-empty".to_string(),
+        ));
     }
     let max_rank = max_rank.max(1);
 
@@ -371,25 +385,30 @@ where
     // The cross heuristic below is attempted first; if it fails the accuracy
     // test, TT-SVD is used.
     // -----------------------------------------------------------------------
-    let build_full = |shape: &[usize], eval: &dyn Fn(&[usize]) -> F, eps: F| -> LinalgResult<TTCore<F>> {
-        let total: usize = shape.iter().product();
-        let strides = crate::tensor::core::compute_row_major_strides(shape);
-        let mut data = vec![F::zero(); total];
-        let d = shape.len();
-        for flat in 0..total {
-            let mut multi = vec![0usize; d];
-            let mut rem = flat;
-            for dim in (0..d).rev() {
-                multi[dim] = rem % shape[dim];
-                rem /= shape[dim];
+    let build_full =
+        |shape: &[usize], eval: &dyn Fn(&[usize]) -> F, eps: F| -> LinalgResult<TTCore<F>> {
+            let total: usize = shape.iter().product();
+            let strides = crate::tensor::core::compute_row_major_strides(shape);
+            let mut data = vec![F::zero(); total];
+            let d = shape.len();
+            for flat in 0..total {
+                let mut multi = vec![0usize; d];
+                let mut rem = flat;
+                for dim in (0..d).rev() {
+                    multi[dim] = rem % shape[dim];
+                    rem /= shape[dim];
+                }
+                let val = eval(&multi);
+                let idx: usize = multi.iter().zip(strides.iter()).map(|(i, s)| i * s).sum();
+                data[idx] = val;
             }
-            let val = eval(&multi);
-            let idx: usize = multi.iter().zip(strides.iter()).map(|(i, s)| i * s).sum();
-            data[idx] = val;
-        }
-        let tensor = Tensor { data, shape: shape.to_vec(), strides };
-        tt_svd(&tensor, eps)
-    };
+            let tensor = Tensor {
+                data,
+                shape: shape.to_vec(),
+                strides,
+            };
+            tt_svd(&tensor, eps)
+        };
 
     // -----------------------------------------------------------------------
     // Attempt a greedy cross approximation (DMRG-style index sweep).
@@ -398,12 +417,16 @@ where
     // Index sets for each interface
     // left_sets[k]: list of left multi-indices of length k
     // right_sets[k]: list of right multi-indices of length d-k
-    let mut left_sets: Vec<Vec<Vec<usize>>> = (0..=d).map(|k| {
-        if k == 0 { vec![vec![]] } else { vec![vec![0usize; k]] }
-    }).collect();
-    let mut right_sets: Vec<Vec<Vec<usize>>> = (0..=d).map(|k| {
-        vec![vec![0usize; d - k]]
-    }).collect();
+    let mut left_sets: Vec<Vec<Vec<usize>>> = (0..=d)
+        .map(|k| {
+            if k == 0 {
+                vec![vec![]]
+            } else {
+                vec![vec![0usize; k]]
+            }
+        })
+        .collect();
+    let mut right_sets: Vec<Vec<Vec<usize>>> = (0..=d).map(|k| vec![vec![0usize; d - k]]).collect();
     right_sets[d] = vec![vec![]];
 
     let mut cores: Vec<Array3<F>> = (0..d)
@@ -440,7 +463,9 @@ where
             let mut new_left: Vec<Vec<usize>> = Vec::with_capacity(new_rank);
             'outer: for alpha in 0..r_left {
                 for i_k in 0..n_k {
-                    if new_left.len() >= new_rank { break 'outer; }
+                    if new_left.len() >= new_rank {
+                        break 'outer;
+                    }
                     let mut idx = left_sets[k][alpha].clone();
                     idx.push(i_k);
                     new_left.push(idx);
@@ -489,7 +514,9 @@ where
             let mut new_right: Vec<Vec<usize>> = Vec::with_capacity(new_rank);
             'outer2: for i_k in 0..n_k {
                 for beta in 0..r_right {
-                    if new_right.len() >= new_rank { break 'outer2; }
+                    if new_right.len() >= new_rank {
+                        break 'outer2;
+                    }
                     let mut idx = vec![i_k];
                     idx.extend_from_slice(&right_sets[k + 1][beta]);
                     new_right.push(idx);
@@ -541,7 +568,9 @@ where
                 let got = tt.get(sample).unwrap_or(F::zero());
                 if expected.abs() > F::from(1e-12_f64).unwrap_or(F::zero()) {
                     let rel = ((got - expected) / expected).abs();
-                    if rel > max_rel_err { max_rel_err = rel; }
+                    if rel > max_rel_err {
+                        max_rel_err = rel;
+                    }
                 } else if got.abs() > F::from(1e-10_f64).unwrap_or(F::zero()) {
                     max_rel_err = F::one(); // non-zero when should be zero
                 }
@@ -635,7 +664,8 @@ pub fn tt_round<F: TensorScalar>(tt: &TTCore<F>, eps: F) -> LinalgResult<TTCore<
                     let mut s = F::zero();
                     for gamma in 0..r_next_left.min(r_mat.nrows()) {
                         if gamma < r_mat.ncols() {
-                            s = s + r_mat[[alpha.min(r_mat.nrows()-1), gamma]] * cores[k + 1][[gamma, i, beta]];
+                            s += r_mat[[alpha.min(r_mat.nrows() - 1), gamma]]
+                                * cores[k + 1][[gamma, i, beta]];
                         }
                     }
                     new_core_k1[[alpha, i, beta]] = s;
@@ -700,9 +730,7 @@ pub fn tt_round<F: TensorScalar>(tt: &TTCore<F>, eps: F) -> LinalgResult<TTCore<
                     let mut sum = F::zero();
                     for gamma in 0..r_prev_right.min(u.nrows()) {
                         if gamma < u.ncols() && beta < s.len() {
-                            sum = sum + cores[k - 1][[alpha, i, gamma]]
-                                * u[[gamma, beta]]
-                                * s[beta];
+                            sum += cores[k - 1][[alpha, i, gamma]] * u[[gamma, beta]] * s[beta];
                         }
                     }
                     new_core_km1[[alpha, i, beta]] = sum;
@@ -863,7 +891,7 @@ pub fn tt_scale<F: TensorScalar>(tt: &TTCore<F>, scalar: F) -> LinalgResult<TTCo
     }
     let mut cores = tt.cores.clone();
     for val in cores[0].iter_mut() {
-        *val = *val * scalar;
+        *val *= scalar;
     }
     TTCore::new(cores)
 }
@@ -914,7 +942,7 @@ pub fn tt_dot<F: TensorScalar>(a: &TTCore<F>, b: &TTCore<F>) -> LinalgResult<F> 
                             continue;
                         }
                         for i_k in 0..n_k {
-                            val = val + m_val * ca[[alpha_a, i_k, beta_a]] * cb[[alpha_b, i_k, beta_b]];
+                            val += m_val * ca[[alpha_a, i_k, beta_a]] * cb[[alpha_b, i_k, beta_b]];
                         }
                     }
                 }
@@ -935,11 +963,7 @@ pub fn tt_dot<F: TensorScalar>(a: &TTCore<F>, b: &TTCore<F>) -> LinalgResult<F> 
 // ---------------------------------------------------------------------------
 
 /// Build an `Array2<F>` from a flat `Vec<F>` with given shape.
-fn vec_to_array2<F: TensorScalar>(
-    data: &[F],
-    rows: usize,
-    cols: usize,
-) -> LinalgResult<Array2<F>> {
+fn vec_to_array2<F: TensorScalar>(data: &[F], rows: usize, cols: usize) -> LinalgResult<Array2<F>> {
     if data.len() != rows * cols {
         return Err(LinalgError::ShapeError(format!(
             "data length {} != {}×{}={}",
@@ -963,12 +987,10 @@ fn choose_rank_threshold<F: TensorScalar>(s: &scirs2_core::ndarray::Array1<F>, d
     let total_sq: F = s.iter().map(|&x| x * x).fold(F::zero(), |a, b| a + b);
     let mut tail_sq = total_sq;
     for (k, &sv) in s.iter().enumerate() {
-        if tail_sq.sqrt() <= delta || k == 0 {
-            if tail_sq.sqrt() <= delta {
-                return k.max(1);
-            }
+        if tail_sq.sqrt() <= delta {
+            return k.max(1);
         }
-        tail_sq = tail_sq - sv * sv;
+        tail_sq -= sv * sv;
     }
     s.len().max(1)
 }
@@ -1111,17 +1133,20 @@ mod tests {
         // gives an exact TT representation that we can fully check.
         let tt = tt_cross(
             &[3, 3, 3],
-            |idx: &[usize]| -> f64 {
-                ((idx[0] + 1) * (idx[1] + 1) * (idx[2] + 1)) as f64
-            },
+            |idx: &[usize]| -> f64 { ((idx[0] + 1) * (idx[1] + 1) * (idx[2] + 1)) as f64 },
             10,
             1e-8_f64,
-        ).expect("tt_cross ok");
+        )
+        .expect("tt_cross ok");
         // Structural checks: TT format is well-formed
         assert_eq!(tt.ndim(), 3);
         assert_eq!(tt.mode_sizes, vec![3, 3, 3]);
         assert_eq!(tt.ranks[0], 1, "left boundary rank must be 1");
-        assert_eq!(*tt.ranks.last().expect("last rank"), 1, "right boundary rank must be 1");
+        assert_eq!(
+            *tt.ranks.last().expect("last rank"),
+            1,
+            "right boundary rank must be 1"
+        );
         // Reconstruct and verify element (0,0,0) is positive (the tensor has all positive entries)
         let full = tt.to_full().expect("to_full");
         assert_eq!(full.shape, vec![3, 3, 3]);

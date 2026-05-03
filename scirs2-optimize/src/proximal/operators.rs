@@ -131,12 +131,14 @@ pub fn prox_nuclear(
     let sigma_thresh: Vec<f64> = sigma.iter().map(|&s| (s - lambda).max(0.0)).collect();
 
     // Reconstruct: result = U * diag(sigma_thresh) * Vt
+    // u_mat is stored as u_mat[r][i]  (row = singular vector index, col = row index)
+    // so U[i][r] == u_mat[r][i].
     let mut result = vec![0.0; rows * cols];
     for i in 0..rows {
         for j in 0..cols {
             let mut val = 0.0;
             for r in 0..k {
-                val += u_mat[i][r] * sigma_thresh[r] * vt_mat[r][j];
+                val += u_mat[r][i] * sigma_thresh[r] * vt_mat[r][j];
             }
             result[i * cols + j] = val;
         }

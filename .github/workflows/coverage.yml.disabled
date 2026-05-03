@@ -201,10 +201,11 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # Coverage gate — enforce a minimum line coverage across the workspace.
-  # Start at 70 % and tighten toward 95 % over releases.
+  # Target: 95%+ across all primary modules (TODO.md L600).
+  # Current enforced floor: 70% (advisory, raised toward 95% each release).
   # ---------------------------------------------------------------------------
   coverage-gate:
-    name: Coverage Gate (≥70%)
+    name: Coverage Gate (≥70% enforced, 95% target)
     runs-on: ubuntu-latest
     needs: coverage
     if: always() && needs.coverage.result == 'success'

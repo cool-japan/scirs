@@ -50,7 +50,6 @@
 pub mod methods;
 
 pub use methods::{
-    BilevelProblem, BilevelResult, BilevelSolverOptions, PsoaOptions, ReplacementAlgorithm,
-    SingleLevelReduction, solve_bilevel_psoa, solve_bilevel_replacement,
-    solve_bilevel_single_level,
+    solve_bilevel_psoa, solve_bilevel_replacement, solve_bilevel_single_level, BilevelProblem,
+    BilevelResult, BilevelSolverOptions, PsoaOptions, ReplacementAlgorithm, SingleLevelReduction,
 };

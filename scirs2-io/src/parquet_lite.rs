@@ -188,17 +188,29 @@ impl ColumnData {
 
     /// Try to extract the inner `Vec<f64>`.
     pub fn as_f64(&self) -> Option<&Vec<f64>> {
-        if let ColumnData::Float64(v) = self { Some(v) } else { None }
+        if let ColumnData::Float64(v) = self {
+            Some(v)
+        } else {
+            None
+        }
     }
 
     /// Try to extract the inner `Vec<i64>`.
     pub fn as_i64(&self) -> Option<&Vec<i64>> {
-        if let ColumnData::Int64(v) = self { Some(v) } else { None }
+        if let ColumnData::Int64(v) = self {
+            Some(v)
+        } else {
+            None
+        }
     }
 
     /// Try to extract the inner `Vec<String>`.
     pub fn as_utf8(&self) -> Option<&Vec<String>> {
-        if let ColumnData::Utf8(v) = self { Some(v) } else { None }
+        if let ColumnData::Utf8(v) = self {
+            Some(v)
+        } else {
+            None
+        }
     }
 
     fn encode(&self) -> Vec<u8> {
@@ -426,7 +438,8 @@ impl ParquetWriter {
 
         // Header
         buf.write_all(MAGIC).map_err(io_err)?;
-        buf.write_all(&FORMAT_VERSION.to_le_bytes()).map_err(io_err)?;
+        buf.write_all(&FORMAT_VERSION.to_le_bytes())
+            .map_err(io_err)?;
         buf.write_all(&(schema.num_columns() as u32).to_le_bytes())
             .map_err(io_err)?;
         buf.write_all(&(num_rows as u64).to_le_bytes())
@@ -491,7 +504,9 @@ impl ParquetReader {
                 ColumnData::Float32(v) => v.into_iter().map(|x| x as f64).collect(),
                 ColumnData::Int64(v) => v.into_iter().map(|x| x as f64).collect(),
                 ColumnData::Int32(v) => v.into_iter().map(|x| x as f64).collect(),
-                ColumnData::Boolean(v) => v.into_iter().map(|b| if b { 1.0 } else { 0.0 }).collect(),
+                ColumnData::Boolean(v) => {
+                    v.into_iter().map(|b| if b { 1.0 } else { 0.0 }).collect()
+                }
                 ColumnData::Utf8(v) => v
                     .iter()
                     .map(|s| s.parse::<f64>().unwrap_or(f64::NAN))
@@ -632,11 +647,13 @@ mod tests {
             ("label".to_string(), ColumnType::Utf8),
         ]);
         let col_id = ColumnData::Int32(vec![10, 20, 30]);
-        let col_label =
-            ColumnData::Utf8(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]);
-        let bytes =
-            ParquetWriter::write_typed(&schema, &[col_id.clone(), col_label.clone()], 3)
-                .expect("write typed");
+        let col_label = ColumnData::Utf8(vec![
+            "foo".to_string(),
+            "bar".to_string(),
+            "baz".to_string(),
+        ]);
+        let bytes = ParquetWriter::write_typed(&schema, &[col_id.clone(), col_label.clone()], 3)
+            .expect("write typed");
         let (_s, cols) = ParquetReader::read_typed(&bytes).expect("read typed");
         assert_eq!(cols[0], col_id);
         assert_eq!(cols[1], col_label);
@@ -646,7 +663,8 @@ mod tests {
     fn test_roundtrip_boolean() {
         let schema = ParquetSchema::new(vec![("flags".to_string(), ColumnType::Boolean)]);
         let flags = ColumnData::Boolean(vec![true, false, true, true, false]);
-        let bytes = ParquetWriter::write_typed(&schema, &[flags.clone()], 5).expect("write bool");
+        let bytes = ParquetWriter::write_typed(&schema, std::slice::from_ref(&flags), 5)
+            .expect("write bool");
         let (_s, cols) = ParquetReader::read_typed(&bytes).expect("read bool");
         assert_eq!(cols[0], flags);
     }

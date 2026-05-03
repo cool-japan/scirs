@@ -558,6 +558,176 @@ impl<
     pub fn colindices(&self) -> &[usize] {
         &self.indices
     }
+
+    /// Extract a contiguous submatrix from the given row and column ranges.
+    ///
+    /// # Arguments
+    ///
+    /// * `row_start` – First row to include (inclusive).
+    /// * `row_end`   – Last row to include (exclusive); clamped to `rows()`.
+    /// * `col_start` – First column to include (inclusive).
+    /// * `col_end`   – Last column to include (exclusive); clamped to `cols()`.
+    ///
+    /// # Returns
+    ///
+    /// A new `CsrMatrix` containing only the specified sub-block.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the range is empty (`row_start >= row_end` or
+    /// `col_start >= col_end`) or if the start indices exceed the matrix
+    /// dimensions.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_sparse::csr::CsrMatrix;
+    ///
+    /// // 4×4 identity
+    /// let rows = vec![0usize, 1, 2, 3];
+    /// let cols = vec![0usize, 1, 2, 3];
+    /// let data = vec![1.0f64; 4];
+    /// let m = CsrMatrix::new(data, rows, cols, (4, 4)).unwrap();
+    ///
+    /// // Top-left 2×2 block
+    /// let sub = m.submatrix(0, 2, 0, 2).unwrap();
+    /// assert_eq!(sub.rows(), 2);
+    /// assert_eq!(sub.cols(), 2);
+    /// assert_eq!(sub.get(0, 0), 1.0);
+    /// assert_eq!(sub.get(1, 1), 1.0);
+    /// assert_eq!(sub.get(0, 1), 0.0);
+    /// ```
+    pub fn submatrix(
+        &self,
+        row_start: usize,
+        row_end: usize,
+        col_start: usize,
+        col_end: usize,
+    ) -> SparseResult<CsrMatrix<T>> {
+        let row_end = row_end.min(self.rows);
+        let col_end = col_end.min(self.cols);
+        if row_start >= row_end {
+            return Err(SparseError::ValueError(format!(
+                "submatrix: row_start ({}) >= row_end ({})",
+                row_start, row_end
+            )));
+        }
+        if col_start >= col_end {
+            return Err(SparseError::ValueError(format!(
+                "submatrix: col_start ({}) >= col_end ({})",
+                col_start, col_end
+            )));
+        }
+
+        let new_rows = row_end - row_start;
+        let new_cols = col_end - col_start;
+        let mut rows_out = Vec::new();
+        let mut cols_out = Vec::new();
+        let mut data_out = Vec::new();
+
+        for i in row_start..row_end {
+            let range = self.indptr[i]..self.indptr[i + 1];
+            for pos in range {
+                let j = self.indices[pos];
+                if j >= col_start && j < col_end {
+                    rows_out.push(i - row_start);
+                    cols_out.push(j - col_start);
+                    data_out.push(self.data[pos]);
+                }
+            }
+        }
+
+        CsrMatrix::new(data_out, rows_out, cols_out, (new_rows, new_cols))
+    }
+
+    /// Element-wise (Hadamard) product: `C[i,j] = A[i,j] * B[i,j]`.
+    ///
+    /// Only entries that are non-zero in *both* matrices contribute to the
+    /// result — entries missing from either operand are treated as zero.
+    ///
+    /// # Arguments
+    ///
+    /// * `other` – The right-hand matrix; must have the same shape as `self`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the two matrices have different shapes.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_sparse::csr::CsrMatrix;
+    ///
+    /// // A = diag(1, 2, 3)  B = diag(4, 5, 6)
+    /// // C = diag(4, 10, 18)
+    /// let a = CsrMatrix::new(
+    ///     vec![1.0f64, 2.0, 3.0],
+    ///     vec![0usize, 1, 2],
+    ///     vec![0usize, 1, 2],
+    ///     (3, 3),
+    /// ).unwrap();
+    /// let b = CsrMatrix::new(
+    ///     vec![4.0f64, 5.0, 6.0],
+    ///     vec![0usize, 1, 2],
+    ///     vec![0usize, 1, 2],
+    ///     (3, 3),
+    /// ).unwrap();
+    /// let c = a.elementwise_mul(&b).unwrap();
+    /// assert_eq!(c.get(0, 0), 4.0);
+    /// assert_eq!(c.get(1, 1), 10.0);
+    /// assert_eq!(c.get(2, 2), 18.0);
+    /// ```
+    pub fn elementwise_mul(&self, other: &CsrMatrix<T>) -> SparseResult<CsrMatrix<T>>
+    where
+        T: std::ops::Mul<Output = T>,
+    {
+        if self.rows != other.rows || self.cols != other.cols {
+            return Err(SparseError::DimensionMismatch {
+                expected: self.rows * self.cols,
+                found: other.rows * other.cols,
+            });
+        }
+
+        let n = self.rows;
+        let nc = self.cols;
+        let mut rows_out = Vec::new();
+        let mut cols_out = Vec::new();
+        let mut data_out = Vec::new();
+
+        // For each row, intersect the non-zero column sets of A and B.
+        // Build a temporary lookup for row i of B using a flat array (safe for
+        // moderate column counts).  For very wide matrices a HashMap would be
+        // preferred, but sparse matrices in CSR format typically have few nnz
+        // per row, so the linear scan below is fast enough.
+        let mut b_row_buf: Vec<(usize, T)> = Vec::new();
+
+        for i in 0..n {
+            // Collect B's non-zeros for row i.
+            b_row_buf.clear();
+            let b_range = other.indptr[i]..other.indptr[i + 1];
+            for pos in b_range {
+                b_row_buf.push((other.indices[pos], other.data[pos]));
+            }
+
+            // Intersect with A's non-zeros for row i.
+            let a_range = self.indptr[i]..self.indptr[i + 1];
+            for pos in a_range {
+                let j = self.indices[pos];
+                let a_val = self.data[pos];
+                // Look up j in b_row_buf (linear scan; typical rows are short).
+                if let Some(&(_, b_val)) = b_row_buf.iter().find(|&&(bj, _)| bj == j) {
+                    let product = a_val * b_val;
+                    if product != T::sparse_zero() {
+                        rows_out.push(i);
+                        cols_out.push(j);
+                        data_out.push(product);
+                    }
+                }
+            }
+        }
+
+        CsrMatrix::new(data_out, rows_out, cols_out, (n, nc))
+    }
 }
 
 impl CsrMatrix<f64> {

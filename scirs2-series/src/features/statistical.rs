@@ -965,3 +965,89 @@ where
 {
     Ok(F::zero())
 }
+
+// =============================================================================
+// Ergonomic Wrapper: StatisticalFeatures
+// =============================================================================
+
+/// Ergonomic wrapper for extracting a compact feature vector from a time series.
+///
+/// The feature vector layout (indices):
+/// - 0: mean
+/// - 1: standard deviation
+/// - 2: minimum
+/// - 3: maximum
+/// - 4: median
+/// - 5: skewness
+/// - 6: kurtosis (excess)
+#[derive(Debug, Clone, Default)]
+pub struct StatisticalFeatures;
+
+impl StatisticalFeatures {
+    /// Create a new `StatisticalFeatures` extractor.
+    pub fn new() -> Self {
+        Self
+    }
+
+    /// Extract a fixed-length statistical feature vector from a time series.
+    ///
+    /// Returns an `Array1<f64>` of length 7:
+    /// `[mean, std_dev, min, max, median, skewness, kurtosis]`.
+    pub fn extract(&self, series: &Array1<f64>) -> Result<Array1<f64>> {
+        let n = series.len();
+        if n < 2 {
+            return Err(TimeSeriesError::InvalidInput(
+                "Time series must have at least 2 observations for feature extraction".to_string(),
+            ));
+        }
+
+        let n_f = n as f64;
+
+        // Mean
+        let mean = series.iter().sum::<f64>() / n_f;
+
+        // Variance / std dev (population)
+        let variance = series.iter().map(|&x| (x - mean).powi(2)).sum::<f64>() / n_f;
+        let std_dev = variance.sqrt();
+
+        // Min / max
+        let min = series.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max = series.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+
+        // Median (via sorted copy)
+        let mut sorted = series.to_vec();
+        sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let median = if n % 2 == 0 {
+            (sorted[n / 2 - 1] + sorted[n / 2]) / 2.0
+        } else {
+            sorted[n / 2]
+        };
+
+        // Skewness (standardised third central moment)
+        let skewness = if std_dev > 0.0 {
+            series
+                .iter()
+                .map(|&x| ((x - mean) / std_dev).powi(3))
+                .sum::<f64>()
+                / n_f
+        } else {
+            0.0
+        };
+
+        // Excess kurtosis (standardised fourth central moment − 3)
+        let kurtosis = if std_dev > 0.0 {
+            series
+                .iter()
+                .map(|&x| ((x - mean) / std_dev).powi(4))
+                .sum::<f64>()
+                / n_f
+                - 3.0
+        } else {
+            0.0
+        };
+
+        Ok(Array1::from_vec(vec![
+            mean, std_dev, min, max, median, skewness, kurtosis,
+        ]))
+    }
+}

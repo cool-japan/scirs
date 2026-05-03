@@ -1,6 +1,6 @@
 # scirs2-numpy TODO
 
-## Status: v0.3.4 Released (March 18, 2026)
+## Status: v0.4.3 Released (2026-05-03)
 
 ## v0.3.3 Completed
 
@@ -63,29 +63,29 @@
 - [x] `numpy.array_protocol` (`__array__` / `__array_interface__`) support
 - [x] Structured dtype support (record arrays with named fields)
 - [x] Masked array support (`numpy.ma`)
-- [ ] Array subclass support (e.g., accepting `pandas.Series`)
+- [x] Array subclass support (e.g., accepting `pandas.Series`)
 
 ### DLPack Support
 - [x] `__dlpack__` and `__dlpack_device__` protocol for zero-copy GPU/CPU tensor exchange
 - [x] DLPack interoperability: `validate_dlpack_tensor`, `dlpack_from_slice`, `dlpack_to_vec_f64`
-- [ ] PyTorch tensor interop via DLPack
-- [ ] JAX array interop via DLPack
-- [ ] Enable GPU tensors (CUDA) to be passed without CPU roundtrip
+- [x] PyTorch tensor interop via DLPack
+- [x] JAX array interop via DLPack
+- [x] Enable GPU tensors (CUDA) to be passed without CPU roundtrip — Implemented in v0.4.3 (`dlpack_cuda.rs`: `cuda_tensor_info_from_dltensor`, `dlpack_auto_dispatch_f32/f64`, `CudaTensorInfo`, 15 tests)
 
 ### Performance
-- [ ] SIMD-accelerated copy for non-contiguous-to-contiguous coercion
-- [ ] Benchmark conversion overhead vs upstream rust-numpy
-- [ ] Profile allocation patterns for large array round-trips
+- [x] SIMD-accelerated copy for non-contiguous-to-contiguous coercion
+- [x] Benchmark conversion overhead vs upstream rust-numpy
+- [x] Profile allocation patterns for large array round-trips
 
 ### Type System
 - [x] `PyUntypedArray` for accepting arrays without known element type at compile time
 - [x] Runtime dtype inspection: `array.dtype_name()`, `array.itemsize()`
-- [ ] Extended integer types: `i128`, `u128` where NumPy supports them
+- [x] Extended integer types: `i128`, `u128` where NumPy supports them
 
 ### Documentation and Tests
-- [ ] Comprehensive doctests for all public APIs
-- [ ] Python-side pytest tests comparing output with upstream rust-numpy behavior
-- [ ] Migration guide: `rust-numpy` -> `scirs2-numpy`
+- [x] Comprehensive doctests for all public APIs
+- [x] Python-side pytest tests comparing output with upstream rust-numpy behavior
+- [x] Migration guide: `rust-numpy` -> `scirs2-numpy`
 
 ## Known Issues
 

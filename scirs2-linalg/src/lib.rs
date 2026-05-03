@@ -1,4 +1,5 @@
 #![allow(clippy::new_without_default)]
+#![allow(clippy::needless_range_loop)]
 #![allow(clippy::needless_return)]
 #![allow(clippy::manual_slice_size_calculation)]
 #![allow(clippy::unwrap_or_default)]
@@ -48,9 +49,9 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-linalg = "0.4.2"
+//! scirs2-linalg = "0.4.3"
 //! # Optional features
-//! scirs2-linalg = { version = "0.4.2", features = ["simd", "parallel", "gpu"] }
+//! scirs2-linalg = { version = "0.4.3", features = ["simd", "parallel", "gpu"] }
 //! ```
 //!
 //! ### Basic Matrix Operations
@@ -209,7 +210,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.2
+//! - **Version**: 0.4.3
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-linalg](https://docs.rs/scirs2-linalg)
@@ -328,6 +329,40 @@ pub mod precision;
 pub mod sss_matrix;
 // Structured flat (Toeplitz, Circulant, Hankel)
 pub mod structured_flat;
+
+// Previously undeclared subdirectory modules
+pub mod control;
+pub mod fft_based;
+pub mod iterative;
+pub mod sketching;
+pub mod tensor;
+pub mod tensor_decomp;
+
+// Orphaned top-level modules (previously present but undeclared)
+pub mod block_matrix;
+pub mod control_theory;
+pub mod cp_decomposition;
+pub mod cur;
+pub mod decomposition_complete;
+pub mod gen_eigen;
+pub mod generalized_eigen;
+pub mod indefinite;
+pub mod iterative_refinement;
+pub mod matrix_completion;
+pub mod matrix_norms;
+pub mod matrix_ode;
+pub mod matrix_polynomial;
+pub mod norms_advanced;
+pub mod number_theory;
+pub mod numerical_range;
+pub mod pencil;
+pub mod perturbation;
+pub mod random_linalg;
+pub mod sparse_tensor;
+pub mod strassen;
+pub mod structured_solve;
+pub mod tensor_contractions;
+pub mod tucker;
 
 // Distributed computing support (temporarily disabled - needs extensive API fixes)
 // pub mod distributed;

@@ -160,11 +160,7 @@ pub struct DataNode {
 impl DataNode {
     /// Construct a new node.  The `id` field is set to a placeholder and will
     /// be replaced by [`DataLineage::add_node`].
-    pub fn new(
-        name: String,
-        source: DataSource,
-        schema: Vec<(String, ColumnType)>,
-    ) -> Self {
+    pub fn new(name: String, source: DataSource, schema: Vec<(String, ColumnType)>) -> Self {
         DataNode {
             id: NodeId(0),
             name,
@@ -425,8 +421,14 @@ pub fn lineage_to_json(lineage: &DataLineage) -> String {
         if let Some(node) = lineage.get_node(*nid) {
             out.push_str("    {\n");
             out.push_str(&format!("      \"id\": {},\n", nid.0));
-            out.push_str(&format!("      \"name\": \"{}\",\n", json_escape(&node.name)));
-            out.push_str(&format!("      \"source\": \"{}\",\n", json_escape(&node.source.label())));
+            out.push_str(&format!(
+                "      \"name\": \"{}\",\n",
+                json_escape(&node.name)
+            ));
+            out.push_str(&format!(
+                "      \"source\": \"{}\",\n",
+                json_escape(&node.source.label())
+            ));
             out.push_str(&format!(
                 "      \"created_at\": \"{}\",\n",
                 json_escape(&node.created_at)
@@ -438,7 +440,11 @@ pub fn lineage_to_json(lineage: &DataLineage) -> String {
                     "        {{\"column\": \"{}\", \"type\": \"{}\"}}{}",
                     json_escape(col),
                     json_escape(typ.label()),
-                    if si + 1 < node.schema.len() { ",\n" } else { "\n" }
+                    if si + 1 < node.schema.len() {
+                        ",\n"
+                    } else {
+                        "\n"
+                    }
                 ));
             }
             out.push_str("      ],\n");
@@ -454,7 +460,11 @@ pub fn lineage_to_json(lineage: &DataLineage) -> String {
                 ));
             }
             out.push_str("}\n");
-            out.push_str(if i + 1 < node_ids.len() { "    },\n" } else { "    }\n" });
+            out.push_str(if i + 1 < node_ids.len() {
+                "    },\n"
+            } else {
+                "    }\n"
+            });
         }
     }
     out.push_str("  ],\n");
@@ -472,7 +482,10 @@ pub fn lineage_to_json(lineage: &DataLineage) -> String {
             .join(", ");
         out.push_str(&format!("      \"input_nodes\": [{}],\n", inputs_str));
         out.push_str(&format!("      \"output_node\": {},\n", t.output_node.0));
-        out.push_str(&format!("      \"op_name\": \"{}\",\n", json_escape(&t.op_name)));
+        out.push_str(&format!(
+            "      \"op_name\": \"{}\",\n",
+            json_escape(&t.op_name)
+        ));
         out.push_str(&format!(
             "      \"created_at\": \"{}\",\n",
             json_escape(&t.created_at)
@@ -636,14 +649,12 @@ mod tests {
     fn test_record_transformation_invalid_node() {
         let mut lineage = DataLineage::new();
         let fake_id = NodeId(999);
-        let out_id = lineage.add_node(DataNode::new("out".to_string(), DataSource::InMemory, vec![]));
-        let ok = record_transformation(
-            &mut lineage,
-            vec![fake_id],
-            out_id,
-            "op",
-            HashMap::new(),
-        );
+        let out_id = lineage.add_node(DataNode::new(
+            "out".to_string(),
+            DataSource::InMemory,
+            vec![],
+        ));
+        let ok = record_transformation(&mut lineage, vec![fake_id], out_id, "op", HashMap::new());
         assert!(!ok, "should reject unknown input node");
     }
 
@@ -707,7 +718,10 @@ mod tests {
     #[test]
     fn test_data_source_labels() {
         assert_eq!(DataSource::File("/a/b.csv".into()).label(), "file:/a/b.csv");
-        assert_eq!(DataSource::Database("pg://localhost/mydb".into()).label(), "db:pg://localhost/mydb");
+        assert_eq!(
+            DataSource::Database("pg://localhost/mydb".into()).label(),
+            "db:pg://localhost/mydb"
+        );
         assert_eq!(DataSource::InMemory.label(), "in_memory");
         assert_eq!(DataSource::Generated.label(), "generated");
     }
@@ -732,13 +746,7 @@ mod tests {
         let b = lineage.add_node(DataNode::new("B".into(), DataSource::InMemory, vec![]));
         let c = lineage.add_node(DataNode::new("C".into(), DataSource::InMemory, vec![]));
 
-        let ok = record_transformation(
-            &mut lineage,
-            vec![a, b],
-            c,
-            "join",
-            HashMap::new(),
-        );
+        let ok = record_transformation(&mut lineage, vec![a, b], c, "join", HashMap::new());
         assert!(ok);
         let prov = get_provenance(&lineage, c);
         let prov_ids: HashSet<NodeId> = prov.iter().map(|n| n.id).collect();

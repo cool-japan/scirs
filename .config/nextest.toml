@@ -71,3 +71,11 @@ slow-timeout = { period = "300s" }
 filter = 'test(stress_)'
 slow-timeout = { period = "600s" }
 threads-required = 2
+
+[[profile.default.overrides]]
+# compile_fail_harness spawns its own `cargo` build (trybuild) which can take
+# minutes to compile the sandbox crate's deps; default 60s SLOW + 2 cycles is
+# too short. Allow up to 600s × 3 cycles (30 min) and reserve threads.
+filter = 'test(compile_fail_harness)'
+slow-timeout = { period = "600s", terminate-after = 3 }
+threads-required = 4

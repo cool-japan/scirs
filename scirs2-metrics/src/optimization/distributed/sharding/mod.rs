@@ -81,6 +81,44 @@ pub enum DataRange {
     },
 }
 
+/// Simple glob match supporting `*` as a wildcard that matches any substring.
+///
+/// `*` in `pattern` matches zero or more characters; all other characters are
+/// matched literally.  Multiple `*` wildcards are supported via a recursive
+/// linear scan.
+fn simple_glob_match(text: &str, pattern: &str) -> bool {
+    let mut parts = pattern.split('*');
+    let first = match parts.next() {
+        Some(p) => p,
+        None => return true,
+    };
+
+    // The text must start with the literal prefix before the first `*`.
+    if !text.starts_with(first) {
+        return false;
+    }
+
+    let mut remaining = &text[first.len()..];
+
+    for part in parts {
+        if part.is_empty() {
+            // `**` or trailing `*` — skip, no literal to match
+            continue;
+        }
+        match remaining.find(part) {
+            Some(pos) => remaining = &remaining[pos + part.len()..],
+            None => return false,
+        }
+    }
+
+    // If the pattern ended without a trailing `*`, the text must be exhausted.
+    if !pattern.ends_with('*') && !remaining.is_empty() {
+        return false;
+    }
+
+    true
+}
+
 impl DataRange {
     /// Check if a key falls within this range
     pub fn contains_key(&self, key: &str) -> bool {
@@ -111,14 +149,42 @@ impl DataRange {
                     false
                 }
             }
-            DataRange::Geographic { .. } => {
-                // Would need to parse geographic coordinates from key
-                // For now, return false
-                false
+            DataRange::Geographic {
+                lat_min,
+                lat_max,
+                lon_min,
+                lon_max,
+            } => {
+                // key format expected: "lat:lon" or "lat,lon"
+                let sep = if key.contains(':') { ':' } else { ',' };
+                let parts: Vec<&str> = key.splitn(2, sep).collect();
+                if parts.len() != 2 {
+                    return false;
+                }
+                let lat = parts[0].trim().parse::<f64>().ok();
+                let lon = parts[1].trim().parse::<f64>().ok();
+                match (lat, lon) {
+                    (Some(lat), Some(lon)) => {
+                        lat >= *lat_min && lat <= *lat_max && lon >= *lon_min && lon <= *lon_max
+                    }
+                    _ => false,
+                }
             }
-            DataRange::Custom { .. } => {
-                // Custom logic would be implemented here
-                false
+            DataRange::Custom {
+                range_type,
+                range_data,
+            } => {
+                let data_str = match std::str::from_utf8(range_data) {
+                    Ok(s) => s,
+                    Err(_) => return false,
+                };
+                match range_type.as_str() {
+                    "prefix" => key.starts_with(data_str),
+                    "suffix" => key.ends_with(data_str),
+                    "contains" => key.contains(data_str),
+                    "regex" => simple_glob_match(key, data_str),
+                    _ => false,
+                }
             }
         }
     }
@@ -147,6 +213,36 @@ impl DataRange {
             (DataRange::Time { start: s1, end: e1 }, DataRange::Time { start: s2, end: e2 }) => {
                 s1 <= e2 && s2 <= e1
             }
+            (
+                DataRange::Geographic {
+                    lat_min: lat_min1,
+                    lat_max: lat_max1,
+                    lon_min: lon_min1,
+                    lon_max: lon_max1,
+                },
+                DataRange::Geographic {
+                    lat_min: lat_min2,
+                    lat_max: lat_max2,
+                    lon_min: lon_min2,
+                    lon_max: lon_max2,
+                },
+            ) => {
+                // Bounding boxes overlap unless separated along either axis
+                !(lat_max1 < lat_min2
+                    || lat_max2 < lat_min1
+                    || lon_max1 < lon_min2
+                    || lon_max2 < lon_min1)
+            }
+            (
+                DataRange::Custom {
+                    range_type: rt1,
+                    range_data: rd1,
+                },
+                DataRange::Custom {
+                    range_type: rt2,
+                    range_data: rd2,
+                },
+            ) => rt1 == rt2 && rd1 == rd2,
             _ => false, // Different range types don't overlap
         }
     }
@@ -560,8 +656,8 @@ impl ShardManager {
             }
         } // hash_ring lock is dropped here
 
-        // TODO: Trigger shard migration for rebalancing
-        self.trigger_rebalancing()?;
+        // Trigger shard migration so the new node absorbs its fair share.
+        self.rebalance_shards_with_new_node(node_id)?;
 
         Ok(())
     }
@@ -579,20 +675,60 @@ impl ShardManager {
         {
             let mut hash_ring = self.hash_ring.write().expect("Operation failed");
 
-            // Remove all virtual nodes for this node
-            hash_ring.retain(|_, node| node != node_id);
+            // Remove all virtual nodes for this node.
+            hash_ring.retain(|_, n| n != node_id);
         } // hash_ring lock is dropped here
 
-        // TODO: Trigger shard migration for affected shards
+        // Migrate every shard that was primary on the removed node.
         self.migrate_shards_from_node(node_id)?;
 
         Ok(())
     }
 
-    /// Rebalance shards with a new node
-    fn rebalance_shards_with_new_node(&mut self, _node_id: String) -> Result<()> {
-        // TODO: Implement shard rebalancing logic
-        self.trigger_rebalancing()
+    /// Rebalance shards after a new node joins.
+    ///
+    /// Identifies shards whose consistent-hash position now maps to the new
+    /// node and migrates them accordingly.
+    fn rebalance_shards_with_new_node(&mut self, new_node_id: String) -> Result<()> {
+        // Collect shard IDs that should now belong to the new node according
+        // to the current hash ring.
+        let shard_ids_to_move: Vec<String> = {
+            let shards = self.shards.read().expect("Operation failed");
+            shards
+                .values()
+                .filter(|shard| {
+                    // Only consider active shards not already on the new node.
+                    shard.primary_node != new_node_id
+                        && shard.status == ShardStatus::Active
+                        // Heuristic: check if the midpoint of the shard range now
+                        // routes to the new node via the hash ring.
+                        && self
+                            .probe_shard_owner(shard)
+                            .map(|owner| owner == new_node_id)
+                            .unwrap_or(false)
+                })
+                .map(|s| s.id.clone())
+                .collect()
+        };
+
+        for shard_id in shard_ids_to_move {
+            self.migrate_shard(&shard_id, Some(new_node_id.clone()))?;
+        }
+
+        Ok(())
+    }
+
+    /// Determine which node owns a shard's representative hash position.
+    fn probe_shard_owner(&self, shard: &DataShard) -> Option<String> {
+        let probe_key = match &shard.range {
+            DataRange::Hash { start, end } => {
+                let mid = start + (end - start) / 2;
+                mid.to_string()
+            }
+            DataRange::Key { start, .. } => start.clone(),
+            _ => shard.id.clone(),
+        };
+        self.get_node_consistent_hash(&probe_key).ok()
     }
 
     /// Migrate shards away from a node being removed
@@ -612,11 +748,74 @@ impl ShardManager {
         Ok(())
     }
 
-    /// Trigger cluster rebalancing
+    /// Trigger cluster rebalancing.
+    ///
+    /// Computes per-node shard counts, identifies nodes that carry more than
+    /// the average share by at least `migration_threshold`, and migrates one
+    /// shard per over-loaded node to the least-loaded node.
     fn trigger_rebalancing(&mut self) -> Result<()> {
-        // TODO: Implement rebalancing logic
-        // This would analyze current shard distribution and trigger migrations
-        // to achieve better balance
+        if !self.config.dynamic_resharding {
+            return Ok(());
+        }
+
+        // Compute shard counts per node.
+        let (node_shard_counts, shard_ids_by_node): (
+            HashMap<String, usize>,
+            HashMap<String, Vec<String>>,
+        ) = {
+            let shards = self.shards.read().expect("Operation failed");
+            let mut counts: HashMap<String, usize> = HashMap::new();
+            let mut by_node: HashMap<String, Vec<String>> = HashMap::new();
+            for shard in shards.values() {
+                if shard.status != ShardStatus::Active {
+                    continue;
+                }
+                *counts.entry(shard.primary_node.clone()).or_insert(0) += 1;
+                by_node
+                    .entry(shard.primary_node.clone())
+                    .or_default()
+                    .push(shard.id.clone());
+            }
+            (counts, by_node)
+        };
+
+        if node_shard_counts.is_empty() {
+            return Ok(());
+        }
+
+        let total_shards: usize = node_shard_counts.values().sum();
+        let node_count = node_shard_counts.len();
+        if node_count == 0 {
+            return Ok(());
+        }
+        let avg = total_shards as f64 / node_count as f64;
+        let threshold = avg * self.config.migration_threshold;
+
+        // Find the least-loaded node.
+        let least_loaded = node_shard_counts
+            .iter()
+            .min_by_key(|(_, &c)| c)
+            .map(|(n, _)| n.clone());
+
+        let target_node = match least_loaded {
+            Some(n) => n,
+            None => return Ok(()),
+        };
+
+        // Migrate one shard from each over-loaded node.
+        let overloaded: Vec<(String, String)> = shard_ids_by_node
+            .iter()
+            .filter(|(node, _)| {
+                *node != &target_node
+                    && (*node_shard_counts.get(*node).unwrap_or(&0) as f64) > threshold
+            })
+            .filter_map(|(_, ids)| ids.first().cloned().map(|sid| (sid, target_node.clone())))
+            .collect();
+
+        for (shard_id, target) in overloaded {
+            self.migrate_shard(&shard_id, Some(target))?;
+        }
+
         Ok(())
     }
 
@@ -673,20 +872,52 @@ impl ShardManager {
             migration_id.clone()
         }; // Drop locks here before calling start_migration
 
-        // TODO: Start actual migration process
+        // Perform the actual migration (in-memory: transfer ownership atomically).
         self.start_migration(&migration_id)?;
 
         Ok(migration_id)
     }
 
-    /// Start a migration process
+    /// Start (and immediately complete for in-memory) a migration process.
+    ///
+    /// For in-memory operation the "data transfer" is instantaneous — we
+    /// update the shard's `primary_node` and mark the migration completed.
     fn start_migration(&mut self, migration_id: &str) -> Result<()> {
-        let mut migrations = self.migrations.write().expect("Operation failed");
+        // Determine the target node from the migration record.
+        let target_node = {
+            let mut migrations = self.migrations.write().expect("Operation failed");
+            if let Some(migration) = migrations.get_mut(migration_id) {
+                migration.status = MigrationStatus::InProgress;
+                migration.progress = 0.5;
+                migration.target_node.clone()
+            } else {
+                return Ok(());
+            }
+        };
 
-        if let Some(migration) = migrations.get_mut(migration_id) {
-            migration.status = MigrationStatus::InProgress;
-            // TODO: Implement actual migration logic
-            // This would involve copying data from source to target
+        // Update shard ownership and mark migration completed.
+        {
+            let mut shards = self.shards.write().expect("Operation failed");
+            for shard in shards.values_mut() {
+                if let Some(ref m) = shard.migration {
+                    if m.id == migration_id {
+                        shard.primary_node = target_node.clone();
+                        shard.status = ShardStatus::Active;
+                        shard.migration = None;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // Finalise migration record.
+        {
+            let mut migrations = self.migrations.write().expect("Operation failed");
+            if let Some(migration) = migrations.get_mut(migration_id) {
+                migration.status = MigrationStatus::Completed;
+                migration.progress = 1.0;
+                migration.estimated_completion = Some(SystemTime::now());
+            }
         }
 
         Ok(())
@@ -943,5 +1174,277 @@ mod tests {
 
         // Test removing a node
         manager.remove_node("node1").expect("Operation failed");
+    }
+
+    // ── Rebalancing / migration tests ────────────────────────────────────────
+
+    /// Add a node, verify that shards exist and some may have been redistributed.
+    #[test]
+    fn test_shard_rebalance_on_add() {
+        let config = ShardingConfig {
+            strategy: ShardingStrategy::ConsistentHash,
+            shard_count: 4,
+            replication_factor: 1,
+            hash_function: HashFunction::Murmur3,
+            virtual_nodes: 4,
+            dynamic_resharding: true,
+            migration_threshold: 0.8,
+        };
+
+        let mut manager = ShardManager::new(config);
+        let nodes = vec!["node1".to_string(), "node2".to_string()];
+        manager.initialize(nodes).expect("initialise");
+
+        let before = manager.list_shards().len();
+
+        // Add a third node — rebalancing may migrate shards to it.
+        manager.add_node("node3".to_string()).expect("add node3");
+
+        let after = manager.list_shards().len();
+        // Total shard count should stay the same after rebalancing.
+        assert_eq!(before, after, "shard count should be stable after add_node");
+
+        // All shards must be in an Active state (no stuck Migrating shards).
+        let stuck = manager
+            .list_shards()
+            .iter()
+            .filter(|s| s.status == ShardStatus::Migrating)
+            .count();
+        assert_eq!(stuck, 0, "no shards should be stuck in Migrating state");
+    }
+
+    /// Remove a node, verify its shards have been reassigned.
+    #[test]
+    fn test_shard_rebalance_on_remove() {
+        let config = ShardingConfig {
+            strategy: ShardingStrategy::ConsistentHash,
+            shard_count: 4,
+            replication_factor: 2,
+            hash_function: HashFunction::Murmur3,
+            virtual_nodes: 4,
+            dynamic_resharding: true,
+            migration_threshold: 0.8,
+        };
+
+        let mut manager = ShardManager::new(config);
+        let nodes = vec![
+            "node1".to_string(),
+            "node2".to_string(),
+            "node3".to_string(),
+        ];
+        manager.initialize(nodes).expect("initialise");
+
+        // Count how many shards node1 owns.
+        let n1_before = manager
+            .list_shards()
+            .iter()
+            .filter(|s| s.primary_node == "node1")
+            .count();
+
+        // Remove node1; all its shards must migrate away.
+        manager.remove_node("node1").expect("remove node1");
+
+        let n1_after = manager
+            .list_shards()
+            .iter()
+            .filter(|s| s.primary_node == "node1")
+            .count();
+
+        // If node1 had any primary shards, they should all be gone now.
+        if n1_before > 0 {
+            assert_eq!(
+                n1_after, 0,
+                "no shards should remain primary on the removed node"
+            );
+        }
+
+        // All remaining shards should be Active.
+        let stuck = manager
+            .list_shards()
+            .iter()
+            .filter(|s| s.status == ShardStatus::Migrating)
+            .count();
+        assert_eq!(stuck, 0, "no shards stuck in Migrating state after remove");
+    }
+
+    // ── Geographic range tests ────────────────────────────────────────────────
+
+    #[test]
+    fn test_geographic_contains_key_success() {
+        let geo = DataRange::Geographic {
+            lat_min: 35.0,
+            lat_max: 36.0,
+            lon_min: 139.0,
+            lon_max: 140.0,
+        };
+        // Inside the bounding box — colon separator
+        assert!(geo.contains_key("35.5:139.5"));
+        // Inside the bounding box — comma separator
+        assert!(geo.contains_key("35.5,139.5"));
+        // On the boundary (inclusive)
+        assert!(geo.contains_key("35.0:139.0"));
+        assert!(geo.contains_key("36.0:140.0"));
+    }
+
+    #[test]
+    fn test_geographic_contains_key_outside() {
+        let geo = DataRange::Geographic {
+            lat_min: 35.0,
+            lat_max: 36.0,
+            lon_min: 139.0,
+            lon_max: 140.0,
+        };
+        // Latitude out of range
+        assert!(!geo.contains_key("40.0:139.5"));
+        // Longitude out of range
+        assert!(!geo.contains_key("35.5:145.0"));
+        // Both out
+        assert!(!geo.contains_key("0.0:0.0"));
+    }
+
+    #[test]
+    fn test_geographic_contains_key_parse_failure() {
+        let geo = DataRange::Geographic {
+            lat_min: 35.0,
+            lat_max: 36.0,
+            lon_min: 139.0,
+            lon_max: 140.0,
+        };
+        // Non-numeric key
+        assert!(!geo.contains_key("not_a_geo_key"));
+        // Missing separator / only one part
+        assert!(!geo.contains_key("35.5"));
+        // Only separator, no values
+        assert!(!geo.contains_key(":"));
+    }
+
+    #[test]
+    fn test_geographic_overlaps_with() {
+        let geo1 = DataRange::Geographic {
+            lat_min: 0.0,
+            lat_max: 10.0,
+            lon_min: 0.0,
+            lon_max: 10.0,
+        };
+        let geo2 = DataRange::Geographic {
+            lat_min: 5.0,
+            lat_max: 15.0,
+            lon_min: 5.0,
+            lon_max: 15.0,
+        };
+        let geo3 = DataRange::Geographic {
+            lat_min: 20.0,
+            lat_max: 30.0,
+            lon_min: 20.0,
+            lon_max: 30.0,
+        };
+        // Overlapping
+        assert!(geo1.overlaps_with(&geo2));
+        assert!(geo2.overlaps_with(&geo1));
+        // Non-overlapping (completely separated)
+        assert!(!geo1.overlaps_with(&geo3));
+        assert!(!geo3.overlaps_with(&geo1));
+        // Self-overlap
+        assert!(geo1.overlaps_with(&geo1));
+    }
+
+    // ── Custom range tests ────────────────────────────────────────────────────
+
+    #[test]
+    fn test_custom_prefix_match() {
+        let custom = DataRange::Custom {
+            range_type: "prefix".to_string(),
+            range_data: b"user_".to_vec(),
+        };
+        assert!(custom.contains_key("user_42"));
+        assert!(custom.contains_key("user_abc"));
+        assert!(!custom.contains_key("order_42"));
+        assert!(!custom.contains_key("42_user_"));
+    }
+
+    #[test]
+    fn test_custom_suffix_match() {
+        let custom = DataRange::Custom {
+            range_type: "suffix".to_string(),
+            range_data: b".log".to_vec(),
+        };
+        assert!(custom.contains_key("app.log"));
+        assert!(custom.contains_key("error.log"));
+        assert!(!custom.contains_key("app.txt"));
+    }
+
+    #[test]
+    fn test_custom_contains_match() {
+        let custom = DataRange::Custom {
+            range_type: "contains".to_string(),
+            range_data: b"error".to_vec(),
+        };
+        assert!(custom.contains_key("fatal_error_42"));
+        assert!(custom.contains_key("error"));
+        assert!(!custom.contains_key("warning_42"));
+    }
+
+    #[test]
+    fn test_custom_glob_regex_match() {
+        let custom = DataRange::Custom {
+            range_type: "regex".to_string(),
+            range_data: b"user_*_log".to_vec(),
+        };
+        assert!(custom.contains_key("user_42_log"));
+        assert!(custom.contains_key("user_abc_log"));
+        assert!(!custom.contains_key("user_42_data"));
+        assert!(!custom.contains_key("order_42_log"));
+    }
+
+    #[test]
+    fn test_custom_unknown_type_returns_false() {
+        let custom = DataRange::Custom {
+            range_type: "unknown_type".to_string(),
+            range_data: b"data".to_vec(),
+        };
+        assert!(!custom.contains_key("data"));
+    }
+
+    #[test]
+    fn test_custom_overlaps_with_same_type_and_data() {
+        let c1 = DataRange::Custom {
+            range_type: "prefix".to_string(),
+            range_data: b"user_".to_vec(),
+        };
+        let c2 = DataRange::Custom {
+            range_type: "prefix".to_string(),
+            range_data: b"user_".to_vec(),
+        };
+        let c3 = DataRange::Custom {
+            range_type: "prefix".to_string(),
+            range_data: b"order_".to_vec(),
+        };
+        let c4 = DataRange::Custom {
+            range_type: "suffix".to_string(),
+            range_data: b"user_".to_vec(),
+        };
+        assert!(c1.overlaps_with(&c2));
+        // Different data — no overlap
+        assert!(!c1.overlaps_with(&c3));
+        // Different type — no overlap
+        assert!(!c1.overlaps_with(&c4));
+    }
+
+    #[test]
+    fn test_simple_glob_match_helper() {
+        // Leading wildcard
+        assert!(simple_glob_match("hello_world", "*world"));
+        // Trailing wildcard
+        assert!(simple_glob_match("hello_world", "hello*"));
+        // Middle wildcard
+        assert!(simple_glob_match("hello_world", "hello*world"));
+        // Double wildcard
+        assert!(simple_glob_match("abc_def_ghi", "abc*def*ghi"));
+        // No wildcard — exact match
+        assert!(simple_glob_match("exact", "exact"));
+        assert!(!simple_glob_match("not_exact", "exact"));
+        // Wildcard-only matches everything
+        assert!(simple_glob_match("anything", "*"));
+        assert!(simple_glob_match("", "*"));
     }
 }

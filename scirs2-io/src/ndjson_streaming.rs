@@ -71,9 +71,8 @@ impl<R: BufRead> NdjsonReader<R> {
             if trimmed.is_empty() || trimmed.starts_with('#') {
                 continue;
             }
-            let val = serde_json::from_str(trimmed).map_err(|e| {
-                IoError::ParseError(format!("line {}: {e}", self.line_number))
-            })?;
+            let val = serde_json::from_str(trimmed)
+                .map_err(|e| IoError::ParseError(format!("line {}: {e}", self.line_number)))?;
             return Ok(Some(val));
         }
     }
@@ -119,9 +118,8 @@ impl<W: Write> NdjsonWriter<W> {
 
     /// Serialise `record` and write it as one line.
     pub fn write_record(&mut self, record: &serde_json::Value) -> Result<()> {
-        let json = serde_json::to_string(record).map_err(|e| {
-            IoError::SerializationError(format!("JSON serialization failed: {e}"))
-        })?;
+        let json = serde_json::to_string(record)
+            .map_err(|e| IoError::SerializationError(format!("JSON serialization failed: {e}")))?;
         self.writer
             .write_all(json.as_bytes())
             .map_err(|e| IoError::FileError(format!("write failed: {e}")))?;
@@ -162,15 +160,15 @@ impl CsvValue {
         if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("null") || trimmed == "NA" {
             return CsvValue::Null;
         }
-        // Boolean
-        match trimmed.to_lowercase().as_str() {
-            "true" | "yes" | "1" => return CsvValue::Boolean(true),
-            "false" | "no" | "0" => return CsvValue::Boolean(false),
-            _ => {}
-        }
-        // Integer
+        // Integer check before Boolean to avoid treating "1"/"0" as booleans.
         if let Ok(i) = trimmed.parse::<i64>() {
             return CsvValue::Integer(i);
+        }
+        // Boolean (word forms only; numeric "1"/"0" handled above as integers)
+        match trimmed.to_lowercase().as_str() {
+            "true" | "yes" => return CsvValue::Boolean(true),
+            "false" | "no" => return CsvValue::Boolean(false),
+            _ => {}
         }
         // Float
         if let Ok(f) = trimmed.parse::<f64>() {
@@ -308,8 +306,8 @@ fn parse_csv_row(line: &str, delimiter: u8) -> Vec<String> {
 ///
 /// The first row is treated as the header.  All subsequent rows are data.
 pub fn read_tsv(path: &Path) -> Result<(Vec<String>, Vec<Vec<String>>)> {
-    let file = File::open(path)
-        .map_err(|e| IoError::FileError(format!("cannot open {:?}: {e}", path)))?;
+    let file =
+        File::open(path).map_err(|e| IoError::FileError(format!("cannot open {:?}: {e}", path)))?;
     let mut reader = CsvStreamReader::new(BufReader::new(file), true, b'\t')?;
 
     let headers = reader
@@ -354,8 +352,8 @@ pub fn write_tsv(path: &Path, headers: &[String], data: &[Vec<String>]) -> Resul
 
 /// Open an NDJSON file and return a reader over it.
 pub fn open_ndjson_file(path: &Path) -> Result<NdjsonReader<BufReader<File>>> {
-    let file = File::open(path)
-        .map_err(|e| IoError::FileError(format!("cannot open {:?}: {e}", path)))?;
+    let file =
+        File::open(path).map_err(|e| IoError::FileError(format!("cannot open {:?}: {e}", path)))?;
     Ok(NdjsonReader::new(BufReader::new(file)))
 }
 
@@ -391,21 +389,20 @@ mod tests {
 
     #[test]
     fn test_ndjson_reader_single_record() {
-        let src = ndjson_bytes(&[r#"{"id":1,"v":3.14}"#]);
+        let src = ndjson_bytes(&[r#"{"id":1,"v":2.5}"#]);
         let mut r = NdjsonReader::new(BufReader::new(src.as_slice()));
-        let rec = r.next_record().expect("should parse").expect("should have record");
+        let rec = r
+            .next_record()
+            .expect("should parse")
+            .expect("should have record");
         assert_eq!(rec["id"], 1);
-        assert!((rec["v"].as_f64().expect("float") - 3.14).abs() < 1e-10);
+        assert!((rec["v"].as_f64().expect("float") - 2.5).abs() < 1e-10);
         assert!(r.next_record().expect("no error").is_none());
     }
 
     #[test]
     fn test_ndjson_reader_multi_record() {
-        let src = ndjson_bytes(&[
-            r#"{"a":1}"#,
-            r#"{"a":2}"#,
-            r#"{"a":3}"#,
-        ]);
+        let src = ndjson_bytes(&[r#"{"a":1}"#, r#"{"a":2}"#, r#"{"a":3}"#]);
         let mut r = NdjsonReader::new(BufReader::new(src.as_slice()));
         let all = r.collect_all().expect("collect");
         assert_eq!(all.len(), 3);
@@ -414,13 +411,7 @@ mod tests {
 
     #[test]
     fn test_ndjson_reader_skips_blank_and_comment_lines() {
-        let src = ndjson_bytes(&[
-            "",
-            "# comment",
-            r#"{"x":42}"#,
-            "",
-            r#"{"x":99}"#,
-        ]);
+        let src = ndjson_bytes(&["", "# comment", r#"{"x":42}"#, "", r#"{"x":99}"#]);
         let mut r = NdjsonReader::new(BufReader::new(src.as_slice()));
         assert_eq!(r.count_records().expect("count"), 2);
     }
@@ -438,8 +429,10 @@ mod tests {
     fn test_ndjson_writer_produces_newline_delimited_json() {
         let mut buf: Vec<u8> = Vec::new();
         let mut w = NdjsonWriter::new(&mut buf);
-        w.write_record(&serde_json::json!({"k": "v1"})).expect("write");
-        w.write_record(&serde_json::json!({"k": "v2"})).expect("write");
+        w.write_record(&serde_json::json!({"k": "v1"}))
+            .expect("write");
+        w.write_record(&serde_json::json!({"k": "v2"}))
+            .expect("write");
         w.flush().expect("flush");
 
         let text = String::from_utf8(buf).expect("utf8");
@@ -488,8 +481,8 @@ mod tests {
     #[test]
     fn test_csv_stream_reader_headers_and_rows() {
         let csv = b"name,age,city\nAlice,30,London\nBob,25,Paris\n";
-        let mut r = CsvStreamReader::new(BufReader::new(csv.as_ref()), true, b',')
-            .expect("new reader");
+        let mut r =
+            CsvStreamReader::new(BufReader::new(csv.as_ref()), true, b',').expect("new reader");
 
         let hdrs = r.headers().expect("headers").to_vec();
         assert_eq!(hdrs, vec!["name", "age", "city"]);
@@ -506,8 +499,8 @@ mod tests {
     #[test]
     fn test_csv_stream_reader_no_header() {
         let csv = b"1,2,3\n4,5,6\n";
-        let mut r = CsvStreamReader::new(BufReader::new(csv.as_ref()), false, b',')
-            .expect("new reader");
+        let mut r =
+            CsvStreamReader::new(BufReader::new(csv.as_ref()), false, b',').expect("new reader");
         assert!(r.headers().is_none());
         let row = r.next_row().expect("row").expect("some");
         assert_eq!(row, vec!["1", "2", "3"]);
@@ -516,8 +509,8 @@ mod tests {
     #[test]
     fn test_csv_stream_reader_typed_row() {
         let csv = b"id,active,value,label\n1,true,3.14,hello\n2,false,,NA\n";
-        let mut r = CsvStreamReader::new(BufReader::new(csv.as_ref()), true, b',')
-            .expect("new reader");
+        let mut r =
+            CsvStreamReader::new(BufReader::new(csv.as_ref()), true, b',').expect("new reader");
 
         let row = r.next_typed_row().expect("row").expect("some");
         assert!(matches!(row[0], CsvValue::Integer(1)));
@@ -533,8 +526,8 @@ mod tests {
     #[test]
     fn test_csv_stream_reader_tsv_delimiter() {
         let tsv = b"a\tb\tc\n10\t20\t30\n";
-        let mut r = CsvStreamReader::new(BufReader::new(tsv.as_ref()), true, b'\t')
-            .expect("new reader");
+        let mut r =
+            CsvStreamReader::new(BufReader::new(tsv.as_ref()), true, b'\t').expect("new reader");
         let hdrs = r.headers().expect("hdrs").to_vec();
         assert_eq!(hdrs, vec!["a", "b", "c"]);
         let row = r.next_row().expect("row").expect("some");

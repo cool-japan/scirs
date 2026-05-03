@@ -19,10 +19,10 @@
 #![allow(missing_docs)]
 
 use crate::error::{IoError, Result};
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use std::collections::HashMap;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Core trait
@@ -143,8 +143,7 @@ where
         T: Transform<Input = O> + 'static,
         T::Output: Send + Sync + 'static,
     {
-        let second: Arc<dyn PipelineStep<O, T::Output>> =
-            Arc::new(TransformStep { transform });
+        let second: Arc<dyn PipelineStep<O, T::Output>> = Arc::new(TransformStep { transform });
         TypedPipeline {
             step: Arc::new(ComposedStep {
                 first: self.step,
@@ -185,10 +184,7 @@ where
 
     /// Like `apply_batch` but tolerates per-element errors, collecting both
     /// successes and failures.
-    pub fn apply_batch_partial(
-        &self,
-        inputs: Vec<I>,
-    ) -> (Vec<O>, Vec<(usize, IoError)>) {
+    pub fn apply_batch_partial(&self, inputs: Vec<I>) -> (Vec<O>, Vec<(usize, IoError)>) {
         let mut outputs = Vec::with_capacity(inputs.len());
         let mut errors = Vec::new();
         for (idx, item) in inputs.into_iter().enumerate() {

@@ -1157,9 +1157,33 @@ impl AIAlgorithmSelector {
                     }
                 }
             }
+            "hierarchical" => {
+                for k in [2, 3, 5] {
+                    let mut params = HashMap::new();
+                    params.insert("n_clusters".to_string(), k as f64);
+                    params.insert("linkage".to_string(), 1.0); // 1.0=ward, 2.0=complete, 3.0=average
+                    parameter_sets.push(params);
+                }
+            }
+            "quantum_clustering" => {
+                let mut params = HashMap::new();
+                params.insert("n_clusters".to_string(), 2.0);
+                params.insert("quantum_depth".to_string(), 3.0);
+                params.insert("shots".to_string(), 1024.0);
+                parameter_sets.push(params);
+            }
+            "neuromorphic_clustering" => {
+                let mut params = HashMap::new();
+                params.insert("n_clusters".to_string(), 2.0);
+                params.insert("learning_rate".to_string(), 0.1);
+                params.insert("num_epochs".to_string(), 100.0);
+                parameter_sets.push(params);
+            }
             _ => {
                 // Default parameters
-                parameter_sets.push(HashMap::new());
+                let mut params = HashMap::new();
+                params.insert("default".to_string(), 1.0);
+                parameter_sets.push(params);
             }
         }
 
@@ -1553,7 +1577,6 @@ mod tests {
 
     #[cfg(feature = "async")]
     #[tokio::test]
-    #[ignore = "Test failure - assertion failed: !algorithm_parameters.is_empty() at line 1568"]
     async fn test_ai_algorithm_selector() {
         let mut selector = AIAlgorithmSelector::new()
             .with_meta_learning(true)

@@ -447,9 +447,7 @@ pub fn uniform_filter3d(
         }
     }
     // Build normalised box kernels for each axis.
-    let make_box = |s: usize| -> Array1<f64> {
-        Array1::from_elem(s, 1.0 / s as f64)
-    };
+    let make_box = |s: usize| -> Array1<f64> { Array1::from_elem(s, 1.0 / s as f64) };
     let kz = make_box(size[0]);
     let ky = make_box(size[1]);
     let kx = make_box(size[2]);
@@ -639,9 +637,7 @@ mod tests {
 
     #[test]
     fn test_convolve3d_identity_kernel() {
-        let vol = Array3::<f64>::from_shape_fn((4, 5, 6), |(z, y, x)| {
-            (z * 30 + y * 6 + x) as f64
-        });
+        let vol = Array3::<f64>::from_shape_fn((4, 5, 6), |(z, y, x)| (z * 30 + y * 6 + x) as f64);
         let mut identity = Array3::zeros((3, 3, 3));
         identity[[1, 1, 1]] = 1.0;
         // Convolution with a delta kernel (flipped, but delta is symmetric)
@@ -653,7 +649,11 @@ mod tests {
                     assert!(
                         (out[[iz, iy, ix]] - vol[[iz, iy, ix]]).abs() < 1e-12,
                         "mismatch at [{}, {}, {}]: got {}, expected {}",
-                        iz, iy, ix, out[[iz, iy, ix]], vol[[iz, iy, ix]]
+                        iz,
+                        iy,
+                        ix,
+                        out[[iz, iy, ix]],
+                        vol[[iz, iy, ix]]
                     );
                 }
             }
@@ -679,7 +679,9 @@ mod tests {
                     assert!(
                         (c1[[iz, iy, ix]] - c2[[iz, iy, ix]]).abs() < 1e-12,
                         "asymmetry at [{},{},{}]",
-                        iz, iy, ix
+                        iz,
+                        iy,
+                        ix
                     );
                 }
             }
@@ -698,7 +700,10 @@ mod tests {
                     assert!(
                         (out[[iz, iy, ix]] - 1.0).abs() < 1e-10,
                         "interior mismatch at [{},{},{}]: {}",
-                        iz, iy, ix, out[[iz, iy, ix]]
+                        iz,
+                        iy,
+                        ix,
+                        out[[iz, iy, ix]]
                     );
                 }
             }
@@ -715,8 +720,8 @@ mod tests {
     #[test]
     fn test_uniform_filter3d_mean() {
         let vol = Array3::<f64>::ones((8, 8, 8));
-        let out = uniform_filter3d(&vol, [3, 3, 3], Padding3D::Replicate)
-            .expect("uniform_filter3d");
+        let out =
+            uniform_filter3d(&vol, [3, 3, 3], Padding3D::Replicate).expect("uniform_filter3d");
         // Mean of a uniform volume is the same value.
         for iz in 1..7 {
             for iy in 1..7 {
@@ -730,8 +735,7 @@ mod tests {
     #[test]
     fn test_median_filter3d_constant() {
         let vol = Array3::<f64>::from_elem((5, 5, 5), 7.0);
-        let out = median_filter3d(&vol, [3, 3, 3], Padding3D::Replicate)
-            .expect("median_filter3d");
+        let out = median_filter3d(&vol, [3, 3, 3], Padding3D::Replicate).expect("median_filter3d");
         for &v in out.iter() {
             assert!((v - 7.0).abs() < 1e-12);
         }
@@ -753,7 +757,12 @@ mod tests {
         let center = log[[6, 6, 6]];
         let neighbour = log[[7, 6, 6]];
         // Center should be more negative than a neighbour
-        assert!(center < neighbour, "center={}, neighbour={}", center, neighbour);
+        assert!(
+            center < neighbour,
+            "center={}, neighbour={}",
+            center,
+            neighbour
+        );
     }
 
     #[test]

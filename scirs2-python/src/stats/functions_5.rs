@@ -34,7 +34,7 @@ use super::functions_3::{
 };
 use super::functions_4::{
     chi2_independence_py, chi2_yates_py, fisher_exact_py, friedman_py, ks_2samp_py, linregress_py,
-    odds_ratio_py, pearsonr_py, relative_risk_py, spearmanr_py, tukey_hsd_py,
+    odds_ratio_py, pearsonr_py, polyfit_py, relative_risk_py, spearmanr_py, tukey_hsd_py,
 };
 use scirs2_stats::kendalltau;
 
@@ -163,6 +163,7 @@ pub fn register_module(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(pearsonr_py, m)?)?;
     m.add_function(wrap_pyfunction!(spearmanr_py, m)?)?;
     m.add_function(wrap_pyfunction!(kendalltau_py, m)?)?;
+    m.add_function(wrap_pyfunction!(polyfit_py, m)?)?;
     // Batch/vectorized APIs
     register_batch_module(m)?;
     Ok(())

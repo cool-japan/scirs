@@ -22,28 +22,12 @@ use std::iter::Sum;
 
 /// Floating-point trait bounds required by every function in this module.
 pub trait BlockFloat:
-    Float
-    + NumAssign
-    + Debug
-    + Display
-    + ScalarOperand
-    + Sum
-    + 'static
-    + Send
-    + Sync
+    Float + NumAssign + Debug + Display + ScalarOperand + Sum + 'static + Send + Sync
 {
 }
 
 impl<T> BlockFloat for T where
-    T: Float
-        + NumAssign
-        + Debug
-        + Display
-        + ScalarOperand
-        + Sum
-        + 'static
-        + Send
-        + Sync
+    T: Float + NumAssign + Debug + Display + ScalarOperand + Sum + 'static + Send + Sync
 {
 }
 
@@ -130,17 +114,19 @@ impl<T: BlockFloat> BlockMatrix<T> {
                 "offset vectors must not be empty".into(),
             ));
         }
-        if *row_offsets.last().ok_or_else(|| {
-            LinalgError::ValueError("row_offsets is empty".into())
-        })? != a.nrows()
+        if *row_offsets
+            .last()
+            .ok_or_else(|| LinalgError::ValueError("row_offsets is empty".into()))?
+            != a.nrows()
         {
             return Err(LinalgError::DimensionError(
                 "row_offsets last element must equal a.nrows()".into(),
             ));
         }
-        if *col_offsets.last().ok_or_else(|| {
-            LinalgError::ValueError("col_offsets is empty".into())
-        })? != a.ncols()
+        if *col_offsets
+            .last()
+            .ok_or_else(|| LinalgError::ValueError("col_offsets is empty".into()))?
+            != a.ncols()
         {
             return Err(LinalgError::DimensionError(
                 "col_offsets last element must equal a.ncols()".into(),
@@ -316,11 +302,11 @@ pub fn block_matmul<T: BlockFloat>(
 ///
 /// # Arguments
 /// * `t`       - Block-triangular matrix (must be square with the same block
-///               partition on rows and columns)
+///   partition on rows and columns)
 /// * `b`       - Right-hand side matrix (same total rows as `t`)
 /// * `lower`   - `true` for lower triangular, `false` for upper triangular
 /// * `offsets` - Block boundary offsets (e.g. `[0, k1, k2, n]`); must start
-///               at 0 and end at `t.nrows()`
+///   at 0 and end at `t.nrows()`
 ///
 /// # Returns
 /// Solution matrix X
@@ -347,7 +333,12 @@ pub fn block_triangular_solve<T: BlockFloat>(
             "offsets must have at least 2 elements".into(),
         ));
     }
-    if offsets[0] != 0 || *offsets.last().ok_or_else(|| LinalgError::ValueError("offsets empty".into()))? != n {
+    if offsets[0] != 0
+        || *offsets
+            .last()
+            .ok_or_else(|| LinalgError::ValueError("offsets empty".into()))?
+            != n
+    {
         return Err(LinalgError::ValueError(
             "offsets must start at 0 and end at n".into(),
         ));
@@ -520,7 +511,9 @@ pub fn block_cholesky<T: BlockFloat>(
 ) -> LinalgResult<Array2<T>> {
     let n = a.nrows();
     if a.ncols() != n {
-        return Err(LinalgError::ShapeError("block_cholesky: A must be square".into()));
+        return Err(LinalgError::ShapeError(
+            "block_cholesky: A must be square".into(),
+        ));
     }
     if block_size == 0 {
         return Err(LinalgError::ValueError("block_size must be > 0".into()));
@@ -947,11 +940,7 @@ mod tests {
 
     #[test]
     fn test_block_cholesky() {
-        let a = array![
-            [4.0_f64, 2.0, 0.0],
-            [2.0, 5.0, 1.0],
-            [0.0, 1.0, 3.0]
-        ];
+        let a = array![[4.0_f64, 2.0, 0.0], [2.0, 5.0, 1.0], [0.0, 1.0, 3.0]];
         let l = block_cholesky(&a.view(), 2).expect("ok");
         let lt = l.t().to_owned();
         let reconstructed = l.dot(&lt);
@@ -971,7 +960,12 @@ mod tests {
         let f = array![[1.0_f64], [2.0]];
         let g = array![[3.0_f64]];
         let (x, y) = bordered_system_solve(
-            &a.view(), &b.view(), &c.view(), &d.view(), &f.view(), &g.view(),
+            &a.view(),
+            &b.view(),
+            &c.view(),
+            &d.view(),
+            &f.view(),
+            &g.view(),
         )
         .expect("ok");
         let resid_top = a.dot(&x) + b.dot(&y) - &f;
@@ -993,20 +987,15 @@ mod tests {
             let resid = d[i] * x[i] + b[[i, 0]] * y[0] - f[i];
             assert!(resid.abs() < 1e-9, "top resid {resid}");
         }
-        let bot_resid: f64 = (0..3).map(|i| b[[i, 0]] * x[i]).sum::<f64>()
-            + c[[0, 0]] * y[0]
-            - g[0];
+        let bot_resid: f64 =
+            (0..3).map(|i| b[[i, 0]] * x[i]).sum::<f64>() + c[[0, 0]] * y[0] - g[0];
         assert!(bot_resid.abs() < 1e-9, "bot resid {bot_resid}");
     }
 
     #[test]
     fn test_block_triangular_solve_lower() {
         // L = [[2,0,0],[1,3,0],[0,2,4]]
-        let t = array![
-            [2.0_f64, 0.0, 0.0],
-            [1.0, 3.0, 0.0],
-            [0.0, 2.0, 4.0]
-        ];
+        let t = array![[2.0_f64, 0.0, 0.0], [1.0, 3.0, 0.0], [0.0, 2.0, 4.0]];
         let b = array![[2.0_f64], [5.0], [12.0]];
         let offsets = vec![0, 1, 2, 3];
         let x = block_triangular_solve(&t.view(), &b.view(), true, &offsets).expect("ok");
@@ -1018,11 +1007,7 @@ mod tests {
 
     #[test]
     fn test_block_triangular_solve_upper() {
-        let t = array![
-            [2.0_f64, 1.0, 0.0],
-            [0.0, 3.0, 2.0],
-            [0.0, 0.0, 4.0]
-        ];
+        let t = array![[2.0_f64, 1.0, 0.0], [0.0, 3.0, 2.0], [0.0, 0.0, 4.0]];
         let b = array![[3.0_f64], [11.0], [8.0]];
         let offsets = vec![0, 1, 2, 3];
         let x = block_triangular_solve(&t.view(), &b.view(), false, &offsets).expect("ok");

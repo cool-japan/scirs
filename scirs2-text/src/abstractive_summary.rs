@@ -356,9 +356,11 @@ impl FusionSummarizer {
         let mut representatives: Vec<&ScoredSentence> = clusters
             .iter()
             .filter_map(|cluster| {
-                cluster
-                    .iter()
-                    .max_by(|a, b| a.score.partial_cmp(&b.score).unwrap_or(std::cmp::Ordering::Equal))
+                cluster.iter().max_by(|a, b| {
+                    a.score
+                        .partial_cmp(&b.score)
+                        .unwrap_or(std::cmp::Ordering::Equal)
+                })
             })
             .collect();
 
@@ -427,12 +429,12 @@ impl CompressionSummarizer {
         let raw = [
             "a", "an", "the", "is", "are", "was", "were", "be", "been", "being", "have", "has",
             "had", "do", "does", "did", "will", "would", "could", "should", "may", "might",
-            "shall", "can", "and", "but", "or", "nor", "for", "yet", "so", "in", "on", "at",
-            "to", "from", "by", "with", "of", "about", "as", "into", "through", "during",
-            "before", "after", "above", "below", "between", "each", "all", "both", "very",
-            "just", "too", "also", "then", "than", "that", "this", "these", "those", "i", "me",
-            "my", "we", "our", "you", "your", "he", "she", "it", "its", "they", "them", "their",
-            "what", "which", "who", "whom", "not", "no",
+            "shall", "can", "and", "but", "or", "nor", "for", "yet", "so", "in", "on", "at", "to",
+            "from", "by", "with", "of", "about", "as", "into", "through", "during", "before",
+            "after", "above", "below", "between", "each", "all", "both", "very", "just", "too",
+            "also", "then", "than", "that", "this", "these", "those", "i", "me", "my", "we", "our",
+            "you", "your", "he", "she", "it", "its", "they", "them", "their", "what", "which",
+            "who", "whom", "not", "no",
         ];
         Self {
             stop_words: raw.iter().map(|w| w.to_string()).collect(),
@@ -529,7 +531,8 @@ impl CompressionSummarizer {
         scored.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         // Collect the top-k indices (then re-sort by position).
-        let mut keep_indices: Vec<usize> = scored.iter().take(keep_count).map(|&(i, _)| i).collect();
+        let mut keep_indices: Vec<usize> =
+            scored.iter().take(keep_count).map(|&(i, _)| i).collect();
         keep_indices.sort_unstable();
 
         // Reassemble.
@@ -698,9 +701,9 @@ impl EnhancedCentroidSummarizer {
             if selected.len() >= self.num_sentences {
                 break;
             }
-            let redundant = selected.iter().any(|&si| {
-                cosine_sim_rows(&tfidf, *idx, si) > self.redundancy_threshold
-            });
+            let redundant = selected
+                .iter()
+                .any(|&si| cosine_sim_rows(&tfidf, *idx, si) > self.redundancy_threshold);
             if !redundant {
                 selected.push(*idx);
             }
@@ -894,7 +897,11 @@ mod tests {
         assert!(!sents.is_empty());
         // Every score should be in [0, 1].
         for s in &sents {
-            assert!((0.0..=1.001).contains(&s.score), "score out of range: {}", s.score);
+            assert!(
+                (0.0..=1.001).contains(&s.score),
+                "score out of range: {}",
+                s.score
+            );
         }
     }
 
@@ -977,11 +984,7 @@ mod tests {
     #[test]
     fn test_compression_importance_stop_word_lower() {
         let cs = CompressionSummarizer::new();
-        let tokens: Vec<String> = vec![
-            "the".to_string(),
-            "quick".to_string(),
-            "fox".to_string(),
-        ];
+        let tokens: Vec<String> = vec!["the".to_string(), "quick".to_string(), "fox".to_string()];
         let stop_score = cs.importance_score("the", &tokens);
         let content_score = cs.importance_score("fox", &tokens);
         assert!(

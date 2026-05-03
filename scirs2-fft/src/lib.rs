@@ -41,7 +41,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-fft = "0.4.2"
+//! scirs2-fft = "0.4.3"
 //! ```
 //!
 //!
@@ -157,7 +157,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.2
+//! - **Version**: 0.4.3
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-fft](https://docs.rs/scirs2-fft)
@@ -176,10 +176,8 @@ pub mod oxifft_plan_cache;
 
 pub use error::{FFTError, FFTResult};
 
-// FFT plan caching (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// FFT plan caching
 pub mod plan_cache;
-#[cfg(feature = "rustfft-backend")]
 pub use plan_cache::{get_global_cache, init_global_cache, CacheStats, PlanCache};
 
 // Worker pool management
@@ -190,88 +188,67 @@ pub use worker_pool::{
 };
 
 // FFT backend system
-#[cfg(feature = "rustfft-backend")]
 pub mod backend;
-#[cfg(feature = "rustfft-backend")]
 pub use backend::{
     get_backend_info, get_backend_manager, get_backend_name, init_backend_manager, list_backends,
     set_backend, BackendContext, BackendInfo, BackendManager, FftBackend,
 };
 
-// FFT context managers (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// FFT context managers
 pub mod context;
-#[cfg(feature = "rustfft-backend")]
 pub use context::{
     fft_context, with_backend, with_fft_settings, without_cache, FftContext, FftContextBuilder,
     FftSettingsGuard,
 };
 
-// Advanced striding support (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Advanced striding support
 pub mod strided_fft;
-#[cfg(feature = "rustfft-backend")]
 pub use strided_fft::{fft_strided, fft_strided_complex, ifft_strided};
 
-// Plan serialization (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Plan serialization
 pub mod plan_serialization;
-#[cfg(feature = "rustfft-backend")]
 pub use plan_serialization::{PlanDatabaseStats, PlanInfo, PlanMetrics, PlanSerializationManager};
 
-// Advanced FFT planning system (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Advanced FFT planning system
 pub mod planning;
-#[cfg(feature = "rustfft-backend")]
 pub use planning::{
     get_global_planner, init_global_planner, plan_ahead_of_time, AdvancedFftPlanner as FftPlanner,
     FftPlan, FftPlanExecutor, PlanBuilder, PlannerBackend, PlanningConfig, PlanningStrategy,
 };
 
-// Adaptive planning extensions (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Adaptive planning extensions
 pub mod planning_adaptive;
 
-// Parallel planning extensions (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Parallel planning extensions
 pub mod planning_parallel;
-#[cfg(feature = "rustfft-backend")]
 pub use planning_parallel::{
     ParallelExecutor, ParallelPlanResult, ParallelPlanner, ParallelPlanningConfig,
 };
 
-// Auto-tuning for hardware optimization (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Auto-tuning for hardware optimization
 pub mod auto_tuning;
-#[cfg(feature = "rustfft-backend")]
 pub use auto_tuning::{
     auto_fft, auto_select_algorithm, AutoTuneConfig, AutoTuner, FftVariant, IntegratedAutoSelector,
     SelectionResult, SelectionSource, SizeRange, SizeStep,
 };
 
-// Algorithm auto-selection based on input characteristics (v0.2.0) (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Algorithm auto-selection based on input characteristics (v0.2.0)
 pub mod algorithm_selector;
-#[cfg(feature = "rustfft-backend")]
 pub use algorithm_selector::{
     AlgorithmRecommendation, AlgorithmSelector, CacheInfo, FftAlgorithm, HardwareInfo,
     InputCharacteristics, PerformanceEntry, PerformanceHistory, SelectionConfig, SimdCapabilities,
     SizeCharacteristic,
 };
 
-// Performance profiling and benchmarking (v0.2.0) (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Performance profiling and benchmarking (v0.2.0)
 pub mod performance_profiler;
-#[cfg(feature = "rustfft-backend")]
 pub use performance_profiler::{
     estimate_fft_memory, AlgorithmComparison, Measurement, MemoryProfiler, PerformanceProfiler,
     PerformanceReport, ProfileConfig, ProfileResult,
 };
 
-// Large FFT operations with memory efficiency (v0.2.0) (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Large FFT operations with memory efficiency (v0.2.0)
 pub mod large_fft;
-#[cfg(feature = "rustfft-backend")]
 pub use large_fft::{LargeFft, LargeFftConfig, LargeFftMethod, LargeFftNd, LargeFftStats};
 
 // Advanced mode coordinator for advanced AI-driven optimization (temporarily disabled)
@@ -291,10 +268,8 @@ pub mod fht;
 pub mod hfft;
 pub mod rfft;
 
-// Real FFT planner with trait objects (VoiRS compatibility) (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Real FFT planner with trait objects (VoiRS compatibility)
 pub mod real_planner;
-#[cfg(feature = "rustfft-backend")]
 pub use real_planner::{ComplexToReal, RealFftPlanner, RealToComplex};
 
 // Re-export basic functions
@@ -327,7 +302,6 @@ pub use helper::{fftfreq, fftshift, ifftshift, next_fast_len, prev_fast_len, rff
 pub mod frft;
 pub mod frft_dft;
 pub mod frft_ozaktas;
-#[cfg(feature = "rustfft-backend")]
 pub mod nufft;
 pub mod spectrogram;
 pub mod waterfall;
@@ -425,10 +399,8 @@ pub use sparse_fft_batch::{batch_sparse_fft, spectral_flatness_batch_sparse_fft,
 #[cfg(feature = "never")]
 pub use time_frequency::{time_frequency_transform, TFConfig, TFTransform, WaveletType};
 
-// Memory-efficient FFT operations (requires rustfft-backend feature)
-#[cfg(feature = "rustfft-backend")]
+// Memory-efficient FFT operations
 pub mod memory_efficient;
-#[cfg(feature = "rustfft-backend")]
 pub use memory_efficient::{
     fft2_efficient, fft_inplace, fft_streaming, process_in_chunks, FftMode,
 };
@@ -436,6 +408,10 @@ pub use memory_efficient::{
 // Optimized N-dimensional FFT
 pub mod ndim_optimized;
 pub use ndim_optimized::{fftn_memory_efficient, fftn_optimized, rfftn_optimized};
+
+// N-Dimensional FFT utilities (fftshift2, ifftshift2, fft2d, etc.)
+pub mod ndim;
+pub use ndim::{fftshift2, ifftshift2};
 
 // Hartley transform
 pub mod hartley;
@@ -574,6 +550,13 @@ pub mod ramanujan;
 pub mod shor;
 // Wigner-Ville distribution
 pub mod wigner_ville;
+
+// Wavelet Packet Transform (WPT) with best-basis algorithm
+pub mod wavelet_packets;
+pub use wavelet_packets::{
+    best_basis as wp_best_basis, wp_reconstruct, wpd, Wavelet as WaveletPacket, WaveletPacketNode,
+    WaveletPacketTree,
+};
 
 // Wavelet Scattering Transform (Mallat 2012)
 pub mod scattering;

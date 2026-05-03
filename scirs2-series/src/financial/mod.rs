@@ -296,6 +296,7 @@
 //! - Alternative data integration
 //! - ESG factor modeling
 
+pub mod config;
 pub mod models;
 pub mod portfolio;
 pub mod pricing;
@@ -311,15 +312,17 @@ pub use models::{
     GarchResult, GjrGarchModel, GjrGarchResult,
 };
 
-// Technical indicators (basic)
-pub use technical_indicators::{
-    atr, bollinger_bands, cci, ema, macd, obv, rsi, sma, stochastic, williams_r,
-};
+// Technical indicators (basic) — note: bollinger_bands exported as the advanced (config-based) version
+pub use technical_indicators::{atr, cci, ema, macd, obv, rsi, sma, stochastic, williams_r};
+// The config-based advanced bollinger_bands is the primary export under this name
+pub use technical_indicators::advanced_bollinger_bands as bollinger_bands;
+pub use technical_indicators::basic::bollinger_bands as bollinger_bands_basic;
 
 // Technical indicators (advanced)
 pub use technical_indicators::{
     adx, aroon, chaikin_oscillator, fibonacci_retracement, kama, mfi, parabolic_sar, vwap,
-    AdvancedBollingerBands, AdvancedStochasticOscillator, IchimokuCloud,
+    AdvancedBollingerBands, AdvancedStochasticOscillator, BollingerBandsConfig, IchimokuCloud,
+    MovingAverageType,
 };
 
 // Volatility estimators
@@ -399,3 +402,51 @@ pub use pricing::{
     present_value,
     Greeks,
 };
+
+// ---------------------------------------------------------------------------
+// Convenience free functions
+// ---------------------------------------------------------------------------
+
+/// Fit a GARCH(p, q) model and return the result (including conditional variance).
+///
+/// This is a convenience wrapper around [`GarchModel`] for use in simple scripts
+/// and integration tests that do not need to configure the full model manually.
+///
+/// # Arguments
+///
+/// * `returns` — Array of financial returns (already computed; not raw prices)
+/// * `p` — GARCH lag order (number of lagged conditional variances)
+/// * `q` — ARCH lag order (number of lagged squared residuals)
+///
+/// # Returns
+///
+/// `Result<GarchResult<f64>>` containing the fitted parameters, conditional
+/// variance series, and diagnostics.
+///
+/// # Examples
+///
+/// ```rust,no_run
+/// use scirs2_series::financial::garch_model;
+/// use scirs2_core::ndarray::Array1;
+///
+/// let returns: Array1<f64> = Array1::linspace(-0.02, 0.02, 100);
+/// let result = garch_model(&returns, 1, 1).expect("GARCH fitting failed");
+/// assert_eq!(result.conditional_variance.len(), returns.len());
+/// ```
+pub fn garch_model(
+    returns: &scirs2_core::ndarray::Array1<f64>,
+    p: usize,
+    q: usize,
+) -> crate::error::Result<models::GarchResult<f64>> {
+    let config = models::GarchConfig {
+        p,
+        q,
+        mean_model: models::MeanModel::Constant,
+        distribution: models::Distribution::Normal,
+        max_iterations: 500,
+        tolerance: 1e-6,
+        use_numerical_derivatives: false,
+    };
+    let mut model = models::GarchModel::new(config);
+    model.fit(returns)
+}

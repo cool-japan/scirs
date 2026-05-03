@@ -369,10 +369,14 @@ use crate::CoreResult;
 pub struct TracingConfig;
 
 #[cfg(not(feature = "profiling_advanced"))]
-impl TracingConfig {
-    pub fn default() -> Self {
+impl Default for TracingConfig {
+    fn default() -> Self {
         Self
     }
+}
+
+#[cfg(not(feature = "profiling_advanced"))]
+impl TracingConfig {
     pub fn production() -> Self {
         Self
     }

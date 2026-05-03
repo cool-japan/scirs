@@ -43,7 +43,7 @@ pub fn levenshtein(a: &str, b: &str) -> usize {
             };
             curr[j] = (prev[j] + 1)           // deletion
                 .min(curr[j - 1] + 1)          // insertion
-                .min(prev[j - 1] + cost);       // substitution
+                .min(prev[j - 1] + cost); // substitution
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -81,7 +81,7 @@ pub fn weighted_levenshtein(a: &str, b: &str, ins: f64, del: f64, sub: f64) -> f
             };
             curr[j] = (prev[j] + del)              // deletion from a
                 .min(curr[j - 1] + ins)             // insertion into a
-                .min(prev[j - 1] + sub_cost);       // substitution
+                .min(prev[j - 1] + sub_cost); // substitution
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -127,7 +127,7 @@ pub fn damerau_levenshtein(a: &str, b: &str) -> usize {
             };
             d[i][j] = (d[i - 1][j] + 1)                 // deletion
                 .min(d[i][j - 1] + 1)                    // insertion
-                .min(d[i - 1][j - 1] + cost);            // substitution
+                .min(d[i - 1][j - 1] + cost); // substitution
 
             // Transposition
             if i > 1
@@ -313,11 +313,11 @@ pub fn lcs(a: &str, b: &str) -> String {
 fn traceback_alignment(
     a_chars: &[char],
     b_chars: &[char],
-    dir: &Vec<Vec<u8>>,
+    dir: &[Vec<u8>],
     start_i: usize,
     start_j: usize,
     stop_zero: bool, // stop when score hits 0 (Smith-Waterman)
-    scores: &Vec<Vec<i32>>,
+    scores: &[Vec<i32>],
 ) -> (String, String) {
     let mut aligned_a = Vec::<char>::new();
     let mut aligned_b = Vec::<char>::new();
@@ -362,7 +362,10 @@ fn traceback_alignment(
 
     aligned_a.reverse();
     aligned_b.reverse();
-    (aligned_a.into_iter().collect(), aligned_b.into_iter().collect())
+    (
+        aligned_a.into_iter().collect(),
+        aligned_b.into_iter().collect(),
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -495,8 +498,7 @@ pub fn needleman_wunsch(
     }
 
     let final_score = score[m][n];
-    let (aligned_a, aligned_b) =
-        traceback_alignment(&a_chars, &b_chars, &dir, m, n, false, &score);
+    let (aligned_a, aligned_b) = traceback_alignment(&a_chars, &b_chars, &dir, m, n, false, &score);
 
     (final_score, aligned_a, aligned_b)
 }
@@ -707,7 +709,11 @@ mod tests {
     #[test]
     fn test_needleman_wunsch_with_gap() {
         let (score, a_aligned, b_aligned) = needleman_wunsch("AC", "AGC", 2, -1, -1);
-        assert_eq!(a_aligned.len(), b_aligned.len(), "aligned lengths must match");
+        assert_eq!(
+            a_aligned.len(),
+            b_aligned.len(),
+            "aligned lengths must match"
+        );
         // Should contain a gap somewhere
         let _ = score;
     }

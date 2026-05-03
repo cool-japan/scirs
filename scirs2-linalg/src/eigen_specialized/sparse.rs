@@ -3,9 +3,9 @@
 //! This module provides specialized solvers for large sparse matrices where we might
 //! only need a few eigenvalues/eigenvectors, not the full spectrum.
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
 use scirs2_core::numeric::{Float, NumAssign};
-use scirs2_core::random::{self, Rng};
+use scirs2_core::random::{self, Rng, RngExt};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
@@ -50,7 +50,7 @@ pub fn largest_k_eigh<F>(
     tol: F,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Check if matrix is square
     if a.nrows() != a.ncols() {
@@ -161,7 +161,7 @@ pub fn smallest_k_eigh<F>(
     tol: F,
 ) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     // Check if matrix is square
     if a.nrows() != a.ncols() {
@@ -196,7 +196,7 @@ where
     }
 
     // Estimate the largest eigenvalue for shift-and-invert (unused in current implementation)
-    let (_largest_eigenvalue_) = match power_iteration_with_convergence(a, max_iter, tol) {
+    let _largest_eigenvalue_ = match power_iteration_with_convergence(a, max_iter, tol) {
         Ok((lambda, v)) => (lambda, v),
         Err(e) => return Err(e),
     };
@@ -258,7 +258,7 @@ fn power_iteration_with_convergence<F>(
     tol: F,
 ) -> LinalgResult<(F, Array1<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
 
@@ -368,7 +368,8 @@ mod tests {
     #[test]
     fn test_largest_k_eigh_simple() {
         let a = array![[2.0_f64, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 3.0]];
-        let (eigenvalues, eigenvectors) = largest_k_eigh(&a.view(), 2, 100, 1e-10).expect("Operation failed");
+        let (eigenvalues, eigenvectors) =
+            largest_k_eigh(&a.view(), 2, 100, 1e-10).expect("Operation failed");
 
         // The two largest eigenvalues should be 3.0 and 2.0
         assert_relative_eq!(eigenvalues[0], 3.0, epsilon = 1e-8);
@@ -406,7 +407,8 @@ mod tests {
     #[test]
     fn test_smallest_k_eigh_simple() {
         let a = array![[2.0_f64, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 3.0]];
-        let (eigenvalues, eigenvectors) = smallest_k_eigh(&a.view(), 2, 100, 1e-10).expect("Operation failed");
+        let (eigenvalues, eigenvectors) =
+            smallest_k_eigh(&a.view(), 2, 100, 1e-10).expect("Operation failed");
 
         // The two smallest eigenvalues should be 1.0 and 2.0
         assert_relative_eq!(eigenvalues[0], 1.0, epsilon = 1e-8);

@@ -55,7 +55,9 @@ pub fn topological_sort(adj: &Array2<f64>) -> Result<Vec<usize>> {
         return Ok(vec![]);
     }
     if adj.ncols() != n {
-        return Err(GraphError::InvalidGraph("adjacency matrix must be square".into()));
+        return Err(GraphError::InvalidGraph(
+            "adjacency matrix must be square".into(),
+        ));
     }
 
     // Compute in-degrees
@@ -133,7 +135,15 @@ pub fn all_simple_paths(
     let mut visited = vec![false; n];
     visited[source] = true;
 
-    dfs_paths(adj, source, target, max_length, &mut path, &mut visited, &mut results);
+    dfs_paths(
+        adj,
+        source,
+        target,
+        max_length,
+        &mut path,
+        &mut visited,
+        &mut results,
+    );
 
     results
 }
@@ -149,7 +159,7 @@ fn dfs_paths(
     results: &mut Vec<Vec<usize>>,
 ) {
     // Path length is number of edges = path.len() - 1
-    if path.len() - 1 >= max_length {
+    if path.len() > max_length {
         return;
     }
 
@@ -192,7 +202,7 @@ pub fn eulerian_circuit(adj: &Array2<f64>) -> Result<Vec<usize>> {
     // Check all degrees are even
     for i in 0..n {
         let deg = degree_of(adj, i);
-        if deg % 2 != 0 {
+        if !deg.is_multiple_of(2) {
             return Err(GraphError::GraphStructureError {
                 expected: "all even degrees".into(),
                 found: format!("node {i} has degree {deg}"),
@@ -238,7 +248,7 @@ pub fn eulerian_path(adj: &Array2<f64>, source: usize) -> Result<Vec<usize>> {
     }
 
     let odd_nodes: Vec<usize> = (0..n)
-        .filter(|&i| degree_of(adj, i) % 2 != 0)
+        .filter(|&i| !degree_of(adj, i).is_multiple_of(2))
         .collect();
 
     match odd_nodes.len() {
@@ -577,17 +587,30 @@ mod tests {
     fn test_all_simple_paths_triangle() {
         // Complete triangle: 0-1, 1-2, 0-2
         let mut adj = Array2::<f64>::zeros((3, 3));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[0, 2]] = 1.0; adj[[2, 0]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[0, 2]] = 1.0;
+        adj[[2, 0]] = 1.0;
 
         let paths = all_simple_paths(&adj, 0, 2, 3);
         // Should find at least 2 paths: 0→2 and 0→1→2
-        assert!(paths.len() >= 2, "should find at least 2 paths, got {}", paths.len());
+        assert!(
+            paths.len() >= 2,
+            "should find at least 2 paths, got {}",
+            paths.len()
+        );
         // Direct path 0→2 must be present
-        assert!(paths.iter().any(|p| p == &[0, 2]), "direct path 0→2 not found");
+        assert!(
+            paths.iter().any(|p| p == &[0, 2]),
+            "direct path 0→2 not found"
+        );
         // Indirect 0→1→2 must be present
-        assert!(paths.iter().any(|p| p == &[0, 1, 2]), "path 0→1→2 not found");
+        assert!(
+            paths.iter().any(|p| p == &[0, 1, 2]),
+            "path 0→1→2 not found"
+        );
     }
 
     #[test]
@@ -622,10 +645,14 @@ mod tests {
     fn test_eulerian_circuit_cycle4() {
         // Simple cycle 0-1-2-3-0
         let mut adj = Array2::<f64>::zeros((4, 4));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[2, 3]] = 1.0; adj[[3, 2]] = 1.0;
-        adj[[3, 0]] = 1.0; adj[[0, 3]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[2, 3]] = 1.0;
+        adj[[3, 2]] = 1.0;
+        adj[[3, 0]] = 1.0;
+        adj[[0, 3]] = 1.0;
 
         let circuit = eulerian_circuit(&adj).expect("euler circuit");
         // Circuit must start and end at same node and have 5 elements (4 edges + 1)
@@ -640,8 +667,10 @@ mod tests {
     fn test_eulerian_circuit_odd_degree_error() {
         // Path 0-1-2 has odd-degree nodes (0 and 2 have degree 1)
         let mut adj = Array2::<f64>::zeros((3, 3));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
         assert!(eulerian_circuit(&adj).is_err());
     }
 
@@ -651,8 +680,10 @@ mod tests {
     fn test_eulerian_path_line() {
         // Path 0-1-2: Eulerian path from 0 to 2
         let mut adj = Array2::<f64>::zeros((3, 3));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
 
         let path = eulerian_path(&adj, 0).expect("euler path");
         assert_eq!(path.len(), 3, "path should visit 3 nodes");
@@ -663,8 +694,10 @@ mod tests {
     #[test]
     fn test_eulerian_path_wrong_start_error() {
         let mut adj = Array2::<f64>::zeros((3, 3));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
         // Starting from node 1 (even degree) is invalid when odd nodes exist
         assert!(eulerian_path(&adj, 1).is_err());
     }
@@ -675,7 +708,9 @@ mod tests {
     fn test_hamiltonian_heuristic_complete() {
         // Complete graph K4: heuristic should find a full path of length 4
         let mut adj = Array2::<f64>::ones((4, 4));
-        for i in 0..4 { adj[[i, i]] = 0.0; }
+        for i in 0..4 {
+            adj[[i, i]] = 0.0;
+        }
         let path = hamiltonian_path_heuristic(&adj, 0).expect("ham");
         assert_eq!(path.len(), 4);
         // All nodes distinct
@@ -707,10 +742,14 @@ mod tests {
     fn test_bipartite_even_cycle() {
         // C4 (4-cycle) is bipartite
         let mut adj = Array2::<f64>::zeros((4, 4));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[2, 3]] = 1.0; adj[[3, 2]] = 1.0;
-        adj[[3, 0]] = 1.0; adj[[0, 3]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[2, 3]] = 1.0;
+        adj[[3, 2]] = 1.0;
+        adj[[3, 0]] = 1.0;
+        adj[[0, 3]] = 1.0;
 
         let (bip, colours) = is_bipartite(&adj);
         assert!(bip, "C4 should be bipartite");
@@ -743,9 +782,12 @@ mod tests {
     fn test_bipartite_triangle_not() {
         // Triangle K3 is NOT bipartite (odd cycle)
         let mut adj = Array2::<f64>::zeros((3, 3));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[0, 2]] = 1.0; adj[[2, 0]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[0, 2]] = 1.0;
+        adj[[2, 0]] = 1.0;
 
         let (bip, _) = is_bipartite(&adj);
         assert!(!bip, "K3 (triangle) should NOT be bipartite");
@@ -781,9 +823,12 @@ mod tests {
     fn test_k_core_triangle_clique() {
         // Triangle: all nodes have degree 2 within themselves → 2-core
         let mut adj = Array2::<f64>::zeros((3, 3));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[0, 2]] = 1.0; adj[[2, 0]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[0, 2]] = 1.0;
+        adj[[2, 0]] = 1.0;
 
         let cores = k_core_decomposition(&adj);
         for &c in &cores {
@@ -796,10 +841,14 @@ mod tests {
         // K3 clique (0,1,2) + pendant node 3 attached to 0
         // Nodes 0,1,2 → 2-core; node 3 → 1-core
         let mut adj = Array2::<f64>::zeros((4, 4));
-        adj[[0, 1]] = 1.0; adj[[1, 0]] = 1.0;
-        adj[[1, 2]] = 1.0; adj[[2, 1]] = 1.0;
-        adj[[0, 2]] = 1.0; adj[[2, 0]] = 1.0;
-        adj[[0, 3]] = 1.0; adj[[3, 0]] = 1.0;
+        adj[[0, 1]] = 1.0;
+        adj[[1, 0]] = 1.0;
+        adj[[1, 2]] = 1.0;
+        adj[[2, 1]] = 1.0;
+        adj[[0, 2]] = 1.0;
+        adj[[2, 0]] = 1.0;
+        adj[[0, 3]] = 1.0;
+        adj[[3, 0]] = 1.0;
 
         let cores = k_core_decomposition(&adj);
         assert_eq!(cores[0], 2, "node 0 in K3 should be 2-core");

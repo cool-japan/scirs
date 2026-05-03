@@ -34,15 +34,36 @@
 //! assert_eq!(emb.len(), 64);
 //! ```
 
+/// Differentiable projection head backed by `scirs2-autograd`.
+pub mod autograd_projection;
+/// Cross-lingual alignment via orthogonal Procrustes.
+pub mod cross_lingual;
 /// Word-level sentence encoder (USE-style, `HashMap` vocabulary).
 pub mod encoder;
+/// Standalone InfoNCE / NT-Xent contrastive loss functions (encoder-agnostic).
+pub mod infonce;
 /// Unsupervised SimCSE trainer with noise augmentation and NT-Xent loss.
 pub mod simcse;
+/// Pairwise semantic similarity metrics and utility functions.
+pub mod similarity;
+/// High-level SimCSE trainer (frozen encoder + differentiable projection).
+pub mod trainer;
+/// Universal Sentence Encoder-style token-ID-based encoder.
+pub mod universal;
 
+pub use autograd_projection::{DifferentiableProjection, ProjectionConfig};
+pub use cross_lingual::{procrustes_align, AlignedEncoder, CrossLingualAligner};
 pub use encoder::{
     PoolingStrategy as SentenceEncoderPooling, SentenceEncoder, SentenceEncoderConfig,
 };
+pub use infonce::{cosine_similarity_matrix, infonce_loss, top1_accuracy};
 pub use simcse::{SimCSELoss, SimCSETrainer};
+pub use similarity::{
+    semantic_similarity_matrix, semantic_similarity_tokens, semantic_similarity_vecs,
+    vector_similarity, PairwiseSimilarityMetric, SentenceEncoderLike,
+};
+pub use trainer::{SimcseConfig, SimcseTrainer, TrainStep};
+pub use universal::{UniversalPoolingStrategy, UniversalSentenceEncoder};
 
 use std::fmt::Debug;
 

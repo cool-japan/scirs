@@ -183,7 +183,10 @@ where
 
     // Now aggregate column norms with q-norm
     if q == inf {
-        Ok(col_norms.iter().cloned().fold(F::zero(), |acc, v| if v > acc { v } else { acc }))
+        Ok(col_norms
+            .iter()
+            .cloned()
+            .fold(F::zero(), |acc, v| if v > acc { v } else { acc }))
     } else {
         let sum_q: F = col_norms.iter().cloned().map(|v| v.powf(q)).sum();
         Ok(sum_q.powf(F::one() / q))
@@ -295,7 +298,11 @@ where
         )));
     }
 
-    Ok(svs.iter().take(k).cloned().fold(F::zero(), |acc, s| acc + s))
+    Ok(svs
+        .iter()
+        .take(k)
+        .cloned()
+        .fold(F::zero(), |acc, s| acc + s))
 }
 
 // ---------------------------------------------------------------------------
@@ -409,7 +416,10 @@ mod tests {
         let s1 = schatten_norm(&a.view(), 1.0).expect("s1");
         let s2 = schatten_norm(&a.view(), 2.0).expect("s2");
         let s4 = schatten_norm(&a.view(), 4.0).expect("s4");
-        assert!(s1 >= s2 - 1e-10 && s2 >= s4 - 1e-10, "monotone: {s1} >= {s2} >= {s4}");
+        assert!(
+            s1 >= s2 - 1e-10 && s2 >= s4 - 1e-10,
+            "monotone: {s1} >= {s2} >= {s4}"
+        );
     }
 
     // ---- ky_fan_norm ----

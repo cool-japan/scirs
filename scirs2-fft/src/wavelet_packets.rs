@@ -66,11 +66,15 @@ impl WaveletFilters {
                 let s = 1.0_f64 / 2.0_f64.sqrt();
                 let lo = vec![s, s];
                 let hi = vec![s, -s];
+                // For orthogonal wavelets with the transpose synthesis formula,
+                // the synthesis filters equal the analysis filters (lo_r = lo_d, hi_r = hi_d).
+                let lo_r = lo.clone();
+                let hi_r = hi.clone();
                 WaveletFilters {
-                    lo_d: lo.clone(),
-                    hi_d: hi.clone(),
-                    lo_r: lo,
-                    hi_r: hi,
+                    lo_d: lo,
+                    hi_d: hi,
+                    lo_r,
+                    hi_r,
                 }
             }
             Wavelet::Db2 => {
@@ -83,8 +87,9 @@ impl WaveletFilters {
                     (1.0 - s3) / norm,
                 ];
                 let hi = qmf_hi(&lo);
-                let lo_r = lo.iter().rev().cloned().collect();
-                let hi_r: Vec<f64> = hi.iter().rev().cloned().collect();
+                // Orthogonal wavelet: synthesis filters equal analysis filters for transpose synthesis.
+                let lo_r = lo.clone();
+                let hi_r = hi.clone();
                 WaveletFilters {
                     lo_d: lo,
                     hi_d: hi,
@@ -103,8 +108,9 @@ impl WaveletFilters {
                     0.3326705529509569,
                 ];
                 let hi = qmf_hi(&lo);
-                let lo_r = lo.iter().rev().cloned().collect();
-                let hi_r: Vec<f64> = hi.iter().rev().cloned().collect();
+                // Orthogonal wavelet: synthesis filters equal analysis filters for transpose synthesis.
+                let lo_r = lo.clone();
+                let hi_r = hi.clone();
                 WaveletFilters {
                     lo_d: lo,
                     hi_d: hi,
@@ -119,14 +125,15 @@ impl WaveletFilters {
                     0.032883011666982945,
                     0.030841381835986965,
                     -0.18703481171888114,
-                    -0.027983769416983849,
+                    -0.027_983_769_416_983_85,
                     0.6308807679295904,
                     0.7148465705525415,
                     0.23037781330885523,
                 ];
                 let hi = qmf_hi(&lo);
-                let lo_r = lo.iter().rev().cloned().collect();
-                let hi_r: Vec<f64> = hi.iter().rev().cloned().collect();
+                // Orthogonal wavelet: synthesis filters equal analysis filters for transpose synthesis.
+                let lo_r = lo.clone();
+                let hi_r = hi.clone();
                 WaveletFilters {
                     lo_d: lo,
                     hi_d: hi,
@@ -149,8 +156,9 @@ impl WaveletFilters {
                     0.160102397974125,
                 ];
                 let hi = qmf_hi(&lo);
-                let lo_r = lo.iter().rev().cloned().collect();
-                let hi_r: Vec<f64> = hi.iter().rev().cloned().collect();
+                // Orthogonal wavelet: synthesis filters equal analysis filters for transpose synthesis.
+                let lo_r = lo.clone();
+                let hi_r = hi.clone();
                 WaveletFilters {
                     lo_d: lo,
                     hi_d: hi,
@@ -168,8 +176,9 @@ impl WaveletFilters {
                     (1.0 + s3) / 8.0_f64.sqrt(),
                 ];
                 let hi = qmf_hi(&lo);
-                let lo_r = lo.iter().rev().cloned().collect();
-                let hi_r: Vec<f64> = hi.iter().rev().cloned().collect();
+                // Orthogonal wavelet: synthesis filters equal analysis filters for transpose synthesis.
+                let lo_r = lo.clone();
+                let hi_r = hi.clone();
                 WaveletFilters {
                     lo_d: lo,
                     hi_d: hi,
@@ -187,11 +196,12 @@ impl WaveletFilters {
                     0.29785779560527736,
                     -0.09921954357684722,
                     -0.012603967262037833,
-                    0.032223100604042702,
+                    0.032_223_100_604_042_7,
                 ];
                 let hi = qmf_hi(&lo);
-                let lo_r = lo.iter().rev().cloned().collect();
-                let hi_r: Vec<f64> = hi.iter().rev().cloned().collect();
+                // Orthogonal wavelet: synthesis filters equal analysis filters for transpose synthesis.
+                let lo_r = lo.clone();
+                let hi_r = hi.clone();
                 WaveletFilters {
                     lo_d: lo,
                     hi_d: hi,
@@ -210,8 +220,9 @@ impl WaveletFilters {
                     -0.07273261951285047,
                 ];
                 let hi = qmf_hi(&lo);
-                let lo_r = lo.iter().rev().cloned().collect();
-                let hi_r: Vec<f64> = hi.iter().rev().cloned().collect();
+                // Orthogonal wavelet: synthesis filters equal analysis filters for transpose synthesis.
+                let lo_r = lo.clone();
+                let hi_r = hi.clone();
                 WaveletFilters {
                     lo_d: lo,
                     hi_d: hi,
@@ -255,11 +266,12 @@ fn qmf_hi(lo: &[f64]) -> Vec<f64> {
 /// Convolve `signal` with `filter` using periodic (circular) boundary extension
 /// and then down-sample by 2 (keep even-indexed samples).
 ///
-/// The output length is `ceil(signal.len() / 2)`.
+/// The output length is `ceil(signal.len() / 2)` = `(signal.len() + 1) / 2`.
+/// Using circular (periodic) boundary means the output length depends only on
+/// the signal length, not the filter length.
 fn conv_downsample(signal: &[f64], filter: &[f64]) -> Vec<f64> {
     let n = signal.len();
-    let flen = filter.len();
-    let out_len = (n + flen - 1) / 2; // length after full convolution then ↓2
+    let out_len = n.div_ceil(2); // ceil(n/2), independent of filter length
     let mut out = vec![0.0_f64; out_len];
     for k in 0..out_len {
         let t = 2 * k;
@@ -274,30 +286,32 @@ fn conv_downsample(signal: &[f64], filter: &[f64]) -> Vec<f64> {
     out
 }
 
-/// Up-sample by 2 (insert zeros) then convolve with `filter` (periodic boundary).
+/// Synthesis step: transpose of `conv_downsample` with periodic (circular) boundary.
 ///
-/// Output length equals `input.len() * 2`.
-fn upsample_conv(input: &[f64], filter: &[f64], target_len: usize) -> Vec<f64> {
-    // Synthesis step: upsample by 2 (insert zeros between samples)
-    // then convolve with filter using periodic boundary, output length = target_len.
-    //
-    // The upsampled signal u has length 2*input.len():
-    //   u[2k] = input[k], u[2k+1] = 0
-    // Convolution: y[k] = sum_j filter[j] * u[(k - j) mod n_up]
-    let n_up = input.len() * 2;
+/// This is the adjoint (transpose) of the analysis step, ensuring perfect
+/// reconstruction for orthogonal wavelets.  The formula is:
+///
+///   xhat[n] = Σₖ input[k] · filter[(2k − n) mod target_len]
+///
+/// where the modular index is only applied when it falls within the filter support
+/// `[0, filter.len())`.
+///
+/// `target_len` must equal the length of the signal that was passed to
+/// `conv_downsample` to produce `input`.
+fn synthesis_step(input: &[f64], filter: &[f64], target_len: usize) -> Vec<f64> {
+    let n_in = input.len();
     let flen = filter.len();
-    let mut out = vec![0.0_f64; target_len];
-    for k in 0..target_len {
+    let n_out = target_len;
+    let mut out = vec![0.0_f64; n_out];
+    for n_idx in 0..n_out {
         let mut acc = 0.0_f64;
-        for (j, &h) in filter.iter().enumerate() {
-            let t = (k as isize - j as isize).rem_euclid(n_up as isize) as usize;
-            if t % 2 != 0 {
-                continue; // u[t] = 0 for odd t
+        for k in 0..n_in {
+            let j = ((2 * k as isize - n_idx as isize).rem_euclid(n_out as isize)) as usize;
+            if j < flen {
+                acc += input[k] * filter[j];
             }
-            let src = t / 2;
-            acc += input[src] * h;
         }
-        out[k] = acc;
+        out[n_idx] = acc;
     }
     out
 }
@@ -382,9 +396,7 @@ impl WaveletPacketTree {
 
     /// Iterate over all nodes at a given `level`.
     pub fn nodes_at_level(&self, level: usize) -> impl Iterator<Item = &WaveletPacketNode> {
-        self.nodes
-            .values()
-            .filter(move |n| n.level == level)
+        self.nodes.values().filter(move |n| n.level == level)
     }
 
     /// All nodes in the tree.
@@ -428,9 +440,7 @@ pub fn wpd(signal: &[f64], wavelet: Wavelet, max_level: usize) -> FFTResult<Wave
         return Err(FFTError::ValueError("signal must be non-empty".to_string()));
     }
     if max_level == 0 {
-        return Err(FFTError::ValueError(
-            "max_level must be >= 1".to_string(),
-        ));
+        return Err(FFTError::ValueError("max_level must be >= 1".to_string()));
     }
 
     let filters = WaveletFilters::for_wavelet(wavelet);
@@ -557,10 +567,7 @@ pub fn lp_norm_cost(coeffs: &[f64], p: f64) -> f64 {
 /// let basis = best_basis(&tree, shannon_entropy).expect("basis");
 /// assert!(!basis.is_empty());
 /// ```
-pub fn best_basis<F>(
-    tree: &WaveletPacketTree,
-    cost_fn: F,
-) -> FFTResult<Vec<WaveletPacketNode>>
+pub fn best_basis<F>(tree: &WaveletPacketTree, cost_fn: F) -> FFTResult<Vec<WaveletPacketNode>>
 where
     F: Fn(&[f64]) -> f64,
 {
@@ -748,9 +755,9 @@ pub fn wp_reconstruct(
                     left_coeffs.len() * 2
                 });
 
-            // Synthesis: lo branch + hi branch
-            let lo_rec = upsample_conv(&left_coeffs, &filters.lo_r, target_len);
-            let hi_rec = upsample_conv(&right_coeffs, &filters.hi_r, target_len);
+            // Synthesis: lo branch + hi branch (transpose of analysis)
+            let lo_rec = synthesis_step(&left_coeffs, &filters.lo_r, target_len);
+            let hi_rec = synthesis_step(&right_coeffs, &filters.hi_r, target_len);
             let parent_coeffs: Vec<f64> = lo_rec
                 .iter()
                 .zip(hi_rec.iter())
@@ -771,9 +778,9 @@ pub fn wp_reconstruct(
 
     // The reconstructed signal is the root (level 0, index 0)
     let root_key = WaveletPacketNode::key(0, 0);
-    node_map
-        .remove(&root_key)
-        .ok_or_else(|| FFTError::InternalError("reconstruction failed: root not reached".to_string()))
+    node_map.remove(&root_key).ok_or_else(|| {
+        FFTError::InternalError("reconstruction failed: root not reached".to_string())
+    })
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -933,10 +940,7 @@ mod tests {
         let tree = wpd(&sig, Wavelet::Haar, 3).expect("wpd failed");
         // All nodes at level 3 should exist
         for idx in 0..8 {
-            assert!(
-                tree.get(3, idx).is_some(),
-                "missing node (3, {idx})"
-            );
+            assert!(tree.get(3, idx).is_some(), "missing node (3, {idx})");
         }
     }
 

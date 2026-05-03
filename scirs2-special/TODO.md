@@ -61,8 +61,8 @@
 ## v0.4.0 Roadmap
 
 ### GPU-Accelerated Batch Evaluation
-- [ ] CUDA/ROCm kernels for batch gamma, erf, Bessel evaluation on GPU
-- [ ] WebGPU compute shaders for browser-based WASM deployment
+- [x] CUDA/ROCm kernels for batch gamma, erf, Bessel evaluation on GPU — Implemented in v0.4.3 (`gpu_kernels/cuda.rs`: `gamma_batch_cuda`, `erf_batch_cuda`, `bessel_j0_batch_cuda` stubs + PTX source constants behind `cuda_kernels` feature; wired into `gpu_dispatch.rs` GPU branch)
+- [x] WebGPU compute shaders for browser-based WASM deployment — Implemented in v0.4.3 (`gpu_kernels/wgsl.rs`: `GAMMA_WGSL`, `ERF_WGSL`, `BESSEL_J0_WGSL` Lanczos/A&S/J0 poly shader sources; `gamma_batch_wgpu`, `erf_batch_wgpu`, `bessel_j0_batch_wgpu` dispatch stubs returning `WgslDispatchError::GpuNotAvailable` for CPU fallback)
 - [x] Auto-dispatch: evaluate on GPU when array size exceeds configurable threshold — Implemented in v0.4.2 (`gpu_dispatch.rs`: `GpuDispatchConfig`, `select_dispatch`, `batch_gamma`, `batch_erf`, `batch_bessel_j0`, `batch_eval`)
 - [x] Mixed-precision: f16 accumulation with f32 correction for throughput-critical paths — Implemented in v0.4.2 (`mixed_precision.rs`: `batch_eval_gamma_f16`, `batch_eval_erf_f16`)
 
@@ -74,7 +74,12 @@
 - [x] Connection formula generator: transformations between solution bases — Implemented in v0.4.2 (`connection_formulas.rs`: Bessel J/Y/Hankel/modified, hypergeometric Gauss, Legendre P/Q, Kummer M/U)
 
 ### Extended Precision
-- [ ] Arbitrary-precision gamma, erf, Bessel via the `rug` MPFR backend (feature-gated)
+- [x] Arbitrary-precision gamma, erf, Bessel via the `rug` MPFR backend (feature-gated) (planned 2026-04-17)
+  - **Goal:** Feature-gated `arbitrary_precision` module: `gamma_mpfr`, `erf_mpfr`, `bessel_j0_mpfr`, `bessel_k0_mpfr` with configurable precision bits. Pure-Rust defaults unchanged.
+  - **Design:** `arbitrary_precision/mod.rs` behind `#[cfg(feature = "arbitrary_precision")]`. Wraps `rug::Float`. Bessel via power-series with rug arithmetic or MPFR FFI. `rug = { version = "...", optional = true }` in Cargo.toml; feature `arbitrary_precision = ["dep:rug"]`.
+  - **Files:** `scirs2-special/src/arbitrary_precision/{mod.rs,gamma.rs,erf.rs,bessel.rs}` (new), `scirs2-special/src/lib.rs`, `scirs2-special/Cargo.toml`, `scirs2-special/tests/mpfr_tests.rs` (new, feature-gated).
+  - **Tests:** `mpfr_gamma_matches_f64_on_small_args`, `mpfr_gamma_at_half_equals_sqrt_pi`, `mpfr_erf_of_zero_is_zero`, `mpfr_bessel_j0_first_zero_matches_published`, `mpfr_precision_scaling_monotone_error_decrease`.
+  - **Risk:** `rug` pulls GMP/MPFR C libs — feature-gated, off by default. Pure-Rust policy satisfied.
 - [x] Ball arithmetic for certified enclosure of function values — Implemented in v0.4.2 (`validated.rs`: `Ball` type, interval arithmetic, ball_sin/cos/exp/ln/gamma)
 - [x] Validated numerics interface: output intervals guaranteed to contain the true value — Implemented in v0.4.2 (`validated.rs`: `validate()`, rigorous enclosure propagation)
 - [x] Double-double (quad-double) precision for 30-60 decimal digits without MPFR overhead — Implemented in v0.4.0 (`double_double/` module)

@@ -47,6 +47,8 @@ pub struct SarimaModel<F> {
     pub aic: F,
     /// BIC
     pub bic: F,
+    /// Training data stored for use in forecasting without requiring caller to re-supply
+    pub training_data: Option<Array1<F>>,
 }
 
 impl<F> SarimaModel<F>
@@ -86,6 +88,7 @@ where
             log_likelihood: F::neg_infinity(),
             aic: F::infinity(),
             bic: F::infinity(),
+            training_data: None,
         })
     }
 
@@ -162,7 +165,6 @@ where
         let n_params = self.p + self.q + self.p_seasonal + self.q_seasonal + 1;
         let initial_params = self.initialize_parameters(&diff_data)?;
 
-        // Define objective function
         let objective = |params: &Array1<F>| -> F {
             self.log_likelihood_full(params, &diff_data)
                 .unwrap_or(F::infinity())
@@ -198,6 +200,7 @@ where
             * F::from(diff_data.len()).expect("Operation failed").ln()
             - F::from(2.0).expect("Failed to convert constant to float") * self.log_likelihood;
 
+        self.training_data = Some(data.to_owned());
         self.is_fitted = true;
 
         Ok(())
@@ -410,7 +413,7 @@ where
         let mut gradient = Array1::zeros(n_params);
         let epsilon = F::from(1e-6).expect("Failed to convert constant to float");
 
-        // Numerical gradient
+        // Numerical gradient using central differences
         for i in 0..n_params {
             let mut params_plus = params.clone();
             let mut params_minus = params.clone();
@@ -507,7 +510,126 @@ where
             .slice(scirs2_core::ndarray::s![n..])
             .to_owned())
     }
+
+    /// Forecast future values using the training data stored during fitting,
+    /// returning predictions on the **original (undifferenced) scale**.
+    ///
+    /// Internally this calls `predict()` on the differenced series and then
+    /// inverts all differencing operations (seasonal first, then regular) to
+    /// recover values on the same scale as the original training data.
+    ///
+    /// # Errors
+    /// Returns an error if the model has not been fitted yet.
+    pub fn forecast(&self, steps: usize) -> Result<Array1<F>> {
+        let data = self.training_data.as_ref().ok_or_else(|| {
+            TimeSeriesError::InvalidInput("Model must be fitted before forecasting".to_string())
+        })?;
+
+        // predict() returns values on the fully-differenced scale.
+        let diff_forecasts = self.predict(steps, data)?;
+
+        // Undo differencing: full_difference() applies regular d first then
+        // seasonal D, so the inverse applies seasonal D first then regular d.
+        let after_seasonal = self.invert_seasonal_difference(&diff_forecasts, data)?;
+        let original_scale = self.invert_regular_difference(&after_seasonal, data)?;
+
+        Ok(original_scale)
+    }
+
+    /// Invert seasonal differencing for `steps` forecast steps.
+    ///
+    /// Requires the last `period * d_seasonal` values of the *regularly-differenced*
+    /// series (i.e. the series after applying only the regular `d` differences).
+    fn invert_seasonal_difference(
+        &self,
+        diff_forecasts: &Array1<F>,
+        original: &Array1<F>,
+    ) -> Result<Array1<F>> {
+        if self.d_seasonal == 0 {
+            return Ok(diff_forecasts.to_owned());
+        }
+
+        // Compute the regularly-differenced series (before seasonal diff).
+        let regular_diffed = self.difference(original);
+        if regular_diffed.is_empty() {
+            return Ok(diff_forecasts.to_owned());
+        }
+
+        let steps = diff_forecasts.len();
+        let mut result = diff_forecasts.to_owned();
+
+        // Undo D rounds of seasonal differencing.
+        for _ in 0..self.d_seasonal {
+            // We need the last `period` values of `regular_diffed` as anchor points.
+            let anchor_len = regular_diffed.len().min(self.period);
+            let mut history: Vec<F> = regular_diffed
+                .slice(scirs2_core::ndarray::s![
+                    regular_diffed.len() - anchor_len..
+                ])
+                .to_vec();
+
+            let mut integrated = Array1::zeros(steps);
+            for t in 0..steps {
+                // The seasonal lag index: look back `period` steps in the combined
+                // history + integrated output so far.
+                let season_val = if t < self.period {
+                    // Need from the anchor (end of historical series).
+                    let anchor_idx = anchor_len + t;
+                    if anchor_idx >= self.period {
+                        history[anchor_idx - self.period]
+                    } else {
+                        F::zero()
+                    }
+                } else {
+                    integrated[t - self.period]
+                };
+                integrated[t] = result[t] + season_val;
+            }
+            result = integrated;
+            // Extend history for next round if d_seasonal > 1.
+            for t in 0..steps {
+                history.push(result[t]);
+            }
+        }
+
+        Ok(result)
+    }
+
+    /// Invert regular differencing for `steps` forecast steps.
+    ///
+    /// Requires the last `d` values of the *original* (pre-differenced) series.
+    fn invert_regular_difference(
+        &self,
+        seasonally_inverted: &Array1<F>,
+        original: &Array1<F>,
+    ) -> Result<Array1<F>> {
+        if self.d == 0 {
+            return Ok(seasonally_inverted.to_owned());
+        }
+
+        let steps = seasonally_inverted.len();
+        let mut result = seasonally_inverted.to_owned();
+
+        for _ in 0..self.d {
+            // Anchor: last value of the current level of the original series.
+            // (For d > 1 we peel off one diff at a time using the last value
+            // of the d-times-differenced prefix, which is the original series
+            // itself on the first iteration.)
+            let last_val = original[original.len() - 1];
+            let mut integrated = Array1::zeros(steps);
+            integrated[0] = result[0] + last_val;
+            for i in 1..steps {
+                integrated[i] = result[i] + integrated[i - 1];
+            }
+            result = integrated;
+        }
+
+        Ok(result)
+    }
 }
+
+/// Type alias matching the integration test's `SARIMAModel<F>` naming convention.
+pub type SARIMAModel<F> = SarimaModel<F>;
 
 /// Auto SARIMA selection
 #[allow(clippy::too_many_arguments)]
@@ -639,5 +761,56 @@ mod tests {
         assert_eq!(diff[1], 4.0); // 6 - 2
         assert_eq!(diff[2], 4.0); // 7 - 3
         assert_eq!(diff[3], 4.0); // 8 - 4
+    }
+
+    #[test]
+    fn test_forecast_returns_error_when_not_fitted() {
+        let model = SarimaModel::<f64>::new(1, 0, 1, 1, 0, 1, 12).expect("Operation failed");
+        let result = model.forecast(10);
+        assert!(result.is_err());
+        let err_msg = result.unwrap_err().to_string();
+        assert!(err_msg.contains("fitted"));
+    }
+
+    #[test]
+    fn test_forecast_after_fitting_smoke() {
+        // Directly construct a fitted SARIMA(1,0,0)(1,0,0)[4] model to test
+        // forecast() in isolation from the optimizer (which can be numerically
+        // fragile for certain parameter combinations).
+        //
+        // This verifies that: training_data is stored, forecast() delegates to
+        // predict() and inverts differencing correctly, and the returned values
+        // are on the same scale as the original training data (not differenced scale).
+        let period = 4usize;
+        let n = 40usize;
+        let training_data: Array1<f64> = Array1::from_iter((0..n).map(|i| {
+            50.0 + (2.0 * std::f64::consts::PI * (i % period) as f64 / period as f64).sin() * 5.0
+        }));
+
+        // Build a partially-fitted model by setting fields directly.
+        let mut model =
+            SarimaModel::<f64>::new(1, 0, 0, 1, 0, 0, period).expect("Operation failed");
+        model.ar_params = array![0.5_f64];
+        model.sar_params = array![0.3_f64];
+        model.intercept = 0.0;
+        model.is_fitted = true;
+        model.training_data = Some(training_data.clone());
+
+        let steps = 8;
+        let forecast = model.forecast(steps).expect("Forecasting failed");
+        assert_eq!(forecast.len(), steps);
+        // All forecast values should be finite.
+        assert!(forecast.iter().all(|v| v.is_finite()));
+        // Forecasts should be on the original scale (around 50 ± 20), NOT on the
+        // differenced scale (which would be near 0).  This catches regressions where
+        // forecast() forgets to invert differencing.
+        let last_val = training_data[training_data.len() - 1];
+        for &pred in forecast.iter() {
+            assert!(
+                (pred - last_val).abs() < 30.0,
+                "Forecast value {pred} is too far from last observed value {last_val}; \
+                 did forecast() forget to invert differencing?"
+            );
+        }
     }
 }

@@ -367,13 +367,17 @@ impl ProtoMessageBuilder {
 
     /// Add a varint (wire type 0) field.
     pub fn add_varint(mut self, field_number: u32, value: u64) -> Self {
-        self.fields.push(ProtoField::new(field_number, ProtoValue::Varint(value)));
+        self.fields
+            .push(ProtoField::new(field_number, ProtoValue::Varint(value)));
         self
     }
 
     /// Add a ZigZag-encoded signed integer (wire type 0, `sint64` semantics).
     pub fn add_sint64(mut self, field_number: u32, value: i64) -> Self {
-        self.fields.push(ProtoField::new(field_number, ProtoValue::SignedVarint(value)));
+        self.fields.push(ProtoField::new(
+            field_number,
+            ProtoValue::SignedVarint(value),
+        ));
         self
     }
 
@@ -393,10 +397,8 @@ impl ProtoMessageBuilder {
 
     /// Add a length-delimited raw bytes field.
     pub fn add_bytes(mut self, field_number: u32, value: Vec<u8>) -> Self {
-        self.fields.push(ProtoField::new(
-            field_number,
-            ProtoValue::from_bytes(value),
-        ));
+        self.fields
+            .push(ProtoField::new(field_number, ProtoValue::from_bytes(value)));
         self
     }
 
@@ -411,19 +413,15 @@ impl ProtoMessageBuilder {
 
     /// Add a `f64` as a fixed-64 field (wire type 1, little-endian IEEE 754).
     pub fn add_f64(mut self, field_number: u32, value: f64) -> Self {
-        self.fields.push(ProtoField::new(
-            field_number,
-            ProtoValue::from_f64(value),
-        ));
+        self.fields
+            .push(ProtoField::new(field_number, ProtoValue::from_f64(value)));
         self
     }
 
     /// Add a `f32` as a fixed-32 field (wire type 5, little-endian IEEE 754).
     pub fn add_f32(mut self, field_number: u32, value: f32) -> Self {
-        self.fields.push(ProtoField::new(
-            field_number,
-            ProtoValue::from_f32(value),
-        ));
+        self.fields
+            .push(ProtoField::new(field_number, ProtoValue::from_f32(value)));
         self
     }
 
@@ -910,7 +908,10 @@ mod tests {
             (300, &[0xac, 0x02]),
             (16_383, &[0xff, 0x7f]),
             (16_384, &[0x80, 0x80, 0x01]),
-            (u64::MAX, &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01]),
+            (
+                u64::MAX,
+                &[0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x01],
+            ),
         ];
         for &(v, expected) in cases {
             let mut enc = VarintEncoder::new();
@@ -926,7 +927,17 @@ mod tests {
 
     #[test]
     fn test_zigzag_roundtrip() {
-        let values: &[i64] = &[0, -1, 1, -128, 127, i32::MIN as i64, i32::MAX as i64, i64::MIN, i64::MAX];
+        let values: &[i64] = &[
+            0,
+            -1,
+            1,
+            -128,
+            127,
+            i32::MIN as i64,
+            i32::MAX as i64,
+            i64::MIN,
+            i64::MAX,
+        ];
         for &v in values {
             let encoded = zigzag_encode(v);
             let decoded = zigzag_decode(encoded);
@@ -1000,9 +1011,7 @@ mod tests {
     #[test]
     fn test_builder_string_roundtrip() {
         let msg = "hello, world!";
-        let bytes = ProtoMessageBuilder::new()
-            .add_string(1, msg)
-            .build();
+        let bytes = ProtoMessageBuilder::new().add_string(1, msg).build();
 
         let mut dec = ProtoDecoder::new(&bytes);
         let fields = dec.decode_all().expect("decode");
@@ -1014,9 +1023,7 @@ mod tests {
     #[test]
     fn test_builder_f64_roundtrip() {
         let val = std::f64::consts::TAU;
-        let bytes = ProtoMessageBuilder::new()
-            .add_f64(3, val)
-            .build();
+        let bytes = ProtoMessageBuilder::new().add_f64(3, val).build();
 
         let mut dec = ProtoDecoder::new(&bytes);
         let fields = dec.decode_all().expect("decode");
@@ -1028,9 +1035,7 @@ mod tests {
     #[test]
     fn test_builder_f32_roundtrip() {
         let val = 1.23456_f32;
-        let bytes = ProtoMessageBuilder::new()
-            .add_f32(4, val)
-            .build();
+        let bytes = ProtoMessageBuilder::new().add_f32(4, val).build();
 
         let mut dec = ProtoDecoder::new(&bytes);
         let fields = dec.decode_all().expect("decode");
@@ -1057,9 +1062,7 @@ mod tests {
     fn test_builder_sint64_roundtrip() {
         let values: &[i64] = &[-42, 0, 42, i64::MIN / 2, i64::MAX / 2];
         for &v in values {
-            let bytes = ProtoMessageBuilder::new()
-                .add_sint64(1, v)
-                .build();
+            let bytes = ProtoMessageBuilder::new().add_sint64(1, v).build();
             let mut dec = ProtoDecoder::new(&bytes);
             let fields = dec.decode_all().expect("decode");
             assert_eq!(fields.len(), 1);
@@ -1068,7 +1071,10 @@ mod tests {
                 let decoded = zigzag_decode(zz);
                 assert_eq!(decoded, v, "sint64 roundtrip for {v}");
             } else {
-                panic!("expected Varint for SignedVarint field, got {:?}", fields[0].value);
+                panic!(
+                    "expected Varint for SignedVarint field, got {:?}",
+                    fields[0].value
+                );
             }
         }
     }
@@ -1170,7 +1176,10 @@ mod tests {
         assert_eq!(fields[0].value, ProtoValue::Varint(42));
         assert_eq!(fields[1].value.as_str(), Some("test message"));
         assert!((fields[2].value.as_f64().unwrap() - std::f64::consts::PI).abs() < 1e-15);
-        assert_eq!(fields[3].value, ProtoValue::LengthDelimited(vec![0xca, 0xfe]));
+        assert_eq!(
+            fields[3].value,
+            ProtoValue::LengthDelimited(vec![0xca, 0xfe])
+        );
         assert_eq!(fields[4].value, ProtoValue::Varint(1));
     }
 
@@ -1198,9 +1207,7 @@ mod tests {
             .field("label", 2, ProtoType::String, false);
 
         // Missing field 2 (label) → should fail
-        let bytes = ProtoMessageBuilder::new()
-            .add_varint(1, 5)
-            .build();
+        let bytes = ProtoMessageBuilder::new().add_varint(1, 5).build();
 
         let result = desc.validate_bytes(&bytes);
         assert!(result.is_err());
@@ -1224,13 +1231,10 @@ mod tests {
 
     #[test]
     fn test_descriptor_wire_type_mismatch() {
-        let desc = ProtoDescriptor::new("Test")
-            .field("value", 1, ProtoType::Double, false); // expects fixed64
+        let desc = ProtoDescriptor::new("Test").field("value", 1, ProtoType::Double, false); // expects fixed64
 
         // Encode as varint instead
-        let bytes = ProtoMessageBuilder::new()
-            .add_varint(1, 42)
-            .build();
+        let bytes = ProtoMessageBuilder::new().add_varint(1, 42).build();
 
         let result = desc.validate_bytes(&bytes);
         assert!(result.is_err());
@@ -1243,7 +1247,10 @@ mod tests {
             .field("name", 2, ProtoType::String, true);
 
         assert_eq!(desc.field_by_name("id").map(|f| f.field_number), Some(1));
-        assert_eq!(desc.field_by_number(2).map(|f| f.name.as_str()), Some("name"));
+        assert_eq!(
+            desc.field_by_number(2).map(|f| f.name.as_str()),
+            Some("name")
+        );
         assert!(desc.field_by_name("missing").is_none());
     }
 
@@ -1298,7 +1305,7 @@ mod tests {
         let r = Record {
             id: 99,
             name: "SciRS2".to_string(),
-            score: 3.14159,
+            score: std::f64::consts::PI,
         };
 
         let bytes = r.to_bytes();
@@ -1314,18 +1321,14 @@ mod tests {
     fn test_official_spec_example_field1_varint150() {
         // From the official protobuf encoding spec:
         // field 1, varint 150 → 0x08 0x96 0x01
-        let bytes = ProtoMessageBuilder::new()
-            .add_varint(1, 150)
-            .build();
+        let bytes = ProtoMessageBuilder::new().add_varint(1, 150).build();
         assert_eq!(bytes, vec![0x08, 0x96, 0x01]);
     }
 
     #[test]
     fn test_official_spec_example_string_testing() {
         // field 2, string "testing" → 0x12 0x07 b't' b'e' b's' b't' b'i' b'n' b'g'
-        let bytes = ProtoMessageBuilder::new()
-            .add_string(2, "testing")
-            .build();
+        let bytes = ProtoMessageBuilder::new().add_string(2, "testing").build();
         assert_eq!(bytes[0], 0x12); // tag: field 2, wire type 2
         assert_eq!(bytes[1], 0x07); // length 7
         assert_eq!(&bytes[2..], b"testing");

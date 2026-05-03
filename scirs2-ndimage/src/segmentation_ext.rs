@@ -262,7 +262,9 @@ impl GrabCutSegmenter {
         }
         let cols = image[0].len();
         if cols == 0 {
-            return Err(NdimageError::InvalidInput("Image columns must be > 0".into()));
+            return Err(NdimageError::InvalidInput(
+                "Image columns must be > 0".into(),
+            ));
         }
         Ok(GrabCutSegmenter {
             fg_prob: vec![vec![0.0; cols]; rows],
@@ -588,7 +590,13 @@ fn fit_gmm_k_means(pixels: &[Vec<f64>], k: usize) -> Vec<[f64; 7]> {
     // Initialise centroids as evenly-spaced pixel samples
     let step = pixels.len() / k;
     let mut centroids: Vec<Vec<f64>> = (0..k)
-        .map(|i| pixels[i * step.max(1)].iter().take(channels).copied().collect())
+        .map(|i| {
+            pixels[i * step.max(1)]
+                .iter()
+                .take(channels)
+                .copied()
+                .collect()
+        })
         .collect();
 
     let mut assignments = vec![0usize; pixels.len()];
@@ -654,11 +662,17 @@ fn fit_gmm_k_means(pixels: &[Vec<f64>], k: usize) -> Vec<[f64; 7]> {
         if !cluster.is_empty() {
             for ch in 0..channels.min(3) {
                 means[ch] = cluster.iter().map(|p| p[ch]).sum::<f64>() / n;
-                vars[ch] = (cluster.iter().map(|p| (p[ch] - means[ch]).powi(2)).sum::<f64>() / n)
+                vars[ch] = (cluster
+                    .iter()
+                    .map(|p| (p[ch] - means[ch]).powi(2))
+                    .sum::<f64>()
+                    / n)
                     .max(1e-6);
             }
         }
-        components.push([means[0], means[1], means[2], vars[0], vars[1], vars[2], weight]);
+        components.push([
+            means[0], means[1], means[2], vars[0], vars[1], vars[2], weight,
+        ]);
     }
     components
 }
@@ -675,8 +689,9 @@ fn gmm_likelihood(gmm: &[[f64; 7]], pixel: &[f64]) -> f64 {
         let mut log_p = 0.0f64;
         for ch in 0..channels {
             let mu = comp[ch];
-        let var = comp[3 + ch].max(1e-12);
-            log_p += -0.5 * ((pixel[ch] - mu).powi(2) / var + (2.0 * std::f64::consts::PI * var).ln());
+            let var = comp[3 + ch].max(1e-12);
+            log_p +=
+                -0.5 * ((pixel[ch] - mu).powi(2) / var + (2.0 * std::f64::consts::PI * var).ln());
         }
         total += w * log_p.exp();
     }
@@ -716,7 +731,8 @@ mod tests {
     #[test]
     fn test_felzenszwalb_output_shape() {
         let img = make_rgb(32, 32);
-        let labels = felzenszwalb_segment(&img, 50.0, 0.8, 5).expect("felzenszwalb_segment should succeed on valid image");
+        let labels = felzenszwalb_segment(&img, 50.0, 0.8, 5)
+            .expect("felzenszwalb_segment should succeed on valid image");
         assert_eq!(labels.len(), 32);
         assert_eq!(labels[0].len(), 32);
     }
@@ -730,7 +746,8 @@ mod tests {
     #[test]
     fn test_mean_shift_output_shape() {
         let img = make_gray(20, 20);
-        let labels = mean_shift_segment(&img, 5.0, 0.3, 5).expect("mean_shift_segment should succeed on valid image");
+        let labels = mean_shift_segment(&img, 5.0, 0.3, 5)
+            .expect("mean_shift_segment should succeed on valid image");
         assert_eq!(labels.len(), 20);
         assert_eq!(labels[0].len(), 20);
     }
@@ -745,7 +762,8 @@ mod tests {
     #[test]
     fn test_grabcut_segmenter() {
         let img = make_rgb(24, 24);
-        let mut gc = GrabCutSegmenter::new(img).expect("GrabCutSegmenter::new should succeed on valid image");
+        let mut gc = GrabCutSegmenter::new(img)
+            .expect("GrabCutSegmenter::new should succeed on valid image");
         gc.init_with_rect((6, 6, 18, 18));
         let mask = gc.run(2);
         assert_eq!(mask.len(), 24);
@@ -755,7 +773,8 @@ mod tests {
     #[test]
     fn test_quickshift_output_shape() {
         let img = make_gray(24, 24);
-        let labels = quickshift_segment(&img, 3, 5.0, 0.5).expect("quickshift_segment should succeed on valid image");
+        let labels = quickshift_segment(&img, 3, 5.0, 0.5)
+            .expect("quickshift_segment should succeed on valid image");
         assert_eq!(labels.len(), 24);
         assert_eq!(labels[0].len(), 24);
     }

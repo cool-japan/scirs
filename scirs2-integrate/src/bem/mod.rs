@@ -39,12 +39,12 @@
 //! let q = solver.solve_dirichlet(&u_bc).unwrap();
 //! ```
 
-pub mod kernels;
 pub mod boundary_mesh;
+pub mod kernels;
 pub mod panel_method;
 pub mod solver;
 
-pub use kernels::{BEMKernel, BiharmonicKernel, HelmholtzKernel, LaplaceKernel};
 pub use boundary_mesh::{BoundaryElement, BoundaryMesh};
+pub use kernels::{BEMKernel, BiharmonicKernel, HelmholtzKernel, LaplaceKernel};
 pub use panel_method::{PanelMethod, PanelMethodConfig};
 pub use solver::BEMSolver;

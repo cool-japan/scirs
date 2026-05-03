@@ -258,7 +258,14 @@ impl HypergraphAttentionLayer {
             let scores: Vec<f64> = members
                 .iter()
                 .map(|&i| {
-                    let q_i = self.w_q_node.forward(node_feats.row(i).as_slice().unwrap_or(&[]).iter().copied().collect::<Vec<_>>().as_slice());
+                    let q_i = self.w_q_node.forward(
+                        node_feats
+                            .row(i)
+                            .as_slice()
+                            .unwrap_or(&[])
+                            .to_vec()
+                            .as_slice(),
+                    );
                     let dot: f64 = q_i.iter().zip(k_e.iter()).map(|(a, b)| a * b).sum();
                     dot / scale
                 })
@@ -269,7 +276,14 @@ impl HypergraphAttentionLayer {
             // Aggregate: e_h_new = sum_i alpha_i * V_i
             let e_new = &mut edge_feats_new[edge_h];
             for (k, &i) in members.iter().enumerate() {
-                let v_i = self.w_v_node.forward(node_feats.row(i).as_slice().unwrap_or(&[]).iter().copied().collect::<Vec<_>>().as_slice());
+                let v_i = self.w_v_node.forward(
+                    node_feats
+                        .row(i)
+                        .as_slice()
+                        .unwrap_or(&[])
+                        .to_vec()
+                        .as_slice(),
+                );
                 for d in 0..h_dim {
                     e_new[d] += alphas[k] * v_i[d];
                 }
@@ -293,7 +307,14 @@ impl HypergraphAttentionLayer {
                 continue;
             }
 
-            let k_i = self.w_k_node.forward(node_feats.row(node_i).as_slice().unwrap_or(&[]).iter().copied().collect::<Vec<_>>().as_slice());
+            let k_i = self.w_k_node.forward(
+                node_feats
+                    .row(node_i)
+                    .as_slice()
+                    .unwrap_or(&[])
+                    .to_vec()
+                    .as_slice(),
+            );
 
             // Attention scores: Q_h · K_i / sqrt(d)
             let scores: Vec<f64> = incident_edges
@@ -486,7 +507,9 @@ mod tests {
         };
         let layer = HypergraphAttentionLayer::new(4, config);
         let node_feats = make_node_feats(5, 4);
-        let out = layer.forward(&node_feats, &incidence).expect("varying sizes");
+        let out = layer
+            .forward(&node_feats, &incidence)
+            .expect("varying sizes");
         assert_eq!(out.shape(), &[5, 4]);
     }
 
@@ -545,7 +568,9 @@ mod tests {
         };
         let layer = HypergraphAttentionLayer::new(4, config);
         let node_feats = make_node_feats(3, 4);
-        let out = layer.forward(&node_feats, &incidence).expect("empty hyperedge");
+        let out = layer
+            .forward(&node_feats, &incidence)
+            .expect("empty hyperedge");
         // Should equal input (residual path)
         for i in 0..3 {
             for d in 0..4 {

@@ -33,6 +33,7 @@ approx = { workspace = true }
 parking_lot = { workspace = true }
 num_cpus = { workspace = true }
 crossbeam-utils = { workspace = true }
+crossbeam-channel = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -71,6 +72,7 @@ dashboard_server = ["dep:tokio"]
 [dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
 proptest = { workspace = true }
+pollster = { workspace = true }
 
 [[bench]]
 name = "performance_regression"
@@ -78,4 +80,8 @@ harness = false
 
 [[bench]]
 name = "v020_validation"
+harness = false
+
+[[bench]]
+name = "sklearn_comparison"
 harness = false

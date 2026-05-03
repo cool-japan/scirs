@@ -32,7 +32,11 @@ use std::f64::consts::PI;
 use std::sync::{Arc, RwLock};
 
 use super::config::*;
-use super::feature_extraction::*;
+use super::feature_extraction::extract_advanced_dimensionalfeatures;
+use super::meta_learning::meta_learning_adaptation;
+use super::neural_processing::self_organizing_neural_processing;
+use super::quantum_consciousness::simulate_quantum_consciousness;
+use super::temporal_causality::analyze_temporal_causality;
 use crate::error::NdimageResult;
 
 /// Advanced Quantum-Conscious Image Processing
@@ -118,7 +122,14 @@ pub fn initialize_or_updatestate(
 ) -> NdimageResult<AdvancedState> {
     // Implementation would initialize or update the advanced state
     Ok(AdvancedState {
-        consciousness_amplitudes: Array4::zeros((shape.0, shape.1, config.consciousness_depth, 2)),
+        consciousness_amplitudes: {
+            let mut amps = Array4::zeros((shape.0, shape.1, config.consciousness_depth, 2));
+            if config.consciousness_depth > 0 {
+                let amplitude = Complex::new((1.0 / config.consciousness_depth as f64).sqrt(), 0.0);
+                amps.fill(amplitude);
+            }
+            amps
+        },
         meta_parameters: Array2::zeros((config.advanced_dimensions, config.temporal_window)),
         network_topology: Arc::new(RwLock::new(NetworkTopology {
             connections: HashMap::new(),
@@ -307,9 +318,9 @@ pub fn multi_scale_integration(
         let weight_coarse = 0.3;
         let weight_fine = 0.7;
 
+        reconstruction = upsampled.clone();
         for y in 0..targetshape.0 {
             for x in 0..targetshape.1 {
-                reconstruction = upsampled.clone();
                 reconstruction[(y, x)] = weight_coarse * upsampled[(y, x)]
                     + weight_fine * processed_pyramid[level_idx][(y, x)];
             }
@@ -711,82 +722,6 @@ pub fn predict_future_load(history: &VecDeque<AllocationSnapshot>) -> f64 {
     (avg_load + trend * 0.5).clamp(0.0, 2.0)
 }
 
-// TODO: These functions are referenced by fusion_processing but not implemented yet
-// They would need to be extracted from other parts of the file or implemented
-
-/// Placeholder for advanced dimensional feature extraction
-/// TODO: Extract implementation from original file
-#[allow(dead_code)]
-fn extract_advanced_dimensionalfeatures<T>(
-    _image: &ArrayView2<T>,
-    _state: &mut AdvancedState,
-    _config: &AdvancedConfig,
-) -> NdimageResult<Array2<f64>>
-where
-    T: Float + FromPrimitive + Copy + Send + Sync,
-{
-    // TODO: Implement advanced dimensional feature extraction
-    let (height, width) = _image.dim();
-    Ok(Array2::zeros((height, width)))
-}
-
-/// Placeholder for quantum consciousness simulation
-/// TODO: Extract implementation from original file
-#[allow(dead_code)]
-fn simulate_quantum_consciousness(
-    _features: &Array2<f64>,
-    _state: &mut AdvancedState,
-    _config: &AdvancedConfig,
-) -> NdimageResult<Array2<f64>> {
-    // TODO: Implement quantum consciousness simulation
-    let (height, width) = _features.dim();
-    Ok(Array2::zeros((height, width)))
-}
-
-/// Placeholder for self-organizing neural processing
-/// TODO: Extract implementation from original file
-#[allow(dead_code)]
-fn self_organizing_neural_processing(
-    _features: &Array2<f64>,
-    _state: &mut AdvancedState,
-    _config: &AdvancedConfig,
-) -> NdimageResult<Array2<f64>> {
-    // TODO: Implement self-organizing neural processing
-    let (height, width) = _features.dim();
-    Ok(Array2::zeros((height, width)))
-}
-
-/// Placeholder for temporal causality analysis
-/// TODO: Extract implementation from original file
-#[allow(dead_code)]
-fn analyze_temporal_causality<T>(
-    _image: &ArrayView2<T>,
-    _state: &mut AdvancedState,
-    _config: &AdvancedConfig,
-) -> NdimageResult<Array2<f64>>
-where
-    T: Float + FromPrimitive + Copy + Send + Sync,
-{
-    // TODO: Implement temporal causality analysis
-    let (height, width) = _image.dim();
-    Ok(Array2::zeros((height, width)))
-}
-
-/// Placeholder for meta-learning adaptation
-/// TODO: Extract implementation from original file
-#[allow(dead_code)]
-fn meta_learning_adaptation(
-    _consciousness: &Array2<f64>,
-    _neural: &Array2<f64>,
-    _causal: &Array2<f64>,
-    _state: &mut AdvancedState,
-    _config: &AdvancedConfig,
-) -> NdimageResult<Array2<f64>> {
-    // TODO: Implement meta-learning adaptation
-    let (height, width) = _consciousness.dim();
-    Ok(Array2::zeros((height, width)))
-}
-
 /// Enhanced Meta-Learning with Temporal Fusion
 ///
 /// This function implements sophisticated meta-learning algorithms that adapt
@@ -930,4 +865,197 @@ pub fn quantum_aware_resource_scheduling_optimization(
     };
 
     Ok(scheduling_decision)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    /// Critical regression test: verifies that fusion_processing returns non-zero output.
+    /// If the shadow-function bug exists, this test will fail because all pipeline stages
+    /// return zeros.
+    #[test]
+    fn test_fusion_processing_nonzero_output() {
+        let mut image = Array2::<f64>::zeros((8, 8));
+        // Create a gradient pattern to ensure non-trivial processing
+        for y in 0..8_usize {
+            for x in 0..8_usize {
+                image[(y, x)] = (y * 8 + x) as f64 / 63.0;
+            }
+        }
+
+        // Use minimal config to keep test fast
+        #[allow(clippy::field_reassign_with_default)]
+        let config = {
+            let mut c = AdvancedConfig::default();
+            c.consciousness_depth = 2;
+            c.advanced_dimensions = 2;
+            c.temporal_window = 4;
+            c.causal_depth = 2;
+            c.multi_scale_levels = 2;
+            c.quantum_consciousness = true;
+            c.self_organization = false; // skip slow network init
+            c.advanced_efficiency = false;
+            c
+        };
+
+        let result = fusion_processing(image.view(), &config, None);
+        assert!(
+            result.is_ok(),
+            "fusion_processing failed: {:?}",
+            result.err()
+        );
+
+        let (output, state) = result.expect("fusion_processing should succeed");
+        assert_eq!(output.dim(), (8, 8), "output shape mismatch");
+
+        // Core regression: output must not be all-zeros.
+        // If the shadow-function bug exists, all five pipeline stages return zeros and this fails.
+        let any_nonzero = output.iter().any(|&v| v.abs() > 1e-12);
+        assert!(
+            any_nonzero,
+            "fusion_processing returned all-zeros output (shadow-function bug still present)"
+        );
+
+        // Secondary regression: consciousness amplitudes must be non-zero after processing.
+        // If simulate_quantum_consciousness is shadowed/stubbed, amplitudes remain all-zero.
+        let amplitudes_have_energy = state
+            .consciousness_amplitudes
+            .iter()
+            .any(|c| c.norm() > 1e-12);
+        assert!(
+            amplitudes_have_energy,
+            "consciousness_amplitudes are all-zero after processing (simulate_quantum_consciousness shadowed or not initializing superposition)"
+        );
+    }
+
+    /// Per-stage non-zero test: verifies each stage in the pipeline individually produces
+    /// non-zero output when fed a non-trivial input.  Failing here points to whichever
+    /// specific stage is still shadowed or mis-wired.
+    #[test]
+    fn test_pipeline_stages_individually_nonzero() {
+        use super::super::feature_extraction::extract_advanced_dimensionalfeatures;
+        use super::super::meta_learning::meta_learning_adaptation;
+        use super::super::quantum_consciousness::simulate_quantum_consciousness;
+
+        let mut image = Array2::<f64>::zeros((8, 8));
+        for y in 0..8_usize {
+            for x in 0..8_usize {
+                image[(y, x)] = (y * 8 + x) as f64 / 63.0;
+            }
+        }
+
+        #[allow(clippy::field_reassign_with_default)]
+        let config = {
+            let mut c = AdvancedConfig::default();
+            c.consciousness_depth = 2;
+            c.advanced_dimensions = 2;
+            c.temporal_window = 4;
+            c.causal_depth = 2;
+            c.multi_scale_levels = 2;
+            c.quantum_consciousness = true;
+            c.self_organization = false;
+            c.advanced_efficiency = false;
+            c
+        };
+
+        let mut state = initialize_or_updatestate(None, (8, 8), &config)
+            .expect("initialize_or_updatestate failed");
+
+        // Stage 1 — feature extraction
+        let features = extract_advanced_dimensionalfeatures(&image.view(), &mut state, &config)
+            .expect("extract_advanced_dimensionalfeatures failed");
+        let stage1_linf = features.iter().copied().fold(0.0_f64, f64::max);
+        assert!(
+            stage1_linf > 1e-12,
+            "Stage 1 (feature extraction) returned all-zeros (L∞ = {stage1_linf})"
+        );
+
+        // Stage 2 — quantum consciousness
+        let consciousness = simulate_quantum_consciousness(&features, &mut state, &config)
+            .expect("simulate_quantum_consciousness failed");
+        let stage2_linf = consciousness.iter().copied().fold(0.0_f64, f64::max);
+        assert!(
+            stage2_linf > 1e-12,
+            "Stage 2 (quantum consciousness) returned all-zeros (L∞ = {stage2_linf})"
+        );
+
+        // Stage 5 — meta-learning (uses stage-2 output; neural+causal can be zeros)
+        let neural = Array2::<f64>::zeros((8, 8));
+        let causal = Array2::<f64>::zeros((8, 8));
+        let adapted =
+            meta_learning_adaptation(&consciousness, &neural, &causal, &mut state, &config)
+                .expect("meta_learning_adaptation failed");
+        let stage5_linf = adapted.iter().copied().fold(0.0_f64, f64::max);
+        assert!(
+            stage5_linf > 1e-12,
+            "Stage 5 (meta-learning) returned all-zeros (L∞ = {stage5_linf})"
+        );
+
+        // Stage 7 — multi-scale integration
+        let integrated = multi_scale_integration(&adapted, &mut state, &config)
+            .expect("multi_scale_integration failed");
+        let stage7_linf = integrated.iter().copied().fold(0.0_f64, f64::max);
+        assert!(
+            stage7_linf > 1e-12,
+            "Stage 7 (multi-scale integration) returned all-zeros (L∞ = {stage7_linf})"
+        );
+    }
+
+    /// End-to-end test on a step-function pattern: ensures fusion_processing handles
+    /// inputs other than the gradient pattern and still returns non-zero output.
+    #[test]
+    fn test_fusion_processing_step_pattern() {
+        let mut image = Array2::<f64>::zeros((8, 8));
+        // Step function: left half = 0.2, right half = 0.8
+        for y in 0..8_usize {
+            for x in 0..8_usize {
+                image[(y, x)] = if x < 4 { 0.2 } else { 0.8 };
+            }
+        }
+
+        #[allow(clippy::field_reassign_with_default)]
+        let config = {
+            let mut c = AdvancedConfig::default();
+            c.consciousness_depth = 2;
+            c.advanced_dimensions = 2;
+            c.temporal_window = 4;
+            c.causal_depth = 2;
+            c.multi_scale_levels = 2;
+            c.quantum_consciousness = true;
+            c.self_organization = false;
+            c.advanced_efficiency = false;
+            c
+        };
+
+        let result = fusion_processing(image.view(), &config, None);
+        assert!(
+            result.is_ok(),
+            "fusion_processing failed on step pattern: {:?}",
+            result.err()
+        );
+
+        let (output, state) = result.expect("fusion_processing should succeed");
+        assert_eq!(
+            output.dim(),
+            (8, 8),
+            "output shape mismatch for step pattern"
+        );
+
+        let any_nonzero = output.iter().any(|&v| v.abs() > 1e-12);
+        assert!(
+            any_nonzero,
+            "fusion_processing returned all-zeros for step-function input"
+        );
+
+        let amplitudes_nonzero = state
+            .consciousness_amplitudes
+            .iter()
+            .any(|c| c.norm() > 1e-12);
+        assert!(
+            amplitudes_nonzero,
+            "consciousness_amplitudes all-zero after step-pattern processing"
+        );
+    }
 }

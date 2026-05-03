@@ -22,7 +22,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 scirs2-core = { workspace = true, features = ["random", "array"] }
 # Temporarily removed for publishing
 # scirs2-linalg = { workspace = true }
-scirs2-fft = { workspace = true }
+scirs2-fft = { workspace = true, features = ["oxifft"] }
 thiserror = { workspace = true }
 libc = { workspace = true }
 libm = { workspace = true }
@@ -31,6 +31,9 @@ halton = { workspace = true }
 num_cpus = { workspace = true }
 half = { workspace = true }
 serde = { workspace = true }
+
+# Optional: async support for neural ODE training patterns (not WASM-compatible)
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"], optional = true }
 
 # Optional dependencies
 scirs2-autograd = { workspace = true, optional = true }
@@ -55,8 +58,10 @@ harness = false
 [features]
 default = []
 simd = ["scirs2-core/simd"]
+async = ["tokio"]
 parallel = ["scirs2-core/parallel"]
 autodiff = ["scirs2-autograd"]
 symplectic = []  # Feature flag for symplectic integrators
 parallel_jacobian = ["scirs2-core/parallel"]  # Feature flag for parallel Jacobian computation
 new_ode = []  # Feature flag for new ODE module structure
+gpu_fem = []  # Feature flag for GPU-accelerated FEM assembly via wgpu

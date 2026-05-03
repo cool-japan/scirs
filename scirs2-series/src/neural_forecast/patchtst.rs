@@ -382,7 +382,9 @@ struct InstanceNormStats<F: Float> {
 }
 
 /// Compute per-channel mean and std for reversible instance normalization.
-fn instance_norm_forward<F: Float + FromPrimitive>(series: &Array1<F>) -> (Array1<F>, InstanceNormStats<F>) {
+fn instance_norm_forward<F: Float + FromPrimitive>(
+    series: &Array1<F>,
+) -> (Array1<F>, InstanceNormStats<F>) {
     let n = series.len();
     let n_f = F::from(n as f64).unwrap_or_else(|| F::one());
     let eps = F::from(1e-5).unwrap_or_else(|| F::zero());
@@ -770,7 +772,12 @@ mod tests {
         for batch_size in [1, 4, 8] {
             let x = Array3::zeros((batch_size, 3, 32));
             let out = model.forward(&x).expect("forward failed");
-            assert_eq!(out.dim().0, batch_size, "batch size {} not preserved", batch_size);
+            assert_eq!(
+                out.dim().0,
+                batch_size,
+                "batch size {} not preserved",
+                batch_size
+            );
         }
     }
 

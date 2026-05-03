@@ -12,8 +12,8 @@
 //! - Lee et al. (1994), "Building Skeleton Models via 3-D Medial Surface Axis Thinning"
 
 use crate::error::{NdimageError, NdimageResult};
-use scirs2_core::ndarray::{s, Array3};
 use scirs2_core::ndarray::ArrayView3;
+use scirs2_core::ndarray::{s, Array3};
 
 // ---------------------------------------------------------------------------
 // Structuring element
@@ -86,10 +86,7 @@ impl StructuringElement3D {
 // ---------------------------------------------------------------------------
 
 /// Apply one pass of binary erosion using a dense SE mask.
-fn erode_pass(
-    src: &Array3<bool>,
-    se: &Array3<bool>,
-) -> Array3<bool> {
+fn erode_pass(src: &Array3<bool>, se: &Array3<bool>) -> Array3<bool> {
     let (sz, sy, sx) = (src.shape()[0], src.shape()[1], src.shape()[2]);
     let (ez, ey, ex) = (se.shape()[0], se.shape()[1], se.shape()[2]);
     let (cz, cy, cx) = (ez / 2, ey / 2, ex / 2);
@@ -133,10 +130,7 @@ fn erode_pass(
 }
 
 /// Apply one pass of binary dilation using a dense SE mask.
-fn dilate_pass(
-    src: &Array3<bool>,
-    se: &Array3<bool>,
-) -> Array3<bool> {
+fn dilate_pass(src: &Array3<bool>, se: &Array3<bool>) -> Array3<bool> {
     let (sz, sy, sx) = (src.shape()[0], src.shape()[1], src.shape()[2]);
     let (ez, ey, ex) = (se.shape()[0], se.shape()[1], se.shape()[2]);
     let (cz, cy, cx) = (ez / 2, ey / 2, ex / 2);
@@ -435,19 +429,13 @@ impl UnionFind {
 /// Generate neighbor offsets for a given connectivity (6, 18, or 26).
 fn neighbor_offsets(connectivity: usize) -> Vec<(isize, isize, isize)> {
     match connectivity {
-        6 => vec![
-            (-1, 0, 0),
-            (0, -1, 0),
-            (0, 0, -1),
-        ],
+        6 => vec![(-1, 0, 0), (0, -1, 0), (0, 0, -1)],
         18 => {
             let mut offsets = Vec::new();
             for dz in -1isize..=1 {
                 for dy in -1isize..=1 {
                     for dx in -1isize..=1 {
-                        let nonzero = (dz != 0) as usize
-                            + (dy != 0) as usize
-                            + (dx != 0) as usize;
+                        let nonzero = (dz != 0) as usize + (dy != 0) as usize + (dx != 0) as usize;
                         if nonzero > 0 && nonzero <= 2 {
                             // face- or edge-connected (not corner)
                             if dz < 0 || (dz == 0 && dy < 0) || (dz == 0 && dy == 0 && dx < 0) {
@@ -542,11 +530,7 @@ pub fn label3d(
                     labels[idx] = next_label;
                     next_label += 1;
                 } else {
-                    let min_lbl = neighbor_labels
-                        .iter()
-                        .copied()
-                        .min()
-                        .unwrap_or(next_label);
+                    let min_lbl = neighbor_labels.iter().copied().min().unwrap_or(next_label);
                     labels[idx] = min_lbl;
                     for &nl in &neighbor_labels {
                         uf.union(min_lbl, nl);
@@ -717,9 +701,21 @@ pub fn object_properties3d(label_image: &Array3<i32>, n_objects: usize) -> Vec<O
                 0.0
             };
             let bb_min = (
-                if min_z[lbl] == usize::MAX { 0 } else { min_z[lbl] },
-                if min_y[lbl] == usize::MAX { 0 } else { min_y[lbl] },
-                if min_x[lbl] == usize::MAX { 0 } else { min_x[lbl] },
+                if min_z[lbl] == usize::MAX {
+                    0
+                } else {
+                    min_z[lbl]
+                },
+                if min_y[lbl] == usize::MAX {
+                    0
+                } else {
+                    min_y[lbl]
+                },
+                if min_x[lbl] == usize::MAX {
+                    0
+                } else {
+                    min_x[lbl]
+                },
             );
             Object3DProps {
                 label: lbl as i32,
@@ -748,9 +744,7 @@ pub fn object_properties3d(label_image: &Array3<i32>, n_objects: usize) -> Vec<O
 /// # Arguments
 ///
 /// * `binary_image` - Input binary volumetric image.
-pub fn distance_transform_edt3d(
-    binary_image: ArrayView3<bool>,
-) -> NdimageResult<Array3<f64>> {
+pub fn distance_transform_edt3d(binary_image: ArrayView3<bool>) -> NdimageResult<Array3<f64>> {
     let shape = binary_image.shape();
     let (sz, sy, sx) = (shape[0], shape[1], shape[2]);
     if sz == 0 || sy == 0 || sx == 0 {
@@ -818,8 +812,8 @@ pub fn distance_transform_edt3d(
             for q in 1..sy {
                 // intersection of parabolas at t[k] and q
                 loop {
-                    let sq = ((f(q) - f(t[k])) / (2.0 * q as f64 - 2.0 * t[k] as f64) + 0.5)
-                        .floor();
+                    let sq =
+                        ((f(q) - f(t[k])) / (2.0 * q as f64 - 2.0 * t[k] as f64) + 0.5).floor();
                     if k == 0 || sq > s[k] {
                         k += 1;
                         s[k] = sq;
@@ -839,8 +833,7 @@ pub fn distance_transform_edt3d(
                 while j > 0 && s[j] > q as f64 {
                     j -= 1;
                 }
-                h[[iz, q, ix]] = f(t[j]) + (q as f64 - t[j] as f64).powi(2)
-                    - (t[j] as f64).powi(2);
+                h[[iz, q, ix]] = f(t[j]) + (q as f64 - t[j] as f64).powi(2) - (t[j] as f64).powi(2);
             }
         }
     }
@@ -859,8 +852,8 @@ pub fn distance_transform_edt3d(
 
             for q in 1..sz {
                 loop {
-                    let sq = ((f(q) - f(t[k])) / (2.0 * q as f64 - 2.0 * t[k] as f64) + 0.5)
-                        .floor();
+                    let sq =
+                        ((f(q) - f(t[k])) / (2.0 * q as f64 - 2.0 * t[k] as f64) + 0.5).floor();
                     if k == 0 || sq > s[k] {
                         k += 1;
                         s[k] = sq;
@@ -880,8 +873,7 @@ pub fn distance_transform_edt3d(
                 while j > 0 && s[j] > q as f64 {
                     j -= 1;
                 }
-                let dist_sq = f(t[j]) + (q as f64 - t[j] as f64).powi(2)
-                    - (t[j] as f64).powi(2);
+                let dist_sq = f(t[j]) + (q as f64 - t[j] as f64).powi(2) - (t[j] as f64).powi(2);
                 out[[q, iy, ix]] = dist_sq.max(0.0).sqrt();
             }
         }
@@ -1054,13 +1046,7 @@ fn count_components_26(nbhood: &[[[bool; 3]; 3]; 3], target: bool) -> usize {
                                     let nz = cz as isize + dz as isize - 1;
                                     let ny = cy as isize + dy as isize - 1;
                                     let nx = cx as isize + dx as isize - 1;
-                                    if nz >= 0
-                                        && ny >= 0
-                                        && nx >= 0
-                                        && nz < 3
-                                        && ny < 3
-                                        && nx < 3
-                                    {
+                                    if nz >= 0 && ny >= 0 && nx >= 0 && nz < 3 && ny < 3 && nx < 3 {
                                         let (nzu, nyu, nxu) =
                                             (nz as usize, ny as usize, nx as usize);
                                         if nbhood[nzu][nyu][nxu] == target
@@ -1187,7 +1173,7 @@ mod tests {
         assert!(arr[[0, 1, 1]]); // -z
         assert!(arr[[2, 1, 1]]); // +z
         assert!(!arr[[0, 0, 0]]); // corner must be false
-        // Exactly 7 true values (6 neighbors + center)
+                                  // Exactly 7 true values (6 neighbors + center)
         let count = arr.iter().filter(|&&v| v).count();
         assert_eq!(count, 7);
     }

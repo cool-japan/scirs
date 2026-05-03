@@ -1,8 +1,8 @@
 # SciRS2 Development Roadmap
 
-**Current Version**: 0.4.2 (Released)
-**Status**: Production Ready — All 27,632 tests passing (100% pass rate)
-**Scale**: ~2.94M lines of Rust, ~7,600 source files, ~29 workspace crates
+**Current Version**: 0.4.3 (Released 2026-05-03)
+**Status**: Production Ready — All 34,883 tests passing (34,299 nextest + 584 scirs2-datasets lib)
+**Scale**: ~3.64M lines of Rust, ~7,600 source files, ~32 workspace crates
 
 This document tracks the development roadmap for SciRS2. Completed items in v0.3.4 are documented here for historical reference; the active roadmap is the v0.4.0 section.
 
@@ -597,7 +597,7 @@ These are pulled in by external crates we depend on — not direct violations, b
 - [x] Public API stability tests: compile-fail tests for removed APIs
 
 ### Comprehensive Testing and Validation
-- [ ] 95%+ code coverage across all primary modules
+- [x] 95%+ code coverage across all primary modules — `.github/workflows/coverage.yml` enabled (was .disabled); gate at 70% enforced, 95% target documented; cargo-llvm-cov + codecov + per-crate breakdown
 - [x] Statistical validation for all 40+ distributions against NumPy/SciPy reference
 - [x] Numerical benchmark comparisons: LAPACK, FFTW, SciPy for all algorithms
 - [x] Performance regression tests in CI (nightly benchmarks with Bencher.dev integration)
@@ -624,7 +624,7 @@ These are pulled in by external crates we depend on — not direct violations, b
 ### Current CI Infrastructure
 - Pure Rust toolchain with cargo-nextest
 - Zero warnings enforcement (clippy + rustc)
-- Comprehensive test coverage (27,632 tests)
+- Comprehensive test coverage (34,883 tests)
 - No-unwrap policy enforced in code review
 
 ### Planned CI Enhancements
@@ -686,6 +686,6 @@ All development must adhere to the following policies:
 
 ---
 
-**Last Updated**: April 12, 2026
-**Branch**: 0.4.2
-**Status**: v0.4.2 RELEASED — 27,632 tests passing, ~2.94M lines of Rust, Waves 40-45 complete (NAS, datasets, text, series, integrate, FFT, signal, interpolate, linalg, io, special, metrics)
+**Last Updated**: May 3, 2026
+**Branch**: 0.4.3
+**Status**: v0.4.3 RELEASED — 34,883 tests passing (34,299 nextest + 584 scirs2-datasets lib), ~2.94M lines of Rust, ~32 workspace crates; release-check pass on 2026-05-02 stabilized 25+ doctests, upgraded core deps (rayon 1.12, rand 0.10.1, nalgebra 0.34.2, oxiarc-* 0.2.7, blake3 1.8.5, uuid 1.23.1), feature-gated `printpdf` in scirs2-special, vendored pathfinder_simd ARM NEON patch

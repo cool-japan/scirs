@@ -604,10 +604,8 @@ fn simulate_nfa(
     let mut last_accept: Option<usize> = None;
 
     // Check if accept state is reachable before consuming any input
-    if current.contains(&nfa.accept) {
-        if !anchored_end || start_pos == input.len() {
-            last_accept = Some(start_pos);
-        }
+    if current.contains(&nfa.accept) && (!anchored_end || start_pos == input.len()) {
+        last_accept = Some(start_pos);
     }
 
     let mut pos = start_pos;
@@ -669,10 +667,8 @@ fn simulate_nfa(
 
         pos += 1;
 
-        if current.contains(&nfa.accept) {
-            if !anchored_end || pos == input.len() {
-                last_accept = Some(pos);
-            }
+        if current.contains(&nfa.accept) && (!anchored_end || pos == input.len()) {
+            last_accept = Some(pos);
         }
     }
 
@@ -844,7 +840,7 @@ impl RegexLite {
                 chars.len() + 1
             };
 
-            let mut found = false;
+            let mut next_search_from = search_from + 1;
             for start in search_from..search_end {
                 if let Some(end) = simulate_nfa(
                     &self.nfa,
@@ -861,14 +857,11 @@ impl RegexLite {
                         text: input[byte_start..byte_end].to_string(),
                     });
                     // Advance past this match (at least 1 char to avoid infinite loop on empty match)
-                    search_from = if end > start { end } else { start + 1 };
-                    found = true;
+                    next_search_from = if end > start { end } else { start + 1 };
                     break;
                 }
             }
-            if !found {
-                search_from += 1;
-            }
+            search_from = next_search_from;
 
             if self.anchored_start {
                 break; // anchored to start, only one match possible

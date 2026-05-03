@@ -98,36 +98,59 @@ fn bessel_j0_cpu(x: f64) -> f64 {
 /// Batch evaluate gamma function with auto-dispatch.
 ///
 /// When `config.allow_gpu` is false (the default), all computation is on CPU.
-/// When `allow_gpu` is true and the array exceeds `min_gpu_size`, a GPU path
-/// is attempted; if GPU is unavailable at runtime, falls back to CPU silently.
+/// When `allow_gpu` is true and the array exceeds `min_gpu_size`, the GPU
+/// path is attempted via the WGSL WebGPU backend
+/// ([`crate::gpu_kernels::wgsl::gamma_batch_wgpu`]) and, if that returns
+/// `GpuNotAvailable`, via the CUDA backend
+/// ([`crate::gpu_kernels::cuda::gamma_batch_cuda`]).  If neither backend is
+/// available the function falls back to the CPU path silently.
 pub fn batch_gamma(xs: &[f64], config: &GpuDispatchConfig) -> Vec<f64> {
     match select_dispatch(xs.len(), config) {
         DispatchTarget::Cpu => xs.iter().map(|&x| gamma_cpu(x)).collect(),
         DispatchTarget::Gpu => {
-            // GPU path: future integration with scirs2-core GPU infrastructure.
-            // For now, fall back to CPU (GPU path is a future enhancement).
+            // Try WGSL (WebGPU) first, then CUDA, then fall back to CPU.
+            if let Ok(result) = crate::gpu_kernels::wgsl::gamma_batch_wgpu(xs) {
+                return result;
+            }
+            if let Ok(result) = crate::gpu_kernels::cuda::gamma_batch_cuda(xs) {
+                return result;
+            }
             xs.iter().map(|&x| gamma_cpu(x)).collect()
         }
     }
 }
 
 /// Batch evaluate erf function with auto-dispatch.
+///
+/// GPU path attempts WGSL then CUDA before falling back to CPU.
 pub fn batch_erf(xs: &[f64], config: &GpuDispatchConfig) -> Vec<f64> {
     match select_dispatch(xs.len(), config) {
         DispatchTarget::Cpu => xs.iter().map(|&x| erf_cpu(x)).collect(),
         DispatchTarget::Gpu => {
-            // GPU path: future enhancement; fall back to CPU.
+            if let Ok(result) = crate::gpu_kernels::wgsl::erf_batch_wgpu(xs) {
+                return result;
+            }
+            if let Ok(result) = crate::gpu_kernels::cuda::erf_batch_cuda(xs) {
+                return result;
+            }
             xs.iter().map(|&x| erf_cpu(x)).collect()
         }
     }
 }
 
 /// Batch evaluate Bessel J₀ with auto-dispatch.
+///
+/// GPU path attempts WGSL then CUDA before falling back to CPU.
 pub fn batch_bessel_j0(xs: &[f64], config: &GpuDispatchConfig) -> Vec<f64> {
     match select_dispatch(xs.len(), config) {
         DispatchTarget::Cpu => xs.iter().map(|&x| bessel_j0_cpu(x)).collect(),
         DispatchTarget::Gpu => {
-            // GPU path: future enhancement; fall back to CPU.
+            if let Ok(result) = crate::gpu_kernels::wgsl::bessel_j0_batch_wgpu(xs) {
+                return result;
+            }
+            if let Ok(result) = crate::gpu_kernels::cuda::bessel_j0_batch_cuda(xs) {
+                return result;
+            }
             xs.iter().map(|&x| bessel_j0_cpu(x)).collect()
         }
     }

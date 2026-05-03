@@ -79,21 +79,18 @@ fn test_matrix_functions() {
 #[allow(dead_code)]
 fn test_special_matrices() {
     ag::run(|g| {
-        // Test Cholesky decomposition - SKIPPED until implementation
-        // TODO: Re-enable when Cholesky is implemented in scirs2-core
-        /*
-        let a = convert_to_tensor(array![[4.0, 2.0], [2.0, 5.0]], g); // Positive definite matrix
-        let l = cholesky(&a);
+        // Test Cholesky decomposition
+        let a_spd = convert_to_tensor(array![[4.0, 2.0], [2.0, 5.0]], g); // Positive definite matrix
+        let l = cholesky(&a_spd);
         let reconstructed = matmul(l, transpose(l, &[1, 0]));
         let result = reconstructed.eval(g).expect("Test: operation failed");
-        let original = a.eval(g).expect("Test: operation failed");
+        let original = a_spd.eval(g).expect("Test: operation failed");
 
         for i in 0..2 {
             for j in 0..2 {
                 assert!(((result[[i, j]] - original[[i, j]]) as f64).abs() < EPSILON);
             }
         }
-        */
 
         // Test symmetrize
         let b = convert_to_tensor(array![[1.0, 2.0], [3.0, 4.0]], g);
@@ -225,21 +222,19 @@ fn test_complex_linear_algebra_pipeline() {
         // Create a complex pipeline using multiple operations
         let a = variable(array![[4.0, 2.0], [2.0, 5.0]], g); // Positive definite
 
-        // Cholesky decomposition - SKIPPED until implementation
-        // TODO: Re-enable when Cholesky is implemented in scirs2-core
-        /*
+        // Cholesky decomposition and solve via L * L^T factorisation
         let l = cholesky(&a);
-
-        // Solve system using Cholesky factorization
         let b = convert_to_tensor(array![[1.0], [2.0]], g);
+
+        // Solve system using Cholesky factorization: A x = b via L y = b, L^T x = y
         let y = solve(l, b);
         let x = solve(transpose(l, &[1, 0]), y);
 
-        // Compute determinant using Cholesky
+        // Compute determinant using Cholesky: det(A) = det(L)^2
         let det_l = determinant(l);
-        let det_a = square(det_l); // det(A) = det(L)^2 for A = L*L^T
+        let det_a = square(det_l);
 
-        // Test results
+        // Test results against direct solve
         let x_direct = solve(a, b);
         let x_result = x.eval(g).expect("Test: operation failed");
         let x_direct_result = x_direct.eval(g).expect("Test: operation failed");
@@ -251,11 +246,5 @@ fn test_complex_linear_algebra_pipeline() {
         let det_a_result = det_a.eval(g).expect("Test: operation failed");
         let det_direct = determinant(a).eval(g).expect("Test: operation failed");
         assert!(((det_a_result[[]] - det_direct[[]]) as f64).abs() < EPSILON);
-        */
-
-        // Test direct solve without Cholesky
-        let b = convert_to_tensor(array![[1.0], [2.0]], g);
-        let x_direct = solve(a, b);
-        let _x_direct_result = x_direct.eval(g).expect("Test: operation failed");
     });
 }

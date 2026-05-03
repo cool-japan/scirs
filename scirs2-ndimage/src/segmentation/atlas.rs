@@ -74,9 +74,7 @@ impl MajorityVoting {
                     // Select label with highest count (ties: smallest label wins)
                     let winner = counts
                         .iter()
-                        .max_by(|a, b| {
-                            a.1.cmp(b.1).then_with(|| b.0.cmp(a.0))
-                        })
+                        .max_by(|a, b| a.1.cmp(b.1).then_with(|| b.0.cmp(a.0)))
                         .map(|(&lv, _)| lv)
                         .unwrap_or(0);
                     result[[iz, iy, ix]] = winner;
@@ -170,7 +168,9 @@ pub struct STAPLE {
 impl STAPLE {
     /// Create a new STAPLE estimator with default configuration.
     pub fn new() -> Self {
-        Self { config: StapleConfig::default() }
+        Self {
+            config: StapleConfig::default(),
+        }
     }
 
     /// Create with custom configuration.
@@ -264,7 +264,9 @@ impl STAPLE {
             q = new_q;
             w = new_w;
 
-            if param_change < self.config.convergence_threshold && max_change < self.config.convergence_threshold {
+            if param_change < self.config.convergence_threshold
+                && max_change < self.config.convergence_threshold
+            {
                 converged = true;
                 break;
             }
@@ -348,7 +350,9 @@ pub struct JointLabelFusion {
 impl JointLabelFusion {
     /// Create with default configuration.
     pub fn new() -> Self {
-        Self { config: JlfConfig::default() }
+        Self {
+            config: JlfConfig::default(),
+        }
     }
 
     /// Create with custom configuration.
@@ -373,7 +377,8 @@ impl JointLabelFusion {
     ) -> NdimageResult<JlfResult> {
         if atlas_images.len() != atlas_labels.len() {
             return Err(NdimageError::InvalidInput(
-                "JointLabelFusion: atlas_images and atlas_labels must have equal length".to_string(),
+                "JointLabelFusion: atlas_images and atlas_labels must have equal length"
+                    .to_string(),
             ));
         }
         let n_atlases = atlas_images.len();
@@ -417,7 +422,8 @@ impl JointLabelFusion {
             for iy in 0..ny {
                 for ix in 0..nx {
                     // Extract target patch
-                    let t_patch = extract_patch_3d(target, iz as isize, iy as isize, ix as isize, pr);
+                    let t_patch =
+                        extract_patch_3d(target, iz as isize, iy as isize, ix as isize, pr);
 
                     // Compute weights for each atlas
                     let mut weights = Vec::with_capacity(n_atlases);
@@ -446,8 +452,10 @@ impl JointLabelFusion {
                     weight_sum[[iz, iy, ix]] = total_w;
                     for (a, &wn) in w_norm.iter().enumerate() {
                         let lv = atlas_labels[a][[iz, iy, ix]];
-                        label_votes.entry(lv).or_insert_with(|| Array3::<f64>::zeros((nz, ny, nx)))
-                            [[iz, iy, ix]] += wn;
+                        label_votes
+                            .entry(lv)
+                            .or_insert_with(|| Array3::<f64>::zeros((nz, ny, nx)))[[iz, iy, ix]] +=
+                            wn;
                     }
                 }
             }
@@ -473,7 +481,10 @@ impl JointLabelFusion {
             }
         }
 
-        Ok(JlfResult { label: label_result, weight_sum })
+        Ok(JlfResult {
+            label: label_result,
+            weight_sum,
+        })
     }
 
     /// Compute the similarity weight between a target patch and an atlas patch.
@@ -497,13 +508,7 @@ impl JointLabelFusion {
 /// Extract a cubic patch of half-width `pr` centred at `(iz, iy, ix)`.
 ///
 /// Out-of-bounds positions are clamped (edge replication).
-fn extract_patch_3d(
-    vol: &Array3<f64>,
-    iz: isize,
-    iy: isize,
-    ix: isize,
-    pr: isize,
-) -> Vec<f64> {
+fn extract_patch_3d(vol: &Array3<f64>, iz: isize, iy: isize, ix: isize, pr: isize) -> Vec<f64> {
     let shape = vol.shape();
     let (nz, ny, nx) = (shape[0] as isize, shape[1] as isize, shape[2] as isize);
     let mut patch = Vec::with_capacity(((2 * pr + 1) as usize).pow(3));
@@ -579,7 +584,9 @@ pub struct AtlasSegmentation {
 impl AtlasSegmentation {
     /// Create with default configuration (majority voting).
     pub fn new() -> Self {
-        Self { config: AtlasConfig::default() }
+        Self {
+            config: AtlasConfig::default(),
+        }
     }
 
     /// Create with custom configuration.
@@ -677,7 +684,8 @@ mod tests {
     fn test_majority_voting_identical_atlases() {
         let a = sphere_labels(8, 8, 8, 1);
         let labels = vec![a.clone(), a.clone(), a.clone()];
-        let fused = MajorityVoting::fuse(&labels).expect("MajorityVoting::fuse should succeed with identical atlases");
+        let fused = MajorityVoting::fuse(&labels)
+            .expect("MajorityVoting::fuse should succeed with identical atlases");
         // All atlases agree → output must equal input
         for iz in 0..8 {
             for iy in 0..8 {
@@ -692,7 +700,8 @@ mod tests {
     fn test_majority_voting_confidence_perfect() {
         let a = sphere_labels(6, 6, 6, 1);
         let labels = vec![a.clone(), a.clone()];
-        let conf = MajorityVoting::confidence(&labels).expect("MajorityVoting::confidence should succeed with identical atlases");
+        let conf = MajorityVoting::confidence(&labels)
+            .expect("MajorityVoting::confidence should succeed with identical atlases");
         for v in conf.iter() {
             assert!((*v - 1.0).abs() < 1e-10);
         }
@@ -704,7 +713,8 @@ mod tests {
         let a = sphere_labels(4, 4, 4, 1);
         let b = sphere_labels(4, 4, 4, 2);
         let labels = vec![a, b];
-        let fused = MajorityVoting::fuse(&labels).expect("MajorityVoting::fuse should succeed with two atlases");
+        let fused = MajorityVoting::fuse(&labels)
+            .expect("MajorityVoting::fuse should succeed with two atlases");
         // Tie: smallest label (1) should win when counts are equal
         for v in fused.iter() {
             assert!(*v == 1 || *v == 0, "unexpected label {}", v);
@@ -717,7 +727,9 @@ mod tests {
         let b = sphere_labels(4, 4, 4, 1);
         let labels = vec![a, b];
         let staple = STAPLE::new();
-        let result = staple.estimate(&labels).expect("STAPLE::estimate should succeed with valid atlases");
+        let result = staple
+            .estimate(&labels)
+            .expect("STAPLE::estimate should succeed with valid atlases");
         assert_eq!(result.performance.len(), 2);
         // Sensitivities should be high for identical atlases
         for perf in &result.performance {
@@ -733,7 +745,9 @@ mod tests {
     fn test_staple_single_atlas() {
         let a = sphere_labels(4, 4, 4, 1);
         let labels = vec![a];
-        let result = STAPLE::new().estimate(&labels).expect("STAPLE::estimate should succeed with single atlas");
+        let result = STAPLE::new()
+            .estimate(&labels)
+            .expect("STAPLE::estimate should succeed with single atlas");
         assert_eq!(result.performance.len(), 1);
     }
 
@@ -744,7 +758,9 @@ mod tests {
         let atlas_img = Array3::<f64>::from_elem((n, n, n), 100.0);
         let atlas_label = sphere_labels(n, n, n, 1);
         let jlf = JointLabelFusion::new();
-        let result = jlf.fuse(&target, &[atlas_img], &[atlas_label.clone()]).expect("JLF::fuse should succeed with single identical atlas");
+        let result = jlf
+            .fuse(&target, &[atlas_img], std::slice::from_ref(&atlas_label))
+            .expect("JLF::fuse should succeed with single identical atlas");
         // Single identical atlas → output == input labels
         for iz in 0..n {
             for iy in 0..n {
@@ -760,7 +776,9 @@ mod tests {
         let a = sphere_labels(6, 6, 6, 1);
         let labels = vec![a.clone(), a.clone()];
         let seg = AtlasSegmentation::new();
-        let result = seg.segment(&labels, None, None).expect("AtlasSegmentation::segment should succeed with valid atlases");
+        let result = seg
+            .segment(&labels, None, None)
+            .expect("AtlasSegmentation::segment should succeed with valid atlases");
         assert_eq!(result.fusion_method, FusionMethod::MajorityVoting);
         assert_eq!(result.n_atlases, 2);
     }
@@ -774,7 +792,9 @@ mod tests {
             ..Default::default()
         };
         let seg = AtlasSegmentation::with_config(config);
-        let result = seg.segment(&labels, None, None).expect("AtlasSegmentation STAPLE should succeed with valid atlases");
+        let result = seg
+            .segment(&labels, None, None)
+            .expect("AtlasSegmentation STAPLE should succeed with valid atlases");
         assert_eq!(result.fusion_method, FusionMethod::Staple);
         assert!(result.staple_result.is_some());
     }

@@ -362,16 +362,34 @@ fn test_filtered_reconstruction() {
 }
 
 #[test]
-#[allow(dead_code)]
-fn test_multidimensional_placeholders() {
-    // Test 2D sparse FFT placeholder
-    let signal_2d = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
+fn test_multidimensional_implementations() {
+    // Test 2D sparse FFT now returns the top-k components
+    let signal_2d = vec![vec![1.0f64, 2.0], vec![3.0, 4.0]];
     let result = sparse_fft2(&signal_2d, 2, None);
-    assert!(result.is_err()); // Should return NotImplemented error
+    assert!(
+        result.is_ok(),
+        "sparse_fft2 should succeed: {:?}",
+        result.err()
+    );
+    let r = result.expect("Operation failed");
+    assert_eq!(r.values.len(), 2);
+    assert_eq!(r.indices.len(), 2);
 
-    // Test N-D sparse FFT placeholder
-    let signal_1d = vec![1.0, 2.0, 3.0, 4.0];
+    // Test N-D sparse FFT now returns the top-k components
+    let signal_1d = vec![1.0f64, 2.0, 3.0, 4.0];
     let shape = vec![2, 2];
     let result = sparse_fftn(&signal_1d, &shape, 2, None);
-    assert!(result.is_err()); // Should return NotImplemented error
+    assert!(
+        result.is_ok(),
+        "sparse_fftn should succeed: {:?}",
+        result.err()
+    );
+    let r = result.expect("Operation failed");
+    assert_eq!(r.values.len(), 2);
+    assert_eq!(r.indices.len(), 2);
+
+    // Test shape mismatch still returns an error
+    let bad_shape = vec![3, 3];
+    let bad_result = sparse_fftn(&signal_1d, &bad_shape, 2, None);
+    assert!(bad_result.is_err(), "Shape mismatch should return an error");
 }

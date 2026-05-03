@@ -164,7 +164,7 @@ impl VelocityField {
     /// * `hidden_dim`     — Hidden layer width.
     /// * `n_layers`       — Number of hidden layers.
     /// * `time_embed_dim` — Dimensionality of the Fourier time embedding
-    ///                      (must be even; if 0, raw [sin(2πt), cos(2πt)] are used).
+    ///   (must be even; if 0, raw [sin(2πt), cos(2πt)] are used).
     /// * `seed`           — LCG seed for weight init.
     pub fn new(
         data_dim: usize,
@@ -190,7 +190,11 @@ impl VelocityField {
         }
 
         // time_embed_dim = 0 → use 2D Fourier (sin, cos)
-        let actual_time_dim = if time_embed_dim == 0 { 2 } else { time_embed_dim };
+        let actual_time_dim = if time_embed_dim == 0 {
+            2
+        } else {
+            time_embed_dim
+        };
         // Must be even for paired sin/cos
         let actual_time_dim = actual_time_dim + actual_time_dim % 2;
 
@@ -211,7 +215,10 @@ impl VelocityField {
         let mut layers: Vec<(Vec<f32>, Vec<f32>)> = Vec::new();
 
         // Input → first hidden
-        layers.push((xavier(in_dim, hidden_dim, &mut rng), vec![0.0f32; hidden_dim]));
+        layers.push((
+            xavier(in_dim, hidden_dim, &mut rng),
+            vec![0.0f32; hidden_dim],
+        ));
 
         // Hidden → hidden
         for _ in 1..n_layers {
@@ -222,7 +229,10 @@ impl VelocityField {
         }
 
         // Hidden → output
-        layers.push((xavier(hidden_dim, data_dim, &mut rng), vec![0.0f32; data_dim]));
+        layers.push((
+            xavier(hidden_dim, data_dim, &mut rng),
+            vec![0.0f32; data_dim],
+        ));
 
         Ok(Self {
             data_dim,
@@ -250,7 +260,7 @@ impl VelocityField {
     #[inline]
     fn gelu(x: f32) -> f32 {
         // Approximate GELU: x * Φ(x) ≈ 0.5 x (1 + tanh(√(2/π)(x + 0.044715 x³)))
-        const C: f32 = 0.7978845608028654_f32; // sqrt(2/pi)
+        const C: f32 = 0.797_884_6_f32; // sqrt(2/pi)
         const A: f32 = 0.044715;
         let cdf = 0.5 * (1.0 + (C * (x + A * x * x * x)).tanh());
         x * cdf

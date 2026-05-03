@@ -171,11 +171,7 @@ impl GevDistribution {
 
         Self {
             mu: mu.clamp(
-                block_maxima
-                    .iter()
-                    .cloned()
-                    .fold(f64::INFINITY, f64::min)
-                    - 1.0,
+                block_maxima.iter().cloned().fold(f64::INFINITY, f64::min) - 1.0,
                 block_maxima
                     .iter()
                     .cloned()
@@ -196,7 +192,11 @@ impl GevDistribution {
         } else {
             let t = 1.0 + self.xi * z;
             if t <= 0.0 {
-                if self.xi > 0.0 { 0.0 } else { 1.0 }
+                if self.xi > 0.0 {
+                    0.0
+                } else {
+                    1.0
+                }
             } else {
                 (-t.powf(-1.0 / self.xi)).exp()
             }
@@ -206,7 +206,7 @@ impl GevDistribution {
     /// Quantile function (inverse CDF) of the GEV at probability `p`.
     pub fn quantile(&self, p: f64) -> f64 {
         assert!(p > 0.0 && p < 1.0, "p must be in (0,1)");
-        let y = -p.ln().ln();  // reduced variate
+        let y = -p.ln().ln(); // reduced variate
         if self.xi.abs() < 1e-8 {
             self.mu + self.sigma * y
         } else {
@@ -278,14 +278,18 @@ impl GpdDistribution {
         let log_lik = |p: &[f64]| -> f64 {
             let sigma = p[0];
             let xi = p[1];
-            if sigma <= 0.0 { return f64::NEG_INFINITY; }
+            if sigma <= 0.0 {
+                return f64::NEG_INFINITY;
+            }
             let mut ll = -(n as f64) * sigma.ln();
             for &y in exceedances {
                 if xi.abs() < 1e-8 {
                     ll -= y / sigma;
                 } else {
                     let t = 1.0 + xi * y / sigma;
-                    if t <= 0.0 { return f64::NEG_INFINITY; }
+                    if t <= 0.0 {
+                        return f64::NEG_INFINITY;
+                    }
                     ll -= (1.0 + 1.0 / xi) * t.ln();
                 }
             }
@@ -326,12 +330,16 @@ impl GpdDistribution {
     /// CDF of the GPD at `x` (measured from threshold).
     pub fn cdf(&self, x: f64) -> f64 {
         let y = x - self.mu;
-        if y < 0.0 { return 0.0; }
+        if y < 0.0 {
+            return 0.0;
+        }
         if self.xi.abs() < 1e-8 {
             1.0 - (-y / self.sigma).exp()
         } else {
             let t = 1.0 + self.xi * y / self.sigma;
-            if t <= 0.0 { return 1.0; }
+            if t <= 0.0 {
+                return 1.0;
+            }
             1.0 - t.powf(-1.0 / self.xi)
         }
     }
@@ -340,7 +348,7 @@ impl GpdDistribution {
     pub fn quantile(&self, p: f64) -> f64 {
         assert!(p > 0.0 && p < 1.0, "p must be in (0,1)");
         if self.xi.abs() < 1e-8 {
-            self.mu + self.sigma * (-( 1.0 - p).ln())
+            self.mu + self.sigma * (-(1.0 - p).ln())
         } else {
             self.mu + self.sigma * ((1.0 - p).powf(-self.xi) - 1.0) / self.xi
         }
@@ -379,12 +387,7 @@ pub fn block_maxima(data: &[f64], block_size: usize) -> Vec<f64> {
     }
     data.chunks(block_size)
         .filter(|chunk| chunk.len() == block_size)
-        .map(|chunk| {
-            chunk
-                .iter()
-                .cloned()
-                .fold(f64::NEG_INFINITY, f64::max)
-        })
+        .map(|chunk| chunk.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
         .collect()
 }
 
@@ -514,28 +517,31 @@ pub enum ExtremalIndexMethod {
 /// let theta = extremal_index_intervals(&data, 0.5, ExtremalIndexMethod::Intervals);
 /// assert!(theta >= 0.0 && theta <= 1.0);
 /// ```
-pub fn extremal_index_intervals(
-    data: &[f64],
-    threshold: f64,
-    method: ExtremalIndexMethod,
-) -> f64 {
+pub fn extremal_index_intervals(data: &[f64], threshold: f64, method: ExtremalIndexMethod) -> f64 {
     let n = data.len();
-    if n == 0 { return 1.0; }
+    if n == 0 {
+        return 1.0;
+    }
 
     // Indicator vector: exceeds threshold?
     let exc: Vec<bool> = data.iter().map(|&x| x > threshold).collect();
     let n_exc: usize = exc.iter().filter(|&&e| e).count();
-    if n_exc == 0 { return 1.0; }
+    if n_exc == 0 {
+        return 1.0;
+    }
 
     match method {
         ExtremalIndexMethod::Intervals => {
             // Ferro & Segers (2003): estimate based on inter-exceedance times
-            let times: Vec<usize> = exc.iter()
+            let times: Vec<usize> = exc
+                .iter()
                 .enumerate()
                 .filter(|(_, &e)| e)
                 .map(|(i, _)| i)
                 .collect();
-            if times.len() < 2 { return 1.0; }
+            if times.len() < 2 {
+                return 1.0;
+            }
             let gaps: Vec<f64> = times.windows(2).map(|w| (w[1] - w[0]) as f64).collect();
             let n_c = gaps.len() as f64;
             let _mean_gap = gaps.iter().sum::<f64>() / n_c;
@@ -544,12 +550,19 @@ pub fn extremal_index_intervals(
                 // Small-gaps: θ̂ = 2·(Σ T_i)² / (n · Σ T_i²)
                 let sum_t = gaps.iter().sum::<f64>();
                 let sum_t2 = gaps.iter().map(|&t| t * t).sum::<f64>();
-                if sum_t2 < 1e-14 { 1.0 } else { (2.0 * sum_t * sum_t) / (n_c * sum_t2) }
+                if sum_t2 < 1e-14 {
+                    1.0
+                } else {
+                    (2.0 * sum_t * sum_t) / (n_c * sum_t2)
+                }
             } else {
                 // Large-gaps: θ̂ = 2·(Σ (T_i-1))² / (n · Σ (T_i-1)(T_i-2))
                 let tm1: Vec<f64> = gaps.iter().map(|&t| t - 1.0).collect();
                 let sum_tm1 = tm1.iter().sum::<f64>();
-                let sum_tm1_tm2 = gaps.iter().map(|&t| (t - 1.0) * (t - 2.0).max(0.0)).sum::<f64>();
+                let sum_tm1_tm2 = gaps
+                    .iter()
+                    .map(|&t| (t - 1.0) * (t - 2.0).max(0.0))
+                    .sum::<f64>();
                 if sum_tm1_tm2 < 1e-14 {
                     1.0
                 } else {
@@ -562,16 +575,25 @@ pub fn extremal_index_intervals(
             // Block estimator: θ̂ ≈ fraction of blocks that contain ≥ 1 exceedance
             let block_size = ((n as f64).sqrt().ceil() as usize).max(1);
             let n_blocks = n / block_size;
-            if n_blocks == 0 { return 1.0; }
-            let blocks_with_exc = exc.chunks(block_size)
+            if n_blocks == 0 {
+                return 1.0;
+            }
+            let blocks_with_exc = exc
+                .chunks(block_size)
                 .take(n_blocks)
                 .filter(|b| b.iter().any(|&e| e))
                 .count();
             let p_block = n_exc as f64 / n as f64;
             let q = blocks_with_exc as f64 / n_blocks as f64;
-            if p_block < 1e-14 { return 1.0; }
+            if p_block < 1e-14 {
+                return 1.0;
+            }
             let block_p = block_size as f64 * p_block;
-            if block_p.abs() < 1e-14 { 1.0 } else { (q / block_p).min(1.0).max(0.0) }
+            if block_p.abs() < 1e-14 {
+                1.0
+            } else {
+                (q / block_p).min(1.0).max(0.0)
+            }
         }
         ExtremalIndexMethod::Runs => {
             // Runs estimator: θ̂ = number of runs / number of exceedances
@@ -587,7 +609,11 @@ pub fn extremal_index_intervals(
                     in_run = false;
                 }
             }
-            if n_exc == 0 { 1.0 } else { (runs as f64 / n_exc as f64).min(1.0).max(0.0) }
+            if n_exc == 0 {
+                1.0
+            } else {
+                (runs as f64 / n_exc as f64).min(1.0).max(0.0)
+            }
         }
     }
 }
@@ -606,13 +632,14 @@ pub fn extremal_index_intervals(
 /// let p = bivariate_exceedance_probability(&data, 80.0, 80.0);
 /// assert!(p >= 0.0 && p <= 1.0);
 /// ```
-pub fn bivariate_exceedance_probability(
-    data: &[(f64, f64)],
-    level_x: f64,
-    level_y: f64,
-) -> f64 {
-    if data.is_empty() { return 0.0; }
-    let count = data.iter().filter(|&&(x, y)| x > level_x && y > level_y).count();
+pub fn bivariate_exceedance_probability(data: &[(f64, f64)], level_x: f64, level_y: f64) -> f64 {
+    if data.is_empty() {
+        return 0.0;
+    }
+    let count = data
+        .iter()
+        .filter(|&&(x, y)| x > level_x && y > level_y)
+        .count();
     count as f64 / data.len() as f64
 }
 
@@ -671,7 +698,11 @@ where
     simplex.push(start.to_vec());
     for i in 0..d {
         let mut s = start.to_vec();
-        s[i] += if s[i].abs() > 1e-8 { 0.05 * s[i] } else { 0.00025 };
+        s[i] += if s[i].abs() > 1e-8 {
+            0.05 * s[i]
+        } else {
+            0.00025
+        };
         simplex.push(s);
     }
 
@@ -679,12 +710,18 @@ where
 
     for _ in 0..max_iter {
         // Sort by function value (ascending = minimise neg_f)
-        simplex.sort_by(|a, b| neg_f(a).partial_cmp(&neg_f(b)).unwrap_or(std::cmp::Ordering::Equal));
+        simplex.sort_by(|a, b| {
+            neg_f(a)
+                .partial_cmp(&neg_f(b))
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // Convergence check
         let best_val = neg_f(&simplex[0]);
         let worst_val = neg_f(&simplex[d]);
-        if (worst_val - best_val).abs() < tol { break; }
+        if (worst_val - best_val).abs() < tol {
+            break;
+        }
 
         // Centroid of all but worst
         let centroid: Vec<f64> = (0..d)
@@ -692,9 +729,7 @@ where
             .collect();
 
         // Reflection
-        let reflected: Vec<f64> = (0..d)
-            .map(|j| 2.0 * centroid[j] - simplex[d][j])
-            .collect();
+        let reflected: Vec<f64> = (0..d).map(|j| 2.0 * centroid[j] - simplex[d][j]).collect();
         let fr = neg_f(&reflected);
         let f0 = neg_f(&simplex[0]);
         let fd = neg_f(&simplex[d - 1]);
@@ -748,9 +783,9 @@ mod tests {
     fn simple_maxima() -> Vec<f64> {
         // 30 pseudo-random block maxima from a Gumbel(0,1)
         vec![
-            0.23, 1.42, 2.14, 0.87, 1.55, 0.33, 1.78, 2.45, 1.23, 0.99,
-            1.67, 0.45, 2.01, 1.34, 0.78, 1.90, 0.61, 2.33, 1.11, 0.55,
-            1.89, 0.74, 2.67, 1.48, 0.91, 1.22, 2.10, 0.38, 1.75, 0.83,
+            0.23, 1.42, 2.14, 0.87, 1.55, 0.33, 1.78, 2.45, 1.23, 0.99, 1.67, 0.45, 2.01, 1.34,
+            0.78, 1.90, 0.61, 2.33, 1.11, 0.55, 1.89, 0.74, 2.67, 1.48, 0.91, 1.22, 2.10, 0.38,
+            1.75, 0.83,
         ]
     }
 
@@ -802,20 +837,32 @@ mod tests {
     #[test]
     fn test_gev_cdf_gumbel() {
         // xi ≈ 0 → Gumbel; CDF at mu should be exp(-exp(0)) = exp(-1) ≈ 0.3679
-        let gev = GevDistribution { mu: 0.0, sigma: 1.0, xi: 1e-12 };
+        let gev = GevDistribution {
+            mu: 0.0,
+            sigma: 1.0,
+            xi: 1e-12,
+        };
         let cdf_at_mu = gev.cdf(0.0);
-        assert!((cdf_at_mu - (-1.0_f64).exp()).abs() < 1e-8,
-            "cdf={cdf_at_mu}");
+        assert!(
+            (cdf_at_mu - (-1.0_f64).exp()).abs() < 1e-8,
+            "cdf={cdf_at_mu}"
+        );
     }
 
     #[test]
     fn test_gev_return_level_monotone() {
-        let gev = GevDistribution { mu: 1.0, sigma: 0.5, xi: 0.1 };
+        let gev = GevDistribution {
+            mu: 1.0,
+            sigma: 0.5,
+            xi: 0.1,
+        };
         let rl10 = gev.return_level(10.0);
         let rl100 = gev.return_level(100.0);
         let rl1000 = gev.return_level(1000.0);
-        assert!(rl10 < rl100 && rl100 < rl1000,
-            "return levels should be monotone: {rl10} < {rl100} < {rl1000}");
+        assert!(
+            rl10 < rl100 && rl100 < rl1000,
+            "return levels should be monotone: {rl10} < {rl100} < {rl1000}"
+        );
     }
 
     #[test]
@@ -835,16 +882,27 @@ mod tests {
         // CDF should be monotone
         let c1 = gpd.cdf(0.5);
         let c2 = gpd.cdf(1.5);
-        assert!(c1 < c2, "CDF must be increasing: cdf(0.5)={c1} < cdf(1.5)={c2}");
+        assert!(
+            c1 < c2,
+            "CDF must be increasing: cdf(0.5)={c1} < cdf(1.5)={c2}"
+        );
     }
 
     #[test]
     fn test_gpd_mean_excess() {
         // xi < 1 → finite mean excess
-        let gpd = GpdDistribution { mu: 0.0, sigma: 1.0, xi: 0.2 };
+        let gpd = GpdDistribution {
+            mu: 0.0,
+            sigma: 1.0,
+            xi: 0.2,
+        };
         assert!(gpd.mean_excess().is_some());
         // xi >= 1 → infinite mean excess
-        let gpd2 = GpdDistribution { mu: 0.0, sigma: 1.0, xi: 1.0 };
+        let gpd2 = GpdDistribution {
+            mu: 0.0,
+            sigma: 1.0,
+            xi: 1.0,
+        };
         assert!(gpd2.mean_excess().is_none());
     }
 
@@ -855,14 +913,24 @@ mod tests {
         let plot = mean_excess_plot(&data, &ts);
         assert_eq!(plot.len(), 3);
         // Mean excess should be decreasing for uniform data (bounded upper tail)
-        assert!(plot[0].1 > plot[1].1, "mean excess decreases with threshold for uniform");
+        assert!(
+            plot[0].1 > plot[1].1,
+            "mean excess decreases with threshold for uniform"
+        );
     }
 
     #[test]
     fn test_return_level_ci() {
-        let gev = GevDistribution { mu: 1.0, sigma: 0.5, xi: 0.1 };
+        let gev = GevDistribution {
+            mu: 1.0,
+            sigma: 0.5,
+            xi: 0.1,
+        };
         let (lo, est, hi) = return_level_ci(&gev, 100.0, 50, 0.95);
-        assert!(lo <= est && est <= hi, "CI must straddle estimate: ({lo}, {est}, {hi})");
+        assert!(
+            lo <= est && est <= hi,
+            "CI must straddle estimate: ({lo}, {est}, {hi})"
+        );
         assert!(hi - lo > 0.0, "CI must have positive width");
     }
 

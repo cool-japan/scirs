@@ -672,14 +672,22 @@ mod tests {
 
     #[test]
     fn test_iceberg_schema() {
-        let table = IcebergTable::new("file:///tmp/test", make_schema());
+        let loc = format!(
+            "file://{}",
+            std::env::temp_dir().join("scirs2_iceberg_test").display()
+        );
+        let table = IcebergTable::new(loc, make_schema());
         let names = table.column_names();
         assert_eq!(names, vec!["id", "value", "label"]);
     }
 
     #[test]
     fn test_iceberg_snapshot() {
-        let mut table = IcebergTable::new("file:///tmp/test", make_schema());
+        let loc = format!(
+            "file://{}",
+            std::env::temp_dir().join("scirs2_iceberg_test").display()
+        );
+        let mut table = IcebergTable::new(loc, make_schema());
 
         let mut rows = HashMap::new();
         rows.insert("id".to_string(), vec![IcebergValue::Long(42)]);
@@ -700,7 +708,13 @@ mod tests {
 
     #[test]
     fn test_iceberg_metadata_json() {
-        let mut table = IcebergTable::new("file:///tmp/meta-test", make_schema());
+        let meta_loc = format!(
+            "file://{}",
+            std::env::temp_dir()
+                .join("scirs2_iceberg_meta_test")
+                .display()
+        );
+        let mut table = IcebergTable::new(meta_loc, make_schema());
 
         let mut rows = HashMap::new();
         rows.insert(

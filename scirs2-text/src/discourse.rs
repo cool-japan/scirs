@@ -323,8 +323,8 @@ pub fn detect_discourse_relation(
 
     // Also check if sentence1 ends with a conditional fragment
     let window1_lower = sentence1.to_lowercase();
-    if best.is_none() && (window1_lower.trim_end_matches('.').ends_with("if")
-        || window1_lower.contains(" if "))
+    if best.is_none()
+        && (window1_lower.trim_end_matches('.').ends_with("if") || window1_lower.contains(" if "))
     {
         best = Some((DiscourseRelation::Conditional, 2));
     }
@@ -432,11 +432,10 @@ fn word_set(sentence: &str) -> HashSet<String> {
 
 /// Common English function words to exclude from lexical overlap scoring.
 const STOP_WORDS: &[&str] = &[
-    "the", "and", "for", "are", "was", "were", "has", "have", "had", "not",
-    "but", "that", "this", "with", "from", "they", "will", "been", "its",
-    "their", "there", "what", "also", "into", "than", "then", "when",
-    "more", "some", "such", "even", "both", "each", "said", "very",
-    "just", "over", "like", "about", "would", "could", "should", "which",
+    "the", "and", "for", "are", "was", "were", "has", "have", "had", "not", "but", "that", "this",
+    "with", "from", "they", "will", "been", "its", "their", "there", "what", "also", "into",
+    "than", "then", "when", "more", "some", "such", "even", "both", "each", "said", "very", "just",
+    "over", "like", "about", "would", "could", "should", "which",
 ];
 
 fn stop_set() -> HashSet<&'static str> {
@@ -460,7 +459,11 @@ fn lexical_overlap(s1: &str, s2: &str) -> f64 {
     }
     let inter = w1.intersection(&w2).count() as f64;
     let union = w1.union(&w2).count() as f64;
-    if union == 0.0 { 0.0 } else { inter / union }
+    if union == 0.0 {
+        0.0
+    } else {
+        inter / union
+    }
 }
 
 /// Count the number of known discourse cue phrases that appear in `text`.
@@ -570,11 +573,7 @@ impl DiscourseAnalyzer {
     }
 
     /// Detect the relation between two sentences.
-    pub fn detect_relation(
-        &self,
-        s1: &str,
-        s2: &str,
-    ) -> Option<DiscourseRelation> {
+    pub fn detect_relation(&self, s1: &str, s2: &str) -> Option<DiscourseRelation> {
         detect_discourse_relation(s1, s2, &self.cue_lexicon)
     }
 
@@ -771,8 +770,7 @@ mod tests {
 
     #[test]
     fn test_rst_empty_text_returns_none() {
-        let tree =
-            RhetoricalStructure::from_sentence_pairs(&[], Vec::new());
+        let tree = RhetoricalStructure::from_sentence_pairs(&[], Vec::new());
         assert!(tree.is_none());
     }
 
@@ -797,13 +795,9 @@ mod tests {
 
     #[test]
     fn test_dfs_traversal() {
-        let sentences = vec![
-            "S1".to_string(),
-            "S2".to_string(),
-            "S3".to_string(),
-        ];
-        let tree = RhetoricalStructure::from_sentence_pairs(&sentences, Vec::new())
-            .expect("should build");
+        let sentences = vec!["S1".to_string(), "S2".to_string(), "S3".to_string()];
+        let tree =
+            RhetoricalStructure::from_sentence_pairs(&sentences, Vec::new()).expect("should build");
         let nodes = tree.nodes_dfs();
         assert_eq!(nodes.len(), 3);
     }

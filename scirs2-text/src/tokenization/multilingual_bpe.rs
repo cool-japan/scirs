@@ -11,6 +11,14 @@
 use crate::error::{Result, TextError};
 use std::collections::HashMap;
 
+/// Type alias for the four-tuple returned by `init_base`.
+type InitBaseMaps = (
+    HashMap<u8, char>,
+    HashMap<char, u8>,
+    HashMap<String, u32>,
+    Vec<String>,
+);
+
 // ─── LanguageCorpus ───────────────────────────────────────────────────────────
 
 /// A single-language corpus with an optional manual weight override.
@@ -37,7 +45,10 @@ impl LanguageCorpus {
     /// Construct a corpus whose weight is derived from the number of tokens
     /// (whitespace-split words) in all texts.
     pub fn from_texts(language: impl Into<String>, texts: Vec<String>) -> Self {
-        let size: f64 = texts.iter().map(|t| t.split_whitespace().count() as f64).sum();
+        let size: f64 = texts
+            .iter()
+            .map(|t| t.split_whitespace().count() as f64)
+            .sum();
         LanguageCorpus {
             language: language.into(),
             texts,
@@ -99,16 +110,10 @@ pub struct MultilingualBpeTokenizer {
 
 impl MultilingualBpeTokenizer {
     /// Build base vocabulary (256 byte-level characters).
-    fn init_base() -> (
-        HashMap<u8, char>,
-        HashMap<char, u8>,
-        HashMap<String, u32>,
-        Vec<String>,
-    ) {
+    fn init_base() -> InitBaseMaps {
         use super::byte_level_bpe::bytes_to_unicode;
         let byte_encoder = bytes_to_unicode();
-        let byte_decoder: HashMap<char, u8> =
-            byte_encoder.iter().map(|(&b, &c)| (c, b)).collect();
+        let byte_decoder: HashMap<char, u8> = byte_encoder.iter().map(|(&b, &c)| (c, b)).collect();
 
         let mut vocab: HashMap<String, u32> = HashMap::new();
         let mut id_to_token: Vec<String> = Vec::new();
@@ -206,8 +211,7 @@ impl MultilingualBpeTokenizer {
     pub fn train(corpora: &[LanguageCorpus], config: MultilingualBpeConfig) -> Self {
         let (byte_encoder, byte_decoder, mut vocab, mut id_to_token) = Self::init_base();
 
-        let lang_probs = Self::compute_language_probs(corpora, config.alpha)
-            .unwrap_or_default();
+        let lang_probs = Self::compute_language_probs(corpora, config.alpha).unwrap_or_default();
 
         // Build per-language word-frequency maps
         let mut lang_word_freq: Vec<(f64, HashMap<Vec<String>, usize>)> =
@@ -268,9 +272,7 @@ impl MultilingualBpeTokenizer {
             for (_, word_freq) in &mut lang_word_freq {
                 let updated: HashMap<Vec<String>, usize> = word_freq
                     .drain()
-                    .map(|(word, freq)| {
-                        (merge_pair(&word, &left, &right), freq)
-                    })
+                    .map(|(word, freq)| (merge_pair(&word, &left, &right), freq))
                     .collect();
                 *word_freq = updated;
             }
@@ -504,7 +506,7 @@ mod tests {
         let tok = MultilingualBpeTokenizer::train(&corpora, config);
         let coverage = tok.vocabulary_coverage(&["hello", "rust", "world"]);
         assert!(
-            coverage >= 0.0 && coverage <= 1.0,
+            (0.0..=1.0).contains(&coverage),
             "coverage should be in [0,1]"
         );
     }

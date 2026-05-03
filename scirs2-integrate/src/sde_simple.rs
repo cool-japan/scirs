@@ -69,7 +69,12 @@ impl SimpleRng {
             z ^ (z >> 31)
         };
         Self {
-            state: [expand(&mut s), expand(&mut s), expand(&mut s), expand(&mut s)],
+            state: [
+                expand(&mut s),
+                expand(&mut s),
+                expand(&mut s),
+                expand(&mut s),
+            ],
         }
     }
 
@@ -283,9 +288,7 @@ impl SdeSolution {
         (0..n_steps)
             .map(|k| {
                 (0..n_dim)
-                    .map(|d| {
-                        self.paths.iter().map(|p| p[k * n_dim + d]).sum::<f64>() * scale
-                    })
+                    .map(|d| self.paths.iter().map(|p| p[k * n_dim + d]).sum::<f64>() * scale)
                     .collect()
             })
             .collect()
@@ -429,12 +432,7 @@ impl FokkerPlanckSolver {
     ///
     /// # Errors
     /// Returns an error if `initial_pdf.len() != n` or `n < 3`.
-    pub fn new(
-        x_min: f64,
-        x_max: f64,
-        n: usize,
-        initial_pdf: &[f64],
-    ) -> IntegrateResult<Self> {
+    pub fn new(x_min: f64, x_max: f64, n: usize, initial_pdf: &[f64]) -> IntegrateResult<Self> {
         if n < 3 {
             return Err(IntegrateError::ValueError(
                 "FokkerPlanck: need at least 3 grid points".into(),
@@ -639,7 +637,11 @@ mod tests {
         let var_traj = sol.variance_trajectory();
         let final_var = var_traj.last().map(|v| v[0]).unwrap_or(f64::NAN);
         assert!(final_mean.abs() < 0.15, "E[W(1)] ≈ 0, got {}", final_mean);
-        assert!((final_var - 1.0).abs() < 0.15, "Var[W(1)] ≈ 1, got {}", final_var);
+        assert!(
+            (final_var - 1.0).abs() < 0.15,
+            "Var[W(1)] ≈ 1, got {}",
+            final_var
+        );
     }
 
     #[test]
@@ -661,7 +663,13 @@ mod tests {
         let final_mean = mean_traj.last().map(|v| v[0]).unwrap_or(f64::NAN);
         let expected = x0 * (mu * t_final).exp();
         let rel_err = (final_mean - expected).abs() / expected;
-        assert!(rel_err < 0.05, "E[GBM] rel_err={:.3}, got={:.4} exp={:.4}", rel_err, final_mean, expected);
+        assert!(
+            rel_err < 0.05,
+            "E[GBM] rel_err={:.3}, got={:.4} exp={:.4}",
+            rel_err,
+            final_mean,
+            expected
+        );
     }
 
     // ── Milstein ───────────────────────────────────────────────────────────
@@ -707,10 +715,12 @@ mod tests {
     #[test]
     fn test_fp_creation() {
         let n = 50;
-        let pdf: Vec<f64> = (0..n).map(|i| {
-            let x = -5.0 + 10.0 * i as f64 / (n - 1) as f64;
-            (-(x * x) / 2.0).exp()
-        }).collect();
+        let pdf: Vec<f64> = (0..n)
+            .map(|i| {
+                let x = -5.0 + 10.0 * i as f64 / (n - 1) as f64;
+                (-(x * x) / 2.0).exp()
+            })
+            .collect();
         let solver = FokkerPlanckSolver::new(-5.0, 5.0, n, &pdf);
         assert!(solver.is_ok());
     }
@@ -725,11 +735,14 @@ mod tests {
     #[test]
     fn test_fp_normalisation_preserved() {
         let n = 50;
-        let pdf: Vec<f64> = (0..n).map(|i| {
-            let x = -5.0 + 10.0 * i as f64 / (n - 1) as f64;
-            (-(x * x) / 2.0).exp()
-        }).collect();
-        let mut solver = FokkerPlanckSolver::new(-5.0, 5.0, n, &pdf).expect("FokkerPlanckSolver::new should succeed with valid params");
+        let pdf: Vec<f64> = (0..n)
+            .map(|i| {
+                let x = -5.0 + 10.0 * i as f64 / (n - 1) as f64;
+                (-(x * x) / 2.0).exp()
+            })
+            .collect();
+        let mut solver = FokkerPlanckSolver::new(-5.0, 5.0, n, &pdf)
+            .expect("FokkerPlanckSolver::new should succeed with valid params");
         solver.run(20, 1e-3, |x| -x, |_| 1.0); // Ornstein-Uhlenbeck
         let norm = solver.l1_norm();
         assert!((norm - 1.0).abs() < 0.01, "L1 norm = {}", norm);
@@ -743,19 +756,26 @@ mod tests {
         let center_idx = 85usize; // near x=2 in [-5,5]
         let mut pdf = vec![0.0_f64; n];
         pdf[center_idx] = 1.0 / (10.0 / n as f64); // delta-like spike
-        let mut solver = FokkerPlanckSolver::new(-5.0, 5.0, n, &pdf).expect("FokkerPlanckSolver::new should succeed with valid params");
+        let mut solver = FokkerPlanckSolver::new(-5.0, 5.0, n, &pdf)
+            .expect("FokkerPlanckSolver::new should succeed with valid params");
         let m0 = solver.mean();
         solver.run(100, 1e-3, |x| -x, |_| 1.0);
         let m1 = solver.mean();
         // Mean should have moved towards 0 (from positive side)
-        assert!(m1.abs() < m0.abs() + 0.5, "mean should move towards 0: m0={:.3} m1={:.3}", m0, m1);
+        assert!(
+            m1.abs() < m0.abs() + 0.5,
+            "mean should move towards 0: m0={:.3} m1={:.3}",
+            m0,
+            m1
+        );
     }
 
     #[test]
     fn test_fp_variance_finite() {
         let n = 50;
         let pdf = vec![1.0_f64 / 50.0; n]; // uniform
-        let mut solver = FokkerPlanckSolver::new(-1.0, 1.0, n, &pdf).expect("FokkerPlanckSolver::new should succeed with valid params");
+        let mut solver = FokkerPlanckSolver::new(-1.0, 1.0, n, &pdf)
+            .expect("FokkerPlanckSolver::new should succeed with valid params");
         solver.run(10, 1e-4, |_| 0.0, |_| 0.5);
         let v = solver.variance();
         assert!(v >= 0.0 && v.is_finite(), "variance={}", v);

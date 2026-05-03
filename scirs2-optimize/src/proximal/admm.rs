@@ -80,7 +80,15 @@ impl AdmmSolver {
         b: &[f64],
         lambda: f64,
     ) -> Result<Vec<f64>, OptimizeError> {
-        solve_lasso_admm(a, b, lambda, self.rho, self.max_iter, self.tol_abs, self.tol_rel)
+        solve_lasso_admm(
+            a,
+            b,
+            lambda,
+            self.rho,
+            self.max_iter,
+            self.tol_abs,
+            self.tol_rel,
+        )
     }
 
     /// Solve consensus problem: `min Σᵢ fᵢ(x)` via ADMM.
@@ -127,7 +135,9 @@ fn solve_lasso_admm(
 ) -> Result<Vec<f64>, OptimizeError> {
     let m = a.len();
     if m == 0 {
-        return Err(OptimizeError::ValueError("Empty design matrix A".to_string()));
+        return Err(OptimizeError::ValueError(
+            "Empty design matrix A".to_string(),
+        ));
     }
     let n = a[0].len();
     if b.len() != m {
@@ -159,9 +169,7 @@ fn solve_lasso_admm(
         let x_prev = x.clone();
 
         // x-update: x = (AᵀA + ρI)⁻¹ (Aᵀb + ρ(z − u))
-        let rhs: Vec<f64> = (0..n)
-            .map(|i| atb[i] + rho * (z[i] - u[i]))
-            .collect();
+        let rhs: Vec<f64> = (0..n).map(|i| atb[i] + rho * (z[i] - u[i])).collect();
         x = chol_solve(&chol, &rhs, n)?;
 
         // z-update: z = prox_{(λ/ρ)‖·‖₁}(x + u)
@@ -174,12 +182,14 @@ fn solve_lasso_admm(
         }
 
         // Primal and dual residuals
-        let primal_res: f64 = x.iter()
+        let primal_res: f64 = x
+            .iter()
             .zip(z.iter())
             .map(|(&xi, &zi)| (xi - zi) * (xi - zi))
             .sum::<f64>()
             .sqrt();
-        let dual_res: f64 = z.iter()
+        let dual_res: f64 = z
+            .iter()
             .zip(x_prev.iter())
             .map(|(&zi, &xi)| rho * (zi - xi) * (zi - xi))
             .sum::<f64>()
@@ -189,7 +199,8 @@ fn solve_lasso_admm(
         let norm_z: f64 = z.iter().map(|&zi| zi * zi).sum::<f64>().sqrt();
 
         let eps_primal = (n as f64).sqrt() * tol_abs + tol_rel * norm_x.max(norm_z);
-        let eps_dual = (n as f64).sqrt() * tol_abs + tol_rel * rho * u.iter().map(|&ui| ui * ui).sum::<f64>().sqrt();
+        let eps_dual = (n as f64).sqrt() * tol_abs
+            + tol_rel * rho * u.iter().map(|&ui| ui * ui).sum::<f64>().sqrt();
 
         if primal_res < eps_primal && dual_res < eps_dual {
             return Ok(x);
@@ -222,7 +233,9 @@ fn solve_consensus_admm(
 ) -> Result<Vec<f64>, OptimizeError> {
     let num_agents = local_f.len();
     if num_agents == 0 {
-        return Err(OptimizeError::ValueError("No local functions provided".to_string()));
+        return Err(OptimizeError::ValueError(
+            "No local functions provided".to_string(),
+        ));
     }
     let n = x0.len();
 
@@ -251,7 +264,11 @@ fn solve_consensus_admm(
 
         // z-update: z = (1/N) Σᵢ (x_i + u_i) — averaging
         for j in 0..n {
-            z[j] = xs.iter().zip(us.iter()).map(|(x, u)| x[j] + u[j]).sum::<f64>()
+            z[j] = xs
+                .iter()
+                .zip(us.iter())
+                .map(|(x, u)| x[j] + u[j])
+                .sum::<f64>()
                 / num_agents as f64;
         }
 
@@ -263,7 +280,8 @@ fn solve_consensus_admm(
         }
 
         // Convergence: ‖z − z_prev‖
-        let dz: f64 = z.iter()
+        let dz: f64 = z
+            .iter()
             .zip(z_prev.iter())
             .map(|(&a, &b)| (a - b) * (a - b))
             .sum::<f64>()
@@ -437,13 +455,12 @@ mod tests {
             .iter()
             .map(|c| {
                 let c = c.clone();
-                let f: Box<dyn Fn(&[f64]) -> f64> =
-                    Box::new(move |x: &[f64]| {
-                        x.iter()
-                            .zip(c.iter())
-                            .map(|(&xi, &ci)| 0.5 * (xi - ci) * (xi - ci))
-                            .sum()
-                    });
+                let f: Box<dyn Fn(&[f64]) -> f64> = Box::new(move |x: &[f64]| {
+                    x.iter()
+                        .zip(c.iter())
+                        .map(|(&xi, &ci)| 0.5 * (xi - ci) * (xi - ci))
+                        .sum()
+                });
                 f
             })
             .collect();
@@ -453,7 +470,11 @@ mod tests {
 
         // Should converge towards mean = [3, 3]
         for &xi in &result {
-            assert!(xi > 1.0 && xi < 5.0, "consensus solution out of range: {}", xi);
+            assert!(
+                xi > 1.0 && xi < 5.0,
+                "consensus solution out of range: {}",
+                xi
+            );
         }
     }
 

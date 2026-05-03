@@ -390,6 +390,56 @@ impl<F: Float + FromPrimitive + Debug> PchipInterpolator<F> {
 
         Ok(derivatives)
     }
+
+    /// Convert the Hermite representation to power-basis piecewise-cubic coefficients.
+    ///
+    /// Returns `(breakpoints, coeffs)` where `coeffs` has shape `(n_seg, 4)` and
+    /// row `i` holds `[a, b, c, d]` such that
+    ///
+    /// ```text
+    /// p_i(x) = a + b*(x - x_i) + c*(x - x_i)^2 + d*(x - x_i)^3
+    /// ```
+    ///
+    /// Used by `symbolic_derivative::Differentiable`.
+    pub(crate) fn to_power_basis_coeffs(
+        &self,
+    ) -> crate::error::InterpolateResult<(Array1<F>, scirs2_core::ndarray::Array2<F>)> {
+        let n = self.x.len();
+        if n < 2 {
+            return Err(crate::error::InterpolateError::invalid_input(
+                "PCHIP requires at least 2 knots for power-basis conversion".to_string(),
+            ));
+        }
+        let n_seg = n - 1;
+        let mut coeffs = scirs2_core::ndarray::Array2::<F>::zeros((n_seg, 4));
+        let two = F::from_f64(2.0).ok_or_else(|| {
+            crate::error::InterpolateError::ComputationError(
+                "failed to convert 2.0 to float".to_string(),
+            )
+        })?;
+        let three = F::from_f64(3.0).ok_or_else(|| {
+            crate::error::InterpolateError::ComputationError(
+                "failed to convert 3.0 to float".to_string(),
+            )
+        })?;
+        for i in 0..n_seg {
+            let h = self.x[i + 1] - self.x[i];
+            let y0 = self.y[i];
+            let y1 = self.y[i + 1];
+            let m0 = self.derivatives[i];
+            let m1 = self.derivatives[i + 1];
+            // Power-basis: a + b*t + c*t^2 + d*t^3, t = x - x_i
+            let a = y0;
+            let b = m0;
+            let c = (three * (y1 - y0) / h - two * m0 - m1) / h;
+            let d = (two * (y0 - y1) / h + m0 + m1) / (h * h);
+            coeffs[[i, 0]] = a;
+            coeffs[[i, 1]] = b;
+            coeffs[[i, 2]] = c;
+            coeffs[[i, 3]] = d;
+        }
+        Ok((self.x.clone(), coeffs))
+    }
 }
 
 /// PCHIP (Piecewise Cubic Hermite Interpolating Polynomial) interpolation convenience function

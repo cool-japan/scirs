@@ -184,7 +184,7 @@ fn build_swf_tridiag(m: usize, n: usize, c: f64, sign_c2: f64) -> (Vec<f64>, Vec
 /// # Examples
 ///
 /// ```
-/// use scirs2_special::spheroidal::{SpheroidalKind, spheroidal_eigenvalue_mn};
+/// use scirs2_special::{SpheroidalKind, spheroidal_eigenvalue_mn};
 ///
 /// // At c=0 the eigenvalue equals n(n+1)
 /// let ev = spheroidal_eigenvalue_mn(0, 2, 0.0, SpheroidalKind::Prolate).unwrap();
@@ -270,7 +270,7 @@ pub fn spheroidal_eigenvalue_mn(
 /// # Examples
 ///
 /// ```
-/// use scirs2_special::spheroidal::{SpheroidalKind, spheroidal_ps};
+/// use scirs2_special::{SpheroidalKind, spheroidal_ps};
 ///
 /// // At c=0, S_{00}(0, x) should be proportional to P_0(x) = 1.0
 /// let val = spheroidal_ps(0, 0, 0.0, 0.5, SpheroidalKind::Prolate).unwrap();
@@ -383,7 +383,7 @@ pub fn spheroidal_ps(
 /// # Examples
 ///
 /// ```
-/// use scirs2_special::spheroidal::spheroidal_wronskian;
+/// use scirs2_special::spheroidal_wronskian;
 ///
 /// let w = spheroidal_wronskian(0, 2, 1.0, 0.3).unwrap();
 /// assert!(w.is_finite());

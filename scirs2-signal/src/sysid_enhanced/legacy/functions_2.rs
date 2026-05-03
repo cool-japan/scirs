@@ -7,10 +7,15 @@ use crate::lti::{StateSpace, TransferFunction};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::random::prelude::*;
+use scirs2_linalg::eig;
 
-use super::types::{EnhancedSysIdConfig, ModelStructure, NonlinearFunction, ResidualAnalysis, SystemModel};
+use super::functions::{
+    identify_armax, identify_arx, identify_bj, identify_narx, identify_oe, identify_state_space,
+};
 use super::functions_3::{simulate_state_space, transfer_function_to_state_space};
-use super::functions::{identify_armax, identify_arx, identify_bj, identify_narx, identify_oe, identify_state_space};
+use super::types::{
+    EnhancedSysIdConfig, ModelStructure, NonlinearFunction, ResidualAnalysis, SystemModel,
+};
 
 /// Cross-validate model performance
 #[allow(dead_code)]
@@ -26,7 +31,11 @@ pub(super) fn cross_validate_model(
     let mut cv_scores = Vec::with_capacity(k_folds);
     for fold in 0..k_folds {
         let test_start = fold * fold_size;
-        let test_end = if fold == k_folds - 1 { n } else { (fold + 1) * fold_size };
+        let test_end = if fold == k_folds - 1 {
+            n
+        } else {
+            (fold + 1) * fold_size
+        };
         let mut train_input = Vec::new();
         let mut train_output = Vec::new();
         for i in 0..n {
@@ -38,24 +47,14 @@ pub(super) fn cross_validate_model(
         let train_input_arr = Array1::from_vec(train_input);
         let train_output_arr = Array1::from_vec(train_output);
         let cv_model = match config.model_structure {
-            ModelStructure::ARX => {
-                identify_arx(&train_input_arr, &train_output_arr, config)?
-            }
-            ModelStructure::ARMAX => {
-                identify_armax(&train_input_arr, &train_output_arr, config)?
-            }
-            ModelStructure::OE => {
-                identify_oe(&train_input_arr, &train_output_arr, config)?
-            }
-            ModelStructure::BJ => {
-                identify_bj(&train_input_arr, &train_output_arr, config)?
-            }
+            ModelStructure::ARX => identify_arx(&train_input_arr, &train_output_arr, config)?,
+            ModelStructure::ARMAX => identify_armax(&train_input_arr, &train_output_arr, config)?,
+            ModelStructure::OE => identify_oe(&train_input_arr, &train_output_arr, config)?,
+            ModelStructure::BJ => identify_bj(&train_input_arr, &train_output_arr, config)?,
             ModelStructure::StateSpace => {
                 identify_state_space(&train_input_arr, &train_output_arr, config)?
             }
-            ModelStructure::NARX => {
-                identify_narx(&train_input_arr, &train_output_arr, config)?
-            }
+            ModelStructure::NARX => identify_narx(&train_input_arr, &train_output_arr, config)?,
         };
         let test_input = input
             .slice(scirs2_core::ndarray::s![test_start..test_end])
@@ -63,9 +62,12 @@ pub(super) fn cross_validate_model(
         let test_output = output
             .slice(scirs2_core::ndarray::s![test_start..test_end])
             .to_owned();
-        let y_pred = simulate_model(&cv_model, &test_input)?;
+        let y_pred = simulate_model(&cv_model.0, &test_input)?;
         let y_mean = test_output.mean().expect("Operation failed");
-        let ss_tot = test_output.iter().map(|&y| (y - y_mean).powi(2)).sum::<f64>();
+        let ss_tot = test_output
+            .iter()
+            .map(|&y| (y - y_mean).powi(2))
+            .sum::<f64>();
         let ss_res = test_output
             .iter()
             .zip(y_pred.iter())
@@ -85,8 +87,8 @@ pub(super) fn enhanced_residual_analysis(
     let max_lag = 20.min(residuals.len() / 4);
     let mut autocorrelation = Array1::zeros(max_lag);
     let r_mean = residuals.mean().expect("Operation failed");
-    let r_var = residuals.iter().map(|&r| (r - r_mean).powi(2)).sum::<f64>()
-        / residuals.len() as f64;
+    let r_var =
+        residuals.iter().map(|&r| (r - r_mean).powi(2)).sum::<f64>() / residuals.len() as f64;
     for lag in 0..max_lag {
         let mut sum = 0.0;
         let mut count = 0;
@@ -102,8 +104,7 @@ pub(super) fn enhanced_residual_analysis(
     }
     let mut cross_correlation = Array1::zeros(max_lag);
     let i_mean = input.mean().expect("Operation failed");
-    let i_var = input.iter().map(|&i| (i - i_mean).powi(2)).sum::<f64>()
-        / input.len() as f64;
+    let i_var = input.iter().map(|&i| (i - i_mean).powi(2)).sum::<f64>() / input.len() as f64;
     for lag in 0..max_lag {
         let mut sum = 0.0;
         let mut count = 0;
@@ -143,9 +144,9 @@ fn ljung_box_test(autocorr: &Array1<f64>) -> f64 {
 }
 /// Cross-correlation independence test
 #[allow(dead_code)]
-fn cross_correlation_test(_crosscorr: &Array1<f64>) -> f64 {
-    let max_corr = _cross_corr.iter().map(|&x: &f64| x.abs()).fold(0.0, f64::max);
-    let n = cross_corr.len() as f64;
+fn cross_correlation_test(crosscorr: &Array1<f64>) -> f64 {
+    let max_corr = crosscorr.iter().map(|&x: &f64| x.abs()).fold(0.0, f64::max);
+    let n = crosscorr.len() as f64;
     let test_stat = max_corr * n.sqrt();
     2.0 * (1.0 - standard_normal_cdf(test_stat))
 }
@@ -209,31 +210,32 @@ fn erf(x: f64) -> f64 {
 /// Compute stability margin for different model types
 #[allow(dead_code)]
 pub(super) fn compute_stability_margin(model: &SystemModel) -> SignalResult<f64> {
-    match _model {
+    match model {
         SystemModel::ARX { a, .. } => {
             let roots = compute_polynomial_roots(a)?;
             let min_margin = roots
                 .iter()
-                .map(|r| 1.0 - r.norm())
-                .fold(f64::INFINITY, f64::min);
-            Ok(min_margin.max(0.0))
+                .map(|r| r.norm())
+                .fold(f64::NEG_INFINITY, f64::max);
+            // Stability margin is 1 - max_eigenvalue_magnitude
+            Ok((1.0 - min_margin).max(0.0))
         }
         SystemModel::StateSpace(ss) => {
-            use scirs2_core::ndarray_linalg::Eig;
-            let eigenvalues = ss
-                .a
-                .eig()
-                .map_err(|e| {
-                    SignalError::ComputationError(
-                        format!("Eigenvalue computation failed: {}", e),
-                    )
-                })?;
-            let min_margin = eigenvalues
-                .0
+            // Build the state matrix as Array2 from the Vec<f64>
+            let n = ss.n_states;
+            if n == 0 {
+                return Ok(1.0);
+            }
+            let a_mat = Array2::from_shape_vec((n, n), ss.a.clone())
+                .map_err(|e| SignalError::ComputationError(format!("Matrix shape error: {}", e)))?;
+            let (eigenvalues, _) = eig(&a_mat.view(), None).map_err(|e| {
+                SignalError::ComputationError(format!("Eigenvalue computation failed: {}", e))
+            })?;
+            let max_magnitude = eigenvalues
                 .iter()
-                .map(|&lambda| 1.0 - lambda.norm())
-                .fold(f64::INFINITY, f64::min);
-            Ok(min_margin.max(0.0))
+                .map(|&lambda| (lambda.re * lambda.re + lambda.im * lambda.im).sqrt())
+                .fold(f64::NEG_INFINITY, f64::max);
+            Ok((1.0 - max_magnitude).max(0.0))
         }
         _ => Ok(0.5),
     }
@@ -248,20 +250,18 @@ fn compute_polynomial_roots(coeffs: &Array1<f64>) -> SignalResult<Vec<Complex64>
     let mut companion = Array2::zeros((n, n));
     let leading_coeff = coeffs[0];
     for i in 0..n {
-        companion[[0, i]] = -_coeffs[i + 1] / leading_coeff;
+        companion[[0, i]] = -coeffs[i + 1] / leading_coeff;
     }
     for i in 1..n {
         companion[[i, i - 1]] = 1.0;
     }
-    use scirs2_core::ndarray_linalg::Eig;
-    match companion.eig() {
-        Ok((eigenvals, _)) => Ok(eigenvals.to_vec()),
+    match eig(&companion.view(), None) {
+        Ok((eigenvals, _)) => Ok(eigenvals
+            .iter()
+            .map(|&c| Complex64::new(c.re, c.im))
+            .collect()),
         Err(_) => {
-            let sum_abs_coeffs: f64 = coeffs
-                .iter()
-                .skip(1)
-                .map(|&c: &f64| c.abs())
-                .sum();
+            let sum_abs_coeffs: f64 = coeffs.iter().skip(1).map(|&c: &f64| c.abs()).sum();
             let leading_abs = coeffs[0].abs();
             if sum_abs_coeffs < leading_abs {
                 Ok(vec![Complex64::new(0.5, 0.0)])
@@ -277,7 +277,7 @@ pub(super) fn simulate_model(
     model: &SystemModel,
     input: &Array1<f64>,
 ) -> SignalResult<Array1<f64>> {
-    match _model {
+    match model {
         SystemModel::ARX { a, b, delay } => {
             let n = input.len();
             let mut output = Array1::zeros(n);
@@ -339,10 +339,10 @@ pub(super) fn simulate_model(
         }
         SystemModel::BJ { b, c, d, f, delay } => {
             let n = input.len();
-            let mut output = Array1::zeros(n);
-            let mut filtered_input = Array1::zeros(n);
-            let mut noise = Array1::zeros(n);
-            let mut filtered_noise = Array1::zeros(n);
+            let mut output = Array1::<f64>::zeros(n);
+            let mut filtered_input = Array1::<f64>::zeros(n);
+            let mut noise = Array1::<f64>::zeros(n);
+            let mut filtered_noise = Array1::<f64>::zeros(n);
             let mut rng = scirs2_core::random::rng();
             for i in 0..n {
                 noise[i] = rng.random_range(-1.0..1.0) * 0.1;
@@ -380,18 +380,12 @@ pub(super) fn simulate_model(
             let n = input.len();
             let mut nonlinear_input = Array1::zeros(n);
             for i in 0..n {
-                nonlinear_input[i] = apply_nonlinear_function(
-                    input[i],
-                    input_nonlinearity,
-                )?;
+                nonlinear_input[i] = apply_nonlinear_function(input[i], input_nonlinearity)?;
             }
             let linear_output = simulate_model(linear, &nonlinear_input)?;
             let mut output = Array1::zeros(n);
             for i in 0..n {
-                output[i] = apply_nonlinear_function(
-                    linear_output[i],
-                    output_nonlinearity,
-                )?;
+                output[i] = apply_nonlinear_function(linear_output[i], output_nonlinearity)?;
             }
             Ok(output)
         }
@@ -413,16 +407,17 @@ fn apply_nonlinear_function(input: f64, func: &NonlinearFunction) -> SignalResul
             }
             Ok(result)
         }
-        NonlinearFunction::PiecewiseLinear { breakpoints, slopes } => {
+        NonlinearFunction::PiecewiseLinear {
+            breakpoints,
+            slopes,
+        } => {
             if breakpoints.len() != slopes.len() + 1 {
-                return Err(
-                    SignalError::ValueError(
-                        "Breakpoints and slopes length mismatch".to_string(),
-                    ),
-                );
+                return Err(SignalError::ValueError(
+                    "Breakpoints and slopes length mismatch".to_string(),
+                ));
             }
             for i in 0..breakpoints.len() - 1 {
-                if _input >= breakpoints[i] && _input < breakpoints[i + 1] {
+                if input >= breakpoints[i] && input < breakpoints[i + 1] {
                     let x0 = breakpoints[i];
                     let y0 = if i == 0 {
                         0.0
@@ -433,46 +428,39 @@ fn apply_nonlinear_function(input: f64, func: &NonlinearFunction) -> SignalResul
                         }
                         y
                     };
-                    return Ok(y0 + slopes[i] * (_input - x0));
+                    return Ok(y0 + slopes[i] * (input - x0));
                 }
             }
-            if _input < breakpoints[0] {
-                Ok(slopes[0] * (_input - breakpoints[0]))
+            if input < breakpoints[0] {
+                Ok(slopes[0] * (input - breakpoints[0]))
             } else {
                 let last_idx = slopes.len() - 1;
                 let last_break = breakpoints[last_idx];
-                Ok(slopes[last_idx] * (_input - last_break))
+                Ok(slopes[last_idx] * (input - last_break))
             }
         }
         NonlinearFunction::Sigmoid { scale, offset } => {
-            Ok(1.0 / (1.0 + (-scale * (_input - offset)).exp()))
+            Ok(1.0 / (1.0 + (-scale * (input - offset)).exp()))
         }
         NonlinearFunction::DeadZone { threshold } => {
             if input.abs() <= *threshold {
                 Ok(0.0)
-            } else if _input > *threshold {
-                Ok(_input - threshold)
+            } else if input > *threshold {
+                Ok(input - threshold)
             } else {
-                Ok(_input + threshold)
+                Ok(input + threshold)
             }
         }
-        NonlinearFunction::Saturation { lower, upper } => {
-            Ok(_input.max(*lower).min(*upper))
-        }
-        NonlinearFunction::Custom(name) => {
-            match name.as_str() {
-                "tanh" => Ok(_input.tanh()),
-                "relu" => Ok(_input.max(0.0)),
-                "leaky_relu" => Ok(if _input > 0.0 { _input } else { 0.01 * _input }),
-                "identity" => Ok(_input),
-                _ => {
-                    Err(
-                        SignalError::NotImplemented(
-                            format!("Custom function '{}' not implemented", name),
-                        ),
-                    )
-                }
-            }
-        }
+        NonlinearFunction::Saturation { lower, upper } => Ok(input.max(*lower).min(*upper)),
+        NonlinearFunction::Custom(name) => match name.as_str() {
+            "tanh" => Ok(input.tanh()),
+            "relu" => Ok(input.max(0.0)),
+            "leaky_relu" => Ok(if input > 0.0 { input } else { 0.01 * input }),
+            "identity" => Ok(input),
+            _ => Err(SignalError::NotImplemented(format!(
+                "Custom function '{}' not implemented",
+                name
+            ))),
+        },
     }
 }

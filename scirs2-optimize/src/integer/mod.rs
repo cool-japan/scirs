@@ -28,8 +28,12 @@ use crate::error::{OptimizeError, OptimizeResult};
 use scirs2_core::ndarray::{Array1, Array2};
 
 pub mod branch_and_bound;
+pub mod cdcl_branching;
+pub mod column_generation;
 pub mod cutting_plane;
 pub mod knapsack;
+pub mod lift_project;
+pub mod lift_project_mip;
 pub mod lp_relaxation;
 pub mod milp_branch_and_bound;
 

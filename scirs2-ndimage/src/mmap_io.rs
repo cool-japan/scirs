@@ -346,13 +346,34 @@ where
     T: Float + FromPrimitive + NumCast + Send + Sync + 'static,
     D: Dimension + 'static,
 {
-    /// Get a view of the image data
+    /// Get a view of the image data (regular arrays only).
+    ///
+    /// Memory-mapped arrays cannot return a borrowed view because the underlying
+    /// data lives in a file.  Use [`to_array`](Self::to_array) to materialise a
+    /// copy first, then call `.view()` on the result.
     pub fn view(&self) -> NdimageResult<ArrayView<T, D>> {
         match self {
             ImageData::Regular(array) => Ok(array.view()),
             ImageData::MemoryMapped(_mmap) => Err(NdimageError::NotImplementedError(
-                "View access for memory-mapped arrays not yet implemented".to_string(),
+                "Cannot return a borrowed view over a memory-mapped array: \
+                 call to_array() to materialise a copy first, then use .view() on the Array."
+                    .to_string(),
             )),
+        }
+    }
+
+    /// Materialise the image into an owned `Array<T, D>`.
+    ///
+    /// For regular arrays this is a cheap clone.  For memory-mapped arrays the
+    /// data is read from the file via `MemoryMappedArray::as_array()`.
+    pub fn to_array(&self) -> NdimageResult<Array<T, D>> {
+        match self {
+            ImageData::Regular(array) => Ok(array.clone()),
+            ImageData::MemoryMapped(mmap) => mmap.as_array::<D>().map_err(|e| {
+                NdimageError::ProcessingError(format!(
+                    "Failed to materialise memory-mapped array: {e}"
+                ))
+            }),
         }
     }
 
@@ -365,11 +386,7 @@ where
     pub fn shape(&self) -> Vec<usize> {
         match self {
             ImageData::Regular(array) => array.shape().to_vec(),
-            ImageData::MemoryMapped(_mmap) => {
-                // TODO: Implement proper shape extraction from MemoryMappedArray
-                // For now, return empty shape as placeholder
-                vec![]
-            }
+            ImageData::MemoryMapped(mmap) => mmap.shape.clone(),
         }
     }
 }

@@ -4,6 +4,7 @@
 //! or partitioning images into meaningful parts.
 
 mod active_contours;
+pub mod atlas;
 mod chan_vese;
 pub mod contours;
 mod graph_cuts;

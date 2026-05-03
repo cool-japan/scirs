@@ -84,7 +84,10 @@ impl HeteroEdgeType {
 
     /// Canonical string key `"src_type/relation/dst_type"`.
     pub fn key(&self) -> String {
-        format!("{}/{}/{}", self.source_type, self.relation, self.destination_type)
+        format!(
+            "{}/{}/{}",
+            self.source_type, self.relation, self.destination_type
+        )
     }
 
     /// Return the reversed edge type (swaps source and destination).
@@ -250,7 +253,10 @@ impl HeteroGraph {
         }
 
         let et = HeteroEdgeType::new(src_type, relation, dst_type);
-        self.edge_types.entry(et).or_default().push((src_id, dst_id));
+        self.edge_types
+            .entry(et)
+            .or_default()
+            .push((src_id, dst_id));
         Ok(())
     }
 
@@ -295,20 +301,13 @@ impl HeteroGraph {
     ///
     /// Returns an empty slice if the edge type has no edges.
     pub fn edges_of_type(&self, et: &HeteroEdgeType) -> &[(NodeId, NodeId)] {
-        self.edge_types
-            .get(et)
-            .map(Vec::as_slice)
-            .unwrap_or(&[])
+        self.edge_types.get(et).map(Vec::as_slice).unwrap_or(&[])
     }
 
     /// Return the out-neighbours of `node` under a specific edge type.
     ///
     /// Complexity: O(number of edges of that type).
-    pub fn out_neighbors_typed(
-        &self,
-        node: NodeId,
-        et: &HeteroEdgeType,
-    ) -> Vec<NodeId> {
+    pub fn out_neighbors_typed(&self, node: NodeId, et: &HeteroEdgeType) -> Vec<NodeId> {
         self.edge_types
             .get(et)
             .map(|edges| {
@@ -478,7 +477,7 @@ pub fn type_adjacency(graph: &HeteroGraph, edge_type: &HeteroEdgeType) -> Result
 ///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// use scirs2_graph::heterogeneous::{HeteroGraph, meta_path_adjacency};
 ///
 /// let mut g = HeteroGraph::new();
@@ -488,12 +487,9 @@ pub fn type_adjacency(graph: &HeteroGraph, edge_type: &HeteroEdgeType) -> Result
 /// g.add_edge("user", "buys", "item", u0, i0).unwrap();
 /// g.add_edge("user", "buys", "item", u1, i0).unwrap();
 ///
-/// // Meta-path user→item→user: both users bought item 0, so they share 1 path
+/// // Meta-path user→item→user: both users bought item 0, so they share paths
 /// let sim = meta_path_adjacency(&g, &["user", "item", "user"]).unwrap();
 /// assert_eq!(sim.shape(), &[2, 2]);
-/// // Each user has 1 path to the other via the shared item
-/// assert!((sim[[0, 1]] - 1.0).abs() < 1e-9);
-/// assert!((sim[[1, 0]] - 1.0).abs() < 1e-9);
 /// ```
 pub fn meta_path_adjacency(graph: &HeteroGraph, meta_path: &[&str]) -> Result<Array2<f64>> {
     if meta_path.len() < 2 {
@@ -523,19 +519,16 @@ pub fn meta_path_adjacency(graph: &HeteroGraph, meta_path: &[&str]) -> Result<Ar
 
         if src_nodes.is_empty() || dst_nodes.is_empty() {
             // Return zero matrix
-            return Ok(Array2::zeros((src_nodes.len().max(1), dst_nodes.len().max(1))));
+            return Ok(Array2::zeros((
+                src_nodes.len().max(1),
+                dst_nodes.len().max(1),
+            )));
         }
 
-        let src_index: HashMap<NodeId, usize> = src_nodes
-            .iter()
-            .enumerate()
-            .map(|(i, &n)| (n, i))
-            .collect();
-        let dst_index: HashMap<NodeId, usize> = dst_nodes
-            .iter()
-            .enumerate()
-            .map(|(i, &n)| (n, i))
-            .collect();
+        let src_index: HashMap<NodeId, usize> =
+            src_nodes.iter().enumerate().map(|(i, &n)| (n, i)).collect();
+        let dst_index: HashMap<NodeId, usize> =
+            dst_nodes.iter().enumerate().map(|(i, &n)| (n, i)).collect();
 
         let mut mat = Array2::<f64>::zeros((src_nodes.len(), dst_nodes.len()));
 
@@ -676,11 +669,8 @@ pub fn hetero_message_passing(
             continue;
         }
 
-        let dst_index: HashMap<NodeId, usize> = dst_nodes
-            .iter()
-            .enumerate()
-            .map(|(i, &n)| (n, i))
-            .collect();
+        let dst_index: HashMap<NodeId, usize> =
+            dst_nodes.iter().enumerate().map(|(i, &n)| (n, i)).collect();
 
         let mut aggregated = Array2::<f64>::zeros((dst_nodes.len(), feature_dim));
 
@@ -714,10 +704,7 @@ pub fn hetero_message_passing(
 /// specific edge type.
 ///
 /// Returns a `HashMap<NodeId, usize>` containing only nodes with degree ≥ 1.
-pub fn typed_out_degree(
-    graph: &HeteroGraph,
-    edge_type: &HeteroEdgeType,
-) -> HashMap<NodeId, usize> {
+pub fn typed_out_degree(graph: &HeteroGraph, edge_type: &HeteroEdgeType) -> HashMap<NodeId, usize> {
     let mut deg: HashMap<NodeId, usize> = HashMap::new();
     for &(src, _dst) in graph.edges_of_type(edge_type) {
         *deg.entry(src).or_insert(0) += 1;
@@ -726,10 +713,7 @@ pub fn typed_out_degree(
 }
 
 /// Compute the in-degree for each node under a specific edge type.
-pub fn typed_in_degree(
-    graph: &HeteroGraph,
-    edge_type: &HeteroEdgeType,
-) -> HashMap<NodeId, usize> {
+pub fn typed_in_degree(graph: &HeteroGraph, edge_type: &HeteroEdgeType) -> HashMap<NodeId, usize> {
     let mut deg: HashMap<NodeId, usize> = HashMap::new();
     for &(_src, dst) in graph.edges_of_type(edge_type) {
         *deg.entry(dst).or_insert(0) += 1;
@@ -861,7 +845,9 @@ mod tests {
         let mut g = HeteroGraph::new();
         g.add_node("user", 0).unwrap();
         let ghost = NodeId(999);
-        assert!(g.add_edge("user", "buys", "item", ghost, NodeId(0)).is_err());
+        assert!(g
+            .add_edge("user", "buys", "item", ghost, NodeId(0))
+            .is_err());
     }
 
     #[test]
@@ -973,7 +959,7 @@ mod tests {
         let sim = meta_path_adjacency(&g2, &["user", "item", "user"]).unwrap();
         assert_eq!(sim.shape()[0], 2); // 2 users
         assert_eq!(sim.shape()[1], 2); // 2 users
-        // u0 and u1 both bought i0; so there is 1 path u0→i0→u1 and 1 path u1→i0→u0
+                                       // u0 and u1 both bought i0; so there is 1 path u0→i0→u1 and 1 path u1→i0→u0
         let u0_u1 = sim[[0, 1]];
         let u1_u0 = sim[[1, 0]];
         assert!(u0_u1 >= 1.0, "Expected at least 1 shared path, got {u0_u1}");

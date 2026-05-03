@@ -42,6 +42,36 @@ pub struct PiecewisePolynomial<F: InterpolationFloat> {
 }
 
 impl<F: InterpolationFloat> PiecewisePolynomial<F> {
+    /// Construct a `PiecewisePolynomial` directly from breakpoints and coefficients.
+    ///
+    /// # Arguments
+    ///
+    /// * `breakpoints` – sorted vector of `n_segments + 1` breakpoints.
+    /// * `coeffs`      – coefficient matrix of shape `(n_segments, degree+1)`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if dimensions are inconsistent.
+    pub fn new(breakpoints: Array1<F>, coeffs: Array2<F>) -> InterpolateResult<Self> {
+        if breakpoints.len() < 2 {
+            return Err(InterpolateError::invalid_input(
+                "PiecewisePolynomial requires at least 2 breakpoints".to_string(),
+            ));
+        }
+        let n_seg = breakpoints.len() - 1;
+        if coeffs.nrows() != n_seg {
+            return Err(InterpolateError::ShapeMismatch {
+                expected: format!("({n_seg}, k)"),
+                actual: format!("({}, {})", coeffs.nrows(), coeffs.ncols()),
+                object: "PiecewisePolynomial coefficients".to_string(),
+            });
+        }
+        Ok(Self {
+            breakpoints,
+            coeffs,
+        })
+    }
+
     /// Evaluate the piecewise polynomial at a single point.
     pub fn evaluate(&self, x: F) -> InterpolateResult<F> {
         let seg = self.find_segment(x)?;

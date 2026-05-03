@@ -45,7 +45,7 @@ required-features = ["simd"]
 approx = { workspace = true }
 criterion = { workspace = true }
 proptest = { workspace = true }
-scirs2-sparse = { path = "../scirs2-sparse", default-features = false }
+scirs2-sparse = { workspace = true }
 
 [features]
 # Default features - OxiBLAS (pure Rust) is used for all platforms

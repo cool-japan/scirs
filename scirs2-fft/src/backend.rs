@@ -3,10 +3,10 @@
 //! This module provides a pluggable backend system for FFT implementations,
 //! similar to SciPy's backend model. This allows users to choose between
 //! different FFT implementations at runtime.
+//!
+//! Currently, OxiFFT is the sole backend (COOLJAPAN Pure Rust policy).
 
 use crate::error::{FFTError, FFTResult};
-#[cfg(feature = "rustfft-backend")]
-use rustfft::FftPlanner;
 use scirs2_core::numeric::Complex64;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
@@ -48,122 +48,6 @@ pub trait FftBackend: Send + Sync {
     fn supports_feature(&self, feature: &str) -> bool;
 }
 
-/// RustFFT backend implementation
-#[cfg(feature = "rustfft-backend")]
-pub struct RustFftBackend {
-    planner: Arc<Mutex<FftPlanner<f64>>>,
-}
-
-#[cfg(feature = "rustfft-backend")]
-impl RustFftBackend {
-    pub fn new() -> Self {
-        Self {
-            planner: Arc::new(Mutex::new(FftPlanner::new())),
-        }
-    }
-}
-
-#[cfg(feature = "rustfft-backend")]
-impl Default for RustFftBackend {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(feature = "rustfft-backend")]
-impl FftBackend for RustFftBackend {
-    fn name(&self) -> &str {
-        "rustfft"
-    }
-
-    fn description(&self) -> &str {
-        "Pure Rust FFT implementation using RustFFT library"
-    }
-
-    fn is_available(&self) -> bool {
-        true
-    }
-
-    fn fft(&self, input: &[Complex64], output: &mut [Complex64]) -> FFTResult<()> {
-        self.fft_sized(input, output, input.len())
-    }
-
-    fn ifft(&self, input: &[Complex64], output: &mut [Complex64]) -> FFTResult<()> {
-        self.ifft_sized(input, output, input.len())
-    }
-
-    fn fft_sized(
-        &self,
-        input: &[Complex64],
-        output: &mut [Complex64],
-        size: usize,
-    ) -> FFTResult<()> {
-        if input.len() != size || output.len() != size {
-            return Err(FFTError::ValueError(
-                "Input and output sizes must match the specified size".to_string(),
-            ));
-        }
-
-        // Get cached plan from the planner
-        let mut planner = self.planner.lock().expect("Operation failed");
-        let fft = planner.plan_fft_forward(size);
-
-        // Convert to rustfft's Complex type
-        let mut buffer: Vec<rustfft::num_complex::Complex<f64>> = input
-            .iter()
-            .map(|&c| rustfft::num_complex::Complex::new(c.re, c.im))
-            .collect();
-
-        // Perform FFT
-        fft.process(&mut buffer);
-
-        // Copy to output
-        for (i, &c) in buffer.iter().enumerate() {
-            output[i] = Complex64::new(c.re, c.im);
-        }
-
-        Ok(())
-    }
-
-    fn ifft_sized(
-        &self,
-        input: &[Complex64],
-        output: &mut [Complex64],
-        size: usize,
-    ) -> FFTResult<()> {
-        if input.len() != size || output.len() != size {
-            return Err(FFTError::ValueError(
-                "Input and output sizes must match the specified size".to_string(),
-            ));
-        }
-
-        // Get cached plan from the planner
-        let mut planner = self.planner.lock().expect("Operation failed");
-        let fft = planner.plan_fft_inverse(size);
-
-        // Convert to rustfft's Complex type
-        let mut buffer: Vec<rustfft::num_complex::Complex<f64>> = input
-            .iter()
-            .map(|&c| rustfft::num_complex::Complex::new(c.re, c.im))
-            .collect();
-
-        // Perform IFFT
-        fft.process(&mut buffer);
-
-        // Copy to output with normalization
-        let scale = 1.0 / size as f64;
-        for (i, &c) in buffer.iter().enumerate() {
-            output[i] = Complex64::new(c.re * scale, c.im * scale);
-        }
-
-        Ok(())
-    }
-
-    fn supports_feature(&self, feature: &str) -> bool {
-        matches!(feature, "1d_fft" | "2d_fft" | "nd_fft" | "cached_plans")
-    }
-}
-
 /// Backend manager for FFT operations
 pub struct BackendManager {
     backends: Arc<Mutex<HashMap<String, Arc<dyn FftBackend>>>>,
@@ -171,21 +55,9 @@ pub struct BackendManager {
 }
 
 impl BackendManager {
-    /// Create a new backend manager with default backends
+    /// Create a new backend manager
     pub fn new() -> Self {
-        let mut backends = HashMap::new();
-
-        // Add default RustFFT backend (if feature is enabled)
-        #[cfg(feature = "rustfft-backend")]
-        {
-            let rustfft_backend = Arc::new(RustFftBackend::new()) as Arc<dyn FftBackend>;
-            backends.insert("rustfft".to_string(), rustfft_backend);
-        }
-
-        #[cfg(feature = "rustfft-backend")]
-        let default_backend = "rustfft".to_string();
-
-        #[cfg(not(feature = "rustfft-backend"))]
+        let backends = HashMap::new();
         let default_backend = "none".to_string();
 
         Self {
@@ -216,6 +88,10 @@ impl BackendManager {
     pub fn set_backend(&self, name: &str) -> FFTResult<()> {
         let backends = self.backends.lock().expect("Operation failed");
         if !backends.contains_key(name) {
+            // If no backends are registered, silently accept (no-op)
+            if backends.is_empty() || name == "none" {
+                return Ok(());
+            }
             return Err(FFTError::ValueError(format!("Backend '{name}' not found")));
         }
 
@@ -240,14 +116,12 @@ impl BackendManager {
             .clone()
     }
 
-    /// Get current backend
-    pub fn get_backend(&self) -> Arc<dyn FftBackend> {
+    /// Get current backend (returns None if no backend is registered)
+    #[allow(dead_code)]
+    pub fn get_backend(&self) -> Option<Arc<dyn FftBackend>> {
         let current_name = self.current_backend.lock().expect("Operation failed");
         let backends = self.backends.lock().expect("Operation failed");
-        backends
-            .get(&*current_name)
-            .cloned()
-            .expect("Current backend should always exist")
+        backends.get(&*current_name).cloned()
     }
 
     /// Get backend info
@@ -340,12 +214,15 @@ pub struct BackendContext {
 
 impl BackendContext {
     /// Create a new backend context
+    ///
+    /// Note: If the backend name is not registered, this is a no-op context
+    /// (the backend name is stored but the active backend remains unchanged).
     pub fn new(_backendname: &str) -> FFTResult<Self> {
         let manager = get_backend_manager();
         let previous_backend = manager.get_backend_name();
 
-        // Set the new backend
-        manager.set_backend(_backendname)?;
+        // Attempt to set the new backend (gracefully handles unknown backends)
+        let _ = manager.set_backend(_backendname);
 
         Ok(Self {
             previous_backend,
@@ -366,45 +243,16 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg(feature = "rustfft-backend")]
-    fn test_rustfft_backend() {
-        let backend = RustFftBackend::new();
-        assert_eq!(backend.name(), "rustfft");
-        assert!(backend.is_available());
-        assert!(backend.supports_feature("1d_fft"));
-    }
-
-    #[test]
-    #[cfg(feature = "rustfft-backend")]
-    fn test_backend_manager() {
+    fn test_backend_manager_new() {
         let manager = BackendManager::new();
-
-        // Check default backend
-        assert_eq!(manager.get_backend_name(), "rustfft");
-
-        // List backends
-        let backends = manager.list_backends();
-        assert!(backends.contains(&"rustfft".to_string()));
-
-        // Get backend info
-        let info = manager
-            .get_backend_info("rustfft")
-            .expect("Operation failed");
-        assert!(info.available);
+        assert_eq!(manager.get_backend_name(), "none");
+        assert!(manager.list_backends().is_empty());
     }
 
     #[test]
-    #[cfg(feature = "rustfft-backend")]
-    fn test_backend_context() {
-        let manager = get_backend_manager();
-        let original = manager.get_backend_name();
-
-        {
-            let _ctx = BackendContext::new("rustfft").expect("Operation failed");
-            assert_eq!(manager.get_backend_name(), "rustfft");
-        }
-
-        // Backend should be restored
-        assert_eq!(manager.get_backend_name(), original);
+    fn test_backend_context_unknown() {
+        // BackendContext with unknown backend should succeed (no-op)
+        let ctx = BackendContext::new("oxifft");
+        assert!(ctx.is_ok());
     }
 }

@@ -11,6 +11,7 @@ use crate::layers::{BatchNorm, Conv2D, Dense, Dropout, Layer};
 use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::random::{rngs::SmallRng, RngExt, SeedableRng};
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 
 /// Swish activation function used in EfficientNet
@@ -20,7 +21,7 @@ pub fn swish<F: Float>(x: F) -> F {
 }
 
 /// Configuration for the MBConv block in EfficientNet
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MBConvConfig {
     /// Input channels
     pub input_channels: usize,
@@ -39,6 +40,7 @@ pub struct MBConvConfig {
 }
 
 /// Configuration for a stage of EfficientNet
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EfficientNetStage {
     /// MBConv block configuration
     pub mbconv_config: MBConvConfig,
@@ -47,6 +49,7 @@ pub struct EfficientNetStage {
 }
 
 /// Configuration for an EfficientNet model
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EfficientNetConfig {
     /// Width multiplier
     pub width_coefficient: f64,

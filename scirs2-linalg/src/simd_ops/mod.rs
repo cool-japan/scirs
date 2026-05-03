@@ -4,6 +4,7 @@
 //! operations for improved performance on modern CPUs. All SIMD operations
 //! are delegated to scirs2-core::simd_ops for unified optimization management.
 
+pub mod advanced_hardware_simd;
 pub mod elementwise;
 pub mod gemm;
 pub mod hardware_specific;

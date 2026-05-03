@@ -179,6 +179,101 @@ impl<F: InterpolationFloat> ScatteredRbf<F> {
         })
     }
 
+    /// Create a new RBF interpolator with diagonal Tikhonov regularisation
+    /// (nugget).
+    ///
+    /// Adds `nugget * I` to the `n × n` upper-left RBF block of the
+    /// interpolation matrix.  A positive nugget makes the RBF a *smoothing*
+    /// interpolant rather than an exact interpolant — i.e. the model need not
+    /// pass exactly through each training point.
+    ///
+    /// Passing `nugget = 0.0` is equivalent to calling [`Self::new`].
+    ///
+    /// # Arguments
+    ///
+    /// * `points`  - Data sites, shape `(n, d)`.
+    /// * `values`  - Function values, length `n`.
+    /// * `kernel`  - Kernel type.
+    /// * `epsilon` - Shape parameter.  Pass `None` for automatic selection.
+    /// * `nugget`  - Diagonal regularisation strength ≥ 0.
+    pub fn new_with_nugget(
+        points: &Array2<F>,
+        values: &Array1<F>,
+        kernel: RbfKernel,
+        epsilon: Option<F>,
+        nugget: F,
+    ) -> InterpolateResult<Self> {
+        let n = points.nrows();
+        let d = points.ncols();
+
+        if values.len() != n {
+            return Err(InterpolateError::invalid_input(format!(
+                "points has {} rows but values has {} elements",
+                n,
+                values.len()
+            )));
+        }
+        if n == 0 {
+            return Err(InterpolateError::empty_data("RBF interpolation"));
+        }
+
+        // Auto-select epsilon if not given
+        let eps = match epsilon {
+            Some(e) => e,
+            None => auto_epsilon(points)?,
+        };
+
+        // Decide polynomial augmentation
+        let poly_terms = match kernel {
+            RbfKernel::ThinPlateSpline | RbfKernel::Multiquadric => 1 + d,
+            _ => 0,
+        };
+
+        let total = n + poly_terms;
+
+        // Build the interpolation matrix
+        let mut mat = Array2::<F>::zeros((total, total));
+
+        // Upper-left block: phi(||x_i - x_j||) + nugget * delta_{ij}
+        for i in 0..n {
+            for j in 0..n {
+                let r = euclidean_dist(points, i, points, j)?;
+                mat[[i, j]] = eval_kernel(kernel, r, eps)?;
+            }
+            // Add nugget to the diagonal
+            mat[[i, i]] = mat[[i, i]] + nugget;
+        }
+
+        // Polynomial augmentation blocks (if any)
+        if poly_terms > 0 {
+            for i in 0..n {
+                mat[[i, n]] = F::one();
+                mat[[n, i]] = F::one();
+                for k in 0..d {
+                    mat[[i, n + 1 + k]] = points[[i, k]];
+                    mat[[n + 1 + k, i]] = points[[i, k]];
+                }
+            }
+        }
+
+        // Build RHS
+        let mut rhs = Array1::<F>::zeros(total);
+        for i in 0..n {
+            rhs[i] = values[i];
+        }
+
+        let weights = solve_linear_system(&mat, &rhs)?;
+
+        Ok(Self {
+            centers: points.clone(),
+            weights,
+            kernel,
+            epsilon: eps,
+            poly_terms,
+            dim: d,
+        })
+    }
+
     /// Evaluate the interpolant at a single query point.
     ///
     /// # Arguments

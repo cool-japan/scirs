@@ -2,7 +2,7 @@ use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
 use scirs2_linalg::quantization::{
     calibration::{calibrate_matrix, CalibrationConfig, CalibrationMethod},
-    quantize_matrix, QuantizationMethod,
+    quantize_matrix, quantize_vector, QuantizationMethod,
 };
 
 #[cfg(feature = "simd")]
@@ -96,8 +96,20 @@ fn bench_quantized_ops(c: &mut Criterion) {
                 quantize_matrix(&matrix_a.view(), bits, QuantizationMethod::Symmetric);
             let (qb, qb_params) =
                 quantize_matrix(&matrix_b.view(), bits, QuantizationMethod::Symmetric);
-            // We don't need qv since we're directly using vector.view() in the benchmark
-            // TODO: Add quantize_vector benchmark when the function is implemented
+            // Benchmark quantize_vector
+            group.bench_with_input(
+                BenchmarkId::new("QuantizeVector", &id_string),
+                &size,
+                |b_, _data| {
+                    b_.iter(|| {
+                        black_box(quantize_vector(
+                            &black_box(vector.view()),
+                            bits,
+                            QuantizationMethod::Symmetric,
+                        ))
+                    })
+                },
+            );
 
             // Benchmark regular vs. quantized matrix multiplication
             group.bench_with_input(
@@ -231,10 +243,57 @@ fn bench_calibration(c: &mut Criterion) {
     group.finish();
 }
 
+// Benchmark quantize_vector throughput across sizes and bit widths
+#[allow(dead_code)]
+fn bench_quantize_vector(c: &mut Criterion) {
+    let mut group = c.benchmark_group("QuantizeVector");
+    let sizes = [128, 512, 2048];
+    let bit_widths: [u8; 2] = [4, 8];
+
+    for &size in &sizes {
+        let vector = create_randomarray1_f32(size);
+
+        for &bits in &bit_widths {
+            let id_string = format!("{}_{}bit", size, bits);
+
+            group.bench_with_input(
+                BenchmarkId::new("Symmetric", &id_string),
+                &size,
+                |b_, _data| {
+                    b_.iter(|| {
+                        black_box(quantize_vector(
+                            &black_box(vector.view()),
+                            bits,
+                            QuantizationMethod::Symmetric,
+                        ))
+                    })
+                },
+            );
+
+            group.bench_with_input(
+                BenchmarkId::new("Affine", &id_string),
+                &size,
+                |b_, _data| {
+                    b_.iter(|| {
+                        black_box(quantize_vector(
+                            &black_box(vector.view()),
+                            bits,
+                            QuantizationMethod::Affine,
+                        ))
+                    })
+                },
+            );
+        }
+    }
+
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_quantization,
     bench_quantized_ops,
-    bench_calibration
+    bench_calibration,
+    bench_quantize_vector
 );
 criterion_main!(benches);

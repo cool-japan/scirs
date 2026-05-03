@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-neural = "0.4.2"
+//! scirs2-neural = "0.4.3"
 //! ```
 //!
 //! ### Building a Simple Neural Network
@@ -261,7 +261,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.4.2**
+//! Current version: **0.4.3**
 
 pub mod activations;
 pub mod activations_minimal;
@@ -270,6 +270,7 @@ pub mod callbacks;
 pub mod data;
 pub mod distillation;
 pub mod error;
+pub mod ops;
 // pub mod gpu; // Disabled in minimal version - has syntax errors
 pub mod layers;
 pub mod linalg; // Re-enabled - fixing errors
@@ -298,10 +299,39 @@ pub mod nas;
 pub mod speculative;
 // Model tracing and static graph
 pub mod tracing;
+// NLP utilities (tokenizers, beam search, language model evaluation)
+pub mod nlp;
+// Capsule Networks (CapsNet with dynamic routing)
+pub mod capsule;
+// Generative models (VAE, GAN, normalizing flows)
+pub mod generative;
+// Graph Neural Networks (GCN, GAT, GraphSAGE)
+pub mod gnn;
+// Reinforcement learning utilities (Q-learning, policy gradient)
+pub mod rl;
+// Spiking Neural Networks
+pub mod snn;
+
+// The following modules have incomplete/stub implementations and are pending repair:
+// pub mod bindings;     // FFI bindings - pending full reconstruction; all 5 sub-modules (config, generator, header_generation, source_generation, examples_docs) have pervasive syntax damage (missing braces, wrong params, unterminated raw strings) dating to the initial commit
+pub mod config; // Model configuration - fixed
+pub mod continual; // Continual learning - fixed
+pub mod evaluation; // Model evaluation
+pub mod federated; // Federated learning - fixed
+pub mod hardware; // Hardware acceleration (fixed)
+pub mod interpretation; // Model interpretation (fixed)
+pub mod mobile; // Mobile optimization (fixed)
+pub mod on_device; // On-device model compression (model_compression only; other sub-modules need rewrite)
+pub mod performance; // Performance profiling (fixed)
+pub mod reinforcement; // RL algorithms
+pub mod wasm; // WASM bindings (fixed)
 
 pub use activations_minimal::{Activation, ReLU, Sigmoid, Softmax, Tanh, GELU};
 pub use error::{Error, NeuralError, Result};
-pub use layers::{BatchNorm, Conv2D, Dense, Dropout, Layer, LayerNorm, Sequential, LSTM};
+pub use layers::{
+    BatchNorm, Conv2D, Dense, Dropout, Layer, LayerNorm, LayerNorm2D, PatchEmbedding, Sequential,
+    LSTM,
+};
 pub use losses::{
     ContrastiveLoss, CrossEntropyLoss, FocalLoss, Loss, MeanSquaredError, TripletLoss,
 };

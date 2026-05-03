@@ -22,10 +22,14 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 mod advanced_optimization;
+pub mod backpressure;
 mod builders;
 mod executors;
+pub mod sinks;
+pub mod sources;
 mod stages;
 mod transforms;
+pub mod typed_transforms;
 
 pub use advanced_optimization::*;
 pub use builders::*;

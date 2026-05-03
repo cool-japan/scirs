@@ -11,6 +11,18 @@
 //!
 //! # References
 //! - Rahimi, A. & Recht, B. (2007). Random features for large-scale kernel machines. NIPS.
+//! - Yu, F. X. et al. (2016). Orthogonal Random Features. NeurIPS.
+
+// Sub-modules — new ndarray-based API
+pub mod feature_map;
+pub(crate) mod mod_internal;
+pub mod orthogonal;
+pub mod regressor;
+
+// Re-export key public types at the module level for convenience.
+pub use feature_map::{FourierFeatureMap, RffKernel};
+pub use orthogonal::OrthogonalFourierFeatureMap;
+pub use regressor::RandomFeaturesRegressor;
 
 use crate::error::InterpolateError;
 

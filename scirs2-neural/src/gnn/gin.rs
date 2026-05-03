@@ -22,7 +22,9 @@ fn xavier_init(fan_in: usize, fan_out: usize, seed: u64) -> Vec<Vec<f32>> {
     let limit = (6.0_f64 / (fan_in + fan_out) as f64).sqrt() as f32;
     let mut state: u64 = 55443322110099887_u64.wrapping_add(seed);
     let mut rng = || -> f32 {
-        state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        state = state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         let v = (state >> 33) as u32 as f64 / u32::MAX as f64;
         v as f32 * 2.0 * limit - limit
     };
@@ -130,10 +132,10 @@ impl GINLayer {
 
         // Step 1: neighbourhood sum aggregation
         let mut agg: Vec<Vec<f32>> = vec![vec![0.0_f32; self.in_features]; n];
-        for i in 0..n {
+        for (i, agg_i) in agg.iter_mut().enumerate().take(n) {
             for &j in &graph.neighbors(i) {
-                for f in 0..self.in_features {
-                    agg[i][f] += h[j][f];
+                for (f, agg_if) in agg_i.iter_mut().enumerate().take(self.in_features) {
+                    *agg_if += h[j][f];
                 }
             }
         }
@@ -150,8 +152,8 @@ impl GINLayer {
                 let hidden_out: Vec<f32> = (0..self.hidden)
                     .map(|d| {
                         let mut val = self.mlp_b1[d];
-                        for f in 0..self.in_features {
-                            val += x[f] * self.mlp_w1[f][d];
+                        for (f, &xf) in x.iter().enumerate().take(self.in_features) {
+                            val += xf * self.mlp_w1[f][d];
                         }
                         val.max(0.0) // ReLU
                     })
@@ -161,8 +163,8 @@ impl GINLayer {
                 (0..self.out_features)
                     .map(|o| {
                         let mut val = self.mlp_b2[o];
-                        for d in 0..self.hidden {
-                            val += hidden_out[d] * self.mlp_w2[d][o];
+                        for (d, &hd) in hidden_out.iter().enumerate().take(self.hidden) {
+                            val += hd * self.mlp_w2[d][o];
                         }
                         val
                     })
@@ -186,8 +188,8 @@ impl GINLayer {
         let hidden_out: Vec<f32> = (0..self.hidden)
             .map(|d| {
                 let mut val = self.mlp_b1[d];
-                for f in 0..self.in_features {
-                    val += x[f] * self.mlp_w1[f][d];
+                for (f, &xf) in x.iter().enumerate().take(self.in_features) {
+                    val += xf * self.mlp_w1[f][d];
                 }
                 val.max(0.0)
             })
@@ -195,8 +197,8 @@ impl GINLayer {
         let out: Vec<f32> = (0..self.out_features)
             .map(|o| {
                 let mut val = self.mlp_b2[o];
-                for d in 0..self.hidden {
-                    val += hidden_out[d] * self.mlp_w2[d][o];
+                for (d, &hd) in hidden_out.iter().enumerate().take(self.hidden) {
+                    val += hd * self.mlp_w2[d][o];
                 }
                 val
             })
@@ -309,15 +311,19 @@ mod tests {
     #[test]
     fn test_gin_epsilon_scaling() {
         // With epsilon = 1.0 and isolated nodes (no neighbours), the MLP input
-        // is (1 + 1) * h_v = 2 * h_v.
+        // is (1 + ε) * h_v.  We use negative features so that the xavier-init
+        // weights (which are all negative) produce positive pre-activations and
+        // survive the ReLU, making the outputs non-zero and ε-sensitive.
         let mut g = Graph::new(2, 2); // no edges
-        g.set_node_features(0, vec![1.0, 0.0]).expect("ok");
-        g.set_node_features(1, vec![0.0, 1.0]).expect("ok");
+        g.set_node_features(0, vec![-1.0, -1.0]).expect("ok");
+        g.set_node_features(1, vec![-1.0, -0.5]).expect("ok");
 
         let layer_eps0 = GINLayer::new(2, 2, 4, 0.0);
         let layer_eps1 = GINLayer::new(2, 2, 4, 1.0);
 
-        // Both layers are identical except for ε, so outputs will differ
+        // Both layers have identical weights but different ε.  The MLP input
+        // for eps=0 is 1·h and for eps=1 it is 2·h, so after the MLP the
+        // outputs must differ.
         let out0 = layer_eps0
             .forward(&g, &g.node_features)
             .expect("eps0 forward");
@@ -325,11 +331,12 @@ mod tests {
             .forward(&g, &g.node_features)
             .expect("eps1 forward");
 
-        // The outputs should differ (ε=1 doubles the input)
-        let differs = out0
-            .iter()
-            .zip(out1.iter())
-            .any(|(r0, r1)| r0.iter().zip(r1.iter()).any(|(&a, &b)| (a - b).abs() > 1e-6));
+        // The outputs should differ (ε=1 scales input by 2×)
+        let differs = out0.iter().zip(out1.iter()).any(|(r0, r1)| {
+            r0.iter()
+                .zip(r1.iter())
+                .any(|(&a, &b)| (a - b).abs() > 1e-6)
+        });
         assert!(
             differs,
             "Different ε values should produce different outputs"

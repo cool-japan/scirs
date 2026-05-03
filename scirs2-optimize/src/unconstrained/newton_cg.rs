@@ -91,10 +91,14 @@ where
         }
 
         // ε proportional to ‖x‖ for scale-invariance.
-        // For double finite-difference (gradient of gradient), the optimal outer step
-        // is O(eps_mach^{1/3}) ≈ 6e-6, larger than the inner gradient step.
+        // The outer perturbation must be large enough so that the amplification
+        // of inner-gradient rounding errors (≈ eps_mach / (2·eps)) stays below
+        // the desired HVP tolerance. Using eps_mach^{1/3} (≈ 6e-6) introduces
+        // rounding-dominated errors of O(eps_mach / eps) ≈ 7e-4 for x≈1.
+        // A value of 1e-3·‖x‖ gives truncation error O(eps²) ≈ 1e-6 for smooth f
+        // while keeping rounding amplification at O(eps_mach / (1e-3)) ≈ 2e-13.
         let x_norm = x.iter().map(|xi| xi * xi).sum::<f64>().sqrt().max(1.0);
-        let outer_step = f64::EPSILON.cbrt(); // ≈ 6e-6
+        let outer_step = 1e-3; // large enough to avoid rounding amplification
         let eps = outer_step * x_norm;
 
         let mut x_plus = Array1::from(x.to_vec());
@@ -181,7 +185,11 @@ pub struct TruncatedCGOptions {
 impl Default for TruncatedCGOptions {
     fn default() -> Self {
         Self {
-            eta: 0.5,
+            // eta = 0.5 stops CG after 1 iteration for well-scaled problems because
+            // the relative residual tolerance (eta * ‖g‖) is met immediately.
+            // Using eta = 0.1 allows CG to reach the exact Newton direction in the
+            // typical case where n ≤ 10, and still terminates early for large systems.
+            eta: 0.1,
             max_iter: None,
             min_step_norm: 1e-12,
             use_negative_curvature_detection: true,
@@ -301,7 +309,11 @@ impl TruncatedCG {
             let alpha = r_dot_r / d_hd.max(1e-300);
 
             // Tentative new iterate
-            let p_new: Vec<f64> = p.iter().zip(d.iter()).map(|(pi, di)| pi + alpha * di).collect();
+            let p_new: Vec<f64> = p
+                .iter()
+                .zip(d.iter())
+                .map(|(pi, di)| pi + alpha * di)
+                .collect();
 
             // Trust-region boundary check
             let p_new_norm_sq: f64 = p_new.iter().map(|pi| pi * pi).sum();

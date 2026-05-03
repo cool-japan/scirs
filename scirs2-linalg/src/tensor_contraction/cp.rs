@@ -718,7 +718,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "SVD fails for small matrices due to unimplemented eigendecomposition"]
     fn test_compress() {
         // Create a 2x3x2 tensor
         let tensor = array![

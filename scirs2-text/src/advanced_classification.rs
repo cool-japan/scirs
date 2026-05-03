@@ -18,7 +18,7 @@ use crate::error::{Result, TextError};
 ///
 /// Uses a bag-of-words representation; each token in a document contributes
 /// to the likelihood estimate.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct NaiveBayesClassifier {
     /// log P(class) for each class
     class_log_priors: Vec<f64>,
@@ -30,18 +30,6 @@ pub struct NaiveBayesClassifier {
     vocabulary: HashMap<String, usize>,
     /// `true` after `fit()` has been called
     fitted: bool,
-}
-
-impl Default for NaiveBayesClassifier {
-    fn default() -> Self {
-        NaiveBayesClassifier {
-            class_log_priors: Vec::new(),
-            log_likelihoods: Vec::new(),
-            classes: Vec::new(),
-            vocabulary: HashMap::new(),
-            fitted: false,
-        }
-    }
 }
 
 impl NaiveBayesClassifier {
@@ -144,10 +132,7 @@ impl NaiveBayesClassifier {
             .iter()
             .map(|counts| {
                 let total: f64 = counts.iter().sum::<f64>() + alpha * v as f64;
-                counts
-                    .iter()
-                    .map(|&c| ((c + alpha) / total).ln())
-                    .collect()
+                counts.iter().map(|&c| ((c + alpha) / total).ln()).collect()
             })
             .collect();
 
@@ -194,10 +179,7 @@ impl NaiveBayesClassifier {
     pub fn predict_proba(&self, text: &str) -> Result<Vec<(String, f64)>> {
         let log_scores = self.log_scores(text)?;
         // Softmax
-        let max_s = log_scores
-            .iter()
-            .copied()
-            .fold(f64::NEG_INFINITY, f64::max);
+        let max_s = log_scores.iter().copied().fold(f64::NEG_INFINITY, f64::max);
         let exps: Vec<f64> = log_scores.iter().map(|&s| (s - max_s).exp()).collect();
         let total: f64 = exps.iter().sum();
         Ok(self
@@ -328,7 +310,7 @@ impl FastTextClassifier {
     }
 
     /// Softmax in-place.
-    fn softmax(logits: &mut Vec<f32>) {
+    fn softmax(logits: &mut [f32]) {
         let max_l = logits.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
         logits.iter_mut().for_each(|x| *x = (*x - max_l).exp());
         let sum: f32 = logits.iter().sum();
@@ -342,12 +324,7 @@ impl FastTextClassifier {
     /// Train the classifier.
     ///
     /// `corpus` is `(tokens, class_id)` pairs.  `lr` is the learning rate.
-    pub fn fit(
-        &mut self,
-        corpus: &[(Vec<String>, usize)],
-        n_epochs: usize,
-        lr: f32,
-    ) -> Result<()> {
+    pub fn fit(&mut self, corpus: &[(Vec<String>, usize)], n_epochs: usize, lr: f32) -> Result<()> {
         if corpus.is_empty() {
             return Err(TextError::InvalidInput("corpus is empty".to_string()));
         }
@@ -362,7 +339,8 @@ impl FastTextClassifier {
         }
 
         for _epoch in 0..n_epochs {
-            for (tokens, gold_class) in corpus { let gold_class = *gold_class;
+            for (tokens, gold_class) in corpus {
+                let gold_class = *gold_class;
                 if gold_class >= self.n_classes {
                     continue;
                 }
@@ -627,9 +605,7 @@ impl TfidfTransformer {
     /// Compute IDF values from a count matrix (rows = documents, cols = terms).
     pub fn fit(&mut self, count_matrix: &[Vec<f64>]) -> Result<()> {
         if count_matrix.is_empty() {
-            return Err(TextError::InvalidInput(
-                "count_matrix is empty".to_string(),
-            ));
+            return Err(TextError::InvalidInput("count_matrix is empty".to_string()));
         }
         let n_docs = count_matrix.len() as f64;
         let n_features = count_matrix[0].len();
@@ -649,7 +625,13 @@ impl TfidfTransformer {
                 .collect()
         } else {
             df.iter()
-                .map(|&d| if d == 0.0 { 0.0 } else { (n_docs / d).ln() + 1.0 })
+                .map(|&d| {
+                    if d == 0.0 {
+                        0.0
+                    } else {
+                        (n_docs / d).ln() + 1.0
+                    }
+                })
                 .collect()
         };
 
@@ -728,7 +710,11 @@ mod tests {
         nb.fit(&corpus, 1.0).expect("fit failed");
         let proba = nb.predict_proba("vote election").expect("proba failed");
         let total: f64 = proba.iter().map(|(_, p)| p).sum();
-        assert!((total - 1.0).abs() < 1e-9, "probabilities should sum to 1, got {}", total);
+        assert!(
+            (total - 1.0).abs() < 1e-9,
+            "probabilities should sum to 1, got {}",
+            total
+        );
     }
 
     #[test]
@@ -770,11 +756,7 @@ mod tests {
 
     #[test]
     fn test_fasttext_predict_without_training() {
-        let ft = FastTextClassifier::new(
-            2,
-            16,
-            vec!["sports".to_string(), "tech".to_string()],
-        );
+        let ft = FastTextClassifier::new(2, 16, vec!["sports".to_string(), "tech".to_string()]);
         let tokens: Vec<String> = vec!["soccer".into(), "game".into()];
         let pred = ft.predict(&tokens);
         assert!(pred < 2);
@@ -816,10 +798,7 @@ mod tests {
     #[test]
     fn test_count_vectorizer_ngram() {
         let mut cv = CountVectorizer::new().with_ngram_range(1, 2);
-        let corpus: Vec<String> = vec![
-            "the quick fox".to_string(),
-            "the lazy dog".to_string(),
-        ];
+        let corpus: Vec<String> = vec!["the quick fox".to_string(), "the lazy dog".to_string()];
         cv.fit(&corpus).expect("fit failed");
         // Should have unigrams + bigrams
         assert!(cv.vocabulary_size() > 3);
@@ -828,10 +807,7 @@ mod tests {
     #[test]
     fn test_count_vectorizer_max_features() {
         let mut cv = CountVectorizer::new().with_max_features(2);
-        let corpus: Vec<String> = vec![
-            "a b c d e f".to_string(),
-            "a b c d e f".to_string(),
-        ];
+        let corpus: Vec<String> = vec!["a b c d e f".to_string(), "a b c d e f".to_string()];
         cv.fit(&corpus).expect("fit failed");
         assert_eq!(cv.vocabulary_size(), 2);
     }
@@ -848,10 +824,7 @@ mod tests {
     #[test]
     fn test_tfidf_transformer_l2_norm() {
         let mut tf = TfidfTransformer::new(true);
-        let counts = vec![
-            vec![1.0, 0.0, 2.0],
-            vec![0.0, 3.0, 1.0],
-        ];
+        let counts = vec![vec![1.0, 0.0, 2.0], vec![0.0, 3.0, 1.0]];
         let tfidf = tf.fit_transform(&counts).expect("fit_transform failed");
         // Each row should be L2-normalised
         for row in &tfidf {

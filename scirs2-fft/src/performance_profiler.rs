@@ -29,10 +29,7 @@ use crate::algorithm_selector::{
 use crate::error::{FFTError, FFTResult};
 
 // Backend-specific imports
-#[cfg(feature = "rustfft-backend")]
-use rustfft::FftPlanner;
 
-#[cfg(not(feature = "rustfft-backend"))]
 use oxifft::{Complex as OxiComplex, Direction};
 
 use scirs2_core::numeric::Complex64;
@@ -352,84 +349,7 @@ impl PerformanceProfiler {
         self.profile_size_with_algorithm(size, recommendation.algorithm, forward)
     }
 
-    /// Profile a single size with a specific algorithm (RustFFT backend)
-    #[cfg(feature = "rustfft-backend")]
-    pub fn profile_size_with_algorithm(
-        &self,
-        size: usize,
-        algorithm: FftAlgorithm,
-        forward: bool,
-    ) -> FFTResult<ProfileResult> {
-        // Validate size
-        if size == 0 {
-            return Err(FFTError::ValueError("Size must be positive".to_string()));
-        }
-
-        // Create test data
-        let mut data: Vec<Complex64> = (0..size)
-            .map(|i| Complex64::new(i as f64, (i * 2) as f64))
-            .collect();
-
-        // Create FFT planner
-        let mut planner = FftPlanner::new();
-        let fft = if forward {
-            planner.plan_fft_forward(size)
-        } else {
-            planner.plan_fft_inverse(size)
-        };
-
-        // Warm-up iterations
-        for _ in 0..self.config.warmup_iterations {
-            let mut work_data = data.clone();
-            fft.process(&mut work_data);
-        }
-
-        // Benchmark iterations
-        let mut measurements = Vec::with_capacity(self.config.benchmark_iterations);
-
-        for _ in 0..self.config.benchmark_iterations {
-            let mut work_data = data.clone();
-
-            // Track memory before
-            let memory_before = if self.config.track_memory {
-                estimate_current_allocation()
-            } else {
-                0
-            };
-
-            // Time the FFT
-            let start = Instant::now();
-            fft.process(&mut work_data);
-            let elapsed = start.elapsed();
-
-            // Track memory after
-            let memory_after = if self.config.track_memory {
-                estimate_current_allocation()
-            } else {
-                0
-            };
-
-            measurements.push(Measurement {
-                time_ns: elapsed.as_nanos() as u64,
-                peak_memory_bytes: size * 16, // Complex64 = 16 bytes
-                allocated_bytes: memory_after.saturating_sub(memory_before),
-            });
-        }
-
-        // Get input characteristics
-        let chars = InputCharacteristics::analyze(size, &self.selector.hardware().cache_info);
-
-        Ok(ProfileResult::from_measurements(
-            size,
-            algorithm,
-            forward,
-            measurements,
-            Some(chars),
-        ))
-    }
-
     /// Profile a single size with a specific algorithm (OxiFFT backend)
-    #[cfg(not(feature = "rustfft-backend"))]
     pub fn profile_size_with_algorithm(
         &self,
         size: usize,
@@ -447,22 +367,19 @@ impl PerformanceProfiler {
             .collect();
 
         // Create FFT plan using OxiFFT
-        let mut plan = if forward {
-            oxifft::Plan::new(Direction::Forward, size, oxifft::Flags::Estimate).map_err(|e| {
-                FFTError::ComputationError(format!("Failed to create FFT plan: {:?}", e))
-            })?
+        let direction = if forward {
+            Direction::Forward
         } else {
-            oxifft::Plan::new(Direction::Backward, size, oxifft::Flags::Estimate).map_err(|e| {
-                FFTError::ComputationError(format!("Failed to create FFT plan: {:?}", e))
-            })?
+            Direction::Backward
         };
+        let plan = oxifft::Plan::dft_1d(size, direction, oxifft::Flags::ESTIMATE)
+            .ok_or_else(|| FFTError::ComputationError("Failed to create FFT plan".to_string()))?;
 
         // Warm-up iterations
         for _ in 0..self.config.warmup_iterations {
-            let mut work_data = data.clone();
-            plan.execute_c2c(&mut work_data).map_err(|e| {
-                FFTError::ComputationError(format!("FFT execution failed: {:?}", e))
-            })?;
+            let work_data = data.clone();
+            let mut out = vec![OxiComplex::new(0.0, 0.0); size];
+            plan.execute(&work_data, &mut out);
         }
 
         // Benchmark iterations
@@ -480,9 +397,8 @@ impl PerformanceProfiler {
 
             // Time the FFT
             let start = Instant::now();
-            plan.execute_c2c(&mut work_data).map_err(|e| {
-                FFTError::ComputationError(format!("FFT execution failed: {:?}", e))
-            })?;
+            let mut out = vec![OxiComplex::new(0.0, 0.0); size];
+            plan.execute(&work_data, &mut out);
             let elapsed = start.elapsed();
 
             // Track memory after

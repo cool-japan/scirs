@@ -265,8 +265,6 @@ fn test_implicit_linear_dae() -> IntegrateResult<()> {
 }
 
 #[test]
-#[ignore] // FIXME: Higher index DAE test failing
-#[allow(dead_code)]
 fn test_higher_index_dae() -> IntegrateResult<()> {
     // Test the higher-index DAE solver with a simple index-2 system
     // x' = y

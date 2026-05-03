@@ -23,7 +23,12 @@ pub struct TemporalEdge {
 impl TemporalEdge {
     /// Construct a new temporal edge.
     pub fn new(src: usize, dst: usize, start: f64, end: f64) -> Self {
-        Self { src, dst, start, end }
+        Self {
+            src,
+            dst,
+            start,
+            end,
+        }
     }
 
     /// Duration of this contact.
@@ -151,8 +156,7 @@ impl LinkStream {
                 let nb2 = neighbors[j];
                 let connected = self.edges.iter().any(|e| {
                     e.is_active_at(t)
-                        && ((e.src == nb1 && e.dst == nb2)
-                            || (e.src == nb2 && e.dst == nb1))
+                        && ((e.src == nb1 && e.dst == nb2) || (e.src == nb2 && e.dst == nb1))
                 });
                 if connected {
                     triangle_count += 1;
@@ -220,7 +224,11 @@ mod tests {
     fn test_degree_at() {
         let ls = build_stream();
         // At t=2.5, edges 0-1, 0-2, 1-2 are all active.
-        assert_eq!(ls.degree_at(0, 2.5), 2, "node 0 should have degree 2 at t=2.5");
+        assert_eq!(
+            ls.degree_at(0, 2.5),
+            2,
+            "node 0 should have degree 2 at t=2.5"
+        );
         assert_eq!(ls.degree_at(1, 2.5), 2);
     }
 

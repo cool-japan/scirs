@@ -28,6 +28,7 @@ pub mod pool;
 
 // Specialized modules
 pub mod bulk;
+pub mod table;
 pub mod timeseries;
 
 // Re-export commonly used types
@@ -499,10 +500,26 @@ impl DatabaseConnector {
                 "MySQL support not enabled. Enable 'mysql' feature.".to_string(),
             )),
 
-            _ => Err(IoError::UnsupportedFormat(format!(
-                "Database type {:?} not yet implemented",
-                config.db_type
-            ))),
+            DatabaseType::MongoDB => Err(IoError::UnsupportedFormat(
+                "MongoDB support is not available in this build. \
+                 Use a dedicated MongoDB driver crate."
+                    .to_string(),
+            )),
+            DatabaseType::InfluxDB => Err(IoError::UnsupportedFormat(
+                "InfluxDB support is not available in this build. \
+                 Use a dedicated InfluxDB driver crate."
+                    .to_string(),
+            )),
+            DatabaseType::Redis => Err(IoError::UnsupportedFormat(
+                "Redis support is not available in this build. \
+                 Use a dedicated Redis driver crate."
+                    .to_string(),
+            )),
+            DatabaseType::Cassandra => Err(IoError::UnsupportedFormat(
+                "Cassandra support is not available in this build. \
+                 Use a dedicated Cassandra driver crate."
+                    .to_string(),
+            )),
         }
     }
 }

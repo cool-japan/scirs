@@ -25,11 +25,20 @@ rustc-hash = { workspace = true }
 thiserror = { workspace = true }
 
 [build-dependencies]
-pyo3-build-config = { version = "0.28", features = ["resolve-config"] }
+pyo3-build-config = { workspace = true, features = ["resolve-config"] }
 
 [dev-dependencies]
 # Enable auto-initialize for tests only (not for production builds)
 pyo3 = { workspace = true, features = ["macros", "auto-initialize"] }
+criterion = { workspace = true }
+
+[[bench]]
+name = "conversion_bench"
+harness = false
+
+[[bench]]
+name = "allocation_bench"
+harness = false
 
 [features]
 default = []

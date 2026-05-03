@@ -17,8 +17,8 @@
 //! difference Jacobian approximation is done internally so as to preserve
 //! exactness and avoid extra function evaluations.
 
-use crate::error::{IntegrateError, IntegrateResult};
 use super::embedded_rk::OdeResult;
+use crate::error::{IntegrateError, IntegrateResult};
 
 // ─── Linear algebra helpers ──────────────────────────────────────────────────
 
@@ -44,9 +44,7 @@ fn gaussian_solve(a: &[f64], b: &[f64]) -> Result<Vec<f64>, IntegrateError> {
                     .partial_cmp(&mat[r2 * n + col].abs())
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
-            .ok_or_else(|| {
-                IntegrateError::LinearSolveError("empty row range".to_string())
-            })?;
+            .ok_or_else(|| IntegrateError::LinearSolveError("empty row range".to_string()))?;
 
         if mat[pivot_row * n + col].abs() < 1e-300 {
             return Err(IntegrateError::LinearSolveError(format!(
@@ -135,16 +133,10 @@ where
         n_evals += 2; // f + J
 
         // Residual: G = y - y_old - h*f(t_new, y)
-        let residual: Vec<f64> = (0..n)
-            .map(|i| y[i] - y_old[i] - h * fy[i])
-            .collect();
+        let residual: Vec<f64> = (0..n).map(|i| y[i] - y_old[i] - h * fy[i]).collect();
 
         // Check convergence by residual norm
-        let res_norm: f64 = residual
-            .iter()
-            .map(|r| r * r)
-            .sum::<f64>()
-            .sqrt();
+        let res_norm: f64 = residual.iter().map(|r| r * r).sum::<f64>().sqrt();
         if res_norm < NEWTON_TOL {
             return Ok((y, n_evals));
         }
@@ -206,11 +198,7 @@ where
             .map(|i| y[i] - y_old[i] - h2 * (f_old[i] + fy[i]))
             .collect();
 
-        let res_norm: f64 = residual
-            .iter()
-            .map(|r| r * r)
-            .sum::<f64>()
-            .sqrt();
+        let res_norm: f64 = residual.iter().map(|r| r * r).sum::<f64>().sqrt();
         if res_norm < NEWTON_TOL {
             return Ok((y, n_evals));
         }
@@ -556,19 +544,10 @@ where
 
                 // Residual
                 let residual: Vec<f64> = (0..n)
-                    .map(|i| {
-                        1.5 * z[i]
-                            - 2.0 * y_snap[i]
-                            + 0.5 * y_prev_snap[i]
-                            - h_actual * fz[i]
-                    })
+                    .map(|i| 1.5 * z[i] - 2.0 * y_snap[i] + 0.5 * y_prev_snap[i] - h_actual * fz[i])
                     .collect();
 
-                let res_norm: f64 = residual
-                    .iter()
-                    .map(|r| r * r)
-                    .sum::<f64>()
-                    .sqrt();
+                let res_norm: f64 = residual.iter().map(|r| r * r).sum::<f64>().sqrt();
                 if res_norm < NEWTON_TOL {
                     converged = true;
                     break;
@@ -672,10 +651,7 @@ mod tests {
         let y_end = result.y.last().expect("empty result")[0];
         let exact = (-5.0_f64).exp();
         // First-order method with h=0.1: expect ~5% relative error
-        assert!(
-            (y_end - exact).abs() < 0.05,
-            "y_end={y_end}, exact={exact}"
-        );
+        assert!((y_end - exact).abs() < 0.05, "y_end={y_end}, exact={exact}");
         assert!(result.n_steps > 0);
     }
 
@@ -685,9 +661,8 @@ mod tests {
         // After N steps: y_N = 1/(1+1000h)^N.  We want this ≈ exp(-1000*N*h).
         // The local truncation error is O(h), so relative accuracy ~ 1000*h/2.
         // Use h = 1e-5 (1000 steps to t = 0.01) for ~0.5% relative accuracy.
-        let result =
-            implicit_euler(stiff_decay, stiff_decay_jac, 0.0, &[1.0], 0.01, 1e-5)
-                .expect("implicit_euler stiff failed");
+        let result = implicit_euler(stiff_decay, stiff_decay_jac, 0.0, &[1.0], 0.01, 1e-5)
+            .expect("implicit_euler stiff failed");
         // After t=0.01, y ≈ exp(-10) ≈ 4.54e-5
         let y_end = result.y.last().expect("empty result")[0];
         let exact = (-10.0_f64).exp();
@@ -700,9 +675,8 @@ mod tests {
     #[test]
     fn trapezoidal_gentle_decay() {
         // Trapezoidal is 2nd order → tighter error for same h
-        let result =
-            trapezoidal(gentle_decay, gentle_decay_jac, 0.0, &[1.0], 5.0, 0.1)
-                .expect("trapezoidal failed");
+        let result = trapezoidal(gentle_decay, gentle_decay_jac, 0.0, &[1.0], 5.0, 0.1)
+            .expect("trapezoidal failed");
         let y_end = result.y.last().expect("empty result")[0];
         let exact = (-5.0_f64).exp();
         // 2nd-order, h=0.1: expect < 0.5% error
@@ -716,15 +690,8 @@ mod tests {
     #[test]
     fn trapezoidal_2d() {
         // [y0, y1] = exp(-10t)[A+Bt] style; just check stability and convergence
-        let result = trapezoidal(
-            linear_2d,
-            linear_2d_jac,
-            0.0,
-            &[1.0, 1.0],
-            1.0,
-            0.05,
-        )
-        .expect("trapezoidal 2d failed");
+        let result = trapezoidal(linear_2d, linear_2d_jac, 0.0, &[1.0, 1.0], 1.0, 0.05)
+            .expect("trapezoidal 2d failed");
         let y_end = result.y.last().expect("empty result");
         // y1(t) = exp(-t) → y1(1.0) ≈ 0.368
         let exact_y1 = (-1.0_f64).exp();
@@ -739,8 +706,7 @@ mod tests {
     #[test]
     fn bdf2_gentle_decay() {
         let result =
-            bdf2(gentle_decay, gentle_decay_jac, 0.0, &[1.0], 5.0, 0.1)
-                .expect("bdf2 failed");
+            bdf2(gentle_decay, gentle_decay_jac, 0.0, &[1.0], 5.0, 0.1).expect("bdf2 failed");
         let y_end = result.y.last().expect("empty result")[0];
         let exact = (-5.0_f64).exp();
         // BDF-2 is 2nd order → similar to trapezoidal
@@ -755,8 +721,7 @@ mod tests {
     fn bdf2_stiff() {
         // BDF-2 is second-order, so use h = 1e-4 for good accuracy on dy/dt = -1000y.
         let result =
-            bdf2(stiff_decay, stiff_decay_jac, 0.0, &[1.0], 0.01, 1e-4)
-                .expect("bdf2 stiff failed");
+            bdf2(stiff_decay, stiff_decay_jac, 0.0, &[1.0], 0.01, 1e-4).expect("bdf2 stiff failed");
         let y_end = result.y.last().expect("empty result")[0];
         let exact = (-10.0_f64).exp();
         assert!(

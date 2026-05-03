@@ -1,7 +1,7 @@
 # scirs2-julia
 
 [![Alpha](https://img.shields.io/badge/status-alpha-orange)]()
-[![Version](https://img.shields.io/badge/version-0.4.2-green)]()
+[![Version](https://img.shields.io/badge/version-0.4.3-green)]()
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)]()
 
 **Julia JLL-compatible shared library (`libscirs2_julia`) for the SciRS2 scientific computing library.**

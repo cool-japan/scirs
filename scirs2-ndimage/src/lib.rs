@@ -89,7 +89,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-ndimage = "0.4.2"
+//! scirs2-ndimage = "0.4.3"
 //! ```
 //!
 //! ```rust,no_run
@@ -101,7 +101,7 @@
 //! let filtered = filters::gaussian_filter(&image, 2.0, None, None).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2 (March 27, 2026)
+//! ## 🔒 Version: 0.4.3 (March 27, 2026)
 
 // Public modules
 pub mod adaptive_image_optimizer;
@@ -474,8 +474,8 @@ pub use self::advanced_fusion_algorithms::{
 
 // Enhanced validation exports
 pub use self::comprehensive_validation::{
-    validated_advanced_processing, ComprehensiveValidator, PerformanceBenchmark,
-    PerformanceSummary, ValidationConfig, ValidationError, ValidationReport,
+    validated_advanced_processing, ComprehensiveSummary, ComprehensiveValidator,
+    PerformanceBenchmark, PerformanceSummary, ValidationConfig, ValidationError, ValidationReport,
 };
 
 // Utils exports
@@ -506,3 +506,32 @@ pub use self::distance_transforms::{
     chessboard_dt, cityblock_dt, euclidean_dt, geodesic_dt, nearest_background,
     signed_distance_function,
 };
+
+// Additional modules (previously orphaned, now wired)
+pub mod co_occurrence;
+pub mod convolution3d;
+pub mod deep_features;
+pub mod documentation;
+pub mod feature_detection;
+pub mod filters3d;
+pub mod freq_filter;
+pub mod frequency_domain;
+pub mod moment_invariants;
+pub mod morphology3d;
+pub mod morphology_advanced;
+pub mod morphology_ext;
+pub mod optical_flow;
+pub mod out_of_core;
+pub mod quality;
+pub mod registration;
+pub mod segmentation_advanced;
+pub mod segmentation_ext;
+pub mod shape_analysis;
+pub mod skeletonize;
+pub mod slice_processing;
+pub mod template_matching;
+pub mod texture_segmentation;
+pub mod topology;
+pub mod volume_analysis;
+pub mod volumetric_ops;
+pub mod zero_copy;

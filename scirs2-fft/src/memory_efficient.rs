@@ -8,8 +8,6 @@ use crate::error::{FFTError, FFTResult};
 use crate::oxifft_plan_cache;
 #[cfg(feature = "oxifft")]
 use oxifft::{Complex as OxiComplex, Direction};
-#[cfg(feature = "rustfft-backend")]
-use rustfft::{num_complex::Complex as RustComplex, FftPlanner};
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::NumCast;
@@ -39,18 +37,6 @@ fn downcast_to_complex<T: 'static>(value: &T) -> Option<Complex64> {
         }
 
         if let Some(complex) = (value as &dyn Any).downcast_ref::<OxiComplex<f32>>() {
-            return Some(Complex64::new(complex.re as f64, complex.im as f64));
-        }
-    }
-
-    // Try to convert from rustfft's Complex type
-    #[cfg(feature = "rustfft-backend")]
-    {
-        if let Some(complex) = (value as &dyn Any).downcast_ref::<RustComplex<f64>>() {
-            return Some(Complex64::new(complex.re, complex.im));
-        }
-
-        if let Some(complex) = (value as &dyn Any).downcast_ref::<RustComplex<f32>>() {
             return Some(Complex64::new(complex.re as f64, complex.im as f64));
         }
     }
@@ -196,7 +182,6 @@ pub fn fft_inplace(
 
     #[cfg(not(feature = "oxifft"))]
     {
-        #[cfg(feature = "rustfft-backend")]
         {
             // Create FFT plan
             let mut planner = FftPlanner::new();
@@ -239,7 +224,6 @@ pub fn fft_inplace(
             Ok(n)
         }
 
-        #[cfg(not(feature = "rustfft-backend"))]
         {
             Err(FFTError::ComputationError(
                 "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature."
@@ -374,11 +358,12 @@ where
             {
                 Direction::Forward
             }
-            #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+            // NOTE: rustfft-backend removed; this block is now dead code
+            #[cfg(not(feature = "oxifft"))]
             {
                 0 // Placeholder, will be handled below
             }
-            #[cfg(all(not(feature = "oxifft"), not(feature = "rustfft-backend")))]
+            #[cfg(not(feature = "oxifft"))]
             {
                 return Err(FFTError::ComputationError(
                     "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
@@ -390,11 +375,12 @@ where
             {
                 Direction::Backward
             }
-            #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+            // NOTE: rustfft-backend removed; this block is now dead code
+            #[cfg(not(feature = "oxifft"))]
             {
                 1 // Placeholder, will be handled below
             }
-            #[cfg(all(not(feature = "oxifft"), not(feature = "rustfft-backend")))]
+            #[cfg(not(feature = "oxifft"))]
             {
                 return Err(FFTError::ComputationError(
                     "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
@@ -431,7 +417,8 @@ where
         }
     }
 
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         // Create FFT planner
         let mut planner = FftPlanner::new();
@@ -502,7 +489,8 @@ where
         }
     }
 
-    #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+    // NOTE: rustfft-backend removed; this block is now dead code
+    #[cfg(not(feature = "oxifft"))]
     {
         // Create FFT planner
         let mut planner = FftPlanner::new();
@@ -671,7 +659,6 @@ where
 
         #[cfg(not(feature = "oxifft"))]
         {
-            #[cfg(feature = "rustfft-backend")]
             {
                 // Set up rustfft for computation
                 let mut planner = FftPlanner::new();
@@ -704,7 +691,6 @@ where
                 return Ok(result);
             }
 
-            #[cfg(not(feature = "rustfft-backend"))]
             {
                 return Err(FFTError::ComputationError(
                     "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
@@ -790,7 +776,8 @@ where
             result.extend(chunk_result);
         }
 
-        #[cfg(all(not(feature = "oxifft"), feature = "rustfft-backend"))]
+        // NOTE: rustfft-backend removed; this block is now dead code
+        #[cfg(not(feature = "oxifft"))]
         {
             // Set up rustfft for computation on this chunk
             let mut planner = FftPlanner::new();
@@ -824,7 +811,7 @@ where
             result.extend(chunk_result);
         }
 
-        #[cfg(all(not(feature = "oxifft"), not(feature = "rustfft-backend")))]
+        #[cfg(not(feature = "oxifft"))]
         {
             return Err(FFTError::ComputationError(
                 "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature."

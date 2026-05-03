@@ -139,7 +139,6 @@ mod tests {
         assert_eq!(allocator.current_usage(), 0);
     }
     #[test]
-    #[ignore] // TODO: fix infinite loop / deadlock in compaction allocator
     fn test_compaction_allocator_fragmentation() {
         let allocator = CompactionAllocator::new(10240, 0.3);
         let offset1 = allocator.allocate(1024, true).expect("Failed to allocate");
@@ -150,7 +149,6 @@ mod tests {
         assert!(stats.free_region_count >= 1);
     }
     #[test]
-    #[ignore] // TODO: fix infinite loop / deadlock in compaction allocator
     fn test_compaction_allocator_compaction() {
         let allocator = CompactionAllocator::new(10240, 0.3);
         let _offset1 = allocator.allocate(512, true).expect("Failed to allocate");
@@ -169,7 +167,6 @@ mod tests {
         assert_eq!(relocated, 0);
     }
     #[test]
-    #[ignore] // TODO: fix infinite loop / deadlock in compaction allocator
     fn test_compaction_allocator_statistics() {
         let allocator = CompactionAllocator::new(10240, 0.3);
         let offset = allocator.allocate(512, true).expect("Failed to allocate");

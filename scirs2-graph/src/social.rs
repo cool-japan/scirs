@@ -13,6 +13,7 @@
 //! - Lorrain & White (1971) — structural equivalence
 //! - Del Vicario et al. (2016) — echo chamber detection
 
+use std::cmp::Reverse;
 use std::collections::{HashMap, HashSet, VecDeque};
 
 use scirs2_core::random::{Rng, RngExt};
@@ -23,26 +24,24 @@ use crate::error::{GraphError, Result};
 /// Type alias for numeric node id used in social network operations
 pub type NodeId = usize;
 
+/// Spread estimation function type
+type SpreadFn = Box<dyn Fn(&[NodeId]) -> f64>;
+
 // ============================================================================
 // Diffusion / cascade models
 // ============================================================================
 
 /// Diffusion model for influence propagation
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub enum CascadeModel {
     /// Independent Cascade (IC): each active node tries to activate each
     /// inactive neighbor independently with probability `edge_weight`
+    #[default]
     IndependentCascade,
     /// Linear Threshold (LT): a node activates when the total weight of
     /// incoming active neighbors exceeds a per-node threshold drawn from
     /// Uniform(0, 1)
     LinearThreshold,
-}
-
-impl Default for CascadeModel {
-    fn default() -> Self {
-        CascadeModel::IndependentCascade
-    }
 }
 
 // ============================================================================
@@ -194,12 +193,12 @@ where
 
     let mut adj: HashMap<NodeId, Vec<(NodeId, f64)>> = HashMap::new();
     for edge in graph.edges() {
-        let si = *node_to_idx.get(&edge.source).ok_or_else(|| {
-            GraphError::node_not_found("source node")
-        })?;
-        let ti = *node_to_idx.get(&edge.target).ok_or_else(|| {
-            GraphError::node_not_found("target node")
-        })?;
+        let si = *node_to_idx
+            .get(&edge.source)
+            .ok_or_else(|| GraphError::node_not_found("source node"))?;
+        let ti = *node_to_idx
+            .get(&edge.target)
+            .ok_or_else(|| GraphError::node_not_found("target node"))?;
         let w: f64 = edge.weight.clone().into();
         let prob = if w > 0.0 && w <= 1.0 {
             w
@@ -210,7 +209,7 @@ where
         adj.entry(ti).or_default().push((si, prob)); // undirected
     }
 
-    let spread_fn: Box<dyn Fn(&[NodeId]) -> f64> = match &config.model {
+    let spread_fn: SpreadFn = match &config.model {
         CascadeModel::IndependentCascade => {
             let adj_ref = adj.clone();
             let sims = config.num_simulations;
@@ -299,9 +298,7 @@ impl std::fmt::Display for RoleType {
 ///
 /// # Returns
 /// Map from node index to its detected role
-pub fn role_detection<N, E, Ix>(
-    graph: &Graph<N, E, Ix>,
-) -> Result<HashMap<NodeId, RoleType>>
+pub fn role_detection<N, E, Ix>(graph: &Graph<N, E, Ix>) -> Result<HashMap<NodeId, RoleType>>
 where
     N: Node + Clone + std::fmt::Debug,
     E: EdgeWeight + Clone + Into<f64>,
@@ -317,11 +314,7 @@ where
     // Compute degrees
     let degrees: Vec<f64> = nodes.iter().map(|nd| graph.degree(nd) as f64).collect();
     let mean_deg = degrees.iter().sum::<f64>() / n as f64;
-    let var_deg = degrees
-        .iter()
-        .map(|d| (d - mean_deg).powi(2))
-        .sum::<f64>()
-        / n as f64;
+    let var_deg = degrees.iter().map(|d| (d - mean_deg).powi(2)).sum::<f64>() / n as f64;
     let std_deg = var_deg.sqrt();
 
     // Compute local clustering coefficient per node
@@ -443,10 +436,9 @@ where
 
     let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n];
     for edge in graph.edges() {
-        if let (Some(&si), Some(&ti)) = (
-            node_to_idx.get(&edge.source),
-            node_to_idx.get(&edge.target),
-        ) {
+        if let (Some(&si), Some(&ti)) =
+            (node_to_idx.get(&edge.source), node_to_idx.get(&edge.target))
+        {
             adj[si].push(ti);
             adj[ti].push(si);
         }
@@ -464,7 +456,10 @@ where
         let mut order: Vec<usize> = (0..n).collect();
         // Simple Fisher-Yates with deterministic seed
         for i in (1..n).rev() {
-            let j = i.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407) % (i + 1);
+            let j = i
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407)
+                % (i + 1);
             order.swap(i, j);
         }
 
@@ -505,7 +500,7 @@ where
     }
 
     let mut result: Vec<Vec<NodeId>> = chambers.into_values().collect();
-    result.sort_by(|a, b| b.len().cmp(&a.len())); // Largest first
+    result.sort_by_key(|b| Reverse(b.len())); // Largest first
     Ok(result)
 }
 
@@ -540,10 +535,7 @@ fn feature_similarity(a: &[f64], b: &[f64]) -> f64 {
 ///
 /// # Returns
 /// Polarization index ∈ [0, 1]
-pub fn polarization_index<N, E, Ix>(
-    graph: &Graph<N, E, Ix>,
-    features: &[Vec<f64>],
-) -> Result<f64>
+pub fn polarization_index<N, E, Ix>(graph: &Graph<N, E, Ix>, features: &[Vec<f64>]) -> Result<f64>
 where
     N: Node + Clone + std::fmt::Debug,
     E: EdgeWeight + Clone + Into<f64>,
@@ -603,12 +595,13 @@ where
     let mut cross_sim = 0.0f64;
 
     for edge in &edges {
-        if let (Some(&si), Some(&ti)) = (
-            node_to_idx.get(&edge.source),
-            node_to_idx.get(&edge.target),
-        ) {
-            let sim = feature_similarity(features_ref.get(si).map(|v| v.as_slice()).unwrap_or(&[]),
-                                          features_ref.get(ti).map(|v| v.as_slice()).unwrap_or(&[]));
+        if let (Some(&si), Some(&ti)) =
+            (node_to_idx.get(&edge.source), node_to_idx.get(&edge.target))
+        {
+            let sim = feature_similarity(
+                features_ref.get(si).map(|v| v.as_slice()).unwrap_or(&[]),
+                features_ref.get(ti).map(|v| v.as_slice()).unwrap_or(&[]),
+            );
             if node_chamber[si] == node_chamber[ti] {
                 intra += 1.0;
                 intra_sim += sim;
@@ -665,14 +658,18 @@ where
 
     let mut adj: HashMap<NodeId, Vec<(NodeId, f64)>> = HashMap::new();
     for edge in graph.edges() {
-        let si = *node_to_idx.get(&edge.source).ok_or_else(|| {
-            GraphError::node_not_found("source")
-        })?;
-        let ti = *node_to_idx.get(&edge.target).ok_or_else(|| {
-            GraphError::node_not_found("target")
-        })?;
+        let si = *node_to_idx
+            .get(&edge.source)
+            .ok_or_else(|| GraphError::node_not_found("source"))?;
+        let ti = *node_to_idx
+            .get(&edge.target)
+            .ok_or_else(|| GraphError::node_not_found("target"))?;
         let w: f64 = edge.weight.clone().into();
-        let prob = if w > 0.0 && w <= 1.0 { w } else { config.default_prob };
+        let prob = if w > 0.0 && w <= 1.0 {
+            w
+        } else {
+            config.default_prob
+        };
         adj.entry(si).or_default().push((ti, prob));
         adj.entry(ti).or_default().push((si, prob));
     }
@@ -832,7 +829,10 @@ mod tests {
         let g = make_social_graph();
         let features: Vec<Vec<f64>> = vec![vec![0.5]; 3]; // wrong size
         let result = echo_chamber_detection(&g, &features);
-        assert!(result.is_err(), "Should return error for mismatched features");
+        assert!(
+            result.is_err(),
+            "Should return error for mismatched features"
+        );
     }
 
     #[test]
@@ -843,7 +843,7 @@ mod tests {
             .collect();
         let pi = polarization_index(&g, &features).expect("Polarization failed");
         assert!(
-            pi >= 0.0 && pi <= 1.0,
+            (0.0..=1.0).contains(&pi),
             "Polarization index must be in [0,1], got {}",
             pi
         );
@@ -854,7 +854,7 @@ mod tests {
         let g = make_social_graph();
         let features: Vec<Vec<f64>> = vec![vec![0.0; 0]; 9];
         let pi = polarization_index(&g, &features).expect("Polarization (no feat)");
-        assert!(pi >= 0.0 && pi <= 1.0);
+        assert!((0.0..=1.0).contains(&pi));
     }
 
     #[test]

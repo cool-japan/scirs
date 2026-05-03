@@ -3,8 +3,10 @@
 //! This module provides tools for extracting structured information such as
 //! named entities, key phrases, dates, and patterns from unstructured text.
 
+pub mod advanced_ner;
 pub mod confidence;
 pub mod coreference;
+pub mod dep_relations;
 pub mod document;
 pub mod entities;
 pub mod extractors;
@@ -12,6 +14,7 @@ pub mod linking;
 pub mod patterns;
 pub mod pipeline;
 pub mod relations;
+pub mod seq_patterns;
 pub mod temporal;
 
 // Re-export main types and functionality to maintain backward compatibility

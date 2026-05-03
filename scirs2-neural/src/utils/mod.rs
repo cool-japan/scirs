@@ -20,6 +20,8 @@ pub mod metrics;
 pub mod model_viz;
 /// Positional encoding for transformer models
 pub mod positional_encoding;
+/// ASCII/Unicode sparkline visualization for training metrics
+pub mod visualization;
 pub use colors::{
     color_legend, colored_metric_cell, colorize, colorize_and_style, colorize_bg, gradient_color,
     stylize, Color, ColorOptions, Style,

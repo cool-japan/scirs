@@ -11,11 +11,12 @@ use crate::layers::{BatchNorm, Conv2D, Dense, Dropout, Layer};
 use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive, NumAssign, ToPrimitive};
 use scirs2_core::random::SeedableRng;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 
 /// ResNet block configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ResNetBlock {
     /// Basic block (2 conv layers)
     Basic,
@@ -24,7 +25,7 @@ pub enum ResNetBlock {
 }
 
 /// Configuration for a ResNet layer
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResNetLayer {
     /// Number of blocks in this layer
     pub blocks: usize,
@@ -35,7 +36,7 @@ pub struct ResNetLayer {
 }
 
 /// Configuration for a ResNet model
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResNetConfig {
     /// Block type (Basic or Bottleneck)
     pub block: ResNetBlock,

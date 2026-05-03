@@ -35,7 +35,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-interpolate = "0.4.2"
+//! scirs2-interpolate = "0.4.3"
 //! ```
 //!
 //! ### 1D Interpolation
@@ -184,7 +184,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.2
+//! - **Version**: 0.4.3
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-interpolate](https://docs.rs/scirs2-interpolate)
@@ -356,9 +356,12 @@ pub mod advanced;
 pub mod auto_select;
 // Generic 1-D extrapolation wrapper
 pub mod extrapolation_wrapper;
+// Composable Extrapolate trait (domain / value_at / extrapolate)
+pub mod extrapolation_trait;
 
 // Deep Kriging and GP Surrogate
 pub mod advanced_statistical;
+pub mod auto_kernel_gp;
 pub mod benchmarking;
 pub mod bezier;
 pub mod bivariate;
@@ -386,7 +389,7 @@ pub mod kriging;
 pub mod local;
 pub mod memory_monitor;
 pub mod multiscale;
-// pub mod neural_enhanced;
+pub mod neural_enhanced;
 pub mod numerical_stability;
 pub mod numerical_stability_modules;
 pub mod nurbs;
@@ -400,6 +403,7 @@ pub mod production_validation;
 pub mod scattered_optimized;
 pub mod simd_optimized;
 pub mod structured_matrix;
+pub mod symbolic_derivative;
 
 // SIMD-optimized interpolation methods (optional)
 #[cfg(feature = "simd")]
@@ -428,6 +432,12 @@ pub mod voronoi;
 pub mod hermite_birkhoff;
 pub mod polyharmonic;
 pub mod subdivision;
+
+// Kernel interpolation on Lie groups and homogeneous spaces (S², SO(3), SE(3))
+pub mod lie_group;
+pub use lie_group::{
+    GeometricKernel, Se3Point, Se3RbfInterpolator, So3RbfInterpolator, SphereRbfInterpolator,
+};
 
 // N-dimensional scattered data interpolation
 pub mod scattered_nd;
@@ -458,6 +468,17 @@ pub mod active_learning;
 pub mod gpu_rbf;
 pub mod physics_interp;
 
+// GPU-accelerated k-d tree queries for large scattered datasets (Wave 52)
+pub mod gpu_kdtree;
+pub use gpu_kdtree::{knn_auto_dispatch, GpuKdTree, KdTreeConfig};
+
+// Out-of-core interpolation: disk-backed coefficient storage for large datasets
+pub mod outofcore;
+pub use outofcore::{
+    DiskStorage, OocRbfKernel, OutOfCoreKriging, OutOfCoreKrigingConfig, OutOfCoreRbf,
+    OutOfCoreRbfConfig,
+};
+
 // Enhanced performance validation for stable release
 // pub mod performance_validation_enhanced;
 
@@ -468,10 +489,13 @@ pub mod physics_interp;
 // pub mod documentation_polish_enhanced;
 
 // SciPy parity completion for stable release
-// pub mod scipy_complete_parity;
+pub mod scipy_complete_parity;
 // pub mod scipy_parity_completion;
 
 // Re-exports for convenience
+
+// AutoKernelGp — automatic kernel structure discovery
+pub use auto_kernel_gp::{AutoKernelGp, AutoKernelGpConfig, BaseKernel, KernelExpr};
 
 // Deep Kriging and GP Surrogate re-exports
 pub use deep_kriging::{
@@ -523,6 +547,11 @@ pub use auto_select::{
 pub use extrapolation_wrapper::{
     ExtrapolatingInterpolator, ExtrapolatingInterpolatorAsymmetric, ExtrapolationMode,
     Interpolate1D,
+};
+
+// Composable Extrapolate trait
+pub use extrapolation_trait::{
+    neville_eval, reflect_into_domain, ClosureInterpolator, Extrapolate, ExtrapolationBehavior,
 };
 
 pub use advanced::akima::{make_akima_spline, AkimaSpline};
@@ -794,7 +823,16 @@ pub use statistical::{
 // SavitzkyGolayFilter, StatisticalSpline, VariationalSparseGP, KernelType
 // are already imported above from statistical_advanced module
 pub use resampling::{
-    downsample, resample_scattered_2d, resample_to_irregular, resample_to_regular, upsample,
+    downsample,
+    resample_scattered_2d,
+    // N-D ArrayD grid resampling (grid_spec sub-module)
+    resample_scattered_to_grid,
+    resample_to_irregular,
+    resample_to_regular,
+    upsample,
+    Aggregator,
+    GridSpec,
+    ResampleStrategy,
 };
 pub use scipy_compatibility::{
     create_compatibility_checker, quick_compatibility_check, ApiCoverageResults,

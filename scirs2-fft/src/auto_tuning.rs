@@ -12,8 +12,6 @@
 use crate::oxifft_plan_cache;
 #[cfg(feature = "oxifft")]
 use oxifft::{Complex as OxiComplex, Direction};
-#[cfg(feature = "rustfft-backend")]
-use rustfft::FftPlanner;
 use scirs2_core::numeric::Complex64;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -381,7 +379,7 @@ impl AutoTuner {
                     // Create a plan via the serialization manager
                     let manager = PlanSerializationManager::new(&self.config.database_path);
                     let plan_info = manager.create_plan_info(size, forward);
-                    let (_, time) = crate::plan_serialization::create_and_time_plan(size, forward);
+                    let time = crate::plan_serialization::create_and_time_plan(size, forward);
                     manager.record_plan_usage(&plan_info, time).unwrap_or(());
                 }
                 FftVariant::SplitRadix => {
@@ -739,7 +737,6 @@ impl AutoTuner {
                 }
             }
 
-            #[cfg(not(feature = "rustfft-backend"))]
             {
                 return Err(FFTError::ComputationError(
                     "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()

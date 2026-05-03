@@ -295,11 +295,121 @@ where
 
         Ok(numerator / denominator)
     } else {
-        // For multiple controlling variables, use regression residuals
-        // This is a placeholder - full implementation would require matrix operations
-        Err(StatsError::not_implemented(
-            "Partial correlation with multiple controlling variables not yet implemented",
-        ))
+        // For multiple controlling variables, compute partial correlation by regressing
+        // both x and y on the full Z matrix (Z has ncols > 1) and taking the Pearson
+        // correlation of the residuals.
+        //
+        // OLS residuals: e = v - Z (Z'Z)^{-1} Z' v for v ∈ {x, y}
+        // We solve (Z'Z) β = Z'v via Cholesky decomposition.
+        let q = z.ncols();
+        let n = x.len();
+
+        // Build Z'Z  (q × q)
+        let mut ztg = vec![F::zero(); q * q];
+        for j in 0..q {
+            for k in j..q {
+                let mut dot = F::zero();
+                for i in 0..n {
+                    dot = dot + z[[i, j]] * z[[i, k]];
+                }
+                ztg[j * q + k] = dot;
+                ztg[k * q + j] = dot; // symmetric
+            }
+        }
+
+        // Build Z'x  and  Z'y  (length q)
+        let mut ztx = vec![F::zero(); q];
+        let mut zty = vec![F::zero(); q];
+        for j in 0..q {
+            let mut dx = F::zero();
+            let mut dy = F::zero();
+            for i in 0..n {
+                dx = dx + z[[i, j]] * x[i];
+                dy = dy + z[[i, j]] * y[i];
+            }
+            ztx[j] = dx;
+            zty[j] = dy;
+        }
+
+        // Cholesky decompose Z'Z  with a small jitter for numerical stability.
+        let jitter = F::from(1e-12).unwrap_or(F::zero());
+        let mut l = vec![F::zero(); q * q];
+        for i in 0..q {
+            ztg[i * q + i] = ztg[i * q + i] + jitter;
+        }
+        for i in 0..q {
+            for j in 0..=i {
+                let mut s = ztg[i * q + j];
+                for k in 0..j {
+                    s = s - l[i * q + k] * l[j * q + k];
+                }
+                if i == j {
+                    if s <= F::zero() {
+                        return Err(StatsError::invalid_argument(
+                            "Z'Z is not positive definite — controlling variables are collinear",
+                        ));
+                    }
+                    l[i * q + j] = s.sqrt();
+                } else {
+                    let diag = l[j * q + j];
+                    l[i * q + j] = s / diag;
+                }
+            }
+        }
+
+        // Solve L b = rhs (forward substitution) then L' x = b (backward substitution)
+        let chol_solve = |rhs: &[F]| -> Vec<F> {
+            // Forward: L y = rhs
+            let mut y = vec![F::zero(); q];
+            for i in 0..q {
+                let mut s = rhs[i];
+                for j in 0..i {
+                    s = s - l[i * q + j] * y[j];
+                }
+                let diag = l[i * q + i];
+                y[i] = if diag > F::zero() {
+                    s / diag
+                } else {
+                    F::zero()
+                };
+            }
+            // Backward: L' x = y
+            let mut x_out = vec![F::zero(); q];
+            for i in (0..q).rev() {
+                let mut s = y[i];
+                for k in (i + 1)..q {
+                    s = s - l[k * q + i] * x_out[k];
+                }
+                let diag = l[i * q + i];
+                x_out[i] = if diag > F::zero() {
+                    s / diag
+                } else {
+                    F::zero()
+                };
+            }
+            x_out
+        };
+
+        let beta_x = chol_solve(&ztx);
+        let beta_y = chol_solve(&zty);
+
+        // Compute residuals: e_x[i] = x[i] - Z[i,:] β_x
+        let mut res_x = Array1::<F>::zeros(n);
+        let mut res_y = Array1::<F>::zeros(n);
+        for i in 0..n {
+            let mut fitted_x = F::zero();
+            let mut fitted_y = F::zero();
+            for j in 0..q {
+                fitted_x = fitted_x + z[[i, j]] * beta_x[j];
+                fitted_y = fitted_y + z[[i, j]] * beta_y[j];
+            }
+            res_x[i] = x[i] - fitted_x;
+            res_y[i] = y[i] - fitted_y;
+        }
+
+        // Partial correlation = Pearson(res_x, res_y)
+        use crate::correlation_simd::pearson_r_simd;
+        pearson_r_simd(&res_x.view(), &res_y.view())
     }
 }
 
@@ -883,5 +993,94 @@ mod tests {
         use scirs2_core::ndarray::Array2;
         let ys = Array2::from_shape_fn((5, 2), |(i, j)| (i + j) as f64); // 5 rows ≠ 3
         assert!(simd_spearman_correlation_batch(&x.view(), &ys.view()).is_err());
+    }
+
+    // ── Partial correlation: multiple controlling variables ──────────────────
+
+    /// Partial correlation with two controlling variables.
+    /// x = a*z1 + b*z2 + noise_x,  y = c*z1 + d*z2 + noise_y
+    /// After partialling out z1, z2, the residuals should correlate according
+    /// to the noise structure, not the z structure.
+    #[test]
+    fn test_partial_correlation_multivar_single_control_matches_formula() {
+        use super::partial_correlation_simd;
+        use scirs2_core::ndarray::Array2;
+
+        let n = 40_usize;
+        // z1 = index, z2 = cosine (independent of index)
+        let z1: Vec<f64> = (0..n).map(|i| i as f64 * 0.1).collect();
+        let z2: Vec<f64> = (0..n).map(|i| ((i as f64) * 0.3).cos()).collect();
+
+        // x = z1 + noise,  y = z1 + noise  (noise is non-zero and independent)
+        // After removing z1, residuals of x and y are independent white noise
+        // → partial correlation should be near 0.
+        // Use deterministic "pseudo-noise" to make the test reproducible.
+        let x: Vec<f64> = (0..n)
+            .map(|i| z1[i] + 0.5 * ((i as f64 * 1.1).sin()))
+            .collect();
+        let y: Vec<f64> = (0..n)
+            .map(|i| z1[i] + 0.5 * ((i as f64 * 1.7 + 2.0).sin()))
+            .collect();
+
+        let xa = Array1::from(x);
+        let ya = Array1::from(y);
+        let controls = Array2::from_shape_fn((n, 2), |(i, j)| if j == 0 { z1[i] } else { z2[i] });
+
+        let r = partial_correlation_simd::<f64>(&xa.view(), &ya.view(), &controls.view())
+            .expect("multivar partial corr");
+        // Result must be in [-1, 1]
+        assert!(
+            r.abs() <= 1.0 + 1e-9,
+            "partial correlation out of [-1,1]: {r}"
+        );
+    }
+
+    /// Two controlling variables: when x and y share a third independent component
+    /// not captured by the controls, partial correlation should be non-zero.
+    #[test]
+    fn test_partial_correlation_multivar_two_controls() {
+        use super::partial_correlation_simd;
+        use scirs2_core::ndarray::Array2;
+
+        let n = 50_usize;
+        // controls
+        let z1: Vec<f64> = (0..n).map(|i| (i as f64) * 0.2).collect();
+        let z2: Vec<f64> = (0..n).map(|i| ((i as f64) * 0.15).cos()).collect();
+        // Shared "hidden" component not in the controls
+        let hidden: Vec<f64> = (0..n).map(|i| ((i as f64) * 0.4 + 0.5).sin()).collect();
+
+        // x and y both depend on z1, z2, and the hidden component
+        let x: Vec<f64> = (0..n).map(|i| 2.0 * z1[i] + z2[i] + hidden[i]).collect();
+        let y: Vec<f64> = (0..n).map(|i| z1[i] + 3.0 * z2[i] + hidden[i]).collect();
+
+        let xa = Array1::from(x);
+        let ya = Array1::from(y);
+        let controls = Array2::from_shape_fn((n, 2), |(i, j)| if j == 0 { z1[i] } else { z2[i] });
+
+        let r = partial_correlation_simd::<f64>(&xa.view(), &ya.view(), &controls.view())
+            .expect("multivar partial corr 2 controls");
+        // After partialling out z1, z2, both residuals retain the hidden component
+        // → partial correlation should be strongly positive.
+        assert!(
+            r > 0.3,
+            "expected positive partial correlation from hidden component, got {r}"
+        );
+        assert!(
+            r.abs() <= 1.0 + 1e-9,
+            "partial correlation out of [-1,1]: {r}"
+        );
+    }
+
+    /// Out-of-range / degenerate inputs.
+    #[test]
+    fn test_partial_correlation_multivar_dimension_mismatch() {
+        use super::partial_correlation_simd;
+        use scirs2_core::ndarray::Array2;
+
+        let x = array![1.0_f64, 2.0, 3.0];
+        let y = array![1.0_f64, 2.0, 3.0];
+        // z has wrong number of rows (4 ≠ 3)
+        let z = Array2::from_shape_fn((4, 2), |(i, j)| (i + j) as f64);
+        assert!(partial_correlation_simd::<f64>(&x.view(), &y.view(), &z.view()).is_err());
     }
 }

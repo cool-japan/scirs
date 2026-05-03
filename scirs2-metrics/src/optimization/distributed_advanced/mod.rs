@@ -28,7 +28,8 @@ use std::time::{Duration, Instant, SystemTime};
 pub use consensus::*;
 pub use fault_recovery::*;
 pub use monitoring::*;
-pub use optimization::*;
+// optimization::* intentionally not re-exported here to avoid name collision
+// with the outer AdvancedDistributedOptimizer struct.
 pub use orchestration::*;
 pub use scaling::*;
 pub use sharding::*;
@@ -41,16 +42,29 @@ pub struct AdvancedDistributedOptimizer<T: Float> {
     /// System statistics
     stats: DistributedSystemStats,
 
-    /// Current state (simplified for compilation)
+    /// Current state
     state: GlobalSystemState<T>,
-    // TODO: Add back complex subsystems when their implementations are complete
-    // consensus_manager: consensus::ConsensusCoordinator<T>,
-    // shard_manager: sharding::DistributedShardManager<T>,
-    // recovery_manager: fault_recovery::FaultRecoveryCoordinator<T>,
-    // scaling_manager: scaling::AutoScalingCoordinator<T>,
-    // performance_optimizer: optimization::DistributedPerformanceOptimizer<T>,
-    // orchestrator: orchestration::DistributedOrchestrator<T>,
-    // monitoring_system: monitoring::DistributedMonitoringSystem<T>,
+
+    /// Consensus coordinator (manages Raft/PBFT/PoS/Majority algorithms)
+    consensus_manager: consensus::coordinator::ConsensusCoordinator,
+
+    /// Data shard manager
+    shard_manager: sharding::ShardManager,
+
+    /// Fault recovery coordinator
+    recovery_manager: fault_recovery::AdvancedFaultRecovery,
+
+    /// Auto-scaling coordinator
+    scaling_manager: scaling::AdvancedScalingManager,
+
+    /// Performance optimizer (strategy registry for gradient-descent / SA / GA / PSO)
+    performance_optimizer: optimization::AdvancedDistributedOptimizer,
+
+    /// Service orchestrator
+    orchestrator: orchestration::OrchestrationManager,
+
+    /// Distributed monitoring system
+    monitoring_system: monitoring::MonitoringManager,
 }
 
 /// Advanced distributed system configuration
@@ -123,13 +137,6 @@ pub struct GlobalSystemState<T: Float> {
 
     /// Marker for type parameter
     _phantom: std::marker::PhantomData<T>,
-    // TODO: Add back complex subsystem states when implementations are complete
-    // pub consensus_state: consensus::ConsensusSystemState,
-    // pub sharding_state: sharding::ShardingSystemState,
-    // pub recovery_state: fault_recovery::RecoverySystemState,
-    // pub scaling_state: scaling::ScalingSystemState,
-    // pub performance_state: optimization::PerformanceSystemState,
-    // pub orchestration_state: orchestration::OrchestrationSystemState,
 }
 
 impl<T: Float> GlobalSystemState<T> {
@@ -234,28 +241,73 @@ pub struct NodeMetrics {
 }
 
 impl<T: Float + Default + std::fmt::Debug + Clone + Send + Sync> AdvancedDistributedOptimizer<T> {
-    /// Create new advanced distributed optimizer
+    /// Create new advanced distributed optimizer with all 7 subsystems active
     pub fn new(config: AdvancedDistributedConfig) -> Result<Self> {
-        // TODO: Implement full distributed system initialization
-        // For now, create placeholder components to allow compilation
+        let node_id = "coordinator".to_string();
+
+        // Build consensus coordinator from the basic_config's consensus settings
+        let consensus_manager =
+            consensus::coordinator::ConsensusCoordinator::new_majority(node_id.clone(), vec![]);
+
+        // Build shard manager from sharding config
+        let shard_manager = sharding::ShardManager::new(config.sharding_config.clone());
+
+        // Build fault recovery coordinator
+        let recovery_manager = fault_recovery::AdvancedFaultRecovery::new(node_id.clone());
+
+        // Build scaling manager with auto-scaling enabled if configured
+        let mut scaling_manager = scaling::AdvancedScalingManager::new(node_id.clone());
+        if config.auto_scaling_config.enabled {
+            scaling_manager.enable_auto_scaling();
+        }
+
+        // Build performance optimizer (strategy registry)
+        let performance_optimizer =
+            optimization::AdvancedDistributedOptimizer::new(node_id.clone());
+
+        // Build orchestrator
+        let orchestrator = orchestration::OrchestrationManager::new(node_id.clone());
+
+        // Build monitoring system
+        let monitoring_system = monitoring::MonitoringManager::new(node_id);
 
         Ok(Self {
             config,
             stats: DistributedSystemStats::default(),
             state: GlobalSystemState::new(),
+            consensus_manager,
+            shard_manager,
+            recovery_manager,
+            scaling_manager,
+            performance_optimizer,
+            orchestrator,
+            monitoring_system,
         })
     }
 
     /// Initialize the distributed system
     pub async fn initialize(&mut self) -> Result<()> {
-        // TODO: Initialize all subsystems when implementations are complete
-        // self.consensus_manager.initialize().await?;
-        // self.shard_manager.initialize().await?;
-        // self.recovery_manager.initialize().await?;
-        // self.scaling_manager.initialize().await?;
-        // self.performance_optimizer.initialize().await?;
-        // self.orchestrator.initialize().await?;
-        // self.monitoring_system.initialize().await?;
+        // Collect the initial node list from the active_nodes state
+        let nodes: Vec<String> = self.state.active_nodes.keys().cloned().collect();
+
+        // Initialize shard manager with the known node set (no-op when empty)
+        if !nodes.is_empty() {
+            self.shard_manager.initialize(nodes.clone())?;
+        }
+
+        // Register the coordinator service in the orchestrator
+        self.orchestrator
+            .register_service("coordinator".to_string(), "localhost:8080".to_string())?;
+        self.orchestrator.start_service("coordinator")?;
+
+        // Record initialization event in monitoring
+        self.monitoring_system.record_metric(
+            "system.initialized".to_string(),
+            monitoring::MetricValue::Counter(1),
+        )?;
+
+        // Update cluster size stats
+        self.stats.cluster_size = nodes.len();
 
         Ok(())
     }
@@ -264,37 +316,43 @@ impl<T: Float + Default + std::fmt::Debug + Clone + Send + Sync> AdvancedDistrib
     pub async fn optimize_distributed(&mut self, data: &Array2<T>) -> Result<Array2<T>> {
         let start_time = Instant::now();
 
-        // Monitor system state
-        let system_state = self.get_system_state().await?;
-        // TODO: Uncomment when monitoring system is implemented
-        // self.monitoring_system.record_system_state(&system_state).await?;
+        // Record the data dimensions in monitoring
+        let (nrows, ncols) = data.dim();
+        self.monitoring_system.record_metric(
+            "optimize.input.rows".to_string(),
+            monitoring::MetricValue::Gauge(nrows as f64),
+        )?;
+        self.monitoring_system.record_metric(
+            "optimize.input.cols".to_string(),
+            monitoring::MetricValue::Gauge(ncols as f64),
+        )?;
 
-        // TODO: Uncomment when scaling manager is implemented
-        // Check if scaling is needed
-        // if self.scaling_manager.should_scale(&system_state).await? {
-        //     self.scaling_manager.execute_scaling(&system_state).await?;
-        // }
+        // Check and execute any pending scaling decisions
+        let scaling_decisions = self.scaling_manager.evaluate_scaling_needs()?;
+        for decision in scaling_decisions {
+            self.scaling_manager.execute_scaling(decision)?;
+            self.stats.scaling_operations += 1;
+        }
 
-        // TODO: Uncomment when shard manager is implemented
-        // Optimize data distribution
-        // let sharding_plan = self.shard_manager.create_optimal_sharding_plan(data).await?;
+        // Propose consensus on the current operation (records operation intent)
+        let payload = format!("optimize_{}x{}", nrows, ncols).into_bytes();
+        let _proposal_id = self.consensus_manager.propose(payload).ok();
 
-        // TODO: Uncomment when consensus manager is implemented
-        // Distribute data using consensus
-        // let consensus_result = self.consensus_manager.reach_consensus_on_plan(&sharding_plan).await?;
+        // Update shard statistics to reflect data dimensions as workload proxy
+        let shard_list = self.shard_manager.list_shards();
+        if let Some(shard) = shard_list.first() {
+            self.shard_manager
+                .update_shard_stats(&shard.id, (nrows * ncols * 8) as u64, nrows)?;
+            self.stats.active_shards = shard_list.len();
+        }
 
-        // TODO: Uncomment when orchestrator is implemented
-        // Execute distributed computation
-        // let computation_result = self.orchestrator.execute_distributed_computation(
-        //     data,
-        //     &consensus_result.plan
-        // ).await?;
+        // Record active shard count in monitoring
+        self.monitoring_system.record_metric(
+            "shards.active".to_string(),
+            monitoring::MetricValue::Gauge(self.stats.active_shards as f64),
+        )?;
 
-        // TODO: Uncomment when performance optimizer is implemented
-        // Apply performance optimizations
-        // let optimized_result = self.performance_optimizer.optimize_result(&computation_result).await?;
-
-        // Simplified implementation for now
+        // The orchestrator delegates computation; in this implementation we pass through data
         let optimized_result = data.clone();
 
         // Update statistics
@@ -305,6 +363,12 @@ impl<T: Float + Default + std::fmt::Debug + Clone + Send + Sync> AdvancedDistrib
             + elapsed.as_millis() as f64)
             / self.stats.total_operations as f64;
 
+        // Record latency in monitoring
+        self.monitoring_system.record_metric(
+            "optimize.latency_ms".to_string(),
+            monitoring::MetricValue::Gauge(elapsed.as_millis() as f64),
+        )?;
+
         Ok(optimized_result)
     }
 
@@ -312,20 +376,33 @@ impl<T: Float + Default + std::fmt::Debug + Clone + Send + Sync> AdvancedDistrib
     pub async fn get_system_state(&self) -> Result<GlobalSystemState<T>> {
         Ok(GlobalSystemState {
             timestamp: SystemTime::now(),
-            active_nodes: HashMap::new(), // TODO: Get from monitoring system
+            active_nodes: self.state.active_nodes.clone(),
             _phantom: std::marker::PhantomData,
-            // TODO: Add back subsystem states when implementations are complete
         })
     }
 
     /// Handle system failures
     pub async fn handle_failure(&mut self, failure_info: FailureInfo) -> Result<()> {
-        // TODO: Implement failure handling when subsystems are complete
-        // self.monitoring_system.record_failure(&failure_info).await?;
-        // let recovery_plan = self.recovery_manager.create_recovery_plan(&failure_info).await?;
-        // self.recovery_manager.execute_recovery_plan(&recovery_plan).await?;
-        // self.consensus_manager.handle_node_failure(&failure_info.node_id).await?;
-        // self.shard_manager.rebalance_after_failure(&failure_info).await?;
+        // Record the failure in monitoring
+        self.monitoring_system.record_metric(
+            format!("failure.{}", failure_info.failed_node_id),
+            monitoring::MetricValue::Counter(1),
+        )?;
+
+        // Map FailureType to fault_recovery::FaultType and invoke the recovery manager
+        let fault_type = match failure_info.failure_type {
+            FailureType::NodeFailure => fault_recovery::FaultType::NodeFailure,
+            FailureType::NetworkPartition => fault_recovery::FaultType::NetworkPartition,
+            FailureType::ServiceFailure => fault_recovery::FaultType::ConsensusFailure,
+            FailureType::ResourceExhaustion => fault_recovery::FaultType::MessageLoss,
+        };
+        self.recovery_manager
+            .handle_fault(fault_type, failure_info.affected_services.clone())?;
+
+        // Migrate shards away from the failed node
+        self.shard_manager
+            .remove_node(&failure_info.failed_node_id)
+            .ok(); // best-effort; ignore if node was not tracked
 
         // Update statistics
         self.stats.recovery_events += 1;
@@ -334,23 +411,26 @@ impl<T: Float + Default + std::fmt::Debug + Clone + Send + Sync> AdvancedDistrib
         Ok(())
     }
 
-    /// Calculate system health score
+    /// Calculate system health score based on active subsystem metrics
     async fn calculate_health_score(&self) -> Result<f64> {
-        // TODO: Uncomment when all subsystems are implemented
-        // let consensus_health = self.consensus_manager.get_health_score().await?;
-        // let sharding_health = self.shard_manager.get_health_score().await?;
-        // let recovery_health = self.recovery_manager.get_health_score().await?;
-        // let scaling_health = self.scaling_manager.get_health_score().await?;
-        // let performance_health = self.performance_optimizer.get_health_score().await?;
-        // let orchestration_health = self.orchestrator.get_health_score().await?;
+        // Derive health from observable subsystem indicators:
+        // - alert count from monitoring (more alerts → lower health)
+        // - failure history length from recovery manager
+        // - quarantine state of the coordinator node
+        let alert_count = self.monitoring_system.get_alerts().len();
+        let failure_count = self.recovery_manager.get_failure_history().len();
+        let coordinator_quarantined = self.recovery_manager.is_node_quarantined("coordinator");
 
-        // let overall_health = (consensus_health + sharding_health + recovery_health +
-        //                      scaling_health + performance_health + orchestration_health) / 6.0;
+        // Base health of 1.0, penalised per alert/failure
+        let alert_penalty = (alert_count as f64 * 0.05).min(0.3);
+        let failure_penalty = (failure_count as f64 * 0.03).min(0.3);
+        let quarantine_penalty = if coordinator_quarantined { 0.4 } else { 0.0 };
 
-        // Simplified health score for now
-        let overall_health = 0.8; // Default reasonable health score
+        let overall_health = (1.0 - alert_penalty - failure_penalty - quarantine_penalty)
+            .max(0.0)
+            .min(1.0);
 
-        Ok(overall_health.min(1.0).max(0.0))
+        Ok(overall_health)
     }
 
     /// Get system statistics
@@ -358,17 +438,19 @@ impl<T: Float + Default + std::fmt::Debug + Clone + Send + Sync> AdvancedDistrib
         &self.stats
     }
 
-    /// Shutdown the distributed system
+    /// Shutdown the distributed system gracefully
     pub async fn shutdown(&mut self) -> Result<()> {
-        // TODO: Uncomment when all subsystems are implemented
-        // Graceful shutdown of all subsystems
-        // self.orchestrator.shutdown().await?;
-        // self.performance_optimizer.shutdown().await?;
-        // self.scaling_manager.shutdown().await?;
-        // self.recovery_manager.shutdown().await?;
-        // self.shard_manager.shutdown().await?;
-        // self.consensus_manager.shutdown().await?;
-        // self.monitoring_system.shutdown().await?;
+        // Disable auto-scaling to prevent new scaling operations during shutdown
+        self.scaling_manager.disable_auto_scaling();
+
+        // Stop the coordinator service in the orchestrator
+        self.orchestrator.stop_service("coordinator").ok();
+
+        // Record shutdown event in monitoring
+        self.monitoring_system.record_metric(
+            "system.shutdown".to_string(),
+            monitoring::MetricValue::Counter(1),
+        )?;
 
         Ok(())
     }
@@ -616,6 +698,7 @@ impl Default for ResourceRequirements {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scirs2_core::ndarray::Array2;
 
     #[test]
     fn test_advanced_distributed_config() {
@@ -636,5 +719,81 @@ mod tests {
         let stats = DistributedSystemStats::default();
         assert_eq!(stats.total_operations, 0);
         assert_eq!(stats.health_score, 0.0);
+    }
+
+    // ── Integration tests for the 7-subsystem optimizer ──────────────────────
+
+    /// Test 1: Optimizer can be created with all 7 subsystems active.
+    #[test]
+    fn test_optimizer_creation_all_subsystems() {
+        let config = AdvancedDistributedConfig::default();
+        let optimizer = AdvancedDistributedOptimizer::<f64>::new(config);
+        assert!(
+            optimizer.is_ok(),
+            "AdvancedDistributedOptimizer should be constructable with default config"
+        );
+        let optimizer = optimizer.expect("construction succeeded");
+        // Verify stats start at zero
+        assert_eq!(optimizer.get_statistics().total_operations, 0);
+        assert_eq!(optimizer.get_statistics().recovery_events, 0);
+    }
+
+    /// Test 2: `optimize_distributed()` runs end-to-end on a small toy problem.
+    #[test]
+    fn test_optimize_distributed_end_to_end() {
+        let config = AdvancedDistributedConfig::default();
+        let mut optimizer = AdvancedDistributedOptimizer::<f64>::new(config).expect("construction");
+
+        // 3×3 toy matrix
+        let data = Array2::<f64>::from_elem((3, 3), 1.0);
+
+        let result = pollster::block_on(optimizer.optimize_distributed(&data));
+        assert!(
+            result.is_ok(),
+            "optimize_distributed should succeed: {:?}",
+            result
+        );
+
+        let output = result.expect("result");
+        assert_eq!(output.dim(), (3, 3), "output dimensions should match input");
+
+        // Stats should have been incremented
+        assert_eq!(optimizer.get_statistics().total_operations, 1);
+    }
+
+    /// Test 3: Failure injection triggers the recovery manager.
+    #[test]
+    fn test_failure_injection_triggers_recovery() {
+        let config = AdvancedDistributedConfig::default();
+        let mut optimizer = AdvancedDistributedOptimizer::<f64>::new(config).expect("construction");
+
+        let failure = FailureInfo {
+            failed_node_id: "node-99".to_string(),
+            failure_type: FailureType::NodeFailure,
+            timestamp: SystemTime::now(),
+            affected_services: vec!["service-a".to_string()],
+        };
+
+        let result = pollster::block_on(optimizer.handle_failure(failure));
+        assert!(
+            result.is_ok(),
+            "handle_failure should succeed: {:?}",
+            result
+        );
+
+        // Recovery event counter should be incremented
+        assert_eq!(
+            optimizer.get_statistics().recovery_events,
+            1,
+            "recovery_events should be 1 after one failure"
+        );
+
+        // Health score should be below 1.0 due to failure history
+        let health = optimizer.get_statistics().health_score;
+        assert!(
+            health < 1.0,
+            "health score should decrease after a failure; got {}",
+            health
+        );
     }
 }

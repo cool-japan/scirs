@@ -336,9 +336,7 @@ impl ThetaModel {
     /// Produce h-step-ahead forecasts.
     pub fn forecast(&self, h: usize) -> Result<Vec<f64>> {
         let state = self.fitted.as_ref().ok_or_else(|| {
-            TimeSeriesError::ModelNotFitted(
-                "Call fit() before forecast()".to_string(),
-            )
+            TimeSeriesError::ModelNotFitted("Call fit() before forecast()".to_string())
         })?;
 
         let n = state.n_obs;
@@ -568,9 +566,7 @@ impl OptimizedTheta {
     /// Produce h-step-ahead forecasts.
     pub fn forecast(&self, h: usize) -> Result<Vec<f64>> {
         let state = self.fitted.as_ref().ok_or_else(|| {
-            TimeSeriesError::ModelNotFitted(
-                "OptimizedTheta is not fitted".to_string(),
-            )
+            TimeSeriesError::ModelNotFitted("OptimizedTheta is not fitted".to_string())
         })?;
 
         let n = state.n_obs;

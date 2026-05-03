@@ -141,14 +141,7 @@ impl StrongWolfe {
             // Armijo condition fails or function increased
             if phi_a > phi0 + cfg.c1 * alpha * dphi0 || (phi_a >= phi_prev && _iter > 0) {
                 let (result_alpha, result_phi, nf, ng) = self.zoom(
-                    &mut phi,
-                    &mut dphi,
-                    alpha_prev,
-                    phi_prev,
-                    alpha,
-                    phi_a,
-                    phi0,
-                    dphi0,
+                    &mut phi, &mut dphi, alpha_prev, phi_prev, alpha, phi_a, phi0, dphi0,
                 );
                 n_fev += nf;
                 n_gev += ng;
@@ -184,14 +177,7 @@ impl StrongWolfe {
 
             if dphi_a >= 0.0 {
                 let (result_alpha, result_phi, nf, ng) = self.zoom(
-                    &mut phi,
-                    &mut dphi,
-                    alpha,
-                    phi_a,
-                    alpha_prev,
-                    phi_prev,
-                    phi0,
-                    dphi0,
+                    &mut phi, &mut dphi, alpha, phi_a, alpha_prev, phi_prev, phi0, dphi0,
                 );
                 n_fev += nf;
                 n_gev += ng;
@@ -262,10 +248,7 @@ impl StrongWolfe {
             // Cubic interpolation to find trial step
             let alpha_j = cubic_min_bracket(a_lo, f_lo, dphi(a_lo), a_hi, f_hi)
                 .unwrap_or((a_lo + a_hi) * 0.5)
-                .clamp(
-                    a_lo.min(a_hi) + 1e-10,
-                    a_lo.max(a_hi) - 1e-10,
-                );
+                .clamp(a_lo.min(a_hi) + 1e-10, a_lo.max(a_hi) - 1e-10);
             n_gev += 1; // dphi(a_lo) counted above
 
             let phi_j = phi(alpha_j);
@@ -634,14 +617,7 @@ impl SafeguardedPowell {
 }
 
 /// Safeguarded cubic interpolation between two points.
-fn cubic_interpolate_safeguarded(
-    a: f64,
-    fa: f64,
-    da: f64,
-    b: f64,
-    fb: f64,
-    tol: f64,
-) -> f64 {
+fn cubic_interpolate_safeguarded(a: f64, fa: f64, da: f64, b: f64, fb: f64, tol: f64) -> f64 {
     // Cubic interpolation using derivative at `a` and function values at both ends
     let ab = b - a;
     if ab.abs() < tol {
@@ -815,12 +791,7 @@ impl BacktrackingArmijo {
     }
 
     /// Convenience wrapper: search given a precomputed scalar function φ(α).
-    pub fn search_scalar<Phi>(
-        &self,
-        mut phi: Phi,
-        phi0: f64,
-        dphi0: f64,
-    ) -> LineSearchResult
+    pub fn search_scalar<Phi>(&self, mut phi: Phi, phi0: f64, dphi0: f64) -> LineSearchResult
     where
         Phi: FnMut(f64) -> f64,
     {

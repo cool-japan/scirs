@@ -18,6 +18,7 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
 use scirs2_core::numeric::{Complex, Float, NumAssign};
 use scirs2_core::random::prelude::Rng;
 use scirs2_core::random::SeedableRng;
+use scirs2_core::RngExt;
 use std::iter::Sum;
 
 // ---------------------------------------------------------------------------
@@ -34,7 +35,7 @@ where
     let mut v = Array1::<F>::zeros(n);
     for i in 0..n {
         // Box-Muller or simple normal approximation via 12-uniform sum
-        let u: f64 = rng.random::<f64>() * 2.0 - 1.0;
+        let u: f64 = rng.random_range(-1.0_f64..1.0_f64);
         v[i] = F::from(u).unwrap_or(F::zero());
     }
     let norm_sq: F = v.iter().fold(F::zero(), |acc, &x| acc + x * x);
@@ -63,11 +64,7 @@ where
 ///
 /// We form the matrix explicitly and then compute the minimum singular value
 /// via SVD.
-fn smallest_singular_value_shifted<F>(
-    a: &ArrayView2<F>,
-    z_re: F,
-    z_im: F,
-) -> LinalgResult<F>
+fn smallest_singular_value_shifted<F>(a: &ArrayView2<F>, z_re: F, z_im: F) -> LinalgResult<F>
 where
     F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static,
 {
@@ -90,7 +87,10 @@ where
     // twice; we take the minimum and divide by sqrt(2) to get the true
     // complex singular value.
     let two = F::from(2.0_f64).unwrap_or(F::one() + F::one());
-    let min_sv = s.iter().cloned().fold(F::infinity(), |a, b| if b < a { b } else { a });
+    let min_sv = s
+        .iter()
+        .cloned()
+        .fold(F::infinity(), |a, b| if b < a { b } else { a });
     Ok(min_sv / two.sqrt())
 }
 
@@ -129,10 +129,7 @@ where
 /// assert_eq!(re.len(), im.len());
 /// assert!(re.len() >= 4);
 /// ```
-pub fn field_of_values<F>(
-    a: &ArrayView2<F>,
-    n_samples: usize,
-) -> LinalgResult<(Vec<F>, Vec<F>)>
+pub fn field_of_values<F>(a: &ArrayView2<F>, n_samples: usize) -> LinalgResult<(Vec<F>, Vec<F>)>
 where
     F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static,
 {
@@ -173,7 +170,8 @@ where
     let mut im_pts = Vec::with_capacity(n_samples);
 
     for k in 0..n_samples {
-        let theta = two_pi * F::from(k).unwrap_or(F::zero()) / F::from(n_samples).unwrap_or(F::one());
+        let theta =
+            two_pi * F::from(k).unwrap_or(F::zero()) / F::from(n_samples).unwrap_or(F::one());
         let cos_t = theta.cos();
         let sin_t = theta.sin();
 
@@ -516,10 +514,10 @@ where
 /// # Arguments
 /// * `a`            - Input square real matrix (n×n)
 /// * `epsilon_values` - Epsilon values used to define contour levels (unused
-///                      in the computation but returned for convenience)
+///   in the computation but returned for convenience)
 /// * `grid_size`    - Grid resolution (produces a `grid_size × grid_size` output)
 /// * `x_range`      - Optional `(x_min, x_max)` for the real axis; if `None`
-///                    an automatic range is derived from eigenvalues.
+///   an automatic range is derived from eigenvalues.
 /// * `y_range`      - Optional `(y_min, y_max)` for the imaginary axis.
 ///
 /// # Returns
@@ -576,13 +574,26 @@ where
         (re, im)
     };
 
-    let eig_re_min = eig_re.iter().cloned().fold(F::infinity(), |a, b| if b < a { b } else { a });
-    let eig_re_max = eig_re.iter().cloned().fold(F::neg_infinity(), |a, b| if b > a { b } else { a });
-    let eig_im_min = eig_im.iter().cloned().fold(F::infinity(), |a, b| if b < a { b } else { a });
-    let eig_im_max = eig_im.iter().cloned().fold(F::neg_infinity(), |a, b| if b > a { b } else { a });
+    let eig_re_min = eig_re
+        .iter()
+        .cloned()
+        .fold(F::infinity(), |a, b| if b < a { b } else { a });
+    let eig_re_max = eig_re
+        .iter()
+        .cloned()
+        .fold(F::neg_infinity(), |a, b| if b > a { b } else { a });
+    let eig_im_min = eig_im
+        .iter()
+        .cloned()
+        .fold(F::infinity(), |a, b| if b < a { b } else { a });
+    let eig_im_max = eig_im
+        .iter()
+        .cloned()
+        .fold(F::neg_infinity(), |a, b| if b > a { b } else { a });
 
     let two = F::from(2.0_f64).unwrap_or(F::one() + F::one());
-    let margin = ((eig_re_max - eig_re_min).abs() + (eig_im_max - eig_im_min).abs()) / two + F::one();
+    let margin =
+        ((eig_re_max - eig_re_min).abs() + (eig_im_max - eig_im_min).abs()) / two + F::one();
 
     let (x_min, x_max) = x_range.unwrap_or((eig_re_min - margin, eig_re_max + margin));
     let (y_min, y_max) = y_range.unwrap_or((eig_im_min - margin, eig_im_max + margin));
@@ -629,10 +640,7 @@ mod tests {
     fn test_spectral_abscissa_diagonal() {
         let a = array![[-1.0_f64, 0.0], [0.0, -2.0]];
         let alpha = spectral_abscissa(&a.view()).expect("spectral_abscissa");
-        assert!(
-            (alpha - (-1.0)).abs() < 1e-10,
-            "expected -1, got {alpha}"
-        );
+        assert!((alpha - (-1.0)).abs() < 1e-10, "expected -1, got {alpha}");
     }
 
     #[test]
@@ -673,10 +681,15 @@ mod tests {
             assert!(mag <= 3.1, "boundary point magnitude out of range: {mag}");
         }
         // Numerical radius ≈ 3 (maximum |z| over boundary)
-        let max_mag = re.iter().zip(im.iter())
-            .map(|(&r, &i)| (r*r + i*i).sqrt())
+        let max_mag = re
+            .iter()
+            .zip(im.iter())
+            .map(|(&r, &i)| (r * r + i * i).sqrt())
             .fold(0.0_f64, f64::max);
-        assert!(max_mag >= 2.9, "max boundary magnitude should be ≈3, got {max_mag}");
+        assert!(
+            max_mag >= 2.9,
+            "max boundary magnitude should be ≈3, got {max_mag}"
+        );
     }
 
     #[test]
@@ -697,8 +710,7 @@ mod tests {
     #[test]
     fn test_pseudospectrum_shape() {
         let a = array![[1.0_f64, 0.0], [0.0, 2.0]];
-        let result = pseudospectrum(&a.view(), &[0.1_f64], 6, None, None)
-            .expect("pseudospectrum");
+        let result = pseudospectrum(&a.view(), &[0.1_f64], 6, None, None).expect("pseudospectrum");
         assert_eq!(result.sigma_min.shape(), &[6, 6]);
         assert_eq!(result.x_grid.len(), 6);
         assert_eq!(result.y_grid.len(), 6);
@@ -723,7 +735,10 @@ mod tests {
             .iter()
             .cloned()
             .fold(f64::INFINITY, f64::min);
-        assert!(min_sv < 0.6, "σ_min near eigenvalue should be small, got {min_sv}");
+        assert!(
+            min_sv < 0.6,
+            "σ_min near eigenvalue should be small, got {min_sv}"
+        );
     }
 
     #[test]

@@ -74,6 +74,4 @@ pub mod tensor_train;
 pub use core::{Tensor, TensorScalar};
 pub use cp_decomp::{cp_als, cp_grad, cp_reconstruct, CPConfig, CPResult};
 pub use hosvd::{hooi, hosvd, truncated_hosvd, HOSVDResult};
-pub use tensor_train::{
-    tt_add, tt_cross, tt_dot, tt_hadamard, tt_round, tt_scale, tt_svd, TTCore,
-};
+pub use tensor_train::{tt_add, tt_cross, tt_dot, tt_hadamard, tt_round, tt_scale, tt_svd, TTCore};

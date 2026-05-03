@@ -160,12 +160,8 @@ where
         TFTransform::SynchrosqueezedWT => {
             compute_synchrosqueezed_wt(&signal_f64, config, sample_rate)
         }
-        TFTransform::WVD => Err(FFTError::NotImplementedError(
-            "Wigner-Ville Distribution not implemented".to_string(),
-        )),
-        TFTransform::SPWVD => Err(FFTError::NotImplementedError(
-            "Smoothed Pseudo Wigner-Ville Distribution not implemented".to_string(),
-        )),
+        TFTransform::WVD => compute_wvd(&signal_f64, config, sample_rate),
+        TFTransform::SPWVD => compute_spwvd(&signal_f64, config, sample_rate),
     }
 }
 
@@ -399,17 +395,16 @@ fn create_wavelet_fft(
     sample_rate: f64,
 ) -> FFTResult<Vec<Complex64>> {
     let dt = 1.0 / sample_rate;
-    let scale = 1.0 / scale_freq;
 
-    // Normalized frequency vector
+    // Normalized frequency vector in Hz
     let mut freqs = Vec::with_capacity(n);
     for k in 0..n {
-        let _freq = if k <= n / 2 {
+        let freq = if k <= n / 2 {
             k as f64 / (n as f64 * dt)
         } else {
             -((n - k) as f64) / (n as f64 * dt)
         };
-        freqs.push(_freq);
+        freqs.push(freq);
     }
 
     // Initialize wavelet in frequency domain
@@ -417,23 +412,30 @@ fn create_wavelet_fft(
 
     match wavelet_type {
         WaveletType::Morlet => {
-            // Morlet wavelet parameters
-            let omega0 = 6.0; // Central frequency
+            // Morlet wavelet central angular frequency (dimensionless)
+            let omega0 = 6.0;
+            // Scale is chosen so that norm_freq = freq * scale peaks at freq = scale_freq.
+            // norm_freq == omega0 when freq == scale_freq  =>  scale = omega0 / scale_freq
+            let scale = omega0 / scale_freq;
 
-            for (k, &_freq) in freqs.iter().enumerate().take(n) {
-                let norm_freq = _freq * scale;
+            for (k, &freq) in freqs.iter().enumerate().take(n) {
+                let norm_freq = freq * scale;
                 if norm_freq > 0.0 {
-                    // Morlet wavelet in frequency domain
+                    // Morlet wavelet in frequency domain:
+                    // Ψ̂(ω) ∝ exp(-½(ω - ω₀)²)  (admissibility correction negligible for ω₀≥5)
                     let exp_term = (-0.5 * (norm_freq - omega0).powi(2)).exp();
                     wavelet_fft[k] = Complex64::new(exp_term * scale.sqrt(), 0.0);
                 }
             }
         }
         WaveletType::MexicanHat => {
-            for (k, &_freq) in freqs.iter().enumerate().take(n) {
-                let norm_freq = _freq * scale;
+            // Mexican hat (Ricker) wavelet: Ψ̂(ω) ∝ ω² exp(-½ω²)
+            // Peaks at |ω| = √2  =>  scale = √2 / scale_freq
+            let scale = 2.0_f64.sqrt() / scale_freq;
+
+            for (k, &freq) in freqs.iter().enumerate().take(n) {
+                let norm_freq = freq * scale;
                 if norm_freq > 0.0 {
-                    // Mexican hat wavelet in frequency domain
                     let exp_term = (-0.5 * norm_freq.powi(2)).exp();
                     wavelet_fft[k] =
                         Complex64::new(exp_term * norm_freq.powi(2) * scale.sqrt(), 0.0);
@@ -441,28 +443,29 @@ fn create_wavelet_fft(
             }
         }
         WaveletType::Paul => {
-            // Paul wavelet parameter
-            let m = 4; // Order of the wavelet
+            // Paul wavelet of order m: Ψ̂(ω) ∝ ωᵐ exp(-ω)
+            // Peaks at ω = m  =>  scale = m / scale_freq
+            let m = 4i32; // Order of the wavelet
+            let scale = m as f64 / scale_freq;
 
-            for (k, &_freq) in freqs.iter().enumerate().take(n) {
-                let norm_freq = _freq * scale;
+            for (k, &freq) in freqs.iter().enumerate().take(n) {
+                let norm_freq = freq * scale;
                 if norm_freq > 0.0 {
-                    // Paul wavelet in frequency domain
-                    let h = (norm_freq > 0.0) as i32 as f64;
                     let exp_term = (-norm_freq).exp();
                     wavelet_fft[k] =
-                        Complex64::new(h * scale.sqrt() * norm_freq.powi(m) * exp_term, 0.0);
+                        Complex64::new(scale.sqrt() * norm_freq.powi(m) * exp_term, 0.0);
                 }
             }
         }
         WaveletType::DOG => {
-            // DOG wavelet parameter
-            let m = 2; // Order of the derivative
+            // Derivative-of-Gaussian wavelet of order m: Ψ̂(ω) ∝ (iω)ᵐ exp(-½ω²)
+            // Magnitude peaks at |ω| = √m  =>  scale = √m / scale_freq
+            let m = 2i32; // Order of the derivative
+            let scale = (m as f64).sqrt() / scale_freq;
 
-            for (k, &_freq) in freqs.iter().enumerate().take(n) {
-                let norm_freq = _freq * scale;
+            for (k, &freq) in freqs.iter().enumerate().take(n) {
+                let norm_freq = freq * scale;
                 if norm_freq > 0.0 {
-                    // DOG wavelet in frequency domain
                     let exp_term = (-0.5 * norm_freq.powi(2)).exp();
                     let real_part = exp_term * norm_freq.powi(m) * scale.sqrt();
                     let complex_part = Complex64::i().powi(m);
@@ -648,6 +651,220 @@ fn compute_synchrosqueezed_wt(
     })
 }
 
+/// Compute analytic signal (Hilbert transform via FFT)
+///
+/// Returns a complex array where the real part is the original signal and the imaginary
+/// part is the 90-degree phase-shifted version. Uses the one-sided spectrum approach.
+fn compute_analytic_signal(signal: &[f64]) -> FFTResult<Vec<Complex64>> {
+    let n = signal.len();
+    if n == 0 {
+        return Ok(vec![]);
+    }
+
+    // Build complex signal and compute FFT
+    let complex_signal: Vec<Complex64> = signal.iter().map(|&v| Complex64::new(v, 0.0)).collect();
+
+    let mut spectrum = fft(&complex_signal, None)?;
+
+    // Double positive frequencies (analytic signal: zero-out negative freqs, double positive)
+    // spectrum[0] and spectrum[n/2] (if n even) are kept unchanged
+    // indices 1..(n/2) are doubled
+    // indices (n/2+1)..n are zeroed
+    let half = n / 2;
+    for k in 1..half {
+        spectrum[k] *= 2.0;
+    }
+    // Negative frequencies start at index (half+1) for both even and odd n
+    let neg_start = half + 1;
+    for k in neg_start..n {
+        spectrum[k] = Complex64::new(0.0, 0.0);
+    }
+
+    // Inverse FFT to get analytic signal
+    let analytic = ifft(&spectrum, None)?;
+    Ok(analytic)
+}
+
+/// Compute Wigner-Ville Distribution (WVD)
+///
+/// The WVD is defined as:
+///   W(t, f) = ∫ z(t + τ/2) · z*(t - τ/2) · exp(-j·2π·f·τ) dτ
+///
+/// where z is the analytic signal. This is implemented via a per-time FFT of the
+/// instantaneous autocorrelation kernel R(t, τ) = z(t + τ/2) · z*(t - τ/2).
+fn compute_wvd(signal: &[f64], config: &TFConfig, sample_rate: Option<f64>) -> FFTResult<TFResult> {
+    let n = signal.len().min(config.max_size);
+    if n < 2 {
+        return Err(FFTError::ValueError(
+            "Signal too short for WVD computation".to_string(),
+        ));
+    }
+
+    // Get analytic signal
+    let z = compute_analytic_signal(&signal[..n])?;
+
+    // Number of frequency bins; use the signal length (full resolution)
+    let nfft = n;
+    let num_bins = nfft / 2 + 1; // one-sided
+
+    // Times: each sample is a time bin
+    let times: Vec<f64> = (0..n)
+        .map(|i| {
+            let t = i as f64;
+            sample_rate.map_or(t, |fs| t / fs)
+        })
+        .collect();
+
+    // Frequencies: one-sided
+    let frequencies: Vec<f64> = (0..num_bins)
+        .map(|k| {
+            let f = k as f64 / nfft as f64;
+            sample_rate.map_or(f, |fs| f * fs)
+        })
+        .collect();
+
+    let mut coefficients = Array2::zeros((n, num_bins));
+
+    // For each time t, form the kernel and FFT it
+    for t in 0..n {
+        // Lag range: -(t).min(n-1-t) .. (t).min(n-1-t)
+        let max_lag = t.min(n - 1 - t);
+
+        // Build the full two-sided autocorrelation kernel of length nfft
+        let mut kernel = vec![Complex64::new(0.0, 0.0); nfft];
+
+        for lag in 0..=max_lag {
+            let t_plus = (t + lag) % n;
+            let t_minus = (t + n - lag) % n;
+            let val = z[t_plus] * z[t_minus].conj();
+
+            kernel[lag] = val;
+            if lag > 0 {
+                // Wrap negative lag to index nfft - lag
+                kernel[nfft - lag] = val.conj();
+            }
+        }
+
+        // FFT the kernel to get WVD at time t
+        let wvd_row = fft(&kernel, None)?;
+
+        // Store positive-frequency bins
+        for k in 0..num_bins {
+            coefficients[[t, k]] = wvd_row[k];
+        }
+    }
+
+    let mut metadata = HashMap::new();
+    metadata.insert("nfft".to_string(), nfft as f64);
+    metadata.insert("num_time_bins".to_string(), n as f64);
+
+    Ok(TFResult {
+        times,
+        frequencies,
+        coefficients,
+        sample_rate,
+        transform_type: TFTransform::WVD,
+        metadata,
+    })
+}
+
+/// Compute Smoothed Pseudo Wigner-Ville Distribution (SPWVD)
+///
+/// SPWVD extends WVD by applying separable smoothing windows in both time and
+/// frequency lag directions, reducing cross-term interference at the cost of
+/// resolution. Here a rectangular window is used for the lag domain (controlled by
+/// `config.window_size`) and an optional time-smoothing average is applied
+/// by accumulating WVD slices over a neighbourhood of `config.hop_size` samples.
+fn compute_spwvd(
+    signal: &[f64],
+    config: &TFConfig,
+    sample_rate: Option<f64>,
+) -> FFTResult<TFResult> {
+    let n = signal.len().min(config.max_size);
+    if n < 2 {
+        return Err(FFTError::ValueError(
+            "Signal too short for SPWVD computation".to_string(),
+        ));
+    }
+
+    // Get analytic signal
+    let z = compute_analytic_signal(&signal[..n])?;
+
+    let nfft = n;
+    let num_bins = nfft / 2 + 1;
+
+    let times: Vec<f64> = (0..n)
+        .map(|i| {
+            let t = i as f64;
+            sample_rate.map_or(t, |fs| t / fs)
+        })
+        .collect();
+
+    let frequencies: Vec<f64> = (0..num_bins)
+        .map(|k| {
+            let f = k as f64 / nfft as f64;
+            sample_rate.map_or(f, |fs| f * fs)
+        })
+        .collect();
+
+    // Frequency-smoothing lag window half-length
+    let lag_half = (config.window_size / 2).min(n / 2).max(1);
+    // Time-smoothing half-width (use hop_size as surrogate)
+    let time_half = config.hop_size.min(n / 4);
+
+    let mut coefficients = Array2::zeros((n, num_bins));
+
+    // Accumulate smoothed WVD
+    for t in 0..n {
+        // Time-smoothing: average over neighbouring time points
+        let t_start = t.saturating_sub(time_half);
+        let t_end = (t + time_half + 1).min(n);
+        let t_count = (t_end - t_start) as f64;
+
+        let mut accum = vec![Complex64::new(0.0, 0.0); nfft];
+
+        for t_centre in t_start..t_end {
+            let max_lag = lag_half.min(t_centre).min(n - 1 - t_centre);
+            let mut kernel = vec![Complex64::new(0.0, 0.0); nfft];
+
+            for lag in 0..=max_lag {
+                let t_plus = t_centre + lag;
+                let t_minus = t_centre + n - lag; // equiv to (t_centre - lag + n) % n
+                let val = z[t_plus % n] * z[t_minus % n].conj();
+
+                kernel[lag] += val;
+                if lag > 0 {
+                    kernel[nfft - lag] += val.conj();
+                }
+            }
+
+            let row = fft(&kernel, None)?;
+            for k in 0..nfft {
+                accum[k] += row[k];
+            }
+        }
+
+        // Normalise by number of time frames accumulated
+        for k in 0..num_bins {
+            coefficients[[t, k]] = accum[k] / t_count;
+        }
+    }
+
+    let mut metadata = HashMap::new();
+    metadata.insert("nfft".to_string(), nfft as f64);
+    metadata.insert("lag_half".to_string(), lag_half as f64);
+    metadata.insert("time_half".to_string(), time_half as f64);
+
+    Ok(TFResult {
+        times,
+        frequencies,
+        coefficients,
+        sample_rate,
+        transform_type: TFTransform::SPWVD,
+        metadata,
+    })
+}
+
 /// Calculate the spectrogram (magnitude squared of STFT)
 #[allow(dead_code)]
 pub fn spectrogram<T>(
@@ -777,7 +994,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "CWT implementation needs debugging - energies are computed as zero"]
     fn test_cwt() {
         // Create a test signal (sine wave)
         let sample_rate = 1000.0;
@@ -862,5 +1078,94 @@ mod tests {
             freq,
             ((peak_freq - freq).abs() / freq * 100.0)
         ); // Allow 35% margin due to scale resolution
+    }
+}
+
+#[cfg(test)]
+mod wvd_tests {
+    use super::*;
+
+    /// Helper: build a short dual-tone test signal
+    fn dual_tone_signal(fs: f64, n: usize, f1: f64, f2: f64) -> Vec<f64> {
+        (0..n)
+            .map(|i| {
+                let t = i as f64 / fs;
+                (2.0 * std::f64::consts::PI * f1 * t).sin()
+                    + (2.0 * std::f64::consts::PI * f2 * t).sin()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn test_wvd_basic_shape() {
+        let n = 32;
+        let signal = dual_tone_signal(256.0, n, 32.0, 96.0);
+        let config = TFConfig {
+            transform_type: TFTransform::WVD,
+            max_size: n,
+            ..Default::default()
+        };
+        let result =
+            time_frequency_transform(&signal, &config, Some(256.0)).expect("WVD should succeed");
+
+        assert_eq!(result.transform_type, TFTransform::WVD);
+        assert_eq!(result.times.len(), n);
+        // One-sided spectrum: n/2 + 1 bins
+        assert_eq!(result.frequencies.len(), n / 2 + 1);
+        assert_eq!(result.coefficients.dim(), (n, n / 2 + 1));
+    }
+
+    #[test]
+    fn test_wvd_is_real_for_real_signal() {
+        // For a real signal, WVD auto-correlation kernel is Hermitian →
+        // the positive-frequency bins should be nearly real.
+        let n = 16;
+        let signal: Vec<f64> = (0..n)
+            .map(|i| (2.0 * std::f64::consts::PI * 4.0 * i as f64 / n as f64).sin())
+            .collect();
+        let config = TFConfig {
+            transform_type: TFTransform::WVD,
+            max_size: n,
+            ..Default::default()
+        };
+        let result = time_frequency_transform(&signal, &config, None).expect("WVD should succeed");
+
+        // Imaginary parts of WVD coefficients should be small for a real analytic input
+        for row in 0..result.times.len() {
+            for col in 0..result.frequencies.len() {
+                let imag = result.coefficients[[row, col]].im.abs();
+                assert!(
+                    imag < 10.0,
+                    "WVD imaginary part too large at ({row},{col}): {imag}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_spwvd_basic_shape() {
+        let n = 32;
+        let signal = dual_tone_signal(256.0, n, 32.0, 96.0);
+        let config = TFConfig {
+            transform_type: TFTransform::SPWVD,
+            max_size: n,
+            window_size: 8,
+            hop_size: 2,
+            ..Default::default()
+        };
+        let result =
+            time_frequency_transform(&signal, &config, Some(256.0)).expect("SPWVD should succeed");
+
+        assert_eq!(result.transform_type, TFTransform::SPWVD);
+        assert_eq!(result.times.len(), n);
+        assert_eq!(result.frequencies.len(), n / 2 + 1);
+        assert_eq!(result.coefficients.dim(), (n, n / 2 + 1));
+    }
+
+    #[test]
+    fn test_analytic_signal_length() {
+        let sig = vec![1.0, 0.0, -1.0, 0.0];
+        let analytic = super::compute_analytic_signal(&sig).expect("should succeed");
+        assert_eq!(analytic.len(), sig.len());
     }
 }

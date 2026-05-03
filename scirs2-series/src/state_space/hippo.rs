@@ -235,13 +235,9 @@ fn hippo_fourier_decay(n: usize, decay: f64) -> Result<(Vec<Vec<f64>>, Vec<f64>)
 /// matrix is negative, which is a necessary (though not sufficient for
 /// non-triangular) condition for stability.
 pub fn check_diagonal_stability(a: &[Vec<f64>]) -> bool {
-    a.iter().enumerate().all(|(i, row)| {
-        if i < row.len() {
-            row[i] < 0.0
-        } else {
-            false
-        }
-    })
+    a.iter()
+        .enumerate()
+        .all(|(i, row)| if i < row.len() { row[i] < 0.0 } else { false })
 }
 
 // ---------------------------------------------------------------------------
@@ -362,7 +358,12 @@ mod tests {
         assert_eq!(b.len(), n);
         // Diagonal should be negative
         for i in 0..n {
-            assert!(a[i][i] < 0.0, "LegT diagonal A[{}][{}] should be negative", i, i);
+            assert!(
+                a[i][i] < 0.0,
+                "LegT diagonal A[{}][{}] should be negative",
+                i,
+                i
+            );
         }
     }
 
@@ -378,7 +379,8 @@ mod tests {
     fn test_fourier_decay_matrix() {
         let n = 6;
         let decay = 0.5;
-        let (a, b) = hippo_matrix(&HiPPOVariant::FourierDecay { decay }, n).expect("should succeed");
+        let (a, b) =
+            hippo_matrix(&HiPPOVariant::FourierDecay { decay }, n).expect("should succeed");
         assert_eq!(a.len(), n);
         assert_eq!(b.len(), n);
         // Check 2x2 block structure for first pair
@@ -393,7 +395,8 @@ mod tests {
     fn test_fourier_decay_odd_n() {
         let n = 5;
         let decay = 1.0;
-        let (a, b) = hippo_matrix(&HiPPOVariant::FourierDecay { decay }, n).expect("should succeed");
+        let (a, b) =
+            hippo_matrix(&HiPPOVariant::FourierDecay { decay }, n).expect("should succeed");
         // Last element: single decaying exponential
         assert!((a[4][4] - (-1.0)).abs() < 1e-12);
         assert!((b[4] - 1.0).abs() < 1e-12);

@@ -1,0 +1,5 @@
+error[E0433]: cannot find `scirs2_linalg` in `scirs2`
+ --> tests/compile_fail/no_linalg_without_feature.rs
+  |
+  |     let _ = scirs2::scirs2_linalg::LinalgError;
+  |                     ^^^^^^^^^^^^^ could not find `scirs2_linalg` in `scirs2`

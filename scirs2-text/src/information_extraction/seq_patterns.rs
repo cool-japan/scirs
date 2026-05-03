@@ -239,13 +239,9 @@ impl PatternMatcher {
                     if new_pos > tokens.len() {
                         break;
                     }
-                    if let Some(result) = self.try_match_from(
-                        pattern,
-                        tokens,
-                        new_pos,
-                        elem_idx + 1,
-                        groups.clone(),
-                    ) {
+                    if let Some(result) =
+                        self.try_match_from(pattern, tokens, new_pos, elem_idx + 1, groups.clone())
+                    {
                         return Some(result);
                     }
                 }
@@ -292,9 +288,7 @@ pub fn build_ner_pattern_matcher() -> Result<PatternMatcher> {
     // URL
     matcher.add_pattern(
         "URL",
-        Pattern::new(vec![PatternElement::Regex(
-            r"https?://[^\s]+".to_string(),
-        )]),
+        Pattern::new(vec![PatternElement::Regex(r"https?://[^\s]+".to_string())]),
     )?;
 
     // Phone: (NNN) NNN-NNNN or NNN-NNN-NNNN
@@ -313,9 +307,7 @@ mod tests {
     use super::*;
 
     fn tokenize_simple(text: &str) -> Vec<Token> {
-        text.split_whitespace()
-            .map(Token::new)
-            .collect()
+        text.split_whitespace().map(Token::new).collect()
     }
 
     #[test]

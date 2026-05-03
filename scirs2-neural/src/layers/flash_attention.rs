@@ -14,6 +14,7 @@ use scirs2_core::ndarray::{s, Array, Array2, Array4, ArrayView2, IxDyn, ScalarOp
 use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::random::{Rng, RngExt};
 use std::fmt::Debug;
+use std::sync::{Arc, RwLock};
 
 /// Configuration for Flash Attention
 #[derive(Debug, Clone)]
@@ -89,6 +90,31 @@ impl FlashAttentionConfig {
     }
 }
 
+/// Forward pass statistics saved for backward computation.
+///
+/// Stores per-head row-max (`m`) and row-sum (`l`) from the online softmax,
+/// indexed as `[batch * num_heads + head]`.
+#[derive(Debug)]
+struct ForwardCache<F> {
+    /// Row-max per (batch, head): Vec length = batch*num_heads, each Array1 of length seq_len
+    m: Vec<Vec<F>>,
+    /// Row-sum per (batch, head): Vec length = batch*num_heads, each Array1 of length seq_len
+    l: Vec<Vec<F>>,
+    /// Q after projection, shape [batch, seq, num_heads, head_dim]
+    q4d: Array<F, IxDyn>,
+    /// K after projection, shape [batch, seq, num_heads, head_dim]
+    k4d: Array<F, IxDyn>,
+    /// V after projection, shape [batch, seq, num_heads, head_dim]
+    v4d: Array<F, IxDyn>,
+    /// Per-head output before W_O projection, shape [batch, seq, num_heads, head_dim]
+    o4d: Array<F, IxDyn>,
+    /// Input to the layer (flat 2D), shape [batch*seq, d_model]
+    input2d: Array<F, IxDyn>,
+    /// Dimensions at forward time
+    batch_size: usize,
+    seq_len: usize,
+}
+
 /// Flash Attention layer
 ///
 /// Implements memory-efficient attention using tiling and online softmax.
@@ -126,7 +152,6 @@ impl FlashAttentionConfig {
 /// let input = Array3::<f64>::from_elem((2, 128, 512), 0.1).into_dyn();
 /// let output = flash_attn.forward(&input).expect("Operation failed");
 /// ```
-#[derive(Debug)]
 pub struct FlashAttention<F: Float + Debug + Send + Sync + NumAssign> {
     /// Model dimension
     d_model: usize,
@@ -142,6 +167,27 @@ pub struct FlashAttention<F: Float + Debug + Send + Sync + NumAssign> {
     w_output: Array<F, IxDyn>,
     /// Scaling factor for attention scores
     scale: F,
+    /// Forward pass cache (Arc<RwLock<>> for interior mutability from &self)
+    cache: Arc<RwLock<Option<ForwardCache<F>>>>,
+    /// Gradient of query weights — accumulated during backward
+    dw_query: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of key weights
+    dw_key: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of value weights
+    dw_value: Arc<RwLock<Array<F, IxDyn>>>,
+    /// Gradient of output weights
+    dw_output: Arc<RwLock<Array<F, IxDyn>>>,
+}
+
+impl<F: Float + Debug + Send + Sync + NumAssign> std::fmt::Debug for FlashAttention<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FlashAttention")
+            .field("d_model", &self.d_model)
+            .field("num_heads", &self.config.num_heads)
+            .field("head_dim", &self.config.head_dim)
+            .field("causal", &self.config.causal)
+            .finish()
+    }
 }
 
 impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> FlashAttention<F> {
@@ -180,6 +226,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Flash
                         .sqrt()
             });
 
+        let zeros = Array::zeros(IxDyn(&[d_model, d_model]));
+
         Ok(Self {
             d_model,
             config,
@@ -188,6 +236,11 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Flash
             w_value,
             w_output,
             scale,
+            cache: Arc::new(RwLock::new(None)),
+            dw_query: Arc::new(RwLock::new(zeros.clone())),
+            dw_key: Arc::new(RwLock::new(zeros.clone())),
+            dw_value: Arc::new(RwLock::new(zeros.clone())),
+            dw_output: Arc::new(RwLock::new(zeros)),
         })
     }
 
@@ -204,22 +257,21 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Flash
         weights
     }
 
-    /// Compute Flash Attention forward pass
+    /// Compute Flash Attention forward pass, returning output, row-max and row-sum.
     ///
-    /// This implements the tiled attention algorithm from the Flash Attention paper.
-    /// The key insight is using online softmax to avoid materializing the full N×N matrix.
+    /// Returns `(output, row_max_vec, row_sum_vec)` where the vecs have length `seq_len`.
     fn flash_attention_forward(
         &self,
         query: &Array2<F>,
         key: &Array2<F>,
         value: &Array2<F>,
-    ) -> Result<Array2<F>> {
+    ) -> Result<(Array2<F>, Vec<F>, Vec<F>)> {
         let seq_len_q = query.nrows();
         let seq_len_kv = key.nrows();
         let head_dim = query.ncols();
 
-        let block_size_q = self.config.block_size_q.min(seq_len_q);
-        let block_size_kv = self.config.block_size_kv.min(seq_len_kv);
+        let block_size_q = self.config.block_size_q.min(seq_len_q).max(1);
+        let block_size_kv = self.config.block_size_kv.min(seq_len_kv).max(1);
 
         // Output accumulator
         let mut output = Array2::<F>::zeros((seq_len_q, head_dim));
@@ -288,7 +340,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Flash
             }
         }
 
-        Ok(output)
+        Ok((output, row_max, row_sum))
     }
 
     /// Compute attention scores for a block: Q_block @ K_block^T * scale
@@ -409,6 +461,169 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign> Flash
         }
     }
 
+    /// Flash Attention backward per head (Algorithm 4 from Dao 2023, FA-2 paper).
+    ///
+    /// Given:
+    /// - `q`, `k`, `v`: projected Q/K/V for this head, shape [seq_len, head_dim]
+    /// - `o`: per-head output (before W_O), shape [seq_len, head_dim]
+    /// - `do_`: gradient of loss w.r.t. per-head output, shape [seq_len, head_dim]
+    /// - `m`: row-max statistics from forward, length seq_len
+    /// - `l`: row-sum statistics from forward, length seq_len
+    ///
+    /// Returns `(dq, dk, dv)`, each shape [seq_len, head_dim].
+    fn flash_backward_head(
+        &self,
+        q: &Array2<F>,
+        k: &Array2<F>,
+        v: &Array2<F>,
+        o: &Array2<F>,
+        do_: &Array2<F>,
+        m: &[F],
+        l: &[F],
+    ) -> Result<(Array2<F>, Array2<F>, Array2<F>)> {
+        let seq_len = q.nrows();
+        let head_dim = q.ncols();
+
+        let block_size_q = self.config.block_size_q.min(seq_len).max(1);
+        let block_size_kv = self.config.block_size_kv.min(seq_len).max(1);
+        let n_q_blocks = seq_len.div_ceil(block_size_q);
+        let n_kv_blocks = seq_len.div_ceil(block_size_kv);
+
+        // D_i = rowsum(dO ⊙ O), shape [seq_len]
+        let mut d_vec = vec![F::zero(); seq_len];
+        for i in 0..seq_len {
+            let mut s = F::zero();
+            for d in 0..head_dim {
+                s += do_[[i, d]] * o[[i, d]];
+            }
+            d_vec[i] = s;
+        }
+
+        let mut dq = Array2::<F>::zeros((seq_len, head_dim));
+        let mut dk = Array2::<F>::zeros((seq_len, head_dim));
+        let mut dv = Array2::<F>::zeros((seq_len, head_dim));
+
+        for qi in 0..n_q_blocks {
+            let q_start = qi * block_size_q;
+            let q_end = (q_start + block_size_q).min(seq_len);
+            let q_len = q_end - q_start;
+
+            let kv_limit = if self.config.causal {
+                // Only process KV blocks up to and including the current Q block diagonal
+                q_end.div_ceil(block_size_kv).min(n_kv_blocks)
+            } else {
+                n_kv_blocks
+            };
+
+            for kj in 0..kv_limit {
+                let kv_start = kj * block_size_kv;
+                let kv_end = (kv_start + block_size_kv).min(seq_len);
+                let kv_len = kv_end - kv_start;
+
+                // ---- Recompute S_ij = Q_i K_j^T * scale ----
+                let mut s_ij = Array2::<F>::zeros((q_len, kv_len));
+                for i in 0..q_len {
+                    for j in 0..kv_len {
+                        let mut dot = F::zero();
+                        for d in 0..head_dim {
+                            dot += q[[q_start + i, d]] * k[[kv_start + j, d]];
+                        }
+                        s_ij[[i, j]] = dot * self.scale;
+                    }
+                }
+
+                // Apply causal mask
+                if self.config.causal {
+                    for i in 0..q_len {
+                        let q_pos = q_start + i;
+                        for j in 0..kv_len {
+                            let k_pos = kv_start + j;
+                            if k_pos > q_pos {
+                                s_ij[[i, j]] = F::neg_infinity();
+                            }
+                        }
+                    }
+                }
+
+                // ---- Compute P_ij = exp(S_ij - m_i) / l_i (row-wise) ----
+                let mut p_ij = Array2::<F>::zeros((q_len, kv_len));
+                for i in 0..q_len {
+                    let mi = m[q_start + i];
+                    let li = l[q_start + i];
+                    let inv_l = if li > F::zero() {
+                        F::one() / li
+                    } else {
+                        F::zero()
+                    };
+                    for j in 0..kv_len {
+                        let s = s_ij[[i, j]];
+                        // exp(-inf) = 0 cleanly
+                        let p = if s > F::neg_infinity() {
+                            (s - mi).exp() * inv_l
+                        } else {
+                            F::zero()
+                        };
+                        p_ij[[i, j]] = p;
+                    }
+                }
+
+                // ---- dV_j += P_ij^T @ dO_i ----
+                for i in 0..q_len {
+                    for j in 0..kv_len {
+                        for d in 0..head_dim {
+                            dv[[kv_start + j, d]] += p_ij[[i, j]] * do_[[q_start + i, d]];
+                        }
+                    }
+                }
+
+                // ---- dP_ij = dO_i @ V_j^T ----
+                let mut dp_ij = Array2::<F>::zeros((q_len, kv_len));
+                for i in 0..q_len {
+                    for j in 0..kv_len {
+                        let mut dot = F::zero();
+                        for d in 0..head_dim {
+                            dot += do_[[q_start + i, d]] * v[[kv_start + j, d]];
+                        }
+                        dp_ij[[i, j]] = dot;
+                    }
+                }
+
+                // ---- dS_ij[r,c] = P_ij[r,c] * (dP_ij[r,c] - D_i[r]) ----
+                let mut ds_ij = Array2::<F>::zeros((q_len, kv_len));
+                for i in 0..q_len {
+                    let di = d_vec[q_start + i];
+                    for j in 0..kv_len {
+                        ds_ij[[i, j]] = p_ij[[i, j]] * (dp_ij[[i, j]] - di);
+                    }
+                }
+
+                // ---- dQ_i += dS_ij @ K_j * scale ----
+                for i in 0..q_len {
+                    for d in 0..head_dim {
+                        let mut acc = F::zero();
+                        for j in 0..kv_len {
+                            acc += ds_ij[[i, j]] * k[[kv_start + j, d]];
+                        }
+                        dq[[q_start + i, d]] += acc * self.scale;
+                    }
+                }
+
+                // ---- dK_j += dS_ij^T @ Q_i * scale ----
+                for j in 0..kv_len {
+                    for d in 0..head_dim {
+                        let mut acc = F::zero();
+                        for i in 0..q_len {
+                            acc += ds_ij[[i, j]] * q[[q_start + i, d]];
+                        }
+                        dk[[kv_start + j, d]] += acc * self.scale;
+                    }
+                }
+            }
+        }
+
+        Ok((dq, dk, dv))
+    }
+
     /// Get the configuration
     pub fn config(&self) -> &FlashAttentionConfig {
         &self.config
@@ -508,6 +723,11 @@ where
         // Process each batch and head with Flash Attention
         let mut output_4d = Array4::<F>::zeros((batch_size, seq_len, num_heads, head_dim));
 
+        // Storage for forward-pass statistics (m, l) per (batch, head)
+        let n_heads_total = batch_size * num_heads;
+        let mut cache_m: Vec<Vec<F>> = Vec::with_capacity(n_heads_total);
+        let mut cache_l: Vec<Vec<F>> = Vec::with_capacity(n_heads_total);
+
         for b in 0..batch_size {
             for h in 0..num_heads {
                 // Extract Q, K, V for this batch and head
@@ -535,8 +755,12 @@ where
                         NeuralError::InferenceError(format!("Failed to get V head: {}", e))
                     })?;
 
-                // Apply Flash Attention
-                let attn_output = self.flash_attention_forward(&q_head, &k_head, &v_head)?;
+                // Apply Flash Attention — now returns (output, row_max, row_sum)
+                let (attn_output, row_max, row_sum) =
+                    self.flash_attention_forward(&q_head, &k_head, &v_head)?;
+
+                cache_m.push(row_max);
+                cache_l.push(row_sum);
 
                 // Copy to output
                 for i in 0..seq_len {
@@ -545,6 +769,42 @@ where
                     }
                 }
             }
+        }
+
+        // Save cache for backward
+        let o4d_dyn = output_4d
+            .clone()
+            .into_shape_with_order(IxDyn(&[batch_size, seq_len, num_heads, head_dim]))
+            .map_err(|e| NeuralError::InferenceError(format!("cache o4d reshape: {e}")))?;
+
+        let q4d_dyn = q_4d
+            .into_shape_with_order(IxDyn(&[batch_size, seq_len, num_heads, head_dim]))
+            .map_err(|e| NeuralError::InferenceError(format!("cache q4d reshape: {e}")))?;
+
+        let k4d_dyn = k_4d
+            .into_shape_with_order(IxDyn(&[batch_size, seq_len, num_heads, head_dim]))
+            .map_err(|e| NeuralError::InferenceError(format!("cache k4d reshape: {e}")))?;
+
+        let v4d_dyn = v_4d
+            .into_shape_with_order(IxDyn(&[batch_size, seq_len, num_heads, head_dim]))
+            .map_err(|e| NeuralError::InferenceError(format!("cache v4d reshape: {e}")))?;
+
+        {
+            let mut cache_guard = self
+                .cache
+                .write()
+                .map_err(|_| NeuralError::InferenceError("cache write lock poisoned".into()))?;
+            *cache_guard = Some(ForwardCache {
+                m: cache_m,
+                l: cache_l,
+                q4d: q4d_dyn,
+                k4d: k4d_dyn,
+                v4d: v4d_dyn,
+                o4d: o4d_dyn,
+                input2d: input_2d,
+                batch_size,
+                seq_len,
+            });
         }
 
         // Reshape to [batch, seq_len, d_model]
@@ -574,18 +834,360 @@ where
     fn backward(
         &self,
         _input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        // Flash Attention backward is more complex - uses recomputation
-        // For now, return a placeholder
-        // TODO: Implement Flash Attention backward pass with recomputation
-        Err(NeuralError::NotImplemented(
-            "Flash Attention backward pass not yet implemented".to_string(),
-        ))
+        // grad_output shape: [batch, seq_len, d_model]
+        if grad_output.ndim() != 3 {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "FlashAttention backward expects 3D grad_output, got {}D",
+                grad_output.ndim()
+            )));
+        }
+
+        let cache_guard = self
+            .cache
+            .read()
+            .map_err(|_| NeuralError::InferenceError("cache read lock poisoned".into()))?;
+        let fc = cache_guard.as_ref().ok_or_else(|| {
+            NeuralError::InferenceError("FlashAttention backward called before forward".to_string())
+        })?;
+
+        let batch_size = fc.batch_size;
+        let seq_len = fc.seq_len;
+        let d_model = self.d_model;
+        let num_heads = self.config.num_heads;
+        let head_dim = self.config.head_dim;
+
+        // ----------------------------------------------------------------
+        // Step 1: backprop through W_O
+        //   final_output [B*S, D] = output_concat [B*S, D] @ W_O [D, D]
+        //   d_output_concat = grad_output_2d @ W_O^T
+        //   dW_O           = output_concat^T @ grad_output_2d
+        // ----------------------------------------------------------------
+        let grad_2d = grad_output
+            .clone()
+            .into_shape_with_order(IxDyn(&[batch_size * seq_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape grad_output: {e}")))?;
+
+        let grad_2d_view = grad_2d
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("grad_2d to Ix2".into()))?;
+
+        let w_o_2d = self
+            .w_output
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("W_O to Ix2".into()))?;
+
+        // d_output_concat: [B*S, D]
+        let d_output_concat = grad_2d_view.dot(&w_o_2d.t());
+
+        // Accumulate dW_O: [D, D]
+        // We need o4d reshaped to [B*S, D] as the "left" factor
+        let o4d_2d = fc
+            .o4d
+            .clone()
+            .into_shape_with_order(IxDyn(&[batch_size * seq_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("o4d to 2d: {e}")))?;
+
+        let o4d_2d_view = o4d_2d
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("o4d_2d to Ix2".into()))?;
+
+        let dw_o_update = o4d_2d_view.t().dot(&grad_2d_view);
+        {
+            let mut dw_o_guard = self
+                .dw_output
+                .write()
+                .map_err(|_| NeuralError::InferenceError("dw_output lock poisoned".into()))?;
+            let dw_o_guard_2d = dw_o_guard
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("dw_output to Ix2".into()))?;
+            // Add update (accumulate)
+            Zip::from(dw_o_guard_2d)
+                .and(dw_o_update.view())
+                .for_each(|a, &b| *a += b);
+        }
+
+        // ----------------------------------------------------------------
+        // Step 2: reshape d_output_concat to [B, S, H, Dh] for per-head backward
+        // ----------------------------------------------------------------
+        let do_4d = d_output_concat
+            .into_shape_with_order(IxDyn(&[batch_size, seq_len, num_heads, head_dim]))
+            .map_err(|e| NeuralError::InferenceError(format!("reshape do_4d: {e}")))?;
+
+        // Accumulators for projected gradients
+        let mut dq_4d = Array4::<F>::zeros((batch_size, seq_len, num_heads, head_dim));
+        let mut dk_4d = Array4::<F>::zeros((batch_size, seq_len, num_heads, head_dim));
+        let mut dv_4d = Array4::<F>::zeros((batch_size, seq_len, num_heads, head_dim));
+
+        for b in 0..batch_size {
+            for h in 0..num_heads {
+                let idx = b * num_heads + h;
+
+                let q_head: Array2<F> = fc
+                    .q4d
+                    .slice(s![b, .., h, ..])
+                    .to_owned()
+                    .into_shape_with_order((seq_len, head_dim))
+                    .map_err(|e| NeuralError::InferenceError(format!("q_head bwd: {e}")))?;
+
+                let k_head: Array2<F> = fc
+                    .k4d
+                    .slice(s![b, .., h, ..])
+                    .to_owned()
+                    .into_shape_with_order((seq_len, head_dim))
+                    .map_err(|e| NeuralError::InferenceError(format!("k_head bwd: {e}")))?;
+
+                let v_head: Array2<F> = fc
+                    .v4d
+                    .slice(s![b, .., h, ..])
+                    .to_owned()
+                    .into_shape_with_order((seq_len, head_dim))
+                    .map_err(|e| NeuralError::InferenceError(format!("v_head bwd: {e}")))?;
+
+                let o_head: Array2<F> = fc
+                    .o4d
+                    .slice(s![b, .., h, ..])
+                    .to_owned()
+                    .into_shape_with_order((seq_len, head_dim))
+                    .map_err(|e| NeuralError::InferenceError(format!("o_head bwd: {e}")))?;
+
+                let do_head: Array2<F> = do_4d
+                    .slice(s![b, .., h, ..])
+                    .to_owned()
+                    .into_shape_with_order((seq_len, head_dim))
+                    .map_err(|e| NeuralError::InferenceError(format!("do_head bwd: {e}")))?;
+
+                let m_head = &fc.m[idx];
+                let l_head = &fc.l[idx];
+
+                let (dq_h, dk_h, dv_h) = self.flash_backward_head(
+                    &q_head, &k_head, &v_head, &o_head, &do_head, m_head, l_head,
+                )?;
+
+                for i in 0..seq_len {
+                    for d in 0..head_dim {
+                        dq_4d[[b, i, h, d]] = dq_h[[i, d]];
+                        dk_4d[[b, i, h, d]] = dk_h[[i, d]];
+                        dv_4d[[b, i, h, d]] = dv_h[[i, d]];
+                    }
+                }
+            }
+        }
+
+        // ----------------------------------------------------------------
+        // Step 3: backprop through W_Q, W_K, W_V
+        //   q_proj [B*S, D] = input_2d [B*S, D] @ W_Q [D, D]
+        //   dq_proj_flat = dq_4d reshaped to [B*S, D]
+        //   dW_Q = input_2d^T @ dq_proj_flat
+        //   d_input += dq_proj_flat @ W_Q^T   (and similarly for K, V)
+        // ----------------------------------------------------------------
+        let dq_flat = dq_4d
+            .into_shape_with_order(IxDyn(&[batch_size * seq_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("dq_flat reshape: {e}")))?;
+        let dk_flat = dk_4d
+            .into_shape_with_order(IxDyn(&[batch_size * seq_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("dk_flat reshape: {e}")))?;
+        let dv_flat = dv_4d
+            .into_shape_with_order(IxDyn(&[batch_size * seq_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("dv_flat reshape: {e}")))?;
+
+        let dq_flat_2d = dq_flat
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("dq_flat to Ix2".into()))?;
+        let dk_flat_2d = dk_flat
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("dk_flat to Ix2".into()))?;
+        let dv_flat_2d = dv_flat
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("dv_flat to Ix2".into()))?;
+
+        let input2d_view = fc
+            .input2d
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("input2d to Ix2".into()))?;
+
+        let w_q_2d = self
+            .w_query
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("W_Q to Ix2".into()))?;
+        let w_k_2d = self
+            .w_key
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("W_K to Ix2".into()))?;
+        let w_v_2d = self
+            .w_value
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("W_V to Ix2".into()))?;
+
+        // Accumulate weight gradients
+        let dw_q_update = input2d_view.t().dot(&dq_flat_2d);
+        let dw_k_update = input2d_view.t().dot(&dk_flat_2d);
+        let dw_v_update = input2d_view.t().dot(&dv_flat_2d);
+
+        {
+            let mut g = self
+                .dw_query
+                .write()
+                .map_err(|_| NeuralError::InferenceError("dw_query lock poisoned".into()))?;
+            let gv = g
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("dw_query to Ix2".into()))?;
+            Zip::from(gv)
+                .and(dw_q_update.view())
+                .for_each(|a, &b| *a += b);
+        }
+        {
+            let mut g = self
+                .dw_key
+                .write()
+                .map_err(|_| NeuralError::InferenceError("dw_key lock poisoned".into()))?;
+            let gv = g
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("dw_key to Ix2".into()))?;
+            Zip::from(gv)
+                .and(dw_k_update.view())
+                .for_each(|a, &b| *a += b);
+        }
+        {
+            let mut g = self
+                .dw_value
+                .write()
+                .map_err(|_| NeuralError::InferenceError("dw_value lock poisoned".into()))?;
+            let gv = g
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("dw_value to Ix2".into()))?;
+            Zip::from(gv)
+                .and(dw_v_update.view())
+                .for_each(|a, &b| *a += b);
+        }
+
+        // d_input = dq_flat @ W_Q^T + dk_flat @ W_K^T + dv_flat @ W_V^T
+        let d_input_2d =
+            dq_flat_2d.dot(&w_q_2d.t()) + dk_flat_2d.dot(&w_k_2d.t()) + dv_flat_2d.dot(&w_v_2d.t());
+
+        let d_input = d_input_2d
+            .into_shape_with_order(IxDyn(&[batch_size, seq_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("d_input reshape: {e}")))?;
+
+        Ok(d_input)
     }
 
-    fn update(&mut self, _learning_rate: F) -> Result<()> {
-        // Updates would be applied to stored gradients
+    fn update(&mut self, learning_rate: F) -> Result<()> {
+        {
+            let dw = self
+                .dw_query
+                .read()
+                .map_err(|_| NeuralError::InferenceError("dw_query read lock".into()))?;
+            let dw_view = dw
+                .view()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("dw_query Ix2".into()))?;
+            let mut w_view = self
+                .w_query
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("w_query Ix2".into()))?;
+            Zip::from(w_view.view_mut())
+                .and(dw_view)
+                .for_each(|w, &dw_val| *w -= learning_rate * dw_val);
+        }
+        {
+            let mut g = self
+                .dw_query
+                .write()
+                .map_err(|_| NeuralError::InferenceError("dw_query write lock".into()))?;
+            g.fill(F::zero());
+        }
+        {
+            let dw = self
+                .dw_key
+                .read()
+                .map_err(|_| NeuralError::InferenceError("dw_key read lock".into()))?;
+            let dw_view = dw
+                .view()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("dw_key Ix2".into()))?;
+            let mut w_view = self
+                .w_key
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("w_key Ix2".into()))?;
+            Zip::from(w_view.view_mut())
+                .and(dw_view)
+                .for_each(|w, &dw_val| *w -= learning_rate * dw_val);
+        }
+        {
+            let mut g = self
+                .dw_key
+                .write()
+                .map_err(|_| NeuralError::InferenceError("dw_key write lock".into()))?;
+            g.fill(F::zero());
+        }
+        {
+            let dw = self
+                .dw_value
+                .read()
+                .map_err(|_| NeuralError::InferenceError("dw_value read lock".into()))?;
+            let dw_view = dw
+                .view()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("dw_value Ix2".into()))?;
+            let mut w_view = self
+                .w_value
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("w_value Ix2".into()))?;
+            Zip::from(w_view.view_mut())
+                .and(dw_view)
+                .for_each(|w, &dw_val| *w -= learning_rate * dw_val);
+        }
+        {
+            let mut g = self
+                .dw_value
+                .write()
+                .map_err(|_| NeuralError::InferenceError("dw_value write lock".into()))?;
+            g.fill(F::zero());
+        }
+        {
+            let dw = self
+                .dw_output
+                .read()
+                .map_err(|_| NeuralError::InferenceError("dw_output read lock".into()))?;
+            let dw_view = dw
+                .view()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("dw_output Ix2".into()))?;
+            let mut w_view = self
+                .w_output
+                .view_mut()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .map_err(|_| NeuralError::InferenceError("w_output Ix2".into()))?;
+            Zip::from(w_view.view_mut())
+                .and(dw_view)
+                .for_each(|w, &dw_val| *w -= learning_rate * dw_val);
+        }
+        {
+            let mut g = self
+                .dw_output
+                .write()
+                .map_err(|_| NeuralError::InferenceError("dw_output write lock".into()))?;
+            g.fill(F::zero());
+        }
         Ok(())
     }
 }
@@ -963,5 +1565,98 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn test_flash_attention_backward_shape() {
+        let mut rng = scirs2_core::random::rng();
+        let config = FlashAttentionConfig::new(2, 8)
+            .with_block_size_q(4)
+            .with_block_size_kv(4);
+        let attn = FlashAttention::<f64>::new(16, config, &mut rng).expect("creation failed");
+
+        let input = Array3::<f64>::from_elem((1, 8, 16), 0.1).into_dyn();
+        let output = attn.forward(&input).expect("forward failed");
+        let grad = Array::ones(output.raw_dim());
+        let grad_input = attn.backward(&input, &grad).expect("backward failed");
+
+        assert_eq!(
+            grad_input.shape(),
+            input.shape(),
+            "backward grad_input shape should match input"
+        );
+    }
+
+    #[test]
+    fn test_flash_attention_backward_finite() {
+        let mut rng = scirs2_core::random::rng();
+        let config = FlashAttentionConfig::new(2, 4)
+            .with_block_size_q(2)
+            .with_block_size_kv(2);
+        let attn = FlashAttention::<f64>::new(8, config, &mut rng).expect("creation failed");
+
+        let input = Array3::<f64>::from_elem((1, 4, 8), 0.1).into_dyn();
+        let out = attn.forward(&input).expect("forward failed");
+        let grad = Array::ones(out.raw_dim());
+        let grad_in = attn.backward(&input, &grad).expect("backward failed");
+
+        for val in grad_in.iter() {
+            assert!(val.is_finite(), "backward grad contains non-finite value");
+        }
+    }
+
+    #[test]
+    fn test_flash_attention_gradient_check() {
+        // Numerical gradient check using finite differences.
+        // Use small model for speed. Tolerance is 1e-3 relative.
+        let mut rng = scirs2_core::random::rng();
+        let config = FlashAttentionConfig::new(1, 4)
+            .with_block_size_q(2)
+            .with_block_size_kv(2);
+        let attn = FlashAttention::<f64>::new(4, config, &mut rng).expect("creation failed");
+
+        let input = Array::from_shape_vec(
+            IxDyn(&[1, 4, 4]),
+            (0..16).map(|x| x as f64 * 0.05).collect::<Vec<_>>(),
+        )
+        .expect("input creation");
+
+        // Forward + backward
+        let out = attn.forward(&input).expect("forward");
+        let loss = out.sum();
+        let grad_out = Array::ones(out.raw_dim());
+        let grad_in = attn.backward(&input, &grad_out).expect("backward");
+
+        // Numerical gradient for element [0, 0, 0]
+        let eps = 1e-5_f64;
+        let mut input_plus = input.clone();
+        input_plus[[0, 0, 0]] += eps;
+        let out_plus = attn.forward(&input_plus).expect("forward+");
+        let loss_plus = out_plus.sum();
+
+        let numerical_grad = (loss_plus - loss) / eps;
+        let analytical_grad = grad_in[[0, 0, 0]];
+
+        let rel_err = (numerical_grad - analytical_grad).abs()
+            / (numerical_grad.abs().max(analytical_grad.abs()) + 1e-8);
+        assert!(
+            rel_err < 1e-3,
+            "gradient check failed: numerical={numerical_grad:.6}, analytical={analytical_grad:.6}, rel_err={rel_err:.2e}"
+        );
+    }
+
+    #[test]
+    fn test_flash_attention_update() {
+        let mut rng = scirs2_core::random::rng();
+        let config = FlashAttentionConfig::new(2, 4)
+            .with_block_size_q(2)
+            .with_block_size_kv(2);
+        let mut attn = FlashAttention::<f64>::new(8, config, &mut rng).expect("creation");
+
+        let input = Array3::<f64>::from_elem((1, 4, 8), 0.1).into_dyn();
+        let out = attn.forward(&input).expect("forward");
+        let grad = Array::ones(out.raw_dim());
+        attn.backward(&input, &grad).expect("backward");
+        attn.update(0.01).expect("update");
     }
 }

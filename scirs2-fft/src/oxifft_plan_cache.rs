@@ -108,6 +108,12 @@ pub fn execute_c2c(
     let cache = match direction {
         Direction::Forward => &C2C_FWD_CACHE,
         Direction::Backward => &C2C_BWD_CACHE,
+        _ => {
+            return Err(FFTError::ComputationError(format!(
+                "Unsupported FFT direction: {:?}",
+                direction
+            )))
+        }
     };
 
     let mut cache_guard = cache.lock().map_err(|e| {
@@ -342,6 +348,12 @@ pub fn execute_c2c_2d(
     let cache = match direction {
         Direction::Forward => &C2C_2D_FWD_CACHE,
         Direction::Backward => &C2C_2D_BWD_CACHE,
+        _ => {
+            return Err(FFTError::ComputationError(format!(
+                "Unsupported FFT direction: {:?}",
+                direction
+            )))
+        }
     };
 
     let mut cache_guard = cache.lock().map_err(|e| {

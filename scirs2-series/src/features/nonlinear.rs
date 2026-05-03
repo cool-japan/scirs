@@ -73,8 +73,8 @@ where
         ));
     }
 
-    let ratio = F::from(count_m1).expect("count_m1 to float")
-        / F::from(count_m).expect("count_m to float");
+    let ratio =
+        F::from(count_m1).expect("count_m1 to float") / F::from(count_m).expect("count_m to float");
 
     if ratio <= F::zero() {
         // No matches at m+1 → maximum entropy; return a large but finite value
@@ -594,8 +594,7 @@ where
         // subtract diagonal
         let diag_count = nv as u64;
         let off_count = rec_count.saturating_sub(diag_count);
-        F::from(off_count).expect("off_count float")
-            / F::from(total_off_diag).expect("total float")
+        F::from(off_count).expect("off_count float") / F::from(total_off_diag).expect("total float")
     } else {
         F::zero()
     };
@@ -667,8 +666,7 @@ fn compute_diagonal_lines<F: Float + FromPrimitive>(
     };
 
     let avg_len = if num_long_lines > 0 {
-        F::from(total_line_length).expect("tll float")
-            / F::from(num_long_lines).expect("nll float")
+        F::from(total_line_length).expect("tll float") / F::from(num_long_lines).expect("nll float")
     } else {
         F::zero()
     };
@@ -717,8 +715,7 @@ fn compute_vertical_lines<F: Float + FromPrimitive>(
     };
 
     let avg_len = if num_long_lines > 0 {
-        F::from(total_line_length).expect("tll float")
-            / F::from(num_long_lines).expect("nll float")
+        F::from(total_line_length).expect("tll float") / F::from(num_long_lines).expect("nll float")
     } else {
         F::zero()
     };
@@ -811,8 +808,7 @@ where
         ));
     }
 
-    let mean = ts.iter().copied().fold(F::zero(), |s, x| s + x)
-        / F::from(n).expect("n float");
+    let mean = ts.iter().copied().fold(F::zero(), |s, x| s + x) / F::from(n).expect("n float");
     let variance = ts
         .iter()
         .copied()

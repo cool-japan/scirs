@@ -40,11 +40,7 @@ pub fn perplexity(log_probs: &[f64]) -> f64 {
 /// `max_n` is typically 4.
 ///
 /// Returns a value in [0, 1].
-pub fn bleu_score(
-    hypothesis: &[usize],
-    references: &[Vec<usize>],
-    max_n: usize,
-) -> f64 {
+pub fn bleu_score(hypothesis: &[usize], references: &[Vec<usize>], max_n: usize) -> f64 {
     if hypothesis.is_empty() || references.is_empty() || max_n == 0 {
         return 0.0;
     }
@@ -192,9 +188,7 @@ pub fn lm_cross_entropy(
     let mut total = 0.0;
     let mut valid = 0usize;
 
-    for i in 0..len {
-        let t = targets[i];
-
+    for (i, &t) in targets.iter().enumerate().take(len) {
         if let Some(ign) = ignore_index {
             if t == ign {
                 continue;
@@ -361,7 +355,10 @@ mod tests {
         let diverse = vec![vec![1usize, 2, 3, 4], vec![5usize, 6, 7, 8]];
         let sb_ident = self_bleu(&identical, 4);
         let sb_div = self_bleu(&diverse, 4);
-        assert!(sb_div <= sb_ident, "diverse should be <= identical: {sb_div} vs {sb_ident}");
+        assert!(
+            sb_div <= sb_ident,
+            "diverse should be <= identical: {sb_div} vs {sb_ident}"
+        );
     }
 
     // --- nll_loss ---
@@ -369,11 +366,8 @@ mod tests {
     #[test]
     fn test_nll_loss_correct_token() {
         // log_prob of the correct token = -1.0 → NLL = 1.0
-        let lp = Array2::from_shape_vec(
-            (2, 3),
-            vec![-1.0, -2.0, -3.0, -5.0, -1.0, -2.0],
-        )
-        .expect("shape");
+        let lp = Array2::from_shape_vec((2, 3), vec![-1.0, -2.0, -3.0, -5.0, -1.0, -2.0])
+            .expect("shape");
         let targets = vec![0usize, 1];
         let loss = nll_loss(&lp, &targets);
         // (-(-1.0) + -(-1.0)) / 2 = 1.0
@@ -406,7 +400,10 @@ mod tests {
         let logits = Array2::from_elem((1, vocab_size), 0.0);
         let ce = lm_cross_entropy(&logits, &[0], None);
         let expected = (vocab_size as f64).ln();
-        assert!((ce - expected).abs() < 1e-9, "ce = {ce}, expected = {expected}");
+        assert!(
+            (ce - expected).abs() < 1e-9,
+            "ce = {ce}, expected = {expected}"
+        );
     }
 
     #[test]

@@ -40,8 +40,12 @@ pub mod stdp;
 pub mod synapse;
 
 // Re-exports for convenience
-pub use neuron_models::{AdExNeuron, HodgkinHuxleyNeuron, IzhikevichNeuron, IzhikevichPattern, LIFConfig, LIFNeuron};
-pub use population_coding::{SpikeDecoder, SpikeEncoder, SpikeEncoding, inter_spike_intervals, isi_cv};
+pub use neuron_models::{
+    AdExNeuron, HodgkinHuxleyNeuron, IzhikevichNeuron, IzhikevichPattern, LIFConfig, LIFNeuron,
+};
+pub use population_coding::{
+    inter_spike_intervals, isi_cv, SpikeDecoder, SpikeEncoder, SpikeEncoding,
+};
 pub use snn_layer::{SpikingLayer, SpikingNetwork};
 pub use stdp::{BCMRule, OjaRule, TripletSTDP, TripletState, STDP};
-pub use synapse::{AlphaSynapse, ExponentialSynapse, SpikeBoolDelay, STDPSynapse, SynapticDelay};
+pub use synapse::{AlphaSynapse, ExponentialSynapse, STDPSynapse, SpikeBoolDelay, SynapticDelay};

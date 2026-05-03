@@ -4,6 +4,7 @@ mod adaptive;
 mod enhanced_bdf;
 mod enhanced_lsoda;
 mod explicit;
+pub mod imex;
 mod implicit;
 mod local_extrapolation;
 mod lsoda;

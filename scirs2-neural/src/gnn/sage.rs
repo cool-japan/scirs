@@ -38,7 +38,9 @@ fn xavier_init(fan_in: usize, fan_out: usize, seed_offset: u64) -> Vec<Vec<f32>>
     let limit = (6.0_f64 / (fan_in + fan_out) as f64).sqrt() as f32;
     let mut state: u64 = 98765432109876543_u64.wrapping_add(seed_offset);
     let lcg_next = |s: &mut u64| -> f32 {
-        *s = s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        *s = s
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         let bits = ((*s >> 33) as u32) as f64 / u32::MAX as f64;
         (bits as f32) * 2.0 * limit - limit
     };
@@ -157,12 +159,12 @@ impl GraphSAGELayer {
 
             // Linear + bias + ReLU
             let mut node_out = vec![0.0_f32; self.out_features];
-            for o in 0..self.out_features {
+            for (o, node_o) in node_out.iter_mut().enumerate().take(self.out_features) {
                 let mut val = self.bias[o];
-                for f in 0..combined_in {
-                    val += concat[f] * self.weights[f][o];
+                for (f, &cf) in concat.iter().enumerate().take(combined_in) {
+                    val += cf * self.weights[f][o];
                 }
-                node_out[o] = val.max(0.0); // ReLU
+                *node_o = val.max(0.0); // ReLU
             }
 
             // Optional L2 normalise

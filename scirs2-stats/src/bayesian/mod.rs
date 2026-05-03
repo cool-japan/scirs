@@ -15,6 +15,7 @@ mod conjugate;
 mod enhanced_regression;
 mod hierarchical;
 mod regression;
+pub mod smc_model_comparison;
 mod variational;
 
 pub use advanced_mcmc::*;

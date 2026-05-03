@@ -3,7 +3,7 @@
 //! This module provides specialized solvers for symmetric matrices,
 //! which are more efficient than general eigenvalue solvers.
 
-use scirs2_core::ndarray::{Array1, Array2, ArrayView2};
+use scirs2_core::ndarray::{Array1, Array2, ArrayView2, ScalarOperand};
 use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
@@ -24,7 +24,7 @@ use crate::error::{LinalgError, LinalgResult};
 #[allow(dead_code)]
 pub fn symmetric_eigh<F>(a: &ArrayView2<F>) -> LinalgResult<(Array1<F>, Array2<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
 
@@ -68,7 +68,7 @@ where
 #[allow(dead_code)]
 pub fn symmetric_eigvalsh<F>(a: &ArrayView2<F>) -> LinalgResult<Array1<F>>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
 
@@ -113,7 +113,7 @@ where
 #[allow(dead_code)]
 fn tridiagonalize<F>(a: &ArrayView2<F>) -> LinalgResult<(Array1<F>, Array1<F>)>
 where
-    F: Float + NumAssign + Sum + Send + Sync + ScalarOperand + 'static,
+    F: Float + NumAssign + Sum + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     let n = a.nrows();
     let mut workingmatrix = a.to_owned();

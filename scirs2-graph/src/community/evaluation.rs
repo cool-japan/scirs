@@ -42,9 +42,9 @@ fn graph_stats(
         if u != v {
             degree[v] += w;
         }
-        total_w += if u == v { 2.0 * w } else { 2.0 * w };
+        total_w += 2.0 * w;
         if communities[u] == communities[v] {
-            intra_w += if u == v { 2.0 * w } else { 2.0 * w };
+            intra_w += 2.0 * w;
         }
     }
     (total_w, intra_w, degree, n_comms)
@@ -62,11 +62,7 @@ fn graph_stats(
 /// * `edges`       – Weighted edge list `(src, dst, weight)`.
 /// * `n_nodes`     – Total number of nodes.
 /// * `communities` – Community assignment for each node.
-pub fn modularity(
-    edges: &[(usize, usize, f64)],
-    n_nodes: usize,
-    communities: &[usize],
-) -> f64 {
+pub fn modularity(edges: &[(usize, usize, f64)], n_nodes: usize, communities: &[usize]) -> f64 {
     if n_nodes == 0 || communities.len() != n_nodes {
         return 0.0;
     }
@@ -133,7 +129,11 @@ pub fn conductance(
         }
     }
 
-    let vol_s: f64 = community.iter().filter(|&&n| n < n_nodes).map(|&n| degree[n]).sum();
+    let vol_s: f64 = community
+        .iter()
+        .filter(|&&n| n < n_nodes)
+        .map(|&n| degree[n])
+        .sum();
     let vol_total: f64 = degree.iter().sum();
     let vol_s_bar = vol_total - vol_s;
 
@@ -156,11 +156,7 @@ pub fn conductance(
 /// * `edges`       – Weighted edge list.
 /// * `n_nodes`     – Total number of nodes.
 /// * `communities` – Community assignment for each node.
-pub fn coverage(
-    edges: &[(usize, usize, f64)],
-    n_nodes: usize,
-    communities: &[usize],
-) -> f64 {
+pub fn coverage(edges: &[(usize, usize, f64)], n_nodes: usize, communities: &[usize]) -> f64 {
     if edges.is_empty() || communities.len() != n_nodes {
         return 0.0;
     }
@@ -175,7 +171,11 @@ pub fn coverage(
             intra += w;
         }
     }
-    if total == 0.0 { 0.0 } else { intra / total }
+    if total == 0.0 {
+        0.0
+    } else {
+        intra / total
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -193,11 +193,7 @@ pub fn coverage(
 /// * `edges`       – Weighted edge list.
 /// * `n_nodes`     – Total number of nodes.
 /// * `communities` – Community assignment for each node.
-pub fn normalized_cut(
-    edges: &[(usize, usize, f64)],
-    n_nodes: usize,
-    communities: &[usize],
-) -> f64 {
+pub fn normalized_cut(edges: &[(usize, usize, f64)], n_nodes: usize, communities: &[usize]) -> f64 {
     if communities.len() != n_nodes {
         return 0.0;
     }
@@ -273,7 +269,9 @@ pub fn nmi(true_labels: &[usize], pred_labels: &[usize]) -> Result<f64> {
     let mut pred_counts: HashMap<usize, usize> = HashMap::new();
 
     for i in 0..n {
-        *contingency.entry((true_labels[i], pred_labels[i])).or_insert(0) += 1;
+        *contingency
+            .entry((true_labels[i], pred_labels[i]))
+            .or_insert(0) += 1;
         *true_counts.entry(true_labels[i]).or_insert(0) += 1;
         *pred_counts.entry(pred_labels[i]).or_insert(0) += 1;
     }
@@ -298,7 +296,11 @@ pub fn nmi(true_labels: &[usize], pred_labels: &[usize]) -> Result<f64> {
         .values()
         .map(|&c| {
             let p = c as f64 / fn64;
-            if p > 0.0 { -p * p.ln() } else { 0.0 }
+            if p > 0.0 {
+                -p * p.ln()
+            } else {
+                0.0
+            }
         })
         .sum();
 
@@ -306,7 +308,11 @@ pub fn nmi(true_labels: &[usize], pred_labels: &[usize]) -> Result<f64> {
         .values()
         .map(|&c| {
             let p = c as f64 / fn64;
-            if p > 0.0 { -p * p.ln() } else { 0.0 }
+            if p > 0.0 {
+                -p * p.ln()
+            } else {
+                0.0
+            }
         })
         .sum();
 
@@ -358,9 +364,7 @@ pub fn adjusted_rand_index(true_labels: &[usize], pred_labels: &[usize]) -> Resu
     }
 
     // Row sums, column sums
-    let a: Vec<u64> = (0..n_true)
-        .map(|i| contingency[i].iter().sum())
-        .collect();
+    let a: Vec<u64> = (0..n_true).map(|i| contingency[i].iter().sum()).collect();
     let b: Vec<u64> = (0..n_pred)
         .map(|j| (0..n_true).map(|i| contingency[i][j]).sum())
         .collect();
@@ -427,7 +431,10 @@ mod tests {
         let (edges, n) = two_clique_edges(3);
         let single = vec![0usize; 6];
         let q = modularity(&edges, n, &single);
-        assert!(q <= 0.0 + 1e-10, "single-community modularity should be ≤ 0: {q}");
+        assert!(
+            q <= 0.0 + 1e-10,
+            "single-community modularity should be ≤ 0: {q}"
+        );
     }
 
     #[test]
@@ -460,7 +467,10 @@ mod tests {
         let (edges, n) = two_clique_edges(3);
         let single = vec![0usize; 6];
         let cov = coverage(&edges, n, &single);
-        assert!((cov - 1.0).abs() < 1e-9, "single community coverage = 1: {cov}");
+        assert!(
+            (cov - 1.0).abs() < 1e-9,
+            "single community coverage = 1: {cov}"
+        );
     }
 
     #[test]
@@ -469,14 +479,20 @@ mod tests {
         let perfect: Vec<usize> = (0..8).map(|i| if i < 4 { 0 } else { 1 }).collect();
         let ncut = normalized_cut(&edges, n, &perfect);
         assert!(ncut >= 0.0);
-        assert!(ncut < 1.0, "normalized cut for near-perfect partition should be small: {ncut}");
+        assert!(
+            ncut < 1.0,
+            "normalized cut for near-perfect partition should be small: {ncut}"
+        );
     }
 
     #[test]
     fn test_nmi_perfect_agreement() {
         let labels = vec![0, 0, 1, 1, 2, 2];
         let nmi_val = nmi(&labels, &labels).expect("nmi perfect");
-        assert!((nmi_val - 1.0).abs() < 1e-9, "NMI perfect agreement = 1: {nmi_val}");
+        assert!(
+            (nmi_val - 1.0).abs() < 1e-9,
+            "NMI perfect agreement = 1: {nmi_val}"
+        );
     }
 
     #[test]
@@ -504,7 +520,10 @@ mod tests {
         let true_l = vec![0, 0, 1, 1, 2, 2];
         let pred_l = vec![0, 1, 2, 0, 1, 2]; // random-looking assignment
         let ari = adjusted_rand_index(&true_l, &pred_l).expect("ari random");
-        assert!(ari < 0.5, "ARI for dissimilar partitions should be small: {ari}");
+        assert!(
+            ari < 0.5,
+            "ARI for dissimilar partitions should be small: {ari}"
+        );
     }
 
     #[test]

@@ -37,12 +37,13 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Instant;
 
+use scirs2_core::ndarray;
 use scirs2_core::ndarray::{Array2, ArrayView2, Axis};
 use scirs2_core::numeric::{Float, FromPrimitive, NumCast, Zero};
 use scirs2_core::parallel_ops::*;
 
 use crate::chunked_processing::{
-    ChunkOperation, ChunkRegion, ChunkRegionIterator, ChunkingConfig, ChunkedImageProcessor,
+    ChunkOperation, ChunkRegion, ChunkRegionIterator, ChunkedImageProcessor, ChunkingConfig,
 };
 use crate::error::{NdimageError, NdimageResult};
 use crate::filters::BorderMode;
@@ -161,7 +162,9 @@ impl<T: Float + FromPrimitive + Clone + Send + Sync> ComposedPipeline<T> {
     }
 }
 
-impl<T: Float + FromPrimitive + Clone + Send + Sync + Zero + 'static> Default for ComposedPipeline<T> {
+impl<T: Float + FromPrimitive + Clone + Send + Sync + Zero + 'static> Default
+    for ComposedPipeline<T>
+{
     fn default() -> Self {
         Self::new()
     }
@@ -185,8 +188,15 @@ impl GaussianStage {
 
 impl<T> PipelineStage<T> for GaussianStage
 where
-    T: Float + FromPrimitive + Clone + Send + Sync + Zero + 'static
-        + std::ops::AddAssign + std::ops::DivAssign,
+    T: Float
+        + FromPrimitive
+        + Clone
+        + Send
+        + Sync
+        + Zero
+        + 'static
+        + std::ops::AddAssign
+        + std::ops::DivAssign,
 {
     fn name(&self) -> &str {
         "gaussian_filter"
@@ -198,12 +208,8 @@ where
 
     fn process_chunk(&self, chunk: &ArrayView2<T>) -> NdimageResult<Array2<T>> {
         let chunk_f64 = chunk.mapv(|x| x.to_f64().unwrap_or(0.0));
-        let result = crate::filters::gaussian_filter(
-            &chunk_f64,
-            self.sigma,
-            Some(self.border_mode),
-            None,
-        )?;
+        let result =
+            crate::filters::gaussian_filter(&chunk_f64, self.sigma, Some(self.border_mode), None)?;
         Ok(result.mapv(|x| T::from_f64(x).unwrap_or_else(T::zero)))
     }
 }
@@ -302,9 +308,7 @@ where
             return Ok(Array2::from_elem(chunk.raw_dim(), self.min_val));
         }
 
-        Ok(chunk.mapv(|x| {
-            self.min_val + (x - chunk_min) / range * target_range
-        }))
+        Ok(chunk.mapv(|x| self.min_val + (x - chunk_min) / range * target_range))
     }
 }
 
@@ -333,7 +337,7 @@ where
 
     fn process_chunk(&self, chunk: &ArrayView2<T>) -> NdimageResult<Array2<T>> {
         let chunk_f64 = chunk.mapv(|x| x.to_f64().unwrap_or(0.0));
-        let result = crate::filters::median_filter(&chunk_f64, &[self.size, self.size])?;
+        let result = crate::filters::median_filter(&chunk_f64, &[self.size, self.size], None)?;
         Ok(result.mapv(|x| T::from_f64(x).unwrap_or_else(T::zero)))
     }
 }
@@ -479,19 +483,22 @@ where
     where
         T: std::ops::AddAssign + std::ops::DivAssign,
     {
-        self.stages.push(Box::new(GaussianStage::new(sigma, BorderMode::Reflect)));
+        self.stages
+            .push(Box::new(GaussianStage::new(sigma, BorderMode::Reflect)));
         self
     }
 
     /// Add a threshold stage
     pub fn threshold(mut self, threshold_value: T) -> Self {
-        self.stages.push(Box::new(ThresholdStage::new(threshold_value)));
+        self.stages
+            .push(Box::new(ThresholdStage::new(threshold_value)));
         self
     }
 
     /// Add a normalize stage
     pub fn normalize(mut self, min_val: T, max_val: T) -> Self {
-        self.stages.push(Box::new(NormalizeStage::new(min_val, max_val)));
+        self.stages
+            .push(Box::new(NormalizeStage::new(min_val, max_val)));
         self
     }
 
@@ -509,7 +516,8 @@ where
     where
         F: Fn(&ArrayView2<T>) -> NdimageResult<Array2<T>> + Send + Sync + 'static,
     {
-        self.stages.push(Box::new(CustomStage::new(name, overlap, func)));
+        self.stages
+            .push(Box::new(CustomStage::new(name, overlap, func)));
         self
     }
 
@@ -538,7 +546,9 @@ where
         shape: (usize, usize),
     ) -> NdimageResult<()> {
         if self.stages.is_empty() {
-            return Err(NdimageError::InvalidInput("No processing stages defined".into()));
+            return Err(NdimageError::InvalidInput(
+                "No processing stages defined".into(),
+            ));
         }
 
         let element_size = std::mem::size_of::<T>();
@@ -558,14 +568,17 @@ where
             .truncate(true)
             .open(output_path)
             .map_err(NdimageError::IoError)?;
-        output_file.set_len((shape.0 * shape.1 * element_size) as u64)
+        output_file
+            .set_len((shape.0 * shape.1 * element_size) as u64)
             .map_err(NdimageError::IoError)?;
 
         // Process chunks
         for region in chunk_iter {
             // Check for cancellation
             if self.cancel_flag.load(Ordering::Relaxed) {
-                return Err(NdimageError::ComputationError("Processing cancelled".into()));
+                return Err(NdimageError::ComputationError(
+                    "Processing cancelled".into(),
+                ));
             }
 
             // Read input chunk
@@ -608,10 +621,7 @@ where
     }
 
     /// Process an in-memory image (for smaller images)
-    pub fn process_memory(
-        &self,
-        input: &ArrayView2<T>,
-    ) -> NdimageResult<Array2<T>> {
+    pub fn process_memory(&self, input: &ArrayView2<T>) -> NdimageResult<Array2<T>> {
         if self.stages.is_empty() {
             return Ok(input.to_owned());
         }
@@ -625,6 +635,12 @@ where
         if input.len() * element_size <= self.config.max_memory_bytes / 2 {
             let mut result = input.to_owned();
             for stage in &self.stages {
+                // Check for cancellation between stages
+                if self.cancel_flag.load(Ordering::Relaxed) {
+                    return Err(NdimageError::ComputationError(
+                        "Processing cancelled".into(),
+                    ));
+                }
                 result = stage.process_chunk(&result.view())?;
             }
             return Ok(result);
@@ -637,7 +653,9 @@ where
         for region in chunk_iter {
             // Check for cancellation
             if self.cancel_flag.load(Ordering::Relaxed) {
-                return Err(NdimageError::ComputationError("Processing cancelled".into()));
+                return Err(NdimageError::ComputationError(
+                    "Processing cancelled".into(),
+                ));
             }
 
             // Extract chunk
@@ -668,7 +686,7 @@ where
         let element_size = std::mem::size_of::<T>();
         let mut file = BufReader::with_capacity(
             self.config.io_buffer_size,
-            File::open(path).map_err(NdimageError::IoError)?
+            File::open(path).map_err(NdimageError::IoError)?,
         );
 
         let chunk_rows = region.padded_end.0 - region.padded_start.0;
@@ -685,7 +703,8 @@ where
                 .map_err(NdimageError::IoError)?;
 
             for i in 0..chunk_cols {
-                let value = self.bytes_to_value(&row_buffer[i * element_size..(i + 1) * element_size])?;
+                let value =
+                    self.bytes_to_value(&row_buffer[i * element_size..(i + 1) * element_size])?;
                 data.push(value);
             }
         }
@@ -710,14 +729,17 @@ where
         let mut writer = BufWriter::with_capacity(self.config.io_buffer_size, file);
 
         let overlap = region.overlap();
-        let core_start_row = overlap.0.0;
-        let core_start_col = overlap.0.1;
-        let core_end_row = chunk.nrows() - overlap.1.0;
-        let core_end_col = chunk.ncols() - overlap.1.1;
+        let core_start_row = overlap.0 .0;
+        let core_start_col = overlap.0 .1;
+        let core_end_row = chunk.nrows() - overlap.1 .0;
+        let core_end_col = chunk.ncols() - overlap.1 .1;
 
-        for (chunk_row, output_row) in (core_start_row..core_end_row).zip(region.start.0..region.end.0) {
+        for (chunk_row, output_row) in
+            (core_start_row..core_end_row).zip(region.start.0..region.end.0)
+        {
             let offset = (output_row * image_shape.1 + region.start.1) * element_size;
-            writer.seek(SeekFrom::Start(offset as u64))
+            writer
+                .seek(SeekFrom::Start(offset as u64))
                 .map_err(NdimageError::IoError)?;
 
             for chunk_col in core_start_col..core_end_col {
@@ -738,10 +760,10 @@ where
         region: &ChunkRegion,
     ) -> NdimageResult<()> {
         let overlap = region.overlap();
-        let core_start_row = overlap.0.0;
-        let core_start_col = overlap.0.1;
-        let core_end_row = chunk.nrows() - overlap.1.0;
-        let core_end_col = chunk.ncols() - overlap.1.1;
+        let core_start_row = overlap.0 .0;
+        let core_start_col = overlap.0 .1;
+        let core_end_row = chunk.nrows() - overlap.1 .0;
+        let core_end_col = chunk.ncols() - overlap.1 .1;
 
         let core_slice = chunk.slice(ndarray::s![
             core_start_row..core_end_row,
@@ -766,16 +788,14 @@ where
             let arr: [u8; 8] = bytes.try_into().map_err(|_| {
                 NdimageError::ComputationError("Failed to convert bytes to f64".into())
             })?;
-            T::from_f64(f64::from_le_bytes(arr)).ok_or_else(|| {
-                NdimageError::ComputationError("Failed to convert f64 to T".into())
-            })
+            T::from_f64(f64::from_le_bytes(arr))
+                .ok_or_else(|| NdimageError::ComputationError("Failed to convert f64 to T".into()))
         } else if element_size == 4 {
             let arr: [u8; 4] = bytes.try_into().map_err(|_| {
                 NdimageError::ComputationError("Failed to convert bytes to f32".into())
             })?;
-            T::from_f32(f32::from_le_bytes(arr)).ok_or_else(|| {
-                NdimageError::ComputationError("Failed to convert f32 to T".into())
-            })
+            T::from_f32(f32::from_le_bytes(arr))
+                .ok_or_else(|| NdimageError::ComputationError("Failed to convert f32 to T".into()))
         } else {
             Err(NdimageError::InvalidInput(format!(
                 "Unsupported element size: {}",
@@ -799,8 +819,7 @@ where
     pub fn cleanup(&self) -> NdimageResult<()> {
         if self.config.cleanup_temp_files {
             if self.config.temp_dir.exists() {
-                fs::remove_dir_all(&self.config.temp_dir)
-                    .map_err(NdimageError::IoError)?;
+                fs::remove_dir_all(&self.config.temp_dir).map_err(NdimageError::IoError)?;
             }
         }
         Ok(())
@@ -851,18 +870,14 @@ impl Checkpoint {
         // Write checkpoint data as simple key-value pairs
         writeln!(writer, "result_path={}", self.result_path.display())
             .map_err(NdimageError::IoError)?;
-        writeln!(writer, "stage_index={}", self.stage_index)
-            .map_err(NdimageError::IoError)?;
+        writeln!(writer, "stage_index={}", self.stage_index).map_err(NdimageError::IoError)?;
         writeln!(writer, "chunks_processed={}", self.chunks_processed)
             .map_err(NdimageError::IoError)?;
-        writeln!(writer, "shape_rows={}", self.shape.0)
-            .map_err(NdimageError::IoError)?;
-        writeln!(writer, "shape_cols={}", self.shape.1)
-            .map_err(NdimageError::IoError)?;
+        writeln!(writer, "shape_rows={}", self.shape.0).map_err(NdimageError::IoError)?;
+        writeln!(writer, "shape_cols={}", self.shape.1).map_err(NdimageError::IoError)?;
 
         for (key, value) in &self.parameters {
-            writeln!(writer, "param_{}={}", key, value)
-                .map_err(NdimageError::IoError)?;
+            writeln!(writer, "param_{}={}", key, value).map_err(NdimageError::IoError)?;
         }
 
         writer.flush().map_err(NdimageError::IoError)?;
@@ -943,12 +958,10 @@ mod tests {
 
     #[test]
     fn test_pipeline_memory_processing() {
-        let pipeline = ImagePipeline::<f64>::with_defaults()
-            .threshold(0.5);
+        let pipeline = ImagePipeline::<f64>::with_defaults().threshold(0.5);
 
-        let input = Array2::from_shape_fn((50, 50), |(i, j)| {
-            if (i + j) % 2 == 0 { 1.0 } else { 0.0 }
-        });
+        let input =
+            Array2::from_shape_fn((50, 50), |(i, j)| if (i + j) % 2 == 0 { 1.0 } else { 0.0 });
 
         let result = pipeline.process_memory(&input.view());
         assert!(result.is_ok());
@@ -968,9 +981,7 @@ mod tests {
     #[test]
     fn test_custom_stage() {
         let pipeline = ImagePipeline::<f64>::with_defaults()
-            .custom("double", 0, |chunk| {
-                Ok(chunk.mapv(|x| x * 2.0))
-            });
+            .custom("double", 0, |chunk| Ok(chunk.mapv(|x| x * 2.0)));
 
         let input = Array2::ones((20, 20));
         let result = pipeline.process_memory(&input.view());
@@ -1028,11 +1039,14 @@ mod tests {
     #[test]
     fn test_gaussian_stage() {
         let stage = GaussianStage::new(1.0, BorderMode::Reflect);
-        assert_eq!(stage.name(), "gaussian_filter");
-        assert!(stage.required_overlap() > 0);
+        assert_eq!(
+            <GaussianStage as PipelineStage<f64>>::name(&stage),
+            "gaussian_filter"
+        );
+        assert!(<GaussianStage as PipelineStage<f64>>::required_overlap(&stage) > 0);
 
         let input = Array2::<f64>::ones((20, 20));
-        let result = stage.process_chunk(&input.view());
+        let result = <GaussianStage as PipelineStage<f64>>::process_chunk(&stage, &input.view());
         assert!(result.is_ok());
     }
 
@@ -1040,9 +1054,7 @@ mod tests {
     fn test_threshold_stage() {
         let stage = ThresholdStage::new(0.5f64);
 
-        let input = Array2::from_shape_fn((10, 10), |(i, j)| {
-            if i < 5 { 0.3 } else { 0.7 }
-        });
+        let input = Array2::from_shape_fn((10, 10), |(i, j)| if i < 5 { 0.3 } else { 0.7 });
 
         let result = stage.process_chunk(&input.view()).expect("Should process");
 
@@ -1058,9 +1070,7 @@ mod tests {
     fn test_normalize_stage() {
         let stage = NormalizeStage::new(0.0f64, 1.0);
 
-        let input = Array2::from_shape_fn((10, 10), |(i, j)| {
-            (i * 10 + j) as f64
-        });
+        let input = Array2::from_shape_fn((10, 10), |(i, j)| (i * 10 + j) as f64);
 
         let result = stage.process_chunk(&input.view()).expect("Should process");
 
@@ -1074,8 +1084,7 @@ mod tests {
 
     #[test]
     fn test_pipeline_cancel() {
-        let pipeline = ImagePipeline::<f64>::with_defaults()
-            .gaussian_filter(1.0);
+        let pipeline = ImagePipeline::<f64>::with_defaults().gaussian_filter(1.0);
 
         let cancel_handle = pipeline.cancel_handle();
         cancel_handle.store(true, Ordering::Relaxed);

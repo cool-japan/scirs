@@ -121,8 +121,8 @@ impl OnlineMean {
             return OnlineMean::new();
         }
         let delta = other.mean - self.mean;
-        let combined_mean =
-            (self.mean * self.count as f64 + other.mean * other.count as f64) / combined_count as f64;
+        let combined_mean = (self.mean * self.count as f64 + other.mean * other.count as f64)
+            / combined_count as f64;
         let combined_m2 = self.m2
             + other.m2
             + delta * delta * (self.count as f64 * other.count as f64) / combined_count as f64;
@@ -1001,7 +1001,8 @@ impl OnlineQuantile {
         if self.count <= 5 {
             self.init_buffer.push(x);
             if self.count == 5 {
-                self.init_buffer.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                self.init_buffer
+                    .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 for i in 0..5 {
                     self.q[i] = self.init_buffer[i];
                     self.n[i] = (i + 1) as i64;
@@ -1175,7 +1176,11 @@ mod tests {
         }
         // Predict for x = 10
         let pred = model.predict(&[10.0, 1.0]).expect("failed to create pred");
-        assert!((pred - 21.0).abs() < 0.5, "prediction error too large: {}", pred);
+        assert!(
+            (pred - 21.0).abs() < 0.5,
+            "prediction error too large: {}",
+            pred
+        );
     }
 
     #[test]
@@ -1199,7 +1204,10 @@ mod tests {
         assert_eq!(fc.len(), 5);
         // The series is a random walk with drift 1; forecasts should be increasing
         for i in 1..fc.len() {
-            assert!(fc[i] >= fc[i - 1] - 2.0, "forecast should be roughly increasing");
+            assert!(
+                fc[i] >= fc[i - 1] - 2.0,
+                "forecast should be roughly increasing"
+            );
         }
     }
 

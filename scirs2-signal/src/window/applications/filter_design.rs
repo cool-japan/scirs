@@ -498,10 +498,54 @@ fn generate_ideal_impulse_response(
             }
         }
 
-        _ => {
-            return Err(SignalError::ValueError(
-                "Filter type not yet implemented".to_string(),
-            ));
+        FilterType::BandStop {
+            low_freq,
+            high_freq,
+        } => {
+            // Bandstop = allpass - bandpass = delta(n) - bandpass(n)
+            for n in 0..length {
+                let index = n as f64 - center;
+                let h_center = if index.abs() < 1e-10 {
+                    1.0 - 2.0 * (high_freq - low_freq)
+                } else {
+                    let sinc = (PI * index).sin() / (PI * index);
+                    let h_high = 2.0 * high_freq * (2.0 * PI * high_freq * index).sin()
+                        / (2.0 * PI * high_freq * index);
+                    let h_low = 2.0 * low_freq * (2.0 * PI * low_freq * index).sin()
+                        / (2.0 * PI * low_freq * index);
+                    // allpass (sinc) minus bandpass
+                    sinc - (h_high - h_low)
+                };
+                impulse_response.push(h_center);
+            }
+        }
+
+        FilterType::Differentiator => {
+            // Ideal differentiator: h[n] = cos(pi*n) / n for n != 0, h[0] = 0
+            // Frequency response: H(w) = jw (linear in frequency)
+            for n in 0..length {
+                let index = n as f64 - center;
+                let h = if index.abs() < 1e-10 {
+                    0.0
+                } else {
+                    (PI * index).cos() / index
+                };
+                impulse_response.push(h);
+            }
+        }
+
+        FilterType::Hilbert => {
+            // Ideal Hilbert transformer: h[n] = 2*sin^2(pi*n/2) / (pi*n) for n != 0, h[0] = 0
+            // Equivalent to: h[n] = (1 - cos(pi*n)) / (pi*n)
+            for n in 0..length {
+                let index = n as f64 - center;
+                let h = if index.abs() < 1e-10 {
+                    0.0
+                } else {
+                    2.0 * (PI * index / 2.0).sin().powi(2) / (PI * index)
+                };
+                impulse_response.push(h);
+            }
         }
     }
 

@@ -39,8 +39,7 @@
 //!   *JMLR*, 12, 2539–2561.
 
 use crate::algorithms::isomorphism::{
-    are_graphs_isomorphic, are_graphs_isomorphic_enhanced, find_isomorphism,
-    find_isomorphism_vf2,
+    are_graphs_isomorphic, are_graphs_isomorphic_enhanced, find_isomorphism, find_isomorphism_vf2,
 };
 use crate::base::{EdgeWeight, Graph, IndexType, Node};
 use crate::error::{GraphError, Result};
@@ -51,8 +50,7 @@ pub use crate::algorithms::isomorphism::{
     are_graphs_isomorphic as are_isomorphic,
     are_graphs_isomorphic_enhanced as are_isomorphic_enhanced,
     find_isomorphism as find_isomorphism_mapping,
-    find_isomorphism_vf2 as find_isomorphism_vf2_mapping,
-    find_subgraph_matches,
+    find_isomorphism_vf2 as find_isomorphism_vf2_mapping, find_subgraph_matches,
 };
 pub use crate::algorithms::motifs::vf2_subgraph_isomorphism;
 
@@ -100,10 +98,7 @@ pub use crate::algorithms::motifs::vf2_subgraph_isomorphism;
 ///     weisfeiler_lehman_hash(&g2, 3).unwrap(),
 /// );
 /// ```
-pub fn weisfeiler_lehman_hash<N, E, Ix>(
-    graph: &Graph<N, E, Ix>,
-    iterations: usize,
-) -> Result<u64>
+pub fn weisfeiler_lehman_hash<N, E, Ix>(graph: &Graph<N, E, Ix>, iterations: usize) -> Result<u64>
 where
     N: Node + Ord + Clone + std::fmt::Debug,
     E: EdgeWeight,
@@ -159,8 +154,7 @@ where
     for _ in 0..iterations {
         for v in 0..n {
             // Collect and sort neighbour labels
-            let mut nbr_labels: Vec<u64> =
-                adj[v].iter().map(|&nb| labels[nb]).collect();
+            let mut nbr_labels: Vec<u64> = adj[v].iter().map(|&nb| labels[nb]).collect();
             nbr_labels.sort_unstable();
 
             // Hash (current_label, sorted_neighbour_labels)
@@ -196,7 +190,8 @@ fn combine_hash_sequence(seed: u64, values: &[u64]) -> u64 {
     for &v in values {
         // Mix-in each value
         let vh = hash_u64_value(v);
-        h ^= vh.wrapping_add(0x9e37_79b9_7f4a_7c15_u64)
+        h ^= vh
+            .wrapping_add(0x9e37_79b9_7f4a_7c15_u64)
             .wrapping_add(h << 6)
             .wrapping_add(h >> 2);
     }
@@ -246,10 +241,7 @@ fn combine_hash_sequence(seed: u64, values: &[u64]) -> u64 {
 ///     canonical_form(&g2, 3).unwrap(),
 /// );
 /// ```
-pub fn canonical_form<N, E, Ix>(
-    graph: &Graph<N, E, Ix>,
-    iterations: usize,
-) -> Result<String>
+pub fn canonical_form<N, E, Ix>(graph: &Graph<N, E, Ix>, iterations: usize) -> Result<String>
 where
     N: Node + Ord + Clone + std::fmt::Debug,
     E: EdgeWeight,
@@ -522,7 +514,10 @@ mod tests {
         let cycle = cycle_graph(5);
         let h_path = weisfeiler_lehman_hash(&path, 3).expect("WL hash failed");
         let h_cycle = weisfeiler_lehman_hash(&cycle, 3).expect("WL hash failed");
-        assert_ne!(h_path, h_cycle, "Path5 and Cycle5 must have different WL hashes");
+        assert_ne!(
+            h_path, h_cycle,
+            "Path5 and Cycle5 must have different WL hashes"
+        );
     }
 
     #[test]
@@ -563,7 +558,10 @@ mod tests {
         }
         let c1 = canonical_form(&g1, 3).expect("canonical_form failed");
         let c2 = canonical_form(&g2, 3).expect("canonical_form failed");
-        assert_eq!(c1, c2, "Isomorphic paths should have the same canonical form");
+        assert_eq!(
+            c1, c2,
+            "Isomorphic paths should have the same canonical form"
+        );
     }
 
     #[test]
@@ -646,8 +644,7 @@ mod tests {
         g2.add_edge(7, 8, 1.0).expect("add_edge failed");
         g2.add_edge(8, 9, 1.0).expect("add_edge failed");
 
-        let mapping = find_graph_isomorphism(&g1, &g2, 3)
-            .expect("find_graph_isomorphism failed");
+        let mapping = find_graph_isomorphism(&g1, &g2, 3).expect("find_graph_isomorphism failed");
         assert!(mapping.is_some(), "Should find an isomorphism");
     }
 
@@ -655,9 +652,12 @@ mod tests {
     fn test_find_graph_isomorphism_no_match() {
         let path = path_graph(5);
         let cycle = cycle_graph(5);
-        let mapping = find_graph_isomorphism(&path, &cycle, 3)
-            .expect("find_graph_isomorphism failed");
-        assert!(mapping.is_none(), "Path5 and Cycle5 should not be isomorphic");
+        let mapping =
+            find_graph_isomorphism(&path, &cycle, 3).expect("find_graph_isomorphism failed");
+        assert!(
+            mapping.is_none(),
+            "Path5 and Cycle5 should not be isomorphic"
+        );
     }
 
     // ── hash uniqueness smoke test ─────────────────────────────────────────

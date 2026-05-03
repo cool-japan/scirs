@@ -33,6 +33,7 @@ use crate::multiobjective::indicators::{dominates, non_dominated_sort};
 use crate::multiobjective::nsga2::{Individual, Nsga2Config};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::RngExt;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -201,7 +202,11 @@ where
     let n_ref = ref_points.len();
     let pop_size = {
         let desired = config.population_size.max(n_ref);
-        if desired % 2 == 0 { desired } else { desired + 1 }
+        if desired % 2 == 0 {
+            desired
+        } else {
+            desired + 1
+        }
     };
 
     let mut rng = StdRng::seed_from_u64(config.seed);
@@ -236,10 +241,7 @@ where
                         &mut rng,
                     )
                 } else {
-                    (
-                        population[p1].genes.clone(),
-                        population[p2].genes.clone(),
-                    )
+                    (population[p1].genes.clone(), population[p2].genes.clone())
                 };
 
                 let c1_genes =
@@ -269,17 +271,15 @@ where
 
     // ── Build result ─────────────────────────────────────────────────────────
     assign_ranks(&mut population);
-    let obj_vecs: Vec<Vec<f64>> = population.iter().map(|ind| ind.objectives.clone()).collect();
+    let obj_vecs: Vec<Vec<f64>> = population
+        .iter()
+        .map(|ind| ind.objectives.clone())
+        .collect();
     let front_indices = non_dominated_sort(&obj_vecs);
 
     let all_fronts: Vec<Vec<Individual>> = front_indices
         .iter()
-        .map(|idx_vec| {
-            idx_vec
-                .iter()
-                .map(|&i| population[i].clone())
-                .collect()
-        })
+        .map(|idx_vec| idx_vec.iter().map(|&i| population[i].clone()).collect())
         .collect();
 
     let pareto_front = if all_fronts.is_empty() {
@@ -312,7 +312,14 @@ where
 pub fn generate_reference_points(n_obj: usize, n_divisions: usize) -> Vec<Vec<f64>> {
     let mut points: Vec<Vec<f64>> = Vec::new();
     let mut current = vec![0.0f64; n_obj];
-    enumerate_simplex(&mut points, &mut current, n_obj, n_divisions, 0, n_divisions);
+    enumerate_simplex(
+        &mut points,
+        &mut current,
+        n_obj,
+        n_divisions,
+        0,
+        n_divisions,
+    );
 
     // Normalise by dividing by n_divisions
     for p in &mut points {
@@ -461,7 +468,11 @@ fn normalize_objectives(objectives: &[f64], ideal: &[f64], nadir: &[f64]) -> Vec
 ///
 /// Both `f_norm` and `ref_point` must have the same length.
 pub fn reference_line_distance(f_norm: &[f64], ref_point: &[f64]) -> f64 {
-    let dot: f64 = f_norm.iter().zip(ref_point.iter()).map(|(a, b)| a * b).sum();
+    let dot: f64 = f_norm
+        .iter()
+        .zip(ref_point.iter())
+        .map(|(a, b)| a * b)
+        .sum();
     let r_sq: f64 = ref_point.iter().map(|r| r * r).sum();
 
     if r_sq < 1e-14 {
@@ -526,10 +537,7 @@ fn nsga3_select(
     target_size: usize,
     rng: &mut StdRng,
 ) -> Vec<Individual> {
-    let obj_vecs: Vec<Vec<f64>> = combined
-        .iter()
-        .map(|ind| ind.objectives.clone())
-        .collect();
+    let obj_vecs: Vec<Vec<f64>> = combined.iter().map(|ind| ind.objectives.clone()).collect();
     let fronts = non_dominated_sort(&obj_vecs);
 
     // Compute ideal + nadir over the combined population
@@ -556,10 +564,7 @@ fn nsga3_select(
 
     if remaining == 0 || critical_front.is_empty() {
         // Selection complete without niching
-        return survivors
-            .iter()
-            .map(|&i| combined[i].clone())
-            .collect();
+        return survivors.iter().map(|&i| combined[i].clone()).collect();
     }
 
     // Niche counting: count how many survivors are associated with each ref point
@@ -614,8 +619,7 @@ fn nsga3_select(
                 .min_by(|&&a, &&b| {
                     let da = assoc[a].1;
                     let db = assoc[b].1;
-                    da.partial_cmp(&db)
-                        .unwrap_or(std::cmp::Ordering::Equal)
+                    da.partial_cmp(&db).unwrap_or(std::cmp::Ordering::Equal)
                 })
                 .unwrap_or(&candidates[0])
         } else {
@@ -637,10 +641,7 @@ fn nsga3_select(
 
     // Build final survivor list
     survivors.extend(selected_from_critical);
-    survivors
-        .iter()
-        .map(|&i| combined[i].clone())
-        .collect()
+    survivors.iter().map(|&i| combined[i].clone()).collect()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -651,7 +652,10 @@ fn assign_ranks(population: &mut Vec<Individual>) {
     if population.is_empty() {
         return;
     }
-    let obj_vecs: Vec<Vec<f64>> = population.iter().map(|ind| ind.objectives.clone()).collect();
+    let obj_vecs: Vec<Vec<f64>> = population
+        .iter()
+        .map(|ind| ind.objectives.clone())
+        .collect();
     let fronts = non_dominated_sort(&obj_vecs);
 
     for (rank, front_idx) in fronts.iter().enumerate() {
@@ -977,8 +981,7 @@ mod tests {
         cfg.n_generations = 10;
         cfg.n_divisions = 3;
 
-        let result = nsga3(n_obj, &bounds, |x| dtlz2(x, n_obj), cfg)
-            .expect("nsga3 should succeed");
+        let result = nsga3(n_obj, &bounds, |x| dtlz2(x, n_obj), cfg).expect("nsga3 should succeed");
 
         assert!(!result.pareto_front.is_empty());
         assert!(!result.reference_points.is_empty());
@@ -994,7 +997,8 @@ mod tests {
         cfg.n_divisions = 3;
         cfg.seed = 77;
 
-        let result = nsga3(n_obj, &bounds, |x| dtlz2(x, n_obj), cfg).expect("failed to create result");
+        let result =
+            nsga3(n_obj, &bounds, |x| dtlz2(x, n_obj), cfg).expect("failed to create result");
         let front = &result.pareto_front;
 
         for i in 0..front.len() {
@@ -1019,7 +1023,8 @@ mod tests {
         cfg.n_generations = 10;
         cfg.n_divisions = 3;
 
-        let result = nsga3(n_obj, &bounds, |x| dtlz2(x, n_obj), cfg).expect("failed to create result");
+        let result =
+            nsga3(n_obj, &bounds, |x| dtlz2(x, n_obj), cfg).expect("failed to create result");
         assert!(!result.pareto_front.is_empty());
     }
 
@@ -1033,7 +1038,8 @@ mod tests {
         cfg.n_divisions = 3;
         cfg.n_divisions_inner = Some(2);
 
-        let result = nsga3(n_obj, &bounds, |x| dtlz2(x, n_obj), cfg).expect("failed to create result");
+        let result =
+            nsga3(n_obj, &bounds, |x| dtlz2(x, n_obj), cfg).expect("failed to create result");
         // Two-layer should have more reference points
         assert!(result.reference_points.len() > 10);
         assert!(!result.pareto_front.is_empty());
@@ -1047,7 +1053,8 @@ mod tests {
         cfg.n_generations = 10;
         cfg.n_divisions = 3;
 
-        let result = nsga3(3, &bounds, |x| vec![x[0], x[1], x[2]], cfg).expect("failed to create result");
+        let result =
+            nsga3(3, &bounds, |x| vec![x[0], x[1], x[2]], cfg).expect("failed to create result");
 
         for ind in &result.pareto_front {
             for (i, &g) in ind.genes.iter().enumerate() {
@@ -1093,10 +1100,7 @@ mod tests {
         let initial_count = ref_pts.len();
 
         // Simulate a Pareto front concentrated in one corner
-        let fake_front: Vec<Vec<f64>> = vec![
-            vec![0.9, 0.05, 0.05],
-            vec![0.85, 0.1, 0.05],
-        ];
+        let fake_front: Vec<Vec<f64>> = vec![vec![0.9, 0.05, 0.05], vec![0.85, 0.1, 0.05]];
 
         adapt_reference_points(&mut ref_pts, &fake_front, 0.1);
 

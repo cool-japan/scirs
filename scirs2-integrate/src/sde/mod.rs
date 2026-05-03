@@ -58,8 +58,13 @@ pub mod processes;
 pub mod rough_sde;
 pub mod runge_kutta_sde;
 pub mod srk;
+pub mod streaming_particle_filter;
 pub mod weak_order2;
 pub mod weak_schemes;
+
+pub use streaming_particle_filter::{
+    FilterEstimate, SimpleRng, StreamingParticleFilter, StreamingParticleFilterBuilder,
+};
 
 use crate::error::{IntegrateError, IntegrateResult};
 use scirs2_core::ndarray::{Array1, Array2};

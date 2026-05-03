@@ -159,8 +159,7 @@ impl MoransI {
         let w_sq = w_sum * w_sum;
         let num_var = n_f * (n_f * n_f - 3.0 * n_f + 3.0) * s1 - n_f * s2_stat + 3.0 * w_sq;
         let den_var = (n_f - 1.0) * (n_f - 2.0) * (n_f - 3.0) * w_sq;
-        let kur_term = k4
-            * ((n_f * n_f - n_f) * s1 - 2.0 * n_f * s2_stat + 6.0 * w_sq)
+        let kur_term = k4 * ((n_f * n_f - n_f) * s1 - 2.0 * n_f * s2_stat + 6.0 * w_sq)
             / ((n_f - 1.0) * (n_f - 2.0) * (n_f - 3.0) * w_sq);
 
         let variance = (num_var / den_var - kur_term - expected * expected).max(1e-15);
@@ -490,12 +489,12 @@ pub fn variogram(points: &[(f64, f64, f64)], n_bins: usize) -> StatsResult<Vec<V
 ///
 /// This is a convenience wrapper around [`variogram`] that returns the result
 /// in a simple `Vec<(f64, f64)>` format.
-pub fn variogram_pairs(
-    points: &[(f64, f64, f64)],
-    n_bins: usize,
-) -> StatsResult<Vec<(f64, f64)>> {
+pub fn variogram_pairs(points: &[(f64, f64, f64)], n_bins: usize) -> StatsResult<Vec<(f64, f64)>> {
     let bins = variogram(points, n_bins)?;
-    Ok(bins.into_iter().map(|b| (b.distance, b.semivariance)).collect())
+    Ok(bins
+        .into_iter()
+        .map(|b| (b.distance, b.semivariance))
+        .collect())
 }
 
 // ---------------------------------------------------------------------------
@@ -607,23 +606,26 @@ mod tests {
         let values = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let w = chain_weights(8);
         let c = GearyC::compute(&values, &w).expect("GearyC compute failed");
-        assert!(c < 1.0, "Expected C < 1 for positive autocorrelation, got {c}");
+        assert!(
+            c < 1.0,
+            "Expected C < 1 for positive autocorrelation, got {c}"
+        );
     }
 
     #[test]
     fn test_ripley_k_increasing() {
         // K(d) should be non-decreasing in d
-        let points = vec![
-            (0.0, 0.0), (1.0, 0.0), (2.0, 0.0), (0.0, 1.0), (1.0, 1.0),
-        ];
+        let points = vec![(0.0, 0.0), (1.0, 0.0), (2.0, 0.0), (0.0, 1.0), (1.0, 1.0)];
         let distances = vec![0.5, 1.0, 1.5, 2.0];
-        let k = Ripley::k_function(&points, &distances, 9.0)
-            .expect("Ripley k_function failed");
+        let k = Ripley::k_function(&points, &distances, 9.0).expect("Ripley k_function failed");
         for i in 1..k.len() {
             assert!(
                 k[i] >= k[i - 1] - 1e-10,
                 "K should be non-decreasing: K[{}]={} < K[{}]={}",
-                i, k[i], i - 1, k[i - 1]
+                i,
+                k[i],
+                i - 1,
+                k[i - 1]
             );
         }
     }

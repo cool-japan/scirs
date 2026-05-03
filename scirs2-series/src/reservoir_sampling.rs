@@ -412,7 +412,8 @@ impl TimeSeriesReservoir {
             // the timestamp for the decay computation.
             1.0_f64.exp() // = e; ensures new items are competitive
         };
-        self.inner.update(TimedObservation { value, timestamp }, weight)
+        self.inner
+            .update(TimedObservation { value, timestamp }, weight)
     }
 
     /// Return the current reservoir sample.
@@ -607,7 +608,8 @@ mod tests {
         let n_trials = 2000;
         let mut counts = [0u32; 10];
         for seed in 0..n_trials as u64 {
-            let mut sampler = ReservoirSampler::<usize>::new(5, seed).expect("failed to create sampler");
+            let mut sampler =
+                ReservoirSampler::<usize>::new(5, seed).expect("failed to create sampler");
             for i in 0..10 {
                 sampler.update(i);
             }
@@ -635,7 +637,8 @@ mod tests {
     fn test_weighted_reservoir_basic() {
         let mut wr = WeightedReservoir::<usize>::new(5, 7).expect("failed to create wr");
         for i in 0..20 {
-            wr.update(i, (i + 1) as f64).expect("unexpected None or Err");
+            wr.update(i, (i + 1) as f64)
+                .expect("unexpected None or Err");
         }
         assert_eq!(wr.sample().len(), 5);
     }
@@ -651,7 +654,8 @@ mod tests {
     fn test_time_series_reservoir_basic() {
         let mut tsr = TimeSeriesReservoir::new(20, 0.0, 0).expect("failed to create tsr");
         for t in 0..200 {
-            tsr.update(t as f64, t as f64).expect("unexpected None or Err");
+            tsr.update(t as f64, t as f64)
+                .expect("unexpected None or Err");
         }
         assert_eq!(tsr.sample().len(), 20);
         assert_eq!(tsr.n_seen(), 200);

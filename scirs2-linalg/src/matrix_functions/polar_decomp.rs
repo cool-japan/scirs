@@ -35,14 +35,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Floating-point trait alias for polar decomposition.
-pub trait PolarFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<F> PolarFloat for F where
-    F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait PolarFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<F> PolarFloat for F where F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -53,7 +47,8 @@ fn matmul_nn<F: PolarFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2
     let (k2, n) = (b.nrows(), b.ncols());
     if k != k2 {
         return Err(LinalgError::ShapeError(format!(
-            "polar matmul: inner dims {} vs {}", k, k2
+            "polar matmul: inner dims {} vs {}",
+            k, k2
         )));
     }
     let mut c = Array2::<F>::zeros((m, n));
@@ -64,7 +59,7 @@ fn matmul_nn<F: PolarFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + a_il * b[[l, j]];
+                c[[i, j]] += a_il * b[[l, j]];
             }
         }
     }
@@ -74,7 +69,7 @@ fn matmul_nn<F: PolarFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2
 fn frobenius_norm<F: PolarFloat>(a: &Array2<F>) -> F {
     let mut acc = F::zero();
     for &v in a.iter() {
-        acc = acc + v * v;
+        acc += v * v;
     }
     acc.sqrt()
 }
@@ -126,7 +121,7 @@ fn lu_factorize<F: PolarFloat>(a: &Array2<F>) -> LinalgResult<(Array2<F>, Vec<us
             for j in (k + 1)..n {
                 let l_ik = lu[[i, k]];
                 let u_kj = lu[[k, j]];
-                lu[[i, j]] = lu[[i, j]] - l_ik * u_kj;
+                lu[[i, j]] -= l_ik * u_kj;
             }
         }
     }
@@ -145,14 +140,15 @@ fn lu_solve<F: PolarFloat>(lu: &Array2<F>, perm: &[usize], b: &Array2<F>) -> Arr
         }
         for i in 0..n {
             for j in 0..i {
-                y[i] = y[i] - lu[[i, j]] * y[j];
+                let yj = y[j];
+                y[i] -= lu[[i, j]] * yj;
             }
         }
         let mut z = vec![F::zero(); n];
         for i in (0..n).rev() {
             let mut sum = y[i];
             for j in (i + 1)..n {
-                sum = sum - lu[[i, j]] * z[j];
+                sum -= lu[[i, j]] * z[j];
             }
             z[i] = sum / lu[[i, i]];
         }
@@ -202,15 +198,7 @@ fn mat_inv<F: PolarFloat>(a: &Array2<F>) -> LinalgResult<Array2<F>> {
 /// ```
 pub fn polar_via_svd<F>(a: &ArrayView2<F>) -> LinalgResult<(Array2<F>, Array2<F>)>
 where
-    F: Float
-        + NumAssign
-        + Sum
-        + One
-        + ScalarOperand
-        + Send
-        + Sync
-        + 'static
-        + std::fmt::Display,
+    F: Float + NumAssign + Sum + One + ScalarOperand + Send + Sync + 'static + std::fmt::Display,
 {
     let n = a.nrows();
     if a.ncols() != n {
@@ -303,7 +291,7 @@ pub fn unitary_factor_halley<F: PolarFloat>(
         for j in 0..n_cols {
             let mut col_sum = F::zero();
             for i in 0..n {
-                col_sum = col_sum + a[[i, j]].abs();
+                col_sum += a[[i, j]].abs();
             }
             if col_sum > max_col {
                 max_col = col_sum;
@@ -320,7 +308,7 @@ pub fn unitary_factor_halley<F: PolarFloat>(
 
     let mut x = a.to_owned();
     for v in x.iter_mut() {
-        *v = *v / norm_a;
+        *v /= norm_a;
     }
 
     for _ in 0..max_iter {
@@ -330,16 +318,16 @@ pub fn unitary_factor_halley<F: PolarFloat>(
         // Numerator: 3I + X^T X
         let mut num_inner = xtx.clone();
         for i in 0..n {
-            num_inner[[i, i]] = num_inner[[i, i]] + three;
+            num_inner[[i, i]] += three;
         }
 
         // Denominator: I + 3 X^T X
         let mut den_inner = xtx;
         for i in 0..n {
-            den_inner[[i, i]] = den_inner[[i, i]] + F::one();
+            den_inner[[i, i]] += F::one();
         }
         for v in den_inner.iter_mut() {
-            *v = *v * three;
+            *v *= three;
         }
         // Wait — den is I + 3 X^T X, but we want (I + 3 X^T X) again
         // Redo: den[[i,i]] was set to xtx[[i,i]] + 1, rest is 3*xtx[[i,j]]

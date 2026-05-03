@@ -33,8 +33,11 @@ pub mod algorithm_tuners;
 pub mod bayesian_optimization;
 pub mod config;
 pub mod cross_validation;
+pub mod evaluation;
 pub mod optimization_strategies;
 pub mod search_spaces;
+pub mod selection;
+pub mod strategies;
 pub mod utilities;
 
 // Re-export main types for convenience

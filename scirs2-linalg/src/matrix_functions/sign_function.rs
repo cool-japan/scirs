@@ -33,14 +33,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Floating-point trait alias for sign matrix functions.
-pub trait SignFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<F> SignFloat for F where
-    F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait SignFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<F> SignFloat for F where F: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -51,7 +45,8 @@ fn matmul_nn<F: SignFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<
     let (k2, n) = (b.nrows(), b.ncols());
     if k != k2 {
         return Err(LinalgError::ShapeError(format!(
-            "signm matmul: inner dims {} vs {}", k, k2
+            "signm matmul: inner dims {} vs {}",
+            k, k2
         )));
     }
     let mut c = Array2::<F>::zeros((m, n));
@@ -62,7 +57,7 @@ fn matmul_nn<F: SignFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + a_il * b[[l, j]];
+                c[[i, j]] += a_il * b[[l, j]];
             }
         }
     }
@@ -72,7 +67,7 @@ fn matmul_nn<F: SignFloat>(a: &Array2<F>, b: &Array2<F>) -> LinalgResult<Array2<
 fn frobenius_norm<F: SignFloat>(a: &Array2<F>) -> F {
     let mut acc = F::zero();
     for &v in a.iter() {
-        acc = acc + v * v;
+        acc += v * v;
     }
     acc.sqrt()
 }
@@ -110,11 +105,12 @@ fn lu_factorize<F: SignFloat>(a: &Array2<F>) -> LinalgResult<(Array2<F>, Vec<usi
         }
 
         for i in (k + 1)..n {
-            lu[[i, k]] = lu[[i, k]] / lu[[k, k]];
+            let lkk = lu[[k, k]];
+            lu[[i, k]] /= lkk;
             for j in (k + 1)..n {
                 let l_ik = lu[[i, k]];
                 let u_kj = lu[[k, j]];
-                lu[[i, j]] = lu[[i, j]] - l_ik * u_kj;
+                lu[[i, j]] -= l_ik * u_kj;
             }
         }
     }
@@ -133,14 +129,15 @@ fn lu_solve<F: SignFloat>(lu: &Array2<F>, perm: &[usize], b: &Array2<F>) -> Arra
         }
         for i in 0..n {
             for j in 0..i {
-                y[i] = y[i] - lu[[i, j]] * y[j];
+                let yj = y[j];
+                y[i] -= lu[[i, j]] * yj;
             }
         }
         let mut z = vec![F::zero(); n];
         for i in (0..n).rev() {
             let mut sum = y[i];
             for j in (i + 1)..n {
-                sum = sum - lu[[i, j]] * z[j];
+                sum -= lu[[i, j]] * z[j];
             }
             z[i] = sum / lu[[i, i]];
         }
@@ -250,8 +247,7 @@ pub fn signm<F: SignFloat>(
             }
         }
         let norm_s = frobenius_norm(&s_new);
-        let rel_change = frobenius_norm(&diff)
-            / (norm_s + F::from(1e-30).unwrap_or(F::epsilon()));
+        let rel_change = frobenius_norm(&diff) / (norm_s + F::from(1e-30).unwrap_or(F::epsilon()));
 
         s = s_new;
 
@@ -275,9 +271,9 @@ fn compute_det_scaling<F: SignFloat>(s: &Array2<F>, n: usize) -> F {
             }
             if d < F::zero() {
                 sign_changes += 1;
-                log_abs_det = log_abs_det + (-d).ln();
+                log_abs_det += (-d).ln();
             } else {
-                log_abs_det = log_abs_det + d.ln();
+                log_abs_det += d.ln();
             }
         }
         if sign_changes % 2 != 0 {
@@ -361,7 +357,7 @@ pub fn signm_schulz<F: SignFloat>(
 
     let mut s = a.to_owned();
     for v in s.iter_mut() {
-        *v = *v / norm_a;
+        *v /= norm_a;
     }
 
     for _ in 0..max_iter {

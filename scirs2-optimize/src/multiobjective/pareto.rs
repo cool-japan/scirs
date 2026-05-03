@@ -117,9 +117,7 @@ pub fn non_dominated_sort(population: &[Vec<f64>]) -> Vec<Vec<usize>> {
     }
 
     let mut fronts: Vec<Vec<usize>> = Vec::new();
-    let mut current_front: Vec<usize> = (0..n)
-        .filter(|&i| domination_count[i] == 0)
-        .collect();
+    let mut current_front: Vec<usize> = (0..n).filter(|&i| domination_count[i] == 0).collect();
 
     while !current_front.is_empty() {
         let mut next_front: Vec<usize> = Vec::new();
@@ -269,10 +267,7 @@ pub fn hypervolume_2d(front: &[Vec<f64>], reference: &[f64]) -> f64 {
     }
 
     // Sort ascending by f1
-    pts.sort_by(|a, b| {
-        a.0.partial_cmp(&b.0)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
     // Build 2-D Pareto front: keep only strictly decreasing f2 subsequence
     let mut pareto_2d: Vec<(f64, f64)> = Vec::new();
@@ -289,7 +284,11 @@ pub fn hypervolume_2d(front: &[Vec<f64>], reference: &[f64]) -> f64 {
     let mut volume = 0.0;
     for i in (0..np).rev() {
         let x_start = pareto_2d[i].0;
-        let x_end = if i + 1 < np { pareto_2d[i + 1].0 } else { ref_x };
+        let x_end = if i + 1 < np {
+            pareto_2d[i + 1].0
+        } else {
+            ref_x
+        };
         let y = pareto_2d[i].1;
         volume += (x_end - x_start) * (ref_y - y);
     }
@@ -337,9 +336,7 @@ pub fn hypervolume_indicator(front: &[Vec<f64>], reference: &[f64]) -> f64 {
     // Filter to keep only points strictly dominated by the reference
     let mut pts: Vec<Vec<f64>> = front
         .iter()
-        .filter(|p| {
-            p.len() == n_obj && p.iter().zip(reference.iter()).all(|(o, r)| o < r)
-        })
+        .filter(|p| p.len() == n_obj && p.iter().zip(reference.iter()).all(|(o, r)| o < r))
         .cloned()
         .collect();
 
@@ -398,10 +395,8 @@ fn wfg_hypervolume(pts: &mut Vec<Vec<f64>>, reference: &[f64]) -> f64 {
         }
 
         // Project points 0..=i onto the first (n_dim-1) objectives
-        let mut sub_pts: Vec<Vec<f64>> = pts[..=i]
-            .iter()
-            .map(|p| p[..n_dim - 1].to_vec())
-            .collect();
+        let mut sub_pts: Vec<Vec<f64>> =
+            pts[..=i].iter().map(|p| p[..n_dim - 1].to_vec()).collect();
 
         // Remove dominated points in the sub-space for efficiency
         sub_pts = filter_non_dominated_internal(&sub_pts);
@@ -851,7 +846,11 @@ mod tests {
         // Boundary points (0,1) and (1,0) should have infinite distance
         // The middle point (0.5, 0.5) should have finite distance
         let inf_count = cd.iter().filter(|d| d.is_infinite()).count();
-        assert_eq!(inf_count, 2, "Expected 2 boundary points with inf cd, got {:?}", cd);
+        assert_eq!(
+            inf_count, 2,
+            "Expected 2 boundary points with inf cd, got {:?}",
+            cd
+        );
         assert!(cd[1].is_finite(), "Middle point should have finite cd");
     }
 
@@ -980,14 +979,8 @@ mod tests {
 
     #[test]
     fn test_epsilon_indicator_empty() {
-        assert_eq!(
-            epsilon_indicator(&[], &[vec![1.0, 1.0]]),
-            f64::INFINITY
-        );
-        assert_eq!(
-            epsilon_indicator(&[vec![1.0, 1.0]], &[]),
-            f64::INFINITY
-        );
+        assert_eq!(epsilon_indicator(&[], &[vec![1.0, 1.0]]), f64::INFINITY);
+        assert_eq!(epsilon_indicator(&[vec![1.0, 1.0]], &[]), f64::INFINITY);
     }
 
     // ── generational_distance ────────────────────────────────────────────────
@@ -1011,14 +1004,8 @@ mod tests {
 
     #[test]
     fn test_generational_distance_empty() {
-        assert_eq!(
-            generational_distance(&[], &[vec![1.0, 1.0]]),
-            f64::INFINITY
-        );
-        assert_eq!(
-            generational_distance(&[vec![1.0, 1.0]], &[]),
-            f64::INFINITY
-        );
+        assert_eq!(generational_distance(&[], &[vec![1.0, 1.0]]), f64::INFINITY);
+        assert_eq!(generational_distance(&[vec![1.0, 1.0]], &[]), f64::INFINITY);
     }
 
     // ── spread_metric ────────────────────────────────────────────────────────
@@ -1032,7 +1019,10 @@ mod tests {
             })
             .collect();
         let sp = spread_metric(&front);
-        assert!(sp < 0.05, "Uniform front should have near-zero spread: {sp}");
+        assert!(
+            sp < 0.05,
+            "Uniform front should have near-zero spread: {sp}"
+        );
     }
 
     #[test]
@@ -1087,10 +1077,7 @@ mod tests {
         assert!(fronts.len() >= 2, "Expected multiple fronts");
 
         // Compute crowding distance for the first front
-        let front0_pts: Vec<Vec<f64>> = fronts[0]
-            .iter()
-            .map(|&i| population[i].clone())
-            .collect();
+        let front0_pts: Vec<Vec<f64>> = fronts[0].iter().map(|&i| population[i].clone()).collect();
         let cd = crowding_distance(&front0_pts);
         assert_eq!(cd.len(), front0_pts.len());
     }
@@ -1110,7 +1097,10 @@ mod tests {
         // Non-dominated front: all rank 0
         let pop = vec![vec![1.0, 3.0], vec![2.0, 2.0], vec![3.0, 1.0]];
         let ranks = pareto_rank(&pop);
-        assert!(ranks.iter().all(|&r| r == 0), "all should be rank 0: {ranks:?}");
+        assert!(
+            ranks.iter().all(|&r| r == 0),
+            "all should be rank 0: {ranks:?}"
+        );
     }
 
     #[test]
@@ -1138,14 +1128,13 @@ mod tests {
 
     #[test]
     fn test_pareto_front_basic() {
-        let pop = vec![
-            vec![1.0, 2.0],
-            vec![2.0, 1.0],
-            vec![3.0, 3.0],
-        ];
+        let pop = vec![vec![1.0, 2.0], vec![2.0, 1.0], vec![3.0, 3.0]];
         let front = pareto_front(&pop);
         assert_eq!(front.len(), 2);
-        assert!(!front.contains(&2), "dominated point should not be in front");
+        assert!(
+            !front.contains(&2),
+            "dominated point should not be in front"
+        );
     }
 
     #[test]
@@ -1183,6 +1172,9 @@ mod tests {
         let af = vec![vec![0.3, 0.4]]; // distance = 0.5
         let val = igd(&af, &tf);
         let expected = (0.3f64.powi(2) + 0.4f64.powi(2)).sqrt();
-        assert!((val - expected).abs() < 1e-10, "Expected {expected}, got {val}");
+        assert!(
+            (val - expected).abs() < 1e-10,
+            "Expected {expected}, got {val}"
+        );
     }
 }

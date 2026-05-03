@@ -292,7 +292,7 @@ where
     let init_panels = {
         let base = (4.0 * wavelengths.ceil()).max(4.0) as usize;
         // round up to even
-        if base % 2 != 0 {
+        if !base.is_multiple_of(2) {
             base + 1
         } else {
             base
@@ -359,7 +359,7 @@ where
     }
     let n = if n_panels < 2 {
         2
-    } else if n_panels % 2 != 0 {
+    } else if !n_panels.is_multiple_of(2) {
         n_panels + 1
     } else {
         n_panels
@@ -835,9 +835,7 @@ fn solve_linear_system(a: &[f64], b: &[f64], n: usize) -> IntegrateResult<Vec<f6
         }
         if max_row != col {
             for j in 0..=n {
-                let tmp = aug[col * (n + 1) + j];
-                aug[col * (n + 1) + j] = aug[max_row * (n + 1) + j];
-                aug[max_row * (n + 1) + j] = tmp;
+                aug.swap(col * (n + 1) + j, max_row * (n + 1) + j);
             }
         }
         let pivot = aug[col * (n + 1) + col];

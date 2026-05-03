@@ -1,5 +1,9 @@
 # scirs2-series TODO
 
+## Status: v0.4.3 Released (May 3, 2026)
+
+34,275+ workspace tests pass (100% pass rate). All v0.4.3 features are complete and production-ready. The Wave 3 stub-check sweep implemented `PatternDetector`, `STLDecomposer`, `AnomalyDetector`, and `PELTDetector` as public, fully working types, and Wave 4 restored `SarimaModel.forecast(steps)` alongside the `SARIMAModel` type alias plus the `training_data` field used by integration tests.
+
 ## Status: v0.3.4 Released (March 18, 2026)
 
 19,644 workspace tests pass (100% pass rate). All v0.3.4 features are complete and production-ready.

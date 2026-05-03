@@ -202,11 +202,7 @@ impl HoltLinear {
     /// Fit Holt's linear model to data.
     ///
     /// Auto-optimizes parameters by minimizing SSE when `alpha` or `beta` is `None`.
-    pub fn fit(
-        data: &[f64],
-        alpha: Option<f64>,
-        beta: Option<f64>,
-    ) -> Result<Self> {
+    pub fn fit(data: &[f64], alpha: Option<f64>, beta: Option<f64>) -> Result<Self> {
         if data.len() < 4 {
             return Err(TimeSeriesError::InsufficientData {
                 message: "Holt linear requires at least 4 observations".to_string(),
@@ -542,18 +538,15 @@ impl HoltWinters {
                 SeasonalType::Additive => {
                     level = self.alpha * (y - s_lag) + (1.0 - self.alpha) * (level + trend);
                     trend = self.beta * (level - l_prev) + (1.0 - self.beta) * trend;
-                    seasonals[t % m] =
-                        self.gamma * (y - level) + (1.0 - self.gamma) * s_lag;
+                    seasonals[t % m] = self.gamma * (y - level) + (1.0 - self.gamma) * s_lag;
                 }
                 SeasonalType::Multiplicative => {
                     let safe_s = if s_lag.abs() < 1e-12 { 1e-12 } else { s_lag };
-                    level =
-                        self.alpha * (y / safe_s) + (1.0 - self.alpha) * (level + trend);
+                    level = self.alpha * (y / safe_s) + (1.0 - self.alpha) * (level + trend);
                     trend = self.beta * (level - l_prev) + (1.0 - self.beta) * trend;
                     let denom = level + trend;
                     let safe_denom = if denom.abs() < 1e-12 { 1e-12 } else { denom };
-                    seasonals[t % m] =
-                        self.gamma * (y / safe_denom) + (1.0 - self.gamma) * s_lag;
+                    seasonals[t % m] = self.gamma * (y / safe_denom) + (1.0 - self.gamma) * s_lag;
                 }
             }
         }
@@ -624,9 +617,7 @@ fn hw_initial_components(
                 let idx = j * period + i;
                 if idx < data.len() {
                     match seasonal_type {
-                        SeasonalType::Additive => {
-                            data[idx] - (level + (idx as f64 + 1.0) * trend)
-                        }
+                        SeasonalType::Additive => data[idx] - (level + (idx as f64 + 1.0) * trend),
                         SeasonalType::Multiplicative => {
                             let denom = level + (idx as f64 + 1.0) * trend;
                             if denom.abs() < 1e-12 {
@@ -669,8 +660,7 @@ fn hw_final_state(
     beta: f64,
     gamma: f64,
 ) -> (f64, f64, Vec<f64>) {
-    let (mut level, mut trend, mut seasonals) =
-        hw_initial_components(data, period, seasonal_type);
+    let (mut level, mut trend, mut seasonals) = hw_initial_components(data, period, seasonal_type);
 
     for (t, &y) in data.iter().enumerate() {
         let s_lag = seasonals[t % period];
@@ -687,8 +677,7 @@ fn hw_final_state(
                 trend = beta * (level - l_prev) + (1.0 - beta) * trend;
                 let denom = level + trend;
                 let safe_denom = if denom.abs() < 1e-12 { 1e-12 } else { denom };
-                seasonals[t % period] =
-                    gamma * (y / safe_denom) + (1.0 - gamma) * s_lag;
+                seasonals[t % period] = gamma * (y / safe_denom) + (1.0 - gamma) * s_lag;
             }
         }
     }
@@ -704,8 +693,7 @@ fn hw_sse(
     beta: f64,
     gamma: f64,
 ) -> f64 {
-    let (mut level, mut trend, mut seasonals) =
-        hw_initial_components(data, period, seasonal_type);
+    let (mut level, mut trend, mut seasonals) = hw_initial_components(data, period, seasonal_type);
 
     let mut sse = 0.0;
     for (t, &y) in data.iter().enumerate() {
@@ -730,8 +718,7 @@ fn hw_sse(
                 trend = beta * (level - l_prev) + (1.0 - beta) * trend;
                 let denom = level + trend;
                 let safe_denom = if denom.abs() < 1e-12 { 1e-12 } else { denom };
-                seasonals[t % period] =
-                    gamma * (y / safe_denom) + (1.0 - gamma) * s_lag;
+                seasonals[t % period] = gamma * (y / safe_denom) + (1.0 - gamma) * s_lag;
             }
         }
     }
@@ -753,21 +740,37 @@ fn optimize_hw_params(
     let mut best_alpha = fixed_alpha.unwrap_or(0.3);
     let mut best_beta = fixed_beta.unwrap_or(0.1);
     let mut best_gamma = fixed_gamma.unwrap_or(0.2);
-    let mut best_sse = hw_sse(data, period, seasonal_type, best_alpha, best_beta, best_gamma);
+    let mut best_sse = hw_sse(
+        data,
+        period,
+        seasonal_type,
+        best_alpha,
+        best_beta,
+        best_gamma,
+    );
 
     // Grid search over free parameters
     let alpha_candidates: Vec<f64> = if fixed_alpha.is_some() {
-        { let v = fixed_alpha.expect("fixed_alpha is Some (checked above)"); vec![v] }
+        {
+            let v = fixed_alpha.expect("fixed_alpha is Some (checked above)");
+            vec![v]
+        }
     } else {
         coarse.clone()
     };
     let beta_candidates: Vec<f64> = if fixed_beta.is_some() {
-        { let v = fixed_beta.expect("fixed_beta is Some (checked above)"); vec![v] }
+        {
+            let v = fixed_beta.expect("fixed_beta is Some (checked above)");
+            vec![v]
+        }
     } else {
         coarse.clone()
     };
     let gamma_candidates: Vec<f64> = if fixed_gamma.is_some() {
-        { let v = fixed_gamma.expect("fixed_gamma is Some (checked above)"); vec![v] }
+        {
+            let v = fixed_gamma.expect("fixed_gamma is Some (checked above)");
+            vec![v]
+        }
     } else {
         coarse.clone()
     };
@@ -825,18 +828,14 @@ mod tests {
     fn seasonal_data_additive() -> Vec<f64> {
         // 3 cycles of period-4 seasonal data with slight linear trend
         vec![
-            10.0, 14.0, 12.0, 8.0,
-            11.0, 15.0, 13.0, 9.0,
-            12.0, 16.0, 14.0, 10.0,
+            10.0, 14.0, 12.0, 8.0, 11.0, 15.0, 13.0, 9.0, 12.0, 16.0, 14.0, 10.0,
         ]
     }
 
     fn seasonal_data_multiplicative() -> Vec<f64> {
         // 3 cycles of positive multiplicative seasonal data
         vec![
-            100.0, 140.0, 120.0, 80.0,
-            110.0, 154.0, 132.0, 88.0,
-            121.0, 169.4, 145.2, 96.8,
+            100.0, 140.0, 120.0, 80.0, 110.0, 154.0, 132.0, 88.0, 121.0, 169.4, 145.2, 96.8,
         ]
     }
 
@@ -845,20 +844,25 @@ mod tests {
     fn test_ses_fit_auto() {
         let data: Vec<f64> = (1..=20).map(|i| i as f64 + 0.1 * (i % 3) as f64).collect();
         let model = SimpleExponentialSmoothing::fit(&data, None).expect("failed to create model");
-        assert!(model.alpha() > 0.0 && model.alpha() <= 1.0, "alpha out of range");
+        assert!(
+            model.alpha() > 0.0 && model.alpha() <= 1.0,
+            "alpha out of range"
+        );
     }
 
     #[test]
     fn test_ses_fit_fixed_alpha() {
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let model = SimpleExponentialSmoothing::fit(&data, Some(0.3)).expect("failed to create model");
+        let model =
+            SimpleExponentialSmoothing::fit(&data, Some(0.3)).expect("failed to create model");
         assert!((model.alpha() - 0.3).abs() < 1e-10);
     }
 
     #[test]
     fn test_ses_forecast_constant() {
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-        let model = SimpleExponentialSmoothing::fit(&data, Some(0.5)).expect("failed to create model");
+        let model =
+            SimpleExponentialSmoothing::fit(&data, Some(0.5)).expect("failed to create model");
         let fcast = model.forecast(5);
         // All forecasts should equal the last level
         for &f in &fcast {
@@ -869,7 +873,8 @@ mod tests {
     #[test]
     fn test_ses_fitted_length() {
         let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-        let model = SimpleExponentialSmoothing::fit(&data, Some(0.4)).expect("failed to create model");
+        let model =
+            SimpleExponentialSmoothing::fit(&data, Some(0.4)).expect("failed to create model");
         let fitted = model.fitted_values(&data);
         assert_eq!(fitted.len(), data.len());
     }
@@ -880,7 +885,10 @@ mod tests {
         let data = vec![5.0_f64; 30];
         let model = SimpleExponentialSmoothing::fit(&data, None).expect("failed to create model");
         let fcast = model.forecast(1);
-        assert!((fcast[0] - 5.0).abs() < 1e-6, "SES should converge on constant series");
+        assert!(
+            (fcast[0] - 5.0).abs() < 1e-6,
+            "SES should converge on constant series"
+        );
     }
 
     #[test]
@@ -918,7 +926,10 @@ mod tests {
         // Damped forecasts should be below undamped ones for positive trend
         let total_undamped: f64 = undamped.iter().sum();
         let total_damped: f64 = damped.iter().sum();
-        assert!(total_damped < total_undamped, "damped should be less than undamped");
+        assert!(
+            total_damped < total_undamped,
+            "damped should be less than undamped"
+        );
     }
 
     #[test]
@@ -930,7 +941,8 @@ mod tests {
     #[test]
     fn test_hw_additive_fit() {
         let data = seasonal_data_additive();
-        let model = HoltWinters::fit(&data, 4, SeasonalType::Additive, None, None, None).expect("failed to create model");
+        let model = HoltWinters::fit(&data, 4, SeasonalType::Additive, None, None, None)
+            .expect("failed to create model");
         assert!(model.alpha() > 0.0 && model.alpha() <= 1.0);
         assert!(model.beta() > 0.0 && model.beta() <= 1.0);
         assert!(model.gamma() > 0.0 && model.gamma() <= 1.0);
@@ -939,9 +951,15 @@ mod tests {
     #[test]
     fn test_hw_additive_forecast_length() {
         let data = seasonal_data_additive();
-        let model =
-            HoltWinters::fit(&data, 4, SeasonalType::Additive, Some(0.3), Some(0.1), Some(0.2))
-                .expect("unexpected None or Err");
+        let model = HoltWinters::fit(
+            &data,
+            4,
+            SeasonalType::Additive,
+            Some(0.3),
+            Some(0.1),
+            Some(0.2),
+        )
+        .expect("unexpected None or Err");
         let fcast = model.forecast(8);
         assert_eq!(fcast.len(), 8);
     }
@@ -949,9 +967,15 @@ mod tests {
     #[test]
     fn test_hw_additive_fitted_values() {
         let data = seasonal_data_additive();
-        let model =
-            HoltWinters::fit(&data, 4, SeasonalType::Additive, Some(0.4), Some(0.1), Some(0.3))
-                .expect("unexpected None or Err");
+        let model = HoltWinters::fit(
+            &data,
+            4,
+            SeasonalType::Additive,
+            Some(0.4),
+            Some(0.1),
+            Some(0.3),
+        )
+        .expect("unexpected None or Err");
         let fitted = model.fitted_values(&data);
         assert_eq!(fitted.len(), data.len());
     }
@@ -959,22 +983,31 @@ mod tests {
     #[test]
     fn test_hw_multiplicative_fit() {
         let data = seasonal_data_multiplicative();
-        let model =
-            HoltWinters::fit(&data, 4, SeasonalType::Multiplicative, None, None, None).expect("unexpected None or Err");
+        let model = HoltWinters::fit(&data, 4, SeasonalType::Multiplicative, None, None, None)
+            .expect("unexpected None or Err");
         let fcast = model.forecast(4);
         assert_eq!(fcast.len(), 4);
         for &f in &fcast {
             assert!(f.is_finite(), "forecast must be finite");
-            assert!(f > 0.0, "multiplicative forecast must be positive for positive data");
+            assert!(
+                f > 0.0,
+                "multiplicative forecast must be positive for positive data"
+            );
         }
     }
 
     #[test]
     fn test_hw_aic() {
         let data = seasonal_data_additive();
-        let model =
-            HoltWinters::fit(&data, 4, SeasonalType::Additive, Some(0.3), Some(0.1), Some(0.2))
-                .expect("unexpected None or Err");
+        let model = HoltWinters::fit(
+            &data,
+            4,
+            SeasonalType::Additive,
+            Some(0.3),
+            Some(0.1),
+            Some(0.2),
+        )
+        .expect("unexpected None or Err");
         let aic = model.aic(&data);
         assert!(aic.is_finite(), "AIC must be finite");
     }
@@ -993,9 +1026,7 @@ mod tests {
 
     #[test]
     fn test_hw_multiplicative_requires_positive() {
-        let data = vec![
-            1.0, -2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0,
-        ];
+        let data = vec![1.0, -2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         assert!(
             HoltWinters::fit(&data, 4, SeasonalType::Multiplicative, None, None, None).is_err()
         );
@@ -1005,19 +1036,24 @@ mod tests {
     fn test_hw_seasonal_pattern_preserved() {
         // Data with strong seasonal pattern: high in Q1, low in Q3
         let data = vec![
-            20.0, 10.0, 5.0, 15.0,
-            22.0, 11.0, 6.0, 16.0,
-            24.0, 12.0, 7.0, 17.0,
+            20.0, 10.0, 5.0, 15.0, 22.0, 11.0, 6.0, 16.0, 24.0, 12.0, 7.0, 17.0,
         ];
-        let model =
-            HoltWinters::fit(&data, 4, SeasonalType::Additive, Some(0.3), Some(0.1), Some(0.3))
-                .expect("unexpected None or Err");
+        let model = HoltWinters::fit(
+            &data,
+            4,
+            SeasonalType::Additive,
+            Some(0.3),
+            Some(0.1),
+            Some(0.3),
+        )
+        .expect("unexpected None or Err");
         let fcast = model.forecast(4);
         // Q1 should be the highest, Q3 the lowest
         assert!(
             fcast[0] > fcast[2],
             "Q1 forecast should be greater than Q3 forecast: {:.2} vs {:.2}",
-            fcast[0], fcast[2]
+            fcast[0],
+            fcast[2]
         );
     }
 }

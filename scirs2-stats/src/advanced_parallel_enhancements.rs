@@ -83,7 +83,7 @@ impl AdvancedParallelProcessor {
     /// Create a new advanced-parallel processor
     pub fn new(config: AdvancedParallelConfig) -> Self {
         Self {
-            adaptive_chunksize: AtomicUsize::new(_config.min_chunksize),
+            adaptive_chunksize: AtomicUsize::new(config.min_chunksize),
             config,
             performance_history: Arc::new(Mutex::new(Vec::new())),
         }
@@ -112,7 +112,7 @@ impl AdvancedParallelProcessor {
             .build();
 
         // Adaptive thread and chunk size determination
-        let (num_threads, chunksize) = self.determine_optimal_parallelization(n, &context)?;
+        let (num_threads, chunksize) = self.determine_optimal_parallelization(n)?;
 
         let result = match self.config.load_balancing {
             LoadBalancingStrategy::Static => {
@@ -123,7 +123,7 @@ impl AdvancedParallelProcessor {
                 self.process_batch_guided(data, num_threads, chunksize)
             }
             LoadBalancingStrategy::Adaptive => {
-                self.process_batch_adaptive(data, num_threads, &context)
+                self.process_batch_adaptive(data, num_threads)
             }
         };
 
@@ -253,7 +253,7 @@ impl AdvancedParallelProcessor {
             .map(|chunk| chunk.iter().fold(F::zero(), |acc, &val| acc + val))
             .collect();
 
-        let total_sum = chunk_sums.into().iter().fold(F::zero(), |acc, sum| acc + sum);
+        let total_sum = chunk_sums.iter().fold(F::zero(), |acc, &sum| acc + sum);
         let mean = total_sum / F::from(n).expect("Failed to convert to float");
 
         Ok(mean)
@@ -286,7 +286,7 @@ impl AdvancedParallelProcessor {
 
     fn determine_optimal_parallelization(
         &self,
-        datasize: usize, _context: &crate::advanced_error_enhancements_v2::AdvancedErrorContext,
+        datasize: usize,
     ) -> StatsResult<(usize, usize)> {
         let max_threads = self.config.max_threads.min(num_threads());
         let min_chunk = self.config.min_chunksize;
@@ -340,7 +340,7 @@ impl AdvancedParallelProcessor {
         + std::fmt::Display,
     {
         // Work-stealing implementation would go here
-        self.process_batch_static(data_num_threads, self.config.min_chunksize)
+        self.process_batch_static(data, _num_threads, self.config.min_chunksize)
     }
 
     fn process_batch_guided<F, D>(
@@ -354,13 +354,13 @@ impl AdvancedParallelProcessor {
         + std::fmt::Display,
     {
         // Guided scheduling with decreasing chunk sizes
-        self.process_batch_static(data_num_threads, initial_chunksize)
+        self.process_batch_static(data, _num_threads, initial_chunksize)
     }
 
     fn process_batch_adaptive<F, D>(
         &self,
         data: &ArrayBase<D, Ix1>,
-        num_threads: usize, _context: &crate::advanced_error_enhancements_v2::AdvancedErrorContext,
+        num_threads: usize,
     ) -> StatsResult<AdvancedParallelBatchResult<F>>
     where
         F: Float + NumCast + Send + Sync + Copy + PartialOrd,

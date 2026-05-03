@@ -122,11 +122,12 @@ pub struct AdaptiveParallelProcessor<F> {
     /// Dynamic thread pool
     thread_pool: Arc<RwLock<DynamicThreadPool>>,
     /// Work queue with priority
-    work_queue: Arc<Mutex<PriorityWorkQueue<ArrayView1<F>>>>,
+    work_queue: Arc<Mutex<PriorityWorkQueue<Array1<F>>>>,
     /// Runtime adaptation controller
     adaptation_controller: Arc<RwLock<AdaptationController>>,
     /// NUMA topology information
-    numa_topology: NumaTopology, _phantom: std::marker::PhantomData<F>,
+    numa_topology: NumaTopology,
+    _phantom: std::marker::PhantomData<F>,
 }
 
 /// Performance monitoring system
@@ -288,7 +289,7 @@ where
     pub fn with_config(config: AdaptiveParallelConfig) -> Self {
         let numa_topology = NumaTopology::detect();
         let performance_monitor = Arc::new(RwLock::new(PerformanceMonitor::new()));
-        let thread_pool = Arc::new(RwLock::new(DynamicThreadPool::new(&_config, &numa_topology)));
+        let thread_pool = Arc::new(RwLock::new(DynamicThreadPool::new(&config, &numa_topology)));
         let work_queue = Arc::new(Mutex::new(PriorityWorkQueue::new()));
         let adaptation_controller = Arc::new(RwLock::new(AdaptationController::new()));
 
@@ -299,7 +300,8 @@ where
             thread_pool,
             work_queue,
             adaptation_controller,
-            numa_topology_phantom: std::marker::PhantomData,
+            numa_topology,
+            _phantom: std::marker::PhantomData,
         };
 
         processor.start_adaptation_loop();
@@ -429,9 +431,9 @@ where
             (sum, chunk.len())
         })?;
 
-        let (total_sum, total_count) = results.into().iter()
+        let (total_sum, total_count) = results.iter()
             .fold((F::zero(), 0), |(acc_sum, acc_count), (sum, count)| {
-                (acc_sum + sum, acc_count + count)
+                (acc_sum + *sum, acc_count + *count)
             });
 
         Ok(total_sum / F::from(total_count).expect("Failed to convert to float"))
@@ -440,17 +442,17 @@ where
     /// Compute mean using NUMA-aware strategy
     fn compute_mean_numa_aware(&self, data: &ArrayView1<F>) -> StatsResult<F> {
         let numa_chunks = self.distribute_numa_aware(data)?;
-        
+
         // Process each NUMA node's data locally
-        let results: Vec<_> = numa_chunks.into().iter().map(|(node_id, chunk)| {
+        let results: Vec<_> = numa_chunks.iter().map(|(_node_id, chunk)| {
             // Ideally would pin thread to NUMA node here
             let sum: F = chunk.iter().copied().sum();
             (sum, chunk.len())
         }).collect();
 
-        let (total_sum, total_count) = results.into().iter()
+        let (total_sum, total_count) = results.iter()
             .fold((F::zero(), 0), |(acc_sum, acc_count), (sum, count)| {
-                (acc_sum + sum, acc_count + count)
+                (acc_sum + *sum, acc_count + *count)
             });
 
         Ok(total_sum / F::from(total_count).expect("Failed to convert to float"))
@@ -493,9 +495,9 @@ where
             (sum_squared_diffs, chunk.len())
         }).collect();
 
-        let (total_sum_sq_diffs, total_count) = results.into().iter()
+        let (total_sum_sq_diffs, total_count) = results.iter()
             .fold((F::zero(), 0), |(acc_sum, acc_count), (sum, count)| {
-                (acc_sum + sum, acc_count + count)
+                (acc_sum + *sum, acc_count + *count)
             });
 
         let variance = total_sum_sq_diffs / F::from(total_count - ddof).expect("Failed to convert to float");
@@ -512,9 +514,9 @@ where
             (sum_squared_diffs, chunk.len())
         })?;
 
-        let (total_sum_sq_diffs, total_count) = results.into().iter()
+        let (total_sum_sq_diffs, total_count) = results.iter()
             .fold((F::zero(), 0), |(acc_sum, acc_count), (sum, count)| {
-                (acc_sum + sum, acc_count + count)
+                (acc_sum + *sum, acc_count + *count)
             });
 
         let variance = total_sum_sq_diffs / F::from(total_count - ddof).expect("Failed to convert to float");
@@ -524,17 +526,17 @@ where
     /// Compute variance using NUMA-aware strategy
     fn compute_variance_numa_aware(&self, data: &ArrayView1<F>, mean: F, ddof: usize) -> StatsResult<F> {
         let numa_chunks = self.distribute_numa_aware(data)?;
-        
-        let results: Vec<_> = numa_chunks.into().iter().map(|(node_id, chunk)| {
+
+        let results: Vec<_> = numa_chunks.iter().map(|(_node_id, chunk)| {
             let sum_squared_diffs: F = chunk.iter()
                 .map(|&x| (x - mean) * (x - mean))
                 .sum();
             (sum_squared_diffs, chunk.len())
         }).collect();
 
-        let (total_sum_sq_diffs, total_count) = results.into().iter()
+        let (total_sum_sq_diffs, total_count) = results.iter()
             .fold((F::zero(), 0), |(acc_sum, acc_count), (sum, count)| {
-                (acc_sum + sum, acc_count + count)
+                (acc_sum + *sum, acc_count + *count)
             });
 
         let variance = total_sum_sq_diffs / F::from(total_count - ddof).expect("Failed to convert to float");
@@ -565,7 +567,7 @@ where
     }
 
     /// Create adaptive chunks based on workload characteristics
-    fn create_adaptive_chunks(&self, data: &ArrayView1<F>, complexity: f64) -> StatsResult<Vec<ArrayView1<F>>> {
+    fn create_adaptive_chunks<'a>(&self, data: &ArrayView1<'a, F>, complexity: f64) -> StatsResult<Vec<ArrayView1<'a, F>>> {
         let n = data.len();
         let num_threads = self.get_optimal_thread_count(n, complexity);
         
@@ -589,7 +591,7 @@ where
     }
 
     /// Create work units for work stealing
-    fn create_work_units(&self, data: &ArrayView1<F>, complexity: f64) -> StatsResult<Vec<WorkUnit<ArrayView1<F>>>> {
+    fn create_work_units<'a>(&self, data: &'a ArrayView1<'a, F>, complexity: f64) -> StatsResult<Vec<WorkUnit<ArrayView1<'a, F>>>> {
         let n = data.len();
         let optimal_chunksize = self.calculate_optimal_work_unitsize(n, complexity);
         
@@ -617,26 +619,26 @@ where
     }
 
     /// Execute work using work stealing algorithm
-    fn execute_work_stealing<R, F_WORK>(
+    fn execute_work_stealing<'a, R, F_WORK>(
         &self,
-        work_units: Vec<WorkUnit<ArrayView1<F>>>,
+        work_units: Vec<WorkUnit<ArrayView1<'a, F>>>,
         work_fn: F_WORK,
     ) -> StatsResult<Vec<R>>
     where
-        F_WORK: Fn(&ArrayView1<F>) -> R + Send + Sync + Clone + 'static,
+        F_WORK: Fn(&ArrayView1<'a, F>) -> R + Send + Sync + Clone + 'static,
         R: Send + 'static,
     {
         // Simplified work stealing implementation
         // In practice, this would use a sophisticated work stealing queue
-        let results: Vec<R> = work_units.into().iter()
+        let results: Vec<R> = work_units.iter()
             .map(|unit| work_fn(&unit.data))
             .collect();
-        
+
         Ok(results)
     }
 
     /// Distribute work across NUMA nodes
-    fn distribute_numa_aware(&self, data: &ArrayView1<F>) -> StatsResult<Vec<(usize, ArrayView1<F>)>> {
+    fn distribute_numa_aware<'a>(&self, data: &'a ArrayView1<'a, F>) -> StatsResult<Vec<(usize, ArrayView1<'a, F>)>> {
         let n = data.len();
         let num_nodes = self.numa_topology.num_nodes;
         let chunksize = n / num_nodes;
@@ -727,11 +729,11 @@ impl PerformanceMonitor {
 }
 
 impl DynamicThreadPool {
-    fn new(_config: &AdaptiveParallelConfig, numatopology: &NumaTopology) -> Self {
+    fn new(config: &AdaptiveParallelConfig, _numatopology: &NumaTopology) -> Self {
         let initial_threads = config.initial_threads.unwrap_or(num_cpus::get());
-        
+
         Self {
-            workers: Vec::with_capacity(_config.max_threads),
+            workers: Vec::with_capacity(config.max_threads),
             active_count: AtomicUsize::new(initial_threads),
             thread_counter: AtomicUsize::new(0),
             shutdown: AtomicBool::new(false),

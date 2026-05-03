@@ -320,9 +320,9 @@ fn kalman_filter(
 
         // Innovation covariance: S_t = Λ P_{t|t-1} Λ^T + R
         let lambda_p = matmul(lambda, &p_pred); // n×r  (lambda is n×r, p_pred is r×r)
-        // Wait: lambda is n×r, we need lambda P lambda^T
-        // Actually lambda_p = Lambda @ P (n×r @ r×r = n×r)
-        // S = lambda_p @ Lambda^T + R  (n×r @ r×n = n×n)
+                                                // Wait: lambda is n×r, we need lambda P lambda^T
+                                                // Actually lambda_p = Lambda @ P (n×r @ r×r = n×r)
+                                                // S = lambda_p @ Lambda^T + R  (n×r @ r×n = n×n)
         let mut s = Array2::<f64>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
@@ -436,8 +436,8 @@ fn kalman_smoother(
         let p_inv = cholesky_invert(p_next_pred)?;
         // A^T is r×r, so L = P_t @ A^T @ P_inv
         let ap_t = matmul(a, p_t); // r×r  (actually we need P_t A^T P_inv)
-        // L = P_t @ A^T @ P_inv
-        // = (A @ P_t)^T @ P_inv (since P_t is symmetric)
+                                   // L = P_t @ A^T @ P_inv
+                                   // = (A @ P_t)^T @ P_inv (since P_t is symmetric)
         let mut l = Array2::<f64>::zeros((r, r));
         for i in 0..r {
             for j in 0..r {
@@ -558,7 +558,8 @@ impl DynamicFactorModel {
         let stds: Vec<f64> = (0..n)
             .map(|j| {
                 let m = means[j];
-                let v: f64 = data.column(j).iter().map(|&x| (x - m).powi(2)).sum::<f64>() / t as f64;
+                let v: f64 =
+                    data.column(j).iter().map(|&x| (x - m).powi(2)).sum::<f64>() / t as f64;
                 v.sqrt().max(1e-8)
             })
             .collect();
@@ -571,8 +572,7 @@ impl DynamicFactorModel {
         }
 
         // Step 2: PCA initialization
-        let (loadings_pca, factors_pca) =
-            pca_power_iter(&xstd, n_factors, 500);
+        let (loadings_pca, factors_pca) = pca_power_iter(&xstd, n_factors, 500);
 
         // Initial parameters
         let mut lambda = loadings_pca.clone(); // n × r
@@ -587,7 +587,11 @@ impl DynamicFactorModel {
                     xy += factors_pca[[i, k]] * factors_pca[[i - 1, k]];
                     xx += factors_pca[[i - 1, k]].powi(2);
                 }
-                trans[[k, k]] = if xx > 0.0 { (xy / xx).clamp(-0.99, 0.99) } else { 0.5 };
+                trans[[k, k]] = if xx > 0.0 {
+                    (xy / xx).clamp(-0.99, 0.99)
+                } else {
+                    0.5
+                };
             }
             trans
         };
@@ -658,8 +662,8 @@ impl DynamicFactorModel {
                 // E[f_t f_t^T] = P_{t|T} + f_{t|T} f_{t|T}^T
                 for i in 0..n_factors {
                     for j in 0..n_factors {
-                        s_ff[[i, j]] += p_smooth[t_idx][[i, j]]
-                            + f_smooth[t_idx][i] * f_smooth[t_idx][j];
+                        s_ff[[i, j]] +=
+                            p_smooth[t_idx][[i, j]] + f_smooth[t_idx][i] * f_smooth[t_idx][j];
                     }
                 }
             }
@@ -724,7 +728,7 @@ impl DynamicFactorModel {
             // Update R (diagonal idiosyncratic variances):
             // R_ii = (1/T) (Σ_t x_{ti}^2 - 2 lambda_i^T Σ_t f_t x_{ti} + lambda_i^T S_FF lambda_i)
             let lambda_sff = matmul(&lambda, &s_ff); // n×r @ r×r = n×r (wrong order)
-            // Actually: lambda_i^T S_FF lambda_i = sum_{k,l} lambda_{ik} S_FF_{kl} lambda_{il}
+                                                     // Actually: lambda_i^T S_FF lambda_i = sum_{k,l} lambda_{ik} S_FF_{kl} lambda_{il}
             for j in 0..n {
                 let x_sq: f64 = (0..t).map(|i| xstd[[i, j]].powi(2)).sum();
                 let xf_term: f64 = (0..n_factors).map(|k| xf[[j, k]] * lambda[[j, k]]).sum();
@@ -797,7 +801,9 @@ impl DynamicFactorModel {
     /// and reconstructs: x̂_{T+h} = Λ f_{T+h|T}
     pub fn forecast(&self, h: usize) -> Result<Array2<f64>> {
         if h == 0 {
-            return Err(TimeSeriesError::InvalidInput("h must be at least 1".to_string()));
+            return Err(TimeSeriesError::InvalidInput(
+                "h must be at least 1".to_string(),
+            ));
         }
         let n = self.n_series;
         let r = self.n_factors;
@@ -810,7 +816,11 @@ impl DynamicFactorModel {
         for step in 0..h {
             // f_{t+1} = A f_t
             let f_next: Vec<f64> = (0..r)
-                .map(|i| (0..r).map(|j| self.transition[[i, j]] * f_curr[j]).sum::<f64>())
+                .map(|i| {
+                    (0..r)
+                        .map(|j| self.transition[[i, j]] * f_curr[j])
+                        .sum::<f64>()
+                })
                 .collect();
             f_curr = f_next;
 
@@ -830,6 +840,7 @@ impl DynamicFactorModel {
         -2.0 * self.log_likelihood + 2.0 * k
     }
 
+    /// Compute Bayesian Information Criterion (BIC) for the factor model.
     pub fn bic(&self) -> f64 {
         let k = (self.n_series * self.n_factors + self.n_factors * self.n_factors + self.n_series)
             as f64;
@@ -901,7 +912,8 @@ impl PcaForecast {
         let stds: Vec<f64> = (0..n)
             .map(|j| {
                 let m = means[j];
-                let v: f64 = data.column(j).iter().map(|&x| (x - m).powi(2)).sum::<f64>() / t as f64;
+                let v: f64 =
+                    data.column(j).iter().map(|&x| (x - m).powi(2)).sum::<f64>() / t as f64;
                 v.sqrt().max(1e-8)
             })
             .collect();
@@ -913,22 +925,59 @@ impl PcaForecast {
             }
         }
 
-        // PCA
-        let (loadings, scores) = pca_power_iter(&xstd, n_components, 1000);
+        // PCA — power iteration may return duplicate loading vectors when the
+        // data is low-rank (e.g. all series driven by the same composite signal).
+        // Apply modified Gram-Schmidt orthogonalisation to the raw loadings so
+        // that each subsequent component is projected onto the orthogonal
+        // complement of all previous ones.  Zero-norm residuals are left as the
+        // zero vector (they contribute zero score variance and zero EVR, which
+        // is the mathematically correct result for rank-deficient directions).
+        let (raw_loadings, _raw_scores) = pca_power_iter(&xstd, n_components, 1000);
 
-        // Compute explained variance ratios
+        let mut orth_loadings = Array2::<f64>::zeros((n, n_components));
+        for k in 0..n_components {
+            // Start from the raw loading direction
+            let mut qk: Vec<f64> = raw_loadings.column(k).to_vec();
+            // Subtract projections onto already-orthogonalised columns
+            for j in 0..k {
+                let qj = orth_loadings.column(j);
+                let dot: f64 = qk.iter().zip(qj.iter()).map(|(&a, &b)| a * b).sum();
+                for i in 0..n {
+                    qk[i] -= dot * qj[i];
+                }
+            }
+            // Normalise; if the residual is near-zero this direction is
+            // degenerate and we leave it as the zero vector.
+            let norm: f64 = qk.iter().map(|x| x * x).sum::<f64>().sqrt();
+            if norm > 1e-12 {
+                for i in 0..n {
+                    orth_loadings[[i, k]] = qk[i] / norm;
+                }
+                // else: column k stays all-zeros
+            }
+        }
+
+        // Recompute scores from the orthogonalised loadings.  Use the same
+        // column-centred data that pca_power_iter would use internally; since
+        // xstd was already zero-meaned this is just xstd itself.
+        let scores = matmul(&xstd, &orth_loadings);
+        let loadings = orth_loadings;
+
+        // Compute explained variance ratios: score variance / total input variance.
+        // Orthogonality guarantees sum(evr) ≤ 1.
         let total_var: f64 = (0..n)
             .map(|j| xstd.column(j).iter().map(|&x| x.powi(2)).sum::<f64>() / t as f64)
             .sum();
 
-        let score_vars: Vec<f64> = (0..n_components)
+        let evr: Vec<f64> = (0..n_components)
             .map(|k| {
-                scores.column(k).iter().map(|&x| x.powi(2)).sum::<f64>() / t as f64
+                let sv: f64 = scores.column(k).iter().map(|&x| x.powi(2)).sum::<f64>() / t as f64;
+                if total_var > 0.0 {
+                    sv / total_var
+                } else {
+                    0.0
+                }
             })
-            .collect();
-        let evr: Vec<f64> = score_vars
-            .iter()
-            .map(|&v| if total_var > 0.0 { v / total_var } else { 0.0 })
             .collect();
 
         // Score means (usually ~0 after centering, but compute anyway)
@@ -973,7 +1022,9 @@ impl PcaForecast {
     /// Returns an h×n matrix of forecasted series values.
     pub fn forecast(&self, h: usize) -> Result<Array2<f64>> {
         if h == 0 {
-            return Err(TimeSeriesError::InvalidInput("h must be at least 1".to_string()));
+            return Err(TimeSeriesError::InvalidInput(
+                "h must be at least 1".to_string(),
+            ));
         }
         let n = self.n_series;
         let r = self.n_components;
@@ -986,7 +1037,11 @@ impl PcaForecast {
         for step in 0..h {
             // f_{t+1} = B f_t  (diagonal VAR(1))
             let f_next: Vec<f64> = (0..r)
-                .map(|i| (0..r).map(|j| self.var_coef[[i, j]] * f_curr[j]).sum::<f64>())
+                .map(|i| {
+                    (0..r)
+                        .map(|j| self.var_coef[[i, j]] * f_curr[j])
+                        .sum::<f64>()
+                })
                 .collect();
             f_curr = f_next.clone();
 
@@ -1008,7 +1063,9 @@ impl PcaForecast {
         let mut fitted = Array2::<f64>::zeros((t, n));
         for i in 0..t {
             for j in 0..n {
-                let val: f64 = (0..r).map(|k| self.scores[[i, k]] * self.loadings[[j, k]]).sum();
+                let val: f64 = (0..r)
+                    .map(|k| self.scores[[i, k]] * self.loadings[[j, k]])
+                    .sum();
                 fitted[[i, j]] = val * self.series_stds[j] + self.series_means[j];
             }
         }
@@ -1037,11 +1094,15 @@ mod tests {
         // Generate data with known factor structure
         for obs in 0..t {
             let factors: Vec<f64> = (0..n_factors)
-                .map(|k| ((obs as f64 * (k + 1) as f64 * 0.15).sin()))
+                .map(|k| (obs as f64 * (k + 1) as f64 * 0.15).sin())
                 .collect();
             for j in 0..n {
                 let loading = (j as f64 + 1.0) / n as f64;
-                data[[obs, j]] = factors.iter().enumerate().map(|(k, &f)| f * loading * (k as f64 + 1.0)).sum::<f64>();
+                data[[obs, j]] = factors
+                    .iter()
+                    .enumerate()
+                    .map(|(k, &f)| f * loading * (k as f64 + 1.0))
+                    .sum::<f64>();
                 // Add small noise
                 let noise = (obs * n + j) as f64 * 0.001 % 0.01 - 0.005;
                 data[[obs, j]] += noise;
@@ -1116,7 +1177,10 @@ mod tests {
         let pca = PcaForecast::fit(&data, 3).expect("PCA should fit");
         let total = pca.total_explained_variance();
         assert!(total > 0.0, "Explained variance should be positive");
-        assert!(total <= 1.01, "Explained variance should be <= 1 (got {total})");
+        assert!(
+            total <= 1.01,
+            "Explained variance should be <= 1 (got {total})"
+        );
         assert_eq!(pca.explained_variance_ratio.len(), 3);
     }
 

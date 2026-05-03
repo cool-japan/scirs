@@ -98,7 +98,11 @@ impl<F: TensorScalar> HOSVDResult<F> {
                     .fold(F::zero(), |acc, x| acc + x);
                 diff_sq.sqrt()
             };
-            return Ok(if diff_norm == F::zero() { F::zero() } else { F::infinity() });
+            return Ok(if diff_norm == F::zero() {
+                F::zero()
+            } else {
+                F::infinity()
+            });
         }
         let diff_sq: F = original
             .data
@@ -135,7 +139,7 @@ impl<F: TensorScalar> HOSVDResult<F> {
 ///
 /// * `tensor` – input tensor.
 /// * `ranks`  – multilinear rank `(R_1, …, R_N)`; must satisfy
-///              `0 < ranks[n] <= tensor.shape[n]`.
+///   `0 < ranks[n] <= tensor.shape[n]`.
 ///
 /// # Returns
 ///
@@ -281,7 +285,10 @@ pub fn hooi<F: TensorScalar>(
 /// // ranks are automatically chosen
 /// assert!(result.core.ndim() == 3);
 /// ```
-pub fn truncated_hosvd<F: TensorScalar>(tensor: &Tensor<F>, eps: F) -> LinalgResult<HOSVDResult<F>> {
+pub fn truncated_hosvd<F: TensorScalar>(
+    tensor: &Tensor<F>,
+    eps: F,
+) -> LinalgResult<HOSVDResult<F>> {
     let ndim = tensor.ndim();
     let mut ranks = Vec::with_capacity(ndim);
 
@@ -396,7 +403,7 @@ fn auto_rank_from_energy<F: TensorScalar>(matrix: &Array2<F>, eps: F) -> LinalgR
     let threshold = (F::one() - eps * eps) * total_energy;
     let mut cumulative = F::zero();
     for (k, &sv) in s.iter().enumerate() {
-        cumulative = cumulative + sv * sv;
+        cumulative += sv * sv;
         if cumulative >= threshold {
             return Ok(k + 1);
         }
@@ -449,7 +456,8 @@ mod tests {
                     let diff = (utu[[i, j]] - expected).abs();
                     assert!(
                         diff < 1e-8,
-                        "factor[{n}] not orthonormal at ({i},{j}): diff={diff}");
+                        "factor[{n}] not orthonormal at ({i},{j}): diff={diff}"
+                    );
                 }
             }
         }
@@ -479,7 +487,7 @@ mod tests {
     fn test_truncated_hosvd_auto_rank() {
         let t = make_tensor_234();
         let r = truncated_hosvd(&t, 0.0_f64).expect("ok"); // keep all energy
-        // At eps=0 we should keep all singular values
+                                                           // At eps=0 we should keep all singular values
         let err = r.relative_error(&t).expect("err");
         assert!(err < 1e-6, "truncated (eps=0) err={err}");
     }

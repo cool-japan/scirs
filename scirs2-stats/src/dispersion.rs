@@ -458,7 +458,12 @@ where
         ));
     }
 
-    // Check for negative values
+    // Check for negative values. The Gini coefficient is conventionally defined
+    // for non-negative quantities (incomes, wealth, sizes); applying it to
+    // signed data is mathematically meaningless because the denominator may be
+    // zero or negative. SciPy emits a warning and returns NaN; scirs2-stats
+    // follows the project-wide fail-fast convention used by the rest of the
+    // descriptive/dispersion API and returns an error instead.
     if x.iter().any(|&v| v < F::zero()) {
         return Err(StatsError::InvalidArgument(
             "Gini coefficient requires non-negative values".to_string(),
@@ -478,9 +483,13 @@ where
 
     // Calculate the Gini coefficient using the formula:
     // G = (2*sum(i*y_i) / (n*sum(y_i))) - (n+1)/n
-    // where y_i are the sorted values and i is the rank
+    // where y_i are the sorted values and i is the rank (1-based)
 
-    let n = F::from(sorteddata.len()).expect("Operation failed");
+    let n = F::from(sorteddata.len()).ok_or_else(|| {
+        StatsError::ComputationError(
+            "Failed to convert array length to floating-point type".to_string(),
+        )
+    })?;
     let sum_values = sorteddata.iter().cloned().sum::<F>();
 
     if sum_values <= F::epsilon() {
@@ -490,16 +499,23 @@ where
     }
 
     // Calculate weighted sum using enumerate to avoid needless range loop
-    let weighted_sum = sorteddata
-        .iter()
-        .enumerate()
-        .map(|(i, &value)| F::from(i + 1).expect("Failed to convert to float") * value)
-        .sum::<F>();
+    let mut weighted_sum = F::zero();
+    for (i, &value) in sorteddata.iter().enumerate() {
+        let rank = F::from(i + 1).ok_or_else(|| {
+            StatsError::ComputationError(
+                "Failed to convert rank index to floating-point type".to_string(),
+            )
+        })?;
+        weighted_sum = weighted_sum + rank * value;
+    }
 
     // Calculate Gini coefficient
-    let gini = (F::from(2.0).expect("Failed to convert constant to float") * weighted_sum
-        / (n * sum_values))
-        - (n + F::one()) / n;
+    let two = F::from(2.0).ok_or_else(|| {
+        StatsError::ComputationError(
+            "Failed to convert constant 2.0 to floating-point type".to_string(),
+        )
+    })?;
+    let gini = (two * weighted_sum / (n * sum_values)) - (n + F::one()) / n;
 
     Ok(gini)
 }
@@ -683,5 +699,75 @@ mod tests {
         let zerodata = array![0.0, 0.0, 0.0, 0.0, 0.0];
         let result_zero = gini_coefficient(&zerodata.view());
         assert!(result_zero.is_err());
+    }
+
+    #[test]
+    fn test_gini_coefficient_equality_unit_values() {
+        // Equality with unit values: every observation equal => G = 0
+        let data = array![1.0, 1.0, 1.0, 1.0];
+        let gini = gini_coefficient(&data.view()).expect("Operation failed");
+        assert_abs_diff_eq!(gini, 0.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_gini_coefficient_max_inequality_n4() {
+        // Maximum inequality: a single non-zero among n observations.
+        // Closed-form: G = (n - 1) / n.  For n = 4 => 0.75.
+        let data = array![0.0, 0.0, 0.0, 1.0];
+        let gini = gini_coefficient(&data.view()).expect("Operation failed");
+        assert_abs_diff_eq!(gini, 0.75, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_gini_coefficient_singleton() {
+        // A single observation has no inequality by definition: G = 0.
+        let data = array![5.0];
+        let gini = gini_coefficient(&data.view()).expect("Operation failed");
+        assert_abs_diff_eq!(gini, 0.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_gini_coefficient_known_reference_one_to_five() {
+        // Analytical reference for x = [1, 2, 3, 4, 5]:
+        // Using G = 2 * sum(i * x_(i)) / (n * sum(x_(i))) - (n + 1) / n
+        // weighted_sum = 1*1 + 2*2 + 3*3 + 4*4 + 5*5 = 55
+        // sum_values   = 15
+        // n            = 5
+        // G = 2*55 / (5*15) - 6/5 = 110/75 - 1.2 = 22/15 - 18/15 = 4/15 ≈ 0.26666...
+        let data = array![1.0, 2.0, 3.0, 4.0, 5.0];
+        let gini = gini_coefficient(&data.view()).expect("Operation failed");
+        let expected = 4.0_f64 / 15.0_f64;
+        assert_abs_diff_eq!(gini, expected, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_gini_coefficient_order_invariance() {
+        // The Gini coefficient is a function of the empirical distribution, so
+        // any permutation of the input must produce an identical value (modulo
+        // floating-point noise).
+        let ordered = array![1.0, 2.0, 3.0, 4.0, 5.0];
+        let shuffled = array![3.0, 1.0, 5.0, 2.0, 4.0];
+        let g_ordered = gini_coefficient(&ordered.view()).expect("Operation failed");
+        let g_shuffled = gini_coefficient(&shuffled.view()).expect("Operation failed");
+        assert_abs_diff_eq!(g_ordered, g_shuffled, epsilon = 1e-12);
+    }
+
+    #[test]
+    fn test_gini_coefficient_negative_value_rejected() {
+        // scirs2-stats follows fail-fast convention: any negative entry yields
+        // an error rather than a silently meaningless number.
+        let data = array![1.0, 2.0, -1.0, 4.0];
+        let result = gini_coefficient(&data.view());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_gini_coefficient_f32_generic() {
+        // Sanity check the generic over f32 — the function must compute
+        // identically (within precision) for the same input expressed as f32.
+        let data = array![1.0_f32, 2.0_f32, 3.0_f32, 4.0_f32, 5.0_f32];
+        let gini = gini_coefficient(&data.view()).expect("Operation failed");
+        let expected = 4.0_f32 / 15.0_f32;
+        assert!((gini - expected).abs() < 1e-6_f32);
     }
 }

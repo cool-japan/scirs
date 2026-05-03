@@ -30,7 +30,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-graph = "0.4.2"
+//! scirs2-graph = "0.4.3"
 //! ```
 //!
 //! ```rust,no_run
@@ -43,7 +43,7 @@
 //! g.add_edge(0, 1, 1.0);
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2
+//! ## 🔒 Version: 0.4.3
 //!
 //! ## API Stability and Versioning
 //!
@@ -415,3 +415,28 @@ pub use streaming::{
     MemoryBoundedConfig, MemoryBoundedProcessor, SlidingWindowGraph, StreamEdge, StreamEvent,
     StreamOp, StreamingGraph, TriangleCounterStats,
 };
+
+// Additional modules (previously orphaned, now wired)
+pub mod attributed_graph;
+pub mod compat;
+pub mod heterogeneous;
+pub mod knowledge_graph;
+pub mod network_statistics;
+pub mod sampling;
+pub mod social;
+pub mod traversal;
+pub mod visualization;
+
+// Previously orphaned subdirectory modules
+pub mod algebraic;
+pub mod centrality;
+pub mod community;
+pub mod diffusion;
+pub mod domination;
+pub mod dynamic;
+pub mod flow;
+pub mod hypergraph;
+pub mod isomorphism;
+pub mod planarity;
+pub mod reliability;
+pub mod signal_processing;

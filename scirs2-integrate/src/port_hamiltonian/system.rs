@@ -249,10 +249,7 @@ impl PortHamiltonianSystem {
         let j = self.j_matrix(x)?;
         let jt = j.t().to_owned();
         let sum = &j + &jt;
-        let max_err = sum
-            .iter()
-            .map(|v| v.abs())
-            .fold(0.0_f64, f64::max);
+        let max_err = sum.iter().map(|v| v.abs()).fold(0.0_f64, f64::max);
         Ok(max_err <= self.config.skew_sym_tol)
     }
 
@@ -274,10 +271,7 @@ impl PortHamiltonianSystem {
         // Gershgorin: all Gershgorin discs must be in [0, ∞)
         for i in 0..n {
             let diag = r[[i, i]];
-            let off_sum: f64 = (0..n)
-                .filter(|&j| j != i)
-                .map(|j| r[[i, j]].abs())
-                .sum();
+            let off_sum: f64 = (0..n).filter(|&j| j != i).map(|j| r[[i, j]].abs()).sum();
             if diag - off_sum < self.config.psd_tol {
                 return Ok(false);
             }
@@ -395,15 +389,15 @@ impl PortHamiltonianBuilder {
 
     /// Build the Port-Hamiltonian system.
     pub fn build(self) -> IntegrateResult<PortHamiltonianSystem> {
-        let j_fn = self.j_fn.ok_or_else(|| {
-            IntegrateError::ValueError("J matrix function is required".into())
-        })?;
-        let r_fn = self.r_fn.ok_or_else(|| {
-            IntegrateError::ValueError("R matrix function is required".into())
-        })?;
-        let hamiltonian = self.hamiltonian.ok_or_else(|| {
-            IntegrateError::ValueError("Hamiltonian function is required".into())
-        })?;
+        let j_fn = self
+            .j_fn
+            .ok_or_else(|| IntegrateError::ValueError("J matrix function is required".into()))?;
+        let r_fn = self
+            .r_fn
+            .ok_or_else(|| IntegrateError::ValueError("R matrix function is required".into()))?;
+        let hamiltonian = self
+            .hamiltonian
+            .ok_or_else(|| IntegrateError::ValueError("Hamiltonian function is required".into()))?;
 
         let b_matrix_fn: MatrixFn = if let Some(b_fn) = self.b_fn {
             b_fn

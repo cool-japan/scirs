@@ -55,6 +55,6 @@ pub use tucker::{core_consistency_diagnostic, tucker_als, TuckerDecomp};
 // N-dimensional tensor support (generalizes beyond 3D)
 pub mod tensor_nd;
 pub use tensor_nd::{
-    cp_als as cp_als_nd, tensor_train_svd, tucker_hooi, tucker_hosvd, CpDecomposition,
-    Tensor, TensorTrainDecomposition, TuckerDecomposition,
+    cp_als as cp_als_nd, tensor_train_svd, tucker_hooi, tucker_hosvd, CpDecomposition, Tensor,
+    TensorTrainDecomposition, TuckerDecomposition,
 };

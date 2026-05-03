@@ -31,10 +31,10 @@
 
 use std::collections::HashMap;
 
-use scirs2_core::random::{Rng, SeedableRng, StdRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng, StdRng};
 
-use crate::error::{GraphError, Result};
 use super::louvain::compact_communities;
+use crate::error::{GraphError, Result};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Configuration
@@ -89,7 +89,7 @@ impl SparseAdj {
             if u != v {
                 degree[v] += w;
             }
-            two_m += if u == v { 2.0 * w } else { 2.0 * w };
+            two_m += 2.0 * w;
         }
         Self { adj, degree, two_m }
     }
@@ -216,7 +216,9 @@ pub fn infomap(
     config: &InfomapConfig,
 ) -> Result<Vec<usize>> {
     if n_nodes == 0 {
-        return Err(GraphError::InvalidGraph("infomap: n_nodes must be > 0".into()));
+        return Err(GraphError::InvalidGraph(
+            "infomap: n_nodes must be > 0".into(),
+        ));
     }
 
     let g = SparseAdj::from_edge_list(adj, n_nodes);
@@ -254,9 +256,7 @@ fn infomap_trial(g: &SparseAdj, config: &InfomapConfig, seed: u64) -> Result<Vec
 
     // Initialise with random partition into ceil(sqrt(n)) modules
     let init_comms = ((n as f64).sqrt().ceil() as usize).max(1).min(n);
-    let mut assignments: Vec<usize> = (0..n)
-        .map(|_| rng.random_range(0..init_comms))
-        .collect();
+    let mut assignments: Vec<usize> = (0..n).map(|_| rng.random_range(0..init_comms)).collect();
 
     let mut prev_code_len = map_equation(g, &assignments);
 
@@ -283,11 +283,7 @@ fn infomap_trial(g: &SparseAdj, config: &InfomapConfig, seed: u64) -> Result<Vec
 
 /// Greedy node-move phase: for each node, try moving to each neighbour's module.
 /// Accept the move that most reduces the map equation.
-fn infomap_move_phase(
-    g: &SparseAdj,
-    assignments: &mut Vec<usize>,
-    rng: &mut impl Rng,
-) -> bool {
+fn infomap_move_phase(g: &SparseAdj, assignments: &mut [usize], rng: &mut impl Rng) -> bool {
     let n = g.adj.len();
     let mut improved = false;
 
@@ -389,7 +385,11 @@ mod tests {
 
     #[test]
     fn test_infomap_no_edges() {
-        let config = InfomapConfig { n_trials: 1, max_iter: 10, tol: 1e-6 };
+        let config = InfomapConfig {
+            n_trials: 1,
+            max_iter: 10,
+            tol: 1e-6,
+        };
         let labels = infomap(&[], 4, &config).expect("infomap no edges");
         // Each isolated node in its own community
         assert_eq!(labels.len(), 4);
@@ -406,8 +406,10 @@ mod tests {
         let code_perfect = map_equation(&g, &perfect);
         let code_single = map_equation(&g, &single);
         // Two-community partition should have shorter (lower) code length
-        assert!(code_perfect <= code_single + 1e-9, 
-            "perfect partition code={code_perfect}, single={code_single}");
+        assert!(
+            code_perfect <= code_single + 1e-9,
+            "perfect partition code={code_perfect}, single={code_single}"
+        );
     }
 
     #[test]

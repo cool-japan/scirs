@@ -92,6 +92,7 @@ pub use fir::{firwin, remez};
 // Re-export filter application functions
 pub use application::{
     filtfilt, group_delay, lfilter, matched_filter, matched_filter_detect, minimum_phase,
+    sosfilt_zi,
 };
 
 // Re-export filter analysis functions

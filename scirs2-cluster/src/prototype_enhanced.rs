@@ -24,10 +24,7 @@ use crate::error::{ClusteringError, Result};
 /// Squared Euclidean distance between two slices.
 #[inline]
 fn sq_euclid(a: &[f64], b: &[f64]) -> f64 {
-    a.iter()
-        .zip(b.iter())
-        .map(|(x, y)| (x - y) * (x - y))
-        .sum()
+    a.iter().zip(b.iter()).map(|(x, y)| (x - y) * (x - y)).sum()
 }
 
 /// Euclidean distance between two slices.
@@ -163,10 +160,7 @@ impl NeuralGas {
                     .enumerate()
                     .map(|(j, p)| (euclid(&input, p), j))
                     .collect();
-                ranked.sort_by(|a, b| {
-                    a.0.partial_cmp(&b.0)
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
+                ranked.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
 
                 // Update each prototype with neighbourhood factor based on rank.
                 for (rank, (_, proto_idx)) in ranked.iter().enumerate() {
@@ -414,10 +408,8 @@ impl GrowingNeuralGas {
 
             // Remove isolated nodes (no edges).
             // (Only do this after removing edges.)
-            let connected: std::collections::HashSet<usize> = edge_map
-                .keys()
-                .flat_map(|&(a, b)| [a, b])
-                .collect();
+            let connected: std::collections::HashSet<usize> =
+                edge_map.keys().flat_map(|&(a, b)| [a, b]).collect();
             // We'll skip removing nodes to keep index stability (just leave them).
 
             // Apply global error decay.
@@ -485,8 +477,16 @@ impl GrowingNeuralGas {
                     // Remove q-f edge, add q-new and f-new edges.
                     let qf_key = if q < f { (q, f) } else { (f, q) };
                     edge_map.remove(&qf_key);
-                    let qn_key = if q < new_idx { (q, new_idx) } else { (new_idx, q) };
-                    let fn_key = if f < new_idx { (f, new_idx) } else { (new_idx, f) };
+                    let qn_key = if q < new_idx {
+                        (q, new_idx)
+                    } else {
+                        (new_idx, q)
+                    };
+                    let fn_key = if f < new_idx {
+                        (f, new_idx)
+                    } else {
+                        (new_idx, f)
+                    };
                     edge_map.insert(qn_key, GngEdge { age: 0 });
                     edge_map.insert(fn_key, GngEdge { age: 0 });
                 }
@@ -1010,8 +1010,8 @@ mod tests {
         let x = Array2::from_shape_vec(
             (12, 2),
             vec![
-                0.0, 0.0, 0.1, 0.0, 0.0, 0.1, 0.2, 0.0, 0.1, 0.1, 0.0, 0.2,
-                5.0, 5.0, 5.1, 5.0, 5.0, 5.1, 5.2, 5.0, 5.1, 5.1, 5.0, 5.2,
+                0.0, 0.0, 0.1, 0.0, 0.0, 0.1, 0.2, 0.0, 0.1, 0.1, 0.0, 0.2, 5.0, 5.0, 5.1, 5.0,
+                5.0, 5.1, 5.2, 5.0, 5.1, 5.1, 5.0, 5.2,
             ],
         )
         .expect("valid shape");
@@ -1076,7 +1076,7 @@ mod tests {
         let lvq = LVQ::new(config);
         let result = lvq.fit(x.view(), &y).expect("lvq fit");
         assert_eq!(result.prototypes.shape()[0], 2); // 1 per class × 2 classes
-        // Well-separated data should give high accuracy.
+                                                     // Well-separated data should give high accuracy.
         assert!(
             result.train_accuracy > 0.8,
             "expected > 80% accuracy, got {}",

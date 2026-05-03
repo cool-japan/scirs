@@ -15,7 +15,7 @@ use scirs2_stats::tests::ttest::Alternative;
 use scirs2_stats::{
     corrcoef, kendalltau, ks_2samp, kurtosis, mann_whitney, mean, median, pearsonr, quantile,
     shapiro, skew, spearmanr, std, traits::Distribution, ttest_1samp, ttest_ind, var,
-    QuantileInterpolation,
+    LinearRegression, QuantileInterpolation, RidgeRegression,
 };
 use statrs::statistics::Statistics;
 use std::hint::black_box;
@@ -261,46 +261,46 @@ fn bench_regression_operations(c: &mut Criterion) {
         group.throughput(Throughput::Elements((n_samples * n_features) as u64));
 
         // Ordinary Least Squares
-        // TODO: Fix LinearRegression struct availability
-        // group.bench_with_input(
-        //     BenchmarkId::new("ols_regression", format!("{}x{}", n_samples, n_features)),
-        //     &(x.clone(), y.clone()),
-        //     |b, (x, y)| {
-        //         b.iter(|| {
-        //             let mut model = LinearRegression::new();
-        //             black_box(model.fit(&x.view(), &y.view()).expect("Operation failed"))
-        //         })
-        //     },
-        // );
+        group.bench_with_input(
+            BenchmarkId::new("ols_regression", format!("{}x{}", n_samples, n_features)),
+            &(x.clone(), y.clone()),
+            |b, (x, y)| {
+                b.iter(|| {
+                    let mut model = LinearRegression::new();
+                    black_box(model.fit(&x.view(), &y.view()).expect("Operation failed"))
+                })
+            },
+        );
 
-        // TODO: Fix RidgeRegression struct availability
         // Ridge regression
-        // group.bench_with_input(
-        //     BenchmarkId::new("ridge_regression", format!("{}x{}", n_samples, n_features)),
-        //     &(x.clone(), y.clone()),
-        //     |b, (x, y)| {
-        //         b.iter(|| {
-        //             let mut model = RidgeRegression::new(1.0);
-        //             black_box(model.fit(&x.view(), &y.view()).expect("Operation failed"))
-        //         })
-        //     },
-        // );
+        group.bench_with_input(
+            BenchmarkId::new("ridge_regression", format!("{}x{}", n_samples, n_features)),
+            &(x.clone(), y.clone()),
+            |b, (x, y)| {
+                b.iter(|| {
+                    let mut model = RidgeRegression::new(1.0);
+                    black_box(model.fit(&x.view(), &y.view()).expect("Operation failed"))
+                })
+            },
+        );
 
-        // TODO: Fix LinearRegression struct availability
         // Prediction benchmark
-        // let mut ols_model = LinearRegression::new();
-        // let ols_result = ols_model.fit(&x.view(), &y.view()).expect("Operation failed");
+        let mut ols_model = LinearRegression::new();
+        let ols_result = ols_model
+            .fit(&x.view(), &y.view())
+            .expect("Operation failed");
         let test_x = generate_matrixdata(*n_samples / 10, *n_features, 123);
 
-        // TODO: Comment out until LinearRegression is available
-        // group.bench_with_input(
-        //     BenchmarkId::new(
-        //         "ols_prediction",
-        //         format!("{}x{}", n_samples / 10, n_features),
-        //     ),
-        //     &(ols_result, test_x),
-        //     |b, (result, test_x)| b.iter(|| black_box(result.predict(&test_x.view()).expect("Operation failed"))),
-        // );
+        group.bench_with_input(
+            BenchmarkId::new(
+                "ols_prediction",
+                format!("{}x{}", n_samples / 10, n_features),
+            ),
+            &(ols_result, test_x),
+            |b, (result, test_x)| {
+                b.iter(|| black_box(result.predict(&test_x.view()).expect("Operation failed")))
+            },
+        );
     }
 
     group.finish();

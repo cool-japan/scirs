@@ -79,7 +79,7 @@ pub trait QmcSequence {
 /// # Example
 ///
 /// ```
-/// use scirs2_integrate::quasi_monte_carlo::HaltonSequence;
+/// use scirs2_integrate::quasi_monte_carlo::{HaltonSequence, QmcSequence};
 ///
 /// let mut seq = HaltonSequence::new(vec![2, 3]);
 /// let p0 = seq.next_point();
@@ -114,7 +114,7 @@ impl HaltonSequence {
     /// # Example
     ///
     /// ```
-    /// use scirs2_integrate::quasi_monte_carlo::HaltonSequence;
+    /// use scirs2_integrate::quasi_monte_carlo::{HaltonSequence, QmcSequence};
     ///
     /// let mut seq = HaltonSequence::with_primes(5);
     /// let pt = seq.next_point();
@@ -170,8 +170,8 @@ impl QmcSequence for HaltonSequence {
 /// Source: Joe & Kuo (2008) "Constructing Sobol sequences with better
 /// two-dimensional projections".
 static JOE_KUO_DIRECTION_INIT: &[(
-    u32,  // degree of primitive polynomial
-    u32,  // polynomial coefficients (bits, excluding leading/trailing 1)
+    u32,    // degree of primitive polynomial
+    u32,    // polynomial coefficients (bits, excluding leading/trailing 1)
     &[u32], // initial direction numbers m_i (before left-shift)
 )] = &[
     (1, 0, &[1]),
@@ -209,7 +209,7 @@ static JOE_KUO_DIRECTION_INIT: &[(
 /// # Example
 ///
 /// ```
-/// use scirs2_integrate::quasi_monte_carlo::SobolSequence;
+/// use scirs2_integrate::quasi_monte_carlo::{SobolSequence, QmcSequence};
 ///
 /// let mut seq = SobolSequence::new(3);
 /// let pt = seq.next_point();
@@ -267,10 +267,7 @@ impl SobolSequence {
         self.index += 1;
 
         let scale = 2.0f64.powi(Self::BITS as i32);
-        self.current
-            .iter()
-            .map(|&x| (x as f64) / scale)
-            .collect()
+        self.current.iter().map(|&x| (x as f64) / scale).collect()
     }
 }
 
@@ -357,7 +354,7 @@ fn build_sobol_direction_numbers(dim: usize) -> Vec<Vec<u64>> {
 /// # Example
 ///
 /// ```
-/// use scirs2_integrate::quasi_monte_carlo::LatticeRule;
+/// use scirs2_integrate::quasi_monte_carlo::{LatticeRule, QmcSequence};
 ///
 /// // Two-dimensional rank-1 lattice with n=1024, generator (1, 363)
 /// // (the Fibonacci lattice – one of the optimal 2-D lattices)
@@ -401,7 +398,7 @@ impl LatticeRule {
     /// # Example
     ///
     /// ```
-    /// use scirs2_integrate::quasi_monte_carlo::LatticeRule;
+    /// use scirs2_integrate::quasi_monte_carlo::{LatticeRule, QmcSequence};
     ///
     /// let lat = LatticeRule::korobov(4, 1973, 8192);
     /// assert_eq!(lat.dim(), 4);
@@ -433,7 +430,7 @@ impl QmcSequence for LatticeRule {
             .iter()
             .map(|&g| {
                 let raw = i_f * g * n_f / n_f; // i * g (g is already normalised)
-                // Take fractional part; use modulo for robustness
+                                               // Take fractional part; use modulo for robustness
                 let frac = (i_f * g).fract();
                 frac.rem_euclid(1.0)
             })
@@ -468,7 +465,7 @@ impl QmcSequence for LatticeRule {
 /// * `f`        – integrand, called with a `&[f64]` of length `bounds.len()`.
 /// * `bounds`   – `(a_d, b_d)` per dimension.
 /// * `sequence` – any mutable reference to a [`QmcSequence`] (dimension must
-///                match `bounds.len()`).
+///   match `bounds.len()`).
 /// * `n_samples`– number of points to evaluate.
 ///
 /// # Returns
@@ -580,7 +577,7 @@ where
 /// # Example
 ///
 /// ```
-/// use scirs2_integrate::quasi_monte_carlo::{HaltonSequence, star_discrepancy};
+/// use scirs2_integrate::quasi_monte_carlo::{HaltonSequence, QmcSequence, star_discrepancy};
 /// use scirs2_core::ndarray::Array2;
 ///
 /// let mut seq = HaltonSequence::with_primes(2);
@@ -636,9 +633,9 @@ fn star_discrepancy_recursive(
 ) {
     if dim == d {
         // Count points in [0, x)
-        let count = (0..n).filter(|&i| {
-            (0..d).all(|j| points[[i, j]] < x[j])
-        }).count();
+        let count = (0..n)
+            .filter(|&i| (0..d).all(|j| points[[i, j]] < x[j]))
+            .count();
 
         let vol: f64 = x.iter().product();
         let gap = (count as f64 / n_f - vol).abs();
@@ -808,11 +805,11 @@ fn is_prime(n: usize) -> bool {
     if n == 2 {
         return true;
     }
-    if n % 2 == 0 {
+    if n.is_multiple_of(2) {
         return false;
     }
     let limit = (n as f64).sqrt() as usize + 1;
-    (3..=limit).step_by(2).all(|k| n % k != 0)
+    (3..=limit).step_by(2).all(|k| !n.is_multiple_of(k))
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -831,7 +828,10 @@ mod tests {
         for _ in 0..100 {
             let p = seq.next_point();
             assert_eq!(p.len(), 3);
-            assert!(p.iter().all(|&x| x >= 0.0 && x < 1.0), "out of [0,1): {p:?}");
+            assert!(
+                p.iter().all(|&x| (0.0..1.0).contains(&x)),
+                "out of [0,1): {p:?}"
+            );
         }
     }
 
@@ -880,7 +880,7 @@ mod tests {
             let p = seq.next_point();
             assert_eq!(p.len(), 5);
             assert!(
-                p.iter().all(|&x| x >= 0.0 && x <= 1.0),
+                p.iter().all(|&x| (0.0..=1.0).contains(&x)),
                 "out of [0,1]: {p:?}"
             );
         }
@@ -888,16 +888,17 @@ mod tests {
 
     #[test]
     fn test_sobol_first_dim_van_der_corput() {
-        // First dimension of Sobol should be van der Corput base-2
-        // index=1 → 0.5, index=2 → 0.25, index=3 → 0.75
+        // First dimension of Sobol using Gray-code recurrence gives low-discrepancy sequence.
+        // Gray-code Sobol ordering: index=1 → 0.5, index=2 → 0.75, index=3 → 0.25
+        // (differs from standard van der Corput but maintains equidistribution).
         let mut seq = SobolSequence::new(1);
         let _p0 = seq.next_point(); // skip 0.0
         let p1 = seq.next_point();
         let p2 = seq.next_point();
         let p3 = seq.next_point();
         assert!((p1[0] - 0.5).abs() < 1e-6, "p1={}", p1[0]);
-        assert!((p2[0] - 0.25).abs() < 1e-6, "p2={}", p2[0]);
-        assert!((p3[0] - 0.75).abs() < 1e-6, "p3={}", p3[0]);
+        assert!((p2[0] - 0.75).abs() < 1e-6, "p2={}", p2[0]);
+        assert!((p3[0] - 0.25).abs() < 1e-6, "p3={}", p3[0]);
     }
 
     #[test]
@@ -923,7 +924,7 @@ mod tests {
             let p = lat.next_point();
             assert_eq!(p.len(), 3);
             assert!(
-                p.iter().all(|&x| x >= 0.0 && x <= 1.0),
+                p.iter().all(|&x| (0.0..=1.0).contains(&x)),
                 "out of [0,1]: {p:?}"
             );
         }
@@ -934,7 +935,10 @@ mod tests {
         // The lattice first point (i=0) should be all zeros (generator × 0 = 0)
         let mut lat = LatticeRule::korobov(2, 3, 8);
         let p0 = lat.next_point();
-        assert!(p0.iter().all(|&x| x == 0.0), "first point should be zero: {p0:?}");
+        assert!(
+            p0.iter().all(|&x| x == 0.0),
+            "first point should be zero: {p0:?}"
+        );
     }
 
     // ── qmc_integrate ────────────────────────────────────────────────────────
@@ -943,13 +947,8 @@ mod tests {
     fn test_qmc_integrate_halton_1d() {
         // ∫₀¹ x² dx = 1/3
         let mut seq = HaltonSequence::with_primes(1);
-        let val = qmc_integrate(
-            |x| x[0] * x[0],
-            &[(0.0, 1.0)],
-            &mut seq,
-            4096,
-        )
-        .expect("qmc_integrate failed");
+        let val = qmc_integrate(|x| x[0] * x[0], &[(0.0, 1.0)], &mut seq, 4096)
+            .expect("qmc_integrate failed");
         assert!((val - 1.0 / 3.0).abs() < 0.01, "val={val}");
     }
 
@@ -957,13 +956,8 @@ mod tests {
     fn test_qmc_integrate_sobol_2d() {
         // ∫₀¹∫₀¹ x·y dx dy = 1/4
         let mut seq = SobolSequence::new(2);
-        let val = qmc_integrate(
-            |x| x[0] * x[1],
-            &[(0.0, 1.0), (0.0, 1.0)],
-            &mut seq,
-            4096,
-        )
-        .expect("qmc_integrate 2d failed");
+        let val = qmc_integrate(|x| x[0] * x[1], &[(0.0, 1.0), (0.0, 1.0)], &mut seq, 4096)
+            .expect("qmc_integrate 2d failed");
         assert!((val - 0.25).abs() < 0.01, "val={val}");
     }
 
@@ -985,13 +979,8 @@ mod tests {
     fn test_qmc_integrate_non_unit_bounds() {
         // ∫₀²∫₀³ 1 dx dy = 6
         let mut seq = HaltonSequence::with_primes(2);
-        let val = qmc_integrate(
-            |_| 1.0,
-            &[(0.0, 2.0), (0.0, 3.0)],
-            &mut seq,
-            1000,
-        )
-        .expect("qmc non-unit bounds failed");
+        let val = qmc_integrate(|_| 1.0, &[(0.0, 2.0), (0.0, 3.0)], &mut seq, 1000)
+            .expect("qmc non-unit bounds failed");
         assert!((val - 6.0).abs() < 1e-10, "val={val}");
     }
 
@@ -1042,7 +1031,7 @@ mod tests {
     fn test_scrambled_halton_unit_cube() {
         let pts = scrambled_halton(&[2, 3, 5, 7], 999, 256).expect("scramble failed");
         assert!(
-            pts.iter().all(|&x| x >= 0.0 && x < 1.0),
+            pts.iter().all(|&x| (0.0..1.0).contains(&x)),
             "some points outside [0,1)"
         );
     }
@@ -1051,7 +1040,10 @@ mod tests {
     fn test_scrambled_halton_reproducible() {
         let pts1 = scrambled_halton(&[2, 3], 42, 64).expect("scramble1 failed");
         let pts2 = scrambled_halton(&[2, 3], 42, 64).expect("scramble2 failed");
-        assert_eq!(pts1, pts2, "scrambled Halton must be reproducible for same key");
+        assert_eq!(
+            pts1, pts2,
+            "scrambled Halton must be reproducible for same key"
+        );
     }
 
     #[test]

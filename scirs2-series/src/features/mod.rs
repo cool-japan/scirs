@@ -6,6 +6,8 @@
 pub mod complexity;
 pub mod config;
 pub mod frequency;
+pub mod nonlinear;
+pub mod spectral;
 pub mod statistical;
 pub mod temporal;
 pub mod turning_points;

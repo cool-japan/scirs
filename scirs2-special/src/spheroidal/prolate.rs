@@ -75,72 +75,114 @@ fn pro_cv_continued_fraction(m: i32, n: i32, c: f64) -> SpecialResult<f64> {
     Ok(lambda)
 }
 
+/// Compute the tridiagonal secular equation value and its derivative using the
+/// Sturm sequence recurrence for the prolate spheroidal characteristic value problem.
+///
+/// The spheroidal wave functions expand in Legendre polynomials P_{m+2k+parity}^m(η)
+/// where parity = (n-m) % 2. The 3-term recurrence for the expansion coefficients
+/// gives a real symmetric tridiagonal matrix T with:
+///   diagonal d_k = (m+2k+p)(m+2k+p+1) + c²·α_k
+///   off-diagonal β_k = -c² · coupling coefficient
+///
+/// We compute D(λ) = det(T - λI) via the Sturm sequence:
+///   D_{-1} = 1, D_0 = d_0 - λ
+///   D_k = (d_k - λ)·D_{k-1} - β_{k-1}²·D_{k-2}
+///
+/// For Newton iteration we also compute D'(λ) = -d/dλ det(T - λI) via the
+/// companion recurrence for the derivative.
 fn compute_characteristic_determinant(
     m: i32,
     n: i32,
     c: f64,
     lambda: f64,
 ) -> SpecialResult<(f64, f64)> {
-    let _n_f64 = n as f64;
     let m_f64 = m as f64;
     let c2 = c.powi(2);
+    let parity = (n - m) % 2; // 0 for even, 1 for odd separation
+    let parity_f64 = parity as f64;
 
-    // Matrix size for truncation (should be large enough for convergence)
-    let matrixsize = 20.max(2 * (n as usize) + 10);
+    // Truncation size: enough rows/cols to capture the relevant eigenvalue
+    let matrixsize = 25.max(2 * (n as usize) + 15);
 
-    // Build the characteristic matrix A - λI where A contains the recurrence coefficients
-    let mut matrix = vec![vec![0.0; matrixsize]; matrixsize];
-    let mut deriv_matrix = vec![vec![0.0; matrixsize]; matrixsize];
+    // Build diagonal and off-diagonal elements for the symmetric tridiagonal
+    // Row index k corresponds to Legendre function P_{m+2k+parity}^m
+    let mut diag = vec![0.0_f64; matrixsize];
+    let mut off = vec![0.0_f64; matrixsize - 1];
 
-    for i in 0..matrixsize {
-        let r = (i as i32 + m - n) * 2 + n; // Index mapping
-        let r_f64 = r as f64;
+    for k in 0..matrixsize {
+        let l = m_f64 + 2.0 * k as f64 + parity_f64; // degree of Legendre function
+        diag[k] = l * (l + 1.0); // α = l(l+1), no c² term in diagonal
+    }
 
-        // Diagonal elements: α_r - λ
-        let alpha_r = (r_f64 + m_f64) * (r_f64 + m_f64 + 1.0);
-        matrix[i][i] = alpha_r - lambda;
-        deriv_matrix[i][i] = -1.0;
+    // Off-diagonal: coupling of P_{l}^m and P_{l+2}^m via c²η² term
+    // β_k = c² · <P_{l}^m | η² | P_{l+2}^m> (normalized)
+    // For the spheroidal equation, off-diagonals at stride ±2 in l give:
+    // β(l, l+2) = c² · (l+m+1)(l+m+2) / ((2l+1)(2l+3)) · (l-m+1)(l-m+2) / ((2l+1)(2l+3))
+    // but the standard form used in Flammer (1957) is:
+    // β(l) = -c² / [4(2l+1)(2l+3)]  (negative sign because we move to other side)
+    for k in 0..(matrixsize - 1) {
+        let l = m_f64 + 2.0 * k as f64 + parity_f64;
+        // Coupling coefficient: -c²/(4(2l+1)(2l+3)) — sign convention matters
+        // (positive in the standard 3-term recurrence)
+        off[k] = c2 / (4.0 * (2.0 * l + 1.0) * (2.0 * l + 3.0));
+    }
 
-        // Off-diagonal elements: β_r terms
-        if i + 2 < matrixsize {
-            let beta_r = c2 / (4.0 * (2.0 * r_f64 + 1.0) * (2.0 * r_f64 + 3.0));
-            matrix[i][i + 2] = beta_r;
-            matrix[i + 2][i] = beta_r;
+    // Sturm sequence for det(T - λI) using the 3-term recurrence:
+    //   D_{-1} = 1, D_0 = diag[0] - λ
+    //   D_k = (diag[k] - λ) · D_{k-1} - off[k-1]² · D_{k-2}
+    // We normalize to avoid overflow (compute log-det instead of det for Newton)
+    // but for Newton iteration we need the actual function value relative to λ.
+
+    // Use log-scaling to prevent overflow:
+    let tiny = 1e-300_f64;
+    let mut d_prev = 1.0_f64; // D_{-1}
+    let mut d_curr = diag[0] - lambda; // D_0
+    let mut dp_prev = 0.0_f64; // D'_{-1} = 0
+    let mut dp_curr = -1.0_f64; // D'_0 = -1
+
+    // Scale to avoid overflow — track sign and log-magnitude separately
+    let mut log_scale = 0.0_f64;
+    let mut sign = if d_curr >= 0.0 { 1.0 } else { -1.0 };
+
+    for k in 1..matrixsize {
+        let dk = diag[k] - lambda;
+        let bk_sq = off[k - 1] * off[k - 1];
+
+        // Update D'_k = -D_{k-1} + dk · D'_{k-1} - β²·D'_{k-2}
+        let dp_next = -d_prev + dk * dp_curr - bk_sq * dp_prev;
+        // Update D_k = dk · D_{k-1} - β² · D_{k-2}
+        let d_next = dk * d_curr - bk_sq * d_prev;
+
+        dp_prev = dp_curr;
+        d_prev = d_curr;
+        dp_curr = dp_next;
+        d_curr = d_next;
+
+        // Rescale if d_curr is getting large/small
+        let abs_d = d_curr.abs();
+        if abs_d > 1e100 {
+            let scale = 1.0 / abs_d;
+            d_curr *= scale;
+            d_prev *= scale;
+            dp_curr *= scale;
+            dp_prev *= scale;
+            log_scale += abs_d.ln();
+            sign = if d_curr >= 0.0 { 1.0 } else { -1.0 };
+        } else if abs_d < tiny && abs_d > 0.0 {
+            let scale = 1.0 / abs_d.max(tiny);
+            d_curr *= scale;
+            d_prev *= scale;
+            dp_curr *= scale;
+            dp_prev *= scale;
+            log_scale -= abs_d.ln().abs();
         }
     }
 
-    // Compute determinant and its derivative using a simplified approach
-    // For numerical stability, we use the fact that for large matrices,
-    // the determinant behavior is dominated by the central elements
-
-    // Focus on the central part of the matrix near the main diagonal
-    let center = matrixsize / 2;
-    let window = 6.min(matrixsize / 2);
-
-    let mut det_val = 1.0;
-    let mut det_prime = 0.0;
-
-    // Simplified determinant calculation using the central 6x6 submatrix
-    for i in (center - window / 2)..(center + window / 2).min(matrixsize) {
-        if i < matrixsize {
-            det_val *= matrix[i][i];
-            det_prime += deriv_matrix[i][i] / matrix[i][i];
-        }
-    }
-
-    det_prime *= det_val;
-
-    // Add contribution from off-diagonal terms (perturbative correction)
-    let mut off_diag_correction = 0.0;
-    for i in 0..(matrixsize - 2) {
-        if matrix[i][i].abs() > 1e-10 && matrix[i + 2][i + 2].abs() > 1e-10 {
-            off_diag_correction += matrix[i][i + 2].powi(2) / (matrix[i][i] * matrix[i + 2][i + 2]);
-        }
-    }
-
-    det_val -= off_diag_correction;
-
-    Ok((det_val, det_prime))
+    // The Newton step only needs the ratio D(λ)/D'(λ), so scaling cancels.
+    // Return (D, D') where D and D' are the scaled values (ratio is preserved).
+    let _ = log_scale; // scaling cancels in Newton step
+    let _ = sign;
+    Ok((d_curr, dp_curr))
 }
 
 /// Computes characteristic values using asymptotic expansion for large c values

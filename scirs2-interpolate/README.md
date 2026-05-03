@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-interpolate)](https://docs.rs/scirs2-interpolate)
 
-**Advanced interpolation and approximation for the SciRS2 scientific computing library (v0.4.2).**
+**Advanced interpolation and approximation for the SciRS2 scientific computing library (v0.4.3).**
 
 `scirs2-interpolate` provides comprehensive interpolation methods for 1D, 2D, and N-dimensional data. It covers standard spline families (cubic, Akima, PCHIP, B-splines, NURBS), scattered-data methods (RBF, Kriging, Moving Least Squares, Natural Neighbor, Barycentric Rational, Thin-Plate Splines, Shepard's method), and advanced features including adaptive error-controlled refinement, meshless methods, spherical harmonic interpolation, and B-spline surface fitting — all as pure Rust.
 
-## Features (v0.4.2)
+## Features (v0.4.3)
 
 ### 1D Interpolation
 - **Linear / nearest-neighbor**: Basic 1D interpolation with boundary handling
@@ -62,14 +62,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-interpolate = "0.4.2"
+scirs2-interpolate = "0.4.3"
 ```
 
 With optional performance features:
 
 ```toml
 [dependencies]
-scirs2-interpolate = { version = "0.4.2", features = ["simd", "linalg"] }
+scirs2-interpolate = { version = "0.4.3", features = ["simd", "linalg"] }
 ```
 
 ### Cubic spline interpolation

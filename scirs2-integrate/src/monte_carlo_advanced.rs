@@ -355,9 +355,8 @@ impl MonteCarloIntegrator {
             // Build per-dimension Uniform distributions for this stratum
             let dists: Vec<Uniform<f64>> = (0..dim)
                 .map(|d| {
-                    Uniform::new_inclusive(sub_lo[d], sub_hi[d]).map_err(|e| {
-                        IntegrateError::ValueError(format!("Stratum dist error: {e}"))
-                    })
+                    Uniform::new_inclusive(sub_lo[d], sub_hi[d])
+                        .map_err(|e| IntegrateError::ValueError(format!("Stratum dist error: {e}")))
                 })
                 .collect::<IntegrateResult<Vec<_>>>()?;
 
@@ -378,7 +377,7 @@ impl MonteCarloIntegrator {
             }
         }
 
-        Ok(sum / (total_samples as f64) * volume * (stratum_volume / stratum_volume))
+        Ok(sum / (total_samples as f64) * volume)
         // Equivalently: (sum / total_samples) * volume
     }
 
@@ -483,11 +482,7 @@ impl MonteCarloIntegrator {
             .sum::<f64>()
             / (n - 1.0);
 
-        let var_g: f64 = g_vals
-            .iter()
-            .map(|&gv| (gv - g_mean).powi(2))
-            .sum::<f64>()
-            / (n - 1.0);
+        let var_g: f64 = g_vals.iter().map(|&gv| (gv - g_mean).powi(2)).sum::<f64>() / (n - 1.0);
 
         // Avoid division by near-zero variance
         let c_star = if var_g.abs() < 1e-300 {
@@ -538,7 +533,7 @@ impl MonteCarloIntegrator {
     /// * `f`        – integrand.
     /// * `bounds`   – integration domain.
     /// * `n_samples`– total number of function evaluations (will be rounded to
-    ///                an even number).
+    ///   an even number).
     ///
     /// # Returns
     ///
@@ -629,7 +624,7 @@ impl MonteCarloIntegrator {
     /// * `f`           – function to integrate (expectation taken under `π`).
     /// * `target_pdf`  – unnormalised target density `π(x)` (must be ≥ 0).
     /// * `proposal`    – symmetric random-walk proposal scale (standard
-    ///                   deviation of the isotropic Gaussian proposal kernel).
+    ///   deviation of the isotropic Gaussian proposal kernel).
     /// * `n_samples`   – number of post-burnin samples.
     /// * `burnin`      – number of initial steps to discard.
     ///
@@ -829,11 +824,7 @@ mod tests {
         // ∫₀¹∫₀¹ (x+y) dx dy = 1
         let mc = MonteCarloIntegrator::new(Some(SEED));
         let (val, _) = mc
-            .integrate(
-                |x| x[0] + x[1],
-                &[(0.0, 1.0), (0.0, 1.0)],
-                N,
-            )
+            .integrate(|x| x[0] + x[1], &[(0.0, 1.0), (0.0, 1.0)], N)
             .expect("integrate 2d failed");
         assert!(close(val, 1.0, 0.03), "val={val}");
     }
@@ -870,7 +861,9 @@ mod tests {
             .importance_sampling(
                 |x| x[0] * x[0],
                 |rng| {
-                    let u = Uniform::new(0.0f64, 1.0f64).expect("valid Uniform range [0,1)").sample(rng);
+                    let u = Uniform::new(0.0f64, 1.0f64)
+                        .expect("valid Uniform range [0,1)")
+                        .sample(rng);
                     vec![u]
                 },
                 |_| 1.0f64,
@@ -897,12 +890,7 @@ mod tests {
         // ∫₀¹∫₀¹ x·y dx dy = 1/4
         let mc = MonteCarloIntegrator::new(Some(SEED));
         let val = mc
-            .stratified_sampling(
-                |x| x[0] * x[1],
-                &[(0.0, 1.0), (0.0, 1.0)],
-                20,
-                4,
-            )
+            .stratified_sampling(|x| x[0] * x[1], &[(0.0, 1.0), (0.0, 1.0)], 20, 4)
             .expect("stratified 2d failed");
         assert!(close(val, 0.25, 0.03), "val={val}");
     }

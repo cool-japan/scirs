@@ -39,7 +39,8 @@ where
 {
     if coeffs.len() < 2 {
         return Err(LinalgError::InvalidInputError(
-            "Polynomial must have at least degree 1 (coeffs must have at least 2 elements)".to_string(),
+            "Polynomial must have at least degree 1 (coeffs must have at least 2 elements)"
+                .to_string(),
         ));
     }
     let lead = coeffs[0];
@@ -78,7 +79,16 @@ where
 /// A vector of n complex roots (eigenvalues of the companion matrix)
 pub fn poly_roots<F>(coeffs: &[F]) -> LinalgResult<Vec<Complex<F>>>
 where
-    F: Float + NumAssign + Zero + Sum + One + Send + Sync + Debug + scirs2_core::ndarray::ScalarOperand + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + Sum
+        + One
+        + Send
+        + Sync
+        + Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     if coeffs.len() < 2 {
         return Err(LinalgError::InvalidInputError(
@@ -87,9 +97,10 @@ where
     }
 
     // Strip leading zeros
-    let start = coeffs.iter().position(|&c| c.abs() > F::epsilon()).ok_or_else(|| {
-        LinalgError::InvalidInputError("All coefficients are zero".to_string())
-    })?;
+    let start = coeffs
+        .iter()
+        .position(|&c| c.abs() > F::epsilon())
+        .ok_or_else(|| LinalgError::InvalidInputError("All coefficients are zero".to_string()))?;
     let coeffs = &coeffs[start..];
 
     if coeffs.len() < 2 {
@@ -128,7 +139,10 @@ where
         let q = -(b + sign * sqrt_disc) / F::from(2.0).expect("convert");
         let root1 = q / a;
         let root2 = c / q;
-        Ok(vec![Complex::new(root1, F::zero()), Complex::new(root2, F::zero())])
+        Ok(vec![
+            Complex::new(root1, F::zero()),
+            Complex::new(root2, F::zero()),
+        ])
     } else {
         // Two complex conjugate roots
         let sqrt_disc = (-disc).sqrt();
@@ -144,7 +158,16 @@ where
 /// This uses `scirs2_linalg::eigen::eig` under the hood.
 fn companion_eigenvalues<F>(comp: &Array2<F>) -> LinalgResult<Vec<Complex<F>>>
 where
-    F: Float + NumAssign + Zero + Sum + One + Send + Sync + Debug + scirs2_core::ndarray::ScalarOperand + 'static,
+    F: Float
+        + NumAssign
+        + Zero
+        + Sum
+        + One
+        + Send
+        + Sync
+        + Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + 'static,
 {
     use crate::eigen::eig;
     let (eigenvalues, _) = eig(&comp.view(), None)?;

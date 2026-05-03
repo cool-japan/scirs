@@ -553,8 +553,12 @@ fn solve_discrete_lyapunov_triangular<T: SchurFloat>(
                 // => y[i,j] * (t[i,i] * t[j,j] - 1) = -rhs
                 let denom = t[[i, i]] * t[[j, j]] - T::one();
                 if denom.abs() < tol {
-                    // Singular: eigenvalue product = 1
-                    y[[i, j]] = T::zero();
+                    // Singular: eigenvalue product λ_i * λ_j = 1
+                    // Discrete Lyapunov has no unique solution when eigenvalues are on unit circle
+                    return Err(LinalgError::SingularMatrixError(format!(
+                        "solve_discrete_lyapunov_triangular: singular at ({i},{j}), \
+                         eigenvalue product = 1 (Lyapunov equation has no unique solution)"
+                    )));
                 } else {
                     y[[i, j]] = -rhs / denom;
                 }
@@ -652,8 +656,10 @@ fn solve_small_dense<T: SchurFloat>(mat: &[T], rhs: &[T], n: usize) -> LinalgRes
             }
         }
         if max_val < T::epsilon() {
-            // Singular - return zeros
-            return Ok(vec![T::zero(); n]);
+            // Singular - return error
+            return Err(LinalgError::SingularMatrixError(format!(
+                "solve_small_dense: singular at column {col}, pivot < epsilon"
+            )));
         }
         // Swap rows
         if max_row != col {

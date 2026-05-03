@@ -135,10 +135,8 @@ impl SeasonalComponent {
             let sin_f = freq.sin();
             let old_s = self.s_states[i];
             let old_c = self.c_states[i];
-            self.s_states[i] =
-                old_s * cos_f + old_c * sin_f + self.gamma1[i] * error;
-            self.c_states[i] =
-                -old_s * sin_f + old_c * cos_f + self.gamma2[i] * error;
+            self.s_states[i] = old_s * cos_f + old_c * sin_f + self.gamma1[i] * error;
+            self.c_states[i] = -old_s * sin_f + old_c * cos_f + self.gamma2[i] * error;
         }
     }
 
@@ -422,7 +420,13 @@ impl Tbats {
         let use_trend = config.use_trend.unwrap_or_else(|| {
             // Heuristic: include trend if there's significant linear component
             let (_, slope) = linear_regression_slope(&working);
-            slope.abs() > 1e-3 * working.iter().cloned().fold(f64::NEG_INFINITY, f64::max).abs()
+            slope.abs()
+                > 1e-3
+                    * working
+                        .iter()
+                        .cloned()
+                        .fold(f64::NEG_INFINITY, f64::max)
+                        .abs()
         });
 
         // Damping parameter
@@ -694,11 +698,7 @@ impl Tbats {
     /// # Returns
     /// A tuple `(forecast, lower_ci, upper_ci)` where each element is an
     /// `Array1<f64>` of length `h`.
-    pub fn predict(
-        &self,
-        h: usize,
-        alpha: f64,
-    ) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>)> {
+    pub fn predict(&self, h: usize, alpha: f64) -> Result<(Array1<f64>, Array1<f64>, Array1<f64>)> {
         let result = self.forecast_with_ci(h, alpha)?;
         Ok((
             Array1::from_vec(result.forecast),
@@ -778,17 +778,17 @@ fn normal_quantile(p: f64) -> f64 {
     // Reference: https://web.archive.org/web/20151030215612/http://home.online.no/~pjacklam/notes/invnorm/
     let a = [
         -3.969683028665376e+01_f64,
-         2.209460984245205e+02,
+        2.209460984245205e+02,
         -2.759285104469687e+02,
-         1.383577518672690e+02,
+        1.383577518672690e+02,
         -3.066479806614716e+01,
-         2.506628277459239e+00,
+        2.506628277459239e+00,
     ];
     let b = [
         -5.447609879822406e+01_f64,
-         1.615858368580409e+02,
+        1.615858368580409e+02,
         -1.556989798598866e+02,
-         6.680131188771972e+01,
+        6.680131188771972e+01,
         -1.328068155288572e+01,
     ];
     let c = [
@@ -796,14 +796,14 @@ fn normal_quantile(p: f64) -> f64 {
         -3.223964580411365e-01,
         -2.400758277161838e+00,
         -2.549732539343734e+00,
-         4.374664141464968e+00,
-         2.938163982698783e+00,
+        4.374664141464968e+00,
+        2.938163982698783e+00,
     ];
     let d = [
-         7.784695709041462e-03_f64,
-         3.224671290700398e-01,
-         2.445134137142996e+00,
-         3.754408661907416e+00,
+        7.784695709041462e-03_f64,
+        3.224671290700398e-01,
+        2.445134137142996e+00,
+        3.754408661907416e+00,
     ];
 
     let p_low = 0.02425_f64;
@@ -823,7 +823,7 @@ fn normal_quantile(p: f64) -> f64 {
     } else {
         // Upper tail
         let q = (-2.0 * (1.0 - p).ln()).sqrt();
-        -((((( c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
+        -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5])
             / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1.0)
     }
 }
@@ -939,7 +939,9 @@ mod tests {
             ..Default::default()
         };
         let model = Tbats::fit(&data, config).expect("failed to create model");
-        let result = model.forecast_with_ci(8, 0.05).expect("failed to create result");
+        let result = model
+            .forecast_with_ci(8, 0.05)
+            .expect("failed to create result");
         assert_eq!(result.forecast.len(), 8);
         assert_eq!(result.lower.len(), 8);
         assert_eq!(result.upper.len(), 8);
@@ -1071,7 +1073,11 @@ mod tests {
     #[test]
     fn test_normal_quantile() {
         let z95 = normal_quantile(0.975);
-        assert!((z95 - 1.96).abs() < 0.01, "z-score for 95% CI should be ~1.96, got {}", z95);
+        assert!(
+            (z95 - 1.96).abs() < 0.01,
+            "z-score for 95% CI should be ~1.96, got {}",
+            z95
+        );
         assert_eq!(normal_quantile(0.5), 0.0);
     }
 
@@ -1085,7 +1091,9 @@ mod tests {
                 assert!(
                     (recovered - v).abs() < 1e-8,
                     "Box-Cox roundtrip failed: v={}, lambda={}, recovered={}",
-                    v, lam, recovered
+                    v,
+                    lam,
+                    recovered
                 );
             }
         }

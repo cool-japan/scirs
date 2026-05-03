@@ -21,9 +21,9 @@ pub(crate) fn gauss_legendre_1d(n: usize) -> (Vec<f64>, Vec<f64>) {
         3 => (
             vec![-0.774_596_669_241_483_4, 0.0, 0.774_596_669_241_483_4],
             vec![
-                0.555_555_555_555_555_6,
-                0.888_888_888_888_888_9,
-                0.555_555_555_555_555_6,
+                0.555_555_555_555_556,
+                0.888_888_888_888_889,
+                0.555_555_555_555_556,
             ],
         ),
         4 => (
@@ -42,11 +42,11 @@ pub(crate) fn gauss_legendre_1d(n: usize) -> (Vec<f64>, Vec<f64>) {
         ),
         5 => (
             vec![
-                -0.906_179_845_938_664_0,
+                -0.906_179_845_938_664,
                 -0.538_469_310_105_683_1,
                 0.0,
                 0.538_469_310_105_683_1,
-                0.906_179_845_938_664_0,
+                0.906_179_845_938_664,
             ],
             vec![
                 0.236_926_885_056_189_1,
@@ -127,10 +127,7 @@ impl BoundaryElement {
             .map(|(&xi_k, &w_k)| {
                 // Map ξ ∈ [-1,1] → physical point on element
                 let t = (1.0 + xi_k) * 0.5; // t ∈ [0, 1]
-                let pt = [
-                    p1[0] + t * (p2[0] - p1[0]),
-                    p1[1] + t * (p2[1] - p1[1]),
-                ];
+                let pt = [p1[0] + t * (p2[0] - p1[0]), p1[1] + t * (p2[1] - p1[1])];
                 (pt, w_k * half)
             })
             .collect()
@@ -343,7 +340,8 @@ mod tests {
         // Sum of weights should equal element length
         assert!(
             (weight_sum - elem.length).abs() < 1e-12,
-            "Weight sum {weight_sum} != length {}", elem.length
+            "Weight sum {weight_sum} != length {}",
+            elem.length
         );
     }
 }

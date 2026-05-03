@@ -1,6 +1,6 @@
 # scirs2-metrics TODO
 
-## Status: v0.3.4 Released (March 18, 2026)
+## Status: v0.3.4 Released (March 18, 2026) — v0.4.3 in progress (2026-05-03)
 
 ## v0.3.3 Completed
 
@@ -172,9 +172,24 @@
 - [x] Diebold-Mariano test for forecast comparison — Implemented in v0.4.0 (`temporal/mod.rs`)
 
 ### Documentation and Examples
-- [ ] Comprehensive cookbook with domain-specific metric selection guides
-- [ ] Integration examples with popular ML frameworks
-- [ ] Benchmark report vs `sklearn.metrics`
+- [x] Comprehensive cookbook with domain-specific metric selection guides (planned 2026-04-17)
+  - **Goal:** 6 runnable Rust examples under `scirs2-metrics/examples/cookbook_*.rs` — one per domain: classification, regression, ranking, clustering, distribution, calibration. No new markdown docs.
+  - **Design:** Each example: (1) synthetic data via `scirs2_core::random`, (2) compute metrics, (3) print tabulated comparison with inline commentary on when each metric is appropriate.
+  - **Files:** `scirs2-metrics/examples/cookbook_{classification,regression,ranking,clustering,distribution,calibration}.rs` (all new), `scirs2-metrics/TODO.md`.
+  - **Tests:** Compile-check via `cargo check --examples -p scirs2-metrics`. Add `examples_compile_check` test.
+  - **Risk:** Low — examples validated via `cargo check --examples`.
+- [x] Integration examples with popular ML frameworks (planned 2026-04-17)
+  - **Goal:** 4 runnable examples showing SciRS2 ML module outputs → `scirs2-metrics` evaluation: neural, optimize, cluster, transform.
+  - **Design:** `scirs2-metrics/examples/integration_{neural,optimize,cluster,transform}.rs`. Each generates synthetic data, runs sister-crate algorithm, computes metrics. Add sister crates as dev-deps if not present.
+  - **Files:** `scirs2-metrics/examples/integration_{neural,optimize,cluster,transform}.rs` (all new), `scirs2-metrics/Cargo.toml`, `scirs2-metrics/TODO.md`.
+  - **Tests:** Compile-check all 4. `framework_integration_compile_check` test.
+  - **Risk:** Circular dev-deps possible — check; if circular, move to sister crate.
+- [x] Benchmark report vs `sklearn.metrics` (planned 2026-04-17)
+  - **Goal:** Criterion benchmark suite `scirs2-metrics/benches/sklearn_comparison.rs` measuring per-metric throughput (n=10³,10⁴,10⁵). Reference sklearn numbers from published benchmarks (hard-coded, cited). `cargo run --example sklearn_comparison_summary` prints speedup table.
+  - **Design:** Criterion benches for classification (accuracy/F1/ROC-AUC), regression (MSE/MAE/R²), ranking (MAP/NDCG), clustering (silhouette). sklearn reference numbers cited from Buitinck et al. 2013.
+  - **Files:** `scirs2-metrics/benches/sklearn_comparison.rs` (new), `scirs2-metrics/examples/sklearn_comparison_summary.rs` (new), `scirs2-metrics/Cargo.toml`, `scirs2-metrics/TODO.md`.
+  - **Tests:** `cargo bench --bench sklearn_comparison -p scirs2-metrics --no-run` compiles. `sklearn_comparison_bench_compiles` test.
+  - **Risk:** No runtime Python needed — reference numbers are static/cited.
 
 ## Known Issues
 

@@ -49,7 +49,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
 use crate::error::{OptimizeError, OptimizeResult};
 
@@ -330,16 +330,16 @@ impl ConstrainedBo {
         config: ConstrainedBoConfig,
     ) -> OptimizeResult<Self> {
         if bounds.is_empty() {
-            return Err(OptimizeError::InvalidInput("bounds must not be empty".into()));
+            return Err(OptimizeError::InvalidInput(
+                "bounds must not be empty".into(),
+            ));
         }
 
         let seed = config.seed.unwrap_or(0);
         let rng = StdRng::seed_from_u64(seed);
 
-        let obj_surrogate = GpSurrogate::new(
-            Box::new(RbfKernel::default()),
-            config.gp_config.clone(),
-        );
+        let obj_surrogate =
+            GpSurrogate::new(Box::new(RbfKernel::default()), config.gp_config.clone());
 
         let constraint_surrogates: Vec<_> = (0..constraints.len())
             .map(|i| {
@@ -371,10 +371,7 @@ impl ConstrainedBo {
     }
 
     /// Compute the acquisition value at a candidate point given the current surrogates.
-    fn acquisition_value(
-        &self,
-        x: &scirs2_core::ndarray::ArrayView1<f64>,
-    ) -> OptimizeResult<f64> {
+    fn acquisition_value(&self, x: &scirs2_core::ndarray::ArrayView1<f64>) -> OptimizeResult<f64> {
         match self.config.strategy {
             ConstrainedAcquisitionStrategy::ProbabilityOfFeasibility => {
                 joint_pof(x, &self.constraint_surrogates)
@@ -586,7 +583,11 @@ impl ConstrainedBo {
     }
 
     /// Run the full constrained optimization loop.
-    pub fn optimize<F>(&mut self, mut objective: F, n_calls: usize) -> OptimizeResult<ConstrainedBoResult>
+    pub fn optimize<F>(
+        &mut self,
+        mut objective: F,
+        n_calls: usize,
+    ) -> OptimizeResult<ConstrainedBoResult>
     where
         F: FnMut(&[f64]) -> f64,
     {
@@ -667,7 +668,10 @@ pub struct ExpectedFeasibleImprovement {
 
 impl ExpectedFeasibleImprovement {
     pub fn new(f_best: f64, xi: f64) -> Self {
-        Self { f_best, xi: xi.max(0.0) }
+        Self {
+            f_best,
+            xi: xi.max(0.0),
+        }
     }
 
     /// Evaluate EFI at `x` given the objective surrogate and a list of constraint surrogates.
@@ -689,7 +693,11 @@ impl ExpectedFeasibleImprovement {
             }
             let (mu_g, sigma_g) = cgp.predict_single(x)?;
             let pof_i = if sigma_g < 1e-12 {
-                if mu_g <= 0.0 { 1.0 } else { 0.0 }
+                if mu_g <= 0.0 {
+                    1.0
+                } else {
+                    0.0
+                }
             } else {
                 norm_cdf(-mu_g / sigma_g)
             };

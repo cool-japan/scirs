@@ -24,8 +24,8 @@ pub mod tsp;
 
 pub use assignment::{hungarian_algorithm, min_cost_matching, AssignmentResult};
 pub use covering::{
-    greedy_set_cover, hitting_set, min_vertex_cover_bip, vertex_cover_2approx,
-    weighted_set_cover, CoveringResult,
+    greedy_set_cover, hitting_set, min_vertex_cover_bip, vertex_cover_2approx, weighted_set_cover,
+    CoveringResult,
 };
 pub use graph_coloring::{ColoringResult, GraphColoring};
 pub use knapsack::{

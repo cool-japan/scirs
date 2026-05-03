@@ -410,8 +410,8 @@ mod tests {
         Array2::from_shape_vec(
             (12, 2),
             vec![
-                1.0, 1.0,  1.1, 0.9,  0.9, 1.1,  1.2, 1.0,  1.0, 1.2,  0.8, 0.8,
-                5.0, 5.0,  5.1, 4.9,  4.9, 5.1,  5.2, 5.0,  5.0, 5.2,  4.8, 4.8,
+                1.0, 1.0, 1.1, 0.9, 0.9, 1.1, 1.2, 1.0, 1.0, 1.2, 0.8, 0.8, 5.0, 5.0, 5.1, 4.9,
+                4.9, 5.1, 5.2, 5.0, 5.0, 5.2, 4.8, 4.8,
             ],
         )
         .expect("Failed to create test data")
@@ -448,10 +448,18 @@ mod tests {
         );
 
         for i in 0..6 {
-            assert_eq!(labels[i], first_half_label, "First-half point {} mislabeled", i);
+            assert_eq!(
+                labels[i], first_half_label,
+                "First-half point {} mislabeled",
+                i
+            );
         }
         for i in 6..12 {
-            assert_eq!(labels[i], second_half_label, "Second-half point {} mislabeled", i);
+            assert_eq!(
+                labels[i], second_half_label,
+                "Second-half point {} mislabeled",
+                i
+            );
         }
     }
 
@@ -526,7 +534,7 @@ mod tests {
 
         let pe = fcm.partition_entropy();
         let max_pe = (2.0_f64).ln(); // log(c) for c=2
-        // PE in [0, log(c)]
+                                     // PE in [0, log(c)]
         assert!(pe >= 0.0, "PE should be >= 0, got {}", pe);
         assert!(pe <= max_pe + 1e-9, "PE should be <= log(c), got {}", pe);
     }

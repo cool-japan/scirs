@@ -69,10 +69,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Debug
             .field("patch_size", &self.patch_size)
             .field("in_channels", &self.in_channels)
             .field("embed_dim", &self.embed_dim)
-            .field(
-                "num_patches",
-                &(self.num_patches_h * self.num_patches_w),
-            )
+            .field("num_patches", &(self.num_patches_h * self.num_patches_w))
             .field("use_bias", &self.use_bias)
             .finish()
     }
@@ -143,7 +140,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Patch
                 "patch_size dimensions must be non-zero".to_string(),
             ));
         }
-        if image_size.0 % patch_size.0 != 0 || image_size.1 % patch_size.1 != 0 {
+        if !image_size.0.is_multiple_of(patch_size.0) || !image_size.1.is_multiple_of(patch_size.1)
+        {
             return Err(NeuralError::InvalidArchitecture(format!(
                 "image_size {:?} must be divisible by patch_size {:?}",
                 image_size, patch_size
@@ -171,9 +169,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Patch
         let bound = f64::sqrt(6.0 / (fan_in + fan_out));
 
         let uniform = Uniform::new(-bound, bound).map_err(|e| {
-            NeuralError::InvalidArchitecture(format!(
-                "Failed to create uniform distribution: {e}"
-            ))
+            NeuralError::InvalidArchitecture(format!("Failed to create uniform distribution: {e}"))
         })?;
 
         // Weight: [embed_dim, patch_dim]
@@ -191,9 +187,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Patch
 
         let weight =
             Array::from_shape_vec(IxDyn(&[embed_dim, patch_dim]), weight_vec).map_err(|e| {
-                NeuralError::InvalidArchitecture(format!(
-                    "Failed to construct weight array: {e}"
-                ))
+                NeuralError::InvalidArchitecture(format!("Failed to construct weight array: {e}"))
             })?;
 
         // Bias: [embed_dim], initialised to zero
@@ -533,11 +527,7 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Layer
     }
 
     fn inputshape(&self) -> Option<Vec<usize>> {
-        Some(vec![
-            self.in_channels,
-            self.image_size.0,
-            self.image_size.1,
-        ])
+        Some(vec![self.in_channels, self.image_size.0, self.image_size.1])
     }
 
     fn outputshape(&self) -> Option<Vec<usize>> {
@@ -576,14 +566,8 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign + 'static> Param
 }
 
 // Safety: PatchEmbedding is safe to send across threads; interior mutability is via RwLock
-unsafe impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> Send
-    for PatchEmbedding<F>
-{
-}
-unsafe impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> Sync
-    for PatchEmbedding<F>
-{
-}
+unsafe impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> Send for PatchEmbedding<F> {}
+unsafe impl<F: Float + Debug + ScalarOperand + Send + Sync + NumAssign> Sync for PatchEmbedding<F> {}
 
 #[cfg(test)]
 mod tests {
@@ -598,8 +582,15 @@ mod tests {
         embed_dim: usize,
     ) -> PatchEmbedding<f64> {
         let mut rng = SmallRng::from_seed([0u8; 32]);
-        PatchEmbedding::new(image_size, patch_size, in_channels, embed_dim, true, &mut rng)
-            .expect("Failed to construct PatchEmbedding")
+        PatchEmbedding::new(
+            image_size,
+            patch_size,
+            in_channels,
+            embed_dim,
+            true,
+            &mut rng,
+        )
+        .expect("Failed to construct PatchEmbedding")
     }
 
     #[test]
@@ -652,5 +643,39 @@ mod tests {
         let grad_out = Array::ones(output.raw_dim());
         layer.backward(&input, &grad_out).expect("Backward failed");
         layer.update(0.01f64).expect("Update failed");
+    }
+
+    #[test]
+    fn test_patch_embedding_round_trip_params() {
+        // get_parameters → set_parameters must preserve forward output identically
+        let mut layer = make_embed((8, 8), (2, 2), 3, 16);
+        let input = Array::ones(IxDyn(&[1, 3, 8, 8]));
+
+        let out_before = layer
+            .forward(&input)
+            .expect("Forward before round-trip failed");
+
+        // Extract parameters, set them back
+        let params = layer.get_parameters();
+        layer
+            .set_parameters(params.clone())
+            .expect("set_parameters failed");
+
+        let out_after = layer
+            .forward(&input)
+            .expect("Forward after round-trip failed");
+
+        // Outputs must be bit-identical
+        assert_eq!(out_before.shape(), out_after.shape());
+        for (a, b) in out_before.iter().zip(out_after.iter()) {
+            assert!((a - b).abs() < 1e-12, "round-trip mismatch: {a} vs {b}");
+        }
+
+        // Parameter count consistency
+        // make_embed((8,8),(2,2),3,16): embed_dim=16, patch_dim=3*2*2=12
+        // weight: 16*12=192 elements; bias: 16 elements
+        assert_eq!(params.len(), 2); // weight + bias
+        assert_eq!(params[0].len(), 16 * 3 * 2 * 2); // embed_dim * patch_dim
+        assert_eq!(params[1].len(), 16); // embed_dim
     }
 }

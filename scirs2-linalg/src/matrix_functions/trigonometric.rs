@@ -340,11 +340,9 @@ where
         return Ok(result);
     }
 
-    // For non-diagonal matrices, return an error for now
-    // A complete implementation would require complex matrix functions
-    Err(LinalgError::ImplementationError(
-        "Matrix arccosine for non-diagonal matrices is not yet implemented".to_string(),
-    ))
+    // For non-diagonal matrices, apply acos via Schur decomposition + Parlett recurrence.
+    // The scalar acos is defined on [-1,1]; eigenvalues outside that range produce NaN.
+    crate::matrix_functions::trig_schur::schur_apply(a, |x: F| x.acos(), "acosm")
 }
 
 /// Compute the matrix arcsine.
@@ -409,11 +407,8 @@ where
         return Ok(result);
     }
 
-    // For non-diagonal matrices, return an error for now
-    // A complete implementation would require complex matrix functions
-    Err(LinalgError::ImplementationError(
-        "Matrix arcsine for non-diagonal matrices is not yet implemented".to_string(),
-    ))
+    // For non-diagonal matrices, apply asin via Schur decomposition + Parlett recurrence.
+    crate::matrix_functions::trig_schur::schur_apply(a, |x: F| x.asin(), "asinm")
 }
 
 /// Compute the matrix arctangent.
@@ -472,9 +467,6 @@ where
         return Ok(result);
     }
 
-    // For non-diagonal matrices, return an error for now
-    // A complete implementation would require complex matrix functions
-    Err(LinalgError::ImplementationError(
-        "Matrix arctangent for non-diagonal matrices is not yet implemented".to_string(),
-    ))
+    // For non-diagonal matrices, apply atan via Schur decomposition + Parlett recurrence.
+    crate::matrix_functions::trig_schur::schur_apply(a, |x: F| x.atan(), "atanm")
 }

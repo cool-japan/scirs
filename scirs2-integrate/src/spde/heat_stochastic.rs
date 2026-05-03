@@ -132,7 +132,7 @@ impl StochasticHeatSolution {
         let n = self.snapshots[0].len();
         let mut mean = Array1::zeros(n);
         for snap in &self.snapshots {
-            mean = mean + snap;
+            mean += snap;
         }
         let count = self.snapshots.len() as f64;
         Some(mean / count)
@@ -213,7 +213,9 @@ impl StochasticHeatSolver1D {
             ));
         }
         if config.dt <= 0.0 {
-            return Err(IntegrateError::InvalidInput("dt must be positive".to_string()));
+            return Err(IntegrateError::InvalidInput(
+                "dt must be positive".to_string(),
+            ));
         }
         if config.diffusion <= 0.0 {
             return Err(IntegrateError::InvalidInput(
@@ -266,15 +268,14 @@ impl StochasticHeatSolver1D {
             ));
         }
 
-        let normal = Normal::new(0.0_f64, 1.0).map_err(|e| {
-            IntegrateError::ComputationError(format!("Normal distribution: {e}"))
-        })?;
+        let normal = Normal::new(0.0_f64, 1.0)
+            .map_err(|e| IntegrateError::ComputationError(format!("Normal distribution: {e}")))?;
 
         let dt = self.cfg.dt;
         let d = self.cfg.diffusion;
         let sigma = self.cfg.sigma;
         let r = d * dt / (self.dx * self.dx); // diffusion number
-        // noise scale: sqrt(dt/dx) for space-time white noise
+                                              // noise scale: sqrt(dt/dx) for space-time white noise
         let noise_scale = (dt / self.dx).sqrt();
 
         let n_steps = ((t_end - t0) / dt).ceil() as usize;
@@ -304,11 +305,7 @@ impl StochasticHeatSolver1D {
             let xi: Array1<f64> = if self.cfg.spatial_covariance.is_some() {
                 self.sample_kl_noise(rng, actual_dt)?
             } else {
-                Array1::from_vec(
-                    (0..self.n_nodes)
-                        .map(|_| rng.sample(&normal))
-                        .collect(),
-                )
+                Array1::from_vec((0..self.n_nodes).map(|_| rng.sample(normal)).collect())
             };
 
             // Euler-Maruyama step
@@ -419,7 +416,9 @@ impl StochasticHeatSolver2D {
             ));
         }
         if config.dt <= 0.0 {
-            return Err(IntegrateError::InvalidInput("dt must be positive".to_string()));
+            return Err(IntegrateError::InvalidInput(
+                "dt must be positive".to_string(),
+            ));
         }
         let dx = lx / (nx + 1) as f64;
         let dy = ly / (ny + 1) as f64;
@@ -482,9 +481,8 @@ impl StochasticHeatSolver2D {
             ));
         }
 
-        let normal = Normal::new(0.0_f64, 1.0).map_err(|e| {
-            IntegrateError::ComputationError(format!("Normal distribution: {e}"))
-        })?;
+        let normal = Normal::new(0.0_f64, 1.0)
+            .map_err(|e| IntegrateError::ComputationError(format!("Normal distribution: {e}")))?;
 
         let dt = self.cfg.dt;
         let d = self.cfg.diffusion;
@@ -536,7 +534,7 @@ impl StochasticHeatSolver2D {
                 let lap = (u_left - 2.0 * u[idx] + u_right) / (self.dx * self.dx)
                     + (u_down - 2.0 * u[idx] + u_up) / (self.dy * self.dy);
 
-                let xi = rng.sample(&normal);
+                let xi = rng.sample(normal);
                 let noise_amp = match self.cfg.noise_type {
                     NoiseType::Additive => sigma * ns_act,
                     NoiseType::Multiplicative => sigma * u[idx] * ns_act,
@@ -587,18 +585,24 @@ mod tests {
             dt: 1e-4,
             ..Default::default()
         };
-        let solver = StochasticHeatSolver1D::new(config, 1.0, 20, 10).expect("StochasticHeatSolver1D::new should succeed");
+        let solver = StochasticHeatSolver1D::new(config, 1.0, 20, 10)
+            .expect("StochasticHeatSolver1D::new should succeed");
         let u0 = Array1::from_vec(
             (0..20)
                 .map(|i| ((i as f64 + 1.0) * std::f64::consts::PI / 21.0).sin())
                 .collect(),
         );
         let mut rng = make_rng();
-        let sol = solver.solve(u0.view(), 0.0, 0.01, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(u0.view(), 0.0, 0.01, &mut rng)
+            .expect("solver.solve should succeed");
         assert!(!sol.is_empty());
         // Mass should remain finite
         for snap in &sol.snapshots {
-            assert!(snap.iter().all(|v| v.is_finite()), "Non-finite value in snapshot");
+            assert!(
+                snap.iter().all(|v| v.is_finite()),
+                "Non-finite value in snapshot"
+            );
         }
     }
 
@@ -611,10 +615,13 @@ mod tests {
             dt: 1e-4,
             ..Default::default()
         };
-        let solver = StochasticHeatSolver1D::new(config, 1.0, 10, 5).expect("StochasticHeatSolver1D::new should succeed");
+        let solver = StochasticHeatSolver1D::new(config, 1.0, 10, 5)
+            .expect("StochasticHeatSolver1D::new should succeed");
         let u0 = Array1::from_vec(vec![0.5_f64; 10]);
         let mut rng = make_rng();
-        let sol = solver.solve(u0.view(), 0.0, 0.005, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(u0.view(), 0.0, 0.005, &mut rng)
+            .expect("solver.solve should succeed");
         assert!(!sol.is_empty());
     }
 
@@ -640,10 +647,13 @@ mod tests {
             dt: 5e-5,
             ..Default::default()
         };
-        let solver = StochasticHeatSolver2D::new(config, 1.0, 1.0, 8, 8, 5).expect("StochasticHeatSolver2D::new should succeed");
+        let solver = StochasticHeatSolver2D::new(config, 1.0, 1.0, 8, 8, 5)
+            .expect("StochasticHeatSolver2D::new should succeed");
         let u0 = vec![0.1_f64; 64];
         let mut rng = make_rng();
-        let sol = solver.solve(&u0, 0.0, 0.001, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&u0, 0.0, 0.001, &mut rng)
+            .expect("solver.solve should succeed");
         assert!(!sol.is_empty());
         for snap in &sol.snapshots {
             assert!(snap.iter().all(|v| v.is_finite()));
@@ -658,10 +668,13 @@ mod tests {
             dt: 1e-4,
             ..Default::default()
         };
-        let solver = StochasticHeatSolver1D::new(config, 1.0, 10, 5).expect("StochasticHeatSolver1D::new should succeed");
+        let solver = StochasticHeatSolver1D::new(config, 1.0, 10, 5)
+            .expect("StochasticHeatSolver1D::new should succeed");
         let u0 = Array1::from_vec(vec![0.0_f64; 10]);
         let mut rng = make_rng();
-        let sol = solver.solve(u0.view(), 0.0, 0.01, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(u0.view(), 0.0, 0.01, &mut rng)
+            .expect("solver.solve should succeed");
         let mean = sol.mean_field().expect("mean_field should succeed");
         let var = sol.variance_field().expect("variance_field should succeed");
         assert_eq!(mean.len(), 10);

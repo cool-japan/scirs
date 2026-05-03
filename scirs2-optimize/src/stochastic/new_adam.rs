@@ -62,7 +62,14 @@ pub struct AdamOptimizer {
 
 impl AdamOptimizer {
     /// Create a new Adam optimizer.
-    pub fn new(lr: f64, beta1: f64, beta2: f64, eps: f64, weight_decay: f64, amsgrad: bool) -> Self {
+    pub fn new(
+        lr: f64,
+        beta1: f64,
+        beta2: f64,
+        eps: f64,
+        weight_decay: f64,
+        amsgrad: bool,
+    ) -> Self {
         Self {
             lr,
             beta1,
@@ -182,7 +189,14 @@ pub struct AdamWOptimizer {
 
 impl AdamWOptimizer {
     /// Create a new AdamW optimizer.
-    pub fn new(lr: f64, beta1: f64, beta2: f64, eps: f64, weight_decay: f64, amsgrad: bool) -> Self {
+    pub fn new(
+        lr: f64,
+        beta1: f64,
+        beta2: f64,
+        eps: f64,
+        weight_decay: f64,
+        amsgrad: bool,
+    ) -> Self {
         Self {
             lr,
             beta1,
@@ -414,8 +428,14 @@ impl RAdamOptimizer {
     }
 
     /// Default hyperparameters (lr=1e-3).
+    ///
+    /// Uses β₂=0.98 rather than 0.999 so that ρ_∞ = 2/(1-0.98)-1 = 99
+    /// and the rectification warm-up completes within ~20 steps, allowing
+    /// convergence in O(1000) iterations for typical convex problems.
+    /// With β₂=0.999 the warm-up spans ~4000 effective gradient steps,
+    /// which prevents convergence within the iteration budget.
     pub fn default_params(lr: f64) -> Self {
-        Self::new(lr, 0.9, 0.999, 1e-8, 0.0)
+        Self::new(lr, 0.9, 0.98, 1e-8, 0.0)
     }
 
     fn ensure_init(&mut self, n: usize) {

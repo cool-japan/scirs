@@ -107,7 +107,7 @@ impl HgnnLayer {
     /// * `incidence`   – incidence matrix H of shape `[n_nodes × n_edges]`
     /// * `node_feats`  – node feature matrix X of shape `[n_nodes × in_dim]`
     /// * `edge_weights` – per-hyperedge weight vector (length = n_edges); if
-    ///                    `None`, all weights default to 1.0
+    ///   `None`, all weights default to 1.0
     ///
     /// # Returns
     /// Node feature matrix of shape `[n_nodes × out_dim]`
@@ -174,7 +174,8 @@ impl HgnnLayer {
         }
 
         // Dv^{-1/2}: treat zero degrees as 0 (isolated nodes)
-        let dv_inv_sqrt: Array1<f64> = dv.mapv(|d: f64| if d > 1e-12 { 1.0 / d.sqrt() } else { 0.0 });
+        let dv_inv_sqrt: Array1<f64> =
+            dv.mapv(|d: f64| if d > 1e-12 { 1.0 / d.sqrt() } else { 0.0 });
 
         // De^{-1}: treat zero as 0
         let de_inv: Array1<f64> = de.mapv(|d: f64| if d > 1e-12 { 1.0 / d } else { 0.0 });
@@ -287,9 +288,8 @@ impl HgnnLayer {
 
         for v in 0..n_nodes {
             // Collect hyperedges containing v
-            let edges_of_v: Vec<usize> = (0..n_edges)
-                .filter(|&e| incidence[[v, e]] > 0.0)
-                .collect();
+            let edges_of_v: Vec<usize> =
+                (0..n_edges).filter(|&e| incidence[[v, e]] > 0.0).collect();
 
             if edges_of_v.is_empty() {
                 // Isolated node: no message, output remains zero
@@ -302,7 +302,11 @@ impl HgnnLayer {
                 let raw: f64 = (0..in_dim)
                     .map(|d| self.attn_vec[d] * node_feats[[v, d]])
                     .sum();
-                if raw >= 0.0 { raw } else { leaky_alpha * raw }
+                if raw >= 0.0 {
+                    raw
+                } else {
+                    leaky_alpha * raw
+                }
             };
 
             // Softmax is trivially 1/n_edges_of_v when scores are uniform;
@@ -310,9 +314,7 @@ impl HgnnLayer {
             let edge_scores: Vec<f64> = edges_of_v
                 .iter()
                 .map(|&e| {
-                    let raw: f64 = (0..in_dim)
-                        .map(|d| self.attn_vec[d] * m_edge[[e, d]])
-                        .sum();
+                    let raw: f64 = (0..in_dim).map(|d| self.attn_vec[d] * m_edge[[e, d]]).sum();
                     let s = raw + score_v;
                     let leaky = if s >= 0.0 { s } else { leaky_alpha * s };
                     leaky * w[e]
@@ -320,7 +322,10 @@ impl HgnnLayer {
                 .collect();
 
             // Numerical-stable softmax
-            let max_s = edge_scores.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let max_s = edge_scores
+                .iter()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max);
             let exps: Vec<f64> = edge_scores.iter().map(|&s| (s - max_s).exp()).collect();
             let sum_exp: f64 = exps.iter().sum();
             let alphas: Vec<f64> = exps.iter().map(|&e| e / sum_exp).collect();
@@ -375,7 +380,7 @@ impl HgnnNetwork {
     ///
     /// # Arguments
     /// * `dims` – sequence of dimensions `[in_dim, h1, h2, ..., out_dim]`.
-    ///            Must have at least two elements.
+    ///   Must have at least two elements.
     /// * `use_attention` – whether every layer uses the HGAT attention variant.
     /// * `seed` – base RNG seed; each layer receives `seed + layer_index`.
     ///
@@ -481,7 +486,11 @@ mod tests {
     fn test_output_shape() {
         let h = small_incidence();
         let x = Array2::ones((4, 8));
-        let cfg = HgnnLayerConfig { in_dim: 8, out_dim: 16, ..Default::default() };
+        let cfg = HgnnLayerConfig {
+            in_dim: 8,
+            out_dim: 16,
+            ..Default::default()
+        };
         let layer = HgnnLayer::new(cfg, 42);
         let out = layer.forward(&h, &x, None).expect("forward ok");
         assert_eq!(out.dim(), (4, 16));
@@ -497,7 +506,11 @@ mod tests {
         let in_dim = 4;
         let out_dim = 4;
         let x = Array2::eye(n);
-        let cfg = HgnnLayerConfig { in_dim, out_dim, ..Default::default() };
+        let cfg = HgnnLayerConfig {
+            in_dim,
+            out_dim,
+            ..Default::default()
+        };
         let layer = HgnnLayer::new(cfg, 7);
         let out = layer.forward(&h, &x, None).expect("forward ok");
         // With Ã = I, output = X @ theta = I @ theta = theta
@@ -505,7 +518,12 @@ mod tests {
         for i in 0..n {
             for k in 0..out_dim {
                 let diff = (out[[i, k]] - layer.theta[[i, k]]).abs();
-                assert!(diff < 1e-10, "out[{i},{k}]={} != theta[{i},{k}]={}", out[[i, k]], layer.theta[[i, k]]);
+                assert!(
+                    diff < 1e-10,
+                    "out[{i},{k}]={} != theta[{i},{k}]={}",
+                    out[[i, k]],
+                    layer.theta[[i, k]]
+                );
             }
         }
     }
@@ -515,7 +533,11 @@ mod tests {
         // With unit features and reasonable weights the output should be finite
         let h = small_incidence();
         let x = Array2::ones((4, 4));
-        let cfg = HgnnLayerConfig { in_dim: 4, out_dim: 4, ..Default::default() };
+        let cfg = HgnnLayerConfig {
+            in_dim: 4,
+            out_dim: 4,
+            ..Default::default()
+        };
         let layer = HgnnLayer::new(cfg, 99);
         let out = layer.forward(&h, &x, None).expect("forward ok");
         for v in out.iter() {
@@ -528,7 +550,12 @@ mod tests {
         // dropout=0.0 means no masking; two calls with same input return same output
         let h = small_incidence();
         let x = Array2::from_shape_fn((4, 8), |(i, j)| (i + j) as f64 * 0.1);
-        let cfg = HgnnLayerConfig { in_dim: 8, out_dim: 4, dropout: 0.0, ..Default::default() };
+        let cfg = HgnnLayerConfig {
+            in_dim: 8,
+            out_dim: 4,
+            dropout: 0.0,
+            ..Default::default()
+        };
         let layer = HgnnLayer::new(cfg, 1);
         let out1 = layer.forward(&h, &x, None).expect("ok");
         let out2 = layer.forward(&h, &x, None).expect("ok");
@@ -539,7 +566,12 @@ mod tests {
 
     #[test]
     fn test_n_params_counts_correctly() {
-        let cfg = HgnnLayerConfig { in_dim: 8, out_dim: 16, use_attention: false, ..Default::default() };
+        let cfg = HgnnLayerConfig {
+            in_dim: 8,
+            out_dim: 16,
+            use_attention: false,
+            ..Default::default()
+        };
         let layer = HgnnLayer::new(cfg, 0);
         // theta: 8*16=128  attn_vec: 8  total: 136
         assert_eq!(layer.n_params(), 8 * 16 + 8);
@@ -565,11 +597,18 @@ mod tests {
 
     #[test]
     fn test_theta_small_init() {
-        let cfg = HgnnLayerConfig { in_dim: 64, out_dim: 64, ..Default::default() };
+        let cfg = HgnnLayerConfig {
+            in_dim: 64,
+            out_dim: 64,
+            ..Default::default()
+        };
         let layer = HgnnLayer::new(cfg, 1234);
         let scale = (6.0_f64 / (64.0 + 64.0)).sqrt();
         for v in layer.theta.iter() {
-            assert!(v.abs() <= scale + 1e-9, "theta value {v} exceeds Xavier bound {scale}");
+            assert!(
+                v.abs() <= scale + 1e-9,
+                "theta value {v} exceeds Xavier bound {scale}"
+            );
         }
     }
 
@@ -603,14 +642,25 @@ mod tests {
     fn test_edge_weights_change_output() {
         let h = small_incidence();
         let x = Array2::ones((4, 4));
-        let cfg = HgnnLayerConfig { in_dim: 4, out_dim: 4, ..Default::default() };
+        let cfg = HgnnLayerConfig {
+            in_dim: 4,
+            out_dim: 4,
+            ..Default::default()
+        };
         let layer = HgnnLayer::new(cfg, 42);
         let w1 = Array1::ones(3);
         let w2 = Array1::from_vec(vec![2.0, 1.0, 0.5]);
         let out1 = layer.forward(&h, &x, Some(&w1)).expect("ok");
         let out2 = layer.forward(&h, &x, Some(&w2)).expect("ok");
         // Different weights → different output
-        let diff: f64 = out1.iter().zip(out2.iter()).map(|(a, b)| (a - b).abs()).sum();
-        assert!(diff > 1e-10, "different edge weights should produce different output");
+        let diff: f64 = out1
+            .iter()
+            .zip(out2.iter())
+            .map(|(a, b)| (a - b).abs())
+            .sum();
+        assert!(
+            diff > 1e-10,
+            "different edge weights should produce different output"
+        );
     }
 }

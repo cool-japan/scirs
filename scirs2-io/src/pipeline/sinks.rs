@@ -398,7 +398,10 @@ impl DataSink for AggregationSink {
                         _ => None,
                     };
                     if let Some(v) = numeric {
-                        self.stats.entry(key.clone()).or_insert_with(FieldStats::new).update(v);
+                        self.stats
+                            .entry(key.clone())
+                            .or_insert_with(FieldStats::new)
+                            .update(v);
                     }
                 }
             }
@@ -479,7 +482,8 @@ mod tests {
     #[test]
     fn test_memory_sink() {
         let mut sink = MemorySink::new();
-        sink.write_batch(vec![json!({"a": 1}), json!({"a": 2})]).unwrap();
+        sink.write_batch(vec![json!({"a": 1}), json!({"a": 2})])
+            .unwrap();
         sink.write_batch(vec![json!({"a": 3})]).unwrap();
         assert_eq!(sink.records_written(), 3);
         assert_eq!(sink.records()[1]["a"], json!(2));
@@ -492,7 +496,8 @@ mod tests {
             json!({"x": 1.0, "y": 10.0}),
             json!({"x": 2.0, "y": 20.0}),
             json!({"x": 3.0, "y": 30.0}),
-        ]).unwrap();
+        ])
+        .unwrap();
         let xs = sink.field_stats("x").unwrap();
         assert_eq!(xs.count, 3);
         assert!((xs.sum - 6.0).abs() < 1e-9);
@@ -516,7 +521,8 @@ mod tests {
     fn test_file_sink_jsonl() {
         let path = temp_path("jsonl");
         let mut sink = FileSink::with_format(&path, FileSinkFormat::JsonLines);
-        sink.write_batch(vec![json!({"k": 1}), json!({"k": 2})]).unwrap();
+        sink.write_batch(vec![json!({"k": 1}), json!({"k": 2})])
+            .unwrap();
         sink.close().unwrap();
 
         let content = std::fs::read_to_string(&path).unwrap();
@@ -532,7 +538,8 @@ mod tests {
         sink.write_batch(vec![
             json!({"name": "alice", "score": 90}),
             json!({"name": "bob",   "score": 85}),
-        ]).unwrap();
+        ])
+        .unwrap();
         sink.close().unwrap();
 
         let content = std::fs::read_to_string(&path).unwrap();
@@ -546,7 +553,8 @@ mod tests {
     fn test_file_sink_json_array() {
         let path = temp_path("json");
         let mut sink = FileSink::with_format(&path, FileSinkFormat::Json);
-        sink.write_batch(vec![json!(1), json!(2), json!(3)]).unwrap();
+        sink.write_batch(vec![json!(1), json!(2), json!(3)])
+            .unwrap();
         sink.close().unwrap();
 
         let content = std::fs::read_to_string(&path).unwrap();

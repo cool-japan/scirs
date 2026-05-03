@@ -298,14 +298,9 @@ impl LiftProjectGenerator {
     pub fn select_variable(&self, x_bar: &[f64], integer_vars: &[usize]) -> Option<usize> {
         let n = x_bar.len();
         match self.config.variable_selection {
-            VariableSelectionStrategy::FirstFractional => integer_vars
-                .iter()
-                .copied()
-                .find(|&j| {
-                    j < n
-                        && x_bar[j] > self.config.int_tol
-                        && x_bar[j] < 1.0 - self.config.int_tol
-                }),
+            VariableSelectionStrategy::FirstFractional => integer_vars.iter().copied().find(|&j| {
+                j < n && x_bar[j] > self.config.int_tol && x_bar[j] < 1.0 - self.config.int_tol
+            }),
             VariableSelectionStrategy::MostFractional | VariableSelectionStrategy::DeepestCut => {
                 let mut best_idx = None;
                 let mut best_dist = -1.0_f64;
@@ -384,7 +379,11 @@ impl LiftProjectGenerator {
         if a_ij.abs() < 1e-12 {
             return None;
         }
-        let dot_ax: f64 = row.iter().zip(x_bar.iter()).map(|(&aik, &xk)| aik * xk).sum();
+        let dot_ax: f64 = row
+            .iter()
+            .zip(x_bar.iter())
+            .map(|(&aik, &xk)| aik * xk)
+            .sum();
         let r_i = bi - dot_ax; // slack at x̄ (≥ 0 for LP-feasible constraint)
         let f_j = x_bar[j];
 
@@ -423,7 +422,9 @@ impl LiftProjectGenerator {
         let row_limit = self.config.max_rows_per_var.min(a.len());
         for (i, (row, &bi)) in a.iter().zip(b.iter()).enumerate().take(row_limit) {
             if let Some(cut) = self.bcc_cut_from_row(row, bi, x_bar, j, i) {
-                let better = best.as_ref().map_or(true, |prev| cut.violation > prev.violation);
+                let better = best
+                    .as_ref()
+                    .map_or(true, |prev| cut.violation > prev.violation);
                 if better {
                     best = Some(cut);
                 }
@@ -754,7 +755,11 @@ mod tests {
             assert!(
                 cut_satisfied_at_integer(cut, &ones),
                 "Cut should hold at x=(1,1): π·x={:.6} ≥ π₀={:.6}",
-                cut.pi.iter().zip(ones.iter()).map(|(&p, &x)| p * x).sum::<f64>(),
+                cut.pi
+                    .iter()
+                    .zip(ones.iter())
+                    .map(|(&p, &x)| p * x)
+                    .sum::<f64>(),
                 cut.pi0
             );
         }
@@ -851,11 +856,7 @@ mod tests {
             ..Default::default()
         };
         let gen = LiftProjectGenerator::new(config);
-        let a = vec![
-            vec![1.0, 1.0],
-            vec![2.0, 1.0],
-            vec![1.0, 2.0],
-        ];
+        let a = vec![vec![1.0, 1.0], vec![2.0, 1.0], vec![1.0, 2.0]];
         let b = vec![1.5, 2.0, 2.0];
         let x_bar = vec![0.4, 0.6];
         let cuts = gen.generate_cuts(&a, &b, &x_bar, &[0, 1]).unwrap();

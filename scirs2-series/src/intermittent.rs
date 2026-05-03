@@ -357,7 +357,14 @@ impl Tsb {
             .iter()
             .find(|&&v| v > 0.0)
             .copied()
-            .unwrap_or_else(|| demand_series.iter().copied().filter(|&v| v > 0.0).next().unwrap_or(1.0));
+            .unwrap_or_else(|| {
+                demand_series
+                    .iter()
+                    .copied()
+                    .filter(|&v| v > 0.0)
+                    .next()
+                    .unwrap_or(1.0)
+            });
         let init_prob = demand_series[..first_third]
             .iter()
             .filter(|&&v| v > 0.0)
@@ -650,12 +657,13 @@ mod tests {
         // SBA should (by design) produce lower forecasts than Croston.
         let demand = vec![0.0, 3.0, 0.0, 0.0, 6.0, 0.0, 4.0];
         let alpha = 0.15;
-        let c = Croston::fit(&demand, Some(alpha)).expect("failed to create c").point_forecast();
-        let s = Sba::fit(&demand, Some(alpha)).expect("failed to create s").point_forecast();
-        assert!(
-            s <= c + 1e-9,
-            "SBA ({s}) should be ≤ Croston ({c})"
-        );
+        let c = Croston::fit(&demand, Some(alpha))
+            .expect("failed to create c")
+            .point_forecast();
+        let s = Sba::fit(&demand, Some(alpha))
+            .expect("failed to create s")
+            .point_forecast();
+        assert!(s <= c + 1e-9, "SBA ({s}) should be ≤ Croston ({c})");
     }
 
     // ── TSB ──────────────────────────────────────────────────────────────────

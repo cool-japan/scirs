@@ -32,7 +32,8 @@
 use crate::embeddings::Word2Vec;
 use crate::error::{Result, TextError};
 use crate::tokenize::{Tokenizer, WordTokenizer};
-use scirs2_core::random::{thread_rng, CoreRandom};
+use scirs2_core::random::{rngs::StdRng, SeedableRng};
+use scirs2_core::RngExt;
 use std::collections::{HashMap, HashSet};
 
 /// Paraphrasing strategy
@@ -122,6 +123,19 @@ impl Paraphraser {
         self
     }
 
+    /// Derive a deterministic u64 seed from a text string using FNV-1a hashing.
+    ///
+    /// Using a text-derived seed ensures that the same input always produces the
+    /// same output, eliminating non-determinism from parallel test execution.
+    fn text_seed(text: &str) -> u64 {
+        let mut hash: u64 = 14695981039346656037;
+        for byte in text.bytes() {
+            hash ^= byte as u64;
+            hash = hash.wrapping_mul(1099511628211);
+        }
+        hash
+    }
+
     /// Generate paraphrases of the input text
     pub fn paraphrase(&self, text: &str) -> Result<Vec<ParaphraseResult>> {
         if text.trim().is_empty() {
@@ -139,8 +153,9 @@ impl Paraphraser {
             attempt += 1;
 
             let strategy = if self.config.strategy == ParaphraseStrategy::Hybrid {
-                // Randomly select a strategy for hybrid mode
-                self.select_random_strategy()
+                // Select a strategy deterministically but varying by attempt so the
+                // dedup loop can pick different strategies on successive iterations.
+                self.select_random_strategy(text, attempt)
             } else {
                 self.config.strategy
             };
@@ -172,7 +187,7 @@ impl Paraphraser {
     /// Paraphrase using synonym replacement
     fn paraphrase_synonym(&self, text: &str) -> Result<ParaphraseResult> {
         let tokens = self.tokenizer.tokenize(text)?;
-        let mut rng = thread_rng();
+        let mut rng = StdRng::seed_from_u64(Self::text_seed(text).wrapping_add(1));
         let mut new_tokens = tokens.clone();
         let mut replacements = Vec::new();
 
@@ -255,7 +270,7 @@ impl Paraphraser {
         if let Some(ref model) = self.word2vec {
             if let Ok(similar_words) = model.most_similar(&word_lower, 5) {
                 if !similar_words.is_empty() {
-                    let mut rng = thread_rng();
+                    let mut rng = StdRng::seed_from_u64(Self::text_seed(word).wrapping_add(2));
                     let idx = (rng.random::<f32>() * similar_words.len() as f32) as usize;
                     let selected = &similar_words[idx.min(similar_words.len() - 1)].0;
                     return Ok(Some(self.match_case(word, selected)));
@@ -266,7 +281,7 @@ impl Paraphraser {
         // Fall back to synonym map
         if let Some(synonyms) = self.synonym_map.get(&word_lower) {
             if !synonyms.is_empty() {
-                let mut rng = thread_rng();
+                let mut rng = StdRng::seed_from_u64(Self::text_seed(word).wrapping_add(3));
                 let idx = (rng.random::<f32>() * synonyms.len() as f32) as usize;
                 let selected = &synonyms[idx.min(synonyms.len() - 1)];
                 return Ok(Some(self.match_case(word, selected)));
@@ -293,7 +308,7 @@ impl Paraphraser {
 
     /// Apply sentence restructuring patterns
     fn apply_restructuring_patterns(&self, text: &str) -> Result<String> {
-        let mut rng = thread_rng();
+        let mut rng = StdRng::seed_from_u64(Self::text_seed(text).wrapping_add(4));
         let pattern_idx = (rng.random::<f32>() * 4.0) as usize;
 
         let result = match pattern_idx {
@@ -351,7 +366,7 @@ impl Paraphraser {
         ];
 
         let mut result = text.to_string();
-        let mut rng = thread_rng();
+        let mut rng = StdRng::seed_from_u64(Self::text_seed(text).wrapping_add(5));
         let idx = (rng.random::<f32>() * replacements.len() as f32) as usize;
         let (original, replacement) = replacements[idx.min(replacements.len() - 1)];
 
@@ -394,7 +409,7 @@ impl Paraphraser {
             self.pattern_number_variation(text),
         ];
 
-        let mut rng = thread_rng();
+        let mut rng = StdRng::seed_from_u64(Self::text_seed(text).wrapping_add(6));
         let idx = (rng.random::<f32>() * patterns.len() as f32) as usize;
         Ok(patterns[idx.min(patterns.len() - 1)].clone())
     }
@@ -404,7 +419,7 @@ impl Paraphraser {
         let mut result = text.to_string();
         let replacements = [(" a ", " the "), (" the ", " a "), (" an ", " the ")];
 
-        let mut rng = thread_rng();
+        let mut rng = StdRng::seed_from_u64(Self::text_seed(text).wrapping_add(7));
         let idx = (rng.random::<f32>() * replacements.len() as f32) as usize;
         let (original, replacement) = replacements[idx.min(replacements.len() - 1)];
 
@@ -425,7 +440,7 @@ impl Paraphraser {
         ];
 
         let mut result = text.to_string();
-        let mut rng = thread_rng();
+        let mut rng = StdRng::seed_from_u64(Self::text_seed(text).wrapping_add(8));
         let idx = (rng.random::<f32>() * replacements.len() as f32) as usize;
         let (original, replacement) = replacements[idx.min(replacements.len() - 1)];
 
@@ -446,7 +461,7 @@ impl Paraphraser {
         ];
 
         let mut result = text.to_string();
-        let mut rng = thread_rng();
+        let mut rng = StdRng::seed_from_u64(Self::text_seed(text).wrapping_add(9));
         let idx = (rng.random::<f32>() * replacements.len() as f32) as usize;
         let (original, replacement) = replacements[idx.min(replacements.len() - 1)];
 
@@ -503,9 +518,16 @@ impl Paraphraser {
         intersection as f32 / union as f32
     }
 
-    /// Select a random strategy for hybrid mode
-    fn select_random_strategy(&self) -> ParaphraseStrategy {
-        let mut rng = thread_rng();
+    /// Select a deterministic strategy for hybrid mode.
+    ///
+    /// The seed mixes the text hash with the attempt counter so that successive
+    /// iterations of the dedup loop choose different strategies and are therefore
+    /// able to produce distinct paraphrases.
+    fn select_random_strategy(&self, text: &str, attempt: usize) -> ParaphraseStrategy {
+        let seed = Self::text_seed(text)
+            .wrapping_add(10)
+            .wrapping_add(attempt as u64);
+        let mut rng = StdRng::seed_from_u64(seed);
         let val = rng.random::<f32>();
 
         if val < 0.33 {

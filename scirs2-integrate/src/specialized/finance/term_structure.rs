@@ -136,7 +136,7 @@ pub fn bootstrap_yield_curve(
     }
 
     let freq_f = frequency as f64;
-    let dt = 1.0 / freq_f;  // time between coupon payments
+    let dt = 1.0 / freq_f; // time between coupon payments
     let n = maturities.len();
 
     let mut spot_rates: Vec<f64> = Vec::with_capacity(n);
@@ -144,7 +144,7 @@ pub fn bootstrap_yield_curve(
     for idx in 0..n {
         let t_n = maturities[idx];
         let par = par_rates[idx];
-        let coupon = par / freq_f;  // coupon per period
+        let coupon = par / freq_f; // coupon per period
 
         // Build coupon schedule: n_periods coupon payments
         let n_periods = (t_n * freq_f).round() as usize;
@@ -348,7 +348,11 @@ fn ns_loading(t: f64, tau: f64) -> (f64, f64) {
     }
     let x = t / tau;
     let ex = (-x).exp();
-    let l1 = if x.abs() < 1e-8 { 1.0 - x / 2.0 } else { (1.0 - ex) / x };
+    let l1 = if x.abs() < 1e-8 {
+        1.0 - x / 2.0
+    } else {
+        (1.0 - ex) / x
+    };
     let l2 = l1 - ex;
     (l1, l2)
 }
@@ -384,8 +388,12 @@ fn ns_ols(x_mat: &[[f64; 3]], y: &[f64]) -> [f64; 3] {
 
     for col in 0..p {
         // Partial pivoting
-        let pivot = (col..p)
-            .max_by(|&a, &b| aug[a][col].abs().partial_cmp(&aug[b][col].abs()).expect("NaN"));
+        let pivot = (col..p).max_by(|&a, &b| {
+            aug[a][col]
+                .abs()
+                .partial_cmp(&aug[b][col].abs())
+                .expect("NaN")
+        });
         if let Some(pr) = pivot {
             aug.swap(col, pr);
         }
@@ -438,13 +446,7 @@ fn ns_ols(x_mat: &[[f64; 3]], y: &[f64]) -> [f64; 3] {
 /// let price = vasicek_bond_price(0.05, 0.5, 0.04, 0.01, 5.0);
 /// assert!(price > 0.0 && price < 1.0);
 /// ```
-pub fn vasicek_bond_price(
-    r0: f64,
-    kappa: f64,
-    theta: f64,
-    sigma: f64,
-    maturity: f64,
-) -> f64 {
+pub fn vasicek_bond_price(r0: f64, kappa: f64, theta: f64, sigma: f64, maturity: f64) -> f64 {
     if maturity <= 0.0 {
         return 1.0;
     }
@@ -551,12 +553,7 @@ pub fn vasicek_simulate_paths(
 /// Compute the continuously compounded forward rate between two maturities.
 ///
 /// F(T1, T2) = (r(T2) * T2 - r(T1) * T1) / (T2 - T1)
-pub fn forward_rate(
-    t1: f64,
-    t2: f64,
-    r1: f64,
-    r2: f64,
-) -> IntegrateResult<f64> {
+pub fn forward_rate(t1: f64, t2: f64, r1: f64, r2: f64) -> IntegrateResult<f64> {
     if t2 <= t1 {
         return Err(IntegrateError::ValueError(
             "t2 must be strictly greater than t1".to_string(),
@@ -579,7 +576,12 @@ pub fn spot_to_forward(maturities: &[f64], spot_rates: &[f64]) -> IntegrateResul
     }
     let mut fwd = Vec::with_capacity(maturities.len() - 1);
     for i in 1..maturities.len() {
-        let f = forward_rate(maturities[i - 1], maturities[i], spot_rates[i - 1], spot_rates[i])?;
+        let f = forward_rate(
+            maturities[i - 1],
+            maturities[i],
+            spot_rates[i - 1],
+            spot_rates[i],
+        )?;
         fwd.push(f);
     }
     Ok(fwd)
@@ -600,7 +602,11 @@ pub fn macaulay_duration(
     let mut pv_total = 0.0;
     let mut pv_weighted = 0.0;
 
-    for ((&t, &cf), &r) in maturities.iter().zip(cash_flows.iter()).zip(spot_rates.iter()) {
+    for ((&t, &cf), &r) in maturities
+        .iter()
+        .zip(cash_flows.iter())
+        .zip(spot_rates.iter())
+    {
         let pv = cf * (-r * t).exp();
         pv_total += pv;
         pv_weighted += t * pv;
@@ -630,7 +636,11 @@ pub fn convexity(
     let mut pv_total = 0.0;
     let mut conv_num = 0.0;
 
-    for ((&t, &cf), &r) in maturities.iter().zip(cash_flows.iter()).zip(spot_rates.iter()) {
+    for ((&t, &cf), &r) in maturities
+        .iter()
+        .zip(cash_flows.iter())
+        .zip(spot_rates.iter())
+    {
         let pv = cf * (-r * t).exp();
         pv_total += pv;
         conv_num += t * t * pv;
@@ -810,7 +820,12 @@ mod tests {
         let ns = NelsonSiegel::new(0.04, -0.01, 0.005, 2.0);
         for &t in &[1.0, 5.0, 10.0] {
             let df = ns.discount_factor_at(t);
-            assert!(df > 0.0 && df < 1.0, "Discount factor out of range at t={}: {}", t, df);
+            assert!(
+                df > 0.0 && df < 1.0,
+                "Discount factor out of range at t={}: {}",
+                t,
+                df
+            );
         }
     }
 

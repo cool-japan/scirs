@@ -149,7 +149,7 @@ mod tests {
 
     // Using AdaptivePlanner instead of optimize_plan_for_platform
     #[test]
-    #[cfg(all(target_arch = "aarch64", feature = "rustfft-backend"))]
+    #[cfg(target_arch = "aarch64")]
     fn test_arm_plan_optimization() -> FFTResult<()> {
         // Create a test signal
         let n = 2048;
@@ -198,7 +198,7 @@ mod tests {
 
     /// Test parallel planning strategies on ARM platforms
     #[test]
-    #[cfg(all(target_arch = "aarch64", feature = "rustfft-backend"))]
+    #[cfg(target_arch = "aarch64")]
     fn test_arm_parallel_planning() -> FFTResult<()> {
         // Skip test on systems with only 1 core
         let num_cpus = num_cpus::get();
@@ -215,7 +215,7 @@ mod tests {
 
         // Test with parallel planning
         let planner = crate::planning_parallel::ParallelPlanner::new(None);
-        let plan = planner.plan_fft(&[n], false, crate::planning::PlannerBackend::RustFFT)?;
+        let plan = planner.plan_fft(&[n], false, crate::planning::PlannerBackend::OxiFFT)?;
         let executor = crate::planning_parallel::ParallelExecutor::new(plan, None);
         let mut spectrum = vec![Complex64::new(0.0, 0.0); n];
         executor.execute(&signal, &mut spectrum)?;

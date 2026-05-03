@@ -127,10 +127,7 @@ impl JsonValue {
     /// Look up a key in an object. Returns `None` for non-objects.
     pub fn get(&self, key: &str) -> Option<&JsonValue> {
         match self {
-            JsonValue::Object(pairs) => pairs
-                .iter()
-                .find(|(k, _)| k == key)
-                .map(|(_, v)| v),
+            JsonValue::Object(pairs) => pairs.iter().find(|(k, _)| k == key).map(|(_, v)| v),
             _ => None,
         }
     }
@@ -197,7 +194,10 @@ impl<'src> Parser<'src> {
 
     fn parse_value(&mut self) -> Result<JsonValue> {
         self.skip_whitespace();
-        match self.peek().ok_or_else(|| IoError::ParseError("unexpected end of input".to_string()))? {
+        match self
+            .peek()
+            .ok_or_else(|| IoError::ParseError("unexpected end of input".to_string()))?
+        {
             b'n' => self.parse_null(),
             b't' | b'f' => self.parse_bool(),
             b'"' => self.parse_string().map(JsonValue::String),
@@ -323,9 +323,9 @@ impl<'src> Parser<'src> {
         self.expect_byte(b'"')?;
         let mut s = std::string::String::new();
         loop {
-            let ch = self.consume().ok_or_else(|| {
-                IoError::ParseError("unterminated string".to_string())
-            })?;
+            let ch = self
+                .consume()
+                .ok_or_else(|| IoError::ParseError("unterminated string".to_string()))?;
             match ch {
                 b'"' => break,
                 b'\\' => {
@@ -348,8 +348,7 @@ impl<'src> Parser<'src> {
                         other => {
                             return Err(IoError::ParseError(format!(
                                 "unknown escape '\\{}' at offset {}",
-                                other as char,
-                                self.pos
+                                other as char, self.pos
                             )))
                         }
                     }
@@ -539,10 +538,7 @@ pub fn extract_field<'a>(value: &'a JsonValue, path: &str) -> Option<&'a JsonVal
         None => (path, ""),
     };
     let child = match value {
-        JsonValue::Object(pairs) => pairs
-            .iter()
-            .find(|(k, _)| k == segment)
-            .map(|(_, v)| v)?,
+        JsonValue::Object(pairs) => pairs.iter().find(|(k, _)| k == segment).map(|(_, v)| v)?,
         JsonValue::Array(items) => {
             let idx: usize = segment.parse().ok()?;
             items.get(idx)?
@@ -581,7 +577,10 @@ pub fn extract_field<'a>(value: &'a JsonValue, path: &str) -> Option<&'a JsonVal
 /// assert_eq!(flat["tags.0"],    "a");
 /// assert_eq!(flat["tags.1"],    "b");
 /// ```
-pub fn flatten_json(value: &JsonValue, prefix: &str) -> HashMap<std::string::String, std::string::String> {
+pub fn flatten_json(
+    value: &JsonValue,
+    prefix: &str,
+) -> HashMap<std::string::String, std::string::String> {
     let mut map = HashMap::new();
     flatten_json_into(value, prefix, &mut map);
     map
@@ -602,9 +601,7 @@ fn flatten_json_into(
         JsonValue::Number(n) => {
             // Format with up to 15 significant digits; strip unnecessary trailing zeros.
             let s = format!("{n:.15}");
-            let trimmed = s
-                .trim_end_matches('0')
-                .trim_end_matches('.');
+            let trimmed = s.trim_end_matches('0').trim_end_matches('.');
             map.insert(prefix.to_string(), trimmed.to_string());
         }
         JsonValue::String(s) => {
@@ -689,9 +686,8 @@ impl JsonLinesReader {
             if trimmed.is_empty() || trimmed.starts_with('#') {
                 continue;
             }
-            let val = parse_json(trimmed).map_err(|e| {
-                IoError::ParseError(format!("line {}: {e}", self.line_number))
-            })?;
+            let val = parse_json(trimmed)
+                .map_err(|e| IoError::ParseError(format!("line {}: {e}", self.line_number)))?;
             return Ok(Some(val));
         }
     }
@@ -770,8 +766,8 @@ mod tests {
 
     #[test]
     fn test_parse_float() {
-        let v = parse_json("3.14159").expect("parse");
-        assert!(matches!(v, JsonValue::Number(n) if (n - 3.14159).abs() < 1e-5));
+        let v = parse_json("1.23456").expect("parse");
+        assert!(matches!(v, JsonValue::Number(n) if (n - 1.23456).abs() < 1e-5));
     }
 
     #[test]

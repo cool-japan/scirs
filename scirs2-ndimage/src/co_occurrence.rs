@@ -368,9 +368,7 @@ fn collect_runs(
                 // Walk diagonal
                 let diag: Vec<usize> = (0..)
                     .map(|k| (r0 + k as i64, c0 + k as i64))
-                    .take_while(|&(r, c)| {
-                        r >= 0 && r < rows as i64 && c >= 0 && c < cols as i64
-                    })
+                    .take_while(|&(r, c)| r >= 0 && r < rows as i64 && c >= 0 && c < cols as i64)
                     .map(|(r, c)| (image[[r as usize, c as usize]] as usize).min(n_levels - 1))
                     .collect();
 
@@ -397,9 +395,7 @@ fn collect_runs(
             for (r0, c0) in starts {
                 let diag: Vec<usize> = (0..)
                     .map(|k| (r0 + k as i64, c0 - k as i64))
-                    .take_while(|&(r, c)| {
-                        r >= 0 && r < rows as i64 && c >= 0 && c < cols as i64
-                    })
+                    .take_while(|&(r, c)| r >= 0 && r < rows as i64 && c >= 0 && c < cols as i64)
                     .map(|(r, c)| (image[[r as usize, c as usize]] as usize).min(n_levels - 1))
                     .collect();
 
@@ -428,11 +424,7 @@ mod tests {
     use scirs2_core::ndarray::Array2;
 
     fn simple_image_u8() -> Array2<u8> {
-        Array2::from_shape_vec(
-            (3, 3),
-            vec![0u8, 1, 0, 1, 0, 1, 0, 1, 0],
-        )
-        .expect("shape ok")
+        Array2::from_shape_vec((3, 3), vec![0u8, 1, 0, 1, 0, 1, 0, 1, 0]).expect("shape ok")
     }
 
     #[test]
@@ -448,8 +440,14 @@ mod tests {
         let img = simple_image_u8();
         let g = glcm(&img, &[(0i32, 1i32)], 2).expect("glcm ok");
         // Sum of the (0, 0) GLCM slice should be ~1
-        let sum: f64 = (0..2).flat_map(|i| (0..2).map(move |j| (i, j))).map(|(i, j)| g[[0, i, j]]).sum();
-        assert!((sum - 1.0).abs() < 1e-12 || sum == 0.0, "GLCM should be normalized, sum={sum}");
+        let sum: f64 = (0..2)
+            .flat_map(|i| (0..2).map(move |j| (i, j)))
+            .map(|(i, j)| g[[0, i, j]])
+            .sum();
+        assert!(
+            (sum - 1.0).abs() < 1e-12 || sum == 0.0,
+            "GLCM should be normalized, sum={sum}"
+        );
     }
 
     #[test]
@@ -470,7 +468,10 @@ mod tests {
         let slice = g.slice(scirs2_core::ndarray::s![0, .., ..]).to_owned();
         let e = glcm_energy(&slice).expect("energy ok");
         // Should be 1.0 (all mass in one cell)
-        assert!((e - 1.0).abs() < 1e-10, "Energy of uniform image should be 1, got {e}");
+        assert!(
+            (e - 1.0).abs() < 1e-10,
+            "Energy of uniform image should be 1, got {e}"
+        );
     }
 
     #[test]
@@ -480,7 +481,10 @@ mod tests {
         let slice = g.slice(scirs2_core::ndarray::s![0, .., ..]).to_owned();
         let h = glcm_homogeneity(&slice).expect("homogeneity ok");
         // All on diagonal → 1.0
-        assert!((h - 1.0).abs() < 1e-10, "Homogeneity of uniform image should be 1, got {h}");
+        assert!(
+            (h - 1.0).abs() < 1e-10,
+            "Homogeneity of uniform image should be 1, got {h}"
+        );
     }
 
     #[test]
@@ -490,7 +494,10 @@ mod tests {
         let slice = g.slice(scirs2_core::ndarray::s![0, .., ..]).to_owned();
         let ent = glcm_entropy(&slice).expect("entropy ok");
         // P(0,0) = 1 → entropy = 0
-        assert!(ent < 1e-10, "Entropy of uniform image should be 0, got {ent}");
+        assert!(
+            ent < 1e-10,
+            "Entropy of uniform image should be 0, got {ent}"
+        );
     }
 
     #[test]
@@ -499,32 +506,38 @@ mod tests {
         let g = glcm(&img, &[(0i32, 1i32)], 2).expect("glcm ok");
         let slice = g.slice(scirs2_core::ndarray::s![0, .., ..]).to_owned();
         let corr = glcm_correlation(&slice).expect("correlation ok");
-        assert!(corr >= -1.0 - 1e-9 && corr <= 1.0 + 1e-9,
-            "Correlation must be in [-1, 1], got {corr}");
+        assert!(
+            corr >= -1.0 - 1e-9 && corr <= 1.0 + 1e-9,
+            "Correlation must be in [-1, 1], got {corr}"
+        );
     }
 
     #[test]
     fn test_run_length_matrix_horizontal() {
         // Image with long horizontal runs at level 0 and 1
-        let img = Array2::from_shape_fn((4, 8), |(_, c)| {
-            if c < 4 { 0u8 } else { 1u8 }
-        });
+        let img = Array2::from_shape_fn((4, 8), |(_, c)| if c < 4 { 0u8 } else { 1u8 });
         let rlm = run_length_matrix(&img, RlrmDirection::Horizontal, 4).expect("rlm ok");
         // Shape: (4 levels, max_run_length)
         // There should be 4 runs of length 4 for level 0 and 4 runs for level 1
         assert!(rlm.dim().0 == 4, "n_levels mismatch");
         // rlm[[0, 3]] counts runs of gray=0, length=4 → should be 4
-        assert!(rlm[[0, 3]] >= 3.0, "Expected >=3 runs of length 4 at gray=0, got {}", rlm[[0, 3]]);
+        assert!(
+            rlm[[0, 3]] >= 3.0,
+            "Expected >=3 runs of length 4 at gray=0, got {}",
+            rlm[[0, 3]]
+        );
     }
 
     #[test]
     fn test_run_length_matrix_vertical() {
-        let img = Array2::from_shape_fn((8, 4), |(r, _)| {
-            if r < 4 { 0u8 } else { 1u8 }
-        });
+        let img = Array2::from_shape_fn((8, 4), |(r, _)| if r < 4 { 0u8 } else { 1u8 });
         let rlm = run_length_matrix(&img, RlrmDirection::Vertical, 4).expect("rlm ok");
         // 4 vertical runs of length 4 for gray=0
-        assert!(rlm[[0, 3]] >= 3.0, "Expected >=3 vertical runs, got {}", rlm[[0, 3]]);
+        assert!(
+            rlm[[0, 3]] >= 3.0,
+            "Expected >=3 vertical runs, got {}",
+            rlm[[0, 3]]
+        );
     }
 
     #[test]

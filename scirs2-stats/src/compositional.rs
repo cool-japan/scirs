@@ -565,14 +565,21 @@ pub fn dirichlet_mle(data: &[Vec<f64>]) -> StatsResult<Vec<f64>> {
         .collect();
 
     // Use the mean of positive estimates for initial α₀ (total concentration)
-    let pos_estimates: Vec<f64> = alpha0_estimates.iter().copied().filter(|&v| v > 0.0).collect();
+    let pos_estimates: Vec<f64> = alpha0_estimates
+        .iter()
+        .copied()
+        .filter(|&v| v > 0.0)
+        .collect();
     let alpha0_total = if pos_estimates.is_empty() {
         d as f64
     } else {
         pos_estimates.iter().sum::<f64>() / pos_estimates.len() as f64
     };
 
-    let mut alpha: Vec<f64> = emp_mean.iter().map(|&m| (m * alpha0_total).max(0.01)).collect();
+    let mut alpha: Vec<f64> = emp_mean
+        .iter()
+        .map(|&m| (m * alpha0_total).max(0.01))
+        .collect();
 
     // Minka's fixed-point iteration
     // New αⱼ:  αⱼ ← α_old_j * (ψ⁻¹(mean_log_j + ψ(α₀_old)))
@@ -633,10 +640,7 @@ fn digamma(x: f64) -> f64 {
     // Asymptotic expansion: ψ(x) ≈ ln(x) - 1/(2x) - Σ B_{2k}/(2k·x^{2k})
     let inv_x = 1.0 / x;
     let inv_x2 = inv_x * inv_x;
-    x.ln()
-        - 0.5 * inv_x
-        - inv_x2 / 12.0
-        + inv_x2 * inv_x2 / 120.0
+    x.ln() - 0.5 * inv_x - inv_x2 / 12.0 + inv_x2 * inv_x2 / 120.0
         - inv_x2 * inv_x2 * inv_x2 / 252.0
         + inv_x2 * inv_x2 * inv_x2 * inv_x2 / 240.0
 }
@@ -653,10 +657,7 @@ fn trigamma(x: f64) -> f64 {
     }
     let inv_x = 1.0 / x;
     let inv_x2 = inv_x * inv_x;
-    inv_x
-        + 0.5 * inv_x2
-        + inv_x2 * inv_x / 6.0
-        - inv_x2 * inv_x2 * inv_x / 30.0
+    inv_x + 0.5 * inv_x2 + inv_x2 * inv_x / 6.0 - inv_x2 * inv_x2 * inv_x / 30.0
         + inv_x2 * inv_x2 * inv_x2 * inv_x / 42.0
 }
 
@@ -749,7 +750,7 @@ impl DirichletRegression {
                     "response row {i} has {} parts, expected {d}",
                     row.len()
                 )));
-        }
+            }
             check_positive(row, &format!("responses[{i}]"))?;
         }
 
@@ -767,7 +768,11 @@ impl DirichletRegression {
             x_mat[i][0] = 1.0; // intercept
             if p_extra > 0 && i < covariates.len() {
                 for k in 0..p_extra {
-                    x_mat[i][1 + k] = if k < covariates[i].len() { covariates[i][k] } else { 0.0 };
+                    x_mat[i][1 + k] = if k < covariates[i].len() {
+                        covariates[i][k]
+                    } else {
+                        0.0
+                    };
                 }
             }
         }
@@ -799,7 +804,11 @@ impl DirichletRegression {
             let mut eta: Vec<Vec<f64>> = vec![vec![0.0_f64; d]; n];
             for i in 0..n {
                 for j in 0..d {
-                    eta[i][j] = x_mat[i].iter().zip(beta[j].iter()).map(|(x, b)| x * b).sum();
+                    eta[i][j] = x_mat[i]
+                        .iter()
+                        .zip(beta[j].iter())
+                        .map(|(x, b)| x * b)
+                        .sum();
                 }
             }
             // Softmax normalisation to get predicted composition
@@ -882,11 +891,20 @@ impl DirichletRegression {
         for i in 0..n {
             // Compute alpha_i = phi * mu_i
             let mut eta_i: Vec<f64> = (0..d)
-                .map(|j| x_mat[i].iter().zip(beta[j].iter()).map(|(x, b)| x * b).sum::<f64>())
+                .map(|j| {
+                    x_mat[i]
+                        .iter()
+                        .zip(beta[j].iter())
+                        .map(|(x, b)| x * b)
+                        .sum::<f64>()
+                })
                 .collect();
             let max_eta = eta_i.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
             let sum_exp: f64 = eta_i.iter().map(|&e| (e - max_eta).exp()).sum();
-            let mu_i: Vec<f64> = eta_i.iter().map(|&e| (e - max_eta).exp() / sum_exp).collect();
+            let mu_i: Vec<f64> = eta_i
+                .iter()
+                .map(|&e| (e - max_eta).exp() / sum_exp)
+                .collect();
             let alpha_i: Vec<f64> = mu_i.iter().map(|&m| (phi * m).max(1e-10)).collect();
             let alpha_sum: f64 = alpha_i.iter().sum();
 
@@ -960,13 +978,7 @@ impl DirichletRegression {
 }
 
 /// Weighted Least Squares helper for IRLS: solve (X'WX)β = X'Wz.
-fn irls_wls(
-    x: &[Vec<f64>],
-    w: &[f64],
-    z: &[f64],
-    n: usize,
-    p: usize,
-) -> StatsResult<Vec<f64>> {
+fn irls_wls(x: &[Vec<f64>], w: &[f64], z: &[f64], n: usize, p: usize) -> StatsResult<Vec<f64>> {
     // Build X'WX (p×p) and X'Wz (p)
     let mut xtwx = vec![0.0_f64; p * p];
     let mut xtwz = vec![0.0_f64; p];
@@ -1057,9 +1069,7 @@ fn lgamma(x: f64) -> f64 {
         return lgamma(x + 1.0) - x.ln();
     }
     // Stirling: ln Γ(x) ≈ (x-0.5)*ln(x) - x + 0.5*ln(2π) + 1/(12x) - ...
-    (x - 0.5) * x.ln() - x
-        + 0.5 * (2.0 * std::f64::consts::PI).ln()
-        + 1.0 / (12.0 * x)
+    (x - 0.5) * x.ln() - x + 0.5 * (2.0 * std::f64::consts::PI).ln() + 1.0 / (12.0 * x)
         - 1.0 / (360.0 * x.powi(3))
 }
 
@@ -1159,7 +1169,12 @@ impl CompositionalPca {
         // Centre the CLR data
         let mut centred: Vec<Vec<f64>> = clr_data
             .iter()
-            .map(|row| row.iter().zip(clr_mean.iter()).map(|(v, m)| v - m).collect())
+            .map(|row| {
+                row.iter()
+                    .zip(clr_mean.iter())
+                    .map(|(v, m)| v - m)
+                    .collect()
+            })
             .collect();
 
         // Compute covariance matrix (d × d)
@@ -1234,8 +1249,11 @@ impl CompositionalPca {
             }
             check_positive(row, &format!("data[{i}]"))?;
             let clr = clr_transform(row)?;
-            let centred: Vec<f64> =
-                clr.iter().zip(self.clr_mean.iter()).map(|(v, m)| v - m).collect();
+            let centred: Vec<f64> = clr
+                .iter()
+                .zip(self.clr_mean.iter())
+                .map(|(v, m)| v - m)
+                .collect();
             let score: Vec<f64> = self
                 .components
                 .iter()
@@ -1263,11 +1281,7 @@ impl CompositionalPca {
 
 /// Simple deflation-based power iteration to extract the top-k eigenpairs of a
 /// symmetric d×d matrix.  Suitable for small d (≤ 100).
-fn power_iteration_eig(
-    cov: &[f64],
-    d: usize,
-    k: usize,
-) -> StatsResult<(Vec<f64>, Vec<Vec<f64>>)> {
+fn power_iteration_eig(cov: &[f64], d: usize, k: usize) -> StatsResult<(Vec<f64>, Vec<Vec<f64>>)> {
     let mut mat: Vec<f64> = cov.to_vec();
     let mut eigenvalues = Vec::with_capacity(k);
     let mut eigenvectors: Vec<Vec<f64>> = Vec::with_capacity(k);
@@ -1641,7 +1655,12 @@ mod tests {
         let x = vec![0.5, 0.3, 0.2];
         let y = alr_transform(&x).expect("alr");
         let x2 = alr_inverse(&y).expect("alr_inv");
-        let diff: f64 = x.iter().zip(x2.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
+        let diff: f64 = x
+            .iter()
+            .zip(x2.iter())
+            .map(|(a, b)| (a - b).powi(2))
+            .sum::<f64>()
+            .sqrt();
         assert!(diff < 1e-12, "ALR round-trip diff = {diff}");
     }
 
@@ -1658,7 +1677,12 @@ mod tests {
         let x = vec![0.4, 0.4, 0.2];
         let y = clr_transform(&x).expect("clr");
         let x2 = clr_inverse(&y).expect("clr_inv");
-        let diff: f64 = x.iter().zip(x2.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
+        let diff: f64 = x
+            .iter()
+            .zip(x2.iter())
+            .map(|(a, b)| (a - b).powi(2))
+            .sum::<f64>()
+            .sqrt();
         assert!(diff < 1e-12, "CLR round-trip diff = {diff}");
     }
 
@@ -1674,7 +1698,12 @@ mod tests {
         let x = vec![0.5, 0.3, 0.2];
         let y = ilr_transform(&x).expect("ilr");
         let x2 = ilr_inverse(&y, 3).expect("ilr_inv");
-        let diff: f64 = x.iter().zip(x2.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
+        let diff: f64 = x
+            .iter()
+            .zip(x2.iter())
+            .map(|(a, b)| (a - b).powi(2))
+            .sum::<f64>()
+            .sqrt();
         assert!(diff < 1e-10, "ILR round-trip diff = {diff}");
     }
 
@@ -1684,7 +1713,12 @@ mod tests {
         let y = ilr_transform(&x).expect("ilr");
         assert_eq!(y.len(), 3);
         let x2 = ilr_inverse(&y, 4).expect("ilr_inv");
-        let diff: f64 = x.iter().zip(x2.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
+        let diff: f64 = x
+            .iter()
+            .zip(x2.iter())
+            .map(|(a, b)| (a - b).powi(2))
+            .sum::<f64>()
+            .sqrt();
         assert!(diff < 1e-10, "ILR 4-part round-trip diff = {diff}");
     }
 
@@ -1865,7 +1899,11 @@ mod tests {
         // ψ'(1) = π²/6 ≈ 1.6449...
         let tpsi1 = trigamma(1.0);
         assert!(
-            approx_eq(tpsi1, std::f64::consts::PI * std::f64::consts::PI / 6.0, 1e-5),
+            approx_eq(
+                tpsi1,
+                std::f64::consts::PI * std::f64::consts::PI / 6.0,
+                1e-5
+            ),
             "ψ'(1) = {tpsi1}"
         );
     }

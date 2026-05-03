@@ -1,0 +1,208 @@
+name: Build Wheels
+
+# Supplementary wheel-build workflow.
+# Complements pypi-publish.yml by adding explicit musllinux (Alpine Linux)
+# builds and a manual build-only trigger (no publish).
+#
+# Platform matrix:
+#   linux-x86_64:   manylinux2014 + musllinux
+#   linux-aarch64:  manylinux2014
+#   macos-x86_64:   universal2
+#   macos-arm64:    arm64 (native)
+#   windows-x64:    MSVC
+#
+# Publishing is handled by pypi-publish.yml; this workflow only produces
+# wheel artifacts for validation and manual download.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      upload_artifacts:
+        description: 'Upload wheel artifacts'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: '1'
+
+jobs:
+  # ── Linux x86_64: manylinux2014 + musllinux ───────────────────────────────
+  linux-x86_64:
+    name: Linux x86_64 (${{ matrix.manylinux }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        manylinux:
+          - manylinux2014
+          - musllinux_1_2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build wheels (${{ matrix.manylinux }})
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64
+          manylinux: ${{ matrix.manylinux }}
+          args: --release --out dist --find-interpreter
+          working-directory: scirs2-python
+          sccache: 'true'
+          before-script-linux: |
+            if command -v yum &>/dev/null; then
+              yum install -y openssl-devel perl-IPC-Cmd || true
+            elif command -v apk &>/dev/null; then
+              apk add --no-cache openssl-dev || true
+            fi
+
+      - name: Upload wheels
+        if: ${{ github.event.inputs.upload_artifacts != 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-x86_64-${{ matrix.manylinux }}
+          path: scirs2-python/dist/*.whl
+
+  # ── Linux aarch64: manylinux2014 (QEMU cross-compile) ────────────────────
+  linux-aarch64:
+    name: Linux aarch64 (manylinux2014)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: aarch64
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: aarch64
+          manylinux: manylinux2014
+          args: --release --out dist --find-interpreter
+          working-directory: scirs2-python
+          sccache: 'true'
+          before-script-linux: |
+            yum install -y openssl-devel perl-IPC-Cmd || true
+
+      - name: Upload wheels
+        if: ${{ github.event.inputs.upload_artifacts != 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-linux-aarch64-manylinux2014
+          path: scirs2-python/dist/*.whl
+
+  # ── macOS x86_64 ─────────────────────────────────────────────────────────
+  macos-x86_64:
+    name: macOS x86_64
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x86_64-apple-darwin
+          args: --release --out dist --find-interpreter
+          working-directory: scirs2-python
+          sccache: 'true'
+
+      - name: Upload wheels
+        if: ${{ github.event.inputs.upload_artifacts != 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-x86_64
+          path: scirs2-python/dist/*.whl
+
+  # ── macOS arm64 (Apple Silicon) ──────────────────────────────────────────
+  macos-arm64:
+    name: macOS arm64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: aarch64-apple-darwin
+          args: --release --out dist --find-interpreter
+          working-directory: scirs2-python
+          sccache: 'true'
+
+      - name: Upload wheels
+        if: ${{ github.event.inputs.upload_artifacts != 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-macos-arm64
+          path: scirs2-python/dist/*.whl
+
+  # ── Windows x64 ──────────────────────────────────────────────────────────
+  windows-x64:
+    name: Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: x64
+          args: --release --out dist --find-interpreter
+          working-directory: scirs2-python
+          sccache: 'true'
+
+      - name: Upload wheels
+        if: ${{ github.event.inputs.upload_artifacts != 'false' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-windows-x64
+          path: scirs2-python/dist/*.whl
+
+  # ── Summary job ──────────────────────────────────────────────────────────
+  summary:
+    name: Wheel build summary
+    needs:
+      - linux-x86_64
+      - linux-aarch64
+      - macos-x86_64
+      - macos-arm64
+      - windows-x64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all wheel artifacts
+        if: ${{ github.event.inputs.upload_artifacts != 'false' }}
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: List built wheels
+        if: ${{ github.event.inputs.upload_artifacts != 'false' }}
+        run: |
+          echo "## Built wheels" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          ls -lh dist/*.whl 2>/dev/null || echo "(no wheels downloaded)" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`\`\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          WHEEL_COUNT=$(ls dist/*.whl 2>/dev/null | wc -l)
+          echo "Total: $WHEEL_COUNT wheel(s)" >> "$GITHUB_STEP_SUMMARY"

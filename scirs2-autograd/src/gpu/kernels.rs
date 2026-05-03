@@ -318,10 +318,41 @@ impl BroadcastKernel {
                 }
             }
         } else {
-            // Fallback for other dimensions
-            return Err(AutogradError::not_implemented(
-                "Broadcasting for non-2D shapes not yet implemented".to_string(),
-            ));
+            // General N-D broadcasting via strided index decomposition.
+            // Compute the output shape by taking the element-wise max of both shapes
+            // (broadcast semantics: a dim of 1 expands to match the other).
+            let out_ndim = output_shape.len();
+            let in_ndim = input_shape.len();
+            let num_outputs = output_shape.iter().product::<usize>();
+
+            for out_flat in 0..num_outputs {
+                // Decompose out_flat into per-dimension output indices (row-major)
+                let mut out_coords = vec![0usize; out_ndim];
+                let mut rem = out_flat;
+                for d in (0..out_ndim).rev() {
+                    out_coords[d] = rem % output_shape[d];
+                    rem /= output_shape[d];
+                }
+
+                // Map each output dimension to the corresponding input dimension.
+                // Input shape is right-aligned; leading dims of input are treated as 1.
+                let mut in_flat = 0usize;
+                let mut in_stride = 1usize;
+                for d in (0..out_ndim).rev() {
+                    // How far is this output dimension from the right edge of input?
+                    let input_dim_idx = (in_ndim as isize) - (out_ndim as isize) + d as isize;
+                    let in_dim_size = if input_dim_idx >= 0 {
+                        input_shape[input_dim_idx as usize]
+                    } else {
+                        1
+                    };
+                    let in_coord = if in_dim_size == 1 { 0 } else { out_coords[d] };
+                    in_flat += in_coord * in_stride;
+                    in_stride *= in_dim_size;
+                }
+
+                output[out_flat] = input[in_flat];
+            }
         }
 
         Ok(())
@@ -416,5 +447,66 @@ mod tests {
         assert!(BroadcastKernel::is_broadcastable(&[1, 3], &[4, 3]));
         assert!(BroadcastKernel::is_broadcastable(&[1], &[4, 3]));
         assert!(!BroadcastKernel::is_broadcastable(&[2, 3], &[4, 5]));
+    }
+
+    #[test]
+    fn test_broadcast_kernel_1d_to_2d() {
+        // Broadcast [3] -> [4, 3]: each row of output is the same as input
+        let context = GpuContext::new(GpuBackend::Cpu).expect("Should create context");
+        let kernel = BroadcastKernel;
+        let input = vec![1.0f64, 2.0, 3.0];
+        let mut output = vec![0.0f64; 12];
+        kernel
+            .execute(&context, &input, &[3], &mut output, &[4, 3])
+            .expect("Should broadcast");
+        for row in 0..4 {
+            assert_eq!(output[row * 3], 1.0);
+            assert_eq!(output[row * 3 + 1], 2.0);
+            assert_eq!(output[row * 3 + 2], 3.0);
+        }
+    }
+
+    #[test]
+    fn test_broadcast_kernel_3d_leading_one() {
+        // Broadcast [1, 2, 3] -> [4, 2, 3]
+        let context = GpuContext::new(GpuBackend::Cpu).expect("Should create context");
+        let kernel = BroadcastKernel;
+        let input: Vec<f64> = (1..=6).map(|x| x as f64).collect(); // 1×2×3
+        let mut output = vec![0.0f64; 24]; // 4×2×3
+        kernel
+            .execute(&context, &input, &[1, 2, 3], &mut output, &[4, 2, 3])
+            .expect("Should broadcast");
+        // Every batch of 6 should equal the input
+        for batch in 0..4 {
+            for i in 0..6 {
+                assert_eq!(
+                    output[batch * 6 + i],
+                    input[i],
+                    "Mismatch at batch={batch} i={i}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_broadcast_kernel_column_vector_to_matrix() {
+        // Broadcast [4, 1] -> [4, 3]: each column value repeated across columns
+        let context = GpuContext::new(GpuBackend::Cpu).expect("Should create context");
+        let kernel = BroadcastKernel;
+        let input = vec![10.0f64, 20.0, 30.0, 40.0]; // 4×1
+        let mut output = vec![0.0f64; 12]; // 4×3
+        kernel
+            .execute(&context, &input, &[4, 1], &mut output, &[4, 3])
+            .expect("Should broadcast");
+        for row in 0..4 {
+            let expected = input[row];
+            for col in 0..3 {
+                assert_eq!(
+                    output[row * 3 + col],
+                    expected,
+                    "Mismatch at row={row} col={col}"
+                );
+            }
+        }
     }
 }

@@ -128,14 +128,12 @@ where
 {
     validate_square_same(a, b)?;
 
-    let (eigenvalues, eigenvectors) =
-        crate::eigen::generalized::eig_gen(a, b, None)?;
+    let (eigenvalues, eigenvectors) = crate::eigen::generalized::eig_gen(a, b, None)?;
 
     let evecs: Vec<Complex<F>> = eigenvectors.iter().copied().collect();
     let (nr, nc) = (eigenvectors.nrows(), eigenvectors.ncols());
-    let evec_arr = Array2::from_shape_vec((nr, nc), evecs).map_err(|e| {
-        LinalgError::ComputationError(format!("gen_eig reshape failed: {e}"))
-    })?;
+    let evec_arr = Array2::from_shape_vec((nr, nc), evecs)
+        .map_err(|e| LinalgError::ComputationError(format!("gen_eig reshape failed: {e}")))?;
 
     Ok(GenEigenResult {
         eigenvalues: eigenvalues.to_vec(),
@@ -183,8 +181,7 @@ where
 {
     validate_square_same(a, b)?;
 
-    let (eigenvalues_arr, eigenvectors_arr) =
-        crate::eigen::generalized::eigh_gen(a, b, None)?;
+    let (eigenvalues_arr, eigenvectors_arr) = crate::eigen::generalized::eigh_gen(a, b, None)?;
 
     Ok(GenEighResult {
         eigenvalues: eigenvalues_arr.to_vec(),

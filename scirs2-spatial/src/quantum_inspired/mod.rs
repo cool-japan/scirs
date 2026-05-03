@@ -132,8 +132,8 @@ pub use concepts::{QuantumAmplitude, QuantumState};
 pub mod algorithms;
 pub use algorithms::{QuantumClusterer, QuantumNearestNeighbor};
 
-// TODO: Add classical adaptation modules
-// pub mod classical_adaptation;
+pub mod classical_adaptation;
+pub use classical_adaptation::ClassicalAdaptation;
 
 /// Configuration for quantum-inspired spatial algorithms
 ///

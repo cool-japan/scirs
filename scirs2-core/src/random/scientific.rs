@@ -380,6 +380,94 @@ impl ExperimentalDesign {
 
         design
     }
+
+    /// Generate a Latin Hypercube Sampling (LHS) design.
+    ///
+    /// LHS is a stratified sampling method that produces samples that are
+    /// well-distributed across each dimension's range. For each of the `D`
+    /// dimensions, the unit interval `[0, 1)` is split into `N` equal strata
+    /// and exactly one sample is drawn from each stratum; the per-dimension
+    /// samples are then independently shuffled to randomize cross-dimensional
+    /// pairings. Each `[0, 1)` sample is finally mapped to a discrete factor
+    /// level by index `(u * K) as usize` clamped to `K - 1`, where `K` is the
+    /// number of levels of that factor.
+    ///
+    /// # Arguments
+    ///
+    /// * `factors` - Per-factor level vectors (each `factors[d]` is the set of
+    ///   discrete levels for dimension `d`).
+    /// * `n_points` - Number of LHS points. When `None`, defaults to the
+    ///   maximum number of levels across all factors so that every level of
+    ///   every factor is visited at least once.
+    /// * `seed` - Deterministic RNG seed.
+    ///
+    /// # Returns
+    ///
+    /// A vector of `n_points` design points; each point is a `Vec<f64>` of
+    /// length `factors.len()` whose entries are drawn from the respective
+    /// factor's level set. Returns a single empty point when `factors` is
+    /// empty (matching the behavior of `factorial_design`), and an empty
+    /// vector when the resolved `n` is zero.
+    pub fn latin_hypercube_design(
+        factors: &[Vec<f64>],
+        n_points: Option<usize>,
+        seed: u64,
+    ) -> Vec<Vec<f64>> {
+        // Match factorial_design's edge case for empty factors.
+        if factors.is_empty() {
+            return vec![vec![]];
+        }
+
+        // Refuse zero-level factors — there is nothing meaningful to sample
+        // along that dimension. Returning an empty design preserves the
+        // function's `Vec<Vec<f64>>` signature without panicking.
+        if factors.iter().any(|f| f.is_empty()) {
+            return Vec::new();
+        }
+
+        // Default N: max factor level count, so each level of each factor
+        // appears at least once across the strata.
+        let n =
+            n_points.unwrap_or_else(|| factors.iter().map(|f| f.len()).max().unwrap_or(1).max(1));
+
+        if n == 0 {
+            return Vec::new();
+        }
+
+        let dimensions = factors.len();
+
+        // Reuse the QMC LHS sampler (Fisher–Yates shuffle + per-stratum
+        // uniform jitter, see `crate::random::qmc::LatinHypercubeSampler`).
+        let mut sampler =
+            LatinHypercubeSampler::<rand::prelude::ThreadRng>::with_seed(dimensions, seed);
+
+        // The QMC sampler can fail only when n == 0 (already handled). Use
+        // `unwrap_or_else` rather than `unwrap()` to honor the no-unwrap
+        // policy.
+        let unit_points = sampler
+            .sample(n)
+            .unwrap_or_else(|_| ::ndarray::Array2::<f64>::zeros((n, dimensions)));
+
+        // Map each [0, 1) coordinate to the corresponding factor level.
+        let mut design_points = Vec::with_capacity(n);
+        for i in 0..n {
+            let mut point = Vec::with_capacity(dimensions);
+            for (d, factor) in factors.iter().enumerate() {
+                let k = factor.len();
+                // The QMC sampler guarantees u in [0, 1); clamp the resulting
+                // index to `k - 1` to defensively handle any edge case where
+                // `u * k as f64` rounds to `k`.
+                let mut idx = (unit_points[[i, d]] * k as f64) as usize;
+                if idx >= k {
+                    idx = k - 1;
+                }
+                point.push(factor[idx]);
+            }
+            design_points.push(point);
+        }
+
+        design_points
+    }
 }
 
 /// A/B testing utilities
@@ -448,5 +536,106 @@ pub mod ab_testing {
         }
 
         best_arm
+    }
+}
+
+#[cfg(test)]
+mod lhs_tests {
+    use super::*;
+
+    fn make_factors() -> Vec<Vec<f64>> {
+        vec![
+            vec![0.0, 1.0, 2.0, 3.0],
+            vec![10.0, 20.0],
+            vec![-5.0, 0.0, 5.0],
+        ]
+    }
+
+    #[test]
+    fn test_latin_hypercube_default_n_uses_max_levels() {
+        let factors = make_factors();
+        let design = ExperimentalDesign::latin_hypercube_design(&factors, None, 7);
+
+        // Default N = max(K) = 4 (first factor has 4 levels).
+        assert_eq!(design.len(), 4);
+        for point in &design {
+            assert_eq!(point.len(), factors.len());
+            // Every coordinate must come from the corresponding factor's levels.
+            for (d, value) in point.iter().enumerate() {
+                assert!(
+                    factors[d].iter().any(|level| (level - value).abs() < 1e-12),
+                    "value {} for dim {} not in factor levels",
+                    value,
+                    d,
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_latin_hypercube_explicit_n_points() {
+        let factors = make_factors();
+        let n = 12;
+        let design = ExperimentalDesign::latin_hypercube_design(&factors, Some(n), 11);
+        assert_eq!(design.len(), n);
+        for point in &design {
+            assert_eq!(point.len(), factors.len());
+        }
+    }
+
+    #[test]
+    fn test_latin_hypercube_determinism_same_seed() {
+        let factors = make_factors();
+        let a = ExperimentalDesign::latin_hypercube_design(&factors, Some(8), 1234);
+        let b = ExperimentalDesign::latin_hypercube_design(&factors, Some(8), 1234);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn test_latin_hypercube_different_seeds_diverge() {
+        let factors = make_factors();
+        let a = ExperimentalDesign::latin_hypercube_design(&factors, Some(16), 42);
+        let b = ExperimentalDesign::latin_hypercube_design(&factors, Some(16), 43);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn test_latin_hypercube_stratification() {
+        // For N == K_d on every factor, every level must appear at least once
+        // along that factor — this is the LHS guarantee (one sample per stratum).
+        // Use uniform K so the default N = K satisfies the precondition.
+        let factors: Vec<Vec<f64>> = (0..3).map(|_| vec![0.0, 1.0, 2.0, 3.0, 4.0]).collect();
+        let design = ExperimentalDesign::latin_hypercube_design(&factors, None, 99);
+        assert_eq!(design.len(), 5);
+
+        for d in 0..3 {
+            let mut seen = vec![false; 5];
+            for point in &design {
+                let level_idx = factors[d]
+                    .iter()
+                    .position(|level| (level - point[d]).abs() < 1e-12)
+                    .expect("each LHS coordinate must map back to a factor level");
+                seen[level_idx] = true;
+            }
+            assert!(
+                seen.iter().all(|s| *s),
+                "stratification failed on dim {}: {:?}",
+                d,
+                seen,
+            );
+        }
+    }
+
+    #[test]
+    fn test_latin_hypercube_empty_factors() {
+        let design = ExperimentalDesign::latin_hypercube_design(&[], None, 1);
+        assert_eq!(design, vec![Vec::<f64>::new()]);
+    }
+
+    #[test]
+    fn test_latin_hypercube_zero_level_factor_returns_empty() {
+        let factors: Vec<Vec<f64>> = vec![vec![0.0, 1.0], Vec::new()];
+        let design = ExperimentalDesign::latin_hypercube_design(&factors, Some(4), 1);
+        assert!(design.is_empty());
     }
 }

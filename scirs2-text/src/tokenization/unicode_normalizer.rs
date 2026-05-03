@@ -51,7 +51,8 @@ pub fn detect_script(c: char) -> Script {
         || (0x2F800..=0x2FA1F).contains(&cp) // CJK Compatibility Supplement
         || (0x3000..=0x303F).contains(&cp)  // CJK Symbols and Punctuation
         || (0x3040..=0x309F).contains(&cp)  // Hiragana
-        || (0x30A0..=0x30FF).contains(&cp)  // Katakana
+        || (0x30A0..=0x30FF).contains(&cp)
+    // Katakana
     {
         return Script::Cjk;
     }
@@ -81,7 +82,8 @@ pub fn detect_script(c: char) -> Script {
         || (0x0061..=0x007A).contains(&cp) // a-z
         || (0x00C0..=0x00D6).contains(&cp)
         || (0x00D8..=0x00F6).contains(&cp)
-        || (0x00F8..=0x024F).contains(&cp) // Latin Extended-A and B
+        || (0x00F8..=0x024F).contains(&cp)
+    // Latin Extended-A and B
     {
         return Script::Latin;
     }
@@ -192,7 +194,8 @@ impl UnicodeNormalizer {
             NormForm::Nfc => {
                 if self.config.strip_accents {
                     // NFD decompose → strip accents → NFC recompose
-                    let stripped: String = s.nfd().filter(|&c| !is_combining_diacritic(c)).collect();
+                    let stripped: String =
+                        s.nfd().filter(|&c| !is_combining_diacritic(c)).collect();
                     stripped.nfc().collect()
                 } else {
                     s.nfc().collect()

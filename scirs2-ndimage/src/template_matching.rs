@@ -70,9 +70,7 @@ pub fn template_match(
     match method {
         MatchMethod::SumSquaredDiff => ssd_map(image, template, false),
         MatchMethod::NormalizedSumSquaredDiff => ssd_map(image, template, true),
-        MatchMethod::NormalizedCrossCorrelation => {
-            normalized_cross_correlation(image, template)
-        }
+        MatchMethod::NormalizedCrossCorrelation => normalized_cross_correlation(image, template),
         MatchMethod::CoeffCorrelation => coeff_correlation(image, template),
     }
 }
@@ -81,7 +79,11 @@ pub fn template_match(
 // SSD response map
 // ---------------------------------------------------------------------------
 
-fn ssd_map(image: &Array2<f64>, template: &Array2<f64>, normalize: bool) -> NdimageResult<Array2<f64>> {
+fn ssd_map(
+    image: &Array2<f64>,
+    template: &Array2<f64>,
+    normalize: bool,
+) -> NdimageResult<Array2<f64>> {
     let (ih, iw) = image.dim();
     let (th, tw) = template.dim();
     let out_h = ih - th + 1;
@@ -195,7 +197,11 @@ fn coeff_correlation(image: &Array2<f64>, template: &Array2<f64>) -> NdimageResu
                 .zip(t_centered.iter())
                 .map(|(a, b)| (a - p_mean) * b)
                 .sum();
-            let p_std: f64 = patch.iter().map(|&v| (v - p_mean).powi(2)).sum::<f64>().sqrt();
+            let p_std: f64 = patch
+                .iter()
+                .map(|&v| (v - p_mean).powi(2))
+                .sum::<f64>()
+                .sqrt();
             let denom = p_std * t_std;
             result[[r, c]] = if denom > 1e-12 { cross / denom } else { 0.0 };
         }
@@ -323,7 +329,9 @@ pub fn pyramid_template_match(
         ));
     }
     if template.dim().0 == 0 || template.dim().1 == 0 {
-        return Err(NdimageError::InvalidInput("Template must not be empty".into()));
+        return Err(NdimageError::InvalidInput(
+            "Template must not be empty".into(),
+        ));
     }
 
     let (th, tw) = template.dim();
@@ -394,9 +402,16 @@ mod tests {
     use scirs2_core::ndarray::Array2;
 
     fn checkerboard_image(rows: usize, cols: usize) -> Array2<f64> {
-        Array2::from_shape_fn((rows, cols), |(r, c)| {
-            if (r + c) % 2 == 0 { 1.0 } else { 0.0 }
-        })
+        Array2::from_shape_fn(
+            (rows, cols),
+            |(r, c)| {
+                if (r + c) % 2 == 0 {
+                    1.0
+                } else {
+                    0.0
+                }
+            },
+        )
     }
 
     #[test]
@@ -404,24 +419,20 @@ mod tests {
         let image: Array2<f64> = Array2::from_shape_vec(
             (4, 4),
             vec![
-                1.0, 0.0, 1.0, 0.0,
-                0.0, 1.0, 0.0, 1.0,
-                1.0, 0.0, 1.0, 0.0,
-                0.0, 1.0, 0.0, 1.0,
+                1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0,
             ],
         )
         .expect("shape ok");
 
-        let template: Array2<f64> = Array2::from_shape_vec(
-            (2, 2),
-            vec![1.0, 0.0, 0.0, 1.0],
-        )
-        .expect("shape ok");
+        let template: Array2<f64> =
+            Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).expect("shape ok");
 
-        let map = template_match(&image, &template, MatchMethod::SumSquaredDiff)
-            .expect("ssd ok");
+        let map = template_match(&image, &template, MatchMethod::SumSquaredDiff).expect("ssd ok");
         // Perfect match at (0,0): SSD = 0
-        assert!(map[[0, 0]] < 1e-12, "Expected zero SSD at perfect-match location");
+        assert!(
+            map[[0, 0]] < 1e-12,
+            "Expected zero SSD at perfect-match location"
+        );
     }
 
     #[test]
@@ -431,7 +442,10 @@ mod tests {
         let ncc = normalized_cross_correlation(&img, &tpl).expect("ncc ok");
         // Find the patch at (1,1) — should give NCC ~ 1
         let score = ncc[[1, 1]];
-        assert!(score > 0.99, "NCC at matching position should be ~1, got {score}");
+        assert!(
+            score > 0.99,
+            "NCC at matching position should be ~1, got {score}"
+        );
     }
 
     #[test]

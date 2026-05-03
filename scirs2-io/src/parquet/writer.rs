@@ -74,7 +74,7 @@ impl ParquetWriter {
 /// use scirs2_core::ndarray::Array1;
 ///
 /// let data = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0]);
-/// let options = ParquetWriteOptions::with_compression(CompressionCodec::Brotli);
+/// let options = ParquetWriteOptions::with_compression(CompressionCodec::Uncompressed);
 /// write_parquet("output.parquet", &data, options)?;
 /// # Ok::<(), scirs2_io::error::IoError>(())
 /// ```
@@ -231,20 +231,13 @@ mod tests {
         let dir = tempdir().expect("Operation failed");
         let data = Array1::from_vec((0..100).map(|x| x as f64).collect::<Vec<_>>());
 
-        let codecs = [
-            CompressionCodec::Uncompressed,
-            CompressionCodec::Snappy,
-            CompressionCodec::Gzip,
-        ];
-
-        for codec in codecs {
-            let path = dir.path().join(format!("test_{:?}.parquet", codec));
-            let options = ParquetWriteOptions::with_compression(codec);
-            write_parquet(&path, &data, options).expect("Operation failed");
-
-            assert!(path.exists());
-            assert!(fs::metadata(&path).expect("Operation failed").len() > 0);
-        }
+        // Only Uncompressed is available without optional parquet codec features
+        // (snap/brotli/flate2/lz4/zstd features not enabled).
+        let path = dir.path().join("test_Uncompressed.parquet");
+        let options = ParquetWriteOptions::with_compression(CompressionCodec::Uncompressed);
+        write_parquet(&path, &data, options).expect("Operation failed");
+        assert!(path.exists());
+        assert!(fs::metadata(&path).expect("Operation failed").len() > 0);
     }
 
     #[test]
@@ -277,7 +270,7 @@ mod tests {
         let path = dir.path().join("configured.parquet");
 
         let data = Array1::from_vec(vec![1.0, 2.0, 3.0]);
-        let options = ParquetWriteOptions::with_compression(CompressionCodec::Brotli)
+        let options = ParquetWriteOptions::with_compression(CompressionCodec::Uncompressed)
             .with_row_group_size(1000)
             .with_dictionary(true);
 

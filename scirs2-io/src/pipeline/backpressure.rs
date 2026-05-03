@@ -247,7 +247,7 @@ impl ThrottleTransform {
         Self {
             rate,
             state: Mutex::new(ThrottleState {
-                tokens: rate,   // start full
+                tokens: rate, // start full
                 last_refill: Instant::now(),
             }),
             label: "throttle".to_string(),
@@ -460,7 +460,9 @@ impl<T: Send + Clone + 'static> FlowController<T> {
         // parallel to drain the buffer.  For truly unbounded streams, run the
         // producer and consumer in separate threads sharing `self.buffer()`.
         while let Some(item) = producer() {
-            let pushed = self.buffer.push_timeout(item.clone(), Duration::from_millis(100))?;
+            let pushed = self
+                .buffer
+                .push_timeout(item.clone(), Duration::from_millis(100))?;
             if !pushed {
                 stats.producer_stalls += 1;
                 // Retry with a slightly longer timeout instead of blocking indefinitely.
@@ -479,14 +481,9 @@ impl<T: Send + Clone + 'static> FlowController<T> {
         // Consume phase: buffer is already closed, so blocking pop() returns None
         // immediately when the queue is empty (closed == true check in pop()).
         // This is safe and deadlock-free for single-threaded usage.
-        loop {
-            match self.buffer.pop()? {
-                Some(item) => {
-                    consumer(item)?;
-                    stats.consumed += 1;
-                }
-                None => break,
-            }
+        while let Some(item) = self.buffer.pop()? {
+            consumer(item)?;
+            stats.consumed += 1;
         }
 
         stats.elapsed = start.elapsed();

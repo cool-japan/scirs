@@ -132,11 +132,7 @@ impl TvpVarResult {
     /// # Arguments
     /// * `t`         – time index at which to evaluate the coefficients.
     /// * `n_periods` – number of IRF horizons (including horizon 0).
-    pub fn impulse_response_at(
-        &self,
-        t: usize,
-        n_periods: usize,
-    ) -> StatsResult<Vec<Array2<f64>>> {
+    pub fn impulse_response_at(&self, t: usize, n_periods: usize) -> StatsResult<Vec<Array2<f64>>> {
         let k = self.spec.n_vars;
         let p = self.spec.n_lags;
         let coeff_mat = self.smoothed_coeff_matrix(t)?; // (k, k*p + 1)
@@ -145,9 +141,7 @@ impl TvpVarResult {
         // Each A_l is (k, k)
         let mut a_mats: Vec<Array2<f64>> = Vec::with_capacity(p);
         for lag in 0..p {
-            let a_l = Array2::from_shape_fn((k, k), |(row, col)| {
-                coeff_mat[[row, lag * k + col]]
-            });
+            let a_l = Array2::from_shape_fn((k, k), |(row, col)| coeff_mat[[row, lag * k + col]]);
             a_mats.push(a_l);
         }
 
@@ -180,9 +174,8 @@ impl TvpVarResult {
         for _h in 0..n_periods {
             let irf_h = Array2::from_shape_fn((k, k), |(resp, shock)| power[[resp, shock]]);
             irf_list.push(irf_h);
-            power = mat_mat_mul(&power, &companion).unwrap_or_else(|_| {
-                Array2::zeros((comp_dim, comp_dim))
-            });
+            power = mat_mat_mul(&power, &companion)
+                .unwrap_or_else(|_| Array2::zeros((comp_dim, comp_dim)));
         }
 
         Ok(irf_list)
@@ -299,8 +292,8 @@ pub fn fit_tvp_var(
         let innovation = &y_t - &y_pred;
 
         // Innovation covariance: S_t = Z_t P_{t|t-1} Z_t' + R
-        let zp = mat_mat_mul(&z_t, &p_pred)?;       // k × d
-        let s_t = mat_mat_mul_bt(&zp, &z_t)? + r;   // k × k
+        let zp = mat_mat_mul(&z_t, &p_pred)?; // k × d
+        let s_t = mat_mat_mul_bt(&zp, &z_t)? + r; // k × k
 
         // Log-likelihood contribution
         let s_inv = inv_symmetric(s_t.clone())?;
@@ -310,15 +303,15 @@ pub fn fit_tvp_var(
         log_lik += -0.5 * (k as f64 * log2pi + log_det_s + quad);
 
         // Kalman gain: K_t = P_{t|t-1} Z_t' S_t^{-1}
-        let pzt = mat_mat_mul_bt(&p_pred, &z_t)?;    // d × k
-        let k_gain = mat_mat_mul(&pzt, &s_inv)?;     // d × k
+        let pzt = mat_mat_mul_bt(&p_pred, &z_t)?; // d × k
+        let k_gain = mat_mat_mul(&pzt, &s_inv)?; // d × k
 
         // Update: β_{t|t} = β_{t|t-1} + K_t v_t
         let kv = mat_vec_mul(&k_gain, &innovation)?;
         let x_upd = &x_pred + &kv;
 
         // P_{t|t} = (I - K_t Z_t) P_{t|t-1}   [Joseph form for stability]
-        let kz = mat_mat_mul(&k_gain, &z_t)?;        // d × d
+        let kz = mat_mat_mul(&k_gain, &z_t)?; // d × d
         let i_kz = eye_minus(kz)?;
         let p_upd = mat_mat_mul(&i_kz, &p_pred)?;
 
@@ -657,7 +650,7 @@ mod tests {
         assert_eq!(spec.n_vars, 2);
         assert_eq!(spec.n_lags, 1);
         assert_eq!(spec.n_regressors, 3); // 2*1 + 1
-        assert_eq!(spec.state_dim, 6);   // 2 * 3
+        assert_eq!(spec.state_dim, 6); // 2 * 3
     }
 
     #[test]
@@ -714,7 +707,10 @@ mod tests {
             );
             for j in 0..k {
                 if i != j {
-                    assert!(h0[[i, j]].abs() < 1e-10, "IRF horizon 0 off-diag should be 0");
+                    assert!(
+                        h0[[i, j]].abs() < 1e-10,
+                        "IRF horizon 0 off-diag should be 0"
+                    );
                 }
             }
         }

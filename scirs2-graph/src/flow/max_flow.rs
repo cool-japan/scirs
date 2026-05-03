@@ -56,8 +56,16 @@ impl DinicMaxFlow {
     pub fn add_edge(&mut self, u: usize, v: usize, cap: i64) {
         let rev_u = self.graph[v].len();
         let rev_v = self.graph[u].len();
-        self.graph[u].push(FlowEdge { to: v, cap, rev: rev_u });
-        self.graph[v].push(FlowEdge { to: u, cap: 0, rev: rev_v });
+        self.graph[u].push(FlowEdge {
+            to: v,
+            cap,
+            rev: rev_u,
+        });
+        self.graph[v].push(FlowEdge {
+            to: u,
+            cap: 0,
+            rev: rev_v,
+        });
     }
 
     /// Compute max flow from `source` to `sink`.
@@ -67,11 +75,7 @@ impl DinicMaxFlow {
             return 0;
         }
         let mut total = 0i64;
-        loop {
-            let level = match self.bfs(source, sink) {
-                Some(l) => l,
-                None => break,
-            };
+        while let Some(level) = self.bfs(source, sink) {
             let mut iter: Vec<usize> = vec![0; self.n];
             loop {
                 let f = self.dfs(source, sink, i64::MAX, &level, &mut iter);
@@ -199,8 +203,16 @@ impl PushRelabelMaxFlow {
     pub fn add_edge(&mut self, u: usize, v: usize, cap: i64) {
         let rev_u = self.graph[v].len();
         let rev_v = self.graph[u].len();
-        self.graph[u].push(FlowEdge { to: v, cap, rev: rev_u });
-        self.graph[v].push(FlowEdge { to: u, cap: 0, rev: rev_v });
+        self.graph[u].push(FlowEdge {
+            to: v,
+            cap,
+            rev: rev_u,
+        });
+        self.graph[v].push(FlowEdge {
+            to: u,
+            cap: 0,
+            rev: rev_v,
+        });
     }
 
     /// Compute the maximum flow from `source` to `sink`.
@@ -262,8 +274,7 @@ impl PushRelabelMaxFlow {
             while excess[v] > 0 {
                 if current[v] == self.graph[v].len() {
                     // Relabel
-                    let min_h = self
-                        .graph[v]
+                    let min_h = self.graph[v]
                         .iter()
                         .filter(|e| e.cap > 0)
                         .map(|e| height[e.to])
@@ -367,8 +378,16 @@ impl EdmondsKarp {
     pub fn add_edge(&mut self, u: usize, v: usize, cap: i64) {
         let rev_u = self.graph[v].len();
         let rev_v = self.graph[u].len();
-        self.graph[u].push(FlowEdge { to: v, cap, rev: rev_u });
-        self.graph[v].push(FlowEdge { to: u, cap: 0, rev: rev_v });
+        self.graph[u].push(FlowEdge {
+            to: v,
+            cap,
+            rev: rev_u,
+        });
+        self.graph[v].push(FlowEdge {
+            to: u,
+            cap: 0,
+            rev: rev_v,
+        });
     }
 
     /// Compute maximum flow from `source` to `sink`.
@@ -432,14 +451,19 @@ mod tests {
 
     fn simple_graph() -> (usize, Vec<(usize, usize, i64)>) {
         // 4-node graph: 0→1 (10), 0→2 (10), 1→3 (10), 2→3 (10), 1→2 (1)
-        (4, vec![(0,1,10),(0,2,10),(1,3,10),(2,3,10),(1,2,1)])
+        (
+            4,
+            vec![(0, 1, 10), (0, 2, 10), (1, 3, 10), (2, 3, 10), (1, 2, 1)],
+        )
     }
 
     #[test]
     fn test_dinic_simple() {
         let (n, edges) = simple_graph();
         let mut d = DinicMaxFlow::new(n);
-        for (u, v, c) in &edges { d.add_edge(*u, *v, *c); }
+        for (u, v, c) in &edges {
+            d.add_edge(*u, *v, *c);
+        }
         assert_eq!(d.max_flow(0, 3), 20);
     }
 
@@ -447,7 +471,9 @@ mod tests {
     fn test_push_relabel_simple() {
         let (n, edges) = simple_graph();
         let mut pr = PushRelabelMaxFlow::new(n);
-        for (u, v, c) in &edges { pr.add_edge(*u, *v, *c); }
+        for (u, v, c) in &edges {
+            pr.add_edge(*u, *v, *c);
+        }
         assert_eq!(pr.max_flow(0, 3), 20);
     }
 
@@ -455,7 +481,9 @@ mod tests {
     fn test_edmonds_karp_simple() {
         let (n, edges) = simple_graph();
         let mut ek = EdmondsKarp::new(n);
-        for (u, v, c) in &edges { ek.add_edge(*u, *v, *c); }
+        for (u, v, c) in &edges {
+            ek.add_edge(*u, *v, *c);
+        }
         assert_eq!(ek.max_flow(0, 3), 20);
     }
 
@@ -539,8 +567,13 @@ mod tests {
     fn test_all_three_agree() {
         // Use same topology, confirm all three give same answer
         let edges = vec![
-            (0usize, 1usize, 7i64), (0, 2, 4), (1, 3, 3), (1, 4, 5),
-            (2, 4, 4), (3, 5, 5), (4, 5, 6),
+            (0usize, 1usize, 7i64),
+            (0, 2, 4),
+            (1, 3, 3),
+            (1, 4, 5),
+            (2, 4, 4),
+            (3, 5, 5),
+            (4, 5, 6),
         ];
         let n = 6;
         let mut d = DinicMaxFlow::new(n);

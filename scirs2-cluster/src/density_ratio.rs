@@ -761,20 +761,14 @@ pub fn density_ratio_kliep(
 /// # Returns
 ///
 /// A non-negative scalar; larger values indicate greater covariate shift.
-pub fn covariate_shift_score(
-    source: ArrayView2<f64>,
-    target: ArrayView2<f64>,
-) -> Result<f64> {
+pub fn covariate_shift_score(source: ArrayView2<f64>, target: ArrayView2<f64>) -> Result<f64> {
     let weights = importance_weights(source, target, ImportanceMethod::Kliep)?;
     if weights.is_empty() {
         return Ok(0.0);
     }
     let eps = 1e-15_f64;
-    let mean_log_w = weights
-        .iter()
-        .map(|&w: &f64| (w + eps).ln())
-        .sum::<f64>()
-        / weights.len() as f64;
+    let mean_log_w =
+        weights.iter().map(|&w: &f64| (w + eps).ln()).sum::<f64>() / weights.len() as f64;
     Ok(mean_log_w.abs())
 }
 
@@ -811,7 +805,10 @@ mod tests {
         // Deterministic Box-Muller to avoid rand dependency
         let mut out = vec![0.0_f64; n];
         let mut state = seed;
-        let lcg_next = |s: u64| s.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        let lcg_next = |s: u64| {
+            s.wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407)
+        };
         for i in 0..n {
             state = lcg_next(state);
             let u1 = (state as f64) / u64::MAX as f64 * (1.0 - 1e-10) + 1e-10;
@@ -848,8 +845,8 @@ mod tests {
     fn test_rulsif_basic() {
         let src = make_gaussian_samples(0.0, 1.0, 30, 5);
         let tgt = make_gaussian_samples(1.0, 1.0, 30, 6);
-        let w = importance_weights(src.view(), tgt.view(), ImportanceMethod::RuLSIF)
-            .expect("rulsif");
+        let w =
+            importance_weights(src.view(), tgt.view(), ImportanceMethod::RuLSIF).expect("rulsif");
         assert_eq!(w.len(), 30);
         assert!(w.iter().all(|&v| v >= 0.0));
     }

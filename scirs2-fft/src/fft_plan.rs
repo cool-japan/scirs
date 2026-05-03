@@ -1,7 +1,7 @@
 //! FFT Plan Serialization — Algorithm-Agnostic Plan Creation and Execution
 //!
 //! This module provides a pure-Rust FFT planning system that is independent of
-//! any external backend (RustFFT / OxiFFT).  It supports:
+//! any external backend (OxiFFT is the sole backend — COOLJAPAN Pure Rust policy).  It supports:
 //!
 //! - **Plan creation**: analyse an input size, choose a factorization tree, and
 //!   pre-compute twiddle factors.

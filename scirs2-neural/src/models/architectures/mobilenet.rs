@@ -17,6 +17,7 @@ use crate::layers::{BatchNorm, Conv2D, Dense, Dropout, Layer};
 use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, NumAssign};
 use scirs2_core::random::SeedableRng;
+use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 /// ReLU6 activation function (min(max(x, 0), 6))
 #[allow(dead_code)]
@@ -40,7 +41,7 @@ pub fn hard_swish<F: Float>(x: F) -> F {
     x * hard_sigmoid(x)
 }
 /// Version of MobileNet
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum MobileNetVersion {
     /// MobileNetV1
     V1,
@@ -52,7 +53,7 @@ pub enum MobileNetVersion {
     V3Large,
 }
 /// Configuration for a convolutional block in MobileNet
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConvBlockConfig {
     /// Input channels
     pub input_channels: usize,
@@ -72,6 +73,7 @@ pub struct ConvBlockConfig {
     pub activation: String,
 }
 /// Configuration for a MobileNet model
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MobileNetConfig {
     /// Version of MobileNet
     pub version: MobileNetVersion,

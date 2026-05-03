@@ -6,4 +6,4 @@
 /// Hierarchical Dirichlet Process topic model.
 pub mod hdp;
 
-pub use hdp::{Hdp, HdpConfig, HdpState, TopicError};
+pub use hdp::{Hdp, HdpConfig, HdpState, HdpTopicConfig, HdpTopicModel, TopicError};

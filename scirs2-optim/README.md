@@ -1,5 +1,7 @@
 # MOVED: scirs2-optim -> OptiRS
 
+> **Status (Last Updated 2026-05-03)**: This crate is a **deprecated stub** retained at version `0.1.5`. It is not a member of the SciRS2 workspace, is `publish = false`, and only emits a deprecation notice. SciRS2 v0.4.3 users should depend on the independent **OptiRS** project instead.
+
 This module has been **moved to an independent project**.
 
 ## Migration Guide

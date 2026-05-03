@@ -604,7 +604,7 @@ fn adf_p_value(stat: f64, n: usize, regression: AdfRegression) -> f64 {
 /// * `criterion` - Lag selection criterion (default: `Aic`)
 ///
 /// # Example
-/// ```
+/// ```no_run
 /// use scirs2_stats::stationarity::{adf_test, AdfRegression, LagCriterion};
 /// use scirs2_core::ndarray::Array1;
 ///

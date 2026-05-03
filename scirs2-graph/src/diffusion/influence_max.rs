@@ -309,8 +309,7 @@ pub fn celf_influence_max(
             // Re-evaluate marginal gain
             let mut trial = seeds.clone();
             trial.push(top.node);
-            let (new_spread, calls) =
-                estimate_spread(adjacency, num_nodes, &trial, config)?;
+            let (new_spread, calls) = estimate_spread(adjacency, num_nodes, &trial, config)?;
             oracle_calls += calls;
 
             let updated = CelfEntry {
@@ -428,8 +427,7 @@ pub fn celf_plus_plus(
             // Re-evaluate marginal gain w.r.t. current seed set
             let mut trial = seeds.clone();
             trial.push(top.node);
-            let (new_spread, calls) =
-                estimate_spread(adjacency, num_nodes, &trial, config)?;
+            let (new_spread, calls) = estimate_spread(adjacency, num_nodes, &trial, config)?;
             oracle_calls += calls;
 
             let gain = new_spread - current_spread;
@@ -442,10 +440,10 @@ pub fn celf_plus_plus(
                     let mut trial2 = seeds.clone();
                     trial2.push(pb);
                     trial2.push(top.node);
-                    let (spread2, calls2) =
-                        estimate_spread(adjacency, num_nodes, &trial2, config)?;
+                    let (spread2, calls2) = estimate_spread(adjacency, num_nodes, &trial2, config)?;
                     oracle_calls += calls2;
-                    let gain2 = spread2 - current_spread - cached_gain.get(&pb).cloned().unwrap_or(0.0);
+                    let gain2 =
+                        spread2 - current_spread - cached_gain.get(&pb).cloned().unwrap_or(0.0);
                     // If gain2 >= gain the node is still best even after adding prev_best
                     gain2 >= gain
                 } else {
@@ -531,8 +529,7 @@ pub fn degree_heuristic(
 
     let seeds: Vec<usize> = degrees.iter().take(k).map(|&(node, _)| node).collect();
 
-    let (estimated_spread, oracle_calls) =
-        estimate_spread(adjacency, num_nodes, &seeds, config)?;
+    let (estimated_spread, oracle_calls) = estimate_spread(adjacency, num_nodes, &seeds, config)?;
 
     Ok(InfluenceMaxResult {
         seeds,
@@ -644,8 +641,7 @@ pub fn pagerank_heuristic(
     ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     let seeds: Vec<usize> = ranked.iter().take(k).map(|&(node, _)| node).collect();
 
-    let (estimated_spread, oracle_calls) =
-        estimate_spread(adjacency, num_nodes, &seeds, config)?;
+    let (estimated_spread, oracle_calls) = estimate_spread(adjacency, num_nodes, &seeds, config)?;
 
     Ok(InfluenceMaxResult {
         seeds,

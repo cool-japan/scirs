@@ -331,7 +331,8 @@ pub fn sdca(
 
         // Compute primal and dual objectives for convergence check
         let primal_obj = compute_primal_objective(features, labels, &weights, lambda, config.loss);
-        let dual_obj = compute_dual_objective(features, labels, &alpha, &weights, lambda, config.loss);
+        let dual_obj =
+            compute_dual_objective(features, labels, &alpha, &weights, lambda, config.loss);
         let gap = primal_obj - dual_obj;
 
         if gap.abs() < config.tolerance {
@@ -468,10 +469,7 @@ mod tests {
             vec![1.0, 2.0],
             vec![3.0, 1.0],
         ];
-        let labels: Vec<f64> = features
-            .iter()
-            .map(|x| 2.0 * x[0] + 3.0 * x[1])
-            .collect();
+        let labels: Vec<f64> = features.iter().map(|x| 2.0 * x[0] + 3.0 * x[1]).collect();
 
         let config = SDCAConfig {
             lambda: 0.001,
@@ -532,11 +530,7 @@ mod tests {
                 correct += 1;
             }
         }
-        assert!(
-            correct >= 4,
-            "Only {}/6 correct classifications",
-            correct
-        );
+        assert!(correct >= 4, "Only {}/6 correct classifications", correct);
     }
 
     /// Test 4: SDCA squared hinge loss

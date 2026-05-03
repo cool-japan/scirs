@@ -298,11 +298,11 @@ pub struct MemoryPool {
 
 impl MemoryPool {
     /// Create new memory pool
-    pub fn new(_num_blocks: usize, blocksize: usize) -> Self {
-        let mut _blocks = Vec::with_capacity(_num_blocks);
-        let mut available = Vec::with_capacity(_num_blocks);
+    pub fn new(num_blocks: usize, blocksize: usize) -> Self {
+        let mut blocks = Vec::with_capacity(num_blocks);
+        let mut available = Vec::with_capacity(num_blocks);
 
-        for i in 0.._num_blocks {
+        for i in 0..num_blocks {
             blocks.push(vec![0u8; blocksize]);
             available.push(i);
         }
@@ -597,10 +597,10 @@ pub enum MemoryLayoutStrategy {
 impl AdvancedParallelStatsProcessor {
     /// Create new advanced-parallel processor
     pub fn new(config: AdvancedParallelConfig) -> StatsResult<Self> {
-        let num_threads = _config
+        let num_threads = config
             .thread_pool_config
             .num_workers
-            .unwrap_or_else(|| num_threads().max(1));
+            .unwrap_or_else(|| scirs2_core::parallel_ops::current_num_threads().max(1));
 
         let mut execution_contexts = Vec::with_capacity(num_threads);
 
@@ -633,7 +633,10 @@ impl AdvancedParallelStatsProcessor {
     }
 
     /// Compute mean using advanced-parallel processing
-    pub fn mean_advanced_parallel<F>(&self, data: ArrayView1<F>) -> StatsResult<AdvancedParallelResult<F>>
+    pub fn mean_advanced_parallel<F>(
+        &self,
+        data: ArrayView1<F>,
+    ) -> StatsResult<AdvancedParallelResult<F>>
     where
         F: Float + NumCast + Send + Sync + Zero + std::iter::Sum + std::fmt::Display,
     {
@@ -900,7 +903,8 @@ impl AdvancedParallelStatsProcessor {
     fn create_variance_work_units<F>(
         &self,
         data: &ArrayView1<F>,
-        mean_val: F, _ddof: usize,
+        mean_val: F,
+        _ddof: usize,
         strategy: &OptimizationStrategy,
     ) -> StatsResult<Vec<WorkUnit<Vec<f64>>>>
     where
@@ -948,9 +952,9 @@ impl AdvancedParallelStatsProcessor {
 
     /// Execute parallel work units
     fn execute_parallel_work(&self, workunits: &[WorkUnit<Vec<f64>>]) -> StatsResult<Vec<f64>> {
-        let num_threads = work_units.len();
+        let num_threads = workunits.len();
         let results = Arc::new(Mutex::new(vec![0.0; num_threads]));
-        let work_units = Arc::new(work_units.to_vec());
+        let work_units = Arc::new(workunits.to_vec());
 
         thread::scope(|s| {
             let handles: Vec<_> = (0..num_threads)
@@ -1052,7 +1056,7 @@ impl AdvancedParallelStatsProcessor {
         F: Float + NumCast + std::fmt::Display,
     {
         let total_sum: f64 = partial_results.iter().sum();
-        let mean = total_sum / total_count as f64;
+        let mean = total_sum / totalcount as f64;
         F::from(mean).ok_or_else(|| {
             StatsError::ComputationError("Failed to convert mean result".to_string())
         })
@@ -1349,7 +1353,9 @@ mod tests {
         let x = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let y = vec![2.0, 4.0, 6.0, 8.0, 10.0];
 
-        let correlation = processor.compute_correlation(&x, &y).expect("Operation failed");
+        let correlation = processor
+            .compute_correlation(&x, &y)
+            .expect("Operation failed");
         assert!((correlation - 1.0).abs() < 1e-10); // Perfect positive correlation
     }
 

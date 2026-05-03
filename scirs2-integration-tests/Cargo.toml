@@ -20,7 +20,7 @@ num-complex = { workspace = true }
 # Modules under test
 scirs2-neural = { workspace = true }
 scirs2-optimize = { workspace = true }
-scirs2-fft = { workspace = true }
+scirs2-fft = { workspace = true, features = ["oxifft"] }
 scirs2-signal = { workspace = true }
 scirs2-sparse = { workspace = true }
 scirs2-linalg = { workspace = true }

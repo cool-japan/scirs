@@ -37,7 +37,10 @@ pub fn greedy_set_cover(universe: usize, sets: &[Vec<usize>]) -> Vec<usize> {
             if used[i] {
                 continue;
             }
-            let count = set.iter().filter(|&&e| e < universe && uncovered[e]).count();
+            let count = set
+                .iter()
+                .filter(|&&e| e < universe && uncovered[e])
+                .count();
             if count > best_count {
                 best_count = count;
                 best_idx = Some(i);
@@ -100,7 +103,10 @@ pub fn weighted_set_cover(
             if used[i] {
                 continue;
             }
-            let new_covers = set.iter().filter(|&&e| e < universe && uncovered[e]).count();
+            let new_covers = set
+                .iter()
+                .filter(|&&e| e < universe && uncovered[e])
+                .count();
             if new_covers == 0 {
                 continue;
             }
@@ -175,11 +181,7 @@ pub fn vertex_cover_2approx(n: usize, edges: &[(usize, usize)]) -> Vec<usize> {
 ///
 /// Returns the vertex cover as a list of global vertex indices
 /// (left side: 0..n_left, right side: n_left..n_left+n_right).
-pub fn min_vertex_cover_bip(
-    n_left: usize,
-    n_right: usize,
-    edges: &[(usize, usize)],
-) -> Vec<usize> {
+pub fn min_vertex_cover_bip(n_left: usize, n_right: usize, edges: &[(usize, usize)]) -> Vec<usize> {
     if n_left == 0 || n_right == 0 {
         return vec![];
     }
@@ -198,7 +200,13 @@ pub fn min_vertex_cover_bip(
 
     for u in 0..n_left {
         let mut visited = vec![false; n_right];
-        augment_bip(u, &adj_left, &mut match_left, &mut match_right, &mut visited);
+        augment_bip(
+            u,
+            &adj_left,
+            &mut match_left,
+            &mut match_right,
+            &mut visited,
+        );
     }
 
     // König's construction:
@@ -271,9 +279,7 @@ fn augment_bip(
         }
         visited[v] = true;
         let prev = match_right[v];
-        if prev == usize::MAX
-            || augment_bip(prev, adj, match_left, match_right, visited)
-        {
+        if prev == usize::MAX || augment_bip(prev, adj, match_left, match_right, visited) {
             match_left[u] = v;
             match_right[v] = u;
             return true;
@@ -362,12 +368,7 @@ mod tests {
 
     #[test]
     fn test_greedy_set_cover() {
-        let sets = vec![
-            vec![0, 1, 2],
-            vec![1, 3],
-            vec![2, 4],
-            vec![3, 4],
-        ];
+        let sets = vec![vec![0, 1, 2], vec![1, 3], vec![2, 4], vec![3, 4]];
         let sel = greedy_set_cover(5, &sets);
         assert!(is_set_cover(5, &sets, &sel));
         assert!(!sel.is_empty());

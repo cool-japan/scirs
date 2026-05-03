@@ -15,9 +15,9 @@ use std::fs::File;
 use std::io::{BufWriter, Read, Write};
 use std::path::Path;
 
+use oxiarc_archive::lz4;
 use oxiarc_deflate::deflate as deflate_compress_result;
 use oxiarc_deflate::inflate as deflate_decompress_result;
-use oxiarc_archive::lz4;
 
 use crate::error::{IoError, Result};
 
@@ -37,11 +37,11 @@ pub fn gzip_compress(data: &[u8]) -> Result<Vec<u8>> {
     // Gzip header (minimal, no filename, no comment)
     out.extend_from_slice(&[
         0x1f, 0x8b, // Magic
-        0x08,       // Compression method: deflate
-        0x00,       // Flags: none
+        0x08, // Compression method: deflate
+        0x00, // Flags: none
         0x00, 0x00, 0x00, 0x00, // Modification time
-        0x00,       // Extra flags
-        0xff,       // OS: unknown
+        0x00, // Extra flags
+        0xff, // OS: unknown
     ]);
     out.extend_from_slice(&deflated);
 
@@ -106,13 +106,16 @@ pub fn gzip_decompress(data: &[u8]) -> Result<Vec<u8>> {
     let deflate_end = data.len() - 8;
     let compressed_body = &data[pos..deflate_end];
 
-    let decompressed = deflate_decompress_result(compressed_body).map_err(|e| {
-        IoError::DecompressionError(format!("DEFLATE decompression failed: {e}"))
-    })?;
+    let decompressed = deflate_decompress_result(compressed_body)
+        .map_err(|e| IoError::DecompressionError(format!("DEFLATE decompression failed: {e}")))?;
 
     // Verify CRC-32
-    let stored_crc =
-        u32::from_le_bytes([data[deflate_end], data[deflate_end + 1], data[deflate_end + 2], data[deflate_end + 3]]);
+    let stored_crc = u32::from_le_bytes([
+        data[deflate_end],
+        data[deflate_end + 1],
+        data[deflate_end + 2],
+        data[deflate_end + 3],
+    ]);
     let actual_crc = crc32fast::hash(&decompressed);
     if stored_crc != actual_crc {
         return Err(IoError::DecompressionError(format!(
@@ -139,8 +142,8 @@ pub fn write_gzip(path: &Path, data: &[u8]) -> Result<()> {
 
 /// Read and decompress a gzip file from `path`.
 pub fn read_gzip(path: &Path) -> Result<Vec<u8>> {
-    let mut file = File::open(path)
-        .map_err(|e| IoError::FileError(format!("cannot open {:?}: {e}", path)))?;
+    let mut file =
+        File::open(path).map_err(|e| IoError::FileError(format!("cannot open {:?}: {e}", path)))?;
     let mut buf = Vec::new();
     file.read_to_end(&mut buf)
         .map_err(|e| IoError::FileError(format!("read failed: {e}")))?;
@@ -196,7 +199,7 @@ pub fn rle_encode(data: &[u8]) -> Vec<u8> {
 
 /// Decode a buffer produced by [`rle_encode`].
 pub fn rle_decode(encoded: &[u8]) -> Result<Vec<u8>> {
-    if encoded.len() % 2 != 0 {
+    if !encoded.len().is_multiple_of(2) {
         return Err(IoError::DecompressionError(
             "RLE encoded data has odd byte count – possibly corrupted".to_string(),
         ));
@@ -474,10 +477,7 @@ mod tests {
         let encoded = delta_encode_f64(&data);
         let decoded = delta_decode_f64(&encoded);
         for (orig, got) in data.iter().zip(decoded.iter()) {
-            assert!(
-                (orig - got).abs() < 1e-5,
-                "orig={orig}, got={got}"
-            );
+            assert!((orig - got).abs() < 1e-5, "orig={orig}, got={got}");
         }
     }
 

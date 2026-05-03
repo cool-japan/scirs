@@ -63,10 +63,15 @@ pub fn douglas_rachford(
 
     for _ in 0..max_iter {
         let y = prox_g(&z);
-        let two_y_minus_z: Vec<f64> = y.iter().zip(z.iter()).map(|(&yi, &zi)| 2.0 * yi - zi).collect();
+        let two_y_minus_z: Vec<f64> = y
+            .iter()
+            .zip(z.iter())
+            .map(|(&yi, &zi)| 2.0 * yi - zi)
+            .collect();
         let x = prox_f(&two_y_minus_z);
         // z_{k+1} = z_k + x_{k+1} - y_{k+1}
-        z = z.iter()
+        z = z
+            .iter()
             .zip(x.iter().zip(y.iter()))
             .map(|(&zk, (&xk1, &yk1))| zk + xk1 - yk1)
             .collect();
@@ -99,14 +104,20 @@ pub fn douglas_rachford_tracked(
         let z_prev = z.clone();
 
         let y = prox_g(&z);
-        let two_y_minus_z: Vec<f64> = y.iter().zip(z.iter()).map(|(&yi, &zi)| 2.0 * yi - zi).collect();
+        let two_y_minus_z: Vec<f64> = y
+            .iter()
+            .zip(z.iter())
+            .map(|(&yi, &zi)| 2.0 * yi - zi)
+            .collect();
         let x = prox_f(&two_y_minus_z);
-        z = z.iter()
+        z = z
+            .iter()
             .zip(x.iter().zip(y.iter()))
             .map(|(&zk, (&xk1, &yk1))| zk + xk1 - yk1)
             .collect();
 
-        let dz: f64 = z.iter()
+        let dz: f64 = z
+            .iter()
             .zip(z_prev.iter())
             .map(|(&a, &b)| (a - b) * (a - b))
             .sum::<f64>()
@@ -174,10 +185,15 @@ pub fn peaceman_rachford(
 
     for _ in 0..max_iter {
         let y = prox_g(&z);
-        let refl_y: Vec<f64> = y.iter().zip(z.iter()).map(|(&yi, &zi)| 2.0 * yi - zi).collect();
+        let refl_y: Vec<f64> = y
+            .iter()
+            .zip(z.iter())
+            .map(|(&yi, &zi)| 2.0 * yi - zi)
+            .collect();
         let x = prox_f(&refl_y);
         // z = 2x - reflect_y  (full reflection through x)
-        z = x.iter()
+        z = x
+            .iter()
             .zip(refl_y.iter())
             .map(|(&xi, &ri)| 2.0 * xi - ri)
             .collect();
@@ -216,10 +232,15 @@ pub fn forward_backward(
 
     for _ in 0..max_iter {
         let g = grad_f(&x);
-        let x_grad: Vec<f64> = x.iter().zip(g.iter()).map(|(&xi, &gi)| xi - alpha * gi).collect();
+        let x_grad: Vec<f64> = x
+            .iter()
+            .zip(g.iter())
+            .map(|(&xi, &gi)| xi - alpha * gi)
+            .collect();
         let x_new = prox_g(&x_grad);
 
-        let diff: f64 = x.iter()
+        let diff: f64 = x
+            .iter()
             .zip(x_new.iter())
             .map(|(&a, &b)| (a - b) * (a - b))
             .sum::<f64>()
@@ -283,16 +304,25 @@ pub fn primal_dual_chambolle_pock(
 
         // Dual update
         let kx_bar = k_op(&x_bar);
-        let y_input: Vec<f64> = y.iter().zip(kx_bar.iter()).map(|(&yi, &kxi)| yi + kxi).collect();
+        let y_input: Vec<f64> = y
+            .iter()
+            .zip(kx_bar.iter())
+            .map(|(&yi, &kxi)| yi + kxi)
+            .collect();
         y = prox_g_conj(&y_input);
 
         // Primal update
         let kty = kt_op(&y);
-        let x_input: Vec<f64> = x.iter().zip(kty.iter()).map(|(&xi, &kti)| xi - kti).collect();
+        let x_input: Vec<f64> = x
+            .iter()
+            .zip(kty.iter())
+            .map(|(&xi, &kti)| xi - kti)
+            .collect();
         x = prox_f(&x_input);
 
         // Over-relaxation
-        x_bar = x.iter()
+        x_bar = x
+            .iter()
             .zip(x_old.iter())
             .map(|(&xn, &xo)| xn + theta * (xn - xo))
             .collect();
@@ -423,7 +453,16 @@ mod tests {
         let x0 = vec![2.0, -1.0];
         let y0 = vec![0.0, 0.0];
         let (x_star, _) = primal_dual_chambolle_pock(
-            &prox_f, &prox_g_conj, &k_op, &kt_op, x0, y0, 0.5, 0.5, 1.0, 500,
+            &prox_f,
+            &prox_g_conj,
+            &k_op,
+            &kt_op,
+            x0,
+            y0,
+            0.5,
+            0.5,
+            1.0,
+            500,
         );
         for &xi in &x_star {
             assert_abs_diff_eq!(xi, 0.0, epsilon = 0.1);

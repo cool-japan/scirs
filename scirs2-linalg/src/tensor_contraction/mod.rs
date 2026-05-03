@@ -1209,7 +1209,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Needs investigation - possibly SVD-related issue"]
     fn test_mode_n_product() {
         // Create a 2x3x2 tensor
         let tensor = array![

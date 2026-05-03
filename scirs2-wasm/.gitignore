@@ -5,8 +5,6 @@ pkg-node/
 pkg-simd/
 *_bg.wasm
 *_bg.wasm.d.ts
-*.js
-*.d.ts
 
 # Node modules
 node_modules/

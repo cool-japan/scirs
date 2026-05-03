@@ -21,8 +21,8 @@
 //! - Balas, E., Ceria, S., & Cornuéjols, G. (1993). "A lift-and-project cutting
 //!   plane algorithm for mixed 0–1 programs." Mathematical Programming, 58(1-3), 295-324.
 
-use crate::error::{OptimizeError, OptimizeResult};
 use super::lift_project::{LiftProjectConfig, LiftProjectCut, LiftProjectGenerator};
+use crate::error::{OptimizeError, OptimizeResult};
 
 // ── Solver ───────────────────────────────────────────────────────────────────
 
@@ -350,13 +350,17 @@ mod tests {
                 assert!(
                     (aug_coeff - (-pi_k)).abs() < 1e-12,
                     "Augmented row coeff [{}][{}] = {} but expected {}",
-                    k, j, aug_coeff, -pi_k
+                    k,
+                    j,
+                    aug_coeff,
+                    -pi_k
                 );
             }
             assert!(
                 (rhs - (-cut.pi0)).abs() < 1e-12,
                 "Augmented RHS = {} but expected {}",
-                rhs, -cut.pi0
+                rhs,
+                -cut.pi0
             );
         }
     }
@@ -393,11 +397,7 @@ mod tests {
     #[test]
     fn test_multiple_constraint_rows_generate_more_cuts() {
         let mut solver = LiftProjectMipSolver::default_solver();
-        let a = vec![
-            vec![1.0, 0.0],
-            vec![0.0, 1.0],
-            vec![1.0, 1.0],
-        ];
+        let a = vec![vec![1.0, 0.0], vec![0.0, 1.0], vec![1.0, 1.0]];
         let b = vec![0.8, 0.8, 1.2];
         let x_bar = vec![0.4, 0.5];
         let ivars = vec![0, 1];

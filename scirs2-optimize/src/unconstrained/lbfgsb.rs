@@ -42,12 +42,7 @@ impl ProjectedGradient {
     /// pg[i] = min(g[i], 0)  if xᵢ == lᵢ (at lower bound)
     /// pg[i] = max(g[i], 0)  if xᵢ == uᵢ (at upper bound)
     /// ```
-    pub fn project(
-        x: &[f64],
-        g: &[f64],
-        lower: &[Option<f64>],
-        upper: &[Option<f64>],
-    ) -> Vec<f64> {
+    pub fn project(x: &[f64], g: &[f64], lower: &[Option<f64>], upper: &[Option<f64>]) -> Vec<f64> {
         let n = x.len();
         let mut pg = vec![0.0f64; n];
         for i in 0..n {
@@ -58,9 +53,9 @@ impl ProjectedGradient {
                 0.0 // pinned between identical bounds
             } else if at_lb {
                 g[i].min(0.0).abs() * g[i].signum() * (-1.0) // allow only non-negative steps
-                // Simplify: if at lower bound, projected gradient component is min(g,0)
-                // Note: projected gradient of f at lower bound = max(g, 0) (feasible direction = +)
-                // Convention here: projected gradient for optimality measure = x - proj(x - g)
+                                                             // Simplify: if at lower bound, projected gradient component is min(g,0)
+                                                             // Note: projected gradient of f at lower bound = max(g, 0) (feasible direction = +)
+                                                             // Convention here: projected gradient for optimality measure = x - proj(x - g)
             } else if at_ub {
                 g[i].max(0.0)
             } else {
@@ -180,19 +175,12 @@ impl CauchyPoint {
 
             // Derivative of the quadratic model along the piecewise linear path
             // in the current segment: f'(t) = gᵀ(-g) + θ t ‖g‖² (simplified)
-            let g_dot_d: f64 = (0..n)
-                .filter(|&i| !active[i])
-                .map(|i| g[i] * (-g[i]))
-                .sum();
+            let g_dot_d: f64 = (0..n).filter(|&i| !active[i]).map(|i| g[i] * (-g[i])).sum();
             let d_hd: f64 = {
                 // Approximate Hv using L-BFGS: H ≈ θ I + corrections
                 // For the break-point step, use θ I only
-                let g_free_sq: f64 = (0..n)
-                    .filter(|&i| !active[i])
-                    .map(|i| g[i] * g[i])
-                    .sum();
-                theta * g_free_sq
-                    + l_bfgs_correction_scalar(g, s_vecs, y_vecs, theta, &active)
+                let g_free_sq: f64 = (0..n).filter(|&i| !active[i]).map(|i| g[i] * g[i]).sum();
+                theta * g_free_sq + l_bfgs_correction_scalar(g, s_vecs, y_vecs, theta, &active)
             };
 
             if d_hd < 1e-300 {
@@ -287,10 +275,7 @@ fn l_bfgs_correction_scalar(
     }
 
     // Approximate gᵀ H⁻¹ g for free variables (diagonal approx)
-    let g_free_sq: f64 = (0..n)
-        .filter(|&i| !active[i])
-        .map(|i| g[i] * g[i])
-        .sum();
+    let g_free_sq: f64 = (0..n).filter(|&i| !active[i]).map(|i| g[i] * g[i]).sum();
     let _ = m;
     g_free_sq * (1.0 / h_diag - theta) * 0.5
 }
@@ -413,7 +398,11 @@ fn l_bfgs_two_loop_neg(
     let h0 = if m > 0 {
         let sy: f64 = dot(&s_vecs[m - 1], &y_vecs[m - 1]);
         let yy: f64 = dot(&y_vecs[m - 1], &y_vecs[m - 1]);
-        if yy > 1e-300 { sy / yy } else { 1.0 / theta }
+        if yy > 1e-300 {
+            sy / yy
+        } else {
+            1.0 / theta
+        }
     } else {
         1.0 / theta
     };
@@ -623,20 +612,12 @@ impl LBFGSB {
             }
 
             // 1. Compute generalised Cauchy point
-            let (x_cauchy, free) = CauchyPoint::compute(&x, &g, &lower, &upper, theta, &s_vecs, &y_vecs);
+            let (x_cauchy, free) =
+                CauchyPoint::compute(&x, &g, &lower, &upper, theta, &s_vecs, &y_vecs);
 
             // 2. Subspace minimisation
             let x_bar = SubspaceMinimization::minimize(
-                &x_cauchy,
-                &x,
-                &g,
-                &free,
-                &lower,
-                &upper,
-                theta,
-                &s_vecs,
-                &y_vecs,
-                &rho_vals,
+                &x_cauchy, &x, &g, &free, &lower, &upper, theta, &s_vecs, &y_vecs, &rho_vals,
             );
 
             // 3. Compute descent direction and do a projected line search
@@ -646,13 +627,19 @@ impl LBFGSB {
             let slope: f64 = dot(&g, &d);
             if slope >= 0.0 {
                 // Fall back to projected gradient direction
-                let pg: Vec<f64> = (0..n).map(|i| {
-                    let at_lb = lower[i].map_or(false, |l| (x[i] - l).abs() < 1e-12);
-                    let at_ub = upper[i].map_or(false, |u| (x[i] - u).abs() < 1e-12);
-                    if at_lb && g[i] > 0.0 { 0.0 }
-                    else if at_ub && g[i] < 0.0 { 0.0 }
-                    else { -g[i] }
-                }).collect();
+                let pg: Vec<f64> = (0..n)
+                    .map(|i| {
+                        let at_lb = lower[i].map_or(false, |l| (x[i] - l).abs() < 1e-12);
+                        let at_ub = upper[i].map_or(false, |u| (x[i] - u).abs() < 1e-12);
+                        if at_lb && g[i] > 0.0 {
+                            0.0
+                        } else if at_ub && g[i] < 0.0 {
+                            0.0
+                        } else {
+                            -g[i]
+                        }
+                    })
+                    .collect();
                 let pg_norm_inner = dot(&pg, &pg).sqrt();
                 if pg_norm_inner < 1e-12 {
                     converged = true;
@@ -693,8 +680,14 @@ impl LBFGSB {
                 let sy = dot(&s, &y);
                 if sy > 1e-10 {
                     update_lbfgs_history(&mut s_vecs, &mut y_vecs, &mut rho_vals, s, y, sy, m);
-                    theta = dot(&y_vecs.last().expect("unexpected None or Err"), &y_vecs.last().expect("unexpected None or Err"))
-                        / dot(&s_vecs.last().expect("unexpected None or Err"), &y_vecs.last().expect("unexpected None or Err")).max(1e-300);
+                    theta = dot(
+                        &y_vecs.last().expect("unexpected None or Err"),
+                        &y_vecs.last().expect("unexpected None or Err"),
+                    ) / dot(
+                        &s_vecs.last().expect("unexpected None or Err"),
+                        &y_vecs.last().expect("unexpected None or Err"),
+                    )
+                    .max(1e-300);
                 }
 
                 // Check function-value convergence
@@ -925,7 +918,9 @@ mod tests {
         let mut opts = LBFGSBOptions::default();
         opts.pgtol = 1e-6;
         let solver = LBFGSB::new(opts);
-        let result = solver.minimize(quadratic, &[0.0, 0.0]).expect("L-BFGS-B failed");
+        let result = solver
+            .minimize(quadratic, &[0.0, 0.0])
+            .expect("L-BFGS-B failed");
         assert!(result.converged);
         assert_abs_diff_eq!(result.x[0], 1.0, epsilon = 1e-4);
         assert_abs_diff_eq!(result.x[1], 2.0, epsilon = 1e-4);
@@ -937,7 +932,9 @@ mod tests {
         let mut opts = LBFGSBOptions::default();
         opts.bounds = Some(Bounds::new(&[(None, None), (None, Some(1.0))]));
         let solver = LBFGSB::new(opts);
-        let result = solver.minimize(quadratic, &[0.0, 0.0]).expect("L-BFGS-B failed");
+        let result = solver
+            .minimize(quadratic, &[0.0, 0.0])
+            .expect("L-BFGS-B failed");
         assert!(result.converged || result.n_iter > 0);
         assert_abs_diff_eq!(result.x[1], 1.0, epsilon = 0.1);
     }
@@ -948,7 +945,9 @@ mod tests {
         opts.max_iter = 500;
         opts.pgtol = 1e-4;
         let solver = LBFGSB::new(opts);
-        let result = solver.minimize(rosenbrock, &[0.5, 0.5]).expect("L-BFGS-B failed");
+        let result = solver
+            .minimize(rosenbrock, &[0.5, 0.5])
+            .expect("L-BFGS-B failed");
         assert!(result.converged);
         assert_abs_diff_eq!(result.x[0], 1.0, epsilon = 1e-2);
         assert_abs_diff_eq!(result.x[1], 1.0, epsilon = 1e-2);

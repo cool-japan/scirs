@@ -4,8 +4,8 @@
 //! Or-opt segment relocation, and a Christofides-style MST lower bound.
 
 use scirs2_core::ndarray::Array2;
-use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
 use crate::error::OptimizeError;
 
@@ -296,8 +296,7 @@ pub fn or_opt(tour: &mut Vec<usize>, dist: &Array2<f64>) -> f64 {
                 let prev_city = tour[prev];
                 let after_city = tour[after];
 
-                let remove_cost = dist[[prev_city, first_city]]
-                    + dist[[last_city, after_city]]
+                let remove_cost = dist[[prev_city, first_city]] + dist[[last_city, after_city]]
                     - dist[[prev_city, after_city]];
 
                 // Try inserting after position `ins` (not inside the segment)
@@ -320,8 +319,7 @@ pub fn or_opt(tour: &mut Vec<usize>, dist: &Array2<f64>) -> f64 {
                     let ins_next_city = tour[ins_next];
 
                     // Forward insertion cost delta
-                    let fwd = dist[[ins_city, first_city]]
-                        + dist[[last_city, ins_next_city]]
+                    let fwd = dist[[ins_city, first_city]] + dist[[last_city, ins_next_city]]
                         - dist[[ins_city, ins_next_city]];
                     let gain_fwd = remove_cost - fwd;
                     if gain_fwd > best_gain {
@@ -332,8 +330,7 @@ pub fn or_opt(tour: &mut Vec<usize>, dist: &Array2<f64>) -> f64 {
 
                     // Reversed insertion
                     if seg_len > 1 {
-                        let rev = dist[[ins_city, last_city]]
-                            + dist[[first_city, ins_next_city]]
+                        let rev = dist[[ins_city, last_city]] + dist[[first_city, ins_next_city]]
                             - dist[[ins_city, ins_next_city]];
                         let gain_rev = remove_cost - rev;
                         if gain_rev > best_gain {
@@ -346,9 +343,8 @@ pub fn or_opt(tour: &mut Vec<usize>, dist: &Array2<f64>) -> f64 {
 
                 if let Some(ins) = best_ins {
                     // Extract the segment
-                    let segment: Vec<usize> = (0..seg_len)
-                        .map(|k| tour[(seg_start + k) % n])
-                        .collect();
+                    let segment: Vec<usize> =
+                        (0..seg_len).map(|k| tour[(seg_start + k) % n]).collect();
                     let seg_set: std::collections::HashSet<usize> =
                         segment.iter().cloned().collect();
 
@@ -361,10 +357,7 @@ pub fn or_opt(tour: &mut Vec<usize>, dist: &Array2<f64>) -> f64 {
 
                     // Find insertion position in remaining
                     let ins_city = tour[ins];
-                    let ins_pos = remaining
-                        .iter()
-                        .position(|&v| v == ins_city)
-                        .unwrap_or(0);
+                    let ins_pos = remaining.iter().position(|&v| v == ins_city).unwrap_or(0);
 
                     let mut new_tour: Vec<usize> = Vec::with_capacity(n);
                     new_tour.extend_from_slice(&remaining[..=ins_pos]);

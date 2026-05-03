@@ -19,7 +19,6 @@
 use crate::error::{ClusteringError, Result};
 use scirs2_core::ndarray::{Array2, Array3};
 
-
 /// Topology of the SOM grid
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SomTopology {
@@ -168,7 +167,7 @@ impl Som {
 
         for t in 0..n_iter {
             // Decay learning rate and sigma
-            let lr = lr0 * (-( t as f64) / lr_tau).exp();
+            let lr = lr0 * (-(t as f64) / lr_tau).exp();
             let sigma = sigma0 * (-(t as f64) / sigma_tau).exp();
             let sigma_sq = sigma * sigma;
 
@@ -313,20 +312,29 @@ impl Som {
                 // 8-connected neighbors for rectangular, 6-connected for hex
                 let offsets: &[(i64, i64)] = match self.config.topology {
                     SomTopology::Rectangular => &[
-                        (-1, -1), (-1, 0), (-1, 1),
-                        (0, -1),           (0, 1),
-                        (1, -1),  (1, 0),  (1, 1),
+                        (-1, -1),
+                        (-1, 0),
+                        (-1, 1),
+                        (0, -1),
+                        (0, 1),
+                        (1, -1),
+                        (1, 0),
+                        (1, 1),
                     ],
                     SomTopology::Hexagonal => {
                         // Even rows: neighbors at offsets (0,-1),(0,1),(-1,-1),(-1,0),(1,-1),(1,0)
                         // Odd rows:  neighbors at offsets (0,-1),(0,1),(-1,0),(-1,1),(1,0),(1,1)
                         // Use rectangular approximation here for simplicity
                         &[
-                            (-1, 0), (-1, 1),
-                            (0, -1),          (0, 1),
-                            (1, 0),  (1, 1),
+                            (-1, 0),
+                            (-1, 1),
+                            (0, -1),
+                            (0, 1),
+                            (1, 0),
+                            (1, 1),
                             // padding to same length
-                            (-1, -1), (1, -1),
+                            (-1, -1),
+                            (1, -1),
                         ]
                     }
                 };
@@ -453,8 +461,8 @@ mod tests {
         Array2::from_shape_vec(
             (12, 2),
             vec![
-                1.0, 1.0,  1.1, 0.9,  0.9, 1.1,  1.2, 1.0,  1.0, 1.2,  0.8, 0.8,
-                5.0, 5.0,  5.1, 4.9,  4.9, 5.1,  5.2, 5.0,  5.0, 5.2,  4.8, 4.8,
+                1.0, 1.0, 1.1, 0.9, 0.9, 1.1, 1.2, 1.0, 1.0, 1.2, 0.8, 0.8, 5.0, 5.0, 5.1, 4.9,
+                4.9, 5.1, 5.2, 5.0, 5.0, 5.2, 4.8, 4.8,
             ],
         )
         .expect("Failed to create test data")

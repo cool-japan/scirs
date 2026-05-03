@@ -198,10 +198,10 @@ fn projection_matrix(s: &Array2<f64>, w_inv: &Array2<f64>) -> Result<Array2<f64>
 
     // C = S^T W^{-1}  shape (m, n)
     let c = mat_transpose_mul(s, w_inv)?; // (m, n) ← but wait: S^T is (m,n), W^{-1} is (n,n)
-    // Actually mat_transpose_mul(s, w_inv) computes s^T * w_inv which is (m, n) * wait:
-    // s shape (n,m), s^T shape (m,n). We want s^T w_inv = (m,n)(n,n) = (m,n).
-    // mat_transpose_mul(s, w_inv): a=s (n,m), b=w_inv (n,n). The function computes a^T b = s^T w_inv.
-    // Rows of a = n, cols of a = m.  a^T has shape (m,n). b has shape (n,n). -> out (m,n). Correct.
+                                          // Actually mat_transpose_mul(s, w_inv) computes s^T * w_inv which is (m, n) * wait:
+                                          // s shape (n,m), s^T shape (m,n). We want s^T w_inv = (m,n)(n,n) = (m,n).
+                                          // mat_transpose_mul(s, w_inv): a=s (n,m), b=w_inv (n,n). The function computes a^T b = s^T w_inv.
+                                          // Rows of a = n, cols of a = m.  a^T has shape (m,n). b has shape (n,n). -> out (m,n). Correct.
     let _ = m; // already used above
 
     // M = C S = S^T W^{-1} S  shape (m, m)
@@ -482,7 +482,9 @@ impl ErmReconciliation {
         let n = s.shape()[0];
         let t_train = base_forecasts_train.shape()[1];
 
-        if base_forecasts_train.shape()[0] != n || actuals_train.shape() != base_forecasts_train.shape() {
+        if base_forecasts_train.shape()[0] != n
+            || actuals_train.shape() != base_forecasts_train.shape()
+        {
             return Err(TimeSeriesError::InvalidInput(
                 "Training arrays must have shape (n, T_train)".to_string(),
             ));
@@ -529,10 +531,10 @@ impl ErmReconciliation {
         // Project G onto coherence subspace: G_coherent = S (S^T S)^{-1} S^T G_raw
         // First compute (S^T S)^{-1}  (m×m)
         let sts = mat_transpose_mul(s, s)?; // s^T s shape (m,m)
-        // wait: mat_transpose_mul(a,b) computes a^T b. Here a=s (n,m), b=s (n,m).
-        // a^T b = s^T s (m,n)(n,m) = (m,m). But let me double-check signature:
-        // mat_transpose_mul(a,b): a (m_in,n_in), b (m_in, p) → output (n_in, p)
-        // so mat_transpose_mul(s, s): a=s(n,m), b=s(n,m) → (m, m). Correct.
+                                            // wait: mat_transpose_mul(a,b) computes a^T b. Here a=s (n,m), b=s (n,m).
+                                            // a^T b = s^T s (m,n)(n,m) = (m,m). But let me double-check signature:
+                                            // mat_transpose_mul(a,b): a (m_in,n_in), b (m_in, p) → output (n_in, p)
+                                            // so mat_transpose_mul(s, s): a=s(n,m), b=s(n,m) → (m, m). Correct.
         let sts_inv = cholesky_inverse(&sts)?;
 
         // P_ols = (S^T S)^{-1} S^T   shape (m, n)
@@ -787,10 +789,7 @@ pub struct OLSReconciliation;
 
 impl OLSReconciliation {
     /// Reconcile `base_forecasts` (shape `[n_series, T]`) using summation matrix `s`.
-    pub fn reconcile(
-        base_forecasts: &Array2<f64>,
-        s: &Array2<f64>,
-    ) -> Result<Array2<f64>> {
+    pub fn reconcile(base_forecasts: &Array2<f64>, s: &Array2<f64>) -> Result<Array2<f64>> {
         MinTraceReconciliation::reconcile_ols(base_forecasts, s)
     }
 }
@@ -839,10 +838,7 @@ impl BottomUpReconciliation {
     ///
     /// Returns coherent forecasts where all upper levels are derived
     /// from the summed bottom-level.
-    pub fn reconcile(
-        base_forecasts: &Array2<f64>,
-        s: &Array2<f64>,
-    ) -> Result<Array2<f64>> {
+    pub fn reconcile(base_forecasts: &Array2<f64>, s: &Array2<f64>) -> Result<Array2<f64>> {
         let n_all = s.shape()[0];
         let n_bottom = s.shape()[1];
         let t = base_forecasts.shape()[1];
@@ -861,7 +857,9 @@ impl BottomUpReconciliation {
 
         // Extract bottom-level forecasts (last n_bottom rows by convention)
         let bottom_start = n_all - n_bottom;
-        let bottom = base_forecasts.slice(scirs2_core::ndarray::s![bottom_start.., ..]).to_owned();
+        let bottom = base_forecasts
+            .slice(scirs2_core::ndarray::s![bottom_start.., ..])
+            .to_owned();
 
         // Compute S * y_bottom
         let mut out = Array2::<f64>::zeros((n_all, t));
@@ -952,7 +950,11 @@ impl TopDownReconciliation {
                             count += 1;
                         }
                     }
-                    if count == 0 { 1.0 / n_bottom as f64 } else { sum / count as f64 }
+                    if count == 0 {
+                        1.0 / n_bottom as f64
+                    } else {
+                        sum / count as f64
+                    }
                 }
                 TopDownMethod::ProportionalMedianAbsolutePct => {
                     // Median of |bottom[j,t]| / (sum of |bottom[*,t]|)
@@ -968,7 +970,8 @@ impl TopDownReconciliation {
                     if ratios.is_empty() {
                         1.0 / n_bottom as f64
                     } else {
-                        ratios.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                        ratios
+                            .sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                         let mid = ratios.len() / 2;
                         if ratios.len() % 2 == 0 {
                             (ratios[mid - 1] + ratios[mid]) / 2.0
@@ -1006,7 +1009,9 @@ impl TopDownReconciliation {
         }
 
         // Upper levels = S * bottom
-        let bottom_slice = out.slice(scirs2_core::ndarray::s![bottom_start.., ..]).to_owned();
+        let bottom_slice = out
+            .slice(scirs2_core::ndarray::s![bottom_start.., ..])
+            .to_owned();
         for i in 0..bottom_start {
             for tt in 0..t {
                 let mut sum = 0.0_f64;
@@ -1107,7 +1112,6 @@ impl SummationMatrix {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1148,7 +1152,8 @@ mod tests {
         base[[4, 1]] = 26.0;
         base[[5, 1]] = 65.0;
 
-        let reconciled = MinTraceReconciliation::reconcile_ols(&base, &s).expect("failed to create reconciled");
+        let reconciled =
+            MinTraceReconciliation::reconcile_ols(&base, &s).expect("failed to create reconciled");
         assert_eq!(reconciled.shape(), &[6, 2]);
 
         // Check coherence: total == sum of leaves
@@ -1174,7 +1179,8 @@ mod tests {
         let n = s.shape()[0];
         let base = Array2::<f64>::ones((n, 1));
         let weights = Array1::from_vec(vec![2.0; n]);
-        let result = MinTraceReconciliation::reconcile_wls(&base, &s, &weights).expect("failed to create result");
+        let result = MinTraceReconciliation::reconcile_wls(&base, &s, &weights)
+            .expect("failed to create result");
         assert_eq!(result.shape(), &[6, 1]);
     }
 
@@ -1194,7 +1200,8 @@ mod tests {
             }
         }
 
-        let result = MinTraceReconciliation::reconcile_mint_shrink(&base, &s, &residuals).expect("failed to create result");
+        let result = MinTraceReconciliation::reconcile_mint_shrink(&base, &s, &residuals)
+            .expect("failed to create result");
         assert_eq!(result.shape(), &[6, 1]);
     }
 
@@ -1214,7 +1221,8 @@ mod tests {
             }
         }
 
-        let mase = mase_hierarchical(&actuals, &forecasts, &training).expect("failed to create mase");
+        let mase =
+            mase_hierarchical(&actuals, &forecasts, &training).expect("failed to create mase");
         assert_eq!(mase.len(), n);
         for &v in mase.iter() {
             assert!(v > 0.0, "MASE must be positive");

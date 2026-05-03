@@ -485,6 +485,13 @@ impl Gpt2BpeTokenizer {
     pub fn num_merges(&self) -> usize {
         self.merges.len()
     }
+
+    /// Return a cloned snapshot of the `token → id` vocabulary map.
+    ///
+    /// Useful for serialisation (e.g. building a HuggingFace `tokenizers.json`).
+    pub fn vocab_snapshot(&self) -> HashMap<String, u32> {
+        self.vocab.clone()
+    }
 }
 
 // ---------------------------------------------------------------------------

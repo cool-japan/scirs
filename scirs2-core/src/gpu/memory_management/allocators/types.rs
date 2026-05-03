@@ -482,6 +482,15 @@ impl CompactionAllocator {
             .as_ref()
             .and_then(|fr| fr.iter().map(|(_, size)| size).max().copied())
             .unwrap_or(0);
+        // Compute fragmentation inline using already-held lock guard.
+        // Do NOT call self.calculate_fragmentation() here: that method acquires
+        // self.free_regions.lock() again, which deadlocks because std::sync::Mutex
+        // is non-reentrant and the guard above is still live.
+        let fragmentation_ratio = if total_free == 0 {
+            0.0
+        } else {
+            1.0 - (largest_free as f64 / total_free as f64)
+        };
         CompactionAllocatorStatistics {
             total_allocations: self.total_allocations.load(Ordering::Relaxed),
             total_deallocations: self.total_deallocations.load(Ordering::Relaxed),
@@ -493,7 +502,7 @@ impl CompactionAllocator {
             allocated_blocks: allocated_count,
             total_free_bytes: total_free,
             largest_free_block: largest_free,
-            fragmentation_ratio: self.calculate_fragmentation(),
+            fragmentation_ratio,
             total_memory: self.total_memory,
         }
     }

@@ -15,7 +15,7 @@
 use crate::bspline::{BSpline, ExtrapolateMode};
 use crate::error::{InterpolateError, InterpolateResult};
 use crate::extrapolation::ExtrapolationMethod;
-use crate::spline::CubicSpline;
+use crate::spline::{CubicSpline, SplineBoundaryCondition};
 use crate::traits::InterpolationFloat;
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use std::collections::HashMap;
@@ -127,6 +127,7 @@ pub struct PPoly<T: InterpolationFloat> {
 ///
 /// This wraps the existing BSpline implementation to provide exact SciPy.interpolate.BSpline
 /// compatibility including all method signatures and behaviors.
+#[derive(Clone)]
 pub struct SciPyBSpline<
     T: InterpolationFloat + std::ops::MulAssign + std::ops::DivAssign + std::ops::RemAssign,
 > {
@@ -178,7 +179,8 @@ impl<T: InterpolationFloat> SciPyCompatInterface<T> {
         let mut interface = Self {
             method_registry: HashMap::new(),
             parameter_mappings: HashMap::new(),
-            scipy_version: "1.13.0".to_string(), _phantom: PhantomData,
+            scipy_version: "1.13.0".to_string(),
+            _phantom: PhantomData,
         };
 
         interface.initialize_method_registry();
@@ -362,7 +364,7 @@ impl<T: InterpolationFloat> SciPyCompatInterface<T> {
 
     /// Get SciPy method compatibility information
     pub fn get_method_info(&self, methodname: &str) -> Option<&SciPyMethod> {
-        self.method_registry.get(method_name)
+        self.method_registry.get(methodname)
     }
 
     /// Validate SciPy API compatibility
@@ -609,14 +611,95 @@ impl<T: InterpolationFloat> SciPyBSpline<T> {
         }
     }
 
-    /// Compute derivative (SciPy interface)
+    /// Compute the nu-th derivative of this B-spline (SciPy interface).
+    ///
+    /// Returns a new `SciPyBSpline` of degree `k - nu` representing the nu-th
+    /// derivative of `self`.  The recursion applied nu times is:
+    ///
+    /// ```text
+    /// c'[i] = k * (c[i+1] - c[i]) / (t[i+k+1] - t[i+1])
+    /// t'    = t[1 .. t.len()-1]   (drop one knot from each end)
+    /// k'    = k - 1
+    /// ```
+    ///
+    /// Coincident knots (zero denominator) are handled by setting `c'[i] = 0`.
     pub fn derivative(&self, nu: usize) -> InterpolateResult<SciPyBSpline<T>> {
-        // TODO: Implement derivative spline construction
-        // For now, return not implemented error
-        let _ = nu; // Suppress unused variable warning
-        Err(InterpolateError::NotImplemented(
-            "BSpline derivative spline construction not yet implemented".to_string(),
-        ))
+        if nu == 0 {
+            return Ok(self.clone());
+        }
+
+        // For nu > k, all derivatives vanish.  nu == k is the k-th derivative,
+        // which is a non-trivial piecewise-constant — only nu > k is identically zero.
+        if nu > self.inner.k {
+            // Build a degree-0 zero spline.
+            // A degree-0 spline with n coefficients needs n+1 knots.
+            // We use the minimal case: 1 coefficient (= 0) and 2 knots.
+            let domain_start = self.inner.t[self.inner.k];
+            let domain_end = self.inner.t[self.inner.t.len() - self.inner.k - 1];
+            let zero_t = scirs2_core::ndarray::Array1::from(vec![domain_start, domain_end]);
+            let zero_c = scirs2_core::ndarray::Array1::from(vec![T::zero()]);
+            let zero_inner = BSpline::new(
+                &zero_t.view(),
+                &zero_c.view(),
+                0,
+                ExtrapolateMode::Extrapolate,
+            )?;
+            return Ok(Self {
+                inner: zero_inner,
+                extrapolate: self.extrapolate,
+                axis: self.axis,
+            });
+        }
+
+        // Iteratively apply the first-derivative recurrence nu times.
+        let mut current_t: Vec<T> = self.inner.t.to_vec();
+        let mut current_c: Vec<T> = self.inner.c.to_vec();
+        let mut current_k = self.inner.k;
+
+        let eps = T::from_f64(1e-14).unwrap_or(T::zero());
+
+        for _ in 0..nu {
+            let n = current_c.len();
+            // After each step n decreases by 1, so the new length is n-1.
+            let mut new_c: Vec<T> = vec![T::zero(); n - 1];
+
+            let k_f = T::from_usize(current_k).ok_or_else(|| {
+                InterpolateError::ComputationError("Failed to convert degree to float".to_string())
+            })?;
+
+            for i in 0..(n - 1) {
+                // Denominator: t[i + k + 1] - t[i + 1]
+                let t_hi = current_t[i + current_k + 1];
+                let t_lo = current_t[i + 1];
+                let denom = t_hi - t_lo;
+                new_c[i] = if denom.abs() > eps {
+                    k_f * (current_c[i + 1] - current_c[i]) / denom
+                } else {
+                    T::zero()
+                };
+            }
+
+            // New knot vector: drop the first and last knot.
+            current_t = current_t[1..current_t.len() - 1].to_vec();
+            current_c = new_c;
+            current_k -= 1;
+        }
+
+        // Construct the derivative BSpline.
+        let t_arr = scirs2_core::ndarray::Array1::from(current_t);
+        let c_arr = scirs2_core::ndarray::Array1::from(current_c);
+        let deriv_inner = BSpline::new(
+            &t_arr.view(),
+            &c_arr.view(),
+            current_k,
+            ExtrapolateMode::Extrapolate,
+        )?;
+
+        Ok(Self {
+            inner: deriv_inner,
+            extrapolate: self.extrapolate,
+            axis: self.axis,
+        })
     }
 
     /// Compute antiderivative (SciPy interface)
@@ -647,18 +730,46 @@ impl<T: InterpolationFloat> SciPyCubicSpline<T> {
         let bc = bc_type.unwrap_or(SciPyBoundaryCondition::NotAKnot);
 
         let inner = match &bc {
-            SciPyBoundaryCondition::Natural => CubicSpline::new(x, y)?,
+            SciPyBoundaryCondition::Natural => {
+                CubicSpline::with_boundary_condition(x, y, SplineBoundaryCondition::Natural)?
+            }
             SciPyBoundaryCondition::NotAKnot => CubicSpline::new_not_a_knot(x, y)?,
             SciPyBoundaryCondition::Clamped(left, right) => {
-                let left_t = T::from_f64(*left).expect("Operation failed");
-                let right_t = T::from_f64(*right).expect("Operation failed");
-                CubicSpline::new_clamped(x, y, left_t, right_t)?
+                let left_t = T::from_f64(*left).ok_or_else(|| {
+                    InterpolateError::ComputationError("Invalid left clamp value".to_string())
+                })?;
+                let right_t = T::from_f64(*right).ok_or_else(|| {
+                    InterpolateError::ComputationError("Invalid right clamp value".to_string())
+                })?;
+                CubicSpline::with_boundary_condition(
+                    x,
+                    y,
+                    SplineBoundaryCondition::Clamped(left_t, right_t),
+                )?
             }
-            SciPyBoundaryCondition::Periodic => CubicSpline::new_periodic(x, y)?,
-            SciPyBoundaryCondition::Custom(_) => {
-                return Err(InterpolateError::NotImplemented(
-                    "Custom boundary conditions not yet implemented".to_string(),
-                ));
+            SciPyBoundaryCondition::Periodic => {
+                CubicSpline::with_boundary_condition(x, y, SplineBoundaryCondition::Periodic)?
+            }
+            SciPyBoundaryCondition::Custom(desc) => {
+                // Parse the custom boundary condition description and map to the
+                // closest available SplineBoundaryCondition.
+                // Recognised keywords (case-insensitive): "natural", "not-a-knot",
+                // "periodic", "clamped" (defaults to zero derivatives).
+                let desc_lower = desc.to_lowercase();
+                if desc_lower.contains("not-a-knot") || desc_lower.contains("notaknot") {
+                    CubicSpline::new_not_a_knot(x, y)?
+                } else if desc_lower.contains("periodic") {
+                    CubicSpline::with_boundary_condition(x, y, SplineBoundaryCondition::Periodic)?
+                } else if desc_lower.contains("clamped") {
+                    CubicSpline::with_boundary_condition(
+                        x,
+                        y,
+                        SplineBoundaryCondition::Clamped(T::zero(), T::zero()),
+                    )?
+                } else {
+                    // Default to natural for unrecognised custom descriptions
+                    CubicSpline::with_boundary_condition(x, y, SplineBoundaryCondition::Natural)?
+                }
             }
         };
 
@@ -752,12 +863,162 @@ impl<T: InterpolationFloat> SciPyCubicSpline<T> {
     }
 
     /// Solve for x values where spline equals y (SciPy interface)
+    ///
+    /// Finds all x in the interpolation range (or beyond if `extrapolate` is true)
+    /// such that `spline(x) == y`.
+    ///
+    /// The implementation evaluates the spline at the knots to bracket sign-changes
+    /// (after subtracting `y`), then uses bisection within each bracket to locate
+    /// the root to ~1e-10 relative precision.
     pub fn solve(
-        &self_y: T, _discontinuity: Option<bool>, _extrapolate: Option<bool>,
+        &self,
+        y: T,
+        _discontinuity: Option<bool>,
+        extrapolate: Option<bool>,
     ) -> InterpolateResult<Vec<T>> {
-        // This would implement root-finding for spline(x) - _y = 0
-        // Simplified implementation for now
-        let roots = self.inner.find_roots(T::from_f64(1e-10).expect("Operation failed"), 100)?;
+        let should_extrapolate = extrapolate.or(self.extrapolate).unwrap_or(false);
+
+        let x_data = self.inner.x();
+        let n = x_data.len();
+        if n < 2 {
+            return Ok(vec![]);
+        }
+
+        // Build candidate x values to scan: the knot grid, plus a denser sub-grid
+        // within each segment to catch roots that lie away from knot values.
+        let sub_steps = 4usize;
+        let mut xs: Vec<T> = Vec::with_capacity(n * (sub_steps + 1));
+
+        for i in 0..(n - 1) {
+            xs.push(x_data[i]);
+            let h = (x_data[i + 1] - x_data[i])
+                / T::from_f64(sub_steps as f64).ok_or_else(|| {
+                    InterpolateError::ComputationError("Type conversion failed".to_string())
+                })?;
+            for s in 1..sub_steps {
+                xs.push(
+                    x_data[i]
+                        + h * T::from_f64(s as f64).ok_or_else(|| {
+                            InterpolateError::ComputationError("Type conversion failed".to_string())
+                        })?,
+                );
+            }
+        }
+        xs.push(x_data[n - 1]);
+
+        // Optionally extend with a coarse extrapolation range
+        if should_extrapolate {
+            let span = x_data[n - 1] - x_data[0];
+            let ext = span
+                * T::from_f64(0.25).ok_or_else(|| {
+                    InterpolateError::ComputationError("Type conversion failed".to_string())
+                })?;
+            xs.insert(0, x_data[0] - ext);
+            xs.push(x_data[n - 1] + ext);
+        }
+
+        // f(x) = spline(x) - y
+        let eval_f = |xi: T| -> InterpolateResult<T> {
+            let v = if xi >= x_data[0] && xi <= x_data[n - 1] {
+                self.inner.evaluate(xi)?
+            } else if should_extrapolate {
+                self.linear_extrapolate(xi)?
+            } else {
+                return Err(InterpolateError::OutOfBounds(
+                    "x out of interpolation range".to_string(),
+                ));
+            };
+            Ok(v - y)
+        };
+
+        let mut roots: Vec<T> = Vec::new();
+
+        let zero = T::from_f64(0.0).ok_or_else(|| {
+            InterpolateError::ComputationError("Type conversion failed".to_string())
+        })?;
+
+        // Scan consecutive pairs for sign changes; bisect in each bracket.
+        for window in xs.windows(2) {
+            let (xa, xb) = (window[0], window[1]);
+            let fa = match eval_f(xa) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+            let fb = match eval_f(xb) {
+                Ok(v) => v,
+                Err(_) => continue,
+            };
+
+            // Exact root at left endpoint
+            if fa == zero {
+                // Avoid duplicates
+                if roots.last().map_or(true, |&last| {
+                    (xa - last).abs() > T::from_f64(1e-12).unwrap_or(zero)
+                }) {
+                    roots.push(xa);
+                }
+                continue;
+            }
+
+            // Check for sign change → bracket contains a root
+            let fa_f64 = fa.to_f64().ok_or_else(|| {
+                InterpolateError::ComputationError("Type conversion failed".to_string())
+            })?;
+            let fb_f64 = fb.to_f64().ok_or_else(|| {
+                InterpolateError::ComputationError("Type conversion failed".to_string())
+            })?;
+
+            if fa_f64 * fb_f64 >= 0.0 {
+                continue;
+            }
+
+            // Bisection in [xa, xb]
+            let tol = T::from_f64(1e-10).ok_or_else(|| {
+                InterpolateError::ComputationError("Type conversion failed".to_string())
+            })?;
+            let two = T::from_f64(2.0).ok_or_else(|| {
+                InterpolateError::ComputationError("Type conversion failed".to_string())
+            })?;
+
+            let mut lo = xa;
+            let mut hi = xb;
+            let mut f_lo = fa;
+
+            for _ in 0..60 {
+                let mid = (lo + hi) / two;
+                let span = hi - lo;
+                if span < tol {
+                    break;
+                }
+                let f_mid = match eval_f(mid) {
+                    Ok(v) => v,
+                    Err(_) => break,
+                };
+
+                let f_lo_f64 = f_lo.to_f64().ok_or_else(|| {
+                    InterpolateError::ComputationError("Conversion failed".to_string())
+                })?;
+                let f_mid_f64 = f_mid.to_f64().ok_or_else(|| {
+                    InterpolateError::ComputationError("Conversion failed".to_string())
+                })?;
+
+                if f_lo_f64 * f_mid_f64 <= 0.0 {
+                    hi = mid;
+                } else {
+                    lo = mid;
+                    f_lo = f_mid;
+                }
+            }
+
+            let root = (lo + hi) / two;
+            // Deduplicate
+            if roots.last().map_or(true, |&last| {
+                (root - last).abs() > T::from_f64(1e-9).unwrap_or(zero)
+            }) {
+                roots.push(root);
+            }
+        }
+
         Ok(roots)
     }
 }
@@ -821,6 +1082,7 @@ impl CompatibilityReport {
 }
 
 /// Top-level SciPy compatibility interface
+#[allow(non_snake_case)]
 impl SciPyInterpolate {
     /// Create a SciPy-compatible CubicSpline
     pub fn CubicSpline<T: InterpolationFloat>(
@@ -861,7 +1123,8 @@ impl SciPyInterpolate {
     pub fn PPoly<T: InterpolationFloat>(
         c: Array2<T>,
         x: Array1<T>,
-        extrapolate: Option<bool>, _axis: Option<i32>,
+        extrapolate: Option<bool>,
+        _axis: Option<i32>,
     ) -> InterpolateResult<PPoly<T>> {
         let extrap_mode = if extrapolate.unwrap_or(true) {
             ExtrapolationMethod::Linear
@@ -925,13 +1188,18 @@ mod tests {
     #[test]
     fn test_ppoly_implementation() {
         // Create a simple piecewise polynomial: x^2 on [0,1], (x-1)^2 + 1 on [1,2]
-        let coeffs = array![[0.0, 1.0], [0.0, -2.0], [1.0, 1.0]]; // [constant, linear, quadratic]
+        // Coefficients are in ascending order: [constant, linear, quadratic] per column (interval).
+        // For x^2 on [0,1] around x0=0: a=0, b=0, c=1  -> column 0 = [0.0, 0.0, 1.0]
+        // For (x-1)^2+1 on [1,2] around x0=1: a=1, b=0, c=1  -> column 1 = [1.0, 0.0, 1.0]
+        let coeffs = array![[0.0, 1.0], [0.0, 0.0], [1.0, 1.0]]; // [constant, linear, quadratic]
         let breakpoints = array![0.0, 1.0, 2.0];
 
         let ppoly = PPoly::new(coeffs, breakpoints, None).expect("Operation failed");
 
         let test_points = array![0.5, 1.5];
-        let result = ppoly.__call__(&test_points.view()).expect("Operation failed");
+        let result = ppoly
+            .__call__(&test_points.view())
+            .expect("Operation failed");
 
         assert_relative_eq!(result[0], 0.25, epsilon = 1e-10); // 0.5^2 = 0.25
         assert_relative_eq!(result[1], 1.25, epsilon = 1e-10); // (1.5-1)^2 + 1 = 1.25
@@ -947,5 +1215,279 @@ mod tests {
         assert_eq!(report.scipy_version, "1.13.0");
 
         report.print_report();
+    }
+
+    // -----------------------------------------------------------------------
+    // SciPyBSpline::derivative tests
+    // -----------------------------------------------------------------------
+
+    /// Helper: build a SciPyBSpline directly (using the SciPyInterpolate factory).
+    fn make_scipy_bspline(t: Vec<f64>, c: Vec<f64>, k: usize) -> SciPyBSpline<f64> {
+        let t_arr = scirs2_core::ndarray::Array1::from(t);
+        let c_arr = scirs2_core::ndarray::Array1::from(c);
+        SciPyBSpline::new(&t_arr.view(), &c_arr.view(), k, Some(true), Some(0))
+            .expect("Failed to create SciPyBSpline")
+    }
+
+    /// nu = 0 must return an identical spline (identity).
+    #[test]
+    fn test_bspline_derivative_nu0_identity() {
+        // Degree-2 spline: 4 coefficients need 4+2+1 = 7 knots
+        let spl = make_scipy_bspline(
+            vec![0.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0],
+            vec![1.0, 2.0, 3.0, 4.0],
+            2,
+        );
+        let deriv = spl.derivative(0).expect("derivative(0) failed");
+
+        // Degree and knot count must be unchanged.
+        assert_eq!(deriv.inner.k, spl.inner.k);
+        assert_eq!(deriv.inner.t.len(), spl.inner.t.len());
+        assert_eq!(deriv.inner.c.len(), spl.inner.c.len());
+
+        // Values at a few interior points must match the original spline.
+        for &x in &[0.5_f64, 1.0, 1.5] {
+            let v_orig = spl.inner.evaluate(x).expect("eval orig failed");
+            let v_deriv = deriv.inner.evaluate(x).expect("eval deriv failed");
+            assert_relative_eq!(v_orig, v_deriv, epsilon = 1e-12);
+        }
+    }
+
+    /// nu = 1 on a linear (degree-1) B-spline → degree-0 piecewise constant.
+    ///
+    /// f(x) = 2x over [0,1] (clamped linear spline, coefficient of slope = 2).
+    /// f'(x) = 2 everywhere in the interior.
+    #[test]
+    fn test_bspline_derivative_linear_to_constant() {
+        // Degree-1 spline: 3 coefficients → 3+1+1 = 5 knots.
+        // Knots: [0, 0, 0.5, 1, 1] with coefficients [0, 1, 2].
+        // This represents a piecewise-linear function.
+        let t = vec![0.0, 0.0, 0.5, 1.0, 1.0];
+        let c = vec![0.0, 1.0, 2.0];
+        let spl = make_scipy_bspline(t, c, 1);
+
+        let deriv = spl.derivative(1).expect("derivative(1) failed");
+
+        // Degree should be reduced by 1.
+        assert_eq!(deriv.inner.k, 0);
+        // New coefficient count = old - 1 = 2.
+        assert_eq!(deriv.inner.c.len(), 2);
+
+        // Evaluate the derivative at points inside each span; values must be finite.
+        for &x in &[0.2_f64, 0.7] {
+            let v = deriv.inner.evaluate(x).expect("eval deriv failed");
+            assert!(v.is_finite(), "derivative value at {x} must be finite");
+        }
+    }
+
+    /// nu = 1 on a quadratic (degree-2) B-spline → degree-1 (linear).
+    ///
+    /// Use f(x) = x^2 approximated by a clamped quadratic B-spline.
+    /// The analytic derivative is 2x; we verify the sign and rough magnitude.
+    #[test]
+    fn test_bspline_derivative_quadratic_to_linear() {
+        // Degree-2 spline: 4 coefficients → 4+2+1 = 7 knots.
+        // Use clamped knots [0,0,0,1,2,2,2] and coefficients that approximate x^2.
+        let t = vec![0.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0];
+        // Coefficients for Bernstein-like quadratic approximation of x^2 on [0,2]:
+        // B-spline control points: 0, 0.25, 1.0, 4.0 (rough) — just need something non-trivial.
+        let c = vec![0.0, 0.5, 2.0, 4.0];
+        let spl = make_scipy_bspline(t, c, 2);
+
+        let deriv = spl.derivative(1).expect("derivative(1) failed");
+
+        // Degree must drop by exactly 1.
+        assert_eq!(deriv.inner.k, 1);
+        // Coefficient count = 4 - 1 = 3.
+        assert_eq!(deriv.inner.c.len(), 3);
+
+        // Derivative of a non-trivial spline should be non-zero at an interior point.
+        let v_mid = deriv.inner.evaluate(1.0).expect("eval at 1.0 failed");
+        assert!(v_mid.is_finite());
+        // For a spline approximating x^2, derivative at x=1 ≈ 2x = 2; allow large tolerance.
+        assert!(
+            v_mid > 0.0,
+            "derivative of x^2-like spline should be positive at x=1"
+        );
+    }
+
+    /// nu = 2 on a cubic (degree-3) B-spline → degree-1 (linear second derivative).
+    ///
+    /// f(x) = x^3 on [0, 1] (clamped); f''(x) = 6x.  We verify the output degree,
+    /// coefficient count, and the sign/positivity of the second derivative at x = 0.5.
+    #[test]
+    fn test_bspline_derivative_cubic_second_derivative() {
+        // Degree-3 clamped B-spline on [0,1] with a single internal knot at 0.5.
+        // 5 coefficients → 5+3+1 = 9 knots.
+        let t = vec![0.0, 0.0, 0.0, 0.0, 0.5, 1.0, 1.0, 1.0, 1.0];
+        // Coefficients approximating x^3: 0, 0, 0, 1/12, 1/4, ... (rough; exact fitting not needed)
+        let c = vec![0.0, 0.0, 0.1, 0.5, 1.0];
+        let spl = make_scipy_bspline(t, c, 3);
+
+        let deriv2 = spl.derivative(2).expect("derivative(2) failed");
+
+        // Degree should be 3 - 2 = 1.
+        assert_eq!(deriv2.inner.k, 1);
+        // Coefficient count = 5 - 2 = 3.
+        assert_eq!(deriv2.inner.c.len(), 3);
+
+        // Second derivative of an upward-curving spline should be positive near x=0.5.
+        let v = deriv2.inner.evaluate(0.4).expect("eval at 0.4 failed");
+        assert!(v.is_finite(), "second derivative must be finite");
+        assert!(
+            v >= 0.0,
+            "second derivative of x^3-like spline should be non-negative"
+        );
+    }
+
+    /// nu == k: the k-th derivative of a degree-k spline is a non-trivial piecewise constant.
+    /// This must NOT return the zero spline.
+    #[test]
+    fn test_bspline_derivative_nu_equals_k_nonzero() {
+        // Degree-2, 4 coefficients → 7 knots.
+        let t = vec![0.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0];
+        let c = vec![0.0, 1.0, 3.0, 6.0];
+        let spl = make_scipy_bspline(t, c, 2);
+
+        // nu == k == 2: second derivative of a degree-2 spline → degree-0 constant.
+        let deriv_k = spl.derivative(2).expect("derivative(k) failed");
+
+        assert_eq!(deriv_k.inner.k, 0, "k-th derivative should have degree 0");
+
+        // At least one coefficient must be non-zero (not the trivial zero spline).
+        let any_nonzero = deriv_k.inner.c.iter().any(|&v| v.abs() > 1e-12);
+        assert!(
+            any_nonzero,
+            "k-th derivative of a non-trivial spline must not be identically zero"
+        );
+    }
+
+    /// nu > k: all derivatives of order > degree must be identically zero.
+    #[test]
+    fn test_bspline_derivative_nu_greater_than_k_zero_spline() {
+        // Degree-2 spline.
+        let t = vec![0.0, 0.0, 0.0, 1.0, 2.0, 2.0, 2.0];
+        let c = vec![1.0, 2.0, 3.0, 4.0];
+        let spl = make_scipy_bspline(t, c, 2);
+
+        // nu = 3 > k = 2: should return a zero degree-0 spline.
+        let zero_spl = spl.derivative(3).expect("derivative(3) failed");
+
+        assert_eq!(zero_spl.inner.k, 0, "zero spline must have degree 0");
+        // All coefficients must be zero.
+        for &v in zero_spl.inner.c.iter() {
+            assert_relative_eq!(v, 0.0, epsilon = 1e-15);
+        }
+
+        // Evaluating anywhere in the domain should return 0.
+        let domain_mid = (zero_spl.inner.t[0] + zero_spl.inner.t[zero_spl.inner.t.len() - 1]) / 2.0;
+        let val = zero_spl.inner.evaluate(domain_mid).expect("eval failed");
+        assert_relative_eq!(val, 0.0, epsilon = 1e-15);
+    }
+
+    // ── CubicSpline.solve() tests ───────────────────────────────────────────
+
+    /// Build a SciPyCubicSpline from simple x/y data.
+    fn make_spline(xs: &[f64], ys: &[f64]) -> SciPyCubicSpline<f64> {
+        use scirs2_core::ndarray::Array1;
+        let x = Array1::from_vec(xs.to_vec());
+        let y = Array1::from_vec(ys.to_vec());
+        SciPyCubicSpline::new(&x.view(), &y.view(), None, None, None)
+            .expect("SciPyCubicSpline construction failed")
+    }
+
+    #[test]
+    fn test_cubic_spline_solve_linear_root() {
+        // y = x − 2  →  root at x = 2
+        let spl = make_spline(&[0.0, 1.0, 2.0, 3.0], &[-2.0, -1.0, 0.0, 1.0]);
+        let roots = spl.solve(0.0, None, None).expect("solve() failed");
+        assert!(!roots.is_empty(), "Expected a root near x=2, got none");
+        let closest = roots
+            .iter()
+            .map(|r| (r - 2.0).abs())
+            .fold(f64::MAX, f64::min);
+        assert!(
+            closest < 1e-6,
+            "Root not close enough to 2.0; closest = {closest}"
+        );
+    }
+
+    #[test]
+    fn test_cubic_spline_solve_no_root() {
+        // y = x + 10  →  no root in [0, 3]
+        let spl = make_spline(&[0.0, 1.0, 2.0, 3.0], &[10.0, 11.0, 12.0, 13.0]);
+        let roots = spl.solve(0.0, None, None).expect("solve() failed");
+        assert!(roots.is_empty(), "Expected no roots but found {:?}", roots);
+    }
+
+    #[test]
+    fn test_cubic_spline_solve_multiple_roots() {
+        // y = sin-like: oscillates so there are multiple roots at y=0
+        use std::f64::consts::PI;
+        let xs: Vec<f64> = (0..=16).map(|i| i as f64 * PI / 8.0).collect();
+        let ys: Vec<f64> = xs.iter().map(|&x| x.sin()).collect();
+        let spl = make_spline(&xs, &ys);
+        let roots = spl.solve(0.0, None, None).expect("solve() failed");
+        // There should be roots near 0, π, 2π
+        assert!(
+            roots.len() >= 2,
+            "Expected at least 2 roots, got {:?}",
+            roots
+        );
+    }
+
+    // ── Custom boundary condition tests ─────────────────────────────────────
+
+    #[test]
+    fn test_custom_bc_natural_keyword() {
+        let spl = SciPyCubicSpline::new(
+            &scirs2_core::ndarray::array![0.0, 1.0, 2.0, 3.0].view(),
+            &scirs2_core::ndarray::array![0.0, 1.0, 0.0, -1.0].view(),
+            None,
+            Some(SciPyBoundaryCondition::Custom("natural".to_string())),
+            None,
+        );
+        assert!(
+            spl.is_ok(),
+            "Custom 'natural' BC should not error: {:?}",
+            spl.err()
+        );
+    }
+
+    #[test]
+    fn test_custom_bc_periodic_keyword() {
+        // Periodic requires y[0] == y[-1]; use a constant signal
+        let spl = SciPyCubicSpline::new(
+            &scirs2_core::ndarray::array![0.0, 1.0, 2.0, 3.0].view(),
+            &scirs2_core::ndarray::array![1.0, 1.0, 1.0, 1.0].view(),
+            None,
+            Some(SciPyBoundaryCondition::Custom(
+                "periodic boundary".to_string(),
+            )),
+            None,
+        );
+        assert!(
+            spl.is_ok(),
+            "Custom 'periodic' BC should not error: {:?}",
+            spl.err()
+        );
+    }
+
+    #[test]
+    fn test_custom_bc_unknown_falls_back_to_natural() {
+        let spl = SciPyCubicSpline::new(
+            &scirs2_core::ndarray::array![0.0, 1.0, 2.0, 3.0].view(),
+            &scirs2_core::ndarray::array![0.0, 1.0, 4.0, 9.0].view(),
+            None,
+            Some(SciPyBoundaryCondition::Custom(
+                "unknown_bc_type".to_string(),
+            )),
+            None,
+        );
+        assert!(
+            spl.is_ok(),
+            "Unknown custom BC should fall back to natural, not error: {:?}",
+            spl.err()
+        );
     }
 }

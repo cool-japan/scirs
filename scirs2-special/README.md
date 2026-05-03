@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-special)](https://docs.rs/scirs2-special)
 
-**Special mathematical functions for the SciRS2 scientific computing library (v0.4.2).**
+**Special mathematical functions for the SciRS2 scientific computing library (v0.4.3).**
 
-`scirs2-special` provides a comprehensive collection of special mathematical functions modeled after SciPy's `special` module. Version 0.4.2 extends the classical function set with advanced additions: Mathieu functions, Coulomb wave functions, spherical harmonics with Wigner/Gaunt symbols, Jacobi theta functions, Weierstrass elliptic functions, parabolic cylinder functions, Fox H-functions, Appell hypergeometric functions, Meixner-Pollaczek polynomials, Heun functions, polylogarithm, q-analogs, number-theoretic functions, and information-theoretic functions — all as pure Rust.
+`scirs2-special` provides a comprehensive collection of special mathematical functions modeled after SciPy's `special` module. Version 0.4.3 extends the classical function set with advanced additions: Mathieu functions, Coulomb wave functions, spherical harmonics with Wigner/Gaunt symbols, Jacobi theta functions, Weierstrass elliptic functions, parabolic cylinder functions, Fox H-functions, Appell hypergeometric functions, Meixner-Pollaczek polynomials, Heun functions, polylogarithm, q-analogs, number-theoretic functions, and information-theoretic functions — all as pure Rust.
 
-## Features (v0.4.2)
+## Features (v0.4.3)
 
 ### Classical Special Functions
 
@@ -192,14 +192,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-special = "0.4.2"
+scirs2-special = "0.4.3"
 ```
 
 With parallel processing:
 
 ```toml
 [dependencies]
-scirs2-special = { version = "0.4.2", features = ["parallel"] }
+scirs2-special = { version = "0.4.3", features = ["parallel"] }
 ```
 
 ### Classical functions
@@ -353,6 +353,7 @@ println!("KL(P||Q) = {}, H(P) = {}", kl, h);
 | `default` | All core and advanced special functions |
 | `parallel` | Rayon-based parallel array evaluation |
 | `simd` | SIMD-accelerated batch computation via scirs2-core |
+| `pdf` | PDF export support via `printpdf` (default: off) |
 
 ## Documentation
 

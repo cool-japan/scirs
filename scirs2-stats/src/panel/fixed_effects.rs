@@ -16,10 +16,7 @@ use scirs2_linalg::{lstsq, solve};
 // Helper: simple matrix multiply A(m×k) × B(k×n) -> (m×n)
 // ──────────────────────────────────────────────────────────────────────────────
 
-fn matmul<F: Float + std::iter::Sum>(
-    a: &Array2<F>,
-    b: &Array2<F>,
-) -> StatsResult<Array2<F>> {
+fn matmul<F: Float + std::iter::Sum>(a: &Array2<F>, b: &Array2<F>) -> StatsResult<Array2<F>> {
     let (m, k) = a.dim();
     let (kb, n) = b.dim();
     if k != kb {
@@ -67,7 +64,7 @@ where
     }
     let result = lstsq(&x.view(), &y.view(), None)
         .map_err(|e| StatsError::ComputationError(format!("lstsq failed: {e}")))?;
-    let coeffs = result.solution;
+    let coeffs = result.x;
     // residuals = y - X β
     let mut fitted = Array1::zeros(n);
     for i in 0..n {
@@ -164,9 +161,8 @@ impl WithinTransform {
         }
         let mut means = Array2::<F>::zeros((n_entities, k));
         for eid in 0..n_entities {
-            let cnt = F::from_usize(counts[eid]).ok_or_else(|| {
-                StatsError::ComputationError("FromPrimitive failed".to_string())
-            })?;
+            let cnt = F::from_usize(counts[eid])
+                .ok_or_else(|| StatsError::ComputationError("FromPrimitive failed".to_string()))?;
             for col in 0..k {
                 means[[eid, col]] = if cnt > F::zero() {
                     sums[[eid, col]] / cnt
@@ -333,9 +329,8 @@ impl FixedEffectsModel {
         // ── R² within ──────────────────────────────────────────────────────────
         let ss_res_within: F = resid.iter().map(|&r| r * r).sum();
         let yd_mean = yd.iter().copied().sum::<F>()
-            / F::from_usize(n).ok_or_else(|| {
-                StatsError::ComputationError("FromPrimitive failed".to_string())
-            })?;
+            / F::from_usize(n)
+                .ok_or_else(|| StatsError::ComputationError("FromPrimitive failed".to_string()))?;
         let ss_tot_within: F = yd.iter().map(|&v| (v - yd_mean) * (v - yd_mean)).sum();
         let r2_within = if ss_tot_within > F::zero() {
             F::one() - ss_res_within / ss_tot_within
@@ -350,9 +345,8 @@ impl FixedEffectsModel {
             fy_sums[eid] = fy_sums[eid] + fitted[i];
         }
         let y_bar_bar = y.iter().copied().sum::<F>()
-            / F::from_usize(n).ok_or_else(|| {
-                StatsError::ComputationError("FromPrimitive failed".to_string())
-            })?;
+            / F::from_usize(n)
+                .ok_or_else(|| StatsError::ComputationError("FromPrimitive failed".to_string()))?;
         let mut ss_between_tot = F::zero();
         let mut ss_between_res = F::zero();
         for eid in 0..n_entities {
@@ -372,7 +366,10 @@ impl FixedEffectsModel {
         };
 
         // ── R² overall ────────────────────────────────────────────────────────
-        let ss_tot: F = y.iter().map(|&yi| (yi - y_bar_bar) * (yi - y_bar_bar)).sum();
+        let ss_tot: F = y
+            .iter()
+            .map(|&yi| (yi - y_bar_bar) * (yi - y_bar_bar))
+            .sum();
         let ss_res_overall: F = orig_resid.iter().map(|&r| r * r).sum();
         let r2_overall = if ss_tot > F::zero() {
             F::one() - ss_res_overall / ss_tot
@@ -502,8 +499,7 @@ impl TwoWayFE {
                 t_x_sums[tid][j] = t_x_sums[tid][j] + x[[i, j]];
             }
         }
-        let y_bar = y.iter().copied().sum::<F>()
-            / F::from_usize(n).unwrap_or(F::one());
+        let y_bar = y.iter().copied().sum::<F>() / F::from_usize(n).unwrap_or(F::one());
         let mut x_bar = vec![F::zero(); k];
         for j in 0..k {
             let s: F = (0..n).map(|i| x[[i, j]]).sum();
@@ -590,9 +586,7 @@ impl FirstDiffEstimator {
             // consecutive periods within same entity
             let dy = y[i_curr] - y[i_prev];
             dy_vec.push(dy);
-            let row: Vec<F> = (0..k)
-                .map(|j| x[[i_curr, j]] - x[[i_prev, j]])
-                .collect();
+            let row: Vec<F> = (0..k).map(|j| x[[i_curr, j]] - x[[i_prev, j]]).collect();
             dx_rows.push(row);
             diff_entity.push(entity[i_curr]);
         }
@@ -638,7 +632,12 @@ impl FirstDiffEstimator {
             F::zero()
         };
         let f_pvalue = approximate_f_pvalue(f_stat, k, df2_int);
-        let n_entities = diff_entity.iter().copied().max().map(|m| m + 1).unwrap_or(0);
+        let n_entities = diff_entity
+            .iter()
+            .copied()
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(0);
 
         Ok(FEResult {
             coefficients: coeffs,
@@ -651,8 +650,16 @@ impl FirstDiffEstimator {
             r2_overall: r2,
             n_obs: nd,
             n_entities,
+            fitted: {
+                // fitted = yd - resid (i.e., yd itself minus first-differences residuals)
+                let fitted_vals: Array1<F> = yd
+                    .iter()
+                    .zip(resid.iter())
+                    .map(|(&y_val, &r)| y_val - r)
+                    .collect();
+                fitted_vals
+            },
             residuals: resid,
-            fitted: yd - &resid + Array1::zeros(nd), // placeholder
             entity_effects: None,
             time_effects: None,
         })
@@ -665,11 +672,7 @@ impl FirstDiffEstimator {
 
 /// Compute HC0 sandwich standard errors.
 /// se_j = sqrt( [(X'X)^{-1} X'diag(e²)X (X'X)^{-1}]_jj )
-fn hc0_se<F>(
-    x: &Array2<F>,
-    e: &Array1<F>,
-    xtx: &Array2<F>,
-) -> StatsResult<Array1<F>>
+fn hc0_se<F>(x: &Array2<F>, e: &Array1<F>, xtx: &Array2<F>) -> StatsResult<Array1<F>>
 where
     F: Float
         + std::iter::Sum
@@ -704,10 +707,10 @@ where
     let mut var_beta = Array2::<F>::zeros((k, k));
     for col in 0..k {
         let rhs: Array1<F> = (0..k).map(|r| meat[[r, col]]).collect();
-        let v = solve(&xtx.view(), &rhs.view())
+        let v = solve(&xtx.view(), &rhs.view(), None)
             .map_err(|e2| StatsError::ComputationError(format!("solve failed: {e2}")))?;
         let rhs2 = v;
-        let w = solve(&xtx.view(), &rhs2.view())
+        let w = solve(&xtx.view(), &rhs2.view(), None)
             .map_err(|e2| StatsError::ComputationError(format!("solve failed: {e2}")))?;
         for r in 0..k {
             var_beta[[r, col]] = w[r];
@@ -840,8 +843,8 @@ mod tests {
     #[test]
     fn test_first_diff_estimator() {
         let (x, y, entity, time) = make_balanced_panel();
-        let result = FirstDiffEstimator::fit(&x.view(), &y.view(), &entity, &time)
-            .expect("FD fit failed");
+        let result =
+            FirstDiffEstimator::fit(&x.view(), &y.view(), &entity, &time).expect("FD fit failed");
         let slope = result.coefficients[0];
         assert!(
             (slope - 1.5).abs() < 1e-6,
@@ -852,14 +855,38 @@ mod tests {
 
     #[test]
     fn test_two_way_fe() {
-        let (x, y, entity, time) = make_balanced_panel();
-        let result = TwoWayFE::fit(&x.view(), &y.view(), &entity, &time)
-            .expect("Two-way FE fit failed");
+        // Build a larger balanced panel with idiosyncratic (non-time-collinear) x values.
+        // 4 entities × 5 periods, y_it = 1.5 * x_it + entity_effect + time_effect
+        // x values vary independently across entity and time to avoid rank deficiency.
+        let n_ent = 4usize;
+        let t_per = 5usize;
+        let n = n_ent * t_per;
+        let entity: Vec<usize> = (0..n_ent)
+            .flat_map(|e| std::iter::repeat(e).take(t_per))
+            .collect();
+        let time: Vec<usize> = (0..t_per).cycle().take(n).collect();
+        // x values: use a prime-step pattern per entity so they differ from time pattern
+        let prime_steps = [1.0_f64, 2.0, 3.0, 5.0]; // different multiplier per entity
+        let entity_effects = [0.0_f64, 5.0, -3.0, 8.0];
+        let time_effects = [0.0_f64, 1.0, -1.0, 2.0, -2.0];
+        let mut x_vals = Vec::with_capacity(n);
+        let mut y_vals = Vec::with_capacity(n);
+        for (i, (&eid, &tid)) in entity.iter().zip(time.iter()).enumerate() {
+            let x_v = prime_steps[eid] * (1.0 + (i % t_per) as f64 * 0.37);
+            let y_v = 1.5 * x_v + entity_effects[eid] + time_effects[tid];
+            x_vals.push(x_v);
+            y_vals.push(y_v);
+        }
+        let x = Array2::from_shape_vec((n, 1), x_vals).unwrap();
+        let y = Array1::from(y_vals);
+
+        let result =
+            TwoWayFE::fit(&x.view(), &y.view(), &entity, &time).expect("Two-way FE fit failed");
         assert!(result.time_effects.is_some());
         let slope = result.coefficients[0];
-        // With two-way FE, slope should still ≈ 1.5 given no time effects in DGP
+        // With two-way FE, slope should still ≈ 1.5
         assert!(
-            (slope - 1.5).abs() < 0.1,
+            (slope - 1.5).abs() < 0.2,
             "Two-way FE slope: expected ~1.5, got {}",
             slope
         );

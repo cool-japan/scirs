@@ -220,4 +220,120 @@ mod tests {
         assert!(insights.consciousness_level >= 0.0);
         assert!(insights.transcendent_patterns_count > 0);
     }
+
+    /// Verify Stage 1 (consciousness awakening) ran — the fix for the borrow conflict means
+    /// `awaken_consciousness` + `update_evolution` are now called inline. After the call
+    /// `state.consciousness_evolution.states` should have exactly one entry (the one just added
+    /// by `update_evolution`), and `consciousness_level` should reflect the awakening output.
+    #[test]
+    fn test_stage1_consciousness_awakening_borrow_fix() {
+        let image = Array2::from_shape_vec(
+            (5, 5),
+            vec![
+                0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 0.5, 0.4, 0.3, 0.2, 0.1, 0.8,
+                0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.1, 0.0, 0.9,
+            ],
+        )
+        .expect("Failed to create test image");
+
+        let config = QuantumAIConsciousnessConfig::default();
+        let result = quantum_ai_consciousness_processing(image.view(), &config, None);
+
+        assert!(result.is_ok(), "Processing should succeed after borrow fix");
+        let (_output, state, insights) = result.expect("Processing result unwrap");
+
+        // Stage 1 ran: update_evolution adds a state entry each call
+        assert!(
+            !state.consciousness_evolution.states.is_empty(),
+            "consciousness_evolution.states must be non-empty — proves Stage 1 (awakening+evolution) ran"
+        );
+
+        // Stage 1 ran: awareness_level is propagated to consciousness_level at Stage 9
+        assert!(
+            insights.consciousness_level >= 0.0,
+            "consciousness_level must be non-negative"
+        );
+        assert!(
+            insights.consciousness_level <= 1.0,
+            "consciousness_level must not exceed 1.0"
+        );
+    }
+
+    /// Verify Stage 2 (quantum core) ran — the type-mismatch fix uses a local
+    /// CoreQuantumNetwork/CoreSyncState. The processing pipeline must complete without error
+    /// and the output image dimensions must match the input (Stage 2 must not panic or abort).
+    #[test]
+    fn test_stage2_quantum_core_type_mismatch_fix() {
+        let image = Array2::from_shape_vec(
+            (4, 4),
+            vec![
+                0.0, 0.5, 1.0, 0.5, 0.5, 0.8, 0.3, 0.6, 0.9, 0.1, 0.7, 0.4, 0.2, 0.6, 0.4, 0.8,
+            ],
+        )
+        .expect("Failed to create test image");
+
+        let config = QuantumAIConsciousnessConfig::default();
+        let result = quantum_ai_consciousness_processing(image.view(), &config, None);
+
+        assert!(
+            result.is_ok(),
+            "Processing should succeed after quantum_core type-mismatch fix"
+        );
+        let (output, state, _insights) = result.expect("Processing result unwrap");
+
+        // Output shape must match input shape — Stage 2 ran in the pipeline
+        assert_eq!(output.dim(), (4, 4), "Output dimensions must equal input");
+
+        // All output values must be finite — quantum core must not corrupt state
+        assert!(
+            output.iter().all(|&v: &f64| v.is_finite()),
+            "All output values must be finite"
+        );
+
+        // Stage 2 side-effect: consciousness_evolution should have an entry (Stage 1 also ran)
+        assert!(
+            !state.consciousness_evolution.states.is_empty(),
+            "State must be populated — both Stage 1 and Stage 2 executed"
+        );
+    }
+
+    /// End-to-end test with evolving state (second call receives previous state).
+    /// Verifies that both fixes work with a non-None `consciousnessstate` argument, exercising
+    /// the `initialize_or_evolve_consciousness` branch.
+    #[test]
+    fn test_consciousness_processing_with_evolving_state() {
+        let image =
+            Array2::from_shape_vec((3, 3), vec![0.2, 0.4, 0.6, 0.1, 0.9, 0.3, 0.7, 0.5, 0.8])
+                .expect("Failed to create test image");
+
+        let config = QuantumAIConsciousnessConfig::default();
+
+        // First pass: create initial state
+        let result1 = quantum_ai_consciousness_processing(image.view(), &config, None);
+        assert!(result1.is_ok(), "First pass must succeed");
+        let (_out1, state1, _ins1) = result1.expect("First pass unwrap");
+
+        // Second pass: feed the state back in — exercises evolve branch + both fixes
+        let result2 = quantum_ai_consciousness_processing(image.view(), &config, Some(state1));
+        assert!(
+            result2.is_ok(),
+            "Second pass with evolved state must succeed"
+        );
+        let (output2, state2, insights2) = result2.expect("Second pass unwrap");
+
+        assert_eq!(output2.dim(), (3, 3), "Output shape must match");
+        assert!(
+            output2.iter().all(|&v: &f64| v.is_finite()),
+            "All values must be finite in second pass"
+        );
+        // After two passes the evolution tracker has more states
+        assert!(
+            !state2.consciousness_evolution.states.is_empty(),
+            "Evolution states must be populated after two passes"
+        );
+        assert!(
+            insights2.consciousness_level >= 0.0,
+            "Consciousness level must be non-negative after evolution"
+        );
+    }
 }

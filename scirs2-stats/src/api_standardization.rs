@@ -110,6 +110,8 @@ pub struct CorrelationBuilder<F> {
     config: StandardizedConfig,
     method: CorrelationMethod,
     min_periods: Option<usize>,
+    /// Control variables for partial correlation methods (each column is one control variable).
+    controls: Option<Array2<F>>,
     phantom: PhantomData<F>,
 }
 
@@ -533,8 +535,23 @@ where
             config: StandardizedConfig::default(),
             method: CorrelationMethod::Pearson,
             min_periods: None,
+            controls: None,
             phantom: PhantomData,
         }
+    }
+
+    /// Set control variables for partial correlation methods.
+    ///
+    /// Each column of `controls` is treated as one control variable. The number of
+    /// rows must match the length of the `x` and `y` arrays passed to [`compute`].
+    ///
+    /// This is required when using [`CorrelationMethod::PartialPearson`] or
+    /// [`CorrelationMethod::PartialSpearman`].
+    ///
+    /// [`compute`]: CorrelationBuilder::compute
+    pub fn with_controls(mut self, controls: Array2<F>) -> Self {
+        self.controls = Some(controls);
+        self
     }
 
     /// Set correlation method
@@ -617,9 +634,52 @@ where
             }
             CorrelationMethod::Spearman => crate::correlation::spearman_r(&x, &y)?,
             CorrelationMethod::Kendall => crate::correlation::kendall_tau(&x, &y, "b")?,
-            _ => {
-                warnings.push("Advanced correlation methods not yet implemented".to_string());
-                crate::correlation::pearson_r(&x, &y)?
+            CorrelationMethod::PartialPearson => match &self.controls {
+                Some(z) => crate::correlation::partial_corr(&x, &y, &z.view())?,
+                None => {
+                    warnings.push(
+                        "PartialPearson requires control variables; \
+                             falling back to Pearson (no controls provided)"
+                            .to_string(),
+                    );
+                    crate::correlation::pearson_r(&x, &y)?
+                }
+            },
+            CorrelationMethod::PartialSpearman => {
+                match &self.controls {
+                    Some(z) => {
+                        // Convert x, y and each control column to average ranks, then
+                        // apply the Pearson-based partial correlation on the ranked data.
+                        let rx = rank_array(&x)?;
+                        let ry = rank_array(&y)?;
+                        let (n_rows, n_cols) = z.dim();
+                        let mut rz_data = vec![F::zero(); n_rows * n_cols];
+                        for j in 0..n_cols {
+                            let col = z.column(j);
+                            let col_owned: Array1<F> = Array1::from_iter(col.iter().copied());
+                            let col_ranks = rank_array(&col_owned.view())?;
+                            for (i, &v) in col_ranks.iter().enumerate() {
+                                rz_data[i * n_cols + j] = v;
+                            }
+                        }
+                        let rz =
+                            Array2::from_shape_vec((n_rows, n_cols), rz_data).map_err(|e| {
+                                StatsError::ComputationError(format!(
+                                    "Failed to build ranked controls matrix: {}",
+                                    e
+                                ))
+                            })?;
+                        crate::correlation::partial_corr(&rx.view(), &ry.view(), &rz.view())?
+                    }
+                    None => {
+                        warnings.push(
+                            "PartialSpearman requires control variables; \
+                             falling back to Spearman (no controls provided)"
+                                .to_string(),
+                        );
+                        crate::correlation::spearman_r(&x, &y)?
+                    }
+                }
             }
         };
 
@@ -1717,5 +1777,194 @@ impl ValidationReport {
 impl Default for APIValidationFramework {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ─── Private helper for rank transformation ────────────────────────────────
+
+/// Convert a 1-D array to average ranks (used by [`CorrelationMethod::PartialSpearman`]).
+///
+/// Ties receive the average of the ranks they would have occupied. Returns an
+/// `Array1<F>` of the same length as the input.
+fn rank_array<F, D>(
+    data: &scirs2_core::ndarray::ArrayBase<D, scirs2_core::ndarray::Ix1>,
+) -> StatsResult<Array1<F>>
+where
+    F: Float + NumCast,
+    D: scirs2_core::ndarray::Data<Elem = F>,
+{
+    let n = data.len();
+    if n == 0 {
+        return Ok(Array1::zeros(0));
+    }
+
+    // Build (value, original-index) pairs and sort by value.
+    let mut indexed: Vec<(F, usize)> = data
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(i, v)| (v, i))
+        .collect();
+    indexed.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
+
+    let mut ranks = vec![F::zero(); n];
+    let mut i = 0;
+    while i < n {
+        let current_val = indexed[i].0;
+        let mut j = i;
+        // Expand tie group.
+        while j + 1 < n && indexed[j + 1].0 == current_val {
+            j += 1;
+        }
+        // Average rank for members of the tie group (1-based).
+        let avg_rank = F::from((i + j) as f64 / 2.0 + 1.0).ok_or_else(|| {
+            StatsError::ComputationError("rank_array: numeric cast failed".to_string())
+        })?;
+        for item in indexed.iter().take(j + 1).skip(i) {
+            ranks[item.1] = avg_rank;
+        }
+        i = j + 1;
+    }
+
+    Ok(Array1::from(ranks))
+}
+
+// ─── Additional tests for partial correlation methods ──────────────────────
+
+#[cfg(test)]
+mod partial_corr_tests {
+    use super::*;
+    use scirs2_core::ndarray::{array, Array2};
+
+    #[test]
+    fn test_partial_pearson_via_builder_with_controls() {
+        // Verify PartialPearson produces a valid finite correlation value and
+        // differs from raw Pearson when the control variable influences both x and y.
+        //
+        // z is a strong common driver. x = z + independent_noise_x, y = z + independent_noise_y.
+        // Independent noise means residuals are uncorrelated after removing z.
+        let z = array![1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+        // noise_x and noise_y are independent (no pattern relationship between them)
+        let x = array![1.3f64, 2.1, 3.4, 3.8, 5.2, 5.7, 7.3, 7.9, 9.4, 9.9]; // x ≈ z + noise_x
+        let y = array![1.1f64, 2.4, 2.8, 4.2, 4.9, 6.1, 6.7, 8.3, 8.8, 10.1]; // y ≈ z + noise_y
+        let controls = Array2::from_shape_vec((10, 1), z.to_vec()).expect("shape is valid");
+
+        let result = CorrelationBuilder::<f64>::new()
+            .method(CorrelationMethod::PartialPearson)
+            .with_controls(controls)
+            .compute(x.view(), y.view())
+            .expect("partial pearson should succeed");
+
+        // Partial correlation coefficient must be a valid finite number in [-1, 1].
+        let r = result.value.correlation;
+        assert!(r.is_finite(), "partial Pearson must be finite, got {}", r);
+        assert!(
+            r >= -1.0 - 1e-10 && r <= 1.0 + 1e-10,
+            "partial Pearson must be in [-1,1], got {}",
+            r
+        );
+        // No spurious warning about missing controls.
+        assert!(
+            result.warnings.is_empty(),
+            "unexpected warnings: {:?}",
+            result.warnings
+        );
+    }
+
+    #[test]
+    fn test_partial_pearson_without_controls_falls_back() {
+        let x = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
+        let y = array![2.0f64, 4.0, 6.0, 8.0, 10.0];
+
+        let result = CorrelationBuilder::<f64>::new()
+            .method(CorrelationMethod::PartialPearson)
+            // no controls → should fall back to Pearson
+            .compute(x.view(), y.view())
+            .expect("should succeed with fallback");
+
+        // Pearson of perfectly linear data should be ~1.
+        assert!(
+            (result.value.correlation - 1.0_f64).abs() < 1e-10,
+            "fallback Pearson correlation should be 1.0, got {}",
+            result.value.correlation
+        );
+        assert!(
+            !result.warnings.is_empty(),
+            "should emit a warning about missing controls"
+        );
+    }
+
+    #[test]
+    fn test_partial_spearman_via_builder_with_controls() {
+        // Verify PartialSpearman produces a valid finite correlation value.
+        //
+        // Choose data where z is a control variable but x and y have substantial
+        // variation not explained by z, so that the rank-residuals have nonzero variance.
+        //
+        // z has a mild trend; x and y each have large idiosyncratic components.
+        let z = array![1.0f64, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
+        // x: partial ordering with z but with large noise so residual variance > 0
+        let x = array![5.0f64, 1.0, 8.0, 3.0, 7.0, 2.0, 9.0, 4.0, 6.0, 10.0];
+        // y: different permutation, also partially related to z
+        let y = array![3.0f64, 7.0, 1.0, 9.0, 2.0, 8.0, 4.0, 6.0, 10.0, 5.0];
+        let controls = Array2::from_shape_vec((10, 1), z.to_vec()).expect("shape is valid");
+
+        let result = CorrelationBuilder::<f64>::new()
+            .method(CorrelationMethod::PartialSpearman)
+            .with_controls(controls)
+            .compute(x.view(), y.view())
+            .expect("partial spearman should succeed");
+
+        // Partial Spearman must be a valid number in [-1, 1].
+        let r = result.value.correlation;
+        assert!(
+            r.is_finite(),
+            "partial Spearman should produce a finite value, got {}",
+            r
+        );
+        assert!(
+            r >= -1.0 - 1e-10 && r <= 1.0 + 1e-10,
+            "partial Spearman must be in [-1,1], got {}",
+            r
+        );
+        // No spurious warnings about missing controls.
+        assert!(
+            result.warnings.is_empty(),
+            "unexpected warnings: {:?}",
+            result.warnings
+        );
+    }
+
+    #[test]
+    fn test_partial_spearman_without_controls_falls_back() {
+        let x = array![1.0f64, 2.0, 3.0, 4.0, 5.0];
+        let y = array![1.0f64, 4.0, 9.0, 16.0, 25.0]; // monotone → Spearman = 1
+
+        let result = CorrelationBuilder::<f64>::new()
+            .method(CorrelationMethod::PartialSpearman)
+            // no controls → falls back to Spearman
+            .compute(x.view(), y.view())
+            .expect("should succeed with fallback");
+
+        assert!(
+            (result.value.correlation - 1.0_f64).abs() < 1e-10,
+            "fallback Spearman should be 1.0 for monotone data, got {}",
+            result.value.correlation
+        );
+        assert!(
+            !result.warnings.is_empty(),
+            "should emit a warning about missing controls"
+        );
+    }
+
+    #[test]
+    fn test_rank_array_basic() {
+        let data = array![3.0f64, 1.0, 4.0, 1.0, 5.0]; // 1,1,3,4,5 → avg ranks 1.5,1.5,3,4,5
+        let ranks = rank_array(&data.view()).expect("should succeed");
+        // Original order: 3→rank3, 1→rank1.5, 4→rank4, 1→rank1.5, 5→rank5
+        let expected = [3.0f64, 1.5, 4.0, 1.5, 5.0];
+        for (i, (&r, &e)) in ranks.iter().zip(expected.iter()).enumerate() {
+            assert!((r - e).abs() < 1e-10, "rank[{}] = {} expected {}", i, r, e);
+        }
     }
 }

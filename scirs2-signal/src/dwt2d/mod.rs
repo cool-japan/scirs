@@ -5,8 +5,13 @@
 //! of 2D signals like images.
 
 // Declare modules
-pub mod types;
+pub mod decomposition;
+pub mod reconstruction;
 pub mod simd;
+pub mod thresholding;
+pub mod types;
+pub mod utils;
+pub mod validation;
 
 // Re-export main types for backward compatibility
 pub use types::{Dwt2dConfig, Dwt2dResult, MemoryPool, ThresholdMethod};
@@ -16,4 +21,8 @@ pub use simd::{simd_calculate_energy, simd_threshold_coefficients};
 
 // Import the original implementation (temporarily keeping it as a separate module)
 mod legacy;
+#[cfg(test)]
+mod legacy_tests;
+#[cfg(test)]
+mod tests;
 pub use legacy::*;

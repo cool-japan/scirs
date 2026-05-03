@@ -259,7 +259,7 @@ impl DataTable {
 }
 
 /// Options for reading data
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ReadOptions {
     /// Override auto-detected format
     pub format: Option<DataFormat>,
@@ -275,20 +275,6 @@ pub struct ReadOptions {
     pub hdf5_dataset: Option<String>,
     /// NetCDF variable name to read
     pub netcdf_variable: Option<String>,
-}
-
-impl Default for ReadOptions {
-    fn default() -> Self {
-        Self {
-            format: None,
-            max_rows: None,
-            columns: None,
-            csv_delimiter: None,
-            csv_has_header: None,
-            hdf5_dataset: None,
-            netcdf_variable: None,
-        }
-    }
 }
 
 // =====================================================================
@@ -1175,7 +1161,7 @@ mod tests {
         let dir = std::env::temp_dir();
         let path = dir.join("test_file.unsupported_ext");
 
-        std::fs::write(&path, &[0x00, 0x01, 0x02]).expect("write");
+        std::fs::write(&path, [0x00, 0x01, 0x02]).expect("write");
 
         let opts = ReadOptions {
             format: Some(DataFormat::Fits),

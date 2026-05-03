@@ -93,7 +93,10 @@ impl GraphSampling {
         }
 
         // The first k columns of the eigenvector matrix U (shape n×k)
-        let u_k = gft.eigenvectors.slice(scirs2_core::ndarray::s![.., ..k]).to_owned();
+        let u_k = gft
+            .eigenvectors
+            .slice(scirs2_core::ndarray::s![.., ..k])
+            .to_owned();
 
         let mut selected: Vec<usize> = Vec::with_capacity(k);
         let mut remaining: Vec<usize> = (0..n).collect();
@@ -422,11 +425,7 @@ impl BandlimitedReconstruction {
 
         // Build right-hand side: rhs = U_s^T y  (length k)
         let rhs: Vec<f64> = (0..k)
-            .map(|c| {
-                (0..s)
-                    .map(|r| u_s[[r, c]] * samples[r])
-                    .sum::<f64>()
-            })
+            .map(|c| (0..s).map(|r| u_s[[r, c]] * samples[r]).sum::<f64>())
             .collect();
 
         // Solve Gram α = rhs
@@ -485,7 +484,7 @@ impl GershgorinBound {
         for i in 0..n {
             let deg = adj.row(i).iter().map(|&x| x.abs()).sum::<f64>();
             centres[i] = deg; // L[i,i] = degree
-            radii[i] = deg;   // R_i = sum of |L[i,j]| for j != i = same deg for L
+            radii[i] = deg; // R_i = sum of |L[i,j]| for j != i = same deg for L
         }
         let lambda_max_upper = centres
             .iter()
@@ -582,7 +581,10 @@ impl GraphUncertaintyPrinciple {
             }
         }
         let spatial_distances_sq = Array1::from_iter(dist.iter().map(|&d| d * d));
-        Ok(Self { spatial_distances_sq, ref_frequency })
+        Ok(Self {
+            spatial_distances_sq,
+            ref_frequency,
+        })
     }
 
     /// Compute the spatial spread Δ_V(x) for signal `x`.
@@ -610,7 +612,11 @@ impl GraphUncertaintyPrinciple {
     }
 
     /// Compute the spectral spread Δ_S(x) for signal `x` using the GFT.
-    pub fn spectral_spread(&self, gft: &GraphFourierTransform, signal: &Array1<f64>) -> Result<f64> {
+    pub fn spectral_spread(
+        &self,
+        gft: &GraphFourierTransform,
+        signal: &Array1<f64>,
+    ) -> Result<f64> {
         let x_hat = gft.transform(signal)?;
         let norm_sq: f64 = x_hat.iter().map(|&c| c * c).sum();
         if norm_sq < 1e-14 {
@@ -736,6 +742,9 @@ mod tests {
         assert!(ds >= 0.0);
         assert!(prod >= 0.0);
         // A localised vertex signal should have small spatial spread
-        assert!(dv < 1.0, "Vertex-localised signal should have small dv: {dv}");
+        assert!(
+            dv < 1.0,
+            "Vertex-localised signal should have small dv: {dv}"
+        );
     }
 }

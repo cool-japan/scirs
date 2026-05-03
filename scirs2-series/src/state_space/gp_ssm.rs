@@ -247,13 +247,7 @@ where
 
     /// Propagate particles through the GP transition, weight by the Gaussian
     /// likelihood of `y_obs`, and return the incremental log-likelihood.
-    pub fn step(
-        &mut self,
-        y_obs: F,
-        transition: &GpTransition<F>,
-        obs_noise: F,
-        seed: u64,
-    ) -> F {
+    pub fn step(&mut self, y_obs: F, transition: &GpTransition<F>, obs_noise: F, seed: u64) -> F {
         let n = self.particles.len();
         let two = F::from_f64(2.0).unwrap_or(F::one() + F::one());
         let pi2 = F::from_f64(2.0 * std::f64::consts::PI).unwrap_or(F::one());
@@ -300,10 +294,7 @@ where
             .iter()
             .cloned()
             .fold(F::neg_infinity(), F::max);
-        let sum_exp: F = new_log_weights
-            .iter()
-            .map(|&lw| (lw - max_lw).exp())
-            .sum();
+        let sum_exp: F = new_log_weights.iter().map(|&lw| (lw - max_lw).exp()).sum();
         let log_z = max_lw + sum_exp.ln();
 
         // Normalise log-weights
@@ -326,11 +317,7 @@ where
         }
 
         // Convert log-weights to normalised weights
-        let max_lw = self
-            .weights
-            .iter()
-            .cloned()
-            .fold(F::neg_infinity(), F::max);
+        let max_lw = self.weights.iter().cloned().fold(F::neg_infinity(), F::max);
         let exps: Vec<F> = self.weights.iter().map(|&lw| (lw - max_lw).exp()).collect();
         let total: F = exps.iter().cloned().sum();
         let probs: Vec<F> = exps.iter().map(|&e| e / total).collect();
@@ -452,12 +439,7 @@ pub struct GpSsm<F> {
 
 impl<F> GpSsm<F>
 where
-    F: Float
-        + FromPrimitive
-        + std::fmt::Debug
-        + Clone
-        + std::iter::Sum
-        + std::fmt::Display,
+    F: Float + FromPrimitive + std::fmt::Debug + Clone + std::iter::Sum + std::fmt::Display,
 {
     /// Construct a new GP-SSM from the given configuration.
     ///
@@ -594,12 +576,8 @@ where
             // +1 because trajectories[i][0] is the initial state before t=0
             let pos: usize = (t + 1).min(trajectories[0].len() - 1);
             let vals: Vec<F> = (0..n).map(|i| trajectories[i][pos]).collect();
-            let mean: F = vals.iter().cloned().sum::<F>()
-                / F::from_usize(n).unwrap_or(F::one());
-            let var: F = vals
-                .iter()
-                .map(|&v| (v - mean) * (v - mean))
-                .sum::<F>()
+            let mean: F = vals.iter().cloned().sum::<F>() / F::from_usize(n).unwrap_or(F::one());
+            let var: F = vals.iter().map(|&v| (v - mean) * (v - mean)).sum::<F>()
                 / F::from_usize(n.max(1)).unwrap_or(F::one());
             state_mean.push(mean);
             state_std.push(var.sqrt());
@@ -647,20 +625,18 @@ where
                     .wrapping_mul(6_364_136_223_846_793_005)
                     .wrapping_add(1_442_695_040_888_963_407)
                     .wrapping_add(i as u64);
-                let u1 =
-                    F::from_f64((lcg >> 11) as f64 / (1u64 << 53) as f64).unwrap_or(F::zero());
+                let u1 = F::from_f64((lcg >> 11) as f64 / (1u64 << 53) as f64).unwrap_or(F::zero());
                 lcg = lcg
                     .wrapping_mul(6_364_136_223_846_793_005)
                     .wrapping_add(1_442_695_040_888_963_407);
-                let u2 =
-                    F::from_f64((lcg >> 11) as f64 / (1u64 << 53) as f64).unwrap_or(F::zero());
+                let u2 = F::from_f64((lcg >> 11) as f64 / (1u64 << 53) as f64).unwrap_or(F::zero());
                 let u1c = u1.max(F::from_f64(1e-15).unwrap_or(F::zero()));
                 let z = (-two * u1c.ln()).sqrt() * (two * pi2 * u2).cos();
                 new_particles.push(mean + std_dev * z);
             }
 
-            let mean: F = new_particles.iter().cloned().sum::<F>()
-                / F::from_usize(np).unwrap_or(F::one());
+            let mean: F =
+                new_particles.iter().cloned().sum::<F>() / F::from_usize(np).unwrap_or(F::one());
             let var: F = new_particles
                 .iter()
                 .map(|&v| (v - mean) * (v - mean))

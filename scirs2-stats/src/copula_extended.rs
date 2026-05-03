@@ -99,21 +99,11 @@ impl CopulaParams {
     /// Build the corresponding trait object.
     pub fn build_copula(&self) -> StatsResult<Box<dyn Copula>> {
         match self {
-            CopulaParams::Gaussian { rho } => {
-                Ok(Box::new(GaussianCopula::new(*rho)?))
-            }
-            CopulaParams::StudentT { rho, df } => {
-                Ok(Box::new(StudentTCopula::new(*rho, *df)?))
-            }
-            CopulaParams::Clayton { theta } => {
-                Ok(Box::new(ClaytonCopula::new(*theta)?))
-            }
-            CopulaParams::Gumbel { theta } => {
-                Ok(Box::new(GumbelCopula::new(*theta)?))
-            }
-            CopulaParams::Frank { theta } => {
-                Ok(Box::new(FrankCopula::new(*theta)?))
-            }
+            CopulaParams::Gaussian { rho } => Ok(Box::new(GaussianCopula::new(*rho)?)),
+            CopulaParams::StudentT { rho, df } => Ok(Box::new(StudentTCopula::new(*rho, *df)?)),
+            CopulaParams::Clayton { theta } => Ok(Box::new(ClaytonCopula::new(*theta)?)),
+            CopulaParams::Gumbel { theta } => Ok(Box::new(GumbelCopula::new(*theta)?)),
+            CopulaParams::Frank { theta } => Ok(Box::new(FrankCopula::new(*theta)?)),
         }
     }
 
@@ -296,11 +286,7 @@ pub fn copula_pdf(u: f64, v: f64, params: &CopulaParams) -> StatsResult<f64> {
 ///     assert!(pair[1] > 0.0 && pair[1] < 1.0);
 /// }
 /// ```
-pub fn copula_sample(
-    n: usize,
-    params: &CopulaParams,
-    seed: u64,
-) -> StatsResult<Vec<[f64; 2]>> {
+pub fn copula_sample(n: usize, params: &CopulaParams, seed: u64) -> StatsResult<Vec<[f64; 2]>> {
     // Validate once
     let cop = params.build_copula()?;
 
@@ -450,10 +436,7 @@ fn pseudo_log_likelihood_ext(u: &ArrayView1<f64>, v: &ArrayView1<f64>, cop: &dyn
 }
 
 /// Fit Gaussian copula MLE — 1D grid search + refinement.
-fn fit_gaussian_mle(
-    u: &ArrayView1<f64>,
-    v: &ArrayView1<f64>,
-) -> StatsResult<(CopulaParams, f64)> {
+fn fit_gaussian_mle(u: &ArrayView1<f64>, v: &ArrayView1<f64>) -> StatsResult<(CopulaParams, f64)> {
     let mut best_rho = 0.0_f64;
     let mut best_ll = f64::NEG_INFINITY;
 
@@ -504,10 +487,7 @@ fn fit_gaussian_mle(
 }
 
 /// Fit Student-t copula MLE — profile over df, refine jointly.
-fn fit_student_t_mle(
-    u: &ArrayView1<f64>,
-    v: &ArrayView1<f64>,
-) -> StatsResult<(CopulaParams, f64)> {
+fn fit_student_t_mle(u: &ArrayView1<f64>, v: &ArrayView1<f64>) -> StatsResult<(CopulaParams, f64)> {
     // Candidate degrees of freedom to profile over
     let df_candidates = [2.0_f64, 3.0, 4.0, 5.0, 7.0, 10.0, 15.0, 20.0, 30.0, 50.0];
 
@@ -613,7 +593,11 @@ fn fit_archimedean_mle(
         CopulaFamily::Clayton => (0.01_f64, 20.0, 400),
         CopulaFamily::Gumbel => (1.0_f64, 20.0, 400),
         CopulaFamily::Frank => (-20.0_f64, 20.0, 400),
-        _ => return Err(StatsError::InvalidArgument("Not an Archimedean family".into())),
+        _ => {
+            return Err(StatsError::InvalidArgument(
+                "Not an Archimedean family".into(),
+            ))
+        }
     };
 
     let mut best_theta = match family {
@@ -661,7 +645,11 @@ fn fit_archimedean_mle(
         CopulaFamily::Clayton => CopulaParams::Clayton { theta },
         CopulaFamily::Gumbel => CopulaParams::Gumbel { theta },
         CopulaFamily::Frank => CopulaParams::Frank { theta },
-        _ => return Err(StatsError::InvalidArgument("Not an Archimedean family".into())),
+        _ => {
+            return Err(StatsError::InvalidArgument(
+                "Not an Archimedean family".into(),
+            ))
+        }
     };
 
     Ok((params, ll))
@@ -772,7 +760,11 @@ mod tests {
             CopulaParams::Frank { theta: 5.0 },
         ];
         for p in &params {
-            assert!(p.build_copula().is_ok(), "build_copula failed for {:?}", p.family());
+            assert!(
+                p.build_copula().is_ok(),
+                "build_copula failed for {:?}",
+                p.family()
+            );
         }
     }
 
@@ -780,7 +772,9 @@ mod tests {
     fn test_build_copula_invalid_params() {
         assert!(CopulaParams::Gaussian { rho: 1.0 }.build_copula().is_err());
         // Clayton theta must be > 0 or in [-1, 0); theta = -1.5 is out of range
-        assert!(CopulaParams::Clayton { theta: -1.5 }.build_copula().is_err());
+        assert!(CopulaParams::Clayton { theta: -1.5 }
+            .build_copula()
+            .is_err());
         assert!(CopulaParams::Gumbel { theta: 0.5 }.build_copula().is_err());
         assert!(CopulaParams::Frank { theta: 0.0 }.build_copula().is_err());
     }
@@ -847,8 +841,18 @@ mod tests {
         for p in &families {
             let samples = copula_sample(30, p, 7).expect("sample");
             for pair in &samples {
-                assert!(pair[0] > 0.0 && pair[0] < 1.0, "{:?} u={}", p.family(), pair[0]);
-                assert!(pair[1] > 0.0 && pair[1] < 1.0, "{:?} v={}", p.family(), pair[1]);
+                assert!(
+                    pair[0] > 0.0 && pair[0] < 1.0,
+                    "{:?} u={}",
+                    p.family(),
+                    pair[0]
+                );
+                assert!(
+                    pair[1] > 0.0 && pair[1] < 1.0,
+                    "{:?} v={}",
+                    p.family(),
+                    pair[1]
+                );
             }
         }
     }
@@ -885,15 +889,35 @@ mod tests {
     #[test]
     fn test_no_tail_dep_gaussian() {
         let p = CopulaParams::Gaussian { rho: 0.9 };
-        assert_approx(upper_tail_dep(&p).expect("upper"), 0.0, 1e-10, "Gaussian upper");
-        assert_approx(lower_tail_dep(&p).expect("lower"), 0.0, 1e-10, "Gaussian lower");
+        assert_approx(
+            upper_tail_dep(&p).expect("upper"),
+            0.0,
+            1e-10,
+            "Gaussian upper",
+        );
+        assert_approx(
+            lower_tail_dep(&p).expect("lower"),
+            0.0,
+            1e-10,
+            "Gaussian lower",
+        );
     }
 
     #[test]
     fn test_no_tail_dep_frank() {
         let p = CopulaParams::Frank { theta: 10.0 };
-        assert_approx(upper_tail_dep(&p).expect("upper"), 0.0, 1e-10, "Frank upper");
-        assert_approx(lower_tail_dep(&p).expect("lower"), 0.0, 1e-10, "Frank lower");
+        assert_approx(
+            upper_tail_dep(&p).expect("upper"),
+            0.0,
+            1e-10,
+            "Frank upper",
+        );
+        assert_approx(
+            lower_tail_dep(&p).expect("lower"),
+            0.0,
+            1e-10,
+            "Frank lower",
+        );
     }
 
     #[test]
@@ -972,7 +996,10 @@ mod tests {
         let result = fit_copula_mle(&u.view(), &v.view(), CopulaFamily::Gaussian)
             .expect("fit should succeed");
         if let CopulaParams::Gaussian { rho } = result.params {
-            assert!(rho > 0.0, "rho should be positive for positively dependent data: {rho}");
+            assert!(
+                rho > 0.0,
+                "rho should be positive for positively dependent data: {rho}"
+            );
         } else {
             panic!("unexpected params variant");
         }
@@ -996,8 +1023,8 @@ mod tests {
     fn test_fit_copula_gumbel() {
         let u = Array1::from(vec![0.1, 0.2, 0.4, 0.6, 0.8, 0.9]);
         let v = Array1::from(vec![0.15, 0.22, 0.42, 0.62, 0.82, 0.92]);
-        let result = fit_copula_mle(&u.view(), &v.view(), CopulaFamily::Gumbel)
-            .expect("fit should succeed");
+        let result =
+            fit_copula_mle(&u.view(), &v.view(), CopulaFamily::Gumbel).expect("fit should succeed");
         if let CopulaParams::Gumbel { theta } = result.params {
             assert!(theta >= 1.0, "Gumbel theta >= 1: {theta}");
         } else {
@@ -1009,8 +1036,8 @@ mod tests {
     fn test_fit_copula_frank() {
         let u = Array1::from(vec![0.1, 0.3, 0.5, 0.7, 0.9, 0.2, 0.4, 0.6, 0.8]);
         let v = Array1::from(vec![0.15, 0.32, 0.52, 0.68, 0.88, 0.20, 0.45, 0.62, 0.82]);
-        let result = fit_copula_mle(&u.view(), &v.view(), CopulaFamily::Frank)
-            .expect("fit should succeed");
+        let result =
+            fit_copula_mle(&u.view(), &v.view(), CopulaFamily::Frank).expect("fit should succeed");
         assert!(result.log_likelihood.is_finite());
     }
 
@@ -1046,8 +1073,7 @@ mod tests {
     fn test_fit_result_aic_bic() {
         let u = Array1::from(vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]);
         let v = Array1::from(vec![0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.92]);
-        let result = fit_copula_mle(&u.view(), &v.view(), CopulaFamily::Clayton)
-            .expect("fit");
+        let result = fit_copula_mle(&u.view(), &v.view(), CopulaFamily::Clayton).expect("fit");
         assert!(result.aic.is_finite());
         assert!(result.bic.is_finite());
         // AIC = -2*ll + 2*k; BIC = -2*ll + k*ln(n)

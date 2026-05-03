@@ -210,13 +210,10 @@ pub fn symmetrize_alignments(
     }
 
     // Build intersection
-    let s2t_set: std::collections::HashSet<AlignmentPair> =
-        src_to_tgt.iter().copied().collect();
+    let s2t_set: std::collections::HashSet<AlignmentPair> = src_to_tgt.iter().copied().collect();
     // tgt_to_src stores (tgt_idx, src_idx); flip to (src_idx, tgt_idx)
-    let t2s_set: std::collections::HashSet<AlignmentPair> = tgt_to_src
-        .iter()
-        .map(|&(ti, si)| (si, ti))
-        .collect();
+    let t2s_set: std::collections::HashSet<AlignmentPair> =
+        tgt_to_src.iter().map(|&(ti, si)| (si, ti)).collect();
 
     let mut result: std::collections::HashSet<AlignmentPair> =
         s2t_set.intersection(&t2s_set).copied().collect();
@@ -230,7 +227,8 @@ pub fn symmetrize_alignments(
     };
 
     // Union of both directions
-    let union: std::collections::HashSet<AlignmentPair> = s2t_set.union(&t2s_set).copied().collect();
+    let union: std::collections::HashSet<AlignmentPair> =
+        s2t_set.union(&t2s_set).copied().collect();
 
     // Grow: add neighbouring points from the union when at least one endpoint
     // is already aligned
@@ -337,10 +335,7 @@ impl AlignedCorpus {
     ///
     /// # Errors
     /// Propagates errors from [`ibm_model1`].
-    pub fn train(
-        sentence_pairs: Vec<(Vec<String>, Vec<String>)>,
-        n_iter: usize,
-    ) -> Result<Self> {
+    pub fn train(sentence_pairs: Vec<(Vec<String>, Vec<String>)>, n_iter: usize) -> Result<Self> {
         let t_table = ibm_model1(&sentence_pairs, n_iter)?;
         let (source, target) = sentence_pairs.into_iter().unzip();
         Ok(Self {

@@ -61,17 +61,39 @@ impl Dendrogram {
 
         // Perform exactly (n - n_clusters) merges to end up with n_clusters.
         let n_merges_to_do = n.saturating_sub(n_clusters);
+        Ok(self.apply_merges_up_to(n_merges_to_do))
+    }
 
-        // Union-Find parent array (node indices 0..n are leaves, n..2n-1 are internal).
-        let mut parent: Vec<usize> = (0..(2 * n - 1)).collect();
+    /// Cut the dendrogram at a distance threshold, returning flat cluster labels.
+    pub fn cut_at_distance(&self, max_distance: f64) -> Result<Vec<usize>> {
+        let n_merges = self
+            .merges
+            .iter()
+            .take_while(|m| m.distance <= max_distance)
+            .count();
+        Ok(self.apply_merges_up_to(n_merges))
+    }
 
-        for merge in self.merges.iter().take(n_merges_to_do) {
+    /// Internal: apply the first `n_merges` merges and return leaf labels.
+    ///
+    /// The k-th merge (0-indexed) creates internal node `n_samples + k`.
+    /// We link the two merged sub-nodes into the new internal node so that
+    /// leaf→root path-following gives the correct component root.
+    fn apply_merges_up_to(&self, n_merges: usize) -> Vec<usize> {
+        let n = self.n_samples;
+        // Allocate parent for all possible nodes (leaves + internal).
+        let capacity = n + self.merges.len() + 1;
+        let mut parent: Vec<usize> = (0..capacity).collect();
+
+        for (k, merge) in self.merges.iter().take(n_merges).enumerate() {
+            let new_id = n + k;
             let a_root = find_root(&parent, merge.cluster_a);
             let b_root = find_root(&parent, merge.cluster_b);
-            // Unite b_root into a_root
-            if a_root != b_root {
-                parent[b_root] = a_root;
-            }
+            // Link both roots to the new internal node.
+            parent[a_root] = new_id;
+            parent[b_root] = new_id;
+            // The new node is its own root for now.
+            parent[new_id] = new_id;
         }
 
         // For each leaf, find its root cluster.
@@ -80,7 +102,7 @@ impl Dendrogram {
         // Remap root ids to 0-based consecutive labels.
         let mut id_map: HashMap<usize, usize> = HashMap::new();
         let mut next_label = 0usize;
-        let labels: Vec<usize> = roots
+        roots
             .iter()
             .map(|root| {
                 let entry = id_map.entry(*root).or_insert_with(|| {
@@ -90,43 +112,7 @@ impl Dendrogram {
                 });
                 *entry
             })
-            .collect();
-
-        Ok(labels)
-    }
-
-    /// Cut the dendrogram at a distance threshold, returning flat cluster labels.
-    pub fn cut_at_distance(&self, max_distance: f64) -> Result<Vec<usize>> {
-        let n = self.n_samples;
-        let mut parent: Vec<usize> = (0..(2 * n - 1)).collect();
-
-        for merge in &self.merges {
-            if merge.distance > max_distance {
-                break;
-            }
-            let a_root = find_root(&parent, merge.cluster_a);
-            let b_root = find_root(&parent, merge.cluster_b);
-            if a_root != b_root {
-                parent[b_root] = a_root;
-            }
-        }
-
-        let roots: Vec<usize> = (0..n).map(|i| find_root(&parent, i)).collect();
-        let mut id_map: HashMap<usize, usize> = HashMap::new();
-        let mut next_label = 0usize;
-        let labels: Vec<usize> = roots
-            .iter()
-            .map(|&root| {
-                let entry = id_map.entry(root).or_insert_with(|| {
-                    let l = next_label;
-                    next_label += 1;
-                    l
-                });
-                *entry
-            })
-            .collect();
-
-        Ok(labels)
+            .collect()
     }
 }
 
@@ -283,10 +269,7 @@ impl Ward {
             active_ids.push(new_id);
         }
 
-        let dendrogram = Dendrogram {
-            merges,
-            n_samples,
-        };
+        let dendrogram = Dendrogram { merges, n_samples };
 
         let label_vec = dendrogram.cut_at_n_clusters(n_clusters)?;
         let labels = Array1::from_vec(label_vec.clone());
@@ -452,7 +435,8 @@ fn precompute_distances(x: ArrayView2<f64>) -> Vec<Vec<f64>> {
     let mut dist = vec![vec![0.0f64; n]; n];
     for i in 0..n {
         for j in (i + 1)..n {
-            let d: f64 = x.row(i)
+            let d: f64 = x
+                .row(i)
                 .iter()
                 .zip(x.row(j).iter())
                 .map(|(a, b)| (a - b) * (a - b))
@@ -516,7 +500,11 @@ fn diana_split(cluster: &[usize], dist: &[Vec<f64>]) -> Result<(Vec<usize>, Vec<
     let avg_diss: Vec<f64> = cluster
         .iter()
         .map(|&i| {
-            let sum: f64 = cluster.iter().filter(|&&j| j != i).map(|&j| dist[i][j]).sum();
+            let sum: f64 = cluster
+                .iter()
+                .filter(|&&j| j != i)
+                .map(|&j| dist[i][j])
+                .sum();
             if cluster.len() <= 1 {
                 0.0
             } else {
@@ -690,8 +678,7 @@ impl ConsensusClustering {
         let mut cooccurrence = Array2::<f64>::zeros((n_samples, n_samples));
         let mut selection = Array2::<f64>::zeros((n_samples, n_samples));
 
-        let subsample_size =
-            ((n_samples as f64 * self.subsample_fraction).ceil() as usize).max(2);
+        let subsample_size = ((n_samples as f64 * self.subsample_fraction).ceil() as usize).max(2);
 
         // Simple LCG-based RNG.
         let mut rng_state = self.seed.unwrap_or(42u64);
@@ -782,8 +769,8 @@ mod tests {
         Array2::from_shape_vec(
             (10, 2),
             vec![
-                0.1, 0.2, 0.3, 0.1, 0.2, 0.3, 0.1, 0.2, 0.3, 0.1,
-                5.0, 5.1, 5.2, 5.0, 5.1, 5.2, 5.0, 5.1, 5.2, 5.0,
+                0.1, 0.2, 0.3, 0.1, 0.2, 0.3, 0.1, 0.2, 0.3, 0.1, 5.0, 5.1, 5.2, 5.0, 5.1, 5.2,
+                5.0, 5.1, 5.2, 5.0,
             ],
         )
         .expect("valid shape")
@@ -793,10 +780,8 @@ mod tests {
         Array2::from_shape_vec(
             (12, 2),
             vec![
-                0.0, 0.0, 0.1, 0.1, 0.2, 0.0,
-                5.0, 0.0, 5.1, 0.1, 5.2, 0.0,
-                0.0, 5.0, 0.1, 5.1, 0.2, 5.0,
-                5.0, 5.0, 5.1, 5.1, 5.2, 5.0,
+                0.0, 0.0, 0.1, 0.1, 0.2, 0.0, 5.0, 0.0, 5.1, 0.1, 5.2, 0.0, 0.0, 5.0, 0.1, 5.1,
+                0.2, 5.0, 5.0, 5.0, 5.1, 5.1, 5.2, 5.0,
             ],
         )
         .expect("valid shape")

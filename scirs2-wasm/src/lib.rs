@@ -52,6 +52,8 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![warn(missing_docs)]
 
+use std::alloc::{alloc, dealloc, Layout};
+
 use wasm_bindgen::prelude::*;
 use web_sys::console;
 
@@ -66,6 +68,11 @@ pub mod random;
 pub mod signal;
 pub mod stats;
 pub mod utils;
+
+// Async streaming via wasm-bindgen-futures
+pub mod async_streaming;
+// SharedArrayBuffer / Atomics JS bindings
+pub mod shared_memory;
 
 // Incremental PCA for WASM
 pub mod incremental_pca;
@@ -193,6 +200,65 @@ pub fn memory_usage() -> JsValue {
     serde_wasm_bindgen::to_value(&info).unwrap_or(JsValue::NULL)
 }
 
+// ---------------------------------------------------------------------------
+// WASM linear-memory allocation helpers
+// ---------------------------------------------------------------------------
+
+/// Allocate `len` f64 values in WASM linear memory.
+///
+/// Returns a pointer (as `usize`) to the start of the allocated buffer.
+/// The caller is responsible for eventually freeing the buffer by passing
+/// the same pointer and length to [`free_f64_array`].
+///
+/// Returns `0` when `len` is zero; panics on allocation failure.
+#[wasm_bindgen]
+pub fn alloc_f64_array(len: usize) -> usize {
+    if len == 0 {
+        return 0;
+    }
+    let layout = Layout::array::<f64>(len).expect("alloc_f64_array: layout overflow");
+    // SAFETY: layout is non-zero (len > 0 checked above).
+    let ptr = unsafe { alloc(layout) };
+    assert!(!ptr.is_null(), "alloc_f64_array: allocation failed");
+    ptr as usize
+}
+
+/// Free a buffer previously allocated with [`alloc_f64_array`].
+///
+/// Both `ptr` and `len` must match exactly the values used when the buffer
+/// was originally allocated.  Passing mismatched values is undefined
+/// behaviour.  A `ptr` of `0` or a `len` of `0` is silently ignored.
+#[wasm_bindgen]
+pub fn free_f64_array(ptr: usize, len: usize) {
+    if ptr == 0 || len == 0 {
+        return;
+    }
+    let layout = Layout::array::<f64>(len).expect("free_f64_array: layout overflow");
+    // SAFETY: `ptr` was returned by `alloc_f64_array` with the same `len`,
+    // and WASM is single-threaded so no concurrent access is possible.
+    unsafe { dealloc(ptr as *mut u8, layout) };
+}
+
+/// Return a `Float64Array` view into WASM linear memory at `ptr` / `len`.
+///
+/// This exposes a zero-copy window from JavaScript into the WASM heap.
+/// The returned typed array is only valid while the underlying allocation
+/// remains live; callers must not use the view after calling
+/// [`free_f64_array`] for the same pointer.
+///
+/// Available on the `wasm32` target only.
+#[cfg(target_arch = "wasm32")]
+#[wasm_bindgen]
+pub fn view_f64_array(ptr: usize, len: usize) -> js_sys::Float64Array {
+    // SAFETY: `ptr` points to a live, f64-aligned allocation of at least
+    // `len * 8` bytes allocated by `alloc_f64_array`.  WASM is
+    // single-threaded, so there are no concurrent mutations.
+    let slice = unsafe { std::slice::from_raw_parts(ptr as *const f64, len) };
+    // SAFETY: `slice` is valid for the duration of this call; the returned
+    // Float64Array must not outlive the underlying allocation.
+    unsafe { js_sys::Float64Array::view(slice) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -207,5 +273,75 @@ mod tests {
     fn test_has_simd_support() {
         // Should not panic
         let _simd = has_simd_support();
+    }
+
+    // -----------------------------------------------------------------------
+    // alloc / free round-trip tests (native; WASM targets use wasm-bindgen-test)
+    // -----------------------------------------------------------------------
+
+    /// Allocating zero elements must return the sentinel 0 without allocating.
+    #[test]
+    fn test_alloc_zero_returns_zero() {
+        let ptr = alloc_f64_array(0);
+        assert_eq!(ptr, 0);
+        // free_f64_array(0, 0) must be a no-op.
+        free_f64_array(0, 0);
+    }
+
+    /// Allocate, write, read back, and free a single f64.
+    #[test]
+    fn test_alloc_free_single_element() {
+        let len = 1_usize;
+        let ptr = alloc_f64_array(len);
+        assert_ne!(ptr, 0);
+
+        // SAFETY: ptr is a valid, non-null allocation of len * 8 bytes.
+        unsafe {
+            let p = ptr as *mut f64;
+            p.write(std::f64::consts::PI);
+            let read_back = p.read();
+            assert!(
+                (read_back - std::f64::consts::PI).abs() < f64::EPSILON,
+                "expected PI, got {read_back}"
+            );
+        }
+
+        free_f64_array(ptr, len);
+    }
+
+    /// Allocate a larger buffer, write a pattern, verify it, then free.
+    #[test]
+    fn test_alloc_free_round_trip() {
+        let len = 256_usize;
+        let ptr = alloc_f64_array(len);
+        assert_ne!(ptr, 0);
+
+        // SAFETY: ptr is a valid allocation of len * 8 bytes.
+        unsafe {
+            let slice = std::slice::from_raw_parts_mut(ptr as *mut f64, len);
+            for (i, elem) in slice.iter_mut().enumerate() {
+                *elem = i as f64 * 1.5;
+            }
+            for (i, &val) in slice.iter().enumerate() {
+                let expected = i as f64 * 1.5;
+                assert!(
+                    (val - expected).abs() < f64::EPSILON,
+                    "index {i}: expected {expected}, got {val}"
+                );
+            }
+        }
+
+        free_f64_array(ptr, len);
+    }
+
+    /// free_f64_array with ptr==0 or len==0 must be silent no-ops.
+    #[test]
+    fn test_free_noop_on_null_or_zero_len() {
+        free_f64_array(0, 128);
+        free_f64_array(0, 0);
+        // Allocate then use len==0 to demonstrate no-op free path.
+        let ptr = alloc_f64_array(4);
+        free_f64_array(ptr, 0); // no-op — we still need to free properly
+        free_f64_array(ptr, 4); // actual free
     }
 }

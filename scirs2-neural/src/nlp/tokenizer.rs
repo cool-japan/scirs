@@ -183,9 +183,8 @@ impl BpeTokenizer {
                 continue;
             }
 
-            if tok.ends_with("</w>") {
+            if let Some(word_part) = tok.strip_suffix("</w>") {
                 // End of word token: strip </w>, add space before if not first
-                let word_part = &tok[..tok.len() - 4];
                 if !first {
                     result.push(' ');
                 }
@@ -208,7 +207,8 @@ impl BpeTokenizer {
     pub fn to_json(&self) -> Result<String, NeuralError> {
         // Build a serialisable representation
         let merges_list: Vec<(String, String)> = self.merges.clone();
-        let vocab_list: Vec<(String, usize)> = self.vocab.iter().map(|(k, &v)| (k.clone(), v)).collect();
+        let vocab_list: Vec<(String, usize)> =
+            self.vocab.iter().map(|(k, &v)| (k.clone(), v)).collect();
         let special_list: Vec<(String, usize)> = self
             .special_tokens
             .iter()
@@ -221,9 +221,8 @@ impl BpeTokenizer {
             "special_tokens": special_list,
         });
 
-        serde_json::to_string(&obj).map_err(|e| {
-            NeuralError::SerializationError(format!("BPE serialization failed: {e}"))
-        })
+        serde_json::to_string(&obj)
+            .map_err(|e| NeuralError::SerializationError(format!("BPE serialization failed: {e}")))
     }
 
     /// Deserialise from a JSON string produced by [`to_json`].
@@ -247,7 +246,8 @@ impl BpeTokenizer {
                 .to_string();
             let id = pair[1]
                 .as_u64()
-                .ok_or_else(|| NeuralError::DeserializationError("vocab id not u64".into()))? as usize;
+                .ok_or_else(|| NeuralError::DeserializationError("vocab id not u64".into()))?
+                as usize;
             max_id = max_id.max(id);
             vocab.insert(token, id);
         }
@@ -278,21 +278,22 @@ impl BpeTokenizer {
             merges.push((l, r));
         }
 
-        let special_arr = v["special_tokens"]
-            .as_array()
-            .ok_or_else(|| NeuralError::DeserializationError("missing 'special_tokens' field".into()))?;
+        let special_arr = v["special_tokens"].as_array().ok_or_else(|| {
+            NeuralError::DeserializationError("missing 'special_tokens' field".into())
+        })?;
         let mut special_tokens: HashMap<String, usize> = HashMap::new();
         for item in special_arr {
-            let pair = item
-                .as_array()
-                .ok_or_else(|| NeuralError::DeserializationError("special entry not array".into()))?;
+            let pair = item.as_array().ok_or_else(|| {
+                NeuralError::DeserializationError("special entry not array".into())
+            })?;
             let token = pair[0]
                 .as_str()
                 .ok_or_else(|| NeuralError::DeserializationError("special token not str".into()))?
                 .to_string();
             let id = pair[1]
                 .as_u64()
-                .ok_or_else(|| NeuralError::DeserializationError("special id not u64".into()))? as usize;
+                .ok_or_else(|| NeuralError::DeserializationError("special id not u64".into()))?
+                as usize;
             special_tokens.insert(token, id);
         }
 
@@ -382,9 +383,9 @@ impl CharTokenizer {
         let mut id_to_char: Vec<Option<char>> = vec![None, None];
 
         for &c in chars {
-            if !char_to_id.contains_key(&c) {
+            if let std::collections::hash_map::Entry::Vacant(e) = char_to_id.entry(c) {
                 let id = id_to_char.len();
-                char_to_id.insert(c, id);
+                e.insert(id);
                 id_to_char.push(Some(c));
             }
         }
@@ -417,11 +418,7 @@ impl CharTokenizer {
     /// Decode character token ids back to a string.
     pub fn decode(&self, ids: &[usize]) -> String {
         ids.iter()
-            .filter_map(|&id| {
-                self.id_to_char
-                    .get(id)
-                    .and_then(|opt| *opt)
-            })
+            .filter_map(|&id| self.id_to_char.get(id).and_then(|opt| *opt))
             .collect()
     }
 
@@ -649,11 +646,7 @@ mod tests {
 
     #[test]
     fn test_bpe_merge_count_increases_with_more_merges() {
-        let corpus = [
-            "aaaa bbbb cccc",
-            "aaaa bbbb dddd",
-            "aaaa cccc dddd",
-        ];
+        let corpus = ["aaaa bbbb cccc", "aaaa bbbb dddd", "aaaa cccc dddd"];
         let tok_small = BpeTokenizer::train(&corpus, 15).expect("small");
         let tok_large = BpeTokenizer::train(&corpus, 25).expect("large");
         assert!(tok_large.merges.len() >= tok_small.merges.len());

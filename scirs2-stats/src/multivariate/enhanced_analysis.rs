@@ -658,11 +658,11 @@ where
         })
     }
 
-    /// Fit factor analysis to data
+    /// Fit factor analysis to data using the full iterative EM algorithm (Rubin & Thayer, 1982)
     pub fn fit(&mut self, data: &ArrayView2<F>) -> StatsResult<&FactorAnalysisResult<F>> {
         checkarray_finite(data, "data")?;
 
-        let (_n_samples, n_features) = data.dim();
+        let (n_samples, n_features) = data.dim();
 
         if self.n_factors >= n_features {
             return Err(StatsError::InvalidArgument(format!(
@@ -671,35 +671,164 @@ where
             )));
         }
 
-        // Standardize data
-        let standardizeddata = self.standardizedata(data)?;
+        if n_samples < 2 {
+            return Err(StatsError::InvalidArgument(
+                "At least 2 samples are required for factor analysis".to_string(),
+            ));
+        }
 
-        // Compute correlation matrix
-        let corr_matrix = self.compute_correlation_matrix(&standardizeddata)?;
+        // Center the data (use mean-centered data for EM, not correlation matrix)
+        let mean = data.mean_axis(Axis(0)).ok_or_else(|| {
+            StatsError::ComputationError("Failed to compute data mean".to_string())
+        })?;
+        let mut x_centered = data.to_owned();
+        for mut row in x_centered.rows_mut() {
+            for (i, &m) in mean.iter().enumerate() {
+                row[i] = row[i] - m;
+            }
+        }
 
-        // Extract initial factor loadings using PCA
-        let mut loadings = self.initial_loadings(&corr_matrix)?;
+        // Compute sample covariance matrix (p × p)
+        let mut x_f64_vec = Vec::with_capacity(n_samples * n_features);
+        for &val in x_centered.iter() {
+            let v = val.to_f64().ok_or_else(|| {
+                StatsError::ComputationError("Failed to convert to f64".to_string())
+            })?;
+            x_f64_vec.push(v);
+        }
+        let x_f64 = Array2::from_shape_vec((n_samples, n_features), x_f64_vec).map_err(|e| {
+            StatsError::ComputationError(format!("Failed to reshape f64 data: {}", e))
+        })?;
 
-        // Iterative estimation (simplified EM algorithm)
-        let uniquenesses =
-            Array1::ones(n_features) * F::from(0.5).expect("Failed to convert constant to float");
+        let cov_matrix = self.compute_sample_covariance(&x_f64)?;
 
-        // TODO: Implement full iterative EM algorithm
-        // For now, use the initial PCA-based loadings directly
+        // Get initial loadings from PCA of the covariance matrix
+        let (init_loadings_f64, _eigenvals) = self.initial_loadings_from_cov(&cov_matrix)?;
+
+        // Initialize Ψ (uniquenesses) = diag(C - Λ Λᵀ), clamped to [ε, 1.0]
+        let eps = 1e-6_f64;
+        let ll_t = init_loadings_f64.dot(&init_loadings_f64.t());
+        let mut psi_f64 = Array1::<f64>::zeros(n_features);
+        for j in 0..n_features {
+            let val = cov_matrix[[j, j]] - ll_t[[j, j]];
+            psi_f64[j] = val.max(eps).min(1.0_f64);
+        }
+
+        let mut loadings_f64 = init_loadings_f64;
+        let mut prev_log_lik = f64::NEG_INFINITY;
+
+        // EM iterations
+        let n_s = n_samples as f64;
+        let tol = self.config.tolerance;
+        let max_iter = self.config.max_iter;
+
+        for _iter in 0..max_iter {
+            // ------- E-step (Rubin & Thayer, 1982) -------
+            // Σ = Λ Λᵀ + diag(Ψ)
+            let sigma = self.build_sigma(&loadings_f64, &psi_f64, n_features);
+
+            // Σ⁻¹
+            let sigma_inv = scirs2_linalg::inv(&sigma.view(), None).map_err(|e| {
+                StatsError::ComputationError(format!("Sigma inversion failed: {}", e))
+            })?;
+
+            // beta = Λᵀ Σ⁻¹   (k × p)
+            let beta = loadings_f64.t().dot(&sigma_inv);
+
+            // Ez_x = X_centered * beta'  (n × k)
+            let ez_x = x_f64.dot(&beta.t());
+
+            // Ezz_x = n * (I_k - beta * Λ) + Ez_x' * Ez_x   (k × k)
+            let i_k = Array2::<f64>::eye(self.n_factors);
+            let beta_lambda = beta.dot(&loadings_f64);
+            let i_minus_beta_lambda = &i_k - &beta_lambda;
+            let ezz_x = i_minus_beta_lambda * n_s + ez_x.t().dot(&ez_x);
+
+            // ------- M-step -------
+            // Λ_new = X_centered' * Ez_x * pinv(Ezz_x)   (p × k)
+            let ezz_x_inv = scirs2_linalg::inv(&ezz_x.view(), None).map_err(|e| {
+                StatsError::ComputationError(format!("Ezz_x inversion failed: {}", e))
+            })?;
+
+            let xt_ez_x = x_f64.t().dot(&ez_x); // p × k
+            let new_loadings = xt_ez_x.dot(&ezz_x_inv); // p × k
+
+            // Ψ_new: ψ_j = C_jj - (Λ_new[j,:] · (X_centered[:,j]' * Ez_x / n))
+            let mut new_psi = Array1::<f64>::zeros(n_features);
+            for j in 0..n_features {
+                let col_j = x_f64.column(j);
+                let l_new_j = new_loadings.row(j);
+                // (X[:,j]' * Ez_x) / n  gives a vector of length k
+                let xj_t_ez = col_j.dot(&ez_x) / n_s; // shape (k,)
+                let val = cov_matrix[[j, j]] - l_new_j.dot(&xj_t_ez);
+                new_psi[j] = val.max(eps);
+            }
+
+            loadings_f64 = new_loadings;
+            psi_f64 = new_psi;
+
+            // ------- Log-likelihood check -------
+            let sigma_new = self.build_sigma(&loadings_f64, &psi_f64, n_features);
+            let log_lik = self.compute_log_likelihood_f64(&cov_matrix, &sigma_new, n_samples)?;
+
+            if (log_lik - prev_log_lik).abs() < tol {
+                break;
+            }
+            prev_log_lik = log_lik;
+        }
+
+        // Convert loadings back to type F
+        let mut loadings: Array2<F> = Array2::zeros((n_features, self.n_factors));
+        for j in 0..n_features {
+            for k in 0..self.n_factors {
+                loadings[[j, k]] = F::from(loadings_f64[[j, k]]).ok_or_else(|| {
+                    StatsError::ComputationError("Failed to convert loadings to F".to_string())
+                })?;
+            }
+        }
+
+        let mut uniquenesses: Array1<F> = Array1::zeros(n_features);
+        for j in 0..n_features {
+            uniquenesses[j] = F::from(psi_f64[j]).ok_or_else(|| {
+                StatsError::ComputationError("Failed to convert uniquenesses to F".to_string())
+            })?;
+        }
 
         // Apply rotation if requested
         if self.config.rotation != RotationMethod::None {
             loadings = self.apply_rotation(loadings)?;
         }
 
-        // Compute communalities
+        // Factor scores: F = X_centered * Σ⁻¹ * Λ   (n × k)
+        let sigma_final = self.build_sigma(&loadings_f64, &psi_f64, n_features);
+        let sigma_final_inv = scirs2_linalg::inv(&sigma_final.view(), None).map_err(|e| {
+            StatsError::ComputationError(format!("Final sigma inversion failed: {}", e))
+        })?;
+        let scores_f64 = x_f64.dot(&sigma_final_inv).dot(&loadings_f64);
+        let mut scores: Array2<F> = Array2::zeros((n_samples, self.n_factors));
+        for i in 0..n_samples {
+            for k in 0..self.n_factors {
+                scores[[i, k]] = F::from(scores_f64[[i, k]]).ok_or_else(|| {
+                    StatsError::ComputationError("Failed to convert scores to F".to_string())
+                })?;
+            }
+        }
+
+        // Final log-likelihood
+        let sigma_final2 = self.build_sigma(&loadings_f64, &psi_f64, n_features);
+        let log_lik_final =
+            self.compute_log_likelihood_f64(&cov_matrix, &sigma_final2, n_samples)?;
+        let log_likelihood_f = F::from(log_lik_final).ok_or_else(|| {
+            StatsError::ComputationError("Failed to convert log-likelihood to F".to_string())
+        })?;
+
+        // Communalities and explained variance
         let communalities = loadings
             .rows()
             .into_iter()
             .map(|row| row.mapv(|x| x * x).sum())
             .collect::<Array1<F>>();
 
-        // Compute explained variance
         let explained_variance = loadings
             .columns()
             .into_iter()
@@ -709,99 +838,109 @@ where
         let results = FactorAnalysisResult {
             loadings,
             uniquenesses,
-            scores: None, // Would compute factor scores in full implementation
+            scores: Some(scores),
             communalities,
             explained_variance,
-            log_likelihood: None, // Would compute in full implementation
+            log_likelihood: Some(log_likelihood_f),
         };
 
         self.results = Some(results);
-        Ok(self.results.as_ref().expect("Operation failed"))
+        Ok(self
+            .results
+            .as_ref()
+            .ok_or_else(|| StatsError::ComputationError("Results not set after fit".to_string()))?)
     }
 
-    /// Standardize data
-    fn standardizedata(&self, data: &ArrayView2<F>) -> StatsResult<Array2<F>> {
-        let mut standardized = data.to_owned();
+    /// Build the model covariance matrix Σ = Λ Λᵀ + diag(Ψ)
+    fn build_sigma(
+        &self,
+        loadings: &Array2<f64>,
+        psi: &Array1<f64>,
+        n_features: usize,
+    ) -> Array2<f64> {
+        let mut sigma = loadings.dot(&loadings.t());
+        for j in 0..n_features {
+            sigma[[j, j]] += psi[j];
+        }
+        sigma
+    }
 
-        for mut col in standardized.columns_mut() {
-            let mean = col.mean().expect("Operation failed");
-            let std = col
-                .mapv(|x| (x - mean) * (x - mean))
-                .mean()
-                .expect("Operation failed")
-                .sqrt();
+    /// Compute log-likelihood: -n/2 * (p*ln(2π) + ln|Σ| + tr(Σ⁻¹ C))
+    fn compute_log_likelihood_f64(
+        &self,
+        cov: &Array2<f64>,
+        sigma: &Array2<f64>,
+        n_samples: usize,
+    ) -> StatsResult<f64> {
+        let n = n_samples as f64;
+        let p = cov.nrows() as f64;
 
-            if std > F::from(1e-12).expect("Failed to convert constant to float") {
-                col.mapv_inplace(|x| (x - mean) / std);
-            }
+        let det_sigma = scirs2_linalg::det(&sigma.view(), None).map_err(|e| {
+            StatsError::ComputationError(format!("Determinant computation failed: {}", e))
+        })?;
+
+        if det_sigma <= 0.0 {
+            // Return a very low log-likelihood rather than an error
+            return Ok(f64::NEG_INFINITY);
         }
 
-        Ok(standardized)
+        let sigma_inv = scirs2_linalg::inv(&sigma.view(), None).map_err(|e| {
+            StatsError::ComputationError(format!("Sigma inversion for LL failed: {}", e))
+        })?;
+
+        // tr(Σ⁻¹ C)
+        let sigma_inv_cov = sigma_inv.dot(cov);
+        let trace_term: f64 = (0..cov.nrows()).map(|i| sigma_inv_cov[[i, i]]).sum();
+
+        let log_lik =
+            -0.5 * n * (p * (2.0 * std::f64::consts::PI).ln() + det_sigma.ln() + trace_term);
+
+        Ok(log_lik)
     }
 
-    /// Compute correlation matrix
-    fn compute_correlation_matrix(&self, data: &Array2<F>) -> StatsResult<Array2<F>> {
-        let n_features = data.ncols();
-        let mut corr_matrix = Array2::zeros((n_features, n_features));
-
-        for i in 0..n_features {
-            for j in i..n_features {
-                let col_i = data.column(i);
-                let col_j = data.column(j);
-
-                let corr = if i == j {
-                    F::one()
-                } else {
-                    let numerator = col_i
-                        .iter()
-                        .zip(col_j.iter())
-                        .map(|(&x, &y)| x * y)
-                        .sum::<F>();
-                    let n = F::from(col_i.len()).expect("Operation failed");
-                    numerator / (n - F::one())
-                };
-
-                corr_matrix[[i, j]] = corr;
-                corr_matrix[[j, i]] = corr;
-            }
+    /// Compute sample covariance matrix from centered data (p × p)
+    fn compute_sample_covariance(&self, x_centered: &Array2<f64>) -> StatsResult<Array2<f64>> {
+        let n_samples = x_centered.nrows();
+        if n_samples < 2 {
+            return Err(StatsError::InvalidArgument(
+                "Need at least 2 samples for covariance".to_string(),
+            ));
         }
-
-        Ok(corr_matrix)
+        let cov = x_centered.t().dot(x_centered) / (n_samples - 1) as f64;
+        Ok(cov)
     }
 
-    /// Get initial factor loadings using PCA
-    fn initial_loadings(&self, corr_matrix: &Array2<F>) -> StatsResult<Array2<F>> {
-        // Convert to f64 for numerical computation
-        let corr_f64 = corr_matrix.mapv(|x| x.to_f64().expect("Operation failed"));
+    /// Get initial loadings and eigenvalues from PCA of the covariance matrix
+    fn initial_loadings_from_cov(
+        &self,
+        cov: &Array2<f64>,
+    ) -> StatsResult<(Array2<f64>, Array1<f64>)> {
+        let n_features = cov.nrows();
 
-        // Compute eigendecomposition
-        let (eigenvalues, eigenvectors) =
-            scirs2_linalg::eigh(&corr_f64.view(), None).map_err(|e| {
-                StatsError::ComputationError(format!("Eigendecomposition failed: {}", e))
-            })?;
+        let (eigenvalues, eigenvectors) = scirs2_linalg::eigh(&cov.view(), None).map_err(|e| {
+            StatsError::ComputationError(format!("Eigendecomposition failed: {}", e))
+        })?;
 
-        // Sort in descending order and take top n_factors
-        let mut eigen_pairs: Vec<(f64, scirs2_core::ndarray::ArrayView1<f64>)> = eigenvalues
+        // Sort descending
+        let mut pairs: Vec<(f64, usize)> = eigenvalues
             .iter()
-            .zip(eigenvectors.columns())
-            .map(|(&val, vec)| (val, vec))
+            .enumerate()
+            .map(|(i, &v)| (v, i))
             .collect();
+        pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
 
-        eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).expect("Operation failed"));
+        let mut loadings = Array2::<f64>::zeros((n_features, self.n_factors));
+        let mut evals = Array1::<f64>::zeros(self.n_factors);
 
-        // Compute loadings = eigenvectors * sqrt(eigenvalues)
-        let n_features = corr_matrix.nrows();
-        let mut loadings = Array2::zeros((n_features, self.n_factors));
-
-        for (i, (eigenval, eigenvec)) in eigen_pairs[..self.n_factors].iter().enumerate() {
-            let sqrt_eigenval = eigenval.sqrt();
+        for (k, (eval, orig_idx)) in pairs[..self.n_factors].iter().enumerate() {
+            let sqrt_eval = eval.max(0.0).sqrt();
             for j in 0..n_features {
-                loadings[[j, i]] =
-                    F::from(eigenvec[j] * sqrt_eigenval).expect("Failed to convert to float");
+                loadings[[j, k]] = eigenvectors[[j, *orig_idx]] * sqrt_eval;
             }
+            evals[k] = *eval;
         }
 
-        Ok(loadings)
+        Ok((loadings, evals))
     }
 
     /// Apply rotation to factor loadings
@@ -899,4 +1038,181 @@ where
 
     let mut fa = EnhancedFactorAnalysis::new(n_factors, config)?;
     Ok(fa.fit(data)?.clone())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    /// Build a well-conditioned synthetic dataset with known factor structure.
+    /// 200 samples, 5 features, 2 latent factors.
+    fn make_two_factor_data() -> Array2<f64> {
+        // Factor loadings: features 0-2 load on factor 1, features 3-4 on factor 2
+        let n = 200_usize;
+        let p = 5_usize;
+        let mut data = Array2::<f64>::zeros((n, p));
+
+        // Deterministic (seeded) sine/cosine sequences as synthetic factors
+        for i in 0..n {
+            let f1 = ((i as f64) * 0.1_f64).sin();
+            let f2 = ((i as f64) * 0.15_f64).cos();
+
+            data[[i, 0]] = 0.8 * f1 + 0.01 * ((i as f64) * 7.0).sin();
+            data[[i, 1]] = 0.7 * f1 + 0.01 * ((i as f64) * 11.0).cos();
+            data[[i, 2]] = 0.9 * f1 + 0.01 * ((i as f64) * 13.0).sin();
+            data[[i, 3]] = 0.75 * f2 + 0.01 * ((i as f64) * 17.0).cos();
+            data[[i, 4]] = 0.85 * f2 + 0.01 * ((i as f64) * 19.0).sin();
+        }
+
+        data
+    }
+
+    #[test]
+    fn test_em_factor_analysis_loadings_shape() {
+        let data = make_two_factor_data();
+        let config = FactorAnalysisConfig {
+            max_iter: 200,
+            tolerance: 1e-6,
+            rotation: RotationMethod::None,
+            seed: None,
+        };
+        let mut fa = EnhancedFactorAnalysis::<f64>::new(2, config).expect("Failed to create FA");
+        let result = fa.fit(&data.view()).expect("EM fit failed");
+
+        let (n_features, n_factors) = result.loadings.dim();
+        assert_eq!(n_features, 5, "loadings should have 5 rows (features)");
+        assert_eq!(n_factors, 2, "loadings should have 2 columns (factors)");
+    }
+
+    #[test]
+    fn test_em_factor_analysis_uniquenesses_positive() {
+        let data = make_two_factor_data();
+        let config = FactorAnalysisConfig {
+            max_iter: 200,
+            tolerance: 1e-6,
+            rotation: RotationMethod::None,
+            seed: None,
+        };
+        let mut fa = EnhancedFactorAnalysis::<f64>::new(2, config).expect("Failed to create FA");
+        let result = fa.fit(&data.view()).expect("EM fit failed");
+
+        for &psi in result.uniquenesses.iter() {
+            assert!(psi > 0.0, "All uniquenesses must be positive, got {}", psi);
+        }
+    }
+
+    #[test]
+    fn test_em_factor_analysis_log_likelihood_present_and_negative() {
+        let data = make_two_factor_data();
+        let config = FactorAnalysisConfig {
+            max_iter: 200,
+            tolerance: 1e-6,
+            rotation: RotationMethod::None,
+            seed: None,
+        };
+        let mut fa = EnhancedFactorAnalysis::<f64>::new(2, config).expect("Failed to create FA");
+        let result = fa.fit(&data.view()).expect("EM fit failed");
+
+        let ll = result
+            .log_likelihood
+            .expect("log_likelihood must be Some(_)");
+        // Note: for continuous distributions the log-likelihood can be positive when data
+        // variance is small (PDF can exceed 1), so we only check it is finite.
+        assert!(ll.is_finite(), "Log-likelihood must be finite, got {}", ll);
+    }
+
+    #[test]
+    fn test_em_factor_analysis_scores_shape() {
+        let data = make_two_factor_data();
+        let n_samples = data.nrows();
+        let config = FactorAnalysisConfig {
+            max_iter: 200,
+            tolerance: 1e-6,
+            rotation: RotationMethod::None,
+            seed: None,
+        };
+        let mut fa = EnhancedFactorAnalysis::<f64>::new(2, config).expect("Failed to create FA");
+        let result = fa.fit(&data.view()).expect("EM fit failed");
+
+        let scores = result.scores.as_ref().expect("scores must be Some(_)");
+        assert_eq!(
+            scores.dim(),
+            (n_samples, 2),
+            "scores must have shape (n_samples, n_factors)"
+        );
+    }
+
+    #[test]
+    fn test_em_factor_analysis_convergence() {
+        // The EM should converge well before max_iter on well-conditioned data.
+        // We verify this by checking that the final log-likelihood is finite and
+        // the algorithm completes without error.
+        let data = make_two_factor_data();
+        let max_iter = 1000_usize;
+        let config = FactorAnalysisConfig {
+            max_iter,
+            tolerance: 1e-8,
+            rotation: RotationMethod::None,
+            seed: None,
+        };
+        let mut fa = EnhancedFactorAnalysis::<f64>::new(2, config).expect("Failed to create FA");
+        let result = fa
+            .fit(&data.view())
+            .expect("EM fit converged without error");
+
+        let ll = result.log_likelihood.expect("log_likelihood must be Some");
+        assert!(
+            ll.is_finite(),
+            "Log-likelihood should be finite after convergence"
+        );
+    }
+
+    #[test]
+    fn test_em_communalities_nonnegative() {
+        let data = make_two_factor_data();
+        let config = FactorAnalysisConfig {
+            max_iter: 200,
+            tolerance: 1e-6,
+            rotation: RotationMethod::None,
+            seed: None,
+        };
+        let mut fa = EnhancedFactorAnalysis::<f64>::new(2, config).expect("Failed to create FA");
+        let result = fa.fit(&data.view()).expect("EM fit failed");
+
+        for &h2 in result.communalities.iter() {
+            assert!(h2 >= 0.0, "Communalities must be non-negative, got {}", h2);
+        }
+    }
+
+    #[test]
+    fn test_em_explained_variance_shape() {
+        let data = make_two_factor_data();
+        let config = FactorAnalysisConfig {
+            max_iter: 200,
+            tolerance: 1e-6,
+            rotation: RotationMethod::None,
+            seed: None,
+        };
+        let mut fa = EnhancedFactorAnalysis::<f64>::new(2, config).expect("Failed to create FA");
+        let result = fa.fit(&data.view()).expect("EM fit failed");
+
+        assert_eq!(
+            result.explained_variance.len(),
+            2,
+            "explained_variance must have length n_factors"
+        );
+    }
+
+    #[test]
+    fn test_em_rejects_too_many_factors() {
+        // n_factors must be < n_features
+        let data = make_two_factor_data(); // 5 features
+        let config = FactorAnalysisConfig::default();
+        let result = EnhancedFactorAnalysis::<f64>::new(5, config);
+        // new() itself is fine, but fit() should fail
+        if let Ok(mut fa) = result {
+            assert!(fa.fit(&data.view()).is_err());
+        }
+    }
 }

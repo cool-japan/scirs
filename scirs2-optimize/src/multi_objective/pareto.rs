@@ -328,9 +328,17 @@ fn hypervolume_wfg(solutions: &[&MultiObjectiveSolution], reference_point: &[f64
     wfg_hv_recursive(&points, reference_point, n_objectives)
 }
 
-/// Recursive WFG hypervolume computation.
+/// Recursive WFG hypervolume computation (Hypervolume by Slicing Objectives).
 ///
-/// Uses the inclusion-exclusion principle with slicing along objectives.
+/// Implements the HSO/WFG exact algorithm (While et al., IEEE TEC 2012):
+///   1. Sort points ASCENDING by the last objective coordinate.
+///   2. Process each point in order: add it to a "contributing" set (maintaining
+///      non-dominated projections), then account for the slab between the current
+///      point's last-coordinate and the next point's (or the reference point's).
+///   3. The contribution of each slab equals the projected (dim-1)-hypervolume of
+///      the contributing set times the slab height.
+///
+/// Base cases: dim == 1 (length) and dim == 2 (O(N log N) staircase sweep).
 fn wfg_hv_recursive(points: &[Vec<f64>], reference_point: &[f64], dim: usize) -> f64 {
     if points.is_empty() {
         return 0.0;
@@ -343,21 +351,20 @@ fn wfg_hv_recursive(points: &[Vec<f64>], reference_point: &[f64], dim: usize) ->
     }
 
     if dim == 2 {
-        // 2D base case: staircase computation
+        // 2D base case: exact staircase sweep, O(N log N).
+        // Sort ascending by x; keep only the non-dominated front (y strictly
+        // decreasing left-to-right).  Then sum up axis-aligned rectangles.
         let mut pts: Vec<(f64, f64)> = points.iter().map(|p| (p[0], p[1])).collect();
         pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(Ordering::Equal));
 
-        // Build non-dominated staircase (y must be decreasing left to right)
+        // Build non-dominated staircase: retain only points where y < all previous y.
         let mut staircase: Vec<(f64, f64)> = Vec::new();
+        let mut min_y = f64::INFINITY;
         for &(x, y) in &pts {
-            while let Some(&(_, prev_y)) = staircase.last() {
-                if prev_y >= y {
-                    staircase.pop();
-                } else {
-                    break;
-                }
+            if y < min_y {
+                staircase.push((x, y));
+                min_y = y;
             }
-            staircase.push((x, y));
         }
 
         let mut vol = 0.0;
@@ -372,69 +379,73 @@ fn wfg_hv_recursive(points: &[Vec<f64>], reference_point: &[f64], dim: usize) ->
         return vol;
     }
 
-    // General case: slice by last dimension
-    // Sort points by last objective (descending)
+    // General case (dim >= 3): slice by the last dimension.
+    //
+    // Algorithm:
+    //   - Sort ASCENDING by last coordinate.
+    //   - Maintain a "contributing" set of points already processed (their
+    //     projected (dim-1)-dimensional footprint covers what we've accounted for
+    //     below the current z-level).
+    //   - For each new point p at z-level z_i:
+    //       a) Add p to contributing (removing any projections that p now dominates,
+    //          and skipping if p's projection is already dominated).
+    //       b) Compute the slab height to the NEXT z-level (z_{i+1} or ref[last_dim]).
+    //       c) Accumulate: volume += projected_hv(contributing) * slab_height.
+    //
+    // This ensures the very first slab (from z_0 up to z_1 or ref) gets counted
+    // after z_0 is in contributing, and the final slab (from z_{n-1} up to ref)
+    // is captured in step (c) of the last iteration.
     let last_dim = dim - 1;
     let mut sorted_points = points.to_vec();
     sorted_points.sort_by(|a, b| {
-        b[last_dim]
-            .partial_cmp(&a[last_dim])
+        a[last_dim]
+            .partial_cmp(&b[last_dim])
             .unwrap_or(Ordering::Equal)
     });
 
     let mut volume = 0.0;
-    let mut prev_slice_level = reference_point[last_dim];
-
-    // Incrementally build the set of contributing points
+    // Maintains the non-dominated set of points already processed, as their
+    // full dim-vectors (so the projection is p[..last_dim]).
     let mut contributing: Vec<Vec<f64>> = Vec::new();
 
-    for point in &sorted_points {
-        let slice_level = point[last_dim];
-        let slice_height = prev_slice_level - slice_level;
+    for (idx, point) in sorted_points.iter().enumerate() {
+        // Step a: update contributing with this point's projection.
+        let new_proj: Vec<f64> = point[..last_dim].to_vec();
+        let mut dominated_by_existing = false;
+        for existing in &contributing {
+            let ex_proj: Vec<f64> = existing[..last_dim].to_vec();
+            if dominates(&ex_proj, &new_proj) {
+                dominated_by_existing = true;
+                break;
+            }
+        }
+        if !dominated_by_existing {
+            contributing.retain(|existing| {
+                let ex_proj: Vec<f64> = existing[..last_dim].to_vec();
+                !dominates(&new_proj, &ex_proj)
+            });
+            contributing.push(point.clone());
+        }
 
-        if slice_height > 0.0 && !contributing.is_empty() {
-            // Calculate hypervolume of the contributing set projected to dim-1 dimensions
+        // Step b: slab height from this point's z up to the next z-level (or ref).
+        let z_current = point[last_dim];
+        let z_next = if idx + 1 < sorted_points.len() {
+            sorted_points[idx + 1][last_dim]
+        } else {
+            reference_point[last_dim]
+        };
+        let slab_height = z_next - z_current;
+
+        // Step c: accumulate if the slab has positive height.
+        if slab_height > 0.0 {
             let projected: Vec<Vec<f64>> = contributing
                 .iter()
                 .map(|p| p[..last_dim].to_vec())
                 .collect();
             let ref_projected = &reference_point[..last_dim];
             let slice_hv = wfg_hv_recursive(&projected, ref_projected, last_dim);
-            volume += slice_hv * slice_height;
+            volume += slice_hv * slab_height;
         }
-
-        prev_slice_level = slice_level;
-
-        // Add current point to contributing set (remove dominated)
-        let new_point_projected: Vec<f64> = point[..last_dim].to_vec();
-        let mut is_dominated = false;
-        for existing in &contributing {
-            let existing_projected: Vec<f64> = existing[..last_dim].to_vec();
-            if dominates(&existing_projected, &new_point_projected) {
-                is_dominated = true;
-                break;
-            }
-        }
-
-        if !is_dominated {
-            contributing.retain(|existing| {
-                let existing_projected: Vec<f64> = existing[..last_dim].to_vec();
-                !dominates(&new_point_projected, &existing_projected)
-            });
-            contributing.push(point.clone());
-        }
-    }
-
-    // Final slice: from the last point's level down to 0
-    // The remaining contributing set's projected hypervolume times remaining height
-    if !contributing.is_empty() && prev_slice_level > 0.0 {
-        let projected: Vec<Vec<f64>> = contributing
-            .iter()
-            .map(|p| p[..last_dim].to_vec())
-            .collect();
-        let ref_projected = &reference_point[..last_dim];
-        let slice_hv = wfg_hv_recursive(&projected, ref_projected, last_dim);
-        volume += slice_hv * prev_slice_level;
     }
 
     volume

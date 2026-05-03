@@ -1102,7 +1102,9 @@ pre[class*="language-"]:hover .copy-button {
 
         // Bold text
         if let Ok(re) = regex::Regex::new(r"\*\*([^*]+)\*\*") {
-            result = re.replace_all(&result, r#"<strong>$1</strong>"#).to_string();
+            result = re
+                .replace_all(&result, r#"<strong>$1</strong>"#)
+                .to_string();
         }
 
         // Italic text
@@ -1120,13 +1122,17 @@ pre[class*="language-"]:hover .copy-button {
         // Unordered lists
         if let Ok(re) = regex::Regex::new(r"(?m)^- (.+)$") {
             result = re.replace_all(&result, r#"<li>$1</li>"#).to_string();
-            result = result.replace("<li>", "<ul><li>").replace("</li>", "</li></ul>");
+            result = result
+                .replace("<li>", "<ul><li>")
+                .replace("</li>", "</li></ul>");
         }
 
         // Numbered lists
         if let Ok(re) = regex::Regex::new(r"(?m)^\d+\. (.+)$") {
             result = re.replace_all(&result, r#"<li>$1</li>"#).to_string();
-            result = result.replace("<li>", "<ol><li>").replace("</li>", "</li></ol>");
+            result = result
+                .replace("<li>", "<ol><li>")
+                .replace("</li>", "</li></ol>");
         }
 
         result

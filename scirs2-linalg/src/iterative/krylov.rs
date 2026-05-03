@@ -24,7 +24,7 @@ use scirs2_core::numeric::{Float, NumAssign};
 use std::iter::Sum;
 
 use crate::error::{LinalgError, LinalgResult};
-use crate::validation::{validate_linear_system, validate_iteration_parameters};
+use crate::validation::{validate_iteration_parameters, validate_linear_system};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Result type
@@ -80,7 +80,10 @@ fn dot<F>(a: &Array1<F>, b: &Array1<F>) -> F
 where
     F: Float + NumAssign + Sum + ScalarOperand,
 {
-    a.iter().zip(b.iter()).map(|(&x, &y)| x * y).fold(F::zero(), |acc, v| acc + v)
+    a.iter()
+        .zip(b.iter())
+        .map(|(&x, &y)| x * y)
+        .fold(F::zero(), |acc, v| acc + v)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -119,6 +122,7 @@ where
 ///     .expect("CG failed");
 /// assert!(result.converged);
 /// ```
+#[allow(clippy::type_complexity)]
 pub fn conjugate_gradient<F>(
     a: &Array2<F>,
     b: &ArrayView1<F>,
@@ -261,7 +265,7 @@ where
     for i in 0..k {
         let h0 = h[i];
         let h1 = h[i + 1];
-        h[i]     =  cs[i] * h0 + sn[i] * h1;
+        h[i] = cs[i] * h0 + sn[i] * h1;
         h[i + 1] = -sn[i] * h0 + cs[i] * h1;
     }
 }
@@ -653,7 +657,10 @@ where
         }
 
         let t = matvec(a, &s);
-        let t_norm_sq: F = t.iter().map(|&ti| ti * ti).fold(F::zero(), |acc, v| acc + v);
+        let t_norm_sq: F = t
+            .iter()
+            .map(|&ti| ti * ti)
+            .fold(F::zero(), |acc, v| acc + v);
 
         omega = if t_norm_sq < F::epsilon() {
             F::zero()
@@ -804,10 +811,10 @@ where
     // Lanczos scalars
     let mut beta = beta1;
     // Givens rotation history: we maintain two previous rotation pairs
-    let mut c_old = F::one();   // c_{k-2}
-    let mut s_old = F::zero();  // s_{k-2}
-    let mut c = F::one();       // c_{k-1}
-    let mut s = F::zero();      // s_{k-1}
+    let mut c_old = F::one(); // c_{k-2}
+    let mut s_old = F::zero(); // s_{k-2}
+    let mut c = F::one(); // c_{k-1}
+    let mut s = F::zero(); // s_{k-1}
 
     // QR factorization tracking
     let mut rho_bar: F;
@@ -848,7 +855,11 @@ where
 
         // Now compute G_k to zero out beta_new
         let gamma = (rho_bar * rho_bar + beta_new * beta_new).sqrt();
-        let gamma_safe = if gamma < F::epsilon() { F::epsilon() } else { gamma };
+        let gamma_safe = if gamma < F::epsilon() {
+            F::epsilon()
+        } else {
+            gamma
+        };
 
         let c_new = rho_bar / gamma_safe;
         let s_new = beta_new / gamma_safe;
@@ -866,7 +877,7 @@ where
 
         // x = x + phi * w_new
         for i in 0..n {
-            x[i] = x[i] + phi * w_new[i];
+            x[i] += phi * w_new[i];
         }
 
         residual_norm = phi_bar.abs();
@@ -943,8 +954,8 @@ mod tests {
         // [[4,1],[1,3]] x = [1,2] → x = [1/11, 7/11]
         let a = array![[4.0_f64, 1.0], [1.0, 3.0]];
         let b = array![1.0_f64, 2.0];
-        let result = conjugate_gradient(&a, &b.view(), None, 1e-12, 100, None)
-            .expect("CG must succeed");
+        let result =
+            conjugate_gradient(&a, &b.view(), None, 1e-12, 100, None).expect("CG must succeed");
         assert!(result.converged, "CG should converge on SPD 2×2");
         assert!(
             residual_norm_check(&a, &result.x, &[1.0, 2.0]) < 1e-10,
@@ -997,7 +1008,7 @@ mod tests {
         // Jacobi preconditioner: M⁻¹ v = v / diag(A)
         let a = array![[10.0_f64, 1.0], [1.0, 5.0]];
         let b = array![11.0_f64, 6.0];
-        let diag = vec![10.0_f64, 5.0];
+        let diag = [10.0_f64, 5.0];
         let precond = move |v: &Array1<f64>| -> Array1<f64> {
             Array1::from_iter(v.iter().zip(diag.iter()).map(|(&vi, &di)| vi / di))
         };
@@ -1023,14 +1034,10 @@ mod tests {
     #[test]
     fn test_cg_3x3_spd() {
         // Tridiagonal SPD: [[4,-1,0],[-1,4,-1],[0,-1,4]]
-        let a = array![
-            [4.0_f64, -1.0, 0.0],
-            [-1.0, 4.0, -1.0],
-            [0.0, -1.0, 4.0]
-        ];
+        let a = array![[4.0_f64, -1.0, 0.0], [-1.0, 4.0, -1.0], [0.0, -1.0, 4.0]];
         let b = array![1.0_f64, 0.0, 1.0];
-        let result = conjugate_gradient(&a, &b.view(), None, 1e-12, 100, None)
-            .expect("CG 3×3 must succeed");
+        let result =
+            conjugate_gradient(&a, &b.view(), None, 1e-12, 100, None).expect("CG 3×3 must succeed");
         assert!(result.converged);
         assert!(residual_norm_check(&a, &result.x, &[1.0, 0.0, 1.0]) < 1e-10);
     }
@@ -1048,10 +1055,13 @@ mod tests {
             }
         }
         let b = Array1::from_iter((0..n).map(|i| i as f64 + 1.0));
-        let result = conjugate_gradient(&a, &b.view(), None, 1e-10, 50, None)
-            .expect("CG must succeed");
+        let result =
+            conjugate_gradient(&a, &b.view(), None, 1e-10, 50, None).expect("CG must succeed");
         assert!(result.converged);
-        assert!(result.iterations <= n + 1, "CG should converge in ≤ n steps");
+        assert!(
+            result.iterations <= n + 1,
+            "CG should converge in ≤ n steps"
+        );
     }
 
     // ════════════════════════════════════════════════════
@@ -1062,8 +1072,7 @@ mod tests {
     fn test_gmres_symmetric() {
         let a = array![[3.0_f64, 1.0], [1.0, 4.0]];
         let b = array![5.0_f64, 6.0];
-        let result = gmres(&a, &b.view(), None, 1e-12, 50, 10)
-            .expect("GMRES must succeed");
+        let result = gmres(&a, &b.view(), None, 1e-12, 50, 10).expect("GMRES must succeed");
         assert!(result.converged);
         assert!(residual_norm_check(&a, &result.x, &[5.0, 6.0]) < 1e-9);
     }
@@ -1073,8 +1082,8 @@ mod tests {
         // Non-symmetric matrix
         let a = array![[4.0_f64, 2.0], [1.0, 3.0]];
         let b = array![8.0_f64, 5.0];
-        let result = gmres(&a, &b.view(), None, 1e-12, 50, 10)
-            .expect("GMRES non-symmetric must succeed");
+        let result =
+            gmres(&a, &b.view(), None, 1e-12, 50, 10).expect("GMRES non-symmetric must succeed");
         assert!(result.converged);
         assert!(residual_norm_check(&a, &result.x, &[8.0, 5.0]) < 1e-9);
     }
@@ -1083,8 +1092,7 @@ mod tests {
     fn test_gmres_identity() {
         let a: Array2<f64> = Array2::eye(3);
         let b = array![1.0_f64, 2.0, 3.0];
-        let result = gmres(&a, &b.view(), None, 1e-12, 50, 5)
-            .expect("GMRES identity must succeed");
+        let result = gmres(&a, &b.view(), None, 1e-12, 50, 5).expect("GMRES identity must succeed");
         assert!(result.converged);
         for i in 0..3 {
             assert_relative_eq!(result.x[i], b[i], epsilon = 1e-10);
@@ -1105,8 +1113,7 @@ mod tests {
     fn test_gmres_zero_rhs() {
         let a = array![[2.0_f64, 1.0], [1.0, 3.0]];
         let b = array![0.0_f64, 0.0];
-        let result = gmres(&a, &b.view(), None, 1e-12, 50, 5)
-            .expect("GMRES zero rhs must succeed");
+        let result = gmres(&a, &b.view(), None, 1e-12, 50, 5).expect("GMRES zero rhs must succeed");
         assert!(result.converged);
     }
 
@@ -1115,8 +1122,8 @@ mod tests {
         // Upper triangular non-symmetric
         let a = array![[2.0_f64, 3.0], [0.0, 4.0]];
         let b = array![11.0_f64, 8.0];
-        let result = gmres(&a, &b.view(), None, 1e-12, 50, 5)
-            .expect("GMRES upper-triangular must succeed");
+        let result =
+            gmres(&a, &b.view(), None, 1e-12, 50, 5).expect("GMRES upper-triangular must succeed");
         assert!(result.converged);
         assert!(residual_norm_check(&a, &result.x, &[11.0, 8.0]) < 1e-9);
     }
@@ -1129,8 +1136,7 @@ mod tests {
     fn test_bicgstab_symmetric() {
         let a = array![[4.0_f64, 1.0], [1.0, 3.0]];
         let b = array![1.0_f64, 2.0];
-        let result = bicgstab(&a, &b.view(), None, 1e-12, 100)
-            .expect("BiCGSTAB must succeed");
+        let result = bicgstab(&a, &b.view(), None, 1e-12, 100).expect("BiCGSTAB must succeed");
         assert!(result.converged);
         assert!(residual_norm_check(&a, &result.x, &[1.0, 2.0]) < 1e-10);
     }
@@ -1139,22 +1145,17 @@ mod tests {
     fn test_bicgstab_nonsymmetric() {
         let a = array![[5.0_f64, 2.0], [1.0, 4.0]];
         let b = array![12.0_f64, 9.0];
-        let result = bicgstab(&a, &b.view(), None, 1e-12, 100)
-            .expect("BiCGSTAB non-symmetric must succeed");
+        let result =
+            bicgstab(&a, &b.view(), None, 1e-12, 100).expect("BiCGSTAB non-symmetric must succeed");
         assert!(result.converged);
         assert!(residual_norm_check(&a, &result.x, &[12.0, 9.0]) < 1e-9);
     }
 
     #[test]
     fn test_bicgstab_3x3() {
-        let a = array![
-            [6.0_f64, 2.0, 1.0],
-            [2.0, 5.0, 1.0],
-            [1.0, 1.0, 4.0]
-        ];
+        let a = array![[6.0_f64, 2.0, 1.0], [2.0, 5.0, 1.0], [1.0, 1.0, 4.0]];
         let b = array![9.0_f64, 8.0, 6.0];
-        let result = bicgstab(&a, &b.view(), None, 1e-12, 100)
-            .expect("BiCGSTAB 3×3 must succeed");
+        let result = bicgstab(&a, &b.view(), None, 1e-12, 100).expect("BiCGSTAB 3×3 must succeed");
         assert!(result.converged);
         assert!(residual_norm_check(&a, &result.x, &[9.0, 8.0, 6.0]) < 1e-9);
     }
@@ -1163,8 +1164,8 @@ mod tests {
     fn test_bicgstab_identity() {
         let a: Array2<f64> = Array2::eye(4);
         let b = array![1.0_f64, 2.0, 3.0, 4.0];
-        let result = bicgstab(&a, &b.view(), None, 1e-12, 100)
-            .expect("BiCGSTAB identity must succeed");
+        let result =
+            bicgstab(&a, &b.view(), None, 1e-12, 100).expect("BiCGSTAB identity must succeed");
         assert!(result.converged);
         for i in 0..4 {
             assert_relative_eq!(result.x[i], b[i], epsilon = 1e-10);
@@ -1186,8 +1187,8 @@ mod tests {
     fn test_bicgstab_zero_rhs() {
         let a = array![[3.0_f64, 1.0], [1.0, 2.0]];
         let b = array![0.0_f64, 0.0];
-        let result = bicgstab(&a, &b.view(), None, 1e-12, 100)
-            .expect("BiCGSTAB zero rhs must succeed");
+        let result =
+            bicgstab(&a, &b.view(), None, 1e-12, 100).expect("BiCGSTAB zero rhs must succeed");
         assert!(result.converged);
     }
 
@@ -1200,10 +1201,12 @@ mod tests {
         // MINRES should also work on SPD systems
         let a = array![[4.0_f64, 1.0], [1.0, 3.0]];
         let b = array![1.0_f64, 2.0];
-        let result = minres(&a, &b.view(), None, 1e-10, 200)
-            .expect("MINRES on SPD must succeed");
-        assert!(result.converged || result.residual_norm < 1e-8,
-            "MINRES residual {}", result.residual_norm);
+        let result = minres(&a, &b.view(), None, 1e-10, 200).expect("MINRES on SPD must succeed");
+        assert!(
+            result.converged || result.residual_norm < 1e-8,
+            "MINRES residual {}",
+            result.residual_norm
+        );
     }
 
     #[test]
@@ -1222,8 +1225,7 @@ mod tests {
     fn test_minres_identity() {
         let a: Array2<f64> = Array2::eye(3);
         let b = array![2.0_f64, 4.0, 6.0];
-        let result = minres(&a, &b.view(), None, 1e-12, 100)
-            .expect("MINRES identity must succeed");
+        let result = minres(&a, &b.view(), None, 1e-12, 100).expect("MINRES identity must succeed");
         assert!(result.converged);
         for i in 0..3 {
             assert_relative_eq!(result.x[i], b[i], epsilon = 1e-9);
@@ -1234,8 +1236,7 @@ mod tests {
     fn test_minres_zero_rhs() {
         let a = array![[2.0_f64, 1.0], [1.0, 3.0]];
         let b = array![0.0_f64, 0.0];
-        let result = minres(&a, &b.view(), None, 1e-12, 100)
-            .expect("MINRES zero rhs must succeed");
+        let result = minres(&a, &b.view(), None, 1e-12, 100).expect("MINRES zero rhs must succeed");
         assert!(result.converged);
     }
 
@@ -1263,16 +1264,17 @@ mod tests {
         let a = array![[5.0_f64, 2.0], [2.0, 4.0]];
         let b = array![9.0_f64, 8.0];
 
-        let cg = conjugate_gradient(&a, &b.view(), None, 1e-12, 100, None)
-            .expect("CG failed");
-        let gm = gmres(&a, &b.view(), None, 1e-12, 50, 10)
-            .expect("GMRES failed");
-        let bi = bicgstab(&a, &b.view(), None, 1e-12, 100)
-            .expect("BiCGSTAB failed");
+        let cg = conjugate_gradient(&a, &b.view(), None, 1e-12, 100, None).expect("CG failed");
+        let gm = gmres(&a, &b.view(), None, 1e-12, 50, 10).expect("GMRES failed");
+        let bi = bicgstab(&a, &b.view(), None, 1e-12, 100).expect("BiCGSTAB failed");
 
-        assert!(cg.converged && gm.converged && bi.converged,
+        assert!(
+            cg.converged && gm.converged && bi.converged,
             "All solvers should converge: CG={} GMRES={} BiCGSTAB={}",
-            cg.converged, gm.converged, bi.converged);
+            cg.converged,
+            gm.converged,
+            bi.converged
+        );
 
         for i in 0..2 {
             assert_relative_eq!(cg.x[i], gm.x[i], epsilon = 1e-8);
@@ -1295,26 +1297,28 @@ mod tests {
         // (identity matrix: Lanczos generates exact solution in 1 step)
         let a: Array2<f64> = Array2::eye(3);
         let b = array![1.0_f64, 2.0, 3.0];
-        let result = minres(&a, &b.view(), None, 1e-12, 100)
-            .expect("MINRES on identity must succeed");
+        let result =
+            minres(&a, &b.view(), None, 1e-12, 100).expect("MINRES on identity must succeed");
         // Should converge very quickly
-        assert!(result.converged || result.iterations <= 3,
-            "MINRES on identity: iters={} converged={}", result.iterations, result.converged);
+        assert!(
+            result.converged || result.iterations <= 3,
+            "MINRES on identity: iters={} converged={}",
+            result.iterations,
+            result.converged
+        );
     }
 
     #[test]
     fn test_minres_3x3_symmetric_indefinite() {
         // Larger symmetric indefinite system
-        let a = array![
-            [3.0_f64, 1.0, 0.0],
-            [1.0, -2.0, 1.0],
-            [0.0, 1.0, 4.0]
-        ];
+        let a = array![[3.0_f64, 1.0, 0.0], [1.0, -2.0, 1.0], [0.0, 1.0, 4.0]];
         let b = array![4.0_f64, 0.0, 5.0];
-        let result = minres(&a, &b.view(), None, 1e-10, 200)
-            .expect("MINRES 3x3 indefinite must succeed");
+        let result =
+            minres(&a, &b.view(), None, 1e-10, 200).expect("MINRES 3x3 indefinite must succeed");
         let res = residual_norm_check(&a, &result.x, &[4.0, 0.0, 5.0]);
-        assert!(res < 1e-6 || result.converged,
-            "MINRES 3x3 indefinite residual {res}");
+        assert!(
+            res < 1e-6 || result.converged,
+            "MINRES 3x3 indefinite residual {res}"
+        );
     }
 }

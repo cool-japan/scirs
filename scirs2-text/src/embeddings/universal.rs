@@ -276,9 +276,7 @@ impl TransformerEncoderLayer {
         }
         let d_head = self.d_model / self.n_heads;
         if d_head == 0 {
-            return Err(TextError::InvalidInput(
-                "d_model must be >= n_heads".into(),
-            ));
+            return Err(TextError::InvalidInput("d_model must be >= n_heads".into()));
         }
 
         let q = matmul_2d(x, &self.wq); // seq × d_model
@@ -294,18 +292,9 @@ impl TransformerEncoderLayer {
             let h_end = h_start + d_head;
 
             // Extract head slices
-            let q_h: Vec<Vec<f64>> = q
-                .iter()
-                .map(|row| row[h_start..h_end].to_vec())
-                .collect();
-            let k_h: Vec<Vec<f64>> = k
-                .iter()
-                .map(|row| row[h_start..h_end].to_vec())
-                .collect();
-            let v_h: Vec<Vec<f64>> = v
-                .iter()
-                .map(|row| row[h_start..h_end].to_vec())
-                .collect();
+            let q_h: Vec<Vec<f64>> = q.iter().map(|row| row[h_start..h_end].to_vec()).collect();
+            let k_h: Vec<Vec<f64>> = k.iter().map(|row| row[h_start..h_end].to_vec()).collect();
+            let v_h: Vec<Vec<f64>> = v.iter().map(|row| row[h_start..h_end].to_vec()).collect();
 
             // scores = Q × K^T  [seq × seq]
             let kt = transpose(&k_h);
@@ -316,7 +305,7 @@ impl TransformerEncoderLayer {
             for i in 0..seq_len {
                 let mut row = vec![0.0_f64; seq_len];
                 for j in 0..seq_len {
-                    let masked = mask.map_or(false, |m| m[i][j]);
+                    let masked = mask.is_some_and(|m| m[i][j]);
                     row[j] = if masked {
                         f64::NEG_INFINITY
                     } else {
@@ -324,10 +313,7 @@ impl TransformerEncoderLayer {
                     };
                 }
                 // softmax
-                let max_v = row
-                    .iter()
-                    .cloned()
-                    .fold(f64::NEG_INFINITY, f64::max);
+                let max_v = row.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
                 let exps: Vec<f64> = row.iter().map(|v| (v - max_v).exp()).collect();
                 let sum_exp: f64 = exps.iter().sum();
                 let sum_exp = if sum_exp < 1e-12 { 1e-12 } else { sum_exp };
@@ -554,7 +540,11 @@ impl UniversalSentenceEncoder {
             .map(|i| {
                 // sinusoidal language embedding
                 let angle = lang_id as f64 / f64::powf(100.0, (2 * i) as f64 / ld as f64);
-                if i % 2 == 0 { angle.sin() } else { angle.cos() }
+                if i % 2 == 0 {
+                    angle.sin()
+                } else {
+                    angle.cos()
+                }
             })
             .collect();
         // Tile to d_model
@@ -624,7 +614,9 @@ mod tests {
         let use_model = make_use();
         let ids1 = vec![1_usize, 2, 3];
         let ids2 = vec![4_usize, 5];
-        let batch = use_model.encode_batch(&[ids1.clone(), ids2.clone()]).expect("batch failed");
+        let batch = use_model
+            .encode_batch(&[ids1.clone(), ids2.clone()])
+            .expect("batch failed");
         let single1 = use_model.encode(&ids1).expect("single encode 1 failed");
         let single2 = use_model.encode(&ids2).expect("single encode 2 failed");
         for (a, b) in batch[0].iter().zip(&single1) {
@@ -657,8 +649,10 @@ mod tests {
     fn test_encode_different_inputs_differ() {
         // Use a model with n_layers=0 so we get only the embedding + positional
         // encoding, without layernorm collapse from the transformer stack.
-        let mut cfg = UseConfig::default();
-        cfg.n_layers = 0;
+        let cfg = UseConfig {
+            n_layers: 0,
+            ..UseConfig::default()
+        };
         let use_model = UniversalSentenceEncoder::new(cfg);
         let emb1 = use_model.encode(&[1, 2, 3]).unwrap();
         let emb2 = use_model.encode(&[100, 200, 300]).unwrap();
@@ -679,9 +673,11 @@ mod tests {
 
     #[test]
     fn test_max_pooling() {
-        let mut cfg = UseConfig::default();
-        cfg.pooling = UsePooling::Max;
-        cfg.n_layers = 1;
+        let cfg = UseConfig {
+            pooling: UsePooling::Max,
+            n_layers: 1,
+            ..UseConfig::default()
+        };
         let m = UniversalSentenceEncoder::new(cfg);
         let emb = m.encode(&[1, 2, 3]).unwrap();
         assert_eq!(emb.len(), 128);
@@ -689,9 +685,11 @@ mod tests {
 
     #[test]
     fn test_cls_pooling() {
-        let mut cfg = UseConfig::default();
-        cfg.pooling = UsePooling::Cls;
-        cfg.n_layers = 1;
+        let cfg = UseConfig {
+            pooling: UsePooling::Cls,
+            n_layers: 1,
+            ..UseConfig::default()
+        };
         let m = UniversalSentenceEncoder::new(cfg);
         let emb = m.encode(&[0, 1, 2]).unwrap();
         assert_eq!(emb.len(), 128);
@@ -699,9 +697,11 @@ mod tests {
 
     #[test]
     fn test_attentive_pooling() {
-        let mut cfg = UseConfig::default();
-        cfg.pooling = UsePooling::Attentive;
-        cfg.n_layers = 1;
+        let cfg = UseConfig {
+            pooling: UsePooling::Attentive,
+            n_layers: 1,
+            ..UseConfig::default()
+        };
         let m = UniversalSentenceEncoder::new(cfg);
         let emb = m.encode(&[5, 6, 7]).unwrap();
         assert_eq!(emb.len(), 128);

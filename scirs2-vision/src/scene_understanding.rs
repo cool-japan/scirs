@@ -538,7 +538,62 @@ impl SceneUnderstandingEngine {
             })
             .collect();
 
-        let global_properties = HashMap::new(); // TODO: Implement global scene properties
+        // ── Global scene properties ──────────────────────────────────────
+        let mut global_properties: HashMap<String, f32> = HashMap::new();
+
+        // n_objects: count of detected objects
+        let n_objects = objects.len() as f32;
+        global_properties.insert("n_objects".to_string(), n_objects);
+
+        // avg_object_confidence: mean detection confidence across all objects
+        let avg_object_confidence = if objects.is_empty() {
+            0.0_f32
+        } else {
+            objects.iter().map(|o| o.confidence).sum::<f32>() / n_objects
+        };
+        global_properties.insert("avg_object_confidence".to_string(), avg_object_confidence);
+
+        // scene_density: objects per unit area, estimated from bounding-box extents
+        // (bbox = (x, y, width, height))
+        let scene_density = if objects.is_empty() {
+            0.0_f32
+        } else {
+            let max_x = objects
+                .iter()
+                .map(|o| o.bbox.0 + o.bbox.2)
+                .fold(0.0_f32, f32::max);
+            let max_y = objects
+                .iter()
+                .map(|o| o.bbox.1 + o.bbox.3)
+                .fold(0.0_f32, f32::max);
+            let image_area = (max_x * max_y).max(1.0);
+            n_objects / image_area
+        };
+        global_properties.insert("scene_density".to_string(), scene_density);
+
+        // relationship_diversity: number of unique relation types in the relationships list
+        let mut rel_type_counts: HashMap<String, u32> = HashMap::new();
+        for rel in relationships {
+            let key = format!("{:?}", rel.relation_type);
+            *rel_type_counts.entry(key).or_insert(0) += 1;
+        }
+        let relationship_diversity = rel_type_counts.len() as f32;
+        global_properties.insert("relationship_diversity".to_string(), relationship_diversity);
+
+        // dominant_relation_count: count of the most-frequent relation type
+        // (Note: the type is HashMap<String, f32>, so the relation name is stored as a hash
+        //  under the "dominant_relation_type_name_hash" key for downstream decoding.)
+        let dominant_rel_count = rel_type_counts.values().copied().max().unwrap_or(0) as f32;
+        global_properties.insert("dominant_relation_count".to_string(), dominant_rel_count);
+
+        // dominant_relation_type_name_hash: djb2 hash of the most-frequent relation name
+        if let Some((dominant_name, _)) = rel_type_counts.iter().max_by_key(|(_, &c)| c) {
+            let name_hash = dominant_name
+                .bytes()
+                .fold(5381_u32, |h, b| h.wrapping_mul(33).wrapping_add(b as u32))
+                as f32;
+            global_properties.insert("dominant_relation_type_name_hash".to_string(), name_hash);
+        }
 
         Ok(SceneGraph {
             nodes,

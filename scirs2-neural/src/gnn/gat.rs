@@ -19,7 +19,9 @@ use crate::gnn::graph::Graph;
 // ──────────────────────────────────────────────────────────────────────────────
 
 fn lcg_rand(state: &mut u64) -> f32 {
-    *state = state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+    *state = state
+        .wrapping_mul(6364136223846793005)
+        .wrapping_add(1442695040888963407);
     ((*state >> 33) as u32) as f32 / u32::MAX as f32
 }
 
@@ -134,7 +136,7 @@ impl GATLayer {
 
     /// Set the LeakyReLU negative slope (default 0.2).
     pub fn with_negative_slope(mut self, slope: f32) -> Result<Self> {
-        if slope < 0.0 || slope >= 1.0 {
+        if !(0.0..1.0).contains(&slope) {
             return Err(NeuralError::InvalidArgument(format!(
                 "negative_slope must be in [0, 1), got {slope}"
             )));
@@ -178,9 +180,7 @@ impl GATLayer {
 
         for k in 0..self.num_heads {
             // Step 1: project all nodes  Wh[i] = W_k h[i]
-            let wh: Vec<Vec<f32>> = (0..n)
-                .map(|i| self.project_node(&h[i], k))
-                .collect();
+            let wh: Vec<Vec<f32>> = (0..n).map(|i| self.project_node(&h[i], k)).collect();
 
             // Step 2 + 3 + 4: attention + aggregate
             let head_out: Vec<Vec<f32>> = (0..n)
@@ -223,10 +223,10 @@ impl GATLayer {
 
         if self.concat {
             for i in 0..n {
-                for k in 0..self.num_heads {
+                for (k, head_out_k) in head_outputs.iter().enumerate().take(self.num_heads) {
                     let start = k * self.head_dim;
                     for d in 0..self.head_dim {
-                        out[i][start + d] = head_outputs[k][i][d] + self.bias[start + d];
+                        out[i][start + d] = head_out_k[i][d] + self.bias[start + d];
                     }
                 }
             }
@@ -234,13 +234,13 @@ impl GATLayer {
             // Average heads
             let scale = 1.0 / self.num_heads as f32;
             for i in 0..n {
-                for k in 0..self.num_heads {
+                for head_out_k in head_outputs.iter().take(self.num_heads) {
                     for d in 0..self.head_dim.min(out_dim) {
-                        out[i][d] += head_outputs[k][i][d] * scale;
+                        out[i][d] += head_out_k[i][d] * scale;
                     }
                 }
-                for d in 0..out_dim {
-                    out[i][d] += self.bias[d];
+                for (d, od) in out[i].iter_mut().enumerate().take(out_dim) {
+                    *od += self.bias[d];
                 }
             }
         }
@@ -252,8 +252,8 @@ impl GATLayer {
     fn project_node(&self, hi: &[f32], k: usize) -> Vec<f32> {
         let mut wh = vec![0.0_f32; self.head_dim];
         for (f, &hf) in hi.iter().enumerate() {
-            for d in 0..self.head_dim {
-                wh[d] += hf * self.w[k][f][d];
+            for (d, wh_d) in wh.iter_mut().enumerate().take(self.head_dim) {
+                *wh_d += hf * self.w[k][f][d];
             }
         }
         wh
@@ -263,11 +263,11 @@ impl GATLayer {
     /// `e = a_k^T [Wh_i || Wh_j]` (before LeakyReLU).
     fn attention_score(&self, whi: &[f32], whj: &[f32], k: usize) -> f32 {
         let mut score = 0.0_f32;
-        for d in 0..self.head_dim {
-            score += self.a[k][d] * whi[d];
+        for (d, &whi_d) in whi.iter().enumerate().take(self.head_dim) {
+            score += self.a[k][d] * whi_d;
         }
-        for d in 0..self.head_dim {
-            score += self.a[k][self.head_dim + d] * whj[d];
+        for (d, &whj_d) in whj.iter().enumerate().take(self.head_dim) {
+            score += self.a[k][self.head_dim + d] * whj_d;
         }
         score
     }
@@ -329,7 +329,8 @@ mod tests {
             g.add_undirected_edge(i, i + 1).expect("edge ok");
         }
         for i in 0..n {
-            g.set_node_features(i, vec![0.5_f32; fdim]).expect("feat ok");
+            g.set_node_features(i, vec![0.5_f32; fdim])
+                .expect("feat ok");
         }
         g
     }
@@ -359,7 +360,7 @@ mod tests {
         let alpha = layer.softmax_vec(&vals);
         let sum: f32 = alpha.iter().sum();
         assert!((sum - 1.0).abs() < 1e-5, "softmax sum = {sum}");
-        assert!(alpha.iter().all(|&v| v >= 0.0 && v <= 1.0));
+        assert!(alpha.iter().all(|&v| (0.0..=1.0).contains(&v)));
     }
 
     #[test]

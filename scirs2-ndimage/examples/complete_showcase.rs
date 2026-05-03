@@ -20,7 +20,8 @@ use scirs2_ndimage::{
     advanced_fusion_algorithms::{fusion_processing, AdvancedConfig, AdvancedState},
     // Enhanced validation system
     comprehensive_validation::{
-        validated_advanced_processing, ComprehensiveValidator, ValidationConfig,
+        validated_advanced_processing, ComprehensiveSummary, ComprehensiveValidator,
+        ValidationConfig,
     },
     error::NdimageResult,
     // Core configurations
@@ -72,7 +73,7 @@ pub fn complete_advanced_showcase() -> NdimageResult<()> {
     // Final performance analysis
     println!("\n📊 Final Performance Analysis");
     let summary = validator.get_performance_summary();
-    // print_comprehensive_analysis(&summary); // TODO: Implement ComprehensiveSummary type
+    print_comprehensive_analysis(&summary);
 
     println!("\n🎉 Complete Advanced Showcase Finished!");
     println!("All enhanced features validated and operational.");
@@ -689,20 +690,21 @@ where
     }
 }
 
-// TODO: Implement when ComprehensiveSummary type is available
-/*
-#[allow(dead_code)]
 fn print_comprehensive_analysis(summary: &ComprehensiveSummary) {
     println!("🔍 Comprehensive Performance Analysis");
     println!("=====================================");
     println!("📈 Overall Statistics:");
     println!("   - Total operations: {}", summary.total_operations);
-    println!(
-        "   - Success rate: {:.1}%",
-        ((summary.total_operations - summary.error_count) as f64
-            / summary.total_operations as f64)
-            * 100.0
-    );
+    if summary.total_operations > 0 {
+        println!(
+            "   - Success rate: {:.1}%",
+            ((summary.total_operations - summary.error_count) as f64
+                / summary.total_operations as f64)
+                * 100.0
+        );
+    } else {
+        println!("   - Success rate: N/A (no operations recorded)");
+    }
     println!("   - Average quality: {:.3}", summary.average_quality());
     println!(
         "   - Total processing time: {:?}",
@@ -712,8 +714,11 @@ fn print_comprehensive_analysis(summary: &ComprehensiveSummary) {
     if !summary.benchmarks.is_empty() {
         println!("\n🏆 Feature Performance Rankings:");
         let mut sorted_benchmarks: Vec<_> = summary.benchmarks.iter().collect();
-        sorted_benchmarks
-            .sort_by(|a, b| b.1.quality_score.partial_cmp(&a.1.quality_score).expect("Operation failed"));
+        sorted_benchmarks.sort_by(|a, b| {
+            b.1.quality_score
+                .partial_cmp(&a.1.quality_score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         for (rank, (name, benchmark)) in sorted_benchmarks.iter().enumerate().take(5) {
             println!(
@@ -732,7 +737,6 @@ fn print_comprehensive_analysis(summary: &ComprehensiveSummary) {
     println!("   - Neuromorphic plasticity: Better pattern recognition");
     println!("   - Processing intensity: Scalable performance control");
 }
-*/
 
 /// Main demonstration function
 #[allow(dead_code)]

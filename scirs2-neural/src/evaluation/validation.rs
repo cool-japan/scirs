@@ -7,9 +7,10 @@ use crate::data::Dataset;
 use crate::error::{Error, Result};
 use crate::layers::Layer;
 use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
-use scirs2_core::numeric::{Float, FromPrimitive};
+use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::collections::HashMap;
 use std::fmt::{Debug, Display};
+
 /// Configuration for validation
 #[derive(Debug, Clone)]
 pub struct ValidationConfig {
@@ -28,6 +29,7 @@ pub struct ValidationConfig {
     /// Early stopping configuration
     pub early_stopping: Option<EarlyStoppingConfig>,
 }
+
 impl Default for ValidationConfig {
     fn default() -> Self {
         Self {
@@ -40,7 +42,10 @@ impl Default for ValidationConfig {
             early_stopping: None,
         }
     }
+}
+
 /// Configuration for early stopping
+#[derive(Debug, Clone)]
 pub struct EarlyStoppingConfig {
     /// Monitor metric (e.g., 'val_loss')
     pub monitor: String,
@@ -52,12 +57,20 @@ pub struct EarlyStoppingConfig {
     pub restore_best_weights: bool,
     /// Mode: 'min' or 'max'
     pub mode: EarlyStoppingMode,
+}
+
 impl Default for EarlyStoppingConfig {
+    fn default() -> Self {
+        Self {
             monitor: "val_loss".to_string(),
             min_delta: 0.0001,
             patience: 5,
             restore_best_weights: true,
             mode: EarlyStoppingMode::Min,
+        }
+    }
+}
+
 /// Early stopping mode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EarlyStoppingMode {
@@ -65,10 +78,12 @@ pub enum EarlyStoppingMode {
     Min,
     /// Maximize metric (e.g., accuracy)
     Max,
+}
+
 /// Validation handler for model validation during training
 #[derive(Debug)]
 pub struct ValidationHandler<
-    F: Float + Debug + ScalarOperand + Display + FromPrimitive + Send + Sync,
+    F: Float + Debug + ScalarOperand + Display + FromPrimitive + NumAssign + Send + Sync,
 > {
     /// Configuration for validation
     pub config: ValidationConfig,
@@ -76,19 +91,26 @@ pub struct ValidationHandler<
     evaluator: Evaluator<F>,
     /// Early stopping state
     early_stopping: Option<EarlyStoppingState<F>>,
+}
+
 /// Early stopping state
+#[derive(Debug)]
 pub struct EarlyStoppingState<
+    F: Float + Debug + ScalarOperand + Display + FromPrimitive + NumAssign + Send + Sync,
+> {
     /// Configuration for early stopping
-    config: EarlyStoppingConfig,
+    pub config: EarlyStoppingConfig,
     /// Best value of the monitored metric
-    best_value: F,
+    pub best_value: F,
     /// Number of epochs with no improvement
-    wait: usize,
+    pub wait: usize,
     /// Best weights
-    best_weights: Option<Vec<Array<F, IxDyn>>>,
+    pub best_weights: Option<Vec<Array<F, IxDyn>>>,
     /// Whether early stopping has been triggered
-    stopped_epoch: Option<usize>,
-impl<F: Float + Debug + ScalarOperand + Display + FromPrimitive + Send + Sync>
+    pub stopped_epoch: Option<usize>,
+}
+
+impl<F: Float + Debug + ScalarOperand + Display + FromPrimitive + NumAssign + Send + Sync>
     ValidationHandler<F>
 {
     /// Create a new validation handler
@@ -122,6 +144,8 @@ impl<F: Float + Debug + ScalarOperand + Display + FromPrimitive + Send + Sync>
             evaluator,
             early_stopping,
         })
+    }
+
     /// Validate a model on a dataset
     pub fn validate<L: Layer<F>>(
         &mut self,
@@ -138,6 +162,7 @@ impl<F: Float + Debug + ScalarOperand + Display + FromPrimitive + Send + Sync>
         let mut val_metrics = HashMap::new();
         for (name, value) in metrics {
             val_metrics.insert(format!("val_{}", name), value);
+        }
         // Handle early stopping
         let should_stop = if let Some(ref mut es_state) = self.early_stopping {
             let monitor_value = if let Some(value) = val_metrics.get(&es_state.config.monitor) {
@@ -151,27 +176,38 @@ impl<F: Float + Debug + ScalarOperand + Display + FromPrimitive + Send + Sync>
             // Check if improved
             let improved = match es_state.config.mode {
                 EarlyStoppingMode::Min => {
-                    monitor_value + F::from(es_state.config.min_delta).expect("Failed to convert to float")
+                    monitor_value
+                        + F::from(es_state.config.min_delta).expect("Failed to convert to float")
                         < es_state.best_value
                 }
                 EarlyStoppingMode::Max => {
-                    monitor_value - F::from(es_state.config.min_delta).expect("Failed to convert to float")
+                    monitor_value
+                        - F::from(es_state.config.min_delta).expect("Failed to convert to float")
                         > es_state.best_value
+                }
+            };
             if improved {
                 if self.config.verbose > 0 {
                     println!(
                         "Epoch {}: {} improved from {:.4} to {:.4}",
                         epoch, es_state.config.monitor, es_state.best_value, monitor_value
                     );
+                }
                 es_state.best_value = monitor_value;
                 es_state.wait = 0;
                 // Save best weights if configured
                 if es_state.config.restore_best_weights {
                     es_state.best_weights = Some(model.params());
+                }
                 false
+            } else {
                 es_state.wait += 1;
+                if self.config.verbose > 0 {
+                    println!(
                         "Epoch {}: {} did not improve from {:.4}",
                         epoch, es_state.config.monitor, es_state.best_value
+                    );
+                }
                 if es_state.wait >= es_state.config.patience {
                     if self.config.verbose > 0 {
                         println!(
@@ -185,33 +221,46 @@ impl<F: Float + Debug + ScalarOperand + Display + FromPrimitive + Send + Sync>
                         if let Some(ref best_weights) = es_state.best_weights {
                             // Replace model parameters with best weights
                             let mut params = model.params();
-                            for (i, best_param) in bestweights.iter().enumerate() {
+                            for (i, best_param) in best_weights.iter().enumerate() {
                                 if i < params.len() {
                                     params[i].assign(best_param);
                                 }
                             }
                         }
+                    }
                     true
                 } else {
                     false
+                }
             }
         } else {
             false
+        };
         // Restore model to training mode
         model.set_training(true);
         Ok((val_metrics, should_stop))
+    }
+
     /// Check if early stopping is enabled
     pub fn has_early_stopping(&self) -> bool {
         self.early_stopping.is_some()
+    }
+
     /// Get the current early stopping state
     pub fn get_early_stopping_state(&self) -> Option<&EarlyStoppingState<F>> {
         self.early_stopping.as_ref()
+    }
+
     /// Reset early stopping state
     pub fn reset_early_stopping(&mut self) {
         if let Some(ref mut es_state) = self.early_stopping {
             es_state.best_value = match es_state.config.mode {
                 EarlyStoppingMode::Min => F::infinity(),
                 EarlyStoppingMode::Max => F::neg_infinity(),
+            };
             es_state.wait = 0;
             es_state.best_weights = None;
             es_state.stopped_epoch = None;
+        }
+    }
+}

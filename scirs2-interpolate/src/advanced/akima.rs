@@ -138,6 +138,20 @@ impl<F: Float + FromPrimitive + Debug> AkimaSpline<F> {
         })
     }
 
+    /// Return the breakpoints (x-coordinates) as an owned array.
+    ///
+    /// Used by the `symbolic_derivative` module to build `PiecewisePolynomial`.
+    pub(crate) fn breakpoints_owned(&self) -> scirs2_core::ndarray::Array1<F> {
+        self.x.clone()
+    }
+
+    /// Return the per-segment power-basis coefficients `(n_seg, 4)` as an owned array.
+    ///
+    /// Row `i`, column `j` holds the coefficient of `(x - x_i)^j`.
+    pub(crate) fn segment_coeffs_owned(&self) -> scirs2_core::ndarray::Array2<F> {
+        self.coeffs.clone()
+    }
+
     /// Evaluate the spline at a given point
     ///
     /// # Arguments

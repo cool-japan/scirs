@@ -102,7 +102,10 @@ impl NormalFormGame {
     /// # Returns
     /// `(payoff_1, payoff_2)` for the given strategy indices.
     pub fn payoff(&self, s1: usize, s2: usize) -> (f64, f64) {
-        (self.payoff_matrix_1[[s1, s2]], self.payoff_matrix_2[[s1, s2]])
+        (
+            self.payoff_matrix_1[[s1, s2]],
+            self.payoff_matrix_2[[s1, s2]],
+        )
     }
 
     /// Compute expected payoffs for mixed strategies.
@@ -290,33 +293,32 @@ fn solve_support_ne(
     // Indifference: for all i, i' in supp1:
     //   sum_{j in supp2} A[i,j] q[j] = sum_{j in supp2} A[i',j] q[j]
     // plus: sum_{j in supp2} q[j] = 1
-    let q = solve_indifference(
-        &game.payoff_matrix_1,
-        supp1,
-        supp2,
-        tol,
-    )?;
+    let q = solve_indifference(&game.payoff_matrix_1, supp1, supp2, tol)?;
 
     // Solve for p (player 1's strategy on supp1) such that player 2 is indifferent
     // across strategies in supp2.
-    let p = solve_indifference(
-        &game.payoff_matrix_2.t().to_owned(),
-        supp2,
-        supp1,
-        tol,
-    )?;
+    let p = solve_indifference(&game.payoff_matrix_2.t().to_owned(), supp2, supp1, tol)?;
 
     // Verify that no out-of-support strategy is a profitable deviation
     // For player 1: all i not in supp1 should have expected payoff <= v1
-    let v1: f64 = supp1.iter().enumerate().map(|(idx, &i)| {
-        supp2.iter().enumerate().map(|(jdx, &j)| {
-            game.payoff_matrix_1[[i, j]] * q[jdx]
-        }).sum::<f64>() * p[idx]
-    }).sum();
+    let v1: f64 = supp1
+        .iter()
+        .enumerate()
+        .map(|(idx, &i)| {
+            supp2
+                .iter()
+                .enumerate()
+                .map(|(jdx, &j)| game.payoff_matrix_1[[i, j]] * q[jdx])
+                .sum::<f64>()
+                * p[idx]
+        })
+        .sum();
 
     for i in 0..game.n_strategies_1 {
         if !supp1.contains(&i) {
-            let dev_payoff: f64 = supp2.iter().enumerate()
+            let dev_payoff: f64 = supp2
+                .iter()
+                .enumerate()
                 .map(|(jdx, &j)| game.payoff_matrix_1[[i, j]] * q[jdx])
                 .sum();
             if dev_payoff > v1 + tol {
@@ -325,15 +327,24 @@ fn solve_support_ne(
         }
     }
 
-    let v2: f64 = supp2.iter().enumerate().map(|(jdx, &j)| {
-        supp1.iter().enumerate().map(|(idx, &i)| {
-            game.payoff_matrix_2[[i, j]] * p[idx]
-        }).sum::<f64>() * q[jdx]
-    }).sum();
+    let v2: f64 = supp2
+        .iter()
+        .enumerate()
+        .map(|(jdx, &j)| {
+            supp1
+                .iter()
+                .enumerate()
+                .map(|(idx, &i)| game.payoff_matrix_2[[i, j]] * p[idx])
+                .sum::<f64>()
+                * q[jdx]
+        })
+        .sum();
 
     for j in 0..game.n_strategies_2 {
         if !supp2.contains(&j) {
-            let dev_payoff: f64 = supp1.iter().enumerate()
+            let dev_payoff: f64 = supp1
+                .iter()
+                .enumerate()
                 .map(|(idx, &i)| game.payoff_matrix_2[[i, j]] * p[idx])
                 .sum();
             if dev_payoff > v2 + tol {
@@ -469,7 +480,9 @@ fn gaussian_elimination(mat: &[f64], rhs: &[f64], n: usize) -> Option<Vec<f64>> 
     for col in 0..n {
         // Find pivot
         let pivot_row = (col..n).max_by(|&r1, &r2| {
-            a[r1 * n + col].abs().partial_cmp(&a[r2 * n + col].abs())
+            a[r1 * n + col]
+                .abs()
+                .partial_cmp(&a[r2 * n + col].abs())
                 .unwrap_or(std::cmp::Ordering::Equal)
         })?;
 
@@ -537,7 +550,9 @@ fn strategies_approx_equal(a: &[f64], b: &[f64], tol: f64) -> bool {
     if a.len() != b.len() {
         return false;
     }
-    a.iter().zip(b.iter()).all(|(x, y)| (x - y).abs() < tol * 10.0)
+    a.iter()
+        .zip(b.iter())
+        .all(|(x, y)| (x - y).abs() < tol * 10.0)
 }
 
 /// Find the best responses for player 1 given player 2's mixed strategy.
@@ -612,12 +627,7 @@ pub fn iterated_elimination(game: &mut NormalFormGame) -> (Vec<usize>, Vec<usize
         // Eliminate strictly dominated strategies for player 1
         let mut to_remove_1: Vec<usize> = Vec::new();
         for &i in &active_1 {
-            if is_strictly_dominated_1(
-                &game.payoff_matrix_1,
-                i,
-                &active_1,
-                &active_2,
-            ) {
+            if is_strictly_dominated_1(&game.payoff_matrix_1, i, &active_1, &active_2) {
                 to_remove_1.push(i);
                 changed = true;
             }
@@ -627,12 +637,7 @@ pub fn iterated_elimination(game: &mut NormalFormGame) -> (Vec<usize>, Vec<usize
         // Eliminate strictly dominated strategies for player 2
         let mut to_remove_2: Vec<usize> = Vec::new();
         for &j in &active_2 {
-            if is_strictly_dominated_2(
-                &game.payoff_matrix_2,
-                j,
-                &active_1,
-                &active_2,
-            ) {
+            if is_strictly_dominated_2(&game.payoff_matrix_2, j, &active_1, &active_2) {
                 to_remove_2.push(j);
                 changed = true;
             }
@@ -660,9 +665,7 @@ fn is_strictly_dominated_1(
         if i2 == i {
             continue;
         }
-        let dominates = active_2
-            .iter()
-            .all(|&j| payoff[[i2, j]] > payoff[[i, j]]);
+        let dominates = active_2.iter().all(|&j| payoff[[i2, j]] > payoff[[i, j]]);
         if dominates {
             return true;
         }
@@ -710,9 +713,7 @@ fn is_strictly_dominated_2(
         if j2 == j {
             continue;
         }
-        let dominates = active_1
-            .iter()
-            .all(|&i| payoff[[i, j2]] > payoff[[i, j]]);
+        let dominates = active_1.iter().all(|&i| payoff[[i, j2]] > payoff[[i, j]]);
         if dominates {
             return true;
         }
@@ -864,9 +865,10 @@ pub fn find_ess(payoff_matrix: ArrayView2<f64>) -> Vec<Vec<f64>> {
     // Use a grid of starting points for n <= 3, or random samples for larger n
     let fixed_points = find_interior_ess_candidates(payoff_matrix, n);
     for fp in fixed_points {
-        if !ess_list.iter().any(|e: &Vec<f64>| {
-            e.iter().zip(fp.iter()).all(|(a, b)| (a - b).abs() < 1e-6)
-        }) {
+        if !ess_list
+            .iter()
+            .any(|e: &Vec<f64>| e.iter().zip(fp.iter()).all(|(a, b)| (a - b).abs() < 1e-6))
+        {
             ess_list.push(fp);
         }
     }
@@ -946,7 +948,11 @@ fn find_interior_ess_candidates(payoff: ArrayView2<f64>, n: usize) -> Vec<Vec<f6
                 let ax: Vec<f64> = (0..n)
                     .map(|i| (0..n).map(|j| payoff[[i, j]] * final_state[j]).sum::<f64>())
                     .collect();
-                let mean_f: f64 = final_state.iter().zip(ax.iter()).map(|(xi, axi)| xi * axi).sum();
+                let mean_f: f64 = final_state
+                    .iter()
+                    .zip(ax.iter())
+                    .map(|(xi, axi)| xi * axi)
+                    .sum();
                 let is_fp = final_state
                     .iter()
                     .zip(ax.iter())
@@ -974,16 +980,15 @@ fn find_interior_ess_candidates(payoff: ArrayView2<f64>, n: usize) -> Vec<Vec<f6
 }
 
 /// Verify the ESS stability condition for a candidate mixed strategy `p*`.
-fn verify_ess_stability(
-    payoff: ArrayView2<f64>,
-    p_star: &[f64],
-    n: usize,
-    tol: f64,
-) -> bool {
+fn verify_ess_stability(payoff: ArrayView2<f64>, p_star: &[f64], n: usize, tol: f64) -> bool {
     // u(p*, p*) computed
-    let u_pp: f64 = (0..n).map(|i| {
-        (0..n).map(|j| p_star[i] * payoff[[i, j]] * p_star[j]).sum::<f64>()
-    }).sum();
+    let u_pp: f64 = (0..n)
+        .map(|i| {
+            (0..n)
+                .map(|j| p_star[i] * payoff[[i, j]] * p_star[j])
+                .sum::<f64>()
+        })
+        .sum();
 
     // Check for a sample of perturbations that the ESS condition holds
     for i in 0..n {
@@ -996,26 +1001,41 @@ fn verify_ess_stability(
             }
             // Construct small mutant q = (1-eps)*p* + eps*e_j
             let eps = 0.01;
-            let q: Vec<f64> = p_star.iter().enumerate().map(|(k, &pk)| {
-                if k == j { pk + eps * (1.0 - pk) }
-                else { pk * (1.0 - eps) }
-            }).collect();
+            let q: Vec<f64> = p_star
+                .iter()
+                .enumerate()
+                .map(|(k, &pk)| {
+                    if k == j {
+                        pk + eps * (1.0 - pk)
+                    } else {
+                        pk * (1.0 - eps)
+                    }
+                })
+                .collect();
             // Normalize
             let s: f64 = q.iter().sum();
             let q: Vec<f64> = q.iter().map(|v| v / s).collect();
 
             // u(q, q) and u(p*, q)
-            let u_qq: f64 = (0..n).map(|a| {
-                (0..n).map(|b| q[a] * payoff[[a, b]] * q[b]).sum::<f64>()
-            }).sum();
-            let u_pq: f64 = (0..n).map(|a| {
-                (0..n).map(|b| p_star[a] * payoff[[a, b]] * q[b]).sum::<f64>()
-            }).sum();
+            let u_qq: f64 = (0..n)
+                .map(|a| (0..n).map(|b| q[a] * payoff[[a, b]] * q[b]).sum::<f64>())
+                .sum();
+            let u_pq: f64 = (0..n)
+                .map(|a| {
+                    (0..n)
+                        .map(|b| p_star[a] * payoff[[a, b]] * q[b])
+                        .sum::<f64>()
+                })
+                .sum();
 
             // ESS: u(p*, p*) >= u(q, p*) for all q, and if equal then u(p*, q) > u(q, q)
-            let u_qp: f64 = (0..n).map(|a| {
-                (0..n).map(|b| q[a] * payoff[[a, b]] * p_star[b]).sum::<f64>()
-            }).sum();
+            let u_qp: f64 = (0..n)
+                .map(|a| {
+                    (0..n)
+                        .map(|b| q[a] * payoff[[a, b]] * p_star[b])
+                        .sum::<f64>()
+                })
+                .sum();
 
             if u_qp > u_pp + tol {
                 return false;
@@ -1031,8 +1051,8 @@ fn verify_ess_stability(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
     use approx::assert_relative_eq;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_normal_form_game_construction() {
@@ -1208,7 +1228,10 @@ mod tests {
         let payoff = array![[0.0, -1.0, 1.0], [1.0, 0.0, -1.0], [-1.0, 1.0, 0.0]];
         let ess = find_ess(payoff.view());
         // No pure ESS in RPS
-        let pure_ess: Vec<_> = ess.iter().filter(|e| e.iter().filter(|&&v| v > 0.01).count() == 1).collect();
+        let pure_ess: Vec<_> = ess
+            .iter()
+            .filter(|e| e.iter().filter(|&&v| v > 0.01).count() == 1)
+            .collect();
         assert_eq!(pure_ess.len(), 0);
     }
 

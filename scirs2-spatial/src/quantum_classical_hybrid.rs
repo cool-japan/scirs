@@ -264,7 +264,7 @@ impl HybridSpatialOptimizer {
                 let quantum_start = Instant::now();
                 let quantum_result = self.quantum_optimization_step(&objective_function).await?;
                 self.performance_metrics.quantum_runtime_ms +=
-                    quantum_start.elapsed().as_millis() as f64;
+                    quantum_start.elapsed().as_secs_f64() * 1000.0;
 
                 if quantum_result.value < best_value {
                     best_value = quantum_result.value;
@@ -279,7 +279,7 @@ impl HybridSpatialOptimizer {
                 let classical_start = Instant::now();
                 let classical_result = self.classical_optimization_step(&objective_function)?;
                 self.performance_metrics.classical_runtime_ms +=
-                    classical_start.elapsed().as_millis() as f64;
+                    classical_start.elapsed().as_secs_f64() * 1000.0;
 
                 if classical_result.value < best_value {
                     best_value = classical_result.value;
@@ -305,7 +305,7 @@ impl HybridSpatialOptimizer {
             }
         }
 
-        self.performance_metrics.total_runtime_ms = start_time.elapsed().as_millis() as f64;
+        self.performance_metrics.total_runtime_ms = start_time.elapsed().as_secs_f64() * 1000.0;
         self.performance_metrics.speedup_factor = self.calculate_speedup_factor();
         self.performance_metrics.solution_quality =
             HybridSpatialOptimizer::evaluate_solution_quality(&best_solution, &objective_function);
@@ -809,7 +809,7 @@ impl HybridClusterer {
         // Phase 1: Quantum exploration for initial centroids
         let quantum_start = Instant::now();
         let (quantum_centroids, quantum_assignments) = self.quantum_clusterer.fit(points)?;
-        self.performance_metrics.quantum_time_ms = quantum_start.elapsed().as_millis() as f64;
+        self.performance_metrics.quantum_time_ms = quantum_start.elapsed().as_secs_f64() * 1000.0;
 
         // Phase 2: Classical refinement (if enabled)
         let (final_centroids, final_assignments) = if self.classical_refinement {
@@ -818,13 +818,13 @@ impl HybridClusterer {
                 .classical_refinement_step(points, &quantum_centroids)
                 .await?;
             self.performance_metrics.classical_time_ms =
-                classical_start.elapsed().as_millis() as f64;
+                classical_start.elapsed().as_secs_f64() * 1000.0;
             refined_result
         } else {
             (quantum_centroids, quantum_assignments)
         };
 
-        self.performance_metrics.total_time_ms = start_time.elapsed().as_millis() as f64;
+        self.performance_metrics.total_time_ms = start_time.elapsed().as_secs_f64() * 1000.0;
         self.performance_metrics.clustering_quality =
             self.calculate_silhouette_score(points, &final_centroids, &final_assignments);
         self.performance_metrics.speedup_factor = self.calculate_clustering_speedup();
@@ -1057,7 +1057,6 @@ mod tests {
 
     #[cfg(feature = "async")]
     #[tokio::test]
-    #[ignore = "Test failure - assertion failed: metrics.total_time_ms > 0.0 at line 1078"]
     async fn test_hybrid_clusterer() {
         let points = array![
             [0.0, 0.0],

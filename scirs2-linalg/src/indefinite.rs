@@ -274,11 +274,7 @@ pub fn bunch_kaufman(a: &Array2<f64>) -> LinalgResult<BunchKaufmanResult> {
         }
     }
 
-    Ok(BunchKaufmanResult {
-        l,
-        d_blocks,
-        perm,
-    })
+    Ok(BunchKaufmanResult { l, d_blocks, perm })
 }
 
 /// Solve the linear system `Ax = b` using a pre-computed Bunch-Kaufman factorization.
@@ -350,9 +346,8 @@ pub fn ldlt_solve(bk: &BunchKaufmanResult, b: &Array1<f64>) -> LinalgResult<Arra
 
     // Step 3: Solve D z = y  (block diagonal)
     let mut z = Array1::<f64>::zeros(n);
-    let mut block_idx = 0usize;
     let mut col = 0usize;
-    for blk in &bk.d_blocks {
+    for (block_idx, blk) in bk.d_blocks.iter().enumerate() {
         if blk.nrows() == 1 {
             let d = blk[[0, 0]];
             if d.abs() < f64::EPSILON {
@@ -378,7 +373,6 @@ pub fn ldlt_solve(bk: &BunchKaufmanResult, b: &Array1<f64>) -> LinalgResult<Arra
             z[col + 1] = (d11 * y[col + 1] - d12 * y[col]) * inv_det;
             col += 2;
         }
-        block_idx += 1;
     }
 
     // Step 4: Back substitution L^T x = z
@@ -708,11 +702,8 @@ pub fn spectral_decomp_indefinite(a: &Array2<f64>) -> LinalgResult<(Array2<f64>,
                     continue;
                 }
                 // Compute the Jacobi rotation angle
-                let theta = if (s[[q, q]] - s[[p, p]]).abs() < f64::EPSILON {
-                    std::f64::consts::FRAC_PI_4
-                } else {
-                    0.5 * ((2.0 * s_pq) / (s[[q, q]] - s[[p, p]])).atan()
-                };
+                // Use atan2 for numerical stability (avoids division by near-zero denominator)
+                let theta = 0.5 * f64::atan2(2.0 * s_pq, s[[p, p]] - s[[q, q]]);
                 let cos_t = theta.cos();
                 let sin_t = theta.sin();
 
@@ -823,11 +814,7 @@ mod tests {
 
     #[test]
     fn test_bunch_kaufman_spd() {
-        let a = array![
-            [4.0_f64, 2.0, 0.0],
-            [2.0, 3.0, 1.0],
-            [0.0, 1.0, 2.0],
-        ];
+        let a = array![[4.0_f64, 2.0, 0.0], [2.0, 3.0, 1.0], [0.0, 1.0, 2.0],];
         let bk = bunch_kaufman(&a).expect("BK failed");
         let diff = reconstruct_bk(&a, &bk);
         let err: f64 = diff.iter().map(|x| x * x).sum::<f64>().sqrt();
@@ -836,11 +823,7 @@ mod tests {
 
     #[test]
     fn test_bunch_kaufman_indefinite() {
-        let a = array![
-            [ 2.0_f64,  1.0,  0.0],
-            [ 1.0,  0.0, -1.0],
-            [ 0.0, -1.0,  3.0],
-        ];
+        let a = array![[2.0_f64, 1.0, 0.0], [1.0, 0.0, -1.0], [0.0, -1.0, 3.0],];
         let bk = bunch_kaufman(&a).expect("BK failed");
         let diff = reconstruct_bk(&a, &bk);
         let err: f64 = diff.iter().map(|x| x * x).sum::<f64>().sqrt();
@@ -849,11 +832,7 @@ mod tests {
 
     #[test]
     fn test_ldlt_solve_basic() {
-        let a = array![
-            [4.0_f64, 2.0, -1.0],
-            [2.0,  3.0,  0.0],
-            [-1.0, 0.0,  2.0],
-        ];
+        let a = array![[4.0_f64, 2.0, -1.0], [2.0, 3.0, 0.0], [-1.0, 0.0, 2.0],];
         let b = array![1.0_f64, 2.0, 3.0];
         let bk = bunch_kaufman(&a).expect("BK failed");
         let x = ldlt_solve(&bk, &b).expect("solve failed");
@@ -871,11 +850,7 @@ mod tests {
     #[test]
     fn test_inertia() {
         // Diagonal matrix with known inertia
-        let a = array![
-            [2.0_f64, 0.0, 0.0],
-            [0.0, -1.0, 0.0],
-            [0.0, 0.0, 0.0],
-        ];
+        let a = array![[2.0_f64, 0.0, 0.0], [0.0, -1.0, 0.0], [0.0, 0.0, 0.0],];
         let bk = bunch_kaufman(&a).expect("BK failed");
         let (pos, neg, zer) = inertia(&bk);
         assert_eq!(pos, 1, "expected 1 positive eigenvalue");
@@ -885,11 +860,7 @@ mod tests {
 
     #[test]
     fn test_inertia_spd() {
-        let a = array![
-            [4.0_f64, 1.0, 0.0],
-            [1.0, 3.0, 0.5],
-            [0.0, 0.5, 2.0],
-        ];
+        let a = array![[4.0_f64, 1.0, 0.0], [1.0, 3.0, 0.5], [0.0, 0.5, 2.0],];
         let bk = bunch_kaufman(&a).expect("BK failed");
         let (pos, neg, zer) = inertia(&bk);
         assert_eq!(pos, 3, "expected 3 positive eigenvalues for SPD");
@@ -899,10 +870,7 @@ mod tests {
 
     #[test]
     fn test_modified_cholesky_indefinite() {
-        let a = array![
-            [ 4.0_f64, 2.0],
-            [ 2.0, -1.0],
-        ];
+        let a = array![[4.0_f64, 2.0], [2.0, -1.0],];
         let (l, delta) = modified_cholesky(&a).expect("modified cholesky failed");
         assert!(delta >= 0.0, "delta must be non-negative");
         let n = 2;
@@ -923,20 +891,14 @@ mod tests {
     #[test]
     fn test_modified_cholesky_spd() {
         // For an SPD matrix, delta should be 0
-        let a = array![
-            [4.0_f64, 1.0],
-            [1.0,  3.0],
-        ];
+        let a = array![[4.0_f64, 1.0], [1.0, 3.0],];
         let (_l, delta) = modified_cholesky(&a).expect("modified cholesky failed");
         assert_eq!(delta, 0.0, "no perturbation needed for SPD");
     }
 
     #[test]
     fn test_spectral_decomp_indefinite() {
-        let a = array![
-            [ 2.0_f64,  1.0],
-            [ 1.0, -1.0],
-        ];
+        let a = array![[2.0_f64, 1.0], [1.0, -1.0],];
         let (v, eigenvalues) = spectral_decomp_indefinite(&a).expect("decomp failed");
         let n = 2;
         // Verify A*v_i = lambda_i * v_i
@@ -987,11 +949,7 @@ mod tests {
 
     #[test]
     fn test_col_max_abs_helper() {
-        let a = array![
-            [1.0_f64, 2.0],
-            [3.0, 4.0],
-            [5.0, 6.0],
-        ];
+        let a = array![[1.0_f64, 2.0], [3.0, 4.0], [5.0, 6.0],];
         assert_eq!(col_max_abs(&a, 0, 1), 5.0);
         assert_eq!(col_max_abs(&a, 1, 0), 6.0);
     }

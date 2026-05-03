@@ -232,7 +232,11 @@ fn project_box(x: &Array1<f64>, lb: &Option<Array1<f64>>, ub: &Option<Array1<f64
 }
 
 /// Evaluate Ax - b (constraint residual). Positive entries are violated.
-fn constraint_residual(a: &ArrayView2<f64>, x: &ArrayView1<f64>, b: &ArrayView1<f64>) -> Array1<f64> {
+fn constraint_residual(
+    a: &ArrayView2<f64>,
+    x: &ArrayView1<f64>,
+    b: &ArrayView1<f64>,
+) -> Array1<f64> {
     let m = b.len();
     let n = x.len();
     let mut r = Array1::<f64>::zeros(m);
@@ -374,8 +378,17 @@ pub fn box_robust_lp(
         }
 
         // Backtracking line search
-        let obj_curr: f64 = problem.c.iter().zip(x.iter()).map(|(&ci, &xi)| ci * xi).sum::<f64>()
-            + delta_c.iter().zip(x.iter()).map(|(&di, &xi)| di * xi.abs()).sum::<f64>();
+        let obj_curr: f64 = problem
+            .c
+            .iter()
+            .zip(x.iter())
+            .map(|(&ci, &xi)| ci * xi)
+            .sum::<f64>()
+            + delta_c
+                .iter()
+                .zip(x.iter())
+                .map(|(&di, &xi)| di * xi.abs())
+                .sum::<f64>();
 
         let mut accepted = false;
         for _ in 0..20 {
@@ -386,8 +399,17 @@ pub fn box_robust_lp(
                 .collect();
             let x_proj = project_box(&x_new, &problem.lb, &problem.ub);
 
-            let obj_new: f64 = problem.c.iter().zip(x_proj.iter()).map(|(&ci, &xi)| ci * xi).sum::<f64>()
-                + delta_c.iter().zip(x_proj.iter()).map(|(&di, &xi)| di * xi.abs()).sum::<f64>();
+            let obj_new: f64 = problem
+                .c
+                .iter()
+                .zip(x_proj.iter())
+                .map(|(&ci, &xi)| ci * xi)
+                .sum::<f64>()
+                + delta_c
+                    .iter()
+                    .zip(x_proj.iter())
+                    .map(|(&di, &xi)| di * xi.abs())
+                    .sum::<f64>();
 
             if obj_new <= obj_curr - 1e-4 * step * grad_norm * grad_norm {
                 x = x_proj;
@@ -414,7 +436,12 @@ pub fn box_robust_lp(
     }
 
     // Compute result metrics
-    let nominal_fun: f64 = problem.c.iter().zip(x.iter()).map(|(&ci, &xi)| ci * xi).sum();
+    let nominal_fun: f64 = problem
+        .c
+        .iter()
+        .zip(x.iter())
+        .map(|(&ci, &xi)| ci * xi)
+        .sum();
     let robust_fun: f64 = nominal_fun
         + delta_c
             .iter()
@@ -423,10 +450,7 @@ pub fn box_robust_lp(
             .sum::<f64>();
 
     let residual = constraint_residual(&problem.a_matrix.view(), &x.view(), &problem.b_rhs.view());
-    let constraint_slack = -residual
-        .iter()
-        .cloned()
-        .fold(f64::NEG_INFINITY, f64::max);
+    let constraint_slack = -residual.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
 
     Ok(RobustLPResult {
         x,
@@ -533,11 +557,8 @@ pub fn ellipsoidal_robust_lp(
         };
 
         // Add constraint penalty gradient
-        let residual = constraint_residual(
-            &problem.a_matrix.view(),
-            &x.view(),
-            &problem.b_rhs.view(),
-        );
+        let residual =
+            constraint_residual(&problem.a_matrix.view(), &x.view(), &problem.b_rhs.view());
         let mut full_grad = socp_grad;
         for i in 0..m {
             if residual[i] > 0.0 {
@@ -562,15 +583,17 @@ pub fn ellipsoidal_robust_lp(
         x = project_box(&x_new, &problem.lb, &problem.ub);
     }
 
-    let nominal_fun: f64 = problem.c.iter().zip(x.iter()).map(|(&ci, &xi)| ci * xi).sum();
+    let nominal_fun: f64 = problem
+        .c
+        .iter()
+        .zip(x.iter())
+        .map(|(&ci, &xi)| ci * xi)
+        .sum();
     let lx = mat_vec_mul_lower(&l_chol, &x.view());
     let robust_fun = nominal_fun + ellipsoid_radius * l2_norm_vec(&lx);
 
     let residual = constraint_residual(&problem.a_matrix.view(), &x.view(), &problem.b_rhs.view());
-    let constraint_slack = -residual
-        .iter()
-        .cloned()
-        .fold(f64::NEG_INFINITY, f64::max);
+    let constraint_slack = -residual.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
 
     Ok(RobustLPResult {
         x,
@@ -637,10 +660,7 @@ pub fn robust_objective(
                 .map(|(&di, &xi)| di * xi.abs())
                 .sum::<f64>()
         }
-        ObjectiveUncertaintyModel::Ellipsoidal {
-            covariance,
-            radius,
-        } => {
+        ObjectiveUncertaintyModel::Ellipsoidal { covariance, radius } => {
             if covariance.shape() != [n, n] {
                 return Err(OptimizeError::ValueError(format!(
                     "covariance shape {:?} != [{n},{n}]",
@@ -665,8 +685,11 @@ pub fn robust_objective(
                 )));
             }
             // Bertsimas-Sim: sort δ_i |x_i| descending, take sum of top Γ entries
-            let mut perturbations: Vec<f64> =
-                delta.iter().zip(x.iter()).map(|(&di, &xi)| di * xi.abs()).collect();
+            let mut perturbations: Vec<f64> = delta
+                .iter()
+                .zip(x.iter())
+                .map(|(&di, &xi)| di * xi.abs())
+                .collect();
             perturbations.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
 
             let gamma = (*budget as usize).min(n);
@@ -728,10 +751,18 @@ fn cholesky_lower_triangular(a: &ArrayView2<f64>) -> OptimizeResult<Array2<f64>>
             }
             if i == j {
                 let diag = a[[i, i]] - s;
-                l[[i, j]] = if diag < 0.0 { diag.abs().sqrt().max(1e-12) } else { diag.sqrt() };
+                l[[i, j]] = if diag < 0.0 {
+                    diag.abs().sqrt().max(1e-12)
+                } else {
+                    diag.sqrt()
+                };
             } else {
                 let ljj = l[[j, j]];
-                l[[i, j]] = if ljj.abs() < 1e-14 { 0.0 } else { (a[[i, j]] - s) / ljj };
+                l[[i, j]] = if ljj.abs() < 1e-14 {
+                    0.0
+                } else {
+                    (a[[i, j]] - s) / ljj
+                };
             }
         }
     }
@@ -793,10 +824,10 @@ mod tests {
 
     #[test]
     fn test_box_robust_lp_no_uncertainty() {
-        let problem = simple_lp().expect("failed to create problem").with_bounds(
-            array![0.0, 0.0],
-            array![1.0, 1.0],
-        ).expect("unexpected None or Err");
+        let problem = simple_lp()
+            .expect("failed to create problem")
+            .with_bounds(array![0.0, 0.0], array![1.0, 1.0])
+            .expect("unexpected None or Err");
         let x0 = array![0.0, 0.0];
         let config = RobustLPConfig {
             max_iter: 3_000,
@@ -806,7 +837,10 @@ mod tests {
         };
         let result = box_robust_lp(&problem, &x0.view(), &config).expect("failed to create result");
         // Without uncertainty, robust = nominal
-        assert!(result.nominal_fun < 0.0, "nominal fun should be negative (minimizing -x)");
+        assert!(
+            result.nominal_fun < 0.0,
+            "nominal fun should be negative (minimizing -x)"
+        );
     }
 
     #[test]
@@ -848,8 +882,8 @@ mod tests {
             constraint_penalty: 50.0,
             ..Default::default()
         };
-        let result =
-            ellipsoidal_robust_lp(&problem, &cov.view(), 0.5, &x0.view(), &config).expect("unexpected None or Err");
+        let result = ellipsoidal_robust_lp(&problem, &cov.view(), 0.5, &x0.view(), &config)
+            .expect("unexpected None or Err");
         // Result should be a valid solution
         assert!(result.x.len() == 2);
         assert!(result.fun.is_finite());

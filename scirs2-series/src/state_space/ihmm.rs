@@ -286,9 +286,8 @@ impl Ihmm {
             let kappa_n = kappa_0 + nk;
             let mu_n = (kappa_0 * mu_0 + nk * y_bar) / kappa_n;
             let alpha_n = alpha_0 + nk / 2.0;
-            let beta_n = beta_0
-                + ss / 2.0
-                + kappa_0 * nk * (y_bar - mu_0).powi(2) / (2.0 * kappa_n);
+            let beta_n =
+                beta_0 + ss / 2.0 + kappa_0 * nk * (y_bar - mu_0).powi(2) / (2.0 * kappa_n);
 
             // Sample σ² from InvGamma(alpha_n, beta_n)
             // InvGamma(a, b) ~ b / Gamma(a, 1)
@@ -298,8 +297,7 @@ impl Ihmm {
             // Sample μ from N(mu_n, sigma2 / kappa_n)
             let u1 = rng.next_f64().max(1e-15);
             let u2 = rng.next_f64();
-            let z = (-2.0 * u1.ln()).sqrt()
-                * (2.0 * std::f64::consts::PI * u2).cos();
+            let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
             let mu = mu_n + (sigma2 / kappa_n).sqrt() * z;
 
             means.push(mu);
@@ -361,7 +359,10 @@ impl Ihmm {
 
         // t = 0: uniform initial distribution
         for s in 0..k {
-            let p_emit = emission.log_likelihood(observations[0], s).exp().max(1e-300);
+            let p_emit = emission
+                .log_likelihood(observations[0], s)
+                .exp()
+                .max(1e-300);
             alpha_mat[0][s] = p_emit / k as f64;
         }
         // Normalise
@@ -374,11 +375,13 @@ impl Ihmm {
 
         for t in 1..t_len {
             for s in 0..k {
-                let p_emit = emission.log_likelihood(observations[t], s).exp().max(1e-300);
+                let p_emit = emission
+                    .log_likelihood(observations[t], s)
+                    .exp()
+                    .max(1e-300);
                 let pred: f64 = (0..k)
                     .map(|j| {
-                        alpha_mat[t - 1][j]
-                            * Self::transition_prob(j, s, counts, k, alpha, kappa)
+                        alpha_mat[t - 1][j] * Self::transition_prob(j, s, counts, k, alpha, kappa)
                     })
                     .sum();
                 alpha_mat[t][s] = p_emit * pred;
@@ -400,8 +403,7 @@ impl Ihmm {
             let s_next = assignments[t + 1];
             let probs: Vec<f64> = (0..k)
                 .map(|s| {
-                    alpha_mat[t][s]
-                        * Self::transition_prob(s, s_next, counts, k, alpha, kappa)
+                    alpha_mat[t][s] * Self::transition_prob(s, s_next, counts, k, alpha, kappa)
                 })
                 .collect();
             assignments[t] = rng.sample_categorical(&probs);
@@ -414,10 +416,7 @@ impl Ihmm {
     // Transition count update
     // -----------------------------------------------------------------------
 
-    fn update_transition_counts(
-        assignments: &[usize],
-        n_states: usize,
-    ) -> Vec<Vec<usize>> {
+    fn update_transition_counts(assignments: &[usize], n_states: usize) -> Vec<Vec<usize>> {
         let mut counts = vec![vec![0usize; n_states]; n_states];
         for w in assignments.windows(2) {
             let j = w[0].min(n_states - 1);
@@ -488,8 +487,8 @@ impl Ihmm {
         }
 
         // Create a new state from the mean of bad observations
-        let new_mean: f64 = bad_indices.iter().map(|&i| observations[i]).sum::<f64>()
-            / bad_indices.len() as f64;
+        let new_mean: f64 =
+            bad_indices.iter().map(|&i| observations[i]).sum::<f64>() / bad_indices.len() as f64;
         let new_var: f64 = if bad_indices.len() < 2 {
             1.0
         } else {
@@ -662,8 +661,7 @@ mod tests {
             .map(|i| {
                 let u1 = rng.next_f64().max(1e-15);
                 let u2 = rng.next_f64();
-                let z = (-2.0 * u1.ln()).sqrt()
-                    * (2.0 * std::f64::consts::PI * u2).cos();
+                let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 if i % 2 == 0 {
                     -2.0 + z * 0.5
                 } else {

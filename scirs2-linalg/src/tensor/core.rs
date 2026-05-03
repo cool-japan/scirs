@@ -84,7 +84,11 @@ impl<F: TensorScalar> Tensor<F> {
     /// Returns [`LinalgError::ShapeError`] when `data.len()` does not equal
     /// the product of `shape`.
     pub fn new(data: Vec<F>, shape: Vec<usize>) -> LinalgResult<Self> {
-        let total: usize = if shape.is_empty() { 0 } else { shape.iter().product() };
+        let total: usize = if shape.is_empty() {
+            0
+        } else {
+            shape.iter().product()
+        };
         if data.len() != total {
             return Err(LinalgError::ShapeError(format!(
                 "Data length {} does not match shape {:?} (product {})",
@@ -94,12 +98,20 @@ impl<F: TensorScalar> Tensor<F> {
             )));
         }
         let strides = compute_row_major_strides(&shape);
-        Ok(Self { data, shape, strides })
+        Ok(Self {
+            data,
+            shape,
+            strides,
+        })
     }
 
     /// Create an all-zero tensor with the given shape.
     pub fn zeros(shape: Vec<usize>) -> Self {
-        let total: usize = if shape.is_empty() { 0 } else { shape.iter().product() };
+        let total: usize = if shape.is_empty() {
+            0
+        } else {
+            shape.iter().product()
+        };
         let strides = compute_row_major_strides(&shape);
         Self {
             data: vec![F::zero(); total],
@@ -251,7 +263,11 @@ impl<F: TensorScalar> Tensor<F> {
                 data[flat] = matrix[[row, col]];
             }
         }
-        Ok(Self { data, shape, strides })
+        Ok(Self {
+            data,
+            shape,
+            strides,
+        })
     }
 
     // ------------------------------------------------------------------
@@ -301,7 +317,7 @@ impl<F: TensorScalar> Tensor<F> {
                 let mut out_multi = multi.clone();
                 out_multi[mode] = out_idx;
                 let out_flat = flat_from_multi(&out_multi, &result.strides);
-                result.data[out_flat] = result.data[out_flat] + val * m_val;
+                result.data[out_flat] += val * m_val;
             }
         }
         Ok(result)
@@ -315,7 +331,11 @@ impl<F: TensorScalar> Tensor<F> {
     ///
     /// Returns `F::zero()` for an empty tensor.
     pub fn frobenius_norm(&self) -> F {
-        let sq: F = self.data.iter().map(|&x| x * x).fold(F::zero(), |a, b| a + b);
+        let sq: F = self
+            .data
+            .iter()
+            .map(|&x| x * x)
+            .fold(F::zero(), |a, b| a + b);
         sq.sqrt()
     }
 
@@ -468,7 +488,7 @@ mod tests {
     #[test]
     fn test_mode_product_shape() {
         let t = make_234(); // [2, 3, 4]
-        // mode-1 product with 5×3 matrix → shape [2, 5, 4]
+                            // mode-1 product with 5×3 matrix → shape [2, 5, 4]
         let mat = Array2::<f64>::zeros((5, 3));
         let result = t.mode_product(&mat, 1).expect("ok");
         assert_eq!(result.shape, vec![2, 5, 4]);

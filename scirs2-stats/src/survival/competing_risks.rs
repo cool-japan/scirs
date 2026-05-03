@@ -35,7 +35,9 @@ fn lgamma(x: f64) -> f64 {
 }
 
 fn gamma_q(a: f64, x: f64) -> f64 {
-    if x <= 0.0 { return 1.0; }
+    if x <= 0.0 {
+        return 1.0;
+    }
     if x < a + 1.0 {
         let mut ap = a;
         let mut sum = 1.0 / a;
@@ -44,7 +46,9 @@ fn gamma_q(a: f64, x: f64) -> f64 {
             ap += 1.0;
             del *= x / ap;
             sum += del;
-            if del.abs() < sum.abs() * 3e-15 { break; }
+            if del.abs() < sum.abs() * 3e-15 {
+                break;
+            }
         }
         1.0 - sum * (-x + a * x.ln() - lgamma(a)).exp()
     } else {
@@ -56,20 +60,28 @@ fn gamma_q(a: f64, x: f64) -> f64 {
             let an = -(i as f64) * (i as f64 - a);
             b += 2.0;
             d = an * d + b;
-            if d.abs() < 1e-300 { d = 1e-300; }
+            if d.abs() < 1e-300 {
+                d = 1e-300;
+            }
             c = b + an / c;
-            if c.abs() < 1e-300 { c = 1e-300; }
+            if c.abs() < 1e-300 {
+                c = 1e-300;
+            }
             d = 1.0 / d;
             let del = d * c;
             h *= del;
-            if (del - 1.0).abs() < 3e-15 { break; }
+            if (del - 1.0).abs() < 3e-15 {
+                break;
+            }
         }
         (-x + a * x.ln() - lgamma(a)).exp() * h
     }
 }
 
 fn chi2_sf(x: f64, df: f64) -> f64 {
-    if x <= 0.0 { return 1.0; }
+    if x <= 0.0 {
+        return 1.0;
+    }
     gamma_q(df / 2.0, x / 2.0)
 }
 
@@ -97,23 +109,33 @@ fn norm_ppf(p: f64) -> f64 {
     let p = p.clamp(1e-15, 1.0 - 1e-15);
 
     const A: [f64; 6] = [
-        -3.969_683_028_665_376e1,  2.209_460_984_245_205e2,
-        -2.759_285_104_469_687e2,  1.383_577_518_672_690e2,
-        -3.066_479_806_614_716e1,  2.506_628_277_459_239e0,
+        -3.969_683_028_665_376e1,
+        2.209_460_984_245_205e2,
+        -2.759_285_104_469_687e2,
+        1.383_577_518_672_690e2,
+        -3.066_479_806_614_716e1,
+        2.506_628_277_459_239e0,
     ];
     const B: [f64; 5] = [
-        -5.447_609_879_822_406e1,  1.615_858_368_580_409e2,
-        -1.556_989_798_598_866e2,  6.680_131_188_771_972e1,
+        -5.447_609_879_822_406e1,
+        1.615_858_368_580_409e2,
+        -1.556_989_798_598_866e2,
+        6.680_131_188_771_972e1,
         -1.328_068_155_288_572e1,
     ];
     const C: [f64; 6] = [
-        -7.784_894_002_430_293e-3, -3.223_964_580_411_365e-1,
-        -2.400_758_277_161_838e0,  -2.549_732_539_343_734e0,
-         4.374_664_141_464_968e0,   2.938_163_982_698_783e0,
+        -7.784_894_002_430_293e-3,
+        -3.223_964_580_411_365e-1,
+        -2.400_758_277_161_838e0,
+        -2.549_732_539_343_734e0,
+        4.374_664_141_464_968e0,
+        2.938_163_982_698_783e0,
     ];
     const D: [f64; 4] = [
-         7.784_695_709_041_462e-3,  3.224_671_290_700_398e-1,
-         2.445_134_137_142_996e0,   3.754_408_661_907_416e0,
+        7.784_695_709_041_462e-3,
+        3.224_671_290_700_398e-1,
+        2.445_134_137_142_996e0,
+        3.754_408_661_907_416e0,
     ];
 
     const P_LOW: f64 = 0.02425;
@@ -121,17 +143,17 @@ fn norm_ppf(p: f64) -> f64 {
 
     if p < P_LOW {
         let q = (-2.0 * p.ln()).sqrt();
-        (((((C[0]*q + C[1])*q + C[2])*q + C[3])*q + C[4])*q + C[5])
-            / ((((D[0]*q + D[1])*q + D[2])*q + D[3])*q + 1.0)
+        (((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
+            / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
     } else if p <= P_HIGH {
         let q = p - 0.5;
         let r = q * q;
-        (((((A[0]*r + A[1])*r + A[2])*r + A[3])*r + A[4])*r + A[5]) * q
-            / (((((B[0]*r + B[1])*r + B[2])*r + B[3])*r + B[4])*r + 1.0)
+        (((((A[0] * r + A[1]) * r + A[2]) * r + A[3]) * r + A[4]) * r + A[5]) * q
+            / (((((B[0] * r + B[1]) * r + B[2]) * r + B[3]) * r + B[4]) * r + 1.0)
     } else {
         let q = (-2.0 * (1.0 - p).ln()).sqrt();
-        -(((((C[0]*q + C[1])*q + C[2])*q + C[3])*q + C[4])*q + C[5])
-            / ((((D[0]*q + D[1])*q + D[2])*q + D[3])*q + 1.0)
+        -(((((C[0] * q + C[1]) * q + C[2]) * q + C[3]) * q + C[4]) * q + C[5])
+            / ((((D[0] * q + D[1]) * q + D[2]) * q + D[3]) * q + 1.0)
     }
 }
 
@@ -171,12 +193,15 @@ impl CumulativeIncidenceFunction {
     /// Returns [`StatsError`] on empty input or mismatched lengths.
     pub fn fit(times: &[f64], events: &[u8]) -> StatsResult<Vec<Self>> {
         if times.is_empty() {
-            return Err(StatsError::InvalidArgument("times must not be empty".to_string()));
+            return Err(StatsError::InvalidArgument(
+                "times must not be empty".to_string(),
+            ));
         }
         if times.len() != events.len() {
             return Err(StatsError::DimensionMismatch(format!(
                 "times length {} != events length {}",
-                times.len(), events.len()
+                times.len(),
+                events.len()
             )));
         }
         for &t in times {
@@ -202,7 +227,9 @@ impl CumulativeIncidenceFunction {
         // Sort by time
         let mut idx: Vec<usize> = (0..n_total).collect();
         idx.sort_by(|&a, &b| {
-            times[a].partial_cmp(&times[b]).unwrap_or(std::cmp::Ordering::Equal)
+            times[a]
+                .partial_cmp(&times[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         // Collect all distinct event times (any cause)
@@ -213,7 +240,9 @@ impl CumulativeIncidenceFunction {
             let mut has_event = false;
             let mut j = i;
             while j < n_total && (times[idx[j]] - t_cur).abs() < 1e-14 {
-                if events[idx[j]] > 0 { has_event = true; }
+                if events[idx[j]] > 0 {
+                    has_event = true;
+                }
                 j += 1;
             }
             if has_event {
@@ -226,9 +255,8 @@ impl CumulativeIncidenceFunction {
         let mut results = Vec::with_capacity(causes.len());
 
         for &cause in &causes {
-            let (cif_times, cif_vals, cif_se) = aalen_johansen_cif(
-                times, events, &idx, &all_event_times, cause, n_total,
-            );
+            let (cif_times, cif_vals, cif_se) =
+                aalen_johansen_cif(times, events, &idx, &all_event_times, cause, n_total);
             results.push(Self {
                 times: cif_times,
                 cif: cif_vals,
@@ -260,8 +288,14 @@ impl CumulativeIncidenceFunction {
         // Variance at t
         let var = {
             let idx = self.times.partition_point(|&tk| tk <= t);
-            let idx = idx.saturating_sub(1).min(self.std_err.len().saturating_sub(1));
-            if self.std_err.is_empty() { 0.0 } else { self.std_err[idx].powi(2) }
+            let idx = idx
+                .saturating_sub(1)
+                .min(self.std_err.len().saturating_sub(1));
+            if self.std_err.is_empty() {
+                0.0
+            } else {
+                self.std_err[idx].powi(2)
+            }
         };
         let se = var.sqrt();
 
@@ -292,8 +326,8 @@ fn aalen_johansen_cif(
     let mut cif_vals = Vec::new();
     let mut cif_se = Vec::new();
 
-    let mut s = 1.0_f64;       // Overall survival (KM)
-    let mut cif = 0.0_f64;    // Cumulative incidence for this cause
+    let mut s = 1.0_f64; // Overall survival (KM)
+    let mut cif = 0.0_f64; // Cumulative incidence for this cause
 
     // Variance accumulator (Gray's influence-function approach, simplified)
     // Var[I_k(t)] ≈ Σ_{j≤t} [S(t_j⁻)]² × d_k(t_j) × [n(t_j) - d_k(t_j)] / n(t_j)³
@@ -317,8 +351,12 @@ fn aalen_johansen_cif(
         let mut d_all = 0usize;
         let mut j = sorted_pos;
         while j < n_sorted && (times[idx[j]] - t_cur).abs() < 1e-14 {
-            if events[idx[j]] > 0 { d_all += 1; }
-            if events[idx[j]] == cause { d_k += 1; }
+            if events[idx[j]] > 0 {
+                d_all += 1;
+            }
+            if events[idx[j]] == cause {
+                d_k += 1;
+            }
             j += 1;
         }
 
@@ -370,19 +408,24 @@ pub fn cause_specific_hazard(
     cause: u8,
 ) -> StatsResult<(Vec<f64>, Vec<f64>)> {
     if times.is_empty() {
-        return Err(StatsError::InvalidArgument("times must not be empty".to_string()));
+        return Err(StatsError::InvalidArgument(
+            "times must not be empty".to_string(),
+        ));
     }
     if times.len() != events.len() {
         return Err(StatsError::DimensionMismatch(format!(
             "times length {} != events length {}",
-            times.len(), events.len()
+            times.len(),
+            events.len()
         )));
     }
 
     let n = times.len();
     let mut idx: Vec<usize> = (0..n).collect();
     idx.sort_by(|&a, &b| {
-        times[a].partial_cmp(&times[b]).unwrap_or(std::cmp::Ordering::Equal)
+        times[a]
+            .partial_cmp(&times[b])
+            .unwrap_or(std::cmp::Ordering::Equal)
     });
 
     let mut times_out = Vec::new();
@@ -395,7 +438,9 @@ pub fn cause_specific_hazard(
         let mut d_k = 0usize;
         let mut end = pos;
         while end < n && (times[idx[end]] - t_cur).abs() < 1e-14 {
-            if events[idx[end]] == cause { d_k += 1; }
+            if events[idx[end]] == cause {
+                d_k += 1;
+            }
             end += 1;
         }
         // Number at risk = n - pos (those with time >= t_cur)
@@ -434,18 +479,22 @@ pub fn gray_test(
     events2: &[u8],
 ) -> StatsResult<Vec<(usize, f64, f64)>> {
     if times1.is_empty() || times2.is_empty() {
-        return Err(StatsError::InvalidArgument("Both groups must be non-empty".to_string()));
+        return Err(StatsError::InvalidArgument(
+            "Both groups must be non-empty".to_string(),
+        ));
     }
     if times1.len() != events1.len() {
         return Err(StatsError::DimensionMismatch(format!(
             "group1: times length {} != events length {}",
-            times1.len(), events1.len()
+            times1.len(),
+            events1.len()
         )));
     }
     if times2.len() != events2.len() {
         return Err(StatsError::DimensionMismatch(format!(
             "group2: times length {} != events length {}",
-            times2.len(), events2.len()
+            times2.len(),
+            events2.len()
         )));
     }
 
@@ -481,9 +530,8 @@ pub fn gray_test(
     let mut results = Vec::new();
 
     for &cause in &causes {
-        let (stat, pval) = gray_test_one_cause(
-            times1, events1, times2, events2, cause, &all_event_times
-        )?;
+        let (stat, pval) =
+            gray_test_one_cause(times1, events1, times2, events2, cause, &all_event_times)?;
         results.push((cause as usize, stat, pval));
     }
 
@@ -515,7 +563,9 @@ fn gray_test_one_cause(
         let n1 = times1.iter().filter(|&&ti| ti >= t_cur - 1e-14).count() as f64;
         let n2 = times2.iter().filter(|&&ti| ti >= t_cur - 1e-14).count() as f64;
         let n = n1 + n2;
-        if n < 2.0 { continue; }
+        if n < 2.0 {
+            continue;
+        }
 
         // Events of this cause in each group at t_cur
         let d1k = times1
@@ -636,28 +686,27 @@ impl FineGrayModel {
     ///
     /// # Errors
     /// Returns [`StatsError`] on invalid input or convergence failure.
-    pub fn fit(
-        times: &[f64],
-        events: &[u8],
-        x: &Array2<f64>,
-        cause: u8,
-    ) -> StatsResult<Self> {
+    pub fn fit(times: &[f64], events: &[u8], x: &Array2<f64>, cause: u8) -> StatsResult<Self> {
         let n = times.len();
         let p = x.ncols();
 
         if n == 0 {
-            return Err(StatsError::InvalidArgument("times must not be empty".to_string()));
+            return Err(StatsError::InvalidArgument(
+                "times must not be empty".to_string(),
+            ));
         }
         if events.len() != n {
             return Err(StatsError::DimensionMismatch(format!(
                 "times length {} != events length {}",
-                n, events.len()
+                n,
+                events.len()
             )));
         }
         if x.nrows() != n {
             return Err(StatsError::DimensionMismatch(format!(
                 "x rows {} != times length {}",
-                x.nrows(), n
+                x.nrows(),
+                n
             )));
         }
         let n_cause_events = events.iter().filter(|&&e| e == cause).count();
@@ -670,7 +719,9 @@ impl FineGrayModel {
         // Sort by time
         let mut order: Vec<usize> = (0..n).collect();
         order.sort_by(|&a, &b| {
-            times[a].partial_cmp(&times[b]).unwrap_or(std::cmp::Ordering::Equal)
+            times[a]
+                .partial_cmp(&times[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
 
         let sorted_times: Vec<f64> = order.iter().map(|&i| times[i]).collect();
@@ -687,17 +738,23 @@ impl FineGrayModel {
         // (classical Fine-Gray ignores censoring correction in this simplified form)
         let weights: Vec<f64> = (0..n)
             .map(|i| {
-                if sorted_events[i] == cause { 1.0 } // event of interest
-                else if sorted_events[i] == 0 { 1.0 } // censored (handled via partial ll)
-                else { 1.0 } // competing: stays in risk set with weight 1
+                if sorted_events[i] == cause {
+                    1.0
+                }
+                // event of interest
+                else if sorted_events[i] == 0 {
+                    1.0
+                }
+                // censored (handled via partial ll)
+                else {
+                    1.0
+                } // competing: stays in risk set with weight 1
             })
             .collect();
 
         // Center covariates
         let x_mean: Vec<f64> = (0..p)
-            .map(|j| {
-                sorted_x.iter().map(|row| row[j]).sum::<f64>() / n as f64
-            })
+            .map(|j| sorted_x.iter().map(|row| row[j]).sum::<f64>() / n as f64)
             .collect();
         let xc: Vec<Vec<f64>> = sorted_x
             .iter()
@@ -713,12 +770,28 @@ impl FineGrayModel {
 
         for iter in 0..max_iter {
             let (_ll, grad, neg_hess) = fg_partial_ll_gradient_hessian(
-                &sorted_times, &sorted_events, &xc, &weights, &beta, cause, n, p,
+                &sorted_times,
+                &sorted_events,
+                &xc,
+                &weights,
+                &beta,
+                cause,
+                n,
+                p,
             );
 
             let delta = fg_solve_system(&neg_hess, &grad, p)?;
             let step = fg_backtrack(
-                &sorted_times, &sorted_events, &xc, &weights, &beta, &delta, cause, n, p, 20
+                &sorted_times,
+                &sorted_events,
+                &xc,
+                &weights,
+                &beta,
+                &delta,
+                cause,
+                n,
+                p,
+                20,
             );
             let max_d = delta.iter().map(|d| d.abs()).fold(0.0_f64, f64::max);
 
@@ -734,16 +807,20 @@ impl FineGrayModel {
         }
 
         let (ll_final, _, neg_hess_final) = fg_partial_ll_gradient_hessian(
-            &sorted_times, &sorted_events, &xc, &weights, &beta, cause, n, p,
+            &sorted_times,
+            &sorted_events,
+            &xc,
+            &weights,
+            &beta,
+            cause,
+            n,
+            p,
         );
 
         // Variance-covariance
-        let vcov = fg_invert(&neg_hess_final, p)
-            .unwrap_or_else(|_| vec![0.0; p * p]);
+        let vcov = fg_invert(&neg_hess_final, p).unwrap_or_else(|_| vec![0.0; p * p]);
 
-        let std_errors: Vec<f64> = (0..p)
-            .map(|j| vcov[j * p + j].max(0.0).sqrt())
-            .collect();
+        let std_errors: Vec<f64> = (0..p).map(|j| vcov[j * p + j].max(0.0).sqrt()).collect();
 
         let z_scores: Vec<f64> = (0..p)
             .map(|j| beta[j] / std_errors[j].max(1e-300))
@@ -761,9 +838,8 @@ impl FineGrayModel {
                 xb.exp()
             })
             .collect();
-        let baseline_hazard = fg_breslow_baseline(
-            &sorted_times, &sorted_events, &exp_xb, &weights, cause, n
-        );
+        let baseline_hazard =
+            fg_breslow_baseline(&sorted_times, &sorted_events, &exp_xb, &weights, cause, n);
 
         Ok(Self {
             cause,
@@ -849,7 +925,9 @@ fn fg_partial_ll_gradient_hessian(
         let mut j = i;
         let mut d_k = 0usize;
         while j < n && (sorted_times[j] - t_cur).abs() < 1e-14 {
-            if sorted_events[j] == cause { d_k += 1; }
+            if sorted_events[j] == cause {
+                d_k += 1;
+            }
             j += 1;
         }
 
@@ -903,16 +981,27 @@ fn fg_partial_ll_gradient_hessian(
 }
 
 fn fg_solve_system(hess: &[f64], grad: &[f64], p: usize) -> StatsResult<Vec<f64>> {
-    if p == 0 { return Ok(vec![]); }
+    if p == 0 {
+        return Ok(vec![]);
+    }
     let mut h = hess.to_vec();
-    let lambda = 1e-8 * hess.iter().map(|&v| v.abs()).fold(0.0_f64, f64::max).max(1e-6);
-    for j in 0..p { h[j * p + j] += lambda; }
+    let lambda = 1e-8
+        * hess
+            .iter()
+            .map(|&v| v.abs())
+            .fold(0.0_f64, f64::max)
+            .max(1e-6);
+    for j in 0..p {
+        h[j * p + j] += lambda;
+    }
 
     let mut l = vec![0.0_f64; p * p];
     for i in 0..p {
         for j in 0..=i {
             let mut s = h[i * p + j];
-            for k in 0..j { s -= l[i * p + k] * l[j * p + k]; }
+            for k in 0..j {
+                s -= l[i * p + k] * l[j * p + k];
+            }
             if i == j {
                 if s < 1e-300 {
                     let scale = h.iter().map(|&v| v.abs()).fold(0.0_f64, f64::max).max(1.0);
@@ -928,30 +1017,45 @@ fn fg_solve_system(hess: &[f64], grad: &[f64], p: usize) -> StatsResult<Vec<f64>
     let mut y = vec![0.0_f64; p];
     for i in 0..p {
         let mut s = grad[i];
-        for k in 0..i { s -= l[i * p + k] * y[k]; }
+        for k in 0..i {
+            s -= l[i * p + k] * y[k];
+        }
         y[i] = s / l[i * p + i];
     }
 
     let mut delta = vec![0.0_f64; p];
     for i in (0..p).rev() {
         let mut s = y[i];
-        for k in (i + 1)..p { s -= l[k * p + i] * delta[k]; }
+        for k in (i + 1)..p {
+            s -= l[k * p + i] * delta[k];
+        }
         delta[i] = s / l[i * p + i];
     }
     Ok(delta)
 }
 
 fn fg_invert(hess: &[f64], p: usize) -> StatsResult<Vec<f64>> {
-    if p == 0 { return Ok(vec![]); }
+    if p == 0 {
+        return Ok(vec![]);
+    }
     let mut h = hess.to_vec();
-    let lambda = 1e-8 * hess.iter().map(|&v| v.abs()).fold(0.0_f64, f64::max).max(1e-6);
-    for j in 0..p { h[j * p + j] += lambda; }
+    let lambda = 1e-8
+        * hess
+            .iter()
+            .map(|&v| v.abs())
+            .fold(0.0_f64, f64::max)
+            .max(1e-6);
+    for j in 0..p {
+        h[j * p + j] += lambda;
+    }
 
     let mut l = vec![0.0_f64; p * p];
     for i in 0..p {
         for j in 0..=i {
             let mut s = h[i * p + j];
-            for k in 0..j { s -= l[i * p + k] * l[j * p + k]; }
+            for k in 0..j {
+                s -= l[i * p + k] * l[j * p + k];
+            }
             if i == j {
                 if s < 1e-300 {
                     return Err(StatsError::ComputationError("Singular Hessian".to_string()));
@@ -967,7 +1071,9 @@ fn fg_invert(hess: &[f64], p: usize) -> StatsResult<Vec<f64>> {
     for k in 0..p {
         for i in 0..p {
             let mut s = if i == k { 1.0 } else { 0.0 };
-            for j in 0..i { s -= l[i * p + j] * l_inv[j * p + k]; }
+            for j in 0..i {
+                s -= l[i * p + j] * l_inv[j * p + k];
+            }
             l_inv[i * p + k] = s / l[i * p + i];
         }
     }
@@ -993,15 +1099,21 @@ fn fg_backtrack(
     p: usize,
     max_halve: usize,
 ) -> f64 {
-    let (ll_cur, _, _) = fg_partial_ll_gradient_hessian(
-        sorted_times, sorted_events, xc, weights, beta, cause, n, p
-    );
+    let (ll_cur, _, _) =
+        fg_partial_ll_gradient_hessian(sorted_times, sorted_events, xc, weights, beta, cause, n, p);
     let c = 1e-4;
     let mut step = 1.0_f64;
     for _ in 0..max_halve {
         let beta_new: Vec<f64> = (0..p).map(|j| beta[j] + step * delta[j]).collect();
         let (ll_new, _, _) = fg_partial_ll_gradient_hessian(
-            sorted_times, sorted_events, xc, weights, &beta_new, cause, n, p
+            sorted_times,
+            sorted_events,
+            xc,
+            weights,
+            &beta_new,
+            cause,
+            n,
+            p,
         );
         if ll_new > ll_cur - c * step * delta.iter().map(|d| d.abs()).sum::<f64>() {
             return step;
@@ -1028,7 +1140,9 @@ fn fg_breslow_baseline(
         let mut d_k = 0usize;
         let mut end = pos;
         while end < n && (sorted_times[end] - t_cur).abs() < 1e-14 {
-            if sorted_events[end] == cause { d_k += 1; }
+            if sorted_events[end] == cause {
+                d_k += 1;
+            }
             end += 1;
         }
         if d_k > 0 {
@@ -1161,7 +1275,10 @@ mod tests {
         let results = gray_test(&t, &e, &t, &e).expect("Gray test failed");
         for &(_, stat, pval) in &results {
             // Identical groups: statistic should be 0 or very small
-            assert!(stat.abs() < 1e-10, "stat should be ~0 for identical groups, got {stat}");
+            assert!(
+                stat.abs() < 1e-10,
+                "stat should be ~0 for identical groups, got {stat}"
+            );
             assert!(pval > 0.5, "p-value should be large, got {pval}");
         }
     }
@@ -1171,7 +1288,9 @@ mod tests {
         let times = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let events = vec![1u8, 2, 1, 0, 1, 2, 0, 1];
         let mut cov = Array2::zeros((8, 1));
-        for i in 0..8_usize { cov[[i, 0]] = i as f64; }
+        for i in 0..8_usize {
+            cov[[i, 0]] = i as f64;
+        }
         let model = FineGrayModel::fit(&times, &events, &cov, 1).expect("Fine-Gray fit failed");
         assert_eq!(model.coefficients.len(), 1);
         assert!(model.log_likelihood.is_finite());
@@ -1182,7 +1301,9 @@ mod tests {
         let times = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let events = vec![1u8, 2, 1, 0, 1, 2, 0, 1];
         let mut cov = Array2::zeros((8, 1));
-        for i in 0..8_usize { cov[[i, 0]] = i as f64; }
+        for i in 0..8_usize {
+            cov[[i, 0]] = i as f64;
+        }
         let model = FineGrayModel::fit(&times, &events, &cov, 1).expect("Fine-Gray fit");
         let cif = model.predict_cif(&cov, 5.0);
         for &c in cif.iter() {

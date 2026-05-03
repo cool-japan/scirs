@@ -123,8 +123,7 @@ impl GraphColoring {
                     saturation[a]
                         .cmp(&saturation[b])
                         .then(self.degree(a).cmp(&self.degree(b)))
-                })
-            {
+                }) {
                 Some(vertex) => vertex,
                 None => break, // all vertices colored (should not occur given loop condition)
             };
@@ -163,7 +162,7 @@ impl GraphColoring {
         }
 
         let mut color = vec![k; self.n]; // k = uncolored sentinel
-        // Order by degree descending (Welsh-Powell ordering)
+                                         // Order by degree descending (Welsh-Powell ordering)
         let mut order: Vec<usize> = (0..self.n).collect();
         order.sort_by(|&a, &b| self.degree(b).cmp(&self.degree(a)));
         let pos_of: Vec<usize> = {
@@ -259,7 +258,12 @@ impl GraphColoring {
 
         // Upper bound from DSATUR
         let upper_coloring = self.dsatur_coloring();
-        let upper = upper_coloring.iter().cloned().max().map(|m| m + 1).unwrap_or(1);
+        let upper = upper_coloring
+            .iter()
+            .cloned()
+            .max()
+            .map(|m| m + 1)
+            .unwrap_or(1);
 
         if lower >= upper {
             return lower;
@@ -336,7 +340,12 @@ mod tests {
         let c = g.dsatur_coloring();
         assert!(g.is_valid_coloring(&c));
         // K5 needs 5 colors
-        let num_colors = c.iter().cloned().max().expect("failed to create num_colors") + 1;
+        let num_colors = c
+            .iter()
+            .cloned()
+            .max()
+            .expect("failed to create num_colors")
+            + 1;
         assert_eq!(num_colors, 5);
     }
 

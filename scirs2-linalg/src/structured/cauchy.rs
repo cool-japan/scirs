@@ -140,7 +140,11 @@ where
 /// # Returns
 ///
 /// Solution vector x_sol such that C * x_sol ≈ b
-pub fn solve_cauchy<F>(x: &ArrayView1<F>, y: &ArrayView1<F>, b: &ArrayView1<F>) -> LinalgResult<Array1<F>>
+pub fn solve_cauchy<F>(
+    x: &ArrayView1<F>,
+    y: &ArrayView1<F>,
+    b: &ArrayView1<F>,
+) -> LinalgResult<Array1<F>>
 where
     F: Float + NumAssign + Zero + Sum + One + Send + Sync + Debug,
 {

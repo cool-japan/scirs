@@ -431,7 +431,8 @@ where
                     }
                 }
             }
-            let xk = x[k]; x[k + i] -= factor * xk;
+            let xk = x[k];
+            x[k + i] -= factor * xk;
             ab_work[[ku + i, k]] = F::zero();
         }
     }
@@ -446,7 +447,8 @@ where
         }
         let upper_end = (ku + 1).min(n - k);
         for j in 1..upper_end {
-            let xkj = x[k + j]; x[k] -= ab_work[[ku - j, k + j]] * xkj;
+            let xkj = x[k + j];
+            x[k] -= ab_work[[ku - j, k + j]] * xkj;
         }
         x[k] /= pivot;
     }
@@ -487,11 +489,11 @@ where
 /// let x = solve_triangular(&l.view(), &b.view(), true, false).expect("forward sub");
 /// assert!((x[0] - 3.0).abs() < 1e-10 && (x[1] - 1.0).abs() < 1e-10);
 ///
-/// // Upper triangular [[2,1],[0,3]] * [x0,x1]ᵀ = [5,6] → [1, 2]
+/// // Upper triangular [[2,1],[0,3]] * [x0,x1]ᵀ = [5,6] → [1.5, 2]
 /// let u = array![[2.0_f64, 1.0], [0.0, 3.0]];
 /// let b2 = array![5.0_f64, 6.0];
 /// let x2 = solve_triangular(&u.view(), &b2.view(), false, false).expect("back sub");
-/// assert!((x2[0] - 1.0).abs() < 1e-10 && (x2[1] - 2.0).abs() < 1e-10);
+/// assert!((x2[0] - 1.5).abs() < 1e-10 && (x2[1] - 2.0).abs() < 1e-10);
 /// ```
 pub fn solve_triangular<F>(
     t: &ArrayView2<F>,
@@ -672,9 +674,9 @@ mod tests {
     #[test]
     fn test_tridiagonal_simple() {
         let lower = array![0.0_f64, -1.0, -1.0];
-        let diag  = array![2.0_f64,  2.0,  2.0];
+        let diag = array![2.0_f64, 2.0, 2.0];
         let upper = array![-1.0_f64, -1.0, 0.0];
-        let b     = array![1.0_f64,  0.0,  1.0];
+        let b = array![1.0_f64, 0.0, 1.0];
         let x = solve_tridiagonal(&lower.view(), &diag.view(), &upper.view(), &b.view())
             .expect("tridiagonal simple");
         // Verify residual
@@ -688,9 +690,9 @@ mod tests {
     fn test_tridiagonal_diagonal_system() {
         // Pure diagonal: lower = upper = 0
         let lower = array![0.0_f64, 0.0, 0.0];
-        let diag  = array![2.0_f64, 4.0, 8.0];
+        let diag = array![2.0_f64, 4.0, 8.0];
         let upper = array![0.0_f64, 0.0, 0.0];
-        let b     = array![6.0_f64, 12.0, 24.0];
+        let b = array![6.0_f64, 12.0, 24.0];
         let x = solve_tridiagonal(&lower.view(), &diag.view(), &upper.view(), &b.view())
             .expect("tridiagonal diagonal");
         assert!((x[0] - 3.0).abs() < 1e-10);
@@ -701,9 +703,9 @@ mod tests {
     #[test]
     fn test_tridiagonal_singular_error() {
         let lower = array![0.0_f64, 1.0];
-        let diag  = array![0.0_f64, 2.0]; // zero diagonal at 0
+        let diag = array![0.0_f64, 2.0]; // zero diagonal at 0
         let upper = array![1.0_f64, 0.0];
-        let b     = array![1.0_f64, 1.0];
+        let b = array![1.0_f64, 1.0];
         assert!(solve_tridiagonal(&lower.view(), &diag.view(), &upper.view(), &b.view()).is_err());
     }
 
@@ -716,10 +718,11 @@ mod tests {
             (3, 3),
             vec![
                 0.0_f64, -1.0, -1.0, // upper diagonal (ku=1)
-                2.0,  2.0,  2.0,     // main diagonal
-               -1.0, -1.0,  0.0,     // lower diagonal (kl=1)
+                2.0, 2.0, 2.0, // main diagonal
+                -1.0, -1.0, 0.0, // lower diagonal (kl=1)
             ],
-        ).expect("shape");
+        )
+        .expect("shape");
         let b = array![1.0_f64, 0.0, 1.0];
         let x = solve_banded(1, 1, &ab.view(), &b.view()).expect("banded tridiagonal");
         // Residuals
@@ -812,11 +815,7 @@ mod tests {
     fn test_triangular_3x3_lower() {
         // L = [[1,0,0],[2,3,0],[4,5,6]], b = [1,8,32]
         // x0=1, x1=(8-2)/3=2, x2=(32-4-10)/6=3
-        let l = array![
-            [1.0_f64, 0.0, 0.0],
-            [2.0,     3.0, 0.0],
-            [4.0,     5.0, 6.0],
-        ];
+        let l = array![[1.0_f64, 0.0, 0.0], [2.0, 3.0, 0.0], [4.0, 5.0, 6.0],];
         let b = array![1.0_f64, 8.0, 32.0];
         let x = solve_triangular(&l.view(), &b.view(), true, false).expect("3x3 lower");
         assert!((x[0] - 1.0).abs() < 1e-10);
@@ -828,11 +827,7 @@ mod tests {
     fn test_triangular_3x3_upper() {
         // U = [[6,5,4],[0,3,2],[0,0,1]], b = [32,8,1]
         // x2=1, x1=(8-2)/3=2, x0=(32-10-4)/6=3
-        let u = array![
-            [6.0_f64, 5.0, 4.0],
-            [0.0,     3.0, 2.0],
-            [0.0,     0.0, 1.0],
-        ];
+        let u = array![[6.0_f64, 5.0, 4.0], [0.0, 3.0, 2.0], [0.0, 0.0, 1.0],];
         let b = array![32.0_f64, 8.0, 1.0];
         let x = solve_triangular(&u.view(), &b.view(), false, false).expect("3x3 upper");
         assert!((x[2] - 1.0).abs() < 1e-10);

@@ -155,11 +155,7 @@ impl DependencyRelationExtractor {
                                 continue;
                             }
                         }
-                        triples.push((
-                            subj.to_string(),
-                            pattern.label.clone(),
-                            obj.to_string(),
-                        ));
+                        triples.push((subj.to_string(), pattern.label.clone(), obj.to_string()));
                     }
                 }
             }
@@ -210,7 +206,12 @@ impl CorefResolver {
     }
 
     /// Register a noun phrase as a potential antecedent.
-    pub fn register(&mut self, noun_phrase: impl Into<String>, is_plural: bool, gender: PronounGender) {
+    pub fn register(
+        &mut self,
+        noun_phrase: impl Into<String>,
+        is_plural: bool,
+        gender: PronounGender,
+    ) {
         if self.history.len() >= self.window {
             self.history.remove(0);
         }
@@ -245,9 +246,7 @@ fn pronoun_attributes(pronoun: &str) -> Option<(bool, PronounGender)> {
         "he" | "him" | "his" | "himself" => Some((false, PronounGender::Masculine)),
         "she" | "her" | "hers" | "herself" => Some((false, PronounGender::Feminine)),
         "it" | "its" | "itself" => Some((false, PronounGender::Neutral)),
-        "they" | "them" | "their" | "theirs" | "themselves" => {
-            Some((true, PronounGender::Plural))
-        }
+        "they" | "them" | "their" | "theirs" | "themselves" => Some((true, PronounGender::Plural)),
         "we" | "us" | "our" | "ours" | "ourselves" => Some((true, PronounGender::Plural)),
         _ => None,
     }
@@ -291,7 +290,9 @@ mod tests {
             relation: "obj".to_string(),
             dependent: "race".to_string(),
         }];
-        let triples = extractor.extract("runs race", &tree).expect("extract failed");
+        let triples = extractor
+            .extract("runs race", &tree)
+            .expect("extract failed");
         assert!(triples.is_empty());
     }
 
@@ -325,7 +326,9 @@ mod tests {
                 dependent: "Mary".to_string(),
             },
         ];
-        let triples2 = extractor.extract("John hates Mary", &tree2).expect("extract failed");
+        let triples2 = extractor
+            .extract("John hates Mary", &tree2)
+            .expect("extract failed");
         assert!(triples2.is_empty());
     }
 
@@ -363,7 +366,11 @@ mod tests {
         resolver.register("Middle Person", false, PronounGender::Unknown);
         resolver.register("New Person", false, PronounGender::Unknown);
         // "Old Guy" should have been evicted (window=2)
-        let names: Vec<&str> = resolver.history.iter().map(|(n, _, _)| n.as_str()).collect();
+        let names: Vec<&str> = resolver
+            .history
+            .iter()
+            .map(|(n, _, _)| n.as_str())
+            .collect();
         assert!(!names.contains(&"Old Guy"));
     }
 }

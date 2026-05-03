@@ -33,14 +33,22 @@ pub struct LpInteriorPoint {
 
 impl Default for LpInteriorPoint {
     fn default() -> Self {
-        Self { max_iter: 100, tol: 1e-8, mu_factor: 0.1 }
+        Self {
+            max_iter: 100,
+            tol: 1e-8,
+            mu_factor: 0.1,
+        }
     }
 }
 
 impl LpInteriorPoint {
     /// Create a new LP solver with the given iteration limit and tolerance.
     pub fn new(max_iter: usize, tol: f64) -> Self {
-        Self { max_iter, tol, ..Default::default() }
+        Self {
+            max_iter,
+            tol,
+            ..Default::default()
+        }
     }
 }
 
@@ -72,14 +80,7 @@ impl LpInteriorPoint {
     /// * `b` – Right-hand side (length m).
     /// * `n` – Number of primal variables.
     /// * `m` – Number of equality constraints.
-    pub fn solve(
-        &self,
-        c: &[f64],
-        a: &[Vec<f64>],
-        b: &[f64],
-        n: usize,
-        m: usize,
-    ) -> LpResult {
+    pub fn solve(&self, c: &[f64], a: &[Vec<f64>], b: &[f64], n: usize, m: usize) -> LpResult {
         // ── Initialisation ────────────────────────────────────────────────
         // Trivial feasible starting point: x = 1, y = 0, s = 1
         let mut x = vec![1.0f64; n];
@@ -109,28 +110,46 @@ impl LpInteriorPoint {
             }
 
             // ── Affine-scaling (predictor) step ───────────────────────────
-            let (dx_aff, dy_aff, ds_aff) =
-                match solve_kkt_lp(a, &x, &s, &r_b, &r_c, n, m, 0.0, 0.0) {
-                    Ok(d) => d,
-                    Err(_) => break,
-                };
+            let (dx_aff, dy_aff, ds_aff) = match solve_kkt_lp(a, &x, &s, &r_b, &r_c, n, m, 0.0, 0.0)
+            {
+                Ok(d) => d,
+                Err(_) => break,
+            };
 
             // Step-length for predictor
             let alpha_aff = step_length(&x, &dx_aff, &s, &ds_aff, 1.0);
 
             // ── Centering parameter ───────────────────────────────────────
             let mu_aff = {
-                let xa: Vec<f64> = x.iter().zip(&dx_aff).map(|(&xi, &di)| xi + alpha_aff * di).collect();
-                let sa: Vec<f64> = s.iter().zip(&ds_aff).map(|(&si, &di)| si + alpha_aff * di).collect();
+                let xa: Vec<f64> = x
+                    .iter()
+                    .zip(&dx_aff)
+                    .map(|(&xi, &di)| xi + alpha_aff * di)
+                    .collect();
+                let sa: Vec<f64> = s
+                    .iter()
+                    .zip(&ds_aff)
+                    .map(|(&si, &di)| si + alpha_aff * di)
+                    .collect();
                 dot(&xa, &sa) / n as f64
             };
-            let sigma = if mu > 1e-14 { (mu_aff / mu).powi(3) } else { self.mu_factor };
+            let sigma = if mu > 1e-14 {
+                (mu_aff / mu).powi(3)
+            } else {
+                self.mu_factor
+            };
             let sigma = sigma.clamp(self.mu_factor * 0.01, 1.0 - 1e-10);
 
             // ── Corrector step ────────────────────────────────────────────
             let (dx, dy, ds) = match solve_kkt_lp(
-                a, &x, &s, &r_b, &r_c, n, m,
-                sigma * mu,      // centering rhs
+                a,
+                &x,
+                &s,
+                &r_b,
+                &r_c,
+                n,
+                m,
+                sigma * mu, // centering rhs
                 // Mehrotra correction: include ΔxaffΔsaff cross term
                 {
                     // We borrow dx_aff / ds_aff values inline below
@@ -168,7 +187,15 @@ impl LpInteriorPoint {
         let objective = dot(c, &x);
         let mu_final = dot(&x, &s) / n as f64;
 
-        LpResult { x, y, s, objective, n_iter, converged, gap: mu_final }
+        LpResult {
+            x,
+            y,
+            s,
+            objective,
+            n_iter,
+            converged,
+            gap: mu_final,
+        }
     }
 }
 
@@ -187,7 +214,10 @@ pub struct QpInteriorPoint {
 
 impl Default for QpInteriorPoint {
     fn default() -> Self {
-        Self { max_iter: 100, tol: 1e-8 }
+        Self {
+            max_iter: 100,
+            tol: 1e-8,
+        }
     }
 }
 
@@ -330,9 +360,17 @@ impl QpInteriorPoint {
         }
 
         let objective = qp_objective(h, c, &x, n);
-        let dual_gap = dot(&s, &z) / m.max(1) as f64;
+        // sᵀz ≥ 0 by interior-point invariants; clamp to avoid tiny floating-point
+        // negatives from rounding near the boundary of the non-negative orthant.
+        let dual_gap = (dot(&s, &z) / m.max(1) as f64).max(0.0);
 
-        QpResult { x, objective, n_iter, converged, dual_gap }
+        QpResult {
+            x,
+            objective,
+            n_iter,
+            converged,
+            dual_gap,
+        }
     }
 }
 
@@ -359,7 +397,11 @@ fn residual_dual(a: &[Vec<f64>], y: &[f64], s: &[f64], c: &[f64], n: usize) -> V
     // Aᵀy + s - c
     (0..n)
         .map(|j| {
-            let at_y: f64 = a.iter().zip(y).map(|(row, &yi)| yi * row.get(j).copied().unwrap_or(0.0)).sum();
+            let at_y: f64 = a
+                .iter()
+                .zip(y)
+                .map(|(row, &yi)| yi * row.get(j).copied().unwrap_or(0.0))
+                .sum();
             at_y + s[j] - c[j]
         })
         .collect()
@@ -400,7 +442,11 @@ fn solve_kkt_lp(
     //   where X = diag(x), S = diag(s)
     //
     // Theta = X S⁻¹ (element-wise x/s)
-    let theta: Vec<f64> = x.iter().zip(s).map(|(&xi, &si)| xi / si.max(1e-14)).collect();
+    let theta: Vec<f64> = x
+        .iter()
+        .zip(s)
+        .map(|(&xi, &si)| xi / si.max(1e-14))
+        .collect();
 
     // A Θ Aᵀ  (m × m)
     let mut ata_theta = vec![vec![0.0f64; m]; m];
@@ -411,38 +457,62 @@ fn solve_kkt_lp(
         ata_theta[i][i] += 1e-8; // regularisation
     }
 
-    // rhs_y = -r_b + A Θ (-r_c) + A X S⁻¹ σμ e
+    // Condensed normal equations derivation (Nocedal & Wright §14.2, Mehrotra 1992):
+    //
+    // KKT Newton system with centering parameter σμ:
+    //   Aᵀ Δy + Δs = -r_c             (dual row)
+    //   A  Δx      = -r_b             (primal row)
+    //   S  Δx + X Δs = σμe - XSe     (complementarity, S=diag(s), X=diag(x))
+    //
+    // Let Θ = diag(x/s).
+    //
+    // From comp row: Δs_k = (σμ - x_k s_k - s_k Δx_k) / x_k
+    //              = σμ/x_k - s_k - (s_k/x_k) Δx_k
+    //
+    // Substitute into dual row (element k):
+    //   (Aᵀ Δy)_k + σμ/x_k - s_k - (s_k/x_k) Δx_k = -r_c_k
+    //   Multiply by x_k/s_k = θ_k:
+    //   θ_k (Aᵀ Δy)_k + σμ/s_k - x_k - Δx_k = -θ_k r_c_k
+    //
+    // Therefore: Δx_k = θ_k (Aᵀ Δy)_k + θ_k r_c_k + σμ/s_k - x_k
+    //
+    // Substitute into primal row A Δx = -r_b:
+    //   A [Θ Aᵀ Δy + Θ r_c + σμ/s - x] = -r_b
+    //   (A Θ Aᵀ) Δy = -r_b - A Θ r_c - A(σμ/s)e + Ax
+    //
+    // Since r_b = Ax - b we have Ax = r_b + b, so rhs_y = b - AΘr_c - A(σμ/s)e.
+    // Equivalently: rhs_y = (Ax - r_b) - AΘr_c - A(σμ/s)e = Ax - r_b - AΘr_c - A(σμ/s)e.
+
+    // Pre-compute Ax_i = Σ_k a[i][k]*x[k]
+    let ax: Vec<f64> = (0..m)
+        .map(|i| a[i].iter().zip(x).map(|(&aij, &xj)| aij * xj).sum())
+        .collect();
+
     let rhs_y: Vec<f64> = (0..m)
         .map(|i| {
-            let atr_c: f64 = (0..n).map(|k| a[i][k] * theta[k] * (-r_c[k])).sum();
-            let center: f64 = (0..n).map(|k| a[i][k] * x[k] / s[k].max(1e-14) * sigma_mu).sum();
-            -r_b[i] + atr_c + center
+            let a_theta_rc: f64 = (0..n).map(|k| a[i][k] * theta[k] * r_c[k]).sum();
+            let a_s_inv_smu: f64 = (0..n).map(|k| a[i][k] / s[k].max(1e-14) * sigma_mu).sum();
+            // rhs_y = Ax - r_b - AΘr_c - A(σμ/s)e  (= b - AΘr_c - A(σμ/s)e)
+            ax[i] - r_b[i] - a_theta_rc - a_s_inv_smu
         })
         .collect();
 
     let dy = gaussian_eliminate_sq(&ata_theta, &rhs_y)?;
 
-    // dx = Θ (Aᵀ dy + r_c) - X S⁻¹ σμ e  -- wait, standard form:
-    // dx = -Θ r_c + Θ Aᵀ dy
+    // Δx_k = θ_k (Aᵀ Δy)_k + θ_k r_c_k + σμ/s_k - x_k
     let dx: Vec<f64> = (0..n)
         .map(|k| {
             let at_dy: f64 = (0..m).map(|i| a[i][k] * dy[i]).sum();
-            theta[k] * (at_dy - r_c[k]) + x[k] / s[k].max(1e-14) * sigma_mu
+            theta[k] * at_dy + theta[k] * r_c[k] + sigma_mu / s[k].max(1e-14) - x[k]
         })
         .collect();
 
-    // ds = -r_c - Aᵀ dy = -(S⁻¹ X dx + s) actually standard:
-    // Complementarity: X ds + S dx = σμe  → ds = S⁻¹(σμe - S dx) but also
-    // Dual: Aᵀ dy + ds = r_c  → ds = r_c - Aᵀ dy
+    // Δs_k = σμ/x_k - s_k - (s_k/x_k) Δx_k  (from complementarity)
     let ds: Vec<f64> = (0..n)
         .map(|k| {
-            let at_dy: f64 = (0..m).map(|i| a[i][k] * dy[i]).sum();
-            -r_c[k] - at_dy + at_dy - at_dy + (sigma_mu - s[k] * dx[k]) / x[k].max(1e-14)
+            let xk = x[k].max(1e-14);
+            sigma_mu / xk - s[k] - (s[k] / xk) * dx[k]
         })
-        .collect();
-    // Simpler: ds from complementarity
-    let ds: Vec<f64> = (0..n)
-        .map(|k| (sigma_mu - s[k] * dx[k]) / x[k].max(1e-14))
         .collect();
 
     Ok((dx, dy, ds))
@@ -459,7 +529,11 @@ fn qp_stationarity_residual(
     (0..n)
         .map(|j| {
             let hx_j: f64 = h[j].iter().zip(x).map(|(&hij, &xk)| hij * xk).sum();
-            let at_z_j: f64 = a.iter().zip(z).map(|(row, &zi)| zi * row.get(j).copied().unwrap_or(0.0)).sum();
+            let at_z_j: f64 = a
+                .iter()
+                .zip(z)
+                .map(|(row, &zi)| zi * row.get(j).copied().unwrap_or(0.0))
+                .sum();
             hx_j + c[j] - at_z_j
         })
         .collect()
@@ -517,7 +591,9 @@ fn qp_rhs_x(
 }
 
 fn qp_objective(h: &[Vec<f64>], c: &[f64], x: &[f64], n: usize) -> f64 {
-    let hx: Vec<f64> = (0..n).map(|i| h[i].iter().zip(x).map(|(&hij, &xj)| hij * xj).sum()).collect();
+    let hx: Vec<f64> = (0..n)
+        .map(|i| h[i].iter().zip(x).map(|(&hij, &xj)| hij * xj).sum())
+        .collect();
     0.5 * dot(x, &hx) + dot(c, x)
 }
 
@@ -528,8 +604,12 @@ fn gaussian_eliminate_sq(mat: &[Vec<f64>], rhs: &[f64]) -> Result<Vec<f64>, Opti
 
     for col in 0..n {
         let pivot_row = (col..n)
-            .max_by(|&r1, &r2| a[r1][col].abs().partial_cmp(&a[r2][col].abs())
-                .unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|&r1, &r2| {
+                a[r1][col]
+                    .abs()
+                    .partial_cmp(&a[r2][col].abs())
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .unwrap_or(col);
 
         a.swap(col, pivot_row);
@@ -558,7 +638,11 @@ fn gaussian_eliminate_sq(mat: &[Vec<f64>], rhs: &[f64]) -> Result<Vec<f64>, Opti
         for j in (i + 1)..n {
             s -= a[i][j] * x[j];
         }
-        x[i] = if a[i][i].abs() > 1e-14 { s / a[i][i] } else { 0.0 };
+        x[i] = if a[i][i].abs() > 1e-14 {
+            s / a[i][i]
+        } else {
+            0.0
+        };
     }
     Ok(x)
 }
@@ -583,7 +667,11 @@ mod tests {
         let a = vec![vec![1.0, 1.0]];
         let b = vec![1.0];
         let res = solver.solve(&c, &a, &b, 2, 1);
-        assert!(res.converged || res.gap < 1e-4, "LP should converge, gap={}", res.gap);
+        assert!(
+            res.converged || res.gap < 1e-4,
+            "LP should converge, gap={}",
+            res.gap
+        );
         assert_abs_diff_eq!(res.objective, -1.0, epsilon = 1e-3);
         // Constraint satisfied
         let ax = a[0][0] * res.x[0] + a[0][1] * res.x[1];
@@ -649,7 +737,11 @@ mod tests {
         let b = vec![1.0];
         let res = solver.solve(&h, &c, &a, &b, 2, 1);
         assert!(res.n_iter >= 1);
-        assert!(res.objective >= -1e-6, "objective should be ≥ 0, got {}", res.objective);
+        assert!(
+            res.objective >= -1e-6,
+            "objective should be ≥ 0, got {}",
+            res.objective
+        );
     }
 
     #[test]

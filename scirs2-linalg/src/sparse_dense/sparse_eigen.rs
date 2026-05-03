@@ -6,14 +6,16 @@
 
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::numeric::Complex;
-use scirs2_core::numeric::{Float, NumAssign, Zero, One};
+use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use scirs2_core::random as rand;
+use scirs2_core::RngExt;
 use std::fmt::Debug;
-use std::ops::{Add, Sub, Mul};
+use std::iter::Sum;
+use std::ops::{Add, Mul, Sub};
 
+use super::{sparse_dense_matvec, SparseMatrixView};
 use crate::error::{LinalgError, LinalgResult};
 use crate::norm::vector_norm;
-use super::{SparseMatrixView, sparse_dense_matvec};
 
 /// Result type for sparse eigenvalue computations
 type SparseEigenResult<T> = LinalgResult<(Array1<Complex<T>>, Array2<Complex<T>>)>;
@@ -41,7 +43,18 @@ pub fn sparse_arnoldi_eigen<T>(
     tolerance: T,
 ) -> SparseEigenResult<T>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + scirs2_core::ndarray::ScalarOperand,
+    T: Float
+        + NumAssign
+        + Clone
+        + Copy
+        + Debug
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + scirs2_core::ndarray::ScalarOperand
+        + Sum
+        + Send
+        + Sync,
 {
     let n = matrix.nrows();
     if matrix.ncols() != n {
@@ -58,30 +71,30 @@ where
     }
 
     let krylov_dim = std::cmp::min(max_iter, n.saturating_sub(1));
-    
+
     // Initialize Krylov subspace basis
     let mut v = Array2::zeros((n, krylov_dim + 1));
     let mut h = Array2::zeros((krylov_dim + 1, krylov_dim));
-    
+
     // Start with random initial vector
     let mut rng = scirs2_core::random::rng();
     for i in 0..n {
         v[[i, 0]] = T::from(rng.random_range(-0.5..0.5)).expect("Operation failed");
     }
-    
+
     // Normalize initial vector
     let norm = vector_norm(&v.column(0), 2)?;
     for i in 0..n {
         v[[i, 0]] /= norm;
     }
-    
+
     let mut j = 0;
-    
+
     // Arnoldi process
     while j < krylov_dim {
         // Apply matrix to current basis vector
         let w = sparse_dense_matvec(matrix, &v.column(j))?;
-        
+
         // Orthogonalize against previous basis vectors (Modified Gram-Schmidt)
         for i in 0..=j {
             let mut hij = T::zero();
@@ -89,63 +102,63 @@ where
                 hij += w[l] * v[[l, i]];
             }
             h[[i, j]] = hij;
-            
+
             // w = w - h[i,j] * v[:, i]
             for l in 0..n {
                 v[[l, j + 1]] = w[l] - h[[i, j]] * v[[l, i]];
             }
         }
-        
+
         // Compute norm of new vector
         let norm = vector_norm(&v.column(j + 1), 2)?;
         h[[j + 1, j]] = norm;
-        
+
         // Check for breakdown
         if norm < tolerance {
             break;
         }
-        
+
         // Normalize new basis vector
         for i in 0..n {
             v[[i, j + 1]] /= norm;
         }
-        
+
         j += 1;
-        
+
         // Check convergence every few iterations
-        if j >= k && j % 5 == 0 {
-            if check_arnoldi_convergence(&h, j, tolerance) {
-                break;
-            }
+        if j >= k && j % 5 == 0 && check_arnoldi_convergence(&h, j, tolerance) {
+            break;
         }
     }
-    
+
     let krylovsize = j;
-    
+
     // Extract Hessenberg matrix for eigenvalue computation
-    let h_active = h.slice(scirs2_core::ndarray::s![0..krylovsize, 0..krylovsize]).to_owned();
-    
+    let h_active = h
+        .slice(scirs2_core::ndarray::s![0..krylovsize, 0..krylovsize])
+        .to_owned();
+
     // Compute eigenvalues of the Hessenberg matrix
     let (h_eigenvals, h_eigenvecs) = compute_hessenberg_eigenvalues(&h_active)?;
-    
+
     // Select k largest eigenvalues by magnitude
     let mut eigen_pairs: Vec<(T, usize)> = h_eigenvals
         .iter()
         .enumerate()
         .map(|(i, &val)| (val.norm(), i))
         .collect();
-    
+
     eigen_pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-    
+
     let selected_k = std::cmp::min(k, eigen_pairs.len());
-    
+
     // Construct final eigenvalues and eigenvectors
     let mut eigenvalues = Array1::zeros(selected_k);
     let mut eigenvectors = Array2::zeros((n, selected_k));
-    
+
     for (i, &(_, idx)) in eigen_pairs.iter().take(selected_k).enumerate() {
         eigenvalues[i] = h_eigenvals[idx];
-        
+
         // Reconstruct eigenvector: eigenvector = V * h_eigenvector
         for j in 0..n {
             let mut sum = Complex::new(T::zero(), T::zero());
@@ -155,7 +168,7 @@ where
             eigenvectors[[j, i]] = sum;
         }
     }
-    
+
     Ok((eigenvalues, eigenvectors))
 }
 
@@ -184,7 +197,18 @@ pub fn sparse_lanczos_eigen<T>(
     tolerance: T,
 ) -> LinalgResult<(Array1<T>, Array2<T>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + scirs2_core::ndarray::ScalarOperand,
+    T: Float
+        + NumAssign
+        + Clone
+        + Copy
+        + Debug
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + scirs2_core::ndarray::ScalarOperand
+        + Sum
+        + Send
+        + Sync,
 {
     let n = matrix.nrows();
     if matrix.ncols() != n {
@@ -201,71 +225,69 @@ where
     }
 
     let lanczos_dim = std::cmp::min(max_iter, n);
-    
+
     // Lanczos vectors
     let mut v = Array2::zeros((n, lanczos_dim + 1));
     let mut alpha = Array1::zeros(lanczos_dim);
     let mut beta = Array1::zeros(lanczos_dim + 1);
-    
+
     // Start with random initial vector
     let mut rng = scirs2_core::random::rng();
     for i in 0..n {
         v[[i, 0]] = T::from(rng.random_range(-0.5..0.5)).expect("Operation failed");
     }
-    
+
     // Normalize initial vector
     let norm = vector_norm(&v.column(0), 2)?;
     for i in 0..n {
         v[[i, 0]] /= norm;
     }
-    
+
     let mut j = 0;
     beta[0] = T::zero();
-    
+
     // Lanczos process
     while j < lanczos_dim {
         // Apply matrix to current vector
         let w = sparse_dense_matvec(matrix, &v.column(j))?;
-        
+
         // Compute alpha[j] = v[j]^T * A * v[j]
         alpha[j] = T::zero();
         for i in 0..n {
             alpha[j] += v[[i, j]] * w[i];
         }
-        
+
         // w = w - alpha[j] * v[j] - beta[j] * v[j-1]
         for i in 0..n {
-            v[[i, j + 1]] = w[i] - alpha[j] * v[[i, j]];
-            if j > 0 {
-                v[[i, j + 1]] -= beta[j] * v[[i, j - 1]];
-            }
+            let prev_val = if j > 0 { v[[i, j - 1]] } else { T::zero() };
+            let curr_val = v[[i, j]];
+            v[[i, j + 1]] = w[i] - alpha[j] * curr_val - beta[j] * prev_val;
         }
-        
+
         // Compute beta[j+1] and normalize
         beta[j + 1] = vector_norm(&v.column(j + 1), 2)?;
-        
-        // Check for breakdown
-        if beta[j + 1] < tolerance {
+
+        // Increment j to include the current step in the tridiagonal
+        j += 1;
+
+        // Check for breakdown (after incrementing so step j is included)
+        if beta[j] < tolerance {
             break;
         }
-        
-        // Normalize
+
+        // Normalize next vector
         for i in 0..n {
-            v[[i, j + 1]] /= beta[j + 1];
+            v[[i, j]] /= beta[j];
         }
-        
-        j += 1;
-        
+
         // Check convergence every few iterations
-        if j >= k && j % 3 == 0 {
-            if check_lanczos_convergence(&alpha, &beta, j, tolerance) {
-                break;
-            }
+        if j >= k && j % 3 == 0 && check_lanczos_convergence(&alpha, &beta, j, tolerance) {
+            break;
         }
     }
-    
+
     let lanczossize = j;
-    
+
     // Construct tridiagonal matrix
     let mut t = Array2::zeros((lanczossize, lanczossize));
     for i in 0..lanczossize {
@@ -275,10 +297,10 @@ where
             t[[i, i - 1]] = beta[i];
         }
     }
-    
+
     // Compute eigenvalues of tridiagonal matrix
     let (t_eigenvals, t_eigenvecs) = solve_tridiagonal_eigen(&t)?;
-    
+
     // Select eigenvalues based on which parameter
     let mut selected_indices = match which {
         "largest" => {
@@ -289,7 +311,7 @@ where
                 .collect();
             pairs.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
             pairs.into_iter().take(k).map(|(_, i)| i).collect()
-        },
+        }
         "smallest" => {
             let mut pairs: Vec<(T, usize)> = t_eigenvals
                 .iter()
@@ -298,40 +320,43 @@ where
                 .collect();
             pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
             pairs.into_iter().take(k).map(|(_, i)| i).collect()
-        },
+        }
         "both" => {
             let half_k = k / 2;
             let remaining = k - half_k;
-            
+
             let mut pairs: Vec<(T, usize)> = t_eigenvals
                 .iter()
                 .enumerate()
                 .map(|(i, &val)| (val, i))
                 .collect();
             pairs.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));
-            
+
             let mut selected = Vec::new();
             // Take smallest
             selected.extend(pairs.iter().take(half_k).map(|(_, i)| *i));
             // Take largest
             selected.extend(pairs.iter().rev().take(remaining).map(|(_, i)| *i));
             selected
-        _ => return Err(LinalgError::ValueError(format!(
-            "Invalid which parameter: {}. Must be 'largest', 'smallest', or 'both'",
-            which
-        ))),
+        }
+        _ => {
+            return Err(LinalgError::ValueError(format!(
+                "Invalid which parameter: {}. Must be 'largest', 'smallest', or 'both'",
+                which
+            )))
+        }
     };
-    
+
     selected_indices.truncate(k);
     let final_k = selected_indices.len();
-    
+
     // Construct final eigenvalues and eigenvectors
     let mut eigenvalues = Array1::zeros(final_k);
     let mut eigenvectors = Array2::zeros((n, final_k));
-    
+
     for (i, &idx) in selected_indices.iter().enumerate() {
         eigenvalues[i] = t_eigenvals[idx];
-        
+
         // Reconstruct eigenvector: eigenvector = V * t_eigenvector
         for j in 0..n {
             let mut sum = T::zero();
@@ -341,7 +366,7 @@ where
             eigenvectors[[j, i]] = sum;
         }
     }
-    
+
     Ok((eigenvalues, eigenvectors))
 }
 
@@ -354,7 +379,7 @@ where
     if j < 2 {
         return false;
     }
-    
+
     // Simple convergence check based on subdiagonal elements
     let subdiag_norm = h[[j, j - 1]].abs();
     subdiag_norm < tolerance
@@ -369,7 +394,7 @@ where
     if j < 2 {
         return false;
     }
-    
+
     // Check if the off-diagonal elements are becoming small
     let off_diag_norm = beta[j].abs();
     off_diag_norm < tolerance * alpha[j - 1].abs()
@@ -377,12 +402,23 @@ where
 
 /// Compute eigenvalues of a small Hessenberg matrix
 #[allow(dead_code)]
-fn compute_hessenberg_eigenvalues<T>(h: &Array2<T>) -> LinalgResult<(Array1<Complex<T>>, Array2<Complex<T>>)>
+#[allow(clippy::type_complexity)]
+fn compute_hessenberg_eigenvalues<T>(
+    h: &Array2<T>,
+) -> LinalgResult<(Array1<Complex<T>>, Array2<Complex<T>>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
+    T: Float
+        + NumAssign
+        + Clone
+        + Copy
+        + Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + Sum
+        + Send
+        + Sync,
 {
     let n = h.nrows();
-    
+
     // For small matrices, convert to complex and use QR algorithm
     let mut h_complex = Array2::zeros((n, n));
     for i in 0..n {
@@ -390,7 +426,7 @@ where
             h_complex[[i, j]] = Complex::new(h[[i, j]], T::zero());
         }
     }
-    
+
     // Simple QR algorithm for small matrices
     qr_algorithm_complex(&mut h_complex)
 }
@@ -399,7 +435,15 @@ where
 #[allow(dead_code)]
 fn solve_tridiagonal_eigen<T>(t: &Array2<T>) -> LinalgResult<(Array1<T>, Array2<T>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
+    T: Float
+        + NumAssign
+        + Clone
+        + Copy
+        + Debug
+        + scirs2_core::ndarray::ScalarOperand
+        + Sum
+        + Send
+        + Sync,
 {
     // For small tridiagonal matrices, use our symmetric eigenvalue solver
     crate::eigen::eigh(&t.view(), None)
@@ -407,20 +451,23 @@ where
 
 /// Simple QR algorithm for small complex matrices
 #[allow(dead_code)]
-fn qr_algorithm_complex<T>(a: &mut Array2<Complex<T>>) -> LinalgResult<(Array1<Complex<T>>, Array2<Complex<T>>)>
+#[allow(clippy::type_complexity)]
+fn qr_algorithm_complex<T>(
+    a: &mut Array2<Complex<T>>,
+) -> LinalgResult<(Array1<Complex<T>>, Array2<Complex<T>>)>
 where
     T: Float + NumAssign + Clone + Copy + Debug + scirs2_core::ndarray::ScalarOperand,
 {
     let n = a.nrows();
     let mut eigenvalues = Array1::zeros(n);
     let mut eigenvectors = Array2::eye(n);
-    
+
     // Simple implementation - extract diagonal as eigenvalue approximation
     for i in 0..n {
         eigenvalues[i] = a[[i, i]];
         eigenvectors[[i, i]] = Complex::new(T::one(), T::zero());
     }
-    
+
     Ok((eigenvalues, eigenvectors))
 }
 
@@ -437,28 +484,66 @@ where
 ///
 /// Eigenvalues and eigenvectors within the specified range
 #[allow(dead_code)]
-pub fn sparse_eirandom_range<T>(
+pub fn sparse_eigen_range<T>(
     matrix: &SparseMatrixView<T>,
     range: (T, T),
     max_iter: usize,
     tolerance: T,
 ) -> LinalgResult<(Array1<T>, Array2<T>)>
 where
-    T: Float + NumAssign + Clone + Copy + Debug + Add<Output = T> + Sub<Output = T> + Mul<Output = T> + scirs2_core::ndarray::ScalarOperand,
+    T: Float
+        + NumAssign
+        + Clone
+        + Copy
+        + Debug
+        + Add<Output = T>
+        + Sub<Output = T>
+        + Mul<Output = T>
+        + scirs2_core::ndarray::ScalarOperand
+        + Sum
+        + Send
+        + Sync,
 {
     let (min_val, max_val) = range;
     let n = matrix.nrows();
-    
-    // Shift the matrix to center the desired range around zero
-    let shift = (min_val + max_val) / (T::one() + T::one());
-    
-    // Create shifted matrix conceptually (A - shift*I)
-    // We'll implement this implicitly in matrix-vector products
-    
-    // Use Lanczos to find eigenvalues, then filter by range
+
+    // For small matrices, use the dense symmetric eigensolver which computes ALL
+    // eigenvalues (no Lanczos truncation that would miss interior eigenvalues).
+    if n <= 50 {
+        let dense = matrix.to_dense();
+        let (all_eigenvals, all_eigenvecs) = crate::eigen::eigh(&dense.view(), None)?;
+
+        let mut selected_indices: Vec<usize> = (0..all_eigenvals.len())
+            .filter(|&i| all_eigenvals[i] >= min_val && all_eigenvals[i] <= max_val)
+            .collect();
+        // Sort by eigenvalue ascending
+        selected_indices.sort_by(|&a, &b| {
+            all_eigenvals[a]
+                .partial_cmp(&all_eigenvals[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        if selected_indices.is_empty() {
+            return Ok((Array1::zeros(0), Array2::zeros((n, 0))));
+        }
+
+        let final_k = selected_indices.len();
+        let mut eigenvalues = Array1::zeros(final_k);
+        let mut eigenvectors = Array2::zeros((n, final_k));
+        for (i, &idx) in selected_indices.iter().enumerate() {
+            eigenvalues[i] = all_eigenvals[idx];
+            for j in 0..n {
+                eigenvectors[[j, i]] = all_eigenvecs[[j, idx]];
+            }
+        }
+        return Ok((eigenvalues, eigenvectors));
+    }
+
+    // For larger matrices use Lanczos to find eigenvalues, then filter by range
     let k = std::cmp::min(std::cmp::max(10, n / 10), n - 1);
-    let (all_eigenvals, all_eigenvecs) = sparse_lanczos_eigen(matrix, k, "both", max_iter, tolerance)?;
-    
+    let (all_eigenvals, all_eigenvecs) =
+        sparse_lanczos_eigen(matrix, k, "both", max_iter, tolerance)?;
+
     // Filter eigenvalues within range
     let mut selected_indices = Vec::new();
     for (i, &eigenval) in all_eigenvals.iter().enumerate() {
@@ -466,76 +551,68 @@ where
             selected_indices.push(i);
         }
     }
-    
+
     if selected_indices.is_empty() {
         return Ok((Array1::zeros(0), Array2::zeros((n, 0))));
     }
-    
+
     // Extract selected eigenvalues and eigenvectors
     let final_k = selected_indices.len();
     let mut eigenvalues = Array1::zeros(final_k);
     let mut eigenvectors = Array2::zeros((n, final_k));
-    
+
     for (i, &idx) in selected_indices.iter().enumerate() {
         eigenvalues[i] = all_eigenvals[idx];
         for j in 0..n {
             eigenvectors[[j, i]] = all_eigenvecs[[j, idx]];
         }
     }
-    
+
     Ok((eigenvalues, eigenvectors))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::ndarray::array;
-    use approx::assert_abs_diff_eq;
     use crate::sparse_dense::sparse_from_ndarray;
+    use approx::assert_abs_diff_eq;
+    use scirs2_core::ndarray::array;
 
     #[test]
     fn test_sparse_lanczos_smallmatrix() {
         // Create a small symmetric test matrix
-        let dense = array![
-            [4.0, 1.0, 0.0],
-            [1.0, 3.0, 1.0],
-            [0.0, 1.0, 2.0]
-        ];
-        
+        let dense = array![[4.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 2.0]];
+
         let sparse = sparse_from_ndarray(&dense.view(), 1e-12).expect("Operation failed");
-        
+
         // Find largest eigenvalue
         let result = sparse_lanczos_eigen(&sparse, 1, "largest", 50, 1e-8);
         assert!(result.is_ok());
-        
-        let (eigenvals_eigenvecs) = result.expect("Operation failed");
+
+        let (eigenvals, _eigenvecs) = result.expect("Operation failed");
         assert_eq!(eigenvals.len(), 1);
-        
+
         // The largest eigenvalue should be approximately 5.14
         assert!(eigenvals[0] > 4.5);
         assert!(eigenvals[0] < 5.5);
     }
-    
-    #[test] 
+
+    #[test]
     fn test_sparse_eigen_range() {
         // Create a test matrix with known eigenvalues
-        let dense = array![
-            [3.0, 1.0, 0.0],
-            [1.0, 3.0, 1.0], 
-            [0.0, 1.0, 3.0]
-        ];
-        
+        let dense = array![[3.0, 1.0, 0.0], [1.0, 3.0, 1.0], [0.0, 1.0, 3.0]];
+
         let sparse = sparse_from_ndarray(&dense.view(), 1e-12).expect("Operation failed");
-        
+
         // Find eigenvalues in range [2.0, 4.0]
         let result = sparse_eigen_range(&sparse, (2.0, 4.0), 50, 1e-8);
         assert!(result.is_ok());
-        
+
         let (eigenvals, eigenvecs) = result.expect("Operation failed");
         assert!(eigenvals.len() > 0);
         assert_eq!(eigenvecs.nrows(), 3);
         assert_eq!(eigenvecs.ncols(), eigenvals.len());
-        
+
         // All eigenvalues should be in the specified range
         for &eigenval in eigenvals.iter() {
             assert!(eigenval >= 2.0 - 1e-6);

@@ -154,16 +154,7 @@ pub fn einsum_2d_view(
             idx_map.insert(out_idx[1], j);
 
             // Sum over contracted indices
-            let sum = contract_indices_2d(
-                a,
-                b,
-                &a_idx,
-                &b_idx,
-                &contracted,
-                &dim_map,
-                idx_map,
-                0,
-            );
+            let sum = contract_indices_2d(a, b, &a_idx, &b_idx, &contracted, &dim_map, idx_map, 0);
             result[[i, j]] = sum;
         }
     }
@@ -306,16 +297,8 @@ pub fn einsum_3d_view(
                 idx_map.insert(out_idx[0], i);
                 idx_map.insert(out_idx[1], j);
                 idx_map.insert(out_idx[2], k);
-                let sum = contract_indices_3d(
-                    a,
-                    b,
-                    &a_idx,
-                    &b_idx,
-                    &contracted,
-                    &dim_map,
-                    idx_map,
-                    0,
-                );
+                let sum =
+                    contract_indices_3d(a, b, &a_idx, &b_idx, &contracted, &dim_map, idx_map, 0);
                 result[[i, j, k]] = sum;
             }
         }
@@ -524,9 +507,9 @@ pub fn unfold_tensor_view(tensor: &ArrayView3<f64>, mode: usize) -> LinalgResult
                 };
                 // Build col by iterating other dims in reverse order (highest first).
                 let col = match mode {
-                    0 => q * i2 + r,       // other dims = [1, 2]
-                    1 => p * i2 + r,       // other dims = [0, 2]
-                    2 => p * i1 + q,       // other dims = [0, 1]
+                    0 => q * i2 + r, // other dims = [1, 2]
+                    1 => p * i2 + r, // other dims = [0, 2]
+                    2 => p * i1 + q, // other dims = [0, 1]
                     _ => unreachable!(),
                 };
                 result[[row, col]] = tensor[[p, q, r]];
@@ -917,7 +900,7 @@ mod tests {
     #[test]
     fn test_fold_shape_mismatch() {
         let mat = Array2::<f64>::zeros((3, 8)); // Correct for mode-1, shape (2,3,4)
-        // Wrong: try to fold into shape (2,4,4) on mode 1
+                                                // Wrong: try to fold into shape (2,4,4) on mode 1
         assert!(fold_tensor(&mat, [2, 4, 4], 1).is_err());
     }
 

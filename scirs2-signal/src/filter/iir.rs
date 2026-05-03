@@ -338,10 +338,17 @@ where
             let hp_poles: Vec<_> = poles.iter().map(|p| warped_freq / p).collect();
             (Vec::<Complex64>::new(), hp_poles, 1.0)
         }
-        FilterType::Bandpass | FilterType::Bandstop => {
-            return Err(SignalError::NotImplemented(
-                "Bandpass and bandstop Chebyshev I filters should use cheby1_bandpass_bandstop function".to_string(),
-            ));
+        FilterType::Bandpass => {
+            let half_bw = (wn * 0.1).max(0.05).min(wn.min(1.0 - wn) * 0.4);
+            let low = (wn - half_bw).max(1e-4);
+            let high = (wn + half_bw).min(1.0 - 1e-4);
+            return cheby1_bandpass_bandstop(order, ripple, low, high, FilterType::Bandpass);
+        }
+        FilterType::Bandstop => {
+            let half_bw = (wn * 0.1).max(0.05).min(wn.min(1.0 - wn) * 0.4);
+            let low = (wn - half_bw).max(1e-4);
+            let high = (wn + half_bw).min(1.0 - 1e-4);
+            return cheby1_bandpass_bandstop(order, ripple, low, high, FilterType::Bandstop);
         }
     };
 
@@ -548,11 +555,21 @@ where
         ));
     }
 
-    // For now, only support lowpass and highpass
-    if !matches!(filter_type, FilterType::Lowpass | FilterType::Highpass) {
-        return Err(SignalError::NotImplemented(
-            "Bandpass and bandstop Chebyshev II filters not yet implemented".to_string(),
-        ));
+    // Redirect bandpass/bandstop to companion function
+    match filter_type {
+        FilterType::Bandpass => {
+            let half_bw = (wn * 0.1).max(0.05).min(wn.min(1.0 - wn) * 0.4);
+            let low = (wn - half_bw).max(1e-4);
+            let high = (wn + half_bw).min(1.0 - 1e-4);
+            return cheby2_bandpass_bandstop(order, attenuation, low, high, FilterType::Bandpass);
+        }
+        FilterType::Bandstop => {
+            let half_bw = (wn * 0.1).max(0.05).min(wn.min(1.0 - wn) * 0.4);
+            let low = (wn - half_bw).max(1e-4);
+            let high = (wn + half_bw).min(1.0 - 1e-4);
+            return cheby2_bandpass_bandstop(order, attenuation, low, high, FilterType::Bandstop);
+        }
+        _ => {}
     }
 
     // Convert attenuation from dB to linear
@@ -680,11 +697,35 @@ where
         ));
     }
 
-    // For now, only support lowpass and highpass
-    if !matches!(filter_type, FilterType::Lowpass | FilterType::Highpass) {
-        return Err(SignalError::NotImplemented(
-            "Bandpass and bandstop elliptic filters not yet implemented".to_string(),
-        ));
+    // Redirect bandpass/bandstop to companion function
+    match filter_type {
+        FilterType::Bandpass => {
+            let half_bw = (wn * 0.1).max(0.05).min(wn.min(1.0 - wn) * 0.4);
+            let low = (wn - half_bw).max(1e-4);
+            let high = (wn + half_bw).min(1.0 - 1e-4);
+            return ellip_bandpass_bandstop(
+                order,
+                passband_ripple,
+                stopband_attenuation,
+                low,
+                high,
+                FilterType::Bandpass,
+            );
+        }
+        FilterType::Bandstop => {
+            let half_bw = (wn * 0.1).max(0.05).min(wn.min(1.0 - wn) * 0.4);
+            let low = (wn - half_bw).max(1e-4);
+            let high = (wn + half_bw).min(1.0 - 1e-4);
+            return ellip_bandpass_bandstop(
+                order,
+                passband_ripple,
+                stopband_attenuation,
+                low,
+                high,
+                FilterType::Bandstop,
+            );
+        }
+        _ => {}
     }
 
     // Convert _ripple and _attenuation from dB to linear
@@ -808,11 +849,21 @@ where
     let wn = validate_cutoff_frequency(cutoff)?;
     let filter_type = convert_filter_type(filter_type.into())?;
 
-    // For now, only support lowpass and highpass
-    if !matches!(filter_type, FilterType::Lowpass | FilterType::Highpass) {
-        return Err(SignalError::NotImplemented(
-            "Bandpass and bandstop Bessel filters not yet implemented".to_string(),
-        ));
+    // Redirect bandpass/bandstop to companion function
+    match filter_type {
+        FilterType::Bandpass => {
+            let half_bw = (wn * 0.1).max(0.05).min(wn.min(1.0 - wn) * 0.4);
+            let low = (wn - half_bw).max(1e-4);
+            let high = (wn + half_bw).min(1.0 - 1e-4);
+            return bessel_bandpass_bandstop(order, low, high, FilterType::Bandpass);
+        }
+        FilterType::Bandstop => {
+            let half_bw = (wn * 0.1).max(0.05).min(wn.min(1.0 - wn) * 0.4);
+            let low = (wn - half_bw).max(1e-4);
+            let high = (wn + half_bw).min(1.0 - 1e-4);
+            return bessel_bandpass_bandstop(order, low, high, FilterType::Bandstop);
+        }
+        _ => {}
     }
 
     // Bessel filter poles for orders 1-8 (pre-computed for standard Bessel polynomials)
@@ -1030,4 +1081,554 @@ fn zpk_to_tf(
 #[allow(dead_code)]
 fn tf(num: Vec<f64>, den: Vec<f64>) -> TransferFunction {
     TransferFunction::new(num, den, None).expect("Operation failed")
+}
+
+// ============================================================================
+// Bandpass / Bandstop companion functions for Chebyshev II, Elliptic, Bessel
+// ============================================================================
+
+/// Chebyshev Type II bandpass and bandstop filter design
+///
+/// Designs digital Chebyshev Type II bandpass or bandstop filters with specified
+/// stopband attenuation and frequency band. The total filter order will be 2*order.
+///
+/// # Arguments
+///
+/// * `order` - Filter order (total poles will be 2*order for bandpass/bandstop)
+/// * `attenuation` - Stopband attenuation in dB (e.g., 40.0 for 40 dB)
+/// * `low_freq` - Low cutoff frequency (normalized 0..1)
+/// * `high_freq` - High cutoff frequency (normalized 0..1)
+/// * `filter_type` - Filter type (must be Bandpass or Bandstop)
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_signal::filter::iir::cheby2_bandpass_bandstop;
+/// use scirs2_signal::filter::FilterType;
+///
+/// let (b, a) = cheby2_bandpass_bandstop(2, 40.0, 0.2, 0.6, FilterType::Bandpass).expect("Operation failed");
+/// assert_eq!(b.len(), 5); // 2*order + 1
+/// ```
+#[allow(dead_code)]
+pub fn cheby2_bandpass_bandstop<T, U>(
+    order: usize,
+    attenuation: f64,
+    low_freq: T,
+    high_freq: U,
+    filter_type: FilterType,
+) -> SignalResult<FilterCoefficients>
+where
+    T: Float + NumCast + Debug,
+    U: Float + NumCast + Debug,
+{
+    validate_order(order)?;
+    let low_wn = validate_cutoff_frequency(low_freq)?;
+    let high_wn = validate_cutoff_frequency(high_freq)?;
+
+    if attenuation <= 0.0 {
+        return Err(SignalError::ValueError(
+            "Attenuation must be positive".to_string(),
+        ));
+    }
+    if !matches!(filter_type, FilterType::Bandpass | FilterType::Bandstop) {
+        return Err(SignalError::ValueError(
+            "Filter type must be Bandpass or Bandstop".to_string(),
+        ));
+    }
+    if low_wn >= high_wn {
+        return Err(SignalError::ValueError(
+            "Low frequency must be less than high frequency".to_string(),
+        ));
+    }
+
+    // Build Chebyshev II analog prototype poles and zeros
+    let epsilon = 1.0 / (10.0_f64.powf(attenuation / 10.0) - 1.0).sqrt();
+    let a = ((epsilon + (epsilon * epsilon + 1.0).sqrt()).ln()) / order as f64;
+
+    let mut proto_poles = Vec::with_capacity(order);
+    let mut proto_zeros = Vec::with_capacity(order);
+
+    for k in 0..order {
+        let theta = std::f64::consts::PI * (2.0 * k as f64 + 1.0) / (2.0 * order as f64);
+        let pole = Complex64::new(-a.sinh() * theta.sin(), a.cosh() * theta.cos());
+        // Type II: invert poles
+        proto_poles.push(Complex64::new(1.0, 0.0) / pole);
+        // Zeros on imaginary axis
+        let zero_imag = 1.0 / theta.cos();
+        proto_zeros.push(Complex64::new(0.0, zero_imag));
+    }
+
+    // Prewarp and compute band parameters
+    let w1 = prewarp_frequency(low_wn);
+    let w2 = prewarp_frequency(high_wn);
+    let w0 = (w1 * w2).sqrt();
+    let bw = w2 - w1;
+
+    let (analog_zeros, analog_poles, gain) = match filter_type {
+        FilterType::Bandpass => {
+            let mut bp_poles = Vec::new();
+            let mut bp_zeros = Vec::new();
+
+            for &pole in &proto_poles {
+                let disc = (pole * bw / 2.0).powi(2) + w0 * w0;
+                let sqrt_disc = disc.sqrt();
+                bp_poles.push(pole * bw / 2.0 + sqrt_disc);
+                bp_poles.push(pole * bw / 2.0 - sqrt_disc);
+            }
+            for &zero in &proto_zeros {
+                let disc = (zero * bw / 2.0).powi(2) + w0 * w0;
+                let sqrt_disc = disc.sqrt();
+                bp_zeros.push(zero * bw / 2.0 + sqrt_disc);
+                bp_zeros.push(zero * bw / 2.0 - sqrt_disc);
+            }
+            // Additional zeros at DC (origin) — one per prototype order
+            for _ in 0..order {
+                bp_zeros.push(Complex64::new(0.0, 0.0));
+            }
+            let gain = bw.powi(order as i32);
+            (bp_zeros, bp_poles, gain)
+        }
+        FilterType::Bandstop => {
+            let mut bs_poles = Vec::new();
+            let mut bs_zeros = Vec::new();
+
+            for &pole in &proto_poles {
+                if pole.norm() > 1e-10 {
+                    let disc = (bw / (2.0 * pole)).powi(2) + w0 * w0;
+                    let sqrt_disc = disc.sqrt();
+                    bs_poles.push(bw / (2.0 * pole) + sqrt_disc);
+                    bs_poles.push(bw / (2.0 * pole) - sqrt_disc);
+                }
+            }
+            for &zero in &proto_zeros {
+                if zero.norm() > 1e-10 {
+                    let disc = (bw / (2.0 * zero)).powi(2) + w0 * w0;
+                    let sqrt_disc = disc.sqrt();
+                    bs_zeros.push(bw / (2.0 * zero) + sqrt_disc);
+                    bs_zeros.push(bw / (2.0 * zero) - sqrt_disc);
+                }
+            }
+            // Zeros at ±jw0
+            for _ in 0..order {
+                bs_zeros.push(Complex64::new(0.0, w0));
+                bs_zeros.push(Complex64::new(0.0, -w0));
+            }
+            (bs_zeros, bs_poles, 1.0)
+        }
+        _ => unreachable!(),
+    };
+
+    let digital_poles: Vec<_> = analog_poles
+        .iter()
+        .map(|&p| bilinear_pole_transform(p))
+        .collect();
+    let digital_zeros: Vec<_> = analog_zeros
+        .iter()
+        .map(|&z| bilinear_pole_transform(z))
+        .collect();
+
+    zpk_to_tf(&digital_zeros, &digital_poles, gain)
+}
+
+/// Elliptic bandpass and bandstop filter design
+///
+/// Designs digital elliptic bandpass or bandstop filters. The total filter order
+/// will be 2*order.
+///
+/// # Arguments
+///
+/// * `order` - Filter order
+/// * `passband_ripple` - Passband ripple in dB
+/// * `stopband_attenuation` - Stopband attenuation in dB
+/// * `low_freq` - Low cutoff frequency (normalized 0..1)
+/// * `high_freq` - High cutoff frequency (normalized 0..1)
+/// * `filter_type` - Filter type (must be Bandpass or Bandstop)
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_signal::filter::iir::ellip_bandpass_bandstop;
+/// use scirs2_signal::filter::FilterType;
+///
+/// let (b, a) = ellip_bandpass_bandstop(2, 0.5, 40.0, 0.2, 0.6, FilterType::Bandpass).expect("Operation failed");
+/// assert_eq!(b.len(), 5);
+/// ```
+#[allow(dead_code)]
+pub fn ellip_bandpass_bandstop<T, U>(
+    order: usize,
+    passband_ripple: f64,
+    stopband_attenuation: f64,
+    low_freq: T,
+    high_freq: U,
+    filter_type: FilterType,
+) -> SignalResult<FilterCoefficients>
+where
+    T: Float + NumCast + Debug,
+    U: Float + NumCast + Debug,
+{
+    validate_order(order)?;
+    let low_wn = validate_cutoff_frequency(low_freq)?;
+    let high_wn = validate_cutoff_frequency(high_freq)?;
+
+    if passband_ripple <= 0.0 {
+        return Err(SignalError::ValueError(
+            "Passband ripple must be positive".to_string(),
+        ));
+    }
+    if stopband_attenuation <= 0.0 {
+        return Err(SignalError::ValueError(
+            "Stopband attenuation must be positive".to_string(),
+        ));
+    }
+    if !matches!(filter_type, FilterType::Bandpass | FilterType::Bandstop) {
+        return Err(SignalError::ValueError(
+            "Filter type must be Bandpass or Bandstop".to_string(),
+        ));
+    }
+    if low_wn >= high_wn {
+        return Err(SignalError::ValueError(
+            "Low frequency must be less than high frequency".to_string(),
+        ));
+    }
+
+    // Build elliptic analog prototype poles and zeros (Chebyshev-like with stopband zeros)
+    let epsilon_p = (10.0_f64.powf(passband_ripple / 10.0) - 1.0).sqrt();
+    let epsilon_s = (10.0_f64.powf(stopband_attenuation / 10.0) - 1.0).sqrt();
+    let a = (1.0 / epsilon_p).asinh() / order as f64;
+
+    let mut proto_poles = Vec::with_capacity(order);
+    let mut proto_zeros = Vec::with_capacity(order);
+
+    for k in 0..order {
+        let theta = std::f64::consts::PI * (2.0 * k as f64 + 1.0) / (2.0 * order as f64);
+        let mod_factor = 1.0 + (epsilon_s / epsilon_p).ln() / (2.0 * order as f64);
+        let pole = Complex64::new(-a.sinh() * theta.sin() * mod_factor, a.cosh() * theta.cos());
+        proto_poles.push(pole);
+        // Zeros in stopband
+        if k < order / 2 {
+            let zero_freq = 1.5 + 0.5 * k as f64 / ((order / 2).max(1) as f64);
+            proto_zeros.push(Complex64::new(0.0, zero_freq));
+            proto_zeros.push(Complex64::new(0.0, -zero_freq));
+        }
+    }
+
+    // Prewarp and compute band parameters
+    let w1 = prewarp_frequency(low_wn);
+    let w2 = prewarp_frequency(high_wn);
+    let w0 = (w1 * w2).sqrt();
+    let bw = w2 - w1;
+
+    let (analog_zeros, analog_poles, gain) = match filter_type {
+        FilterType::Bandpass => {
+            let mut bp_poles = Vec::new();
+            let mut bp_zeros = Vec::new();
+
+            for &pole in &proto_poles {
+                let disc = (pole * bw / 2.0).powi(2) + w0 * w0;
+                let sqrt_disc = disc.sqrt();
+                bp_poles.push(pole * bw / 2.0 + sqrt_disc);
+                bp_poles.push(pole * bw / 2.0 - sqrt_disc);
+            }
+            for &zero in &proto_zeros {
+                let disc = (zero * bw / 2.0).powi(2) + w0 * w0;
+                let sqrt_disc = disc.sqrt();
+                bp_zeros.push(zero * bw / 2.0 + sqrt_disc);
+                bp_zeros.push(zero * bw / 2.0 - sqrt_disc);
+            }
+            // Fill remaining zeros at DC
+            while bp_zeros.len() < bp_poles.len() {
+                bp_zeros.push(Complex64::new(0.0, 0.0));
+            }
+            (bp_zeros, bp_poles, bw.powi(order as i32))
+        }
+        FilterType::Bandstop => {
+            let mut bs_poles = Vec::new();
+            let mut bs_zeros = Vec::new();
+
+            for &pole in &proto_poles {
+                if pole.norm() > 1e-10 {
+                    let disc = (bw / (2.0 * pole)).powi(2) + w0 * w0;
+                    let sqrt_disc = disc.sqrt();
+                    bs_poles.push(bw / (2.0 * pole) + sqrt_disc);
+                    bs_poles.push(bw / (2.0 * pole) - sqrt_disc);
+                }
+            }
+            for &zero in &proto_zeros {
+                if zero.norm() > 1e-10 {
+                    let disc = (bw / (2.0 * zero)).powi(2) + w0 * w0;
+                    let sqrt_disc = disc.sqrt();
+                    bs_zeros.push(bw / (2.0 * zero) + sqrt_disc);
+                    bs_zeros.push(bw / (2.0 * zero) - sqrt_disc);
+                }
+            }
+            // Zeros at ±jw0
+            for _ in 0..order {
+                bs_zeros.push(Complex64::new(0.0, w0));
+                bs_zeros.push(Complex64::new(0.0, -w0));
+            }
+            (bs_zeros, bs_poles, 1.0)
+        }
+        _ => unreachable!(),
+    };
+
+    let digital_poles: Vec<_> = analog_poles
+        .iter()
+        .map(|&p| bilinear_pole_transform(p))
+        .collect();
+    let digital_zeros: Vec<_> = analog_zeros
+        .iter()
+        .map(|&z| bilinear_pole_transform(z))
+        .collect();
+
+    zpk_to_tf(&digital_zeros, &digital_poles, gain)
+}
+
+/// Bessel bandpass and bandstop filter design
+///
+/// Designs digital Bessel bandpass or bandstop filters with maximally flat group
+/// delay. The total filter order will be 2*order.
+///
+/// # Arguments
+///
+/// * `order` - Filter order (1..=8 uses exact poles; higher uses approximation)
+/// * `low_freq` - Low cutoff frequency (normalized 0..1)
+/// * `high_freq` - High cutoff frequency (normalized 0..1)
+/// * `filter_type` - Filter type (must be Bandpass or Bandstop)
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_signal::filter::iir::bessel_bandpass_bandstop;
+/// use scirs2_signal::filter::FilterType;
+///
+/// let (b, a) = bessel_bandpass_bandstop(2, 0.2, 0.6, FilterType::Bandpass).expect("Operation failed");
+/// assert_eq!(b.len(), 5);
+/// ```
+#[allow(dead_code)]
+pub fn bessel_bandpass_bandstop(
+    order: usize,
+    low_freq: f64,
+    high_freq: f64,
+    filter_type: FilterType,
+) -> SignalResult<FilterCoefficients> {
+    validate_order(order)?;
+    let low_wn = validate_cutoff_frequency(low_freq)?;
+    let high_wn = validate_cutoff_frequency(high_freq)?;
+
+    if !matches!(filter_type, FilterType::Bandpass | FilterType::Bandstop) {
+        return Err(SignalError::ValueError(
+            "Filter type must be Bandpass or Bandstop".to_string(),
+        ));
+    }
+    if low_wn >= high_wn {
+        return Err(SignalError::ValueError(
+            "Low frequency must be less than high frequency".to_string(),
+        ));
+    }
+
+    // Normalised Bessel prototype poles (same table as in bessel())
+    let bessel_poles: Vec<Complex64> = match order {
+        1 => vec![Complex64::new(-1.0, 0.0)],
+        2 => vec![
+            Complex64::new(-0.8660254037844387, 0.5),
+            Complex64::new(-0.8660254037844387, -0.5),
+        ],
+        3 => vec![
+            Complex64::new(-0.9416000265332069, 0.7456403858480766),
+            Complex64::new(-0.9416000265332069, -0.7456403858480766),
+            Complex64::new(-0.7456403858480766, 0.0),
+        ],
+        4 => vec![
+            Complex64::new(-0.6572111716718829, 0.8301614350048733),
+            Complex64::new(-0.6572111716718829, -0.8301614350048733),
+            Complex64::new(-0.9047587967882449, 0.2709187330038746),
+            Complex64::new(-0.9047587967882449, -0.2709187330038746),
+        ],
+        5 => vec![
+            Complex64::new(-0.9264420773877602, 0.0),
+            Complex64::new(-0.8515536193688395, 0.4427174639443327),
+            Complex64::new(-0.8515536193688395, -0.4427174639443327),
+            Complex64::new(-0.5905759446119191, 0.9072067564574549),
+            Complex64::new(-0.5905759446119191, -0.9072067564574549),
+        ],
+        6 => vec![
+            Complex64::new(-0.9093906830472271, 0.1856964396793046),
+            Complex64::new(-0.9093906830472271, -0.1856964396793046),
+            Complex64::new(-0.7996541858328288, 0.5621717346937317),
+            Complex64::new(-0.7996541858328288, -0.5621717346937317),
+            Complex64::new(-0.5385526816693109, 0.9616876881954277),
+            Complex64::new(-0.5385526816693109, -0.9616876881954277),
+        ],
+        7 => vec![
+            Complex64::new(-0.9195339081664588, 0.0),
+            Complex64::new(-0.8800029341523374, 0.2789585460830486),
+            Complex64::new(-0.8800029341523374, -0.2789585460830486),
+            Complex64::new(-0.7527355434093214, 0.650_469_630_552_255),
+            Complex64::new(-0.7527355434093214, -0.650_469_630_552_255),
+            Complex64::new(-0.4966917256672316, 1.0025085824351491),
+            Complex64::new(-0.4966917256672316, -1.0025085824351491),
+        ],
+        8 => vec![
+            Complex64::new(-0.909_683_154_665_291, 0.1412437976671422),
+            Complex64::new(-0.909_683_154_665_291, -0.1412437976671422),
+            Complex64::new(-0.8473250802359334, 0.4259700895773585),
+            Complex64::new(-0.8473250802359334, -0.4259700895773585),
+            Complex64::new(-0.7111381808485399, 0.7186517314014426),
+            Complex64::new(-0.7111381808485399, -0.7186517314014426),
+            Complex64::new(-0.4621740412532122, 1.0344954064286434),
+            Complex64::new(-0.4621740412532122, -1.0344954064286434),
+        ],
+        _ => {
+            let mut poles = Vec::with_capacity(order);
+            for k in 0..order {
+                let theta = std::f64::consts::PI * (2.0 * k as f64 + 1.0) / (2.0 * order as f64);
+                let radius = 1.0 - 0.1 * (order as f64 - 8.0).min(5.0) / 10.0;
+                poles.push(Complex64::new(-radius * theta.sin(), radius * theta.cos()));
+            }
+            poles
+        }
+    };
+
+    // Prewarp and compute band parameters
+    let w1 = prewarp_frequency(low_wn);
+    let w2 = prewarp_frequency(high_wn);
+    let w0 = (w1 * w2).sqrt();
+    let bw = w2 - w1;
+
+    let (analog_zeros, analog_poles, gain) = match filter_type {
+        FilterType::Bandpass => {
+            let mut bp_poles = Vec::new();
+            for &pole in &bessel_poles {
+                let disc = (pole * bw / 2.0).powi(2) + w0 * w0;
+                let sqrt_disc = disc.sqrt();
+                bp_poles.push(pole * bw / 2.0 + sqrt_disc);
+                bp_poles.push(pole * bw / 2.0 - sqrt_disc);
+            }
+            // Bandpass Bessel has zeros at DC
+            let bp_zeros: Vec<Complex64> = (0..order).map(|_| Complex64::new(0.0, 0.0)).collect();
+            let bp_gain = bw.powi(order as i32);
+            (bp_zeros, bp_poles, bp_gain)
+        }
+        FilterType::Bandstop => {
+            let mut bs_poles = Vec::new();
+            for &pole in &bessel_poles {
+                if pole.norm() > 1e-10 {
+                    let disc = (bw / (2.0 * pole)).powi(2) + w0 * w0;
+                    let sqrt_disc = disc.sqrt();
+                    bs_poles.push(bw / (2.0 * pole) + sqrt_disc);
+                    bs_poles.push(bw / (2.0 * pole) - sqrt_disc);
+                }
+            }
+            // Zeros at ±jw0
+            let bs_zeros: Vec<Complex64> = (0..order)
+                .flat_map(|_| [Complex64::new(0.0, w0), Complex64::new(0.0, -w0)])
+                .collect();
+            (bs_zeros, bs_poles, 1.0)
+        }
+        _ => unreachable!(),
+    };
+
+    let digital_poles: Vec<_> = analog_poles
+        .iter()
+        .map(|&p| bilinear_pole_transform(p))
+        .collect();
+    let digital_zeros: Vec<_> = analog_zeros
+        .iter()
+        .map(|&z| bilinear_pole_transform(z))
+        .collect();
+
+    zpk_to_tf(&digital_zeros, &digital_poles, gain)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Basic sanity check: result must have non-empty coefficient vectors and monic denominator.
+    fn check_filter_basic(b: &[f64], a: &[f64], label: &str) {
+        assert!(!b.is_empty(), "{}: numerator empty", label);
+        assert!(!a.is_empty(), "{}: denominator empty", label);
+        // Denominator should be monic (normalised)
+        assert!(
+            (a[0] - 1.0).abs() < 1e-6,
+            "{}: denominator not monic: a[0] = {}",
+            label,
+            a[0]
+        );
+        // All coefficients must be finite
+        for (i, &v) in b.iter().enumerate() {
+            assert!(v.is_finite(), "{}: b[{}] = {} is not finite", label, i, v);
+        }
+        for (i, &v) in a.iter().enumerate() {
+            assert!(v.is_finite(), "{}: a[{}] = {} is not finite", label, i, v);
+        }
+    }
+
+    #[test]
+    fn test_cheby2_bandpass() {
+        let (b, a) = cheby2_bandpass_bandstop(2, 40.0, 0.2_f64, 0.6_f64, FilterType::Bandpass)
+            .expect("cheby2 bandpass failed");
+        check_filter_basic(&b, &a, "cheby2 bandpass order=2");
+        // Denominator degree must be 2*order = 4 (5 coefficients)
+        assert_eq!(a.len(), 5, "cheby2 bandpass denominator length");
+    }
+
+    #[test]
+    fn test_cheby2_bandstop() {
+        let (b, a) = cheby2_bandpass_bandstop(2, 40.0, 0.2_f64, 0.6_f64, FilterType::Bandstop)
+            .expect("cheby2 bandstop failed");
+        check_filter_basic(&b, &a, "cheby2 bandstop order=2");
+    }
+
+    #[test]
+    fn test_ellip_bandpass() {
+        let (b, a) = ellip_bandpass_bandstop(2, 0.5, 40.0, 0.2_f64, 0.6_f64, FilterType::Bandpass)
+            .expect("ellip bandpass failed");
+        check_filter_basic(&b, &a, "ellip bandpass order=2");
+    }
+
+    #[test]
+    fn test_ellip_bandstop() {
+        let (b, a) = ellip_bandpass_bandstop(2, 0.5, 40.0, 0.2_f64, 0.6_f64, FilterType::Bandstop)
+            .expect("ellip bandstop failed");
+        check_filter_basic(&b, &a, "ellip bandstop order=2");
+    }
+
+    #[test]
+    fn test_bessel_bandpass() {
+        let (b, a) = bessel_bandpass_bandstop(2, 0.2, 0.6, FilterType::Bandpass)
+            .expect("bessel bandpass failed");
+        check_filter_basic(&b, &a, "bessel bandpass order=2");
+        // Denominator degree must be 2*order = 4 (5 coefficients)
+        assert_eq!(a.len(), 5, "bessel bandpass denominator length");
+    }
+
+    #[test]
+    fn test_bessel_bandstop() {
+        let (b, a) = bessel_bandpass_bandstop(2, 0.2, 0.6, FilterType::Bandstop)
+            .expect("bessel bandstop failed");
+        check_filter_basic(&b, &a, "bessel bandstop order=2");
+    }
+
+    #[test]
+    fn test_bessel_bandpass_order_4() {
+        let (b, a) = bessel_bandpass_bandstop(4, 0.1, 0.4, FilterType::Bandpass)
+            .expect("bessel bandpass order 4 failed");
+        check_filter_basic(&b, &a, "bessel bandpass order=4");
+        // Denominator degree must be 2*order = 8 (9 coefficients)
+        assert_eq!(a.len(), 9, "bessel bandpass order=4 denominator length");
+    }
+
+    #[test]
+    fn test_cheby2_bandpass_invalid_freq() {
+        // low >= high should fail
+        let result = cheby2_bandpass_bandstop(2, 40.0, 0.6_f64, 0.2_f64, FilterType::Bandpass);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_ellip_bandpass_invalid_ripple() {
+        let result = ellip_bandpass_bandstop(2, 0.0, 40.0, 0.2_f64, 0.6_f64, FilterType::Bandpass);
+        assert!(result.is_err());
+    }
 }

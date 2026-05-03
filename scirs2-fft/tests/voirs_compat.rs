@@ -10,6 +10,8 @@
 //!
 //! These tests match the actual usage patterns from the VoiRS codebase.
 
+// VoiRS compatibility tests use the OxiFFT backend (COOLJAPAN Pure Rust policy)
+
 use scirs2_core::numeric::Complex64;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::random::{Random, SliceRandom};
@@ -66,10 +68,14 @@ fn test_real_fft_planner_trait_objects() {
 
         fn process(&self, input: &[f64]) -> Vec<f64> {
             let mut spectrum = vec![Complex64::new(0.0, 0.0); self.forward.output_len()];
-            self.forward.process(input, &mut spectrum);
+            self.forward
+                .process(input, &mut spectrum)
+                .expect("FFT process failed");
 
             let mut output = vec![0.0; self.backward.len()];
-            self.backward.process(&spectrum, &mut output);
+            self.backward
+                .process(&spectrum, &mut output)
+                .expect("FFT process failed");
 
             output
         }
@@ -111,7 +117,9 @@ fn test_voirs_wfs_pattern() {
             assert_eq!(input.len(), self.fft_size);
 
             let mut spectrum = vec![Complex64::new(0.0, 0.0); self.forward.output_len()];
-            self.forward.process(input, &mut spectrum);
+            self.forward
+                .process(input, &mut spectrum)
+                .expect("FFT process failed");
 
             // Apply transfer function (example: low-pass filter)
             let cutoff = spectrum.len() / 4;
@@ -122,7 +130,9 @@ fn test_voirs_wfs_pattern() {
             }
 
             let mut output = vec![0.0; self.fft_size];
-            self.backward.process(&spectrum, &mut output);
+            self.backward
+                .process(&spectrum, &mut output)
+                .expect("FFT process failed");
 
             output
         }
@@ -152,10 +162,14 @@ fn test_real_fft_f32_precision() {
     let input: Vec<f32> = (0..256).map(|i| (i as f32 / 256.0).sin()).collect();
 
     let mut spectrum = vec![scirs2_core::numeric::Complex::new(0.0f32, 0.0); forward.output_len()];
-    forward.process(&input, &mut spectrum);
+    forward
+        .process(&input, &mut spectrum)
+        .expect("FFT process failed");
 
     let mut output = vec![0.0f32; 256];
-    inverse.process(&spectrum, &mut output);
+    inverse
+        .process(&spectrum, &mut output)
+        .expect("FFT process failed");
 
     for (i, (&orig, &recov)) in input.iter().zip(output.iter()).enumerate() {
         let diff = (orig - recov).abs();
@@ -439,7 +453,9 @@ fn test_complete_audio_pipeline() {
 
             // FFT
             let mut spectrum = vec![Complex64::new(0.0, 0.0); self.forward.output_len()];
-            self.forward.process(input, &mut spectrum);
+            self.forward
+                .process(input, &mut spectrum)
+                .expect("FFT process failed");
 
             // Add noise to spectrum
             for val in spectrum.iter_mut() {
@@ -450,7 +466,9 @@ fn test_complete_audio_pipeline() {
 
             // IFFT
             let mut output = vec![0.0; self.fft_size];
-            self.backward.process(&spectrum, &mut output);
+            self.backward
+                .process(&spectrum, &mut output)
+                .expect("FFT process failed");
 
             output
         }

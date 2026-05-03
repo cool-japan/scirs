@@ -162,10 +162,7 @@ pub fn harris_corners_configured(
     }
 
     // Threshold: relative to maximum positive response
-    let max_resp = response
-        .iter()
-        .copied()
-        .fold(f32::NEG_INFINITY, f32::max);
+    let max_resp = response.iter().copied().fold(f32::NEG_INFINITY, f32::max);
     if max_resp <= 0.0 {
         return Ok(Vec::new());
     }
@@ -181,11 +178,17 @@ pub fn harris_corners_configured(
             if rv <= abs_thresh {
                 continue;
             }
-            // Check local maximum in (2*r_nms+1)^2 neighbourhood
+            // Check local maximum in (2*r_nms+1)^2 neighbourhood.
+            // Lexicographic tiebreaker: among pixels with equal response, keep
+            // only the one with the smallest (row, col) index so exactly one
+            // corner survives per cluster of equally-valued response pixels.
             let mut is_max = true;
             'outer: for i in (row.saturating_sub(r_nms))..=(row + r_nms).min(rows - 1) {
                 for j in (col.saturating_sub(r_nms))..=(col + r_nms).min(cols - 1) {
-                    if !(i == row && j == col) && response[[i, j]] >= rv {
+                    if !(i == row && j == col)
+                        && (response[[i, j]] > rv
+                            || (response[[i, j]] == rv && (i, j) < (row, col)))
+                    {
                         is_max = false;
                         break 'outer;
                     }
@@ -450,14 +453,10 @@ pub fn blob_log(
         let s1 = sigma as f32;
         let s2 = (sigma * 2.0_f64.sqrt()) as f32;
 
-        let g1 =
-            gaussian_filter_f32(&img_d, s1, Some(BorderMode::Reflect), None).map_err(|e| {
-                NdimageError::ComputationError(format!("gaussian s1: {e}"))
-            })?;
-        let g2 =
-            gaussian_filter_f32(&img_d, s2, Some(BorderMode::Reflect), None).map_err(|e| {
-                NdimageError::ComputationError(format!("gaussian s2: {e}"))
-            })?;
+        let g1 = gaussian_filter_f32(&img_d, s1, Some(BorderMode::Reflect), None)
+            .map_err(|e| NdimageError::ComputationError(format!("gaussian s1: {e}")))?;
+        let g2 = gaussian_filter_f32(&img_d, s2, Some(BorderMode::Reflect), None)
+            .map_err(|e| NdimageError::ComputationError(format!("gaussian s2: {e}")))?;
 
         // DoG approximation of LoG, normalised by σ²
         let sigma2 = (sigma * sigma) as f32;
@@ -591,8 +590,7 @@ fn circle_overlap(r1: f64, r2: f64, dist: f64) -> f64 {
     let cos_a2 = (d2 + r2_2 - r1_2) / (2.0 * dist * r2);
     let a1 = cos_a1.clamp(-1.0, 1.0).acos();
     let a2 = cos_a2.clamp(-1.0, 1.0).acos();
-    let intersection = r1_2 * (a1 - (2.0 * a1).sin() / 2.0)
-        + r2_2 * (a2 - (2.0 * a2).sin() / 2.0);
+    let intersection = r1_2 * (a1 - (2.0 * a1).sin() / 2.0) + r2_2 * (a2 - (2.0 * a2).sin() / 2.0);
     let union = PI * (r1_2 + r2_2) - intersection;
     if union <= 0.0 {
         1.0

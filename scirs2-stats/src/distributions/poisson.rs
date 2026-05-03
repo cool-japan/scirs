@@ -93,13 +93,12 @@ impl<F: Float + NumCast + std::fmt::Display> Poisson<F> {
         // Convert k to integer value for factorial calculation
         let k_int = <u64 as NumCast>::from(k_std).expect("Operation failed");
 
-        // Calculate PMF using the formula:
-        // PMF = (mu^k * e^(-mu)) / k!
-        let mu_pow_k = self.mu.powf(k_std);
-        let exp_neg_mu = (-self.mu).exp();
-        let k_factorial = factorial(k_int);
-
-        mu_pow_k * exp_neg_mu / F::from(k_factorial).expect("Failed to convert to float")
+        // Calculate PMF in log-space to avoid integer factorial overflow:
+        // ln(PMF) = k*ln(mu) - mu - ln(k!)
+        // then exp() to recover PMF.
+        // This is numerically stable for all k, including k >= 21.
+        let k_f = F::from(k_int).expect("Failed to convert to float");
+        (k_f * self.mu.ln() - self.mu - ln_factorial::<F>(k_int)).exp()
     }
 
     /// Calculate the cumulative distribution function (CDF) at a given point
@@ -187,6 +186,77 @@ impl<F: Float + NumCast + std::fmt::Display> Poisson<F> {
 
         Ok(Array1::from(samples))
     }
+
+    /// Percent-point function (inverse CDF / quantile function) of the Poisson distribution.
+    ///
+    /// Returns the smallest integer `k` such that `CDF(k) >= p`.
+    ///
+    /// # Arguments
+    ///
+    /// * `p` - Probability value in [0, 1]
+    ///
+    /// # Returns
+    ///
+    /// The quantile value `k` (shifted by `loc`) as type `F`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use scirs2_stats::distributions::poisson::Poisson;
+    ///
+    /// let poisson = Poisson::new(3.0f64, 0.0).expect("Operation failed");
+    /// // cdf(ppf(0.5)) >= 0.5
+    /// let k = poisson.ppf_impl(0.5).expect("ppf failed");
+    /// assert!(poisson.cdf(k) >= 0.5);
+    /// ```
+    pub fn ppf_impl(&self, p: F) -> StatsResult<F> {
+        if p < F::zero() || p > F::one() {
+            return Err(StatsError::DomainError(format!(
+                "Probability p={p} must be in [0, 1]"
+            )));
+        }
+        // CDF is a right-continuous step function: PPF = min {k : CDF(k) >= p}
+        if p <= F::zero() {
+            return Ok(self.loc);
+        }
+        if p >= F::one() {
+            // Return a large but finite value: mu + 20*sqrt(mu) is effectively the
+            // upper tail well past 1 - 1e-15 for any reasonable mu.
+            let mu_f64 = self.mu.to_f64().unwrap_or(1.0).max(1.0);
+            let upper_k = mu_f64 + 20.0 * mu_f64.sqrt() + 30.0;
+            return F::from(upper_k).map(|v| v + self.loc).ok_or_else(|| {
+                StatsError::ComputationError("Overflow in ppf upper bound".to_string())
+            });
+        }
+
+        // Walk forward from k=0 accumulating the CDF.
+        // For mu up to a few hundred this converges quickly; for large mu the loop
+        // is O(sqrt(mu)) because the mass concentrates near mu.
+        let zero = F::zero();
+        let mut cdf = zero;
+        let mut k: u64 = 0;
+
+        // Compute a safe upper bound to avoid infinite loops
+        let mu_f64 = self.mu.to_f64().unwrap_or(1.0).max(1.0);
+        let max_k = (mu_f64 + 30.0 * (mu_f64.sqrt() + 1.0)) as u64 + 200;
+
+        loop {
+            let k_f = F::from(k).ok_or_else(|| {
+                StatsError::ComputationError("k overflow in Poisson ppf".to_string())
+            })?;
+            cdf = cdf + self.pmf(k_f + self.loc);
+            if cdf >= p {
+                return Ok(k_f + self.loc);
+            }
+            k += 1;
+            if k > max_k {
+                // Numerically p is indistinguishable from 1.0 at this point
+                return F::from(k).map(|v| v + self.loc).ok_or_else(|| {
+                    StatsError::ComputationError("Overflow in Poisson ppf".to_string())
+                });
+            }
+        }
+    }
 }
 
 /// Check if a floating-point value is (close to) an integer
@@ -239,12 +309,7 @@ impl<F: Float + NumCast + std::fmt::Display> DiscreteDistribution<F> for Poisson
     }
 
     fn ppf(&self, p: F) -> StatsResult<F> {
-        // Poisson does not have a simple inverse CDF formula,
-        // so we'd typically need to implement a numerical solution.
-        // For now, we'll return an error to indicate this isn't implemented.
-        Err(StatsError::NotImplementedError(
-            "Poisson ppf not directly implemented yet".to_string(),
-        ))
+        self.ppf_impl(p)
     }
 
     fn logpmf(&self, x: F) -> F {
@@ -265,26 +330,19 @@ impl<F: Float + NumCast + std::fmt::Display> DiscreteDistribution<F> for Poisson
     }
 }
 
-/// Compute natural logarithm of factorial
-#[allow(dead_code)]
+/// Compute natural logarithm of factorial using a sum-of-logs loop.
+///
+/// This is exact (to f64 precision) for all n, unlike Stirling's approximation
+/// which has ~0.2% relative error near n=21 and cannot achieve 1e-6 tolerance.
 fn ln_factorial<F: Float + NumCast>(n: u64) -> F {
     if n <= 1 {
         return F::zero();
     }
-
-    // Use Stirling's approximation for large n
-    if n > 20 {
-        let n_f = F::from(n).expect("Failed to convert to float");
-        let pi = F::from(std::f64::consts::PI).expect("Failed to convert to float");
-        let e = F::from(std::f64::consts::E).expect("Failed to convert to float");
-
-        let half = F::from(0.5).expect("Failed to convert constant to float");
-        return half * (F::from(2.0).expect("Failed to convert constant to float") * pi * n_f).ln()
-            + n_f * (n_f / e).ln();
+    let mut result = F::zero();
+    for i in 2..=n {
+        result = result + F::from(i).expect("Failed to convert to float").ln();
     }
-
-    // Direct calculation for small n
-    F::from((factorial(n) as f64).ln()).expect("Operation failed")
+    result
 }
 
 /// Implementation of SampleableDistribution for Poisson
@@ -427,5 +485,121 @@ mod tests {
         assert!(!is_integer(1.1));
         assert!(!is_integer(0.5));
         assert!(!is_integer(-3.7));
+    }
+
+    /// Regression test for GitHub issue #122:
+    /// Poisson PMF returned wildly wrong (exponentially growing) values for k>=21
+    /// due to u64 integer factorial overflowing at 21! and returning u64::MAX.
+    /// Fix: PMF now computed entirely in log-space via ln_factorial (sum-of-logs).
+    #[test]
+    fn test_issue_122_poisson_pmf_large_k() {
+        let lambda = 10.0_f64;
+        let poisson = Poisson::new(lambda, 0.0).expect("Poisson::new failed");
+
+        // Reference values computed via math.exp(k*math.log(10) - 10 - math.lgamma(k+1))
+        // i.e. the same log-space formula now used by pmf().
+        // All values must be in [0, 1]; values > 1 were the reporter's symptom before the fix.
+        let cases: &[(f64, f64)] = &[
+            (20.0, 1.866_081_313_999_e-3),
+            (21.0, 8.886_101_495_232_e-4),
+            (22.0, 4.039_137_043_287_e-4),
+            (23.0, 1.756_146_540_560_e-4),
+            (24.0, 7.317_277_252_332_e-5),
+            (25.0, 2.926_910_900_933_e-5),
+        ];
+
+        for &(k, expected) in cases {
+            let got = poisson.pmf(k);
+            // A PMF value > 1.0 is mathematically impossible and was the
+            // observable symptom before the fix.
+            assert!(
+                got <= 1.0,
+                "pmf({k}) = {got} exceeds 1.0 (overflow artifact)"
+            );
+            assert!(
+                got >= 0.0,
+                "pmf({k}) = {got} is negative (should never happen)"
+            );
+            let rel_err = (got - expected).abs() / expected;
+            assert!(
+                rel_err < 1e-6,
+                "pmf({k}): got {got:.9e}, expected {expected:.9e}, rel_err={rel_err:.3e}"
+            );
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────
+    // PPF (inverse CDF) tests
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// The defining property of the Poisson PPF:
+    ///   CDF(PPF(p) - 1) < p  ≤  CDF(PPF(p))   for p ∈ (0,1)
+    #[test]
+    fn test_poisson_ppf_round_trip() {
+        let poisson = Poisson::new(3.0f64, 0.0).expect("Poisson::new");
+        // Test a range of p values
+        let ps = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95, 0.99];
+        for &p in &ps {
+            let k = poisson.ppf_impl(p).expect("ppf");
+            // CDF at k must be >= p
+            let cdf_k = poisson.cdf(k);
+            assert!(
+                cdf_k >= p - 1e-12,
+                "p={p}: CDF(PPF(p))={cdf_k} < p — PPF returned a value too small"
+            );
+            // CDF at k-1 must be < p (k is the minimal such integer)
+            if k >= 1.0 {
+                let cdf_km1 = poisson.cdf(k - 1.0);
+                assert!(
+                    cdf_km1 < p + 1e-12,
+                    "p={p}: CDF(PPF(p)-1)={cdf_km1} >= p — PPF returned a value too large"
+                );
+            }
+        }
+    }
+
+    /// PPF edge cases: p=0 returns loc (= 0), p=1 returns a large value.
+    #[test]
+    fn test_poisson_ppf_edge_cases() {
+        let poisson = Poisson::new(5.0f64, 0.0).expect("Poisson::new");
+        // p = 0 → smallest non-negative integer with CDF >= 0, which is 0
+        let k0 = poisson.ppf_impl(0.0).expect("ppf(0)");
+        assert_eq!(k0, 0.0, "PPF(0) should be 0 for loc=0");
+
+        // p = 1 → some large finite value
+        let k1 = poisson.ppf_impl(1.0).expect("ppf(1)");
+        assert!(k1.is_finite(), "PPF(1) should be finite");
+        assert!(k1 > 0.0);
+
+        // Out-of-range inputs → error
+        assert!(poisson.ppf_impl(-0.1).is_err());
+        assert!(poisson.ppf_impl(1.1).is_err());
+    }
+
+    /// PPF with a non-zero location parameter.
+    #[test]
+    fn test_poisson_ppf_with_location() {
+        let loc = 2.0f64;
+        let poisson = Poisson::new(3.0f64, loc).expect("Poisson::new");
+        // PPF(0.5) without loc, then add loc
+        let poisson0 = Poisson::new(3.0f64, 0.0).expect("Poisson::new");
+        let k_no_loc = poisson0.ppf_impl(0.5).expect("ppf");
+        let k_with_loc = poisson.ppf_impl(0.5).expect("ppf");
+        assert!(
+            (k_with_loc - k_no_loc - loc).abs() < 1e-10,
+            "PPF with loc={loc}: expected {}, got {k_with_loc}",
+            k_no_loc + loc
+        );
+    }
+
+    /// PPF for large mu: check round-trip still holds.
+    #[test]
+    fn test_poisson_ppf_large_mu() {
+        let poisson = Poisson::new(100.0f64, 0.0).expect("Poisson::new");
+        for &p in &[0.05, 0.5, 0.95] {
+            let k = poisson.ppf_impl(p).expect("ppf");
+            let cdf_k = poisson.cdf(k);
+            assert!(cdf_k >= p - 1e-10, "large mu p={p}: CDF(k)={cdf_k} < p");
+        }
     }
 }

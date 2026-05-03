@@ -8,7 +8,6 @@ use scirs2_core::numeric::{Float, FromPrimitive, NumCast};
 use std::fmt::Debug;
 
 use scirs2_core::error::CoreResult;
-use scirs2_core::memory_efficient::AdaptiveChunking;
 use scirs2_core::memory_efficient::MemoryMappedArray;
 use scirs2_core::MemoryMappedChunks;
 
@@ -60,44 +59,60 @@ where
     let config = config.unwrap_or_default();
 
     // Create temporary output file
-    let (output_mmap, _output_temp_path) = create_temp_mmap::<T>(&input_mmap.shape)?;
+    let (mut output_mmap, _output_temp_path) = create_temp_mmap::<T>(&input_mmap.shape)?;
 
     // Determine chunking strategy
-    let strategy = if config.adaptive {
-        // Use adaptive chunking based on available memory
-        // For now, use a simple fallback strategy when adaptive is requested
-        // TODO: Implement proper adaptive chunking when scirs2-core API is available
-        config.chunk_config.strategy
-    } else {
-        config.chunk_config.strategy
+    let strategy = config.chunk_config.strategy;
+
+    let total_size = input_mmap.size;
+    let chunk_size = match strategy.clone() {
+        scirs2_core::memory_efficient::ChunkingStrategy::Fixed(size) => size,
+        scirs2_core::memory_efficient::ChunkingStrategy::NumChunks(n) => total_size.div_ceil(n),
+        scirs2_core::memory_efficient::ChunkingStrategy::Auto => (total_size / 100).max(1),
+        scirs2_core::memory_efficient::ChunkingStrategy::FixedBytes(bytes) => {
+            (bytes / std::mem::size_of::<T>()).max(1)
+        }
+        scirs2_core::memory_efficient::ChunkingStrategy::Advanced(_) => (total_size / 100).max(1),
     };
 
-    // Process chunks
-    let chunk_results = input_mmap.process_chunks(strategy.clone(), |chunk_data, chunk_idx| {
-        // Create ArrayView from chunk data
-        let chunk_array =
-            Array::from_shape_vec(chunk_data.len(), chunk_data.to_vec()).expect("Operation failed");
-
-        let chunk_view = chunk_array.view().into_dyn();
-
-        // Apply filter
-        match filter_fn(&chunk_view) {
-            Ok(result) => Some((chunk_idx, result)),
-            Err(_) => None,
-        }
+    // Process input chunks and assemble filtered output in a flat buffer
+    let chunk_results = input_mmap.process_chunks(strategy, |chunk_data, chunk_idx| {
+        let chunk_array = Array::from_shape_vec(chunk_data.len(), chunk_data.to_vec())
+            .ok()
+            .map(|a| a.into_dyn());
+        let result = chunk_array.and_then(|a| filter_fn(&a.view()).ok());
+        result.map(|r| (chunk_idx, r))
     });
 
-    // Write results to output memory map
-    // (This is simplified - real implementation would handle chunk positioning)
-    for (chunk_idx, result) in chunk_results.into_iter().flatten() {
-        // Write chunk to appropriate position in output
-        // This would need proper implementation to handle chunk boundaries
-        println!("Processed chunk {}", chunk_idx);
+    // Assemble the full output data from chunk results, then write via process_chunks_mut
+    let mut flat_output: Vec<T> = vec![T::zero(); total_size];
+    for entry in chunk_results.into_iter().flatten() {
+        let (chunk_idx, result) = entry;
+        let start = chunk_idx * chunk_size;
+        let result_data: Vec<T> = result.into_iter().collect();
+        for (offset, val) in result_data.into_iter().enumerate() {
+            let pos = start + offset;
+            if pos < total_size {
+                flat_output[pos] = val;
+            }
+        }
     }
 
-    // TODO: Create proper output_mmap from output_mmap_temp_path
-    // For now, return input_mmap as placeholder
-    Ok(input_mmap.clone())
+    // Write the assembled output into the output mmap
+    output_mmap.process_chunks_mut(
+        scirs2_core::memory_efficient::ChunkingStrategy::Fixed(chunk_size),
+        |chunk, chunk_idx| {
+            let start = chunk_idx * chunk_size;
+            for (i, elem) in chunk.iter_mut().enumerate() {
+                let pos = start + i;
+                if pos < total_size {
+                    *elem = flat_output[pos];
+                }
+            }
+        },
+    );
+
+    Ok(output_mmap)
 }
 
 /// Memory-efficient Gaussian filter with automatic optimization

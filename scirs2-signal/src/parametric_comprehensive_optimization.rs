@@ -573,17 +573,267 @@ fn advanced_parameter_estimation(
                 metrics,
             })
         }
-        ModelOrder::MA(_order) => {
-            // Placeholder for MA estimation
-            Err(SignalError::NotImplemented(
-                "MA estimation not yet implemented".to_string(),
-            ))
+        ModelOrder::MA(q) => {
+            // MA estimation via Durbin's method:
+            //  1. Fit a high-order AR to the data (order = min(10*q, n/3))
+            //  2. Use residuals of that AR as proxy noise innovations
+            //  3. Regress signal on lagged residuals to obtain MA coefficients
+            let q = *q;
+            let n = signal.len();
+            let high_ar_order = (10 * q).min(n / 3).max(q + 1);
+
+            let ar_config = ParametricConfig {
+                max_ar_order: high_ar_order,
+                max_ma_order: 0,
+                method: EstimationMethod::AR(ARMethod::Burg),
+                ..Default::default()
+            };
+
+            let ar_result = enhanced_parametric_estimation(signal, &ar_config)?;
+
+            // Compute innovations (residuals of the high-order AR)
+            let mut innovations = vec![0.0_f64; n];
+            for i in high_ar_order..n {
+                let mut pred = 0.0_f64;
+                for j in 1..ar_result.ar_coeffs.len() {
+                    pred += ar_result.ar_coeffs[j] * signal[i - j];
+                }
+                innovations[i] = signal[i] - pred;
+            }
+
+            // Regress signal[q..] on innovations[(q-1)..] with lag 1..=q using OLS
+            // Build design matrix X (each row: [e_{t-1}, ..., e_{t-q}]) and response y = signal[q..]
+            let n_rows = n - q;
+            if n_rows == 0 {
+                return Err(SignalError::ValueError(
+                    "Signal too short for MA order".to_string(),
+                ));
+            }
+
+            // X^T X and X^T y accumulation (numerically stable)
+            let mut xtx = vec![vec![0.0_f64; q]; q];
+            let mut xty = vec![0.0_f64; q];
+
+            for t in q..n {
+                for i in 0..q {
+                    xty[i] += innovations[t - 1 - i] * signal[t];
+                    for j in 0..q {
+                        xtx[i][j] += innovations[t - 1 - i] * innovations[t - 1 - j];
+                    }
+                }
+            }
+
+            // Solve via Gauss-Jordan elimination
+            let mut aug: Vec<Vec<f64>> = xtx
+                .iter()
+                .enumerate()
+                .map(|(i, row)| {
+                    let mut r = row.clone();
+                    r.push(xty[i]);
+                    r
+                })
+                .collect();
+
+            for col in 0..q {
+                // Find pivot
+                let pivot_row = (col..q)
+                    .max_by(|&a, &b| aug[a][col].abs().partial_cmp(&aug[b][col].abs()).unwrap_or(std::cmp::Ordering::Equal))
+                    .unwrap_or(col);
+                aug.swap(col, pivot_row);
+
+                let pivot = aug[col][col];
+                if pivot.abs() < 1e-12 {
+                    // Regularise
+                    aug[col][col] += 1e-6;
+                    let pivot = aug[col][col];
+                    for j in col..=q {
+                        aug[col][j] /= pivot;
+                    }
+                } else {
+                    for j in col..=q {
+                        aug[col][j] /= pivot;
+                    }
+                }
+
+                for row in 0..q {
+                    if row != col {
+                        let factor = aug[row][col];
+                        for j in col..=q {
+                            let sub = factor * aug[col][j];
+                            aug[row][j] -= sub;
+                        }
+                    }
+                }
+            }
+
+            let ma_coeffs: Vec<f64> = aug.iter().map(|row| row[q]).collect();
+            let ma_array = Array1::from_vec(ma_coeffs);
+
+            // Compute residuals: e_t = signal[t] - sum_{j=1}^{q} ma[j-1] * e_{t-j}
+            let mut residuals_out = vec![0.0_f64; n];
+            for t in q..n {
+                let mut filter_out = signal[t];
+                for j in 0..q {
+                    filter_out -= ma_array[j] * residuals_out[t - 1 - j];
+                }
+                residuals_out[t] = filter_out;
+            }
+
+            let noise_variance = if n > q {
+                residuals_out[q..]
+                    .iter()
+                    .map(|&x| x * x)
+                    .sum::<f64>()
+                    / (n - q) as f64
+            } else {
+                1.0
+            };
+
+            // Dummy AR coeffs (all zeros except index 0 = 1.0 convention)
+            let ar_coeffs = Array1::from_vec(vec![1.0, 0.0]);
+            let residuals_array = Array1::from_vec(residuals_out);
+            let metrics = calculate_optimization_metrics(signal, &ar_coeffs, Some(&ma_array), noise_variance)?;
+
+            Ok(AdvancedEstimationResult {
+                ar_coeffs,
+                ma_coeffs: Some(ma_array),
+                noise_variance,
+                residuals: residuals_array,
+                metrics,
+            })
         }
-        ModelOrder::ARMA(_ar_order_ma_order) => {
-            // Placeholder for ARMA estimation
-            Err(SignalError::NotImplemented(
-                "ARMA estimation not yet implemented".to_string(),
-            ))
+        ModelOrder::ARMA(p, q) => {
+            // ARMA estimation via Hannan-Rissanen (two-stage):
+            //  Stage 1: fit high-order AR, obtain innovations
+            //  Stage 2: conditional least squares regression on [y_{t-1..p}, e_{t-1..q}]
+            let p = *p;
+            let q = *q;
+            let n = signal.len();
+            let high_ar_order = (2 * (p + q)).min(n / 3).max(p + q + 1);
+
+            if n < high_ar_order + p.max(q) + 1 {
+                return Err(SignalError::ValueError(
+                    "Signal too short for ARMA estimation".to_string(),
+                ));
+            }
+
+            // Stage 1: high-order AR for innovations
+            let ar_config = ParametricConfig {
+                max_ar_order: high_ar_order,
+                max_ma_order: 0,
+                method: EstimationMethod::AR(ARMethod::Burg),
+                ..Default::default()
+            };
+            let ar_stage1 = enhanced_parametric_estimation(signal, &ar_config)?;
+
+            let mut innov = vec![0.0_f64; n];
+            for i in high_ar_order..n {
+                let mut pred = 0.0_f64;
+                for j in 1..ar_stage1.ar_coeffs.len() {
+                    pred += ar_stage1.ar_coeffs[j] * signal[i - j];
+                }
+                innov[i] = signal[i] - pred;
+            }
+
+            // Stage 2: OLS on combined regressors
+            let start = high_ar_order.max(p).max(q);
+            let n_rows = n - start;
+            if n_rows == 0 {
+                return Err(SignalError::ValueError(
+                    "Signal too short for ARMA estimation (stage 2)".to_string(),
+                ));
+            }
+            let n_params = p + q;
+
+            let mut xtx = vec![vec![0.0_f64; n_params]; n_params];
+            let mut xty = vec![0.0_f64; n_params];
+
+            for t in start..n {
+                // Regressor vector: [y_{t-1}, ..., y_{t-p}, e_{t-1}, ..., e_{t-q}]
+                let mut reg = Vec::with_capacity(n_params);
+                for k in 1..=p {
+                    reg.push(if t >= k { signal[t - k] } else { 0.0 });
+                }
+                for k in 1..=q {
+                    reg.push(if t >= k { innov[t - k] } else { 0.0 });
+                }
+
+                let yt = signal[t];
+                for i in 0..n_params {
+                    xty[i] += reg[i] * yt;
+                    for j in 0..n_params {
+                        xtx[i][j] += reg[i] * reg[j];
+                    }
+                }
+            }
+
+            // Solve via Gauss-Jordan with ridge regularisation
+            let ridge = 1e-6;
+            for k in 0..n_params {
+                xtx[k][k] += ridge;
+            }
+
+            let mut aug: Vec<Vec<f64>> = xtx
+                .iter()
+                .enumerate()
+                .map(|(i, row)| {
+                    let mut r = row.clone();
+                    r.push(xty[i]);
+                    r
+                })
+                .collect();
+
+            for col in 0..n_params {
+                let pivot_row = (col..n_params)
+                    .max_by(|&a, &b| aug[a][col].abs().partial_cmp(&aug[b][col].abs()).unwrap_or(std::cmp::Ordering::Equal))
+                    .unwrap_or(col);
+                aug.swap(col, pivot_row);
+
+                let pivot = aug[col][col];
+                if pivot.abs() > 1e-15 {
+                    for j in col..=n_params {
+                        aug[col][j] /= pivot;
+                    }
+                }
+                for row in 0..n_params {
+                    if row != col {
+                        let factor = aug[row][col];
+                        for j in col..=n_params {
+                            let sub = factor * aug[col][j];
+                            aug[row][j] -= sub;
+                        }
+                    }
+                }
+            }
+
+            let params: Vec<f64> = aug.iter().map(|row| row[n_params]).collect();
+            let ar_part = Array1::from_vec(params[..p].to_vec());
+            let ma_part = Array1::from_vec(params[p..].to_vec());
+
+            // Build AR coefficient vector in standard form (index 0 = 1)
+            let mut ar_coeffs_full = vec![1.0_f64];
+            ar_coeffs_full.extend_from_slice(ar_part.as_slice().unwrap_or(&[]));
+            let ar_coeffs = Array1::from_vec(ar_coeffs_full);
+
+            // Compute residuals
+            let residuals = compute_residuals(signal, &ar_coeffs, Some(&ma_part))?;
+            let noise_variance = residuals
+                .iter()
+                .skip(p)
+                .map(|&x| x * x)
+                .sum::<f64>()
+                .max(1e-12)
+                / (n - p).max(1) as f64;
+
+            let metrics = calculate_optimization_metrics(signal, &ar_coeffs, Some(&ma_part), noise_variance)?;
+
+            Ok(AdvancedEstimationResult {
+                ar_coeffs,
+                ma_coeffs: Some(ma_part),
+                noise_variance,
+                residuals,
+                metrics,
+            })
         }
     }
 }

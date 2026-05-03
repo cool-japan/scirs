@@ -99,13 +99,7 @@ impl BemMesh {
     ///   bottom → right → top (reversed) → left (reversed).
     ///
     /// Each side is divided into `n_per_side` elements.
-    pub fn new_rectangle(
-        x0: f64,
-        x1: f64,
-        y0: f64,
-        y1: f64,
-        n_per_side: usize,
-    ) -> PDEResult<Self> {
+    pub fn new_rectangle(x0: f64, x1: f64, y0: f64, y1: f64, n_per_side: usize) -> PDEResult<Self> {
         if n_per_side < 1 {
             return Err(PDEError::InvalidParameter(
                 "n_per_side must be >= 1".to_string(),
@@ -246,14 +240,7 @@ pub fn fundamental_solution_2d(x: f64, y: f64, x0: f64, y0: f64) -> Option<f64> 
 /// where r⃗ = x − x₀ and n̂ = (nx, ny) is the outward unit normal at `x`.
 ///
 /// Returns `None` when r = 0.
-pub fn normal_derivative_green(
-    x: f64,
-    y: f64,
-    x0: f64,
-    y0: f64,
-    nx: f64,
-    ny: f64,
-) -> Option<f64> {
+pub fn normal_derivative_green(x: f64, y: f64, x0: f64, y0: f64, nx: f64, ny: f64) -> Option<f64> {
     let dx = x - x0;
     let dy = y - y0;
     let r2 = dx * dx + dy * dy;
@@ -299,13 +286,7 @@ fn gauss5() -> ([f64; 5], [f64; 5]) {
 /// element) the logarithmic singularity is handled analytically.
 ///
 /// Returns (G_ij, H_ij).
-fn element_integrals(
-    mesh: &BemMesh,
-    j: usize,
-    x0: f64,
-    y0: f64,
-    is_singular: bool,
-) -> (f64, f64) {
+fn element_integrals(mesh: &BemMesh, j: usize, x0: f64, y0: f64, is_singular: bool) -> (f64, f64) {
     let n = mesh.nodes.nrows();
     let j1 = if mesh.closed { (j + 1) % n } else { j + 1 };
 
@@ -708,7 +689,10 @@ mod tests {
         // G at r=2 should be -ln(2)/(2π)
         let g2 = fundamental_solution_2d(2.0, 0.0, 0.0, 0.0);
         let expected = -2_f64.ln() / (2.0 * PI);
-        assert!((g2.expect("fundamental_solution_2d should return Some for r=2") - expected).abs() < 1e-12);
+        assert!(
+            (g2.expect("fundamental_solution_2d should return Some for r=2") - expected).abs()
+                < 1e-12
+        );
     }
 
     #[test]
@@ -722,7 +706,10 @@ mod tests {
         // For r pointing in +x and normal in +x:  ∂G/∂n = -x/(2π r²)
         let h = normal_derivative_green(1.0, 0.0, 0.0, 0.0, 1.0, 0.0);
         let expected = -1.0 / (2.0 * PI);
-        assert!((h.expect("normal_derivative_green should return Some for r=1") - expected).abs() < 1e-12);
+        assert!(
+            (h.expect("normal_derivative_green should return Some for r=1") - expected).abs()
+                < 1e-12
+        );
     }
 
     #[test]
@@ -751,8 +738,9 @@ mod tests {
     fn test_boundary_element_laplace_assembles() {
         let mesh = BemMesh::new_rectangle(0.0, 1.0, 0.0, 1.0, 3).expect("mesh");
         let ne = mesh.n_elements();
-        let bcs: Vec<BemBoundaryCondition> =
-            (0..ne).map(|_| BemBoundaryCondition::Dirichlet(0.0)).collect();
+        let bcs: Vec<BemBoundaryCondition> = (0..ne)
+            .map(|_| BemBoundaryCondition::Dirichlet(0.0))
+            .collect();
         let (h_mat, _rhs) = boundary_element_laplace(&mesh, &bcs).expect("assemble");
         assert_eq!(h_mat.nrows(), ne);
         assert_eq!(h_mat.ncols(), ne);

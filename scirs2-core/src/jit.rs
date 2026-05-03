@@ -919,15 +919,113 @@ impl AdaptiveOptimizer {
         }
     }
 
-    /// Update performance data
+    /// Update performance data by recording an `OptimizationResult` synthesised
+    /// from the observed `KernelPerformance`.  The result is stored under the
+    /// special key `"__perf_trends__"` so that `optimize_kernel` can later
+    /// inspect aggregate patterns when no per-kernel history is available.
+    ///
+    /// Strategy selection heuristic:
+    /// - High throughput (> 1 GOp/s) → prefer `Vectorization`
+    /// - Low execution count (< 10 executions) → prefer `ConstantFolding`
+    /// - Otherwise → cycle through the available strategies in insertion order
     pub fn update_performance_data(&mut self, data: &KernelPerformance) {
-        // Placeholder - would analyze _performance patterns and update optimization decisions
+        // Derive a rough "improvement" signal: normalised throughput (clamped 0..1).
+        // A throughput of 1e9 ops/s is treated as "perfect" (improvement = 1.0).
+        let improvement = (data.throughput / 1.0e9).clamp(0.0, 1.0);
+
+        // Pick a strategy based on the current performance snapshot.
+        let strategy = if data.throughput > 1.0e9 {
+            OptimizationStrategy::Vectorization
+        } else if data.execution_count < 10 {
+            OptimizationStrategy::ConstantFolding
+        } else {
+            // Round-robin over available strategies.
+            let existing = self
+                .optimization_history
+                .get("__perf_trends__")
+                .map(|v| v.len())
+                .unwrap_or(0);
+            let idx = existing % self.strategies.len();
+            self.strategies[idx]
+        };
+
+        let result = OptimizationResult {
+            strategy,
+            improvement,
+            compilation_overhead: data.avgexecution_time,
+            success: improvement > 0.1,
+        };
+
+        self.optimization_history
+            .entry("__perf_trends__".to_string())
+            .or_default()
+            .push(result);
     }
 
-    /// Optimize a kernel
+    /// Suggest an optimization directive for the kernel identified by `kernel_id`.
+    ///
+    /// If the kernel has dedicated history (populated by callers that use
+    /// `kernel_id` as the history key), the most successful `OptimizationResult`
+    /// is selected.  Otherwise the method falls back to the aggregate performance
+    /// trends recorded by `update_performance_data`.  The returned `String` is a
+    /// human-readable directive (e.g. `"vectorize"`, `"unroll"`) that the JIT
+    /// back-end may interpret as a compilation hint.
     pub fn optimize_kernel(&self, kernel_id: &str, config: &JitConfig) -> Result<String, JitError> {
-        // Placeholder - would apply learned optimizations
-        Err(JitError::OptimizationError("Not implemented".to_string()))
+        // Try per-kernel history first.
+        let history = self
+            .optimization_history
+            .get(kernel_id)
+            .or_else(|| self.optimization_history.get("__perf_trends__"));
+
+        if let Some(records) = history {
+            // Find the record with the highest improvement that succeeded.
+            let best = records.iter().filter(|r| r.success).max_by(|a, b| {
+                a.improvement
+                    .partial_cmp(&b.improvement)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+
+            if let Some(best_result) = best {
+                let directive = match best_result.strategy {
+                    OptimizationStrategy::LoopUnrolling => "unroll",
+                    OptimizationStrategy::Vectorization => "vectorize",
+                    OptimizationStrategy::MemoryPrefetching => "prefetch",
+                    OptimizationStrategy::RegisterAllocation => "regalloc",
+                    OptimizationStrategy::InstructionScheduling => "schedule",
+                    OptimizationStrategy::ConstantFolding => "constfold",
+                    OptimizationStrategy::DeadCodeElimination => "dce",
+                    OptimizationStrategy::FunctionInlining => "inline",
+                };
+                let level_flag = optimization_level_flag(config.optimization_level);
+                return Ok(format!("{directive} {level_flag}"));
+            }
+        }
+
+        // No history yet — derive a default directive from the config.
+        let default_directive = match config.optimization_level {
+            OptimizationLevel::None => "none",
+            OptimizationLevel::O1 => "constfold",
+            OptimizationLevel::O2 => "vectorize",
+            OptimizationLevel::O3 => "unroll vectorize prefetch",
+            OptimizationLevel::Os => "constfold dce",
+            OptimizationLevel::Ofast => "unroll vectorize prefetch inline",
+            OptimizationLevel::Adaptive => "vectorize",
+        };
+        let level_flag = optimization_level_flag(config.optimization_level);
+        Ok(format!("{default_directive} {level_flag}"))
+    }
+}
+
+/// Return a short flag string that names the optimisation level, e.g. `"-O2"`.
+fn optimization_level_flag(level: OptimizationLevel) -> &'static str {
+    match level {
+        OptimizationLevel::None => "-O0",
+        OptimizationLevel::O1 => "-O1",
+        OptimizationLevel::O2 => "-O2",
+        OptimizationLevel::O3 => "-O3",
+        OptimizationLevel::Os => "-Os",
+        OptimizationLevel::Ofast => "-Ofast",
+        OptimizationLevel::Adaptive => "-O2",
     }
 }
 
@@ -1306,5 +1404,122 @@ mod tests {
 
         let result = compiler.compile_kernel(source);
         assert!(result.is_ok());
+    }
+
+    // ── AdaptiveOptimizer tests ──────────────────────────────────────────────
+
+    /// `update_performance_data` should record at least one entry in history.
+    #[test]
+    fn test_adaptive_optimizer_update_records_history() {
+        let mut optimizer = AdaptiveOptimizer::new();
+
+        let perf = KernelPerformance {
+            execution_count: 5,
+            totalexecution_time: Duration::from_millis(50),
+            avgexecution_time: Duration::from_millis(10),
+            bestexecution_time: Duration::from_millis(8),
+            worstexecution_time: Duration::from_millis(15),
+            throughput: 1.0e8,
+            energy_efficiency: None,
+        };
+
+        optimizer.update_performance_data(&perf);
+
+        // Should have recorded into the aggregate key.
+        let history = optimizer
+            .optimization_history
+            .get("__perf_trends__")
+            .expect("Expected history to be populated after update");
+        assert_eq!(
+            history.len(),
+            1,
+            "Exactly one record should have been added"
+        );
+    }
+
+    /// Multiple `update_performance_data` calls accumulate multiple records.
+    #[test]
+    fn test_adaptive_optimizer_update_accumulates() {
+        let mut optimizer = AdaptiveOptimizer::new();
+
+        for i in 0..5u64 {
+            let perf = KernelPerformance {
+                execution_count: (i + 1) as usize,
+                totalexecution_time: Duration::from_millis(10 * (i + 1)),
+                avgexecution_time: Duration::from_millis(10),
+                bestexecution_time: Duration::from_millis(8),
+                worstexecution_time: Duration::from_millis(15),
+                throughput: 2.0e9 * (i + 1) as f64, // varying throughput
+                energy_efficiency: None,
+            };
+            optimizer.update_performance_data(&perf);
+        }
+
+        let history = optimizer
+            .optimization_history
+            .get("__perf_trends__")
+            .expect("history should exist");
+        assert_eq!(history.len(), 5);
+    }
+
+    /// `optimize_kernel` with no history should return a default directive.
+    #[test]
+    fn test_adaptive_optimizer_default_directive_no_history() {
+        let optimizer = AdaptiveOptimizer::new();
+        let config = JitConfig::default(); // O2
+        let result = optimizer.optimize_kernel("unknown_kernel", &config);
+        assert!(result.is_ok(), "Should succeed even with no history");
+        let directive = result.expect("optimizer returned Err unexpectedly");
+        assert!(!directive.is_empty(), "Directive string must not be empty");
+        assert!(
+            directive.contains("-O2"),
+            "O2 config should produce -O2 flag, got: {directive}"
+        );
+    }
+
+    /// `optimize_kernel` after recording successful improvements picks
+    /// the strategy with the highest improvement.
+    #[test]
+    fn test_adaptive_optimizer_picks_best_strategy_from_history() {
+        let mut optimizer = AdaptiveOptimizer::new();
+
+        // Record a low-throughput run first (triggers ConstantFolding for count < 10).
+        let perf_low = KernelPerformance {
+            execution_count: 3,
+            totalexecution_time: Duration::from_millis(300),
+            avgexecution_time: Duration::from_millis(100),
+            bestexecution_time: Duration::from_millis(90),
+            worstexecution_time: Duration::from_millis(120),
+            throughput: 5.0e7, // low
+            energy_efficiency: None,
+        };
+        optimizer.update_performance_data(&perf_low);
+
+        // Record a very high-throughput run (triggers Vectorization).
+        let perf_high = KernelPerformance {
+            execution_count: 20,
+            totalexecution_time: Duration::from_millis(20),
+            avgexecution_time: Duration::from_millis(1),
+            bestexecution_time: Duration::from_millis(1),
+            worstexecution_time: Duration::from_millis(2),
+            throughput: 5.0e9, // > 1 GOp/s
+            energy_efficiency: None,
+        };
+        optimizer.update_performance_data(&perf_high);
+
+        let config = JitConfig {
+            optimization_level: OptimizationLevel::O3,
+            ..Default::default()
+        };
+        let result = optimizer
+            .optimize_kernel("my_kernel", &config)
+            .expect("optimize_kernel should succeed");
+
+        // The vectorize record has improvement = 5.0e9 / 1e9 = 5.0 (clamped to 1.0)
+        // which is higher than the constfold record, so "vectorize" should appear.
+        assert!(
+            result.contains("vectorize"),
+            "Expected 'vectorize' in directive, got: {result}"
+        );
     }
 }

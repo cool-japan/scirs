@@ -89,7 +89,11 @@ impl KalmanFilter {
     /// * `state` – current filtered state.
     /// * `f`     – `n × n` state transition matrix.
     /// * `q`     – `n × n` process noise covariance.
-    pub fn predict(state: &KalmanState, f: &Array2<f64>, q: &Array2<f64>) -> StatsResult<KalmanState> {
+    pub fn predict(
+        state: &KalmanState,
+        f: &Array2<f64>,
+        q: &Array2<f64>,
+    ) -> StatsResult<KalmanState> {
         let n = state.dim();
         check_square(f, n, "F")?;
         check_square(q, n, "Q")?;
@@ -128,13 +132,19 @@ impl KalmanFilter {
         if h.nrows() != m || h.ncols() != n {
             return Err(StatsError::DimensionMismatch(format!(
                 "H must be {}×{}, got {}×{}",
-                m, n, h.nrows(), h.ncols()
+                m,
+                n,
+                h.nrows(),
+                h.ncols()
             )));
         }
         if r.nrows() != m || r.ncols() != m {
             return Err(StatsError::DimensionMismatch(format!(
                 "R must be {}×{}, got {}×{}",
-                m, m, r.nrows(), r.ncols()
+                m,
+                m,
+                r.nrows(),
+                r.ncols()
             )));
         }
 
@@ -143,22 +153,22 @@ impl KalmanFilter {
         let innovation = y - &hx;
 
         // S = H P̄ H^T + R
-        let hp = mat_mat_mul(h, &state.p)?;         // m × n
-        let s = mat_mat_mul_at(&hp, h)? + r;         // m × m
+        let hp = mat_mat_mul(h, &state.p)?; // m × n
+        let s = mat_mat_mul_at(&hp, h)? + r; // m × m
 
         // K = P̄ H^T S^{-1}
-        let ph_t = mat_mat_mul_bt(&state.p, h)?;     // n × m
-        let s_inv = inv_symmetric(s)?;                // m × m
-        let k = mat_mat_mul(&ph_t, &s_inv)?;          // n × m
+        let ph_t = mat_mat_mul_bt(&state.p, h)?; // n × m
+        let s_inv = inv_symmetric(s)?; // m × m
+        let k = mat_mat_mul(&ph_t, &s_inv)?; // n × m
 
         // x updated
         let kv = mat_vec_mul(&k, &innovation)?;
         let x_upd = &state.x + &kv;
 
         // P updated: (I - K H) P̄  (Joseph form for numerical stability)
-        let kh = mat_mat_mul(&k, h)?;                 // n × n
-        let i_kh = eye_minus(kh)?;                    // n × n
-        let p_upd = mat_mat_mul(&i_kh, &state.p)?;    // n × n
+        let kh = mat_mat_mul(&k, h)?; // n × n
+        let i_kh = eye_minus(kh)?; // n × n
+        let p_upd = mat_mat_mul(&i_kh, &state.p)?; // n × n
 
         KalmanState::new(x_upd, p_upd)
     }
@@ -199,9 +209,7 @@ impl KalmanFilter {
         let m = observations[0].len();
 
         if p0.nrows() != n || p0.ncols() != n {
-            return Err(StatsError::DimensionMismatch(
-                "p0 must be n×n".into(),
-            ));
+            return Err(StatsError::DimensionMismatch("p0 must be n×n".into()));
         }
 
         let log2pi = (2.0 * std::f64::consts::PI).ln();
@@ -213,7 +221,9 @@ impl KalmanFilter {
             if y.len() != m {
                 return Err(StatsError::DimensionMismatch(format!(
                     "Observation {} has length {}, expected {}",
-                    t, y.len(), m
+                    t,
+                    y.len(),
+                    m
                 )));
             }
 
@@ -274,9 +284,9 @@ impl KalmanFilter {
             let p_pred = mat_mat_mul_at(&fp, f)? + q;
 
             // Smoother gain: G_t = P_t * F^T * P̄_{t+1}^{-1}
-            let pf_t = mat_mat_mul_bt(&filtered[t].p, f)?;    // n × n
+            let pf_t = mat_mat_mul_bt(&filtered[t].p, f)?; // n × n
             let p_pred_inv = inv_symmetric(p_pred)?;
-            let g = mat_mat_mul(&pf_t, &p_pred_inv)?;          // n × n
+            let g = mat_mat_mul(&pf_t, &p_pred_inv)?; // n × n
 
             // Smoothed mean: x_s_t = x_t + G_t * (x_s_{t+1} - x̄_{t+1})
             let diff = &smoothed[t + 1].x - &x_pred;
@@ -284,11 +294,12 @@ impl KalmanFilter {
             let x_smooth = &filtered[t].x + &g_diff;
 
             // Smoothed covariance: P_s_t = P_t + G_t * (P_s_{t+1} - P̄_{t+1}) * G_t^T
-            let dp = &smoothed[t + 1].p - &{
-                // Reconstruct P̄_{t+1} from filtered[t]
-                let fp2 = mat_mat_mul(f, &filtered[t].p)?;
-                mat_mat_mul_at(&fp2, f)? + q
-            };
+            let dp = &smoothed[t + 1].p
+                - &{
+                    // Reconstruct P̄_{t+1} from filtered[t]
+                    let fp2 = mat_mat_mul(f, &filtered[t].p)?;
+                    mat_mat_mul_at(&fp2, f)? + q
+                };
             let g_dp = mat_mat_mul(&g, &dp)?;
             let correction = mat_mat_mul_at(&g_dp, &g)?;
             let p_smooth = &filtered[t].p + &correction;
@@ -378,8 +389,8 @@ fn sigma_points(
 
     for i in 0..n {
         let col = sqrt_p.column(i).to_owned();
-        sigmas.push(&state.x + &col);        // σ_{i+1}   = x̄ + sqrt_col_i
-        sigmas.push(&state.x - &col);        // σ_{n+i+1} = x̄ - sqrt_col_i
+        sigmas.push(&state.x + &col); // σ_{i+1}   = x̄ + sqrt_col_i
+        sigmas.push(&state.x - &col); // σ_{n+i+1} = x̄ - sqrt_col_i
     }
 
     Ok(sigmas)
@@ -410,7 +421,12 @@ impl UnscentedKalmanFilter {
     /// * `state`  – current posterior state.
     /// * `f_fn`   – state transition function `x_t -> x_{t+1}`.
     /// * `q`      – process noise covariance (n × n).
-    pub fn predict<F>(&self, state: &KalmanState, f_fn: F, q: &Array2<f64>) -> StatsResult<KalmanState>
+    pub fn predict<F>(
+        &self,
+        state: &KalmanState,
+        f_fn: F,
+        q: &Array2<f64>,
+    ) -> StatsResult<KalmanState>
     where
         F: Fn(&Array1<f64>) -> Array1<f64>,
     {
@@ -465,7 +481,7 @@ impl UnscentedKalmanFilter {
 
         // Kalman gain K = P_xy * S_yy^{-1}
         let s_inv = inv_symmetric(s_yy)?;
-        let k = mat_mat_mul(&p_xy, &s_inv)?;    // n × m
+        let k = mat_mat_mul(&p_xy, &s_inv)?; // n × m
 
         // Update mean
         let innovation = y - &y_pred;
@@ -559,9 +575,7 @@ impl StructuralTimeSeries {
             ));
         }
         if level_var <= 0.0 {
-            return Err(StatsError::DomainError(
-                "level_var must be positive".into(),
-            ));
+            return Err(StatsError::DomainError("level_var must be positive".into()));
         }
         if obs_var <= 0.0 {
             return Err(StatsError::DomainError("obs_var must be positive".into()));
@@ -570,22 +584,17 @@ impl StructuralTimeSeries {
         use scirs2_core::ndarray::{array, Array1, Array2};
 
         // State: [level]
-        let f = array![[1.0_f64]];           // transition
-        let h = array![[1.0_f64]];           // observation
-        let q = array![[level_var]];         // process noise
-        let r = array![[obs_var]];           // observation noise
+        let f = array![[1.0_f64]]; // transition
+        let h = array![[1.0_f64]]; // observation
+        let q = array![[level_var]]; // process noise
+        let r = array![[obs_var]]; // observation noise
 
         let x0 = Array1::from_elem(1, init_level.unwrap_or(y[0]));
         let p0 = Array2::from_elem((1, 1), init_var.unwrap_or(1e6));
 
-        let obs_vecs: Vec<Array1<f64>> = y
-            .iter()
-            .map(|&yi| Array1::from_elem(1, yi))
-            .collect();
+        let obs_vecs: Vec<Array1<f64>> = y.iter().map(|&yi| Array1::from_elem(1, yi)).collect();
 
-        let (filtered, log_lik) = KalmanFilter::filter_series(
-            &obs_vecs, &f, &h, &q, &r, x0, p0,
-        )?;
+        let (filtered, log_lik) = KalmanFilter::filter_series(&obs_vecs, &f, &h, &q, &r, x0, p0)?;
 
         let smoothed = KalmanFilter::smooth(&filtered, &f, &q)?;
 
@@ -660,20 +669,12 @@ impl StructuralTimeSeries {
         let r = array![[obs_var]];
 
         let iv = init_var.unwrap_or(1e6);
-        let x0 = Array1::from_vec(vec![
-            init_level.unwrap_or(y[0]),
-            init_slope.unwrap_or(0.0),
-        ]);
+        let x0 = Array1::from_vec(vec![init_level.unwrap_or(y[0]), init_slope.unwrap_or(0.0)]);
         let p0 = Array2::from_diag(&Array1::from_vec(vec![iv, iv]));
 
-        let obs_vecs: Vec<Array1<f64>> = y
-            .iter()
-            .map(|&yi| Array1::from_elem(1, yi))
-            .collect();
+        let obs_vecs: Vec<Array1<f64>> = y.iter().map(|&yi| Array1::from_elem(1, yi)).collect();
 
-        let (filtered, log_lik) = KalmanFilter::filter_series(
-            &obs_vecs, &f, &h, &q, &r, x0, p0,
-        )?;
+        let (filtered, log_lik) = KalmanFilter::filter_series(&obs_vecs, &f, &h, &q, &r, x0, p0)?;
 
         let smoothed = KalmanFilter::smooth(&filtered, &f, &q)?;
 
@@ -708,7 +709,9 @@ fn mat_vec_mul(a: &Array2<f64>, x: &Array1<f64>) -> StatsResult<Array1<f64>> {
     if a.ncols() != x.len() {
         return Err(StatsError::DimensionMismatch(format!(
             "mat_vec_mul: A is {}×{} but x has len {}",
-            a.nrows(), a.ncols(), x.len()
+            a.nrows(),
+            a.ncols(),
+            x.len()
         )));
     }
     let n = a.nrows();
@@ -729,7 +732,10 @@ fn mat_mat_mul(a: &Array2<f64>, b: &Array2<f64>) -> StatsResult<Array2<f64>> {
     if a.ncols() != b.nrows() {
         return Err(StatsError::DimensionMismatch(format!(
             "mat_mat_mul: A is {}×{} but B is {}×{}",
-            a.nrows(), a.ncols(), b.nrows(), b.ncols()
+            a.nrows(),
+            a.ncols(),
+            b.nrows(),
+            b.ncols()
         )));
     }
     let n = a.nrows();
@@ -753,7 +759,10 @@ fn mat_mat_mul_bt(a: &Array2<f64>, b: &Array2<f64>) -> StatsResult<Array2<f64>> 
     if a.ncols() != b.ncols() {
         return Err(StatsError::DimensionMismatch(format!(
             "mat_mat_mul_bt: A is {}×{} but B^T is {}×{}",
-            a.nrows(), a.ncols(), b.ncols(), b.nrows()
+            a.nrows(),
+            a.ncols(),
+            b.ncols(),
+            b.nrows()
         )));
     }
     let n = a.nrows();
@@ -784,7 +793,9 @@ fn mat_mat_mul_at(a: &Array2<f64>, b: &Array2<f64>) -> StatsResult<Array2<f64>> 
 fn eye_minus(a: Array2<f64>) -> StatsResult<Array2<f64>> {
     let n = a.nrows();
     if a.ncols() != n {
-        return Err(StatsError::DimensionMismatch("eye_minus: matrix not square".into()));
+        return Err(StatsError::DimensionMismatch(
+            "eye_minus: matrix not square".into(),
+        ));
     }
     let mut result = -a;
     for i in 0..n {
@@ -798,7 +809,11 @@ fn check_square(m: &Array2<f64>, expected: usize, name: &str) -> StatsResult<()>
     if m.nrows() != expected || m.ncols() != expected {
         Err(StatsError::DimensionMismatch(format!(
             "{} must be {}×{}, got {}×{}",
-            name, expected, expected, m.nrows(), m.ncols()
+            name,
+            expected,
+            expected,
+            m.nrows(),
+            m.ncols()
         )))
     } else {
         Ok(())
@@ -1044,8 +1059,8 @@ mod tests {
         let x0 = Array1::from_vec(vec![0.0_f64]);
         let p0 = Array2::from_elem((1, 1), 100.0_f64);
 
-        let (states, log_lik) = KalmanFilter::filter_series(&obs, &f, &h, &q, &r, x0, p0)
-            .expect("filter_series");
+        let (states, log_lik) =
+            KalmanFilter::filter_series(&obs, &f, &h, &q, &r, x0, p0).expect("filter_series");
         assert_eq!(states.len(), 20);
         assert!(log_lik.is_finite());
         // After 20 observations the estimate should be close to 3.0
@@ -1055,9 +1070,7 @@ mod tests {
 
     #[test]
     fn test_rts_smoother() {
-        let obs: Vec<Array1<f64>> = (0..10)
-            .map(|_| Array1::from_vec(vec![2.0_f64]))
-            .collect();
+        let obs: Vec<Array1<f64>> = (0..10).map(|_| Array1::from_vec(vec![2.0_f64])).collect();
 
         let f = array![[1.0_f64]];
         let h = array![[1.0_f64]];
@@ -1066,8 +1079,8 @@ mod tests {
         let x0 = Array1::from_vec(vec![0.0_f64]);
         let p0 = Array2::from_elem((1, 1), 10.0_f64);
 
-        let (filtered, _) = KalmanFilter::filter_series(&obs, &f, &h, &q, &r, x0, p0)
-            .expect("filter_series");
+        let (filtered, _) =
+            KalmanFilter::filter_series(&obs, &f, &h, &q, &r, x0, p0).expect("filter_series");
         let smoothed = KalmanFilter::smooth(&filtered, &f, &q).expect("smooth");
 
         assert_eq!(smoothed.len(), 10);
@@ -1081,7 +1094,9 @@ mod tests {
 
     #[test]
     fn test_local_level_fit() {
-        let y: Vec<f64> = (0..30).map(|i| 2.0 + 0.1 * (i as f64 % 5.0 - 2.0)).collect();
+        let y: Vec<f64> = (0..30)
+            .map(|i| 2.0 + 0.1 * (i as f64 % 5.0 - 2.0))
+            .collect();
         let result = StructuralTimeSeries::fit_local_level(&y, 0.1, 0.5, None, None)
             .expect("fit_local_level");
         assert_eq!(result.fitted_values.len(), 30);
@@ -1090,9 +1105,12 @@ mod tests {
 
     #[test]
     fn test_local_linear_trend_fit() {
-        let y: Vec<f64> = (0..30).map(|i| i as f64 + 0.1 * (i as f64 % 3.0 - 1.0)).collect();
-        let result = StructuralTimeSeries::fit_local_linear_trend(&y, 0.01, 0.001, 0.5, None, None, None)
-            .expect("fit_local_linear_trend");
+        let y: Vec<f64> = (0..30)
+            .map(|i| i as f64 + 0.1 * (i as f64 % 3.0 - 1.0))
+            .collect();
+        let result =
+            StructuralTimeSeries::fit_local_linear_trend(&y, 0.01, 0.001, 0.5, None, None, None)
+                .expect("fit_local_linear_trend");
         assert_eq!(result.fitted_values.len(), 30);
         assert!(result.log_likelihood.is_finite());
         // Slope component should be approximately 1.0 by the end
@@ -1151,7 +1169,8 @@ mod tests {
                 assert!(
                     (a_reconstructed[[i, j]] - a[[i, j]]).abs() < 1e-12,
                     "({},{}) mismatch",
-                    i, j
+                    i,
+                    j
                 );
             }
         }

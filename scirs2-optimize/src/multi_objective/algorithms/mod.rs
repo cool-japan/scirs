@@ -147,11 +147,11 @@ impl OptimizerFactory {
         n_variables: usize,
         reference_points: Option<Vec<Array1<f64>>>,
     ) -> Result<NSGAIII, OptimizeError> {
-        // TODO: Use reference_points when NSGA-III is fully implemented
-        Ok(NSGAIII::new(
-            config.population_size,
+        Ok(NSGAIII::with_config(
+            config,
             n_objectives,
             n_variables,
+            reference_points,
         ))
     }
 
@@ -536,5 +536,37 @@ mod tests {
 
         let unknown = OptimizerFactory::create_by_name("unknown", config, 2, 3);
         assert!(unknown.is_err());
+    }
+
+    #[test]
+    fn test_create_nsga3_wires_reference_points() {
+        use scirs2_core::ndarray::array;
+
+        let custom_rps: Vec<Array1<f64>> = vec![
+            array![1.0, 0.0, 0.0],
+            array![0.0, 1.0, 0.0],
+            array![0.0, 0.0, 1.0],
+            array![0.5, 0.5, 0.0],
+            array![0.5, 0.0, 0.5],
+        ];
+        let expected_count = custom_rps.len();
+
+        let config = MultiObjectiveConfig {
+            population_size: 20,
+            max_generations: 5,
+            random_seed: Some(99),
+            ..Default::default()
+        };
+
+        // With custom reference points — count must match exactly
+        let nsga3_custom = OptimizerFactory::create_nsga3(config.clone(), 3, 4, Some(custom_rps))
+            .expect("create_nsga3 with custom rps should succeed");
+        assert_eq!(nsga3_custom.reference_points().len(), expected_count);
+
+        // Without custom reference points — auto-generated, count differs from 5
+        let nsga3_auto = OptimizerFactory::create_nsga3(config, 3, 4, None)
+            .expect("create_nsga3 without rps should succeed");
+        // Auto-generated Das-Dennis points for pop_size=20, 3 objectives
+        assert_ne!(nsga3_auto.reference_points().len(), expected_count);
     }
 }

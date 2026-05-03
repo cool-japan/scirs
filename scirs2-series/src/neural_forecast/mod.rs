@@ -18,9 +18,16 @@
 //! All models implement a common [`NeuralForecastModel`] trait providing `fit()`,
 //! `predict()`, and `predict_interval()` methods.
 
+pub mod crossformer;
 pub mod deepar;
+pub mod dlinear;
+pub mod itransformer;
 pub mod nbeats;
+pub mod nhits;
+pub mod patchtst;
+pub mod simple_api;
 pub mod tft;
+pub mod timesnet;
 pub mod ts_transformer;
 
 // Re-exports for convenience

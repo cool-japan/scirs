@@ -25,6 +25,7 @@ use crate::multiobjective::indicators::{dominates, non_dominated_sort};
 use crate::multiobjective::nsga2::Individual;
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::RngExt;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public types
@@ -196,8 +197,7 @@ where
             // Update neighbourhood solutions
             for &j in mating_pool {
                 let w = &weight_vectors[j];
-                let g_offspring =
-                    tchebycheff_scalarization(&offspring.objectives, w, &ideal_point);
+                let g_offspring = tchebycheff_scalarization(&offspring.objectives, w, &ideal_point);
                 let g_current =
                     tchebycheff_scalarization(&population[j].objectives, w, &ideal_point);
                 if g_offspring <= g_current {
@@ -208,16 +208,16 @@ where
     }
 
     // ── 5. Extract Pareto front from final population ────────────────────────
-    let obj_vecs: Vec<Vec<f64>> = population.iter().map(|ind| ind.objectives.clone()).collect();
+    let obj_vecs: Vec<Vec<f64>> = population
+        .iter()
+        .map(|ind| ind.objectives.clone())
+        .collect();
     let fronts = non_dominated_sort(&obj_vecs);
 
     let pareto_front: Vec<Individual> = if fronts.is_empty() {
         population.clone()
     } else {
-        fronts[0]
-            .iter()
-            .map(|&i| population[i].clone())
-            .collect()
+        fronts[0].iter().map(|&i| population[i].clone()).collect()
     };
 
     Ok(MoeadResult {
@@ -338,7 +338,9 @@ fn combinations(n: usize, k: usize) -> usize {
 /// Generate a single random point on the unit simplex (for fallback padding).
 fn random_simplex_point(n: usize, rng: &mut StdRng) -> Vec<f64> {
     // Exponential sampling: sample Exp(1) and normalise
-    let exps: Vec<f64> = (0..n).map(|_| -rng.random::<f64>().ln().max(1e-15)).collect();
+    let exps: Vec<f64> = (0..n)
+        .map(|_| -rng.random::<f64>().ln().max(1e-15))
+        .collect();
     let sum: f64 = exps.iter().sum();
     exps.iter().map(|&e| e / sum).collect()
 }
@@ -603,12 +605,15 @@ mod tests {
         cfg.n_generations = 5;
         cfg.n_objectives = 2;
 
-        let result = moead(&bounds, |x| vec![x[0], 1.0 - x[0]], cfg).expect("failed to create result");
+        let result =
+            moead(&bounds, |x| vec![x[0], 1.0 - x[0]], cfg).expect("failed to create result");
 
         for ind in &result.pareto_front {
             for (i, &g) in ind.genes.iter().enumerate() {
-                assert!(g >= bounds[i].0 - 1e-9 && g <= bounds[i].1 + 1e-9,
-                    "gene[{i}]={g} outside bounds");
+                assert!(
+                    g >= bounds[i].0 - 1e-9 && g <= bounds[i].1 + 1e-9,
+                    "gene[{i}]={g} outside bounds"
+                );
             }
         }
     }

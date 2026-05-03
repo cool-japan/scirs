@@ -9,7 +9,7 @@ use scirs2_graph::{algorithms, generators, measures, DiGraph, Graph};
 use std::time::Instant;
 
 #[test]
-#[ignore] // Run with: cargo test stress_tests -- --ignored --test-threads=1
+#[ignore = "slow - generates up to 1M node graphs, run with --run-ignored all"]
 #[allow(dead_code)]
 fn test_large_erdos_renyi_graph() -> CoreResult<()> {
     println!("\n=== Erdős-Rényi Graph Stress Test ===");
@@ -64,7 +64,7 @@ fn test_large_erdos_renyi_graph() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore]
+#[ignore = "slow - generates up to 1M node graphs, run with --run-ignored all"]
 #[allow(dead_code)]
 fn test_large_barabasi_albert_graph() -> CoreResult<()> {
     println!("\n=== Barabási-Albert Graph Stress Test ===");
@@ -123,7 +123,7 @@ fn test_large_barabasi_albert_graph() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore]
+#[ignore = "slow - up to 1M node grids, takes >16s, run with --run-ignored all"]
 #[allow(dead_code)]
 fn test_large_grid_graph() -> CoreResult<()> {
     println!("\n=== Grid Graph Stress Test ===");
@@ -182,7 +182,6 @@ fn test_large_grid_graph() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore]
 #[allow(dead_code)]
 fn test_large_directed_graph_algorithms() -> CoreResult<()> {
     println!("\n=== Large Directed Graph Algorithms Test ===");
@@ -250,7 +249,7 @@ fn test_large_directed_graph_algorithms() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore]
+#[ignore = "slow - generates 1M node graph, run with --run-ignored all"]
 #[allow(dead_code)]
 fn test_memory_efficient_operations() -> CoreResult<()> {
     println!("\n=== Memory Efficient Operations Test ===");
@@ -324,7 +323,7 @@ fn test_memory_efficient_operations() -> CoreResult<()> {
 }
 
 #[test]
-#[ignore]
+#[ignore = "slow - generates 500K node graph, run with --run-ignored all"]
 #[allow(dead_code)]
 fn test_parallel_algorithms_on_large_graphs() -> CoreResult<()> {
     println!("\n=== Parallel Algorithms on Large Graphs Test ===");
@@ -424,7 +423,7 @@ fn bfs_with_depth_limit(
 }
 
 #[test]
-#[ignore]
+#[ignore = "slow - generates 5M node graph, high memory usage, run with --run-ignored all"]
 #[allow(dead_code)]
 fn test_extreme_scale_graph() -> CoreResult<()> {
     println!("\n=== Extreme Scale Graph Test (5M nodes) ===");
@@ -484,7 +483,7 @@ fn estimate_memory_usage(nodes: usize, edges: usize) -> f64 {
 }
 
 #[test]
-#[ignore]
+#[ignore = "slow - tests graphs up to 200K nodes, run with --run-ignored all"]
 #[allow(dead_code)]
 fn test_algorithm_scaling() -> CoreResult<()> {
     println!("\n=== Algorithm Scaling Analysis ===");

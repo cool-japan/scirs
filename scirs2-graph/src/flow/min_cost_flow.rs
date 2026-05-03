@@ -57,19 +57,24 @@ impl MinCostFlow {
     pub fn add_edge(&mut self, u: usize, v: usize, cap: i64, cost: i64) {
         let rev_u = self.graph[v].len();
         let rev_v = self.graph[u].len();
-        self.graph[u].push(McfEdge { to: v, cap, cost, rev: rev_u });
-        self.graph[v].push(McfEdge { to: u, cap: 0, cost: -cost, rev: rev_v });
+        self.graph[u].push(McfEdge {
+            to: v,
+            cap,
+            cost,
+            rev: rev_u,
+        });
+        self.graph[v].push(McfEdge {
+            to: u,
+            cap: 0,
+            cost: -cost,
+            rev: rev_v,
+        });
     }
 
     /// Send at most `max_flow` units from `source` to `sink` with minimum cost.
     ///
     /// Returns `(actual_flow, total_cost)`.
-    pub fn min_cost_flow(
-        &mut self,
-        source: usize,
-        sink: usize,
-        max_flow: i64,
-    ) -> (i64, i64) {
+    pub fn min_cost_flow(&mut self, source: usize, sink: usize, max_flow: i64) -> (i64, i64) {
         let mut flow = 0i64;
         let mut cost = 0i64;
         while flow < max_flow {
@@ -111,11 +116,7 @@ impl MinCostFlow {
 
     /// SPFA (Shortest Path Faster Algorithm) to find min-cost augmenting path.
     /// Returns (dist, prev_node, prev_edge) or None if sink is unreachable.
-    fn spfa(
-        &self,
-        source: usize,
-        sink: usize,
-    ) -> Option<(Vec<i64>, Vec<usize>, Vec<usize>)> {
+    fn spfa(&self, source: usize, sink: usize) -> Option<(Vec<i64>, Vec<usize>, Vec<usize>)> {
         const INF: i64 = i64::MAX / 2;
         let n = self.n;
         let mut dist = vec![INF; n];
@@ -209,8 +210,18 @@ impl PotentialMinCostFlow {
     pub fn add_edge(&mut self, u: usize, v: usize, cap: i64, cost: i64) {
         let rev_u = self.graph[v].len();
         let rev_v = self.graph[u].len();
-        self.graph[u].push(McfEdge { to: v, cap, cost, rev: rev_u });
-        self.graph[v].push(McfEdge { to: u, cap: 0, cost: -cost, rev: rev_v });
+        self.graph[u].push(McfEdge {
+            to: v,
+            cap,
+            cost,
+            rev: rev_u,
+        });
+        self.graph[v].push(McfEdge {
+            to: u,
+            cap: 0,
+            cost: -cost,
+            rev: rev_v,
+        });
     }
 
     /// Compute minimum cost maximum flow from `source` to `sink`.
@@ -223,12 +234,7 @@ impl PotentialMinCostFlow {
     /// Send at most `max_flow` units with minimum cost.
     ///
     /// Returns `(actual_flow, total_cost)`.
-    pub fn min_cost_flow(
-        &mut self,
-        source: usize,
-        sink: usize,
-        max_flow: i64,
-    ) -> (i64, i64) {
+    pub fn min_cost_flow(&mut self, source: usize, sink: usize, max_flow: i64) -> (i64, i64) {
         // Initialize potentials via Bellman-Ford from source
         let mut potential = self.bellman_ford(source);
 
@@ -236,11 +242,10 @@ impl PotentialMinCostFlow {
         let mut cost = 0i64;
 
         while flow < max_flow {
-            let (dist, prev_node, prev_edge) =
-                match self.dijkstra(source, sink, &potential) {
-                    Some(x) => x,
-                    None => break,
-                };
+            let (dist, prev_node, prev_edge) = match self.dijkstra(source, sink, &potential) {
+                Some(x) => x,
+                None => break,
+            };
 
             // Update potentials
             for v in 0..self.n {

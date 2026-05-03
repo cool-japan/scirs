@@ -662,14 +662,204 @@ where
 }
 
 /// Internal implementation of parallel matrix logarithm computation.
+///
+/// Implements the same scaling-and-squaring Taylor series algorithm as `logm_impl`,
+/// but uses Rayon to parallelize the row dimension of every matrix multiplication.
+/// Each matrix product `C = A * B` is computed by distributing independent rows of `C`
+/// across threads: row `i` of `C` depends only on row `i` of `A` and all columns of `B`,
+/// so there are no data races between rows.
 #[allow(dead_code)]
 fn logm_impl_parallel<F>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>>
 where
     F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
-    // For now, use the sequential implementation
-    // TODO: Implement parallel version using scirs2_core::parallel_ops
-    logm_impl(a)
+    use scirs2_core::parallel_ops::*;
+
+    if a.nrows() != a.ncols() {
+        return Err(LinalgError::ShapeError(format!(
+            "Matrix must be square to compute logarithm, got shape {:?}",
+            a.shape()
+        )));
+    }
+
+    let n = a.nrows();
+
+    // Special case: 1×1
+    if n == 1 {
+        let val = a[[0, 0]];
+        if val <= F::zero() {
+            return Err(LinalgError::InvalidInputError(
+                "Cannot compute real logarithm of non-positive scalar".to_string(),
+            ));
+        }
+        let mut result = Array2::<F>::zeros((1, 1));
+        result[[0, 0]] = val.ln();
+        return Ok(result);
+    }
+
+    // Special case: diagonal matrix
+    let mut is_diagonal = true;
+    'outer: for i in 0..n {
+        for j in 0..n {
+            if i != j && a[[i, j]].abs() > F::epsilon() {
+                is_diagonal = false;
+                break 'outer;
+            }
+        }
+    }
+    if is_diagonal {
+        for i in 0..n {
+            if a[[i, i]] <= F::zero() {
+                return Err(LinalgError::InvalidInputError(
+                    "Cannot compute real logarithm of matrix with non-positive eigenvalues"
+                        .to_string(),
+                ));
+            }
+        }
+        let mut result = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            result[[i, i]] = a[[i, i]].ln();
+        }
+        return Ok(result);
+    }
+
+    // Parallel row-wise matrix multiplication helper.
+    // Computes C = A * B by distributing rows across Rayon threads.
+    // Each row of C depends only on the same row of A and all of B, so rows are independent.
+    let par_matmul = |lhs: &Array2<F>, rhs: &Array2<F>| -> Array2<F> {
+        // Collect each row as a Vec<F>, then assemble back into Array2.
+        let rows: Vec<Vec<F>> = (0..n)
+            .into_par_iter()
+            .map(|i| {
+                (0..n)
+                    .map(|j| {
+                        let mut acc = F::zero();
+                        for k in 0..n {
+                            acc += lhs[[i, k]] * rhs[[k, j]];
+                        }
+                        acc
+                    })
+                    .collect()
+            })
+            .collect();
+        let flat: Vec<F> = rows.into_iter().flatten().collect();
+        Array2::from_shape_vec((n, n), flat).unwrap_or_else(|_| Array2::<F>::zeros((n, n)))
+    };
+
+    // Check if close to identity
+    let identity = Array2::<F>::eye(n);
+    let max_diff = (0..n)
+        .flat_map(|i| (0..n).map(move |j| (i, j)))
+        .map(|(i, j)| (a[[i, j]] - identity[[i, j]]).abs())
+        .fold(F::zero(), |acc, v| if v > acc { v } else { acc });
+
+    if max_diff > F::from(0.5).unwrap_or(F::one()) {
+        // Inverse scaling and squaring: reduce A to near-identity via sqrtm iterations
+        let mut scaling_k = 0i32;
+        let mut a_scaled = a.to_owned();
+
+        while scaling_k < 10 {
+            let scaled_max_diff = (0..n)
+                .flat_map(|i| (0..n).map(move |j| (i, j)))
+                .map(|(i, j)| {
+                    let exp = if i == j { F::one() } else { F::zero() };
+                    (a_scaled[[i, j]] - exp).abs()
+                })
+                .fold(F::zero(), |acc, v| if v > acc { v } else { acc });
+
+            if scaled_max_diff <= F::from(0.2).unwrap_or(F::one()) {
+                break;
+            }
+
+            match sqrtm(&a_scaled.view(), 20, F::from(1e-12).unwrap_or(F::epsilon())) {
+                Ok(sqrt_result) => {
+                    a_scaled = sqrt_result;
+                    scaling_k += 1;
+                }
+                Err(_) => {
+                    return Err(LinalgError::ImplementationError(
+                        "Matrix logarithm (parallel): Could not compute matrix square root for scaling"
+                            .to_string(),
+                    ));
+                }
+            }
+        }
+
+        if scaling_k >= 10 {
+            return Err(LinalgError::ImplementationError(
+                "Matrix logarithm (parallel): Matrix could not be scaled close enough to identity"
+                    .to_string(),
+            ));
+        }
+
+        // X = A_scaled - I
+        let mut x_scaled = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                let exp = if i == j { F::one() } else { F::zero() };
+                x_scaled[[i, j]] = a_scaled[[i, j]] - exp;
+            }
+        }
+
+        // Compute powers in parallel
+        let x2 = par_matmul(&x_scaled, &x_scaled);
+        let x3 = par_matmul(&x2, &x_scaled);
+        let x4 = par_matmul(&x3, &x_scaled);
+        let x5 = par_matmul(&x4, &x_scaled);
+        let x6 = par_matmul(&x5, &x_scaled);
+
+        let half = F::from(0.5).unwrap_or(F::zero());
+        let third = F::from(1.0 / 3.0).unwrap_or(F::zero());
+        let fourth = F::from(0.25).unwrap_or(F::zero());
+        let fifth = F::from(0.2).unwrap_or(F::zero());
+        let sixth = F::from(1.0 / 6.0).unwrap_or(F::zero());
+        let scale_factor = F::from(2.0_f64.powi(scaling_k)).unwrap_or(F::one());
+
+        let mut log_scaled = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                log_scaled[[i, j]] = (x_scaled[[i, j]] - half * x2[[i, j]] + third * x3[[i, j]]
+                    - fourth * x4[[i, j]]
+                    + fifth * x5[[i, j]]
+                    - sixth * x6[[i, j]])
+                    * scale_factor;
+            }
+        }
+
+        return Ok(log_scaled);
+    }
+
+    // Matrix is close to identity: log(I + X) Taylor series
+    let mut x = Array2::<F>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            x[[i, j]] = a[[i, j]] - identity[[i, j]];
+        }
+    }
+
+    let x2 = par_matmul(&x, &x);
+    let x3 = par_matmul(&x2, &x);
+    let x4 = par_matmul(&x3, &x);
+    let x5 = par_matmul(&x4, &x);
+    let x6 = par_matmul(&x5, &x);
+
+    let half = F::from(0.5).unwrap_or(F::zero());
+    let third = F::from(1.0 / 3.0).unwrap_or(F::zero());
+    let fourth = F::from(0.25).unwrap_or(F::zero());
+    let fifth = F::from(0.2).unwrap_or(F::zero());
+    let sixth = F::from(1.0 / 6.0).unwrap_or(F::zero());
+
+    let mut result = Array2::<F>::zeros((n, n));
+    for i in 0..n {
+        for j in 0..n {
+            result[[i, j]] = x[[i, j]] - half * x2[[i, j]] + third * x3[[i, j]]
+                - fourth * x4[[i, j]]
+                + fifth * x5[[i, j]]
+                - sixth * x6[[i, j]];
+        }
+    }
+
+    Ok(result)
 }
 
 /// Compute the matrix square root using the Denman-Beavers iteration.
@@ -835,6 +1025,7 @@ where
     F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
 {
     use crate::parallel;
+    use scirs2_core::parallel_ops::*;
 
     // Configure workers for parallel operations
     parallel::configure_workers(workers);
@@ -845,9 +1036,119 @@ where
         return sqrtm(a, maxiter, tol);
     }
 
-    // For now, delegate to sequential implementation
-    // TODO: Implement parallel version
-    sqrtm_impl(a, maxiter, tol)
+    sqrtm_impl_parallel(a, maxiter, tol)
+}
+
+/// Internal implementation of parallel matrix square root computation.
+///
+/// Uses the Denman–Beavers iteration like `sqrtm_impl`, but parallelizes the
+/// element-wise update steps across rows using Rayon.  Each row of `x_new` and
+/// `y_new` depends only on the corresponding row of `x`/`y` and the corresponding
+/// row of `y_inv`/`x_inv`, so rows are independent and can be updated concurrently.
+#[allow(dead_code)]
+fn sqrtm_impl_parallel<F>(a: &ArrayView2<F>, maxiter: usize, tol: F) -> LinalgResult<Array2<F>>
+where
+    F: Float + NumAssign + Sum + One + Send + Sync + scirs2_core::ndarray::ScalarOperand + 'static,
+{
+    use scirs2_core::parallel_ops::*;
+
+    validate_decomposition(a, "Matrix square root (parallel) computation", true)?;
+
+    let n = a.nrows();
+
+    if n == 1 {
+        let val = a[[0, 0]];
+        if val < F::zero() {
+            return Err(LinalgError::InvalidInputError(
+                "Cannot compute real square root of negative number".to_string(),
+            ));
+        }
+        let mut result = Array2::<F>::zeros((1, 1));
+        result[[0, 0]] = val.sqrt();
+        return Ok(result);
+    }
+
+    // Special case: diagonal matrix — parallelise the per-diagonal entry sqrt
+    let mut is_diagonal = true;
+    'outer: for i in 0..n {
+        for j in 0..n {
+            if i != j && a[[i, j]].abs() > F::epsilon() {
+                is_diagonal = false;
+                break 'outer;
+            }
+        }
+    }
+
+    if is_diagonal {
+        // Check all diagonal entries are non-negative first
+        for i in 0..n {
+            if a[[i, i]] < F::zero() {
+                return Err(LinalgError::InvalidInputError(
+                    "Cannot compute real square root of matrix with negative eigenvalues"
+                        .to_string(),
+                ));
+            }
+        }
+        // Collect diagonal sqrt values in parallel, then write sequentially.
+        let diag_vals: Vec<F> = (0..n).into_par_iter().map(|i| a[[i, i]].sqrt()).collect();
+        let mut result = Array2::<F>::zeros((n, n));
+        for (i, v) in diag_vals.into_iter().enumerate() {
+            result[[i, i]] = v;
+        }
+        return Ok(result);
+    }
+
+    let half = F::from(0.5).unwrap_or(F::zero());
+
+    // Denman–Beavers iteration with parallel element-wise updates.
+    // Each row of x_new (resp. y_new) depends only on the same row of x (resp. y)
+    // and the same row of y_inv (resp. x_inv), so rows are computed independently.
+    let mut x = a.to_owned();
+    let mut y = Array2::<F>::eye(n);
+
+    for _ in 0..maxiter {
+        let x_prev = x.clone();
+
+        let y_inv = solve_multiple(&y.view(), &Array2::eye(n).view(), None)?;
+        let x_inv = solve_multiple(&x.view(), &Array2::eye(n).view(), None)?;
+
+        // Compute updated rows in parallel, then collect into matrices.
+        let x_rows: Vec<Vec<F>> = (0..n)
+            .into_par_iter()
+            .map(|i| (0..n).map(|j| (x[[i, j]] + y_inv[[i, j]]) * half).collect())
+            .collect();
+        let y_rows: Vec<Vec<F>> = (0..n)
+            .into_par_iter()
+            .map(|i| (0..n).map(|j| (y[[i, j]] + x_inv[[i, j]]) * half).collect())
+            .collect();
+
+        let x_flat: Vec<F> = x_rows.into_iter().flatten().collect();
+        let y_flat: Vec<F> = y_rows.into_iter().flatten().collect();
+
+        x = Array2::from_shape_vec((n, n), x_flat).unwrap_or_else(|_| Array2::<F>::zeros((n, n)));
+        y = Array2::from_shape_vec((n, n), y_flat).unwrap_or_else(|_| Array2::<F>::zeros((n, n)));
+
+        // Parallel convergence check: reduce max absolute difference across rows
+        let max_diff = (0..n)
+            .into_par_iter()
+            .map(|i| {
+                (0..n).fold(F::zero(), |acc, j| {
+                    let d = (x[[i, j]] - x_prev[[i, j]]).abs();
+                    if d > acc {
+                        d
+                    } else {
+                        acc
+                    }
+                })
+            })
+            .reduce(|| F::zero(), |a, b| if a > b { a } else { b });
+
+        if max_diff < tol {
+            break;
+        }
+    }
+
+    Ok(x)
 }
 
 /// Compute the matrix power A^p for a real number p.

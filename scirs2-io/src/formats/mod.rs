@@ -18,21 +18,14 @@
 /// - FASTQ: Sequences with quality scores
 /// - SAM/BAM: Sequence alignment data
 /// - VCF: Variant Call Format for genomic variations
-pub mod bioinformatics;
-
-/// Geospatial file formats
-///
-/// Provides support for geographic and spatial data formats:
-/// - GeoTIFF: Georeferenced raster images
-/// - Shapefile: Vector geographic data
-/// - GeoJSON: Geographic data in JSON format
-/// - KML/KMZ: Keyhole Markup Language for geographic annotation
-pub mod geospatial;
-
-/// Astronomical file formats
-///
-/// Provides support for astronomy and astrophysics data formats:
-/// - FITS: Flexible Image Transport System
-/// - VOTable: Virtual Observatory Table format
-/// - HDF5-based formats used in astronomy
 pub mod astronomical;
+pub mod avro;
+pub mod bioinformatics;
+pub mod bson;
+pub mod cbor;
+pub mod feather;
+pub mod geospatial;
+pub mod msgpack;
+pub mod orc;
+pub mod orc_lite;
+pub mod protobuf;

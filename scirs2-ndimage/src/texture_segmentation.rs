@@ -80,7 +80,11 @@ pub fn gabor_feature_map(
 ///
 /// The kernel size is chosen as `2 * ceil(3 * sigma) + 1` where
 /// `sigma = 1.0 / (2.0 * PI * frequency)`.
-fn apply_gabor_kernel(image: &Array2<f64>, frequency: f64, theta: f64) -> NdimageResult<Array2<f64>> {
+fn apply_gabor_kernel(
+    image: &Array2<f64>,
+    frequency: f64,
+    theta: f64,
+) -> NdimageResult<Array2<f64>> {
     let (rows, cols) = image.dim();
 
     let sigma = if frequency > 1e-12 {
@@ -112,8 +116,8 @@ fn apply_gabor_kernel(image: &Array2<f64>, frequency: f64, theta: f64) -> Ndimag
             let x_rot = x * cos_t + y * sin_t;
             let y_rot = -x * sin_t + y * cos_t;
 
-            let gauss = (-0.5 * (x_rot * x_rot / (sigma_x * sigma_x)
-                + y_rot * y_rot / (sigma_y * sigma_y)))
+            let gauss = (-0.5
+                * (x_rot * x_rot / (sigma_x * sigma_x) + y_rot * y_rot / (sigma_y * sigma_y)))
                 .exp();
 
             let phase = 2.0 * PI * frequency * x_rot;
@@ -122,9 +126,19 @@ fn apply_gabor_kernel(image: &Array2<f64>, frequency: f64, theta: f64) -> Ndimag
         }
     }
 
-    // Convolve image with real and imaginary parts
-    let resp_real = convolve_same(image, &kernel_real)?;
-    let resp_imag = convolve_same(image, &kernel_imag)?;
+    // DC-balance kernels: subtract mean so a uniform image gives zero response
+    // for interior pixels when using reflect padding.
+    let n_elems = (ksize * ksize) as f64;
+    let kr_mean = kernel_real.iter().sum::<f64>() / n_elems;
+    let ki_mean = kernel_imag.iter().sum::<f64>() / n_elems;
+    kernel_real.iter_mut().for_each(|v| *v -= kr_mean);
+    kernel_imag.iter_mut().for_each(|v| *v -= ki_mean);
+
+    // Convolve with reflect padding so that uniform images give near-zero
+    // response everywhere (zero-padding would cause non-zero border artefacts
+    // for a DC-balanced kernel).
+    let resp_real = convolve_reflect(image, &kernel_real)?;
+    let resp_imag = convolve_reflect(image, &kernel_imag)?;
 
     // Magnitude
     let mut magnitude = Array2::<f64>::zeros((rows, cols));
@@ -160,6 +174,51 @@ fn convolve_same(image: &Array2<f64>, kernel: &Array2<f64>) -> NdimageResult<Arr
                         continue;
                     }
                     acc += image[[ir as usize, ic as usize]] * kernel[[kr, kc]];
+                }
+            }
+            out[[r, c]] = acc;
+        }
+    }
+    Ok(out)
+}
+
+/// 2-D convolution with reflect-padding (same output size).
+///
+/// For a DC-balanced kernel (mean = 0), a uniform input image produces a
+/// near-zero output everywhere, including border pixels—unlike zero-padding
+/// which introduces non-zero responses at the borders.
+fn convolve_reflect(image: &Array2<f64>, kernel: &Array2<f64>) -> NdimageResult<Array2<f64>> {
+    let (ih, iw) = image.dim();
+    let (kh, kw) = kernel.dim();
+    let ph = kh / 2;
+    let pw = kw / 2;
+
+    // Reflect-clamp: mirrors the coordinate at the boundaries
+    let reflect = |idx: i64, size: i64| -> usize {
+        if size <= 1 {
+            return 0;
+        }
+        let mut i = idx;
+        // Bring into range via periodic reflect
+        let period = 2 * (size - 1);
+        // Reduce modulo period
+        i = ((i % period) + period) % period;
+        if i >= size {
+            i = period - i;
+        }
+        i as usize
+    };
+
+    let mut out = Array2::<f64>::zeros((ih, iw));
+
+    for r in 0..ih {
+        for c in 0..iw {
+            let mut acc = 0.0;
+            for kr in 0..kh {
+                let ir = reflect(r as i64 + kr as i64 - ph as i64, ih as i64);
+                for kc in 0..kw {
+                    let ic = reflect(c as i64 + kc as i64 - pw as i64, iw as i64);
+                    acc += image[[ir, ic]] * kernel[[kr, kc]];
                 }
             }
             out[[r, c]] = acc;
@@ -313,13 +372,7 @@ pub fn texture_segment_kmeans(
 /// Compute the rotation-invariant LBP code for one pixel at `(row, col)`.
 ///
 /// Uses `n_points` sampling points on a circle of the given `radius`.
-fn lbp_code_at(
-    image: &Array2<f64>,
-    row: usize,
-    col: usize,
-    radius: f64,
-    n_points: usize,
-) -> u64 {
+fn lbp_code_at(image: &Array2<f64>, row: usize, col: usize, radius: f64, n_points: usize) -> u64 {
     let (rows, cols) = image.dim();
     let center = image[[row, col]];
     let mut code = 0u64;
@@ -355,7 +408,11 @@ fn lbp_code_at(
 
     // Rotation-invariant: take minimum of all bit-rotations
     let mut min_code = code;
-    let mask = if n_points < 64 { (1u64 << n_points) - 1 } else { u64::MAX };
+    let mask = if n_points < 64 {
+        (1u64 << n_points) - 1
+    } else {
+        u64::MAX
+    };
     let mut rotated = code;
     for _ in 1..n_points {
         rotated = ((rotated >> 1) | ((rotated & 1) << (n_points - 1))) & mask;
@@ -400,9 +457,7 @@ pub fn lbp_segment(
         ));
     }
     if radius <= 0.0 {
-        return Err(NdimageError::InvalidInput(
-            "radius must be positive".into(),
-        ));
+        return Err(NdimageError::InvalidInput("radius must be positive".into()));
     }
 
     // Compute LBP map
@@ -502,8 +557,30 @@ pub fn mrm_segment(image: &Array2<f64>, n_clusters: usize) -> NdimageResult<Arra
 
                 let best_label = (0..k)
                     .min_by(|&ka, &kb| {
-                        let ea = mrf_energy(pixel, means[ka], ka, r, c, &old_labels, &neighbors, beta, rows, cols);
-                        let eb = mrf_energy(pixel, means[kb], kb, r, c, &old_labels, &neighbors, beta, rows, cols);
+                        let ea = mrf_energy(
+                            pixel,
+                            means[ka],
+                            ka,
+                            r,
+                            c,
+                            &old_labels,
+                            &neighbors,
+                            beta,
+                            rows,
+                            cols,
+                        );
+                        let eb = mrf_energy(
+                            pixel,
+                            means[kb],
+                            kb,
+                            r,
+                            c,
+                            &old_labels,
+                            &neighbors,
+                            beta,
+                            rows,
+                            cols,
+                        );
                         ea.partial_cmp(&eb).unwrap_or(std::cmp::Ordering::Equal)
                     })
                     .unwrap_or(0);
@@ -617,8 +694,8 @@ pub fn texture_features_patch(
     let var = patch.iter().map(|&v| (v - mean).powi(2)).sum::<f64>() / n;
     let std_dev = var.sqrt();
 
-    // 2. Gabor magnitudes at 4 orientations × 2 frequencies (16 features)
-    let freqs = [0.1, 0.2];
+    // 2. Gabor magnitudes at 4 orientations × 4 frequencies (16 features)
+    let freqs = [0.05, 0.1, 0.15, 0.2];
     let thetas = [0.0, PI / 4.0, PI / 2.0, 3.0 * PI / 4.0];
     let patch_owned = patch.to_owned();
     let mut gabor_feats = Vec::with_capacity(16);
@@ -694,7 +771,10 @@ mod tests {
         let img = uniform_image(12, 12, 0.5);
         let feat = gabor_feature_map(&img, &[0.15], &[0.0]).expect("gabor ok");
         for v in feat.iter() {
-            assert!(*v < 0.01, "Uniform image Gabor response should be ~0, got {v}");
+            assert!(
+                *v < 0.01,
+                "Uniform image Gabor response should be ~0, got {v}"
+            );
         }
     }
 
@@ -703,8 +783,7 @@ mod tests {
         let img = striped_image(20, 20);
         let freqs = vec![0.1, 0.2];
         let thetas = vec![0.0, PI / 2.0];
-        let labels =
-            texture_segment_kmeans(&img, (&freqs, &thetas), 2).expect("segment ok");
+        let labels = texture_segment_kmeans(&img, (&freqs, &thetas), 2).expect("segment ok");
         assert_eq!(labels.dim(), (20, 20));
         // All labels should be in [0, 2)
         for &lbl in labels.iter() {

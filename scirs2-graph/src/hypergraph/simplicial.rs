@@ -74,7 +74,7 @@ impl SimplicialComplex {
     /// Internal recursive insertion (simplex must already be sorted & deduped).
     fn add_simplex_internal(&mut self, simplex: Vec<usize>) {
         let dim = simplex.len().saturating_sub(1);
-        let set = self.simplices.entry(dim).or_insert_with(BTreeSet::new);
+        let set = self.simplices.entry(dim).or_default();
         if set.contains(&simplex) {
             return; // already present, faces already added
         }
@@ -250,8 +250,10 @@ impl SimplicialComplex {
         let mut dist = vec![vec![0.0f64; n]; n];
         for i in 0..n {
             for j in (i + 1)..n {
-                let d = euclidean_distance(points.row(i).as_slice().unwrap_or(&[]),
-                                          points.row(j).as_slice().unwrap_or(&[]));
+                let d = euclidean_distance(
+                    points.row(i).as_slice().unwrap_or(&[]),
+                    points.row(j).as_slice().unwrap_or(&[]),
+                );
                 dist[i][j] = d;
                 dist[j][i] = d;
             }
@@ -508,16 +510,8 @@ fn bron_kerbosch(
     for v in candidates {
         let mut r_new = r.clone();
         r_new.push(v);
-        let p_new: Vec<usize> = p
-            .iter()
-            .copied()
-            .filter(|&u| adj[v].contains(&u))
-            .collect();
-        let x_new: Vec<usize> = x
-            .iter()
-            .copied()
-            .filter(|&u| adj[v].contains(&u))
-            .collect();
+        let p_new: Vec<usize> = p.iter().copied().filter(|&u| adj[v].contains(&u)).collect();
+        let x_new: Vec<usize> = x.iter().copied().filter(|&u| adj[v].contains(&u)).collect();
         bron_kerbosch(adj, r_new, p_new, x_new, result);
         p.retain(|&u| u != v);
         x.push(v);
@@ -693,7 +687,7 @@ mod tests {
         let mat = sc.boundary_matrix(1);
         assert_eq!(mat.nrows(), 2); // two 0-simplices
         assert_eq!(mat.ncols(), 1); // one 1-simplex
-        // One entry should be +1 and one -1
+                                    // One entry should be +1 and one -1
         let entries: Vec<i8> = vec![mat[[0, 0]], mat[[1, 0]]];
         assert!(entries.contains(&1));
         assert!(entries.contains(&-1));
@@ -714,11 +708,7 @@ mod tests {
     fn test_vietoris_rips_triangle() {
         use scirs2_core::ndarray::array;
         // Equilateral triangle with side 1 → VR(ε=1) = hollow triangle
-        let pts = array![
-            [0.0_f64, 0.0],
-            [1.0, 0.0],
-            [0.5, 0.866_025_403_784_438_6]
-        ];
+        let pts = array![[0.0_f64, 0.0], [1.0, 0.0], [0.5, 0.866_025_403_784_438_6]];
         let sc = SimplicialComplex::vietoris_rips(&pts, 1.0001);
         // All three edges present; filled (clique complex → add 2-simplex)
         assert_eq!(sc.num_simplices(0), 3);

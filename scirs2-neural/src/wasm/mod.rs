@@ -1,232 +1,669 @@
-//! WebAssembly target support for neural networks
+//! WebAssembly inference wrapper for neural networks
 //!
-//! This module provides comprehensive WebAssembly compilation and deployment support including:
-//! - WASM module generation with optimized neural network execution
-//! - JavaScript/TypeScript bindings for web integration
-//! - WebGL/WebGPU acceleration support
-//! - Memory management and streaming for large models
-//! - Web Workers integration for background inference
-//! - Progressive loading and caching strategies
-//! # Module Organization
-//! - [`bindings`] - JavaScript and TypeScript binding generation
-//! - [`memory`] - Memory management and configuration
-//! - [`exports`] - WASM compilation and export configuration
+//! This module provides a pure-Rust inference engine for WASM deployment.
+//! No wasm-bindgen bindings are required at the struct level.
+//!
+//! # Key types
+//!
+//! - [`WasmTensor`] – heap-allocated f32 tensor
+//! - [`WasmLayer`] – inference-only layer enum
+//! - [`WasmNeuralNet`] – sequential stack with oxicode serialization
 
-pub mod bindings;
-pub mod exports;
-pub mod memory;
-// Re-export main types and functions for backward compatibility
-// From bindings module
-pub use bindings::{
-    BindingGenerator, BundleFormat, BundlingConfig, ModuleSystem, WebBindingConfig,
-    WebBindingLanguage,
-};
-// From memory module
-pub use memory::{
-    CacheStorage, CacheStrategy, CachingConfig, LoadingStrategy, MemoryAlignment, MemoryBreakdown,
-    MemoryGrowthStrategy, MemoryManager, ParallelConfig, PreloadingConfig,
-    ProgressiveLoadingConfig, VersioningStrategy, WasmMemoryConfig, WasmMemoryExport,
-    WasmMemoryImport, WasmMemoryRequirements,
-// From exports module
-pub use exports::{
-    BundleInfo, InlineLevel, MessagingStrategy, PerformanceHint, ProfilingConfig, ProfilingFormat,
-    TextureFormat, WasmCompilationConfig, WasmCompilationResult, WasmCompiler, WasmDebugConfig,
-    WasmExports, WasmFeatures, WasmFunctionExport, WasmFunctionImport, WasmGlobalExport,
-    WasmGlobalImport, WasmImports, WasmOptimization, WasmSignature, WasmTableExport,
-    WasmTableImport, WasmType, WasmVersion, WebAccelerationConfig, WebGLConfig, WebGPUConfig,
-    WebIntegrationConfig, WorkerConfig, WorkerPoolConfig, WorkerType,
+use crate::error::{NeuralError, Result};
+use oxicode::{config as oxicode_config, serde as oxicode_serde};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WasmTensor
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A heap-allocated f32 tensor for WebAssembly inference.
+///
+/// # Examples
+/// ```
+/// use scirs2_neural::wasm::WasmTensor;
+/// let t = WasmTensor::from_vec(vec![1.0_f32, 2.0, 3.0, 4.0], vec![2, 2]);
+/// assert_eq!(t.shape(), &[2, 2]);
+/// assert_eq!(t.numel(), 4);
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WasmTensor {
+    data: Vec<f32>,
+    shape: Vec<usize>,
+}
+
+impl WasmTensor {
+    /// Create a tensor from a data vector and a shape.
+    pub fn from_vec(data: Vec<f32>, shape: Vec<usize>) -> Self {
+        Self { data, shape }
+    }
+
+    /// Create an all-zeros tensor.
+    pub fn zeros(shape: Vec<usize>) -> Self {
+        let n: usize = shape.iter().product();
+        Self {
+            data: vec![0.0_f32; n],
+            shape,
+        }
+    }
+
+    /// Returns a reference to the shape.
+    pub fn shape(&self) -> &[usize] {
+        &self.shape
+    }
+
+    /// Total number of elements.
+    pub fn numel(&self) -> usize {
+        self.data.len()
+    }
+
+    /// Raw data slice.
+    pub fn data(&self) -> &[f32] {
+        &self.data
+    }
+
+    /// Mutable raw data.
+    pub fn data_mut(&mut self) -> &mut Vec<f32> {
+        &mut self.data
+    }
+
+    /// Consume `self` and return the raw data vector.
+    pub fn into_data(self) -> Vec<f32> {
+        self.data
+    }
+
+    /// Batch size (first dimension).
+    pub fn batch_size(&self) -> usize {
+        self.shape.first().copied().unwrap_or(1)
+    }
+
+    /// Reshape without copying. Returns an error if element counts differ.
+    pub fn reshape(mut self, new_shape: Vec<usize>) -> Result<Self> {
+        let n: usize = new_shape.iter().product();
+        if n != self.data.len() {
+            return Err(NeuralError::ShapeMismatch(format!(
+                "WasmTensor::reshape: old numel={} new numel={n}",
+                self.data.len()
+            )));
+        }
+        self.shape = new_shape;
+        Ok(self)
+    }
+
+    /// Apply ReLU element-wise in-place.
+    pub fn relu_inplace(&mut self) {
+        for v in self.data.iter_mut() {
+            if *v < 0.0 {
+                *v = 0.0;
+            }
+        }
+    }
+
+    /// Apply sigmoid element-wise in-place.
+    pub fn sigmoid_inplace(&mut self) {
+        for v in self.data.iter_mut() {
+            *v = 1.0 / (1.0 + (-*v).exp());
+        }
+    }
+
+    /// Apply tanh element-wise in-place.
+    pub fn tanh_inplace(&mut self) {
+        for v in self.data.iter_mut() {
+            *v = v.tanh();
+        }
+    }
+
+    /// Apply row-wise softmax (last dimension) in-place.
+    pub fn softmax_inplace(&mut self) {
+        if self.shape.is_empty() || self.data.is_empty() {
+            return;
+        }
+        let last_dim = *self.shape.last().unwrap_or(&1);
+        if last_dim == 0 {
+            return;
+        }
+        let batch = self.data.len() / last_dim;
+        for b in 0..batch {
+            let slice = &mut self.data[b * last_dim..(b + 1) * last_dim];
+            let max = slice.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+            let mut sum = 0.0_f32;
+            for v in slice.iter_mut() {
+                *v = (*v - max).exp();
+                sum += *v;
+            }
+            if sum > 0.0 {
+                for v in slice.iter_mut() {
+                    *v /= sum;
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WasmLayer
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Inference-only layer variants for WASM deployment.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum WasmLayer {
+    /// Fully-connected layer: `y = xW^T + b`
+    Dense {
+        in_features: usize,
+        out_features: usize,
+        /// Row-major weights `[out_features × in_features]`
+        weights: Vec<f32>,
+        bias: Vec<f32>,
+    },
+    /// ReLU activation
+    ReLU,
+    /// Sigmoid activation
+    Sigmoid,
+    /// Tanh activation
+    Tanh,
+    /// Softmax activation (last dimension)
+    Softmax,
+    /// Dropout (identity at inference)
+    Dropout { rate: f32 },
+    /// Layer normalisation
+    LayerNorm {
+        normalized_shape: usize,
+        weight: Vec<f32>,
+        bias: Vec<f32>,
+        eps: f32,
+    },
+    /// Flatten: `[batch, ...rest]` → `[batch, rest.product()]`
+    Flatten,
+}
+
+impl WasmLayer {
+    /// Human-readable layer type name.
+    pub fn type_name(&self) -> &str {
+        match self {
+            WasmLayer::Dense { .. } => "Dense",
+            WasmLayer::ReLU => "ReLU",
+            WasmLayer::Sigmoid => "Sigmoid",
+            WasmLayer::Tanh => "Tanh",
+            WasmLayer::Softmax => "Softmax",
+            WasmLayer::Dropout { .. } => "Dropout",
+            WasmLayer::LayerNorm { .. } => "LayerNorm",
+            WasmLayer::Flatten => "Flatten",
+        }
+    }
+
+    /// Number of trainable parameters.
+    pub fn parameter_count(&self) -> usize {
+        match self {
+            WasmLayer::Dense { weights, bias, .. } => weights.len() + bias.len(),
+            WasmLayer::LayerNorm { weight, bias, .. } => weight.len() + bias.len(),
+            _ => 0,
+        }
+    }
+
+    /// Forward pass.
+    pub fn forward(&self, input: WasmTensor) -> Result<WasmTensor> {
+        match self {
+            WasmLayer::Dense {
+                in_features,
+                out_features,
+                weights,
+                bias,
+            } => dense_forward(input, *in_features, *out_features, weights, bias),
+            WasmLayer::ReLU => {
+                let mut t = input;
+                t.relu_inplace();
+                Ok(t)
+            }
+            WasmLayer::Sigmoid => {
+                let mut t = input;
+                t.sigmoid_inplace();
+                Ok(t)
+            }
+            WasmLayer::Tanh => {
+                let mut t = input;
+                t.tanh_inplace();
+                Ok(t)
+            }
+            WasmLayer::Softmax => {
+                let mut t = input;
+                t.softmax_inplace();
+                Ok(t)
+            }
+            WasmLayer::Dropout { .. } => Ok(input),
+            WasmLayer::LayerNorm {
+                normalized_shape,
+                weight,
+                bias,
+                eps,
+            } => layer_norm_forward(input, *normalized_shape, weight, bias, *eps),
+            WasmLayer::Flatten => {
+                let batch = input.batch_size();
+                let rest = input.numel() / batch.max(1);
+                input.reshape(vec![batch, rest])
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WasmNeuralNet
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Serializable, inference-only sequential neural network for WASM.
+///
+/// # Examples
+/// ```
+/// use scirs2_neural::wasm::{WasmNeuralNet, WasmLayer, WasmTensor};
+///
+/// let mut net = WasmNeuralNet::new("my_model");
+/// net.add_layer(WasmLayer::Dense {
+///     in_features: 4, out_features: 2,
+///     weights: vec![0.1; 4 * 2], bias: vec![0.0; 2],
+/// });
+/// net.add_layer(WasmLayer::ReLU);
+///
+/// let input = WasmTensor::from_vec(vec![1.0, 0.0, -1.0, 0.5], vec![1, 4]);
+/// let output = net.forward(input).expect("ok");
+/// assert_eq!(output.shape(), &[1, 2]);
+///
+/// let bytes = net.to_bytes().expect("serialize ok");
+/// let net2 = WasmNeuralNet::from_bytes(&bytes).expect("deserialize ok");
+/// assert_eq!(net2.name(), "my_model");
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WasmNeuralNet {
+    name: String,
+    layers: Vec<WasmLayer>,
+    input_shape: Vec<usize>,
+    metadata: HashMap<String, String>,
+}
+
+impl WasmNeuralNet {
+    /// Create an empty network.
+    pub fn new(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            layers: Vec::new(),
+            input_shape: Vec::new(),
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// Network name.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Number of layers.
+    pub fn num_layers(&self) -> usize {
+        self.layers.len()
+    }
+
+    /// All layers.
+    pub fn layers(&self) -> &[WasmLayer] {
+        &self.layers
+    }
+
+    /// Input shape (may be empty if not set).
+    pub fn input_shape(&self) -> &[usize] {
+        &self.input_shape
+    }
+
+    /// Set expected input shape (excluding batch).
+    pub fn set_input_shape(&mut self, shape: Vec<usize>) {
+        self.input_shape = shape;
+    }
+
+    /// Add a metadata entry.
+    pub fn add_metadata(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.metadata.insert(key.into(), value.into());
+    }
+
+    /// Get a metadata value.
+    pub fn get_metadata(&self, key: &str) -> Option<&str> {
+        self.metadata.get(key).map(|s| s.as_str())
+    }
+
+    /// Append a layer.
+    pub fn add_layer(&mut self, layer: WasmLayer) {
+        self.layers.push(layer);
+    }
+
+    /// Total parameter count.
+    pub fn total_parameters(&self) -> usize {
+        self.layers.iter().map(|l| l.parameter_count()).sum()
+    }
+
+    /// Run the full forward pass.
+    pub fn forward(&self, input: WasmTensor) -> Result<WasmTensor> {
+        let mut x = input;
+        for layer in &self.layers {
+            x = layer.forward(x)?;
+        }
+        Ok(x)
+    }
+
+    /// Serialise to compact binary (oxicode).
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        let cfg = oxicode_config::standard();
+        oxicode_serde::encode_to_vec(self, cfg)
+            .map_err(|e| NeuralError::SerializationError(format!("oxicode encode: {e}")))
+    }
+
+    /// Deserialise from bytes produced by [`to_bytes`].
+    pub fn from_bytes(data: &[u8]) -> Result<Self> {
+        let cfg = oxicode_config::standard();
+        let (net, _) = oxicode_serde::decode_from_slice::<Self, _>(data, cfg)
+            .map_err(|e| NeuralError::DeserializationError(format!("oxicode decode: {e}")))?;
+        Ok(net)
+    }
+
+    /// Serialise to JSON.
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(self)
+            .map_err(|e| NeuralError::SerializationError(format!("json encode: {e}")))
+    }
+
+    /// Deserialise from JSON.
+    pub fn from_json(json: &str) -> Result<Self> {
+        serde_json::from_str(json)
+            .map_err(|e| NeuralError::DeserializationError(format!("json decode: {e}")))
+    }
+
+    /// Print a brief summary of the network.
+    pub fn summary(&self) -> String {
+        let mut s = format!("WasmNeuralNet '{}'\n", self.name);
+        for (i, layer) in self.layers.iter().enumerate() {
+            s.push_str(&format!("  [{i}] {}\n", layer.type_name()));
+        }
+        s.push_str(&format!("Total parameters: {}\n", self.total_parameters()));
+        s
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer implementations
+// ─────────────────────────────────────────────────────────────────────────────
+
+fn dense_forward(
+    input: WasmTensor,
+    in_features: usize,
+    out_features: usize,
+    weights: &[f32],
+    bias: &[f32],
+) -> Result<WasmTensor> {
+    let shape = input.shape().to_vec();
+    if shape.len() < 2 {
+        return Err(NeuralError::ShapeMismatch(
+            "Dense: input must be at least 2-D [batch, features]".to_string(),
+        ));
+    }
+    let feat_dim = *shape.last().unwrap_or(&0);
+    if feat_dim != in_features {
+        return Err(NeuralError::ShapeMismatch(format!(
+            "Dense: expected in_features={in_features}, got {feat_dim}"
+        )));
+    }
+    if weights.len() != out_features * in_features {
+        return Err(NeuralError::ShapeMismatch(format!(
+            "Dense: weights len {} != {out_features}×{in_features}",
+            weights.len()
+        )));
+    }
+    if bias.len() != out_features {
+        return Err(NeuralError::ShapeMismatch(format!(
+            "Dense: bias len {} != {out_features}",
+            bias.len()
+        )));
+    }
+    let batch: usize = shape[..shape.len() - 1].iter().product::<usize>().max(1);
+    let input_data = input.data();
+    let mut output = vec![0.0_f32; batch * out_features];
+    for b in 0..batch {
+        for o in 0..out_features {
+            let mut acc = bias[o];
+            for i in 0..in_features {
+                acc += input_data[b * in_features + i] * weights[o * in_features + i];
+            }
+            output[b * out_features + o] = acc;
+        }
+    }
+    let mut out_shape = shape[..shape.len() - 1].to_vec();
+    out_shape.push(out_features);
+    Ok(WasmTensor::from_vec(output, out_shape))
+}
+
+fn layer_norm_forward(
+    input: WasmTensor,
+    normalized_shape: usize,
+    weight: &[f32],
+    bias: &[f32],
+    eps: f32,
+) -> Result<WasmTensor> {
+    let shape = input.shape().to_vec();
+    let feat_dim = *shape.last().unwrap_or(&0);
+    if feat_dim != normalized_shape {
+        return Err(NeuralError::ShapeMismatch(format!(
+            "LayerNorm: expected {normalized_shape}, got {feat_dim}"
+        )));
+    }
+    let batch: usize = (input.numel() / feat_dim.max(1)).max(1);
+    let data = input.data().to_vec();
+    let mut out_data = vec![0.0_f32; data.len()];
+    for b in 0..batch {
+        let slice = &data[b * feat_dim..(b + 1) * feat_dim];
+        let mean: f32 = slice.iter().sum::<f32>() / feat_dim as f32;
+        let var: f32 = slice.iter().map(|&v| (v - mean).powi(2)).sum::<f32>() / feat_dim as f32;
+        let std_inv = 1.0 / (var + eps).sqrt();
+        for (j, &v) in slice.iter().enumerate() {
+            out_data[b * feat_dim + j] = (v - mean) * std_inv * weight[j] + bias[j];
+        }
+    }
+    Ok(WasmTensor::from_vec(out_data, shape))
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tests
+// ─────────────────────────────────────────────────────────────────────────────
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::layers::Dense;
-    use crate::models::sequential::Sequential;
-    use crate::serving::PackageMetadata;
-    use scirs2_core::random::SeedableRng;
-    use std::collections::HashMap;
-    use tempfile::TempDir;
-    #[test]
-    fn test_wasm_module_integration() {
-        // Test that all modules work together
-        let temp_dir = TempDir::new().expect("Operation failed");
-        let mut rng = scirs2_core::random::rngs::SmallRng::from_seed([42; 32]);
-        // Create a simple model
-        let mut model: Sequential<f32> = Sequential::new();
-        let dense = Dense::new(10, 1, Some("relu"), &mut rng).expect("Operation failed");
-        model.add_layer(dense);
-        // Create configurations
-        let wasm_config = WasmCompilationConfig::default();
-        let web_config = WebIntegrationConfig::default();
-        let metadata = PackageMetadata {
-            name: "test-model".to_string(),
-            version: "1.0.0".to_string(),
-            description: "Test WebAssembly model".to_string(),
-            author: "SciRS2".to_string(),
-            license: "Apache-2.0".to_string(),
-            platforms: vec!["wasm".to_string()],
-            dependencies: HashMap::new(),
-            input_specs: Vec::new(),
-            output_specs: Vec::new(),
-            runtime_requirements: crate::serving::RuntimeRequirements {
-                min_memory_mb: 256,
-                cpu_requirements: crate::serving::CpuRequirements {
-                    min_cores: 1,
-                    instruction_sets: Vec::new(),
-                    min_frequency_mhz: None,
-                },
-                gpu_requirements: None,
-                system_dependencies: Vec::new(),
-            },
-            timestamp: chrono::Utc::now().to_rfc3339(),
-            checksum: "test".to_string(),
-        };
-        // Create compiler
-        let compiler = WasmCompiler::new(
-            model,
-            wasm_config,
-            web_config,
-            metadata,
-            temp_dir.path().to_path_buf(),
-        );
-        // Test compilation process
-        let result = compiler.compile();
-        assert!(result.is_ok());
-        let compilation_result = result.expect("Operation failed");
-        assert!(compilation_result.wasm_module.exists());
-        assert!(!compilation_result.bindings.is_empty());
-        assert!(compilation_result.bundle_info.total_size > 0);
+
+    fn make_tiny_net() -> WasmNeuralNet {
+        let mut net = WasmNeuralNet::new("tiny");
+        net.add_layer(WasmLayer::Dense {
+            in_features: 2,
+            out_features: 2,
+            weights: vec![1.0_f32, 0.0, 0.0, 1.0], // identity
+            bias: vec![0.0, 0.0],
+        });
+        net.add_layer(WasmLayer::ReLU);
+        net.add_layer(WasmLayer::Dense {
+            in_features: 2,
+            out_features: 2,
+            weights: vec![0.5_f32, 0.5, 0.5, 0.5],
+            bias: vec![0.0, 0.0],
+        });
+        net
     }
-    fn test_memory_manager_integration() {
-        // Test memory manager with different configurations
-        let performance_manager = MemoryManager::performance_optimized();
-        let constrained_manager = MemoryManager::resource_constrained();
-        let model_size = 10 * 1024 * 1024; // 10MB model
-        let perf_requirements = performance_manager.calculate_memory_requirements(model_size);
-        let constrained_requirements =
-            constrained_manager.calculate_memory_requirements(model_size);
-        // Performance config should use more memory
-        assert!(perf_requirements.total > constrained_requirements.total);
-        // Both should handle the model size
-        assert!(performance_manager.is_suitable_for_model(model_size));
-        assert!(constrained_manager.is_suitable_for_model(model_size));
-    fn test_binding_generator_integration() {
-        // Test different binding configurations
-        let js_config = WebBindingConfig {
-            target_language: WebBindingLanguage::JavaScript,
-            module_system: ModuleSystem::ESModules,
-            type_definitions: false,
-            documentation: false,
-            bundling: BundlingConfig {
-                enable: false,
-                format: BundleFormat::Single,
-                minify: false,
-                tree_shaking: false,
-                code_splitting: false,
-        let ts_config = WebBindingConfig {
-            target_language: WebBindingLanguage::TypeScript,
-            type_definitions: true,
-            documentation: true,
-                enable: true,
-                minify: true,
-                tree_shaking: true,
-        let both_config = WebBindingConfig {
-            target_language: WebBindingLanguage::Both,
-                format: BundleFormat::Chunked,
-                code_splitting: true,
-        // Test JavaScript generation
-        let js_generator = BindingGenerator::new(temp_dir.path().to_path_buf(), js_config);
-        let js_bindings = js_generator.generate_bindings().expect("Operation failed");
-        assert_eq!(js_bindings.len(), 1);
-        assert!(js_bindings[0].to_string_lossy().ends_with(".js"));
-        // Test TypeScript generation
-        let ts_generator = BindingGenerator::new(temp_dir.path().to_path_buf(), ts_config);
-        let ts_bindings = ts_generator.generate_bindings().expect("Operation failed");
-        assert_eq!(ts_bindings.len(), 1);
-        assert!(ts_bindings[0].to_string_lossy().ends_with(".ts"));
-        // Test both generation
-        let both_generator = BindingGenerator::new(temp_dir.path().to_path_buf(), both_config);
-        let both_bindings = both_generator.generate_bindings().expect("Operation failed");
-        assert_eq!(both_bindings.len(), 2);
-    fn test_configuration_defaults() {
-        // Test all default configurations are valid
-        assert_eq!(wasm_config.target_version, WasmVersion::SIMD);
-        assert!(wasm_config.features.simd);
-        assert!(wasm_config.features.bulk_memory);
-        assert!(wasm_config.optimization_level.lto);
-        assert_eq!(
-            web_config.bindings.target_language,
-            WebBindingLanguage::Both
-        assert!(web_config.caching.enable);
-        assert!(web_config.progressive_loading.enable);
-        assert!(web_config.workers.enable);
-        let memory_config = WasmMemoryConfig::default();
-        assert_eq!(memory_config.initial_pages, 256);
-        assert_eq!(memory_config.maximum_pages, Some(1024));
-            memory_config.growth_strategy,
-            MemoryGrowthStrategy::OnDemand
-    fn test_wasm_features_validation() {
-        // Test WASM feature combinations
-        let mvp_features = WasmFeatures {
-            simd: false,
-            threads: false,
-            bulk_memory: false,
-            reference_types: false,
-            exception_handling: false,
-            tail_calls: false,
-            multi_value: false,
-            wasi: false,
-        let modern_features = WasmFeatures {
-            simd: true,
-            threads: true,
-            bulk_memory: true,
-            reference_types: true,
-            multi_value: true,
-        // Test version compatibility
-        let mvp_config = WasmCompilationConfig {
-            target_version: WasmVersion::MVP,
-            features: mvp_features,
-            ..Default::default()
-        let simd_threads_config = WasmCompilationConfig {
-            target_version: WasmVersion::SIMDThreads,
-            features: modern_features,
-        // Verify configurations make sense
-        assert_eq!(mvp_config.target_version, WasmVersion::MVP);
-        assert!(!mvp_config.features.simd);
-        assert_eq!(simd_threads_config.target_version, WasmVersion::SIMDThreads);
-        assert!(simd_threads_config.features.simd);
-        assert!(simd_threads_config.features.threads);
-    fn test_memory_requirements_calculation() {
-        let manager = MemoryManager::performance_optimized();
-        // Test different model sizes
-        let small_model = 1024 * 1024; // 1MB
-        let medium_model = 10 * 1024 * 1024; // 10MB
-        let large_model = 100 * 1024 * 1024; // 100MB
-        let small_req = manager.calculate_memory_requirements(small_model);
-        let medium_req = manager.calculate_memory_requirements(medium_model);
-        let large_req = manager.calculate_memory_requirements(large_model);
-        // Larger models should require more memory
-        assert!(small_req.total < medium_req.total);
-        assert!(medium_req.total < large_req.total);
-        // All should include model memory
-        assert_eq!(small_req.model_memory, small_model);
-        assert_eq!(medium_req.model_memory, medium_model);
-        assert_eq!(large_req.model_memory, large_model);
-        // Check breakdown percentages sum to 100%
-        let breakdown = medium_req.breakdown_percentages();
-        let total_percent = breakdown.base_percent
-            + breakdown.model_percent
-            + breakdown.cache_percent
-            + breakdown.preload_percent
-            + breakdown.worker_percent;
-        assert!((total_percent - 100.0).abs() < 0.1);
-    fn test_chunk_size_recommendations() {
-        let small_model = 512 * 1024; // 512KB
-        let large_model = 200 * 1024 * 1024; // 200MB
-        let small_chunk = manager.recommended_chunk_size(small_model);
-        let medium_chunk = manager.recommended_chunk_size(medium_model);
-        let large_chunk = manager.recommended_chunk_size(large_model);
-        // Verify chunk size adaptation
-        assert!(small_chunk < medium_chunk);
-        assert!(medium_chunk <= large_chunk);
-        // Base chunk size should be used for medium models
-        assert_eq!(medium_chunk, manager.progressive_config().chunk_size);
+
+    #[test]
+    fn test_wasm_tensor_creation() {
+        let t = WasmTensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], vec![2, 2]);
+        assert_eq!(t.shape(), &[2, 2]);
+        assert_eq!(t.numel(), 4);
+    }
+
+    #[test]
+    fn test_wasm_tensor_reshape_ok() {
+        let t = WasmTensor::from_vec(vec![1.0_f32; 6], vec![2, 3]);
+        let t2 = t.reshape(vec![3, 2]).expect("ok");
+        assert_eq!(t2.shape(), &[3, 2]);
+    }
+
+    #[test]
+    fn test_wasm_tensor_reshape_err() {
+        let t = WasmTensor::from_vec(vec![1.0_f32; 6], vec![2, 3]);
+        assert!(t.reshape(vec![4, 2]).is_err());
+    }
+
+    #[test]
+    fn test_relu_inplace() {
+        let mut t = WasmTensor::from_vec(vec![-1.0_f32, 2.0, -3.0, 4.0], vec![1, 4]);
+        t.relu_inplace();
+        assert_eq!(t.data(), &[0.0, 2.0, 0.0, 4.0]);
+    }
+
+    #[test]
+    fn test_sigmoid_range() {
+        let mut t = WasmTensor::from_vec(vec![-100.0_f32, 0.0, 100.0], vec![1, 3]);
+        t.sigmoid_inplace();
+        let d = t.data();
+        assert!(d[0] >= 0.0 && d[0] < 0.01);
+        assert!((d[1] - 0.5).abs() < 1e-4);
+        assert!(d[2] > 0.99 && d[2] <= 1.0);
+    }
+
+    #[test]
+    fn test_softmax_sums_to_one() {
+        let mut t = WasmTensor::from_vec(vec![1.0_f32, 2.0, 3.0], vec![1, 3]);
+        t.softmax_inplace();
+        let sum: f32 = t.data().iter().sum();
+        assert!((sum - 1.0).abs() < 1e-5, "sum={sum}");
+    }
+
+    #[test]
+    fn test_dense_identity() {
+        let layer = WasmLayer::Dense {
+            in_features: 2,
+            out_features: 2,
+            weights: vec![1.0_f32, 0.0, 0.0, 1.0],
+            bias: vec![0.0, 0.0],
+        };
+        let input = WasmTensor::from_vec(vec![3.0_f32, 4.0], vec![1, 2]);
+        let out = layer.forward(input).expect("ok");
+        assert!((out.data()[0] - 3.0).abs() < 1e-5);
+        assert!((out.data()[1] - 4.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn test_dense_shape_mismatch_err() {
+        let layer = WasmLayer::Dense {
+            in_features: 3,
+            out_features: 2,
+            weights: vec![1.0_f32; 6],
+            bias: vec![0.0; 2],
+        };
+        let input = WasmTensor::from_vec(vec![1.0_f32; 4], vec![1, 4]);
+        assert!(layer.forward(input).is_err());
+    }
+
+    #[test]
+    fn test_layer_norm_zero_mean() {
+        let feat = 4;
+        let layer = WasmLayer::LayerNorm {
+            normalized_shape: feat,
+            weight: vec![1.0_f32; feat],
+            bias: vec![0.0_f32; feat],
+            eps: 1e-5,
+        };
+        let input = WasmTensor::from_vec(vec![1.0_f32, 2.0, 3.0, 4.0], vec![1, feat]);
+        let out = layer.forward(input).expect("ok");
+        let mean: f32 = out.data().iter().sum::<f32>() / feat as f32;
+        assert!(mean.abs() < 1e-4, "mean={mean}");
+    }
+
+    #[test]
+    fn test_dropout_is_identity() {
+        let layer = WasmLayer::Dropout { rate: 0.5 };
+        let data = vec![1.0_f32, 2.0, 3.0];
+        let input = WasmTensor::from_vec(data.clone(), vec![1, 3]);
+        let out = layer.forward(input).expect("ok");
+        assert_eq!(out.data(), data.as_slice());
+    }
+
+    #[test]
+    fn test_flatten_layer() {
+        let layer = WasmLayer::Flatten;
+        let input = WasmTensor::from_vec(vec![1.0_f32; 24], vec![2, 3, 4]);
+        let out = layer.forward(input).expect("ok");
+        assert_eq!(out.shape(), &[2, 12]);
+    }
+
+    #[test]
+    fn test_net_forward() {
+        let net = make_tiny_net();
+        let input = WasmTensor::from_vec(vec![1.0_f32, -1.0], vec![1, 2]);
+        let out = net.forward(input).expect("ok");
+        assert_eq!(out.shape(), &[1, 2]);
+    }
+
+    #[test]
+    fn test_net_total_params() {
+        let net = make_tiny_net();
+        assert_eq!(net.total_parameters(), 12); // (4+2) + 0 + (4+2)
+    }
+
+    #[test]
+    fn test_net_binary_roundtrip() {
+        let net = make_tiny_net();
+        let bytes = net.to_bytes().expect("serialize ok");
+        let net2 = WasmNeuralNet::from_bytes(&bytes).expect("deserialize ok");
+        assert_eq!(net2.name(), "tiny");
+        assert_eq!(net2.num_layers(), 3);
+        assert_eq!(net2.total_parameters(), net.total_parameters());
+    }
+
+    #[test]
+    fn test_net_json_roundtrip() {
+        let net = make_tiny_net();
+        let json = net.to_json().expect("json ok");
+        let net2 = WasmNeuralNet::from_json(&json).expect("from json ok");
+        assert_eq!(net2.name(), "tiny");
+        assert_eq!(net2.num_layers(), 3);
+    }
+
+    #[test]
+    fn test_net_summary() {
+        let net = make_tiny_net();
+        let s = net.summary();
+        assert!(s.contains("tiny"));
+        assert!(s.contains("Dense"));
+        assert!(s.contains("ReLU"));
+    }
+
+    #[test]
+    fn test_net_metadata() {
+        let mut net = WasmNeuralNet::new("m");
+        net.add_metadata("version", "1.0");
+        assert_eq!(net.get_metadata("version"), Some("1.0"));
+        assert_eq!(net.get_metadata("missing"), None);
+    }
+
+    #[test]
+    fn test_from_bytes_invalid_err() {
+        assert!(WasmNeuralNet::from_bytes(b"not valid data").is_err());
+    }
+
+    #[test]
+    fn test_net_deterministic() {
+        let net = make_tiny_net();
+        let input = WasmTensor::from_vec(vec![2.0_f32, 3.0], vec![1, 2]);
+        let out1 = net.forward(input.clone()).expect("ok");
+        let out2 = net.forward(input).expect("ok");
+        for (a, b) in out1.data().iter().zip(out2.data().iter()) {
+            assert!((a - b).abs() < 1e-7);
+        }
+    }
+
+    #[test]
+    fn test_wasm_layer_type_names() {
+        assert_eq!(WasmLayer::ReLU.type_name(), "ReLU");
+        assert_eq!(WasmLayer::Sigmoid.type_name(), "Sigmoid");
+        assert_eq!(WasmLayer::Flatten.type_name(), "Flatten");
+        assert_eq!(WasmLayer::Softmax.type_name(), "Softmax");
+        assert_eq!(WasmLayer::Tanh.type_name(), "Tanh");
+    }
 }

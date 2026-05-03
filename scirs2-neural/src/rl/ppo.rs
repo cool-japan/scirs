@@ -51,18 +51,18 @@ pub struct PPOConfig {
 impl Default for PPOConfig {
     fn default() -> Self {
         Self {
-            clip_eps:       0.2,
-            n_epochs:       10,
-            n_minibatches:  4,
-            gamma:          0.99,
-            gae_lambda:     0.95,
-            ent_coef:       0.01,
-            vf_coef:        0.5,
-            lr:             3e-4,
-            max_grad_norm:  Some(0.5),
-            n_steps:        2048,
-            hidden_dims:    vec![64, 64],
-            log_std_init:   0.0,
+            clip_eps: 0.2,
+            n_epochs: 10,
+            n_minibatches: 4,
+            gamma: 0.99,
+            gae_lambda: 0.95,
+            ent_coef: 0.01,
+            vf_coef: 0.5,
+            lr: 3e-4,
+            max_grad_norm: Some(0.5),
+            n_steps: 2048,
+            hidden_dims: vec![64, 64],
+            log_std_init: 0.0,
         }
     }
 }
@@ -118,14 +118,14 @@ pub struct RolloutBuffer {
 impl RolloutBuffer {
     fn new(n_steps: usize, obs_dim: usize, act_dim: usize) -> Self {
         Self {
-            states:     Array2::zeros((n_steps, obs_dim)),
-            actions:    Array2::zeros((n_steps, act_dim)),
-            log_probs:  Array1::zeros(n_steps),
-            rewards:    Array1::zeros(n_steps),
-            values:     Array1::zeros(n_steps),
-            dones:      Array1::from_elem(n_steps, false),
+            states: Array2::zeros((n_steps, obs_dim)),
+            actions: Array2::zeros((n_steps, act_dim)),
+            log_probs: Array1::zeros(n_steps),
+            rewards: Array1::zeros(n_steps),
+            values: Array1::zeros(n_steps),
+            dones: Array1::from_elem(n_steps, false),
             advantages: Array1::zeros(n_steps),
-            returns:    Array1::zeros(n_steps),
+            returns: Array1::zeros(n_steps),
             n_steps,
         }
     }
@@ -150,7 +150,11 @@ impl RolloutBuffer {
 
         // Normalise advantages
         let mean = self.advantages.mean().unwrap_or(0.0);
-        let var = self.advantages.mapv(|a| (a - mean).powi(2)).mean().unwrap_or(1.0);
+        let var = self
+            .advantages
+            .mapv(|a| (a - mean).powi(2))
+            .mean()
+            .unwrap_or(1.0);
         let std = var.sqrt().max(1e-8);
         self.advantages = self.advantages.mapv(|a| (a - mean) / std);
     }
@@ -226,19 +230,26 @@ fn tanh_bwd(y: &Array2<f64>, grad: &Array2<f64>) -> Array2<f64> {
 
 #[inline]
 fn softplus(x: f64) -> f64 {
-    if x > 20.0 { x } else { (1.0 + x.exp()).ln() }
+    if x > 20.0 {
+        x
+    } else {
+        (1.0 + x.exp()).ln()
+    }
 }
 
+// Type alias for the complex return type of forward_cache.
+type MlpForwardCache = (Array2<f64>, Vec<(Array2<f64>, Array2<f64>)>);
+
 // ──────────────────────────────────────────────────────────────────────────────
-// MLP (multiple hidden layers + tanh + linear output)
+// Mlp (multiple hidden layers + tanh + linear output)
 // ──────────────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
-struct MLP {
+struct Mlp {
     layers: Vec<Linear>,
 }
 
-impl MLP {
+impl Mlp {
     fn new(
         in_dim: usize,
         hidden_dims: &[usize],
@@ -259,7 +270,7 @@ impl MLP {
     /// Forward pass.  All layers except the last use tanh activation.
     /// Returns both the final output AND the per-layer pre-activation cache
     /// (needed for exact backward pass).
-    fn forward_cache(&self, x: &Array2<f64>) -> (Array2<f64>, Vec<(Array2<f64>, Array2<f64>)>) {
+    fn forward_cache(&self, x: &Array2<f64>) -> MlpForwardCache {
         let mut current = x.clone();
         let mut cache: Vec<(Array2<f64>, Array2<f64>)> = Vec::new();
 
@@ -326,8 +337,8 @@ impl MLP {
 /// The **critic** outputs a single scalar value estimate.
 pub struct ActorCritic<F> {
     _phantom: std::marker::PhantomData<F>,
-    actor: MLP,
-    critic: MLP,
+    actor: Mlp,
+    critic: Mlp,
     log_std: Array1<f64>,
     obs_dim: usize,
     act_dim: usize,
@@ -341,8 +352,8 @@ impl<F: 'static> ActorCritic<F> {
         log_std_init: f64,
         rng: &mut crate::rl::replay_buffer::XorShift64,
     ) -> Self {
-        let actor  = MLP::new(obs_dim, hidden_dims, act_dim, rng);
-        let critic = MLP::new(obs_dim, hidden_dims, 1, rng);
+        let actor = Mlp::new(obs_dim, hidden_dims, act_dim, rng);
+        let critic = Mlp::new(obs_dim, hidden_dims, 1, rng);
         let log_std = Array1::from_elem(act_dim, log_std_init);
 
         Self {
@@ -363,25 +374,25 @@ impl<F: 'static> ActorCritic<F> {
         obs: &Array2<f64>,
         rng: &mut crate::rl::replay_buffer::XorShift64,
     ) -> (Array2<f64>, Array1<f64>, Array1<f64>) {
-        let means  = self.actor.forward(obs);
+        let means = self.actor.forward(obs);
         let values = self.critic.forward(obs);
         let values_1d = values.column(0).to_owned();
 
         let std: Array1<f64> = self.log_std.mapv(|ls| ls.exp());
         let batch = obs.shape()[0];
 
-        let mut actions   = Array2::zeros((batch, self.act_dim));
+        let mut actions = Array2::zeros((batch, self.act_dim));
         let mut log_probs = Array1::zeros(batch);
 
         for b in 0..batch {
             let mut lp = 0.0_f64;
             for a in 0..self.act_dim {
-                let mu  = means[[b, a]];
+                let mu = means[[b, a]];
                 let sig = std[a].max(1e-6);
                 // Box-Muller sample
                 let u1 = (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64 + 1e-20;
                 let u2 = (rng.next_u64() >> 11) as f64 / (1u64 << 53) as f64;
-                let z  = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
+                let z = (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos();
                 let act = mu + sig * z;
                 actions[[b, a]] = act;
                 // log N(act | mu, sig)
@@ -401,7 +412,7 @@ impl<F: 'static> ActorCritic<F> {
         obs: &Array2<f64>,
         actions: &Array2<f64>,
     ) -> (Array1<f64>, Array1<f64>, Array1<f64>) {
-        let means  = self.actor.forward(obs);
+        let means = self.actor.forward(obs);
         let values = self.critic.forward(obs);
         let values_1d = values.column(0).to_owned();
 
@@ -411,10 +422,10 @@ impl<F: 'static> ActorCritic<F> {
         let mut entropies = Array1::zeros(batch);
 
         for b in 0..batch {
-            let mut lp  = 0.0_f64;
+            let mut lp = 0.0_f64;
             let mut ent = 0.0_f64;
             for a in 0..self.act_dim {
-                let mu  = means[[b, a]];
+                let mu = means[[b, a]];
                 let sig = std[a].max(1e-6);
                 let act = actions[[b, a]];
                 lp += -0.5 * ((act - mu) / sig).powi(2)
@@ -467,9 +478,7 @@ impl<F: 'static> PPO<F> {
     /// - `obs_dim`: observation (state) dimensionality.
     /// - `act_dim`: action dimensionality.
     pub fn new(obs_dim: usize, act_dim: usize, config: PPOConfig) -> Self {
-        let mut rng = crate::rl::replay_buffer::XorShift64::new(
-            config.n_steps as u64 ^ 0xdeadbeef,
-        );
+        let mut rng = crate::rl::replay_buffer::XorShift64::new(config.n_steps as u64 ^ 0xdeadbeef);
         let policy = ActorCritic::new(
             obs_dim,
             act_dim,
@@ -477,7 +486,13 @@ impl<F: 'static> PPO<F> {
             config.log_std_init,
             &mut rng,
         );
-        Self { policy, config, rng, obs_dim, act_dim }
+        Self {
+            policy,
+            config,
+            rng,
+            obs_dim,
+            act_dim,
+        }
     }
 
     /// Collect a rollout of `n_steps` transitions from `env`.
@@ -485,11 +500,7 @@ impl<F: 'static> PPO<F> {
     /// The environment must be already reset (or in a valid mid-episode state).
     /// A fresh reset is performed automatically at the start of each call so
     /// the caller does not need to maintain inter-call state.
-    pub fn collect_rollout<E>(
-        &mut self,
-        env: &mut E,
-        n_steps: usize,
-    ) -> RolloutBuffer
+    pub fn collect_rollout<E>(&mut self, env: &mut E, n_steps: usize) -> RolloutBuffer
     where
         E: Environment<State = Array1<f64>, Action = Array1<f64>>,
     {
@@ -498,8 +509,7 @@ impl<F: 'static> PPO<F> {
 
         for t in 0..n_steps {
             let obs_2d = state.clone().insert_axis(Axis(0));
-            let (actions, log_probs, values) =
-                self.policy.forward_sample(&obs_2d, &mut self.rng);
+            let (actions, log_probs, values) = self.policy.forward_sample(&obs_2d, &mut self.rng);
 
             let action_1d = actions.row(0).to_owned();
             let (next_state, reward, done) = env.step(&action_1d);
@@ -507,9 +517,9 @@ impl<F: 'static> PPO<F> {
             buf.states.row_mut(t).assign(&state);
             buf.actions.row_mut(t).assign(&action_1d);
             buf.log_probs[t] = log_probs[0];
-            buf.rewards[t]   = reward;
-            buf.values[t]    = values[0];
-            buf.dones[t]     = done;
+            buf.rewards[t] = reward;
+            buf.values[t] = values[0];
+            buf.dones[t] = done;
 
             state = if done { env.reset() } else { next_state };
         }
@@ -523,12 +533,12 @@ impl<F: 'static> PPO<F> {
 
     /// Perform `n_epochs * n_minibatches` PPO gradient updates on a rollout.
     pub fn update(&mut self, rollout: &RolloutBuffer) -> PPOInfo {
-        let n        = rollout.n_steps;
-        let mb_size  = (n / self.config.n_minibatches).max(1);
-        let lr       = self.config.lr;
+        let n = rollout.n_steps;
+        let mb_size = (n / self.config.n_minibatches).max(1);
+        let lr = self.config.lr;
         let clip_eps = self.config.clip_eps;
         let ent_coef = self.config.ent_coef;
-        let vf_coef  = self.config.vf_coef;
+        let vf_coef = self.config.vf_coef;
 
         let mut info = PPOInfo::default();
         let mut total_updates = 0usize;
@@ -555,15 +565,14 @@ impl<F: 'static> PPO<F> {
                 let mb_old_lp = gather_1d(&rollout.log_probs, mb_idx);
 
                 // Evaluate current policy
-                let (new_lp, entropy, new_values) =
-                    self.policy.evaluate_actions(&mb_obs, &mb_act);
+                let (new_lp, entropy, new_values) = self.policy.evaluate_actions(&mb_obs, &mb_act);
 
                 let batch_n = mb_obs.shape()[0] as f64;
 
                 // Compute surrogate losses
                 let mut policy_loss = 0.0_f64;
-                let mut clip_count  = 0u64;
-                let mut kl_sum      = 0.0_f64;
+                let mut clip_count = 0u64;
+                let mut kl_sum = 0.0_f64;
 
                 // We need gradients w.r.t. actor parameters.
                 // We use a numerical gradient approximation (REINFORCE-style
@@ -579,13 +588,15 @@ impl<F: 'static> PPO<F> {
                 let mut advantage_used = Array1::zeros(mb_idx.len());
 
                 for b in 0..mb_idx.len() {
-                    let ratio   = (new_lp[b] - mb_old_lp[b]).exp();
+                    let ratio = (new_lp[b] - mb_old_lp[b]).exp();
                     let clipped = ratio.clamp(1.0 - clip_eps, 1.0 + clip_eps);
-                    let adv     = mb_adv[b];
-                    let l1 = ratio   * adv;
+                    let adv = mb_adv[b];
+                    let l1 = ratio * adv;
                     let l2 = clipped * adv;
                     policy_loss -= l1.min(l2);
-                    if (ratio - 1.0).abs() > clip_eps { clip_count += 1; }
+                    if (ratio - 1.0).abs() > clip_eps {
+                        clip_count += 1;
+                    }
                     kl_sum += mb_old_lp[b] - new_lp[b];
                     ratio_vec[b] = ratio;
                     clipped_ratio_vec[b] = clipped;
@@ -617,13 +628,13 @@ impl<F: 'static> PPO<F> {
 
                 for b in 0..mb_idx.len() {
                     let ratio = ratio_vec[b];
-                    let adv   = advantage_used[b];
+                    let adv = advantage_used[b];
                     // Was ratio clipped?
                     let is_clipped = (ratio - 1.0).abs() > clip_eps;
                     let g_surr = if is_clipped { 0.0 } else { -adv };
 
                     for a in 0..self.act_dim {
-                        let mu  = means_out[[b, a]];
+                        let mu = means_out[[b, a]];
                         let sig = std_vec[a].max(1e-6);
                         let act = mb_act[[b, a]];
                         // d log_prob / d mu  = (act - mu) / sig^2
@@ -654,10 +665,10 @@ impl<F: 'static> PPO<F> {
                 self.policy.critic.apply_grads(&critic_grads, lr);
 
                 // Accumulate diagnostics
-                info.policy_loss   += policy_loss;
-                info.value_loss    += vf_loss;
-                info.entropy_loss  += ent_mean;
-                info.approx_kl    += kl_sum / batch_n;
+                info.policy_loss += policy_loss;
+                info.value_loss += vf_loss;
+                info.entropy_loss += ent_mean;
+                info.approx_kl += kl_sum / batch_n;
                 info.clip_fraction += clip_count as f64 / mb_idx.len() as f64;
                 total_updates += 1;
             }
@@ -665,10 +676,10 @@ impl<F: 'static> PPO<F> {
 
         if total_updates > 0 {
             let n_f = total_updates as f64;
-            info.policy_loss   /= n_f;
-            info.value_loss    /= n_f;
-            info.entropy_loss  /= n_f;
-            info.approx_kl    /= n_f;
+            info.policy_loss /= n_f;
+            info.value_loss /= n_f;
+            info.entropy_loss /= n_f;
+            info.approx_kl /= n_f;
             info.clip_fraction /= n_f;
         }
         info.n_updates = total_updates;
@@ -678,11 +689,7 @@ impl<F: 'static> PPO<F> {
     /// Full training loop.
     ///
     /// Returns the episodic reward at the end of each completed episode.
-    pub fn train<E>(
-        &mut self,
-        env: &mut E,
-        total_timesteps: usize,
-    ) -> Vec<f64>
+    pub fn train<E>(&mut self, env: &mut E, total_timesteps: usize) -> Vec<f64>
     where
         E: Environment<State = Array1<f64>, Action = Array1<f64>>,
     {
@@ -706,9 +713,9 @@ impl<F: 'static> PPO<F> {
                     buf.states.row_mut(t).assign(&state);
                     buf.actions.row_mut(t).assign(&action_1d);
                     buf.log_probs[t] = log_probs[0];
-                    buf.rewards[t]   = reward;
-                    buf.values[t]    = values[0];
-                    buf.dones[t]     = done;
+                    buf.rewards[t] = reward;
+                    buf.values[t] = values[0];
+                    buf.dones[t] = done;
 
                     ep_reward += reward;
                     if done {
@@ -719,7 +726,9 @@ impl<F: 'static> PPO<F> {
                         state = next_state;
                     }
                     timesteps += 1;
-                    if timesteps >= total_timesteps { break; }
+                    if timesteps >= total_timesteps {
+                        break;
+                    }
                 }
                 let last_obs = state.clone().insert_axis(Axis(0));
                 let last_value = self.policy.predict_values(&last_obs)[0];
@@ -773,7 +782,10 @@ mod tests {
 
     #[test]
     fn ppo_collect_rollout_shapes() {
-        let cfg = PPOConfig { n_steps: 32, ..Default::default() };
+        let cfg = PPOConfig {
+            n_steps: 32,
+            ..Default::default()
+        };
         let mut agent: PPO<f64> = PPO::new(4, 2, cfg);
         let mut env = CartPole::new();
         let rollout = agent.collect_rollout(&mut env, 32);
@@ -812,7 +824,8 @@ mod tests {
         let mut env = CartPole::new();
         let rewards = agent.train(&mut env, 256);
         // Should have collected at least one episode
-        assert!(!rewards.is_empty() || true); // training may not finish an episode
+        // Training may not finish an episode, so rewards may be empty — no assertion needed.
+        let _ = &rewards;
     }
 
     #[test]
@@ -821,8 +834,8 @@ mod tests {
         let mut buf = RolloutBuffer::new(n, 4, 2);
         for t in 0..n {
             buf.rewards[t] = 1.0;
-            buf.values[t]  = 0.5;
-            buf.dones[t]   = false;
+            buf.values[t] = 0.5;
+            buf.dones[t] = false;
         }
         buf.compute_advantages(0.5, 0.99, 0.95);
         // All advantages should be finite

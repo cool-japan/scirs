@@ -46,7 +46,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-stats = "0.4.2"
+//! scirs2-stats = "0.4.3"
 //! ```
 //!
 //! ```rust
@@ -204,7 +204,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.2
+//! - **Version**: 0.4.3
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-stats](https://docs.rs/scirs2-stats)
@@ -620,6 +620,7 @@ pub mod math_utils;
 pub mod mcmc; // Markov Chain Monte Carlo methods
 pub mod mstats; // Masked array statistics
 pub mod multivariate; // Multivariate analysis (PCA, etc.)
+pub mod panel; // Longitudinal and panel data analysis (random/fixed effects, LMM, REML)
 pub mod qmc; // Quasi-Monte Carlo
 pub mod sampling; // Sampling utilities
 pub mod survival; // Survival analysis
@@ -711,7 +712,24 @@ mod streaming_advanced;
 mod survival_advanced;
 mod survival_enhanced;
 mod topological_advanced;
-// Temporarily commented out for compilation fixes
+// Orphaned modules that compile cleanly (tested individually)
+pub mod advanced_error_enhancements_v2;
+pub mod advanced_stubs;
+pub mod parallel_stats_advanced;
+pub mod property_based_validation;
+// Remaining orphaned modules have compilation errors - kept commented out:
+// pub mod adaptive_parallel_scaling;         // compilation errors
+// pub mod advanced_memory_enhanced;          // compilation errors
+// pub mod advanced_parallel_enhanced;        // compilation errors
+// pub mod advanced_parallel_enhancements;    // compilation errors
+// pub mod cross_platform_optimized;          // compilation errors
+// pub mod cross_platform_validation;         // compilation errors
+// pub mod intelligent_error_recovery_v2;     // compilation errors
+// pub mod numerical_stability_comprehensive; // compilation errors
+// pub mod parallel_enhanced_v5;             // compilation errors
+// pub mod property_based_tests_v2;          // compilation errors
+// pub mod simd_enhanced_v7;                 // compilation errors
+// Temporarily commented out for compilation fixes (deps missing: unified_processor, parallel_enhancements, etc.)
 // pub mod advanced_benchmark_validation;
 // pub mod advanced_cross_platform_validation;
 // pub mod advanced_memory_advanced_enhanced;
@@ -1087,7 +1105,8 @@ pub mod regression;
 pub use regression::{
     bisquare_regression, elastic_net, group_lasso, huber_regression, lasso_regression,
     linear_regression, linregress, lts_regression, multilinear_regression, odr, polyfit, ransac,
-    ridge_regression, stepwise_regression, theilslopes, HuberT, LtsResult, RegressionResults,
+    ridge_regression, stepwise_regression, theilslopes, FittedLinearRegression,
+    FittedRidgeRegression, HuberT, LinearRegression, LtsResult, RegressionResults, RidgeRegression,
     StepwiseCriterion, StepwiseDirection, StepwiseResults, TheilSlopesResult,
 };
 
@@ -1123,6 +1142,29 @@ pub mod inla;
 pub mod online;
 // Online Bayesian updating
 pub mod online_bayes;
+
+// Additional modules (previously orphaned, now wired)
+// NOTE: modules with broken/stub implementations are excluded
+pub mod cointegration;
+pub mod compositional;
+pub mod copula_extended;
+pub mod copulas;
+pub mod effect_size;
+pub mod hmm;
+pub mod information;
+pub mod multiple_testing;
+pub mod nonparametric;
+pub use nonparametric::{
+    anderson_darling_test, friedman_test, kruskal_wallis_h, ks_1samp, mann_whitney_u, runs_test,
+    sign_test, wilcoxon_signed_rank,
+};
+pub mod robust;
+pub mod spatial_stats;
+pub mod spectral_density;
+pub mod state_space;
+pub mod stationarity;
+pub mod survival_api;
+pub mod tvp_var;
 
 #[cfg(test)]
 mod test_utils {

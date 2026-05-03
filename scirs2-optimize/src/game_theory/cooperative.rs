@@ -83,10 +83,7 @@ impl CooperativeGame {
                 }
                 let v_s = *self.characteristic.get(&s_mask).unwrap_or(&0.0);
                 let v_t = *self.characteristic.get(&t_mask).unwrap_or(&0.0);
-                let v_st = *self
-                    .characteristic
-                    .get(&(s_mask | t_mask))
-                    .unwrap_or(&0.0);
+                let v_st = *self.characteristic.get(&(s_mask | t_mask)).unwrap_or(&0.0);
                 if v_st < v_s + v_t - 1e-9 {
                     return false;
                 }
@@ -104,14 +101,8 @@ impl CooperativeGame {
             for t_mask in 0u64..(1u64 << n) {
                 let v_s = *self.characteristic.get(&s_mask).unwrap_or(&0.0);
                 let v_t = *self.characteristic.get(&t_mask).unwrap_or(&0.0);
-                let v_st = *self
-                    .characteristic
-                    .get(&(s_mask | t_mask))
-                    .unwrap_or(&0.0);
-                let v_s_cap_t = *self
-                    .characteristic
-                    .get(&(s_mask & t_mask))
-                    .unwrap_or(&0.0);
+                let v_st = *self.characteristic.get(&(s_mask | t_mask)).unwrap_or(&0.0);
+                let v_s_cap_t = *self.characteristic.get(&(s_mask & t_mask)).unwrap_or(&0.0);
                 if v_st + v_s_cap_t < v_s + v_t - 1e-9 {
                     return false;
                 }
@@ -191,11 +182,7 @@ pub fn banzhaf_index(game: &CooperativeGame) -> Vec<f64> {
     let n = game.n_players;
     let mut beta = vec![0.0_f64; n];
 
-    let denominator = if n > 0 {
-        (1u64 << (n - 1)) as f64
-    } else {
-        1.0
-    };
+    let denominator = if n > 0 { (1u64 << (n - 1)) as f64 } else { 1.0 };
 
     for i in 0..n {
         let player_mask = 1u64 << i;
@@ -351,10 +338,7 @@ fn nucleolus_lp(game: &CooperativeGame) -> Result<Vec<f64>, OptimizeError> {
             .iter()
             .map(|&mask| {
                 let v_s = *game.characteristic.get(&mask).unwrap_or(&0.0);
-                let x_s: f64 = (0..n)
-                    .filter(|&i| (mask >> i) & 1 == 1)
-                    .map(|i| x[i])
-                    .sum();
+                let x_s: f64 = (0..n).filter(|&i| (mask >> i) & 1 == 1).map(|i| x[i]).sum();
                 v_s - x_s
             })
             .collect();
@@ -373,10 +357,7 @@ fn nucleolus_lp(game: &CooperativeGame) -> Result<Vec<f64>, OptimizeError> {
             .filter_map(|(&mask, &excess)| {
                 let new_excess = {
                     let v_s = *game.characteristic.get(&mask).unwrap_or(&0.0);
-                    let x_s: f64 = (0..n)
-                        .filter(|&i| (mask >> i) & 1 == 1)
-                        .map(|i| x[i])
-                        .sum();
+                    let x_s: f64 = (0..n).filter(|&i| (mask >> i) & 1 == 1).map(|i| x[i]).sum();
                     v_s - x_s
                 };
                 if (new_excess - epsilon_star).abs() < tol {
@@ -402,6 +383,10 @@ fn nucleolus_lp(game: &CooperativeGame) -> Result<Vec<f64>, OptimizeError> {
 
 /// Minimize the maximum excess over active coalitions subject to fixed coalition excesses.
 /// Returns `(x_opt, epsilon_star)`.
+///
+/// The epsilon variable (max excess) can be negative (coalition values below what players
+/// receive), so we split it as epsilon = eps_pos - eps_neg where both are >= 0.
+/// This allows the standard non-negative-variable simplex to handle negative optima.
 fn minimize_max_excess(
     game: &CooperativeGame,
     active_masks: &[u64],
@@ -414,40 +399,31 @@ fn minimize_max_excess(
     //      v(S) - sum_{i in S} x_i  = e_S        for (S, e_S) in fixed_masks
     //      sum(x) = v(N)
     //
-    // Variables: [x_0, ..., x_{n-1}, epsilon]
-    // Total: n + 1 variables
+    // Since epsilon can be negative we substitute epsilon = eps_pos - eps_neg,
+    // eps_pos >= 0, eps_neg >= 0.
+    //
+    // Variables: [x_0, ..., x_{n-1}, eps_pos, eps_neg]
+    // Total structural vars: n + 2
 
     let n_active = active_masks.len();
     let n_fixed = fixed_masks.len();
-    let n_vars = n + 1; // x_0..x_{n-1}, epsilon
-    let eps_idx = n;
+    // Structural variables: x_0..x_{n-1}, eps_pos, eps_neg
+    let n_vars = n + 2;
+    let eps_pos_idx = n;
+    let eps_neg_idx = n + 1;
 
-    // Build LP in standard form for the simplex method
-    // We minimize c^T z subject to Az <= b, Aeq z = beq
-
-    // Constraints:
-    // Active coalition constraints (n_active inequalities):
-    //   -sum_{i in S} x_i + epsilon >= -v(S)  → sum_{i in S} x_i - epsilon <= v(S)
-    //   after adding slack s_k: sum_{i in S} x_i - epsilon + s_k = v(S)
-    //   Wait: we need to minimize epsilon, and v(S) - x_S <= epsilon
-    //   → -x_S + epsilon >= v(S) → nope, v(S) - x_S <= epsilon
-    //   Standard form: add slack r_k >= 0:  x_S - epsilon + r_k = 0 → no...
-    //   Let's reformulate: v(S) - x_S <= epsilon → epsilon - x_S >= -v(S)
-    //   For standard min LP: -x_S + epsilon + s_k = -v(S)? That gives negative RHS.
-    //
-    // Better approach: substitute e = epsilon + M for large M to ensure positivity,
-    // or use the following:
-    //   v(S) - x_S - epsilon <= 0  for all active S
-    //   → x_S + epsilon >= v(S)  (for minimizing epsilon, we add slack)
-    //   Standard form: x_S + epsilon - s_k = v(S), s_k >= 0
-    //
-    // Fixed: v(S) - x_S = e_S → x_S = v(S) - e_S (equality)
-    // Efficiency: sum(x) = v(N)
+    // Active coalition constraints (>= inequalities with slack):
+    //   x_S + eps_pos - eps_neg >= v(S)
+    //   => x_S + eps_pos - eps_neg - s_k = v(S),  s_k >= 0
+    // Fixed coalition constraints (equalities):
+    //   x_S = v(S) - e_S
+    // Efficiency:
+    //   sum(x) = v(N)
 
     let n_ineq = n_active;
     let n_eq = n_fixed + 1; // fixed coalitions + efficiency
     let n_slack = n_ineq;
-    let n_artif = n_ineq + n_eq; // artificial variables for all constraints (>= and ==)
+    let n_artif = n_ineq + n_eq; // artificial variables for Phase I
     let total_vars = n_vars + n_slack + n_artif;
     let n_rows = n_ineq + n_eq + 1; // constraints + objective
     let n_cols = total_vars + 1; // + RHS
@@ -457,8 +433,7 @@ fn minimize_max_excess(
 
     let mut tab = vec![0.0_f64; n_rows * n_cols];
 
-    // Active coalition rows: x_S + epsilon - s_k = v(S)
-    // We need x_S + epsilon >= v(S), so slack is negative: x_S + epsilon - s_k = v(S), s_k >= 0
+    // Active coalition rows: x_S + eps_pos - eps_neg - s_k = v(S),  s_k >= 0
     for (k, &mask) in active_masks.iter().enumerate() {
         let v_s = *game.characteristic.get(&mask).unwrap_or(&0.0);
         // Coefficients for x_i
@@ -467,17 +442,19 @@ fn minimize_max_excess(
                 tab[k * n_cols + i] = 1.0;
             }
         }
-        // Coefficient for epsilon
-        tab[k * n_cols + eps_idx] = 1.0;
-        // Slack variable s_k (negated because >= constraint)
+        // eps_pos coefficient
+        tab[k * n_cols + eps_pos_idx] = 1.0;
+        // eps_neg coefficient
+        tab[k * n_cols + eps_neg_idx] = -1.0;
+        // Slack variable s_k
         tab[k * n_cols + n_vars + k] = -1.0;
-        // Need artificial variable for feasibility phase
+        // Artificial variable for Phase I
         let artif_idx = n_vars + n_slack + k;
         tab[k * n_cols + artif_idx] = 1.0;
         tab[k * n_cols + rhs_col] = v_s;
     }
 
-    // Fixed coalition rows: x_S = v(S) - e_S (equality)
+    // Fixed coalition rows: x_S = v(S) - e_S
     for (k, &(mask, e_s)) in fixed_masks.iter().enumerate() {
         let row = n_ineq + k;
         let v_s = *game.characteristic.get(&mask).unwrap_or(&0.0);
@@ -501,14 +478,15 @@ fn minimize_max_excess(
     tab[eff_row * n_cols + artif_eff_idx] = 1.0;
     tab[eff_row * n_cols + rhs_col] = grand_val;
 
-    // Objective row: minimize epsilon + big_M * sum(artificials)
+    // Objective row: minimize eps_pos - eps_neg + big_M * sum(artificials)
     let obj_row = n_ineq + n_eq;
-    tab[obj_row * n_cols + eps_idx] = 1.0;
+    tab[obj_row * n_cols + eps_pos_idx] = 1.0;
+    tab[obj_row * n_cols + eps_neg_idx] = -1.0;
     for k in 0..n_artif {
         tab[obj_row * n_cols + n_vars + n_slack + k] = big_m;
     }
 
-    // Adjust objective for initial basis (artificials)
+    // Adjust objective for initial basis (artificials) to maintain reduced cost form
     for row in 0..(n_ineq + n_eq) {
         let artif_col = n_vars + n_slack + row;
         let coeff = tab[obj_row * n_cols + artif_col];
@@ -526,17 +504,21 @@ fn minimize_max_excess(
     // Run simplex
     simplex_min(&mut tab, &mut basis, n_constraint_rows, n_cols, total_vars)?;
 
-    // Extract x and epsilon
+    // Extract x and epsilon = eps_pos - eps_neg
     let mut x = vec![0.0_f64; n];
-    let mut epsilon = 0.0_f64;
+    let mut eps_pos = 0.0_f64;
+    let mut eps_neg = 0.0_f64;
     for (b_idx, &var) in basis.iter().enumerate() {
         let val = tab[b_idx * n_cols + rhs_col];
         if var < n {
             x[var] = val;
-        } else if var == eps_idx {
-            epsilon = val;
+        } else if var == eps_pos_idx {
+            eps_pos = val;
+        } else if var == eps_neg_idx {
+            eps_neg = val;
         }
     }
+    let epsilon = eps_pos - eps_neg;
 
     Ok((x, epsilon))
 }
@@ -727,7 +709,7 @@ pub fn airport_game(costs: &[f64]) -> CooperativeGame {
             .map(|i| costs[i])
             .fold(f64::NEG_INFINITY, f64::max);
         // Value = negative cost (cost must be paid, so higher value = lower cost burden)
-        // Standard: v(S) = 0 for S != N, v(N) = sum(c) - ... 
+        // Standard: v(S) = 0 for S != N, v(N) = sum(c) - ...
         // We use: v(S) = max cost in coalition (the "value" as a transfer)
         game.set_value(&mask_to_players(mask, n), max_cost);
     }

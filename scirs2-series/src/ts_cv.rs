@@ -682,6 +682,141 @@ where
 }
 
 // ---------------------------------------------------------------------------
+// CrossValidator — high-level wrapper
+// ---------------------------------------------------------------------------
+
+/// High-level cross-validation wrapper for time series
+///
+/// Provides a scikit-learn-style API for performing time series cross-validation
+/// with expanding windows and an optional held-out test set.
+///
+/// # Examples
+///
+/// ```rust
+/// use scirs2_series::ts_cv::CrossValidator;
+/// use scirs2_core::ndarray::Array1;
+///
+/// let data = Array1::linspace(0.0_f64, 1.0, 100);
+/// let cv = CrossValidator::new(5, 0.2);
+/// let folds = cv.time_series_split(&data).expect("should succeed");
+/// assert_eq!(folds.len(), 5);
+/// ```
+#[derive(Debug, Clone)]
+pub struct CrossValidator {
+    /// Number of folds for cross-validation
+    n_folds: usize,
+    /// Holdout fraction reserved as final test set (0.0 = no holdout)
+    holdout_fraction: f64,
+}
+
+impl CrossValidator {
+    /// Create a new `CrossValidator`
+    ///
+    /// # Arguments
+    ///
+    /// * `n_folds` — Number of cross-validation folds (must be ≥ 2)
+    /// * `holdout_fraction` — Fraction of data to hold out at the end as a final
+    ///   test set; must be in `[0.0, 1.0)`. Pass `0.0` to use all data for CV.
+    pub fn new(n_folds: usize, holdout_fraction: f64) -> Self {
+        Self {
+            n_folds,
+            holdout_fraction,
+        }
+    }
+
+    /// Produce expanding-window time-series folds
+    ///
+    /// Reserves `holdout_fraction * n` observations at the end as a held-out
+    /// test set, then applies an expanding-window split to the remaining data
+    /// to produce exactly `n_folds` folds.
+    ///
+    /// # Returns
+    ///
+    /// `Vec<TimeSeriesFold>` with `len() == n_folds`
+    pub fn time_series_split<F: Float>(&self, data: &Array1<F>) -> Result<Vec<TimeSeriesFold>> {
+        let n = data.len();
+        if n == 0 {
+            return Err(TimeSeriesError::InvalidInput(
+                "Data array is empty".to_string(),
+            ));
+        }
+        if self.n_folds < 2 {
+            return Err(TimeSeriesError::InvalidParameter {
+                name: "n_folds".to_string(),
+                message: format!("Must be >= 2, got {}", self.n_folds),
+            });
+        }
+        if !(0.0..1.0).contains(&self.holdout_fraction) {
+            return Err(TimeSeriesError::InvalidParameter {
+                name: "holdout_fraction".to_string(),
+                message: format!("Must be in [0.0, 1.0), got {}", self.holdout_fraction),
+            });
+        }
+
+        // Compute the CV region (exclude the holdout tail)
+        let holdout_size = (n as f64 * self.holdout_fraction).round() as usize;
+        let cv_n = n.saturating_sub(holdout_size);
+
+        if cv_n < self.n_folds + 1 {
+            return Err(TimeSeriesError::InsufficientData {
+                message: format!(
+                    "Not enough data for {} folds after reserving holdout",
+                    self.n_folds
+                ),
+                required: self.n_folds + 1 + holdout_size,
+                actual: n,
+            });
+        }
+
+        // Use blocked split to get exactly n_folds folds within [0, cv_n)
+        let block_size = cv_n / (self.n_folds + 1); // +1 because first block = initial train
+        if block_size == 0 {
+            return Err(TimeSeriesError::InsufficientData {
+                message: "Block size is zero; too many folds for the data size".to_string(),
+                required: (self.n_folds + 1) * 2,
+                actual: cv_n,
+            });
+        }
+
+        // Produce exactly n_folds folds with an expanding training window
+        let mut folds = Vec::with_capacity(self.n_folds);
+        let initial_train = block_size;
+        let test_size = block_size;
+
+        for k in 0..self.n_folds {
+            let train_end = initial_train + k * test_size;
+            let test_start = train_end;
+            let test_end = (test_start + test_size).min(cv_n);
+            if test_end > test_start && train_end > 0 {
+                folds.push(TimeSeriesFold {
+                    train_start: 0,
+                    train_end,
+                    test_start,
+                    test_end,
+                });
+            }
+        }
+
+        // Ensure we return exactly n_folds (pad/truncate if needed)
+        folds.truncate(self.n_folds);
+
+        if folds.len() < self.n_folds {
+            return Err(TimeSeriesError::InsufficientData {
+                message: format!(
+                    "Could only generate {} folds, {} requested",
+                    folds.len(),
+                    self.n_folds
+                ),
+                required: self.n_folds,
+                actual: folds.len(),
+            });
+        }
+
+        Ok(folds)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
@@ -1147,5 +1282,49 @@ mod tests {
         let s = format!("{summary}");
         assert!(s.contains("3 folds"));
         assert!(s.contains("Mean error"));
+    }
+
+    // --- CrossValidator tests ---
+
+    #[test]
+    fn test_cross_validator_basic() {
+        let data = Array1::linspace(0.0_f64, 1.0, 200);
+        let cv = CrossValidator::new(5, 0.2);
+        let folds = cv.time_series_split(&data).expect("should succeed");
+        assert_eq!(folds.len(), 5);
+        // Each fold's train data ends where test data begins
+        for fold in &folds {
+            assert_eq!(fold.train_end, fold.test_start);
+            assert!(fold.test_end > fold.test_start);
+            assert!(fold.train_end > fold.train_start);
+        }
+    }
+
+    #[test]
+    fn test_cross_validator_no_holdout() {
+        let data = Array1::linspace(0.0_f64, 1.0, 100);
+        let cv = CrossValidator::new(3, 0.0);
+        let folds = cv.time_series_split(&data).expect("should succeed");
+        assert_eq!(folds.len(), 3);
+    }
+
+    #[test]
+    fn test_cross_validator_invalid_n_folds() {
+        let data = Array1::linspace(0.0_f64, 1.0, 100);
+        let cv = CrossValidator::new(1, 0.0);
+        assert!(cv.time_series_split(&data).is_err());
+    }
+
+    #[test]
+    fn test_cross_validator_fold_indices_in_range() {
+        let data = Array1::linspace(0.0_f64, 1.0, 200);
+        let cv = CrossValidator::new(5, 0.2);
+        let folds = cv.time_series_split(&data).expect("should succeed");
+        for fold in &folds {
+            assert!(fold.train_end <= data.len());
+            assert!(fold.test_end <= data.len());
+            assert!(fold.train_start < fold.train_end);
+            assert!(fold.test_start < fold.test_end);
+        }
     }
 }

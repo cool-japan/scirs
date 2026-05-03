@@ -564,16 +564,16 @@ mod tests {
         // Input 1: channels have distinct patterns so instance norm preserves differences
         let mut x1 = Array3::zeros((1, 3, 32));
         for t in 0..32 {
-            x1[[0, 0, t]] = (t as f64) * 0.1;      // linear ramp
+            x1[[0, 0, t]] = (t as f64) * 0.1; // linear ramp
             x1[[0, 1, t]] = (t as f64 * 0.3).sin(); // sine
-            x1[[0, 2, t]] = 1.0;                    // constant
+            x1[[0, 2, t]] = 1.0; // constant
         }
         let out1 = model.forward(&x1).expect("forward failed");
 
         // Input 2: change channel 2 from constant to different pattern
         let mut x2 = x1.clone();
         for t in 0..32 {
-            x2[[0, 2, t]] = (t as f64) * 0.5;  // steeper ramp
+            x2[[0, 2, t]] = (t as f64) * 0.5; // steeper ramp
         }
         let out2 = model.forward(&x2).expect("forward failed");
 
@@ -586,7 +586,10 @@ mod tests {
                 break;
             }
         }
-        assert!(any_diff, "Expected cross-channel interaction but outputs were identical");
+        assert!(
+            any_diff,
+            "Expected cross-channel interaction but outputs were identical"
+        );
     }
 
     #[test]

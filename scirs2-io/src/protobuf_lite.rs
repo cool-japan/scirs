@@ -189,9 +189,7 @@ pub fn encode_varint(mut value: u64) -> Vec<u8> {
 /// ```
 pub fn decode_varint(data: &[u8]) -> ProtoResult<(u64, &[u8])> {
     if data.is_empty() {
-        return Err(IoError::ParseError(
-            "varint: empty input".to_string(),
-        ));
+        return Err(IoError::ParseError("varint: empty input".to_string()));
     }
 
     let mut result: u64 = 0;
@@ -320,10 +318,7 @@ pub fn decode_fields(data: &[u8]) -> ProtoResult<Vec<(u32, ProtobufField)>> {
     Ok(out)
 }
 
-fn decode_one_field<'a>(
-    wire_type: u8,
-    data: &'a [u8],
-) -> ProtoResult<(ProtobufField, &'a [u8])> {
+fn decode_one_field(wire_type: u8, data: &[u8]) -> ProtoResult<(ProtobufField, &[u8])> {
     match wire_type {
         WIRE_VARINT => {
             let (v, rest) = decode_varint(data)?;
@@ -574,7 +569,7 @@ mod tests {
         let msg = MessageBuilder::new()
             .varint(1, 42)
             .string(2, "hello world")
-            .f64(3, 2.718281828)
+            .f64(3, std::f64::consts::E)
             .bytes(4, vec![0xde, 0xad, 0xbe, 0xef])
             .build();
 
@@ -585,7 +580,7 @@ mod tests {
         assert_eq!(fields[1].0, 2);
         assert_eq!(fields[1].1.as_str(), Some("hello world"));
         assert_eq!(fields[2].0, 3);
-        assert!((fields[2].1.as_f64().unwrap() - 2.718281828).abs() < 1e-9);
+        assert!((fields[2].1.as_f64().unwrap() - std::f64::consts::E).abs() < 1e-9);
         assert_eq!(
             fields[3].1,
             ProtobufField::LengthDelimited(vec![0xde, 0xad, 0xbe, 0xef])

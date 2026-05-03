@@ -26,9 +26,7 @@
 //! ```
 
 // Re-export all module components for backward compatibility
-pub use self::{
-    html_generation::*, modules::*, styling::*, tutorials::*, types::*,
-};
+pub use self::{html_generation::*, modules::*, styling::*, tutorials::*, types::*};
 
 // Module declarations
 pub mod html_generation;
@@ -173,7 +171,7 @@ pub mod utils {
         let mut signatures = Vec::new();
 
         // Simple regex-based extraction (in practice, you'd want a proper parser)
-        if let Ok(re) = regex::Regex::new(r"pub fn (\w+).*?{") {
+        if let Ok(re) = regex::Regex::new(r"pub fn (\w+)[^{]*\{") {
             for cap in re.captures_iter(rust_code) {
                 if let Some(sig) = cap.get(0) {
                     signatures.push(sig.as_str().to_string());
@@ -199,15 +197,14 @@ pub mod utils {
 
                 if path.extension().and_then(|s| s.to_str()) == Some("rs") {
                     let content = fs::read_to_string(&path)?;
-                    let module_name = path.file_stem()
+                    let module_name = path
+                        .file_stem()
                         .and_then(|s| s.to_str())
                         .unwrap_or("unknown")
                         .to_string();
 
-                    let mut module = types::ModuleDoc::new(
-                        module_name,
-                        "Auto-generated documentation"
-                    );
+                    let mut module =
+                        types::ModuleDoc::new(module_name, "Auto-generated documentation");
 
                     // Extract functions (simplified)
                     let signatures = extract_function_signatures(&content);
@@ -216,7 +213,7 @@ pub mod utils {
                             "extracted_function",
                             sig,
                             "Auto-extracted function",
-                            "Return type"
+                            "Return type",
                         );
                         module.add_function(func);
                     }
@@ -233,11 +230,16 @@ pub mod utils {
     pub fn validate_html_output(html: &str) -> Vec<String> {
         let mut issues = Vec::new();
 
-        // Check for unclosed tags (simplified)
-        let open_tags = html.matches('<').count();
-        let close_tags = html.matches("</").count() + html.matches("/>").count();
+        // Check for unclosed tags (simplified).
+        // `close_open` counts explicit closing tags (</foo>).
+        // `self_close` counts self-closing tags (<br/>).
+        // Opening tags = all `<` minus the ones that start a `</foo>` closer.
+        let close_open = html.matches("</").count();
+        let self_close = html.matches("/>").count();
+        let opening = html.matches('<').count() - close_open;
+        let closing = close_open + self_close;
 
-        if open_tags != close_tags {
+        if opening != closing {
             issues.push("Potential unclosed HTML tags detected".to_string());
         }
 
@@ -256,8 +258,10 @@ pub mod utils {
 
     /// Generate sitemap.xml for the documentation
     pub fn generate_sitemap(base_url: &str, pages: &[&str]) -> String {
-        let mut sitemap = String::from(r#"<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#);
+        let mut sitemap = String::from(
+            r#"<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+        );
 
         for page in pages {
             sitemap.push_str(&format!(
@@ -301,7 +305,8 @@ impl Default for DocumentationTheme {
             secondary_color: "#2c3e50".to_string(),
             background_color: "#f8f9fa".to_string(),
             text_color: "#333333".to_string(),
-            font_family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif".to_string(),
+            font_family: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+                .to_string(),
             code_font_family: "Consolas, Monaco, 'Andale Mono', monospace".to_string(),
         }
     }
@@ -429,7 +434,11 @@ mod tests {
 
     #[test]
     fn test_utils_generate_sitemap() {
-        let pages = vec!["/index.html", "/api/index.html", "/tutorials/getting-started.html"];
+        let pages = vec![
+            "/index.html",
+            "/api/index.html",
+            "/tutorials/getting-started.html",
+        ];
         let sitemap = utils::generate_sitemap("https://example.com", &pages);
 
         assert!(sitemap.contains("<?xml version"));

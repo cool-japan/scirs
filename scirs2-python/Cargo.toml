@@ -18,6 +18,14 @@ name = "scirs2"
 crate-type = ["cdylib", "rlib"]
 doc = false
 
+[[example]]
+name = "scipy_python_migration_guide"
+path = "examples/scipy_migration_guide.rs"
+
+[[example]]
+name = "generate_stubs"
+path = "examples/generate_stubs.rs"
+
 [dependencies]
 # Core SciRS2 dependencies with Python feature (workspace-based)
 # Note: Features are also controlled via scirs2-python's feature flags for proper propagation

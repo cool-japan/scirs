@@ -105,6 +105,11 @@ impl NSGAIII {
         }
     }
 
+    /// Return a reference to the current structured reference points.
+    pub fn reference_points(&self) -> &[Array1<f64>] {
+        &self.reference_points
+    }
+
     /// Automatically determine the number of partitions based on objectives and pop size
     fn auto_partitions(n_objectives: usize, pop_size: usize) -> usize {
         // Heuristic: choose partitions so Das-Dennis points ~ pop_size

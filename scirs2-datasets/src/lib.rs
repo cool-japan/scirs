@@ -27,7 +27,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-datasets = "0.4.2"
+//! scirs2-datasets = "0.4.3"
 //! ```
 //!
 //! ```rust
@@ -41,9 +41,9 @@
 //! let data = make_classification(100, 5, 3, 2, 4, Some(42)).expect("Operation failed");
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2
+//! ## 🔒 Version: 0.4.3
 //!
-//! ### v0.4.0 New Features
+//! ### v0.4.3 New Features
 //!
 //! - **Lazy Loading**: Memory-mapped datasets with zero-copy views
 //! - **Data Augmentation**: GPU-accelerated augmentation pipeline
@@ -132,6 +132,12 @@ pub mod benchmarks;
 pub mod cache;
 pub mod cloud;
 pub mod distributed;
+/// Integration of `scirs2-core` distributed primitives with dataset loading.
+///
+/// Provides parallel row-map, row-fold, chunk-map, chunk-map-reduce and
+/// parallel feature statistics backed by the production-grade thread-pool
+/// and parallel-iterator primitives in `scirs2_core::distributed`.
+pub mod distributed_core;
 pub mod domain_specific;
 pub mod error;
 pub mod explore;
@@ -210,8 +216,55 @@ pub mod distributed_loading;
 /// columnar and scientific formats.
 pub mod formats;
 
+/// Native Parquet reader (v0.4.3, Item 6)
+///
+/// Reads Parquet files into typed `ParquetDataset` containers backed by
+/// `ColumnData` variants. Requires the `parquet_io` feature.
+#[cfg(feature = "parquet_io")]
+pub mod parquet_reader;
+
+/// HDF5 dataset containers (v0.4.3, Item 7)
+///
+/// Provides file validation (magic-byte check) in all builds. Full read/write
+/// support requires the `hdf5_io` feature which links `libhdf5`.
+pub mod hdf5_dataset;
+
+/// NetCDF3 climate and geospatial dataset reader (v0.4.3, Item 8)
+///
+/// Pure-Rust reader for NetCDF-3 Classic and 64-bit-offset files using the
+/// `netcdf3` crate. Available in all build configurations.
+pub mod netcdf_dataset;
+
 // Benchmarks module (named to avoid conflict with benchmarks)
 pub mod benchmarks_module;
+
+/// Criteo Display Advertising synthetic CTR-prediction dataset.
+///
+/// Generates binary-label click-through-rate samples with 13 integer features
+/// and 26 hashed categorical features, mimicking the Criteo competition format.
+pub mod criteo;
+/// ImageNet-100-class synthetic image classification dataset.
+///
+/// 100-class image dataset stored as `Array4<f32>` `[N, 3, H, W]`, normalised
+/// to `[0, 1]`.  Each class has a distinct mean colour, images include
+/// Gaussian noise.
+pub mod imagenet100;
+/// M5 Competition synthetic retail time series dataset.
+///
+/// Generates hierarchical (item/store/state) weekly demand series with
+/// Poisson-distributed counts, weekly seasonality, and per-item linear trends.
+pub mod m5_dataset;
+/// Penn Treebank synthetic language modelling dataset.
+///
+/// Generates Zipfian-distributed tokenised sentences with Poisson sentence
+/// lengths, mimicking PTB statistical properties.
+pub mod penn_treebank;
+/// WikiText-103 synthetic NLP dataset.
+///
+/// Generates article/paragraph/token-structured synthetic text data with a
+/// large Zipfian vocabulary, mimicking WikiText-103 format.
+pub mod wikitext103;
+
 // HuggingFace Hub metadata integration
 pub mod hub_metadata;
 // HuggingFace dataset card metadata (new HfDatasetCard API)
@@ -222,6 +275,16 @@ pub mod sharding;
 pub mod sampling;
 // Streaming CSV loader
 pub mod streaming_csv;
+
+/// HuggingFace Arrow IPC dataset reader (v0.4.3)
+///
+/// Reads `.arrow` files (Arrow IPC format) with optional `dataset_info.json`
+/// metadata. Mirrors the on-disk layout produced by HuggingFace `datasets`
+/// when calling `dataset.save_to_disk()`.
+///
+/// Full record-batch parsing requires the `parquet_io` feature; default builds
+/// provide magic-byte validation and directory scanning.
+pub mod arrow_dataset;
 
 // Re-export commonly used functionality
 pub use adaptive_streaming_engine::{
@@ -244,6 +307,10 @@ pub use cloud::{
     CloudClient, CloudConfig, CloudCredentials, CloudProvider,
 };
 pub use distributed::{DistributedConfig, DistributedProcessor, ScalingMethod, ScalingParameters};
+pub use distributed_core::{
+    core_map_reduce_chunks, core_par_map_chunks, par_feature_stats, par_fold_rows, par_map_rows,
+    FeatureStats,
+};
 pub use domain_specific::{
     astronomy::StellarDatasets,
     climate::ClimateDatasets,
@@ -432,3 +499,13 @@ pub use formats::{
     read_auto, read_hdf5, read_parquet, write_hdf5, write_parquet, FormatConverter, Hdf5Reader,
     Hdf5Writer, ParquetReader, ParquetWriter,
 };
+
+// ── Synthetic benchmark dataset re-exports ────────────────────────────────
+pub use criteo::{CriteoConfig, CriteoDataset, CriteoRecord};
+pub use imagenet100::{ImageNet100Config, ImageNet100Dataset, IMAGENET100_N_CLASSES};
+pub use m5_dataset::{M5Config, M5Dataset, M5Record};
+pub use penn_treebank::{PennTreebankConfig, PennTreebankDataset};
+pub use wikitext103::{WikiText103Config, WikiText103Dataset};
+
+// Arrow dataset reader
+pub use arrow_dataset::{ArrowDataset, DatasetInfo, FeatureType as ArrowFeatureType};

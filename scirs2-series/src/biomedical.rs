@@ -276,9 +276,13 @@ impl ECGAnalysis {
         Ok(arrhythmias)
     }
 
-    /// Simple bandpass filter implementation
+    /// FIR bandpass filter using windowed-sinc design (Hann window).
+    ///
+    /// Builds a bandpass FIR kernel as `H_hp * H_lp` (high-pass = δ − low-pass).
+    /// The filter is applied via direct convolution (causal, zero-padded boundaries).
+    /// This replaces the previous moving-average approximation which destroyed the
+    /// high-frequency QRS complex needed for R-peak detection.
     fn bandpass_filter(&self, low_freq: f64, highfreq: f64) -> Result<Array1<f64>> {
-        // Simplified butterworth bandpass filter
         let nyquist = self.fs / 2.0;
         let low_norm = low_freq / nyquist;
         let high_norm = highfreq / nyquist;
@@ -289,24 +293,76 @@ impl ECGAnalysis {
             ));
         }
 
-        // Simple moving average approximation for demo
-        let window_size = (self.fs / low_freq) as usize;
-        let mut filtered = self.signal.clone();
+        // Choose kernel half-length: enough taps for the lowest frequency but capped
+        // so we don't allocate more than needed for short signals.
+        let half_len = ((self.fs / low_freq) as usize * 2)
+            .min(self.signal.len() / 4)
+            .max(4);
+        let kernel_len = 2 * half_len + 1; // always odd → linear phase
 
-        // Ensure window_size doesn't exceed signal bounds
-        let effective_window = window_size.min(filtered.len() / 2);
-        if effective_window == 0 || filtered.len() < 2 * effective_window {
-            return Ok(filtered);
+        // Build windowed-sinc low-pass kernels then combine into a bandpass.
+        let build_lp = |fc: f64| -> Vec<f64> {
+            let mut h = vec![0.0_f64; kernel_len];
+            for (k, hk) in h.iter_mut().enumerate() {
+                let n = k as f64 - half_len as f64;
+                // Hann window
+                let w = 0.5
+                    - 0.5 * (2.0 * std::f64::consts::PI * k as f64 / (kernel_len - 1) as f64).cos();
+                *hk = if n == 0.0 {
+                    2.0 * fc
+                } else {
+                    (2.0 * std::f64::consts::PI * fc * n).sin() / (std::f64::consts::PI * n)
+                } * w;
+            }
+            // Normalise so DC gain = 1.0
+            let sum: f64 = h.iter().sum();
+            if sum.abs() > 1e-12 {
+                h.iter_mut().for_each(|v| *v /= sum);
+            }
+            h
+        };
+
+        // `build_lp` uses the windowed-sinc formula where `fc` is in
+        // *cycles-per-sample* (range [0, 0.5]), but `low_norm`/`high_norm` are
+        // Nyquist-normalized (range [0, 1]).  Divide by 2 to convert.
+        let lp_high = build_lp(high_norm / 2.0);
+
+        // High-pass at low_norm = δ − LP(low_norm)
+        let lp_low = build_lp(low_norm / 2.0);
+        let hp_low: Vec<f64> = lp_low
+            .iter()
+            .enumerate()
+            .map(|(k, &v)| if k == half_len { 1.0 - v } else { -v })
+            .collect();
+
+        // Bandpass = LP(high) convolved with HP(low), i.e. cascade the two filters.
+        // For efficiency convolve the two kernels first (result length = 2*kernel_len-1),
+        // then apply that single kernel to the signal.
+        let bp_len = 2 * kernel_len - 1;
+        let mut bp_kernel = vec![0.0_f64; bp_len];
+        for (i, &a) in lp_high.iter().enumerate() {
+            for (j, &b) in hp_low.iter().enumerate() {
+                bp_kernel[i + j] += a * b;
+            }
         }
 
-        for i in effective_window..filtered.len() - effective_window {
-            let window = self.signal.slice(scirs2_core::ndarray::s![
-                i - effective_window..i + effective_window
-            ]);
-            filtered[i] = window.mean();
+        // Apply via linear (zero-padded) convolution
+        let n = self.signal.len();
+        let m = bp_kernel.len();
+        let half_m = m / 2;
+        let mut out = Array1::zeros(n);
+        for i in 0..n {
+            let mut acc = 0.0_f64;
+            for (j, &coef) in bp_kernel.iter().enumerate() {
+                let src = i as isize + half_m as isize - j as isize;
+                if src >= 0 && (src as usize) < n {
+                    acc += coef * self.signal[src as usize];
+                }
+            }
+            out[i] = acc;
         }
 
-        Ok(filtered)
+        Ok(out)
     }
 }
 

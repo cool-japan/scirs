@@ -9,6 +9,7 @@
 use crate::error::{OptimizeError, OptimizeResult};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{rng, Rng, SeedableRng};
+use scirs2_core::RngExt;
 
 // ---------------------------------------------------------------------------
 // Problem Traits

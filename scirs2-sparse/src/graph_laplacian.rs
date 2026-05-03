@@ -54,7 +54,7 @@ use std::iter::Sum;
 /// # Arguments
 ///
 /// * `adj` – Square symmetric adjacency matrix in CSR format; self-loops (diagonal)
-///            are ignored.  Off-diagonal entries must be non-negative.
+///   are ignored. Off-diagonal entries must be non-negative.
 ///
 /// # Returns
 ///
@@ -316,9 +316,8 @@ where
 
     // Regularise: L_reg = L + ε I  to make the system non-singular.
     // The shift ε must be small relative to λ₂ but large enough to allow CG.
-    let eps_shift = F::from(1e-8).ok_or_else(|| {
-        SparseError::ValueError("Cannot convert epsilon shift".to_string())
-    })?;
+    let eps_shift = F::from(1e-8)
+        .ok_or_else(|| SparseError::ValueError("Cannot convert epsilon shift".to_string()))?;
     let l_reg = shift_diagonal(laplacian, eps_shift)?;
 
     let cfg = IterativeSolverConfig {
@@ -330,12 +329,10 @@ where
     // Initialise: v = [0, 1, -1, 0, 1, -1, ...]  orthogonalised against **1**
     let mut v = Array1::<F>::zeros(n);
     for i in 0..n {
-        let fi = F::from(i).ok_or_else(|| {
-            SparseError::ValueError("Cannot convert index to float".to_string())
-        })?;
-        let two = F::from(2.0).ok_or_else(|| {
-            SparseError::ValueError("Cannot convert 2 to float".to_string())
-        })?;
+        let fi = F::from(i)
+            .ok_or_else(|| SparseError::ValueError("Cannot convert index to float".to_string()))?;
+        let two = F::from(2.0)
+            .ok_or_else(|| SparseError::ValueError("Cannot convert 2 to float".to_string()))?;
         let pi = fi * two;
         v[i] = pi.sin();
     }
@@ -353,14 +350,14 @@ where
             break;
         }
         for x in w.iter_mut() {
-            *x = *x / norm;
+            *x /= norm;
         }
         // Check convergence: ||v_new - v_old|| < tol
         let diff_norm = {
             let mut acc = F::sparse_zero();
             for i in 0..n {
                 let d = w[i] - v[i];
-                acc = acc + d * d;
+                acc += d * d;
             }
             acc.sqrt()
         };
@@ -402,9 +399,7 @@ where
 {
     let n = adj.rows();
     if k == 0 {
-        return Err(SparseError::ValueError(
-            "k must be at least 1".to_string(),
-        ));
+        return Err(SparseError::ValueError("k must be at least 1".to_string()));
     }
     if k > n {
         return Err(SparseError::ValueError(format!(
@@ -422,9 +417,8 @@ where
     let n_vecs = (k - 1).min(n - 1);
     let mut embedding: Vec<Array1<F>> = Vec::with_capacity(n_vecs);
 
-    let eps_shift = F::from(1e-8).ok_or_else(|| {
-        SparseError::ValueError("Cannot convert shift".to_string())
-    })?;
+    let eps_shift =
+        F::from(1e-8).ok_or_else(|| SparseError::ValueError("Cannot convert shift".to_string()))?;
     let l_reg = shift_diagonal(&l, eps_shift)?;
 
     let cfg = IterativeSolverConfig {
@@ -454,7 +448,7 @@ where
                 break;
             }
             for x in w.iter_mut() {
-                *x = *x / norm;
+                *x /= norm;
             }
             let diff: F = w
                 .iter()
@@ -532,9 +526,8 @@ where
     }
 
     // Regularise Laplacian: L_reg = L + eps * I
-    let eps_shift = F::from(1e-8).ok_or_else(|| {
-        SparseError::ValueError("Cannot convert epsilon shift".to_string())
-    })?;
+    let eps_shift = F::from(1e-8)
+        .ok_or_else(|| SparseError::ValueError("Cannot convert epsilon shift".to_string()))?;
     let l_reg = shift_diagonal(laplacian, eps_shift)?;
 
     // Build rhs: e_s - e_t
@@ -576,7 +569,7 @@ where
 ///
 /// * `adj`     – Weighted adjacency matrix (n × n, symmetric, no self-loops).
 /// * `epsilon` – Approximation quality parameter in (0, 1); smaller ε means
-///               a denser but more accurate sparsifier.
+///   a denser but more accurate sparsifier.
 ///
 /// # Returns
 ///
@@ -625,9 +618,8 @@ where
     // Importance: p_e = min(1, C * w_e * R_e * ln(n) / eps^2)
     // where C is a constant (use C = 1 for simplicity; increase for higher accuracy)
     let ln_n = {
-        let nf = F::from(n.max(2)).ok_or_else(|| {
-            SparseError::ValueError("Cannot convert n".to_string())
-        })?;
+        let nf = F::from(n.max(2))
+            .ok_or_else(|| SparseError::ValueError("Cannot convert n".to_string()))?;
         nf.ln()
     };
     let eps2 = epsilon * epsilon;
@@ -638,15 +630,18 @@ where
         .zip(resistances.iter())
         .map(|((_, _, w), &r)| {
             let p = *w * r * ln_n / eps2;
-            if p > one { one } else { p }
+            if p > one {
+                one
+            } else {
+                p
+            }
         })
         .collect();
 
     // Deterministic threshold sampling: include edge if p >= threshold
     // For a simple implementation use a pseudo-random linear congruential seed.
-    let threshold = F::from(0.5).ok_or_else(|| {
-        SparseError::ValueError("Cannot convert threshold".to_string())
-    })?;
+    let threshold = F::from(0.5)
+        .ok_or_else(|| SparseError::ValueError("Cannot convert threshold".to_string()))?;
 
     let mut row_idx = Vec::new();
     let mut col_idx = Vec::new();
@@ -698,7 +693,7 @@ where
         for pos in range {
             let j = adj.indices[pos];
             if j != i {
-                deg = deg + adj.data[pos];
+                deg += adj.data[pos];
             }
         }
         degrees[i] = deg;
@@ -725,7 +720,7 @@ where
     // Add shift to existing diagonal entries
     for k in 0..row_idx.len() {
         if row_idx[k] == col_idx[k] {
-            vals[k] = vals[k] + shift;
+            vals[k] += shift;
         }
     }
 
@@ -747,12 +742,11 @@ fn orthogonalise_against_ones<F>(v: &mut Array1<F>, n: usize) -> SparseResult<()
 where
     F: Float + NumAssign + Sum + 'static,
 {
-    let nf = F::from(n).ok_or_else(|| {
-        SparseError::ValueError("Cannot convert n to float".to_string())
-    })?;
+    let nf = F::from(n)
+        .ok_or_else(|| SparseError::ValueError("Cannot convert n to float".to_string()))?;
     let mean: F = v.iter().copied().sum::<F>() / nf;
     for x in v.iter_mut() {
-        *x = *x - mean;
+        *x -= mean;
     }
     Ok(())
 }
@@ -760,7 +754,7 @@ where
 /// Gram-Schmidt step: subtract the projection of `v` onto `u` from `v`.
 fn gram_schmidt_step<F>(v: &mut Array1<F>, u: &Array1<F>)
 where
-    F: Float + Sum,
+    F: Float + NumAssign + Sum,
 {
     let proj: F = v.iter().zip(u.iter()).map(|(&vi, &ui)| vi * ui).sum();
     let u_sq: F = u.iter().map(|&ui| ui * ui).sum();
@@ -769,16 +763,16 @@ where
     }
     let scale = proj / u_sq;
     for (vi, &ui) in v.iter_mut().zip(u.iter()) {
-        *vi = *vi - scale * ui;
+        *vi -= scale * ui;
     }
 }
 
 /// Normalise a vector in-place to unit 2-norm.
-fn normalise_vec<F: Float + Sum>(v: &mut Array1<F>) {
+fn normalise_vec<F: Float + NumAssign + Sum>(v: &mut Array1<F>) {
     let norm = vec_norm2(v);
     if norm > F::epsilon() {
         for x in v.iter_mut() {
-            *x = *x / norm;
+            *x /= norm;
         }
     }
 }
@@ -792,17 +786,18 @@ fn vec_norm2<F: Float + Sum>(v: &Array1<F>) -> F {
 /// Generate a deterministic pseudo-random unit vector based on `seed`.
 fn pseudo_random_unit_vector<F>(n: usize, seed: usize) -> SparseResult<Array1<F>>
 where
-    F: Float + Sum + 'static,
+    F: Float + NumAssign + Sum + 'static,
 {
     // Simple LCG for reproducibility
     let mut state = (seed + 1) as u64 * 6364136223846793005u64 + 1442695040888963407u64;
     let mut v = Array1::<F>::zeros(n);
     for i in 0..n {
-        state = state.wrapping_mul(6364136223846793005u64).wrapping_add(1442695040888963407u64);
+        state = state
+            .wrapping_mul(6364136223846793005u64)
+            .wrapping_add(1442695040888963407u64);
         let hi = (state >> 33) as f64 / (u32::MAX as f64) - 0.5;
-        v[i] = F::from(hi + (i as f64) * 0.001).ok_or_else(|| {
-            SparseError::ValueError("Cannot convert random value".to_string())
-        })?;
+        v[i] = F::from(hi + (i as f64) * 0.001)
+            .ok_or_else(|| SparseError::ValueError("Cannot convert random value".to_string()))?;
     }
     normalise_vec(&mut v);
     Ok(v)
@@ -819,7 +814,11 @@ where
         )));
     }
 
-    let d = if !coords.is_empty() { coords[0].len() } else { 0 };
+    let d = if !coords.is_empty() {
+        coords[0].len()
+    } else {
+        0
+    };
 
     // Initialise centroids as the first k data points (k-means++)
     let mut centroids: Vec<Vec<F>> = (0..k).map(|i| coords[i % n].clone()).collect();
@@ -859,14 +858,13 @@ where
             let c = labels[i];
             counts[c] += 1;
             for dim in 0..d {
-                sums[c][dim] = sums[c][dim] + coords[i][dim];
+                sums[c][dim] += coords[i][dim];
             }
         }
         for c in 0..k {
             if counts[c] > 0 {
-                let cnt = F::from(counts[c]).ok_or_else(|| {
-                    SparseError::ValueError("Cannot convert count".to_string())
-                })?;
+                let cnt = F::from(counts[c])
+                    .ok_or_else(|| SparseError::ValueError("Cannot convert count".to_string()))?;
                 for dim in 0..d {
                     centroids[c][dim] = sums[c][dim] / cnt;
                 }
@@ -1061,8 +1059,10 @@ mod tests {
         // The two cliques should end up in different partitions
         let partition_of_0 = labels[0];
         let partition_of_3 = labels[3];
-        assert_ne!(partition_of_0, partition_of_3,
-            "Expected two cliques to be in different partitions");
+        assert_ne!(
+            partition_of_0, partition_of_3,
+            "Expected two cliques to be in different partitions"
+        );
     }
 
     #[test]

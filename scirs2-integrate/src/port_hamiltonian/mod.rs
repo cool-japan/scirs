@@ -106,9 +106,7 @@ pub mod integrators;
 pub mod system;
 
 // ─── Re-exports from system ───────────────────────────────────────────────────
-pub use system::{
-    PortHamiltonianBuilder, PortHamiltonianConfig, PortHamiltonianSystem,
-};
+pub use system::{PortHamiltonianBuilder, PortHamiltonianConfig, PortHamiltonianSystem};
 
 // ─── Re-exports from integrators ─────────────────────────────────────────────
 pub use integrators::{

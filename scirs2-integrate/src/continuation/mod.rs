@@ -84,12 +84,7 @@ fn gauss_solve(a: &mut Array2<f64>, b: &mut Array1<f64>) -> IntegrateResult<Arra
 }
 
 /// Compute numerical Jacobian of F(x, λ) w.r.t. x using central differences
-fn numerical_jacobian_x<F>(
-    f: &F,
-    x: &Array1<f64>,
-    lambda: f64,
-    eps: f64,
-) -> Array2<f64>
+fn numerical_jacobian_x<F>(f: &F, x: &Array1<f64>, lambda: f64, eps: f64) -> Array2<f64>
 where
     F: Fn(&Array1<f64>, f64) -> Array1<f64>,
 {
@@ -110,12 +105,7 @@ where
 }
 
 /// Compute numerical derivative of F w.r.t. λ using central differences
-fn numerical_df_dlambda<F>(
-    f: &F,
-    x: &Array1<f64>,
-    lambda: f64,
-    eps: f64,
-) -> Array1<f64>
+fn numerical_df_dlambda<F>(f: &F, x: &Array1<f64>, lambda: f64, eps: f64) -> Array1<f64>
 where
     F: Fn(&Array1<f64>, f64) -> Array1<f64>,
 {
@@ -315,8 +305,7 @@ impl NaturalParameterContinuation {
             // Newton solve
             match newton_solve_continuation(f, &x, lambda_new, cfg) {
                 Ok((x_new, n_iters)) => {
-                    let curr_det =
-                        jacobian_determinant(f, &x_new, lambda_new, cfg.fd_eps);
+                    let curr_det = jacobian_determinant(f, &x_new, lambda_new, cfg.fd_eps);
 
                     // Limit point detection: sign change of det(J_x)
                     if prev_det * curr_det < 0.0 {
@@ -329,9 +318,7 @@ impl NaturalParameterContinuation {
                     }
 
                     // Branch point detection: |det(J_x)| near zero but no sign change
-                    if curr_det.abs() < cfg.limit_point_tol
-                        && (prev_det * curr_det >= 0.0)
-                    {
+                    if curr_det.abs() < cfg.limit_point_tol && (prev_det * curr_det >= 0.0) {
                         let null_vec =
                             approximate_null_vector(f, &x_new, lambda_new, cfg.fd_eps, n);
                         branch_points_list.push(BranchPoint {
@@ -343,7 +330,9 @@ impl NaturalParameterContinuation {
 
                     // Adaptive step size
                     let adapt_ratio = cfg.desired_newton_iter as f64 / n_iters.max(1) as f64;
-                    let new_ds = (ds * adapt_ratio.sqrt()).abs().clamp(cfg.ds_min, cfg.ds_max);
+                    let new_ds = (ds * adapt_ratio.sqrt())
+                        .abs()
+                        .clamp(cfg.ds_min, cfg.ds_max);
                     ds = new_ds * direction;
 
                     prev_det = curr_det;
@@ -495,7 +484,8 @@ impl PseudoArcLengthContinuation {
                     xb
                 };
                 // Newton correct at boundary
-                if let Ok((x_b, ni)) = newton_solve_continuation(f, &x_boundary, lambda_target, cfg) {
+                if let Ok((x_b, ni)) = newton_solve_continuation(f, &x_boundary, lambda_target, cfg)
+                {
                     xs.push(x_b);
                     lambdas.push(lambda_target);
                     newton_iters.push(ni);
@@ -506,8 +496,7 @@ impl PseudoArcLengthContinuation {
             // Corrector: Newton on extended system
             match newton_extended(f, &x_pred, lambda_pred, &x, lambda, &tx, tl, ds, cfg, n) {
                 Ok((x_new, lambda_new, n_iters)) => {
-                    let curr_det =
-                        jacobian_determinant(f, &x_new, lambda_new, cfg.fd_eps);
+                    let curr_det = jacobian_determinant(f, &x_new, lambda_new, cfg.fd_eps);
 
                     // Limit point detection
                     if prev_det * curr_det < 0.0 {
@@ -520,9 +509,7 @@ impl PseudoArcLengthContinuation {
                     }
 
                     // Branch point detection
-                    if curr_det.abs() < cfg.limit_point_tol
-                        && (prev_det * curr_det >= 0.0)
-                    {
+                    if curr_det.abs() < cfg.limit_point_tol && (prev_det * curr_det >= 0.0) {
                         let null_vec =
                             approximate_null_vector(f, &x_new, lambda_new, cfg.fd_eps, n);
                         branch_points_list.push(BranchPoint {
@@ -766,12 +753,7 @@ where
 }
 
 /// Estimate det(J_x) using Gaussian elimination (sign of product of pivots)
-fn jacobian_determinant<F>(
-    f: &F,
-    x: &Array1<f64>,
-    lambda: f64,
-    eps: f64,
-) -> f64
+fn jacobian_determinant<F>(f: &F, x: &Array1<f64>, lambda: f64, eps: f64) -> f64
 where
     F: Fn(&Array1<f64>, f64) -> Array1<f64>,
 {
@@ -919,9 +901,8 @@ mod tests {
             ds: 0.05,
             ..Default::default()
         };
-        let result =
-            NaturalParameterContinuation::run(&fold_residual, &x0, 0.0, 0.3, &cfg)
-                .expect("Natural continuation failed");
+        let result = NaturalParameterContinuation::run(&fold_residual, &x0, 0.0, 0.3, &cfg)
+            .expect("Natural continuation failed");
 
         assert!(result.lambda.len() > 2, "Should have more than 2 points");
         let last_lambda = *result.lambda.last().expect("no lambda");
@@ -943,15 +924,9 @@ mod tests {
             compute_stability: false,
             ..Default::default()
         };
-        let result = PseudoArcLengthContinuation::run(
-            &fold_residual,
-            &x0,
-            0.0,
-            (-2.0, 2.0),
-            &cfg,
-            1.0,
-        )
-        .expect("Pseudo-arclength continuation failed");
+        let result =
+            PseudoArcLengthContinuation::run(&fold_residual, &x0, 0.0, (-2.0, 2.0), &cfg, 1.0)
+                .expect("Pseudo-arclength continuation failed");
 
         assert!(result.x.len() > 2, "Branch should have points");
     }
@@ -967,9 +942,8 @@ mod tests {
             compute_stability: false,
             ..Default::default()
         };
-        let result =
-            NaturalParameterContinuation::run(&linear_f, &x0, 0.0, 1.0, &cfg)
-                .expect("Linear continuation failed");
+        let result = NaturalParameterContinuation::run(&linear_f, &x0, 0.0, 1.0, &cfg)
+            .expect("Linear continuation failed");
 
         // All points should satisfy x ≈ λ
         for (xi, &li) in result.x.iter().zip(result.lambda.iter()) {

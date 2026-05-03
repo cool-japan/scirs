@@ -23,6 +23,7 @@ use crate::error::{OptimizeError, OptimizeResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::random::rngs::StdRng;
 use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::RngExt;
 
 /// Boundary handling strategy for CMA-ES
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -148,7 +149,7 @@ pub struct CmaEsResult {
 }
 
 /// Internal state of the CMA-ES algorithm
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct CmaEsState {
     /// Dimension of the problem
     n: usize,

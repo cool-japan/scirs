@@ -1,5 +1,11 @@
 # scirs2-ndimage TODO
 
+## Status: v0.4.3 Released (May 3, 2026)
+
+All v0.4.3 features are complete and production-ready. Wave 3 stub-check resolved the
+`fusion_processing` zero-cascade issue via consciousness-amplitude superposition initialisation,
+restoring all multi-channel fusion paths.
+
 ## Status: v0.3.4 Released (March 18, 2026)
 
 ## v0.3.3 Completed

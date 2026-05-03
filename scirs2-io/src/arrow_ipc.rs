@@ -1207,7 +1207,7 @@ mod tests {
             schema.clone(),
             vec![
                 ArrowColumn::Int32(vec![1, 2]),
-                ArrowColumn::Float64(vec![3.14, 2.72]),
+                ArrowColumn::Float64(vec![std::f64::consts::PI, std::f64::consts::E]),
                 ArrowColumn::Utf8(vec!["pi".to_string(), "e".to_string()]),
                 ArrowColumn::Boolean(vec![true, false]),
             ],

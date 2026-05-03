@@ -18,10 +18,7 @@ pub enum ActionSpace {
     /// Finite set of `n` discrete actions (integers 0 … n-1).
     Discrete { n: usize },
     /// Box of continuous actions with per-dimension bounds.
-    Continuous {
-        low: Vec<f64>,
-        high: Vec<f64>,
-    },
+    Continuous { low: Vec<f64>, high: Vec<f64> },
 }
 
 impl ActionSpace {
@@ -63,14 +60,26 @@ pub struct ObservationSpace {
 impl ObservationSpace {
     /// Unbounded observation space of a given dimensionality.
     pub fn new(ndim: usize) -> Self {
-        Self { ndim, low: None, high: None }
+        Self {
+            ndim,
+            low: None,
+            high: None,
+        }
     }
 
     /// Bounded observation space.
     pub fn bounded(low: Vec<f64>, high: Vec<f64>) -> Self {
-        assert_eq!(low.len(), high.len(), "low and high must have the same length");
+        assert_eq!(
+            low.len(),
+            high.len(),
+            "low and high must have the same length"
+        );
         let ndim = low.len();
-        Self { ndim, low: Some(low), high: Some(high) }
+        Self {
+            ndim,
+            low: Some(low),
+            high: Some(high),
+        }
     }
 }
 
@@ -230,8 +239,7 @@ impl CartPole {
 
         let temp = (force + pole_ml * theta_dot * theta_dot * sin_t) / total_mass;
         let theta_acc = (self.gravity * sin_t - cos_t * temp)
-            / (self.half_length
-                * (4.0 / 3.0 - self.mass_pole * cos_t * cos_t / total_mass));
+            / (self.half_length * (4.0 / 3.0 - self.mass_pole * cos_t * cos_t / total_mass));
         let x_acc = temp - pole_ml * theta_acc * cos_t / total_mass;
 
         self.state[0] += self.tau * x_dot;
@@ -257,7 +265,11 @@ impl Environment for CartPole {
     }
 
     fn step(&mut self, action: &Array1<f64>) -> (Array1<f64>, f64, bool) {
-        let force = if action[0] >= 0.5 { self.force_mag } else { -self.force_mag };
+        let force = if action[0] >= 0.5 {
+            self.force_mag
+        } else {
+            -self.force_mag
+        };
         self.physics_step(force);
         self.steps += 1;
 
@@ -272,7 +284,12 @@ impl Environment for CartPole {
 
     fn observation_space(&self) -> ObservationSpace {
         ObservationSpace::bounded(
-            vec![-4.8, f64::NEG_INFINITY, -24.0_f64.to_radians(), f64::NEG_INFINITY],
+            vec![
+                -4.8,
+                f64::NEG_INFINITY,
+                -24.0_f64.to_radians(),
+                f64::NEG_INFINITY,
+            ],
             vec![4.8, f64::INFINITY, 24.0_f64.to_radians(), f64::INFINITY],
         )
     }
@@ -299,7 +316,9 @@ impl Default for ContinuousCartPole {
 impl ContinuousCartPole {
     /// Create a new continuous CartPole environment.
     pub fn new() -> Self {
-        Self { inner: CartPole::new() }
+        Self {
+            inner: CartPole::new(),
+        }
     }
 }
 
@@ -323,7 +342,10 @@ impl Environment for ContinuousCartPole {
 
     fn action_space(&self) -> ActionSpace {
         let mag = self.inner.force_mag;
-        ActionSpace::Continuous { low: vec![-mag], high: vec![mag] }
+        ActionSpace::Continuous {
+            low: vec![-mag],
+            high: vec![mag],
+        }
     }
 
     fn observation_space(&self) -> ObservationSpace {
@@ -450,10 +472,10 @@ impl Environment for GridWorld {
         let (r, c) = self.agent;
 
         let (nr, nc) = match act {
-            0 => (r.saturating_sub(1), c),            // up
-            1 => (r, (c + 1).min(self.cols - 1)),     // right
-            2 => ((r + 1).min(self.rows - 1), c),     // down
-            _ => (r, c.saturating_sub(1)),             // left
+            0 => (r.saturating_sub(1), c),        // up
+            1 => (r, (c + 1).min(self.cols - 1)), // right
+            2 => ((r + 1).min(self.rows - 1), c), // down
+            _ => (r, c.saturating_sub(1)),        // left
         };
 
         // Wall check — stay in place if blocked
@@ -464,9 +486,9 @@ impl Environment for GridWorld {
 
         let cell = self.grid[self.agent.0][self.agent.1];
         let (reward, done) = match cell {
-            GridCell::Goal    => (self.goal_reward, true),
-            GridCell::Hazard  => (self.hazard_reward, true),
-            _                 => (self.step_reward, self.steps >= self.max_steps),
+            GridCell::Goal => (self.goal_reward, true),
+            GridCell::Hazard => (self.hazard_reward, true),
+            _ => (self.step_reward, self.steps >= self.max_steps),
         };
 
         (self.state_as_array(), reward, done)
@@ -488,9 +510,9 @@ impl Environment for GridWorld {
                         'A'
                     } else {
                         match self.grid[r][c] {
-                            GridCell::Empty  => '.',
-                            GridCell::Wall   => '#',
-                            GridCell::Goal   => 'G',
+                            GridCell::Empty => '.',
+                            GridCell::Wall => '#',
+                            GridCell::Goal => 'G',
                             GridCell::Hazard => 'H',
                         }
                     }
@@ -504,7 +526,6 @@ impl Environment for GridWorld {
 // ──────────────────────────────────────────────────────────────────────────────
 // Tests
 // ──────────────────────────────────────────────────────────────────────────────
-
 
 // ──────────────────────────────────────────────────────────────────────────────
 // PendulumEnv (continuous action, swing-up task)
@@ -556,17 +577,17 @@ impl PendulumEnv {
     /// Create a new PendulumEnv with standard parameters.
     pub fn new() -> Self {
         Self {
-            theta:      0.0,
-            theta_dot:  0.0,
-            steps:      0,
-            max_steps:  200,
-            gravity:    10.0,
-            mass:       1.0,
-            length:     1.0,
-            dt:         0.05,
+            theta: 0.0,
+            theta_dot: 0.0,
+            steps: 0,
+            max_steps: 200,
+            gravity: 10.0,
+            mass: 1.0,
+            length: 1.0,
+            dt: 0.05,
             max_torque: 2.0,
-            max_speed:  8.0,
-            rng:        XorShift64::new(make_seed()),
+            max_speed: 8.0,
+            rng: XorShift64::new(make_seed()),
         }
     }
 
@@ -580,7 +601,13 @@ impl PendulumEnv {
     fn angle_normalize(theta: f64) -> f64 {
         let pi = std::f64::consts::PI;
         let modded = theta % (2.0 * pi);
-        if modded > pi { modded - 2.0 * pi } else if modded < -pi { modded + 2.0 * pi } else { modded }
+        if modded > pi {
+            modded - 2.0 * pi
+        } else if modded < -pi {
+            modded + 2.0 * pi
+        } else {
+            modded
+        }
     }
 
     fn current_state(&self) -> Array1<f64> {
@@ -589,13 +616,13 @@ impl PendulumEnv {
 }
 
 impl Environment for PendulumEnv {
-    type State  = Array1<f64>;
+    type State = Array1<f64>;
     type Action = Array1<f64>;
 
     fn reset(&mut self) -> Array1<f64> {
         // Random initial angle in [−π, π] and angular velocity in [−1, 1]
         let pi = std::f64::consts::PI;
-        self.theta     = self.rng.uniform(-pi, pi);
+        self.theta = self.rng.uniform(-pi, pi);
         self.theta_dot = self.rng.uniform(-1.0, 1.0);
         self.steps = 0;
         self.current_state()
@@ -609,12 +636,11 @@ impl Environment for PendulumEnv {
         let dt = self.dt;
 
         // Euler integration of `θ̈ = (3g/2l)·sin(θ) + (3/ml²)·τ`
-        let theta_acc = (3.0 * g / (2.0 * l)) * self.theta.sin()
-            + (3.0 / (m * l * l)) * torque;
+        let theta_acc = (3.0 * g / (2.0 * l)) * self.theta.sin() + (3.0 / (m * l * l)) * torque;
 
         self.theta_dot = (self.theta_dot + dt * theta_acc).clamp(-self.max_speed, self.max_speed);
-        self.theta     = Self::angle_normalize(self.theta + dt * self.theta_dot);
-        self.steps    += 1;
+        self.theta = Self::angle_normalize(self.theta + dt * self.theta_dot);
+        self.steps += 1;
 
         // Reward: −(θ_norm² + 0.1·θ̇² + 0.001·τ²)
         let theta_norm = Self::angle_normalize(self.theta);
@@ -628,15 +654,15 @@ impl Environment for PendulumEnv {
 
     fn action_space(&self) -> ActionSpace {
         ActionSpace::Continuous {
-            low:  vec![-self.max_torque],
-            high: vec![ self.max_torque],
+            low: vec![-self.max_torque],
+            high: vec![self.max_torque],
         }
     }
 
     fn observation_space(&self) -> ObservationSpace {
         ObservationSpace::bounded(
             vec![-1.0, -1.0, -self.max_speed],
-            vec![ 1.0,  1.0,  self.max_speed],
+            vec![1.0, 1.0, self.max_speed],
         )
     }
 }
@@ -691,7 +717,9 @@ mod tests {
         for _ in 0..20 {
             let act = Array1::from_vec(vec![1.0_f64]);
             let (_s, _r, done) = env.step(&act);
-            if done { break; }
+            if done {
+                break;
+            }
         }
     }
 

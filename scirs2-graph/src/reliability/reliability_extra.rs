@@ -5,6 +5,9 @@
 
 use std::collections::{HashMap, VecDeque};
 
+/// Memoisation cache key: canonical sorted edge list paired with node count.
+type FactoringMemo = HashMap<(Vec<(usize, usize)>, usize), f64>;
+
 // ─────────────────────────────────────────────────────────────────────────────
 // All-terminal reliability via factoring
 // ─────────────────────────────────────────────────────────────────────────────
@@ -22,11 +25,7 @@ use std::collections::{HashMap, VecDeque};
 /// * `edges`   – undirected edge list (may contain parallel edges)
 /// * `n_nodes` – number of vertices
 /// * `p`       – per-edge survival probability
-pub fn all_terminal_reliability_factoring(
-    edges: &[(usize, usize)],
-    n_nodes: usize,
-    p: f64,
-) -> f64 {
+pub fn all_terminal_reliability_factoring(edges: &[(usize, usize)], n_nodes: usize, p: f64) -> f64 {
     if n_nodes <= 1 {
         return 1.0;
     }
@@ -41,7 +40,9 @@ pub fn all_terminal_reliability_factoring(
         return 0.0;
     }
 
-    let mut memo: HashMap<Vec<(usize, usize)>, f64> = HashMap::new();
+    // Memo key must include n_nodes: the same edge set with fewer nodes represents
+    // a different graph (e.g., empty edges for n=1 are connected, for n=2 are not).
+    let mut memo: FactoringMemo = HashMap::new();
     factoring_recurse(&clean, n_nodes, p, &mut memo)
 }
 
@@ -49,30 +50,32 @@ fn factoring_recurse(
     edges: &[(usize, usize)],
     n_nodes: usize,
     p: f64,
-    memo: &mut HashMap<Vec<(usize, usize)>, f64>,
+    memo: &mut FactoringMemo,
 ) -> f64 {
-    // Sort for canonical key
+    // Sort for canonical key; include n_nodes to distinguish graphs with the
+    // same edge multiset but different vertex counts (arising after contractions).
     let mut sorted = edges.to_vec();
     sorted.sort_unstable();
+    let key = (sorted.clone(), n_nodes);
 
-    if let Some(&cached) = memo.get(&sorted) {
+    if let Some(&cached) = memo.get(&key) {
         return cached;
     }
 
     // Base cases
     if n_nodes <= 1 {
         let result = 1.0;
-        memo.insert(sorted, result);
+        memo.insert(key, result);
         return result;
     }
     if !is_connected(edges, n_nodes) {
-        memo.insert(sorted, 0.0);
+        memo.insert(key, 0.0);
         return 0.0;
     }
     if edges.is_empty() {
         // Connected with no edges only possible for n=1
         let result = if n_nodes == 1 { 1.0 } else { 0.0 };
-        memo.insert(sorted, result);
+        memo.insert(key, result);
         return result;
     }
 
@@ -89,7 +92,7 @@ fn factoring_recurse(
     let rel_contract = factoring_recurse(&contracted, new_n, p, memo);
 
     let result = p * rel_contract + (1.0 - p) * rel_delete;
-    memo.insert(sorted, result);
+    memo.insert(key, result);
     result
 }
 
@@ -105,7 +108,11 @@ fn contract_edge(
     let remap = |v: usize| -> usize {
         let v2 = if v == remove { keep } else { v };
         // Shift down vertices that are above the removed vertex
-        if v2 > remove { v2 - 1 } else { v2 }
+        if v2 > remove {
+            v2 - 1
+        } else {
+            v2
+        }
     };
     let keep_mapped = remap(keep);
 
@@ -165,7 +172,11 @@ pub fn two_terminal_reliability(
             .map(|path| {
                 path.windows(2)
                     .map(|w| {
-                        if edge_exists(edges, w[0], w[1]) { p } else { 0.0 }
+                        if edge_exists(edges, w[0], w[1]) {
+                            p
+                        } else {
+                            0.0
+                        }
                     })
                     .product::<f64>()
             })
@@ -193,7 +204,11 @@ fn inclusion_exclusion_reliability(
                 count += 1;
                 let path = &paths[i];
                 for w in path.windows(2) {
-                    let e = if w[0] < w[1] { (w[0], w[1]) } else { (w[1], w[0]) };
+                    let e = if w[0] < w[1] {
+                        (w[0], w[1])
+                    } else {
+                        (w[1], w[0])
+                    };
                     edge_set.insert(e);
                 }
             }
@@ -211,11 +226,13 @@ fn inclusion_exclusion_reliability(
         }
     }
     // Clamp to [0,1]
-    result.max(0.0).min(1.0)
+    result.clamp(0.0, 1.0)
 }
 
 fn edge_exists(edges: &[(usize, usize)], u: usize, v: usize) -> bool {
-    edges.iter().any(|&(a, b)| (a == u && b == v) || (a == v && b == u))
+    edges
+        .iter()
+        .any(|&(a, b)| (a == u && b == v) || (a == v && b == u))
 }
 
 /// Enumerate simple paths from `src` to `dst` (up to `limit` paths).
@@ -230,7 +247,15 @@ fn enumerate_simple_paths(
     let mut visited = vec![false; n];
     let mut current_path = vec![src];
     visited[src] = true;
-    dfs_paths(adj, src, dst, &mut visited, &mut current_path, &mut paths, limit);
+    dfs_paths(
+        adj,
+        src,
+        dst,
+        &mut visited,
+        &mut current_path,
+        &mut paths,
+        limit,
+    );
     paths
 }
 
@@ -371,7 +396,11 @@ pub fn k_edge_connectivity(edges: &[(usize, usize)], n_nodes: usize) -> usize {
             min_flow = f;
         }
     }
-    if min_flow == usize::MAX { 0 } else { min_flow }
+    if min_flow == usize::MAX {
+        0
+    } else {
+        min_flow
+    }
 }
 
 /// Returns the vertex connectivity κ(G): minimum number of vertices whose
@@ -408,7 +437,11 @@ pub fn k_vertex_connectivity(edges: &[(usize, usize)], n_nodes: usize) -> usize 
             min_cut = f;
         }
     }
-    if min_cut == usize::MAX { 0 } else { min_cut }
+    if min_cut == usize::MAX {
+        0
+    } else {
+        min_cut
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -416,12 +449,7 @@ pub fn k_vertex_connectivity(edges: &[(usize, usize)], n_nodes: usize) -> usize 
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Edmonds-Karp max-flow for unit-capacity undirected edges.
-fn max_flow_bfs(
-    edges: &[(usize, usize)],
-    n: usize,
-    source: usize,
-    sink: usize,
-) -> usize {
+fn max_flow_bfs(edges: &[(usize, usize)], n: usize, source: usize, sink: usize) -> usize {
     // Build residual capacity matrix
     let mut cap = vec![vec![0i64; n]; n];
     for &(u, v) in edges {
@@ -508,7 +536,7 @@ fn max_flow_node_split(
     max_flow_generic(&mut cap, n2, s, t)
 }
 
-fn max_flow_generic(cap: &mut Vec<Vec<i64>>, n: usize, source: usize, sink: usize) -> usize {
+fn max_flow_generic(cap: &mut [Vec<i64>], n: usize, source: usize, sink: usize) -> usize {
     let mut flow = 0usize;
     loop {
         let mut prev = vec![usize::MAX; n];
@@ -633,7 +661,11 @@ mod tests {
         let poly = reliability_polynomial(&[(0, 1)], 2);
         assert!(!poly.is_empty());
         // Evaluate at p=0.5 → should be 0.5
-        let val: f64 = poly.iter().enumerate().map(|(i, &c)| c * 0.5f64.powi(i as i32)).sum();
+        let val: f64 = poly
+            .iter()
+            .enumerate()
+            .map(|(i, &c)| c * 0.5f64.powi(i as i32))
+            .sum();
         assert!((val - 0.5).abs() < 1e-9, "R(0.5) = {val}");
     }
 

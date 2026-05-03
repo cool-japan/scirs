@@ -167,8 +167,14 @@ pub fn core_consistency_diagnostic(
     // Fit CP decomposition
     let cp = fit_als(x, rank, max_iter, 1e-8)?;
 
-    // Use CP factor matrices as Tucker factors, compute core
+    // Use CP factor matrices as Tucker factors, compute core.
     // G = X ×_1 A^T ×_2 B^T ×_3 C^T
+    // Factors cp.a, cp.b, cp.c have unit-norm columns; component weights are in cp.lambda.
+    // We project with orthonormal (unit-norm) factors, which gives:
+    //   G[r,r,r] = lambda[r]   (perfect CP fit)
+    //   G[r,s,t] ≈ 0 for r≠s or s≠t (off-diagonal cross-terms)
+    // The ideal Tucker core for a CP model is superdiagonal: T[r,r,r] = lambda[r].
+    // CORCONDIA = 100 * (1 - ‖G - T‖_F² / ‖T‖_F²)
     use crate::tensor_decomp::tensor_utils::mat_transpose;
 
     let at = mat_transpose(&cp.a);
@@ -184,11 +190,16 @@ pub fn core_consistency_diagnostic(
     let g2 = mode_n_product(&g1, &bt_q, 1)?;
     let g = mode_n_product(&g2, &ct_q, 2)?;
 
-    // Ideal superdiagonal tensor T[r,r,r] = 1
+    // Ideal superdiagonal tensor T[r,r,r] = lambda[r] (not 1, since factors have unit norms)
     let r = rank.min(g.shape[0]).min(g.shape[1]).min(g.shape[2]);
     let mut t = Tensor3D::zeros(g.shape);
     for ri in 0..r {
-        t.set(ri, ri, ri, 1.0);
+        let lam = if ri < cp.lambda.len() {
+            cp.lambda[ri]
+        } else {
+            1.0
+        };
+        t.set(ri, ri, ri, lam);
     }
 
     // ‖G - T‖_F²  and  ‖T‖_F²
@@ -269,11 +280,8 @@ mod tests {
 
     #[test]
     fn test_tucker_als_full_rank_lossless() {
-        let t = Tensor3D::new(
-            (0..27_usize).map(|x| x as f64 + 1.0).collect(),
-            [3, 3, 3],
-        )
-        .expect("ok");
+        let t =
+            Tensor3D::new((0..27_usize).map(|x| x as f64 + 1.0).collect(), [3, 3, 3]).expect("ok");
         let d = tucker_als(&t, [3, 3, 3], 10, 1e-12).expect("ok");
         let err = d.relative_error(&t).expect("err");
         assert!(err < 1e-7, "full-rank Tucker error {err:.2e}");

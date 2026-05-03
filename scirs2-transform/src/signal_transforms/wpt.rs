@@ -201,6 +201,11 @@ impl WPT {
     }
 
     /// Reconstruct signal from wavelet packet coefficients
+    ///
+    /// Performs inverse WPT from a set of leaf nodes (e.g. a best-basis selection).
+    /// The algorithm works bottom-up: it places each basis node at its position in the
+    /// packet tree, then repeatedly merges pairs of sibling nodes using the inverse DWT
+    /// until the root (level 0) is reached.
     pub fn reconstruct(&self, nodes: &[WaveletPacketNode]) -> Result<Array1<f64>> {
         if nodes.is_empty() {
             return Err(TransformError::InvalidInput(
@@ -208,15 +213,72 @@ impl WPT {
             ));
         }
 
-        // Find the root or reconstruct from best basis
+        // Short-circuit: if the root node is among the inputs, return it directly.
         if let Some(root) = nodes.iter().find(|n| n.path.is_empty()) {
             return Ok(root.data.clone());
         }
 
-        // For now, return error - full reconstruction requires inverse WPT
-        Err(TransformError::NotImplemented(
-            "Reconstruction from arbitrary basis not yet implemented".to_string(),
-        ))
+        // Build a mutable map path -> data, starting from all input nodes.
+        let mut tree: HashMap<String, Array1<f64>> = nodes
+            .iter()
+            .map(|n| (n.path.clone(), n.data.clone()))
+            .collect();
+
+        // Create one DWT instance for reconstruction filters.
+        let dwt = DWT::new(self.wavelet)?.with_boundary(self.boundary);
+
+        // Find the maximum depth we need to collapse to.
+        let max_level = nodes.iter().map(|n| n.level).max().unwrap_or(0);
+
+        // Bottom-up merging: at each level collapse sibling pairs.
+        for _level in (1..=max_level).rev() {
+            // Collect all unique parent paths that still need merging.
+            let parents: Vec<String> = tree
+                .keys()
+                .filter_map(|p| {
+                    if p.is_empty() {
+                        return None;
+                    }
+                    // Parent is everything but the last char ('a' or 'd')
+                    let parent = &p[..p.len() - 1];
+                    // Only include if BOTH children are present and parent is absent
+                    let approx_key = format!("{}a", parent);
+                    let detail_key = format!("{}d", parent);
+                    if tree.contains_key(&approx_key)
+                        && tree.contains_key(&detail_key)
+                        && !tree.contains_key(parent)
+                    {
+                        Some(parent.to_string())
+                    } else {
+                        None
+                    }
+                })
+                .collect::<std::collections::HashSet<_>>()
+                .into_iter()
+                .collect();
+
+            for parent in parents {
+                let approx_key = format!("{}a", parent);
+                let detail_key = format!("{}d", parent);
+
+                let approx = tree.remove(&approx_key).ok_or_else(|| {
+                    TransformError::InvalidInput(format!("Missing approx node: {}", approx_key))
+                })?;
+                let detail = tree.remove(&detail_key).ok_or_else(|| {
+                    TransformError::InvalidInput(format!("Missing detail node: {}", detail_key))
+                })?;
+
+                let reconstructed = dwt.reconstruct(&approx.view(), &detail.view())?;
+                tree.insert(parent, reconstructed);
+            }
+        }
+
+        // The root should now be in the tree.
+        tree.remove("").ok_or_else(|| {
+            TransformError::InvalidInput(
+                "Could not fully reconstruct to root — basis nodes may be incomplete".to_string(),
+            )
+        })
     }
 
     /// Get all nodes at a specific level
@@ -357,5 +419,51 @@ mod tests {
 
         let wpt2 = WPT::new(WaveletType::Haar, 3).with_criterion(BestBasisCriterion::LogEnergy);
         assert_eq!(wpt2.criterion, BestBasisCriterion::LogEnergy);
+    }
+
+    #[test]
+    fn test_wpt_reconstruct_from_best_basis() -> Result<()> {
+        // Reconstruct from best-basis nodes and check length is preserved
+        let signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        let original_len = signal.len();
+        let mut wpt = WPT::new(WaveletType::Haar, 2);
+        wpt.decompose(&signal.view())?;
+        let best = wpt.best_basis()?;
+        let reconstructed = wpt.reconstruct(&best)?;
+        // Reconstruction may differ in length due to boundary effects; allow ±2 samples
+        let diff = (reconstructed.len() as isize - original_len as isize).unsigned_abs();
+        assert!(
+            diff <= 2,
+            "Reconstructed length {} too different from original {}",
+            reconstructed.len(),
+            original_len
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_wpt_reconstruct_leaf_nodes() -> Result<()> {
+        // Feed all leaf nodes at level 1 and verify reconstruction succeeds
+        let signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        let mut wpt = WPT::new(WaveletType::Haar, 1);
+        wpt.decompose(&signal.view())?;
+        let level1: Vec<WaveletPacketNode> = wpt.get_level(1).into_iter().cloned().collect();
+        // Both "a" and "d" nodes should be present, allowing reconstruction
+        assert_eq!(level1.len(), 2);
+        let reconstructed = wpt.reconstruct(&level1)?;
+        assert!(reconstructed.len() > 0);
+        Ok(())
+    }
+
+    #[test]
+    fn test_wpt_reconstruct_root_shortcut() -> Result<()> {
+        // If the root node (empty path) is in the slice, reconstruct returns it directly.
+        let data = Array1::from_vec(vec![1.0, 2.0, 3.0]);
+        let root = WaveletPacketNode::new(data.clone(), String::new(), 0, 0);
+        let wpt = WPT::new(WaveletType::Haar, 2);
+        let result = wpt.reconstruct(&[root])?;
+        assert_eq!(result.len(), data.len());
+        assert_abs_diff_eq!(result[0], data[0], epsilon = 1e-10);
+        Ok(())
     }
 }

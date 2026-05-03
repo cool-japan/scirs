@@ -14,9 +14,13 @@
 //! - Nelson, W. (1972). Theory and applications of hazard plotting for censored failure data.
 //! - Cox, D.R. (1972). Regression models and life tables.
 
+pub mod aft;
+pub mod competing_risks;
 pub mod cox;
 pub mod frailty;
+pub mod kaplan_meier;
 pub mod legacy;
+pub mod nelson_aalen;
 
 use crate::error::{StatsError, StatsResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};

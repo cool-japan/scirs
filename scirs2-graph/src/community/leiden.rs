@@ -18,10 +18,10 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 
-use scirs2_core::random::{Rng, SeedableRng, StdRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng, StdRng};
 
-use crate::error::{GraphError, Result};
 use super::louvain::compact_communities;
+use crate::error::{GraphError, Result};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public result type
@@ -68,7 +68,7 @@ impl SparseAdj {
             if u != v {
                 degree[v] += w;
             }
-            two_m += if u == v { 2.0 * w } else { 2.0 * w };
+            two_m += 2.0 * w;
         }
         Self { adj, degree, two_m }
     }
@@ -85,7 +85,7 @@ impl SparseAdj {
 /// * `n_nodes`    – Total number of nodes.
 /// * `resolution` – Resolution parameter γ (> 0; default 1.0).
 /// * `theta`      – Refinement randomness parameter (0 < theta ≤ 1; default 0.01).
-///                  Small theta = deterministic refinement; large theta = random.
+///   Small theta = deterministic refinement; large theta = random.
 ///
 /// # Returns
 /// [`LeidenCommunity`] with node assignments and modularity score.
@@ -96,7 +96,9 @@ pub fn leiden(
     theta: f64,
 ) -> Result<LeidenCommunity> {
     if n_nodes == 0 {
-        return Err(GraphError::InvalidGraph("leiden: n_nodes must be > 0".into()));
+        return Err(GraphError::InvalidGraph(
+            "leiden: n_nodes must be > 0".into(),
+        ));
     }
     if resolution <= 0.0 {
         return Err(GraphError::InvalidParameter {
@@ -211,7 +213,7 @@ pub fn leiden(
 
 fn local_move_phase(
     g: &SparseAdj,
-    assignments: &mut Vec<usize>,
+    assignments: &mut [usize],
     two_m: f64,
     resolution: f64,
     rng: &mut impl Rng,
@@ -253,10 +255,13 @@ fn local_move_phase(
             if c == current_comm {
                 continue;
             }
-            let sigma_c = if c < sigma_tot.len() { sigma_tot[c] } else { 0.0 };
-            let gain = k_i_in_c / two_m
-                - resolution * sigma_c * k_i / (two_m * two_m)
-                - remove_gain;
+            let sigma_c = if c < sigma_tot.len() {
+                sigma_tot[c]
+            } else {
+                0.0
+            };
+            let gain =
+                k_i_in_c / two_m - resolution * sigma_c * k_i / (two_m * two_m) - remove_gain;
             if gain > best_gain {
                 best_gain = gain;
                 best_comm = c;
@@ -289,7 +294,7 @@ fn local_move_phase(
 fn refinement_phase(
     g: &SparseAdj,
     coarse_assign: &[usize],
-    refined_assign: &mut Vec<usize>,
+    refined_assign: &mut [usize],
     resolution: f64,
     theta: f64,
     rng: &mut impl Rng,
@@ -330,7 +335,7 @@ fn refinement_phase(
 fn refine_community(
     g: &SparseAdj,
     group: &[usize],
-    refined_assign: &mut Vec<usize>,
+    refined_assign: &mut [usize],
     resolution: f64,
     theta: f64,
     rng: &mut impl Rng,
@@ -385,8 +390,8 @@ fn refine_community(
         // Compute gains for each candidate community
         let k_i_in_cur = comm_weights.get(&current_comm).copied().unwrap_or(0.0);
         let cur_sigma = *sigma_tot.get(&current_comm).unwrap_or(&0.0);
-        let remove_gain = k_i_in_cur / two_m
-            - resolution * (cur_sigma - k_i) * k_i / (two_m * two_m);
+        let remove_gain =
+            k_i_in_cur / two_m - resolution * (cur_sigma - k_i) * k_i / (two_m * two_m);
 
         let mut candidates: Vec<(usize, f64)> = Vec::new();
         for (&c, &k_i_in_c) in &comm_weights {
@@ -394,9 +399,8 @@ fn refine_community(
                 continue;
             }
             let sigma_c = *sigma_tot.get(&c).unwrap_or(&0.0);
-            let gain = k_i_in_c / two_m
-                - resolution * sigma_c * k_i / (two_m * two_m)
-                - remove_gain;
+            let gain =
+                k_i_in_c / two_m - resolution * sigma_c * k_i / (two_m * two_m) - remove_gain;
             if gain > 0.0 {
                 candidates.push((c, gain));
             }
@@ -438,17 +442,20 @@ fn enforce_connectivity(
     g: &SparseAdj,
     group: &[usize],
     group_set: &HashSet<usize>,
-    refined_assign: &mut Vec<usize>,
+    refined_assign: &mut [usize],
 ) {
     // Group nodes by their current refined community
     let mut sub_comms: HashMap<usize, Vec<usize>> = HashMap::new();
     for &node in group {
-        sub_comms.entry(refined_assign[node]).or_default().push(node);
+        sub_comms
+            .entry(refined_assign[node])
+            .or_default()
+            .push(node);
     }
 
     let mut max_id = *refined_assign.iter().max().unwrap_or(&0);
 
-    for (_, nodes) in &sub_comms {
+    for nodes in sub_comms.values() {
         if nodes.len() <= 1 {
             continue;
         }
@@ -533,7 +540,11 @@ mod tests {
     fn test_leiden_two_cliques() {
         let (edges, n) = two_clique_edges(4);
         let result = leiden(&edges, n, 1.0, 0.01).expect("leiden");
-        assert!(result.modularity > 0.0, "modularity should be positive: {}", result.modularity);
+        assert!(
+            result.modularity > 0.0,
+            "modularity should be positive: {}",
+            result.modularity
+        );
         assert!(result.n_communities >= 2, "should find >= 2 communities");
         // Verify that nodes in the same clique are in the same community
         let c0 = result.assignments[0];

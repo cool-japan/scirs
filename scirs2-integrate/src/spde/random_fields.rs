@@ -143,14 +143,22 @@ impl RandomField {
         for i in 0..m {
             let xi = if i < nx {
                 grid_x[i] - grid_x[0]
+            } else if i == nx {
+                // midpoint of circulant embedding: use max distance
+                grid_x[nx - 1] - grid_x[0]
             } else {
-                grid_x[0] - grid_x[m - i]
+                // i in (nx, 2*nx): reflect, m - i < nx
+                grid_x[m - i] - grid_x[0]
             };
             for j in 0..n {
                 let yj = if j < ny {
                     grid_y[j] - grid_y[0]
+                } else if j == ny {
+                    // midpoint: use max distance
+                    grid_y[ny - 1] - grid_y[0]
                 } else {
-                    grid_y[0] - grid_y[n - j]
+                    // j in (ny, 2*ny): reflect, n - j < ny
+                    grid_y[n - j] - grid_y[0]
                 };
                 let r = (xi * xi + yj * yj).sqrt();
                 cov_flat[i * n + j] = cov.evaluate(r);
@@ -164,8 +172,8 @@ impl RandomField {
         let scale = 1.0 / ((m * n) as f64).sqrt();
         let mut noise_complex: Vec<Complex64> = (0..m * n)
             .map(|_| {
-                let re = rng.sample(&normal);
-                let im = rng.sample(&normal);
+                let re = rng.sample(normal);
+                let im = rng.sample(normal);
                 Complex64::new(re, im)
             })
             .collect();
@@ -246,14 +254,13 @@ impl RandomField {
         }
 
         // Extract leading eigenpairs via power iteration with deflation
-        let (eigenvalues, eigenvectors) =
-            power_iteration_eigenpairs(&cov_mat, n_pts, n_terms)?;
+        let (eigenvalues, eigenvectors) = power_iteration_eigenpairs(&cov_mat, n_pts, n_terms)?;
 
         let normal = Normal::new(0.0_f64, 1.0).map_err(|e| {
             IntegrateError::ComputationError(format!("Normal distribution error: {e}"))
         })?;
 
-        let xi: Vec<f64> = (0..n_terms).map(|_| rng.sample(&normal)).collect();
+        let xi: Vec<f64> = (0..n_terms).map(|_| rng.sample(normal)).collect();
 
         // Assemble u = Σ sqrt(λ_k) * ξ_k * φ_k
         let mut u_flat = vec![0.0_f64; n_pts];
@@ -305,16 +312,22 @@ impl RandomField {
         // Build spectral coefficients
         let mut z_complex: Vec<Complex64> = vec![Complex64::new(0.0, 0.0); nx * ny];
         for k in 0..nx {
-            let omega_x = (if k <= nx / 2 { k as f64 } else { k as f64 - nx as f64 })
-                * two_pi_over_lx;
+            let omega_x = (if k <= nx / 2 {
+                k as f64
+            } else {
+                k as f64 - nx as f64
+            }) * two_pi_over_lx;
             for l in 0..ny {
-                let omega_y = (if l <= ny / 2 { l as f64 } else { l as f64 - ny as f64 })
-                    * two_pi_over_ly;
+                let omega_y = (if l <= ny / 2 {
+                    l as f64
+                } else {
+                    l as f64 - ny as f64
+                }) * two_pi_over_ly;
                 let s_x = cov.spectral_density_1d(omega_x);
                 let s_y = cov.spectral_density_1d(omega_y);
                 let amplitude = (s_x * s_y / (dx * dy)).max(0.0).sqrt();
-                let re = rng.sample(&normal);
-                let im = rng.sample(&normal);
+                let re = rng.sample(normal);
+                let im = rng.sample(normal);
                 z_complex[k * ny + l] = Complex64::new(amplitude * re, amplitude * im);
             }
         }
@@ -376,15 +389,15 @@ fn log_gamma(x: f64) -> f64 {
     }
     let g = 7.0_f64;
     let c = [
-        0.99999999999980993_f64,
-        676.5203681218851,
-        -1259.1392167224028,
-        771.32342877765313,
-        -176.61502916214059,
-        12.507343278686905,
-        -0.13857109526572012,
-        9.9843695780195716e-6,
-        1.5056327351493116e-7,
+        0.999_999_999_999_810,
+        676.520_368_121_885,
+        -1_259.139_216_722_403,
+        771.323_428_777_653,
+        -176.615_029_162_141,
+        12.507_343_278_686_9,
+        -0.138_571_095_265_720,
+        9.984_369_578_019_57e-6,
+        1.505_632_735_149_31e-7,
     ];
     let x = x - 1.0;
     let t = x + g + 0.5;
@@ -462,18 +475,11 @@ fn fft2d_complex_transform_flat(
 }
 
 /// 1-D complex FFT using scirs2_fft.
-fn fft1d_complex_transform(
-    input: &[Complex64],
-    inverse: bool,
-) -> IntegrateResult<Vec<Complex64>> {
+fn fft1d_complex_transform(input: &[Complex64], inverse: bool) -> IntegrateResult<Vec<Complex64>> {
     if inverse {
-        ifft(input, None).map_err(|e| {
-            IntegrateError::ComputationError(format!("IFFT error: {e}"))
-        })
+        ifft(input, None).map_err(|e| IntegrateError::ComputationError(format!("IFFT error: {e}")))
     } else {
-        fft(input, None).map_err(|e| {
-            IntegrateError::ComputationError(format!("FFT error: {e}"))
-        })
+        fft(input, None).map_err(|e| IntegrateError::ComputationError(format!("FFT error: {e}")))
     }
 }
 
@@ -545,7 +551,7 @@ fn power_iteration_eigenpairs(
 }
 
 /// Normalise a vector in-place (Euclidean norm).
-fn normalize_vec(v: &mut Vec<f64>) {
+fn normalize_vec(v: &mut [f64]) {
     let norm: f64 = v.iter().map(|&x| x * x).sum::<f64>().sqrt();
     if norm > 1e-15 {
         for x in v.iter_mut() {
@@ -584,10 +590,7 @@ mod tests {
         ];
         for cov in &covs {
             let c0 = cov.evaluate(0.0);
-            assert!(
-                (c0 - 1.0).abs() < 1e-10,
-                "C(0) must be 1, got {c0}"
-            );
+            assert!((c0 - 1.0).abs() < 1e-10, "C(0) must be 1, got {c0}");
         }
     }
 
@@ -609,9 +612,8 @@ mod tests {
         let gx = Array1::linspace(0.0, 1.0, 8);
         let gy = Array1::linspace(0.0, 1.0, 8);
         let cov = CorrelationFunction::Exponential { length_scale: 0.3 };
-        let field =
-            RandomField::sample_circulant_embedding(gx.view(), gy.view(), cov, &mut rng)
-                .expect("Circulant embedding failed");
+        let field = RandomField::sample_circulant_embedding(gx.view(), gy.view(), cov, &mut rng)
+            .expect("Circulant embedding failed");
         assert_eq!(field.dim(), (8, 8));
     }
 
@@ -621,9 +623,8 @@ mod tests {
         let gx = Array1::linspace(0.0, 1.0, 6);
         let gy = Array1::linspace(0.0, 1.0, 6);
         let cov = CorrelationFunction::Gaussian { length_scale: 0.3 };
-        let field =
-            RandomField::sample_kl_expansion(gx.view(), gy.view(), cov, 10, &mut rng)
-                .expect("KL expansion failed");
+        let field = RandomField::sample_kl_expansion(gx.view(), gy.view(), cov, 10, &mut rng)
+            .expect("KL expansion failed");
         assert_eq!(field.dim(), (6, 6));
     }
 
@@ -655,7 +656,8 @@ mod tests {
     fn test_fourier_field_finite() {
         let mut rng = make_rng();
         let cov = CorrelationFunction::Exponential { length_scale: 0.5 };
-        let field = RandomField::sample_fourier(16, 16, 2.0, 2.0, cov, &mut rng).expect("sample_fourier should succeed with valid params");
+        let field = RandomField::sample_fourier(16, 16, 2.0, 2.0, cov, &mut rng)
+            .expect("sample_fourier should succeed with valid params");
         assert!(
             field.iter().all(|v| v.is_finite()),
             "Fourier field contains non-finite values"

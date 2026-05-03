@@ -10,7 +10,7 @@
 //! - Gao, F. & Han, L. (2012). "Implementing the Nelder-Mead simplex algorithm
 //!   with adaptive parameters." Computational Optimization and Applications.
 
-use super::{centroid, DfOptResult, DerivativeFreeOptimizer};
+use super::{centroid, DerivativeFreeOptimizer, DfOptResult};
 use crate::error::{OptimizeError, OptimizeResult};
 use scirs2_core::ndarray::{s, Array1, Array2};
 
@@ -115,7 +115,11 @@ impl NelderMeadSolver {
         fvals = fvals_safe;
 
         let mut order: Vec<usize> = (0..n1).collect();
-        order.sort_by(|&a, &b| fvals[a].partial_cmp(&fvals[b]).unwrap_or(std::cmp::Ordering::Equal));
+        order.sort_by(|&a, &b| {
+            fvals[a]
+                .partial_cmp(&fvals[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
         let sorted_fvals: Vec<f64> = order.iter().map(|&i| fvals[i]).collect();
         (sorted_fvals, order)
     }
@@ -174,22 +178,21 @@ impl DerivativeFreeOptimizer for NelderMeadSolver {
         let mut nit = 0;
 
         // Sort simplex
-        let sort_simplex =
-            |simplex: &mut Array2<f64>, fvals: &mut Vec<f64>| {
-                let n1 = simplex.nrows();
-                let mut order: Vec<usize> = (0..n1).collect();
-                order.sort_by(|&a, &b| {
-                    fvals[a]
-                        .partial_cmp(&fvals[b])
-                        .unwrap_or(std::cmp::Ordering::Equal)
-                });
-                let old_simplex = simplex.clone();
-                let old_fvals = fvals.clone();
-                for (new_idx, &old_idx) in order.iter().enumerate() {
-                    simplex.row_mut(new_idx).assign(&old_simplex.row(old_idx));
-                    fvals[new_idx] = old_fvals[old_idx];
-                }
-            };
+        let sort_simplex = |simplex: &mut Array2<f64>, fvals: &mut Vec<f64>| {
+            let n1 = simplex.nrows();
+            let mut order: Vec<usize> = (0..n1).collect();
+            order.sort_by(|&a, &b| {
+                fvals[a]
+                    .partial_cmp(&fvals[b])
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            });
+            let old_simplex = simplex.clone();
+            let old_fvals = fvals.clone();
+            for (new_idx, &old_idx) in order.iter().enumerate() {
+                simplex.row_mut(new_idx).assign(&old_simplex.row(old_idx));
+                fvals[new_idx] = old_fvals[old_idx];
+            }
+        };
 
         sort_simplex(&mut simplex, &mut fvals);
 
@@ -345,7 +348,10 @@ mod tests {
     fn test_nelder_mead_quadratic() {
         let solver = NelderMeadSolver::new();
         let result = solver
-            .minimize(|x: &[f64]| (x[0] - 3.0).powi(2) + (x[1] + 2.0).powi(2), &[0.0, 0.0])
+            .minimize(
+                |x: &[f64]| (x[0] - 3.0).powi(2) + (x[1] + 2.0).powi(2),
+                &[0.0, 0.0],
+            )
             .expect("optimization failed");
         assert!(result.success);
         assert_abs_diff_eq!(result.x[0], 3.0, epsilon = 1e-4);
@@ -399,7 +405,12 @@ mod tests {
         // 5D sphere function
         let result = solver
             .minimize(
-                |x: &[f64]| x.iter().enumerate().map(|(i, &xi)| (xi - i as f64).powi(2)).sum(),
+                |x: &[f64]| {
+                    x.iter()
+                        .enumerate()
+                        .map(|(i, &xi)| (xi - i as f64).powi(2))
+                        .sum()
+                },
                 &[0.0; 5],
             )
             .expect("optimization failed");

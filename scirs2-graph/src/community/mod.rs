@@ -25,26 +25,25 @@
 //! println!("modularity = {}", result.modularity);
 //! ```
 
-
-pub mod louvain;
-pub mod leiden;
-pub mod label_propagation;
-pub mod infomap;
 pub mod evaluation;
+pub mod infomap;
+pub mod label_propagation;
+pub mod leiden;
+pub mod louvain;
 
 // Re-exports from edge-list submodules
-pub use louvain::{LouvainCommunity, louvain, modularity as edge_list_modularity};
-pub use leiden::{LeidenCommunity, leiden};
-pub use label_propagation::{label_propagation_edge_list, async_label_propagation};
-pub use infomap::{InfomapConfig, infomap};
 pub use evaluation::{
-    modularity as eval_modularity, conductance, coverage, normalized_cut, nmi, adjusted_rand_index,
+    adjusted_rand_index, conductance, coverage, modularity as eval_modularity, nmi, normalized_cut,
 };
+pub use infomap::{infomap, InfomapConfig};
+pub use label_propagation::{async_label_propagation, label_propagation_edge_list};
+pub use leiden::{leiden, LeidenCommunity};
+pub use louvain::{louvain, modularity as edge_list_modularity, LouvainCommunity};
 
 use std::collections::HashMap;
 
 use scirs2_core::ndarray::Array2;
-use scirs2_core::random::{Rng, SeedableRng, StdRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng, StdRng};
 
 use crate::error::{GraphError, Result};
 
@@ -175,7 +174,7 @@ pub fn louvain_communities(
 /// Returns `true` if any improvement was made.
 fn louvain_phase1(
     adj: &Array2<f64>,
-    assignments: &mut Vec<usize>,
+    assignments: &mut [usize],
     two_m: f64,
     resolution: f64,
     rng: &mut impl Rng,
@@ -258,7 +257,7 @@ fn louvain_phase1(
 }
 
 /// Renumber communities so that IDs are 0..n_communities-1 (dense).
-fn compact_communities(assignments: &mut Vec<usize>) {
+fn compact_communities(assignments: &mut [usize]) {
     let mut mapping: HashMap<usize, usize> = HashMap::new();
     let mut next_id = 0usize;
     for a in assignments.iter_mut() {
@@ -284,11 +283,7 @@ fn compact_communities(assignments: &mut Vec<usize>) {
 /// * `adj`      – Symmetric weighted adjacency matrix (n × n).
 /// * `max_iter` – Maximum propagation rounds.
 /// * `seed`     – RNG seed.
-pub fn label_propagation(
-    adj: &Array2<f64>,
-    max_iter: usize,
-    seed: u64,
-) -> Result<Vec<usize>> {
+pub fn label_propagation(adj: &Array2<f64>, max_iter: usize, seed: u64) -> Result<Vec<usize>> {
     let n = adj.nrows();
     if n == 0 {
         return Err(GraphError::InvalidGraph("empty adjacency matrix".into()));
@@ -326,7 +321,10 @@ pub fn label_propagation(
             }
 
             // Find max weight
-            let max_w = label_weight.values().cloned().fold(f64::NEG_INFINITY, f64::max);
+            let max_w = label_weight
+                .values()
+                .cloned()
+                .fold(f64::NEG_INFINITY, f64::max);
             // Collect all labels with max weight (tie-breaking)
             let best_labels: Vec<usize> = label_weight
                 .iter()
@@ -376,7 +374,9 @@ pub fn girvan_newman(adj: &Array2<f64>, n_communities: usize) -> Result<Vec<usiz
         return Err(GraphError::InvalidGraph("empty adjacency matrix".into()));
     }
     if adj.ncols() != n {
-        return Err(GraphError::InvalidGraph("adjacency matrix must be square".into()));
+        return Err(GraphError::InvalidGraph(
+            "adjacency matrix must be square".into(),
+        ));
     }
     if n_communities == 0 {
         return Err(GraphError::InvalidParameter {
@@ -392,7 +392,15 @@ pub fn girvan_newman(adj: &Array2<f64>, n_communities: usize) -> Result<Vec<usiz
 
     loop {
         let comps = connected_components_adj(&working);
-        if comps.len() >= n_communities {
+        // `comps` is a per-node label vector; count unique labels for # of components
+        let n_comps = {
+            let mut seen = std::collections::HashSet::new();
+            for &c in &comps {
+                seen.insert(c);
+            }
+            seen.len()
+        };
+        if n_comps >= n_communities {
             return Ok(comps);
         }
 
@@ -515,17 +523,15 @@ fn connected_components_adj(adj: &Array2<f64>) -> Vec<usize> {
 /// * `adj`      – Symmetric weighted adjacency matrix.
 /// * `n_trials` – Number of independent restarts.
 /// * `seed`     – Base RNG seed (each trial uses `seed + trial_index`).
-pub fn infomap_communities(
-    adj: &Array2<f64>,
-    n_trials: usize,
-    seed: u64,
-) -> Result<LouvainResult> {
+pub fn infomap_communities(adj: &Array2<f64>, n_trials: usize, seed: u64) -> Result<LouvainResult> {
     let n = adj.nrows();
     if n == 0 {
         return Err(GraphError::InvalidGraph("empty adjacency matrix".into()));
     }
     if adj.ncols() != n {
-        return Err(GraphError::InvalidGraph("adjacency matrix must be square".into()));
+        return Err(GraphError::InvalidGraph(
+            "adjacency matrix must be square".into(),
+        ));
     }
 
     let two_m: f64 = adj.iter().sum();
@@ -565,9 +571,7 @@ fn infomap_single_trial(adj: &Array2<f64>, two_m: f64, seed: u64) -> Result<Louv
 
     // Start: random partition into sqrt(n) communities
     let init_comms = ((n as f64).sqrt().ceil() as usize).max(1);
-    let mut assignments: Vec<usize> = (0..n)
-        .map(|_| rng.random_range(0..init_comms))
-        .collect();
+    let mut assignments: Vec<usize> = (0..n).map(|_| rng.random_range(0..init_comms)).collect();
     compact_communities(&mut assignments);
 
     let max_iter = 200;
@@ -597,7 +601,7 @@ fn infomap_single_trial(adj: &Array2<f64>, two_m: f64, seed: u64) -> Result<Louv
 /// Approximates map-equation gain with modularity-style gain for tractability.
 fn infomap_phase1(
     adj: &Array2<f64>,
-    assignments: &mut Vec<usize>,
+    assignments: &mut [usize],
     _degrees: &[f64],
     two_m: f64,
     rng: &mut impl Rng,

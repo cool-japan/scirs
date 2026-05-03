@@ -188,6 +188,19 @@ impl<F: Float + Debug + NumAssign> SinusoidalPositionalEncoding<F> {
     pub fn set_training(&mut self, _training: bool) {
         // No-op: sinusoidal encoding is not trainable
     }
+
+    /// Backward pass for sinusoidal positional encoding.
+    ///
+    /// Because sinusoidal PE is parameter-free (output = input + fixed_encoding), the
+    /// gradient w.r.t. the input equals the gradient w.r.t. the output.
+    /// No accumulation into weight gradients is needed.
+    pub fn backward(
+        &self,
+        _input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
+    ) -> Result<Array<F, IxDyn>> {
+        Ok(grad_output.clone())
+    }
 }
 
 impl<F: Float + Debug + NumAssign> PositionalEncoding<F> for SinusoidalPositionalEncoding<F> {

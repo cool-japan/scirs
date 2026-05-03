@@ -34,7 +34,10 @@ impl Lcg {
     /// Returns a value in [0, 1)
     fn next_f64(&mut self) -> f64 {
         // Knuth multiplicative LCG
-        self.state = self.state.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        self.state = self
+            .state
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
         let bits = (self.state >> 11) as f64;
         bits / (1u64 << 53) as f64
     }
@@ -79,16 +82,16 @@ impl KernelType {
         debug_assert_eq!(x.len(), y.len(), "kernel vectors must have same dimension");
         match self {
             KernelType::Linear => dot(x, y),
-            KernelType::Polynomial { degree, coef0, gamma } => {
-                (gamma * dot(x, y) + coef0).powi(*degree as i32)
-            }
+            KernelType::Polynomial {
+                degree,
+                coef0,
+                gamma,
+            } => (gamma * dot(x, y) + coef0).powi(*degree as i32),
             KernelType::Rbf { gamma } => {
                 let sq = sq_dist(x, y);
                 (-gamma * sq).exp()
             }
-            KernelType::Sigmoid { coef0, gamma } => {
-                (gamma * dot(x, y) + coef0).tanh()
-            }
+            KernelType::Sigmoid { coef0, gamma } => (gamma * dot(x, y) + coef0).tanh(),
         }
     }
 }
@@ -98,7 +101,10 @@ fn dot(a: &[f64], b: &[f64]) -> f64 {
 }
 
 fn sq_dist(a: &[f64], b: &[f64]) -> f64 {
-    a.iter().zip(b.iter()).map(|(ai, bi)| (ai - bi).powi(2)).sum()
+    a.iter()
+        .zip(b.iter())
+        .map(|(ai, bi)| (ai - bi).powi(2))
+        .sum()
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -143,7 +149,10 @@ fn kernel_kmeans_objective(k_mat: &[Vec<f64>], labels: &[usize], n_clusters: usi
         // 2/sz * sum_j K(i,j) for j in cluster
         let cross: f64 = cl.iter().map(|&j| k_mat[i][j]).sum::<f64>();
         // 1/sz^2 * sum_{j,k in cluster} K(j,k)
-        let inner: f64 = cl.iter().flat_map(|&j| cl.iter().map(move |&kk| k_mat[j][kk])).sum::<f64>();
+        let inner: f64 = cl
+            .iter()
+            .flat_map(|&j| cl.iter().map(move |&kk| k_mat[j][kk]))
+            .sum::<f64>();
         total += kii - 2.0 * cross / sz + inner / (sz * sz);
     }
     total
@@ -162,8 +171,13 @@ fn kernel_kmeans_assign(k_mat: &[Vec<f64>], labels: &[usize], n_clusters: usize)
         .map(|l| {
             let cl = &members[l];
             let sz = cl.len() as f64;
-            if sz == 0.0 { return f64::INFINITY; }
-            let s: f64 = cl.iter().flat_map(|&j| cl.iter().map(move |&kk| k_mat[j][kk])).sum();
+            if sz == 0.0 {
+                return f64::INFINITY;
+            }
+            let s: f64 = cl
+                .iter()
+                .flat_map(|&j| cl.iter().map(move |&kk| k_mat[j][kk]))
+                .sum();
             s / (sz * sz)
         })
         .collect();
@@ -176,7 +190,9 @@ fn kernel_kmeans_assign(k_mat: &[Vec<f64>], labels: &[usize], n_clusters: usize)
         for l in 0..n_clusters {
             let cl = &members[l];
             let sz = cl.len() as f64;
-            if sz == 0.0 { continue; }
+            if sz == 0.0 {
+                continue;
+            }
             let cross: f64 = cl.iter().map(|&j| k_mat[i][j]).sum::<f64>();
             let dist = k_mat[i][i] - 2.0 * cross / sz + inner[l];
             if dist < best_dist {
@@ -216,15 +232,21 @@ pub fn kernel_kmeans(
     seed: u64,
 ) -> Result<(Vec<usize>, f64)> {
     if data.is_empty() {
-        return Err(ClusteringError::InvalidInput("data must not be empty".into()));
+        return Err(ClusteringError::InvalidInput(
+            "data must not be empty".into(),
+        ));
     }
     if n_clusters == 0 {
-        return Err(ClusteringError::InvalidInput("n_clusters must be >= 1".into()));
+        return Err(ClusteringError::InvalidInput(
+            "n_clusters must be >= 1".into(),
+        ));
     }
     if n_clusters > data.len() {
-        return Err(ClusteringError::InvalidInput(
-            format!("n_clusters ({}) > n_samples ({})", n_clusters, data.len()),
-        ));
+        return Err(ClusteringError::InvalidInput(format!(
+            "n_clusters ({}) > n_samples ({})",
+            n_clusters,
+            data.len()
+        )));
     }
     let n = data.len();
     let k_mat = build_kernel_matrix(data, &kernel);
@@ -259,7 +281,9 @@ pub fn kernel_kmeans(
             let new_labels = kernel_kmeans_assign(&k_mat, &labels, n_clusters);
             // Check if any cluster became empty and re-seed if so
             let mut counts = vec![0usize; n_clusters];
-            for &l in &new_labels { counts[l] += 1; }
+            for &l in &new_labels {
+                counts[l] += 1;
+            }
             let empty = counts.iter().any(|&c| c == 0);
             if empty {
                 // Keep old labels for empty clusters — restart inner loop
@@ -312,10 +336,14 @@ pub fn trimmed_kmeans(
     seed: u64,
 ) -> Result<(Vec<Option<usize>>, Vec<Vec<f64>>)> {
     if data.is_empty() {
-        return Err(ClusteringError::InvalidInput("data must not be empty".into()));
+        return Err(ClusteringError::InvalidInput(
+            "data must not be empty".into(),
+        ));
     }
     if n_clusters == 0 {
-        return Err(ClusteringError::InvalidInput("n_clusters must be >= 1".into()));
+        return Err(ClusteringError::InvalidInput(
+            "n_clusters must be >= 1".into(),
+        ));
     }
     if !(0.0..0.5).contains(&trim_ratio) {
         return Err(ClusteringError::InvalidInput(
@@ -325,9 +353,10 @@ pub fn trimmed_kmeans(
     let n = data.len();
     let d = data[0].len();
     if n_clusters > n {
-        return Err(ClusteringError::InvalidInput(
-            format!("n_clusters ({}) > n_samples ({})", n_clusters, n),
-        ));
+        return Err(ClusteringError::InvalidInput(format!(
+            "n_clusters ({}) > n_samples ({})",
+            n_clusters, n
+        )));
     }
 
     let n_trim = (n as f64 * trim_ratio).floor() as usize;
@@ -357,7 +386,10 @@ pub fn trimmed_kmeans(
         // Step 2: trim n_trim points with largest assignment distance
         let mut order: Vec<usize> = (0..n).collect();
         order.sort_by(|&a, &b| {
-            dists[b].1.partial_cmp(&dists[a].1).unwrap_or(std::cmp::Ordering::Equal)
+            dists[b]
+                .1
+                .partial_cmp(&dists[a].1)
+                .unwrap_or(std::cmp::Ordering::Equal)
         });
         let trimmed_set: std::collections::HashSet<usize> =
             order[..n_trim].iter().cloned().collect();
@@ -386,13 +418,25 @@ pub fn trimmed_kmeans(
         for l in 0..n_clusters {
             if counts[l] > 0 {
                 let old = &centroids[l];
-                let new_c: Vec<f64> = new_centroids[l].iter().map(|&s| s / counts[l] as f64).collect();
-                let diff: f64 = old.iter().zip(new_c.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt();
-                if diff > 1e-10 { changed = true; }
+                let new_c: Vec<f64> = new_centroids[l]
+                    .iter()
+                    .map(|&s| s / counts[l] as f64)
+                    .collect();
+                let diff: f64 = old
+                    .iter()
+                    .zip(new_c.iter())
+                    .map(|(a, b)| (a - b).powi(2))
+                    .sum::<f64>()
+                    .sqrt();
+                if diff > 1e-10 {
+                    changed = true;
+                }
                 centroids[l] = new_c;
             }
         }
-        if !changed { break; }
+        if !changed {
+            break;
+        }
     }
 
     Ok((labels, centroids))
@@ -402,7 +446,11 @@ fn nearest_centroid(point: &[f64], centroids: &[Vec<f64>]) -> (usize, f64) {
     let mut best_c = 0;
     let mut best_d = f64::INFINITY;
     for (i, c) in centroids.iter().enumerate() {
-        let d: f64 = point.iter().zip(c.iter()).map(|(a, b)| (a - b).powi(2)).sum();
+        let d: f64 = point
+            .iter()
+            .zip(c.iter())
+            .map(|(a, b)| (a - b).powi(2))
+            .sum();
         if d < best_d {
             best_d = d;
             best_c = i;
@@ -495,7 +543,7 @@ impl DpMixture {
         // Prior hyperparameters (conjugate Normal with known spherical precision)
         let prior_mean = vec![0.0f64; d];
         let prior_kappa = 1.0f64; // prior pseudo-count
-        let lambda = 1.0f64;      // prior precision (isotropic)
+        let lambda = 1.0f64; // prior precision (isotropic)
 
         // Initialise: each point gets its own cluster (CRP start)
         let mut assignments: Vec<usize> = (0..n).collect();
@@ -521,7 +569,9 @@ impl DpMixture {
                     .collect();
                 // Update assignments to new indices
                 for j in 0..n {
-                    if j == i { continue; }
+                    if j == i {
+                        continue;
+                    }
                     let old_k = assignments[j];
                     if let Some(pos) = alive.iter().position(|&k| k == old_k) {
                         assignments[j] = pos;
@@ -662,10 +712,14 @@ pub fn fuzzy_cmeans(
     seed: u64,
 ) -> Result<(Vec<Vec<f64>>, Vec<Vec<f64>>)> {
     if data.is_empty() {
-        return Err(ClusteringError::InvalidInput("data must not be empty".into()));
+        return Err(ClusteringError::InvalidInput(
+            "data must not be empty".into(),
+        ));
     }
     if n_clusters == 0 {
-        return Err(ClusteringError::InvalidInput("n_clusters must be >= 1".into()));
+        return Err(ClusteringError::InvalidInput(
+            "n_clusters must be >= 1".into(),
+        ));
     }
     if fuzziness <= 1.0 {
         return Err(ClusteringError::InvalidInput(
@@ -673,9 +727,11 @@ pub fn fuzzy_cmeans(
         ));
     }
     if n_clusters > data.len() {
-        return Err(ClusteringError::InvalidInput(
-            format!("n_clusters ({}) > n_samples ({})", n_clusters, data.len()),
-        ));
+        return Err(ClusteringError::InvalidInput(format!(
+            "n_clusters ({}) > n_samples ({})",
+            n_clusters,
+            data.len()
+        )));
     }
 
     let n = data.len();
@@ -703,13 +759,17 @@ pub fn fuzzy_cmeans(
                 .map(|c| sq_dist(&data[i], &centroids[c]).max(1e-30))
                 .collect();
             // Check if point is exactly on a centroid
-            let exact: Vec<usize> = dists.iter().enumerate()
+            let exact: Vec<usize> = dists
+                .iter()
+                .enumerate()
                 .filter(|(_, &d)| d < 1e-30)
                 .map(|(c, _)| c)
                 .collect();
             if !exact.is_empty() {
                 let share = 1.0 / exact.len() as f64;
-                for &c in &exact { new_u[i][c] = share; }
+                for &c in &exact {
+                    new_u[i][c] = share;
+                }
             } else {
                 for c in 0..n_clusters {
                     let ratio_sum: f64 = (0..n_clusters)
@@ -728,7 +788,11 @@ pub fn fuzzy_cmeans(
             .iter()
             .zip(new_centroids.iter())
             .map(|(c_old, c_new)| {
-                c_old.iter().zip(c_new.iter()).map(|(a, b)| (a - b).abs()).fold(0.0f64, f64::max)
+                c_old
+                    .iter()
+                    .zip(c_new.iter())
+                    .map(|(a, b)| (a - b).abs())
+                    .fold(0.0f64, f64::max)
             })
             .fold(0.0f64, f64::max);
 
@@ -819,10 +883,18 @@ mod tests {
     fn test_kernel_kmeans_polynomial() {
         let data = two_cluster_data();
         let (labels, _) = kernel_kmeans(
-            &data, 2,
-            KernelType::Polynomial { degree: 2, coef0: 1.0, gamma: 0.1 },
-            20, 2, 99,
-        ).expect("kernel_kmeans poly should succeed");
+            &data,
+            2,
+            KernelType::Polynomial {
+                degree: 2,
+                coef0: 1.0,
+                gamma: 0.1,
+            },
+            20,
+            2,
+            99,
+        )
+        .expect("kernel_kmeans poly should succeed");
         assert_eq!(labels.len(), 40);
     }
 
@@ -843,8 +915,8 @@ mod tests {
         data.push(vec![100.0, 100.0]);
         data.push(vec![-100.0, -100.0]);
 
-        let (labels, centroids) = trimmed_kmeans(&data, 2, 0.05, 100, 42)
-            .expect("trimmed_kmeans should succeed");
+        let (labels, centroids) =
+            trimmed_kmeans(&data, 2, 0.05, 100, 42).expect("trimmed_kmeans should succeed");
         assert_eq!(labels.len(), data.len());
         assert_eq!(centroids.len(), 2);
         // The two extreme outliers should be trimmed (None)
@@ -900,15 +972,19 @@ mod tests {
     #[test]
     fn test_fuzzy_cmeans_basic() {
         let data = two_cluster_data();
-        let (centroids, membership) = fuzzy_cmeans(&data, 2, 2.0, 100, 1e-6, 42)
-            .expect("fuzzy_cmeans should succeed");
+        let (centroids, membership) =
+            fuzzy_cmeans(&data, 2, 2.0, 100, 1e-6, 42).expect("fuzzy_cmeans should succeed");
         assert_eq!(centroids.len(), 2);
         assert_eq!(membership.len(), 40);
         assert_eq!(membership[0].len(), 2);
         // Membership rows must sum to 1
         for row in &membership {
             let s: f64 = row.iter().sum();
-            assert!((s - 1.0).abs() < 1e-8, "membership row must sum to 1, got {}", s);
+            assert!(
+                (s - 1.0).abs() < 1e-8,
+                "membership row must sum to 1, got {}",
+                s
+            );
         }
     }
 

@@ -41,6 +41,7 @@ use crate::error::{StatsError, StatsResult};
 use crate::sampling::SampleableDistribution;
 use scirs2_core::numeric::{Float, NumCast};
 use scirs2_core::random::prelude::*;
+use scirs2_core::random::rand_distributions::Distribution as _;
 use scirs2_core::random::Uniform as RandUniform;
 
 /// Lévy alpha-stable distribution S(α, β, γ, δ)
@@ -193,14 +194,20 @@ impl<F: Float + NumCast + std::fmt::Display> StableDistribution<F> {
         let delta_f64: f64 = NumCast::from(self.delta).unwrap_or(0.0);
         let pi = std::f64::consts::PI;
 
-        let sign_t = if t > 0.0 { 1.0 } else if t < 0.0 { -1.0 } else { 0.0 };
+        let sign_t = if t > 0.0 {
+            1.0
+        } else if t < 0.0 {
+            -1.0
+        } else {
+            0.0
+        };
         let abs_t = t.abs();
         let g_t = gamma_f64.powf(alpha_f64) * abs_t.powf(alpha_f64);
 
         let (re_log_phi, im_log_phi) = if (alpha_f64 - 1.0).abs() < 1e-10 {
             let re = -gamma_f64 * abs_t;
-            let im = delta_f64 * t
-                - (2.0 / pi) * beta_f64 * gamma_f64 * sign_t * abs_t.ln().max(-700.0);
+            let im =
+                delta_f64 * t - (2.0 / pi) * beta_f64 * gamma_f64 * sign_t * abs_t.ln().max(-700.0);
             (re, im)
         } else {
             let tan_term = (alpha_f64 * pi / 2.0).tan();
@@ -395,19 +402,22 @@ impl<F: Float + NumCast + std::fmt::Display> StableDistribution<F> {
 /// Horner-scheme approximation of erf(x) (Abramowitz & Stegun 7.1.26)
 fn erf_approx(x: f64) -> f64 {
     let t = 1.0 / (1.0 + 0.3275911 * x.abs());
-    let poly =
-        t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+    let poly = t
+        * (0.254829592
+            + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
     let sign = if x >= 0.0 { 1.0 } else { -1.0 };
     sign * (1.0 - poly * (-x * x).exp())
 }
 
-impl<F: Float + NumCast + std::fmt::Display> SampleableDistribution<F>
-    for StableDistribution<F>
-{
+impl<F: Float + NumCast + std::fmt::Display> SampleableDistribution<F> for StableDistribution<F> {
     fn rvs(&self, size: usize) -> StatsResult<Vec<F>> {
-        use scirs2_core::random::SmallRng;
+        use scirs2_core::random::rngs::SmallRng;
         use scirs2_core::random::SeedableRng;
-        let mut rng = SmallRng::from_entropy();
+        let seed = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos() as u64)
+            .unwrap_or(0x9e3779b97f4a7c15);
+        let mut rng = SmallRng::seed_from_u64(seed);
         self.rvs(size, &mut rng)
     }
 }
@@ -415,7 +425,7 @@ impl<F: Float + NumCast + std::fmt::Display> SampleableDistribution<F>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scirs2_core::random::{SmallRng, SeedableRng};
+    use scirs2_core::random::{rngs::SmallRng, SeedableRng};
 
     #[test]
     fn test_normal_special_case() {

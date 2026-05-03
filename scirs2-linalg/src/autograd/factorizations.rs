@@ -174,19 +174,41 @@ pub fn qr<F: Float + Debug + Send + Sync + 'static>(
 
     if m >= 1 && n >= 1 {
         // First column Householder reflection
-        let x = r.slice(scirs2_core::ndarray::s![.., 0]).to_ownedj].iter())
-                    .fold(F::zero(), |acc, (&u_i, &r_i)| acc + u_i * r_i);
+        let x = r.slice(scirs2_core::ndarray::s![.., 0]).to_owned();
+        let x_norm = x.iter().fold(F::zero(), |acc, &xi| acc + xi * xi).sqrt();
 
-                for i in 0..m {
-                    r[[i, j]] = r[[i, j]] - F::from(2.0).expect("Operation failed") * u[i] * dot_product;
+        if x_norm > F::epsilon() {
+            // Build Householder vector u = x + sign(x[0]) * ||x|| * e1
+            let sign = if x[0] >= F::zero() { F::one() } else { -F::one() };
+            let mut u = x.clone();
+            u[0] = u[0] + sign * x_norm;
+            let u_norm_sq = u.iter().fold(F::zero(), |acc, &ui| acc + ui * ui);
+
+            if u_norm_sq > F::epsilon() {
+                // Apply H = I - 2*u*u^T/||u||^2 to R from the left
+                for j in 0..n {
+                    let dot_product = u
+                        .iter()
+                        .zip(r.column(j).iter())
+                        .fold(F::zero(), |acc, (&u_i, &r_i)| acc + u_i * r_i);
+                    for i in 0..m {
+                        r[[i, j]] = r[[i, j]]
+                            - F::from(2.0).expect("Operation failed") * u[i] * dot_product
+                                / u_norm_sq;
+                    }
                 }
-            }
 
-            // Compute Q
-            for i in 0..m {
-                for j in 0..m {
-                    let identity = if i == j { F::one() } else { F::zero() };
-                    q[[i, j]] = identity - F::from(2.0).expect("Operation failed") * u[i] * u[j];
+                // Accumulate Q = Q * H^T = Q * H  (H is symmetric)
+                for i in 0..m {
+                    let dot_product = u
+                        .iter()
+                        .zip(q.row(i).iter())
+                        .fold(F::zero(), |acc, (&u_k, &q_ik)| acc + u_k * q_ik);
+                    for k in 0..m {
+                        q[[i, k]] = q[[i, k]]
+                            - F::from(2.0).expect("Operation failed") * dot_product * u[k]
+                                / u_norm_sq;
+                    }
                 }
             }
         }

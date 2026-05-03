@@ -594,3 +594,167 @@ where
 
     Ok((beta, residuals, eps_total))
 }
+
+// ---------------------------------------------------------------------------
+// Sklearn-style OLS estimator
+// ---------------------------------------------------------------------------
+
+/// Fitted result produced by [`LinearRegression::fit`].
+///
+/// Stores the model coefficients and provides a [`predict`](FittedLinearRegression::predict) method
+/// for making predictions on new data.
+pub struct FittedLinearRegression<F>
+where
+    F: Float + std::fmt::Debug + std::fmt::Display + 'static,
+{
+    inner: RegressionResults<F>,
+}
+
+impl<F> FittedLinearRegression<F>
+where
+    F: Float
+        + std::iter::Sum<F>
+        + std::ops::Div<Output = F>
+        + std::fmt::Debug
+        + std::fmt::Display
+        + 'static
+        + scirs2_core::numeric::NumAssign
+        + scirs2_core::numeric::One
+        + scirs2_core::ndarray::ScalarOperand
+        + Send
+        + Sync,
+{
+    /// Predict target values for a new design matrix.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` – Feature matrix with shape `(n_samples, n_features)`.
+    ///
+    /// # Returns
+    ///
+    /// A 1-D array of predicted values of length `n_samples`.
+    pub fn predict(
+        &self,
+        x: &scirs2_core::ndarray::ArrayView2<F>,
+    ) -> StatsResult<scirs2_core::ndarray::Array1<F>> {
+        if x.ncols() != self.inner.coefficients.len() {
+            return Err(StatsError::DimensionMismatch(format!(
+                "predict: x has {} columns but model has {} coefficients",
+                x.ncols(),
+                self.inner.coefficients.len()
+            )));
+        }
+        Ok(x.dot(&self.inner.coefficients))
+    }
+
+    /// Return the fitted coefficients.
+    pub fn coefficients(&self) -> &scirs2_core::ndarray::Array1<F> {
+        &self.inner.coefficients
+    }
+
+    /// Return the coefficient of determination R².
+    pub fn r_squared(&self) -> F {
+        self.inner.r_squared
+    }
+}
+
+/// Ordinary Least Squares linear regression estimator.
+///
+/// This is a thin, sklearn-style wrapper around [`linear_regression`].
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_core::ndarray::{array, Array2};
+/// use scirs2_stats::regression::LinearRegression;
+///
+/// let x = Array2::from_shape_vec((5, 2), vec![
+///     1.0_f64, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0,
+/// ]).expect("shape ok");
+/// let y = array![1.0_f64, 3.0, 5.0, 7.0, 9.0];
+///
+/// let mut model = LinearRegression::new();
+/// let fitted = model.fit(&x.view(), &y.view()).expect("fit ok");
+/// let preds = fitted.predict(&x.view()).expect("predict ok");
+/// assert_eq!(preds.len(), 5);
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct LinearRegression {
+    _private: (),
+}
+
+impl LinearRegression {
+    /// Create a new (unfitted) linear regression model.
+    pub fn new() -> Self {
+        Self { _private: () }
+    }
+
+    /// Fit the model to training data `(x, y)`.
+    ///
+    /// # Arguments
+    ///
+    /// * `x` – Design matrix of shape `(n_samples, n_features)`.
+    /// * `y` – Target vector of length `n_samples`.
+    pub fn fit(
+        &mut self,
+        x: &scirs2_core::ndarray::ArrayView2<f64>,
+        y: &scirs2_core::ndarray::ArrayView1<f64>,
+    ) -> StatsResult<FittedLinearRegression<f64>> {
+        let inner = linear_regression(x, y, None)?;
+        Ok(FittedLinearRegression { inner })
+    }
+}
+
+#[cfg(test)]
+mod linear_regression_struct_tests {
+    use super::*;
+    use scirs2_core::ndarray::{array, Array2};
+
+    fn make_simple_dataset() -> (Array2<f64>, scirs2_core::ndarray::Array1<f64>) {
+        // y = 2*x1 + 3*x2  (no intercept, design matrix includes constant col)
+        let x = Array2::from_shape_vec(
+            (5, 2),
+            vec![1.0, 0.0, 1.0, 1.0, 1.0, 2.0, 1.0, 3.0, 1.0, 4.0],
+        )
+        .expect("shape ok");
+        let y = array![2.0_f64, 5.0, 8.0, 11.0, 14.0];
+        (x, y)
+    }
+
+    /// LinearRegression is publicly accessible (compile test).
+    #[test]
+    fn test_linear_regression_is_pub() {
+        let _ = LinearRegression::new();
+    }
+
+    /// LinearRegression::fit returns a fitted result without error.
+    #[test]
+    fn test_linear_regression_fit() {
+        let (x, y) = make_simple_dataset();
+        let mut model = LinearRegression::new();
+        let result = model.fit(&x.view(), &y.view());
+        assert!(result.is_ok(), "fit should succeed: {:?}", result.err());
+    }
+
+    /// FittedLinearRegression::predict returns correct length output.
+    #[test]
+    fn test_linear_regression_predict_length() {
+        let (x, y) = make_simple_dataset();
+        let mut model = LinearRegression::new();
+        let fitted = model.fit(&x.view(), &y.view()).expect("fit ok");
+        let preds = fitted.predict(&x.view()).expect("predict ok");
+        assert_eq!(preds.len(), x.nrows());
+    }
+
+    /// FittedLinearRegression::predict returns values close to training targets.
+    #[test]
+    fn test_linear_regression_predict_accuracy() {
+        let (x, y) = make_simple_dataset();
+        let mut model = LinearRegression::new();
+        let fitted = model.fit(&x.view(), &y.view()).expect("fit ok");
+        let preds = fitted.predict(&x.view()).expect("predict ok");
+        for (p, t) in preds.iter().zip(y.iter()) {
+            assert!((p - t).abs() < 1e-6, "pred={p} target={t}");
+        }
+    }
+}

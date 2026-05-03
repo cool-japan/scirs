@@ -247,11 +247,7 @@ fn find_cycle(adj: &[Vec<usize>], n: usize, removed: &[bool]) -> Option<Vec<usiz
                 colour[v] = 1;
             }
             // Find next unvisited / grey neighbour
-            let neighbours: Vec<usize> = adj[v]
-                .iter()
-                .copied()
-                .filter(|&w| !removed[w])
-                .collect();
+            let neighbours: Vec<usize> = adj[v].iter().copied().filter(|&w| !removed[w]).collect();
             let mut found_next = false;
             for idx in ni..neighbours.len() {
                 let w = neighbours[idx];
@@ -344,7 +340,7 @@ mod tests {
     }
 
     fn k4() -> Vec<(usize, usize)> {
-        vec![(0,1),(0,2),(0,3),(1,2),(1,3),(2,3)]
+        vec![(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
     }
 
     // ── Minimum dominating set ──────────────────────────────────────────────
@@ -372,9 +368,9 @@ mod tests {
         // Verify validity
         for v in 0..4 {
             let dominated = ds_set.contains(&v)
-                || path4()
-                    .iter()
-                    .any(|&(u, w)| (u == v && ds_set.contains(&w)) || (w == v && ds_set.contains(&u)));
+                || path4().iter().any(|&(u, w)| {
+                    (u == v && ds_set.contains(&w)) || (w == v && ds_set.contains(&u))
+                });
             assert!(dominated, "vertex {v} not dominated in path4");
         }
     }
@@ -463,7 +459,9 @@ mod tests {
         for &(u, v) in &triangle() {
             let e = if u < v { (u, v) } else { (v, u) };
             let dominated = edge_set.contains(&e)
-                || edge_set.iter().any(|&(a, b)| a == u || b == u || a == v || b == v);
+                || edge_set
+                    .iter()
+                    .any(|&(a, b)| a == u || b == u || a == v || b == v);
             assert!(dominated, "edge ({u},{v}) not dominated");
         }
     }

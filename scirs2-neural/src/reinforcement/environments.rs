@@ -3,37 +3,52 @@
 use crate::error::Result;
 use scirs2_core::ndarray::prelude::*;
 use std::collections::HashMap;
+
 /// Observation from environment
 pub type Observation = Array1<f32>;
 /// Action to take in environment
 pub type Action = Array1<f32>;
 /// Reward from environment
 pub type Reward = f32;
-/// Environment information
+/// Environment info map
 pub type Info = HashMap<String, f32>;
+
 /// Base trait for reinforcement learning environments
 pub trait Environment: Send + Sync {
     /// Reset the environment and return initial observation
     fn reset(&mut self) -> Result<Observation>;
-    /// Take a step in the environment
+
+    /// Take a step: returns `(next_obs, reward, done, info)`
     fn step(&mut self, action: &Action) -> Result<(Observation, Reward, bool, Info)>;
-    /// Get observation space dimensions
+
+    /// Observation space dimensionality
     fn observation_space(&self) -> usize;
-    /// Get action space dimensions
+
+    /// Action space dimensionality
     fn action_space(&self) -> usize;
-    /// Check if actions are continuous
+
+    /// Whether actions are continuous
     fn continuous_actions(&self) -> bool;
-    /// Get action bounds for continuous actions
+
+    /// Action bounds for continuous actions
     fn action_bounds(&self) -> Option<(Array1<f32>, Array1<f32>)> {
         None
     }
-    /// Render the environment (optional)
+
+    /// Render the environment (no-op by default)
     fn render(&self) -> Result<()> {
         Ok(())
-    /// Close the environment
+    }
+
+    /// Close the environment and release resources
     fn close(&mut self) -> Result<()> {
+        Ok(())
+    }
 }
-/// Classic CartPole environment
+
+// ── CartPole ──────────────────────────────────────────────────────────────────
+
+/// Classic CartPole environment (Barto, Sutton, Anderson, 1983)
 pub struct CartPole {
     state: Array1<f32>,
     steps: usize,
@@ -43,7 +58,10 @@ pub struct CartPole {
     mass_pole: f32,
     length: f32,
     force_mag: f32,
-    tau: f32, // Time step
+    tau: f32,
+    rng_seed: u64,
+}
+
 impl Default for CartPole {
     fn default() -> Self {
         Self {
@@ -56,234 +74,218 @@ impl Default for CartPole {
             length: 0.5,
             force_mag: 10.0,
             tau: 0.02,
+            rng_seed: 42,
         }
+    }
+}
+
 impl CartPole {
     /// Create a new CartPole environment
     pub fn new() -> Self {
         Self::default()
-    /// Check if episode is done
+    }
+
     fn is_done(&self) -> bool {
         let x = self.state[0];
         let theta = self.state[2];
-        x < -2.4 || x > 2.4 || theta < -0.2095 || theta > 0.2095 || self.steps >= self.max_steps
+        !(-2.4_f32..=2.4).contains(&x)
+            || !(-0.2095_f32..=0.2095).contains(&theta)
+            || self.steps >= self.max_steps
+    }
+
+    // Simple deterministic small noise using LCG
+    fn next_f32(&mut self) -> f32 {
+        self.rng_seed = self
+            .rng_seed
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1442695040888963407);
+        let hi = (self.rng_seed >> 33) as u32;
+        (hi as f32 / u32::MAX as f32) * 0.1 - 0.05
+    }
+}
+
 impl Environment for CartPole {
     fn reset(&mut self) -> Result<Observation> {
-        use scirs2_core::random::{Distribution, Uniform};
-        let mut rng = rng();
-        let uniform = Uniform::new(-0.05, 0.05);
         self.state = Array1::from_vec(vec![
-            uniform.sample(&mut rng),
+            self.next_f32(),
+            self.next_f32(),
+            self.next_f32(),
+            self.next_f32(),
         ]);
         self.steps = 0;
         Ok(self.state.clone())
+    }
+
     fn step(&mut self, action: &Action) -> Result<(Observation, Reward, bool, Info)> {
-        // Extract state variables
+        let x = self.state[0];
         let x_dot = self.state[1];
+        let theta = self.state[2];
         let theta_dot = self.state[3];
-        // Apply action (0 = left, 1 = right)
-        let force = if action[0] > 0.5 {
+
+        let force = if action.is_empty() || action[0] > 0.0 {
             self.force_mag
         } else {
             -self.force_mag
         };
-        // Physics calculations
+
+        let total_mass = self.mass_cart + self.mass_pole;
+        let polemass_len = self.mass_pole * self.length;
         let cos_theta = theta.cos();
         let sin_theta = theta.sin();
-        let total_mass = self.mass_cart + self.mass_pole;
-        let pole_mass_length = self.mass_pole * self.length;
-        let temp = (force + pole_mass_length * theta_dot * theta_dot * sin_theta) / total_mass;
-        let theta_acc = (self.gravity * sin_theta - cos_theta * temp)
+        let tmp = (force + polemass_len * theta_dot * theta_dot * sin_theta) / total_mass;
+        let theta_acc = (self.gravity * sin_theta - cos_theta * tmp)
             / (self.length * (4.0 / 3.0 - self.mass_pole * cos_theta * cos_theta / total_mass));
-        let x_acc = temp - pole_mass_length * theta_acc * cos_theta / total_mass;
-        // Update state
-        self.state[0] += self.tau * x_dot;
-        self.state[1] += self.tau * x_acc;
-        self.state[2] += self.tau * theta_dot;
-        self.state[3] += self.tau * theta_acc;
+        let x_acc = tmp - polemass_len * theta_acc * cos_theta / total_mass;
+
+        self.state = Array1::from_vec(vec![
+            x + self.tau * x_dot,
+            x_dot + self.tau * x_acc,
+            theta + self.tau * theta_dot,
+            theta_dot + self.tau * theta_acc,
+        ]);
         self.steps += 1;
         let done = self.is_done();
-        let reward = if done { 0.0 } else { 1.0 };
-        let mut info = HashMap::new();
-        info.insert("steps".to_string(), self.steps as f32);
-        Ok((self.state.clone(), reward, done, info))
+        let reward = if done && self.steps < self.max_steps {
+            0.0
+        } else {
+            1.0
+        };
+        Ok((self.state.clone(), reward, done, Info::new()))
+    }
+
     fn observation_space(&self) -> usize {
         4
+    }
+
     fn action_space(&self) -> usize {
-        1 // Binary action encoded as continuous
+        2
+    }
+
     fn continuous_actions(&self) -> bool {
         false
-/// Mountain Car environment
-pub struct MountainCar {
-    position: f32,
-    velocity: f32,
-impl Default for MountainCar {
-            position: -0.5,
-            velocity: 0.0,
-impl MountainCar {
-    /// Create a new MountainCar environment
-impl Environment for MountainCar {
-        self.position = Uniform::new(-0.6, -0.4).sample(&mut rng);
-        self.velocity = 0.0;
-        Ok(Array1::from_vec(vec![self.position, self.velocity]))
-        // Action: 0 = left, 1 = nothing, 2 = right
-        let action_value = if action[0] < 0.33 {
-            -1.0
-        } else if action[0] < 0.67 {
-            0.0
-            1.0
-        // Update velocity and position
-        self.velocity += 0.001 * action_value - 0.0025 * (3.0 * self.position).cos();
-        self.velocity = self.velocity.clamp(-0.07, 0.07);
-        self.position += self.velocity;
-        self.position = self.position.clamp(-1.2, 0.6);
-        // Reset velocity if hit the left boundary
-        if self.position <= -1.2 {
-            self.velocity = 0.0;
-        // Check if reached the goal
-        let done = self.position >= 0.5 || self.steps >= self.max_steps;
-        let reward = if self.position >= 0.5 { 0.0 } else { -1.0 };
-        info.insert("position".to_string(), self.position);
-        info.insert("velocity".to_string(), self.velocity);
-        Ok((
-            Array1::from_vec(vec![self.position, self.velocity]),
-            reward,
-            done,
-            info,
-        ))
-        2
-        1 // Three discrete actions encoded as continuous
-/// Continuous control pendulum environment
-pub struct Pendulum {
-    theta: f32,
-    theta_dot: f32,
-    max_torque: f32,
-    dt: f32,
-    g: f32,
-    m: f32,
-    l: f32,
-impl Default for Pendulum {
-            theta: 0.0,
-            theta_dot: 0.0,
-            max_torque: 2.0,
-            dt: 0.05,
-            g: 10.0,
-            m: 1.0,
-            l: 1.0,
-impl Pendulum {
-    /// Create a new Pendulum environment
-    /// Normalize angle to [-pi, pi]
-    fn angle_normalize(&self, x: f32) -> f32 {
-        ((x + std::f32::consts::PI) % (2.0 * std::f32::consts::PI)) - std::f32::consts::PI
-impl Environment for Pendulum {
-        self.theta = Uniform::new(-std::f32::consts::PI, std::f32::consts::PI).sample(&mut rng);
-        self.theta_dot = Uniform::new(-1.0, 1.0).sample(&mut rng);
-        Ok(Array1::from_vec(vec![
-            self.theta.cos(),
-            self.theta.sin(),
-            self.theta_dot,
-        ]))
-        let torque = action[0].clamp(-self.max_torque, self.max_torque);
-        // Physics simulation
-        let theta_acc = -3.0 * self.g / (2.0 * self.l) * self.theta.sin()
-            + 3.0 / (self.m * self.l * self.l) * torque;
-        self.theta_dot += theta_acc * self.dt;
-        self.theta_dot = self.theta_dot.clamp(-8.0, 8.0);
-        self.theta += self.theta_dot * self.dt;
-        self.theta = self.angle_normalize(self.theta);
-        // Reward is negative cost
-        let cost = self.angle_normalize(self.theta).powi(2)
-            + 0.1 * self.theta_dot.powi(2)
-            + 0.001 * torque.powi(2);
-        let reward = -cost;
-        let done = self.steps >= self.max_steps;
-        info.insert("theta".to_string(), self.theta);
-        info.insert("theta_dot".to_string(), self.theta_dot);
-        info.insert("torque".to_string(), torque);
-            Array1::from_vec(vec![self.theta.cos(), self.theta.sin(), self.theta_dot]),
-        3
-        1
-        true
-        Some((
-            Array1::from_vec(vec![-self.max_torque]),
-            Array1::from_vec(vec![self.max_torque]),
-/// Multi-environment wrapper for parallel execution
-pub struct VectorizedEnvironment<E: Environment + Clone> {
-    envs: Vec<E>,
-    num_envs: usize,
-impl<E: Environment + Clone> VectorizedEnvironment<E> {
-    /// Create a new vectorized environment
-    pub fn new(_envfn: impl Fn() -> E, num_envs: usize) -> Self {
-        let envs = (0..num_envs).map(|_| _env_fn()).collect();
-        Self { envs, num_envs }
-    /// Reset all environments
-    pub fn reset_all(&mut self) -> Result<Array2<f32>> {
-        let obs_dim = self.envs[0].observation_space();
-        let mut observations = Array2::zeros((self.num_envs, obs_dim));
-        for (i, env) in self.envs.iter_mut().enumerate() {
-            let obs = env.reset()?;
-            observations.row_mut(i).assign(&obs);
-        Ok(observations)
-    /// Step all environments
-    pub fn step_all(
-        &mut self,
-        actions: &ArrayView2<f32>,
-    ) -> Result<(Array2<f32>, Array1<f32>, Array1<bool>, Vec<Info>)> {
-        if actions.shape()[0] != self.num_envs {
-            return Err(crate::error::NeuralError::InvalidArgument(format!(
-                "Expected {} actions, got {}",
-                self.num_envs,
-                actions.shape()[0]
-            )));
-        let mut rewards = Array1::zeros(self.num_envs);
-        let mut dones = Array1::from_elem(self.num_envs, false);
-        let mut infos = Vec::with_capacity(self.num_envs);
-            let action = actions.row(i).to_owned();
-            let (obs, reward, done, info) = env.step(&action)?;
-            rewards[i] = reward;
-            dones[i] = done;
-            infos.push(info);
-            // Auto-reset if done
-            if done {
-                let new_obs = env.reset()?;
-                observations.row_mut(i).assign(&new_obs);
-            }
-        Ok((observations, rewards, dones, infos))
+    }
+}
+
+// ── GridWorld ─────────────────────────────────────────────────────────────────
+
+/// Simple grid-world navigation environment
+pub struct GridWorld {
+    size: usize,
+    agent_pos: (usize, usize),
+    goal_pos: (usize, usize),
+    steps: usize,
+    max_steps: usize,
+}
+
+impl GridWorld {
+    /// Create a new GridWorld of the given size
+    pub fn new(size: usize) -> Self {
+        Self {
+            size,
+            agent_pos: (0, 0),
+            goal_pos: (size - 1, size - 1),
+            steps: 0,
+            max_steps: size * size * 4,
+        }
+    }
+
+    fn pos_to_obs(&self) -> Array1<f32> {
+        let mut obs = Array1::zeros(self.size * self.size);
+        let idx = self.agent_pos.0 * self.size + self.agent_pos.1;
+        if idx < obs.len() {
+            obs[idx] = 1.0;
+        }
+        obs
+    }
+}
+
+impl Environment for GridWorld {
+    fn reset(&mut self) -> Result<Observation> {
+        self.agent_pos = (0, 0);
+        self.steps = 0;
+        Ok(self.pos_to_obs())
+    }
+
+    fn step(&mut self, action: &Action) -> Result<(Observation, Reward, bool, Info)> {
+        let act = if action.is_empty() {
+            0
+        } else {
+            action[0] as usize % 4
+        };
+        let (r, c) = self.agent_pos;
+        let new_pos = match act {
+            0 => (r.saturating_sub(1), c),        // up
+            1 => ((r + 1).min(self.size - 1), c), // down
+            2 => (r, c.saturating_sub(1)),        // left
+            _ => (r, (c + 1).min(self.size - 1)), // right
+        };
+        self.agent_pos = new_pos;
+        self.steps += 1;
+        let done = self.agent_pos == self.goal_pos || self.steps >= self.max_steps;
+        let reward = if self.agent_pos == self.goal_pos {
+            10.0
+        } else {
+            -0.01
+        };
+        Ok((self.pos_to_obs(), reward, done, Info::new()))
+    }
+
+    fn observation_space(&self) -> usize {
+        self.size * self.size
+    }
+
+    fn action_space(&self) -> usize {
+        4
+    }
+
+    fn continuous_actions(&self) -> bool {
+        false
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn test_cartpole() {
+    fn test_cartpole_reset() {
         let mut env = CartPole::new();
-        let obs = env.reset().expect("Operation failed");
+        let obs = env.reset().expect("reset ok");
         assert_eq!(obs.len(), 4);
+    }
+
+    #[test]
+    fn test_cartpole_step() {
+        let mut env = CartPole::new();
+        env.reset().expect("reset ok");
         let action = Array1::from_vec(vec![1.0]);
-        let (next_obs, reward, done, info) = env.step(&action).expect("Operation failed");
-        assert_eq!(next_obs.len(), 4);
-        assert!(reward >= 0.0);
-        assert!(info.contains_key("steps"));
-    fn test_mountain_car() {
-        let mut env = MountainCar::new();
-        assert_eq!(obs.len(), 2);
-        assert!(obs[0] >= -0.6 && obs[0] <= -0.4);
-        let action = Array1::from_vec(vec![0.8]); // Go right
-        let (_, reward__) = env.step(&action).expect("Operation failed");
-        assert_eq!(reward, -1.0); // Not at goal yet
-    fn test_pendulum() {
-        let mut env = Pendulum::new();
-        assert_eq!(obs.len(), 3);
-        assert_eq!(env.observation_space(), 3);
-        assert_eq!(env.action_space(), 1);
-        assert!(env.continuous_actions());
-        let bounds = env.action_bounds().expect("Operation failed");
-        assert_eq!(bounds.0[0], -2.0);
-        assert_eq!(bounds.1[0], 2.0);
-    fn test_vectorized_env() {
-        let mut vec_env = VectorizedEnvironment::new(CartPole::new, 4);
-        let observations = vec_env.reset_all().expect("Operation failed");
-        assert_eq!(observations.shape(), &[4, 4]);
-        let actions = Array2::ones((4, 1));
-        let (next_obs, rewards, dones, infos) = vec_env.step_all(&actions.view()).expect("Operation failed");
-        assert_eq!(next_obs.shape(), &[4, 4]);
-        assert_eq!(rewards.len(), 4);
-        assert_eq!(dones.len(), 4);
-        assert_eq!(infos.len(), 4);
+        let (obs, _reward, _done, _info) = env.step(&action).expect("step ok");
+        assert_eq!(obs.len(), 4);
+    }
+
+    #[test]
+    fn test_cartpole_spaces() {
+        let env = CartPole::new();
+        assert_eq!(env.observation_space(), 4);
+        assert_eq!(env.action_space(), 2);
+        assert!(!env.continuous_actions());
+    }
+
+    #[test]
+    fn test_gridworld_basic() {
+        let mut env = GridWorld::new(4);
+        let obs = env.reset().expect("reset ok");
+        assert_eq!(obs.len(), 16);
+        let action = Array1::from_vec(vec![1.0]); // down
+        let (obs2, _r, _done, _info) = env.step(&action).expect("step ok");
+        assert_eq!(obs2.len(), 16);
+    }
+
+    #[test]
+    fn test_environment_render_close() {
+        let mut env = CartPole::new();
+        env.reset().expect("reset ok");
+        env.render().expect("render ok");
+        env.close().expect("close ok");
+    }
+}

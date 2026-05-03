@@ -775,9 +775,12 @@ where
 /// // Test if data comes from a standard normal distribution
 /// let data = array![0.0f64, 0.5, 1.0, -0.5, -1.0, 1.5, -1.5, 2.0];
 ///
-/// // Standard normal CDF approximation
+/// // Standard normal CDF approximation (rational approximation)
 /// let normal_cdf = |x: f64| -> f64 {
-///     0.5 * (1.0 + libm::erf(x / std::f64::consts::SQRT_2))
+///     let t = 1.0 / (1.0 + 0.3275911 * x.abs());
+///     let poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+///     let p = 1.0 - poly * (-x * x / 2.0).exp();
+///     if x >= 0.0 { p } else { 1.0 - p }
 /// };
 ///
 /// let result = ks_1samp(&data.view(), normal_cdf, "two-sided")
@@ -913,7 +916,7 @@ fn ks_pvalue(d: f64, n: f64, alternative: &str) -> f64 {
 ///
 /// ```
 /// use scirs2_core::ndarray::array;
-/// use scirs2_stats::ks_2samp;
+/// use scirs2_stats::nonparametric::ks_2samp;
 ///
 /// // Test whether two samples come from the same distribution
 /// let sample1 = array![1.0f64, 2.0, 3.0, 4.0, 5.0];

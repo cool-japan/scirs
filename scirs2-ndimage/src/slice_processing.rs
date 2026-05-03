@@ -259,7 +259,10 @@ pub fn oblique_slice(
 /// # Errors
 ///
 /// Returns `NdimageError::InvalidInput` for an unknown axis or empty volume.
-pub fn maximum_intensity_projection(volume: &Array3<f64>, axis: usize) -> NdimageResult<Array2<f64>> {
+pub fn maximum_intensity_projection(
+    volume: &Array3<f64>,
+    axis: usize,
+) -> NdimageResult<Array2<f64>> {
     let shape = volume.shape();
     let (sz, sy, sx) = (shape[0], shape[1], shape[2]);
     if sz == 0 || sy == 0 || sx == 0 {
@@ -332,7 +335,10 @@ pub fn maximum_intensity_projection(volume: &Array3<f64>, axis: usize) -> Ndimag
 /// # Errors
 ///
 /// Returns `NdimageError::InvalidInput` for an unknown axis or empty volume.
-pub fn average_intensity_projection(volume: &Array3<f64>, axis: usize) -> NdimageResult<Array2<f64>> {
+pub fn average_intensity_projection(
+    volume: &Array3<f64>,
+    axis: usize,
+) -> NdimageResult<Array2<f64>> {
     let shape = volume.shape();
     let (sz, sy, sx) = (shape[0], shape[1], shape[2]);
     if sz == 0 || sy == 0 || sx == 0 {

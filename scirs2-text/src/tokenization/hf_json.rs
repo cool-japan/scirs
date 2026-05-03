@@ -34,8 +34,8 @@
 use std::collections::HashMap;
 
 use crate::error::{Result, TextError};
-use crate::tokenization::wordpiece::WordPieceTokenizer;
 use crate::gpt_bpe::Gpt2BpeTokenizer;
+use crate::tokenization::wordpiece::WordPieceTokenizer;
 
 // ── Model-type enum ──────────────────────────────────────────────────────────
 
@@ -64,8 +64,8 @@ impl HfModelType {
         }
     }
 
-    /// Parse from the JSON string.
-    pub fn from_str(s: &str) -> Self {
+    /// Parse from the JSON string representation.
+    pub fn parse(s: &str) -> Self {
         match s {
             "WordPiece" | "wordpiece" | "WORDPIECE" => HfModelType::WordPiece,
             "BPE" | "Bpe" | "bpe" => HfModelType::Bpe,
@@ -266,9 +266,7 @@ impl HfTokenizerJson {
         let vocab: HashMap<String, u32> = wp.vocab_snapshot();
 
         // Standard BERT special token IDs (use vocab lookup with fallbacks)
-        let get = |tok: &str, fallback: u32| -> u32 {
-            vocab.get(tok).copied().unwrap_or(fallback)
-        };
+        let get = |tok: &str, fallback: u32| -> u32 { vocab.get(tok).copied().unwrap_or(fallback) };
 
         let added_tokens = vec![
             HfAddedToken::special(get("[PAD]", 0), "[PAD]"),
@@ -341,9 +339,8 @@ impl HfTokenizerJson {
             .collect::<Vec<_>>()
             .join(",");
 
-        let null_or = |opt: &Option<String>| -> String {
-            opt.as_deref().unwrap_or("null").to_string()
-        };
+        let null_or =
+            |opt: &Option<String>| -> String { opt.as_deref().unwrap_or("null").to_string() };
 
         format!(
             r#"{{"version":{},"truncation":null,"padding":null,"added_tokens":[{}],"normalizer":{},"pre_tokenizer":{},"post_processor":{},"decoder":{},"model":{}}}"#,
@@ -367,7 +364,7 @@ impl HfTokenizerJson {
         let model_str = extract_object_field(s, "model").ok_or_else(|| {
             TextError::InvalidInput("HF JSON: missing 'model' object".to_string())
         })?;
-        let model = HfModel::from_json_str(&model_str)?;
+        let model = HfModel::from_json_str(model_str)?;
 
         // Extract added_tokens array
         let added_tokens = extract_array_field(s, "added_tokens")
@@ -418,10 +415,9 @@ pub fn detect_model_type(json: &str) -> Result<HfModelType> {
     let model_str = extract_object_field(json, "model").ok_or_else(|| {
         TextError::InvalidInput("HF JSON: could not locate 'model' object".to_string())
     })?;
-    let type_str = parse_string_field(&model_str, "type").ok_or_else(|| {
-        TextError::InvalidInput("HF JSON: missing model.type field".to_string())
-    })?;
-    Ok(HfModelType::from_str(&type_str))
+    let type_str = parse_string_field(model_str, "type")
+        .ok_or_else(|| TextError::InvalidInput("HF JSON: missing model.type field".to_string()))?;
+    Ok(HfModelType::parse(&type_str))
 }
 
 // Note: vocab_snapshot() methods are defined directly on WordPieceTokenizer
@@ -584,12 +580,10 @@ fn parse_string_array_field(json: &str, key: &str) -> Option<Vec<String>> {
                         found = true;
                         break;
                     }
-                    Some((_, '\\')) => {
-                        match chars.next() {
-                            Some((_, c)) => s.push(c),
-                            None => break,
-                        }
-                    }
+                    Some((_, '\\')) => match chars.next() {
+                        Some((_, c)) => s.push(c),
+                        None => break,
+                    },
                     Some((_, c)) => s.push(c),
                 }
             }
@@ -601,7 +595,10 @@ fn parse_string_array_field(json: &str, key: &str) -> Option<Vec<String>> {
             }
         } else {
             // Skip non-string element
-            let skip = remainder.find(',').map(|i| i + 1).unwrap_or(remainder.len());
+            let skip = remainder
+                .find(',')
+                .map(|i| i + 1)
+                .unwrap_or(remainder.len());
             remainder = &remainder[skip..];
         }
     }
@@ -650,7 +647,7 @@ fn parse_vocab_object(json: &str) -> Result<HashMap<String, u32>> {
             remainder = &remainder[num_str.len()..];
             remainder = remainder.trim_start();
             if remainder.starts_with(',') {
-                remainder = &remainder[1..].trim_start();
+                remainder = remainder[1..].trim_start();
             }
         } else {
             // Skip unexpected characters
@@ -767,8 +764,7 @@ mod tests {
 
     fn minimal_wp() -> WordPieceTokenizer {
         let tokens = vec![
-            "[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]",
-            "hello", "world", "##ing", "foo",
+            "[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]", "hello", "world", "##ing", "foo",
         ];
         WordPieceTokenizer::from_vocab_list(&tokens)
     }

@@ -22,6 +22,7 @@ use crate::error::{StatsError, StatsResult as Result};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 use scirs2_core::validation::*;
 use scirs2_core::Rng;
+use scirs2_core::RngExt;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Resampling strategies
@@ -409,16 +410,14 @@ where
         }
 
         // Normalise and accumulate evidence
-        let (normalised_weights, log_evidence_increment) =
-            normalize_log_weights(&new_log_weights);
+        let (normalised_weights, log_evidence_increment) = normalize_log_weights(&new_log_weights);
         self.log_marginal_likelihood += log_evidence_increment;
         self.log_weights = new_log_weights;
 
         // --- Step 3: Resample if needed ---
         let ess = effective_sample_size(&normalised_weights);
         if ess < self.ess_threshold * self.n_particles as f64 {
-            let indices =
-                resample(&normalised_weights, self.resampling_strategy, rng)?;
+            let indices = resample(&normalised_weights, self.resampling_strategy, rng)?;
 
             let old_particles = self.particles.clone();
             for (i, &parent) in indices.iter().enumerate() {
@@ -514,8 +513,7 @@ impl SmcKernel for RandomWalkKernel {
             proposal[i] = state[i] + self.step_size * z;
         }
 
-        let log_accept = target.log_density(&proposal, beta)
-            - target.log_density(state, beta);
+        let log_accept = target.log_density(&proposal, beta) - target.log_density(state, beta);
         let u: f64 = rng.random();
         if u.ln() < log_accept {
             proposal
@@ -690,21 +688,19 @@ impl<T: SmcTargetDistribution, K: SmcKernel> SmcSampler<T, K> {
             let mut new_log_weights = Array1::zeros(self.n_particles);
             for i in 0..self.n_particles {
                 let x = self.particles.row(i).to_owned();
-                let log_w_increment = self.target.log_density(&x, beta_curr)
-                    - self.target.log_density(&x, beta_prev);
+                let log_w_increment =
+                    self.target.log_density(&x, beta_curr) - self.target.log_density(&x, beta_prev);
                 new_log_weights[i] = self.log_weights[i] + log_w_increment;
             }
 
-            let (normalised_weights, log_z_increment) =
-                normalize_log_weights(&new_log_weights);
+            let (normalised_weights, log_z_increment) = normalize_log_weights(&new_log_weights);
             self.log_evidence += log_z_increment;
             self.log_weights = new_log_weights;
 
             // --- Resample if needed ---
             let ess = effective_sample_size(&normalised_weights);
             if ess < self.ess_threshold * self.n_particles as f64 {
-                let indices =
-                    resample(&normalised_weights, self.resampling_strategy, rng)?;
+                let indices = resample(&normalised_weights, self.resampling_strategy, rng)?;
 
                 let old_particles = self.particles.clone();
                 for (i, &parent) in indices.iter().enumerate() {
@@ -720,9 +716,7 @@ impl<T: SmcTargetDistribution, K: SmcKernel> SmcSampler<T, K> {
             for i in 0..self.n_particles {
                 let mut state = self.particles.row(i).to_owned();
                 for _ in 0..self.n_mcmc_steps {
-                    state =
-                        self.kernel
-                            .step(&state, beta_curr, &self.target, rng);
+                    state = self.kernel.step(&state, beta_curr, &self.target, rng);
                 }
                 self.particles.row_mut(i).assign(&state);
             }
@@ -858,15 +852,11 @@ impl SmcTargetDistribution for GaussianSmcTarget {
         let dim = self.prior_mean.len() as f64;
 
         let prior_diff = x - &self.prior_mean;
-        let log_prior = -0.5
-            * prior_diff.iter().map(|&v| v * v).sum::<f64>()
-            / self.prior_var
+        let log_prior = -0.5 * prior_diff.iter().map(|&v| v * v).sum::<f64>() / self.prior_var
             - 0.5 * dim * (2.0 * std::f64::consts::PI * self.prior_var).ln();
 
         let lik_diff = x - &self.likelihood_mean;
-        let log_lik = -0.5
-            * lik_diff.iter().map(|&v| v * v).sum::<f64>()
-            / self.likelihood_var
+        let log_lik = -0.5 * lik_diff.iter().map(|&v| v * v).sum::<f64>() / self.likelihood_var
             - 0.5 * dim * (2.0 * std::f64::consts::PI * self.likelihood_var).ln();
 
         (1.0 - beta) * log_prior + beta * log_lik
@@ -884,9 +874,9 @@ impl SmcTargetDistribution for GaussianSmcTarget {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::rngs::SmallRng;
+    use rand::SeedableRng;
     use scirs2_core::ndarray::array;
-    use scirs2_core::random::SmallRng;
-    use scirs2_core::random::SeedableRng;
 
     #[test]
     fn test_normalize_log_weights() {
@@ -947,13 +937,8 @@ mod tests {
         let prior_mean = Array1::zeros(dim);
         let likelihood_mean = Array1::from_elem(dim, 2.0);
 
-        let target = GaussianSmcTarget::new(
-            prior_mean.clone(),
-            1.0,
-            likelihood_mean.clone(),
-            0.5,
-        )
-        .expect("target creation should succeed");
+        let target = GaussianSmcTarget::new(prior_mean.clone(), 1.0, likelihood_mean.clone(), 0.5)
+            .expect("target creation should succeed");
 
         let kernel = RandomWalkKernel::new(0.3).expect("kernel creation should succeed");
 
@@ -990,7 +975,11 @@ mod tests {
         let prior = GaussianPrior::new(Array1::zeros(2), 1.0).expect("should succeed");
         let x = Array1::zeros(2);
         let log_p = prior.log_density(&x);
-        // log N(0|0,1) in 2D = -log(2π) ≈ -1.8379
-        assert!((log_p - (-2.0 * std::f64::consts::PI).ln() + 0.0).abs() < 0.1);
+        // log N(0|0,1) in 2D = -ln(2π) ≈ -1.8379
+        let expected = -(2.0 * std::f64::consts::PI).ln();
+        assert!(
+            (log_p - expected).abs() < 0.1,
+            "log_p={log_p}, expected={expected}"
+        );
     }
 }

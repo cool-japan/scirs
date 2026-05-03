@@ -25,7 +25,7 @@
 //! use std::f64::consts::PI;
 //!
 //! // Linear advection: ∂u/∂t + ∂u/∂x = 0
-//! let mut solver = Dg1dSolver::new(0.0, 2.0 * PI, 16, 3);
+//! let mut solver = Dg1dSolver::new(0.0, 2.0 * PI, 16, 3).expect("solver creation failed");
 //! solver.set_initial_condition(|x| x.sin());
 //!
 //! let flux     = |u: f64| u;         // F(u) = u  (linear advection)
@@ -48,12 +48,7 @@ fn gll_nodes(n_nodes: usize) -> IntegrateResult<Vec<f64>> {
         1 => Ok(vec![0.0]),
         2 => Ok(vec![-1.0, 1.0]),
         3 => Ok(vec![-1.0, 0.0, 1.0]),
-        4 => Ok(vec![
-            -1.0,
-            -1.0 / 5.0_f64.sqrt(),
-            1.0 / 5.0_f64.sqrt(),
-            1.0,
-        ]),
+        4 => Ok(vec![-1.0, -1.0 / 5.0_f64.sqrt(), 1.0 / 5.0_f64.sqrt(), 1.0]),
         5 => Ok(vec![
             -1.0,
             -f64::sqrt(3.0 / 7.0),
@@ -318,7 +313,9 @@ impl Dg1dSolver {
                 u_state[e - 1][nn - 1]
             };
             let u_right_at_left = u_state[e][0];
-            let a_l = flux_deriv(u_left_interface).abs().max(flux_deriv(u_right_at_left).abs());
+            let a_l = flux_deriv(u_left_interface)
+                .abs()
+                .max(flux_deriv(u_right_at_left).abs());
             let f_num_left = lax_friedrichs_flux(u_left_interface, u_right_at_left, flux, a_l);
 
             // Right interface: between element e and e+1
@@ -328,17 +325,18 @@ impl Dg1dSolver {
             } else {
                 u_state[e + 1][0]
             };
-            let a_r = flux_deriv(u_left_at_right).abs().max(flux_deriv(u_right_interface).abs());
+            let a_r = flux_deriv(u_left_at_right)
+                .abs()
+                .max(flux_deriv(u_right_interface).abs());
             let f_num_right = lax_friedrichs_flux(u_left_at_right, u_right_interface, flux, a_r);
 
             // Surface terms (lift): add flux correction at endpoints
             // Using GLL mass-matrix diagonal (the weights)
             // Left endpoint: j=0
             let w0 = self.weights[0];
-            rhs[e][0] += inv_j * (f_num_left - flux(u_state[e][0])) / (w0 * self.jacobian[e] / 2.0)
-                * (self.jacobian[e] / 2.0)
-                * (-1.0); // outward normal = -1 at left
-            // Right endpoint: j=nn-1
+            rhs[e][0] -= inv_j * (f_num_left - flux(u_state[e][0])) / (w0 * self.jacobian[e] / 2.0)
+                * (self.jacobian[e] / 2.0); // outward normal = -1 at left
+                                            // Right endpoint: j=nn-1
             let wn = self.weights[nn - 1];
             rhs[e][nn - 1] += inv_j * (f_num_right - flux(u_state[e][nn - 1]))
                 / (wn * self.jacobian[e] / 2.0)
@@ -346,7 +344,7 @@ impl Dg1dSolver {
                 * 1.0; // outward normal = +1 at right
 
             // Correct volume contribution sign (strong form: subtract numerical flux)
-            rhs[e][0] += inv_j * (flux(u_state[e][0]) - f_num_left) * (-1.0);
+            rhs[e][0] -= inv_j * (flux(u_state[e][0]) - f_num_left);
             rhs[e][nn - 1] += inv_j * (f_num_right - flux(u_state[e][nn - 1]));
         }
 
@@ -384,8 +382,8 @@ impl Dg1dSolver {
         let nn = self.n_nodes;
         for e in 0..ne {
             for j in 0..nn {
-                self.u[e][j] = u0[e][j]
-                    + dt / 6.0 * (k1[e][j] + 2.0 * k2[e][j] + 2.0 * k3[e][j] + k4[e][j]);
+                self.u[e][j] =
+                    u0[e][j] + dt / 6.0 * (k1[e][j] + 2.0 * k2[e][j] + 2.0 * k3[e][j] + k4[e][j]);
             }
         }
     }
@@ -557,7 +555,8 @@ mod tests {
     #[test]
     fn test_dg_linear_advection_mass_conservation() {
         // ∂u/∂t + ∂u/∂x = 0 on periodic-like domain, constant IC
-        let mut solver = Dg1dSolver::new(0.0, 1.0, 4, 2).expect("Dg1dSolver::new should succeed with valid params");
+        let mut solver = Dg1dSolver::new(0.0, 1.0, 4, 2)
+            .expect("Dg1dSolver::new should succeed with valid params");
         solver.set_initial_condition(|_x| 1.0);
         let (_, u) = solver.to_uniform_grid(20);
         for &v in &u {
@@ -573,7 +572,8 @@ mod tests {
 
     #[test]
     fn test_dg_run_to_returns_final_time() {
-        let mut solver = Dg1dSolver::new(0.0, 2.0 * PI, 8, 2).expect("Dg1dSolver::new should succeed with valid params");
+        let mut solver = Dg1dSolver::new(0.0, 2.0 * PI, 8, 2)
+            .expect("Dg1dSolver::new should succeed with valid params");
         solver.set_initial_condition(|x| x.sin());
         let t_end = solver.run_to(0.2, 0.5, |u| u, |_| 1.0, 0.0, 0.0);
         assert!(t_end >= 0.2 - 1e-10);
@@ -600,7 +600,8 @@ mod tests {
 
     #[test]
     fn test_dg_l2_error_zero_for_exact() {
-        let mut solver = Dg1dSolver::new(0.0, 1.0, 4, 3).expect("Dg1dSolver::new should succeed with valid params");
+        let mut solver = Dg1dSolver::new(0.0, 1.0, 4, 3)
+            .expect("Dg1dSolver::new should succeed with valid params");
         solver.set_initial_condition(|x| x * x);
         let err = solver.l2_error(|x| x * x);
         assert!(err < 1e-12, "L2 error of exact IC should be ~0: {}", err);
@@ -608,7 +609,8 @@ mod tests {
 
     #[test]
     fn test_dg_to_uniform_grid_length() {
-        let solver = Dg1dSolver::new(0.0, 1.0, 4, 2).expect("Dg1dSolver::new should succeed with valid params");
+        let solver = Dg1dSolver::new(0.0, 1.0, 4, 2)
+            .expect("Dg1dSolver::new should succeed with valid params");
         let (xs, us) = solver.to_uniform_grid(33);
         assert_eq!(xs.len(), 33);
         assert_eq!(us.len(), 33);

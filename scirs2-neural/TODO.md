@@ -1,6 +1,6 @@
 # scirs2-neural TODO
 
-## Status: v0.3.4 Released (March 18, 2026)
+## Status: v0.4.3 Released (May 3, 2026)
 
 ## v0.3.3 Completed
 
@@ -80,7 +80,7 @@
 - Model compression utilities
 - On-device optimization
 
-## v0.4.2 IN PROGRESS
+## v0.4.2 / v0.4.3 — Completed
 
 ### State Space Models — Implemented in v0.4.2
 - [x] Mamba/SSM architecture (selective state space model) in src/models/architectures/mamba.rs
@@ -90,6 +90,21 @@
   - `Mamba` full model (Layer trait impl, optional classifier head, final LayerNorm)
   - `S4Layer` (non-selective SSM with HiPPO initialization)
   - 10 tests passing (config, creation, forward, classifier, numerical stability, conv1d, SSM, S4, block)
+
+### Wave 44 Additions (v0.4.2)
+- [x] NAS module repaired and re-enabled in lib.rs (74 tests)
+- [x] CMA-ES optimizer (10 tests)
+- [x] Enhanced BPE tokenizer + chat templates (14 tests)
+- [x] Pipeline parallelism + tensor parallelism wired into training infrastructure
+- [x] Numerical validation tests (40)
+- [x] Cross-crate consistency tests (16)
+
+## v0.4.3 Status (2026-05-03)
+
+- Workspace version bumped to 0.4.3; all crate dependency strings updated.
+- ~2,786 `#[test]` functions across `src/` and `tests/`.
+- cargo check + clippy: clean (no warnings, no errors)
+- No-unwrap policy: PASS (no production violations)
 
 ## v0.4.0 Roadmap
 
@@ -117,14 +132,13 @@
 - [x] Pipeline parallelism (src/training/pipeline_parallel.rs — GPipe FThenB + 1F1B schedules)
 - [x] Tensor parallelism primitives (src/training/tensor_parallel.rs — column/row parallel + parallel embedding)
 
-### Architecture Search — Implemented in v0.4.0 (partially disabled)
+### Architecture Search — Implemented in v0.4.0, repaired in v0.4.2
 - [x] Neural Architecture Search (NAS) integration (src/nas/ — ENAS, multi-objective, hardware-aware)
 - [x] Differentiable NAS (DARTS/GDAS/SNAS) (src/nas/gdas.rs, src/nas/snas.rs)
-- NOTE: `pub mod nas;` is disabled in lib.rs pending repair of truncated source files in nas/search_algorithms.rs and related files
+- [x] NAS module re-enabled in lib.rs (Wave 44, v0.4.2): truncated source files repaired, 74 tests passing
 
 ## Known Issues / Technical Debt
 
 - Some doc tests are marked `#[ignore]` pending API stabilization
 - WASM target requires additional feature gating for large model weights
 - GPU acceleration stubs exist in `hardware/` but require `scirs2-core::gpu` completion
-- NAS module disabled in lib.rs: src/nas/search_algorithms.rs and several other nas/ files have truncated/malformed source (missing closing braces, mangled identifiers). Needs reconstruction before re-enabling `pub mod nas;`.

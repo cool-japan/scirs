@@ -3,8 +3,8 @@
 //! This module contains the main enhanced system identification function and
 //! core algorithms for different model structures.
 
-use crate::error::{SignalError, SignalResult};
 use super::types::*;
+use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::validation::checkshape;
 use statrs::statistics::Statistics;
@@ -78,16 +78,29 @@ pub fn enhanced_system_identification(
 
     // Perform identification based on model structure
     let (model, parameters, iterations, converged, cost) = match effective_config.model_structure {
-        ModelStructure::ARX => identify_arx(&processed_input, &processed_output, &effective_config)?,
-        ModelStructure::ARMAX => identify_armax(&processed_input, &processed_output, &effective_config)?,
+        ModelStructure::ARX => {
+            identify_arx(&processed_input, &processed_output, &effective_config)?
+        }
+        ModelStructure::ARMAX => {
+            identify_armax(&processed_input, &processed_output, &effective_config)?
+        }
         ModelStructure::OE => identify_oe(&processed_input, &processed_output, &effective_config)?,
         ModelStructure::BJ => identify_bj(&processed_input, &processed_output, &effective_config)?,
-        ModelStructure::StateSpace => identify_state_space(&processed_input, &processed_output, &effective_config)?,
-        ModelStructure::NARX => identify_narx(&processed_input, &processed_output, &effective_config)?,
+        ModelStructure::StateSpace => {
+            identify_state_space(&processed_input, &processed_output, &effective_config)?
+        }
+        ModelStructure::NARX => {
+            identify_narx(&processed_input, &processed_output, &effective_config)?
+        }
     };
 
     // Comprehensive model validation
-    let validation = validate_model(&model, &processed_input, &processed_output, &effective_config)?;
+    let validation = validate_model(
+        &model,
+        &processed_input,
+        &processed_output,
+        &effective_config,
+    )?;
 
     // Compute comprehensive diagnostics
     let diagnostics = ComputationalDiagnostics {
@@ -236,15 +249,67 @@ fn optimize_configuration(
     Ok(optimized_config)
 }
 
-/// Basic data preprocessing (placeholder - to be enhanced)
+/// Remove the mean from a signal.
+fn remove_signal_mean(signal: &Array1<f64>) -> Array1<f64> {
+    let n = signal.len();
+    if n == 0 {
+        return signal.clone();
+    }
+    let mean = signal.iter().sum::<f64>() / n as f64;
+    signal.mapv(|x| x - mean)
+}
+
+/// Remove the best-fit linear trend from a signal using ordinary least squares.
+///
+/// Computes a linear fit `y = a*t + b` over sample indices and subtracts it.
+fn detrend_signal(signal: &Array1<f64>) -> Array1<f64> {
+    let n = signal.len();
+    if n < 2 {
+        return signal.clone();
+    }
+    let n_f = n as f64;
+
+    // Sum formulas for indices 0..n-1
+    let sum_t = n_f * (n_f - 1.0) / 2.0;
+    let sum_t2 = n_f * (n_f - 1.0) * (2.0 * n_f - 1.0) / 6.0;
+    let sum_x: f64 = signal.iter().sum();
+    let sum_tx: f64 = signal.iter().enumerate().map(|(i, &x)| i as f64 * x).sum();
+
+    let denom = n_f * sum_t2 - sum_t * sum_t;
+    if denom.abs() < 1e-15 {
+        // Degenerate case — just return a copy
+        return signal.clone();
+    }
+
+    let a = (n_f * sum_tx - sum_t * sum_x) / denom;
+    let b = (sum_x - a * sum_t) / n_f;
+
+    signal
+        .iter()
+        .enumerate()
+        .map(|(i, &x)| x - (a * i as f64 + b))
+        .collect::<Array1<f64>>()
+}
+
+/// Basic data preprocessing: mean removal followed by linear detrending.
+///
+/// Both the input (u) and output (y) signals are processed to remove constant
+/// offsets and linear trends, which improves numerical conditioning in the
+/// subsequent identification algorithms.
 pub fn preprocess_data(
     input: &Array1<f64>,
     output: &Array1<f64>,
     _config: &EnhancedSysIdConfig,
 ) -> SignalResult<(Array1<f64>, Array1<f64>)> {
-    // For now, just return copies
-    // TODO: Add mean removal, detrending, filtering, etc.
-    Ok((input.clone(), output.clone()))
+    // 1. Mean removal
+    let input_zero_mean = remove_signal_mean(input);
+    let output_zero_mean = remove_signal_mean(output);
+
+    // 2. Linear detrending
+    let processed_input = detrend_signal(&input_zero_mean);
+    let processed_output = detrend_signal(&output_zero_mean);
+
+    Ok((processed_input, processed_output))
 }
 
 /// Robust outlier removal (placeholder implementation)
@@ -269,20 +334,24 @@ pub fn robust_outlier_removal(
     let mut clean_output = Vec::new();
 
     for (i, (&inp, &out)) in input.iter().zip(output.iter()).enumerate() {
-        if inp >= input_lower && inp <= input_upper &&
-           out >= output_lower && out <= output_upper {
+        if inp >= input_lower && inp <= input_upper && out >= output_lower && out <= output_upper {
             clean_input.push(inp);
             clean_output.push(out);
         }
     }
 
     if clean_input.len() < input.len() / 2 {
-        eprintln!("Warning: Removed {} outliers ({:.1}% of data)",
-                 input.len() - clean_input.len(),
-                 (input.len() - clean_input.len()) as f64 / input.len() as f64 * 100.0);
+        eprintln!(
+            "Warning: Removed {} outliers ({:.1}% of data)",
+            input.len() - clean_input.len(),
+            (input.len() - clean_input.len()) as f64 / input.len() as f64 * 100.0
+        );
     }
 
-    Ok((Array1::from_vec(clean_input), Array1::from_vec(clean_output)))
+    Ok((
+        Array1::from_vec(clean_input),
+        Array1::from_vec(clean_output),
+    ))
 }
 
 /// Estimate signal-to-noise ratio
@@ -293,7 +362,7 @@ pub fn estimate_signal_noise_ratio(input: &Array1<f64>, output: &Array1<f64>) ->
     // Estimate noise as high-frequency component (simple differencing)
     let mut noise_estimate = 0.0;
     for i in 1..output.len() {
-        let diff = output[i] - output[i-1];
+        let diff = output[i] - output[i - 1];
         noise_estimate += diff * diff;
     }
     noise_estimate /= (output.len() - 1) as f64;
@@ -719,8 +788,16 @@ pub fn identify_oe(
         // Line search with damping
         let mut alpha = 1.0;
         for _ in 0..10 {
-            let b_new: Vec<f64> = b_params.iter().zip(delta.iter().take(nb)).map(|(&b, &d)| b + alpha * d).collect();
-            let f_new: Vec<f64> = f_params.iter().zip(delta.iter().skip(nb).take(nf)).map(|(&f, &d)| f + alpha * d).collect();
+            let b_new: Vec<f64> = b_params
+                .iter()
+                .zip(delta.iter().take(nb))
+                .map(|(&b, &d)| b + alpha * d)
+                .collect();
+            let f_new: Vec<f64> = f_params
+                .iter()
+                .zip(delta.iter().skip(nb).take(nf))
+                .map(|(&f, &d)| f + alpha * d)
+                .collect();
 
             // Check stability: F polynomial roots must be inside unit circle
             let f_poly: Vec<f64> = std::iter::once(1.0).chain(f_new.iter().copied()).collect();
@@ -828,16 +905,19 @@ pub fn identify_bj(
                 sum += residuals[t] * residuals[t - 1 - i];
                 norm += residuals[t] * residuals[t];
             }
-            if norm.abs() > 1e-15 { sum / norm } else { 0.0 }
+            if norm.abs() > 1e-15 {
+                sum / norm
+            } else {
+                0.0
+            }
         }))
         .collect();
 
-    let d_coeffs: Vec<f64> = std::iter::once(1.0)
-        .chain(vec![0.0; nd])
-        .collect();
+    let d_coeffs: Vec<f64> = std::iter::once(1.0).chain(vec![0.0; nd]).collect();
 
     // Combined parameter vector
-    let all_params: Vec<f64> = b_vals.iter()
+    let all_params: Vec<f64> = b_vals
+        .iter()
         .chain(c_coeffs[1..].iter())
         .chain(d_coeffs[1..].iter())
         .chain(f_vals[1..].iter())
@@ -881,7 +961,12 @@ pub fn identify_state_space(
     let arx_result = identify_arx(input, output, config)?;
     let (arx_model, _, arx_iters, arx_conv, arx_cost) = arx_result;
 
-    let (a_coeffs, b_coeffs, _delay) = if let SystemModel::ARX { ref a, ref b, delay } = arx_model {
+    let (a_coeffs, b_coeffs, _delay) = if let SystemModel::ARX {
+        ref a,
+        ref b,
+        delay,
+    } = arx_model
+    {
         (a.to_vec(), b.to_vec(), delay)
     } else {
         return Err(SignalError::ComputationError(
@@ -933,7 +1018,8 @@ pub fn identify_state_space(
     let model = SystemModel::StateSpace(ss);
 
     // Flatten all parameters
-    let all_params: Vec<f64> = a_mat.iter()
+    let all_params: Vec<f64> = a_mat
+        .iter()
         .chain(b_mat.iter())
         .chain(c_mat.iter())
         .chain(d_mat.iter())
@@ -1014,7 +1100,8 @@ pub fn validate_model(
 
     let aic = -2.0 * log_likelihood + 2.0 * n_params as f64;
     let bic = -2.0 * log_likelihood + (n_pred as f64).ln() * n_params as f64;
-    let fpe = sigma2 * (n_pred as f64 + n_params as f64) / (n_pred as f64 - n_params as f64).max(1.0);
+    let fpe =
+        sigma2 * (n_pred as f64 + n_params as f64) / (n_pred as f64 - n_params as f64).max(1.0);
 
     // Residual autocorrelation
     let max_lag = 20.min(n_pred / 4);
@@ -1035,7 +1122,12 @@ pub fn validate_model(
     // Cross-correlation between residuals and input
     let mut cross_correlation = Array1::zeros(max_lag);
     let inp_start = start;
-    let inp_var: f64 = input.iter().skip(inp_start).take(n_pred).map(|&x| x * x).sum();
+    let inp_var: f64 = input
+        .iter()
+        .skip(inp_start)
+        .take(n_pred)
+        .map(|&x| x * x)
+        .sum();
     if inp_var > 1e-15 && res_var > 1e-15 {
         for lag in 0..max_lag {
             let mut sum = 0.0;
@@ -1055,7 +1147,7 @@ pub fn validate_model(
     }
     q_stat *= n_pred as f64 * (n_pred as f64 + 2.0);
     // Approximate p-value using chi-squared distribution
-    let dof = (max_lag - 1 - n_params).max(1);
+    let dof = (max_lag.saturating_sub(1).saturating_sub(n_params)).max(1);
     let whiteness_pvalue = 1.0 - chi2_cdf_approx(q_stat, dof as f64);
 
     // Independence test (cross-correlation)
@@ -1068,14 +1160,38 @@ pub fn validate_model(
 
     // Normality test (Jarque-Bera)
     let skew = {
-        let m3: f64 = residuals.iter().map(|&r| (r - res_mean).powi(3)).sum::<f64>() / n_pred as f64;
-        let m2: f64 = residuals.iter().map(|&r| (r - res_mean).powi(2)).sum::<f64>() / n_pred as f64;
-        if m2 > 1e-15 { m3 / m2.powf(1.5) } else { 0.0 }
+        let m3: f64 = residuals
+            .iter()
+            .map(|&r| (r - res_mean).powi(3))
+            .sum::<f64>()
+            / n_pred as f64;
+        let m2: f64 = residuals
+            .iter()
+            .map(|&r| (r - res_mean).powi(2))
+            .sum::<f64>()
+            / n_pred as f64;
+        if m2 > 1e-15 {
+            m3 / m2.powf(1.5)
+        } else {
+            0.0
+        }
     };
     let kurtosis = {
-        let m4: f64 = residuals.iter().map(|&r| (r - res_mean).powi(4)).sum::<f64>() / n_pred as f64;
-        let m2: f64 = residuals.iter().map(|&r| (r - res_mean).powi(2)).sum::<f64>() / n_pred as f64;
-        if m2 > 1e-15 { m4 / (m2 * m2) - 3.0 } else { 0.0 }
+        let m4: f64 = residuals
+            .iter()
+            .map(|&r| (r - res_mean).powi(4))
+            .sum::<f64>()
+            / n_pred as f64;
+        let m2: f64 = residuals
+            .iter()
+            .map(|&r| (r - res_mean).powi(2))
+            .sum::<f64>()
+            / n_pred as f64;
+        if m2 > 1e-15 {
+            m4 / (m2 * m2) - 3.0
+        } else {
+            0.0
+        }
     };
     let jb = n_pred as f64 / 6.0 * (skew * skew + kurtosis * kurtosis / 4.0);
     let normality_pvalue = 1.0 - chi2_cdf_approx(jb, 2.0);
@@ -1231,9 +1347,15 @@ fn chi2_cdf_approx(x: f64, dof: f64) -> f64 {
 fn erf_approx(x: f64) -> f64 {
     // Horner form of rational approximation
     let t = 1.0 / (1.0 + 0.3275911 * x.abs());
-    let poly = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
+    let poly = t
+        * (0.254829592
+            + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429))));
     let result = 1.0 - poly * (-x * x).exp();
-    if x >= 0.0 { result } else { -result }
+    if x >= 0.0 {
+        result
+    } else {
+        -result
+    }
 }
 
 /// Solve regularized linear system (A + lambda*I) * x = b
@@ -1297,11 +1419,7 @@ fn solve_regularized_system(
 }
 
 /// Invert a symmetric positive definite matrix
-fn invert_symmetric_positive(
-    a: &Array2<f64>,
-    n: usize,
-    lambda: f64,
-) -> SignalResult<Array2<f64>> {
+fn invert_symmetric_positive(a: &Array2<f64>, n: usize, lambda: f64) -> SignalResult<Array2<f64>> {
     let mut result = Array2::zeros((n, n));
     for i in 0..n {
         let mut ei = Array1::zeros(n);
@@ -1340,5 +1458,66 @@ mod tests {
         let result = enhanced_system_identification(&input, &output, &config);
 
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_remove_signal_mean() {
+        // Signal with known mean = 5.0
+        let signal = Array1::from_vec(vec![3.0, 5.0, 7.0, 5.0, 5.0]);
+        let result = remove_signal_mean(&signal);
+
+        // Check mean of result is close to zero
+        let result_mean = result.iter().sum::<f64>() / result.len() as f64;
+        assert!(
+            result_mean.abs() < 1e-12,
+            "Mean not removed: {}",
+            result_mean
+        );
+
+        // Check individual values are shifted by -5
+        assert!((result[0] - (-2.0)).abs() < 1e-12);
+        assert!((result[2] - 2.0).abs() < 1e-12);
+    }
+
+    #[test]
+    fn test_detrend_signal_linear() {
+        // Pure linear signal: y = 2*t + 1
+        let n = 50usize;
+        let signal = Array1::from_vec((0..n).map(|i| 2.0 * i as f64 + 1.0).collect());
+        let result = detrend_signal(&signal);
+
+        // After detrending a perfect linear signal, the result should be nearly zero
+        for &val in result.iter() {
+            assert!(val.abs() < 1e-9, "Non-zero after detrend: {}", val);
+        }
+    }
+
+    #[test]
+    fn test_preprocess_data_removes_mean_and_trend() {
+        // Signal = 10 (constant offset) + 0.5*t (linear trend) + sin(t)
+        let n = 100usize;
+        let signal: Vec<f64> = (0..n)
+            .map(|i| 10.0 + 0.5 * i as f64 + (i as f64 * 0.1).sin())
+            .collect();
+        let input = Array1::from_vec(signal.clone());
+        let output = Array1::from_vec(signal);
+        let config = EnhancedSysIdConfig::default();
+
+        let (p_input, p_output) =
+            preprocess_data(&input, &output, &config).expect("preprocess_data failed");
+
+        // After preprocessing, mean should be near zero
+        let mean_i = p_input.iter().sum::<f64>() / n as f64;
+        let mean_o = p_output.iter().sum::<f64>() / n as f64;
+        assert!(mean_i.abs() < 1e-9, "Input mean not removed: {}", mean_i);
+        assert!(mean_o.abs() < 1e-9, "Output mean not removed: {}", mean_o);
+
+        // Linear trend should also be gone: check first and last values have similar magnitude
+        let range = p_input[n - 1] - p_input[0];
+        assert!(
+            range.abs() < 5.0,
+            "Linear trend not removed (range = {})",
+            range
+        );
     }
 }

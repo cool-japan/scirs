@@ -66,7 +66,7 @@ impl Default for MemoryPoolConfig {
             pool_size,
             min_block_size: 256,
             max_block_size: 64 * 1024 * 1024, // 64MB
-            alignment: 256, // Typical GPU alignment
+            alignment: 256,                   // Typical GPU alignment
             strategy: AllocationStrategy::BestFit,
             enable_defrag: true,
             defrag_threshold: 0.3,
@@ -163,13 +163,16 @@ impl GpuMemoryPool {
         let pool_size = config.pool_size;
 
         let mut blocks = HashMap::new();
-        blocks.insert(0, MemoryBlock {
-            offset: 0,
-            size: pool_size,
-            in_use: false,
-            allocation_id: None,
-            last_access: Instant::now(),
-        });
+        blocks.insert(
+            0,
+            MemoryBlock {
+                offset: 0,
+                size: pool_size,
+                in_use: false,
+                allocation_id: None,
+                last_access: Instant::now(),
+            },
+        );
 
         let mut free_blocks = BTreeMap::new();
         free_blocks.insert(pool_size, vec![0]);
@@ -247,7 +250,9 @@ impl GpuMemoryPool {
     fn complete_allocation(&self, offset: usize, size: usize) -> LinalgResult<AllocationHandle> {
         // Split the block if necessary and mark as allocated
         let id = {
-            let mut id_guard = self.next_id.lock()
+            let mut id_guard = self
+                .next_id
+                .lock()
                 .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
             let id = *id_guard;
             *id_guard += 1;
@@ -256,38 +261,46 @@ impl GpuMemoryPool {
 
         // Update blocks
         {
-            let mut blocks = self.blocks.write()
+            let mut blocks = self
+                .blocks
+                .write()
                 .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
-            let mut free_blocks = self.free_blocks.write()
+            let mut free_blocks = self
+                .free_blocks
+                .write()
                 .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
 
-            if let Some(block) = blocks.get_mut(&offset) {
-                let original_size = block.size;
-
+            if let Some(original_size) = blocks.get(&offset).map(|b| b.size) {
                 // Split if there's remaining space
                 if original_size > size {
                     let remaining_offset = offset + size;
                     let remaining_size = original_size - size;
 
-                    blocks.insert(remaining_offset, MemoryBlock {
-                        offset: remaining_offset,
-                        size: remaining_size,
-                        in_use: false,
-                        allocation_id: None,
-                        last_access: Instant::now(),
-                    });
+                    blocks.insert(
+                        remaining_offset,
+                        MemoryBlock {
+                            offset: remaining_offset,
+                            size: remaining_size,
+                            in_use: false,
+                            allocation_id: None,
+                            last_access: Instant::now(),
+                        },
+                    );
 
                     // Add remaining block to free list
-                    free_blocks.entry(remaining_size)
+                    free_blocks
+                        .entry(remaining_size)
                         .or_default()
                         .push(remaining_offset);
                 }
 
                 // Update the allocated block
-                block.size = size;
-                block.in_use = true;
-                block.allocation_id = Some(id);
-                block.last_access = Instant::now();
+                if let Some(block) = blocks.get_mut(&offset) {
+                    block.size = size;
+                    block.in_use = true;
+                    block.allocation_id = Some(id);
+                    block.last_access = Instant::now();
+                }
 
                 // Remove from free list
                 if let Some(offsets) = free_blocks.get_mut(&original_size) {
@@ -325,7 +338,9 @@ impl GpuMemoryPool {
 
     /// Find best-fit block
     fn find_best_fit(&self, size: usize) -> LinalgResult<usize> {
-        let free_blocks = self.free_blocks.read()
+        let free_blocks = self
+            .free_blocks
+            .read()
             .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
 
         // BTreeMap is sorted, so we find the first key >= size
@@ -336,38 +351,45 @@ impl GpuMemoryPool {
         }
 
         Err(LinalgError::ComputationError(
-            "No suitable free block found".to_string()
+            "No suitable free block found".to_string(),
         ))
     }
 
     /// Find first-fit block
     fn find_first_fit(&self, size: usize) -> LinalgResult<usize> {
-        let blocks = self.blocks.read()
+        let blocks = self
+            .blocks
+            .read()
             .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
 
         // Find first free block that fits
-        let mut offsets: Vec<_> = blocks.iter()
+        let mut offsets: Vec<_> = blocks
+            .iter()
             .filter(|(_, b)| !b.in_use && b.size >= size)
             .map(|(&o, _)| o)
             .collect();
         offsets.sort();
 
-        offsets.into_iter().next()
-            .ok_or_else(|| LinalgError::ComputationError(
-                "No suitable free block found".to_string()
-            ))
+        offsets.into_iter().next().ok_or_else(|| {
+            LinalgError::ComputationError("No suitable free block found".to_string())
+        })
     }
 
     /// Find next-fit block
     fn find_next_fit(&self, size: usize) -> LinalgResult<usize> {
-        let last_offset = *self.last_offset.lock()
+        let last_offset = *self
+            .last_offset
+            .lock()
             .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
 
-        let blocks = self.blocks.read()
+        let blocks = self
+            .blocks
+            .read()
             .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
 
         // Find suitable blocks after last allocation
-        let mut offsets: Vec<_> = blocks.iter()
+        let mut offsets: Vec<_> = blocks
+            .iter()
             .filter(|(_, b)| !b.in_use && b.size >= size)
             .map(|(&o, _)| o)
             .collect();
@@ -384,7 +406,7 @@ impl GpuMemoryPool {
         }
 
         // Wrap around to beginning
-        for &offset in &offsets {
+        if let Some(&offset) = offsets.first() {
             if let Ok(mut last) = self.last_offset.lock() {
                 *last = offset;
             }
@@ -392,7 +414,7 @@ impl GpuMemoryPool {
         }
 
         Err(LinalgError::ComputationError(
-            "No suitable free block found".to_string()
+            "No suitable free block found".to_string(),
         ))
     }
 
@@ -415,9 +437,13 @@ impl GpuMemoryPool {
 
         // Mark block as free
         {
-            let mut blocks = self.blocks.write()
+            let mut blocks = self
+                .blocks
+                .write()
                 .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
-            let mut free_blocks = self.free_blocks.write()
+            let mut free_blocks = self
+                .free_blocks
+                .write()
                 .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
 
             if let Some(block) = blocks.get_mut(&offset) {
@@ -426,9 +452,7 @@ impl GpuMemoryPool {
                 block.last_access = Instant::now();
 
                 // Add to free list
-                free_blocks.entry(size)
-                    .or_default()
-                    .push(offset);
+                free_blocks.entry(size).or_default().push(offset);
             }
         }
 
@@ -438,7 +462,8 @@ impl GpuMemoryPool {
         // Add to cache for quick reuse
         if let Ok(mut cache) = self.block_cache.lock() {
             let offsets = cache.entry(size).or_default();
-            if offsets.len() < 16 { // Limit cache size per size class
+            if offsets.len() < 16 {
+                // Limit cache size per size class
                 offsets.push_back(offset);
             }
         }
@@ -456,9 +481,13 @@ impl GpuMemoryPool {
 
     /// Try to coalesce adjacent free blocks
     fn try_coalesce(&self, offset: usize) -> LinalgResult<()> {
-        let mut blocks = self.blocks.write()
+        let mut blocks = self
+            .blocks
+            .write()
             .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
-        let mut free_blocks = self.free_blocks.write()
+        let mut free_blocks = self
+            .free_blocks
+            .write()
             .map_err(|_| LinalgError::ComputationError("Lock poisoned".to_string()))?;
 
         // Get current block info
@@ -500,15 +529,14 @@ impl GpuMemoryPool {
                     block.size += next_block.size;
 
                     // Add to new size class
-                    free_blocks.entry(block.size)
-                        .or_default()
-                        .push(offset);
+                    free_blocks.entry(block.size).or_default().push(offset);
                 }
             }
         }
 
         // Find and merge with previous adjacent free block
-        let prev_info: Option<(usize, usize)> = blocks.iter()
+        let prev_info: Option<(usize, usize)> = blocks
+            .iter()
             .filter(|(_, b)| !b.in_use && b.offset + b.size == offset)
             .map(|(&o, b)| (o, b.size))
             .next();
@@ -538,7 +566,8 @@ impl GpuMemoryPool {
                 prev_block.size += current_size_now;
 
                 // Add to new size class
-                free_blocks.entry(prev_block.size)
+                free_blocks
+                    .entry(prev_block.size)
                     .or_default()
                     .push(prev_offset);
             }
@@ -549,17 +578,13 @@ impl GpuMemoryPool {
 
     /// Get current memory statistics
     pub fn stats(&self) -> MemoryStats {
-        self.stats.read()
-            .map(|s| s.clone())
-            .unwrap_or_default()
+        self.stats.read().map(|s| s.clone()).unwrap_or_default()
     }
 
     /// Calculate fragmentation ratio
     pub fn fragmentation_ratio(&self) -> f64 {
         if let Ok(blocks) = self.blocks.read() {
-            let free_blocks: Vec<_> = blocks.values()
-                .filter(|b| !b.in_use)
-                .collect();
+            let free_blocks: Vec<_> = blocks.values().filter(|b| !b.in_use).collect();
 
             if free_blocks.is_empty() {
                 return 0.0;
@@ -603,7 +628,8 @@ impl GpuMemoryPool {
 
     /// Count fragmented blocks
     fn count_fragmented_blocks(&self) -> usize {
-        self.blocks.read()
+        self.blocks
+            .read()
             .map(|blocks| blocks.values().filter(|b| !b.in_use).count())
             .unwrap_or(0)
     }
@@ -635,13 +661,16 @@ impl GpuMemoryPool {
         // Clear all data structures
         if let Ok(mut blocks) = self.blocks.write() {
             blocks.clear();
-            blocks.insert(0, MemoryBlock {
-                offset: 0,
-                size: pool_size,
-                in_use: false,
-                allocation_id: None,
-                last_access: Instant::now(),
-            });
+            blocks.insert(
+                0,
+                MemoryBlock {
+                    offset: 0,
+                    size: pool_size,
+                    in_use: false,
+                    allocation_id: None,
+                    last_access: Instant::now(),
+                },
+            );
         }
 
         if let Ok(mut free_blocks) = self.free_blocks.write() {
@@ -671,7 +700,7 @@ impl GpuMemoryPool {
     /// Align size to required alignment
     fn align_size(&self, size: usize) -> usize {
         let alignment = self.config.alignment;
-        ((size + alignment - 1) / alignment) * alignment
+        size.div_ceil(alignment) * alignment
     }
 
     /// Update cache hit rate in stats
@@ -821,7 +850,7 @@ mod tests {
         }
 
         let frag_ratio = pool.fragmentation_ratio();
-        assert!(frag_ratio >= 0.0 && frag_ratio <= 1.0);
+        assert!((0.0..=1.0).contains(&frag_ratio));
     }
 
     #[test]

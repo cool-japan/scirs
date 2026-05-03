@@ -658,10 +658,21 @@ pub struct ExperimentDesignBuilder {
 #[derive(Debug, Clone)]
 pub enum DesignType {
     FullFactorial,
-    FractionalFactorial { fraction: f64 },
-    CentralComposite { alpha: f64 },
-    LatinHypercube,
-    RandomSampling { n_points: usize },
+    FractionalFactorial {
+        fraction: f64,
+    },
+    CentralComposite {
+        alpha: f64,
+    },
+    /// Latin Hypercube Sampling. When `n_points` is `None`, the design size
+    /// defaults to the maximum number of levels across all factors so that
+    /// every level of every factor is visited at least once.
+    LatinHypercube {
+        n_points: Option<usize>,
+    },
+    RandomSampling {
+        n_points: usize,
+    },
 }
 
 impl ExperimentDesignBuilder {
@@ -715,9 +726,12 @@ impl ExperimentDesignBuilder {
                     alpha,
                 )
             }
-            DesignType::LatinHypercube => {
-                // Would integrate with QMC module
-                return Err("Latin Hypercube design not yet implemented".to_string());
+            DesignType::LatinHypercube { n_points } => {
+                crate::random::scientific::ExperimentalDesign::latin_hypercube_design(
+                    &self.factors,
+                    n_points,
+                    seed,
+                )
             }
             DesignType::RandomSampling { n_points } => {
                 let mut rng = seeded_rng(seed);
@@ -931,5 +945,43 @@ mod tests {
         assert_eq!(design.design_points.len(), 4); // 2x2 factorial
         assert_eq!(design.replications, 3);
         assert_eq!(design.factor_names.len(), 2);
+    }
+
+    #[test]
+    fn test_experiment_design_builder_latin_hypercube() {
+        let design = StatsBridge::design_experiment()
+            .factors(&[
+                vec![1.0, 2.0, 3.0, 4.0],
+                vec![0.1, 0.2, 0.3],
+                vec![-1.0, 0.0, 1.0, 2.0, 3.0],
+            ])
+            .replications(2)
+            .randomization_seed(2026)
+            .design_type(DesignType::LatinHypercube { n_points: Some(8) })
+            .build()
+            .expect("LHS builder must succeed once Latin Hypercube is implemented");
+
+        assert_eq!(design.design_points.len(), 8);
+        for point in &design.design_points {
+            assert_eq!(point.len(), 3);
+        }
+        assert_eq!(design.replications, 2);
+        assert_eq!(design.factor_names.len(), 3);
+    }
+
+    #[test]
+    fn test_experiment_design_builder_lhs_default_n_points() {
+        // None defaults to max(K) over all factors — here that is 5.
+        let design = StatsBridge::design_experiment()
+            .factors(&[vec![10.0, 20.0, 30.0, 40.0, 50.0], vec![1.0, 2.0]])
+            .randomization_seed(7)
+            .design_type(DesignType::LatinHypercube { n_points: None })
+            .build()
+            .expect("LHS builder must succeed with default n_points");
+
+        assert_eq!(design.design_points.len(), 5);
+        for point in &design.design_points {
+            assert_eq!(point.len(), 2);
+        }
     }
 }

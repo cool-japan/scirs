@@ -14,6 +14,7 @@ pub mod advanced;
 pub mod backends;
 pub mod device_info;
 pub mod memory;
+pub mod memory_pool;
 pub mod operations;
 
 // Re-export operations

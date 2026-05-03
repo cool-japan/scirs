@@ -76,7 +76,8 @@ pub fn power_spectrum(ts: &[f64], fs: f64) -> Result<(Vec<f64>, Vec<f64>)> {
     let wp = window_power(&window);
     let spectrum = windowed_rfft(ts, &window)?;
 
-    let freqs = rfftfreq(n, 1.0 / fs).map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
+    let freqs =
+        rfftfreq(n, 1.0 / fs).map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
 
     // One-sided PSD: scale by 2 for all bins except DC and Nyquist
     let n_rfft = spectrum.len();
@@ -144,9 +145,7 @@ pub fn dpss_tapers(n: usize, half_bandwidth: f64, n_tapers: usize) -> Result<Arr
         })
         .collect();
 
-    let off: Vec<f64> = (1..n)
-        .map(|i| (i as f64 * (n - i) as f64) / 2.0)
-        .collect();
+    let off: Vec<f64> = (1..n).map(|i| (i as f64 * (n - i) as f64) / 2.0).collect();
 
     // Symmetric QR iteration to find the top `n_tapers` eigenvectors.
     // We use the power-iteration / Lanczos approach on the tridiagonal matrix
@@ -160,7 +159,12 @@ pub fn dpss_tapers(n: usize, half_bandwidth: f64, n_tapers: usize) -> Result<Arr
     for (k, evec) in eigenvecs.iter().enumerate() {
         // Ensure positive first lobe convention
         let sign = if evec[n / 2] >= 0.0 { 1.0 } else { -1.0 };
-        let norm = evec.iter().map(|v| v * v).sum::<f64>().sqrt().max(f64::EPSILON);
+        let norm = evec
+            .iter()
+            .map(|v| v * v)
+            .sum::<f64>()
+            .sqrt()
+            .max(f64::EPSILON);
         for j in 0..n {
             result[[k, j]] = sign * evec[j] / norm;
         }
@@ -169,15 +173,18 @@ pub fn dpss_tapers(n: usize, half_bandwidth: f64, n_tapers: usize) -> Result<Arr
     Ok(result)
 }
 
-/// Inverse iteration for the `k_want` largest eigenvalues of a symmetric
-/// tridiagonal matrix with diagonal `d` and sub-diagonal `e`.
+/// Power iteration with deflation to find the `k_want` eigenvectors of a
+/// symmetric tridiagonal matrix corresponding to the largest eigenvalues.
 ///
-/// Returns `k_want` eigenvectors sorted in descending eigenvalue order.
+/// Returns `k_want` eigenvectors in descending eigenvalue order.
 fn tridiag_eigenvecs(d: &[f64], e: &[f64], k_want: usize) -> Result<Vec<Vec<f64>>> {
     let n = d.len();
 
-    // --- Step 1: estimate eigenvalue bounds via Gershgorin ---
-    let lambda_max = d
+    // Gershgorin upper bound on the spectral radius: used as a positive shift
+    // so that (A + shift·I) has all positive eigenvalues, making the plain
+    // power method converge to the eigenvector with the *largest* eigenvalue
+    // of A (which is what we want for the highest-concentration DPSS tapers).
+    let shift = d
         .iter()
         .enumerate()
         .map(|(i, &di)| {
@@ -188,45 +195,66 @@ fn tridiag_eigenvecs(d: &[f64], e: &[f64], k_want: usize) -> Result<Vec<Vec<f64>
             } else {
                 e[i - 1].abs() + e[i].abs()
             };
-            di + ri
+            di.abs() + ri
         })
-        .fold(f64::NEG_INFINITY, f64::max);
+        .fold(0.0_f64, f64::max)
+        + 1.0;
 
-    // --- Step 2: power iteration with deflation to get k_want eigenpairs ---
     let mut eigenvecs: Vec<Vec<f64>> = Vec::with_capacity(k_want);
-    let shift = lambda_max + 1.0;
 
     for k in 0..k_want {
-        // Start with a pseudo-random seed vector that has no component along
-        // previously found eigenvectors.
-        let mut v = seed_vector(n, k);
+        // Seed: alternating-sign cosine spread, then orthogonalise against
+        // previously found tapers so deflation forces convergence to the
+        // next-largest eigenvector.
+        let mut v: Vec<f64> = (0..n)
+            .map(|i| {
+                let sign = if i % 2 == 0 { 1.0_f64 } else { -1.0_f64 };
+                sign / (n as f64).sqrt()
+            })
+            .collect();
         orthogonalise_and_normalise(&mut v, &eigenvecs);
 
-        // Shifted-inverse iteration: A_shifted = A - shift*I  (all eigenvalues negative)
-        // We iterate (A - shift*I)^{-1} x  via tridiagonal solve to converge to
-        // the eigenvalue closest to `shift`, which is the largest of A.
-        // For subsequent tapers we shift toward the next eigenvalue.
-        for _ in 0..200 {
-            let w = tridiag_matvec(d, e, &v);
-            // Apply approximate shift towards the direction we want
-            let mut w_shifted: Vec<f64> = w.iter().zip(&v).map(|(wi, vi)| wi - shift * vi).collect();
+        const MAX_ITER: usize = 500;
+        const TOL: f64 = 1e-13;
 
-            orthogonalise_and_normalise(&mut w_shifted, &eigenvecs);
-            let norm = l2_norm(&w_shifted);
+        for _ in 0..MAX_ITER {
+            // tv = (A + shift·I)·v
+            let mut tv = tridiag_matvec(d, e, &v);
+            for (tvi, &vi) in tv.iter_mut().zip(v.iter()) {
+                *tvi += shift * vi;
+            }
+
+            // Gram-Schmidt deflation
+            orthogonalise_and_normalise(&mut tv, &eigenvecs);
+
+            let norm = l2_norm(&tv);
             if norm < f64::EPSILON {
                 break;
             }
-            for i in 0..n {
-                v[i] = -w_shifted[i] / norm; // flip sign because shift makes it negative
+            for val in &mut tv {
+                *val /= norm;
+            }
+
+            // Convergence check (allow sign flip)
+            let diff_pos: f64 = v.iter().zip(tv.iter()).map(|(&a, &b)| (a - b).abs()).sum();
+            let diff_neg: f64 = v.iter().zip(tv.iter()).map(|(&a, &b)| (a + b).abs()).sum();
+            let diff = diff_pos.min(diff_neg);
+
+            v = tv;
+
+            if diff < TOL {
+                break;
             }
         }
-        orthogonalise_and_normalise(&mut v, &eigenvecs);
-        let norm = l2_norm(&v);
-        if norm > f64::EPSILON {
-            for vi in &mut v {
-                *vi /= norm;
+
+        // Ensure the conventional positive-lobe sign (first large coefficient > 0)
+        let first_large = v.iter().find(|&&x| x.abs() > 1e-10).copied().unwrap_or(0.0);
+        if first_large < 0.0 {
+            for val in &mut v {
+                *val = -*val;
             }
         }
+
         eigenvecs.push(v);
     }
 
@@ -270,21 +298,6 @@ fn orthogonalise_and_normalise(v: &mut Vec<f64>, basis: &[Vec<f64>]) {
     }
 }
 
-/// Deterministic but spread-out seed vector for eigenvalue iteration.
-fn seed_vector(n: usize, k: usize) -> Vec<f64> {
-    let mut v = vec![0.0_f64; n];
-    // Use a phase-shifted cosine to get spread across all indices
-    let phase = PI * (k as f64 + 0.5) / (2 * n + 1) as f64;
-    for i in 0..n {
-        v[i] = ((i as f64 + 1.0) * (PI / (n as f64 + 1.0)) + phase).cos();
-    }
-    let norm = l2_norm(&v).max(f64::EPSILON);
-    for vi in &mut v {
-        *vi /= norm;
-    }
-    v
-}
-
 // ---------------------------------------------------------------------------
 // Multi-Taper Spectrum (MTM)
 // ---------------------------------------------------------------------------
@@ -323,8 +336,8 @@ pub fn multitaper_spectrum(
     let n_tapers_actual = n_tapers.max(1);
     let tapers = dpss_tapers(n, half_bandwidth, n_tapers_actual)?;
 
-    let freqs = rfftfreq(n, 1.0 / fs)
-        .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
+    let freqs =
+        rfftfreq(n, 1.0 / fs).map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
     let n_rfft = freqs.len();
 
     // Accumulate eigen-spectra
@@ -464,11 +477,7 @@ pub fn spectral_coherence(
 ///
 /// # Returns
 /// `(freqs, Sxy)` where `Sxy` are complex cross-spectral density values.
-pub fn cross_spectral_density(
-    x: &[f64],
-    y: &[f64],
-    fs: f64,
-) -> Result<(Vec<f64>, Vec<Complex64>)> {
+pub fn cross_spectral_density(x: &[f64], y: &[f64], fs: f64) -> Result<(Vec<f64>, Vec<Complex64>)> {
     if x.len() != y.len() {
         return Err(TimeSeriesError::DimensionMismatch {
             expected: x.len(),
@@ -494,8 +503,8 @@ pub fn cross_spectral_density(
     let sx = windowed_rfft(x, &window)?;
     let sy = windowed_rfft(y, &window)?;
 
-    let freqs = rfftfreq(n, 1.0 / fs)
-        .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
+    let freqs =
+        rfftfreq(n, 1.0 / fs).map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
 
     let scale = 1.0 / (fs * wp);
     let n_rfft = sx.len();
@@ -576,9 +585,8 @@ pub fn wigner_ville_distribution(x: &[f64], fs: f64) -> Result<Array2<f64>> {
         }
 
         // Step 3: FFT of kernel → W(t, f)
-        let spectrum =
-            rfft(&kernel.iter().map(|c| c.re).collect::<Vec<_>>(), None)
-                .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
+        let spectrum = rfft(&kernel.iter().map(|c| c.re).collect::<Vec<_>>(), None)
+            .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
 
         // Fill row t with real parts of the spectrum
         let n_rfft = spectrum.len();
@@ -770,15 +778,20 @@ mod tests {
         // Each taper should have unit norm
         for ki in 0..k {
             let norm: f64 = (0..n).map(|j| tapers[[ki, j]].powi(2)).sum::<f64>().sqrt();
-            assert!((norm - 1.0).abs() < 1e-10, "taper {ki} not normalised: {norm}");
+            assert!(
+                (norm - 1.0).abs() < 1e-10,
+                "taper {ki} not normalised: {norm}"
+            );
         }
 
         // Consecutive tapers should be approximately orthogonal
         for ki in 0..k - 1 {
-            let dot: f64 = (0..n)
-                .map(|j| tapers[[ki, j]] * tapers[[ki + 1, j]])
-                .sum();
-            assert!(dot.abs() < 1e-8, "tapers {ki} and {} not orthogonal: dot={dot}", ki + 1);
+            let dot: f64 = (0..n).map(|j| tapers[[ki, j]] * tapers[[ki + 1, j]]).sum();
+            assert!(
+                dot.abs() < 1e-8,
+                "tapers {ki} and {} not orthogonal: dot={dot}",
+                ki + 1
+            );
         }
     }
 
@@ -855,7 +868,10 @@ mod tests {
         let fs = 100.0;
         let ts = make_sine(n, 10.0, fs);
         let cv = nonstationarity_test(&ts, 64, 32).expect("nonstationarity_test failed");
-        assert!(cv < 1.0, "pure sine should have low non-stationarity, got {cv}");
+        assert!(
+            cv < 1.0,
+            "pure sine should have low non-stationarity, got {cv}"
+        );
     }
 
     #[test]
@@ -867,7 +883,10 @@ mod tests {
         ts.extend(make_sine(n / 2, 40.0, fs).into_iter().map(|v| v * 10.0));
         let cv = nonstationarity_test(&ts, 64, 32).expect("nonstationarity_test failed");
         // The changing-amplitude signal should have higher CV than a pure sine
-        assert!(cv > 0.0, "non-stationary signal should have cv > 0, got {cv}");
+        assert!(
+            cv > 0.0,
+            "non-stationary signal should have cv > 0, got {cv}"
+        );
     }
 
     #[test]

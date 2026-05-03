@@ -116,10 +116,7 @@ fn discover_periods<F: Float + FromPrimitive + Debug>(
     }
 
     // Sort by amplitude descending
-    amplitudes_vec.sort_by(|a, b| {
-        b.1.partial_cmp(&a.1)
-            .unwrap_or(std::cmp::Ordering::Equal)
-    });
+    amplitudes_vec.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     // Deduplicate periods (keep highest amplitude for each period)
     let mut seen_periods = std::collections::HashSet::new();
@@ -187,8 +184,8 @@ struct Conv2DKernel<F: Float> {
     kernel_w: usize,
     d_in: usize,
     d_out: usize,
-    weights: Array2<F>,  // (d_out, d_in * kh * kw)
-    bias: Array1<F>,     // (d_out,)
+    weights: Array2<F>, // (d_out, d_in * kh * kw)
+    bias: Array1<F>,    // (d_out,)
 }
 
 impl<F: Float + FromPrimitive + Debug> Conv2DKernel<F> {
@@ -235,9 +232,8 @@ impl<F: Float + FromPrimitive + Debug> Conv2DKernel<F> {
                                     && in_c >= 0
                                     && in_c < width as isize
                                 {
-                                    let w_idx = i * self.kernel_h * self.kernel_w
-                                        + kh * self.kernel_w
-                                        + kw;
+                                    let w_idx =
+                                        i * self.kernel_h * self.kernel_w + kh * self.kernel_w + kw;
                                     acc = acc
                                         + input[i][[in_r as usize, in_c as usize]]
                                             * self.weights[[o, w_idx]];
@@ -318,9 +314,7 @@ impl<F: Float + FromPrimitive + Debug> InceptionBlock<F> {
                     let half = F::from(0.5).unwrap_or_else(|| F::zero());
                     let sqrt_2_pi = F::from(0.7978845608).unwrap_or_else(|| F::one());
                     let c = F::from(0.044715).unwrap_or_else(|| F::zero());
-                    arr.mapv(|v| {
-                        half * v * (F::one() + (sqrt_2_pi * (v + c * v * v * v)).tanh())
-                    })
+                    arr.mapv(|v| half * v * (F::one() + (sqrt_2_pi * (v + c * v * v * v)).tanh()))
                 })
                 .collect();
             all_outputs.push(activated);
@@ -347,7 +341,8 @@ impl<F: Float + FromPrimitive + Debug> InceptionBlock<F> {
                 }
 
                 // Project: (d_model, concat_dim) * concat_feat + bias
-                let projected = nn_utils::dense_forward_vec(&concat_feat, &self.w_proj, &self.b_proj);
+                let projected =
+                    nn_utils::dense_forward_vec(&concat_feat, &self.w_proj, &self.b_proj);
 
                 for ch in 0..self.d_model {
                     result[ch][[r, c]] = projected[ch];
@@ -725,10 +720,7 @@ mod tests {
         let (periods, _amplitudes) = discover_periods(&signal, 3);
 
         // The dominant period should be 8
-        assert!(
-            !periods.is_empty(),
-            "Should discover at least one period"
-        );
+        assert!(!periods.is_empty(), "Should discover at least one period");
         assert_eq!(
             periods[0], 8,
             "Dominant period should be 8, got {}",
@@ -742,8 +734,8 @@ mod tests {
         let n = 64;
         let mut signal = Array1::zeros(n);
         for t in 0..n {
-            signal[t] = 2.0 * (2.0 * PI * t as f64 / 8.0).sin()
-                + 0.5 * (2.0 * PI * t as f64 / 16.0).sin();
+            signal[t] =
+                2.0 * (2.0 * PI * t as f64 / 8.0).sin() + 0.5 * (2.0 * PI * t as f64 / 16.0).sin();
         }
 
         let (periods, amplitudes) = discover_periods(&signal, 5);

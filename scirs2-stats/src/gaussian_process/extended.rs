@@ -88,7 +88,7 @@ impl KernelFunction for RBFKernel {
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum MaternNu {
     /// ν = 1.5 → once differentiable.
-    Half,  // ν = 1/2 (exponential)
+    Half, // ν = 1/2 (exponential)
     /// ν = 3/2 → once mean-square differentiable.
     ThreeHalves,
     /// ν = 5/2 → twice mean-square differentiable.
@@ -450,9 +450,14 @@ impl<K: KernelFunction> GpRegressor<K> {
         let alpha = solve_upper_transpose(&l, &v);
 
         // Log-marginal likelihood: -0.5 yᵀ α - Σ ln L_ii - n/2 ln(2π)
-        let data_fit = y_arr.iter().zip(alpha.iter()).map(|(&yi, &ai)| yi * ai).sum::<f64>();
+        let data_fit = y_arr
+            .iter()
+            .zip(alpha.iter())
+            .map(|(&yi, &ai)| yi * ai)
+            .sum::<f64>();
         let log_det: f64 = (0..n).map(|i| l[[i, i]].ln()).sum::<f64>() * 2.0;
-        let lml = -0.5 * data_fit - 0.5 * log_det - 0.5 * n as f64 * (2.0 * std::f64::consts::PI).ln();
+        let lml =
+            -0.5 * data_fit - 0.5 * log_det - 0.5 * n as f64 * (2.0 * std::f64::consts::PI).ln();
 
         self.x_train = Some(x.to_vec());
         self.chol = Some(l);
@@ -541,10 +546,7 @@ impl<K: KernelFunction> GpRegressor<K> {
     }
 
     /// Predict from ndarray types, returning `(mean_array, variance_array)`.
-    pub fn predict_arrays(
-        &self,
-        x_star: &Array2<f64>,
-    ) -> StatsResult<(Array1<f64>, Array1<f64>)> {
+    pub fn predict_arrays(&self, x_star: &Array2<f64>) -> StatsResult<(Array1<f64>, Array1<f64>)> {
         let rows = array2_to_rows(x_star);
         let (mean, var) = self.predict(&rows)?;
         Ok((Array1::from_vec(mean), Array1::from_vec(var)))
@@ -620,7 +622,7 @@ mod tests {
         let k = PeriodicKernel::new(1.0, 2.0);
         let x = vec![0.0];
         let x_period = vec![2.0]; // shifted by one full period
-        // Should be close to k(x, x) = 1.0 (same phase)
+                                  // Should be close to k(x, x) = 1.0 (same phase)
         let at_period = k.call(&x, &x_period);
         let at_self = k.call(&x, &x);
         assert!(
@@ -690,7 +692,9 @@ mod tests {
         let x = vec![vec![0.0], vec![1.0], vec![2.0]];
         let y = vec![0.0, 1.0, 0.0];
         gpr.fit(&x, &y).expect("fit failed");
-        let lml = gpr.log_marginal_likelihood().expect("lml should be set after fit");
+        let lml = gpr
+            .log_marginal_likelihood()
+            .expect("lml should be set after fit");
         assert!(lml.is_finite(), "LML should be finite, got {lml}");
     }
 

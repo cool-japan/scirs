@@ -30,28 +30,38 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
             .into_dimensionality::<scirs2_core::ndarray::Ix2>()
             .map_err(|_| OpError::Other("Failed to convert to 2D array".into()))?;
 
-        // TODO: Replace with scirs2-core linear algebra when available
-        // For now, return an error as Cholesky decomposition requires BLAS
-        return Err(OpError::Other(
-            "Cholesky decomposition not yet implemented - waiting for scirs2-core linear algebra module".to_string(),
-        ));
+        // Pure-Rust Cholesky decomposition: A = L Lᵀ
+        // Algorithm: for j in 0..n:
+        //   L[j,j] = sqrt(A[j,j] - Σ_{k<j} L[j,k]²)
+        //   for i in j+1..n:
+        //     L[i,j] = (A[i,j] - Σ_{k<j} L[i,k]*L[j,k]) / L[j,j]
+        let n = shape[0];
+        let mut l = Array2::<F>::zeros((n, n));
 
-        #[allow(unreachable_code)]
-        {
-            // When implemented, we'll need to create a mutable copy and process it
-            let mut matrix_data = matrix.to_owned();
-
-            // The result is stored in-place in matrix_data (lower triangular part)
-            // Zero out the upper triangular part to get a clean L matrix
-            for i in 0..shape[0] {
-                for j in (i + 1)..shape[1] {
-                    matrix_data[[i, j]] = F::zero();
-                }
+        for j in 0..n {
+            // Diagonal element
+            let mut diag_sum = F::zero();
+            for k in 0..j {
+                diag_sum += l[[j, k]] * l[[j, k]];
             }
+            let diag_val = matrix[[j, j]] - diag_sum;
+            if diag_val <= F::zero() {
+                return Err(OpError::Other("Matrix is not positive definite".into()));
+            }
+            l[[j, j]] = diag_val.sqrt();
 
-            ctx.append_output(matrix_data.into_dyn());
-            Ok(())
-        } // End unreachable block
+            // Sub-diagonal elements in column j
+            for i in (j + 1)..n {
+                let mut off_sum = F::zero();
+                for k in 0..j {
+                    off_sum += l[[i, k]] * l[[j, k]];
+                }
+                l[[i, j]] = (matrix[[i, j]] - off_sum) / l[[j, j]];
+            }
+        }
+
+        ctx.append_output(l.into_dyn());
+        Ok(())
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
@@ -59,13 +69,10 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
         let y = ctx.output();
         let g = ctx.graph();
 
-        println!("Computing gradient for Cholesky decomposition");
-
-        // Get arrays for gradient computation
+        // Retrieve L (forward output) and gy (upstream gradient)
         let y_array = match y.eval(g) {
             Ok(arr) => arr,
             Err(_) => {
-                println!("Failed to evaluate output tensor for Cholesky gradient");
                 ctx.append_input_grad(0, None);
                 return;
             }
@@ -74,17 +81,14 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
         let gy_array = match gy.eval(g) {
             Ok(arr) => arr,
             Err(_) => {
-                println!("Failed to evaluate gradient tensor for Cholesky gradient");
                 ctx.append_input_grad(0, None);
                 return;
             }
         };
 
-        // Convert to 2D arrays
         let l = match y_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
             Ok(arr) => arr,
             Err(_) => {
-                println!("Failed to convert Cholesky output to 2D array");
                 ctx.append_input_grad(0, None);
                 return;
             }
@@ -93,82 +97,100 @@ impl<F: Float + ScalarOperand> Op<F> for CholeskyOp {
         let gy_2d = match gy_array.into_dimensionality::<scirs2_core::ndarray::Ix2>() {
             Ok(arr) => arr,
             Err(_) => {
-                println!("Failed to convert Cholesky gradient to 2D array");
                 ctx.append_input_grad(0, None);
                 return;
             }
         };
 
         let n = l.shape()[0];
-        println!("Cholesky gradient computation for matrix of size: {n}");
-
-        // Initialize gradient matrix
-        let mut grad = Array2::<F>::zeros((n, n));
-
-        // Create a view of L that's properly triangular (ensuring zeros above diagonal)
-        let mut l_clean = Array2::<F>::zeros((n, n));
-        for i in 0..n {
-            for j in 0..=i {
-                l_clean[[i, j]] = l[[i, j]];
+        let two = match F::from(2.0_f64) {
+            Some(v) => v,
+            None => {
+                ctx.append_input_grad(0, None);
+                return;
             }
-        }
+        };
 
-        // Compute the gradient using the chain rule for Cholesky decomposition
-        // Based on the formula: dA = L * (dL * L^T + L * dL^T) * L^T
-        // We need to solve for dL given dA
-        // We use a forward substitution approach
+        // Iain Murray (2016) reverse-mode gradient for Cholesky decomposition.
+        //
+        // Given L = chol(A) and upstream gradient dL = gy_2d:
+        //   S     = L^T * dL                              (n×n)
+        //   Phi(S) = tril(S, -1) + diag(diag(S)) / 2     (keep strict lower tri, halve diagonal)
+        //   dA    = L^{-T} * Phi(S) * L^{-1}             (two triangular solves)
+        //   dA    = (dA + dA^T) / 2                       (symmetrise)
 
-        // First, mask gradients to be lower triangular (same shape as L)
-        let mut d_l = Array2::<F>::zeros((n, n));
-
-        // The diagonal elements have a special formula
-        for i in 0..n {
-            d_l[[i, i]] = gy_2d[[i, i]]
-                / (F::from(2.0).expect("Failed to convert constant to float") * l_clean[[i, i]]);
-        }
-
-        // Process row by row
-        for i in 1..n {
-            for j in 0..i {
-                // Compute the right-hand side for the equation
-                let mut rhs = gy_2d[[i, j]];
-
-                // Subtract the effect of already computed elements
-                for k in 0..j {
-                    rhs = rhs - d_l[[i, k]] * l_clean[[j, k]] - l_clean[[i, k]] * d_l[[j, k]];
-                }
-
-                // Solve for d_l[i,j]
-                d_l[[i, j]] = rhs / l_clean[[j, j]];
-            }
-        }
-
-        // Convert to gradient of A by making it symmetric
-        // dA/dL = 0.5 * (dL + dL^T) for non-diagonal elements
+        // Step 1: S = L^T * dL
+        let mut s = Array2::<F>::zeros((n, n));
         for i in 0..n {
             for j in 0..n {
+                let mut acc = F::zero();
+                // L^T[i,k] = L[k,i], non-zero only when k >= i (lower tri)
+                for k in i..n {
+                    acc += l[[k, i]] * gy_2d[[k, j]];
+                }
+                s[[i, j]] = acc;
+            }
+        }
+
+        // Step 2: Phi(S) — zero strict upper triangle, halve diagonal
+        let mut phi = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            for j in 0..=i {
                 if i == j {
-                    // Diagonal elements
-                    grad[[i, i]] =
-                        d_l[[i, i]] * F::from(2.0).expect("Failed to convert constant to float");
+                    phi[[i, j]] = s[[i, j]] / two;
                 } else {
-                    // Off-diagonal elements, symmetrize
-                    let val = if i > j { d_l[[i, j]] } else { d_l[[j, i]] };
-                    grad[[i, j]] = val;
-                    grad[[j, i]] = val;
+                    phi[[i, j]] = s[[i, j]];
                 }
             }
         }
 
-        // Add regularization for numerical stability
-        let eps = F::epsilon() * F::from(10.0).expect("Failed to convert constant to float");
-        for i in 0..n {
-            grad[[i, i]] += eps;
+        // Step 3: M = L^{-T} * Phi(S) — solve L^T * M = Phi(S) column by column
+        // L^T is upper triangular; back substitution: for each col of Phi
+        let mut m = Array2::<F>::zeros((n, n));
+        for col in 0..n {
+            // Solve L^T x = phi[:,col] using back substitution
+            let mut x = vec![F::zero(); n];
+            for i in (0..n).rev() {
+                let mut rhs = phi[[i, col]];
+                for k in (i + 1)..n {
+                    // L^T[i, k] = L[k, i]
+                    rhs -= l[[k, i]] * x[k];
+                }
+                x[i] = rhs / l[[i, i]];
+            }
+            for i in 0..n {
+                m[[i, col]] = x[i];
+            }
         }
 
-        println!("Completed Cholesky gradient computation");
+        // Step 4: dA_raw = M * L^{-1}
+        // Equivalently, transposing each row: solve L^T * da[row,:]^T = m[row,:]^T via back-sub.
+        // L^T is upper triangular, so back-substitute from bottom to top.
+        let mut da = Array2::<F>::zeros((n, n));
+        for row in 0..n {
+            // Solve L^T x = m[row,:] using back substitution (L^T upper triangular)
+            let mut x = vec![F::zero(); n];
+            for i in (0..n).rev() {
+                let mut rhs = m[[row, i]];
+                for k in (i + 1)..n {
+                    // L^T[i, k] = L[k, i]
+                    rhs -= l[[k, i]] * x[k];
+                }
+                x[i] = rhs / l[[i, i]];
+            }
+            for j in 0..n {
+                da[[row, j]] = x[j];
+            }
+        }
 
-        // Convert gradient to tensor and append
+        // Step 5: symmetrise
+        let mut grad = Array2::<F>::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                grad[[i, j]] = (da[[i, j]] + da[[j, i]]) / two;
+            }
+        }
+
         let grad_tensor = convert_to_tensor(grad.into_dyn(), g);
         ctx.append_input_grad(0, Some(grad_tensor));
     }
@@ -591,4 +613,202 @@ pub fn band_matrix<'g, F: Float>(matrix: &Tensor<'g, F>, lower: i32, upper: i32)
         .append_input(matrix, false)
         .setshape(&matrixshape)  // Preserve shape information
         .build(BandMatrixOp { lower, upper })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tensor_ops::convert_to_tensor;
+    use scirs2_core::ndarray::array;
+
+    /// Test basic 2×2 SPD matrix: A = [[4,2],[2,3]]
+    /// Expected L = [[2,0],[1,sqrt(2)]]
+    #[test]
+    fn test_cholesky_2x2_spd() {
+        crate::run(|g| {
+            let a = convert_to_tensor(array![[4.0_f64, 2.0], [2.0, 3.0]], g);
+            let l_tensor = cholesky(&a);
+            let l = l_tensor.eval(g).expect("Cholesky eval failed");
+
+            // L[0,0] = sqrt(4) = 2
+            assert!(
+                (l[[0, 0]] - 2.0_f64).abs() < 1e-10,
+                "L[0,0] expected 2.0, got {}",
+                l[[0, 0]]
+            );
+            // L[0,1] must be zero (lower triangular)
+            assert!(
+                l[[0, 1]].abs() < 1e-10,
+                "L[0,1] expected 0.0, got {}",
+                l[[0, 1]]
+            );
+            // L[1,0] = (A[1,0] - 0) / L[0,0] = 2/2 = 1
+            assert!(
+                (l[[1, 0]] - 1.0_f64).abs() < 1e-10,
+                "L[1,0] expected 1.0, got {}",
+                l[[1, 0]]
+            );
+            // L[1,1] = sqrt(3 - 1²) = sqrt(2)
+            let expected_l11 = 2.0_f64.sqrt();
+            assert!(
+                (l[[1, 1]] - expected_l11).abs() < 1e-10,
+                "L[1,1] expected {expected_l11}, got {}",
+                l[[1, 1]]
+            );
+        });
+    }
+
+    /// Verify L @ Lᵀ ≈ A for a larger SPD matrix
+    #[test]
+    fn test_cholesky_reconstruction() {
+        crate::run(|g| {
+            // Build a 4×4 SPD matrix: A = Mᵀ M + 4I for random-ish M
+            let raw = array![
+                [10.0_f64, 2.0, 1.0, 0.5],
+                [2.0, 8.0, 1.5, 0.3],
+                [1.0, 1.5, 7.0, 0.8],
+                [0.5, 0.3, 0.8, 6.0],
+            ];
+            let a = convert_to_tensor(raw.clone(), g);
+            let l_tensor = cholesky(&a);
+            let l = l_tensor.eval(g).expect("Cholesky eval failed");
+
+            let l_2d = l
+                .view()
+                .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                .expect("dim");
+            let n = l_2d.shape()[0];
+
+            // Compute L @ Lᵀ
+            let mut reconstructed = Array2::<f64>::zeros((n, n));
+            for i in 0..n {
+                for j in 0..n {
+                    for k in 0..n {
+                        reconstructed[[i, j]] += l_2d[[i, k]] * l_2d[[j, k]];
+                    }
+                }
+            }
+
+            // Verify element-wise match with original
+            for i in 0..n {
+                for j in 0..n {
+                    assert!(
+                        (reconstructed[[i, j]] - raw[[i, j]]).abs() < 1e-8,
+                        "Mismatch at [{i},{j}]: reconstructed={}, original={}",
+                        reconstructed[[i, j]],
+                        raw[[i, j]]
+                    );
+                }
+            }
+        });
+    }
+
+    /// Non-SPD matrix must return an error
+    #[test]
+    fn test_cholesky_non_spd_returns_error() {
+        crate::run(|g| {
+            // Matrix with a negative diagonal — not positive definite
+            let a = convert_to_tensor(array![[-1.0_f64, 0.0], [0.0, 1.0]], g);
+            let l_tensor = cholesky(&a);
+            let result = l_tensor.eval(g);
+            assert!(result.is_err(), "Expected error for non-SPD matrix, got Ok");
+        });
+    }
+
+    /// Verify the Iain Murray (2016) backward formula by evaluating it directly.
+    ///
+    /// For A = [[4,2],[2,5]], L = [[2,0],[1,2]], upstream gy = 2*L (from sum(L^2)):
+    /// The expected gradient dA is [[1,0],[0,1]] (computed by hand).
+    #[test]
+    fn test_cholesky_gradient_murray_formula() {
+        // A = [[4,2],[2,5]], L = [[2,0],[1,2]]
+        // gy = dLoss/dL where Loss = sum(L^2), so gy = 2*L = [[4,0],[2,4]]
+        //
+        // Hand-calculated Murray (2016) result:
+        //   S = L^T * gy = [[2,1],[0,2]] * [[4,0],[2,4]] = [[10,4],[4,8]]
+        //   Phi(S) = [[5,0],[4,4]]  (half diagonal, zero strict upper)
+        //   M = L^{-T} * Phi(S): solve L^T * M = Phi(S)
+        //     col 0: [5,4] -> x[1]=2, x[0]=1.5 => M[:,0]=[1.5,2]
+        //     col 1: [0,4] -> x[1]=2, x[0]=-1   => M[:,1]=[-1,2]
+        //   da = M * L^{-1}: solve L^T * da[row] = m[row] (back-sub)
+        //     row 0: [1.5,-1] -> x[1]=-0.5, x[0]=1
+        //     row 1: [2,2]    -> x[1]=1,    x[0]=0.5
+        //   dA = (da + da^T)/2 = [[1,0],[0,1]]
+        let n = 2_usize;
+        let l_data = [[2.0_f64, 0.0], [1.0, 2.0]];
+        let gy_data = [[4.0_f64, 0.0], [2.0, 4.0]]; // 2 * L
+
+        let two = 2.0_f64;
+
+        // Step 1: S = L^T * gy
+        let mut s = [[0.0_f64; 2]; 2];
+        for i in 0..n {
+            for j in 0..n {
+                let mut acc = 0.0;
+                for k in i..n {
+                    acc += l_data[k][i] * gy_data[k][j];
+                }
+                s[i][j] = acc;
+            }
+        }
+
+        // Step 2: Phi(S)
+        let mut phi = [[0.0_f64; 2]; 2];
+        for i in 0..n {
+            for j in 0..=i {
+                phi[i][j] = if i == j { s[i][j] / two } else { s[i][j] };
+            }
+        }
+
+        // Step 3: M = L^{-T} * Phi(S) via back-sub
+        let mut m = [[0.0_f64; 2]; 2];
+        for col in 0..n {
+            let mut x = [0.0_f64; 2];
+            for i in (0..n).rev() {
+                let mut rhs = phi[i][col];
+                for k in (i + 1)..n {
+                    rhs -= l_data[k][i] * x[k];
+                }
+                x[i] = rhs / l_data[i][i];
+            }
+            for i in 0..n {
+                m[i][col] = x[i];
+            }
+        }
+
+        // Step 4: da = M * L^{-1} via back-sub (solve L^T da[row] = m[row])
+        let mut da = [[0.0_f64; 2]; 2];
+        for row in 0..n {
+            let mut x = [0.0_f64; 2];
+            for i in (0..n).rev() {
+                let mut rhs = m[row][i];
+                for k in (i + 1)..n {
+                    rhs -= l_data[k][i] * x[k];
+                }
+                x[i] = rhs / l_data[i][i];
+            }
+            da[row][..n].copy_from_slice(&x[..n]);
+        }
+
+        // Step 5: symmetrise
+        let mut grad_a = [[0.0_f64; 2]; 2];
+        for i in 0..n {
+            for j in 0..n {
+                grad_a[i][j] = (da[i][j] + da[j][i]) / two;
+            }
+        }
+
+        // Expected: [[1,0],[0,1]]
+        let expected = [[1.0_f64, 0.0], [0.0, 1.0]];
+        for i in 0..n {
+            for j in 0..n {
+                assert!(
+                    (grad_a[i][j] - expected[i][j]).abs() < 1e-10,
+                    "Murray formula mismatch at [{i},{j}]: got {}, expected {}",
+                    grad_a[i][j],
+                    expected[i][j]
+                );
+            }
+        }
+    }
 }

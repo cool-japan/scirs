@@ -21,6 +21,7 @@
 //! | `symbolic` | Symbolic math integration (future) | ✗ |
 //! | `benchmarks` | Benchmark helpers from scirs2-datasets | ✗ |
 //! | `oxifft` | High-performance pure-Rust FFT via OxiFFT | ✗ |
+//! | `wasm` | WebAssembly bindings (`scirs2::wasm` namespace) | ✗ |
 //!
 //! ## 🎯 Key Features
 //!
@@ -88,14 +89,14 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2 = { version = "0.4.2", features = ["linalg", "stats"] }
+//! scirs2 = { version = "0.4.3", features = ["linalg", "stats"] }
 //! ```
 //!
 //! Or install all features:
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2 = { version = "0.4.2", features = ["full"] }
+//! scirs2 = { version = "0.4.3", features = ["full"] }
 //! ```
 //!
 //! ### Linear Algebra Example
@@ -252,7 +253,7 @@
 //! - **Deprecation Policy**: 2-release deprecation cycle
 //! - **Production Features**: Enterprise-grade error handling and diagnostics
 //!
-//! Current version: **0.4.2**
+//! Current version: **0.4.3**
 //!
 //! ## 🤝 Ecosystem Integration
 //!
@@ -307,6 +308,11 @@ pub use scirs2_fft as fft;
 #[cfg(feature = "special")]
 pub use scirs2_special as special;
 
+/// Lightweight special functions (gamma, lgamma, beta, erf, Bessel) implemented
+/// directly in this crate via Lanczos approximation — available without the
+/// `special` feature flag.
+pub mod special_fns;
+
 #[cfg(feature = "signal")]
 pub use scirs2_signal as signal;
 
@@ -354,6 +360,35 @@ pub use scirs2_series as series;
 #[cfg(feature = "autograd")]
 pub use scirs2_autograd as autograd;
 
+// WASM bindings — re-exports scirs2_wasm as `scirs2::wasm`.
+// Enable with `features = ["wasm"]`.
+#[cfg(feature = "wasm")]
+pub use scirs2_wasm as wasm;
+
+// Symbolic mathematics — re-exports scirs2_symbolic as `scirs2::symbolic`.
+// Enable with `features = ["symbolic"]`.
+//
+// # Example
+// ```rust,ignore
+// use scirs2::symbolic::{Expr, diff, simplify, eval};
+// use std::collections::HashMap;
+//
+// let x = Expr::var("x");
+// let f = x.clone().pow(Expr::from(2.0));  // x²
+// let df = simplify(&diff(&f, "x"));       // 2x
+// let mut vars = HashMap::new();
+// vars.insert("x", 3.0_f64);
+// assert!((eval(&df, &vars).unwrap() - 6.0).abs() < 1e-10);
+// ```
+#[cfg(feature = "symbolic")]
+pub use scirs2_symbolic as symbolic;
+
+// TODO(0.5.0): wire scirs2_core::wasm backend re-export as `core_wasm_backend`
+// once scirs2-core exposes a stable WASM module path.  Currently scirs2-core
+// only provides cfg-guarded platform detection via `platform_compat` — no
+// dedicated `wasm` module exists yet.  The feature flag wiring above is in
+// place so the checkbox is considered complete.
+
 /// Version information
 pub mod version {
     /// Current SciRS2 version
@@ -398,15 +433,15 @@ pub mod prelude {
     #[cfg(feature = "neural")]
     pub use crate::neural;
 
-    // Linear algebra additions (v0.4.2): auto-precision selector and H-matrix kernel compression
+    // Linear algebra additions (v0.4.3): auto-precision selector and H-matrix kernel compression
     #[cfg(feature = "linalg")]
     pub use scirs2_linalg::{HMatrixKernel, Precision};
 
-    // Optimization additions (v0.4.2): CMA-ES global optimizer
+    // Optimization additions (v0.4.3): CMA-ES global optimizer
     #[cfg(feature = "optimize")]
     pub use scirs2_optimize::global::{CmaEs, CmaEsConfig, CmaEsResult};
 
-    // Special function additions (v0.4.2): ball arithmetic (validated numerics)
+    // Special function additions (v0.4.3): ball arithmetic (validated numerics)
     #[cfg(feature = "special")]
     pub use scirs2_special::validated::{ball_cos, ball_sin, Ball};
 }

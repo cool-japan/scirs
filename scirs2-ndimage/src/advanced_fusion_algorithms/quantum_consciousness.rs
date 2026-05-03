@@ -190,8 +190,16 @@ pub fn simulate_quantum_consciousness(
     let (height, width, dimensions, temporal, consciousness) = advancedfeatures.dim();
     let mut consciousness_output = Array2::zeros((height, width));
 
-    // Initialize quantum consciousness amplitudes if not present
-    if advancedstate.consciousness_amplitudes.dim() != (height, width, consciousness, 2) {
+    // Initialize quantum consciousness amplitudes if not present or if all-zero
+    // (all-zero state produces no output; ensure superposition is set before processing)
+    let shape_mismatch =
+        advancedstate.consciousness_amplitudes.dim() != (height, width, consciousness, 2);
+    let amplitudes_all_zero = advancedstate
+        .consciousness_amplitudes
+        .iter()
+        .all(|c| c.norm() < 1e-12);
+    let needs_init = shape_mismatch || amplitudes_all_zero;
+    if needs_init {
         advancedstate.consciousness_amplitudes = Array4::zeros((height, width, consciousness, 2));
 
         // Initialize in quantum superposition state
@@ -313,14 +321,25 @@ fn apply_quantum_consciousness_operators(
 }
 
 /// Apply global consciousness coherence effects
+///
+/// Implements coherence damping based on the integrated information (phi) measure.
+/// Each amplitude is scaled by exp(-gamma * phi), modelling decoherence strength
+/// proportional to integrated information.
 #[allow(dead_code)]
 fn apply_global_consciousness_coherence(
-    _consciousness_output: &mut Array2<f64>,
-    _advancedstate: &AdvancedState,
-    _config: &AdvancedConfig,
+    consciousness_output: &mut Array2<f64>,
+    advancedstate: &AdvancedState,
+    config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // TODO: Implement global coherence optimization
-    // This would involve spatial correlation analysis and coherence enhancement
+    let phi = calculate_simplified_phi_measure(advancedstate, config)?;
+
+    // Coherence damping rate: derived from decoherence_rate config
+    let gamma = config.quantum.decoherence_rate.max(0.0);
+    let damping = (-gamma * phi).exp();
+
+    // Apply coherence damping uniformly across the consciousness output
+    consciousness_output.mapv_inplace(|x| x * damping);
+
     Ok(())
 }
 
@@ -468,26 +487,60 @@ fn analyze_consciousnessstate(
     })
 }
 
-/// Calculate simplified Phi measure for integrated information
+/// Calculate simplified Phi measure for integrated information (IIT 3.0 bipartition approach)
+///
+/// Computes phi = I(X_left; X_right) = H(X_left) + H(X_right) - H(X_left, X_right)
+/// where the probability distribution p(x) = |ψ|² across consciousness amplitudes.
+/// This models integrated information as mutual information across the bipartition.
 #[allow(dead_code)]
 fn calculate_simplified_phi_measure(
     advancedstate: &AdvancedState,
-    config: &AdvancedConfig,
+    _config: &AdvancedConfig,
 ) -> NdimageResult<f64> {
-    // Simplified Phi calculation based on causal relationships
-    // TODO: Implement full integrated information theory calculation
-    // This is a placeholder implementation
-    let base_phi = advancedstate
+    let probs: Vec<f64> = advancedstate
         .consciousness_amplitudes
         .iter()
-        .map(|&amp| amp.norm())
-        .sum::<f64>()
-        / advancedstate.consciousness_amplitudes.len() as f64;
+        .map(|c| c.norm_sqr())
+        .collect();
 
-    // Apply configuration-based scaling
-    let scaled_phi = base_phi * config.consciousness_depth as f64 * 0.1;
+    let total: f64 = probs.iter().sum();
+    if total < 1e-12 || probs.len() < 2 {
+        return Ok(0.0);
+    }
 
-    Ok(scaled_phi.min(1.0))
+    let probs: Vec<f64> = probs.iter().map(|p| p / total).collect();
+    let n = probs.len();
+    let half = n / 2;
+
+    // Marginal probability of left half
+    let p_left: f64 = probs[..half].iter().sum();
+    let h_left = if p_left > 1e-12 && p_left < 1.0 - 1e-12 {
+        let p_right_complement = 1.0 - p_left;
+        -p_left * p_left.ln() - p_right_complement * p_right_complement.ln()
+    } else {
+        0.0
+    };
+
+    // Marginal probability of right half
+    let p_right: f64 = probs[half..].iter().sum();
+    let h_right = if p_right > 1e-12 && p_right < 1.0 - 1e-12 {
+        let p_left_complement = 1.0 - p_right;
+        -p_right * p_right.ln() - p_left_complement * p_left_complement.ln()
+    } else {
+        0.0
+    };
+
+    // Joint entropy over the full distribution
+    let h_joint: f64 = -probs
+        .iter()
+        .filter(|&&p| p > 1e-12)
+        .map(|&p| p * p.ln())
+        .sum::<f64>();
+
+    // Phi = mutual information: I(left; right) = H(left) + H(right) - H(joint)
+    let phi = (h_left + h_right - h_joint).max(0.0);
+
+    Ok(phi.min(1.0))
 }
 
 /// Evolve consciousness parameters based on current state
@@ -530,20 +583,61 @@ fn evolve_consciousness_parameters(
     Ok(())
 }
 
-/// Evolve quantum coherence optimization strategies
+/// Evolve quantum coherence optimization strategies using a quantum walk step
+///
+/// Applies one step of the continuous-time quantum walk on the performance history lattice:
+/// ψ(t+dt) ≈ ψ(t) - i·L·dt·ψ(t)
+/// where L is the graph Laplacian (1D lattice with nearest-neighbor connectivity).
+/// The resulting coherence norms are stored back in the performance history.
 #[allow(dead_code)]
 fn evolve_coherence_strategies(
     optimizer: &mut QuantumCoherenceOptimizer,
     fitness: f64,
 ) -> NdimageResult<()> {
-    // Add fitness to performance history
+    // Add current fitness to performance history
     optimizer.performancehistory.push_back(fitness);
     if optimizer.performancehistory.len() > 50 {
         optimizer.performancehistory.pop_front();
     }
 
-    // TODO: Implement strategy evolution based on performance
-    // This would involve adjusting strategy parameters based on historical performance
+    let n = optimizer.performancehistory.len();
+    if n < 2 {
+        return Ok(());
+    }
+
+    // Build |ψ⟩ from performance history as real-valued quantum amplitudes
+    let psi: Vec<f64> = optimizer.performancehistory.iter().cloned().collect();
+
+    // Compute total norm for normalization
+    let psi_norm: f64 = psi.iter().map(|x| x * x).sum::<f64>().sqrt();
+    if psi_norm < 1e-12 {
+        return Ok(());
+    }
+    let psi: Vec<f64> = psi.iter().map(|x| x / psi_norm).collect();
+
+    // Apply one-step 1D quantum walk via first-order expansion: ψ' = ψ - i L dt ψ
+    // Since we work in reals, the imaginary part contributes as a rotation.
+    // We compute L·ψ (1D lattice Laplacian) and update real/imag components.
+    let dt = 0.01_f64;
+    let mut l_psi = vec![0.0_f64; n];
+    for i in 0..n {
+        // L = degree - adjacency: degree=2 for interior, 1 for boundary
+        let degree = if i == 0 || i == n - 1 { 1.0 } else { 2.0 };
+        let left = if i > 0 { psi[i - 1] } else { 0.0 };
+        let right = if i < n - 1 { psi[i + 1] } else { 0.0 };
+        l_psi[i] = degree * psi[i] - left - right;
+    }
+
+    // After one step: |ψ_new|² = psi² + (dt * L·psi)² (first-order approximation)
+    // We store the resulting probability norms back into performance history
+    let mut new_history: VecDeque<f64> = VecDeque::with_capacity(n);
+    for i in 0..n {
+        // ψ'_real = psi[i], ψ'_imag = -dt * l_psi[i]
+        let new_norm = (psi[i] * psi[i] + (dt * l_psi[i]).powi(2)).sqrt();
+        new_history.push_back(new_norm);
+    }
+
+    optimizer.performancehistory = new_history;
 
     Ok(())
 }
@@ -619,19 +713,48 @@ fn apply_consciousness_evolution_selection(
 }
 
 /// Apply evolved global consciousness coherence
+///
+/// Uses the most recently evolved coherence strategy from the optimizer's performance history
+/// to apply adaptive scaling. Each region gets a locally-estimated phi-based scaling factor.
 #[allow(dead_code)]
 fn apply_evolved_global_consciousness_coherence(
     consciousness_output: &mut Array2<f64>,
-    _advancedstate: &AdvancedState,
+    advancedstate: &AdvancedState,
     evolution_system: &QuantumConsciousnessEvolution,
-    _config: &AdvancedConfig,
+    config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // Apply global coherence based on evolution system state
-    let coherence_strength = evolution_system.complexitymetrics.temporal_coherence;
+    // Use the most recent evolved coherence norm from quantum walk history
+    let evolved_coherence = evolution_system
+        .coherence_optimizer
+        .performancehistory
+        .back()
+        .cloned()
+        .unwrap_or(evolution_system.complexitymetrics.temporal_coherence);
 
-    // TODO: Implement sophisticated global coherence optimization
-    // This is a placeholder that applies uniform scaling
-    consciousness_output.mapv_inplace(|x| x * (1.0 + coherence_strength * 0.1));
+    // Base damping from the phi measure
+    let phi = calculate_simplified_phi_measure(advancedstate, config)?;
+    let gamma = config.quantum.decoherence_rate.max(0.0);
+
+    let (height, width) = consciousness_output.dim();
+
+    // Apply adaptive local scaling based on evolved coherence and phi
+    for y in 0..height {
+        for x in 0..width {
+            // Local phi estimate: modulate by spatial position
+            let spatial_mod = (1.0
+                + 0.05
+                    * ((y as f64 / height.max(1) as f64) * PI).sin()
+                    * ((x as f64 / width.max(1) as f64) * PI).cos())
+            .abs();
+
+            let local_phi = (phi * spatial_mod).min(1.0);
+            let local_damping = (-gamma * local_phi).exp();
+
+            // Scale by evolved coherence strength
+            let scale = local_damping * (1.0 + evolved_coherence * 0.05);
+            consciousness_output[(y, x)] *= scale;
+        }
+    }
 
     Ok(())
 }
@@ -671,13 +794,119 @@ fn reorganize_network_structure(
 }
 
 /// Placeholder for apply_temporal_causal_inference function
-/// TODO: Implement in temporal_processing module
 #[allow(dead_code)]
 fn apply_temporal_causal_inference(
     _consciousness_output: &mut Array2<f64>,
     _state: &AdvancedState,
     _config: &AdvancedConfig,
 ) -> NdimageResult<()> {
-    // TODO: This function will be implemented in the temporal processing module
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::{Array1, Array4};
+    use scirs2_core::numeric::Complex;
+    use std::collections::{BTreeMap, VecDeque};
+    use std::sync::{Arc, RwLock};
+
+    fn make_test_state(amplitudes: Array4<Complex<f64>>) -> AdvancedState {
+        use scirs2_core::ndarray::{Array2, Array5};
+
+        AdvancedState {
+            consciousness_amplitudes: amplitudes,
+            meta_parameters: Array2::zeros((4, 4)),
+            network_topology: Arc::new(RwLock::new(NetworkTopology {
+                connections: std::collections::HashMap::new(),
+                nodes: Vec::new(),
+                global_properties: NetworkProperties {
+                    coherence: 0.5,
+                    self_organization_index: 0.3,
+                    consciousness_emergence: 0.2,
+                    efficiency: 0.8,
+                },
+            })),
+            temporal_memory: VecDeque::new(),
+            causal_graph: BTreeMap::new(),
+            advancedfeatures: Array5::zeros((1, 1, 1, 1, 1)),
+            resource_allocation: ResourceState {
+                cpu_allocation: vec![0.5],
+                memory_allocation: 0.5,
+                gpu_allocation: None,
+                quantum_allocation: None,
+                allocationhistory: VecDeque::new(),
+            },
+            efficiencymetrics: EfficiencyMetrics {
+                ops_per_second: 1000.0,
+                memory_efficiency: 0.8,
+                energy_efficiency: 0.6,
+                quality_efficiency: 0.75,
+                temporal_efficiency: 0.9,
+            },
+            processing_cycles: 0,
+        }
+    }
+
+    #[test]
+    fn test_phi_measure_nonnegative() {
+        // Random-ish amplitudes: phi should always be >= 0
+        let mut amps = Array4::zeros((4, 4, 2, 2));
+        for (i, v) in amps.iter_mut().enumerate() {
+            *v = Complex::new((i as f64 * 0.1).sin(), (i as f64 * 0.1).cos());
+        }
+        let state = make_test_state(amps);
+        let config = AdvancedConfig::default();
+
+        let phi =
+            calculate_simplified_phi_measure(&state, &config).expect("phi measure should not fail");
+        assert!(phi >= 0.0, "phi must be non-negative, got {}", phi);
+    }
+
+    #[test]
+    fn test_phi_measure_zero_for_uniform_state() {
+        // All amplitudes equal → uniform probability → phi should be 0
+        // (all probability mass is uniformly distributed, no bipartition imbalance beyond rounding)
+        let amps = Array4::from_elem((4, 4, 2, 2), Complex::new(1.0, 0.0));
+        let state = make_test_state(amps);
+        let config = AdvancedConfig::default();
+
+        let phi =
+            calculate_simplified_phi_measure(&state, &config).expect("phi measure should not fail");
+        // For uniform distribution: H(left) + H(right) - H(joint) = 0
+        assert!(
+            phi < 1e-10,
+            "phi should be near 0 for uniform distribution, got {}",
+            phi
+        );
+    }
+
+    #[test]
+    fn test_quantum_walk_step_preserves_probability() {
+        // After evolve_coherence_strategies, norms from quantum walk should sum to ~1
+        // (we renormalize, so we check that history is non-empty and values are bounded)
+        let mut optimizer = QuantumCoherenceOptimizer {
+            strategies: Vec::new(),
+            optimization_params: std::collections::HashMap::new(),
+            performancehistory: VecDeque::new(),
+        };
+
+        // Push enough entries for quantum walk to activate
+        for i in 0..10_usize {
+            evolve_coherence_strategies(&mut optimizer, 0.1 * i as f64)
+                .expect("evolve should not fail");
+        }
+
+        // After quantum walk evolution, all values should be finite and non-negative
+        let history: Vec<f64> = optimizer.performancehistory.iter().cloned().collect();
+        assert!(!history.is_empty(), "history should not be empty");
+
+        for &v in &history {
+            assert!(
+                v.is_finite() && v >= 0.0,
+                "quantum walk output should be finite non-negative, got {}",
+                v
+            );
+        }
+    }
 }

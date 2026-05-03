@@ -19,7 +19,13 @@
 
 // Submodules with advanced Vec-based APIs
 pub mod dlm;
+pub mod gp_ssm;
+pub mod hippo;
+pub mod ihmm;
 pub mod linear_gaussian;
+pub mod mamba;
+pub mod s4;
+pub mod s4d;
 pub mod structural;
 pub mod switching;
 

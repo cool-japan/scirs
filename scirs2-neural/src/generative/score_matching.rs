@@ -339,7 +339,11 @@ pub fn denoising_score_matching_loss(
 
     // Sample ε ~ N(0,I) and construct x̃
     let eps: Vec<f32> = (0..d).map(|_| box_muller(rng)).collect();
-    let x_noisy: Vec<f32> = x.iter().zip(&eps).map(|(&xi, &ei)| xi + sigma * ei).collect();
+    let x_noisy: Vec<f32> = x
+        .iter()
+        .zip(&eps)
+        .map(|(&xi, &ei)| xi + sigma * ei)
+        .collect();
 
     // Network score s_θ(x̃)
     let s_pred = score_fn.score(&x_noisy)?;
@@ -519,8 +523,8 @@ mod tests {
         let net = tiny_net(4);
         let x = vec![0.5f32, -0.3, 0.2, 0.8];
         let mut rng: u64 = 0;
-        let (loss, x_noisy) = denoising_score_matching_loss(&net, &x, 0.1, &mut rng)
-            .expect("DSM loss");
+        let (loss, x_noisy) =
+            denoising_score_matching_loss(&net, &x, 0.1, &mut rng).expect("DSM loss");
         assert!(loss >= 0.0 && loss.is_finite(), "DSM loss invalid: {loss}");
         assert_eq!(x_noisy.len(), 4);
     }
@@ -559,7 +563,9 @@ mod tests {
         let net = tiny_net(4);
         let x = vec![0.0f32; 4];
         let mut rng: u64 = 0;
-        assert!(sliced_score_matching_loss(&net, &x, 0, ProjectionDist::Rademacher, &mut rng).is_err());
+        assert!(
+            sliced_score_matching_loss(&net, &x, 0, ProjectionDist::Rademacher, &mut rng).is_err()
+        );
     }
 
     #[test]

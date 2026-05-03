@@ -181,12 +181,7 @@ fn find_min_gradient_pixel(
 
 /// Enforce connectivity of SLIC labels via connected-component relabelling.
 /// Disconnected fragments are assigned to the largest adjacent cluster.
-fn enforce_connectivity(
-    labels: &Array2<i32>,
-    k: usize,
-    rows: usize,
-    cols: usize,
-) -> Array2<u32> {
+fn enforce_connectivity(labels: &Array2<i32>, k: usize, rows: usize, cols: usize) -> Array2<u32> {
     let mut output = Array2::<u32>::zeros((rows, cols));
     let mut visited = Array2::<bool>::from_elem((rows, cols), false);
     let mut next_label = 0u32;
@@ -311,8 +306,8 @@ pub fn graph_cut_segmentation(
 
     // Compute local image statistics for boundary penalties
     let mean_val: f64 = image.iter().sum::<f64>() / (n_pixels as f64);
-    let var_val: f64 = image.iter().map(|&v| (v - mean_val).powi(2)).sum::<f64>()
-        / (n_pixels as f64).max(1.0);
+    let var_val: f64 =
+        image.iter().map(|&v| (v - mean_val).powi(2)).sum::<f64>() / (n_pixels as f64).max(1.0);
     let sigma_sq = var_val.max(1e-10);
 
     // Boundary term: weight on N-link between neighbours
@@ -368,8 +363,14 @@ pub fn graph_cut_segmentation(
     }
     bg_mean /= background_seeds.len() as f64;
 
-    let fg_set: HashSet<usize> = foreground_seeds.iter().map(|&(r, c)| pixel_idx(r, c)).collect();
-    let bg_set: HashSet<usize> = background_seeds.iter().map(|&(r, c)| pixel_idx(r, c)).collect();
+    let fg_set: HashSet<usize> = foreground_seeds
+        .iter()
+        .map(|&(r, c)| pixel_idx(r, c))
+        .collect();
+    let bg_set: HashSet<usize> = background_seeds
+        .iter()
+        .map(|&(r, c)| pixel_idx(r, c))
+        .collect();
 
     for r in 0..rows {
         for c in 0..cols {
@@ -517,9 +518,7 @@ pub fn random_walker_segmentation(
     // Compute edge weights: w_ij = exp(-beta * (I_i - I_j)^2)
     let beta = compute_beta(image, rows, cols);
 
-    let edge_weight = |ia: f64, ib: f64| -> f64 {
-        (-beta * (ia - ib).powi(2)).exp().max(1e-10)
-    };
+    let edge_weight = |ia: f64, ib: f64| -> f64 { (-beta * (ia - ib).powi(2)).exp().max(1e-10) };
 
     // For each label, run iterative label propagation (Gauss-Seidel solver)
     // to approximate the hitting probability.
@@ -750,15 +749,7 @@ pub fn felzenszwalb_segmentation(
         let threshold_u = int_diff[ru] + scale / size[ru] as f64;
         let threshold_v = int_diff[rv] + scale / size[rv] as f64;
         if *w <= threshold_u.min(threshold_v) {
-            union(
-                &mut parent,
-                &mut rank,
-                &mut size,
-                &mut int_diff,
-                ru,
-                rv,
-                *w,
-            );
+            union(&mut parent, &mut rank, &mut size, &mut int_diff, ru, rv, *w);
         }
     }
 
@@ -768,15 +759,7 @@ pub fn felzenszwalb_segmentation(
             let ru = find_root(&mut parent, *u);
             let rv = find_root(&mut parent, *v);
             if ru != rv && (size[ru] < min_size || size[rv] < min_size) {
-                union(
-                    &mut parent,
-                    &mut rank,
-                    &mut size,
-                    &mut int_diff,
-                    ru,
-                    rv,
-                    *w,
-                );
+                union(&mut parent, &mut rank, &mut size, &mut int_diff, ru, rv, *w);
             }
         }
     }
@@ -985,7 +968,11 @@ mod tests {
 
     fn checkerboard(rows: usize, cols: usize) -> Array2<f64> {
         Array2::from_shape_fn((rows, cols), |(r, c)| {
-            if (r / 4 + c / 4) % 2 == 0 { 0.0 } else { 1.0 }
+            if (r / 4 + c / 4) % 2 == 0 {
+                0.0
+            } else {
+                1.0
+            }
         })
     }
 
@@ -1108,8 +1095,7 @@ mod tests {
     #[test]
     fn test_felzenszwalb_uniform() {
         let img = Array2::<f64>::from_elem((8, 8), 0.5);
-        let labels =
-            felzenszwalb_segmentation(&img, 100.0, 0.0, 0).expect("felzenszwalb uniform");
+        let labels = felzenszwalb_segmentation(&img, 100.0, 0.0, 0).expect("felzenszwalb uniform");
         assert_eq!(labels.shape(), img.shape());
         // Uniform image should produce a single segment
         let n_labels = labels.iter().cloned().collect::<HashSet<u32>>().len();

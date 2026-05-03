@@ -137,7 +137,9 @@ fn solve_linear(a: &[Vec<f64>], b: &[f64], n: usize) -> LinalgResult<Vec<f64>> {
             }
         }
         if max_val < 1e-300 {
-            return Err(LinalgError::SingularMatrixError("Matrix is singular".to_string()));
+            return Err(LinalgError::SingularMatrixError(
+                "Matrix is singular".to_string(),
+            ));
         }
         mat.swap(col, max_row);
         rhs.swap(col, max_row);
@@ -161,7 +163,9 @@ fn solve_linear(a: &[Vec<f64>], b: &[f64], n: usize) -> LinalgResult<Vec<f64>> {
             s -= mat[i][j] * x[j];
         }
         if mat[i][i].abs() < 1e-300 {
-            return Err(LinalgError::SingularMatrixError("Matrix is singular".to_string()));
+            return Err(LinalgError::SingularMatrixError(
+                "Matrix is singular".to_string(),
+            ));
         }
         x[i] = s / mat[i][i];
     }
@@ -207,44 +211,94 @@ fn pade_coefficients(m: usize) -> (Vec<f64>, Vec<f64>) {
     match m {
         3 => {
             let c = [120.0, 60.0, 12.0, 1.0];
-            let p: Vec<f64> = c.iter().copied().collect();
-            let q: Vec<f64> = c.iter().enumerate().map(|(i, &v)| if i % 2 == 0 { v } else { -v }).collect();
+            let p: Vec<f64> = c.to_vec();
+            let q: Vec<f64> = c
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| if i % 2 == 0 { v } else { -v })
+                .collect();
             (p, q)
         }
         5 => {
             let c = [30240.0, 15120.0, 3360.0, 420.0, 30.0, 1.0];
-            let p: Vec<f64> = c.iter().copied().collect();
-            let q: Vec<f64> = c.iter().enumerate().map(|(i, &v)| if i % 2 == 0 { v } else { -v }).collect();
+            let p: Vec<f64> = c.to_vec();
+            let q: Vec<f64> = c
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| if i % 2 == 0 { v } else { -v })
+                .collect();
             (p, q)
         }
         7 => {
-            let c = [17297280.0, 8648640.0, 1995840.0, 277200.0, 25200.0, 1512.0, 56.0, 1.0];
-            let p: Vec<f64> = c.iter().copied().collect();
-            let q: Vec<f64> = c.iter().enumerate().map(|(i, &v)| if i % 2 == 0 { v } else { -v }).collect();
+            let c = [
+                17297280.0, 8648640.0, 1995840.0, 277200.0, 25200.0, 1512.0, 56.0, 1.0,
+            ];
+            let p: Vec<f64> = c.to_vec();
+            let q: Vec<f64> = c
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| if i % 2 == 0 { v } else { -v })
+                .collect();
             (p, q)
         }
         9 => {
-            let c = [17643225600.0, 8821612800.0, 2075673600.0, 302702400.0,
-                     30270240.0, 2162160.0, 110880.0, 3960.0, 90.0, 1.0];
-            let p: Vec<f64> = c.iter().copied().collect();
-            let q: Vec<f64> = c.iter().enumerate().map(|(i, &v)| if i % 2 == 0 { v } else { -v }).collect();
+            let c = [
+                17643225600.0,
+                8821612800.0,
+                2075673600.0,
+                302702400.0,
+                30270240.0,
+                2162160.0,
+                110880.0,
+                3960.0,
+                90.0,
+                1.0,
+            ];
+            let p: Vec<f64> = c.to_vec();
+            let q: Vec<f64> = c
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| if i % 2 == 0 { v } else { -v })
+                .collect();
             (p, q)
         }
         13 => {
             // Coefficients for order 13 Padé approximant (from Higham 2005)
-            let c = [64764752532480000.0, 32382376266240000.0, 7771770303897600.0,
-                     1187353796428800.0, 129060195264000.0, 10559470521600.0,
-                     670442572800.0, 33522128640.0, 1323241920.0, 40840800.0,
-                     960960.0, 16380.0, 182.0, 1.0];
-            let p: Vec<f64> = c.iter().copied().collect();
-            let q: Vec<f64> = c.iter().enumerate().map(|(i, &v)| if i % 2 == 0 { v } else { -v }).collect();
+            let c = [
+                64764752532480000.0,
+                32382376266240000.0,
+                7771770303897600.0,
+                1187353796428800.0,
+                129060195264000.0,
+                10559470521600.0,
+                670442572800.0,
+                33522128640.0,
+                1323241920.0,
+                40840800.0,
+                960960.0,
+                16380.0,
+                182.0,
+                1.0,
+            ];
+            let p: Vec<f64> = c.to_vec();
+            let q: Vec<f64> = c
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| if i % 2 == 0 { v } else { -v })
+                .collect();
             (p, q)
         }
         _ => {
             // Fall back to order 7
-            let c = [17297280.0, 8648640.0, 1995840.0, 277200.0, 25200.0, 1512.0, 56.0, 1.0];
-            let p: Vec<f64> = c.iter().copied().collect();
-            let q: Vec<f64> = c.iter().enumerate().map(|(i, &v)| if i % 2 == 0 { v } else { -v }).collect();
+            let c = [
+                17297280.0, 8648640.0, 1995840.0, 277200.0, 25200.0, 1512.0, 56.0, 1.0,
+            ];
+            let p: Vec<f64> = c.to_vec();
+            let q: Vec<f64> = c
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| if i % 2 == 0 { v } else { -v })
+                .collect();
             (p, q)
         }
     }
@@ -427,6 +481,7 @@ fn gregory_log(x: &[Vec<f64>], n: usize, terms: usize) -> LinalgResult<Vec<Vec<f
 /// Uses the Denman–Beavers coupled iteration:
 /// - Y_{k+1} = (Y_k + Z_k^{-1}) / 2
 /// - Z_{k+1} = (Z_k + Y_k^{-1}) / 2
+///
 /// Starting with Y_0 = A, Z_0 = I.
 ///
 /// # Errors
@@ -642,8 +697,8 @@ pub fn frechet_derivative_expm(a: &[Vec<f64>], e: &[Vec<f64>], n: usize) -> Vec<
     let mut aug = vec![vec![0.0; n2]; n2];
     for i in 0..n {
         for j in 0..n {
-            aug[i][j] = a[i][j];         // top-left: A
-            aug[i][j + n] = e[i][j];     // top-right: E
+            aug[i][j] = a[i][j]; // top-left: A
+            aug[i][j + n] = e[i][j]; // top-right: E
             aug[i + n][j + n] = a[i][j]; // bottom-right: A
         }
     }
@@ -846,7 +901,12 @@ mod tests {
         for i in 0..2 {
             for j in 0..2 {
                 let fd = (ea1[i][j] - ea0[i][j]) / eps;
-                assert!((l[i][j] - fd).abs() < 1e-5, "l[{i}][{j}] = {}, fd = {}", l[i][j], fd);
+                assert!(
+                    (l[i][j] - fd).abs() < 1e-5,
+                    "l[{i}][{j}] = {}, fd = {}",
+                    l[i][j],
+                    fd
+                );
             }
         }
     }

@@ -30,7 +30,11 @@ fn norm_ppf(p: f64) -> f64 {
         let r = (-r.ln()).sqrt();
         let x = (((2.321_213_5 * r + 4.850_091_7) * r - 2.297_460_0) * r - 2.787_688_0)
             / ((1.637_547_9 * r + 3.543_889_2) * r + 1.0);
-        if q < 0.0 { -x } else { x }
+        if q < 0.0 {
+            -x
+        } else {
+            x
+        }
     }
 }
 
@@ -178,11 +182,8 @@ impl NACurve {
         }
 
         // Sort by time (ties: events before censored)
-        let mut pairs: Vec<(f64, bool)> = times
-            .iter()
-            .copied()
-            .zip(events.iter().copied())
-            .collect();
+        let mut pairs: Vec<(f64, bool)> =
+            times.iter().copied().zip(events.iter().copied()).collect();
         pairs.sort_by(|a, b| {
             a.0.partial_cmp(&b.0)
                 .unwrap_or(std::cmp::Ordering::Equal)
@@ -333,11 +334,7 @@ impl CoxPHModel {
     /// * `times`      – observed event/censoring times.
     /// * `events`     – event indicators.
     /// * `covariates` – n_samples × n_features covariate matrix.
-    pub fn fit(
-        times: &[f64],
-        events: &[bool],
-        covariates: &Array2<f64>,
-    ) -> StatsResult<Self> {
+    pub fn fit(times: &[f64], events: &[bool], covariates: &Array2<f64>) -> StatsResult<Self> {
         let inner = CoxPH::fit(times, events, covariates)?;
         Ok(Self { inner })
     }
@@ -404,7 +401,9 @@ mod tests {
     fn sample_data() -> (Vec<f64>, Vec<bool>) {
         (
             vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
-            vec![true, true, false, true, false, true, true, false, true, true],
+            vec![
+                true, true, false, true, false, true, true, false, true, true,
+            ],
         )
     }
 
@@ -503,8 +502,8 @@ mod tests {
         let events1 = vec![true, true, true, true, true];
         let times2 = vec![6.0, 7.0, 8.0, 9.0, 10.0];
         let events2 = vec![true, true, true, true, true];
-        let (stat, p) = log_rank_test(&times1, &events1, &times2, &events2)
-            .expect("log_rank_test failed");
+        let (stat, p) =
+            log_rank_test(&times1, &events1, &times2, &events2).expect("log_rank_test failed");
         assert!(stat >= 0.0, "statistic should be non-negative");
         assert!(p >= 0.0 && p <= 1.0, "p-value out of range: {p}");
         assert!(p < 0.05, "expected significant difference, p = {p}");
@@ -514,8 +513,8 @@ mod tests {
     fn test_log_rank_identical_groups() {
         let times = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
         let events = vec![true, true, false, true, false, true];
-        let (stat, p) = log_rank_test(&times, &events, &times, &events)
-            .expect("log_rank_test failed");
+        let (stat, p) =
+            log_rank_test(&times, &events, &times, &events).expect("log_rank_test failed");
         assert!(stat < 1e-10, "identical groups: stat={stat}");
         assert!(p > 0.5, "identical groups should have large p={p}");
     }
@@ -526,11 +525,8 @@ mod tests {
     fn test_coxph_fit_and_coefficients() {
         let times = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let events = vec![true, true, false, true, false, true, true, false];
-        let x = Array2::from_shape_vec(
-            (8, 1),
-            vec![0.1, 0.5, 0.2, 0.8, 0.3, 0.9, 0.4, 0.7],
-        )
-        .expect("array failed");
+        let x = Array2::from_shape_vec((8, 1), vec![0.1, 0.5, 0.2, 0.8, 0.3, 0.9, 0.4, 0.7])
+            .expect("array failed");
         let model = CoxPHModel::fit(&times, &events, &x).expect("fit failed");
         assert_eq!(model.coefficients().len(), 1);
         assert!(model.coefficients()[0].is_finite());
@@ -540,11 +536,8 @@ mod tests {
     fn test_coxph_log_likelihood_finite() {
         let times = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let events = vec![true, true, false, true, false, true, true, false];
-        let x = Array2::from_shape_vec(
-            (8, 1),
-            vec![0.1, 0.5, 0.2, 0.8, 0.3, 0.9, 0.4, 0.7],
-        )
-        .expect("array failed");
+        let x = Array2::from_shape_vec((8, 1), vec![0.1, 0.5, 0.2, 0.8, 0.3, 0.9, 0.4, 0.7])
+            .expect("array failed");
         let model = CoxPHModel::fit(&times, &events, &x).expect("fit failed");
         assert!(model.log_likelihood().is_finite());
     }
@@ -553,11 +546,8 @@ mod tests {
     fn test_coxph_hazard_ratios_positive() {
         let times = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let events = vec![true, true, false, true, false, true, true, false];
-        let x = Array2::from_shape_vec(
-            (8, 1),
-            vec![0.1, 0.5, 0.2, 0.8, 0.3, 0.9, 0.4, 0.7],
-        )
-        .expect("array failed");
+        let x = Array2::from_shape_vec((8, 1), vec![0.1, 0.5, 0.2, 0.8, 0.3, 0.9, 0.4, 0.7])
+            .expect("array failed");
         let model = CoxPHModel::fit(&times, &events, &x).expect("fit failed");
         for &hr in model.hazard_ratios().iter() {
             assert!(hr > 0.0, "HR should be positive, got {hr}");
@@ -568,11 +558,8 @@ mod tests {
     fn test_coxph_predict_risk_positive() {
         let times = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let events = vec![true, true, false, true, false, true, true, false];
-        let x = Array2::from_shape_vec(
-            (8, 1),
-            vec![0.1, 0.5, 0.2, 0.8, 0.3, 0.9, 0.4, 0.7],
-        )
-        .expect("array failed");
+        let x = Array2::from_shape_vec((8, 1), vec![0.1, 0.5, 0.2, 0.8, 0.3, 0.9, 0.4, 0.7])
+            .expect("array failed");
         let model = CoxPHModel::fit(&times, &events, &x).expect("fit failed");
         let risk = model.predict_risk(&[0.5]);
         assert!(risk > 0.0, "risk should be positive, got {risk}");

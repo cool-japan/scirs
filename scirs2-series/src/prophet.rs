@@ -318,11 +318,7 @@ impl ProphetModel {
     /// `timestamps` and `values` must be the same length (≥ 3).
     /// Timestamps can be any monotonically increasing floating-point sequence
     /// (e.g. days since epoch, Unix seconds).
-    pub fn fit(
-        &mut self,
-        timestamps: &Array1<f64>,
-        values: &Array1<f64>,
-    ) -> Result<()> {
+    pub fn fit(&mut self, timestamps: &Array1<f64>, values: &Array1<f64>) -> Result<()> {
         let n = timestamps.len();
         if n < 3 {
             return Err(TimeSeriesError::InsufficientData {
@@ -355,14 +351,16 @@ impl ProphetModel {
         // ── 3. logistic cap normalisation ────────────────────────────────
         let (cap_val, cap_scale) = match self.growth {
             GrowthType::Logistic => {
-                let raw_cap = self.cap.ok_or_else(|| {
-                    TimeSeriesError::InvalidParameter {
-                        name: "cap".to_string(),
-                        message: "logistic growth requires `cap` to be set".to_string(),
-                    }
+                let raw_cap = self.cap.ok_or_else(|| TimeSeriesError::InvalidParameter {
+                    name: "cap".to_string(),
+                    message: "logistic growth requires `cap` to be set".to_string(),
                 })?;
                 let y_max = values.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
-                let scale = if raw_cap.abs() < f64::EPSILON { 1.0 } else { raw_cap };
+                let scale = if raw_cap.abs() < f64::EPSILON {
+                    1.0
+                } else {
+                    raw_cap
+                };
                 let cap_norm = raw_cap / scale;
                 let _ = y_max;
                 (cap_norm, scale)
@@ -402,6 +400,7 @@ impl ProphetModel {
                 yearly_order,
                 weekly_order,
                 daily_order,
+                t_range,
             );
 
             // Residuals after removing seasonality
@@ -487,6 +486,7 @@ impl ProphetModel {
                 yearly_order,
                 weekly_order,
                 daily_order,
+                t_range,
             );
             let residuals: Array1<f64> = &y_norm - &trend_v2 - &seas_v2;
             let loss = residuals.iter().map(|r| r * r).sum::<f64>() / n as f64;
@@ -518,6 +518,7 @@ impl ProphetModel {
             yearly_order,
             weekly_order,
             daily_order,
+            t_range,
         );
         let resid: Array1<f64> = &y_norm - &trend_final - &seas_final;
         let var = resid.iter().map(|r| r * r).sum::<f64>() / (n as f64).max(1.0);
@@ -567,14 +568,11 @@ impl ProphetModel {
     /// The model must be fitted first (returns [`TimeSeriesError::ModelNotFitted`] otherwise).
     pub fn predict(&self, timestamps: &Array1<f64>) -> Result<ProphetForecast> {
         let p = self.params.as_ref().ok_or_else(|| {
-            TimeSeriesError::ModelNotFitted(
-                "call `fit` before `predict`".to_string(),
-            )
+            TimeSeriesError::ModelNotFitted("call `fit` before `predict`".to_string())
         })?;
 
         let n = timestamps.len();
-        let t_norm: Array1<f64> =
-            timestamps.mapv(|t| (t - p.t_min) / p.t_range.max(f64::EPSILON));
+        let t_norm: Array1<f64> = timestamps.mapv(|t| (t - p.t_min) / p.t_range.max(f64::EPSILON));
 
         let trend_norm = compute_trend_component(
             &t_norm,
@@ -583,7 +581,11 @@ impl ProphetModel {
             &p.delta,
             &p.changepoints,
             self.growth == GrowthType::Logistic,
-            if p.cap_scale > 0.0 { self.cap.unwrap_or(1.0) / p.cap_scale } else { 0.0 },
+            if p.cap_scale > 0.0 {
+                self.cap.unwrap_or(1.0) / p.cap_scale
+            } else {
+                0.0
+            },
         );
         let seas_norm = compute_seasonal_component_dyn(
             &t_norm,
@@ -596,6 +598,7 @@ impl ProphetModel {
             self.yearly_fourier_order,
             self.weekly_fourier_order,
             self.daily_fourier_order,
+            p.t_range,
         );
 
         // De-normalise
@@ -659,16 +662,31 @@ fn compute_trend_component(
 ) -> Array1<f64> {
     t_norm.mapv(|t| {
         if logistic {
-            logistic_trend(t, k, m, delta.as_slice().unwrap_or(&[]), changepoints.as_slice().unwrap_or(&[]), cap)
+            logistic_trend(
+                t,
+                k,
+                m,
+                delta.as_slice().unwrap_or(&[]),
+                changepoints.as_slice().unwrap_or(&[]),
+                cap,
+            )
         } else {
-            linear_trend(t, k, m, delta.as_slice().unwrap_or(&[]), changepoints.as_slice().unwrap_or(&[]))
+            linear_trend(
+                t,
+                k,
+                m,
+                delta.as_slice().unwrap_or(&[]),
+                changepoints.as_slice().unwrap_or(&[]),
+            )
         }
     })
 }
 
 /// Piecewise-linear trend: `k·t + m + Σ δ_j · (t − s_j)₊`.
 pub fn linear_trend(t: f64, k: f64, m: f64, delta: &[f64], changepoints: &[f64]) -> f64 {
-    let adj: f64 = delta.iter().zip(changepoints.iter())
+    let adj: f64 = delta
+        .iter()
+        .zip(changepoints.iter())
         .map(|(&d, &s)| if t > s { d * (t - s) } else { 0.0 })
         .sum();
     k * t + m + adj
@@ -713,8 +731,7 @@ pub fn logistic_trend(
             if k_running.abs() > f64::EPSILON {
                 let ratio = y_at_s / cap;
                 let ratio_clamped = ratio.clamp(f64::EPSILON, 1.0 - f64::EPSILON);
-                let m_new = s - (1.0 / (k_running + d)).abs()
-                    * (1.0 / ratio_clamped - 1.0).ln();
+                let m_new = s - (1.0 / (k_running + d)).abs() * (1.0 / ratio_clamped - 1.0).ln();
                 m_adj = m_new;
             }
             k_running += d;
@@ -756,15 +773,27 @@ fn compute_seasonal_component(
         let mut s = 0.0_f64;
         if yearly {
             let feats = fourier_series(t, 1.0, N_FOURIER_YEARLY);
-            s += feats.iter().zip(beta_yearly.iter()).map(|(f, b)| f * b).sum::<f64>();
+            s += feats
+                .iter()
+                .zip(beta_yearly.iter())
+                .map(|(f, b)| f * b)
+                .sum::<f64>();
         }
         if weekly {
             let feats = fourier_series(t, 7.0 / 365.25, N_FOURIER_WEEKLY);
-            s += feats.iter().zip(beta_weekly.iter()).map(|(f, b)| f * b).sum::<f64>();
+            s += feats
+                .iter()
+                .zip(beta_weekly.iter())
+                .map(|(f, b)| f * b)
+                .sum::<f64>();
         }
         if daily {
             let feats = fourier_series(t, 1.0 / 365.25, N_FOURIER_DAILY);
-            s += feats.iter().zip(beta_daily.iter()).map(|(f, b)| f * b).sum::<f64>();
+            s += feats
+                .iter()
+                .zip(beta_daily.iter())
+                .map(|(f, b)| f * b)
+                .sum::<f64>();
         }
         s
     })
@@ -774,6 +803,9 @@ fn compute_seasonal_component(
 ///
 /// Unlike the fixed-constant version, this accepts the Fourier term counts as
 /// runtime parameters so they can be overridden via [`ProphetConfig`].
+///
+/// `t_range` is the original timestamp range (used to derive the normalised
+/// Fourier periods, which must match those used during `fit_seasonality`).
 fn compute_seasonal_component_dyn(
     t_norm: &Array1<f64>,
     beta_yearly: &Array1<f64>,
@@ -785,21 +817,41 @@ fn compute_seasonal_component_dyn(
     yearly_order: usize,
     weekly_order: usize,
     daily_order: usize,
+    t_range: f64,
 ) -> Array1<f64> {
+    // Periods in normalised time.  During fitting, the periods passed to
+    // `fit_seasonality` were `365.25/t_range`, `7.0/t_range`, `1.0/t_range`,
+    // so we must use the same values here to reconstruct correctly.
+    let t_range_eff = t_range.max(f64::EPSILON);
+    let period_yearly = 365.25 / t_range_eff;
+    let period_weekly = 7.0 / t_range_eff;
+    let period_daily = 1.0 / t_range_eff;
     Array1::from_shape_fn(t_norm.len(), |i| {
         let t = t_norm[i];
         let mut s = 0.0_f64;
         if yearly && yearly_order > 0 {
-            let feats = fourier_series(t, 1.0, yearly_order);
-            s += feats.iter().zip(beta_yearly.iter()).map(|(f, b)| f * b).sum::<f64>();
+            let feats = fourier_series(t, period_yearly, yearly_order);
+            s += feats
+                .iter()
+                .zip(beta_yearly.iter())
+                .map(|(f, b)| f * b)
+                .sum::<f64>();
         }
         if weekly && weekly_order > 0 {
-            let feats = fourier_series(t, 7.0 / 365.25, weekly_order);
-            s += feats.iter().zip(beta_weekly.iter()).map(|(f, b)| f * b).sum::<f64>();
+            let feats = fourier_series(t, period_weekly, weekly_order);
+            s += feats
+                .iter()
+                .zip(beta_weekly.iter())
+                .map(|(f, b)| f * b)
+                .sum::<f64>();
         }
         if daily && daily_order > 0 {
-            let feats = fourier_series(t, 1.0 / 365.25, daily_order);
-            s += feats.iter().zip(beta_daily.iter()).map(|(f, b)| f * b).sum::<f64>();
+            let feats = fourier_series(t, period_daily, daily_order);
+            s += feats
+                .iter()
+                .zip(beta_daily.iter())
+                .map(|(f, b)| f * b)
+                .sum::<f64>();
         }
         s
     })
@@ -952,6 +1004,47 @@ pub fn fit_trend_l1(
     let n_cp = changepoints.len();
 
     if n_cp == 0 {
+        if logistic && cap > 0.0 {
+            // Logit-linearisation: z_i = logit(y_i / cap) = ln(p/(1-p))
+            // The logistic model is  y = cap / (1 + exp(-k*(t - m)))
+            // Equivalently  z = k*t - k*m  =>  k = slope, m = -intercept/k
+            let eps = 1e-6;
+            let mut st = 0.0_f64;
+            let mut s1 = 0.0_f64;
+            let mut stt = 0.0_f64;
+            let mut st1 = 0.0_f64;
+            let mut stz = 0.0_f64;
+            let mut sz = 0.0_f64;
+            for i in 0..n {
+                let p = (y[i] / cap).clamp(eps, 1.0 - eps);
+                let zi = (p / (1.0 - p)).ln();
+                let ti = t[i];
+                st += ti;
+                s1 += 1.0;
+                stt += ti * ti;
+                st1 += ti;
+                stz += ti * zi;
+                sz += zi;
+            }
+            let det = stt * s1 - st1 * st;
+            let (k, m) = if det.abs() > 1e-14 {
+                let k_fit = (stz * s1 - sz * st1) / det;
+                let intercept = (stt * sz - st * stz) / det;
+                // intercept = -k*m  =>  m = -intercept / k
+                let m_fit = if k_fit.abs() > 1e-10 {
+                    -intercept / k_fit
+                } else {
+                    // fallback: midpoint of t range
+                    (t.iter().cloned().fold(f64::INFINITY, f64::min)
+                        + t.iter().cloned().fold(f64::NEG_INFINITY, f64::max))
+                        / 2.0
+                };
+                (k_fit, m_fit)
+            } else {
+                (1.0, (t[0] + t[n - 1]) / 2.0)
+            };
+            return Ok((k, m, Array1::zeros(0)));
+        }
         // No changepoints: simple OLS for k and m.
         let n_feat = 2usize;
         let mut x_mat = Array2::<f64>::zeros((n, n_feat));
@@ -972,9 +1065,17 @@ pub fn fit_trend_l1(
         let ti = t[i];
         for (j, &s) in changepoints.iter().enumerate() {
             phi_mat[[i, j]] = if logistic && cap > 0.0 {
-                if ti > s { (ti - s).tanh() } else { 0.0 }
+                if ti > s {
+                    (ti - s).tanh()
+                } else {
+                    0.0
+                }
             } else {
-                if ti > s { ti - s } else { 0.0 }
+                if ti > s {
+                    ti - s
+                } else {
+                    0.0
+                }
             };
         }
     }
@@ -1157,7 +1258,12 @@ fn solve_linear_system(a: &Array2<f64>, b: &Array1<f64>) -> Result<Array1<f64>> 
 pub fn prophet_metrics(forecast: &ProphetForecast, actuals: &Array1<f64>) -> ProphetMetrics {
     let n = forecast.yhat.len().min(actuals.len()) as f64;
     if n < 1.0 {
-        return ProphetMetrics { rmse: f64::NAN, mae: f64::NAN, mape: f64::NAN, smape: f64::NAN };
+        return ProphetMetrics {
+            rmse: f64::NAN,
+            mae: f64::NAN,
+            mape: f64::NAN,
+            smape: f64::NAN,
+        };
     }
 
     let mut ss = 0.0_f64;
@@ -1255,7 +1361,10 @@ mod tests {
         // With large t, logistic should approach cap
         let cap = 10.0;
         let v = logistic_trend(1_000.0, 1.0, 0.0, &[], &[], cap);
-        assert!((v - cap).abs() < 0.01, "logistic should saturate at cap={cap}, got {v}");
+        assert!(
+            (v - cap).abs() < 0.01,
+            "logistic should saturate at cap={cap}, got {v}"
+        );
     }
 
     #[test]
@@ -1263,7 +1372,10 @@ mod tests {
         // At t=-1000, should approach 0
         let cap = 10.0;
         let v = logistic_trend(-1_000.0, 1.0, 0.0, &[], &[], cap);
-        assert!(v < 0.01, "logistic should approach 0 for large negative t, got {v}");
+        assert!(
+            v < 0.01,
+            "logistic should approach 0 for large negative t, got {v}"
+        );
     }
 
     // ── fit flat trend ────────────────────────────────────────────────────────
@@ -1348,7 +1460,12 @@ mod tests {
         // Total variance captured: correlation between seasonal and y should be high
         let mean_y = y.sum() / n as f64;
         let ss_tot: f64 = y.iter().map(|&v| (v - mean_y).powi(2)).sum();
-        let ss_res: f64 = fc.yhat.iter().zip(y.iter()).map(|(&p, &a)| (p - a).powi(2)).sum();
+        let ss_res: f64 = fc
+            .yhat
+            .iter()
+            .zip(y.iter())
+            .map(|(&p, &a)| (p - a).powi(2))
+            .sum();
         let r2 = 1.0 - ss_res / ss_tot;
         assert!(r2 > 0.5, "weekly seasonality R²={r2} should be > 0.5");
     }
@@ -1394,7 +1511,8 @@ mod tests {
         let mid_pred = fc.yhat[n / 2];
         assert!(
             (mid_pred - cap / 2.0).abs() < 2.0,
-            "logistic midpoint={mid_pred}, expected ≈ {}", cap / 2.0
+            "logistic midpoint={mid_pred}, expected ≈ {}",
+            cap / 2.0
         );
         // Endpoint should approach cap
         let end_pred = fc.yhat[n - 1];
@@ -1481,7 +1599,7 @@ mod tests {
     #[test]
     fn test_yearly_seasonality_fit() {
         let n = 730; // two years of daily data
-        // Simulate a clear yearly signal (period = 365.25 days)
+                     // Simulate a clear yearly signal (period = 365.25 days)
         let t: Array1<f64> = Array1::linspace(0.0, 729.0, n);
         let y: Array1<f64> =
             t.mapv(|ti| 5.0 * (2.0 * std::f64::consts::PI * ti / 365.25).sin() + 20.0);
@@ -1495,7 +1613,12 @@ mod tests {
         let fc = model.predict(&t).expect("predict");
         let mean_y = y.sum() / n as f64;
         let ss_tot: f64 = y.iter().map(|&v| (v - mean_y).powi(2)).sum();
-        let ss_res: f64 = fc.yhat.iter().zip(y.iter()).map(|(&p, &a)| (p - a).powi(2)).sum();
+        let ss_res: f64 = fc
+            .yhat
+            .iter()
+            .zip(y.iter())
+            .map(|(&p, &a)| (p - a).powi(2))
+            .sum();
         let r2 = 1.0 - ss_res / ss_tot;
         assert!(r2 > 0.7, "yearly seasonality R²={r2} should be > 0.7");
     }

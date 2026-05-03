@@ -78,7 +78,7 @@ impl PrimaryCaps {
             .map(|c| {
                 (0..input_size)
                     .map(|i| {
-                        let v = ((c * input_size + i) as f32 * 2.7182818).sin();
+                        let v = ((c * input_size + i) as f32 * std::f32::consts::E).sin();
                         v * limit
                     })
                     .collect()
@@ -117,7 +117,11 @@ impl PrimaryCaps {
         // Linear projection
         let mut pre_squash = vec![0.0_f32; n_out];
         for (c, (row, &b)) in self.weights.iter().zip(self.bias.iter()).enumerate() {
-            pre_squash[c] = b + row.iter().zip(input.iter()).map(|(&w, &x)| w * x).sum::<f32>();
+            pre_squash[c] = b + row
+                .iter()
+                .zip(input.iter())
+                .map(|(&w, &x)| w * x)
+                .sum::<f32>();
         }
 
         // Split into n_capsules vectors and squash each
@@ -246,18 +250,16 @@ impl DigitCaps {
         }
 
         // u_hat[i][j] = W[i][j] @ u[j]
-        let mut u_hat: Vec<Vec<Vec<f32>>> = vec![
-            vec![vec![0.0_f32; self.cap_dim]; self.n_primary];
-            self.n_classes
-        ];
+        let mut u_hat: Vec<Vec<Vec<f32>>> =
+            vec![vec![vec![0.0_f32; self.cap_dim]; self.n_primary]; self.n_classes];
 
-        for i in 0..self.n_classes {
+        for (i, u_hat_i) in u_hat.iter_mut().enumerate().take(self.n_classes) {
             for j in 0..self.n_primary {
                 let mat = &self.w[i][j]; // [cap_dim * primary_dim]
                 let u_j = &primary_caps[j]; // [primary_dim]
-                for d in 0..self.cap_dim {
+                for (d, u_hat_ij_d) in u_hat_i[j].iter_mut().enumerate().take(self.cap_dim) {
                     let row_start = d * self.primary_dim;
-                    u_hat[i][j][d] = mat[row_start..row_start + self.primary_dim]
+                    *u_hat_ij_d = mat[row_start..row_start + self.primary_dim]
                         .iter()
                         .zip(u_j.iter())
                         .map(|(&w, &u)| w * u)
@@ -325,7 +327,9 @@ mod tests {
     fn digit_caps_prediction_shape() {
         let dc = DigitCaps::new(10, 16, 8, 4).expect("operation should succeed");
         let primary: Vec<Vec<f32>> = (0..8).map(|_| vec![0.1_f32; 4]).collect();
-        let u_hat = dc.compute_predictions(&primary).expect("operation should succeed");
+        let u_hat = dc
+            .compute_predictions(&primary)
+            .expect("operation should succeed");
         assert_eq!(u_hat.len(), 10);
         assert_eq!(u_hat[0].len(), 8);
         assert_eq!(u_hat[0][0].len(), 16);

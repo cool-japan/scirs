@@ -205,7 +205,10 @@ impl InMemoryTable {
         Self {
             columns: columns
                 .into_iter()
-                .map(|(n, t)| ColumnSchema { name: n, col_type: t })
+                .map(|(n, t)| ColumnSchema {
+                    name: n,
+                    col_type: t,
+                })
                 .collect(),
             rows: Vec::new(),
             name: None,
@@ -251,11 +254,7 @@ impl InMemoryTable {
         let row: Vec<ColumnValue> = self
             .columns
             .iter()
-            .map(|col| {
-                map.get(&col.name)
-                    .cloned()
-                    .unwrap_or(ColumnValue::Null)
-            })
+            .map(|col| map.get(&col.name).cloned().unwrap_or(ColumnValue::Null))
             .collect();
         self.rows.push(row);
         Ok(())
@@ -430,11 +429,12 @@ fn like_match_recursive(s: &[u8], p: &[u8]) -> bool {
             false
         }
         ([], _) => false,
-        ([sc, s_rest @ ..], [b'_', p_rest @ ..]) => like_match_recursive(s_rest, p_rest)
-            || (sc.is_ascii() && like_match_recursive(s_rest, p_rest)),
+        ([sc, s_rest @ ..], [b'_', p_rest @ ..]) => {
+            like_match_recursive(s_rest, p_rest)
+                || (sc.is_ascii() && like_match_recursive(s_rest, p_rest))
+        }
         ([sc, s_rest @ ..], [pc, p_rest @ ..]) => {
-            sc.to_ascii_lowercase() == pc.to_ascii_lowercase()
-                && like_match_recursive(s_rest, p_rest)
+            sc.eq_ignore_ascii_case(pc) && like_match_recursive(s_rest, p_rest)
         }
     }
 }
@@ -624,10 +624,7 @@ impl<'a> TableProjection<'a> {
         let mut indices: Vec<(usize, String)> = Vec::new();
         for (orig, alias) in &self.selections {
             let idx = self.table.column_index(orig).ok_or_else(|| {
-                IoError::ValidationError(format!(
-                    "Projection column '{}' not found in table",
-                    orig
-                ))
+                IoError::ValidationError(format!("Projection column '{}' not found in table", orig))
             })?;
             let out_name = alias.as_deref().unwrap_or(orig.as_str()).to_string();
             indices.push((idx, out_name));
@@ -645,12 +642,7 @@ impl<'a> TableProjection<'a> {
             .table
             .rows
             .iter()
-            .map(|row| {
-                indices
-                    .iter()
-                    .map(|(idx, _)| row[*idx].clone())
-                    .collect()
-            })
+            .map(|row| indices.iter().map(|(idx, _)| row[*idx].clone()).collect())
             .collect();
 
         Ok(InMemoryTable {
@@ -717,22 +709,20 @@ impl AggFunc {
                     ColumnValue::Float(vals.iter().sum::<f64>() / vals.len() as f64)
                 }
             }
-            AggFunc::Min(col) => {
-                rows.iter()
-                    .filter_map(|r| get_col_val(r, columns, col))
-                    .filter(|v| !matches!(v, ColumnValue::Null))
-                    .min_by(|a, b| a.partial_cmp_value(b).unwrap_or(Ordering::Equal))
-                    .cloned()
-                    .unwrap_or(ColumnValue::Null)
-            }
-            AggFunc::Max(col) => {
-                rows.iter()
-                    .filter_map(|r| get_col_val(r, columns, col))
-                    .filter(|v| !matches!(v, ColumnValue::Null))
-                    .max_by(|a, b| a.partial_cmp_value(b).unwrap_or(Ordering::Equal))
-                    .cloned()
-                    .unwrap_or(ColumnValue::Null)
-            }
+            AggFunc::Min(col) => rows
+                .iter()
+                .filter_map(|r| get_col_val(r, columns, col))
+                .filter(|v| !matches!(v, ColumnValue::Null))
+                .min_by(|a, b| a.partial_cmp_value(b).unwrap_or(Ordering::Equal))
+                .cloned()
+                .unwrap_or(ColumnValue::Null),
+            AggFunc::Max(col) => rows
+                .iter()
+                .filter_map(|r| get_col_val(r, columns, col))
+                .filter(|v| !matches!(v, ColumnValue::Null))
+                .max_by(|a, b| a.partial_cmp_value(b).unwrap_or(Ordering::Equal))
+                .cloned()
+                .unwrap_or(ColumnValue::Null),
             AggFunc::Std(col) => {
                 let vals: Vec<f64> = rows
                     .iter()
@@ -802,10 +792,7 @@ impl<'a> GroupBy<'a> {
         // Group rows by key
         let mut groups: HashMap<Vec<String>, Vec<&Vec<ColumnValue>>> = HashMap::new();
         for row in &self.table.rows {
-            let key: Vec<String> = group_indices
-                .iter()
-                .map(|&i| row[i].to_string())
-                .collect();
+            let key: Vec<String> = group_indices.iter().map(|&i| row[i].to_string()).collect();
             groups.entry(key).or_default().push(row);
         }
 
@@ -1187,7 +1174,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(grouped.row_count(), 2); // eng, hr
-        // eng has Alice(95) + Bob(82.5) = 177.5
+                                            // eng has Alice(95) + Bob(82.5) = 177.5
         let eng_row = grouped
             .rows
             .iter()
@@ -1207,16 +1194,23 @@ mod tests {
             ("id".to_string(), ColumnType::Int64),
             ("val".to_string(), ColumnType::Float64),
         ]);
-        left.push_row(&[ColumnValue::Int(1), ColumnValue::Float(1.0)]).unwrap();
-        left.push_row(&[ColumnValue::Int(2), ColumnValue::Float(2.0)]).unwrap();
-        left.push_row(&[ColumnValue::Int(3), ColumnValue::Float(3.0)]).unwrap();
+        left.push_row(&[ColumnValue::Int(1), ColumnValue::Float(1.0)])
+            .unwrap();
+        left.push_row(&[ColumnValue::Int(2), ColumnValue::Float(2.0)])
+            .unwrap();
+        left.push_row(&[ColumnValue::Int(3), ColumnValue::Float(3.0)])
+            .unwrap();
 
         let mut right = InMemoryTable::new(vec![
             ("id".to_string(), ColumnType::Int64),
             ("label".to_string(), ColumnType::Utf8),
         ]);
-        right.push_row(&[ColumnValue::Int(1), ColumnValue::Utf8("one".to_string())]).unwrap();
-        right.push_row(&[ColumnValue::Int(2), ColumnValue::Utf8("two".to_string())]).unwrap();
+        right
+            .push_row(&[ColumnValue::Int(1), ColumnValue::Utf8("one".to_string())])
+            .unwrap();
+        right
+            .push_row(&[ColumnValue::Int(2), ColumnValue::Utf8("two".to_string())])
+            .unwrap();
 
         let joined = TableJoin::hash_join(&left, &right, "id", "id", JoinType::Inner).unwrap();
         assert_eq!(joined.row_count(), 2);
@@ -1224,9 +1218,7 @@ mod tests {
 
     #[test]
     fn test_left_join() {
-        let mut left = InMemoryTable::new(vec![
-            ("id".to_string(), ColumnType::Int64),
-        ]);
+        let mut left = InMemoryTable::new(vec![("id".to_string(), ColumnType::Int64)]);
         left.push_row(&[ColumnValue::Int(1)]).unwrap();
         left.push_row(&[ColumnValue::Int(2)]).unwrap();
         left.push_row(&[ColumnValue::Int(3)]).unwrap(); // no match in right
@@ -1235,8 +1227,12 @@ mod tests {
             ("id".to_string(), ColumnType::Int64),
             ("x".to_string(), ColumnType::Float64),
         ]);
-        right.push_row(&[ColumnValue::Int(1), ColumnValue::Float(10.0)]).unwrap();
-        right.push_row(&[ColumnValue::Int(2), ColumnValue::Float(20.0)]).unwrap();
+        right
+            .push_row(&[ColumnValue::Int(1), ColumnValue::Float(10.0)])
+            .unwrap();
+        right
+            .push_row(&[ColumnValue::Int(2), ColumnValue::Float(20.0)])
+            .unwrap();
 
         let joined = TableJoin::hash_join(&left, &right, "id", "id", JoinType::Left).unwrap();
         assert_eq!(joined.row_count(), 3);

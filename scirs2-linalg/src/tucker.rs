@@ -73,7 +73,11 @@ impl TuckerDecomp {
             }
         }
         if orig_sq == 0.0 {
-            if diff_sq == 0.0 { 0.0 } else { f64::INFINITY }
+            if diff_sq == 0.0 {
+                0.0
+            } else {
+                f64::INFINITY
+            }
         } else {
             (diff_sq / orig_sq).sqrt()
         }
@@ -395,9 +399,7 @@ fn truncated_svd_left(matrix: &Array2<f64>, r: usize) -> LinalgResult<(Array2<f6
     let (u, s, _vt) = svd(&matrix.view(), true, None)?;
     // u has shape (m, min(m,n)) in full mode; we want leading r columns
     let actual_r = r.min(u.ncols());
-    let u_trunc = u
-        .slice(scirs2_core::ndarray::s![.., ..actual_r])
-        .to_owned();
+    let u_trunc = u.slice(scirs2_core::ndarray::s![.., ..actual_r]).to_owned();
     let s_trunc: Vec<f64> = s.iter().take(actual_r).copied().collect();
     Ok((u_trunc, s_trunc))
 }
@@ -563,11 +565,7 @@ mod tests {
             for i in 0..r {
                 for j in 0..r {
                     let expected = if i == j { 1.0 } else { 0.0 };
-                    assert_abs_diff_eq!(
-                        utu[[i, j]],
-                        expected,
-                        epsilon = 1e-8,
-                    );
+                    assert_abs_diff_eq!(utu[[i, j]], expected, epsilon = 1e-8,);
                     let _ = n; // suppress unused warning
                 }
             }

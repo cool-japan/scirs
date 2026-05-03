@@ -122,9 +122,7 @@ where
         ));
     }
     if k < 2 {
-        return Err(ClusteringError::InvalidInput(
-            "k must be at least 2".into(),
-        ));
+        return Err(ClusteringError::InvalidInput("k must be at least 2".into()));
     }
     if config.subsample_fraction <= 0.0 || config.subsample_fraction > 1.0 {
         return Err(ClusteringError::InvalidInput(
@@ -146,7 +144,10 @@ where
     let mut rng = Lcg::new(config.seed);
 
     for run in 0..config.n_runs {
-        let run_seed = config.seed.wrapping_add(run as u64).wrapping_mul(2_654_435_761);
+        let run_seed = config
+            .seed
+            .wrapping_add(run as u64)
+            .wrapping_mul(2_654_435_761);
 
         // Sample indices
         let idx = rng.sample_indices(n, sub_n);
@@ -498,8 +499,8 @@ mod tests {
         Array2::from_shape_vec(
             (12, 2),
             vec![
-                0.0, 0.0, 0.1, 0.0, 0.0, 0.1, -0.1, 0.0, 0.1, 0.1, -0.1, -0.1,
-                10.0, 10.0, 10.1, 10.0, 10.0, 10.1, 9.9, 10.0, 10.1, 10.1, 9.9, 9.9,
+                0.0, 0.0, 0.1, 0.0, 0.0, 0.1, -0.1, 0.0, 0.1, 0.1, -0.1, -0.1, 10.0, 10.0, 10.1,
+                10.0, 10.0, 10.1, 9.9, 10.0, 10.1, 10.1, 9.9, 9.9,
             ],
         )
         .expect("create test data")
@@ -514,7 +515,8 @@ mod tests {
             max_k: 4,
             seed: 1,
         };
-        let result = consensus_clustering(&data, 2, grid_clusterer, config).expect("operation should succeed");
+        let result = consensus_clustering(&data, 2, grid_clusterer, config)
+            .expect("operation should succeed");
         let m = &result.consensus_matrix;
         let n = m.nrows();
         for i in 0..n {
@@ -538,7 +540,8 @@ mod tests {
             max_k: 4,
             seed: 2,
         };
-        let result = consensus_clustering(&data, 2, grid_clusterer, config).expect("operation should succeed");
+        let result = consensus_clustering(&data, 2, grid_clusterer, config)
+            .expect("operation should succeed");
         for &v in result.consensus_matrix.iter() {
             assert!(
                 v >= 0.0 && v <= 1.0 + 1e-12,
@@ -557,7 +560,8 @@ mod tests {
             max_k: 4,
             seed: 3,
         };
-        let result = consensus_clustering(&data, 2, grid_clusterer, config).expect("operation should succeed");
+        let result = consensus_clustering(&data, 2, grid_clusterer, config)
+            .expect("operation should succeed");
         assert_eq!(result.assignments.len(), 12);
         assert_eq!(result.k, 2);
         // All assignments in [0, k)
@@ -575,7 +579,8 @@ mod tests {
             max_k: 6,
             seed: 4,
         };
-        let results = consensus_clustering_sweep(&data, 2..5, grid_clusterer, config).expect("operation should succeed");
+        let results = consensus_clustering_sweep(&data, 2..5, grid_clusterer, config)
+            .expect("operation should succeed");
         assert_eq!(results.len(), 3);
         assert_eq!(results[0].k, 2);
         assert_eq!(results[1].k, 3);
@@ -591,7 +596,8 @@ mod tests {
             max_k: 6,
             seed: 5,
         };
-        let results = consensus_clustering_sweep(&data, 2..5, grid_clusterer, config).expect("operation should succeed");
+        let results = consensus_clustering_sweep(&data, 2..5, grid_clusterer, config)
+            .expect("operation should succeed");
         assert_eq!(
             results[0].delta_k, 0.0,
             "First delta_k should be 0.0 (no prior k)"
@@ -607,7 +613,8 @@ mod tests {
             max_k: 4,
             seed: 6,
         };
-        let result = consensus_clustering(&data, 2, grid_clusterer, config).expect("operation should succeed");
+        let result = consensus_clustering(&data, 2, grid_clusterer, config)
+            .expect("operation should succeed");
         assert!(
             result.cdf_area >= 0.0 && result.cdf_area <= 1.0 + 1e-9,
             "CDF area {} should be in [0,1]",

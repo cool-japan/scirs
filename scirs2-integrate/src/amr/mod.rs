@@ -40,6 +40,7 @@
 //! ```
 
 pub mod level_set;
+pub mod load_balanced;
 pub mod octree;
 pub mod operators;
 pub mod quadtree;
@@ -62,3 +63,6 @@ pub use operators::{prolongate_2d, prolongate_3d, restrict_2d, restrict_3d, AmrO
 
 // Level-set
 pub use level_set::LevelSet;
+
+// Load-balanced AMR
+pub use load_balanced::{AmrCell, AmrConfig, AmrGrid2D, BalanceType, LoadStats};

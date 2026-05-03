@@ -35,13 +35,9 @@ use crate::error::{FFTError, FFTResult};
 use crate::oxifft_plan_cache;
 #[cfg(feature = "oxifft")]
 use oxifft::{Complex as OxiComplex, Direction};
-#[cfg(feature = "rustfft-backend")]
-use rustfft::FftPlanner;
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::NumCast;
 use std::fmt::Debug;
-#[cfg(feature = "rustfft-backend")]
-use std::sync::Mutex;
 
 /// Configuration for large FFT operations
 #[derive(Debug, Clone)]
@@ -118,9 +114,6 @@ pub struct LargeFftStats {
 pub struct LargeFft {
     /// Configuration
     config: LargeFftConfig,
-    /// FFT planner (cached) - only for rustfft backend
-    #[cfg(feature = "rustfft-backend")]
-    planner: Mutex<FftPlanner<f64>>,
     /// Algorithm selector
     selector: AlgorithmSelector,
 }
@@ -141,8 +134,6 @@ impl LargeFft {
     pub fn new(config: LargeFftConfig) -> Self {
         Self {
             config,
-            #[cfg(feature = "rustfft-backend")]
-            planner: Mutex::new(FftPlanner::new()),
             selector: AlgorithmSelector::new(),
         }
     }
@@ -231,41 +222,6 @@ impl LargeFft {
 
             Ok(result)
         }
-
-        #[cfg(not(feature = "oxifft"))]
-        {
-            #[cfg(feature = "rustfft-backend")]
-            {
-                let mut data = data;
-                let plan = {
-                    let mut planner = self.planner.lock().map_err(|e| {
-                        FFTError::ValueError(format!("Failed to acquire planner lock: {e}"))
-                    })?;
-                    if forward {
-                        planner.plan_fft_forward(size)
-                    } else {
-                        planner.plan_fft_inverse(size)
-                    }
-                };
-                plan.process(&mut data);
-
-                if !forward {
-                    let scale = 1.0 / size as f64;
-                    for val in &mut data {
-                        *val *= scale;
-                    }
-                }
-
-                return Ok(data);
-            }
-
-            #[cfg(not(feature = "rustfft-backend"))]
-            {
-                return Err(FFTError::ComputationError(
-                    "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
-                ));
-            }
-        }
     }
 
     /// Compute FFT using direct method (best for small inputs)
@@ -315,46 +271,6 @@ impl LargeFft {
             }
 
             Ok(result)
-        }
-
-        #[cfg(not(feature = "oxifft"))]
-        {
-            #[cfg(feature = "rustfft-backend")]
-            {
-                let mut data = data;
-
-                // Get FFT plan
-                let plan = {
-                    let mut planner = self.planner.lock().map_err(|e| {
-                        FFTError::ValueError(format!("Failed to acquire planner lock: {e}"))
-                    })?;
-                    if forward {
-                        planner.plan_fft_forward(size)
-                    } else {
-                        planner.plan_fft_inverse(size)
-                    }
-                };
-
-                // Execute FFT
-                plan.process(&mut data);
-
-                // Apply normalization for inverse
-                if !forward {
-                    let scale = 1.0 / size as f64;
-                    for val in &mut data {
-                        *val *= scale;
-                    }
-                }
-
-                Ok(data)
-            }
-
-            #[cfg(not(feature = "rustfft-backend"))]
-            {
-                Err(FFTError::ComputationError(
-                    "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
-                ))
-            }
         }
     }
 
@@ -419,53 +335,6 @@ impl LargeFft {
 
             Ok(result)
         }
-
-        #[cfg(not(feature = "oxifft"))]
-        {
-            #[cfg(feature = "rustfft-backend")]
-            {
-                let mut data = data;
-
-                // Get FFT plan
-                let plan = {
-                    let mut planner = self.planner.lock().map_err(|e| {
-                        FFTError::ValueError(format!("Failed to acquire planner lock: {e}"))
-                    })?;
-                    if forward {
-                        planner.plan_fft_forward(size)
-                    } else {
-                        planner.plan_fft_inverse(size)
-                    }
-                };
-
-                // Use scratch buffer for better cache behavior
-                let scratch_len = plan.get_inplace_scratch_len();
-                let mut scratch = vec![Complex64::new(0.0, 0.0); scratch_len];
-
-                // Execute FFT with scratch (better cache behavior)
-                plan.process_with_scratch(&mut data, &mut scratch);
-
-                // Apply normalization for inverse
-                if !forward {
-                    let scale = 1.0 / size as f64;
-                    for val in &mut data {
-                        *val *= scale;
-                    }
-                }
-
-                // Log block size for debugging (could be useful for profiling)
-                let _ = block_size;
-
-                Ok(data)
-            }
-
-            #[cfg(not(feature = "rustfft-backend"))]
-            {
-                Err(FFTError::ComputationError(
-                    "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
-                ))
-            }
-        }
     }
 
     /// Compute FFT using streaming method (for large inputs)
@@ -527,57 +396,6 @@ impl LargeFft {
             }
 
             Ok(result)
-        }
-
-        #[cfg(not(feature = "oxifft"))]
-        {
-            #[cfg(feature = "rustfft-backend")]
-            {
-                // Get FFT plan
-                let plan = {
-                    let mut planner = self.planner.lock().map_err(|e| {
-                        FFTError::ValueError(format!("Failed to acquire planner lock: {e}"))
-                    })?;
-                    if forward {
-                        planner.plan_fft_forward(size)
-                    } else {
-                        planner.plan_fft_inverse(size)
-                    }
-                };
-
-                // For very large inputs, we want to minimize scratch memory
-                // by using the smallest possible scratch buffer
-                let scratch_len = plan.get_inplace_scratch_len();
-
-                // Allocate scratch in smaller chunks if possible
-                let mut scratch = vec![Complex64::new(0.0, 0.0); scratch_len];
-
-                // Execute FFT
-                plan.process_with_scratch(&mut data, &mut scratch);
-
-                // Free scratch immediately to reduce peak memory
-                drop(scratch);
-
-                // Apply normalization for inverse
-                if !forward {
-                    let scale = 1.0 / size as f64;
-                    // Process normalization in chunks to improve cache behavior
-                    for chunk in data.chunks_mut(chunk_size) {
-                        for val in chunk {
-                            *val *= scale;
-                        }
-                    }
-                }
-
-                Ok(data)
-            }
-
-            #[cfg(not(feature = "rustfft-backend"))]
-            {
-                Err(FFTError::ComputationError(
-                    "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
-                ))
-            }
         }
     }
 
@@ -698,86 +516,6 @@ impl LargeFft {
             }
 
             Ok(output)
-        }
-
-        #[cfg(not(feature = "oxifft"))]
-        {
-            #[cfg(feature = "rustfft-backend")]
-            {
-                // Get FFT plans
-                let (fft_plan, ifft_plan) = {
-                    let mut planner = self.planner.lock().map_err(|e| {
-                        FFTError::ValueError(format!("Failed to acquire planner lock: {e}"))
-                    })?;
-                    (
-                        planner.plan_fft_forward(fft_size),
-                        planner.plan_fft_inverse(fft_size),
-                    )
-                };
-
-                // Process each block
-                let mut buffer = vec![Complex64::new(0.0, 0.0); fft_size];
-
-                for block_idx in 0..num_blocks {
-                    let input_start = if block_idx == 0 {
-                        0
-                    } else {
-                        block_idx * valid_output_per_block - (filter_len - 1)
-                    };
-
-                    // Zero the buffer
-                    for val in &mut buffer {
-                        *val = Complex64::new(0.0, 0.0);
-                    }
-
-                    // Copy input block
-                    for (i, j) in (input_start..)
-                        .take(fft_size.min(input_len - input_start))
-                        .enumerate()
-                    {
-                        if j < input_len {
-                            let real: f64 = NumCast::from(input[j]).unwrap_or(0.0);
-                            buffer[i] = Complex64::new(real, 0.0);
-                        }
-                    }
-
-                    // Forward FFT
-                    fft_plan.process(&mut buffer);
-
-                    // (Here you would multiply by filter FFT for convolution)
-                    // For now, we just do the FFT
-
-                    if !forward {
-                        // Inverse FFT
-                        ifft_plan.process(&mut buffer);
-
-                        // Normalize
-                        let scale = 1.0 / fft_size as f64;
-                        for val in &mut buffer {
-                            *val *= scale;
-                        }
-                    }
-
-                    // Extract valid output
-                    let output_start = if block_idx == 0 { 0 } else { filter_len - 1 };
-                    let output_count = valid_output_per_block.min(output_len - output.len());
-
-                    for i in output_start..(output_start + output_count) {
-                        if i < fft_size {
-                            output.push(buffer[i]);
-                        }
-                    }
-                }
-
-                Ok(output)
-            }
-
-            #[cfg(not(feature = "rustfft-backend"))]
-            {
-                Err(FFTError::ComputationError(
-                    "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()
-                ))
-            }
         }
     }
 

@@ -4,9 +4,7 @@
 //! alongside helper functions for batch smoothing.
 
 use crate::error::{Result, TimeSeriesError};
-use crate::state_space::{
-    kalman_filter, kalman_smoother, StateSpaceModel,
-};
+use crate::state_space::{kalman_filter, kalman_smoother, StateSpaceModel};
 use scirs2_core::ndarray::{Array1, Array2};
 
 // ---------------------------------------------------------------------------
@@ -155,17 +153,12 @@ impl UnivariateKalmanFilter {
             // Smoother gain G_t = P_{t|t} / P_{t+1|t}
             let g = filt_var[t] / p_next_pred;
             // Smoothed state
-            smoothed_state[t] =
-                filt_state[t] + g * (smoothed_state[t + 1] - pred_state[t + 1]);
+            smoothed_state[t] = filt_state[t] + g * (smoothed_state[t + 1] - pred_state[t + 1]);
             // Smoothed variance
-            smoothed_var[t] =
-                filt_var[t] + g * g * (smoothed_var[t + 1] - p_next_pred);
+            smoothed_var[t] = filt_var[t] + g * g * (smoothed_var[t + 1] - p_next_pred);
         }
 
-        smoothed_state
-            .into_iter()
-            .zip(smoothed_var)
-            .collect()
+        smoothed_state.into_iter().zip(smoothed_var).collect()
     }
 
     /// Compute the log-likelihood of a series of observations given the current
@@ -220,19 +213,15 @@ pub fn smooth_univariate(
         });
     }
 
-    let obs_2d = Array2::from_shape_vec(
-        (n, 1),
-        observations.to_vec(),
-    )
-    .map_err(|e| TimeSeriesError::ComputationError(format!("Shape error: {e}")))?;
+    let obs_2d = Array2::from_shape_vec((n, 1), observations.to_vec())
+        .map_err(|e| TimeSeriesError::ComputationError(format!("Shape error: {e}")))?;
 
     let model = StateSpaceModel::local_level(sigma_eta, sigma_eps);
     let filt = kalman_filter(obs_2d.view(), &model, true)?;
     let smooth = kalman_smoother(&filt, &model)?;
 
     let filtered: Array1<f64> = Array1::from_iter((0..n).map(|t| filt.filtered_states[[t, 0]]));
-    let smoothed: Array1<f64> =
-        Array1::from_iter((0..n).map(|t| smooth.smoothed_states[[t, 0]]));
+    let smoothed: Array1<f64> = Array1::from_iter((0..n).map(|t| smooth.smoothed_states[[t, 0]]));
 
     Ok((filtered, smoothed))
 }
@@ -261,8 +250,7 @@ pub fn one_step_ahead(
     let model = StateSpaceModel::local_level(sigma_eta, sigma_eps);
     let filt = kalman_filter(obs_2d.view(), &model, true)?;
 
-    let preds: Array1<f64> =
-        Array1::from_iter((0..n).map(|t| filt.predicted_states[[t, 0]]));
+    let preds: Array1<f64> = Array1::from_iter((0..n).map(|t| filt.predicted_states[[t, 0]]));
     let resids: Array1<f64> = Array1::from_iter((0..n).map(|t| filt.innovations[[t, 0]]));
 
     Ok((preds, resids))
@@ -314,7 +302,10 @@ mod tests {
         let mut kf = UnivariateKalmanFilter::new(0.0, 1.0, 0.0, 0.5);
         let init_var = kf.variance;
         let (_, var_after) = kf.update(3.0);
-        assert!(var_after < init_var, "variance should decrease after update");
+        assert!(
+            var_after < init_var,
+            "variance should decrease after update"
+        );
     }
 
     #[test]

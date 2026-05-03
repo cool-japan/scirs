@@ -19,23 +19,27 @@ use crate::rl::policy::{softmax, PolicyRng};
 // Helper MLP (re-implemented inline to keep this file self-contained)
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// Lightweight MLP used inside the actor and critic.
+/// Lightweight Mlp used inside the actor and critic.
 #[derive(Debug, Clone)]
-struct MLP {
+struct Mlp {
     weights: Vec<Vec<Vec<f32>>>,
-    biases:  Vec<Vec<f32>>,
+    biases: Vec<Vec<f32>>,
 }
 
-impl MLP {
+impl Mlp {
     fn build(dims: &[usize]) -> Self {
         let mut rng = PolicyRng::new(0x1234_5678_9abc_def0);
         let mut weights = Vec::new();
-        let mut biases  = Vec::new();
+        let mut biases = Vec::new();
         for l in 0..(dims.len() - 1) {
             let (in_d, out_d) = (dims[l], dims[l + 1]);
             let scale = (6.0_f32 / in_d as f32).sqrt();
             let w = (0..out_d)
-                .map(|_| (0..in_d).map(|_| (rng.uniform_f32() * 2.0 - 1.0) * scale).collect())
+                .map(|_| {
+                    (0..in_d)
+                        .map(|_| (rng.uniform_f32() * 2.0 - 1.0) * scale)
+                        .collect()
+                })
                 .collect();
             let b = vec![0.0_f32; out_d];
             weights.push(w);
@@ -44,15 +48,23 @@ impl MLP {
         Self { weights, biases }
     }
 
-    fn n_layers(&self) -> usize { self.weights.len() }
+    fn n_layers(&self) -> usize {
+        self.weights.len()
+    }
     fn input_dim(&self) -> usize {
-        self.weights.first().and_then(|w| w.first()).map(|r| r.len()).unwrap_or(0)
+        self.weights
+            .first()
+            .and_then(|w| w.first())
+            .map(|r| r.len())
+            .unwrap_or(0)
     }
 
     fn forward(&self, input: &[f32]) -> Result<Vec<f32>> {
         if input.len() != self.input_dim() {
             return Err(NeuralError::ShapeMismatch(format!(
-                "MLP expects input_dim={}, got {}", self.input_dim(), input.len()
+                "MLP expects input_dim={}, got {}",
+                self.input_dim(),
+                input.len()
             )));
         }
         let mut act = input.to_vec();
@@ -60,7 +72,12 @@ impl MLP {
         for (l, (w, b)) in self.weights.iter().zip(self.biases.iter()).enumerate() {
             let mut next = Vec::with_capacity(w.len());
             for (row, bias) in w.iter().zip(b.iter()) {
-                let pre: f32 = row.iter().zip(act.iter()).map(|(wi, xi)| wi * xi).sum::<f32>() + bias;
+                let pre: f32 = row
+                    .iter()
+                    .zip(act.iter())
+                    .map(|(wi, xi)| wi * xi)
+                    .sum::<f32>()
+                    + bias;
                 next.push(if l < n - 1 { pre.max(0.0) } else { pre });
             }
             act = next;
@@ -75,7 +92,12 @@ impl MLP {
             let prev = cache.last().expect("non-empty");
             let mut next = Vec::with_capacity(w.len());
             for (row, bias) in w.iter().zip(b.iter()) {
-                let pre: f32 = row.iter().zip(prev.iter()).map(|(wi, xi)| wi * xi).sum::<f32>() + bias;
+                let pre: f32 = row
+                    .iter()
+                    .zip(prev.iter())
+                    .map(|(wi, xi)| wi * xi)
+                    .sum::<f32>()
+                    + bias;
                 next.push(if l < n - 1 { pre.max(0.0) } else { pre });
             }
             cache.push(next);
@@ -90,19 +112,23 @@ impl MLP {
             let in_act = &cache[l];
             let out_act = &cache[l + 1];
             let out_d = self.weights[l].len();
-            let in_d  = in_act.len();
+            let in_d = in_act.len();
             let eff: Vec<f32> = if l < n - 1 {
-                delta.iter().zip(out_act.iter()).map(|(d, a)| if *a > 0.0 { *d } else { 0.0 }).collect()
+                delta
+                    .iter()
+                    .zip(out_act.iter())
+                    .map(|(d, a)| if *a > 0.0 { *d } else { 0.0 })
+                    .collect()
             } else {
                 delta.clone()
             };
             let mut prev = vec![0.0_f32; in_d];
-            for i in 0..out_d {
+            for (i, &eff_i) in eff.iter().enumerate().take(out_d) {
                 for j in 0..in_d {
-                    prev[j] += eff[i] * self.weights[l][i][j];
-                    self.weights[l][i][j] -= lr * eff[i] * in_act[j];
+                    prev[j] += eff_i * self.weights[l][i][j];
+                    self.weights[l][i][j] -= lr * eff_i * in_act[j];
                 }
-                self.biases[l][i] -= lr * eff[i];
+                self.biases[l][i] -= lr * eff_i;
             }
             delta = prev;
         }
@@ -116,7 +142,7 @@ impl MLP {
 /// Actor network: maps observations to action probabilities via softmax.
 #[derive(Debug, Clone)]
 pub struct ActorNetwork {
-    mlp: MLP,
+    mlp: Mlp,
     num_actions: usize,
 }
 
@@ -130,7 +156,10 @@ impl ActorNetwork {
         let mut dims = vec![obs_dim];
         dims.extend_from_slice(hidden_dims);
         dims.push(num_actions);
-        Self { mlp: MLP::build(&dims), num_actions }
+        Self {
+            mlp: Mlp::build(&dims),
+            num_actions,
+        }
     }
 
     /// Action probability distribution `π(·|s)`.
@@ -171,7 +200,8 @@ impl ActorNetwork {
     ) -> Result<f32> {
         if action >= self.num_actions {
             return Err(NeuralError::InvalidArgument(format!(
-                "action {} >= num_actions {}", action, self.num_actions
+                "action {} >= num_actions {}",
+                action, self.num_actions
             )));
         }
         let cache = self.mlp.forward_cache(obs);
@@ -194,10 +224,16 @@ impl ActorNetwork {
         // scaled by advantage; entropy term: δ_i += entropy_coef * π_i * (ln π_i + 1)
         let mut delta = vec![0.0_f32; self.num_actions];
         for i in 0..self.num_actions {
-            let ce_grad = if i == action { probs[i] - 1.0 } else { probs[i] };
+            let ce_grad = if i == action {
+                probs[i] - 1.0
+            } else {
+                probs[i]
+            };
             let ent_grad = entropy_coef * probs[i] * (probs[i].max(1e-8).ln() + 1.0);
-            // Policy loss gradient: -advantage * cross_entropy_grad
-            delta[i] = -advantage * ce_grad + ent_grad;
+            // Policy gradient loss L = -A·log π(a); gradient w.r.t. logit_i:
+            // ∂L/∂z_i = A·(π_i − 1_{i=a}), so delta = advantage * ce_grad
+            // (sgd_step subtracts lr*delta, driving logit_a up when A>0)
+            delta[i] = advantage * ce_grad + ent_grad;
         }
 
         self.mlp.sgd_step(&cache, &delta, lr);
@@ -217,7 +253,7 @@ impl ActorNetwork {
 /// Critic network: estimates V(s) as a scalar.
 #[derive(Debug, Clone)]
 pub struct CriticNetwork {
-    mlp: MLP,
+    mlp: Mlp,
 }
 
 impl CriticNetwork {
@@ -226,7 +262,9 @@ impl CriticNetwork {
         let mut dims = vec![obs_dim];
         dims.extend_from_slice(hidden_dims);
         dims.push(1);
-        Self { mlp: MLP::build(&dims) }
+        Self {
+            mlp: Mlp::build(&dims),
+        }
     }
 
     /// Estimate V(s).
@@ -285,29 +323,29 @@ impl Default for A2CConfig {
 /// [`A2CAgent::update_step`] after each environment step, or
 /// [`A2CAgent::update_trajectory`] after collecting a full trajectory.
 pub struct A2CAgent {
-    actor:  ActorNetwork,
+    actor: ActorNetwork,
     critic: CriticNetwork,
     config: A2CConfig,
-    rng:    PolicyRng,
+    rng: PolicyRng,
     /// Running statistics for logging.
-    total_actor_loss:  f32,
+    total_actor_loss: f32,
     total_critic_loss: f32,
-    total_entropy:     f32,
-    update_count:      usize,
+    total_entropy: f32,
+    update_count: usize,
 }
 
 impl A2CAgent {
     /// Create a new A2C agent.
     pub fn new(obs_dim: usize, num_actions: usize, config: A2CConfig) -> Self {
         Self {
-            actor:  ActorNetwork::new(obs_dim, &config.hidden_dims, num_actions),
+            actor: ActorNetwork::new(obs_dim, &config.hidden_dims, num_actions),
             critic: CriticNetwork::new(obs_dim, &config.hidden_dims),
             config,
             rng: PolicyRng::from_time(),
-            total_actor_loss:  0.0,
+            total_actor_loss: 0.0,
             total_critic_loss: 0.0,
-            total_entropy:     0.0,
-            update_count:      0,
+            total_entropy: 0.0,
+            update_count: 0,
         }
     }
 
@@ -334,7 +372,11 @@ impl A2CAgent {
     ) -> Result<(f32, f32)> {
         let gamma = self.config.gamma;
 
-        let v_next = if done { 0.0 } else { self.critic.value(next_state)? };
+        let v_next = if done {
+            0.0
+        } else {
+            self.critic.value(next_state)?
+        };
         let td_target = reward + gamma * v_next;
         let v = self.critic.value(state)?;
         let advantage = td_target - v;
@@ -346,12 +388,14 @@ impl A2CAgent {
             self.config.entropy_coef,
             self.config.actor_lr,
         )?;
-        let critic_loss = self.critic.update(state, td_target, self.config.critic_lr)?;
+        let critic_loss = self
+            .critic
+            .update(state, td_target, self.config.critic_lr)?;
 
-        self.total_actor_loss  += actor_loss;
+        self.total_actor_loss += actor_loss;
         self.total_critic_loss += critic_loss;
-        self.total_entropy     += self.actor.entropy(state).unwrap_or(0.0);
-        self.update_count      += 1;
+        self.total_entropy += self.actor.entropy(state).unwrap_or(0.0);
+        self.update_count += 1;
 
         Ok((actor_loss, critic_loss))
     }
@@ -368,7 +412,9 @@ impl A2CAgent {
         bootstrap_value: f32,
     ) -> Result<(f32, f32)> {
         if trajectory.is_empty() {
-            return Err(NeuralError::InvalidArgument("trajectory must not be empty".into()));
+            return Err(NeuralError::InvalidArgument(
+                "trajectory must not be empty".into(),
+            ));
         }
         let gamma = self.config.gamma;
 
@@ -406,35 +452,48 @@ impl A2CAgent {
 
     /// Running mean actor loss (since last reset or construction).
     pub fn mean_actor_loss(&self) -> f32 {
-        if self.update_count == 0 { 0.0 }
-        else { self.total_actor_loss / self.update_count as f32 }
+        if self.update_count == 0 {
+            0.0
+        } else {
+            self.total_actor_loss / self.update_count as f32
+        }
     }
 
     /// Running mean critic loss.
     pub fn mean_critic_loss(&self) -> f32 {
-        if self.update_count == 0 { 0.0 }
-        else { self.total_critic_loss / self.update_count as f32 }
+        if self.update_count == 0 {
+            0.0
+        } else {
+            self.total_critic_loss / self.update_count as f32
+        }
     }
 
     /// Running mean entropy.
     pub fn mean_entropy(&self) -> f32 {
-        if self.update_count == 0 { 0.0 }
-        else { self.total_entropy / self.update_count as f32 }
+        if self.update_count == 0 {
+            0.0
+        } else {
+            self.total_entropy / self.update_count as f32
+        }
     }
 
     /// Reset loss accumulators.
     pub fn reset_stats(&mut self) {
-        self.total_actor_loss  = 0.0;
+        self.total_actor_loss = 0.0;
         self.total_critic_loss = 0.0;
-        self.total_entropy     = 0.0;
-        self.update_count      = 0;
+        self.total_entropy = 0.0;
+        self.update_count = 0;
     }
 
     /// Immutable reference to the actor network.
-    pub fn actor(&self) -> &ActorNetwork { &self.actor }
+    pub fn actor(&self) -> &ActorNetwork {
+        &self.actor
+    }
 
     /// Immutable reference to the critic network.
-    pub fn critic(&self) -> &CriticNetwork { &self.critic }
+    pub fn critic(&self) -> &CriticNetwork {
+        &self.critic
+    }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -492,9 +551,9 @@ where
     Ok(A2CTrainInfo {
         episode_reward,
         episode_length: step,
-        mean_actor_loss:  agent.mean_actor_loss(),
+        mean_actor_loss: agent.mean_actor_loss(),
         mean_critic_loss: agent.mean_critic_loss(),
-        mean_entropy:     agent.mean_entropy(),
+        mean_entropy: agent.mean_entropy(),
     })
 }
 
@@ -502,7 +561,7 @@ where
 // ActorCritic type alias (convenience re-export)
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// Convenience type alias — an `A2CAgent` is an actor-critic model.
+// Convenience note: A2CAgent is an actor-critic model.
 // Note: ActorCritic is re-exported as A2CAgent; use A2CAgent directly.
 // The name ActorCritic is taken by ppo::ActorCritic<F>.
 
@@ -514,7 +573,9 @@ where
 mod tests {
     use super::*;
 
-    fn obs4() -> Vec<f32> { vec![0.1, -0.2, 0.3, 0.0] }
+    fn obs4() -> Vec<f32> {
+        vec![0.1, -0.2, 0.3, 0.0]
+    }
 
     #[test]
     fn actor_network_probs_sum_to_one() {
@@ -522,14 +583,21 @@ mod tests {
         let probs = actor.probs(&obs4()).expect("probs failed");
         assert_eq!(probs.len(), 3);
         let sum: f32 = probs.iter().sum();
-        assert!((sum - 1.0).abs() < 1e-5, "probs should sum to 1, got {}", sum);
+        assert!(
+            (sum - 1.0).abs() < 1e-5,
+            "probs should sum to 1, got {}",
+            sum
+        );
     }
 
     #[test]
     fn actor_entropy_positive() {
         let actor = ActorNetwork::new(4, &[16], 4);
         let h = actor.entropy(&obs4()).expect("entropy failed");
-        assert!(h > 0.0, "entropy must be positive for non-degenerate policies");
+        assert!(
+            h > 0.0,
+            "entropy must be positive for non-degenerate policies"
+        );
     }
 
     #[test]
@@ -541,7 +609,10 @@ mod tests {
 
     #[test]
     fn a2c_agent_act_in_range() {
-        let cfg = A2CConfig { hidden_dims: vec![8], ..Default::default() };
+        let cfg = A2CConfig {
+            hidden_dims: vec![8],
+            ..Default::default()
+        };
         let mut agent = A2CAgent::new(4, 3, cfg);
         let a = agent.act(&obs4()).expect("act failed");
         assert!(a < 3, "action must be in [0, num_actions)");
@@ -549,7 +620,10 @@ mod tests {
 
     #[test]
     fn a2c_update_step_returns_finite_losses() {
-        let cfg = A2CConfig { hidden_dims: vec![8], ..Default::default() };
+        let cfg = A2CConfig {
+            hidden_dims: vec![8],
+            ..Default::default()
+        };
         let mut agent = A2CAgent::new(4, 2, cfg);
         let (al, cl) = agent
             .update_step(&obs4(), 0, 1.0, &obs4(), false)
@@ -560,12 +634,15 @@ mod tests {
 
     #[test]
     fn a2c_update_trajectory() {
-        let cfg = A2CConfig { hidden_dims: vec![8], ..Default::default() };
+        let cfg = A2CConfig {
+            hidden_dims: vec![8],
+            ..Default::default()
+        };
         let mut agent = A2CAgent::new(4, 2, cfg);
-        let traj: Vec<(Vec<f32>, usize, f32)> = (0..5)
-            .map(|i| (obs4(), i % 2, 1.0_f32))
-            .collect();
-        let (al, cl) = agent.update_trajectory(&traj, 0.0).expect("trajectory update failed");
+        let traj: Vec<(Vec<f32>, usize, f32)> = (0..5).map(|i| (obs4(), i % 2, 1.0_f32)).collect();
+        let (al, cl) = agent
+            .update_trajectory(&traj, 0.0)
+            .expect("trajectory update failed");
         assert!(al.is_finite());
         assert!(cl.is_finite());
     }
@@ -574,7 +651,10 @@ mod tests {
     fn run_episode_helper_smoke_test() {
         use crate::rl::environments::{CartPole, Environment};
 
-        let cfg = A2CConfig { hidden_dims: vec![16], ..Default::default() };
+        let cfg = A2CConfig {
+            hidden_dims: vec![16],
+            ..Default::default()
+        };
         let mut agent = A2CAgent::new(4, 2, cfg);
         let mut env = CartPole::new();
         let mut obs_store: Option<Vec<f32>> = None;
@@ -604,7 +684,10 @@ mod tests {
     #[test]
     fn a2c_agent_cartpole_10_steps_no_panic() {
         use crate::rl::environments::{CartPole, Environment};
-        let cfg = A2CConfig { hidden_dims: vec![16], ..Default::default() };
+        let cfg = A2CConfig {
+            hidden_dims: vec![16],
+            ..Default::default()
+        };
         let mut agent = A2CAgent::new(4, 2, cfg);
         let mut env = CartPole::new();
         let mut obs: Vec<f32> = env.reset().iter().map(|&x| x as f32).collect();
@@ -614,7 +697,9 @@ mod tests {
             let arr = scirs2_core::ndarray::array![a as f64];
             let (ns_f64, r, done) = env.step(&arr);
             let ns: Vec<f32> = ns_f64.iter().map(|&x| x as f32).collect();
-            let (al, cl) = agent.update_step(&obs, a, r as f32, &ns, done).expect("update");
+            let (al, cl) = agent
+                .update_step(&obs, a, r as f32, &ns, done)
+                .expect("update");
             assert!(al.is_finite());
             assert!(cl.is_finite());
             if done {

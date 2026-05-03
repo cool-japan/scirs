@@ -9,8 +9,8 @@
 //!
 //! and a combined loss that sums over all capsule classes.
 
-use crate::error::{NeuralError, Result};
 use crate::capsule::network::Capsule;
+use crate::error::{NeuralError, Result};
 
 // ---------------------------------------------------------------------------
 // MarginLoss
@@ -156,7 +156,11 @@ impl MarginLoss {
         capsules
             .iter()
             .enumerate()
-            .max_by(|(_, a), (_, b)| a.activation.partial_cmp(&b.activation).unwrap_or(std::cmp::Ordering::Equal))
+            .max_by(|(_, a), (_, b)| {
+                a.activation
+                    .partial_cmp(&b.activation)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
             .map(|(i, _)| i)
             .ok_or_else(|| NeuralError::InvalidArgument("capsules is empty".into()))
     }
@@ -325,6 +329,9 @@ mod tests {
         // target=1 with a_t=0.3, others have a_k=0.25 → m - (0.3-0.25) = 0.2-0.05=0.15
         let acts = vec![0.25, 0.3, 0.25];
         let l = loss.compute(&acts, 1).expect("operation should succeed");
-        assert!(l > 0.0, "Should have positive loss when activations are close");
+        assert!(
+            l > 0.0,
+            "Should have positive loss when activations are close"
+        );
     }
 }

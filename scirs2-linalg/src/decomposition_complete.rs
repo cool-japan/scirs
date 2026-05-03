@@ -167,9 +167,15 @@ pub fn rrqr(a: &ArrayView2<f64>, tol: Option<f64>) -> LinalgResult<RrqrResult> {
     let mut perm: Vec<usize> = (0..n).collect();
     let k = m.min(n);
 
-    // Track column norms for efficient pivoting
+    // Track column norms for efficient pivoting.
+    // Do NOT use as_slice() on strided column views — it returns None for non-contiguous
+    // memory layouts and would yield an empty slice (giving norm 0 for all columns).
+    // Explicitly iterate over column elements instead.
     let mut col_norms: Vec<f64> = (0..n)
-        .map(|j| norm2(work.column(j).as_slice().unwrap_or(&[])))
+        .map(|j| {
+            let norm_sq: f64 = (0..m).map(|i| work[[i, j]] * work[[i, j]]).sum();
+            norm_sq.sqrt()
+        })
         .collect();
 
     let mut left_reflectors: Vec<(usize, Vec<f64>)> = Vec::with_capacity(k);
@@ -266,9 +272,12 @@ pub fn rrqr(a: &ArrayView2<f64>, tol: Option<f64>) -> LinalgResult<RrqrResult> {
 /// // Reconstruct A permuted = U * T * Z^T
 /// let recon = res.u.dot(&res.t).dot(&res.z.t());
 /// // recon should approximate the column-permuted A (handled by z)
-/// let err: f64 = (0..a.nrows())
-///     .flat_map(|i| (0..a.ncols()).map(move |j| (recon[[i,j]] - a[[i,j]]).abs()))
-///     .fold(0.0_f64, f64::max);
+/// let mut err = 0.0_f64;
+/// for i in 0..a.nrows() {
+///     for j in 0..a.ncols() {
+///         err = err.max((recon[[i,j]] - a[[i,j]]).abs());
+///     }
+/// }
 /// assert!(err < 1e-10, "COD reconstruction error: {err}");
 /// ```
 pub fn cod(a: &ArrayView2<f64>, tol: Option<f64>) -> LinalgResult<CodResult> {
@@ -410,20 +419,35 @@ pub fn ulv(a: &ArrayView2<f64>) -> LinalgResult<UlvResult> {
     // Then ULV: A = U_s * L_full * I = U_s * R'^T * Q'^T * I
     //   U = U_s * (identity), L = R'^T, V = Q'  (V^T = Q'^T)
 
-    // L_full = diag(s) applied row-wise then multiply Vt_s
+    // L_full = diag(s) * Vt_s  (m × n)
     let sigma_mat = l_mat; // this is diag(s) embedded in m×n
     let l_full = sigma_mat.dot(&vt_s); // m × n
 
-    // QR of l_full^T  (n × m)
-    let lt = l_full.t().to_owned(); // n × m
-    let (q_prime, r_prime) = crate::decomposition::qr(&lt.view(), None)?;
-    // l_full^T = q_prime * r_prime
-    // l_full = r_prime^T * q_prime^T
-    let l = r_prime.t().to_owned(); // m × n  (lower triangular)
-                                    // U = U_s  (unchanged)
-    let u = u_s;
-    // V = q_prime  (n × n)
-    let v = q_prime;
+    // To get a lower trapezoidal L, we perform QR of l_full^T.
+    // QR requires rows >= columns, so this only works when n >= m (wide or square A).
+    // For tall matrices (m > n), l_full is already lower trapezoidal:
+    //   rows 0..n contain the diagonal × Vt_s, rows n..m are zero.
+    // In that case use A = U_s * l_full * I directly (V = I_n).
+    let (l, u, v) = if n >= m {
+        // Wide or square A (n >= m): QR of l_full^T is (n×m), and n >= m so QR is valid.
+        let lt = l_full.t().to_owned(); // n × m
+        let (q_prime, r_prime) = crate::decomposition::qr(&lt.view(), None)?;
+        // l_full^T = q_prime * r_prime → l_full = r_prime^T * q_prime^T
+        // A = U_s * l_full * I = U_s * r_prime^T * q_prime^T * I
+        // => U = U_s, L = r_prime^T (m×m lower tri), V = q_prime (n×m)
+        (r_prime.t().to_owned(), u_s, q_prime)
+    } else {
+        // Tall matrix (m > n): l_full = diag(s) * Vt_s is m×n.
+        // QR of l_full^T = (n×m) would fail since n < m.
+        // Instead use A = U_s * diag(s) * Vt_s directly:
+        //   U = U_s, L = diag(s) (m×n lower trapezoidal), V = Vt_s^T (n×n orthogonal)
+        let mut l_diag = Array2::<f64>::zeros((m, n));
+        for i in 0..k {
+            l_diag[[i, i]] = s_vec[i];
+        }
+        let v_full = vt_s.t().to_owned(); // n×n orthogonal
+        (l_diag, u_s, v_full)
+    };
 
     // Estimate rank from singular values
     let s_max = s_vec.iter().cloned().fold(0.0_f64, f64::max);

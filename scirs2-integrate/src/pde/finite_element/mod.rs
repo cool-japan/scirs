@@ -11,6 +11,7 @@
 //! - Various boundary condition types
 
 pub mod higher_order;
+// pub mod petrov_galerkin;  // TODO: fix orphan stub - multiple syntax errors in implementation
 
 #[cfg(test)]
 mod higher_order_tests;

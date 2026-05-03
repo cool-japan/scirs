@@ -12,8 +12,8 @@
 //! - Stochastic Shortest Path
 //! - Inverse Reinforcement Learning (MaxEnt IRL)
 
-pub mod tabular;
 pub mod planning;
+pub mod tabular;
 
-pub use tabular::*;
 pub use planning::*;
+pub use tabular::*;

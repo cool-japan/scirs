@@ -64,13 +64,19 @@ pub fn pendulum_ph(
     damping: f64,
 ) -> IntegrateResult<PortHamiltonianSystem> {
     if mass <= 0.0 {
-        return Err(IntegrateError::ValueError("Pendulum mass must be positive".into()));
+        return Err(IntegrateError::ValueError(
+            "Pendulum mass must be positive".into(),
+        ));
     }
     if length <= 0.0 {
-        return Err(IntegrateError::ValueError("Pendulum length must be positive".into()));
+        return Err(IntegrateError::ValueError(
+            "Pendulum length must be positive".into(),
+        ));
     }
     if damping < 0.0 {
-        return Err(IntegrateError::ValueError("Damping must be non-negative".into()));
+        return Err(IntegrateError::ValueError(
+            "Damping must be non-negative".into(),
+        ));
     }
 
     let ml2 = mass * length * length;
@@ -129,10 +135,14 @@ pub fn mass_spring_damper_ph(
         return Err(IntegrateError::ValueError("Mass must be positive".into()));
     }
     if spring_const < 0.0 {
-        return Err(IntegrateError::ValueError("Spring constant must be non-negative".into()));
+        return Err(IntegrateError::ValueError(
+            "Spring constant must be non-negative".into(),
+        ));
     }
     if damping < 0.0 {
-        return Err(IntegrateError::ValueError("Damping must be non-negative".into()));
+        return Err(IntegrateError::ValueError(
+            "Damping must be non-negative".into(),
+        ));
     }
 
     PortHamiltonianBuilder::new(2, 1)
@@ -283,13 +293,19 @@ pub fn rlc_circuit_ph(
     resistance: f64,
 ) -> IntegrateResult<PortHamiltonianSystem> {
     if inductance <= 0.0 {
-        return Err(IntegrateError::ValueError("Inductance must be positive".into()));
+        return Err(IntegrateError::ValueError(
+            "Inductance must be positive".into(),
+        ));
     }
     if capacitance <= 0.0 {
-        return Err(IntegrateError::ValueError("Capacitance must be positive".into()));
+        return Err(IntegrateError::ValueError(
+            "Capacitance must be positive".into(),
+        ));
     }
     if resistance < 0.0 {
-        return Err(IntegrateError::ValueError("Resistance must be non-negative".into()));
+        return Err(IntegrateError::ValueError(
+            "Resistance must be non-negative".into(),
+        ));
     }
 
     PortHamiltonianBuilder::new(2, 1)
@@ -349,7 +365,9 @@ pub fn coupled_oscillators_ph(
     }
     for (i, &m) in masses.iter().enumerate() {
         if m <= 0.0 {
-            return Err(IntegrateError::ValueError(format!("Mass {i} must be positive")));
+            return Err(IntegrateError::ValueError(format!(
+                "Mass {i} must be positive"
+            )));
         }
     }
 
@@ -499,7 +517,10 @@ mod tests {
             .expect("Integration failed");
 
         let h_final = *result.energy.last().expect("No energy in result");
-        assert!(h_final < h0, "RLC energy must decrease: h0={h0}, h_final={h_final}");
+        assert!(
+            h_final < h0,
+            "RLC energy must decrease: h0={h0}, h_final={h_final}"
+        );
     }
 
     #[test]

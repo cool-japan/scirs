@@ -9,8 +9,8 @@
 //! - **Doublet panel method**: lifting flows with wake modelling.
 //! - Post-processing utilities: surface velocity, pressure coefficient.
 
+use super::boundary_mesh::{gauss_legendre_1d, BoundaryMesh};
 use crate::error::{IntegrateError, IntegrateResult};
-use super::boundary_mesh::{BoundaryMesh, gauss_legendre_1d};
 use std::f64::consts::PI;
 
 // ---------------------------------------------------------------------------
@@ -56,10 +56,7 @@ fn source_panel_g(x: [f64; 2], p1: [f64; 2], p2: [f64; 2], n_gauss: usize) -> f6
         .zip(weights.iter())
         .map(|(&xi, &w)| {
             let t = (1.0 + xi) * 0.5;
-            let y = [
-                p1[0] + t * (p2[0] - p1[0]),
-                p1[1] + t * (p2[1] - p1[1]),
-            ];
+            let y = [p1[0] + t * (p2[0] - p1[0]), p1[1] + t * (p2[1] - p1[1])];
             let r = ((x[0] - y[0]).powi(2) + (x[1] - y[1]).powi(2)).sqrt();
             if r < 1e-14 {
                 0.0
@@ -71,7 +68,13 @@ fn source_panel_g(x: [f64; 2], p1: [f64; 2], p2: [f64; 2], n_gauss: usize) -> f6
 }
 
 /// Compute the doublet panel influence integral I_d(x; panel) = ∫_panel ∂G/∂n(x,y) dΓ(y).
-fn doublet_panel_h(x: [f64; 2], p1: [f64; 2], p2: [f64; 2], normal: [f64; 2], n_gauss: usize) -> f64 {
+fn doublet_panel_h(
+    x: [f64; 2],
+    p1: [f64; 2],
+    p2: [f64; 2],
+    normal: [f64; 2],
+    n_gauss: usize,
+) -> f64 {
     let (xi_nodes, weights) = gauss_legendre_1d(n_gauss);
     let dx_panel = p2[0] - p1[0];
     let dy_panel = p2[1] - p1[1];
@@ -83,10 +86,7 @@ fn doublet_panel_h(x: [f64; 2], p1: [f64; 2], p2: [f64; 2], normal: [f64; 2], n_
         .zip(weights.iter())
         .map(|(&xi, &w)| {
             let t = (1.0 + xi) * 0.5;
-            let y = [
-                p1[0] + t * dx_panel,
-                p1[1] + t * dy_panel,
-            ];
+            let y = [p1[0] + t * dx_panel, p1[1] + t * dy_panel];
             let drx = x[0] - y[0];
             let dry = x[1] - y[1];
             let r2 = drx * drx + dry * dry;
@@ -137,13 +137,8 @@ impl PanelMethod {
             let xi = self.mesh.elements[i].midpoint;
             for j in 0..n {
                 let ej = &self.mesh.elements[j];
-                let val = doublet_panel_h(
-                    xi,
-                    ej.nodes[0],
-                    ej.nodes[1],
-                    ej.normal,
-                    self.cfg.n_gauss,
-                );
+                let val =
+                    doublet_panel_h(xi, ej.nodes[0], ej.nodes[1], ej.normal, self.cfg.n_gauss);
                 // Diagonal contribution includes free-term −1/2 from boundary jump.
                 a[i][j] = if i == j { val - 0.5 } else { val };
             }
@@ -215,8 +210,7 @@ impl PanelMethod {
                 "Panel method not yet solved; call solve() first".to_string(),
             ));
         }
-        let v_inf_sq =
-            self.cfg.free_stream[0].powi(2) + self.cfg.free_stream[1].powi(2);
+        let v_inf_sq = self.cfg.free_stream[0].powi(2) + self.cfg.free_stream[1].powi(2);
         if v_inf_sq < 1e-30 {
             return Err(IntegrateError::InvalidInput(
                 "Free-stream speed is zero".to_string(),
@@ -246,8 +240,7 @@ impl PanelMethod {
         let mut phi = 0.0_f64;
         for (j, elem) in self.mesh.elements.iter().enumerate() {
             let sigma_j = self.source_strengths.get(j).copied().unwrap_or(0.0);
-            phi += sigma_j
-                * source_panel_g(p, elem.nodes[0], elem.nodes[1], self.cfg.n_gauss);
+            phi += sigma_j * source_panel_g(p, elem.nodes[0], elem.nodes[1], self.cfg.n_gauss);
         }
         // Add free-stream potential Φ_∞ = U_∞ x + V_∞ y
         phi + self.cfg.free_stream[0] * p[0] + self.cfg.free_stream[1] * p[1]
@@ -260,8 +253,8 @@ impl PanelMethod {
 
 /// Solve Ax = b with partial-pivoting Gaussian elimination (in place).
 pub(crate) fn gaussian_elimination(
-    a: &mut Vec<Vec<f64>>,
-    b: &mut Vec<f64>,
+    a: &mut [Vec<f64>],
+    b: &mut [f64],
     n: usize,
 ) -> IntegrateResult<Vec<f64>> {
     for col in 0..n {
@@ -346,6 +339,9 @@ mod tests {
         let phi = pm.potential_at([100.0, 0.0]);
         assert!(phi.is_finite());
         // The free stream part dominates: should be close to 100
-        assert!((phi - 100.0).abs() < 1.0, "Far field potential should be ≈ 100, got {phi}");
+        assert!(
+            (phi - 100.0).abs() < 1.0,
+            "Far field potential should be ≈ 100, got {phi}"
+        );
     }
 }

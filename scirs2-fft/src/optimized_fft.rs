@@ -10,8 +10,6 @@ use crate::fft::{fft, ifft};
 use crate::oxifft_plan_cache;
 #[cfg(feature = "oxifft")]
 use oxifft::{Complex as OxiComplex, Direction};
-#[cfg(feature = "rustfft-backend")]
-use rustfft::FftPlanner;
 use scirs2_core::ndarray::{Array, ArrayBase, Data};
 use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::NumCast;
@@ -488,7 +486,6 @@ impl OptimizedFFT {
                 Ok(buffer)
             }
 
-            #[cfg(not(feature = "rustfft-backend"))]
             {
                 Err(FFTError::ComputationError(
                     "No FFT backend available. Enable either 'oxifft' or 'rustfft-backend' feature.".to_string()

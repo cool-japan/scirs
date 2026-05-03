@@ -3,7 +3,6 @@
 //! This example shows how plan caching can significantly speed up repeated FFT operations
 //! of the same size.
 
-use rustfft::FftPlanner;
 use scirs2_fft::{fft, get_global_cache, init_global_cache};
 use std::time::{Duration, Instant};
 
@@ -64,9 +63,8 @@ fn main() {
     // Clear cache and pre-compute
     cache.clear();
 
-    // Pre-compute sizes
-    let mut planner = FftPlanner::new();
-    cache.precompute_common_sizes(&commonsizes, &mut planner);
+    // Pre-compute sizes (OxiFFT backend - no explicit planner needed)
+    cache.precompute_common_sizes(&commonsizes);
 
     // Show updated stats
     let stats = cache.get_stats();

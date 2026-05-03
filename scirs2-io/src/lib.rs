@@ -58,7 +58,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-io = "0.4.2"
+//! scirs2-io = "0.4.3"
 //! ```
 //!
 //! ```rust,no_run
@@ -73,7 +73,7 @@
 //! let (headers, data) = read_csv("data.csv", Some(config)).unwrap();
 //! ```
 //!
-//! ## 🔒 Version: 0.4.2 (March 27, 2026)
+//! ## 🔒 Version: 0.4.3 (March 27, 2026)
 //!
 //! ## Modules
 //!
@@ -234,6 +234,8 @@ pub mod harwell_boeing;
 /// - Chunking and compression options
 /// - Integration with ndarray for efficient array operations
 pub mod hdf5;
+/// Lightweight pure-Rust HDF5 format reader
+pub mod hdf5_lite;
 /// IDL (Interactive Data Language) save file format module
 ///
 /// Provides functionality for reading and writing IDL save files (.sav):
@@ -606,6 +608,29 @@ pub mod datafusion_provider;
 pub mod vectorized_eval;
 // Join algorithms for cross-format dataset merging
 pub mod joins;
+
+// Additional I/O modules
+pub mod arrow_ipc;
+pub mod arrow_streaming;
+pub mod binary_format;
+pub mod binary_formats;
+pub mod compression_utils;
+pub mod format_detect;
+pub mod lineage;
+pub mod msgpack;
+pub mod ndjson_streaming;
+pub mod parquet_lite;
+pub mod protobuf_lite;
+pub mod query;
+pub mod streaming_csv;
+pub mod streaming_json;
+pub mod toml_ext;
+pub mod universal_reader;
+// workflow_tests is included via workflow/mod.rs #[path] as inline module tests.
+// Including it here as a top-level module would cause errors because super::* at
+// lib.rs root does not expose workflow::tasks/templates/WorkflowBuilder.
+// #[cfg(test)]
+// pub mod workflow_tests;
 
 // Re-export commonly used functionality
 pub use advanced_coordinator::{

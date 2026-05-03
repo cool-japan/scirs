@@ -17,12 +17,10 @@ pub mod seq2seq;
 pub mod vgg;
 pub mod vit;
 pub use bert::{BertConfig, BertModel};
-// TODO: Re-enable once PatchEmbedding is implemented
-// pub use clip::{CLIPConfig, CLIPTextConfig, CLIPTextEncoder, CLIPVisionEncoder, CLIP};
-pub use clip::{CLIPConfig, CLIPTextConfig, CLIPTextEncoder};
-// TODO: Re-enable once LayerNorm2D is implemented
-// pub use convnext::{ConvNeXt, ConvNeXtBlock, ConvNeXtConfig, ConvNeXtStage, ConvNeXtVariant};
-pub use convnext::{ConvNeXtConfig, ConvNeXtVariant};
+pub use clip::{CLIPConfig, CLIPTextConfig, CLIPTextEncoder, CLIPVisionEncoder, CLIP};
+pub use convnext::{
+    ConvNeXt, ConvNeXtBlock, ConvNeXtConfig, ConvNeXtDownsample, ConvNeXtStage, ConvNeXtVariant,
+};
 pub use efficientnet::{EfficientNet, EfficientNetConfig, EfficientNetStage, MBConvConfig};
 pub use fusion::{
     BilinearFusion, CrossModalAttention, FeatureAlignment, FeatureFusion, FeatureFusionConfig,
@@ -37,6 +35,4 @@ pub use seq2seq::{
     Attention, AttentionType, RNNCellType, Seq2Seq, Seq2SeqConfig, Seq2SeqDecoder, Seq2SeqEncoder,
 };
 pub use vgg::{VGGConfig, VGGVariant, VGG};
-// TODO: Re-enable once PatchEmbedding is implemented
-// pub use vit::{ViTConfig, VisionTransformer};
-pub use vit::ViTConfig;
+pub use vit::{ViTConfig, VisionTransformer};

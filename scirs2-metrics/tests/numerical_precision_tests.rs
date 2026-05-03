@@ -15,7 +15,6 @@ use scirs2_metrics::{
 
 /// Test numerical precision with known reference values
 #[test]
-#[ignore = "timeout"]
 #[allow(dead_code)]
 fn test_mse_precision() {
     // Test case with known exact MSE
@@ -31,7 +30,6 @@ fn test_mse_precision() {
 }
 
 #[test]
-#[ignore = "timeout"]
 #[allow(dead_code)]
 fn test_mae_precision() {
     // Test case with known exact MAE

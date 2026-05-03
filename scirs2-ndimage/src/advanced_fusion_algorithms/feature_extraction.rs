@@ -467,63 +467,378 @@ where
 
 /// Extract Quantum Features
 ///
-/// Placeholder for quantum-inspired feature extraction.
-/// Currently returns zero features but can be extended to include
-/// quantum coherence, entanglement, and superposition measures.
+/// Extracts 8 statistical moments of |ψ|² from the quantum walk probability distribution:
+/// `[mean, std, skewness, kurtosis, entropy, max_prob, min_prob_nonzero, spatial_spread]`
 #[allow(dead_code)]
 fn extract_quantumfeatures(
-    _pixel_value: f64,
-    _consciousness_amplitudes: &Array4<Complex<f64>>,
+    pixel_value: f64,
+    consciousness_amplitudes: &Array4<Complex<f64>>,
     _config: &AdvancedConfig,
 ) -> NdimageResult<Vec<f64>> {
-    Ok(vec![0.0; 8])
+    let probs: Vec<f64> = consciousness_amplitudes
+        .iter()
+        .map(|c| c.norm_sqr())
+        .collect();
+
+    let total: f64 = probs.iter().sum();
+    if total < 1e-12 {
+        // No quantum state: return pixel-based fallback features
+        return Ok(vec![pixel_value, 0.0, 0.0, 0.0, 0.0, pixel_value, 0.0, 0.0]);
+    }
+
+    let n = probs.len() as f64;
+    let norm_probs: Vec<f64> = probs.iter().map(|p| p / total).collect();
+
+    // Mean
+    let mean = norm_probs.iter().sum::<f64>() / n;
+
+    // Standard deviation
+    let variance = norm_probs.iter().map(|p| (p - mean).powi(2)).sum::<f64>() / n;
+    let std_dev = variance.sqrt();
+
+    // Skewness
+    let skewness = if std_dev > 1e-12 {
+        norm_probs
+            .iter()
+            .map(|p| ((p - mean) / std_dev).powi(3))
+            .sum::<f64>()
+            / n
+    } else {
+        0.0
+    };
+
+    // Kurtosis
+    let kurtosis = if std_dev > 1e-12 {
+        norm_probs
+            .iter()
+            .map(|p| ((p - mean) / std_dev).powi(4))
+            .sum::<f64>()
+            / n
+            - 3.0
+    } else {
+        0.0
+    };
+
+    // Shannon entropy of probability distribution
+    let entropy: f64 = -norm_probs
+        .iter()
+        .filter(|&&p| p > 1e-12)
+        .map(|&p| p * p.ln())
+        .sum::<f64>();
+
+    // Max probability
+    let max_prob = norm_probs.iter().cloned().fold(0.0_f64, f64::max);
+
+    // Min non-zero probability
+    let min_prob_nonzero = norm_probs
+        .iter()
+        .cloned()
+        .filter(|&p| p > 1e-12)
+        .fold(f64::INFINITY, f64::min);
+    let min_prob_nonzero = if min_prob_nonzero.is_infinite() {
+        0.0
+    } else {
+        min_prob_nonzero
+    };
+
+    // Spatial spread: weighted std of index position
+    let indices: Vec<f64> = (0..norm_probs.len()).map(|i| i as f64 / n).collect();
+    let weighted_mean_idx: f64 = indices
+        .iter()
+        .zip(norm_probs.iter())
+        .map(|(i, p)| i * p)
+        .sum();
+    let spatial_spread = indices
+        .iter()
+        .zip(norm_probs.iter())
+        .map(|(i, p)| p * (i - weighted_mean_idx).powi(2))
+        .sum::<f64>()
+        .sqrt();
+
+    Ok(vec![
+        mean,
+        std_dev,
+        skewness,
+        kurtosis,
+        entropy,
+        max_prob,
+        min_prob_nonzero,
+        spatial_spread,
+    ])
 }
 
 /// Extract Consciousness Features
 ///
-/// Placeholder for consciousness-inspired feature extraction.
-/// Currently returns zero features but can be extended to include
-/// attention mechanisms, awareness measures, and cognitive processing features.
+/// Extracts 8 features from the effective information distribution:
+/// `[mean_phi, std_phi, max_phi, min_phi, phi_entropy, phi_skewness, phi_range, phi_autocorr]`
 #[allow(dead_code)]
 fn extract_consciousnessfeatures(
-    _pixel_value: f64,
-    _advancedstate: &AdvancedState,
+    pixel_value: f64,
+    advancedstate: &AdvancedState,
     _config: &AdvancedConfig,
 ) -> NdimageResult<Vec<f64>> {
-    Ok(vec![0.0; 8])
+    // Compute per-element phi approximation: |ψ|² normalized
+    let phi_vals: Vec<f64> = advancedstate
+        .consciousness_amplitudes
+        .iter()
+        .map(|c| c.norm_sqr())
+        .collect();
+
+    let total: f64 = phi_vals.iter().sum();
+    if total < 1e-12 || phi_vals.is_empty() {
+        return Ok(vec![pixel_value, 0.0, pixel_value, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    }
+
+    let n = phi_vals.len() as f64;
+    let norm: Vec<f64> = phi_vals.iter().map(|p| p / total).collect();
+
+    let mean_phi = norm.iter().sum::<f64>() / n;
+    let variance = norm.iter().map(|p| (p - mean_phi).powi(2)).sum::<f64>() / n;
+    let std_phi = variance.sqrt();
+    let max_phi = norm.iter().cloned().fold(0.0_f64, f64::max);
+    let min_phi = norm.iter().cloned().fold(f64::INFINITY, f64::min);
+    let min_phi = if min_phi.is_infinite() { 0.0 } else { min_phi };
+
+    // Phi entropy
+    let phi_entropy: f64 = -norm
+        .iter()
+        .filter(|&&p| p > 1e-12)
+        .map(|&p| p * p.ln())
+        .sum::<f64>();
+
+    // Phi skewness
+    let phi_skewness = if std_phi > 1e-12 {
+        norm.iter()
+            .map(|p| ((p - mean_phi) / std_phi).powi(3))
+            .sum::<f64>()
+            / n
+    } else {
+        0.0
+    };
+
+    // Phi range
+    let phi_range = max_phi - min_phi;
+
+    // Phi autocorrelation (lag-1)
+    let phi_autocorr = if norm.len() >= 2 {
+        let pairs: f64 = norm.windows(2).map(|w| w[0] * w[1]).sum();
+        pairs / (n - 1.0).max(1.0)
+    } else {
+        0.0
+    };
+
+    Ok(vec![
+        mean_phi,
+        std_phi,
+        max_phi,
+        min_phi,
+        phi_entropy,
+        phi_skewness,
+        phi_range,
+        phi_autocorr,
+    ])
 }
 
 /// Extract Causal Features
 ///
-/// Placeholder for causal relationship feature extraction.
-/// Currently returns zero features but can be extended to include
-/// causal strength, temporal dependencies, and causal inference measures.
+/// Extracts 8 features from Granger causality statistics across causal relations:
+/// `[mean_strength, max_strength, fraction_significant, mean_confidence, std_confidence,
+///   mean_delay, causal_density, weighted_influence]`
 #[allow(dead_code)]
 fn extract_causalfeatures(
-    _pixel_value: f64,
-    _causal_graph: &BTreeMap<usize, Vec<CausalRelation>>,
+    pixel_value: f64,
+    causal_graph: &BTreeMap<usize, Vec<CausalRelation>>,
     _config: &AdvancedConfig,
 ) -> NdimageResult<Vec<f64>> {
-    Ok(vec![0.0; 8])
+    if causal_graph.is_empty() {
+        return Ok(vec![pixel_value, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    }
+
+    let all_relations: Vec<&CausalRelation> = causal_graph.values().flatten().collect();
+
+    if all_relations.is_empty() {
+        return Ok(vec![pixel_value, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+    }
+
+    let n = all_relations.len() as f64;
+
+    let mean_strength = all_relations.iter().map(|r| r.strength).sum::<f64>() / n;
+    let max_strength = all_relations
+        .iter()
+        .map(|r| r.strength)
+        .fold(0.0_f64, f64::max);
+
+    let significant_threshold = 0.3;
+    let fraction_significant = all_relations
+        .iter()
+        .filter(|r| r.strength > significant_threshold)
+        .count() as f64
+        / n;
+
+    let mean_confidence = all_relations.iter().map(|r| r.confidence).sum::<f64>() / n;
+    let var_confidence = all_relations
+        .iter()
+        .map(|r| (r.confidence - mean_confidence).powi(2))
+        .sum::<f64>()
+        / n;
+    let std_confidence = var_confidence.sqrt();
+
+    let mean_delay = all_relations.iter().map(|r| r.delay as f64).sum::<f64>() / n;
+
+    // Causal density: number of relations relative to graph size
+    let causal_density = if !causal_graph.is_empty() {
+        n / causal_graph.len() as f64
+    } else {
+        0.0
+    };
+
+    // Weighted influence: sum(strength * confidence)
+    let weighted_influence = all_relations
+        .iter()
+        .map(|r| r.strength * r.confidence)
+        .sum::<f64>()
+        / n;
+
+    Ok(vec![
+        mean_strength,
+        max_strength,
+        fraction_significant,
+        mean_confidence,
+        std_confidence,
+        mean_delay,
+        causal_density,
+        weighted_influence,
+    ])
 }
 
 /// Combine Dimensional Features
 ///
-/// Combines features from multiple dimensions into a single feature value.
-/// Currently returns a placeholder value but can be extended to implement
-/// sophisticated feature fusion strategies across different dimensional spaces.
+/// Combines features from multiple dimensions into a single feature value using
+/// weighted L2-norm combination across feature groups, selected by dimension/temporal/consciousness indices.
 #[allow(dead_code)]
 fn combine_dimensionalfeatures(
-    _spatial: &[f64],
-    _temporal: &[f64],
-    _frequency: &[f64],
-    _quantum: &[f64],
-    _consciousness: &[f64],
-    _causal: &[f64],
-    _d: usize,
-    _t: usize,
-    _c: usize,
+    spatial: &[f64],
+    temporal: &[f64],
+    frequency: &[f64],
+    quantum: &[f64],
+    consciousness: &[f64],
+    causal: &[f64],
+    d: usize,
+    t: usize,
+    c: usize,
     _config: &AdvancedConfig,
 ) -> NdimageResult<f64> {
-    Ok(0.0)
+    // Group weights: spatial, temporal, frequency, quantum, consciousness, causal
+    let group_weights = [0.25_f64, 0.15, 0.20, 0.15, 0.15, 0.10];
+
+    let groups: [&[f64]; 6] = [spatial, temporal, frequency, quantum, consciousness, causal];
+
+    let mut combined = 0.0_f64;
+
+    for (group_idx, (group, &weight)) in groups.iter().zip(group_weights.iter()).enumerate() {
+        if group.is_empty() {
+            continue;
+        }
+
+        // Select element from group using the dimension/temporal/consciousness index
+        let selector = match group_idx {
+            0 => d,     // spatial: indexed by dimension
+            1 => t,     // temporal: indexed by temporal window
+            2 => d,     // frequency: indexed by dimension
+            3 => c,     // quantum: indexed by consciousness depth
+            4 => c,     // consciousness: indexed by consciousness depth
+            _ => d % 2, // causal: alternating
+        };
+
+        let element_idx = selector % group.len();
+        let val = group[element_idx];
+
+        combined += weight * val * val;
+    }
+
+    // Return sqrt of weighted sum of squares (weighted L2 norm)
+    Ok(combined.sqrt())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::{Array2, Array4};
+    use scirs2_core::numeric::Complex;
+    use std::collections::{BTreeMap, VecDeque};
+    use std::sync::{Arc, RwLock};
+
+    fn make_test_state() -> AdvancedState {
+        use scirs2_core::ndarray::{Array1, Array5};
+
+        let mut amps = Array4::zeros((4, 4, 2, 2));
+        for (i, v) in amps.iter_mut().enumerate() {
+            *v = Complex::new((i as f64 * 0.3).sin(), (i as f64 * 0.3).cos());
+        }
+
+        AdvancedState {
+            consciousness_amplitudes: amps,
+            meta_parameters: Array2::zeros((4, 4)),
+            network_topology: Arc::new(RwLock::new(NetworkTopology {
+                connections: std::collections::HashMap::new(),
+                nodes: Vec::new(),
+                global_properties: NetworkProperties {
+                    coherence: 0.5,
+                    self_organization_index: 0.3,
+                    consciousness_emergence: 0.2,
+                    efficiency: 0.8,
+                },
+            })),
+            temporal_memory: VecDeque::new(),
+            causal_graph: BTreeMap::new(),
+            advancedfeatures: Array5::zeros((1, 1, 1, 1, 1)),
+            resource_allocation: ResourceState {
+                cpu_allocation: vec![0.5],
+                memory_allocation: 0.5,
+                gpu_allocation: None,
+                quantum_allocation: None,
+                allocationhistory: VecDeque::new(),
+            },
+            efficiencymetrics: EfficiencyMetrics {
+                ops_per_second: 1000.0,
+                memory_efficiency: 0.8,
+                energy_efficiency: 0.6,
+                quality_efficiency: 0.75,
+                temporal_efficiency: 0.9,
+            },
+            processing_cycles: 0,
+        }
+    }
+
+    #[test]
+    fn test_extract_quantumfeatures_length() {
+        let amps = Array4::from_elem((4, 4, 2, 2), Complex::new(0.5, 0.3));
+        let config = AdvancedConfig::default();
+        let result = extract_quantumfeatures(0.5, &amps, &config)
+            .expect("extract_quantumfeatures should not fail");
+        assert_eq!(
+            result.len(),
+            8,
+            "quantum features must have exactly 8 elements, got {}",
+            result.len()
+        );
+    }
+
+    #[test]
+    fn test_extract_consciousnessfeatures_length() {
+        let state = make_test_state();
+        let config = AdvancedConfig::default();
+        let result = extract_consciousnessfeatures(0.5, &state, &config)
+            .expect("extract_consciousnessfeatures should not fail");
+        assert_eq!(result.len(), 8);
+    }
+
+    #[test]
+    fn test_extract_causalfeatures_length() {
+        let causal_graph = BTreeMap::new();
+        let config = AdvancedConfig::default();
+        let result = extract_causalfeatures(0.5, &causal_graph, &config)
+            .expect("extract_causalfeatures should not fail");
+        assert_eq!(result.len(), 8);
+    }
 }

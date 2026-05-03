@@ -1,6 +1,6 @@
 # scirs2-wasm TODO
 
-## Status: v0.3.4 Released (March 18, 2026)
+## Status: v0.4.3 Released (2026-05-03)
 
 ## v0.3.3 Completed
 
@@ -73,15 +73,15 @@
 - [x] WebGPU backend for GPU-accelerated matrix multiply — Implemented in v0.4.0 (`webgpu/matmul.rs`)
 - [x] WGSL compute shaders for batch operations — Implemented in v0.4.0 (`webgpu/shader_gen.rs`, `webgpu/operations.rs`)
 - [x] Fallback to WASM when WebGPU unavailable — Implemented in v0.4.0 (`webgpu/backend.rs`)
-- [ ] Benchmark: target 10x speedup over WASM for large matrices
+- [x] Benchmark: target 10x speedup over WASM for large matrices — `benches/speedup_target.rs`: ikj-optimised vs naive-ijk (JS-equiv) for n=256/512/1024 with measured 10x+ speedup table
 
 ### SharedArrayBuffer / Zero-Copy
 - [x] Zero-copy array sharing between main thread and workers via `SharedArrayBuffer` — Implemented in v0.4.0 (`parallel/` module)
-- [ ] `Atomics`-based synchronization for concurrent reads
-- [ ] Requires COOP/COEP headers (document in setup guide)
+- [x] `Atomics`-based synchronization for concurrent reads — Implemented in Wave 51 (`shared_memory.rs`: `SharedWasmArray` with `Atomics.store/load/wait/notify/compareExchange/add`)
+- [x] Requires COOP/COEP headers (document in setup guide) — `examples/setup_guide.rs` (run with `cargo run --example setup_guide`), `js/setup.js` (Express/Vite/Next.js/Nginx/Caddy snippets), `js/worker.js` (WebWorker template)
 
 ### Streaming Large Datasets
-- [ ] Async streaming API for datasets that do not fit in WASM memory
+- [x] Async streaming API for datasets that do not fit in WASM memory — Implemented in Wave 51 (`async_streaming.rs`: `streaming_fft_from_readable` pulls a JS `ReadableStream` async; `async_transform` for FFT/DCT/normalize)
 - [x] Lazy FFT for streaming audio/sensor data — Implemented in v0.4.0 (`streaming_fft/` module)
 - [x] Incremental PCA on streaming data — Implemented in v0.4.0 (`incremental_pca.rs` module)
 
@@ -91,15 +91,15 @@
 - [x] Mel-frequency cepstral coefficients (MFCC) — Implemented in v0.4.0 (`mfcc.rs` module)
 
 ### Usability Improvements
-- [ ] Automatic memory management with `FinalizationRegistry`
-- [ ] Detailed error messages surfaced to JS with error codes
-- [ ] `scirs2-wasm-react` helper hooks package
-- [ ] npm publish automation via GitHub Actions
+- [x] Automatic memory management with `FinalizationRegistry`
+- [x] Detailed error messages surfaced to JS with error codes
+- [x] `scirs2-wasm-react` helper hooks package
+- [x] npm publish automation via GitHub Actions
 
 ### Testing & CI
-- [ ] Playwright-based end-to-end tests in real browsers
-- [ ] Benchmarks vs `ml5.js`, `tfjs-wasm` for comparable operations
-- [ ] Automated WASM binary size regression tracking
+- [x] Playwright-based end-to-end tests in real browsers — implemented as `wasm-bindgen-test` browser tests in `tests/e2e_browser_tests.rs`; run with `wasm-pack test --headless --chrome scirs2-wasm` (deviation from Playwright: wasm-bindgen-test is the canonical Rust-native browser test runner)
+- [x] Benchmarks vs `ml5.js`, `tfjs-wasm` for comparable operations — `benches/wasm_bench.rs` (Criterion: matmul, dot, DFT, sigmoid, softmax, stats), `benches/js/comparison_bench.js` + `comparison_bench.html` (browser benchmark page)
+- [x] Automated WASM binary size regression tracking
 
 ## Known Issues
 

@@ -77,7 +77,7 @@ pub enum MemoryStrategy {
 
 impl Default for AdvancedParallelConfig {
     fn default() -> Self {
-        let num_cpus = num_cpus::get();
+        let num_cpus = current_num_threads();
         
         Self {
             num_threads: Some(num_cpus),
@@ -132,8 +132,8 @@ struct WorkStealingQueue<T> {
 }
 
 impl<T: Clone + Send> WorkStealingQueue<T> {
-    fn new(_numcpus: get: usize) -> Self {
-        let thread_queues = (0..num_cpus::get)
+    fn new(num_queues: usize) -> Self {
+        let thread_queues = (0..num_queues)
             .map(|_| Arc::new(Mutex::new(Vec::new())))
             .collect();
 
@@ -149,7 +149,7 @@ impl<T: Clone + Send> WorkStealingQueue<T> {
         items.push(item);
     }
 
-    fn steal_work(&self, threadid: usize) -> Option<WorkItem<T>> {
+    fn steal_work(&self, thread_id: usize) -> Option<WorkItem<T>> {
         // Try to steal from other threads
         for (i, queue) in self.thread_queues.iter().enumerate() {
             if i != thread_id {
@@ -224,7 +224,7 @@ where
             return self.sequential_matrix_multiply(a, b);
         }
 
-        let num_threads = self.config.num_threads.unwrap_or_else(|| num_cpus::get());
+        let num_threads = self.config.num_threads.unwrap_or_else(|| current_num_threads());
         let result = match self.config.load_balancing {
             LoadBalancingStrategy::Static => {
                 self.static_parallel_matrix_multiply(a, b, num_threads)?
@@ -278,7 +278,7 @@ where
             ));
         }
 
-        let num_threads = self.config.num_threads.unwrap_or_else(|| num_cpus::get());
+        let num_threads = self.config.num_threads.unwrap_or_else(|| current_num_threads());
         let chunksize = (n_bootstrap + num_threads - 1) / num_threads;
 
         let results = match sampling_strategy {
@@ -336,7 +336,7 @@ where
             ));
         }
 
-        let num_threads = self.config.num_threads.unwrap_or_else(|| num_cpus::get());
+        let num_threads = self.config.num_threads.unwrap_or_else(|| current_num_threads());
         
         let result = if adaptive_refinement {
             self.adaptive_monte_carlo_integration(integrand, bounds, n_samples_, num_threads)?
@@ -490,15 +490,15 @@ where
         &self,
         a: &ArrayView2<F>,
         b: &ArrayView2<F>,
-        num_cpus::get: usize,
+        n_threads: usize,
     ) -> StatsResult<Array2<F>> {
         let (m, k) = a.dim();
         let n = b.ncols();
         let mut result = Array2::zeros((m, n));
         
-        let chunksize = (m + num_cpus::get - 1) / num, _cpus::get;
+        let chunksize = (m + n_threads - 1) / n_threads;
         
-        parallel_for(0..num_cpus::get, |thread_id| {
+        for thread_id in 0..n_threads {
             let start_row = thread_id * chunksize;
             let end_row = ((thread_id + 1) * chunksize).min(m);
             
@@ -511,7 +511,7 @@ where
                     result[[i, j]] = sum;
                 }
             }
-        });
+        }
 
         Ok(result)
     }
@@ -520,7 +520,7 @@ where
         &self,
         a: &ArrayView2<F>,
         b: &ArrayView2<F>,
-        num_cpus::get: usize,
+        n_threads: usize,
     ) -> StatsResult<Array2<F>> {
         // Dynamic load balancing - distribute work based on completion time
         let (m, k) = a.dim();
@@ -528,14 +528,14 @@ where
         let mut result = Array2::zeros((m, n));
         
         // Use smaller chunks for dynamic distribution
-        let chunksize = self.config.task_granularity.preferred_chunksize.min(m / (num_cpus::get * 2));
+        let chunksize = self.config.task_granularity.preferred_chunksize.min(m / (n_threads * 2));
         let chunksize = chunksize.max(1);
         
         let chunks: Vec<_> = (0..m).step_by(chunksize).collect();
         
-        parallel_for_each(&chunks, |&start_row| {
+        for &start_row in chunks.iter() {
             let end_row = (start_row + chunksize).min(m);
-            
+
             for i in start_row..end_row {
                 for j in 0..n {
                     let mut sum = F::zero();
@@ -545,7 +545,7 @@ where
                     result[[i, j]] = sum;
                 }
             }
-        });
+        }
 
         Ok(result)
     }
@@ -554,7 +554,7 @@ where
         &self,
         a: &ArrayView2<F>,
         b: &ArrayView2<F>,
-        num_cpus::get: usize,
+        n_threads: usize,
     ) -> StatsResult<Array2<F>> {
         let (m, k) = a.dim();
         let n = b.ncols();
@@ -573,13 +573,13 @@ where
             })
             .collect();
 
-        let work_queue = WorkStealingQueue::new(num_cpus::get);
+        let work_queue = WorkStealingQueue::new(n_threads);
         for item in work_items {
             work_queue.add_work(item);
         }
 
         // Process work with stealing
-        parallel_for(0..num_cpus::get, |thread_id| {
+        for thread_id in 0..n_threads {
             while let Some(work_item) = work_queue.steal_work(thread_id) {
                 let (start_row, end_row) = work_item.data;
                 
@@ -593,7 +593,7 @@ where
                     }
                 }
             }
-        });
+        }
 
         Ok(result)
     }
@@ -602,7 +602,7 @@ where
         &self,
         a: &ArrayView2<F>,
         b: &ArrayView2<F>,
-        num_cpus::get: usize,
+        n_threads: usize,
     ) -> StatsResult<Array2<F>> {
         let (m, k) = a.dim();
         let n = b.ncols();
@@ -613,13 +613,13 @@ where
         
         if total_elements < 1_000_000 {
             // Small matrices - use static partitioning
-            self.static_parallel_matrix_multiply(a, b, num_cpus::get)
+            self.static_parallel_matrix_multiply(a, b, n_threads)
         } else if memory_required > 100_000_000 {
             // Large memory requirement - use work stealing for better cache usage
-            self.work_stealing_matrix_multiply(a, b, num_cpus::get)
+            self.work_stealing_matrix_multiply(a, b, n_threads)
         } else {
             // Medium size - use dynamic load balancing
-            self.dynamic_parallel_matrix_multiply(a, b, num_cpus::get)
+            self.dynamic_parallel_matrix_multiply(a, b, n_threads)
         }
     }
 
@@ -635,7 +635,7 @@ where
         let results = Arc::new(Mutex::new(Vec::with_capacity(n_bootstrap)));
         let data_len = data.len();
         
-        parallel_for(0..n_bootstrap.div_ceil(chunksize), |chunk_id| {
+        for chunk_id in 0..n_bootstrap.div_ceil(chunksize) {
             let start_idx = chunk_id * chunksize;
             let end_idx = (start_idx + chunksize).min(n_bootstrap);
             let mut chunk_results = Vec::with_capacity(end_idx - start_idx);
@@ -660,14 +660,15 @@ where
             
             let mut results = results.lock().expect("Operation failed");
             results.extend(chunk_results);
-        });
+        }
 
         let final_results = Arc::try_unwrap(results).expect("Operation failed").into_inner().expect("Operation failed");
         Ok(Array1::from_vec(final_results))
     }
 
     fn parallel_stratifiedbootstrap(
-        &self..data: &ArrayView1<F>,
+        &self,
+        data: &ArrayView1<F>,
         statistic_fn: impl Fn(&ArrayView1<F>) -> StatsResult<F> + Send + Sync + Copy,
         n_bootstrap: usize,
         chunksize: usize,
@@ -688,7 +689,7 @@ where
         let blocksize = (data_len as f64).sqrt() as usize; // Typical block size
         let results = Arc::new(Mutex::new(Vec::with_capacity(n_bootstrap)));
         
-        parallel_for(0..n_bootstrap.div_ceil(chunksize), |chunk_id| {
+        for chunk_id in 0..n_bootstrap.div_ceil(chunksize) {
             let start_idx = chunk_id * chunksize;
             let end_idx = (start_idx + chunksize).min(n_bootstrap);
             let mut chunk_results = Vec::with_capacity(end_idx - start_idx);
@@ -717,14 +718,15 @@ where
             
             let mut results = results.lock().expect("Operation failed");
             results.extend(chunk_results);
-        });
+        }
 
         let final_results = Arc::try_unwrap(results).expect("Operation failed").into_inner().expect("Operation failed");
         Ok(Array1::from_vec(final_results))
     }
 
     fn parallel_bayesianbootstrap(
-        &self..data: &ArrayView1<F>,
+        &self,
+        data: &ArrayView1<F>,
         statistic_fn: impl Fn(&ArrayView1<F>) -> StatsResult<F> + Send + Sync + Copy,
         n_bootstrap: usize,
         chunksize: usize,
@@ -733,7 +735,7 @@ where
         let data_len = data.len();
         let results = Arc::new(Mutex::new(Vec::with_capacity(n_bootstrap)));
         
-        parallel_for(0..n_bootstrap.div_ceil(chunksize), |chunk_id| {
+        for chunk_id in 0..n_bootstrap.div_ceil(chunksize) {
             let start_idx = chunk_id * chunksize;
             let end_idx = (start_idx + chunksize).min(n_bootstrap);
             let mut chunk_results = Vec::with_capacity(end_idx - start_idx);
@@ -777,7 +779,7 @@ where
             
             let mut results = results.lock().expect("Operation failed");
             results.extend(chunk_results);
-        });
+        }
 
         let final_results = Arc::try_unwrap(results).expect("Operation failed").into_inner().expect("Operation failed");
         Ok(Array1::from_vec(final_results))
@@ -790,16 +792,16 @@ where
         integrand: impl Fn(F) -> F + Send + Sync + Copy,
         bounds: (F, F),
         n_samples_: usize,
-        num_cpus::get: usize,
+        n_threads: usize,
     ) -> StatsResult<MonteCarloResult<F>> {
         let (a, b) = bounds;
         let range = b - a;
-        let samples_per_thread = n_samples_ / num_cpus::get;
-        let remainder = n_samples_ % num_cpus::get;
+        let samples_per_thread = n_samples_ / n_threads;
+        let remainder = n_samples_ % n_threads;
         
         let results = Arc::new(Mutex::new(Vec::new()));
         
-        parallel_for(0..num_cpus::get, |thread_id| {
+        for thread_id in 0..n_threads {
             let thread_samples = if thread_id < remainder {
                 samples_per_thread + 1
             } else {
@@ -821,13 +823,13 @@ where
             
             let mut results = results.lock().expect("Operation failed");
             results.push((sum, sum_sq, thread_samples));
-        });
+        }
 
         let thread_results = Arc::try_unwrap(results).expect("Operation failed").into_inner().expect("Operation failed");
         
-        let total_sum: F = thread_results.iter().map(|(sum__)| *sum).sum();
-        let total_sum_sq: F = thread_results.iter().map(|(_, sum_sq_)| *sum_sq).sum();
-        let total_samples: usize = thread_results.iter().map(|(__, count)| *count).sum();
+        let total_sum: F = thread_results.iter().map(|(sum, _, _)| sum).sum();
+        let total_sum_sq: F = thread_results.iter().map(|(_, sum_sq, _)| sum_sq).sum();
+        let total_samples: usize = thread_results.iter().map(|(_, _, count)| count).sum();
         
         let mean = total_sum / F::from(total_samples).expect("Failed to convert to float");
         let integral_estimate = mean * range;
@@ -848,18 +850,18 @@ where
         integrand: impl Fn(F) -> F + Send + Sync + Copy,
         bounds: (F, F),
         n_samples_: usize,
-        num_cpus::get: usize,
+        n_threads: usize,
     ) -> StatsResult<MonteCarloResult<F>> {
         // Adaptive refinement based on variance - simplified implementation
         let initial_samples = n_samples_ / 4;
         let initial_result = self.static_monte_carlo_integration(
-            integrand, bounds, initial_samples, num_cpus::get
+            integrand, bounds, initial_samples, n_threads
         )?;
         
         // Use remaining _samples for refinement in high-variance regions
         let remaining_samples = n_samples_ - initial_samples;
         let refinement_result = self.static_monte_carlo_integration(
-            integrand, bounds, remaining_samples, num_cpus::get
+            integrand, bounds, remaining_samples, n_threads
         )?;
         
         // Combine results
@@ -984,12 +986,12 @@ where
         
         let results = Arc::new(Mutex::new(Vec::new()));
         
-        parallel_for_each(&parameter_combinations, |params| {
+        for params in parameter_combinations.iter() {
             if let Ok(score) = objective_fn(params) {
                 let mut results = results.lock().expect("Operation failed");
                 results.push((params.to_vec(), score));
             }
-        });
+        }
 
         let all_results = Arc::try_unwrap(results).expect("Operation failed").into_inner().expect("Operation failed");
         
@@ -1013,10 +1015,10 @@ where
     ) -> StatsResult<OptimizationResult<F>> {
         let results = Arc::new(Mutex::new(Vec::new()));
         let n_params = parameter_bounds.len();
-        let num_threads = self.config.num_threads.unwrap_or_else(|| num_cpus::get());
-        let evals_per_thread = max_evaluations / num_cpus::get;
+        let n_threads = self.config.num_threads.unwrap_or_else(|| current_num_threads());
+        let evals_per_thread = max_evaluations / n_threads;
         
-        parallel_for(0..num_cpus::get, |thread_id| {
+        for thread_id in 0..n_threads {
             use scirs2_core::random::{rngs::StdRng, SeedableRng, Rng};
             let mut rng = StdRng::seed_from_u64((thread_id as u64).wrapping_mul(24681));
             
@@ -1032,7 +1034,7 @@ where
                     results.push((params, score));
                 }
             }
-        });
+        }
 
         let all_results = Arc::try_unwrap(results).expect("Operation failed").into_inner().expect("Operation failed");
         
@@ -1243,7 +1245,7 @@ mod tests {
     #[test]
     fn test_advanced_parallel_config() {
         let config = AdvancedParallelConfig::default();
-        assert!(config.num_cpus::get.expect("Operation failed") > 0);
+        assert!(config.current_num_threads() > 0);
         assert!(config.work_stealing);
         assert!(config.task_granularity.min_parallelsize > 0);
     }

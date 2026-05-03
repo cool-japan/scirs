@@ -243,7 +243,7 @@ pub fn cholesky_lower<F: GenEigFloat>(a: &ArrayView2<F>, n: usize) -> LinalgResu
         for j in 0..=i {
             let mut s = a[[i, j]];
             for k in 0..j {
-                s = s - l[[i, k]] * l[[j, k]];
+                s -= l[[i, k]] * l[[j, k]];
             }
             if i == j {
                 if s <= F::zero() {
@@ -281,7 +281,7 @@ fn lower_tri_inv<F: GenEigFloat>(l: &Array2<F>, n: usize) -> LinalgResult<Array2
         for row in (col + 1)..n {
             let mut s = F::zero();
             for k in col..row {
-                s = s + l[[row, k]] * inv[[k, col]];
+                s += l[[row, k]] * inv[[k, col]];
             }
             if l[[row, row]].abs() < eps {
                 return Err(LinalgError::SingularMatrixError(format!(
@@ -312,7 +312,7 @@ fn matmul_nn<F: GenEigFloat>(
                 continue;
             }
             for j in 0..p {
-                c[[i, j]] = c[[i, j]] + a_il * b[[l, j]];
+                c[[i, j]] += a_il * b[[l, j]];
             }
         }
     }
@@ -356,7 +356,7 @@ fn mat_inv_gauss<F: GenEigFloat>(a: &ArrayView2<F>, n: usize) -> LinalgResult<Ar
         }
         let inv_pivot = F::one() / pivot;
         for j in 0..2 * n {
-            aug[col][j] = aug[col][j] * inv_pivot;
+            aug[col][j] *= inv_pivot;
         }
         for i in 0..n {
             if i != col {
@@ -366,7 +366,7 @@ fn mat_inv_gauss<F: GenEigFloat>(a: &ArrayView2<F>, n: usize) -> LinalgResult<Ar
                 }
                 for j in 0..2 * n {
                     let v = aug[col][j];
-                    aug[i][j] = aug[i][j] - factor * v;
+                    aug[i][j] -= factor * v;
                 }
             }
         }
@@ -409,7 +409,7 @@ fn symmetric_qr_eigen<F: GenEigFloat>(
         for ev in &evecs {
             let dot: F = v.iter().zip(ev.iter()).map(|(&vi, &ei)| vi * ei).sum();
             for i in 0..n {
-                v[i] = v[i] - dot * ev[i];
+                v[i] -= dot * ev[i];
             }
         }
         let norm: F = v.iter().map(|&x| x * x).sum::<F>().sqrt();
@@ -424,7 +424,7 @@ fn symmetric_qr_eigen<F: GenEigFloat>(
             }
         } else {
             for x in v.iter_mut() {
-                *x = *x / norm;
+                *x /= norm;
             }
         }
 
@@ -434,7 +434,7 @@ fn symmetric_qr_eigen<F: GenEigFloat>(
             let mut av = Array1::<F>::zeros(n);
             for i in 0..n {
                 for j in 0..n {
-                    av[i] = av[i] + a_work[[i, j]] * v[j];
+                    av[i] += a_work[[i, j]] * v[j];
                 }
             }
             // Rayleigh quotient
@@ -462,7 +462,7 @@ fn symmetric_qr_eigen<F: GenEigFloat>(
         // Deflate: A_work ← A_work - λ v vᵀ
         for i in 0..n {
             for j in 0..n {
-                a_work[[i, j]] = a_work[[i, j]] - eigenval * v[i] * v[j];
+                a_work[[i, j]] -= eigenval * v[i] * v[j];
             }
         }
     }
@@ -484,11 +484,7 @@ fn symmetric_qr_eigen<F: GenEigFloat>(
 
 /// Reduce A to upper Hessenberg form via Householder reflections in-place.
 /// Also accumulates the orthogonal similarity transform Q if requested.
-fn hessenberg_reduce<F: GenEigFloat>(
-    h: &mut Array2<F>,
-    n: usize,
-    q: &mut Option<Array2<F>>,
-) {
+fn hessenberg_reduce<F: GenEigFloat>(h: &mut Array2<F>, n: usize, q: &mut Option<Array2<F>>) {
     for col in 0..(n.saturating_sub(2)) {
         // Build Householder reflector for column `col` below the subdiagonal
         let col_len = n - col - 1;
@@ -498,8 +494,12 @@ fn hessenberg_reduce<F: GenEigFloat>(
         if sigma == F::zero() {
             continue;
         }
-        let sign = if x[0] >= F::zero() { F::one() } else { -F::one() };
-        x[0] = x[0] + sign * sigma;
+        let sign = if x[0] >= F::zero() {
+            F::one()
+        } else {
+            -F::one()
+        };
+        x[0] += sign * sigma;
 
         let norm_sq: F = x.iter().map(|&v| v * v).sum();
         if norm_sq == F::zero() {
@@ -513,7 +513,7 @@ fn hessenberg_reduce<F: GenEigFloat>(
             let two = F::from(2.0).unwrap_or(F::one());
             let coeff = two * dot / norm_sq;
             for i in 0..col_len {
-                h[[col + 1 + i, j]] = h[[col + 1 + i, j]] - coeff * x[i];
+                h[[col + 1 + i, j]] -= coeff * x[i];
             }
         }
 
@@ -524,7 +524,7 @@ fn hessenberg_reduce<F: GenEigFloat>(
             let two = F::from(2.0).unwrap_or(F::one());
             let coeff = two * dot / norm_sq;
             for k in 0..col_len {
-                h[[i, col + 1 + k]] = h[[i, col + 1 + k]] - coeff * x[k];
+                h[[i, col + 1 + k]] -= coeff * x[k];
             }
         }
 
@@ -535,7 +535,7 @@ fn hessenberg_reduce<F: GenEigFloat>(
                 let two = F::from(2.0).unwrap_or(F::one());
                 let coeff = two * dot / norm_sq;
                 for k in 0..col_len {
-                    q_mat[[i, col + 1 + k]] = q_mat[[i, col + 1 + k]] - coeff * x[k];
+                    q_mat[[i, col + 1 + k]] -= coeff * x[k];
                 }
             }
         }
@@ -576,7 +576,9 @@ fn hessenberg_qr_eigen<F: GenEigFloat>(
         for _iter in 0..max_iter {
             _total_iter += 1;
             // Check subdiagonal for deflation
-            if h[[end - 1, end - 2]].abs() < tol * (h[[end - 2, end - 2]].abs() + h[[end - 1, end - 1]].abs()) {
+            if h[[end - 1, end - 2]].abs()
+                < tol * (h[[end - 2, end - 2]].abs() + h[[end - 1, end - 1]].abs())
+            {
                 eigenvalues_re[end - 1] = h[[end - 1, end - 1]];
                 eigenvalues_im[end - 1] = F::zero();
                 end -= 1;
@@ -697,7 +699,7 @@ fn qr_step_hessenberg<F: GenEigFloat>(
 ) {
     // Shift
     for i in 0..end {
-        h[[i, i]] = h[[i, i]] - shift;
+        h[[i, i]] -= shift;
     }
 
     // Givens rotations
@@ -732,7 +734,7 @@ fn qr_step_hessenberg<F: GenEigFloat>(
 
     // Unshift
     for i in 0..end {
-        h[[i, i]] = h[[i, i]] + shift;
+        h[[i, i]] += shift;
     }
 }
 

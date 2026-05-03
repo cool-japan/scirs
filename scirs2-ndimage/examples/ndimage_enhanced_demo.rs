@@ -10,31 +10,35 @@
 //! - Error handling and robustness testing
 //! - Benchmark collection and analysis
 
-// Note: This example is under development. The enhanced_validation and fusion_core
-// modules are not yet implemented in scirs2_ndimage.
-
 use scirs2_core::ndarray::{Array2, ArrayView2};
 use std::time::Instant;
 
-use scirs2_ndimage::error::NdimageResult;
+use scirs2_ndimage::{
+    comprehensive_validation::{ComprehensiveValidator, PerformanceSummary},
+    error::NdimageResult,
+};
 
 /// Comprehensive enhanced Advanced demonstration
 #[allow(dead_code)]
 pub fn enhanced_advanced_demo() -> NdimageResult<()> {
     println!("🚀 Enhanced Advanced Mode Demonstration");
     println!("========================================");
-    println!("Note: This demo requires the enhanced_validation and fusion_core modules");
-    println!("which are not yet implemented in scirs2_ndimage.\n");
 
     // Create test dataset
     let test_data = create_test_dataset();
     println!("Created {} test images", test_data.len());
 
-    // Demo basic functionality that works without the missing modules
+    // Demo basic functionality
     for (name, data) in test_data.iter() {
         println!("Processing: {}", name);
         let _result = process_basic(&data.view());
     }
+
+    // Print performance summary using the real validator
+    let mut validator = ComprehensiveValidator::new();
+    run_stress_tests(&mut validator)?;
+    let summary = validator.get_performance_summary();
+    print_performance_summary(&summary);
 
     println!("\nDemo completed successfully!");
     Ok(())
@@ -111,23 +115,33 @@ fn create_edge_caseimage(height: usize, width: usize) -> Array2<f64> {
     data
 }
 
-// The following functions are placeholders for the enhanced validation features
-// They will be implemented when the required modules are available
-
 /// Print comprehensive performance summary
-// TODO: This function requires the enhanced_validation module which is not yet implemented
-#[allow(dead_code)]
-fn print_performance_summary(_summary: &()) {
+fn print_performance_summary(summary: &PerformanceSummary) {
     println!("\n📈 Performance Summary");
     println!("=====================");
-    println!("Note: Enhanced validation module not yet implemented");
+    println!("   - Total operations: {}", summary.total_operations);
+    println!("   - Average quality:  {:.3}", summary.average_quality());
+    println!(
+        "   - Total processing time: {:?}",
+        summary.total_processing_time()
+    );
+    if !summary.benchmarks.is_empty() {
+        println!("   - Benchmarks recorded: {}", summary.benchmarks.len());
+    }
 }
 
 /// Run stress tests with various configurations
-// TODO: This function requires the ComprehensiveValidator type which is not yet implemented
-#[allow(dead_code)]
-fn run_stress_tests(_validator: &mut ()) -> NdimageResult<()> {
+fn run_stress_tests(validator: &mut ComprehensiveValidator) -> NdimageResult<()> {
     println!("Running stress tests...");
-    println!("Note: Stress tests require enhanced_validation module");
+
+    use scirs2_core::ndarray::Array2;
+    let sizes = [(32_usize, 32_usize), (64, 64), (128, 128)];
+    for (h, w) in sizes {
+        let image = Array2::<f64>::ones((h, w));
+        validator.validate_inputimage(image.view())?;
+        println!("  ✓ Validated {}x{} image", h, w);
+    }
+
+    println!("Stress tests completed.");
     Ok(())
 }

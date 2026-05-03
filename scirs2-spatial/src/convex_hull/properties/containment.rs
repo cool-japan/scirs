@@ -263,11 +263,8 @@ fn check_containment_3d(hull: &ConvexHull, point: &[f64]) -> SpatialResult<bool>
         return Ok(dot >= -1e-10 && dot <= len_squared + 1e-10);
     }
 
-    // TODO: Handle 3 points (triangle in 3D)
     if hull.vertex_indices.len() == 3 {
-        // For now, just return false for triangular hulls in 3D
-        // A proper implementation would check if the point is on the triangle
-        return Ok(false);
+        return check_containment_3d_triangle(hull, point);
     }
 
     // Normal case with 4+ vertices
@@ -354,6 +351,73 @@ fn check_containment_3d(hull: &ConvexHull, point: &[f64]) -> SpatialResult<bool>
     }
 
     Ok(true)
+}
+
+/// Check whether a point lies on a 3D triangle defined by exactly 3 hull vertices.
+///
+/// Uses barycentric coordinates. The planarity tolerance is scaled by the triangle's
+/// normal magnitude so the check is invariant to triangle size.
+fn check_containment_3d_triangle(hull: &ConvexHull, point: &[f64]) -> SpatialResult<bool> {
+    let ia = hull.vertex_indices[0];
+    let ib = hull.vertex_indices[1];
+    let ic = hull.vertex_indices[2];
+
+    let a = [
+        hull.points[[ia, 0]],
+        hull.points[[ia, 1]],
+        hull.points[[ia, 2]],
+    ];
+    let b = [
+        hull.points[[ib, 0]],
+        hull.points[[ib, 1]],
+        hull.points[[ib, 2]],
+    ];
+    let c = [
+        hull.points[[ic, 0]],
+        hull.points[[ic, 1]],
+        hull.points[[ic, 2]],
+    ];
+
+    let v0 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    let v1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    let v2 = [point[0] - a[0], point[1] - a[1], point[2] - a[2]];
+
+    // Normal of the triangle
+    let n = [
+        v0[1] * v1[2] - v0[2] * v1[1],
+        v0[2] * v1[0] - v0[0] * v1[2],
+        v0[0] * v1[1] - v0[1] * v1[0],
+    ];
+    let n_mag = (n[0] * n[0] + n[1] * n[1] + n[2] * n[2]).sqrt();
+
+    // Degenerate triangle (zero area)
+    if n_mag < 1e-15 {
+        return Ok(false);
+    }
+
+    // Planarity check: distance from point to triangle plane must be near zero
+    let plane_dist = (n[0] * v2[0] + n[1] * v2[1] + n[2] * v2[2]).abs();
+    if plane_dist > 1e-8 * n_mag {
+        return Ok(false);
+    }
+
+    // Barycentric coordinates via dot products
+    let d00 = v0[0] * v0[0] + v0[1] * v0[1] + v0[2] * v0[2];
+    let d01 = v0[0] * v1[0] + v0[1] * v1[1] + v0[2] * v1[2];
+    let d11 = v1[0] * v1[0] + v1[1] * v1[1] + v1[2] * v1[2];
+    let d20 = v2[0] * v0[0] + v2[1] * v0[1] + v2[2] * v0[2];
+    let d21 = v2[0] * v1[0] + v2[1] * v1[1] + v2[2] * v1[2];
+
+    let denom = d00 * d11 - d01 * d01;
+    if denom.abs() < 1e-15 {
+        return Ok(false);
+    }
+
+    let inv_denom = 1.0 / denom;
+    let u = (d11 * d20 - d01 * d21) * inv_denom;
+    let v = (d00 * d21 - d01 * d20) * inv_denom;
+
+    Ok(u >= -1e-10 && v >= -1e-10 && u + v <= 1.0 + 1e-10)
 }
 
 /// Check high-dimensional containment using linear programming approach
@@ -663,5 +727,50 @@ mod tests {
         // Point outside the triangle
         let result = check_point_containment(&hull, [2.0, 2.0]).expect("Operation failed");
         assert!(!result);
+    }
+
+    fn make_3d_triangle_hull() -> ConvexHull {
+        // Manually construct a hull for a triangle in the XY plane:
+        // A=(0,0,0), B=(1,0,0), C=(0,1,0).
+        // ConvexHull::new() requires >=4 3D points, so we build the struct directly.
+        ConvexHull {
+            points: arr2(&[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]]),
+            vertex_indices: vec![0, 1, 2],
+            simplices: vec![vec![0, 1, 2]],
+            equations: None,
+        }
+    }
+
+    #[test]
+    fn test_3d_triangle_containment_inside() {
+        let hull = make_3d_triangle_hull();
+
+        // Centroid of the triangle — should be inside
+        let inside = check_containment_3d_triangle(&hull, &[1.0 / 3.0, 1.0 / 3.0, 0.0])
+            .expect("Operation failed");
+        assert!(inside, "centroid should be inside the triangle");
+
+        // A vertex itself should be on the triangle
+        let on_vertex =
+            check_containment_3d_triangle(&hull, &[0.0, 0.0, 0.0]).expect("Operation failed");
+        assert!(on_vertex, "vertex should be on the triangle");
+    }
+
+    #[test]
+    fn test_3d_triangle_containment_outside() {
+        let hull = make_3d_triangle_hull();
+
+        // Point in the same plane but outside the triangle bounds
+        let outside_bounds =
+            check_containment_3d_triangle(&hull, &[2.0, 2.0, 0.0]).expect("Operation failed");
+        assert!(
+            !outside_bounds,
+            "point outside triangle bounds should be false"
+        );
+
+        // Point above the plane (lifted by 1 unit)
+        let off_plane =
+            check_containment_3d_triangle(&hull, &[0.25, 0.25, 1.0]).expect("Operation failed");
+        assert!(!off_plane, "point off the triangle plane should be false");
     }
 }

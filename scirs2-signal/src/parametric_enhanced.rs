@@ -1384,10 +1384,57 @@ fn compute_model_residuals(
                 }
             }
         }
-        _ => {
-            return Err(SignalError::ComputationError(
-                "Residual computation not yet implemented for this model type".to_string(),
-            ));
+        ModelType::MA(q) => {
+            // MA(q) model: y[n] = e[n] + theta[1]*e[n-1] + ... + theta[q]*e[n-q]
+            // Residuals computed via innovations algorithm (one-step predictor)
+            if let Some(ref ma_coeffs) = result.ma_coeffs {
+                let q_len = (*q).min(ma_coeffs.len());
+                let mut errors: Vec<f64> = vec![0.0; n];
+                for i in 0..n {
+                    let mut predicted_noise = 0.0;
+                    for j in 0..q_len.min(i) {
+                        predicted_noise += ma_coeffs[j] * errors[i - j - 1];
+                    }
+                    errors[i] = signal[i] - predicted_noise;
+                }
+                // Skip the first q samples (burn-in)
+                residuals.extend_from_slice(&errors[q_len..]);
+            }
+        }
+        ModelType::ARMA(p, q) => {
+            // ARMA(p,q): y[n] = phi[1]*y[n-1]+...+phi[p]*y[n-p] + e[n] + theta[1]*e[n-1]+...+theta[q]*e[n-q]
+            // Use recursive residual computation (Kalman-like innovations)
+            if let (Some(ref ar_coeffs), Some(ref ma_coeffs)) =
+                (&result.ar_coeffs, &result.ma_coeffs)
+            {
+                let p_len = (*p).min(ar_coeffs.len());
+                let q_len = (*q).min(ma_coeffs.len());
+                let burn_in = p_len.max(q_len);
+                let mut errors: Vec<f64> = vec![0.0; n];
+
+                for i in burn_in..n {
+                    let mut ar_part = 0.0;
+                    for j in 0..p_len {
+                        ar_part += ar_coeffs[j] * signal[i - j - 1];
+                    }
+                    let mut ma_part = 0.0;
+                    for j in 0..q_len.min(i) {
+                        ma_part += ma_coeffs[j] * errors[i - j - 1];
+                    }
+                    errors[i] = signal[i] - ar_part - ma_part;
+                }
+                residuals.extend_from_slice(&errors[burn_in..]);
+            } else if let Some(ref ar_coeffs) = result.ar_coeffs {
+                // Fallback: treat as AR if only AR coeffs available
+                let p_len = (*p).min(ar_coeffs.len());
+                for i in p_len..n {
+                    let mut prediction = 0.0;
+                    for j in 0..p_len {
+                        prediction += ar_coeffs[j] * signal[i - j - 1];
+                    }
+                    residuals.push(signal[i] - prediction);
+                }
+            }
         }
     }
 

@@ -125,20 +125,22 @@ impl Synapse {
         }
 
         // Apply STDP learning rule
-        if pre_spiked && self.last_post_spike > self.last_pre_spike - 50.0 {
-            // Potentiation: pre before post
-            let dt = self.last_post_spike - self.last_pre_spike;
+        // Depression (LTD): post fired before pre, pre fires now
+        // dt = current_time - last_post_spike > 0 means post fired before current pre spike
+        if pre_spiked && self.last_post_spike > current_time - 50.0 {
+            let dt = current_time - self.last_post_spike;
             if dt > 0.0 {
-                let delta_w = self.stdp_rate * (-dt / self.stdp_tau).exp();
+                let delta_w = -self.stdp_rate * (-dt / self.stdp_tau).exp();
                 self.weight += delta_w;
             }
         }
 
-        if post_spiked && self.last_pre_spike > self.last_post_spike - 50.0 {
-            // Depression: post before pre
-            let dt = self.last_pre_spike - self.last_post_spike;
+        // Potentiation (LTP): pre fired before post, post fires now
+        // dt = current_time - last_pre_spike > 0 means pre fired before current post spike
+        if post_spiked && self.last_pre_spike > current_time - 50.0 {
+            let dt = current_time - self.last_pre_spike;
             if dt > 0.0 {
-                let delta_w = -self.stdp_rate * (-dt / self.stdp_tau).exp();
+                let delta_w = self.stdp_rate * (-dt / self.stdp_tau).exp();
                 self.weight += delta_w;
             }
         }
@@ -478,7 +480,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - assertion failed: synapse.weight() > initial_weight at line 490"]
     fn test_stdp_potentiation() {
         let mut synapse = Synapse::new(0, 1, 0.5);
         let initial_weight = synapse.weight();
@@ -492,7 +493,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - assertion failed: synapse.weight() < initial_weight at line 503"]
     fn test_stdp_depression() {
         let mut synapse = Synapse::new(0, 1, 0.5);
         let initial_weight = synapse.weight();
@@ -548,7 +548,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - assertion failed: meta_synapse.average_recent_activity() > 0.0 at line 562"]
     fn test_metaplastic_synapse() {
         let mut meta_synapse = MetaplasticSynapse::new(0, 1, 0.5, 0.01);
 

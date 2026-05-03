@@ -126,8 +126,7 @@ impl BeamSearchDecoder {
             let mut tokens = parent.token_ids.clone();
             tokens.push(tok_id);
 
-            let is_done =
-                tok_id == self.config.eos_token || tokens.len() >= self.config.max_length;
+            let is_done = tok_id == self.config.eos_token || tokens.len() >= self.config.max_length;
 
             new_hyps.push(BeamHypothesis {
                 token_ids: tokens,
@@ -463,10 +462,7 @@ where
 
 /// Numerically stable softmax over a slice.
 fn softmax_vec(logits: &[f64]) -> Vec<f64> {
-    let max = logits
-        .iter()
-        .cloned()
-        .fold(f64::NEG_INFINITY, f64::max);
+    let max = logits.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
     let exps: Vec<f64> = logits.iter().map(|&x| (x - max).exp()).collect();
     let sum: f64 = exps.iter().sum();
     if sum <= 0.0 {
@@ -539,11 +535,23 @@ mod tests {
         };
         let decoder = BeamSearchDecoder::new(cfg);
         let hyps = vec![
-            BeamHypothesis { token_ids: vec![1], score: 0.0, is_done: false },
-            BeamHypothesis { token_ids: vec![2], score: -0.5, is_done: false },
-            BeamHypothesis { token_ids: vec![3], score: -1.0, is_done: false },
+            BeamHypothesis {
+                token_ids: vec![1],
+                score: 0.0,
+                is_done: false,
+            },
+            BeamHypothesis {
+                token_ids: vec![2],
+                score: -0.5,
+                is_done: false,
+            },
+            BeamHypothesis {
+                token_ids: vec![3],
+                score: -1.0,
+                is_done: false,
+            },
         ];
-        let log_probs = Array2::from_elem((3, 10), -2.302_585);
+        let log_probs = Array2::from_elem((3, 10), -std::f64::consts::LN_10);
         let (new_hyps, _done) = decoder.step(hyps, &log_probs);
         assert_eq!(new_hyps.len(), 3);
     }
@@ -591,7 +599,10 @@ mod tests {
         let cfg = BeamSearchConfig::default();
         let decoder = BeamSearchDecoder::new(cfg);
         assert!(decoder
-            .decode(0, 0, |seqs: &[Vec<usize>]| Ok(Array2::zeros((seqs.len(), 1))))
+            .decode(0, 0, |seqs: &[Vec<usize>]| Ok(Array2::zeros((
+                seqs.len(),
+                1
+            ))))
             .is_err());
     }
 
@@ -609,8 +620,16 @@ mod tests {
     #[test]
     fn test_best_hypothesis_is_first() {
         let hyps = vec![
-            BeamHypothesis { token_ids: vec![1, 2], score: -1.0, is_done: true },
-            BeamHypothesis { token_ids: vec![1, 3], score: -2.0, is_done: true },
+            BeamHypothesis {
+                token_ids: vec![1, 2],
+                score: -1.0,
+                is_done: true,
+            },
+            BeamHypothesis {
+                token_ids: vec![1, 3],
+                score: -2.0,
+                is_done: true,
+            },
         ];
         let best = BeamSearchDecoder::best_hypothesis(&hyps);
         assert_eq!(best.map(|h| h.score), Some(-1.0));
@@ -668,8 +687,7 @@ mod tests {
     fn test_top_k_sampling_starts_with_bos() {
         let vocab_size = 10;
         let result =
-            top_k_sampling(0, 9, 20, 3, 1.0, |_| Ok(vec![-1.0f64; vocab_size]), 42)
-                .expect("top_k");
+            top_k_sampling(0, 9, 20, 3, 1.0, |_| Ok(vec![-1.0f64; vocab_size]), 42).expect("top_k");
         assert_eq!(result[0], 0);
     }
 
@@ -678,11 +696,19 @@ mod tests {
         let eos = 5usize;
         let vocab_size = 10;
         // Make eos overwhelmingly likely via extreme log-prob
-        let result = top_k_sampling(0, eos, 50, 1, 1.0, |_| {
-            let mut lp = vec![-1000.0f64; vocab_size];
-            lp[eos] = 0.0;
-            Ok(lp)
-        }, 123)
+        let result = top_k_sampling(
+            0,
+            eos,
+            50,
+            1,
+            1.0,
+            |_| {
+                let mut lp = vec![-1000.0f64; vocab_size];
+                lp[eos] = 0.0;
+                Ok(lp)
+            },
+            123,
+        )
         .expect("top_k");
         assert_eq!(*result.last().expect("last"), eos);
     }
@@ -702,11 +728,9 @@ mod tests {
     fn test_top_k_sampling_reproducible_with_same_seed() {
         let vocab_size = 20;
         let result1 =
-            top_k_sampling(0, 19, 30, 5, 0.8, |_| Ok(vec![-1.0f64; vocab_size]), 777)
-                .expect("r1");
+            top_k_sampling(0, 19, 30, 5, 0.8, |_| Ok(vec![-1.0f64; vocab_size]), 777).expect("r1");
         let result2 =
-            top_k_sampling(0, 19, 30, 5, 0.8, |_| Ok(vec![-1.0f64; vocab_size]), 777)
-                .expect("r2");
+            top_k_sampling(0, 19, 30, 5, 0.8, |_| Ok(vec![-1.0f64; vocab_size]), 777).expect("r2");
         assert_eq!(result1, result2);
     }
 
@@ -715,9 +739,8 @@ mod tests {
     #[test]
     fn test_top_p_sampling_starts_with_bos() {
         let vocab_size = 10;
-        let result =
-            top_p_sampling(0, 9, 20, 0.9, 1.0, |_| Ok(vec![-1.0f64; vocab_size]), 42)
-                .expect("top_p");
+        let result = top_p_sampling(0, 9, 20, 0.9, 1.0, |_| Ok(vec![-1.0f64; vocab_size]), 42)
+            .expect("top_p");
         assert_eq!(result[0], 0);
     }
 
@@ -725,11 +748,19 @@ mod tests {
     fn test_top_p_sampling_stops_at_eos() {
         let eos = 4usize;
         let vocab_size = 10;
-        let result = top_p_sampling(0, eos, 50, 0.95, 1.0, |_| {
-            let mut lp = vec![-1000.0f64; vocab_size];
-            lp[eos] = 0.0;
-            Ok(lp)
-        }, 55)
+        let result = top_p_sampling(
+            0,
+            eos,
+            50,
+            0.95,
+            1.0,
+            |_| {
+                let mut lp = vec![-1000.0f64; vocab_size];
+                lp[eos] = 0.0;
+                Ok(lp)
+            },
+            55,
+        )
         .expect("top_p");
         assert_eq!(*result.last().expect("last"), eos);
     }
@@ -749,11 +780,9 @@ mod tests {
     fn test_top_p_sampling_reproducible_with_same_seed() {
         let vocab_size = 15;
         let r1 =
-            top_p_sampling(0, 14, 20, 0.9, 1.0, |_| Ok(vec![-1.0f64; vocab_size]), 99)
-                .expect("r1");
+            top_p_sampling(0, 14, 20, 0.9, 1.0, |_| Ok(vec![-1.0f64; vocab_size]), 99).expect("r1");
         let r2 =
-            top_p_sampling(0, 14, 20, 0.9, 1.0, |_| Ok(vec![-1.0f64; vocab_size]), 99)
-                .expect("r2");
+            top_p_sampling(0, 14, 20, 0.9, 1.0, |_| Ok(vec![-1.0f64; vocab_size]), 99).expect("r2");
         assert_eq!(r1, r2);
     }
 

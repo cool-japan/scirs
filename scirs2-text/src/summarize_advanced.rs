@@ -93,10 +93,7 @@ fn tf_map(sentence: &str) -> HashMap<String, f64> {
     for w in words {
         *counts.entry(w).or_insert(0) += 1;
     }
-    counts
-        .into_iter()
-        .map(|(k, c)| (k, c as f64 / n))
-        .collect()
+    counts.into_iter().map(|(k, c)| (k, c as f64 / n)).collect()
 }
 
 /// Cosine similarity with IDF weighting across a sentence corpus.
@@ -165,8 +162,7 @@ fn build_idf(sentences: &[String]) -> HashMap<String, f64> {
     let n = sentences.len() as f64;
     let mut df: HashMap<String, usize> = HashMap::new();
     for sent in sentences {
-        let words: std::collections::HashSet<String> =
-            tokenize_words(sent).into_iter().collect();
+        let words: std::collections::HashSet<String> = tokenize_words(sent).into_iter().collect();
         for w in words {
             *df.entry(w).or_insert(0) += 1;
         }
@@ -229,7 +225,10 @@ impl TextRankSummarizer {
 
         let idf = build_idf(&sentences);
         let n = sentences.len();
-        let avgdl = sentences.iter().map(|s| tokenize_words(s).len()).sum::<usize>() as f64
+        let avgdl = sentences
+            .iter()
+            .map(|s| tokenize_words(s).len())
+            .sum::<usize>() as f64
             / n as f64;
 
         // Build adjacency matrix
@@ -301,9 +300,7 @@ impl ExtractiveSummarizer {
     /// Return the first `k` sentences of `text`.
     pub fn lead_k(text: &str, k: usize) -> Result<String> {
         if k == 0 {
-            return Err(TextError::InvalidInput(
-                "k must be at least 1".to_string(),
-            ));
+            return Err(TextError::InvalidInput("k must be at least 1".to_string()));
         }
         let sentences = split_sentences(text);
         let selected: Vec<&str> = sentences.iter().take(k).map(String::as_str).collect();
@@ -316,9 +313,7 @@ impl ExtractiveSummarizer {
     /// stop-words (high-frequency function words) are down-weighted.
     pub fn frequency_based(text: &str, k: usize) -> Result<String> {
         if k == 0 {
-            return Err(TextError::InvalidInput(
-                "k must be at least 1".to_string(),
-            ));
+            return Err(TextError::InvalidInput("k must be at least 1".to_string()));
         }
         let sentences = split_sentences(text);
         if sentences.is_empty() {
@@ -371,8 +366,7 @@ impl ExtractiveSummarizer {
 mod tests {
     use super::*;
 
-    const TEXT: &str =
-        "The quick brown fox jumps over the lazy dog. \
+    const TEXT: &str = "The quick brown fox jumps over the lazy dog. \
          A fox is a cunning animal. \
          Dogs are loyal companions. \
          Foxes live in dens and are mostly nocturnal. \
@@ -410,16 +404,14 @@ mod tests {
 
     #[test]
     fn test_textrank_bm25() {
-        let summarizer =
-            TextRankSummarizer::new(0.85, 20, SentenceSimilarity::BM25);
+        let summarizer = TextRankSummarizer::new(0.85, 20, SentenceSimilarity::BM25);
         let summary = summarizer.summarize(TEXT, 2).expect("summarize bm25");
         assert!(!summary.is_empty());
     }
 
     #[test]
     fn test_textrank_jaccard() {
-        let summarizer =
-            TextRankSummarizer::new(0.85, 20, SentenceSimilarity::Jaccard);
+        let summarizer = TextRankSummarizer::new(0.85, 20, SentenceSimilarity::Jaccard);
         let summary = summarizer.summarize(TEXT, 2).expect("summarize jaccard");
         assert!(!summary.is_empty());
     }
@@ -461,10 +453,7 @@ mod tests {
 
     #[test]
     fn test_build_idf() {
-        let sents = vec![
-            "the cat sat".to_string(),
-            "the dog ran".to_string(),
-        ];
+        let sents = vec!["the cat sat".to_string(), "the dog ran".to_string()];
         let idf = build_idf(&sents);
         // "the" appears in all sentences → low IDF
         // "cat" appears in 1 sentence → higher IDF

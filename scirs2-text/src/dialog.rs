@@ -180,12 +180,8 @@ impl IntentClassifier {
     /// performed case-insensitively.
     pub fn add_intent(&mut self, name: &str, patterns: Vec<&str>) {
         self.intents.push(name.to_string());
-        self.patterns.push(
-            patterns
-                .into_iter()
-                .map(|p| p.to_lowercase())
-                .collect(),
-        );
+        self.patterns
+            .push(patterns.into_iter().map(|p| p.to_lowercase()).collect());
     }
 
     /// Return the number of registered intents.
@@ -418,9 +414,29 @@ impl EntityExtractor {
 
         // Month-name patterns.
         let months = [
-            "january", "february", "march", "april", "may", "june", "july", "august",
-            "september", "october", "november", "december", "jan", "feb", "mar", "apr", "jun",
-            "jul", "aug", "sep", "oct", "nov", "dec",
+            "january",
+            "february",
+            "march",
+            "april",
+            "may",
+            "june",
+            "july",
+            "august",
+            "september",
+            "october",
+            "november",
+            "december",
+            "jan",
+            "feb",
+            "mar",
+            "apr",
+            "jun",
+            "jul",
+            "aug",
+            "sep",
+            "oct",
+            "nov",
+            "dec",
         ];
         let text_lower = text.to_lowercase();
         for month in &months {
@@ -430,16 +446,16 @@ impl EntityExtractor {
                 let abs_end = abs_start + month.len();
 
                 // Make sure it's a word boundary (not mid-word).
-                let before_ok = abs_start == 0
-                    || !text.as_bytes()[abs_start - 1].is_ascii_alphanumeric();
-                let after_ok = abs_end >= text.len()
-                    || !text.as_bytes()[abs_end].is_ascii_alphanumeric();
+                let before_ok =
+                    abs_start == 0 || !text.as_bytes()[abs_start - 1].is_ascii_alphanumeric();
+                let after_ok =
+                    abs_end >= text.len() || !text.as_bytes()[abs_end].is_ascii_alphanumeric();
 
                 if before_ok && after_ok {
                     // Optionally consume a following number (day).
                     let mut end = abs_end;
                     let rest = &text[abs_end..];
-                    let after_space: &str = rest.trim_start_matches(|c: char| c == ' ');
+                    let after_space: &str = rest.trim_start_matches(' ');
                     let day_len: usize = after_space
                         .chars()
                         .take_while(|c| c.is_ascii_digit())
@@ -452,7 +468,7 @@ impl EntityExtractor {
 
                     // Also try to consume a following 4-digit year.
                     let rest2 = &text[end..];
-                    let after_space2: &str = rest2.trim_start_matches(|c: char| c == ' ');
+                    let after_space2: &str = rest2.trim_start_matches(' ');
                     let year_candidate: String = after_space2
                         .chars()
                         .take_while(|c| c.is_ascii_digit())
@@ -507,9 +523,9 @@ impl EntityExtractor {
             // entries that overlap with a date entity).
             let end = i;
             let candidate = &text[start..end];
-            let already_date = out.iter().any(|e| {
-                e.kind == EntityKind::Date && e.start <= start && e.end >= end
-            });
+            let already_date = out
+                .iter()
+                .any(|e| e.kind == EntityKind::Date && e.start <= start && e.end >= end);
             if !already_date {
                 out.push(ExtractedEntity {
                     text: candidate.to_string(),
@@ -544,9 +560,7 @@ impl EntityExtractor {
             let (start, _, word) = word_spans[i];
             // Strip leading punctuation.
             let first_alpha = word.chars().find(|c| c.is_alphabetic());
-            let is_cap = first_alpha
-                .map(|c| c.is_uppercase())
-                .unwrap_or(false);
+            let is_cap = first_alpha.map(|c| c.is_uppercase()).unwrap_or(false);
 
             if !is_cap {
                 i += 1;
@@ -668,11 +682,7 @@ impl SlotFiller {
     ///
     /// Returns a map of slot names to their extracted values, or an error if
     /// the template cannot be parsed.
-    pub fn fill(
-        &self,
-        utterance: &str,
-        template: &str,
-    ) -> Result<HashMap<String, String>> {
+    pub fn fill(&self, utterance: &str, template: &str) -> Result<HashMap<String, String>> {
         // Parse the template into alternating literals and slot names.
         let parts = parse_template(template)?;
         let mut slots: HashMap<String, String> = HashMap::new();
@@ -990,17 +1000,18 @@ pub fn response_template(act: DialogAct, slots: &HashMap<String, String>) -> Str
         DialogAct::Request => {
             // Pick the first slot that has a value in the slot map as a hint,
             // otherwise fall back to a generic request.
-            let slot_hint = slots.keys().next().map(|s| s.as_str()).unwrap_or("information");
+            let slot_hint = slots
+                .keys()
+                .next()
+                .map(|s| s.as_str())
+                .unwrap_or("information");
             format!("Could you please provide the {slot_hint}?")
         }
         DialogAct::Inform => {
             if slots.is_empty() {
                 "I have processed your request successfully.".to_string()
             } else {
-                let details: Vec<String> = slots
-                    .iter()
-                    .map(|(k, v)| format!("{k}: {v}"))
-                    .collect();
+                let details: Vec<String> = slots.iter().map(|(k, v)| format!("{k}: {v}")).collect();
                 format!("Here is the information: {}.", details.join(", "))
             }
         }
@@ -1008,10 +1019,8 @@ pub fn response_template(act: DialogAct, slots: &HashMap<String, String>) -> Str
             if slots.is_empty() {
                 "Can you please confirm your request?".to_string()
             } else {
-                let details: Vec<String> = slots
-                    .iter()
-                    .map(|(k, v)| format!("{k} = {v}"))
-                    .collect();
+                let details: Vec<String> =
+                    slots.iter().map(|(k, v)| format!("{k} = {v}")).collect();
                 format!(
                     "Just to confirm, you would like to proceed with {}. Is that correct?",
                     details.join(", ")
@@ -1187,10 +1196,7 @@ mod tests {
             )
             .expect("fill should succeed");
         assert_eq!(slots.get("origin").map(|s| s.as_str()), Some("London"));
-        assert_eq!(
-            slots.get("destination").map(|s| s.as_str()),
-            Some("Paris")
-        );
+        assert_eq!(slots.get("destination").map(|s| s.as_str()), Some("Paris"));
     }
 
     #[test]
@@ -1213,11 +1219,14 @@ mod tests {
     fn test_slot_filler_no_match() {
         let sf = SlotFiller::new();
         let slots = sf
-            .fill("completely different text", "flight from {origin} to {destination}")
+            .fill(
+                "completely different text",
+                "flight from {origin} to {destination}",
+            )
             .expect("should not error");
         // Slots should be empty since the literal prefix didn't match.
         assert!(
-            slots.get("origin").is_none() && slots.get("destination").is_none(),
+            !slots.contains_key("origin") && !slots.contains_key("destination"),
             "Expected no slots when template does not match"
         );
     }
@@ -1307,7 +1316,10 @@ mod tests {
         let mut slots: HashMap<String, String> = HashMap::new();
         slots.insert("destination".to_string(), "Paris".to_string());
         let response = response_template(DialogAct::Inform, &slots);
-        assert!(response.contains("Paris"), "Response should contain 'Paris': '{response}'");
+        assert!(
+            response.contains("Paris"),
+            "Response should contain 'Paris': '{response}'"
+        );
     }
 
     #[test]

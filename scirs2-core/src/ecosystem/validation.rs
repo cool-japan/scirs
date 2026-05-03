@@ -195,17 +195,14 @@ impl EcosystemValidator {
         }
 
         // Validate API surface
-        // TODO: Implement proper API surface validation
-        // For now, create a successful result
-        let apiresult = ApiStabilityCheck {
-            is_stable: true,
-            breakingchanges: Vec::new(),
-        };
+        let apiresult = validate_apisurface(&module.apisurface);
         if !apiresult.is_valid() {
-            result.adderror(ValidationError::new(
-                ValidationErrorType::ApiCompatibility,
-                "API surface validation failed".to_string(),
-            ));
+            for breaking_change in &apiresult.breakingchanges {
+                result.adderror(ValidationError::new(
+                    ValidationErrorType::ApiCompatibility,
+                    breaking_change.clone(),
+                ));
+            }
         }
 
         // Validate feature flags
@@ -1486,6 +1483,128 @@ impl EcosystemHealth {
     }
 }
 
+/// Validate an API name follows the expected naming convention.
+///
+/// Functions (signatures starting with `fn `) must be snake_case.
+/// Other items (types, traits, constants) must be CamelCase.
+/// Returns an error message string if the name is invalid, or `None` if valid.
+fn validate_api_name_format(name: &str, signature: &str) -> Option<String> {
+    if name.is_empty() {
+        return Some("API name must not be empty".to_string());
+    }
+
+    // Handles `fn`, `pub fn`, `async fn`, `unsafe fn`, `const fn`, `pub(crate) fn`, etc.
+    let t = signature.trim_start();
+    let is_function = t.starts_with("fn ") || t.contains(" fn ");
+
+    if is_function {
+        // snake_case: all chars must be lowercase ASCII letters, digits, or underscores,
+        // must not start or end with underscore (except leading _ for intentionally unused)
+        let valid = name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+        if !valid {
+            return Some(format!(
+                "Function '{}' must use snake_case naming convention",
+                name
+            ));
+        }
+    } else {
+        // CamelCase: must start with an uppercase ASCII letter, no underscores allowed
+        let starts_upper = name.chars().next().is_some_and(|c| c.is_ascii_uppercase());
+        let no_underscores = !name.contains('_');
+        if !starts_upper || !no_underscores {
+            return Some(format!(
+                "Type/trait '{}' must use CamelCase naming convention",
+                name
+            ));
+        }
+    }
+
+    None
+}
+
+/// Perform static API surface validation against the registered `ApiSurface`.
+///
+/// Checks performed:
+/// 1. Each API entry must have a non-empty name and non-empty signature.
+/// 2. Duplicate names within `public_apis` are flagged as breaking inconsistencies.
+/// 3. Function names must be snake_case; type/trait names must be CamelCase.
+/// 4. Stable APIs must carry a `since_version` and non-empty `documentation`.
+/// 5. Deprecated API names must not collide with any current public API name.
+///
+/// An empty `public_apis` list is treated as valid (the module simply exposes no APIs).
+pub fn validate_apisurface(apisurface: &ApiSurface) -> ApiStabilityCheck {
+    let mut breaking_changes: Vec<String> = Vec::new();
+
+    // Build a set of current public API names for collision detection
+    let public_names: HashSet<&str> = apisurface
+        .public_apis
+        .iter()
+        .map(|a| a.name.as_str())
+        .collect();
+
+    // --- 1. Detect duplicate names in public_apis ---
+    let mut seen_names: HashSet<&str> = HashSet::new();
+    for api in &apisurface.public_apis {
+        if !seen_names.insert(api.name.as_str()) {
+            breaking_changes.push(format!(
+                "Duplicate API name '{}' found in public surface",
+                api.name
+            ));
+        }
+    }
+
+    // --- 2–4. Per-entry checks ---
+    for api in &apisurface.public_apis {
+        // Empty name
+        if api.name.is_empty() {
+            breaking_changes.push("An API entry has an empty name".to_string());
+        }
+
+        // Empty signature
+        if api.signature.is_empty() {
+            breaking_changes.push(format!("API '{}' has an empty signature", api.name));
+        }
+
+        // Naming convention
+        if let Some(msg) = validate_api_name_format(&api.name, &api.signature) {
+            breaking_changes.push(msg);
+        }
+
+        // Stable APIs must document when they were introduced
+        if api.stability == ApiStability::Stable {
+            if api.since_version.is_none() {
+                breaking_changes.push(format!(
+                    "Stable API '{}' is missing a 'since_version' annotation",
+                    api.name
+                ));
+            }
+
+            // Stable APIs must have non-empty documentation
+            if api.documentation.is_empty() {
+                breaking_changes.push(format!(
+                    "Stable API '{}' is missing documentation",
+                    api.name
+                ));
+            }
+        }
+    }
+
+    // --- 5. Deprecated API name collision with public APIs ---
+    for dep_api in &apisurface.deprecated_apis {
+        if public_names.contains(dep_api.name.as_str()) {
+            breaking_changes.push(format!(
+                "Deprecated API '{}' collides with an active public API of the same name",
+                dep_api.name
+            ));
+        }
+    }
+
+    let is_stable = breaking_changes.is_empty();
+    ApiStabilityCheck::new(is_stable, breaking_changes)
+}
+
 /// Initialize ecosystem validation with detected modules
 #[allow(dead_code)]
 pub fn initialize_ecosystem_validation() -> CoreResult<()> {
@@ -1579,5 +1698,227 @@ mod tests {
 
         let health = EcosystemHealth::from_validationresult(&result);
         assert_eq!(health.overall_status, HealthStatus::Excellent);
+    }
+
+    // --- validate_apisurface tests ---
+
+    /// Validation passes (is_stable=true, breakingchanges empty) when all expected
+    /// stable APIs are present and well-formed.
+    #[test]
+    fn test_validate_apisurface_passes_when_all_apis_valid() {
+        let surface = ApiSurface {
+            public_apis: vec![
+                ApiInfo {
+                    name: "compute_mean".to_string(),
+                    signature: "fn compute_mean(data: &[f64]) -> f64".to_string(),
+                    documentation: "Computes the arithmetic mean of a slice.".to_string(),
+                    since_version: Some(Version::new(1, 0, 0)),
+                    stability: ApiStability::Stable,
+                },
+                ApiInfo {
+                    name: "MatrixSolver".to_string(),
+                    signature: "struct MatrixSolver".to_string(),
+                    documentation: "Solves linear matrix equations.".to_string(),
+                    since_version: Some(Version::new(1, 0, 0)),
+                    stability: ApiStability::Stable,
+                },
+            ],
+            deprecated_apis: Vec::new(),
+        };
+
+        let check = validate_apisurface(&surface);
+        assert!(
+            check.is_valid(),
+            "Expected valid surface; breaking changes: {:?}",
+            check.breakingchanges
+        );
+        assert!(check.breakingchanges.is_empty());
+        assert!(check.is_stable);
+    }
+
+    /// Validation fails and reports missing `since_version` when a stable API
+    /// omits that field (simulating an "absent" required annotation).
+    #[test]
+    fn test_validate_apisurface_fails_missing_since_version() {
+        let surface = ApiSurface {
+            public_apis: vec![ApiInfo {
+                name: "load_dataset".to_string(),
+                signature: "fn load_dataset(path: &str) -> Result<Dataset>".to_string(),
+                documentation: "Loads a dataset from disk.".to_string(),
+                since_version: None, // intentionally absent
+                stability: ApiStability::Stable,
+            }],
+            deprecated_apis: Vec::new(),
+        };
+
+        let check = validate_apisurface(&surface);
+        assert!(
+            !check.is_stable,
+            "Should be unstable due to missing since_version"
+        );
+        assert!(
+            check
+                .breakingchanges
+                .iter()
+                .any(|m| m.contains("since_version")),
+            "Expected a message about missing since_version; got: {:?}",
+            check.breakingchanges
+        );
+    }
+
+    /// An empty `public_apis` list should be treated as valid — the module simply
+    /// exposes no public API surface yet.
+    #[test]
+    fn test_validate_apisurface_handles_empty_apis_gracefully() {
+        let surface = ApiSurface {
+            public_apis: Vec::new(),
+            deprecated_apis: Vec::new(),
+        };
+
+        let check = validate_apisurface(&surface);
+        assert!(
+            check.is_valid(),
+            "Empty API surface should pass; got: {:?}",
+            check.breakingchanges
+        );
+    }
+
+    /// Validation detects invalid symbol names: a function that uses CamelCase
+    /// instead of the required snake_case.
+    #[test]
+    fn test_validate_apisurface_detects_invalid_symbol_name() {
+        let surface = ApiSurface {
+            public_apis: vec![ApiInfo {
+                name: "ComputeMean".to_string(), // should be snake_case for a fn
+                signature: "fn ComputeMean(data: &[f64]) -> f64".to_string(),
+                documentation: "Computes the mean.".to_string(),
+                since_version: Some(Version::new(1, 0, 0)),
+                stability: ApiStability::Stable,
+            }],
+            deprecated_apis: Vec::new(),
+        };
+
+        let check = validate_apisurface(&surface);
+        assert!(
+            !check.is_stable,
+            "Should detect invalid snake_case violation"
+        );
+        assert!(
+            check
+                .breakingchanges
+                .iter()
+                .any(|m| m.contains("snake_case")),
+            "Expected snake_case message; got: {:?}",
+            check.breakingchanges
+        );
+    }
+
+    /// The `ApiStabilityCheck` result fields are populated correctly:
+    /// `is_stable` reflects validity, and `breakingchanges` contains
+    /// one entry per problem found.
+    #[test]
+    fn test_api_stability_check_fields_populated_correctly() {
+        // Surface with two problems: duplicate name and missing documentation
+        let api_entry = ApiInfo {
+            name: "shared_name".to_string(),
+            signature: "fn shared_name()".to_string(),
+            documentation: String::new(), // missing documentation → 1 error
+            since_version: Some(Version::new(1, 0, 0)),
+            stability: ApiStability::Stable,
+        };
+        let duplicate = api_entry.clone(); // duplicate name → 1 error
+
+        let surface = ApiSurface {
+            public_apis: vec![api_entry, duplicate],
+            deprecated_apis: Vec::new(),
+        };
+
+        let check = validate_apisurface(&surface);
+
+        // is_stable must be false
+        assert!(!check.is_stable, "Expected is_stable=false");
+        // breakingchanges must not be empty
+        assert!(
+            !check.breakingchanges.is_empty(),
+            "breakingchanges must be non-empty"
+        );
+        // At least the duplicate should be reported
+        assert!(
+            check
+                .breakingchanges
+                .iter()
+                .any(|m| m.contains("Duplicate")),
+            "Expected a duplicate-name entry; got: {:?}",
+            check.breakingchanges
+        );
+        // At least the missing-documentation error should be reported
+        assert!(
+            check
+                .breakingchanges
+                .iter()
+                .any(|m| m.contains("documentation")),
+            "Expected a missing-documentation entry; got: {:?}",
+            check.breakingchanges
+        );
+    }
+
+    /// Signatures with visibility prefix (`pub fn`, `async fn`, `const fn`, etc.)
+    /// are still classified as functions and validated as snake_case.
+    #[test]
+    fn test_validate_apisurface_pub_fn_is_snake_case() {
+        let surface = ApiSurface {
+            public_apis: vec![
+                ApiInfo {
+                    name: "compute_sum".to_string(),
+                    signature: "pub fn compute_sum(data: &[f64]) -> f64".to_string(),
+                    documentation: "Computes the sum.".to_string(),
+                    since_version: Some(Version::new(1, 0, 0)),
+                    stability: ApiStability::Stable,
+                },
+                ApiInfo {
+                    name: "async_fetch".to_string(),
+                    signature: "async fn async_fetch() -> Result<Data>".to_string(),
+                    documentation: "Fetches data asynchronously.".to_string(),
+                    since_version: Some(Version::new(1, 0, 0)),
+                    stability: ApiStability::Stable,
+                },
+            ],
+            deprecated_apis: Vec::new(),
+        };
+
+        let check = validate_apisurface(&surface);
+        assert!(
+            check.is_valid(),
+            "pub fn / async fn should pass snake_case check; got: {:?}",
+            check.breakingchanges
+        );
+    }
+
+    /// Deprecated API name that collides with a current public API name is flagged.
+    #[test]
+    fn test_validate_apisurface_detects_deprecated_collision() {
+        let surface = ApiSurface {
+            public_apis: vec![ApiInfo {
+                name: "my_function".to_string(),
+                signature: "fn my_function() -> u32".to_string(),
+                documentation: "Does something.".to_string(),
+                since_version: Some(Version::new(1, 0, 0)),
+                stability: ApiStability::Stable,
+            }],
+            deprecated_apis: vec![DeprecatedApiInfo {
+                name: "my_function".to_string(), // same name as public API → collision
+                deprecated_since: Version::new(0, 9, 0),
+                removal_version: Some(Version::new(2, 0, 0)),
+                migration_path: Some("Use my_function v2".to_string()),
+            }],
+        };
+
+        let check = validate_apisurface(&surface);
+        assert!(!check.is_stable, "Collision should mark surface unstable");
+        assert!(
+            check.breakingchanges.iter().any(|m| m.contains("collides")),
+            "Expected collision message; got: {:?}",
+            check.breakingchanges
+        );
     }
 }

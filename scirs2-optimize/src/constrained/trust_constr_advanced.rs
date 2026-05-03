@@ -152,21 +152,18 @@ impl TrustConstr {
             ));
         }
 
-        // Augmented variable vector: [x (n), s (n_ineq)]
-        // Slack variables s_j >= 0 enforce g_j(x) + s_j = 0 (after sign flip: -g_j(x) = s_j)
-        let n_aug = n + n_ineq;
+        // Augmented Lagrangian / projected Newton method.
+        //
+        // The augmented Lagrangian is:
+        //   L_ρ(x, λ, μ) = f(x) + λ^T c(x) + (ρ/2)||c(x)||^2
+        //                   + μ^T max(0, g(x)) + (ρ/2)||max(0,g(x))||^2
+        //
+        // Outer loop: update (λ, μ, ρ) via dual ascent.
+        // Inner loop: minimise L_ρ w.r.t. x using a trust-region Newton step
+        //             with finite-difference gradient and BFGS Hessian.
         let h = self.options.fd_step;
 
-        let mut z = vec![0.0f64; n_aug];
-        for i in 0..n {
-            z[i] = x0[i];
-        }
-        // Initialize slacks: s_j = max(0, -g_j(x0))
-        for j in 0..n_ineq {
-            let gj = (ineq_constraints[j])(&z[0..n]);
-            z[n + j] = (-gj).max(0.0);
-        }
-
+        let mut x = x0.to_vec();
         let mut radius = self.options.initial_radius;
         let mut penalty = self.options.penalty;
         let mut lambda_eq = vec![0.0f64; n_eq];
@@ -174,80 +171,202 @@ impl TrustConstr {
         let mut nfev = 0usize;
         let mut njev = 0usize;
 
-        // Merit function: f(x) + penalty * (sum ceq^2 + sum (g+s)^2)
-        let merit = |z: &[f64], penalty: f64, nfev: &mut usize| -> f64 {
-            let x = &z[0..n];
-            let s = &z[n..n_aug];
-            let f = func(x);
-            *nfev += 1;
-            let mut pen = 0.0f64;
-            for c in eq_constraints {
-                let cv = c(x);
+        // Augmented Lagrangian value at x
+        let aug_lag =
+            |xv: &[f64], lam_eq: &[f64], lam_ineq: &[f64], rho: f64, nfev: &mut usize| -> f64 {
+                let fv = func(xv);
                 *nfev += 1;
-                pen += cv * cv;
+                let mut val = fv;
+                for (i, c) in eq_constraints.iter().enumerate() {
+                    let cv = c(xv);
+                    *nfev += 1;
+                    val += lam_eq[i] * cv + 0.5 * rho * cv * cv;
+                }
+                for (j, g) in ineq_constraints.iter().enumerate() {
+                    let gv = g(xv);
+                    *nfev += 1;
+                    // Shifted constraint: σ_j = g_j(x) + λ_j/ρ; active when σ_j > 0
+                    let sigma = gv + lam_ineq[j] / rho;
+                    if sigma > 0.0 {
+                        val += lam_ineq[j] * gv + 0.5 * rho * gv * gv;
+                    } else {
+                        // Inactive — subtract contribution already counted
+                        val -= lam_ineq[j] * lam_ineq[j] / (2.0 * rho);
+                    }
+                }
+                val
+            };
+
+        // BFGS Hessian approximation (identity initially)
+        let mut bfgs_h: Vec<Vec<f64>> = (0..n)
+            .map(|i| {
+                let mut row = vec![0.0f64; n];
+                row[i] = 1.0;
+                row
+            })
+            .collect();
+        let mut prev_x: Option<Vec<f64>> = None;
+        let mut prev_grad: Option<Vec<f64>> = None;
+
+        // Finite-difference gradient of the augmented Lagrangian
+        let aug_lag_grad = |xv: &[f64],
+                            lam_eq: &[f64],
+                            lam_ineq: &[f64],
+                            rho: f64,
+                            nfev: &mut usize,
+                            njev: &mut usize|
+         -> Vec<f64> {
+            *njev += 1;
+            let f0 = aug_lag(xv, lam_eq, lam_ineq, rho, nfev);
+            let mut g = vec![0.0f64; n];
+            let mut xp = xv.to_vec();
+            for i in 0..n {
+                xp[i] = xv[i] + h;
+                g[i] = (aug_lag(&xp, lam_eq, lam_ineq, rho, nfev) - f0) / h;
+                xp[i] = xv[i];
             }
-            for (j, g) in ineq_constraints.iter().enumerate() {
-                let gv = g(x) + s[j];
-                *nfev += 1;
-                pen += gv * gv;
-            }
-            f + penalty * pen
+            g
         };
 
-        let mut f_cur = merit(&z, penalty, &mut nfev);
+        let mut total_iter = 0usize;
+        // Number of outer AL iterations
+        let outer_iters = 30usize;
+        let inner_iters = (self.options.max_iter / outer_iters).max(10);
 
-        for iter in 0..self.options.max_iter {
-            let x = &z[0..n].to_vec();
+        for _outer in 0..outer_iters {
+            // ---- Inner loop: trust-region Newton minimisation of L_ρ ----
+            let mut f_cur = aug_lag(&x, &lambda_eq, &lambda_ineq, penalty, &mut nfev);
 
-            // Compute gradient of merit function (finite differences)
-            let mut grad = vec![0.0f64; n_aug];
-            for i in 0..n_aug {
-                let mut zf = z.clone();
-                zf[i] += h;
-                grad[i] = (merit(&zf, penalty, &mut nfev) - f_cur) / h;
-                njev += 1;
-            }
+            for _inner in 0..inner_iters {
+                total_iter += 1;
 
-            // Project slacks gradient: enforce s >= 0
-            for j in 0..n_ineq {
-                if z[n + j] <= 0.0 && grad[n + j] > 0.0 {
-                    grad[n + j] = 0.0;
+                let grad =
+                    aug_lag_grad(&x, &lambda_eq, &lambda_ineq, penalty, &mut nfev, &mut njev);
+                let gnorm: f64 = grad.iter().map(|g| g * g).sum::<f64>().sqrt();
+
+                // BFGS Hessian update
+                if let (Some(ref px), Some(ref pg)) = (&prev_x, &prev_grad) {
+                    let s: Vec<f64> = x.iter().zip(px.iter()).map(|(xi, pxi)| xi - pxi).collect();
+                    let y: Vec<f64> = grad
+                        .iter()
+                        .zip(pg.iter())
+                        .map(|(gi, pgi)| gi - pgi)
+                        .collect();
+                    let sy: f64 = s.iter().zip(y.iter()).map(|(si, yi)| si * yi).sum();
+                    let hs: Vec<f64> = (0..n)
+                        .map(|i| {
+                            bfgs_h[i]
+                                .iter()
+                                .zip(s.iter())
+                                .map(|(hi, si)| hi * si)
+                                .sum::<f64>()
+                        })
+                        .collect();
+                    let sths: f64 = s.iter().zip(hs.iter()).map(|(si, hsi)| si * hsi).sum();
+                    let sy_damp = sy.max(0.2 * sths);
+                    if sy_damp.abs() > 1e-10 && sths.abs() > 1e-10 {
+                        for i in 0..n {
+                            for j in 0..n {
+                                bfgs_h[i][j] += y[i] * y[j] / sy_damp - hs[i] * hs[j] / sths;
+                            }
+                        }
+                    }
+                }
+                prev_x = Some(x.clone());
+                prev_grad = Some(grad.clone());
+
+                if gnorm < self.options.gtol {
+                    break;
+                }
+
+                // Compute Newton step d = -B^{-1} grad using Gaussian elimination
+                let d = {
+                    let mut a: Vec<Vec<f64>> = bfgs_h.iter().map(|row| row.to_vec()).collect();
+                    let mut b: Vec<f64> = grad.iter().map(|&gi| -gi).collect();
+                    for i in 0..n {
+                        a[i][i] += 1e-6;
+                    }
+                    tc_gaussian_elim(&mut a, &mut b, n)
+                        .unwrap_or_else(|| grad.iter().map(|&gi| -gi * 0.01).collect())
+                };
+
+                // Clamp to trust radius
+                let d_norm: f64 = d.iter().map(|v| v * v).sum::<f64>().sqrt();
+                let scale = if d_norm > radius {
+                    radius / d_norm
+                } else {
+                    1.0
+                };
+                let d_scaled: Vec<f64> = d.iter().map(|&v| v * scale).collect();
+
+                // Accept/reject via trust region ratio
+                let x_trial: Vec<f64> = x
+                    .iter()
+                    .zip(d_scaled.iter())
+                    .map(|(xi, di)| xi + di)
+                    .collect();
+                let f_trial = aug_lag(&x_trial, &lambda_eq, &lambda_ineq, penalty, &mut nfev);
+
+                let actual_red = f_cur - f_trial;
+                let pred_red: f64 = grad
+                    .iter()
+                    .zip(d_scaled.iter())
+                    .map(|(gi, di)| -gi * di)
+                    .sum::<f64>();
+
+                let rho = if pred_red > 1e-14 {
+                    actual_red / pred_red
+                } else if actual_red > 0.0 {
+                    1.0
+                } else {
+                    0.0
+                };
+
+                if rho < self.options.eta1 {
+                    radius = (radius * self.options.gamma_dec).max(self.options.min_radius);
+                } else {
+                    x = x_trial;
+                    f_cur = f_trial;
+                    if rho > self.options.eta2 {
+                        radius = (radius * self.options.gamma_inc).min(self.options.max_radius);
+                    }
+                }
+
+                if radius < self.options.min_radius {
+                    break;
                 }
             }
 
-            let gnorm: f64 = grad[0..n].iter().map(|g| g * g).sum::<f64>().sqrt();
-
-            // Check constraint satisfaction
-            let mut cv_sum = 0.0f64;
-            for c in eq_constraints {
-                cv_sum += c(x).abs();
+            // ---- Outer loop: check convergence and update multipliers ----
+            let mut cv_eq_sum = 0.0f64;
+            for c in eq_constraints.iter() {
+                cv_eq_sum += c(&x).abs();
                 nfev += 1;
             }
-            for (j, g) in ineq_constraints.iter().enumerate() {
-                let gv = g(x) + z[n + j];
-                cv_sum += gv.abs();
+            let mut cv_ineq_sum = 0.0f64;
+            for g in ineq_constraints.iter() {
+                let gv = g(&x);
                 nfev += 1;
+                cv_ineq_sum += gv.max(0.0);
             }
+            let cv_sum = cv_eq_sum + cv_ineq_sum;
 
-            if gnorm < self.options.gtol && cv_sum < self.options.ctol {
-                // Update Lagrange multipliers
-                update_multipliers_eq(
-                    x, &mut lambda_eq, eq_constraints, penalty, h, &mut nfev,
-                );
-                update_multipliers_ineq(
-                    x, &mut lambda_ineq, ineq_constraints, penalty, h, &mut nfev,
-                );
+            // Check full convergence
+            let grad_final =
+                aug_lag_grad(&x, &lambda_eq, &lambda_ineq, penalty, &mut nfev, &mut njev);
+            let gnorm_final: f64 = grad_final.iter().map(|g| g * g).sum::<f64>().sqrt();
 
-                let final_f = func(x);
+            if gnorm_final < self.options.gtol && cv_sum < self.options.ctol {
+                let final_f = func(&x);
                 nfev += 1;
                 return Ok(TrustConstrResult {
                     x: x.clone(),
                     fun: final_f,
-                    grad: grad[0..n].to_vec(),
+                    grad: grad_final,
                     constraint_violation: cv_sum,
                     lambda_eq,
                     lambda_ineq,
-                    nit: iter + 1,
+                    nit: total_iter,
                     nfev,
                     njev,
                     trust_radius: radius,
@@ -256,66 +375,39 @@ impl TrustConstr {
                 });
             }
 
-            // Compute trial step using Cauchy point within trust region
-            let grad_norm: f64 = grad.iter().map(|g| g * g).sum::<f64>().sqrt();
-            if grad_norm < 1e-14 {
-                break;
+            // Dual ascent update for equality multipliers: λ += ρ * c(x)
+            for (i, c) in eq_constraints.iter().enumerate() {
+                let cv = c(&x);
+                nfev += 1;
+                lambda_eq[i] += penalty * cv;
             }
-            let cauchy_scale = (radius / grad_norm).min(1.0);
-
-            let mut z_trial = vec![0.0f64; n_aug];
-            for i in 0..n_aug {
-                z_trial[i] = z[i] - cauchy_scale * grad[i];
-            }
-            // Project slacks to non-negative
-            for j in 0..n_ineq {
-                if z_trial[n + j] < 0.0 {
-                    z_trial[n + j] = 0.0;
-                }
+            // Dual ascent update for inequality multipliers (projected): μ = max(0, μ + ρ*g)
+            for (j, g) in ineq_constraints.iter().enumerate() {
+                let gv = g(&x);
+                nfev += 1;
+                lambda_ineq[j] = (lambda_ineq[j] + penalty * gv).max(0.0);
             }
 
-            let f_trial = merit(&z_trial, penalty, &mut nfev);
-
-            // Compute actual vs. predicted reduction
-            let actual_red = f_cur - f_trial;
-            // Linear model prediction: g^T * step
-            let step_norm: f64 = z_trial
-                .iter()
-                .zip(z.iter())
-                .map(|(a, b)| (a - b).powi(2))
-                .sum::<f64>()
-                .sqrt();
-            let predicted_red = grad_norm * step_norm;
-
-            let rho = if predicted_red.abs() > 1e-14 {
-                actual_red / predicted_red
-            } else {
-                0.0
-            };
-
-            // Update radius
-            if rho < self.options.eta1 {
-                radius = (radius * self.options.gamma_dec).max(self.options.min_radius);
-            } else {
-                z = z_trial;
-                f_cur = f_trial;
-
-                if rho > self.options.eta2 {
-                    radius = (radius * self.options.gamma_inc).min(self.options.max_radius);
-                }
-            }
-
-            // Increase penalty if constraint violation is not decreasing
+            // Increase penalty if constraint violation is large
             if cv_sum > self.options.ctol * 10.0 {
-                penalty = (penalty * self.options.penalty_growth).min(1e10);
-            }
-
-            if radius < self.options.min_radius {
-                break;
+                penalty = (penalty * self.options.penalty_growth).min(1e8);
+                // Reset trust radius when penalty changes to encourage
+                // larger steps in the new landscape
+                radius = self.options.initial_radius;
+                // Reset BFGS approximation
+                bfgs_h = (0..n)
+                    .map(|i| {
+                        let mut row = vec![0.0f64; n];
+                        row[i] = 1.0;
+                        row
+                    })
+                    .collect();
+                prev_x = None;
+                prev_grad = None;
             }
         }
 
-        let x_final = z[0..n].to_vec();
+        let x_final = x;
         let f_final = func(&x_final);
         nfev += 1;
 
@@ -350,7 +442,7 @@ impl TrustConstr {
             constraint_violation: cv_final,
             lambda_eq,
             lambda_ineq,
-            nit: self.options.max_iter,
+            nit: total_iter,
             nfev,
             njev,
             trust_radius: radius,
@@ -358,6 +450,50 @@ impl TrustConstr {
             message: "Maximum iterations reached".to_string(),
         })
     }
+}
+
+/// Gaussian elimination with partial pivoting for the trust-constr Newton step.
+/// Returns None if the system is (near-)singular.
+fn tc_gaussian_elim(a: &mut Vec<Vec<f64>>, b: &mut Vec<f64>, n: usize) -> Option<Vec<f64>> {
+    for col in 0..n {
+        let mut max_row = col;
+        let mut max_val = a[col][col].abs();
+        for row in (col + 1)..n {
+            if a[row][col].abs() > max_val {
+                max_val = a[row][col].abs();
+                max_row = row;
+            }
+        }
+        if max_val < 1e-14 {
+            return None;
+        }
+        a.swap(col, max_row);
+        b.swap(col, max_row);
+
+        let pivot = a[col][col];
+        for row in (col + 1)..n {
+            let factor = a[row][col] / pivot;
+            for k in col..n {
+                let val = a[col][k] * factor;
+                a[row][k] -= val;
+            }
+            let bv = b[col] * factor;
+            b[row] -= bv;
+        }
+    }
+
+    let mut x = vec![0.0f64; n];
+    for i in (0..n).rev() {
+        let mut sum = b[i];
+        for j in (i + 1)..n {
+            sum -= a[i][j] * x[j];
+        }
+        if a[i][i].abs() < 1e-14 {
+            return None;
+        }
+        x[i] = sum / a[i][i];
+    }
+    Some(x)
 }
 
 /// Estimate Lagrange multipliers for equality constraints
@@ -423,7 +559,10 @@ impl Default for SubproblemSolver {
 impl SubproblemSolver {
     /// Create a new subproblem solver
     pub fn new(max_cg_iter: usize, cg_tol: f64) -> Self {
-        SubproblemSolver { max_cg_iter, cg_tol }
+        SubproblemSolver {
+            max_cg_iter,
+            cg_tol,
+        }
     }
 
     /// Solve the trust-region subproblem using Steihaug-Toint PCG.
@@ -435,12 +574,7 @@ impl SubproblemSolver {
     /// * `g` - Gradient vector
     /// * `b_times_v` - Function computing B*v (Hessian-vector product)
     /// * `radius` - Trust region radius Δ
-    pub fn solve<BV>(
-        &self,
-        g: &[f64],
-        b_times_v: BV,
-        radius: f64,
-    ) -> (Vec<f64>, bool)
+    pub fn solve<BV>(&self, g: &[f64], b_times_v: BV, radius: f64) -> (Vec<f64>, bool)
     where
         BV: Fn(&[f64]) -> Vec<f64>,
     {
@@ -747,7 +881,14 @@ impl EqualityConstrained {
 
         let f_final = func(&x);
         nfev += 1;
-        let cv_final: f64 = constraints.iter().map(|c| { nfev += 1; c(&x).powi(2) }).sum::<f64>().sqrt();
+        let cv_final: f64 = constraints
+            .iter()
+            .map(|c| {
+                nfev += 1;
+                c(&x).powi(2)
+            })
+            .sum::<f64>()
+            .sqrt();
 
         Ok(TrustConstrResult {
             x,
@@ -1117,16 +1258,14 @@ impl FilterMethodTR {
         let theta0 = theta(&x, &mut nfev);
 
         // Initialize filter with (f, theta) at x0
-        let mut filter: Vec<FilterEntry> = vec![FilterEntry { f_val: f0, theta: theta0 }];
+        let mut filter: Vec<FilterEntry> = vec![FilterEntry {
+            f_val: f0,
+            theta: theta0,
+        }];
 
         let is_filter_acceptable = |f: f64, th: f64, filter: &[FilterEntry]| -> bool {
             for entry in filter {
-                if entry.dominates(
-                    f,
-                    th,
-                    self.options.gamma_f,
-                    self.options.gamma_theta,
-                ) {
+                if entry.dominates(f, th, self.options.gamma_f, self.options.gamma_theta) {
                     return false;
                 }
             }
@@ -1205,8 +1344,7 @@ impl FilterMethodTR {
 
                 // Add current point to filter (remove dominated entries first)
                 filter.retain(|e| {
-                    !(e.f_val >= f_cur
-                        && e.theta >= theta_trial * (1.0 - self.options.gamma_theta))
+                    !(e.f_val >= f_cur && e.theta >= theta_trial * (1.0 - self.options.gamma_theta))
                 });
                 filter.push(FilterEntry {
                     f_val: f_cur,
@@ -1215,8 +1353,8 @@ impl FilterMethodTR {
 
                 // Expand trust region
                 if rho > 0.75 {
-                    radius = (radius * self.options.initial_radius.sqrt())
-                        .min(self.options.max_radius);
+                    radius =
+                        (radius * self.options.initial_radius.sqrt()).min(self.options.max_radius);
                 }
             } else {
                 // Reject step; contract trust region
@@ -1262,7 +1400,9 @@ mod tests {
     #[test]
     fn test_trust_constr_unconstrained() {
         let tc = TrustConstr::default();
-        let result = tc.minimize(rosenbrock, &[0.0, 0.0], &[], &[]).expect("failed to create result");
+        let result = tc
+            .minimize(rosenbrock, &[0.0, 0.0], &[], &[])
+            .expect("failed to create result");
         assert!(result.fun < 1.0, "Expected fun < 1.0, got {}", result.fun);
     }
 
@@ -1270,29 +1410,35 @@ mod tests {
     fn test_trust_constr_with_equality() {
         // min (x-2)^2 + (y-2)^2 s.t. x + y = 3
         let func = |x: &[f64]| (x[0] - 2.0).powi(2) + (x[1] - 2.0).powi(2);
-        let eq_c: Vec<Box<dyn Fn(&[f64]) -> f64>> =
-            vec![Box::new(|x: &[f64]| x[0] + x[1] - 3.0)];
+        let eq_c: Vec<Box<dyn Fn(&[f64]) -> f64>> = vec![Box::new(|x: &[f64]| x[0] + x[1] - 3.0)];
 
         let tc = TrustConstr::new(TrustConstrOptions {
             max_iter: 500,
             ..Default::default()
         });
-        let result = tc.minimize(func, &[0.5, 0.5], &eq_c, &[]).expect("failed to create result");
-        assert!(result.constraint_violation < 0.5, "cv = {}", result.constraint_violation);
+        let result = tc
+            .minimize(func, &[0.5, 0.5], &eq_c, &[])
+            .expect("failed to create result");
+        assert!(
+            result.constraint_violation < 0.5,
+            "cv = {}",
+            result.constraint_violation
+        );
     }
 
     #[test]
     fn test_trust_constr_with_inequality() {
         // min (x-1)^2 + (y-1)^2 s.t. x + y <= 1  (i.e. x+y-1 <= 0)
         let func = |x: &[f64]| (x[0] - 1.0).powi(2) + (x[1] - 1.0).powi(2);
-        let ineq_c: Vec<Box<dyn Fn(&[f64]) -> f64>> =
-            vec![Box::new(|x: &[f64]| x[0] + x[1] - 1.0)];
+        let ineq_c: Vec<Box<dyn Fn(&[f64]) -> f64>> = vec![Box::new(|x: &[f64]| x[0] + x[1] - 1.0)];
 
         let tc = TrustConstr::new(TrustConstrOptions {
             max_iter: 500,
             ..Default::default()
         });
-        let result = tc.minimize(func, &[0.25, 0.25], &[], &ineq_c).expect("failed to create result");
+        let result = tc
+            .minimize(func, &[0.25, 0.25], &[], &ineq_c)
+            .expect("failed to create result");
         assert!(result.fun < 1.0, "Expected fun < 1.0, got {}", result.fun);
     }
 
@@ -1302,7 +1448,11 @@ mod tests {
         let g = vec![1.0, 0.0];
         // B = identity
         let (p, on_boundary) = solver.solve(&g, |v| v.to_vec(), 0.5);
-        assert!((p[0] + 0.5).abs() < 0.1, "p[0] should be near -0.5, got {}", p[0]);
+        assert!(
+            (p[0] + 0.5).abs() < 0.1,
+            "p[0] should be near -0.5, got {}",
+            p[0]
+        );
         assert!(on_boundary, "Should hit boundary");
     }
 
@@ -1318,7 +1468,9 @@ mod tests {
             outer_tol: 1e-5,
             ..Default::default()
         });
-        let result = ec.minimize(func, &[0.5, 0.5], &constraints).expect("failed to create result");
+        let result = ec
+            .minimize(func, &[0.5, 0.5], &constraints)
+            .expect("failed to create result");
         // Optimal at x = (0.5, 0.5), f = 0.5
         assert!(result.fun < 0.6, "Expected fun < 0.6, got {}", result.fun);
     }
@@ -1331,14 +1483,18 @@ mod tests {
             vec![Box::new(|x: &[f64]| -(x[0] + x[1] - 1.0))];
 
         let ih = InequalityHandling::default();
-        let result = ih.minimize(func, &[1.0, 1.0], &ineq_c).expect("failed to create result");
+        let result = ih
+            .minimize(func, &[1.0, 1.0], &ineq_c)
+            .expect("failed to create result");
         assert!(result.fun < 1.0, "Expected fun < 1.0, got {}", result.fun);
     }
 
     #[test]
     fn test_filter_tr_unconstrained() {
         let ft = FilterMethodTR::default();
-        let result = ft.minimize(rosenbrock, &[0.0, 0.0], &[]).expect("failed to create result");
+        let result = ft
+            .minimize(rosenbrock, &[0.0, 0.0], &[])
+            .expect("failed to create result");
         assert!(result.fun < 1.0, "Expected fun < 1.0, got {}", result.fun);
     }
 
@@ -1346,14 +1502,15 @@ mod tests {
     fn test_filter_tr_with_constraint() {
         let func = |x: &[f64]| (x[0] - 2.0).powi(2) + (x[1] - 2.0).powi(2);
         // Constraint: x[0] + x[1] <= 3.0, i.e. x[0]+x[1]-3.0 <= 0
-        let c: Vec<Box<dyn Fn(&[f64]) -> f64>> =
-            vec![Box::new(|x: &[f64]| x[0] + x[1] - 3.0)];
+        let c: Vec<Box<dyn Fn(&[f64]) -> f64>> = vec![Box::new(|x: &[f64]| x[0] + x[1] - 3.0)];
 
         let ft = FilterMethodTR::new(FilterMethodTROptions {
             max_iter: 500,
             ..Default::default()
         });
-        let result = ft.minimize(func, &[0.5, 0.5], &c).expect("failed to create result");
+        let result = ft
+            .minimize(func, &[0.5, 0.5], &c)
+            .expect("failed to create result");
         assert!(result.fun < 2.0, "Expected fun < 2.0, got {}", result.fun);
     }
 }

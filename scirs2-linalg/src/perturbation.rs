@@ -157,7 +157,7 @@ pub fn eigenvalue_perturbation(
 /// * `a` — `(n, n)` real symmetric matrix
 /// * `b` — `(n, n)` real symmetric matrix (perturbed version of `a`)
 /// * `delta` — Spectral gap (minimum distance between the eigenvalue cluster
-///             of interest and the rest of the spectrum of `A`); must be > 0
+///   of interest and the rest of the spectrum of `A`); must be > 0
 ///
 /// # Returns
 ///
@@ -175,11 +175,7 @@ pub fn eigenvalue_perturbation(
 /// let bound = davis_kahan(&a.view(), &b.view(), gap).expect("valid input");
 /// assert!(bound >= 0.0 && bound <= 1.0);
 /// ```
-pub fn davis_kahan(
-    a: &ArrayView2<f64>,
-    b: &ArrayView2<f64>,
-    delta: f64,
-) -> LinalgResult<f64> {
+pub fn davis_kahan(a: &ArrayView2<f64>, b: &ArrayView2<f64>, delta: f64) -> LinalgResult<f64> {
     let (n, nc) = a.dim();
     if n != nc {
         return Err(LinalgError::ShapeError(format!(
@@ -309,10 +305,7 @@ pub fn weyl_bound(
 /// // relative change = max(0.04/4, 0.09/9) = max(0.01, 0.01) = 0.01
 /// assert!((rel - 0.01).abs() < 1e-10);
 /// ```
-pub fn relative_perturbation(
-    a: &ArrayView2<f64>,
-    e: &ArrayView2<f64>,
-) -> LinalgResult<f64> {
+pub fn relative_perturbation(a: &ArrayView2<f64>, e: &ArrayView2<f64>) -> LinalgResult<f64> {
     let (n, nc) = a.dim();
     if n != nc {
         return Err(LinalgError::ShapeError(format!(
@@ -464,7 +457,7 @@ pub fn condition_eigenvalue(a: &ArrayView2<f64>, i: usize) -> LinalgResult<f64> 
 /// use scirs2_linalg::perturbation::pseudospectrum;
 ///
 /// let a = array![[1.0_f64, 0.0], [0.0, 3.0]];
-/// let ps = pseudospectrum(&a.view(), 0.5, 20, (0.0, 4.0), (−1.0, 1.0)).expect("valid input");
+/// let ps = pseudospectrum(&a.view(), 0.5, 20, (0.0, 4.0), (-1.0, 1.0)).expect("valid input");
 /// assert_eq!(ps.dim(), (20, 20));
 /// // Points very close to eigenvalue 1.0 should be in the pseudospectrum
 /// ```
@@ -631,11 +624,7 @@ fn compute_ata(a: &ArrayView2<f64>) -> Array2<f64> {
 /// `B` using shifted power iteration on `(shift·I − B)`.
 ///
 /// Returns the estimated smallest eigenvalue of `B`.
-fn smallest_eigenvalue_via_shifted_power(
-    b: &Array2<f64>,
-    shift: f64,
-    n: usize,
-) -> f64 {
+fn smallest_eigenvalue_via_shifted_power(b: &Array2<f64>, shift: f64, n: usize) -> f64 {
     // Build shifted matrix C = shift·I - B
     let mut c = b.clone();
     c.mapv_inplace(|x| -x);
@@ -648,7 +637,12 @@ fn smallest_eigenvalue_via_shifted_power(
     let mut v = vec![1.0_f64; n];
 
     // Normalize initial vector
-    let norm0: f64 = v.iter().map(|x| x * x).sum::<f64>().sqrt().max(f64::MIN_POSITIVE);
+    let norm0: f64 = v
+        .iter()
+        .map(|x| x * x)
+        .sum::<f64>()
+        .sqrt()
+        .max(f64::MIN_POSITIVE);
     for x in v.iter_mut() {
         *x /= norm0;
     }
@@ -671,7 +665,12 @@ fn smallest_eigenvalue_via_shifted_power(
         let rq: f64 = v.iter().zip(w.iter()).map(|(vi, wi)| vi * wi).sum();
 
         // Normalize
-        let norm_w: f64 = w.iter().map(|x| x * x).sum::<f64>().sqrt().max(f64::MIN_POSITIVE);
+        let norm_w: f64 = w
+            .iter()
+            .map(|x| x * x)
+            .sum::<f64>()
+            .sqrt()
+            .max(f64::MIN_POSITIVE);
         for (vi, wi) in v.iter_mut().zip(w.iter()) {
             *vi = *wi / norm_w;
         }
@@ -903,7 +902,8 @@ mod tests {
     #[test]
     fn test_pseudospectrum_shape() {
         let a = diag_matrix(&[0.0, 1.0]);
-        let ps = pseudospectrum(&a.view(), 0.3, 10, (-0.5, 1.5), (-1.0, 1.0)).expect("failed to create ps");
+        let ps = pseudospectrum(&a.view(), 0.3, 10, (-0.5, 1.5), (-1.0, 1.0))
+            .expect("failed to create ps");
         assert_eq!(ps.dim(), (10, 10));
     }
 
@@ -912,7 +912,8 @@ mod tests {
         // Diagonal matrix with eigenvalues at 0 and 3
         let a = diag_matrix(&[0.0, 3.0]);
         let eps = 0.4;
-        let ps = pseudospectrum(&a.view(), eps, 30, (-1.0, 4.0), (-0.5, 0.5)).expect("failed to create ps");
+        let ps = pseudospectrum(&a.view(), eps, 30, (-1.0, 4.0), (-0.5, 0.5))
+            .expect("failed to create ps");
         // The grid spans real axis from -1 to 4 in 30 steps: Δr = 5/29 ≈ 0.172
         // Grid point closest to eigenvalue 0 (re=0, im=0) should be inside
         let mut any_true = false;
@@ -923,7 +924,10 @@ mod tests {
                 }
             }
         }
-        assert!(any_true, "pseudospectrum should contain at least one true entry near eigenvalues");
+        assert!(
+            any_true,
+            "pseudospectrum should contain at least one true entry near eigenvalues"
+        );
     }
 
     #[test]

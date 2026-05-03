@@ -176,9 +176,7 @@ pub fn fuzzy_c_means(data: &Array2<f64>, config: FuzzyCMeansConfig) -> Result<Fu
         ));
     }
     if k < 2 {
-        return Err(ClusteringError::InvalidInput(
-            "k must be at least 2".into(),
-        ));
+        return Err(ClusteringError::InvalidInput("k must be at least 2".into()));
     }
     if k > n {
         return Err(ClusteringError::InvalidInput(format!(
@@ -416,9 +414,7 @@ pub fn possibilistic_c_means(
         ));
     }
     if k < 2 {
-        return Err(ClusteringError::InvalidInput(
-            "k must be at least 2".into(),
-        ));
+        return Err(ClusteringError::InvalidInput("k must be at least 2".into()));
     }
     if k > n {
         return Err(ClusteringError::InvalidInput(format!(
@@ -539,9 +535,8 @@ mod tests {
         Array2::from_shape_vec(
             (16, 2),
             vec![
-                0.0, 0.0, 0.1, 0.1, -0.1, 0.0, 0.0, -0.1, 0.2, 0.0, -0.2, 0.0, 0.0, 0.2, 0.0,
-                -0.2, 8.0, 8.0, 8.1, 8.1, 7.9, 8.0, 8.0, 7.9, 8.2, 8.0, 7.8, 8.0, 8.0, 8.2,
-                8.0, 7.8,
+                0.0, 0.0, 0.1, 0.1, -0.1, 0.0, 0.0, -0.1, 0.2, 0.0, -0.2, 0.0, 0.0, 0.2, 0.0, -0.2,
+                8.0, 8.0, 8.1, 8.1, 7.9, 8.0, 8.0, 7.9, 8.2, 8.0, 7.8, 8.0, 8.0, 8.2, 8.0, 7.8,
             ],
         )
         .expect("create test data")
@@ -577,7 +572,11 @@ mod tests {
         let config = FuzzyCMeansConfig::default();
         let result = fuzzy_c_means(&data, config).expect("operation should succeed");
         for &v in result.membership.iter() {
-            assert!(v >= 0.0 && v <= 1.0 + 1e-12, "Membership {} out of [0,1]", v);
+            assert!(
+                v >= 0.0 && v <= 1.0 + 1e-12,
+                "Membership {} out of [0,1]",
+                v
+            );
         }
     }
 
@@ -594,7 +593,9 @@ mod tests {
         let result = fuzzy_c_means(&data, config).expect("operation should succeed");
         let n = data.nrows();
         for i in 0..n {
-            let max_u = (0..2).map(|c| result.membership[[i, c]]).fold(0.0_f64, f64::max);
+            let max_u = (0..2)
+                .map(|c| result.membership[[i, c]])
+                .fold(0.0_f64, f64::max);
             // For well-separated clusters, the dominant membership should be very high
             assert!(
                 max_u > 0.8,

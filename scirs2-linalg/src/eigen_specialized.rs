@@ -711,6 +711,12 @@ where
     Ok((diagonal, sub_diagonal, Some(q)))
 }
 
+// Sub-modules providing additional specialized eigenvalue solvers
+pub mod banded;
+pub mod sparse;
+pub mod symmetric;
+pub mod tridiagonal;
+
 #[cfg(test)]
 mod tests {
     use super::*;

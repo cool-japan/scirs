@@ -133,7 +133,10 @@ impl Row {
 
     /// Return an iterator over `(column_name, value)` pairs.
     pub fn iter(&self) -> impl Iterator<Item = (&str, &ColumnValue)> {
-        self.columns.iter().map(|s| s.as_str()).zip(self.values.iter())
+        self.columns
+            .iter()
+            .map(|s| s.as_str())
+            .zip(self.values.iter())
     }
 
     /// Project to a subset of columns (in the given order).  Missing columns
@@ -202,7 +205,10 @@ pub struct GroupedResult {
 impl GroupedResult {
     /// Count the number of rows in each group.
     pub fn count(&self) -> HashMap<String, usize> {
-        self.groups.iter().map(|(k, v)| (k.clone(), v.len())).collect()
+        self.groups
+            .iter()
+            .map(|(k, v)| (k.clone(), v.len()))
+            .collect()
     }
 
     /// Sum of a numeric column for each group.
@@ -437,7 +443,11 @@ impl DataQuery {
             rows.sort_by(|a, b| {
                 let ka = a.get(&col).map(|v| v.sort_key()).unwrap_or_default();
                 let kb = b.get(&col).map(|v| v.sort_key()).unwrap_or_default();
-                if asc { ka.cmp(&kb) } else { kb.cmp(&ka) }
+                if asc {
+                    ka.cmp(&kb)
+                } else {
+                    kb.cmp(&ka)
+                }
             });
         }
 
@@ -538,10 +548,9 @@ fn load_rows(source: DataSource) -> Result<Vec<Row>> {
     match source {
         DataSource::Rows(rows) => Ok(rows),
 
-        DataSource::InMemoryRows(pairs_list) => Ok(pairs_list
-            .into_iter()
-            .map(Row::from_pairs)
-            .collect()),
+        DataSource::InMemoryRows(pairs_list) => {
+            Ok(pairs_list.into_iter().map(Row::from_pairs).collect())
+        }
 
         DataSource::CsvFile(path) => {
             let file = std::fs::File::open(Path::new(&path))
@@ -570,7 +579,10 @@ fn load_rows(source: DataSource) -> Result<Vec<Row>> {
                     .iter()
                     .enumerate()
                     .map(|(i, h)| {
-                        let val = cells.get(i).map(|s| parse_cell(s)).unwrap_or(ColumnValue::Null);
+                        let val = cells
+                            .get(i)
+                            .map(|s| parse_cell(s))
+                            .unwrap_or(ColumnValue::Null);
                         (h.clone(), val)
                     })
                     .collect();
@@ -632,15 +644,16 @@ mod tests {
         assert_eq!(result.n_rows, 3);
         assert_eq!(result.columns, vec!["name", "age"]);
         // score should be absent
-        assert!(result.rows[0].get("score").map(|v| matches!(v, ColumnValue::Null)).unwrap_or(true));
+        assert!(result.rows[0]
+            .get("score")
+            .map(|v| matches!(v, ColumnValue::Null))
+            .unwrap_or(true));
     }
 
     #[test]
     fn test_filter() {
         let result = DataQuery::from(DataSource::Rows(sample_rows()))
-            .filter(|row| {
-                matches!(row.get("age"), Some(ColumnValue::Integer(a)) if *a > 28)
-            })
+            .filter(|row| matches!(row.get("age"), Some(ColumnValue::Integer(a)) if *a > 28))
             .execute()
             .expect("execute");
         assert_eq!(result.n_rows, 2); // Alice (30) and Carol (35)
@@ -777,9 +790,7 @@ mod tests {
     #[test]
     fn test_combined_filter_order_limit() {
         let result = DataQuery::from(DataSource::Rows(sample_rows()))
-            .filter(|row| {
-                matches!(row.get("dept"), Some(ColumnValue::Text(d)) if d == "eng")
-            })
+            .filter(|row| matches!(row.get("dept"), Some(ColumnValue::Text(d)) if d == "eng"))
             .order_by("age", true)
             .limit(1)
             .execute()

@@ -257,10 +257,14 @@ use crate::CoreResult;
 pub struct OtelConfig;
 
 #[cfg(not(feature = "profiling_opentelemetry"))]
-impl OtelConfig {
-    pub fn default() -> Self {
+impl Default for OtelConfig {
+    fn default() -> Self {
         Self
     }
+}
+
+#[cfg(not(feature = "profiling_opentelemetry"))]
+impl OtelConfig {
     pub fn with_service_name(self, _name: &str) -> Self {
         self
     }

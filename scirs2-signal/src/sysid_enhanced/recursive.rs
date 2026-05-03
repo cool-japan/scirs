@@ -3,8 +3,8 @@
 //! This module provides recursive identification algorithms suitable for real-time
 //! and online system identification applications where data arrives sequentially.
 
-use crate::error::{SignalError, SignalResult};
 use super::types::*;
+use crate::error::{SignalError, SignalResult};
 use scirs2_core::ndarray::{Array1, Array2, Axis};
 
 /// Recursive system identification for online applications
@@ -175,7 +175,7 @@ impl RecursiveSysId {
     fn regularize_covariance(&mut self) {
         // Add small diagonal regularization to prevent numerical issues
         let n = self.covariance.nrows();
-        let regularization = Array2::eye(n) * 1e-12;
+        let regularization: Array2<f64> = Array2::eye(n) * 1e-12f64;
         self.covariance = &self.covariance + &regularization;
 
         // Ensure symmetry (important for numerical stability)

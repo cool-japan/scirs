@@ -277,6 +277,24 @@ impl PositionalEncoding {
         }
         Ok(self.encodings.slice(s![0..seqlen, ..]))
     }
+
+    /// Get a view of the full encodings matrix (for serialization)
+    pub fn get_encodings(&self) -> &Array2<f64> {
+        &self.encodings
+    }
+
+    /// Set the encodings matrix from loaded weights, validating shape
+    pub fn set_encodings(&mut self, encodings: Array2<f64>) -> Result<()> {
+        let shape = encodings.shape();
+        if shape[0] != self.max_len || shape[1] != self.d_model {
+            return Err(TextError::InvalidInput(format!(
+                "Positional encoding shape {:?} does not match expected ({}, {})",
+                shape, self.max_len, self.d_model
+            )));
+        }
+        self.encodings = encodings;
+        Ok(())
+    }
 }
 
 /// Multi-head attention mechanism
@@ -731,6 +749,16 @@ impl TransformerEncoder {
     /// Get access to encoder layers for weight access
     pub fn get_layers(&self) -> &Vec<TransformerEncoderLayer> {
         &self.layers
+    }
+
+    /// Get the positional encoding matrix (for serialization)
+    pub fn get_position_encoding(&self) -> &Array2<f64> {
+        self.position_encoding.get_encodings()
+    }
+
+    /// Set the positional encoding matrix from loaded weights
+    pub fn set_position_encoding(&mut self, encodings: Array2<f64>) -> Result<()> {
+        self.position_encoding.set_encodings(encodings)
     }
 }
 

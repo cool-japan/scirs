@@ -4,7 +4,14 @@
 
 use crate::multi_objective::solutions::Solution;
 
-/// Calculate the hypervolume indicator
+/// Calculate the hypervolume indicator.
+///
+/// Uses an exact algorithm for up to 7 objectives:
+/// - 2D: O(N log N) sweep-line staircase
+/// - 3–7D: WFG (Hypervolume by Slicing Objectives) exact algorithm
+///
+/// For 8 or more objectives, where WFG's O(N^(d-2)) cost is comparable to
+/// Monte Carlo, falls back to Monte Carlo sampling with 10,000 samples.
 pub fn hypervolume(pareto_front: &[Solution], reference_point: &[f64]) -> f64 {
     if pareto_front.is_empty() {
         return 0.0;
@@ -12,11 +19,17 @@ pub fn hypervolume(pareto_front: &[Solution], reference_point: &[f64]) -> f64 {
 
     let n_objectives = pareto_front[0].objectives.len();
 
-    // Simple 2D hypervolume calculation
     if n_objectives == 2 {
         hypervolume_2d(pareto_front, reference_point)
+    } else if n_objectives < 8 {
+        // Exact WFG algorithm for 3–7 objectives.
+        // Delegate to pareto::hypervolume_from_objectives which wraps the
+        // corrected wfg_hv_recursive and handles strict-dominance filtering.
+        let objectives: Vec<Vec<f64>> =
+            pareto_front.iter().map(|s| s.objectives.to_vec()).collect();
+        crate::multi_objective::pareto::hypervolume_from_objectives(&objectives, reference_point)
     } else {
-        // TODO: Implement WFG algorithm for higher dimensions
+        // Monte Carlo fallback for 8+ objectives where WFG cost is prohibitive.
         hypervolume_monte_carlo(pareto_front, reference_point, 10000)
     }
 }
@@ -196,4 +209,102 @@ fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
         .map(|(x, y)| (x - y).powi(2))
         .sum::<f64>()
         .sqrt()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    fn make_solution(objs: &[f64]) -> Solution {
+        Solution::new(
+            array![0.0],
+            scirs2_core::ndarray::Array1::from_vec(objs.to_vec()),
+        )
+    }
+
+    // ======= 3D hypervolume tests using the exact WFG algorithm =======
+
+    /// 1 point at the origin (0,0,0) with reference (2,2,2).
+    /// The point dominates the entire box → HV = 2×2×2 = 8.
+    /// This is the critical discriminating test: the old broken WFG returned 0.
+    #[test]
+    fn test_hypervolume_3d_single_point_at_origin() {
+        let front = vec![make_solution(&[0.0, 0.0, 0.0])];
+        let hv = hypervolume(&front, &[2.0, 2.0, 2.0]);
+        assert!(
+            (hv - 8.0).abs() < 1e-10,
+            "Expected 8.0 for single 3D point at origin, got {}",
+            hv
+        );
+    }
+
+    /// 1 point at (0.5, 0.5, 0.5) with reference (1,1,1).
+    /// HV = 0.5 × 0.5 × 0.5 = 0.125 (exact).
+    #[test]
+    fn test_hypervolume_3d_single_point_half() {
+        let front = vec![make_solution(&[0.5, 0.5, 0.5])];
+        let hv = hypervolume(&front, &[1.0, 1.0, 1.0]);
+        assert!(
+            (hv - 0.125).abs() < 1e-10,
+            "Expected 0.125 for 3D half-ref point, got {}",
+            hv
+        );
+    }
+
+    /// 2 non-dominated points at (1,3,2) and (3,1,4) with reference (5,5,5).
+    /// By inclusion-exclusion:
+    ///   p1 box: 4×2×3 = 24
+    ///   p2 box: 2×4×1 = 8
+    ///   intersection: 2×2×1 = 4
+    ///   HV = 24 + 8 − 4 = 28 (exact).
+    #[test]
+    fn test_hypervolume_3d_two_points() {
+        let front = vec![
+            make_solution(&[1.0, 3.0, 2.0]),
+            make_solution(&[3.0, 1.0, 4.0]),
+        ];
+        let hv = hypervolume(&front, &[5.0, 5.0, 5.0]);
+        assert!(
+            (hv - 28.0).abs() < 1e-10,
+            "Expected 28.0 for two non-dominated 3D points, got {}",
+            hv
+        );
+    }
+
+    /// Compare WFG result against Monte Carlo on a 3D case.
+    /// Expected HV = 28.0. MC with 100,000 samples has σ ≈ 0.5%,
+    /// so we allow ±5% relative tolerance to keep the test non-flaky.
+    #[test]
+    fn test_hypervolume_3d_wfg_vs_monte_carlo() {
+        let front = vec![
+            make_solution(&[1.0, 3.0, 2.0]),
+            make_solution(&[3.0, 1.0, 4.0]),
+        ];
+        let exact_hv = hypervolume(&front, &[5.0, 5.0, 5.0]);
+        let mc_hv = hypervolume_monte_carlo(&front, &[5.0, 5.0, 5.0], 100_000);
+        let tol = 0.05 * exact_hv; // 5% relative tolerance
+        assert!(
+            (exact_hv - mc_hv).abs() < tol,
+            "WFG ({}) and Monte Carlo ({}) differ by more than 5%",
+            exact_hv,
+            mc_hv
+        );
+    }
+
+    /// 3D hypervolume with an empty front returns 0.
+    #[test]
+    fn test_hypervolume_3d_empty() {
+        let front: Vec<Solution> = vec![];
+        let hv = hypervolume(&front, &[1.0, 1.0, 1.0]);
+        assert_eq!(hv, 0.0);
+    }
+
+    /// Point at the reference boundary should contribute 0 (strict dominance).
+    #[test]
+    fn test_hypervolume_3d_point_at_boundary() {
+        let front = vec![make_solution(&[1.0, 1.0, 1.0])];
+        let hv = hypervolume(&front, &[1.0, 1.0, 1.0]);
+        assert_eq!(hv, 0.0, "Point at boundary should contribute 0");
+    }
 }

@@ -120,20 +120,25 @@ where
             let g_new = grad(&x_new);
             let fval_new = f(&x_new);
 
-            // Update history
+            // Update history — only accept pairs that satisfy the curvature condition
+            // (y^T s > 0).  Pairs violating this condition can cause the L-BFGS
+            // Hessian approximation to become indefinite and produce ascent directions.
             let s = &x_new - &x;
             let y = &g_new - &g;
-            let rho = F::one() / y.dot(&s);
+            let ys = y.dot(&s);
+            if ys > F::from(1e-10).expect("Failed to convert constant to float") {
+                let rho = F::one() / ys;
 
-            if self.s_history.len() >= self.memory_size {
-                self.s_history.remove(0);
-                self.y_history.remove(0);
-                self.rho_history.remove(0);
+                if self.s_history.len() >= self.memory_size {
+                    self.s_history.remove(0);
+                    self.y_history.remove(0);
+                    self.rho_history.remove(0);
+                }
+
+                self.s_history.push(s);
+                self.y_history.push(y);
+                self.rho_history.push(rho);
             }
-
-            self.s_history.push(s);
-            self.y_history.push(y);
-            self.rho_history.push(rho);
 
             // Check convergence
             if (fval - fval_new).abs() < self.options.tolerance {
@@ -160,8 +165,13 @@ where
         })
     }
 
-    /// Compute search direction using L-BFGS
+    /// Compute search direction using L-BFGS two-loop recursion.
+    ///
+    /// Falls back to steepest-descent (`-g`) when the history is empty or when
+    /// the L-BFGS direction turns out not to be a descent direction (can happen
+    /// with ill-conditioned problems or NaN in the history).
     fn compute_direction(&self, g: &Array1<F>) -> Result<Array1<F>> {
+        // Steepest descent when no history is available.
         if self.s_history.is_empty() {
             return Ok(g.mapv(|x| -x));
         }
@@ -169,32 +179,40 @@ where
         let mut q = g.clone();
         let mut alpha = vec![F::zero(); self.s_history.len()];
 
-        // First loop
+        // First loop (backward pass)
         for i in (0..self.s_history.len()).rev() {
             alpha[i] = self.rho_history[i] * self.s_history[i].dot(&q);
             q = &q - &(&self.y_history[i] * alpha[i]);
         }
 
-        // Initial Hessian approximation
-        let gamma = self
-            .s_history
-            .last()
-            .expect("Operation failed")
-            .dot(self.y_history.last().expect("Operation failed"))
-            / self
-                .y_history
-                .last()
-                .expect("Operation failed")
-                .dot(self.y_history.last().expect("Operation failed"));
+        // Initial Hessian scaling: gamma = (s_{k-1}^T y_{k-1}) / (y_{k-1}^T y_{k-1})
+        let yk = self.y_history.last().expect("history non-empty");
+        let sk = self.s_history.last().expect("history non-empty");
+        let yy = yk.dot(yk);
+        let gamma = if yy > F::zero() {
+            sk.dot(yk) / yy
+        } else {
+            F::one()
+        };
         let mut r = &q * gamma;
 
-        // Second loop
+        // Second loop (forward pass)
         for (i, alpha_val) in alpha.iter().enumerate() {
             let beta = self.rho_history[i] * self.y_history[i].dot(&r);
             r = &r + &(&self.s_history[i] * (*alpha_val - beta));
         }
 
-        Ok(r.mapv(|x| -x))
+        let d = r.mapv(|x| -x);
+
+        // Safeguard: if d is not a descent direction (d^T g >= 0) or contains NaN,
+        // reset to steepest descent.  This protects the Armijo line-search from
+        // receiving an ascent direction on ill-conditioned problems.
+        let dg = d.dot(g);
+        if !dg.is_finite() || dg >= F::zero() {
+            Ok(g.mapv(|x| -x))
+        } else {
+            Ok(d)
+        }
     }
 }
 
@@ -316,7 +334,13 @@ where
     }
 }
 
-/// Armijo line search (standalone)
+/// Armijo backtracking line search.
+///
+/// Returns a step size `alpha` satisfying the sufficient-decrease (Armijo) condition.
+/// If the search direction `d` is not a descent direction (d^T ∇f ≥ 0) or the
+/// directional derivative is not finite, the function falls back to steepest descent
+/// (`-g`) and retries.  This makes the caller resilient to ill-conditioned problems
+/// where the quasi-Newton direction occasionally becomes an ascent direction.
 #[allow(dead_code)]
 fn line_search_armijo<F, Func, Grad>(
     x: &Array1<F>,
@@ -335,13 +359,29 @@ where
     let g0 = grad(x);
     let dg0 = g0.dot(d);
 
-    if dg0 > F::zero() {
-        return Err(TimeSeriesError::ComputationError(
-            "Invalid search direction".to_string(),
-        ));
+    // If the direction is not a descent direction, fall back to steepest descent
+    // and retry with the corrected direction.
+    if !dg0.is_finite() || dg0 >= F::zero() {
+        // Use steepest-descent direction (-g) instead
+        let dg_sd = -g0.dot(&g0); // always ≤ 0
+        if !dg_sd.is_finite() || dg_sd >= F::zero() {
+            // Gradient is zero or NaN — no progress possible
+            return Ok(F::from(0.0).expect("Failed to convert constant to float"));
+        }
+        let d_sd = g0.mapv(|v| -v);
+        let mut alpha_sd = F::one();
+        while alpha_sd > F::from(1e-15).expect("Failed to convert constant to float") {
+            let x_new = x + &(&d_sd * alpha_sd);
+            let f_new = f(&x_new);
+            if f_new <= f0 + options.line_search_alpha * alpha_sd * dg_sd {
+                return Ok(alpha_sd);
+            }
+            alpha_sd = alpha_sd * options.line_search_beta;
+        }
+        return Ok(F::from(1e-15).expect("Failed to convert constant to float"));
     }
 
-    while alpha > F::from(1e-10).expect("Failed to convert constant to float") {
+    while alpha > F::from(1e-15).expect("Failed to convert constant to float") {
         let x_new = x + &(d * alpha);
         let f_new = f(&x_new);
 
@@ -352,7 +392,7 @@ where
         alpha = alpha * options.line_search_beta;
     }
 
-    Ok(F::from(1e-10).expect("Failed to convert constant to float"))
+    Ok(F::from(1e-15).expect("Failed to convert constant to float"))
 }
 
 #[cfg(test)]

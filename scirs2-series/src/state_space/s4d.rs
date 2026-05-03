@@ -198,9 +198,7 @@ impl S4DLayer {
         let mut powers = vec![1.0_f64; n];
 
         for _k in 0..length {
-            let val: f64 = (0..n)
-                .map(|i| self.c[i] * powers[i] * self.b_bar[i])
-                .sum();
+            let val: f64 = (0..n).map(|i| self.c[i] * powers[i] * self.b_bar[i]).sum();
             kernel.push(val);
 
             // Advance powers

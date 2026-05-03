@@ -5,6 +5,7 @@
 
 use crate::error::StatsResult;
 use scirs2_core::ndarray::{Array1, Array2};
+use scirs2_core::numeric::Float;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -91,11 +92,13 @@ pub fn create_exhaustive_numerical_stability_tester() -> AdvancedNumericalStabil
 }
 
 impl AdvancedNumericalStabilityAnalyzer {
-    pub fn analyze_statistical_stability<F, D>(&self, &scirs2_core::ndarray::ArrayBase<D, scirs2_core::ndarray::Ix1>) -> ComprehensiveStabilityResult
+    pub fn analyze_statistical_stability<F, D>(
+        &self,
+        _data: &scirs2_core::ndarray::ArrayBase<D, scirs2_core::ndarray::Ix1>,
+    ) -> ComprehensiveStabilityResult
     where
         F: Float,
-        D: scirs2_core::ndarray::Data<Elem = F>
-        + std::fmt::Display,
+        D: scirs2_core::ndarray::Data<Elem = F>,
     {
         ComprehensiveStabilityResult
     }
@@ -126,13 +129,13 @@ impl AdvancedSimdOptimizer {
         Self { config }
     }
 
-    pub fn advanced_batch_statistics<F, D>(
-        &self, data_arrays: &[scirs2_core::ndarray::ArrayView1<F>], _operations: &[BatchOperation],
+    pub fn advanced_batch_statistics<F>(
+        &self,
+        _data_arrays: &[scirs2_core::ndarray::ArrayView1<F>],
+        _operations: &[BatchOperation],
     ) -> StatsResult<BatchResults<F>>
     where
         F: Float + Copy,
-        D: scirs2_core::ndarray::Data<Elem = F>
-        + std::fmt::Display,
     {
         // Return default values for now
         Ok(BatchResults {

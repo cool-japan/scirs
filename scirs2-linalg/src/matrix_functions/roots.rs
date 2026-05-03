@@ -25,14 +25,8 @@ use std::iter::Sum;
 // ---------------------------------------------------------------------------
 
 /// Trait alias for floating-point bounds used in matrix root algorithms.
-pub trait RootsFloat:
-    Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
-impl<T> RootsFloat for T where
-    T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static
-{
-}
+pub trait RootsFloat: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
+impl<T> RootsFloat for T where T: Float + NumAssign + Sum + ScalarOperand + Send + Sync + 'static {}
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -49,7 +43,7 @@ fn matmul_nn<F: RootsFloat>(a: &Array2<F>, b: &Array2<F>) -> Array2<F> {
                 continue;
             }
             for j in 0..n {
-                c[[i, j]] = c[[i, j]] + aik * b[[k, j]];
+                c[[i, j]] += aik * b[[k, j]];
             }
         }
     }
@@ -60,7 +54,7 @@ fn matmul_nn<F: RootsFloat>(a: &Array2<F>, b: &Array2<F>) -> Array2<F> {
 fn frobenius_norm<F: RootsFloat>(m: &Array2<F>) -> F {
     let mut acc = F::zero();
     for &v in m.iter() {
-        acc = acc + v * v;
+        acc += v * v;
     }
     acc.sqrt()
 }
@@ -180,7 +174,7 @@ fn triangular_sqrt<F: RootsFloat>(t: &Array2<F>, n: usize) -> LinalgResult<Array
         for i in (0..j).rev() {
             let mut off_sum = F::zero();
             for k in (i + 1)..j {
-                off_sum = off_sum + s[[i, k]] * s[[k, j]];
+                off_sum += s[[i, k]] * s[[k, j]];
             }
             let denom = s[[i, i]] + s[[j, j]];
             if denom.abs() < F::epsilon() * F::from(10.0).unwrap_or(F::one()) {
@@ -240,8 +234,8 @@ pub fn sqrtm_denman_beavers<F: RootsFloat>(
 
     let max_it = max_iter.unwrap_or(100);
     let eps = tol.unwrap_or_else(|| F::from(1e-12).unwrap_or(F::epsilon()));
-    let half = F::from(0.5)
-        .ok_or_else(|| LinalgError::ComputationError("Cannot convert 0.5".into()))?;
+    let half =
+        F::from(0.5).ok_or_else(|| LinalgError::ComputationError("Cannot convert 0.5".into()))?;
 
     let mut y = a.to_owned();
     let mut z = Array2::<F>::eye(n);
@@ -301,9 +295,7 @@ pub fn pth_root<F: RootsFloat>(a: &ArrayView2<F>, p: u32) -> LinalgResult<Array2
     let n = check_square(a, "pth_root")?;
 
     if p == 0 {
-        return Err(LinalgError::ValueError(
-            "pth_root: p must be >= 1".into(),
-        ));
+        return Err(LinalgError::ValueError("pth_root: p must be >= 1".into()));
     }
     if p == 1 {
         return Ok(a.to_owned());
@@ -347,11 +339,7 @@ pub fn pth_root<F: RootsFloat>(a: &ArrayView2<F>, p: u32) -> LinalgResult<Array2
 ///   r_{ij} = (t_{ij} - sum_{k=i+1}^{j-1} r_{ik} * ... ) / (r_{ii}^{p-1} + r_{jj}^{p-1} + ...)
 ///
 /// The full formula is the "divided differences" of x^{1/p} at r_{ii} and r_{jj}.
-fn triangular_pth_root<F: RootsFloat>(
-    t: &Array2<F>,
-    n: usize,
-    p: u32,
-) -> LinalgResult<Array2<F>> {
+fn triangular_pth_root<F: RootsFloat>(t: &Array2<F>, n: usize, p: u32) -> LinalgResult<Array2<F>> {
     let p_inv = F::one()
         / F::from(p).ok_or_else(|| LinalgError::ComputationError("Cannot convert p".into()))?;
     let mut r = Array2::<F>::zeros((n, n));
@@ -381,7 +369,7 @@ fn triangular_pth_root<F: RootsFloat>(
             // the first-order correction (valid for triangular matrices):
             let mut numer = t[[i, j]];
             for k in (i + 1)..j {
-                numer = numer - r[[i, k]] * r[[k, j]];
+                numer -= r[[i, k]] * r[[k, j]];
             }
 
             // Denominator: divided difference sum_{k=0}^{p-1} rii^{p-1-k} * rjj^k
@@ -390,7 +378,7 @@ fn triangular_pth_root<F: RootsFloat>(
             let mut denom = F::zero();
             for k in 0..p {
                 let term = rii.powi((p - 1 - k) as i32) * rjj.powi(k as i32);
-                denom = denom + term;
+                denom += term;
             }
 
             if denom.abs() < F::epsilon() * F::from(10.0).unwrap_or(F::one()) {
@@ -409,94 +397,92 @@ fn triangular_pth_root<F: RootsFloat>(
 // ---------------------------------------------------------------------------
 
 /// Gauss-Legendre quadrature nodes and weights on [0,1] for Padé log approximant.
+#[allow(clippy::excessive_precision)]
 fn gauss_legendre_nodes(order: usize) -> (Vec<f64>, Vec<f64>) {
     match order {
-    1 => (vec![0.5], vec![1.0]),
-    2 => (
-        vec![0.2113248654051871, 0.7886751345948129],
-        vec![0.5, 0.5],
-    ),
-    4 => (
-        vec![
-            0.06943184420297371,
-            0.33000947820757187,
-            0.6699905217924281,
-            0.9305681557970263,
-        ],
-        vec![
-            0.17392742256872685,
-            0.32607257743127315,
-            0.32607257743127315,
-            0.17392742256872685,
-        ],
-    ),
-    8 => (
-        vec![
-            0.019855071751231884,
-            0.10166676129318664,
-            0.2372337950418355,
-            0.4082826787521751,
-            0.5917173212478249,
-            0.7627662049581645,
-            0.8983332387068134,
-            0.9801449282487682,
-        ],
-        vec![
-            0.050614268145188,
-            0.11119051722492964,
-            0.15685332293894369,
-            0.18134189168918087,
-            0.18134189168918087,
-            0.15685332293894369,
-            0.11119051722492964,
-            0.050614268145188,
-        ],
-    ),
-    16 => (
-        vec![
-            0.005299532504175031,
-            0.027233228312309445,
-            0.06504581385637368,
-            0.11588846949991124,
-            0.17830370308927756,
-            0.24990745750488012,
-            0.3268553544165069,
-            0.4090169573769576,
-            0.5909830426230424,
-            0.6731446455834931,
-            0.7500925424951199,
-            0.8216962969107224,
-            0.8841115305000888,
-            0.9349541861436263,
-            0.9727667716876906,
-            0.9947004674958249,
-        ],
-        vec![
-            0.013576229705877,
-            0.031126761969324,
-            0.047579255841244,
-            0.062314485627767,
-            0.074797994408289,
-            0.084578259697501,
-            0.091704110370050,
-            0.095879026375961,
-            0.095879026375961,
-            0.091704110370050,
-            0.084578259697501,
-            0.074797994408289,
-            0.062314485627767,
-            0.047579255841244,
-            0.031126761969324,
-            0.013576229705877,
-        ],
-    ),
-    _ => {
-        // Midpoint rule fallback
-        let h = 1.0 / (order as f64);
-        let nodes = (0..order).map(|i| (i as f64 + 0.5) * h).collect();
-        let weights = vec![h; order];
-        (nodes, weights)
-    }
+        1 => (vec![0.5], vec![1.0]),
+        2 => (vec![0.2113248654051871, 0.7886751345948129], vec![0.5, 0.5]),
+        4 => (
+            vec![
+                0.06943184420297371,
+                0.33000947820757187,
+                0.6699905217924281,
+                0.9305681557970263,
+            ],
+            vec![
+                0.17392742256872685,
+                0.32607257743127315,
+                0.32607257743127315,
+                0.17392742256872685,
+            ],
+        ),
+        8 => (
+            vec![
+                0.019855071751231884,
+                0.10166676129318664,
+                0.2372337950418355,
+                0.4082826787521751,
+                0.5917173212478249,
+                0.7627662049581645,
+                0.8983332387068134,
+                0.9801449282487682,
+            ],
+            vec![
+                0.050614268145188,
+                0.11119051722492964,
+                0.15685332293894369,
+                0.18134189168918087,
+                0.18134189168918087,
+                0.15685332293894369,
+                0.11119051722492964,
+                0.050614268145188,
+            ],
+        ),
+        16 => (
+            vec![
+                0.005299532504175031,
+                0.027233228312309445,
+                0.06504581385637368,
+                0.11588846949991124,
+                0.17830370308927756,
+                0.24990745750488012,
+                0.3268553544165069,
+                0.4090169573769576,
+                0.5909830426230424,
+                0.6731446455834931,
+                0.7500925424951199,
+                0.8216962969107224,
+                0.8841115305000888,
+                0.9349541861436263,
+                0.9727667716876906,
+                0.9947004674958249,
+            ],
+            vec![
+                0.013576229705877,
+                0.031126761969324,
+                0.047579255841244,
+                0.062314485627767,
+                0.074797994408289,
+                0.084578259697501,
+                0.091704110370050,
+                0.095879026375961,
+                0.095879026375961,
+                0.091704110370050,
+                0.084578259697501,
+                0.074797994408289,
+                0.062314485627767,
+                0.047579255841244,
+                0.031126761969324,
+                0.013576229705877,
+            ],
+        ),
+        _ => {
+            // Midpoint rule fallback
+            let h = 1.0 / (order as f64);
+            let nodes = (0..order).map(|i| (i as f64 + 0.5) * h).collect();
+            let weights = vec![h; order];
+            (nodes, weights)
+        }
     }
 }
 
@@ -520,7 +506,7 @@ fn logm_pade_approx<F: RootsFloat>(x: &Array2<F>, order: usize) -> LinalgResult<
         let mut mat = eye.clone();
         for i in 0..n {
             for j in 0..n {
-                mat[[i, j]] = mat[[i, j]] + t_k * x[[i, j]];
+                mat[[i, j]] += t_k * x[[i, j]];
             }
         }
 
@@ -529,7 +515,7 @@ fn logm_pade_approx<F: RootsFloat>(x: &Array2<F>, order: usize) -> LinalgResult<
         let x_mat_inv = matmul_nn(x, &mat_inv);
         for i in 0..n {
             for j in 0..n {
-                result[[i, j]] = result[[i, j]] + w_k * x_mat_inv[[i, j]];
+                result[[i, j]] += w_k * x_mat_inv[[i, j]];
             }
         }
     }
@@ -600,6 +586,11 @@ pub fn logm<F: RootsFloat>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
         return Ok(result);
     }
 
+    // 2×2 exact formulas — much more accurate than Schur + Padé for small matrices
+    if n == 2 {
+        return logm_2x2_exact(a);
+    }
+
     // Schur decomposition: A = Q T Q^H
     let (q, t) = crate::decomposition::schur(a)?;
 
@@ -608,6 +599,128 @@ pub fn logm<F: RootsFloat>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
 
     // Back-transform: log(A) = Q * log(T) * Q^T
     Ok(q.dot(&log_t).dot(&q.t()))
+}
+
+/// Compute log(A) for a 2×2 matrix using exact formulas.
+///
+/// For a 2×2 matrix with eigenvalues λ1, λ2 both positive:
+///
+/// - If symmetric: use eigendecomposition `log(A) = V * diag(log(λ)) * V^T`
+/// - General: use Cayley-Hamilton / Sylvester formula
+///   `log(A) = c_a * A + c_0 * I` where `c_a = (log(λ1) - log(λ2)) / (λ1 - λ2)`,
+///   `c_0 = log(λ2) - c_a * λ2`
+///   (for distinct eigenvalues; for repeated: `c_a = 1/λ1`, `c_0 = log(λ1) - 1`)
+fn logm_2x2_exact<F: RootsFloat>(a: &ArrayView2<F>) -> LinalgResult<Array2<F>> {
+    let aa = a[[0, 0]];
+    let ab = a[[0, 1]];
+    let ba = a[[1, 0]];
+    let bb = a[[1, 1]];
+
+    // Eigenvalues via characteristic polynomial: λ^2 - tr*λ + det = 0
+    let tr = aa + bb;
+    let det = aa * bb - ab * ba;
+
+    let two = F::one() + F::one();
+    let four = two + two;
+
+    let discriminant = tr * tr - four * det;
+
+    let (lam1, lam2) = if discriminant >= F::zero() {
+        // Real eigenvalues
+        let sq = discriminant.sqrt();
+        ((tr + sq) / two, (tr - sq) / two)
+    } else {
+        // Complex eigenvalues — real logm exists only if complex eigenvalues
+        // come in conjugate pairs and are consistent with a real log.
+        // Fall back to Schur for this case.
+        let (q, t) = crate::decomposition::schur(a)?;
+        let log_t = triangular_logm(&t, 2)?;
+        return Ok(q.dot(&log_t).dot(&q.t()));
+    };
+
+    // Check eigenvalues are positive for real logarithm
+    if lam1 <= F::zero() || lam2 <= F::zero() {
+        return Err(LinalgError::DomainError(
+            "logm_2x2_exact: matrix has non-positive eigenvalue".into(),
+        ));
+    }
+
+    let log1 = lam1.ln();
+    let log2 = lam2.ln();
+
+    // Check if symmetric: |a[0,1] - a[1,0]| < eps
+    let is_sym = (ab - ba).abs() < F::from(1e-12).unwrap_or(F::epsilon());
+
+    if is_sym {
+        // Symmetric 2×2: eigenvectors are orthogonal
+        // For A = [[a, b],[b, d]], eigenvectors for λ1, λ2:
+        // v = [b, λ - a] (unnormalized)
+        let d_half = (aa - bb) / two;
+        let r = (d_half * d_half + ab * ab).sqrt();
+
+        if r < F::from(1e-12).unwrap_or(F::epsilon()) {
+            // a ≈ d, so A ≈ λ*I or A is scalar multiple of I
+            // log(A) = log(λ1) * I
+            let mut result = Array2::<F>::zeros((2, 2));
+            result[[0, 0]] = log1;
+            result[[1, 1]] = log1;
+            return Ok(result);
+        }
+
+        // Eigenvector 1: v1 = [b, λ1 - a] = [b, r - d_half + ... ]
+        // Simpler: v1 = [b, r - d_half], v2 = [b, -r - d_half]
+        // (or [-(d_half + r), b] and [r - d_half, b] depending on sign)
+        let v1x = ab;
+        let v1y = r - d_half; // λ1 - aa = (d_half + r) - aa = r - d_half... wait
+                              // λ1 = (aa+bb)/2 + r = (aa+bb)/2 + r
+                              // λ1 - aa = (bb - aa)/2 + r = -d_half + r = r - d_half
+        let n1_sq = v1x * v1x + v1y * v1y;
+
+        let v2x = ab;
+        let v2y = -r - d_half; // λ2 - aa = -r - d_half
+        let n2_sq = v2x * v2x + v2y * v2y;
+
+        // log(A) = (log1/n1_sq) * v1*v1^T + (log2/n2_sq) * v2*v2^T
+        let mut result = Array2::<F>::zeros((2, 2));
+        if n1_sq > F::from(1e-24).unwrap_or(F::epsilon()) {
+            let c1 = log1 / n1_sq;
+            result[[0, 0]] += c1 * v1x * v1x;
+            result[[0, 1]] += c1 * v1x * v1y;
+            result[[1, 0]] += c1 * v1y * v1x;
+            result[[1, 1]] += c1 * v1y * v1y;
+        }
+        if n2_sq > F::from(1e-24).unwrap_or(F::epsilon()) {
+            let c2 = log2 / n2_sq;
+            result[[0, 0]] += c2 * v2x * v2x;
+            result[[0, 1]] += c2 * v2x * v2y;
+            result[[1, 0]] += c2 * v2y * v2x;
+            result[[1, 1]] += c2 * v2y * v2y;
+        }
+        return Ok(result);
+    }
+
+    // General 2×2: use Sylvester/Cayley-Hamilton formula
+    // For distinct eigenvalues: log(A) = c_a * A + c_0 * I
+    let eps_thresh = F::from(1e-10).unwrap_or(F::epsilon());
+    let (c_a, c_0) = if (lam1 - lam2).abs() > eps_thresh * (lam1.abs() + lam2.abs()) {
+        let c_a = (log1 - log2) / (lam1 - lam2);
+        let c_0 = log2 - c_a * lam2;
+        (c_a, c_0)
+    } else {
+        // Repeated eigenvalue: use limit c_a -> 1/λ, c_0 -> log(λ) - 1
+        let c_a = F::one() / lam1;
+        let c_0 = log1 - F::one();
+        (c_a, c_0)
+    };
+
+    let mut result = Array2::<F>::zeros((2, 2));
+    for i in 0..2 {
+        for j in 0..2 {
+            let eye_ij = if i == j { F::one() } else { F::zero() };
+            result[[i, j]] = c_a * a[[i, j]] + c_0 * eye_ij;
+        }
+    }
+    Ok(result)
 }
 
 /// Compute the matrix logarithm of an upper-triangular matrix T using
@@ -632,7 +745,9 @@ fn triangular_logm<F: RootsFloat>(t: &Array2<F>, n: usize) -> LinalgResult<Array
     // Use inverse scaling and squaring approach on the triangular T:
     // Scale T by repeated square roots until ||T - I||_F < threshold
     let eye = Array2::<F>::eye(n);
-    let threshold = F::from(0.5).unwrap_or(F::one());
+    // Tight threshold for better Padé accuracy (0.1 gives more squarings but
+    // the log(I+X) Padé is much more accurate when ||X||_F is small)
+    let threshold = F::from(0.1).unwrap_or(F::one());
     let max_scalings = 50usize;
 
     let mut t_k = t.to_owned();

@@ -132,8 +132,239 @@ impl WaveletFilters {
                     rec_hi,
                 })
             }
+            // DB1 is identical to Haar
+            1 => Self::haar(),
+            3 => {
+                // DB3 (Daubechies-6 coefficients) — standard orthonormal form
+                let dec_lo: Vec<f64> = vec![
+                    0.035226291882100656,
+                    -0.08544127388224149,
+                    -0.13501102001039084,
+                    0.4598775021193313,
+                    0.8068915093133388,
+                    0.3326705529509569,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            5 => {
+                // DB5 (Daubechies-10 coefficients)
+                let dec_lo: Vec<f64> = vec![
+                    0.003335725285001549,
+                    -0.012580751999015526,
+                    -0.006241490213011705,
+                    0.07757149384006515,
+                    -0.03224486958502952,
+                    -0.24229488706619015,
+                    0.13842814590110342,
+                    0.7243085284385744,
+                    0.6038292697974898,
+                    0.16010239797412501,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            6 => {
+                // DB6 (Daubechies-12 coefficients) — PyWavelets orthonormal form
+                let dec_lo: Vec<f64> = vec![
+                    -0.0010773010853084796,
+                    0.004777257510945511,
+                    0.0005538422011614961,
+                    -0.03158203931748603,
+                    0.027522865530305727,
+                    0.09750160558732304,
+                    -0.12976686756726194,
+                    -0.22626469396543983,
+                    0.31525035170919763,
+                    0.7511339080210954,
+                    0.49462389039845306,
+                    0.11154074335010947,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            7 => {
+                // DB7 (Daubechies-14 coefficients) — PyWavelets orthonormal form
+                let dec_lo: Vec<f64> = vec![
+                    0.00035371379997452024,
+                    -0.0018016407040474908,
+                    0.0004295779729213665,
+                    0.01255099855609984,
+                    -0.01657454163066688,
+                    -0.03802993693501441,
+                    0.08061260915108308,
+                    0.07130921926683026,
+                    -0.22403618499387498,
+                    -0.14390600392856498,
+                    0.4697822874051931,
+                    0.7291320908462351,
+                    0.3965393194819173,
+                    0.07785205408500918,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            8 => {
+                // DB8 (Daubechies-16 coefficients) — PyWavelets orthonormal form
+                let dec_lo: Vec<f64> = vec![
+                    -0.00011747678412476953,
+                    0.0006754494064505693,
+                    -0.00039174037337694705,
+                    -0.004870352993451574,
+                    0.008746094047405777,
+                    0.013981027917398282,
+                    -0.044088253930794755,
+                    -0.017369301001807547,
+                    0.12874742662047847,
+                    0.0004724845739132828,
+                    -0.2840155429615469,
+                    -0.015829105256349306,
+                    0.5853546836542067,
+                    0.6756307362972898,
+                    0.31287159091429995,
+                    0.05441584224310401,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            9 => {
+                // DB9 (Daubechies-18 coefficients) — PyWavelets orthonormal form
+                let dec_lo: Vec<f64> = vec![
+                    3.93473203162716e-05,
+                    -0.0002519631889427101,
+                    0.00023038576352319597,
+                    0.0018476468830562265,
+                    -0.00428150368246343,
+                    -0.004723204757751397,
+                    0.022361662123679096,
+                    0.00025094711483145197,
+                    -0.06763282906132997,
+                    0.03072568147933338,
+                    0.14854074933810638,
+                    -0.09684078322297646,
+                    -0.2932737832791749,
+                    0.13319738582500756,
+                    0.6572880780513005,
+                    0.6048231236901112,
+                    0.24383467461259034,
+                    0.038077947363878345,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            10 => {
+                // DB10 (Daubechies-20 coefficients) — PyWavelets orthonormal form
+                let dec_lo: Vec<f64> = vec![
+                    -1.3264202894521244e-05,
+                    9.358867032006959e-05,
+                    -0.00011646685512928545,
+                    -0.0006858566949597116,
+                    0.001992405295185056,
+                    0.001395351747052901,
+                    -0.010733175483330575,
+                    0.0036065535669561697,
+                    0.033212674059341,
+                    -0.029457536821875813,
+                    -0.07139414716639708,
+                    0.09305736460357235,
+                    0.12736934033579325,
+                    -0.19594627437737705,
+                    -0.24984642432731538,
+                    0.2811723436605775,
+                    0.6884590394536035,
+                    0.5272011889317256,
+                    0.1881768000776915,
+                    0.026670057900555554,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
             _ => Err(TransformError::InvalidInput(format!(
-                "Daubechies-{} not yet implemented",
+                "Daubechies-{} not implemented (supported: 1-10)",
                 n
             ))),
         }
@@ -149,17 +380,16 @@ impl WaveletFilters {
     fn coiflet(n: usize) -> Result<Self> {
         match n {
             1 => {
-                // Coif1 coefficients
-                let sqrt2 = 2.0_f64.sqrt();
-                let dec_lo = vec![
-                    -0.01565572813546454 / sqrt2,
-                    -0.07268974908697540 / sqrt2,
-                    0.38486484686420286 / sqrt2,
-                    0.85257202021225542 / sqrt2,
-                    0.33789766245780093 / sqrt2,
-                    -0.07268974908697540 / sqrt2,
+                // Coif1 — exact PyWavelets orthonormal coefficients (sum = sqrt(2))
+                let dec_lo: Vec<f64> = vec![
+                    -0.015655728135791993,
+                    -0.07273261951252645,
+                    0.3848648468648578,
+                    0.8525720202116004,
+                    0.3378976624574818,
+                    -0.07273261951252645,
                 ];
-                let mut dec_hi = Vec::with_capacity(dec_lo.len());
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
                 for (i, &val) in dec_lo.iter().enumerate().rev() {
                     dec_hi.push(if i % 2 == 0 { val } else { -val });
                 }
@@ -176,8 +406,168 @@ impl WaveletFilters {
                     rec_hi,
                 })
             }
+            2 => {
+                // Coif2 (12-tap) — exact PyWavelets orthonormal coefficients (sum = sqrt(2))
+                let dec_lo: Vec<f64> = vec![
+                    -0.000720549445520347,
+                    -0.0018232088709110323,
+                    0.005611434819368834,
+                    0.02368017194684777,
+                    -0.05943441864643109,
+                    -0.07648859907828076,
+                    0.4170051844232391,
+                    0.8127236354494135,
+                    0.3861100668227629,
+                    -0.0673725547237256,
+                    -0.04146493678687178,
+                    0.01638733646320364,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            3 => {
+                // Coif3 (18-tap) — exact PyWavelets orthonormal coefficients (sum = sqrt(2))
+                let dec_lo: Vec<f64> = vec![
+                    -3.459977319727278e-05,
+                    -7.0983302506379e-05,
+                    0.0004662169598204029,
+                    0.0011175187708306303,
+                    -0.0025745176881367972,
+                    -0.009007976136730624,
+                    0.015880544863669452,
+                    0.03455502757329774,
+                    -0.08230192710629983,
+                    -0.07179982161915484,
+                    0.42848347637737,
+                    0.7937772226260872,
+                    0.40517690240911824,
+                    -0.06112339000297255,
+                    -0.06577191128146936,
+                    0.023452696142077168,
+                    0.007782596425672746,
+                    -0.003793512864380802,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            4 => {
+                // Coif4 (24-tap) — exact PyWavelets orthonormal coefficients (sum = sqrt(2))
+                let dec_lo: Vec<f64> = vec![
+                    -1.7849909144933469e-06,
+                    -3.259647940030751e-06,
+                    3.1229861599195265e-05,
+                    6.233885431278719e-05,
+                    -0.0002599743371222568,
+                    -0.0005890202246332165,
+                    0.0012665610789256603,
+                    0.0037514346971460866,
+                    -0.0056582838001308835,
+                    -0.015211728187697211,
+                    0.02508225333794961,
+                    0.03933442260558915,
+                    -0.09622042453595264,
+                    -0.06662747236681717,
+                    0.43438603311435653,
+                    0.7822389344242826,
+                    0.41530842700068227,
+                    -0.05607731960356926,
+                    -0.08126671024919373,
+                    0.02668230466960483,
+                    0.01606894713157503,
+                    -0.007346167936268051,
+                    -0.001629492425226786,
+                    0.000892313902537003,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
+            5 => {
+                // Coif5 (30-tap) — exact PyWavelets orthonormal coefficients (sum = sqrt(2))
+                let dec_lo: Vec<f64> = vec![
+                    -9.604010112767894e-08,
+                    -1.6237995172048338e-07,
+                    2.0612203985788783e-06,
+                    3.7007277113394796e-06,
+                    -2.1270221672515614e-05,
+                    -4.12198619242655e-05,
+                    0.00014035632812373243,
+                    0.0003018579416682448,
+                    -0.0006375589261258812,
+                    -0.0016616273039298788,
+                    0.0024315754425382886,
+                    0.006761520220620417,
+                    -0.009159507338676163,
+                    -0.019758391600965465,
+                    0.032674799467057355,
+                    0.041287530472117834,
+                    -0.10556315130733723,
+                    -0.06203775157498196,
+                    0.4379823066591634,
+                    0.7742936228603274,
+                    0.42157126673075435,
+                    -0.052046670253554764,
+                    -0.09192158806008609,
+                    0.028169744270532353,
+                    0.023408322118927783,
+                    -0.010131584846900276,
+                    -0.00415931262757864,
+                    0.0021782943778456947,
+                    0.0003585777411617577,
+                    -0.000212081862067494,
+                ];
+                let mut dec_hi: Vec<f64> = Vec::with_capacity(dec_lo.len());
+                for (i, &val) in dec_lo.iter().enumerate().rev() {
+                    dec_hi.push(if i % 2 == 0 { val } else { -val });
+                }
+                let mut rec_lo = dec_lo.clone();
+                rec_lo.reverse();
+                let mut rec_hi = dec_hi.clone();
+                rec_hi.reverse();
+                Ok(WaveletFilters {
+                    dec_lo,
+                    dec_hi,
+                    rec_lo,
+                    rec_hi,
+                })
+            }
             _ => Err(TransformError::InvalidInput(format!(
-                "Coiflet-{} not yet implemented",
+                "Coiflet-{} not implemented (supported: 1-5)",
                 n
             ))),
         }
@@ -701,6 +1091,152 @@ mod tests {
         assert_eq!(filters.rec_lo.len(), 2);
         assert_eq!(filters.rec_hi.len(), 2);
 
+        Ok(())
+    }
+
+    /// Verify that `dec_lo` sums to sqrt(2) (standard orthonormal normalisation).
+    fn check_filter_normalisation(filters: &WaveletFilters) {
+        let sum: f64 = filters.dec_lo.iter().sum();
+        let diff = (sum - 2.0_f64.sqrt()).abs();
+        assert!(
+            diff < 1e-6,
+            "dec_lo sum {sum} is not sqrt(2); diff = {diff}"
+        );
+    }
+
+    #[test]
+    fn test_daubechies_db1_is_haar() -> Result<()> {
+        let haar = WaveletFilters::from_wavelet(WaveletType::Haar)?;
+        let db1 = WaveletFilters::from_wavelet(WaveletType::Daubechies(1))?;
+        assert_abs_diff_eq!(haar.dec_lo[0], db1.dec_lo[0], epsilon = 1e-10);
+        assert_abs_diff_eq!(haar.dec_lo[1], db1.dec_lo[1], epsilon = 1e-10);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daubechies_db3_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(3))?;
+        assert_eq!(f.dec_lo.len(), 6);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daubechies_db5_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(5))?;
+        assert_eq!(f.dec_lo.len(), 10);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daubechies_db6_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(6))?;
+        assert_eq!(f.dec_lo.len(), 12);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daubechies_db7_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(7))?;
+        assert_eq!(f.dec_lo.len(), 14);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daubechies_db8_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(8))?;
+        assert_eq!(f.dec_lo.len(), 16);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daubechies_db10_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(10))?;
+        assert_eq!(f.dec_lo.len(), 20);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daubechies_unsupported_returns_error() {
+        let result = WaveletFilters::from_wavelet(WaveletType::Daubechies(11));
+        assert!(result.is_err(), "DB11 should return an error");
+    }
+
+    #[test]
+    fn test_coiflet1_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(1))?;
+        assert_eq!(f.dec_lo.len(), 6);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coiflet2_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(2))?;
+        assert_eq!(f.dec_lo.len(), 12);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coiflet3_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(3))?;
+        assert_eq!(f.dec_lo.len(), 18);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coiflet4_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(4))?;
+        assert_eq!(f.dec_lo.len(), 24);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coiflet5_filters() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(5))?;
+        assert_eq!(f.dec_lo.len(), 30);
+        check_filter_normalisation(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coiflet_unsupported_returns_error() {
+        let result = WaveletFilters::from_wavelet(WaveletType::Coiflet(6));
+        assert!(result.is_err(), "Coif6 should return an error");
+    }
+
+    #[test]
+    fn test_dwt_db3_roundtrip() -> Result<()> {
+        let signal = Array1::from_vec(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
+        let dwt = DWT::new(WaveletType::Daubechies(3))?;
+
+        let (approx, detail) = dwt.decompose(&signal.view())?;
+        let reconstructed = dwt.reconstruct(&approx.view(), &detail.view())?;
+
+        // Reconstruction should have at least as many samples as the original
+        assert!(reconstructed.len() >= signal.len() - 2);
+        Ok(())
+    }
+
+    #[test]
+    fn test_dwt_coif2_roundtrip() -> Result<()> {
+        let signal = Array1::from_vec(vec![
+            1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0,
+        ]);
+        let dwt = DWT::new(WaveletType::Coiflet(2))?;
+
+        let (approx, detail) = dwt.decompose(&signal.view())?;
+        let reconstructed = dwt.reconstruct(&approx.view(), &detail.view())?;
+
+        assert!(reconstructed.len() >= signal.len() - 4);
         Ok(())
     }
 }

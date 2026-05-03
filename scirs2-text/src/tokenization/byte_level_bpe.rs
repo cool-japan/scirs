@@ -9,6 +9,14 @@ use crate::error::{Result, TextError};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 
+/// Type alias for the four-tuple returned by `init_base`.
+type InitBaseMaps = (
+    HashMap<u8, char>,
+    HashMap<char, u8>,
+    HashMap<String, u32>,
+    Vec<String>,
+);
+
 // ─── GPT-2 byte-to-unicode table ─────────────────────────────────────────────
 
 /// Build the GPT-2 byte→unicode bijection.
@@ -19,9 +27,9 @@ use std::io::{BufRead, BufReader, Write};
 /// consecutive block starting at U+0100 (LATIN CAPITAL LETTER A WITH MACRON).
 pub fn bytes_to_unicode() -> HashMap<u8, char> {
     // Collect the "nice" printable bytes first
-    let mut bs: Vec<u8> = (b'!' ..= b'~').collect();      // 33-126
-    bs.extend(b'\xa1' ..= b'\xac');                        // 161-172
-    bs.extend(b'\xae' ..= b'\xff');                        // 174-255
+    let mut bs: Vec<u8> = (b'!'..=b'~').collect(); // 33-126
+    bs.extend(b'\xa1'..=b'\xac'); // 161-172
+    bs.extend(b'\xae'..=b'\xff'); // 174-255
 
     // The remaining bytes need remapping — assign them unicode codepoints
     // starting at U+0100 in order of their byte value.
@@ -88,7 +96,7 @@ pub struct ByteLevelBpeTokenizer {
 // Internal helpers
 impl ByteLevelBpeTokenizer {
     /// Build encoder/decoder maps and seed base vocabulary from 256 bytes.
-    fn init_base() -> (HashMap<u8, char>, HashMap<char, u8>, HashMap<String, u32>, Vec<String>) {
+    fn init_base() -> InitBaseMaps {
         let byte_encoder = bytes_to_unicode();
         let byte_decoder: HashMap<char, u8> = byte_encoder.iter().map(|(&b, &c)| (c, b)).collect();
 
@@ -357,8 +365,8 @@ impl ByteLevelBpeTokenizer {
     pub fn save_vocab(&self, vocab_path: &str, merges_path: &str) -> Result<()> {
         // Write vocab JSON
         {
-            let mut f = std::fs::File::create(vocab_path)
-                .map_err(|e| TextError::IoError(e.to_string()))?;
+            let mut f =
+                std::fs::File::create(vocab_path).map_err(|e| TextError::IoError(e.to_string()))?;
             // Manually write JSON to avoid external dependency
             write!(f, "{{").map_err(|e| TextError::IoError(e.to_string()))?;
             let mut pairs: Vec<(&String, &u32)> = self.vocab.iter().collect();
@@ -382,8 +390,7 @@ impl ByteLevelBpeTokenizer {
                 .map_err(|e| TextError::IoError(e.to_string()))?;
             writeln!(f, "#version: 0.2").map_err(|e| TextError::IoError(e.to_string()))?;
             for (left, right) in &self.merges {
-                writeln!(f, "{} {}", left, right)
-                    .map_err(|e| TextError::IoError(e.to_string()))?;
+                writeln!(f, "{} {}", left, right).map_err(|e| TextError::IoError(e.to_string()))?;
             }
         }
         Ok(())
@@ -392,8 +399,8 @@ impl ByteLevelBpeTokenizer {
     /// Load a tokenizer from a HuggingFace-format vocab JSON and merges text file.
     pub fn load(vocab_path: &str, merges_path: &str) -> Result<Self> {
         // Parse vocab JSON (minimal, no external dep)
-        let vocab_content = std::fs::read_to_string(vocab_path)
-            .map_err(|e| TextError::IoError(e.to_string()))?;
+        let vocab_content =
+            std::fs::read_to_string(vocab_path).map_err(|e| TextError::IoError(e.to_string()))?;
         let vocab = parse_vocab_json(&vocab_content)?;
 
         // Build id_to_token
@@ -406,8 +413,8 @@ impl ByteLevelBpeTokenizer {
         }
 
         // Parse merges
-        let merges_file = std::fs::File::open(merges_path)
-            .map_err(|e| TextError::IoError(e.to_string()))?;
+        let merges_file =
+            std::fs::File::open(merges_path).map_err(|e| TextError::IoError(e.to_string()))?;
         let reader = BufReader::new(merges_file);
         let mut merges = Vec::new();
         for line in reader.lines() {
@@ -538,9 +545,8 @@ fn parse_vocab_json(s: &str) -> Result<HashMap<String, u32>> {
 
 fn parse_vocab_entry(entry: &str, vocab: &mut HashMap<String, u32>) -> Result<()> {
     // Format: `"token": id`
-    let colon_pos = find_colon_outside_string(entry).ok_or_else(|| {
-        TextError::IoError(format!("Invalid vocab entry (no colon): {}", entry))
-    })?;
+    let colon_pos = find_colon_outside_string(entry)
+        .ok_or_else(|| TextError::IoError(format!("Invalid vocab entry (no colon): {}", entry)))?;
     let key_part = entry[..colon_pos].trim();
     let val_part = entry[colon_pos + 1..].trim();
 
@@ -629,7 +635,11 @@ mod tests {
         let mut chars: Vec<char> = map.values().copied().collect();
         chars.sort();
         chars.dedup();
-        assert_eq!(chars.len(), 256, "all unicode chars must be distinct (bijection)");
+        assert_eq!(
+            chars.len(),
+            256,
+            "all unicode chars must be distinct (bijection)"
+        );
     }
 
     #[test]
@@ -639,11 +649,9 @@ mod tests {
         for b in b'!'..=b'~' {
             let ch = map[&b];
             assert_eq!(
-                ch as u32,
-                b as u32,
+                ch as u32, b as u32,
                 "byte {} should map to itself, got {}",
-                b,
-                ch as u32
+                b, ch as u32
             );
         }
     }
@@ -662,8 +670,14 @@ mod tests {
             add_prefix_space: true,
         };
         let tok = ByteLevelBpeTokenizer::train(&texts, config);
-        assert!(tok.vocab_size() <= 300, "vocab size should not exceed requested");
-        assert!(tok.vocab_size() >= 256, "should have at least base 256 tokens");
+        assert!(
+            tok.vocab_size() <= 300,
+            "vocab size should not exceed requested"
+        );
+        assert!(
+            tok.vocab_size() >= 256,
+            "should have at least base 256 tokens"
+        );
     }
 
     #[test]
@@ -683,10 +697,7 @@ mod tests {
         let input = "hello world";
         let ids = tok.encode(input);
         let decoded = tok.decode(&ids);
-        assert_eq!(
-            decoded, input,
-            "encode/decode roundtrip should be lossless"
-        );
+        assert_eq!(decoded, input, "encode/decode roundtrip should be lossless");
     }
 
     #[test]
@@ -736,10 +747,17 @@ mod tests {
         let tok = ByteLevelBpeTokenizer::train(&texts, config);
 
         let dir = std::env::temp_dir();
-        let vocab_path = dir.join("test_bpe_vocab.json").to_string_lossy().into_owned();
-        let merges_path = dir.join("test_bpe_merges.txt").to_string_lossy().into_owned();
+        let vocab_path = dir
+            .join("test_bpe_vocab.json")
+            .to_string_lossy()
+            .into_owned();
+        let merges_path = dir
+            .join("test_bpe_merges.txt")
+            .to_string_lossy()
+            .into_owned();
 
-        tok.save_vocab(&vocab_path, &merges_path).expect("save failed");
+        tok.save_vocab(&vocab_path, &merges_path)
+            .expect("save failed");
         let loaded = ByteLevelBpeTokenizer::load(&vocab_path, &merges_path).expect("load failed");
 
         assert_eq!(tok.vocab_size(), loaded.vocab_size());

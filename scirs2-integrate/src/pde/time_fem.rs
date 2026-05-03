@@ -99,7 +99,9 @@ pub fn assemble_mass_matrix(n_elements: usize, dx: f64, lumped: bool) -> PDEResu
         ));
     }
     if dx <= 0.0 {
-        return Err(PDEError::InvalidParameter("dx must be positive".to_string()));
+        return Err(PDEError::InvalidParameter(
+            "dx must be positive".to_string(),
+        ));
     }
 
     let n = n_elements + 1;
@@ -138,7 +140,9 @@ pub fn assemble_stiffness_matrix(n_elements: usize, dx: f64) -> PDEResult<Array2
         ));
     }
     if dx <= 0.0 {
-        return Err(PDEError::InvalidParameter("dx must be positive".to_string()));
+        return Err(PDEError::InvalidParameter(
+            "dx must be positive".to_string(),
+        ));
     }
 
     let n = n_elements + 1;
@@ -203,7 +207,9 @@ pub fn time_step_theta(
         ));
     }
     if dt <= 0.0 {
-        return Err(PDEError::InvalidParameter("dt must be positive".to_string()));
+        return Err(PDEError::InvalidParameter(
+            "dt must be positive".to_string(),
+        ));
     }
     if !(0.0..=1.0).contains(&theta) {
         return Err(PDEError::InvalidParameter(
@@ -283,10 +289,14 @@ pub fn solve_heat_equation_fem(
         ));
     }
     if alpha <= 0.0 {
-        return Err(PDEError::InvalidParameter("alpha must be positive".to_string()));
+        return Err(PDEError::InvalidParameter(
+            "alpha must be positive".to_string(),
+        ));
     }
     if dt <= 0.0 {
-        return Err(PDEError::InvalidParameter("dt must be positive".to_string()));
+        return Err(PDEError::InvalidParameter(
+            "dt must be positive".to_string(),
+        ));
     }
     if !(0.0..=1.0).contains(&theta) {
         return Err(PDEError::InvalidParameter(
@@ -325,9 +335,7 @@ pub fn solve_heat_equation_fem(
     history.push(u.clone());
 
     for _ in 0..n_steps {
-        let u_new = time_step_theta(
-            &u, &k_mat, &m_mat, &f_zero, &f_zero, dt, theta, Some(bc),
-        )?;
+        let u_new = time_step_theta(&u, &k_mat, &m_mat, &f_zero, &f_zero, dt, theta, Some(bc))?;
         u = u_new;
         history.push(u.clone());
     }
@@ -383,7 +391,9 @@ pub fn solve_wave_equation_fem(
         ));
     }
     if dt <= 0.0 {
-        return Err(PDEError::InvalidParameter("dt must be positive".to_string()));
+        return Err(PDEError::InvalidParameter(
+            "dt must be positive".to_string(),
+        ));
     }
 
     let n = n_elements + 1;
@@ -493,10 +503,14 @@ pub fn adaptive_time_stepping(
     tol: f64,
 ) -> PDEResult<f64> {
     if dt <= 0.0 {
-        return Err(PDEError::InvalidParameter("dt must be positive".to_string()));
+        return Err(PDEError::InvalidParameter(
+            "dt must be positive".to_string(),
+        ));
     }
     if tol <= 0.0 {
-        return Err(PDEError::InvalidParameter("tol must be positive".to_string()));
+        return Err(PDEError::InvalidParameter(
+            "tol must be positive".to_string(),
+        ));
     }
 
     let n = u.len();
@@ -559,12 +573,7 @@ fn newmark_predict_u(
     u_pred
 }
 
-fn newmark_predict_v(
-    v: &Array1<f64>,
-    a: &Array1<f64>,
-    gamma: f64,
-    dt: f64,
-) -> Array1<f64> {
+fn newmark_predict_v(v: &Array1<f64>, a: &Array1<f64>, gamma: f64, dt: f64) -> Array1<f64> {
     let n = v.len();
     let mut v_pred = Array1::<f64>::zeros(n);
     for i in 0..n {
@@ -573,12 +582,7 @@ fn newmark_predict_v(
     v_pred
 }
 
-fn build_effective_stiffness(
-    m: &Array2<f64>,
-    k: &Array2<f64>,
-    beta: f64,
-    dt: f64,
-) -> Array2<f64> {
+fn build_effective_stiffness(m: &Array2<f64>, k: &Array2<f64>, beta: f64, dt: f64) -> Array2<f64> {
     let n = m.nrows();
     let mut k_eff = Array2::<f64>::zeros((n, n));
     for i in 0..n {
@@ -854,7 +858,8 @@ mod tests {
         // Check the amplitude at x ~ 0.5 (midpoint index)
         let mid = n_elem / 2;
         let u_final = history.last().expect("history non-empty")[mid];
-        let expected = (PI * (mid as f64) / n_elem as f64).sin() * (-PI * PI * alpha * t_final).exp();
+        let expected =
+            (PI * (mid as f64) / n_elem as f64).sin() * (-PI * PI * alpha * t_final).exp();
         let rel_err = (u_final - expected).abs() / (expected.abs() + 1e-12);
         assert!(
             rel_err < 0.02,
@@ -865,18 +870,9 @@ mod tests {
     #[test]
     fn test_heat_equation_constant_bc() {
         // With constant BCs (u=0 at both ends) and zero IC the solution stays zero
-        let history = solve_heat_equation_fem(
-            &|_| 0.0,
-            1.0,
-            0.0,
-            1.0,
-            10,
-            (0.0, 0.0),
-            0.01,
-            50,
-            0.5,
-        )
-        .expect("heat solve zero");
+        let history =
+            solve_heat_equation_fem(&|_| 0.0, 1.0, 0.0, 1.0, 10, (0.0, 0.0), 0.01, 50, 0.5)
+                .expect("heat solve zero");
         for snap in &history {
             for &v in snap.iter() {
                 assert!(v.abs() < 1e-12, "non-zero value {v} in zero solution");
@@ -1003,7 +999,11 @@ mod tests {
             for j in 0..3 {
                 ax_i += a[[i, j]] * x[j];
             }
-            assert!((ax_i - b[i]).abs() < 1e-9, "residual[{i}] = {}", ax_i - b[i]);
+            assert!(
+                (ax_i - b[i]).abs() < 1e-9,
+                "residual[{i}] = {}",
+                ax_i - b[i]
+            );
         }
     }
 }

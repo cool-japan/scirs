@@ -136,9 +136,7 @@ impl NaiveBayesClassifier {
                 // Add to vocabulary
                 let n = self.vocabulary.len();
                 self.vocabulary.entry(word.clone()).or_insert(n);
-                *class_word_counts[class_idx]
-                    .entry(word)
-                    .or_insert(0.0) += 1.0;
+                *class_word_counts[class_idx].entry(word).or_insert(0.0) += 1.0;
             }
         }
 
@@ -152,19 +150,15 @@ impl NaiveBayesClassifier {
             .collect();
 
         // Log word probabilities: P(w|c) = (count(w,c) + alpha) / (total_words(c) + alpha * V)
-        let mut class_word_log_probs: Vec<Vec<f64>> = (0..n_classes)
-            .map(|_| vec![0.0; vocab_size])
-            .collect();
+        let mut class_word_log_probs: Vec<Vec<f64>> =
+            (0..n_classes).map(|_| vec![0.0; vocab_size]).collect();
 
         for c in 0..n_classes {
             let total: f64 = class_word_counts[c].values().sum();
             let denom = total + self.alpha * vocab_size as f64;
 
             for (word, &col_idx) in &self.vocabulary {
-                let cnt = class_word_counts[c]
-                    .get(word)
-                    .copied()
-                    .unwrap_or(0.0);
+                let cnt = class_word_counts[c].get(word).copied().unwrap_or(0.0);
                 class_word_log_probs[c][col_idx] = ((cnt + self.alpha) / denom).ln();
             }
         }
@@ -203,10 +197,7 @@ impl NaiveBayesClassifier {
         let log_proba = self.predict_log_proba(text)?;
 
         // Softmax
-        let max_val = log_proba
-            .iter()
-            .cloned()
-            .fold(f64::NEG_INFINITY, f64::max);
+        let max_val = log_proba.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
         let exps: Vec<f64> = log_proba.iter().map(|&v| (v - max_val).exp()).collect();
         let sum: f64 = exps.iter().sum();
 
@@ -217,10 +208,7 @@ impl NaiveBayesClassifier {
             .map(|(name, &e)| (name.clone(), e / sum))
             .collect();
 
-        result.sort_by(|a, b| {
-            b.1.partial_cmp(&a.1)
-                .unwrap_or(std::cmp::Ordering::Equal)
-        });
+        result.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
         Ok(result)
     }
@@ -386,7 +374,7 @@ impl TextCnnLite {
 
         // Keep top n_filters * filter_sizes.len() n-grams by frequency
         let mut ngram_vec: Vec<(String, usize)> = ngram_counts.into_iter().collect();
-        ngram_vec.sort_by(|a, b| b.1.cmp(&a.1));
+        ngram_vec.sort_by_key(|(_, count)| std::cmp::Reverse(*count));
         let max_feats = self.n_filters * self.filter_sizes.len();
         self.vocab = ngram_vec
             .into_iter()
@@ -571,13 +559,7 @@ impl TfIdfLogisticClassifier {
     /// # Errors
     ///
     /// Returns [`TextError::InvalidInput`] when inputs are inconsistent.
-    pub fn fit(
-        &mut self,
-        texts: &[&str],
-        labels: &[&str],
-        max_iter: usize,
-        lr: f64,
-    ) -> Result<()> {
+    pub fn fit(&mut self, texts: &[&str], labels: &[&str], max_iter: usize, lr: f64) -> Result<()> {
         if texts.len() != labels.len() {
             return Err(TextError::InvalidInput(format!(
                 "texts ({}) and labels ({}) must have the same length",
@@ -757,10 +739,14 @@ mod tests {
         let labels = &["spam", "spam", "ham", "ham"];
         clf.fit(texts, labels).expect("fit should succeed");
 
-        let pred = clf.predict("buy cheap spam now").expect("predict should succeed");
+        let pred = clf
+            .predict("buy cheap spam now")
+            .expect("predict should succeed");
         assert_eq!(pred, "spam");
 
-        let pred2 = clf.predict("good morning hello").expect("predict should succeed");
+        let pred2 = clf
+            .predict("good morning hello")
+            .expect("predict should succeed");
         assert_eq!(pred2, "ham");
     }
 
@@ -804,7 +790,8 @@ mod tests {
         let train_labels = &[
             "positive", "positive", "positive", "negative", "negative", "negative",
         ];
-        clf.fit(train_texts, train_labels).expect("fit should succeed");
+        clf.fit(train_texts, train_labels)
+            .expect("fit should succeed");
 
         let test_texts = &["excellent wonderful", "terrible awful bad"];
         let test_labels = &["positive", "negative"];
@@ -847,10 +834,19 @@ mod tests {
             "basketball court dribble shoot",
             "baseball strike out innings",
         ];
-        let labels = &["soccer", "basketball", "baseball", "soccer", "basketball", "baseball"];
+        let labels = &[
+            "soccer",
+            "basketball",
+            "baseball",
+            "soccer",
+            "basketball",
+            "baseball",
+        ];
         clf.fit(texts, labels).expect("fit should succeed");
 
-        let pred = clf.predict("goal kick soccer field").expect("predict should succeed");
+        let pred = clf
+            .predict("goal kick soccer field")
+            .expect("predict should succeed");
         assert_eq!(pred, "soccer");
     }
 
@@ -882,8 +878,13 @@ mod tests {
         let labels = &["pos", "neg", "pos", "neg"];
         clf.fit(texts, labels, 30).expect("fit should succeed");
 
-        let pred = clf.predict("excellent wonderful").expect("predict should succeed");
-        assert!(pred == "pos" || pred == "neg", "prediction should be a valid class");
+        let pred = clf
+            .predict("excellent wonderful")
+            .expect("predict should succeed");
+        assert!(
+            pred == "pos" || pred == "neg",
+            "prediction should be a valid class"
+        );
     }
 
     #[test]
@@ -908,7 +909,9 @@ mod tests {
         let labels = &["tech", "tech", "food", "food", "tech", "food"];
         clf.fit(texts, labels, 50, 0.1).expect("fit should succeed");
 
-        let pred = clf.predict("neural network algorithm").expect("predict should succeed");
+        let pred = clf
+            .predict("neural network algorithm")
+            .expect("predict should succeed");
         assert_eq!(pred, "tech");
     }
 
@@ -922,9 +925,12 @@ mod tests {
             "negative terrible awful",
         ];
         let labels = &["pos", "neg", "pos", "neg"];
-        clf.fit(texts, labels, 30, 0.05).expect("fit should succeed");
+        clf.fit(texts, labels, 30, 0.05)
+            .expect("fit should succeed");
 
-        let probs = clf.predict_proba("happy good great").expect("predict_proba should succeed");
+        let probs = clf
+            .predict_proba("happy good great")
+            .expect("predict_proba should succeed");
         let sum: f64 = probs.iter().sum();
         assert!(
             (sum - 1.0).abs() < 1e-9,

@@ -105,7 +105,7 @@ impl<const N: usize> SparseTensor<N> {
     /// duplicate indices.
     pub fn canonicalize(&mut self) {
         // Sort by indices (lexicographic)
-        self.entries.sort_by(|a, b| a.indices.cmp(&b.indices));
+        self.entries.sort_by_key(|a| a.indices);
 
         // Merge duplicates
         let mut merged: Vec<SparseTensorEntry<N>> = Vec::with_capacity(self.entries.len());
@@ -324,7 +324,8 @@ pub fn sparse_tensor_product(
         let val_a = a_entry.value;
 
         for &(col_b, val_b) in &b_by_row[col_a] {
-            c.entries.push(SparseTensorEntry::new([row_a, col_b], val_a * val_b));
+            c.entries
+                .push(SparseTensorEntry::new([row_a, col_b], val_a * val_b));
         }
     }
 
@@ -428,7 +429,9 @@ pub fn tensor_times_vector(
             2 => [i, j],
             _ => unreachable!(),
         };
-        result.entries.push(SparseTensorEntry::new(out_idx, product));
+        result
+            .entries
+            .push(SparseTensorEntry::new(out_idx, product));
     }
 
     result.canonicalize();
@@ -474,11 +477,9 @@ mod tests {
 
     #[test]
     fn test_from_dense_basic() {
-        let data = ArrayD::<f64>::from_shape_vec(
-            IxDyn(&[2, 3]),
-            vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0],
-        )
-        .expect("shape error");
+        let data =
+            ArrayD::<f64>::from_shape_vec(IxDyn(&[2, 3]), vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0])
+                .expect("shape error");
         let sparse: SparseTensor<2> = from_dense(&data, 0.0).expect("from_dense failed");
         assert_eq!(sparse.nnz(), 3);
         assert_eq!(sparse.shape, [2, 3]);
@@ -486,11 +487,8 @@ mod tests {
 
     #[test]
     fn test_from_dense_threshold() {
-        let data = ArrayD::<f64>::from_shape_vec(
-            IxDyn(&[3]),
-            vec![1.0, 0.1, 1e-10],
-        )
-        .expect("shape error");
+        let data =
+            ArrayD::<f64>::from_shape_vec(IxDyn(&[3]), vec![1.0, 0.1, 1e-10]).expect("shape error");
         let sparse: SparseTensor<1> = from_dense(&data, 1e-9).expect("from_dense failed");
         // 1e-10 <= 1e-9, so only 2 entries should survive
         assert_eq!(sparse.nnz(), 2);
@@ -498,11 +496,9 @@ mod tests {
 
     #[test]
     fn test_to_dense_roundtrip() {
-        let data = ArrayD::<f64>::from_shape_vec(
-            IxDyn(&[2, 3]),
-            vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0],
-        )
-        .expect("shape error");
+        let data =
+            ArrayD::<f64>::from_shape_vec(IxDyn(&[2, 3]), vec![1.0, 0.0, 2.0, 0.0, 3.0, 0.0])
+                .expect("shape error");
         let sparse: SparseTensor<2> = from_dense(&data, 0.0).expect("from_dense failed");
         let dense = to_dense(&sparse, &[2, 3]).expect("to_dense failed");
         assert_eq!(dense, data);
@@ -695,11 +691,9 @@ mod tests {
 
     #[test]
     fn test_size_and_nnz() {
-        let data = ArrayD::<f64>::from_shape_vec(
-            IxDyn(&[3, 4, 5]),
-            (0..60).map(|x| x as f64).collect(),
-        )
-        .expect("shape error");
+        let data =
+            ArrayD::<f64>::from_shape_vec(IxDyn(&[3, 4, 5]), (0..60).map(|x| x as f64).collect())
+                .expect("shape error");
         let sparse: SparseTensor<3> = from_dense(&data, 0.5).expect("from_dense failed");
         assert_eq!(sparse.size(), 60);
         // All values 1..59 plus 0 is filtered; 1..59 remain = 59

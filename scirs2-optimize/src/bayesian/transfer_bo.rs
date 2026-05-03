@@ -55,7 +55,7 @@
 
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::rngs::StdRng;
-use scirs2_core::random::{Rng, SeedableRng};
+use scirs2_core::random::{Rng, RngExt, SeedableRng};
 
 use crate::error::{OptimizeError, OptimizeResult};
 
@@ -87,10 +87,7 @@ pub struct TaskObservations {
 /// the target bounds, weighted by how centrally they sit.
 ///
 /// Returns a value in `[0, 1]` where 1 means perfect overlap.
-pub fn compute_task_similarity(
-    source_obs: &TaskObservations,
-    target_bounds: &[(f64, f64)],
-) -> f64 {
+pub fn compute_task_similarity(source_obs: &TaskObservations, target_bounds: &[(f64, f64)]) -> f64 {
     if source_obs.x.is_empty() || target_bounds.is_empty() {
         return 0.0;
     }
@@ -110,7 +107,7 @@ pub fn compute_task_similarity(
             if v < lo || v > hi {
                 // Outside bounds: compute exponential penalty based on distance.
                 let dist = if v < lo { lo - v } else { v - hi };
-                point_score *= (-2.0 * dist / range).exp();
+                point_score *= (-5.0 * dist / range).exp();
             } else {
                 // Inside bounds: use a tent function peaking at the center.
                 let center = 0.5 * (lo + hi);
@@ -220,7 +217,11 @@ impl TransferBo {
     ///
     /// `n_iterations` is the total number of target evaluations (excluding
     /// any pseudo-observations from source tasks).
-    pub fn optimize<F>(&mut self, objective: F, n_iterations: usize) -> OptimizeResult<TransferBoResult>
+    pub fn optimize<F>(
+        &mut self,
+        objective: F,
+        n_iterations: usize,
+    ) -> OptimizeResult<TransferBoResult>
     where
         F: Fn(&[f64]) -> f64,
     {
@@ -251,8 +252,7 @@ impl TransferBo {
                 if !task.x.is_empty() {
                     let _ = gp.fit(&task.x, &task.y);
                 }
-                let similarity =
-                    compute_task_similarity(task, &self.target_bounds);
+                let similarity = compute_task_similarity(task, &self.target_bounds);
                 SourceModel {
                     gp,
                     similarity,
@@ -390,8 +390,7 @@ impl TransferBo {
 
                 // Target EI.
                 let target_ei = if target_gp.n_train() >= 2 {
-                    ei_single(&x_mat, &target_gp, current_best, self.config.xi)
-                        .unwrap_or(0.0)
+                    ei_single(&x_mat, &target_gp, current_best, self.config.xi).unwrap_or(0.0)
                 } else {
                     0.0
                 };
@@ -402,8 +401,8 @@ impl TransferBo {
                     if sm.gp.n_train() == 0 {
                         continue;
                     }
-                    let s_ei = ei_single(&x_mat, &sm.gp, current_best, self.config.xi)
-                        .unwrap_or(0.0);
+                    let s_ei =
+                        ei_single(&x_mat, &sm.gp, current_best, self.config.xi).unwrap_or(0.0);
                     source_ei += sm.weight * s_ei;
                 }
 
@@ -443,7 +442,10 @@ impl TransferBo {
         }
 
         if self.config.verbose >= 1 {
-            println!("[TBO] Done. n_evals={} best_f={:.6}", n_target_evals, best_y);
+            println!(
+                "[TBO] Done. n_evals={} best_f={:.6}",
+                n_target_evals, best_y
+            );
         }
 
         let x_best = best_x.unwrap_or_else(|| Array1::zeros(n_dims));
@@ -518,12 +520,7 @@ fn norm_pdf(z: f64) -> f64 {
     (-0.5 * z * z).exp() / (2.0 * std::f64::consts::PI).sqrt()
 }
 
-fn ei_single(
-    x_mat: &Array2<f64>,
-    gp: &GpSurrogate,
-    best_y: f64,
-    xi: f64,
-) -> OptimizeResult<f64> {
+fn ei_single(x_mat: &Array2<f64>, gp: &GpSurrogate, best_y: f64, xi: f64) -> OptimizeResult<f64> {
     let (mean, var) = gp.predict(x_mat)?;
     let mu = mean[0];
     let sigma = var[0].max(0.0).sqrt();
@@ -584,11 +581,11 @@ mod tests {
             verbose: 0,
             ..Default::default()
         };
-        let mut tbo =
-            TransferBo::new(vec![src], target_bounds, config).expect("build tbo");
+        let mut tbo = TransferBo::new(vec![src], target_bounds, config).expect("build tbo");
 
         // Target: f(x) = (x - 0.5)^2
-        let result = tbo.optimize(|x: &[f64]| (x[0] - 0.5_f64).powi(2), 12)
+        let result = tbo
+            .optimize(|x: &[f64]| (x[0] - 0.5_f64).powi(2), 12)
             .expect("optimize");
 
         assert!(result.f_best.is_finite());
@@ -606,9 +603,9 @@ mod tests {
             seed: Some(7),
             ..Default::default()
         };
-        let mut tbo =
-            TransferBo::new(vec![], target_bounds, config).expect("build tbo");
-        let result = tbo.optimize(|x: &[f64]| (x[0] - 2.5_f64).powi(2), 8)
+        let mut tbo = TransferBo::new(vec![], target_bounds, config).expect("build tbo");
+        let result = tbo
+            .optimize(|x: &[f64]| (x[0] - 2.5_f64).powi(2), 8)
             .expect("optimize");
         assert!(result.f_best.is_finite());
     }
@@ -630,8 +627,7 @@ mod tests {
             seed: Some(1),
             ..Default::default()
         };
-        let mut tbo =
-            TransferBo::new(vec![task1, task2], target_bounds, config).expect("build");
+        let mut tbo = TransferBo::new(vec![task1, task2], target_bounds, config).expect("build");
         let result = tbo.optimize(|x: &[f64]| x[0].powi(2), 5).expect("opt");
 
         let w_sum: f64 = result.source_weights.iter().sum();

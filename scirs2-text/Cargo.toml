@@ -20,6 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 # Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
 scirs2-core = { workspace = true, features = ["parallel", "simd", "array", "random"] }
+scirs2-linalg = { workspace = true }
 thiserror = { workspace = true }
 statrs = { workspace = true }
 approx = { workspace = true }

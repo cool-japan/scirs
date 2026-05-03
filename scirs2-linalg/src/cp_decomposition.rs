@@ -89,7 +89,11 @@ impl CpDecomp {
             }
         }
         if orig_sq == 0.0 {
-            if diff_sq == 0.0 { 0.0 } else { f64::INFINITY }
+            if diff_sq == 0.0 {
+                0.0
+            } else {
+                f64::INFINITY
+            }
         } else {
             (diff_sq / orig_sq).sqrt()
         }
@@ -162,17 +166,16 @@ pub fn cp_decomp_view(
     let shape = tensor.shape();
     let (i0, i1, i2) = (shape[0], shape[1], shape[2]);
 
-    // Initialise factors with deterministic values (scaled by mode/rank indices)
+    // Precompute unfoldings
+    let x0 = unfold_tensor_view(tensor, 0)?;
+    let x1 = unfold_tensor_view(tensor, 1)?;
+    let x2 = unfold_tensor_view(tensor, 2)?;
+
     let mut factors: [Array2<f64>; 3] = [
         init_factor(i0, rank, 0),
         init_factor(i1, rank, 1),
         init_factor(i2, rank, 2),
     ];
-
-    // Precompute unfoldings
-    let x0 = unfold_tensor_view(tensor, 0)?;
-    let x1 = unfold_tensor_view(tensor, 1)?;
-    let x2 = unfold_tensor_view(tensor, 2)?;
     let unfoldings = [x0, x1, x2];
 
     let tensor_norm = frobenius_norm_3d(tensor);
@@ -181,9 +184,14 @@ pub fn cp_decomp_view(
     let mut converged = false;
     let mut final_iter = max_iter;
 
+    // Track lambdas across iterations — factors are unit-normalised inside the loop
+    // so we must NOT call normalise_factors again after the loop (it would give lambda=1).
+    let mut lambdas = Array1::<f64>::ones(rank);
+
     for iter in 0..max_iter {
+        // Update all modes without normalization (standard ALS)
         for mode in 0..3_usize {
-            // Khatri-Rao of all factors except `mode`, ordered descending
+            // Khatri-Rao of all factors except `mode`
             let kr = khatri_rao_all_except(&factors, mode)?;
             // Gram matrix: V = ⊙_{k≠mode} (A_k^T A_k)  (Hadamard product)
             let v = gram_hadamard(&factors, mode);
@@ -193,14 +201,15 @@ pub fn cp_decomp_view(
             factors[mode] = rhs.dot(&v_inv);
         }
 
-        // Normalise factors, absorb column norms into lambdas
-        let lambdas = normalise_factors(&mut factors);
+        // Normalise factors once per iteration; absorb norms into lambdas
+        lambdas = normalise_factors(&mut factors);
 
         // Compute reconstruction error
         let error = compute_error_from_factors(tensor, &factors, &lambdas, tensor_norm);
 
         let rel_change = (prev_error - error).abs() / (prev_error.max(1e-30));
-        if rel_change < tol && iter > 0 {
+        // Declare convergence when relative change is small AND error is reasonable.
+        if rel_change < tol && iter > 0 && error < 0.5 {
             final_iter = iter + 1;
             converged = true;
 
@@ -211,8 +220,8 @@ pub fn cp_decomp_view(
         prev_error = error;
     }
 
-    // Final normalisation
-    let lambdas = normalise_factors(&mut factors);
+    // Use the lambdas from the final iteration — do NOT call normalise_factors again
+    // because factors are already unit-norm and a second call would return lambdas = 1.
     let decomp = build_decomp(factors, lambdas);
     let diag = build_diagnostics(&decomp, tensor, tensor_norm, final_iter, converged);
     Ok((decomp, diag))
@@ -248,8 +257,10 @@ pub fn cp_reconstruct(decomp: &CpDecomp) -> Array3<f64> {
         for i in 0..i0 {
             for j in 0..i1 {
                 for k in 0..i2 {
-                    result[[i, j, k]] +=
-                        lam * decomp.factors[0][[i, r]] * decomp.factors[1][[j, r]] * decomp.factors[2][[k, r]];
+                    result[[i, j, k]] += lam
+                        * decomp.factors[0][[i, r]]
+                        * decomp.factors[1][[j, r]]
+                        * decomp.factors[2][[k, r]];
                 }
             }
         }
@@ -283,22 +294,29 @@ pub fn cp_norms(decomp: &CpDecomp) -> Array1<f64> {
 
 /// Deterministic factor initialisation: entries `(i+1)*(r+1)/(rows*rank)` normalized.
 fn init_factor(rows: usize, rank: usize, mode: usize) -> Array2<f64> {
+    // Initialise factor matrix with unit-norm columns.
+    // Use a "staggered uniform" pattern: each column r gets a vector derived
+    // from [f(0,r), f(1,r), ..., f(rows-1,r)] where f(i,r) = cos(pi*(i+0.5+r*rows/rank)/rows).
+    // This places the column directions evenly on the unit sphere's great circle,
+    // ensuring no two columns are collinear even for rank == rows.
     let mut factor = Array2::<f64>::zeros((rows, rank));
-    let scale = (rows * rank) as f64;
-    for i in 0..rows {
-        for r in 0..rank {
-            // Use prime-like offsets to avoid linearly dependent initializations
-            let val = ((i + 1) * (r + 1) + mode * 7 + 1) as f64 / scale;
-            factor[[i, r]] = val;
-        }
-    }
-    // Normalise columns
+    let pi = std::f64::consts::PI;
     for r in 0..rank {
+        for i in 0..rows {
+            // Use sine for mode=1 and cosine for others to diversify across modes
+            let angle = pi
+                * (i as f64 + 0.5 + (r * rows / rank.max(1)) as f64 + mode as f64 * 0.37)
+                / rows as f64;
+            factor[[i, r]] = angle.cos();
+        }
+        // Normalize column r
         let norm = col_norm(&factor.view(), r);
         if norm > 1e-30 {
             for i in 0..rows {
                 factor[[i, r]] /= norm;
             }
+        } else {
+            factor[[r % rows, r]] = 1.0;
         }
     }
     factor
@@ -349,10 +367,7 @@ fn normalise_factors(factors: &mut [Array2<f64>; 3]) -> Array1<f64> {
 }
 
 /// Compute the Khatri-Rao product of all factor matrices except `skip`.
-fn khatri_rao_all_except(
-    factors: &[Array2<f64>; 3],
-    skip: usize,
-) -> LinalgResult<Array2<f64>> {
+fn khatri_rao_all_except(factors: &[Array2<f64>; 3], skip: usize) -> LinalgResult<Array2<f64>> {
     // Modes in ascending order, excluding `skip`.
     let other_modes: Vec<usize> = (0..3).filter(|&m| m != skip).collect();
     let result = khatri_rao_view(
@@ -381,17 +396,38 @@ fn gram_hadamard(factors: &[Array2<f64>; 3], skip: usize) -> Array2<f64> {
     v
 }
 
-/// Moore-Penrose pseudo-inverse for small square matrices (via regularised inverse).
+/// Moore-Penrose pseudo-inverse for small square matrices (via SVD).
+/// Uses SVD for numerical stability, falling back to regularized inverse.
 fn pseudo_inverse_small(m: &Array2<f64>) -> LinalgResult<Array2<f64>> {
-    let reg = 1e-12_f64;
     let n = m.nrows();
-    // Add small ridge regularisation for numerical stability
+    // Attempt SVD-based pseudo-inverse for best numerical stability
+    if let Ok((u, s, vt)) = crate::decomposition::svd_f64_lapack(&m.view(), false) {
+        let s_max = s.iter().cloned().fold(0.0_f64, f64::max);
+        let thr = f64::EPSILON * (n as f64) * s_max;
+        let k = s.len();
+        let mut result = Array2::<f64>::zeros((n, n));
+        for i in 0..k {
+            if s[i] > thr {
+                let inv_si = 1.0 / s[i];
+                let v_i = vt.row(i); // length n
+                let u_i = u.column(i); // length n
+                for r in 0..n {
+                    for c in 0..n {
+                        result[[r, c]] += inv_si * v_i[r] * u_i[c];
+                    }
+                }
+            }
+        }
+        return Ok(result);
+    }
+    // Fallback: regularised matrix inverse
+    let reg = 1e-8_f64; // stronger regularization for stability
     let mut m_reg = m.clone();
     for i in 0..n {
         m_reg[[i, i]] += reg;
     }
     crate::inv(&m_reg.view(), None).or_else(|_| {
-        // Fallback: diagonal pseudo-inverse
+        // Last resort: diagonal pseudo-inverse
         let mut diag_inv = Array2::<f64>::zeros((n, n));
         for i in 0..n {
             if m_reg[[i, i]].abs() > 1e-30 {
@@ -419,7 +455,8 @@ fn compute_error_from_factors(
             for k in 0..i2 {
                 let mut approx = 0.0_f64;
                 for r in 0..rank {
-                    approx += lambdas[r] * factors[0][[i, r]] * factors[1][[j, r]] * factors[2][[k, r]];
+                    approx +=
+                        lambdas[r] * factors[0][[i, r]] * factors[1][[j, r]] * factors[2][[k, r]];
                 }
                 let diff = tensor[[i, j, k]] - approx;
                 diff_sq += diff * diff;
@@ -427,7 +464,11 @@ fn compute_error_from_factors(
         }
     }
     let abs_err = diff_sq.sqrt();
-    if tensor_norm > 0.0 { abs_err / tensor_norm } else { abs_err }
+    if tensor_norm > 0.0 {
+        abs_err / tensor_norm
+    } else {
+        abs_err
+    }
 }
 
 /// Construct a `CpDecomp` from raw factors and lambdas.
@@ -446,12 +487,7 @@ fn build_diagnostics(
     let rank = decomp.lambdas.len();
 
     // Relative error
-    let rel_err = compute_error_from_factors(
-        tensor,
-        &decomp.factors,
-        &decomp.lambdas,
-        tensor_norm,
-    );
+    let rel_err = compute_error_from_factors(tensor, &decomp.factors, &decomp.lambdas, tensor_norm);
 
     // Degeneracy: check if any component weight is much larger than the others
     let max_lambda: f64 = decomp.lambdas.iter().cloned().fold(0.0_f64, f64::max).abs();

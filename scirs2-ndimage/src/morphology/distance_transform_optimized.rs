@@ -450,7 +450,7 @@ where
                         let ni = i as i32 + di;
                         let nj = j as i32 + dj;
 
-                        if ni >= 0 && nj >= 0 {
+                        if ni >= 0 && nj >= 0 && nj < width as i32 {
                             let ni_u = ni as usize;
                             let nj_u = nj as usize;
                             min_dist = min_dist.min(dt[[ni_u, nj_u]] + T::one());
@@ -549,7 +549,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - index out of bounds: [0, 3] for shape [3, 3] at line 456"]
     fn test_chessboard_distance_transform() {
         let input = array![[true, true, true], [true, false, true], [true, true, true]];
 

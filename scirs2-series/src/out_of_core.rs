@@ -828,10 +828,15 @@ impl OutOfCoreQuantileEstimator {
         }
 
         // Find cell k such that heights[k] <= value < heights[k+1]
+        // Also update extreme markers if value is outside current range.
         let mut k = 0;
         if value < self.heights[0] {
+            // New minimum: update marker 0 and keep k = 0
+            self.heights[0] = value;
             k = 0;
         } else if value >= self.heights[4] {
+            // New maximum: update marker 4 and keep k = 3
+            self.heights[4] = value;
             k = 3;
         } else {
             for i in 0..4 {
@@ -847,15 +852,20 @@ impl OutOfCoreQuantileEstimator {
             self.positions[i] += 1.0;
         }
 
-        // Update desired positions (P² algorithm standard formulation)
+        // Desired positions after n observations (Jain & Chlamtac 1985):
+        //   n₁'(n) = 1
+        //   n₂'(n) = 1 + (n-1)*p/2        ← interpolates 0..p/2 of the range
+        //   n₃'(n) = 1 + (n-1)*p           ← the p-th quantile position
+        //   n₄'(n) = 1 + (n-1)*(1+p)/2    ← interpolates p..(1+p)/2
+        //   n₅'(n) = n
         let n = self.count as f64;
         let p = self.quantile;
         let desired_positions = [
-            1.0,                       // n₁ = 1 (minimum)
-            1.0 + 2.0 * p * (n - 1.0), // n₂ = 1 + 2p(n-1)
-            1.0 + 4.0 * p * (n - 1.0), // n₃ = 1 + 4p(n-1) (target quantile)
-            3.0 + 2.0 * p * (n - 1.0), // n₄ = 3 + 2p(n-1)
-            n,                         // n₅ = n (maximum)
+            1.0,                               // n₁ = 1 (minimum)
+            1.0 + 0.5 * p * (n - 1.0),         // n₂
+            1.0 + p * (n - 1.0),               // n₃ (target quantile)
+            1.0 + 0.5 * (1.0 + p) * (n - 1.0), // n₄
+            n,                                 // n₅ = n (maximum)
         ];
 
         // Adjust heights of markers 1-3 if necessary
@@ -1099,22 +1109,119 @@ mod tests {
         }
 
         let median = estimator.quantile_estimate().expect("Operation failed");
-        let (heights, positions) = estimator.debug_state();
 
-        println!("Estimated median: {}", median);
-        println!("Heights: {:?}", heights);
-        println!("Positions: {:?}", positions);
-
-        // The P² algorithm approximation - allow generous margin for test to pass
-        // The actual median should be 50.5, but allow large error margin due to implementation complexity
+        // The true median of 1..=100 is 50.5. After fixing the P² desired-position
+        // formula, the estimate should converge within ~10 units.
         assert!(
-            median >= 1.0 && median <= 100.0,
-            "Median estimate {} should be between 1 and 100",
+            (median - 50.5).abs() < 15.0,
+            "Median estimate {} should be near 50.5 (true median of 1..=100)",
             median
         );
+        // Must be within the observed range
+        assert!(
+            median >= 1.0 && median <= 100.0,
+            "Median estimate {} must be in [1, 100]",
+            median
+        );
+    }
 
-        // TODO: Fix P² algorithm implementation properly
-        // For now, just verify it produces a value in the valid range
+    // ---- NEW TESTS FOR P² ALGORITHM FIX ----
+
+    /// Feed 1000 uniform [0,1) values and check that the 0.5 quantile converges
+    /// to the true median (0.5) within a tight tolerance.
+    #[test]
+    fn test_p2_median_uniform_convergence() {
+        let mut estimator =
+            OutOfCoreQuantileEstimator::new(0.5).expect("Failed to create estimator");
+
+        // Use a deterministic LCG sequence for reproducibility
+        let mut state: u64 = 12345;
+        for _ in 0..1000 {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let x = (state >> 33) as f64 / (1u64 << 31) as f64;
+            estimator.update(x);
+        }
+
+        let est = estimator
+            .quantile_estimate()
+            .expect("Should have estimate after 1000 values");
+
+        // P² converges well for large n; allow ±5% of the range
+        assert!(
+            (est - 0.5).abs() < 0.05,
+            "P² median estimate {} should be near 0.5 for uniform data",
+            est
+        );
+    }
+
+    /// Test 0.1 and 0.9 quantile estimates on uniform [0,1) data.
+    #[test]
+    fn test_p2_tail_quantiles_uniform() {
+        // 0.1-quantile
+        let mut est10 = OutOfCoreQuantileEstimator::new(0.1).expect("Failed to create estimator");
+        // 0.9-quantile
+        let mut est90 = OutOfCoreQuantileEstimator::new(0.9).expect("Failed to create estimator");
+
+        let mut state: u64 = 98765;
+        for _ in 0..2000 {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let x = (state >> 33) as f64 / (1u64 << 31) as f64;
+            est10.update(x);
+            est90.update(x);
+        }
+
+        let q10 = est10
+            .quantile_estimate()
+            .expect("Should have 0.1-quantile estimate");
+        let q90 = est90
+            .quantile_estimate()
+            .expect("Should have 0.9-quantile estimate");
+
+        // True values: 0.1 and 0.9 for Uniform(0,1); allow ±0.05 tolerance
+        assert!(
+            (q10 - 0.1).abs() < 0.05,
+            "0.1-quantile estimate {} should be near 0.1",
+            q10
+        );
+        assert!(
+            (q90 - 0.9).abs() < 0.05,
+            "0.9-quantile estimate {} should be near 0.9",
+            q90
+        );
+    }
+
+    /// After many updates the five marker heights must remain strictly ordered.
+    #[test]
+    fn test_p2_markers_ordered() {
+        let mut estimator =
+            OutOfCoreQuantileEstimator::new(0.5).expect("Failed to create estimator");
+
+        let mut state: u64 = 42;
+        for _ in 0..500 {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            let x = (state >> 33) as f64 / (1u64 << 31) as f64;
+            estimator.update(x);
+        }
+
+        let (heights, _positions) = estimator.debug_state();
+
+        // Markers must be weakly ordered: h[0] <= h[1] <= ... <= h[4]
+        for i in 0..4 {
+            assert!(
+                heights[i] <= heights[i + 1],
+                "Marker heights must be ordered: heights[{}]={} > heights[{}]={}",
+                i,
+                heights[i],
+                i + 1,
+                heights[i + 1]
+            );
+        }
     }
 
     #[test]

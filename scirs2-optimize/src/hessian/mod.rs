@@ -79,12 +79,7 @@ where
     pub fn new(fun: F, x0: &[f64], step: f64) -> Result<Self, OptimizeError> {
         let x = x0.to_vec();
         let hess = compute_fd_hessian(&fun, &x, step)?;
-        Ok(Self {
-            fun,
-            x,
-            step,
-            hess,
-        })
+        Ok(Self { fun, x, step, hess })
     }
 
     /// Create with the default step size.
@@ -201,7 +196,9 @@ impl HessianApproximation for SR1Update {
     fn update(&mut self, s: &[f64], y: &[f64]) -> Result<(), OptimizeError> {
         let n = self.n;
         if s.len() != n || y.len() != n {
-            return Err(OptimizeError::ValueError("Dimension mismatch in SR1".to_string()));
+            return Err(OptimizeError::ValueError(
+                "Dimension mismatch in SR1".to_string(),
+            ));
         }
 
         // Compute u = y - B s
@@ -250,9 +247,8 @@ impl HessianApproximation for SR1Update {
         }
         let mut a: Vec<Vec<f64>> = (0..n).map(|i| self.b.row(i).to_vec()).collect();
         let mut b = v.to_vec();
-        gaussian_solve(&mut a, &mut b).ok_or_else(|| {
-            OptimizeError::ComputationError("SR1 Hessian singular".to_string())
-        })
+        gaussian_solve(&mut a, &mut b)
+            .ok_or_else(|| OptimizeError::ComputationError("SR1 Hessian singular".to_string()))
     }
 
     fn to_dense(&self) -> Array2<f64> {
@@ -305,7 +301,9 @@ impl HessianApproximation for BFGSUpdate {
     fn update(&mut self, s: &[f64], y: &[f64]) -> Result<(), OptimizeError> {
         let n = self.n;
         if s.len() != n || y.len() != n {
-            return Err(OptimizeError::ValueError("Dimension mismatch in BFGS".to_string()));
+            return Err(OptimizeError::ValueError(
+                "Dimension mismatch in BFGS".to_string(),
+            ));
         }
 
         let sy: f64 = (0..n).map(|i| s[i] * y[i]).sum();
@@ -423,7 +421,9 @@ impl HessianApproximation for DFP {
     fn update(&mut self, s: &[f64], y: &[f64]) -> Result<(), OptimizeError> {
         let n = self.n;
         if s.len() != n || y.len() != n {
-            return Err(OptimizeError::ValueError("Dimension mismatch in DFP".to_string()));
+            return Err(OptimizeError::ValueError(
+                "Dimension mismatch in DFP".to_string(),
+            ));
         }
 
         let sy: f64 = (0..n).map(|i| s[i] * y[i]).sum();
@@ -489,11 +489,7 @@ impl HessianApproximation for DFP {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /// Compute the full finite-difference Hessian at `x`.
-fn compute_fd_hessian<F>(
-    fun: &F,
-    x: &[f64],
-    step: f64,
-) -> Result<Array2<f64>, OptimizeError>
+fn compute_fd_hessian<F>(fun: &F, x: &[f64], step: f64) -> Result<Array2<f64>, OptimizeError>
 where
     F: Fn(&ArrayView1<f64>) -> f64,
 {

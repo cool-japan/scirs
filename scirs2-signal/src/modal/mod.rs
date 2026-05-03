@@ -39,6 +39,7 @@
 
 pub mod fdd;
 pub mod free_vibration;
+pub mod mac;
 pub mod ssi;
 
 // Convenience re-exports

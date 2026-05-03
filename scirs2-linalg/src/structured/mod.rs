@@ -44,12 +44,16 @@ use scirs2_core::ndarray::{Array1, Array2, ArrayView1};
 use scirs2_core::numeric::{Float, NumAssign, One, Zero};
 use std::{fmt::Debug, iter::Sum};
 
+mod cauchy;
 mod circulant;
+mod companion;
 mod hankel;
 mod toeplitz;
 mod utils;
 
+pub use cauchy::{cauchy_det, cauchy_matrix, solve_cauchy};
 pub use circulant::CirculantMatrix;
+pub use companion::{companion_matrix, poly_roots};
 pub use hankel::HankelMatrix;
 pub use toeplitz::ToeplitzMatrix;
 pub use utils::{

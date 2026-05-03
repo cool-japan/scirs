@@ -55,8 +55,8 @@ impl CPDecomp {
             for i in 0..i_dim {
                 for j in 0..j_dim {
                     for k in 0..k_dim {
-                        let v = result.get(i, j, k)
-                            + lam * self.a[i][r] * self.b[j][r] * self.c[k][r];
+                        let v =
+                            result.get(i, j, k) + lam * self.a[i][r] * self.b[j][r] * self.c[k][r];
                         result.set(i, j, k, v);
                     }
                 }
@@ -116,12 +116,7 @@ impl CPDecomp {
 /// # Errors
 /// Returns an error if `rank == 0`, `max_iter == 0`, or an internal linear
 /// algebra operation fails.
-pub fn fit_als(
-    x: &Tensor3D,
-    rank: usize,
-    max_iter: usize,
-    tol: f64,
-) -> LinalgResult<CPDecomp> {
+pub fn fit_als(x: &Tensor3D, rank: usize, max_iter: usize, tol: f64) -> LinalgResult<CPDecomp> {
     fit_als_impl(x, rank, max_iter, tol, 0.0)
 }
 
@@ -162,9 +157,7 @@ fn fit_als_impl(
         return Err(LinalgError::DomainError("CP rank must be ≥ 1".to_string()));
     }
     if max_iter == 0 {
-        return Err(LinalgError::DomainError(
-            "max_iter must be ≥ 1".to_string(),
-        ));
+        return Err(LinalgError::DomainError("max_iter must be ≥ 1".to_string()));
     }
 
     let [i_dim, j_dim, k_dim] = x.shape;
@@ -181,6 +174,10 @@ fn fit_als_impl(
     let mut a = pad_or_trim_columns(u0, i_dim, rank);
     let mut b = pad_or_trim_columns(u1, j_dim, rank);
     let mut c = pad_or_trim_columns(u2, k_dim, rank);
+    // lambda is reset at the start of each iteration: it stores column norms
+    // for the *current* iteration only. Accumulating across iterations causes
+    // exponential blow-up (lambda → ∞) because normalise_columns multiplies
+    // lambda by the column norm on every call.
     let mut lambda = vec![1.0_f64; rank];
 
     // Mode unfoldings (precomputed)
@@ -191,32 +188,46 @@ fn fit_als_impl(
     let mut prev_err = f64::INFINITY;
 
     for _iter in 0..max_iter {
+        // Standard ALS updates: all three factors first, then normalize once.
+        // Normalization happens AFTER all three updates so each update uses
+        // the correctly-scaled factors from the previous iteration.
+
         // --- Update A ---
-        // A ← X_(1) · (C ⊙ B) · (CᵀC * BᵀB)⁻¹
-        let cb = Tensor3D::khatri_rao(&c, &b)?;     // (KJ × R)
-        let gram_cb = gram_hadamard(&c, &b)?;        // R × R
-        let gram_cb_reg = add_ridge(&gram_cb, lambda_reg);
-        let rhs_a = mat_mul(&x_unfold_0, &cb)?;      // I × R
-        a = solve_spd_rows(&gram_cb_reg, &rhs_a)?;   // I × R
-        normalise_columns(&mut a, &mut lambda);
+        // A ← X_(0) · (B ⊙ C) · (BᵀB * CᵀC)⁻¹
+        let bc = Tensor3D::khatri_rao(&b, &c)?; // (JK × R)
+        let gram_bc = gram_hadamard(&b, &c)?; // R × R
+        let gram_bc_reg = add_ridge(&gram_bc, lambda_reg);
+        let rhs_a = mat_mul(&x_unfold_0, &bc)?; // I × R
+        a = solve_spd_rows(&gram_bc_reg, &rhs_a)?; // I × R
 
         // --- Update B ---
-        // B ← X_(2) · (C ⊙ A) · (CᵀC * AᵀA)⁻¹
-        let ca = Tensor3D::khatri_rao(&c, &a)?;      // (KI × R)
-        let gram_ca = gram_hadamard(&c, &a)?;
-        let gram_ca_reg = add_ridge(&gram_ca, lambda_reg);
-        let rhs_b = mat_mul(&x_unfold_1, &ca)?;
-        b = solve_spd_rows(&gram_ca_reg, &rhs_b)?;
-        normalise_columns(&mut b, &mut lambda);
+        // B ← X_(1) · (A ⊙ C) · (AᵀA * CᵀC)⁻¹
+        let ac = Tensor3D::khatri_rao(&a, &c)?; // (IK × R)
+        let gram_ac = gram_hadamard(&a, &c)?;
+        let gram_ac_reg = add_ridge(&gram_ac, lambda_reg);
+        let rhs_b = mat_mul(&x_unfold_1, &ac)?;
+        b = solve_spd_rows(&gram_ac_reg, &rhs_b)?;
 
         // --- Update C ---
-        // C ← X_(3) · (B ⊙ A) · (BᵀB * AᵀA)⁻¹
-        let ba = Tensor3D::khatri_rao(&b, &a)?;      // (JI × R)
-        let gram_ba = gram_hadamard(&b, &a)?;
-        let gram_ba_reg = add_ridge(&gram_ba, lambda_reg);
-        let rhs_c = mat_mul(&x_unfold_2, &ba)?;
-        c = solve_spd_rows(&gram_ba_reg, &rhs_c)?;
-        normalise_columns(&mut c, &mut lambda);
+        // C ← X_(2) · (A ⊙ B) · (AᵀA * BᵀB)⁻¹
+        let ab = Tensor3D::khatri_rao(&a, &b)?; // (IJ × R)
+        let gram_ab = gram_hadamard(&a, &b)?;
+        let gram_ab_reg = add_ridge(&gram_ab, lambda_reg);
+        let rhs_c = mat_mul(&x_unfold_2, &ab)?;
+        c = solve_spd_rows(&gram_ab_reg, &rhs_c)?;
+
+        // --- Normalize all factors once per iteration ---
+        // lambda[r] = ‖A[:,r]‖ * ‖B[:,r]‖ * ‖C[:,r]‖
+        // Each factor is divided by its column norm; lambda absorbs the scale.
+        let mut norm_a = vec![1.0_f64; rank];
+        let mut norm_b = vec![1.0_f64; rank];
+        let mut norm_c = vec![1.0_f64; rank];
+        normalise_columns(&mut a, &mut norm_a);
+        normalise_columns(&mut b, &mut norm_b);
+        normalise_columns(&mut c, &mut norm_c);
+        for r in 0..rank {
+            lambda[r] = norm_a[r] * norm_b[r] * norm_c[r];
+        }
 
         // --- Convergence check ---
         if tol > 0.0 && x_norm > 0.0 {
@@ -270,10 +281,7 @@ fn add_ridge(mat: &[Vec<f64>], ridge: f64) -> Vec<Vec<f64>> {
 
 /// Solve `X · G = RHS` for each row of `RHS`, i.e. `X = RHS · G⁻¹`.
 /// We solve `G · Xᵀ = RHSᵀ` and transpose.
-fn solve_spd_rows(
-    gram_mat: &[Vec<f64>],
-    rhs: &[Vec<f64>],
-) -> LinalgResult<Vec<Vec<f64>>> {
+fn solve_spd_rows(gram_mat: &[Vec<f64>], rhs: &[Vec<f64>]) -> LinalgResult<Vec<Vec<f64>>> {
     // gram_mat is R×R, rhs is (rows × R).
     // We want each row of the output to satisfy: out[i] · gram_mat = rhs[i].
     // Equivalently: gram_mat^T · out[i]^T = rhs[i]^T  (gram_mat is symmetric).
@@ -284,7 +292,7 @@ fn solve_spd_rows(
 
 /// Normalise each column of `mat` and accumulate the norms multiplicatively
 /// into `lambda`.
-fn normalise_columns(mat: &mut Vec<Vec<f64>>, lambda: &mut Vec<f64>) {
+fn normalise_columns(mat: &mut [Vec<f64>], lambda: &mut [f64]) {
     let rows = mat.len();
     if rows == 0 {
         return;
@@ -359,12 +367,7 @@ fn reconstruction_error_fast(
 // ---------------------------------------------------------------------------
 
 /// Convenience: same as [`fit_als`].
-pub fn cp_als(
-    x: &Tensor3D,
-    rank: usize,
-    max_iter: usize,
-    tol: f64,
-) -> LinalgResult<CPDecomp> {
+pub fn cp_als(x: &Tensor3D, rank: usize, max_iter: usize, tol: f64) -> LinalgResult<CPDecomp> {
     fit_als(x, rank, max_iter, tol)
 }
 
@@ -381,12 +384,12 @@ mod tests {
         let i = 4usize;
         let j = 5usize;
         let k = 6usize;
-        let a1 = vec![1.0, 0.0, 0.0, 0.0];
-        let b1 = vec![0.0, 1.0, 0.0, 0.0, 0.0];
-        let c1 = vec![0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
-        let a2 = vec![0.0, 1.0, 0.0, 0.0];
-        let b2 = vec![0.0, 0.0, 1.0, 0.0, 0.0];
-        let c2 = vec![0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
+        let a1 = [1.0, 0.0, 0.0, 0.0];
+        let b1 = [0.0, 1.0, 0.0, 0.0, 0.0];
+        let c1 = [0.0, 0.0, 1.0, 0.0, 0.0, 0.0];
+        let a2 = [0.0, 1.0, 0.0, 0.0];
+        let b2 = [0.0, 0.0, 1.0, 0.0, 0.0];
+        let c2 = [0.0, 0.0, 0.0, 1.0, 0.0, 0.0];
         let mut data = vec![0.0_f64; i * j * k];
         for ii in 0..i {
             for jj in 0..j {
@@ -404,10 +407,7 @@ mod tests {
         let x = make_rank2_tensor();
         let decomp = fit_als(&x, 2, 200, 1e-8).expect("als ok");
         let err = decomp.relative_error(&x).expect("err ok");
-        assert!(
-            err < 0.1,
-            "CP reconstruction error {err:.4} >= 0.1"
-        );
+        assert!(err < 0.1, "CP reconstruction error {err:.4} >= 0.1");
     }
 
     #[test]
@@ -415,10 +415,7 @@ mod tests {
         let x = make_rank2_tensor();
         let decomp = fit_sparse_als(&x, 2, 200, 1e-4).expect("sparse als ok");
         let err = decomp.relative_error(&x).expect("err ok");
-        assert!(
-            err < 0.15,
-            "CP sparse ALS error {err:.4} >= 0.15"
-        );
+        assert!(err < 0.15, "CP sparse ALS error {err:.4} >= 0.15");
     }
 
     #[test]
@@ -428,9 +425,7 @@ mod tests {
         let b = [4.0_f64, 5.0];
         let c = [6.0_f64, 7.0, 8.0];
         let data: Vec<f64> = (0..3)
-            .flat_map(|i| {
-                (0..2).flat_map(move |j| (0..3).map(move |k| a[i] * b[j] * c[k]))
-            })
+            .flat_map(|i| (0..2).flat_map(move |j| (0..3).map(move |k| a[i] * b[j] * c[k])))
             .collect();
         let x = Tensor3D::new(data, [3, 2, 3]).expect("ok");
         let decomp = fit_als(&x, 1, 100, 1e-10).expect("als ok");

@@ -41,10 +41,7 @@ pub fn is_planar(edges: &[(usize, usize)], n_nodes: usize) -> bool {
 ///
 /// The embedding is a vector of length `n_nodes`; entry `v` contains the
 /// neighbour list of `v` in counter-clockwise order around `v`.
-pub fn planar_embedding(
-    edges: &[(usize, usize)],
-    n_nodes: usize,
-) -> Option<Vec<Vec<usize>>> {
+pub fn planar_embedding(edges: &[(usize, usize)], n_nodes: usize) -> Option<Vec<Vec<usize>>> {
     if !lr_planarity_test(edges, n_nodes) {
         return None;
     }
@@ -127,7 +124,12 @@ fn build_adj(edges: &[(usize, usize)], n_nodes: usize) -> Vec<Vec<usize>> {
 // Left-Right Planarity core
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Core LR planarity test — O(N+M).
+/// Core planarity test using density check + Kuratowski minor search.
+///
+/// The density check rules out all graphs with E > 3V-6 (necessary condition
+/// for planarity). For graphs that pass the density check, we search for K5
+/// and K3,3 topological minors; by Kuratowski's theorem a graph is non-planar
+/// iff it contains one of these as a topological minor.
 fn lr_planarity_test(edges: &[(usize, usize)], n_nodes: usize) -> bool {
     if n_nodes == 0 {
         return true;
@@ -139,29 +141,18 @@ fn lr_planarity_test(edges: &[(usize, usize)], n_nodes: usize) -> bool {
 
     let adj = build_adj(edges, n_nodes);
 
-    // Process every connected component separately.
-    let mut visited = vec![false; n_nodes];
-    for start in 0..n_nodes {
-        if !visited[start] {
-            if !adj[start].is_empty() {
-                if !lr_component(&adj, n_nodes, start, &mut visited) {
-                    return false;
-                }
-            } else {
-                visited[start] = true;
-            }
-        }
+    // By Kuratowski's theorem: non-planar iff contains K5 or K3,3 topological minor.
+    if find_k5_minor(&adj, n_nodes).is_some() {
+        return false;
+    }
+    if find_k33_minor(&adj, n_nodes).is_some() {
+        return false;
     }
     true
 }
 
 /// Left-Right test for one connected component, rooted at `root`.
-fn lr_component(
-    adj: &[Vec<usize>],
-    n_nodes: usize,
-    root: usize,
-    visited: &mut Vec<bool>,
-) -> bool {
+fn lr_component(adj: &[Vec<usize>], n_nodes: usize, root: usize, visited: &mut [bool]) -> bool {
     // ── Phase 1: DFS tree + low-point labelling ───────────────────────────
     let mut dfs_num = vec![-1i64; n_nodes];
     let mut parent = vec![usize::MAX; n_nodes];
@@ -208,7 +199,9 @@ fn lr_component(
     // Update low-points for back edges
     for &v in &order {
         for &w in &adj[v] {
-            if parent[w] != v && dfs_num[w] < dfs_num[v] {
+            // A back edge from v to an ancestor w: w is not the parent of v
+            // (i.e., parent[v] != w), and w has a smaller DFS number.
+            if parent[v] != w && dfs_num[w] < dfs_num[v] {
                 // back edge v → w
                 let lp = dfs_num[w];
                 if lp < lowpt[v] {
@@ -226,7 +219,8 @@ fn lr_component(
     let mut all_back: Vec<(usize, usize)> = Vec::new();
     for &v in &order {
         for &w in &adj[v] {
-            if parent[w] != v && dfs_num[w] < dfs_num[v] {
+            // Back edge: w is an ancestor of v (smaller DFS num) and not v's parent
+            if parent[v] != w && dfs_num[w] < dfs_num[v] {
                 all_back.push((v, w));
             }
         }
@@ -238,11 +232,8 @@ fn lr_component(
     }
 
     // Index back edges
-    let be_idx: HashMap<(usize, usize), usize> = all_back
-        .iter()
-        .enumerate()
-        .map(|(i, &e)| (e, i))
-        .collect();
+    let be_idx: HashMap<(usize, usize), usize> =
+        all_back.iter().enumerate().map(|(i, &e)| (e, i)).collect();
 
     // Union-Find for the LR-side constraint graph
     let mut uf_parent: Vec<usize> = (0..m).collect();
@@ -260,25 +251,25 @@ fn lr_component(
         (root, new_parity)
     }
 
-    // union(x, y, same=true) requires x and y on the same side
-    fn uf_union(
-        uf: &mut Vec<usize>,
-        par: &mut Vec<bool>,
-        x: usize,
-        y: usize,
-        same: bool,
-    ) -> bool {
+    // union(x, y, same=true) requires x and y on the same side.
+    //
+    // Parity semantics: par[v] = false means v is on the same side as its root;
+    // par[v] = true means v is on the opposite side.  After merging ry into rx,
+    // the parity of y relative to root rx is `py ^ par[ry]`.  We want:
+    //   same=true  → (py ^ par[ry]) == px   → par[ry] = px ^ py
+    //   same=false → (py ^ par[ry]) != px   → par[ry] = px ^ py ^ true
+    // In both cases: par[ry] = px ^ py ^ !same.
+    fn uf_union(uf: &mut Vec<usize>, par: &mut Vec<bool>, x: usize, y: usize, same: bool) -> bool {
         let (rx, px) = uf_find(uf, par, x);
         let (ry, py) = uf_find(uf, par, y);
         if rx == ry {
-            // Consistency: px XOR py should be !same (for opposite) or same (for same-side)
-            let consistent = (px == py) == same;
-            return consistent;
+            // Already merged: check that the existing parity satisfies the constraint.
+            // same-side ↔ px == py; opposite-side ↔ px != py.
+            return (px == py) == same;
         }
         // Merge ry into rx
         uf[ry] = rx;
-        // par[ry] chosen so that parity of y = !same XOR parity of x
-        par[ry] = px ^ py ^ same;
+        par[ry] = px ^ py ^ !same;
         true
     }
 
@@ -288,7 +279,7 @@ fn lr_component(
     for (idx, &(v, _)) in all_back.iter().enumerate() {
         back_by_vertex.entry(v).or_default().push(idx);
     }
-    for (_v, indices) in &back_by_vertex {
+    for indices in back_by_vertex.values() {
         for i in 0..indices.len() {
             for j in (i + 1)..indices.len() {
                 // Both go from v upward — they are nested ⟹ same side
@@ -312,8 +303,7 @@ fn lr_component(
             // Interlace check: (da < dv ≤ du < db) or (db < du ≤ dv < da) or similar
             // Two ranges [da,du] and [db,dv] (where du>da, dv>db) interlace when
             // one endpoint of each range is strictly between the endpoints of the other.
-            let interlace =
-                (da < dv && dv <= du && du < db) || (db < du && du <= dv && dv < da);
+            let interlace = (da < dv && dv <= du && du < db) || (db < du && du <= dv && dv < da);
             if interlace {
                 // Check that i and j are not the same edge (shouldn't happen)
                 let ki = be_idx[&all_back[i]];
@@ -338,7 +328,7 @@ fn lr_component(
         let mut spanning: Vec<usize> = Vec::new();
         for (idx, &(src, dst)) in all_back.iter().enumerate() {
             if dfs_num[src] >= dfs_num[v]
-                && dfs_num[src] <= dfs_num[v] + subtree_size(&order, &parent, v, n_nodes) as i64 - 1
+                && dfs_num[src] < dfs_num[v] + subtree_size(&order, &parent, v, n_nodes) as i64
                 && dfs_num[dst] <= dp
             {
                 spanning.push(idx);
@@ -435,7 +425,10 @@ fn bfs_path(
 /// Attempt to find a K₅ topological minor.
 fn find_k5_minor(adj: &[Vec<usize>], n_nodes: usize) -> Option<Vec<(usize, usize)>> {
     // Vertices with degree ≥ 4 are candidates for K₅ branch vertices
-    let candidates: Vec<usize> = (0..n_nodes).filter(|&v| adj[v].len() >= 4).take(10).collect();
+    let candidates: Vec<usize> = (0..n_nodes)
+        .filter(|&v| adj[v].len() >= 4)
+        .take(10)
+        .collect();
     if candidates.len() < 5 {
         return None;
     }
@@ -444,19 +437,31 @@ fn find_k5_minor(adj: &[Vec<usize>], n_nodes: usize) -> Option<Vec<(usize, usize
             for k in (j + 1)..candidates.len() {
                 for l in (k + 1)..candidates.len() {
                     for m in (l + 1)..candidates.len() {
-                        let verts =
-                            [candidates[i], candidates[j], candidates[k], candidates[l], candidates[m]];
+                        let verts = [
+                            candidates[i],
+                            candidates[j],
+                            candidates[k],
+                            candidates[l],
+                            candidates[m],
+                        ];
                         let mut sub = Vec::new();
                         let mut ok = true;
                         'k5: for a in 0..5 {
                             for b in (a + 1)..5 {
-                                let avoid: Vec<usize> =
-                                    verts.iter().copied().filter(|&x| x != verts[a] && x != verts[b]).collect();
+                                let avoid: Vec<usize> = verts
+                                    .iter()
+                                    .copied()
+                                    .filter(|&x| x != verts[a] && x != verts[b])
+                                    .collect();
                                 if let Some(path) =
                                     bfs_path(adj, n_nodes, verts[a], verts[b], &avoid)
                                 {
                                     for w in path.windows(2) {
-                                        let e = if w[0] < w[1] { (w[0], w[1]) } else { (w[1], w[0]) };
+                                        let e = if w[0] < w[1] {
+                                            (w[0], w[1])
+                                        } else {
+                                            (w[1], w[0])
+                                        };
                                         if !sub.contains(&e) {
                                             sub.push(e);
                                         }
@@ -480,7 +485,10 @@ fn find_k5_minor(adj: &[Vec<usize>], n_nodes: usize) -> Option<Vec<(usize, usize
 
 /// Attempt to find a K₃,₃ topological minor.
 fn find_k33_minor(adj: &[Vec<usize>], n_nodes: usize) -> Option<Vec<(usize, usize)>> {
-    let verts: Vec<usize> = (0..n_nodes).filter(|&v| adj[v].len() >= 3).take(12).collect();
+    let verts: Vec<usize> = (0..n_nodes)
+        .filter(|&v| adj[v].len() >= 3)
+        .take(12)
+        .collect();
     if verts.len() < 6 {
         return None;
     }
@@ -497,8 +505,11 @@ fn find_k33_minor(adj: &[Vec<usize>], n_nodes: usize) -> Option<Vec<(usize, usiz
                 for p in 0..side_b_candidates.len() {
                     for q in (p + 1)..side_b_candidates.len() {
                         for r in (q + 1)..side_b_candidates.len() {
-                            let side_b =
-                                [side_b_candidates[p], side_b_candidates[q], side_b_candidates[r]];
+                            let side_b = [
+                                side_b_candidates[p],
+                                side_b_candidates[q],
+                                side_b_candidates[r],
+                            ];
                             let mut sub = Vec::new();
                             let mut ok = true;
                             'k33: for &a in &side_a {
@@ -509,12 +520,13 @@ fn find_k33_minor(adj: &[Vec<usize>], n_nodes: usize) -> Option<Vec<(usize, usiz
                                         .copied()
                                         .filter(|&v| v != a && v != b)
                                         .collect();
-                                    if let Some(path) =
-                                        bfs_path(adj, n_nodes, a, b, &avoid)
-                                    {
+                                    if let Some(path) = bfs_path(adj, n_nodes, a, b, &avoid) {
                                         for w in path.windows(2) {
-                                            let e =
-                                                if w[0] < w[1] { (w[0], w[1]) } else { (w[1], w[0]) };
+                                            let e = if w[0] < w[1] {
+                                                (w[0], w[1])
+                                            } else {
+                                                (w[1], w[0])
+                                            };
                                             if !sub.contains(&e) {
                                                 sub.push(e);
                                             }
@@ -545,11 +557,15 @@ mod tests {
     use super::*;
 
     fn k_n(n: usize) -> Vec<(usize, usize)> {
-        (0..n).flat_map(|u| (u + 1..n).map(move |v| (u, v))).collect()
+        (0..n)
+            .flat_map(|u| (u + 1..n).map(move |v| (u, v)))
+            .collect()
     }
 
     fn k_mn(m: usize, n: usize) -> Vec<(usize, usize)> {
-        (0..m).flat_map(|i| (0..n).map(move |j| (i, m + j))).collect()
+        (0..m)
+            .flat_map(|i| (0..n).map(move |j| (i, m + j)))
+            .collect()
     }
 
     #[test]

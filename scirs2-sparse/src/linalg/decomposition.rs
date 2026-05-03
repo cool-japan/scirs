@@ -1263,7 +1263,8 @@ where
             let mut pivot_row = k;
 
             for (idx, &actual_row) in row_perm.iter().enumerate().skip(k).take(n - k) {
-                let i = k + idx;
+                // idx is already the position in row_perm (skip(k) preserves enum index)
+                let i = idx;
                 let val = matrix.get(actual_row, col_perm[k]).abs();
                 if val > max_val {
                     max_val = val;
@@ -1281,7 +1282,8 @@ where
             let mut pivot_row = k;
 
             for (idx, &actual_row) in row_perm.iter().enumerate().skip(k).take(n - k) {
-                let i = k + idx;
+                // idx is already the position in row_perm (skip(k) preserves enum index)
+                let i = idx;
                 let val = matrix.get(actual_row, col_perm[k]).abs();
                 if val > max_val {
                     max_val = val;
@@ -1303,7 +1305,8 @@ where
             let mut pivot_row = k;
 
             for (idx, &actual_row) in row_perm.iter().enumerate().skip(k).take(n - k) {
-                let i = k + idx;
+                // idx is already the position in row_perm (skip(k) preserves enum index)
+                let i = idx;
                 let val = matrix.get(actual_row, col_perm[k]).abs();
                 let scale = row_scales[actual_row];
 
@@ -1329,9 +1332,11 @@ where
             let mut pivot_col = k;
 
             for (i_idx, &actual_row) in row_perm.iter().enumerate().skip(k).take(n - k) {
-                let i = k + i_idx;
+                // i_idx already equals the position in row_perm (skip preserves enum index)
+                let i = i_idx;
                 for (j_idx, &actual_col) in col_perm.iter().enumerate().skip(k).take(n - k) {
-                    let j = k + j_idx;
+                    // j_idx already equals the position in col_perm
+                    let j = j_idx;
                     let val = matrix.get(actual_row, actual_col).abs();
                     if val > max_val {
                         max_val = val;
@@ -1352,7 +1357,8 @@ where
 
             // Start with partial pivoting in column k
             for (idx, &actual_row) in row_perm.iter().enumerate().skip(k).take(n - k) {
-                let i = k + idx;
+                // idx is already the position in row_perm (skip(k) preserves enum index)
+                let i = idx;
                 let val = matrix.get(actual_row, col_perm[k]).abs();
                 if val > max_val {
                     max_val = val;
@@ -1366,7 +1372,8 @@ where
                 let mut col_max = T::sparse_zero();
 
                 for (idx, &actual_col) in col_perm.iter().enumerate().skip(k).take(n - k) {
-                    let j = k + idx;
+                    // idx is already the position in col_perm (skip(k) preserves enum index)
+                    let j = idx;
                     let val = matrix.get(actual_best_row, actual_col).abs();
                     if val > col_max {
                         col_max = val;
@@ -1380,7 +1387,8 @@ where
                     // Recompute row pivot for the new column
                     max_val = T::sparse_zero();
                     for (idx, &actual_row) in row_perm.iter().enumerate().skip(k).take(n - k) {
-                        let i = k + idx;
+                        // idx is already the position in row_perm
+                        let i = idx;
                         let val = matrix.get(actual_row, col_perm[best_col]).abs();
                         if val > max_val {
                             max_val = val;

@@ -267,7 +267,7 @@ impl TextPreprocessor {
 
         // Sort contractions by length descending to match longer ones first
         let mut sorted_contractions: Vec<(&String, &String)> = self.contractions.iter().collect();
-        sorted_contractions.sort_by(|a, b| b.0.len().cmp(&a.0.len()));
+        sorted_contractions.sort_by_key(|(k, _)| std::cmp::Reverse(k.len()));
 
         for (contraction, expansion) in &sorted_contractions {
             // Case-insensitive replacement

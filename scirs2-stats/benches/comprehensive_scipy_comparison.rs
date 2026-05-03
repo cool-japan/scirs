@@ -390,10 +390,16 @@ fn bench_dispersion(c: &mut Criterion) {
             b.iter(|| black_box(coefficient_of_variation_simd(&data.view(), "propagate")))
         });
 
-        // TODO: Gini coefficient - function not yet implemented
-        // group.bench_with_input(BenchmarkId::new("gini", n), &data, |b, data| {
-        //     b.iter(|| black_box(gini(&data.view())))
-        // });
+        // Gini coefficient. The Gini index is defined for non-negative data
+        // (income/wealth-like quantities); benchmarking it on the standard
+        // normal `data` above would only exercise the negative-value validation
+        // path. Use exponential samples for a realistic positive distribution
+        // — the same convention SciPy users adopt when comparing inequality
+        // measures.
+        let posdata = data_generators::exponential(n, 1.0);
+        group.bench_with_input(BenchmarkId::new("gini", n), &posdata, |b, posdata| {
+            b.iter(|| black_box(gini_coefficient(&posdata.view())))
+        });
     }
 
     group.finish();

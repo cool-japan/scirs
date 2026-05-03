@@ -1070,7 +1070,6 @@ mod tests {
     use scirs2_core::ndarray::array;
 
     #[test]
-    #[ignore = "Panics in simd/reductions.rs:249 - Option::unwrap() on None"]
     fn test_advanced_multivariate_analysis() {
         // Use faster config for testing
         let mut config = AdvancedMultivariateConfig::default();
@@ -1094,7 +1093,6 @@ mod tests {
         assert!(!results.recommendations.is_empty());
     }
 
-    #[ignore = "Panics in simd/reductions.rs:249 - Option::unwrap() on None"]
     #[test]
     fn test_advanced_pca() {
         // Use faster config for testing

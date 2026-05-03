@@ -864,11 +864,7 @@ impl Hdf5Reader {
         }
 
         // Skip max dimension sizes if present
-        let has_max = if version == 1 {
-            flags & 0x01 != 0
-        } else {
-            flags & 0x01 != 0
-        };
+        let has_max = flags & 0x01 != 0;
         if has_max {
             for _ in 0..ndims {
                 let _ = read_length(&mut cur, self.sb.length_size);

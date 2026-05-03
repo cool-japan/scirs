@@ -6,6 +6,7 @@
 //! - Financial modeling (stochastic PDEs)
 
 pub mod finance;
+pub mod finance_legacy;
 pub mod fluid_dynamics;
 pub mod quantum;
 
@@ -40,8 +41,7 @@ pub use fluid_dynamics::{
 //     InterfaceTrackingMethod, MultiphaseFlowSolver, MultiphaseFlowState, PhaseProperties,
 // };
 pub use quantum::algorithms::{
-    QuantumAnnealer, // VariationalQuantumEigensolver, - TODO: Add when implemented
-                     // MultiBodyQuantumSolver, - TODO: Add when implemented
+    MultiBodyEigenResult, MultiBodyQuantumSolver, QuantumAnnealer, VariationalQuantumEigensolver,
 };
 pub use quantum::{
     GPUMultiBodyQuantumSolver, GPUQuantumSolver, HarmonicOscillator, HydrogenAtom, ParticleInBox,

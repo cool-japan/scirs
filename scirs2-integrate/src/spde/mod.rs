@@ -131,8 +131,9 @@ pub use wave_stochastic::{
 pub use random_fields::{CorrelationFunction, RandomField};
 
 pub use pathwise::{
-    AndersonMattinglyConfig, AndersonMattinglyScheme, AndersonMattinglySolution, ImexParabolicSolver,
-    ImexSolution, SpectralGalerkinConfig, SpectralGalerkinSolution, SpectralGalerkinSolver,
+    AndersonMattinglyConfig, AndersonMattinglyScheme, AndersonMattinglySolution,
+    ImexParabolicSolver, ImexSolution, SpectralGalerkinConfig, SpectralGalerkinSolution,
+    SpectralGalerkinSolver,
 };
 
 #[cfg(test)]
@@ -152,12 +153,18 @@ mod integration_tests {
             dt: 5e-5,
             ..Default::default()
         };
-        let solver = StochasticHeatSolver1D::new(config, 1.0, 16, 5).expect("StochasticHeatSolver1D::new should succeed");
+        let solver = StochasticHeatSolver1D::new(config, 1.0, 16, 5)
+            .expect("StochasticHeatSolver1D::new should succeed");
         let u0 = Array1::zeros(16);
         let mut rng = seeded_rng(1234);
-        let sol = solver.solve(u0.view(), 0.0, 0.01, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(u0.view(), 0.0, 0.01, &mut rng)
+            .expect("solver.solve should succeed");
 
-        assert!(sol.len() >= 2, "Should have at least initial + final snapshot");
+        assert!(
+            sol.len() >= 2,
+            "Should have at least initial + final snapshot"
+        );
         assert_eq!(sol.grid.len(), 16);
         assert_eq!(sol.shape, vec![16]);
         assert_eq!(sol.dim, 1);
@@ -177,7 +184,8 @@ mod integration_tests {
             sigma: 0.1,
             dt: 5e-5,
         };
-        let solver = StochasticWaveSolver::new(config, 1.0, 20, 10).expect("StochasticWaveSolver::new should succeed");
+        let solver = StochasticWaveSolver::new(config, 1.0, 20, 10)
+            .expect("StochasticWaveSolver::new should succeed");
         let u0 = Array1::from_vec(
             (0..20)
                 .map(|i| ((i as f64 + 1.0) * std::f64::consts::PI / 21.0).sin() * 0.1)
@@ -185,7 +193,9 @@ mod integration_tests {
         );
         let v0 = Array1::zeros(20);
         let mut rng = seeded_rng(5678);
-        let sol = solver.solve(&u0, &v0, 0.0, 0.01, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&u0, &v0, 0.0, 0.01, &mut rng)
+            .expect("solver.solve should succeed");
 
         assert!(!sol.is_empty());
         let energies = sol.energy_series();
@@ -200,8 +210,8 @@ mod integration_tests {
         let gx = Array1::linspace(1.0 / 17.0, 16.0 / 17.0, 16);
         let gy = Array1::from_vec(vec![0.0]);
         let cov = CorrelationFunction::Gaussian { length_scale: 0.3 };
-        let field =
-            RandomField::sample_kl_expansion(gx.view(), gy.view(), cov, 8, &mut rng).expect("sample_kl_expansion should succeed");
+        let field = RandomField::sample_kl_expansion(gx.view(), gy.view(), cov, 8, &mut rng)
+            .expect("sample_kl_expansion should succeed");
         // Extract 1-D slice (column 0)
         let u0_vec: Vec<f64> = (0..16).map(|i| field[[i, 0]] * 0.01).collect();
         let u0 = Array1::from_vec(u0_vec);
@@ -212,15 +222,19 @@ mod integration_tests {
             dt: 5e-5,
             ..Default::default()
         };
-        let solver = StochasticHeatSolver1D::new(config, 1.0, 16, 10).expect("StochasticHeatSolver1D::new should succeed");
-        let sol = solver.solve(u0.view(), 0.0, 0.005, &mut rng).expect("solver.solve should succeed");
+        let solver = StochasticHeatSolver1D::new(config, 1.0, 16, 10)
+            .expect("StochasticHeatSolver1D::new should succeed");
+        let sol = solver
+            .solve(u0.view(), 0.0, 0.005, &mut rng)
+            .expect("solver.solve should succeed");
         assert!(!sol.is_empty());
     }
 
     /// Test IMEX solver through the top-level re-export.
     #[test]
     fn test_imex_via_spde_module() {
-        let solver = ImexParabolicSolver::new(0.2, 0.05, 2e-3, 1.0, 12, 5).expect("ImexParabolicSolver::new should succeed");
+        let solver = ImexParabolicSolver::new(0.2, 0.05, 2e-3, 1.0, 12, 5)
+            .expect("ImexParabolicSolver::new should succeed");
         let u0 = Array1::from_vec(vec![0.1_f64; 12]);
         let mut rng = seeded_rng(42);
         let sol = solver
@@ -239,11 +253,14 @@ mod integration_tests {
             domain_length: 1.0,
             mode_sigmas: None,
         };
-        let solver = SpectralGalerkinSolver::new(cfg, 5).expect("SpectralGalerkinSolver::new should succeed");
+        let solver = SpectralGalerkinSolver::new(cfg, 5)
+            .expect("SpectralGalerkinSolver::new should succeed");
         let a0 = Array1::zeros(8);
         let grid = Array1::linspace(0.1, 0.9, 10);
         let mut rng = seeded_rng(1111);
-        let sol = solver.solve(&a0, 1e-3, &grid, 0.0, 0.1, &mut rng).expect("solver.solve should succeed");
+        let sol = solver
+            .solve(&a0, 1e-3, &grid, 0.0, 0.1, &mut rng)
+            .expect("solver.solve should succeed");
         assert!(!sol.is_empty());
         assert_eq!(sol.grid.len(), 10);
     }

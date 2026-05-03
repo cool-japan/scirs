@@ -697,18 +697,47 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Test failure - assertion failed: (result[[0, 3]] - 2.0).abs() < 0.1 at line 709"]
     fn test_zoom_optimized() {
-        let input = arr2(&[[1.0, 2.0], [3.0, 4.0]]);
-        let result = zoom_optimized(&input, &[2.0, 2.0], None, None, None)
-            .expect("zoom_optimized should succeed for test");
+        let input = arr2(&[[1.0f64, 2.0], [3.0, 4.0]]);
+        // Use linear interpolation so the expected values are predictable
+        let result = zoom_optimized(
+            &input,
+            &[2.0, 2.0],
+            Some(InterpolationOrder::Linear),
+            None,
+            None,
+        )
+        .expect("zoom_optimized should succeed for test");
 
         assert_eq!(result.shape(), &[4, 4]);
 
-        // Check corners match original
-        assert!((result[[0, 0]] - 1.0).abs() < 0.1);
-        assert!((result[[0, 3]] - 2.0).abs() < 0.1);
-        assert!((result[[3, 0]] - 3.0).abs() < 0.1);
-        assert!((result[[3, 3]] - 4.0).abs() < 0.1);
+        // With idx/zoom semantics (output pixel p maps to input coord p/zoom):
+        // result[[0, 0]]: input at (0.0, 0.0) = 1.0
+        assert!(
+            (result[[0, 0]] - 1.0).abs() < 1e-6,
+            "result[0,0]={}",
+            result[[0, 0]]
+        );
+
+        // result[[1, 0]]: input at (0.5, 0.0) -> linear between input[0,0]=1 and input[1,0]=3 -> 2.0
+        assert!(
+            (result[[1, 0]] - 2.0).abs() < 1e-6,
+            "result[1,0]={}",
+            result[[1, 0]]
+        );
+
+        // result[[0, 1]]: input at (0.0, 0.5) -> linear between input[0,0]=1 and input[0,1]=2 -> 1.5
+        assert!(
+            (result[[0, 1]] - 1.5).abs() < 1e-6,
+            "result[0,1]={}",
+            result[[0, 1]]
+        );
+
+        // result[[1, 1]]: input at (0.5, 0.5) -> bilinear: 0.25*(1+2+3+4) = 2.5
+        assert!(
+            (result[[1, 1]] - 2.5).abs() < 1e-6,
+            "result[1,1]={}",
+            result[[1, 1]]
+        );
     }
 }

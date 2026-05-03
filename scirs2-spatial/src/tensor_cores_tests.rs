@@ -322,7 +322,6 @@ fn test_advanced_tensor_core_distance_matrix_creation() {
 
 #[cfg(feature = "async")]
 #[tokio::test]
-#[ignore = "Test failure - assertion failed: result.is_ok() at line 329"]
 async fn test_stability_monitoring_computation() {
     let mut advanced_computer = AdvancedTensorCoreDistanceMatrix::new().expect("Operation failed");
     let points = array![[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]];

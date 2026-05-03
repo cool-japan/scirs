@@ -1111,6 +1111,9 @@ pub mod utils {
 // Implementation of Neg trait for T
 use std::ops::Neg;
 
+// Specialized eigenvalue solvers for sparse matrices (Arnoldi/Lanczos)
+pub mod sparse_eigen;
+
 #[cfg(test)]
 mod tests {
     use super::*;
