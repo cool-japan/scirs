@@ -11,6 +11,8 @@ use scirs2_core::numeric::Complex64;
 use scirs2_core::numeric::{Float, NumCast};
 use std::fmt::Debug;
 
+use scirs2_fft::{fft as fft_compute, ifft as ifft_compute};
+
 impl ShortTimeFft {
     /// Perform the Short-Time Fourier Transform
     ///
@@ -212,23 +214,13 @@ impl ShortTimeFft {
     /// Apply FFT to a frame
     pub(super) fn fft(&self, frame: &Array1<f64>) -> SignalResult<Array1<Complex64>> {
         let n = frame.len();
-        let mut result = Array1::<Complex64>::zeros(n);
 
-        // Convert to complex
-        for (i, &val) in frame.iter().enumerate() {
-            result[i] = Complex64::new(val, 0.0);
-        }
-
-        // Apply simple DFT (placeholder for proper FFT)
-        let mut fft_result = Array1::<Complex64>::zeros(n);
-        for k in 0..n {
-            let mut sum = Complex64::new(0.0, 0.0);
-            for t in 0..n {
-                let angle = -2.0 * std::f64::consts::PI * (k * t) as f64 / n as f64;
-                sum += result[t] * Complex64::new(angle.cos(), angle.sin());
-            }
-            fft_result[k] = sum;
-        }
+        // Use scirs2_fft for O(n log n) FFT
+        let frame_slice: Vec<f64> = frame.to_vec();
+        let fft_vec = fft_compute(&frame_slice, Some(n)).map_err(|e| {
+            SignalError::ComputationError(format!("FFT computation failed: {e}"))
+        })?;
+        let fft_result = Array1::from(fft_vec);
 
         // Handle different FFT modes
         match self.fft_mode {
@@ -291,16 +283,12 @@ impl ShortTimeFft {
             }
         }
 
-        // Apply inverse DFT (placeholder for proper IFFT)
-        let mut result = Array1::<Complex64>::zeros(n);
-        for t in 0..n {
-            let mut sum = Complex64::new(0.0, 0.0);
-            for k in 0..n {
-                let angle = 2.0 * std::f64::consts::PI * (k * t) as f64 / n as f64;
-                sum += full_spectrum[k] * Complex64::new(angle.cos(), angle.sin());
-            }
-            result[t] = sum / n as f64;
-        }
+        // Apply inverse FFT using scirs2_fft for O(n log n) performance
+        let full_spectrum_slice: Vec<Complex64> = full_spectrum.to_vec();
+        let ifft_vec = ifft_compute(&full_spectrum_slice, Some(n)).map_err(|e| {
+            SignalError::ComputationError(format!("IFFT computation failed: {e}"))
+        })?;
+        let result = Array1::from(ifft_vec);
 
         Ok(result)
     }

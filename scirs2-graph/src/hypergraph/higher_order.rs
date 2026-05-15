@@ -24,9 +24,9 @@ use std::collections::HashMap;
 // Motif tensors
 // ============================================================================
 
-/// A third-order motif tensor T[i,j,k] encoding 3-node interaction patterns.
+/// A third-order motif tensor `T[i,j,k]` encoding 3-node interaction patterns.
 ///
-/// For an undirected graph, entry T[i,j,k] = 1 iff the induced subgraph on
+/// For an undirected graph, entry `T[i,j,k]` = 1 iff the induced subgraph on
 /// {i,j,k} forms a **triangle** (all three edges present).
 ///
 /// For directed/weighted variants, use [`directed_motif_tensor`].
@@ -40,7 +40,7 @@ pub struct MotifTensor {
 impl MotifTensor {
     /// Build the **triangle motif tensor** from a graph adjacency matrix.
     ///
-    /// T[i,j,k] = A[i,j] * A[j,k] * A[i,k]  (all three edges present).
+    /// `T[i,j,k]` = `A[i,j]` * `A[j,k]` * `A[i,k]`  (all three edges present).
     ///
     /// For a 0/1 adjacency matrix this is exactly 1 for triangles and 0
     /// otherwise.  For weighted graphs the entry equals the product of the
@@ -80,7 +80,7 @@ impl MotifTensor {
 
     /// Compute the **tensor-vector product** T ×_1 x ×_2 x:
     ///
-    /// (T x^2)[i] = Σ_{j,k} T[i,j,k] x[j] x[k]
+    /// `(T x^2)[i]` = Σ_{j,k} `T[i,j,k]` `x[j]` `x[k]`
     ///
     /// This is the "mode-1 multilinear product" used in tensor eigenvector
     /// centrality.
@@ -268,14 +268,14 @@ pub struct CellularSheaf {
     pub n_nodes: usize,
     /// Number of edges (oriented pairs (u,v) with u < v)
     pub n_edges: usize,
-    /// Stalks at nodes: node_stalks[v] = dimension of the stalk at v
+    /// Stalks at nodes: `node_stalks[v]` = dimension of the stalk at v
     pub node_stalks: Vec<usize>,
-    /// Stalks at edges: edge_stalks[e] = dimension of the stalk at edge e
+    /// Stalks at edges: `edge_stalks[e]` = dimension of the stalk at edge e
     pub edge_stalks: Vec<usize>,
-    /// Oriented edge list: edges[e] = (tail, head) with tail < head
+    /// Oriented edge list: `edges[e]` = (tail, head) with tail < head
     pub edges: Vec<(usize, usize)>,
-    /// Restriction maps: maps[(v, e)] = the matrix F_{v◁e} : ℝ^{d_e} → ℝ^{d_v}
-    /// stored row-major as Vec<Vec<f64>> of shape (d_v, d_e)
+    /// Restriction maps: `maps[(v, e)]` = the matrix F_{v◁e} : ℝ^{d_e} → ℝ^{d_v}
+    /// stored row-major as `Vec<Vec<f64>>` of shape (d_v, d_e)
     pub restriction_maps: HashMap<(usize, usize), Vec<Vec<f64>>>,
 }
 

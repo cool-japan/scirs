@@ -305,7 +305,7 @@ impl BpeTokenizer {
         out
     }
 
-    /// Deserialise a tokenizer from the format produced by [`to_json`].
+    /// Deserialise a tokenizer from the format produced by `to_json`.
     ///
     /// This is a lightweight parser that does not depend on `serde_json`.
     pub fn from_json(json: &str) -> Result<Self> {

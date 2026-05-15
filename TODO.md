@@ -1,8 +1,8 @@
 # SciRS2 Development Roadmap
 
-**Current Version**: 0.4.3 (Released 2026-05-03)
-**Status**: Production Ready — All 34,883 tests passing (34,299 nextest + 584 scirs2-datasets lib)
-**Scale**: ~3.64M lines of Rust, ~7,600 source files, ~32 workspace crates
+**Current Version**: 0.4.4 (Released 2026-05-15)
+**Status**: Production Ready — All 36,446 tests passing
+**Scale**: ~4.2M lines of Rust, ~8,071 source files, ~29 workspace crates
 
 This document tracks the development roadmap for SciRS2. Completed items in v0.3.4 are documented here for historical reference; the active roadmap is the v0.4.0 section.
 
@@ -588,6 +588,114 @@ These are pulled in by external crates we depend on — not direct violations, b
 
 ---
 
+## v0.4.3 — RELEASED (May 3, 2026)
+
+See CHANGELOG.md `[0.4.3]` for the full feature list. Highlights: 34,883 tests passing; core dependency upgrades (rayon 1.12, rand 0.10.1, nalgebra 0.34.2); `scirs2-special::printpdf` feature-gated; pathfinder_simd ARM NEON patch.
+
+---
+
+## v0.4.4 — RELEASED (May 15, 2026)
+
+**Centerpiece**: `scirs2-symbolic` is now a complete EML-IR-native CAS substrate with seamless `scirs2-autograd` integration and a real OxiZ-backed SMT layer. See `scirs2-symbolic/TODO.md` for the per-phase status grid.
+
+### scirs2-symbolic — Phase 0 (Substrate) — COMPLETE (13/13, Wave 53)
+- [x] `eml::tree` Arc-shared `EmlNode` / `EmlTree` with thread-local hash-cons (u128 structural hash)
+- [x] `eml::canonical` — 27 canonical EML constructors covering every elementary function
+- [x] `eml::op` + `eml::lower` — `LoweredOp` flat IR with `OxiOp` stack-machine tape; `lower`/`raise`
+- [x] `eml::parser` + `eml::display::to_latex` — text round-trip + LaTeX export with π/e exact-match
+- [x] `eml::eval` — iterative stack-machine real + complex evaluator; stack-safe on 543-deep canonical sin
+- [x] `eml::simplify` — fixed-point rewrite (constant folding, identity rules, inverse cancellation, hash-based commutative ordering)
+- [x] `eml::grad` — symbolic gradient; `grad`, `grad_all`, `jacobian`, `hessian` all public
+- [x] `eml::interval` — outward-rounded interval arithmetic with monotone-region splitting
+- [x] `eml::bridge` — `Expr ↔ LoweredOp` adapter with deterministic `VarMap`
+- [x] oxieml v0.1.0 parity test harness at 1e-9 tolerance (`tests/oxieml_parity.rs`)
+- [x] OxiZ workspace dep registered (`oxiz = "0.2.1"` behind `smt` feature)
+- [x] ADR-0001: clean-room native EML implementation
+- [x] Cycle-prevention CI gate (`scripts/check-no-symbolic-in-core.sh`)
+
+### scirs2-symbolic — Phase 1 (Native API) — 11/13 (Waves 54–56)
+- [x] `regression::discover` ndarray API (SR engine, Config builder, Pareto front)
+- [x] `regression::discover_multi` for vector-valued targets
+- [x] `regression::discover_ode` SINDy-style API
+- [x] `units::UnitAware` SI dimensional analysis
+- [x] `regression::with_constraints` SMT-pruned search (BoundedOutput, Monotonic)
+- [x] `compile::to_jit` Cranelift CPU JIT + `JitCache`
+- [x] `interval::eval_interval` public surface
+- [x] LaTeX / pretty / JSON / oxicode round-trip
+- [x] Python bindings (`scirs2-python::symbolic`)
+- [x] Physics examples (4 examples)
+- [x] Integration test suite (~564 `#[test]` markers across the crate)
+- [ ] Criterion benchmark suite vs PySR on FSReD dataset
+- [ ] `docs/cas_tutorial.md` end-to-end walkthrough
+
+### scirs2-symbolic — Phase 1 Design-freedom — 3/4 + 1 partial
+- [ ] SR engine on `scirs2-core` NUMA-aware scheduler (partial — rayon path live; NUMA worker pinning deferred to v0.4.5)
+- [x] JIT routes through `scirs2-core` GPU pipeline (`compile::to_gpu`, `to_jit_auto`)
+- [x] Symbolic gradient as native AD tape backend (seamless via `scirs2-autograd::symbolic_backend::EmlOp` + `eml_scalar_op`; provenance-dispatched)
+- [x] SMT calls OxiZ directly (Wave 57 real QF_NRA integration; note: OxiZ 0.2.1 NLSAT incomplete for surface commutativity — always canonicalize first)
+
+### scirs2-symbolic — Phase 2 (EML-IR-Native CAS) — 13/15
+- [x] `cas::canonicalize` — EML-native canonical form with 7 algebraic rewrite rules (Wave 57); fixed-point idempotent; 32 tests
+- [x] `cas::pattern` — pattern matching engine (712 LoC); prerequisite for identity-db and e-graph rule application; hooked throughout (Wave 59)
+- [x] `cas::identity_db` — 11 standard trig/hyperbolic/log identities via `IdentityDb::standard()`; O(1) hash lookup; hooked into `cas::canonicalize` fixed-point loop; 73 tests (Wave 59)
+- [x] `cas::smt` Ackermann transcendental encoding — `encode_transcendental` for 16 ops; Pythagorean axiom; cache keyed on canonical hash; 10 new tests (`smt` feature, Wave 59)
+- [x] `cas::certified_rewrite` — `CertifiedRule` trait + RAII push/pop safety + `MAX_CERT_ITER=8`; rejects counterexample-producing rules; 7 tests (`smt` feature, Wave 59)
+- [x] `cas/e_graph/` — full egg-style equality saturation (6 files, 1,983 LoC): `UnionFind`, `ENode`/`EClass`, `EGraph::{add,union,rebuild}`, pattern matching, `SaturationBudget`, DP extraction, `canonicalize_egraph`; 16 tests (Wave 59)
+- [x] `units::infer_dimension` + `Constraint::DimensionMatch { target, var_dims }` — iterative post-order dimensional inference; 22 tests (Wave 59)
+- [x] `cas::cse_dag::CseDag` — O(unique-nodes) structural-hash CSE DAG with topological-order eval; 11 tests (Wave 61)
+- [x] `cas::series` — Taylor + Padé approximants in EML form; `taylor`, `pade`, `SeriesError`; 8 tests (Wave 61)
+- [x] Property-based EML-rewrite testing via proptest — 3 properties × 1024 cases; tests/cas_rewrite_proptest.rs (Wave 61)
+- [x] `cas::certified_value::CertifiedValue` — certified `[lo,hi]` interval for symbolic values; `certify`, `certify_const`, `tighten_to`; 9 tests
+- [x] `cas::solve` — invertible-chain + polynomial solver (degree 1-2 exact); `SolveResult`, `SolveError`; 10 tests
+- [x] `eml_pattern!` proc-macro DSL (`scirs2-symbolic-macros`) — write Pattern rules without boilerplate; 18 unary + 5 binary; 13 tests
+- [x] EML rewriter criterion benchmark baseline — `scirs2-symbolic/benches/cas_bench.rs` (5 groups: canonicalize, identity_db, egraph, CseDag, series/taylor+pade; completed 2026-05-04; SymPy subprocess comparison deferred to v0.4.5)
+- [x] `cas::identity_proof::discover_identity` — SR + canonicalize + hash-match pipeline; `ProofCertificate`; 8 tests
+- [ ] native AD kernel; WASM playground; Risch integration
+
+### scirs2-symbolic — Phase 3 (Cross-crate integration) — 18/12+
+- [x] `scirs2-optimize::symbolic::newton` — symbolic Newton with exact gradient + Hessian via `eml::grad`; Gaussian-elimination linear solve; 6 tests
+- [x] `scirs2-autograd::symbolic_backend::EmlOp` + `eml_scalar_op` — seamless symbolic-tensor integration; forward via `eval_real`, backward via exact `sym_grad`; composable with stock autograd ops; 8 integration tests
+- [x] `scirs2-integrate::eml` — `solve_ivp_symbolic` (BDF1 stiff ODE + symbolic Jacobian), `quad_gauss_legendre_symbolic`; 15 tests (Wave 60)
+- [x] `scirs2-stats::mle_symbolic` — `fit_mle_symbolic` gradient descent with backtracking line search; 8 tests (Wave 60)
+- [x] `scirs2-neural::{activations,losses}::symbolic` — `SymbolicActivation` (Activation+Layer) + `SymbolicLoss` (Loss) via `eval_real`; 10 tests (Wave 60)
+- [x] `scirs2-linalg::symbolic` — `det_symbolic` (Leibniz n≤4), `eigenvalues_symbolic_2x2`, `condition_number_symbolic`; 12 tests (Wave 60)
+- [x] scirs2-autograd: float-tape vs EML symbolic gradient parity suite (12 ops × 100 points, 1e-10 tolerance)
+- [x] scirs2-optimize: L-BFGS symbolic + trust-region symbolic — two-loop L-BFGS + dogleg; 8 new tests
+- [x] scirs2-optimize: Lagrangian + KKT — `build_kkt` + `solve_lagrangian_symbolic`; Newton on N×N KKT system; 6 tests
+- [x] scirs2-autograd: EML vs float-tape criterion benchmark (eml_vs_tape.rs; 5 groups; x², sin, exp, composition, multi-input)
+- [x] `scirs2-linalg::symbolic::recognize` — `StructureKind` {Scalar,Diagonal,LowRankUpdate,Circulant,General}; `recognize()` + `inverse_by_structure()` (Sherman-Morrison for rank-1); 8 tests; 615 LoC (Wave 69)
+- [x] `scirs2-linalg::symbolic::expm` — `expm_symbolic_2x2` + `expm_symbolic_3x3` wrapping `cas::matrix_exp`; diagonal fast path; `ExpmSymbolicError`; 26 tests; 538 LoC (Wave 69)
+- [x] `scirs2-linalg::symbolic::spectral` — `eigenvalues_circulant` (DFT formula as `LoweredOp`); `eigenpairs_symmetric_2x2`; `structured_eigenvalues` dispatch-by-structure; 7 tests; 430 LoC (Wave 69)
+- [x] `scirs2-symbolic::cas::moments_catalog` — closed-form mean/variance/MGF for Normal, Exp, Bernoulli, Geometric, Uniform (no MGF) as `LoweredOp`; `MomentsCatalog`, `MomentsError`; 8 tests; 308 LoC (Wave 70)
+- [x] `scirs2-symbolic::cas::expected_fisher_catalog` — per-sample expected Fisher matrix for Normal, Exp, Bernoulli, Geometric (Uniform rejected); 4 tests; 209 LoC (Wave 70)
+- [x] `scirs2-symbolic::cas::noether_conservation` — Poisson-bracket-based conservation detection 1-DOF and n-DOF; `ConservationCheck`; harmonic, free particle, anharmonic, 2-DOF angular momentum; 10 tests; 480 LoC (Wave 70)
+- [x] `scirs2-neural::symbolic::rope_attention` — closed-form RoPE attention logit proving relative-position-only dependence; 9 tests; 419 LoC (Wave 70)
+- [ ] All remaining Phase-3 integration targets (extended SR-as-prior, transformer-shape attention beyond RoPE, etc.)
+
+### scirs2-symbolic — Phase 4 (Research) — 9/N
+- 7 items completed through Wave 68 (cas::inverse_symbolic, cas::matrix_ops, cas::matrix_exp, cas::spectral_2x2, cas::mle_catalog, cas::observed_fisher, cas::quadratic_line_search)
+- [x] `cas::reversible` — `RewriteStep` + `RewriteTrace` + `canonicalize_traced`; `is_fully_reversible()` + `reverse()`; batch-pass tracing; 8 tests; 413 LoC (Wave 69)
+- [x] `cas::integrate_rational` — Risch-LITE: ∫P(x)/Q(x) for literal-coeff rationals; partial fractions for degree-2 denominators (real distinct / repeated / complex conjugate); 16 tests; 860 LoC (Wave 70)
+- Remaining Phase-4 items (neural-guided EML, Coq/Lean proof export, differentially-private SR, quantum-symbolic, differential geometry, inverse-calc at scale, LM program synthesis) remain open and explicitly research-grade.
+
+### Documentation
+- [x] LaTeX export module docs (`eml::display::to_latex` rustdoc)
+- [x] `scirs2-autograd::symbolic_backend` rustdoc
+- [x] CHANGELOG.md v0.4.4 entry covering Waves 53–58
+- [x] Root TODO.md and scirs2-symbolic/TODO.md status snapshots
+- [x] Root README.md v0.4.4 highlights section
+
+### Quality Gate
+- 0 clippy warnings across 8 scirs2-symbolic feature configs (no-default, serde, smt, jit, gpu, parallel, numa, all-features)
+- scirs2-symbolic: 743 tests passing (was 735 before Wave 66)
+- scirs2-autograd (with symbolic): 1,165 tests; scirs2-stats (with symbolic): 2,469 tests
+- scirs2-linalg (with symbolic): 1,997 tests; scirs2-integrate (with symbolic): 1,698 tests; scirs2-neural (with symbolic): 1,763 tests
+- All 4 physics examples build and run cleanly
+- Cycle-prevention CI gate passes
+- No-unwrap policy: PASS in production code paths
+
+---
+
 ## v1.0.0 — PLANNED (Q4 2026)
 
 ### API Stability Guarantees
@@ -686,6 +794,60 @@ All development must adhere to the following policies:
 
 ---
 
-**Last Updated**: May 3, 2026
-**Branch**: 0.4.3
-**Status**: v0.4.3 RELEASED — 34,883 tests passing (34,299 nextest + 584 scirs2-datasets lib), ~2.94M lines of Rust, ~32 workspace crates; release-check pass on 2026-05-02 stabilized 25+ doctests, upgraded core deps (rayon 1.12, rand 0.10.1, nalgebra 0.34.2, oxiarc-* 0.2.7, blake3 1.8.5, uuid 1.23.1), feature-gated `printpdf` in scirs2-special, vendored pathfinder_simd ARM NEON patch
+**Last Updated**: May 15, 2026
+**Branch**: 0.4.4
+**Status**: v0.4.4 RELEASED — `scirs2-symbolic` EML-IR CAS substrate (Phase 0 complete, Phase 1 12/13, Phase 2 15/15, Phase 3 18/12+ after Waves 59–70, Phase 4 9/N): full canonical CAS, certified rewriting, e-graphs, cross-crate integrations across `scirs2-optimize/integrate/stats/neural/linalg/autograd`, Risch-LITE rational integration, distribution moments / Fisher catalogs, Noether conservation, closed-form RoPE attention. See CHANGELOG.md `[0.4.4]` for full release notes.
+
+---
+
+## Wave 72 (May 2026)
+- [x] scirs2-special: `erfc_batch_wgpu` + `ERFC_WGSL` (complementary error function, hard clamp |x|>6); `erfinv_batch_wgpu` + `ERFINV_WGSL` (Winitzki 2008 rational approximation); both re-exported from `gpu_kernels` and routed through `batch_erfc`/`batch_erfinv` in `gpu_dispatch.rs`; 2 new integration tests added to `tests/gpu_wgpu_dispatch.rs`
+- [x] scirs2-fft: `fft_wgpu()` fully implemented — multi-pass Cooley-Tukey radix-2 DIT dispatch via wgpu; bit-reverse permutation, per-stage uniform-buffer update, graceful skip when no adapter; roundtrip and non-power-of-two tests
+- [x] scirs2-stats: new `gpu` module (`src/gpu/mod.rs`) with batch WGSL compute shaders for Normal log-PDF, Normal CDF, Exponential log-PDF, Exponential CDF; `MIN_GPU_SIZE=1024` threshold ensures small arrays always use CPU (f64 precision); `gpu` and `gpu_wgpu` feature flags; all tests pass
+
+---
+
+## Wave 71 (May 2026)
+- [x] scirs2-special: `wgpu_kernels` feature — real wgpu dispatch for `gamma_batch_wgpu`, `erf_batch_wgpu`, `bessel_j0_batch_wgpu`; new `lgamma_batch_wgpu` + `LGAMMA_WGSL` shader; integration test suite (5 tests, graceful skip when no adapter)
+- [x] scirs2-core: WGSL compute shaders for `ElementwiseSub/Mul/Div/Pow/Sqrt/Exp/Log` kernels — registry-path wgpu now covers all common elementwise ops; new smoke tests verify shader compile and workgroup layout
+- [x] scirs2-transform: `GpuPCA::fit/transform/fit_transform` now CPU-backed via `reduction::PCA` (SVD); 18 functional tests replace 5 stub tests; `GpuPCA` no longer returns `NotImplemented`
+
+---
+
+## /stub-check 2026-05-05 — Deferred items
+
+These stubs were discovered by /stub-check but deferred because they require external SDKs, major new subsystems (>5000 LoC), or have dedicated planned waves.
+
+### GPU backends (Pure Rust Policy: no CUDA/Metal/OpenCL/Vulkan SDKs)
+- [x] `scirs2-core/src/gpu/kernels/elementwise.rs` — WGSL filled in for `sub`, `mul`, `div`, `pow`, `sqrt`, `exp`, `log` (Wave 71)
+- [x] `scirs2-special/src/gpu_kernels/` — wgpu dispatch wired for gamma/erf/bessel_j0/lgamma; `wgpu_kernels` feature (Wave 71)
+- [x] `scirs2-transform/src/gpu.rs` — `GpuPCA::fit/transform/fit_transform` now CPU-backed via `reduction::PCA` (Wave 71)
+- [ ] `scirs2-core/src/gpu/` — remaining kernel stubs (large scope; partial wgpu coverage now in place)
+- [x] `scirs2-stats/src/gpu/` — GPU-backed statistical operations (Normal/Exponential log-PDF and CDF batch; MIN_GPU_SIZE=1024 threshold; Wave 72)
+- [x] `scirs2-fft/src/gpu_fft/wgpu_backend.rs` — `fft_wgpu()` multi-pass Cooley-Tukey DIT; graceful adapter-missing skip (Wave 72)
+- [ ] `scirs2-fft/src/backends/{cuda,metal}.rs` — CUDA/Metal FFT backends
+- [ ] `scirs2-interpolate/src/gpu_accelerated.rs` — GPU-accelerated interpolation (already CPU-backed; wgpu dispatch future)
+- [ ] `scirs2-graph/src/gpu/algorithms.rs` — GPU graph algorithms (already CPU-parallel; wgpu dispatch future)
+- [ ] `scirs2-optimize/src/gpu/` + `distributed_gpu.rs` — GPU optimization
+
+### Distributed computing (requires external MPI/RDMA runtime)
+- [ ] `scirs2-linalg/src/distributed/communication.rs` — MPI-backed distributed communication
+- [ ] `scirs2-autograd/src/distributed/communication.rs` — MPI-backed autograd communication
+
+### Architectural / large scope
+- [ ] `scirs2-core/src/advanced_cloud_storage/providers.rs` — Azure Blob + AWS-specific backends (requires cloud SDKs)
+- [ ] `scirs2-core/src/memory_efficient/cross_device.rs` — TPU support (no Pure Rust path)
+- [ ] `scirs2-core/src/array_protocol/operations.rs` — 15 protocol stubs (matmul/svd/inverse/transpose/reshape etc.) — architectural, backend dispatch
+- [ ] `scirs2-neural/src/serving.rs` — `generate_binary` / `generate_shared_library` (runtime codegen via rustc, oversized)
+
+### Specialized algorithms (dedicated future waves)
+- [ ] `scirs2-integrate/src/dae/solvers.rs:833` — Pantelides DAE index reduction
+- [ ] `scirs2-integrate/src/sde/runge_kutta_sde.rs:59` — SDE iterated stochastic integrals (Lévy-area approximation)
+- [ ] `scirs2-fft/src/distributed.rs:417,530,643` — FFT distributed >3D (slab/pencil/volumetric decomposition)
+- [ ] `scirs2-interpolate/src/voronoi/voronoi_cell.rs` — Voronoi higher-dimensional operations
+- [x] `scirs2-linalg/src/autograd/tensor_algebra.rs:249,509` — General tensor contraction (Einstein summation engine) [implemented in `src/autograd/einsum.rs`; 13 tests pass]
+- [ ] `scirs2-integrate/src/pde/` + `src/geometric/volume_preserving.rs:590` — Higher-order DG/spectral element/volume-preserving quadrature
+- [x] `scirs2-neural/src/models/architectures/mamba.rs` — Mamba SSM (implemented — 983 lines, full selective scan + ZOH discretization)
+- [ ] `scirs2-neural/src/models/diffusion/dpm_solver.rs` — DPM-Solver (dedicated wave planned)
+- [ ] `scirs2-neural/src/layers/grouped_query_attention.rs` — GQA (dedicated wave planned)
+- [ ] `scirs2-neural/src/layers/multi_query_attention.rs` — MQA (dedicated wave planned)

@@ -34,11 +34,15 @@ serde = { workspace = true }
 tokio = { workspace = true, optional = true }
 futures = { workspace = true, optional = true }
 
+# Symbolic-gradient dependencies (optional)
+scirs2-symbolic = { workspace = true, optional = true }
+
 [features]
 default = ["parallel"]
 parallel = ["scirs2-core/parallel"]
 async = ["tokio", "futures"]
 python = ["scirs2-core/python"] # Python bindings support
+symbolic = ["dep:scirs2-symbolic"] # Symbolic-gradient Newton solver
 
 [dev-dependencies]
 approx = { workspace = true }

@@ -5,7 +5,7 @@
 [![PyPI](https://img.shields.io/pypi/v/scirs2)](https://pypi.org/project/scirs2/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Python](https://img.shields.io/pypi/pyversions/scirs2)](https://pypi.org/project/scirs2/)
-[![Version](https://img.shields.io/badge/version-0.4.3-green)]()
+[![Version](https://img.shields.io/badge/version-0.4.4-green)]()
 
 ## Overview
 

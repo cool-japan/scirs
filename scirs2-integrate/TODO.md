@@ -134,13 +134,7 @@
 - [x] Weak order 2.0 SDE schemes (Platen-Wagner) — Implemented in v0.4.0 (`sde/weak_order2.rs`)
 - [x] Rough SDE driven by fractional Brownian motion — Implemented in v0.4.0 (`sde/rough_sde.rs`, `sde/fractional_brownian.rs`)
 - [x] Galerkin SPDE solvers with polynomial chaos expansion — Implemented in v0.4.0 (`polynomial_chaos/` module)
-- [x] Real-time particle filter for state estimation (planned 2026-04-17)
-  - **Goal:** Full net-new streaming SIR / bootstrap particle filter. The existing `sde/particle_filter.rs` is a batch filter with no streaming API whatsoever (confirmed: grep for `stream|online|step_observation|realtime|real_time` returned zero matches). Build a `StreamingParticleFilter<State, Obs>` that (a) accepts observations one at a time via `step(&mut self, obs: &Obs) -> FilterEstimate<State>`, (b) triggers systematic resampling when ESS drops below a configurable threshold (default `N/2`), (c) takes user-supplied proposal / likelihood / transition closures, (d) operates in bounded memory (particle buffer reused, no allocation per step), (e) exposes `mean`, `covariance`, `effective_sample_size`, and `log_marginal_likelihood` accessors.
-  - **Design:** New file `sde/streaming_particle_filter.rs`. `StreamingParticleFilter<S, O>` fields: `particles: Array2<f64>` (N × state_dim) via `scirs2-core::ndarray`, `log_weights: Array1<f64>`, `rng: Box<dyn scirs2_core::random::Rng>`, `transition: Box<dyn Fn(&ArrayView1<f64>, &mut dyn Rng) -> Array1<f64>>`, `log_likelihood: Box<dyn Fn(&ArrayView1<f64>, &O) -> f64>`, `ess_threshold: f64`, `log_evidence: f64`. Resampling: **systematic resampling** (Carpenter-Clifford-Fearnhead 1999) — deterministic partition `[u_0 + i/N : i=0..N]`, invert CDF in O(N). Builder: `StreamingParticleFilterBuilder::new(n_particles).transition(..).log_likelihood(..).ess_threshold(0.5).seed(42).build()`. Keep the existing batch filter untouched; `sde/mod.rs` re-exports both. RNG via `scirs2_core::random` (no raw `rand` in non-core crates per SciRS2 policy).
-  - **Files:** `scirs2-integrate/src/sde/streaming_particle_filter.rs` (new), `scirs2-integrate/src/sde/mod.rs` (re-export), `scirs2-integrate/tests/streaming_particle_filter_tests.rs` (new), `scirs2-integrate/TODO.md`.
-  - **Prerequisites:** none. RNG via `scirs2_core::random`.
-  - **Tests:** `streaming_filter_tracks_linear_gaussian_matches_kalman`, `streaming_filter_adaptive_resample_triggers_on_ess`, `streaming_filter_bearings_only_nonlinear_tracking`, `streaming_filter_bounded_memory_1000_steps`, `streaming_filter_log_evidence_matches_batch`.
-  - **Risk:** Systematic resampling + fixed seed is deterministic, so tests are stable. Heap check (`Vec::capacity()`) is fragile — assert no growth rather than exact size. If ndarray reallocation is detected, switch to pre-allocated `Array2::zeros` buffers filled in place.
+- [x] **Streaming particle filter (`StreamingParticleFilter`)** — Implemented (sde/streaming_particle_filter.rs, 701 LoC; complete API: step / systematic_resample / log-weights / ESS / FilterEstimate / SimpleRng helper)
 
 ### PDE Solvers
 - [x] Hybridizable DG (HDG) for diffusion-dominated problems — Implemented in v0.4.0 (`pde/hdg/` module)
@@ -158,6 +152,28 @@
   - **Prerequisites:** none.
   - **Tests:** `cc_converges_oscillatory` (∫cos(100x)dx), `cc_with_pole_avoidance` (contour around 1/(x-iε)), `cc_matches_analytic_gaussian`.
   - **Risk:** existing implementation may use simplified CC without true contour deformation; implement Talbot-style or parabolic deformation fully per Trefethen & Weideman if needed.
+
+## Wave 72 — Symbolic-first ODE solver (2026-05-06)
+
+- [x] **Closed-form ODE branches when `cas::solve_ode` succeeds** (completed 2026-05-07)
+  - **Goal:** `scirs2_integrate::symbolic_first::solve_ode_symbolic_or_numerical` — attempt `cas::solve_ode` first; on success return LoweredOp-typed x(t); on failure fall back to existing numerical RK45/BDF interface.
+  - **Design:** New file `scirs2-integrate/src/symbolic_first.rs` behind `symbolic` feature (already gates eml.rs). Public enum `SymbolicOrNumericalResult { Symbolic { x_of_t: LoweredOp, kind: OdeKind, integration_constants: Vec<usize> }, Numerical { trajectory: Array2<f64>, time: Array1<f64> } }`. Function `solve_ode_symbolic_or_numerical<F>(rhs_symbolic: Option<&LoweredOp>, rhs_numeric: F, x_var: usize, t_var: usize, ic: (f64,f64), t_end: f64, opts: &OdeOpts) -> Result<SymbolicOrNumericalResult, IntegrateError>`. On SolveOdeError, fall back to solve_ivp. OdeOpts includes `preferred: SolvePreference` with `ForceNumerical` variant. Provide `rhs_from_symbolic_only` constructor that JIT-compiles rhs_symbolic so rhs_numeric is derived from it.
+  - **Files:** `scirs2-integrate/src/symbolic_first.rs` (new); `scirs2-integrate/src/lib.rs` (export under `#[cfg(feature = "symbolic")]`); `scirs2-integrate/Cargo.toml` (scirs2-symbolic already optional under symbolic feature — verify only).
+  - **Prerequisites:** `scirs2_symbolic::cas::solve_ode` (scirs2-symbolic Wave 72).
+  - **Tests:** ≥6 in `tests/symbolic_first_tests.rs`: dx/dt=x → Symbolic, JIT-eval matches exp(t) to 1e-12; Lorenz system → Numerical fallback matches solve_ivp to 1e-10 at t=10; Painlevé I → Numerical fallback; ForceNumerical bypasses symbolic attempt; dimension mismatch clear error; rhs_from_symbolic_only works correctly.
+  - **Risk:** Caller misuse if rhs_symbolic and rhs_numeric disagree. Mitigation: rhs_from_symbolic_only constructor; doctest emphasis.
+
+## Wave 73 — Pantelides graph algorithms + SDE Lévy area (2026-05-07)
+
+- [x] **Hopcroft-Karp matching + Tarjan SCC for DAE index reduction** (completed 2026-05-07)
+  - Replaced heuristic `find_singular_subsets` at `index_reduction.rs:468` with Pantelides algorithm using Hopcroft-Karp O(E√V) matching and Tarjan iterative SCC.
+  - Files: `src/dae/bipartite_matching.rs`, `src/dae/tarjan_scc.rs`, `src/dae/index_reduction.rs`
+  - Tests: 13 in `tests/dae_pantelides_tests.rs`
+
+- [x] **SDE Lévy-area via Wiktorsson approximation** (completed 2026-05-07)
+  - Lifts strong-order-1.5 SDE solver from scalar/diagonal-only to general noise via `srk_strong_general`.
+  - Files: `src/sde/levy_area.rs`, `src/sde/runge_kutta_sde.rs`
+  - Tests: 10 in `tests/sde_levy_area_tests.rs`
 
 ## Known Issues
 

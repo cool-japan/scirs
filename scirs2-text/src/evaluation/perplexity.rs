@@ -34,7 +34,7 @@ use std::path::Path;
 /// Implementors expose string tokens so the trait is usable with both
 /// word-level and character-level models without a vocabulary-bridge adapter.
 pub trait LanguageModelLike {
-    /// Return Σ_t log p(tokens[t] | tokens[0..t]) for the whole sequence.
+    /// Return Σ_t log p(`tokens[t]` | tokens[0..t]) for the whole sequence.
     ///
     /// Returns `None` when the sequence is empty.
     fn log_prob_sequence(&self, tokens: &[&str]) -> Option<f64>;

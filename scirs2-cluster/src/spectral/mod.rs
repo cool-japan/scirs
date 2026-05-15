@@ -6,7 +6,7 @@
 
 use scirs2_core::ndarray::{s, Array1, Array2, ArrayView2, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive};
-use scirs2_linalg::{eigh, smallest_k_eigh};
+use scirs2_linalg::eigh;
 use std::fmt::Debug;
 
 use crate::error::{ClusteringError, Result};
@@ -449,19 +449,32 @@ where
             F::from(1e-10).expect("Failed to convert constant to float");
     }
 
-    // Use the stabilized matrix for eigenvalue decomposition
-    // For larger matrices (>3x3), use smallest_k_eigh to avoid "not implemented" error
-    let (eigenvalues, eigenvectors) = if n <= 3 {
-        // For small matrices, use the full eigh decomposition
-        eigh(&stabilized_laplacian.view(), None)?
-    } else {
-        // For larger matrices, use specialized function to get smallest eigenvalues
-        // We need at least n_clusters eigenvalues, but request a few more for robustness
-        let k = (n_clusters + 2).min(n); // Request at least n_clusters eigenvalues
-        let max_iter = 1000;
-        let tolerance = F::from(1e-10).expect("Failed to convert constant to float");
+    // Use scirs2-linalg's symmetric eigendecomposition for all matrix sizes.
+    // eigh() provides: closed-form for 2×2/3×3/4×4, QR-iteration for n>4.
+    // The small-matrix paths (n≤4) return eigenvalues ascending; the n>4
+    // QR-iteration path returns them descending.  We unconditionally re-sort
+    // ascending so the downstream eigengap heuristic and eigenvector slicing
+    // always see the SciPy convention (smallest eigenvalue first).
+    let (eigenvalues, eigenvectors) = {
+        let (raw_vals, raw_vecs) = eigh(&stabilized_laplacian.view(), None)?;
 
-        smallest_k_eigh(&stabilized_laplacian.view(), k, max_iter, tolerance)?
+        // Build an ascending-sorted permutation.
+        let mut idx: Vec<usize> = (0..n).collect();
+        idx.sort_by(|&a, &b| {
+            raw_vals[a]
+                .partial_cmp(&raw_vals[b])
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+
+        let mut sorted_vals = raw_vals.clone();
+        let mut sorted_vecs = raw_vecs.clone();
+        for (new, &old) in idx.iter().enumerate() {
+            sorted_vals[new] = raw_vals[old];
+            for row in 0..n {
+                sorted_vecs[[row, new]] = raw_vecs[[row, old]];
+            }
+        }
+        (sorted_vals, sorted_vecs)
     };
 
     // Determine the actual number of _clusters
@@ -678,6 +691,172 @@ mod tests {
         assert!(
             labels.iter().all(|&l| l == 0 || l == 1),
             "All labels should be 0 or 1"
+        );
+    }
+
+    /// Test that the full `eigh` path (n > 4) returns correct eigenvalues for a
+    /// 5×5 symmetric positive-semidefinite matrix with analytically known eigenvalues.
+    ///
+    /// We use a rank-1 matrix  A = v·vᵀ  where v = [1,1,1,1,1]/√5.
+    /// The only nonzero eigenvalue is 1 (multiplicity 1); the other four are 0.
+    /// After stabilisation (+ 1e-10·I) the five eigenvalues become:
+    ///   four values ≈ 1e-10,  one value ≈ 1 + 1e-10.
+    #[test]
+    fn test_eigh_5x5_known_eigenvalues() {
+        let n = 5usize;
+        let v: f64 = 1.0 / (n as f64).sqrt();
+
+        // Build A = v·vᵀ (rank-1 SPSD matrix)
+        let mut a = Array2::<f64>::zeros((n, n));
+        for i in 0..n {
+            for j in 0..n {
+                a[[i, j]] = v * v;
+            }
+        }
+
+        // Stabilise as spectral_clustering does
+        let eps = 1e-10_f64;
+        for i in 0..n {
+            a[[i, i]] += eps;
+        }
+
+        // Call eigh and sort ascending (mirrors the fixed code path)
+        let (raw_vals, raw_vecs) =
+            eigh(&a.view(), None).expect("eigh must succeed on a valid SPSD matrix");
+
+        // Re-sort ascending (the n>4 path in scirs2-linalg sorts descending)
+        let mut idx: Vec<usize> = (0..n).collect();
+        idx.sort_by(|&i, &j| raw_vals[i].partial_cmp(&raw_vals[j]).unwrap());
+        let mut sorted_vals = raw_vals.clone();
+        let mut sorted_vecs = raw_vecs.clone();
+        for (new, &old) in idx.iter().enumerate() {
+            sorted_vals[new] = raw_vals[old];
+            for row in 0..n {
+                sorted_vecs[[row, new]] = raw_vecs[[row, old]];
+            }
+        }
+
+        // The four small eigenvalues must all be close to eps
+        for i in 0..4 {
+            assert!(
+                (sorted_vals[i] - eps).abs() < 1e-8,
+                "eigenvalue[{}] = {} should be ≈ {eps}",
+                i,
+                sorted_vals[i]
+            );
+        }
+        // The largest eigenvalue must be close to 1.0 + eps
+        let expected_large = 1.0 + eps;
+        assert!(
+            (sorted_vals[4] - expected_large).abs() < 1e-8,
+            "eigenvalue[4] = {} should be ≈ {expected_large}",
+            sorted_vals[4]
+        );
+
+        // Eigenvalues must be in ascending order
+        for i in 0..n - 1 {
+            assert!(
+                sorted_vals[i] <= sorted_vals[i + 1] + 1e-14,
+                "eigenvalues not ascending at index {i}: {} > {}",
+                sorted_vals[i],
+                sorted_vals[i + 1]
+            );
+        }
+    }
+
+    /// Test that spectral_clustering correctly handles n>4 matrices (exercises the
+    /// fixed `eigh` path with ascending-sort correction) and that the output shapes
+    /// and label ranges are valid.
+    ///
+    /// We also verify that the spectral embedding is well-conditioned: the two
+    /// embedding-dimension centroids must be further apart than the within-group
+    /// spread, confirming the ascending eigenvalue sort is correct.
+    #[test]
+    fn test_eigh_large_matrix_n_gt4_path() {
+        // 8 points in 2-D, two clearly separated groups.
+        // Group A: near (0, 0); Group B: near (50, 50).
+        // gamma = 0.002 → within-group affinity ≈ 1, cross-group ≈ exp(-0.002*5000) ≈ 0.
+        let data = Array2::<f64>::from_shape_vec(
+            (8, 2),
+            vec![
+                0.0, 0.0, 0.1, 0.0, 0.0, 0.1, 0.1, 0.1, // group A
+                50.0, 50.0, 50.1, 50.0, 50.0, 50.1, 50.1, 50.1, // group B
+            ],
+        )
+        .expect("shape is valid");
+
+        let opts = SpectralClusteringOptions {
+            affinity: AffinityMode::RBF,
+            gamma: 0.002,
+            normalized_laplacian: false,
+            n_init: 5,
+            random_seed: Some(42),
+            ..Default::default()
+        };
+
+        let result = spectral_clustering(data.view(), 2, Some(opts));
+        assert!(
+            result.is_ok(),
+            "spectral_clustering on 8-point 2-D data must not fail: {:?}",
+            result.err()
+        );
+
+        let (embedding, labels) = result.expect("already checked is_ok");
+
+        // Shape invariants
+        assert_eq!(
+            embedding.shape(),
+            &[8, 2],
+            "embedding must be (8, 2), got {:?}",
+            embedding.shape()
+        );
+        assert_eq!(labels.len(), 8, "must have a label per sample");
+
+        // All labels must be in [0, 1]
+        assert!(
+            labels.iter().all(|&l| l < 2),
+            "all labels must be 0 or 1, got {:?}",
+            labels
+        );
+
+        // Both clusters must be non-empty (ensures k-means did not collapse)
+        let n0 = labels.iter().filter(|&&l| l == 0).count();
+        let n1 = labels.iter().filter(|&&l| l == 1).count();
+        assert!(
+            n0 > 0 && n1 > 0,
+            "both clusters must be non-empty, got n0={n0} n1={n1}"
+        );
+
+        // Verify the spectral embedding separates the groups: compute
+        // centroid distance along the first embedding dimension and compare
+        // it against the within-group variance.  A well-ascending-sorted
+        // eigenvector set produces clearly separated embeddings.
+        let emb0: Vec<f64> = labels
+            .iter()
+            .enumerate()
+            .filter(|(_, &l)| l == 0)
+            .map(|(i, _)| embedding[[i, 0]])
+            .collect();
+        let emb1: Vec<f64> = labels
+            .iter()
+            .enumerate()
+            .filter(|(_, &l)| l == 1)
+            .map(|(i, _)| embedding[[i, 0]])
+            .collect();
+
+        let mean0 = emb0.iter().sum::<f64>() / emb0.len() as f64;
+        let mean1 = emb1.iter().sum::<f64>() / emb1.len() as f64;
+        let var0: f64 = emb0.iter().map(|x| (x - mean0).powi(2)).sum::<f64>() / emb0.len() as f64;
+        let var1: f64 = emb1.iter().map(|x| (x - mean1).powi(2)).sum::<f64>() / emb1.len() as f64;
+
+        let centroid_dist = (mean0 - mean1).abs();
+        let within_spread = (var0 + var1).sqrt();
+
+        // Centroid distance must exceed within-group spread — confirms eigh
+        // returned a well-ordered set of eigenvectors (ascending eigenvalues).
+        assert!(
+            centroid_dist > within_spread,
+            "spectral embedding must separate groups: centroid_dist={centroid_dist:.4} must exceed within_spread={within_spread:.4}"
         );
     }
 }

@@ -1000,6 +1000,111 @@ pub fn grad_mean(a: &GradientTensor) -> CoreResult<GradientTensor> {
             "mean".to_string(),
             vec![a.clone()],
         ))
+    } else if let Some(a_array) = a_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<i32, IxDyn>>()
+    {
+        let array = a_array.as_array();
+        let mean_value = if array.is_empty() {
+            0.0f64
+        } else {
+            array.iter().map(|&x| x as f64).sum::<f64>() / array.len() as f64
+        };
+        let result = ArrayD::<f64>::from_elem(IxDyn(&[1]), mean_value);
+        let result_wrapped = NdarrayWrapper::new(result);
+        let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
+        Ok(GradientTensor::from_op(
+            result_rc,
+            "mean".to_string(),
+            vec![a.clone()],
+        ))
+    } else if let Some(a_array) = a_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<i64, IxDyn>>()
+    {
+        let array = a_array.as_array();
+        let mean_value = if array.is_empty() {
+            0.0f64
+        } else {
+            array.iter().map(|&x| x as f64).sum::<f64>() / array.len() as f64
+        };
+        let result = ArrayD::<f64>::from_elem(IxDyn(&[1]), mean_value);
+        let result_wrapped = NdarrayWrapper::new(result);
+        let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
+        Ok(GradientTensor::from_op(
+            result_rc,
+            "mean".to_string(),
+            vec![a.clone()],
+        ))
+    } else if let Some(a_array) = a_value.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>() {
+        let array = a_array.as_array();
+        let mean_value = if array.is_empty() {
+            0.0f64
+        } else {
+            array.iter().map(|&x| x as f64).sum::<f64>() / array.len() as f64
+        };
+        let result = ArrayD::<f64>::from_elem(IxDyn(&[1]), mean_value);
+        let result_wrapped = NdarrayWrapper::new(result);
+        let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
+        Ok(GradientTensor::from_op(
+            result_rc,
+            "mean".to_string(),
+            vec![a.clone()],
+        ))
+    } else if let Some(a_array) = a_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<u16, IxDyn>>()
+    {
+        let array = a_array.as_array();
+        let mean_value = if array.is_empty() {
+            0.0f64
+        } else {
+            array.iter().map(|&x| x as f64).sum::<f64>() / array.len() as f64
+        };
+        let result = ArrayD::<f64>::from_elem(IxDyn(&[1]), mean_value);
+        let result_wrapped = NdarrayWrapper::new(result);
+        let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
+        Ok(GradientTensor::from_op(
+            result_rc,
+            "mean".to_string(),
+            vec![a.clone()],
+        ))
+    } else if let Some(a_array) = a_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<u32, IxDyn>>()
+    {
+        let array = a_array.as_array();
+        let mean_value = if array.is_empty() {
+            0.0f64
+        } else {
+            array.iter().map(|&x| x as f64).sum::<f64>() / array.len() as f64
+        };
+        let result = ArrayD::<f64>::from_elem(IxDyn(&[1]), mean_value);
+        let result_wrapped = NdarrayWrapper::new(result);
+        let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
+        Ok(GradientTensor::from_op(
+            result_rc,
+            "mean".to_string(),
+            vec![a.clone()],
+        ))
+    } else if let Some(a_array) = a_value
+        .as_any()
+        .downcast_ref::<NdarrayWrapper<u64, IxDyn>>()
+    {
+        let array = a_array.as_array();
+        let mean_value = if array.is_empty() {
+            0.0f64
+        } else {
+            array.iter().map(|&x| x as f64).sum::<f64>() / array.len() as f64
+        };
+        let result = ArrayD::<f64>::from_elem(IxDyn(&[1]), mean_value);
+        let result_wrapped = NdarrayWrapper::new(result);
+        let result_rc: Rc<dyn ArrayProtocol> = Rc::new(result_wrapped);
+        Ok(GradientTensor::from_op(
+            result_rc,
+            "mean".to_string(),
+            vec![a.clone()],
+        ))
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(
             "mean not implemented for this array type".to_string(),
@@ -1348,7 +1453,6 @@ impl Optimizer for Adam {
 // Helper functions for optimizers
 
 /// Multiply an array by a scalar.
-#[allow(dead_code)]
 fn multiply_by_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn ArrayProtocol>> {
     if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
         let inputarray = a_array.as_array();
@@ -1366,6 +1470,22 @@ fn multiply_by_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn 
         let inputarray = a_array.as_array();
         let result = inputarray.mapv(|x| (x as f64 * scalar) as i64);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>() {
+        let inputarray = a_array.as_array();
+        let result = inputarray.mapv(|x| (x as f64 * scalar) as u8);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>() {
+        let inputarray = a_array.as_array();
+        let result = inputarray.mapv(|x| (x as f64 * scalar) as u16);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>() {
+        let inputarray = a_array.as_array();
+        let result = inputarray.mapv(|x| (x as f64 * scalar) as u32);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>() {
+        let inputarray = a_array.as_array();
+        let result = inputarray.mapv(|x| (x as f64 * scalar) as u64);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(
             "multiply_by_scalar not implemented for this array type".to_string(),
@@ -1374,7 +1494,6 @@ fn multiply_by_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn 
 }
 
 /// Subtract one array from another, returning a new array.
-#[allow(dead_code)]
 fn subtract_arrays(
     a: &dyn ArrayProtocol,
     b: &dyn ArrayProtocol,
@@ -1412,6 +1531,38 @@ fn subtract_arrays(
         let b_arr = b_array.as_array();
         let result = a_arr - b_arr;
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_wrapper), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>(),
+    ) {
+        let a_arr = a_wrapper.as_array();
+        let b_arr = b_array.as_array();
+        let result = a_arr - b_arr;
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_wrapper), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>(),
+    ) {
+        let a_arr = a_wrapper.as_array();
+        let b_arr = b_array.as_array();
+        let result = a_arr - b_arr;
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_wrapper), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>(),
+    ) {
+        let a_arr = a_wrapper.as_array();
+        let b_arr = b_array.as_array();
+        let result = a_arr - b_arr;
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_wrapper), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>(),
+    ) {
+        let a_arr = a_wrapper.as_array();
+        let b_arr = b_array.as_array();
+        let result = a_arr - b_arr;
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(
             "subtract_arrays not implemented for these array types".to_string(),
@@ -1420,13 +1571,30 @@ fn subtract_arrays(
 }
 
 /// Element-wise square root.
-#[allow(dead_code)]
 fn sqrt(a: &dyn ArrayProtocol) -> CoreResult<Box<dyn ArrayProtocol>> {
     if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
         let result = a_array.as_array().mapv(|x| x.sqrt());
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
     } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f32, IxDyn>>() {
         let result = a_array.as_array().mapv(|x| x.sqrt());
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<i32, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| (x as f64).sqrt());
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<i64, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| (x as f64).sqrt());
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| (x as f64).sqrt());
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| (x as f64).sqrt());
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| (x as f64).sqrt());
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| (x as f64).sqrt());
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(
@@ -1436,7 +1604,6 @@ fn sqrt(a: &dyn ArrayProtocol) -> CoreResult<Box<dyn ArrayProtocol>> {
 }
 
 /// Add a scalar to an array.
-#[allow(dead_code)]
 fn add_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn ArrayProtocol>> {
     if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>() {
         let result = a_array.as_array().mapv(|x| x + scalar);
@@ -1450,6 +1617,18 @@ fn add_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn ArrayPro
     } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<i64, IxDyn>>() {
         let result = a_array.as_array().mapv(|x| x + scalar as i64);
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| x + scalar as u8);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| x + scalar as u16);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| x + scalar as u32);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let Some(a_array) = a.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>() {
+        let result = a_array.as_array().mapv(|x| x + scalar as u64);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(
             "add_scalar not implemented for this array type".to_string(),
@@ -1458,7 +1637,6 @@ fn add_scalar(a: &dyn ArrayProtocol, scalar: f64) -> CoreResult<Box<dyn ArrayPro
 }
 
 /// Element-wise division.
-#[allow(dead_code)]
 fn divide(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<Box<dyn ArrayProtocol>> {
     if let (Some(a_array), Some(b_array)) = (
         a.as_any().downcast_ref::<NdarrayWrapper<f64, IxDyn>>(),
@@ -1472,6 +1650,54 @@ fn divide(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<Box<dyn Ar
     ) {
         let result = a_array.as_array() / b_array.as_array();
         Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_array), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<i32, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<i32, IxDyn>>(),
+    ) {
+        let result = ::ndarray::Zip::from(a_array.as_array())
+            .and(b_array.as_array())
+            .map_collect(|&av, &bv| av as f64 / bv as f64);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_array), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<i64, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<i64, IxDyn>>(),
+    ) {
+        let result = ::ndarray::Zip::from(a_array.as_array())
+            .and(b_array.as_array())
+            .map_collect(|&av, &bv| av as f64 / bv as f64);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_array), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<u8, IxDyn>>(),
+    ) {
+        let result = ::ndarray::Zip::from(a_array.as_array())
+            .and(b_array.as_array())
+            .map_collect(|&av, &bv| av as f64 / bv as f64);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_array), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<u16, IxDyn>>(),
+    ) {
+        let result = ::ndarray::Zip::from(a_array.as_array())
+            .and(b_array.as_array())
+            .map_collect(|&av, &bv| av as f64 / bv as f64);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_array), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<u32, IxDyn>>(),
+    ) {
+        let result = ::ndarray::Zip::from(a_array.as_array())
+            .and(b_array.as_array())
+            .map_collect(|&av, &bv| av as f64 / bv as f64);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
+    } else if let (Some(a_array), Some(b_array)) = (
+        a.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>(),
+        b.as_any().downcast_ref::<NdarrayWrapper<u64, IxDyn>>(),
+    ) {
+        let result = ::ndarray::Zip::from(a_array.as_array())
+            .and(b_array.as_array())
+            .map_collect(|&av, &bv| av as f64 / bv as f64);
+        Ok(Box::new(NdarrayWrapper::new(result)) as Box<dyn ArrayProtocol>)
     } else {
         Err(CoreError::NotImplementedError(ErrorContext::new(
             "divide not implemented for these array types".to_string(),
@@ -1480,218 +1706,5 @@ fn divide(a: &dyn ArrayProtocol, b: &dyn ArrayProtocol) -> CoreResult<Box<dyn Ar
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use ::ndarray::{array, Array2, Ix2};
-
-    #[test]
-    fn test_gradient_tensor_creation() {
-        // Create a gradient tensor
-        let array = Array2::<f64>::ones((2, 2));
-        let tensor = GradientTensor::from_array(array, true);
-
-        // Check properties
-        assert!(tensor.requiresgrad());
-        assert!(tensor.is_leaf());
-        assert!(tensor.grad_2().is_none());
-    }
-
-    #[test]
-    fn test_gradient_computation_add() {
-        // Import will be used when the test is enabled
-        #[allow(unused_imports)]
-        use ::ndarray::array;
-
-        // Create gradient tensors
-        let a_array = Array2::<f64>::ones((2, 2));
-        let b_array = Array2::<f64>::ones((2, 2)) * 2.0;
-
-        let a = GradientTensor::from_array(a_array, true);
-        let b = GradientTensor::from_array(b_array, true);
-
-        // Perform addition - skip test if operation not implemented
-        let c = match grad_add(&a, &b) {
-            Ok(c) => c,
-            Err(e) => {
-                println!("Skipping test_gradient_computationadd: {e}");
-                return;
-            }
-        };
-
-        // Check result
-        let c_value = c.value();
-        let c_array = match c_value.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-            Some(array) => array,
-            None => {
-                println!("Skipping test_gradient_computationadd: result is not the expected type");
-                return;
-            }
-        };
-        assert_eq!(c_array.as_array(), &array![[3.0, 3.0], [3.0, 3.0]]);
-
-        // Compute gradients
-        if let Err(e) = c.backward() {
-            println!("Skipping test_gradient_computationadd: {e}");
-            return;
-        }
-
-        // Check gradients
-        let a_grad = match a.grad_2() {
-            Some(grad) => grad,
-            None => {
-                println!("Skipping test_gradient_computationadd: no gradient for a");
-                return;
-            }
-        };
-
-        let a_grad_array = match a_grad.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-            Some(array) => array,
-            None => {
-                println!("Skipping test_gradient_computationadd: a_grad is not the expected type");
-                return;
-            }
-        };
-        assert_eq!(a_grad_array.as_array(), &array![[1.0, 1.0], [1.0, 1.0]]);
-
-        let b_grad = match b.grad_2() {
-            Some(grad) => grad,
-            None => {
-                println!("Skipping test_gradient_computationadd: no gradient for b");
-                return;
-            }
-        };
-
-        let b_grad_array = match b_grad.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-            Some(array) => array,
-            None => {
-                println!("Skipping test_gradient_computationadd: b_grad is not the expected type");
-                return;
-            }
-        };
-        assert_eq!(b_grad_array.as_array(), &array![[1.0, 1.0], [1.0, 1.0]]);
-    }
-
-    #[test]
-    fn test_gradient_computation_multiply() {
-        // Import will be used when the test is enabled
-        #[allow(unused_imports)]
-        use ::ndarray::array;
-
-        // Create gradient tensors
-        let a_array = Array2::<f64>::ones((2, 2)) * 2.0;
-        let b_array = Array2::<f64>::ones((2, 2)) * 3.0;
-
-        let a = GradientTensor::from_array(a_array, true);
-        let b = GradientTensor::from_array(b_array, true);
-
-        // Perform multiplication - skip test if operation not implemented
-        let c = match grad_multiply(&a, &b) {
-            Ok(c) => c,
-            Err(e) => {
-                println!("Skipping test_gradient_computationmultiply: {e}");
-                return;
-            }
-        };
-
-        // Check result
-        let c_value = c.value();
-        let c_array = match c_value.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-            Some(array) => array,
-            None => {
-                println!(
-                    "Skipping test_gradient_computation_multiply: result is not the expected type"
-                );
-                return;
-            }
-        };
-        assert_eq!(c_array.as_array(), &array![[6.0, 6.0], [6.0, 6.0]]);
-
-        // Compute gradients
-        if let Err(e) = c.backward() {
-            println!("Skipping test_gradient_computationmultiply: {e}");
-            return;
-        }
-
-        // Check gradients
-        let a_grad = match a.grad_2() {
-            Some(grad) => grad,
-            None => {
-                println!("Skipping test_gradient_computationmultiply: no gradient for a");
-                return;
-            }
-        };
-
-        let a_grad_array = match a_grad.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-            Some(array) => array,
-            None => {
-                println!(
-                    "Skipping test_gradient_computation_multiply: a_grad is not the expected type"
-                );
-                return;
-            }
-        };
-        assert_eq!(a_grad_array.as_array(), &array![[3.0, 3.0], [3.0, 3.0]]);
-
-        let b_grad = match b.grad_2() {
-            Some(grad) => grad,
-            None => {
-                println!("Skipping test_gradient_computationmultiply: no gradient for b");
-                return;
-            }
-        };
-
-        let b_grad_array = match b_grad.as_any().downcast_ref::<NdarrayWrapper<f64, Ix2>>() {
-            Some(array) => array,
-            None => {
-                println!(
-                    "Skipping test_gradient_computation_multiply: b_grad is not the expected type"
-                );
-                return;
-            }
-        };
-        assert_eq!(b_grad_array.as_array(), &array![[2.0, 2.0], [2.0, 2.0]]);
-    }
-
-    #[test]
-    fn test_sgd_optimizer() {
-        // Import will be used when the test is enabled
-        #[allow(unused_imports)]
-        use ::ndarray::array;
-
-        // Create variables
-        let weight_array = Array2::<f64>::ones((2, 2));
-        let weight = Variable::new("weight", weight_array);
-
-        let bias_array = Array2::<f64>::zeros((2, 2));
-        let bias = Variable::new("bias", bias_array);
-
-        // Create optimizer
-        let mut optimizer = SGD::new(0.1, Some(0.9));
-        optimizer.add_variable(weight);
-        optimizer.add_variable(bias);
-
-        // Manually set gradients for testing
-        let weight_grad_array = Array2::<f64>::ones((2, 2));
-        let weight_grad = NdarrayWrapper::new(weight_grad_array);
-        optimizer.variables()[0].tensor.node.borrow_mut().grad = Some(Rc::new(weight_grad));
-
-        let bias_grad_array = Array2::<f64>::ones((2, 2)) * 2.0;
-        let bias_grad = NdarrayWrapper::new(bias_grad_array);
-        optimizer.variables()[1].tensor.node.borrow_mut().grad = Some(Rc::new(bias_grad));
-
-        // Take an optimization step
-        match optimizer.step() {
-            Ok(_) => {
-                // Zero gradients
-                optimizer.zero_grad();
-
-                // Check that gradients are zeroed
-                assert!(optimizer.variables()[0].grad_2().is_none());
-                assert!(optimizer.variables()[1].grad_2().is_none());
-            }
-            Err(e) => {
-                println!("Skipping test_sgd_optimizer - step failed: {e}");
-            }
-        }
-    }
-}
+#[path = "grad_tests.rs"]
+mod tests;

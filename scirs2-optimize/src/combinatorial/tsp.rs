@@ -153,7 +153,7 @@ pub fn two_opt(tour: &mut Vec<usize>, dist: &Array2<f64>) -> f64 {
 /// `None` otherwise.
 ///
 /// The three edges removed are:
-///   (tour[i], tour[i+1]),  (tour[j], tour[j+1]),  (tour[k], tour[(k+1)%n])
+///   (tour\[i\], tour\[i+1\]),  (tour\[j\], tour\[j+1\]),  (tour\[k\], tour\[(k+1)%n\])
 pub fn three_opt_move(
     dist: &Array2<f64>,
     i: usize,

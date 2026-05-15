@@ -29,6 +29,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 oxicode = { workspace = true }
+scirs2-symbolic = { workspace = true, optional = true }
 
 [dev-dependencies]
 scirs2-autograd = { workspace = true }
@@ -38,3 +39,4 @@ default = []
 gpu = ["scirs2-core/gpu"]
 metrics_integration = ["scirs2-metrics/neural_common"]
 legacy_serialization = []
+symbolic = ["dep:scirs2-symbolic"]

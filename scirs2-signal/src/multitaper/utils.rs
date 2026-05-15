@@ -157,10 +157,17 @@ where
         }
     }
 
-    // Compute FFT of tapered signals
-    let mut x_spectra = Array2::zeros((k_val, nfft_val / 2 + 1));
-    let mut y_spectra = Array2::zeros((k_val, nfft_val / 2 + 1));
-    let mut cross_spectra = Array2::zeros((k_val, nfft_val / 2 + 1));
+    // Number of frequency bins to retain depends on one-sided vs two-sided
+    let n_freqs_alloc = if return_onesided_val {
+        nfft_val / 2 + 1
+    } else {
+        nfft_val
+    };
+
+    // Compute FFT of tapered signals and accumulate spectral estimates
+    let mut x_spectra = Array2::zeros((k_val, n_freqs_alloc));
+    let mut y_spectra = Array2::zeros((k_val, n_freqs_alloc));
+    let mut cross_spectra = Array2::zeros((k_val, n_freqs_alloc));
 
     for i in 0..k_val {
         // Create complex signals for FFT
@@ -176,9 +183,8 @@ where
         let x_spectrum = compute_fft(&x_complex)?;
         let y_spectrum = compute_fft(&y_complex)?;
 
-        // Store power and cross-spectra (one-sided)
-        let n_freqs = nfft_val / 2 + 1;
-        for j in 0..n_freqs {
+        // Store power and cross-spectra for the chosen frequency range
+        for j in 0..n_freqs_alloc {
             x_spectra[[i, j]] = x_spectrum[j].norm_sqr();
             y_spectra[[i, j]] = y_spectrum[j].norm_sqr();
             cross_spectra[[i, j]] = (x_spectrum[j] * y_spectrum[j].conj()).norm();
@@ -187,25 +193,33 @@ where
 
     // Create frequency array
     let freqs = if return_onesided_val {
-        // One-sided spectrum (positive frequencies only)
-        let n_freqs = nfft_val / 2 + 1;
-        let mut f = Vec::with_capacity(n_freqs);
-        for i in 0..n_freqs {
+        // One-sided spectrum: positive frequencies 0 .. fs/2
+        let mut f = Vec::with_capacity(n_freqs_alloc);
+        for i in 0..n_freqs_alloc {
             f.push(i as f64 * fs_val / nfft_val as f64);
         }
         f
     } else {
-        // Two-sided spectrum would need additional handling here
-        return Err(SignalError::ValueError(
-            "Two-sided coherence not implemented".to_string(),
-        ));
+        // Two-sided spectrum: full fftfreq convention
+        // Bins 0..n/2 are positive, bins n/2..n are negative (wrapped).
+        // freq[i] = i * fs / n  for i < n/2+1
+        // freq[i] = (i - n) * fs / n  for i >= n/2+1  (negative frequencies)
+        let mut f = Vec::with_capacity(nfft_val);
+        for i in 0..nfft_val {
+            let freq = if i <= nfft_val / 2 {
+                i as f64 * fs_val / nfft_val as f64
+            } else {
+                (i as f64 - nfft_val as f64) * fs_val / nfft_val as f64
+            };
+            f.push(freq);
+        }
+        f
     };
 
     // Compute coherence by combining estimates from different tapers
-    let n_freqs = nfft_val / 2 + 1;
-    let mut coherence = vec![0.0; n_freqs];
+    let mut coherence = vec![0.0; n_freqs_alloc];
 
-    for j in 0..n_freqs {
+    for j in 0..n_freqs_alloc {
         let mut x_power = 0.0;
         let mut y_power = 0.0;
         let mut cross_power = 0.0;
@@ -217,7 +231,7 @@ where
             cross_power += weight * cross_spectra[[i, j]];
         }
 
-        // Compute coherence
+        // Compute coherence: |S_xy|^2 / (S_xx * S_yy)
         let denominator = (x_power * y_power).sqrt();
         if denominator > 0.0 {
             coherence[j] = (cross_power / denominator).powi(2);

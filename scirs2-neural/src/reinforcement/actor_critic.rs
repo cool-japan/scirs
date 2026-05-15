@@ -1,10 +1,12 @@
 //! Actor-Critic reinforcement learning algorithms
 
-use crate::error::Result;
+use crate::error::{NeuralError, Result};
 use crate::reinforcement::policy::PolicyNetwork;
 use crate::reinforcement::value::ValueNetwork;
 use crate::reinforcement::{ExperienceBatch, LossInfo};
+use oxicode::{config as oxicode_config, serde as oxicode_serde};
 use scirs2_core::ndarray::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 /// Base Actor-Critic structure combining a policy (actor) and value function (critic)
@@ -357,15 +359,58 @@ impl PPO {
         self.clip_epsilon
     }
 
-    /// Save to disk (stub — no serialization implemented)
-    pub fn save(&self, _path: &str) -> Result<()> {
-        Ok(())
+    /// Save PPO model parameters to `path` using oxicode binary serialization.
+    ///
+    /// All actor (policy) layer weights plus the critic (value) layer weights
+    /// are extracted and written atomically.  Reload with [`PPO::load`].
+    pub fn save(&self, path: &str) -> Result<()> {
+        let snapshot = PpoSnapshot {
+            actor_params: self.actor_critic.actor.collect_params(),
+            critic_params: self.actor_critic.critic.collect_params(),
+            clip_epsilon: self.clip_epsilon,
+            entropy_coef: self.entropy_coef,
+            value_loss_coef: self.value_loss_coef,
+        };
+        let cfg = oxicode_config::standard();
+        let bytes = oxicode_serde::encode_to_vec(&snapshot, cfg)
+            .map_err(|e| NeuralError::SerializationError(format!("PPO save: {e}")))?;
+        std::fs::write(path, &bytes)
+            .map_err(|e| NeuralError::IOError(format!("PPO save write: {e}")))
     }
 
-    /// Load from disk (stub)
-    pub fn load(&mut self, _path: &str) -> Result<()> {
+    /// Restore PPO model parameters from `path` produced by [`PPO::save`].
+    ///
+    /// The model architecture (hidden sizes, dims) must match the saved one.
+    pub fn load(&mut self, path: &str) -> Result<()> {
+        let bytes =
+            std::fs::read(path).map_err(|e| NeuralError::IOError(format!("PPO load read: {e}")))?;
+        let cfg = oxicode_config::standard();
+        let (snapshot, _): (PpoSnapshot, _) =
+            oxicode_serde::decode_owned_from_slice(&bytes, cfg)
+                .map_err(|e| NeuralError::DeserializationError(format!("PPO load: {e}")))?;
+        self.actor_critic
+            .actor
+            .restore_params(&snapshot.actor_params)?;
+        self.actor_critic
+            .critic
+            .restore_params(&snapshot.critic_params)?;
+        self.clip_epsilon = snapshot.clip_epsilon;
+        self.entropy_coef = snapshot.entropy_coef;
+        self.value_loss_coef = snapshot.value_loss_coef;
         Ok(())
     }
+}
+
+/// Serializable snapshot of PPO model parameters.
+#[derive(Serialize, Deserialize)]
+struct PpoSnapshot {
+    /// Flattened actor layer parameters: `(data, shape)` per tensor
+    actor_params: Vec<(Vec<f32>, Vec<usize>)>,
+    /// Flattened critic layer parameters
+    critic_params: Vec<(Vec<f32>, Vec<usize>)>,
+    clip_epsilon: f32,
+    entropy_coef: f32,
+    value_loss_coef: f32,
 }
 
 // ── SAC ──────────────────────────────────────────────────────────────────────
@@ -589,5 +634,62 @@ mod tests {
         let state = Array1::zeros(4);
         let action = sac.act(&state.view()).expect("act ok");
         assert_eq!(action.len(), 2);
+    }
+
+    #[test]
+    fn test_ppo_save_load_round_trip() {
+        let tmp = std::env::temp_dir().join("ppo_test_save_load.oxicode");
+        let path = tmp.to_str().expect("valid temp path");
+
+        // Create PPO (continuous so log_std is exercised)
+        let ppo_orig =
+            PPO::new(4, 3, vec![8, 8], true, 1e-3, 1e-3, 0.99, 0.2, 0.01, 0.5).expect("create ppo");
+
+        // Capture original actor and critic params
+        let actor_before = ppo_orig.actor_critic.actor.collect_params();
+        let critic_before = ppo_orig.actor_critic.critic.collect_params();
+
+        // Save
+        ppo_orig.save(path).expect("ppo save");
+
+        // Load into a fresh instance with the same architecture
+        let mut ppo_loaded = PPO::new(4, 3, vec![8, 8], true, 1e-3, 1e-3, 0.99, 0.2, 0.01, 0.5)
+            .expect("create ppo for load");
+        ppo_loaded.load(path).expect("ppo load");
+
+        let actor_after = ppo_loaded.actor_critic.actor.collect_params();
+        let critic_after = ppo_loaded.actor_critic.critic.collect_params();
+
+        // Verify all actor parameters are bit-exact
+        assert_eq!(actor_before.len(), actor_after.len());
+        for (orig, loaded) in actor_before.iter().zip(actor_after.iter()) {
+            assert_eq!(orig.1, loaded.1, "actor param shape mismatch");
+            for (&a, &b) in orig.0.iter().zip(loaded.0.iter()) {
+                assert!(
+                    (a - b).abs() < 1e-10,
+                    "actor param diff {} vs {} exceeds tolerance",
+                    a,
+                    b
+                );
+            }
+        }
+        // Verify all critic parameters are bit-exact
+        assert_eq!(critic_before.len(), critic_after.len());
+        for (orig, loaded) in critic_before.iter().zip(critic_after.iter()) {
+            assert_eq!(orig.1, loaded.1, "critic param shape mismatch");
+            for (&a, &b) in orig.0.iter().zip(loaded.0.iter()) {
+                assert!(
+                    (a - b).abs() < 1e-10,
+                    "critic param diff {} vs {} exceeds tolerance",
+                    a,
+                    b
+                );
+            }
+        }
+        // Scalars preserved
+        assert!((ppo_orig.clip_epsilon - ppo_loaded.clip_epsilon).abs() < 1e-10);
+
+        // Clean up
+        let _ = std::fs::remove_file(path);
     }
 }

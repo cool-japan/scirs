@@ -154,6 +154,16 @@ pub enum BlockingStrategy {
 }
 
 /// Advanced ENHANCEMENT 1: AVX-512 Optimized Matrix Multiplication
+///
+/// # Safety
+///
+/// Callers must ensure:
+/// - The CPU supports AVX-512F, AVX-512VL, AVX-512BW, and AVX-512DQ extensions.
+/// - `a` points to at least `m * lda` valid `f32` values (row-major).
+/// - `b` points to at least `k * ldb` valid `f32` values (row-major).
+/// - `c` points to at least `m * ldc` valid, writable `f32` values (row-major).
+/// - `lda >= k`, `ldb >= n`, `ldc >= n`.
+/// - All pointer ranges must be non-overlapping.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(
     enable = "avx512f",
@@ -249,6 +259,15 @@ pub unsafe fn avx512_gemm_f32(
 }
 
 /// Advanced ENHANCEMENT 2: AVX-512 Mixed Precision Operations
+///
+/// # Safety
+///
+/// Callers must ensure:
+/// - The CPU supports AVX-512F, AVX-512BW, and AVX-512FP16 extensions.
+/// - `a_f16` points to at least `m * k` valid f16 values encoded as `u16` (row-major).
+/// - `b_f16` points to at least `k * n` valid f16 values encoded as `u16` (row-major).
+/// - `c_f32` points to at least `m * n` valid, writable `f32` values (row-major).
+/// - All pointer ranges must be non-overlapping.
 #[cfg(target_arch = "x86_64")]
 #[target_feature(enable = "avx512f", enable = "avx512bw", enable = "avx512fp16")]
 pub unsafe fn avx512_mixed_precision_gemm(

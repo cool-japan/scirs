@@ -158,3 +158,10 @@ All items listed under v0.4.0 Planned were implemented during Waves 1-39 and are
 - [x] Per-stream GPU memory allocator (Wave 43) — `gpu/stream_allocator.rs` (`StreamAllocator`, `StreamId`); 9 tests
 - [x] Memory defragmentation for long-running workloads (Wave 43) — `memory/defrag.rs` (`DefragPlanner`, `OnlineDefragmenter`, `DefragStats`, `FreeBlock`); 8 tests
 - [x] Cross-NUMA bandwidth measurement and routing (Wave 43) — `memory/numa_bandwidth.rs` (`NumaBandwidthMatrix`, `BandwidthMeasurement`, `probe_bandwidth_matrix`, `measure_copy_bandwidth`, `optimal_placement_node`); 11 tests
+
+## Wave 73 — NUMA par_map_chunks (2026-05-07)
+
+- [x] **Typed-result NUMA-locality chunk map** (completed 2026-05-07)
+  - `par_map_chunks<T, U, F>(input, chunk_size, f)` — rayon-backed with NUMA-locality thread pool on Linux; plain rayon fallback on Darwin/WASM.
+  - Files: `src/parallel/numa/mod.rs`, `src/parallel/numa/par_map_chunks.rs`
+  - Tests: 8 in `tests/parallel_numa_par_map_chunks_tests.rs`

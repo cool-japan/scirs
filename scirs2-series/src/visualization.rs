@@ -108,6 +108,8 @@ pub enum ExportFormat {
     HTML,
     /// PDF document format
     PDF,
+    /// JSON data format
+    JSON,
 }
 
 /// Time series data point for plotting
@@ -588,9 +590,15 @@ Plotly.newPlot('plot', data, layout, config);
                     TimeSeriesError::IOError(format!("Failed to save SVG plot: {e}"))
                 })?;
             }
-            _ => {
+            ExportFormat::JSON => {
+                let json_content = self.to_json();
+                std::fs::write(path, json_content).map_err(|e| {
+                    TimeSeriesError::IOError(format!("Failed to save JSON export: {e}"))
+                })?;
+            }
+            ExportFormat::PNG | ExportFormat::PDF => {
                 return Err(TimeSeriesError::NotImplemented(format!(
-                    "Export format {format:?} not yet implemented"
+                    "Export format {format:?} requires the `image` crate and is not yet implemented"
                 )));
             }
         }
@@ -703,6 +711,61 @@ Plotly.newPlot('plot', data, layout, config);
 
         svg.push_str("</svg>");
         svg
+    }
+
+    /// Generate JSON representation of all series data
+    ///
+    /// Produces a JSON object with a `"series"` array; each element has
+    /// `"name"`, `"timestamps"`, and `"values"` arrays.
+    fn to_json(&self) -> String {
+        let mut out = String::from("{\n  \"title\": ");
+        // Escape title string
+        out.push('"');
+        for ch in self.title.chars() {
+            match ch {
+                '"' => out.push_str("\\\""),
+                '\\' => out.push_str("\\\\"),
+                '\n' => out.push_str("\\n"),
+                '\r' => out.push_str("\\r"),
+                '\t' => out.push_str("\\t"),
+                c => out.push(c),
+            }
+        }
+        out.push_str("\",\n  \"series\": [\n");
+
+        for (series_idx, series) in self.series.iter().enumerate() {
+            out.push_str("    {\n      \"name\": \"");
+            for ch in series.name.chars() {
+                match ch {
+                    '"' => out.push_str("\\\""),
+                    '\\' => out.push_str("\\\\"),
+                    '\n' => out.push_str("\\n"),
+                    c => out.push(c),
+                }
+            }
+            out.push_str("\",\n      \"timestamps\": [");
+            for (i, pt) in series.data.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                out.push_str(&format!("{}", pt.time));
+            }
+            out.push_str("],\n      \"values\": [");
+            for (i, pt) in series.data.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                out.push_str(&format!("{}", pt.value));
+            }
+            out.push_str("]\n    }");
+            if series_idx + 1 < self.series.len() {
+                out.push(',');
+            }
+            out.push('\n');
+        }
+
+        out.push_str("  ]\n}");
+        out
     }
 
     /// Display plot (opens in default browser)

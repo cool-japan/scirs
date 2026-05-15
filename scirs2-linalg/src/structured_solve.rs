@@ -247,7 +247,7 @@ where
 /// matrix algorithm, TDMA).
 ///
 /// The system is:
-///   lower[i] * x[i-1]  +  diag[i] * x[i]  +  upper[i] * x[i+1]  =  b[i]
+///   lower\[i\] * x\[i-1\]  +  diag\[i\] * x\[i\]  +  upper\[i\] * x\[i+1\]  =  b\[i\]
 ///
 /// where `lower[0]` and `upper[n-1]` are unused (conventionally zero).
 ///

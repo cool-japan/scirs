@@ -7,6 +7,11 @@
 
 pub mod enhanced;
 
+#[cfg(feature = "symbolic")]
+pub mod dispatch;
+#[cfg(feature = "symbolic")]
+pub mod eml_tape;
+
 pub use enhanced::{
     ForwardTape, MixedMode, ReverseTape, TapeCheckpoint, TapeOp, TapeOptimizationReport,
     TapeOptimizer,

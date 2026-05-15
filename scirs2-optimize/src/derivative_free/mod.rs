@@ -6,9 +6,9 @@
 //!
 //! # Algorithms
 //!
-//! - [`NelderMead`]: Nelder-Mead simplex method
-//! - [`BOBYQA`]: Bound Optimization BY Quadratic Approximation
-//! - [`PatternSearch`]: Generalized Pattern Search (GPS)
+//! - [`NelderMeadSolver`]: Nelder-Mead simplex method
+//! - [`BOBYQASolver`]: Bound Optimization BY Quadratic Approximation
+//! - [`PatternSearchSolver`]: Generalized Pattern Search (GPS)
 //!
 //! # References
 //!

@@ -3,7 +3,7 @@
 A SciRS2-maintained fork of [rust-numpy](https://github.com/PyO3/rust-numpy) providing Rust interfaces for the [NumPy C API](https://numpy.org/doc/stable/reference/c-api) with native support for **ndarray 0.17**.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](../LICENSE)
-[![Version](https://img.shields.io/badge/version-0.4.3-green)]()
+[![Version](https://img.shields.io/badge/version-0.4.4-green)]()
 
 ## What Is This Crate?
 
@@ -57,7 +57,7 @@ Add to your `Cargo.toml`:
 [dependencies]
 scirs2-numpy = { path = "../scirs2-numpy" }
 # or from crates.io once published:
-# scirs2-numpy = "0.4.3"
+# scirs2-numpy = "0.4.4"
 pyo3 = { version = "0.22", features = ["extension-module"] }
 ```
 
@@ -166,7 +166,7 @@ fn scale_inplace<'py>(
 ### nalgebra Integration (Optional Feature)
 
 ```rust
-// Cargo.toml: scirs2-numpy = { version = "0.4.3", features = ["nalgebra"] }
+// Cargo.toml: scirs2-numpy = { version = "0.4.4", features = ["nalgebra"] }
 use pyo3::prelude::*;
 use scirs2_numpy::{PyArray2, PyArrayMethods};
 

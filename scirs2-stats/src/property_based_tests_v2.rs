@@ -7,12 +7,8 @@
 use crate::error::{StatsError, StatsResult};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2};
 use scirs2_core::numeric::{Float, NumCast, One, Zero};
-use scirs2_core::random::{rngs::StdRng, rng, Rng, RngExt, SeedableRng};
-use scirs2_core::{
-    parallel_ops::*,
-    simd_ops::SimdUnifiedOps,
-    validation::*,
-};
+use scirs2_core::random::{rng, rngs::StdRng, Rng, RngExt, SeedableRng};
+use scirs2_core::{parallel_ops::*, simd_ops::SimdUnifiedOps, validation::*};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -133,12 +129,22 @@ pub struct TestSummary {
 /// Enhanced property-based test framework
 pub struct PropertyBasedTestFramework<F> {
     config: PropertyTestConfig,
-    rng: StdRng, phantom: PhantomData<F>,
+    rng: StdRng,
+    phantom: PhantomData<F>,
 }
 
 impl<F> PropertyBasedTestFramework<F>
 where
-    F: Float + NumCast + SimdUnifiedOps + Zero + One + PartialOrd + Copy + Send + Sync + Debug
+    F: Float
+        + NumCast
+        + SimdUnifiedOps
+        + Zero
+        + One
+        + PartialOrd
+        + Copy
+        + Send
+        + Sync
+        + Debug
         + std::fmt::Display,
 {
     /// Create new property-based test framework
@@ -162,19 +168,19 @@ where
 
         // Test mean properties
         results.extend(self.test_mean_properties()?);
-        
+
         // Test variance properties
         results.extend(self.test_variance_properties()?);
-        
+
         // Test standard deviation properties
         results.extend(self.test_std_properties()?);
-        
+
         // Test skewness properties
         results.extend(self.test_skewness_properties()?);
-        
+
         // Test kurtosis properties
         results.extend(self.test_kurtosis_properties()?);
-        
+
         // Test quantile properties
         results.extend(self.test_quantile_properties()?);
 
@@ -188,13 +194,13 @@ where
 
         // Test Pearson correlation properties
         results.extend(self.test_pearson_correlation_properties()?);
-        
+
         // Test Spearman correlation properties
         results.extend(self.test_spearman_correlation_properties()?);
-        
+
         // Test Kendall tau properties
         results.extend(self.test_kendall_tau_properties()?);
-        
+
         // Test correlation matrix properties
         results.extend(self.test_correlation_matrix_properties()?);
 
@@ -208,10 +214,10 @@ where
 
         // Test linear regression properties
         results.extend(self.test_linear_regression_properties()?);
-        
+
         // Test polynomial regression properties
         results.extend(self.test_polynomial_regression_properties()?);
-        
+
         // Test robust regression properties
         results.extend(self.test_robust_regression_properties()?);
 
@@ -225,13 +231,13 @@ where
 
         // Test t-test properties
         results.extend(self.test_ttest_properties()?);
-        
+
         // Test ANOVA properties
         results.extend(self.test_anova_properties()?);
-        
+
         // Test non-parametric test properties
         results.extend(self.test_nonparametric_properties()?);
-        
+
         // Test normality test properties
         results.extend(self.test_normality_test_properties()?);
 
@@ -245,10 +251,10 @@ where
 
         // Test SIMD mean vs scalar mean
         results.extend(self.test_simd_vs_scalar_mean()?);
-        
+
         // Test SIMD variance vs scalar variance
         results.extend(self.test_simd_vs_scalar_variance()?);
-        
+
         // Test SIMD correlation vs scalar correlation
         results.extend(self.test_simd_vs_scalar_correlation()?);
 
@@ -262,10 +268,10 @@ where
 
         // Test parallel mean vs sequential mean
         results.extend(self.test_parallel_vs_sequential_mean()?);
-        
+
         // Test parallel correlation vs sequential correlation
         results.extend(self.test_parallel_vs_sequential_correlation()?);
-        
+
         // Test parallel bootstrap vs sequential bootstrap
         results.extend(self.test_parallel_vs_sequentialbootstrap()?);
 
@@ -279,13 +285,13 @@ where
 
         // Test with extreme values
         results.extend(self.test_extreme_values_stability()?);
-        
+
         // Test with near-zero values
         results.extend(self.test_near_zero_stability()?);
-        
+
         // Test with large values
         results.extend(self.test_large_values_stability()?);
-        
+
         // Test with ill-conditioned data
         results.extend(self.test_ill_conditioned_stability()?);
 
@@ -299,7 +305,7 @@ where
 
         for test_case_id in 0..self.config.num_test_cases {
             let start_time = std::time::Instant::now();
-            
+
             // Generate test data
             let data = self.generate_random_array()?;
             let input = TestInput {
@@ -313,7 +319,7 @@ where
             // Test mean invariant: mean of constants should equal the constant
             let constant_value = 5.0;
             let constantdata = Array1::from_elem(data.len(), constant_value);
-            
+
             let result = match crate::descriptive::mean(&constantdata.view()) {
                 Ok(computed_mean) => {
                     let diff = (computed_mean - constant_value).abs();
@@ -349,23 +355,24 @@ where
                     execution_time_us: start_time.elapsed().as_micros() as u64,
                 },
             };
-            
+
             results.push(result);
 
             // Test linearity: mean(a*X + b) = a*mean(X) + b
             if let Ok(original_mean) = crate::descriptive::mean(&data.view()) {
                 let a = self.rng.random_range(0.1..10.0);
                 let b = self.rng.random_range(-5.0..5.0);
-                
+
                 let transformeddata = data.mapv(|x| a * x + b);
-                
+
                 if let Ok(transformed_mean) = crate::descriptive::mean(&transformeddata.view()) {
                     let expected_mean = a * original_mean + b;
                     let diff = (transformed_mean - expected_mean).abs();
-                    
+
                     let result = if diff < self.config.tolerance {
                         PropertyTestResult {
-                            property_name: "mean_linearity".to_string()..test_case_id,
+                            property_name: "mean_linearity".to_string(),
+                            test_case_id,
                             status: TestStatus::Pass,
                             failing_input: None,
                             comparison: Some((transformed_mean, expected_mean)),
@@ -390,7 +397,7 @@ where
                             execution_time_us: start_time.elapsed().as_micros() as u64,
                         }
                     };
-                    
+
                     results.push(result);
                 }
             }
@@ -404,13 +411,13 @@ where
 
         for test_case_id in 0..self.config.num_test_cases {
             let start_time = std::time::Instant::now();
-            
+
             let data = self.generate_random_array()?;
-            
+
             // Test variance of constants should be zero
             let constant_value = 3.0;
             let constantdata = Array1::from_elem(data.len(), constant_value);
-            
+
             let result = match crate::descriptive::var(&constantdata.view(), 1, None) {
                 Ok(computed_variance) => {
                     if computed_variance.abs() < self.config.tolerance {
@@ -451,18 +458,18 @@ where
                     execution_time_us: start_time.elapsed().as_micros() as u64,
                 },
             };
-            
+
             results.push(result);
 
             // Test variance scaling: var(a*X) = a²*var(X)
             if let Ok(original_var) = crate::descriptive::var(&data.view(), 1, None) {
                 let a = self.rng.random_range(0.1..5.0);
                 let scaleddata = data.mapv(|x| a * x);
-                
-                if let Ok(scaled_var) = crate::descriptive::var(&scaleddata.view()..1, None) {
+
+                if let Ok(scaled_var) = crate::descriptive::var(&scaleddata.view(), 1, None) {
                     let expected_var = a * a * original_var;
                     let diff = (scaled_var - expected_var).abs();
-                    
+
                     let result = if diff < self.config.tolerance * expected_var.abs().max(1.0) {
                         PropertyTestResult {
                             property_name: "variance_scaling".to_string(),
@@ -491,7 +498,7 @@ where
                             execution_time_us: start_time.elapsed().as_micros() as u64,
                         }
                     };
-                    
+
                     results.push(result);
                 }
             }
@@ -505,18 +512,18 @@ where
 
         for test_case_id in 0..self.config.num_test_cases {
             let start_time = std::time::Instant::now();
-            
+
             let data = self.generate_random_array()?;
-            
+
             // Test that std = sqrt(variance)
             let variance_result = crate::descriptive::var(&data.view(), 1, None);
             let std_result = crate::descriptive::std(&data.view(), 1, None);
-            
+
             let result = match (variance_result, std_result) {
                 (Ok(variance), Ok(std_dev)) => {
                     let expected_std = variance.sqrt();
                     let diff = (std_dev - expected_std).abs();
-                    
+
                     if diff < self.config.tolerance * expected_std.max(1.0) {
                         PropertyTestResult {
                             property_name: "std_sqrt_variance".to_string(),
@@ -555,7 +562,7 @@ where
                     execution_time_us: start_time.elapsed().as_micros() as u64,
                 },
             };
-            
+
             results.push(result);
         }
 
@@ -567,27 +574,30 @@ where
 
         for test_case_id in 0..self.config.num_test_cases {
             let start_time = std::time::Instant::now();
-            
+
             // Generate symmetric data around zero
-            let n = self.rng.random_range(self.config.mindatasize..self.config.maxdatasize + 1);
+            let n = self
+                .rng
+                .random_range(self.config.mindatasize..self.config.maxdatasize + 1);
             let mut data = Vec::new();
-            
-            for _ in 0..n/2 {
+
+            for _ in 0..n / 2 {
                 let value = self.rng.random_range(-5.0..5.0);
                 data.push(value);
                 data.push(-value); // Add symmetric value
             }
-            
+
             if n % 2 == 1 {
                 data.push(0.0); // Add center point for odd sizes
             }
-            
+
             let data_array = Array1::from_vec(data);
-            
+
             // Test that symmetric data should have near-zero skewness
-            let result = match crate::descriptive::skew(&data_array.view()..false, None) {
+            let result = match crate::descriptive::skew(&data_array.view(), false, None) {
                 Ok(skewness) => {
-                    if skewness.abs() < self.config.tolerance * 10.0 { // Allow some tolerance for finite samples
+                    if skewness.abs() < self.config.tolerance * 10.0 {
+                        // Allow some tolerance for finite samples
                         PropertyTestResult {
                             property_name: "symmetricdata_skewness".to_string(),
                             test_case_id,
@@ -625,7 +635,7 @@ where
                     execution_time_us: start_time.elapsed().as_micros() as u64,
                 },
             };
-            
+
             results.push(result);
         }
 
@@ -637,9 +647,11 @@ where
 
         for test_case_id in 0..self.config.num_test_cases {
             let start_time = std::time::Instant::now();
-            
+
             // Generate normal-like data (should have kurtosis ≈ 0 for Fisher definition)
-            let n = self.rng.random_range(self.config.mindatasize..self.config.maxdatasize + 1);
+            let n = self
+                .rng
+                .random_range(self.config.mindatasize..self.config.maxdatasize + 1);
             let data: Vec<f64> = (0..n)
                 .map(|_| {
                     // Box-Muller transform for normal distribution
@@ -648,14 +660,14 @@ where
                     (-2.0 * u1.ln()).sqrt() * (2.0 * std::f64::consts::PI * u2).cos()
                 })
                 .collect();
-            
+
             let data_array = Array1::from_vec(data);
-            
+
             // Test that normal data has kurtosis ≈ 0 (Fisher definition)
             let result = match crate::descriptive::kurtosis(&data_array.view(), true, false, None) {
                 Ok(kurtosis_val) => {
                     // Allow larger tolerance for finite samples of normal distribution
-                    if kurtosis_val.abs() < 2.0 { 
+                    if kurtosis_val.abs() < 2.0 {
                         PropertyTestResult {
                             property_name: "normaldata_kurtosis".to_string(),
                             test_case_id,
@@ -693,7 +705,7 @@ where
                     execution_time_us: start_time.elapsed().as_micros() as u64,
                 },
             };
-            
+
             results.push(result);
         }
 
@@ -705,23 +717,27 @@ where
 
         for test_case_id in 0..self.config.num_test_cases {
             let start_time = std::time::Instant::now();
-            
+
             let data = self.generate_random_array()?;
-            
+
             // Test that quantiles are monotonic
             let quantiles = [0.25, 0.5, 0.75];
             let mut computed_quantiles = Vec::new();
-            
+
             for &q in &quantiles {
-                if let Ok(quantile_val) = crate::quantile::quantile(&data.view(), q, crate::quantile::QuantileInterpolation::Linear) {
+                if let Ok(quantile_val) = crate::quantile::quantile(
+                    &data.view(),
+                    q,
+                    crate::quantile::QuantileInterpolation::Linear,
+                ) {
                     computed_quantiles.push(quantile_val);
                 }
             }
-            
+
             let result = if computed_quantiles.len() == 3 {
-                let monotonic = computed_quantiles[0] <= computed_quantiles[1] && 
-                               computed_quantiles[1] <= computed_quantiles[2];
-                
+                let monotonic = computed_quantiles[0] <= computed_quantiles[1]
+                    && computed_quantiles[1] <= computed_quantiles[2];
+
                 if monotonic {
                     PropertyTestResult {
                         property_name: "quantiles_monotonic".to_string(),
@@ -760,7 +776,7 @@ where
                     execution_time_us: start_time.elapsed().as_micros() as u64,
                 }
             };
-            
+
             results.push(result);
         }
 
@@ -773,9 +789,9 @@ where
 
         for test_case_id in 0..self.config.num_test_cases {
             let start_time = std::time::Instant::now();
-            
+
             let data = self.generate_random_array()?;
-            
+
             // Test correlation of data with itself should be 1.0
             let result = match crate::correlation::pearson_r(&data.view(), &data.view()) {
                 Ok(correlation) => {
@@ -818,98 +834,167 @@ where
                     execution_time_us: start_time.elapsed().as_micros() as u64,
                 },
             };
-            
+
             results.push(result);
         }
 
         Ok(results)
     }
 
-    // Simplified implementations for other methods
     fn test_spearman_correlation_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::spearman_correlation_properties(
+            self.config.tolerance,
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_kendall_tau_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::kendall_tau_properties(
+            self.config.tolerance,
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_correlation_matrix_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::correlation_matrix_properties(
+            self.config.tolerance,
+            &mut self.rng,
+        )
     }
 
     fn test_linear_regression_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::linear_regression_properties(
+            self.config.tolerance,
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_polynomial_regression_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::polynomial_regression_properties(
+            self.config.tolerance,
+            &mut self.rng,
+        )
     }
 
     fn test_robust_regression_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::robust_regression_properties(
+            self.config.tolerance,
+            &mut self.rng,
+        )
     }
 
     fn test_ttest_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::ttest_properties(
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_anova_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::anova_properties(
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_nonparametric_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::nonparametric_properties(
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_normality_test_properties(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::normality_test_properties(
+            self.config.tolerance,
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_simd_vs_scalar_mean(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::simd_vs_scalar_mean(
+            self.config.tolerance,
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_simd_vs_scalar_variance(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::simd_vs_scalar_variance(
+            self.config.tolerance,
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_simd_vs_scalar_correlation(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::simd_vs_scalar_correlation(
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_parallel_vs_sequential_mean(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::parallel_vs_sequential_mean(
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_parallel_vs_sequential_correlation(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::parallel_vs_sequential_correlation(
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_parallel_vs_sequentialbootstrap(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::parallel_vs_sequential_bootstrap(
+            self.config.tolerance,
+            &mut self.rng,
+            self.config.mindatasize,
+            self.config.maxdatasize,
+        )
     }
 
     fn test_extreme_values_stability(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::extreme_values_stability()
     }
 
     fn test_near_zero_stability(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::near_zero_stability(self.config.tolerance)
     }
 
     fn test_large_values_stability(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::large_values_stability()
     }
 
     fn test_ill_conditioned_stability(&mut self) -> StatsResult<Vec<PropertyTestResult>> {
-        Ok(vec![]) // Placeholder
+        crate::property_based_tests_v2_impl::ill_conditioned_stability()
     }
 
     // Helper methods
 
     fn generate_random_array(&mut self) -> StatsResult<Array1<f64>> {
-        let size = self.rng.random_range(self.config.mindatasize..self.config.maxdatasize + 1);
+        let size = self
+            .rng
+            .random_range(self.config.mindatasize..self.config.maxdatasize + 1);
         let data: Vec<f64> = (0..size)
             .map(|_| self.rng.random_range(-100.0..100.0))
             .collect();
@@ -917,13 +1002,27 @@ where
     }
 
     fn compile_test_results(
-        &self, results: Vec<PropertyTestResult>,
-        total_duration: std::time::Duration,) -> TestSuiteResult {
+        &self,
+        results: Vec<PropertyTestResult>,
+        total_duration: std::time::Duration,
+    ) -> TestSuiteResult {
         let total_tests = results.len();
-        let passed_tests = results.iter().filter(|r| r.status == TestStatus::Pass).count();
-        let failed_tests = results.iter().filter(|r| matches!(r.status, TestStatus::Fail(_))).count();
-        let timeout_tests = results.iter().filter(|r| r.status == TestStatus::Timeout).count();
-        let error_tests = results.iter().filter(|r| matches!(r.status, TestStatus::Error(_))).count();
+        let passed_tests = results
+            .iter()
+            .filter(|r| r.status == TestStatus::Pass)
+            .count();
+        let failed_tests = results
+            .iter()
+            .filter(|r| matches!(r.status, TestStatus::Fail(_)))
+            .count();
+        let timeout_tests = results
+            .iter()
+            .filter(|r| r.status == TestStatus::Timeout)
+            .count();
+        let error_tests = results
+            .iter()
+            .filter(|r| matches!(r.status, TestStatus::Error(_)))
+            .count();
 
         let success_rate = if total_tests > 0 {
             passed_tests as f64 / total_tests as f64
@@ -995,7 +1094,7 @@ pub fn test_all_mathematical_invariants() -> StatsResult<Vec<TestSuiteResult>> {
     let mut framework = PropertyBasedTestFramework::<f64>::new(config);
 
     let mut all_results = Vec::new();
-    
+
     all_results.push(framework.test_descriptive_statistics_invariants()?);
     all_results.push(framework.test_correlation_invariants()?);
     all_results.push(framework.test_regression_invariants()?);
@@ -1017,21 +1116,23 @@ mod tests {
             num_test_cases: 10,
             ..Default::default()
         };
-        
+
         let mut framework = PropertyBasedTestFramework::<f64>::new(config);
         let result = framework.test_descriptive_statistics_invariants();
-        
+
         assert!(result.is_ok());
         let suite_result = result.expect("Operation failed");
         assert!(suite_result.total_tests > 0);
-        assert!(suite_result.summary.success_rate >= 0.0 && suite_result.summary.success_rate <= 1.0);
+        assert!(
+            suite_result.summary.success_rate >= 0.0 && suite_result.summary.success_rate <= 1.0
+        );
     }
 
     #[test]
     fn test_mean_properties() {
         let result = test_basic_statistics_properties();
         assert!(result.is_ok());
-        
+
         let suite_result = result.expect("Operation failed");
         assert!(suite_result.total_tests > 0);
     }
@@ -1040,9 +1141,9 @@ mod tests {
     fn test_correlation_properties_basic() {
         let result = test_correlation_properties();
         assert!(result.is_ok());
-        
+
         let suite_result = result.expect("Operation failed");
-        assert!(suite_result.total_tests >= 0); // May be 0 if simplified implementations
+        let _ = suite_result.total_tests; // May be 0 if simplified implementations
     }
 
     #[test]
@@ -1054,7 +1155,7 @@ mod tests {
             flags: vec![true, false],
             strings: vec!["test".to_string()],
         };
-        
+
         assert_eq!(input.arrays.len(), 1);
         assert_eq!(input.matrices.len(), 1);
         assert_eq!(input.scalars.len(), 1);
@@ -1070,7 +1171,7 @@ mod tests {
             maxdatasize: 5, // Invalid: max < min
             ..Default::default()
         };
-        
+
         // The framework should handle invalid configurations gracefully
         let framework = PropertyBasedTestFramework::<f64>::new(config);
         assert!(framework.config.num_test_cases == 0);

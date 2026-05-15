@@ -172,6 +172,8 @@ mod focal;
 mod huber;
 mod mae;
 mod mse;
+#[cfg(feature = "symbolic")]
+pub mod symbolic;
 mod triplet;
 
 pub use contrastive::ContrastiveLoss;
@@ -180,4 +182,6 @@ pub use focal::FocalLoss;
 pub use huber::{HuberLoss, SmoothL1Loss};
 pub use mae::MeanAbsoluteError;
 pub use mse::MeanSquaredError;
+#[cfg(feature = "symbolic")]
+pub use symbolic::SymbolicLoss;
 pub use triplet::TripletLoss;

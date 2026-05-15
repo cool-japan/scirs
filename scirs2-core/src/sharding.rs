@@ -248,7 +248,7 @@ impl ShardManager {
 
     /// Compute a migration plan that balances load across all current nodes.
     ///
-    /// The algorithm is the same as [`rebalance_shards_with_new_node`] but without
+    /// The algorithm is the same as `rebalance_shards_with_new_node` but without
     /// adding an extra node first.  Overloaded nodes donate shards to underloaded ones.
     ///
     /// Returns an empty plan when `nodes` is empty or there are no shards.
@@ -283,7 +283,7 @@ impl ShardManager {
     ///    until the source is within ±10 % of target.
     /// 5. Return the full migration plan.
     ///
-    /// The manager state is **not** mutated; call [`apply_migrations`] to commit.
+    /// The manager state is **not** mutated; call `apply_migrations` to commit.
     ///
     /// # Errors
     ///

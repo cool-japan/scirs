@@ -8,9 +8,10 @@
 //   data[i].x = real part
 //   data[i].y = imaginary part
 //
-// Twiddle factor for butterfly k in stage s:
-//   W = exp(sign * 2π * i * k / n)
-//   where sign = +1 for inverse FFT, −1 for forward FFT.
+// Twiddle factor for butterfly at intra-group position `pos` in stage s:
+//   W = exp(sign * 2π * i * pos / (2 * stride))
+//   where sign = −1 for forward FFT, +1 for inverse FFT,
+//   stride = 1 << stage, and pos = thread_index % stride.
 //
 // Workgroup size: 64 threads. Host must dispatch ceil(n/2 / 64) workgroups.
 
@@ -50,11 +51,19 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     let i = group * (stride << 1u) + pos;
     let j = i + stride;
 
-    // Twiddle factor exponent:
-    //   forward:  angle = −2π * group * stride / n  (negative exponent)
-    //   inverse:  angle = +2π * group * stride / n  (positive exponent)
+    // Twiddle factor exponent for the DIT Cooley-Tukey butterfly at position
+    // `pos` within a sub-DFT of size `2*stride`:
+    //
+    //   W = exp(sign * 2π * i * pos / (2 * stride))
+    //
+    //   forward:  sign = −1  →  W = exp(−2πi * pos / (2*stride))
+    //   inverse:  sign = +1  →  W = exp(+2πi * pos / (2*stride))
+    //
+    // `pos` is the intra-group index in [0, stride).  Using `group*stride`
+    // would be incorrect because it conflates the group counter with the
+    // phase index.
     let sign  = select(-1.0, 1.0, params.inverse != 0u);
-    let angle = sign * 6.283185307179586 * f32(group * stride) / f32(n);
+    let angle = sign * 6.283185307179586 * f32(pos) / f32(stride << 1u);
 
     let tw = vec2<f32>(cos(angle), sin(angle));
 

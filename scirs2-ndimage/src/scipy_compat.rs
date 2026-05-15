@@ -286,32 +286,35 @@ where
     T: Float + FromPrimitive + Debug + Clone + PartialOrd + NumAssign + Send + Sync + 'static,
     D: Dimension + 'static,
 {
-    let structure_array = match footprint {
-        Some(fp) => fp.to_owned(),
-        None => {
-            // For now, just pass None and let the underlying function handle defaults
-            return Err(NdimageError::ImplementationError(
-                "grey_erosion without footprint not implemented".into(),
-            ));
-        }
-    };
-
     let mode = mode
         .map(Mode::from_str)
         .transpose()?
         .unwrap_or(Mode::Reflect);
-    let boundary_mode = mode.to_filter_boundary_mode();
+    let _boundary_mode = mode.to_filter_boundary_mode();
 
     // Use grey_erosion_2d for 2D arrays from simple_morph module
     if input.ndim() == 2 {
         let input_2d = input
             .to_owned()
             .into_dimensionality::<Ix2>()
-            .expect("Operation failed");
-        let structure_2d = structure_array
-            .to_owned()
-            .into_dimensionality::<Ix2>()
-            .expect("Failed to create array");
+            .map_err(|_| NdimageError::DimensionError("Failed to reshape to 2D".to_string()))?;
+
+        let structure_2d: Array2<bool> = match footprint {
+            Some(fp) => fp
+                .to_owned()
+                .into_dimensionality::<Ix2>()
+                .map_err(|_| NdimageError::DimensionError("Footprint must be 2D".to_string()))?,
+            None => {
+                // Build a default all-true structuring element from `size`
+                let (r, c) = match &size {
+                    Some(s) if s.len() >= 2 => (s[0], s[1]),
+                    Some(s) if s.len() == 1 => (s[0], s[0]),
+                    _ => (3, 3),
+                };
+                Array2::from_elem((r, c), true)
+            }
+        };
+
         crate::morphology::simple_morph::grey_erosion_2d(
             &input_2d,
             Some(&structure_2d),
@@ -319,7 +322,12 @@ where
             Some(cval.unwrap_or(T::zero())), // border_value
             None,                            // origin
         )
-        .map(|arr| arr.into_dimensionality::<D>().expect("Operation failed"))
+        .map(|arr| {
+            arr.into_dimensionality::<D>().map_err(|_| {
+                NdimageError::DimensionError("Failed to restore dimension".to_string())
+            })
+        })
+        .and_then(|r| r)
     } else {
         Err(NdimageError::DimensionError(
             "grayscale_erosion only supports 2D arrays".to_string(),
@@ -527,6 +535,13 @@ where
 }
 
 /// Distance transform with SciPy-compatible interface
+///
+/// Computes the Euclidean Distance Transform using the Meijster 2-pass algorithm.
+/// For each foreground pixel (non-zero), the output is the distance to the nearest
+/// background pixel (zero). Background pixels always have distance 0.
+///
+/// Currently supports 2D arrays only. Returns `ImplementationError` for other
+/// dimensionalities or when `return_indices` is requested.
 #[allow(dead_code)]
 pub fn distance_transform_edt<T, D>(
     input: &ArrayBase<impl Data<Elem = T>, D>,
@@ -538,11 +553,200 @@ where
     T: PartialEq + scirs2_core::numeric::Zero + Clone,
     D: Dimension + 'static,
 {
-    // This function requires dimension-specific implementations due to ndarray constraints
-    // For now, return an error indicating this needs to be implemented
-    Err(NdimageError::ImplementationError(
-        "distance_transform_edt with generic dimensions not yet implemented".into(),
-    ))
+    // Validate that anisotropic sampling is not requested (unsupported)
+    if let Some(ref s) = sampling {
+        let not_unit = s.iter().any(|&v| (v - 1.0_f64).abs() > 1e-12);
+        if not_unit {
+            return Err(NdimageError::ImplementationError(
+                "distance_transform_edt: non-unit sampling not yet supported".into(),
+            ));
+        }
+    }
+
+    // Return indices path is not implemented
+    if return_indices.unwrap_or(false) {
+        return Err(NdimageError::ImplementationError(
+            "distance_transform_edt: return_indices not yet supported".into(),
+        ));
+    }
+
+    let want_distances = return_distances.unwrap_or(true);
+
+    // Only 2D is supported
+    if input.ndim() != 2 {
+        return Err(NdimageError::ImplementationError(
+            "distance_transform_edt: only 2D arrays are currently supported".into(),
+        ));
+    }
+
+    let input_2d = input
+        .to_owned()
+        .into_dimensionality::<Ix2>()
+        .map_err(|_| NdimageError::DimensionError("Failed to reshape to 2D".to_string()))?;
+
+    let dist_2d = edt_meijster_2d(&input_2d)?;
+
+    let dist_nd = if want_distances {
+        let d = dist_2d
+            .into_dimensionality::<D>()
+            .map_err(|_| NdimageError::DimensionError("Failed to restore dimension".to_string()))?;
+        Some(d)
+    } else {
+        None
+    };
+
+    Ok((dist_nd, None))
+}
+
+/// Meijster 2-pass Euclidean Distance Transform for 2D arrays.
+///
+/// Reference: Meijster, Roerdink & Hesselink (2000) "A General Algorithm for
+/// Computing Distance Transforms in Linear Time".
+///
+/// Input convention (matching SciPy): 0 = background, non-zero = object.
+/// Output: for each pixel, Euclidean distance to the nearest background pixel.
+/// Background pixels always receive distance 0.
+fn edt_meijster_2d<T>(input: &Array2<T>) -> NdimageResult<Array2<f64>>
+where
+    T: PartialEq + scirs2_core::numeric::Zero + Clone,
+{
+    let (nrows, ncols) = input.dim();
+    if nrows == 0 || ncols == 0 {
+        return Ok(Array2::zeros((nrows, ncols)));
+    }
+
+    // Large sentinel value representing "infinity" in squared-distance space.
+    // Must exceed (nrows + ncols)^2 to avoid false comparisons.
+    let inf: usize = (nrows + ncols + 1) * (nrows + ncols + 1) + 1;
+
+    // ------------------------------------------------------------------ Pass 1
+    // For each column j, compute g[i][j] = squared vertical distance from row i
+    // to the nearest background row in the same column.
+    let mut g: Vec<Vec<usize>> = vec![vec![0usize; ncols]; nrows];
+
+    for j in 0..ncols {
+        // Forward pass (top → bottom)
+        if input[[0, j]].is_zero() {
+            g[0][j] = 0;
+        } else {
+            g[0][j] = inf;
+        }
+        for i in 1..nrows {
+            if input[[i, j]].is_zero() {
+                g[i][j] = 0;
+            } else {
+                g[i][j] = g[i - 1][j].saturating_add(1);
+            }
+        }
+
+        // Backward pass (bottom → top)
+        for i in (0..nrows.saturating_sub(1)).rev() {
+            let next = g[i + 1][j].saturating_add(1);
+            if next < g[i][j] {
+                g[i][j] = next;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------------ Pass 2
+    // For each row i, compute the 1D EDT using g[i][·] as squared distances.
+    // We apply the Meijster parabola lower-envelope scan in O(m) per row.
+    //
+    // Convention:
+    //   f(x, u) = (x - u)^2 + g[i][u]^2   — squared 2-D Euclidean distance
+    //             from column x to nearest bg via the column-path through u.
+    //
+    //   sep(u, v) = 1 + floor( (v^2 - u^2 + g_v^2 - g_u^2) / (2*(v - u)) )
+    //             = leftmost column where parabola at v dominates parabola at u.
+    let mut result = Array2::<f64>::zeros((nrows, ncols));
+
+    // Scratch buffers; allocated once and reused per row.
+    // s[k] = column that "owns" the k-th parabola segment.
+    // t[k] = leftmost column assigned to the k-th segment.
+    let mut s: Vec<usize> = vec![0usize; ncols];
+    let mut t: Vec<usize> = vec![0usize; ncols];
+
+    for i in 0..nrows {
+        // Squared distance through column u to nearest background via row dimension.
+        let f = |x: usize, u: usize| -> u64 {
+            let dx = x.abs_diff(u) as u64;
+            let gu = g[i][u] as u64;
+            dx * dx + gu * gu
+        };
+
+        // sep(u, v): leftmost column where the parabola centred at v beats u.
+        // Returns ncols when the crossover is outside [0, ncols).
+        let sep = |u: usize, v: usize| -> usize {
+            let gu = g[i][u] as i64;
+            let gv = g[i][v] as i64;
+            let u_i = u as i64;
+            let v_i = v as i64;
+            // We want floor( (v^2 - u^2 + gv^2 - gu^2) / (2*(v - u)) ) + 1
+            let num = v_i * v_i - u_i * u_i + gv * gv - gu * gu;
+            let den = 2_i64 * (v_i - u_i);
+            if den == 0 {
+                return ncols; // same column — degenerate
+            }
+            // Signed floor division in Rust (truncation towards zero)
+            let q = num / den;
+            let rem = num % den;
+            // Adjust for floor: if remainder is nonzero and signs differ, subtract 1
+            let floored = if rem != 0 && (rem < 0) != (den < 0) {
+                q - 1
+            } else {
+                q
+            };
+            // The crossover column is floored + 1
+            let cross = floored + 1;
+            if cross < 0 {
+                0usize
+            } else {
+                cross as usize
+            }
+        };
+
+        // -- Forward scan: build lower envelope of parabolas --
+        // q is the index of the last element pushed onto the stack.
+        // Use i64 so it can go to -1 when the stack is empty.
+        let mut q: i64 = 0;
+        s[0] = 0;
+        t[0] = 0;
+
+        for u in 1..ncols {
+            // Pop segments from the top while the new parabola at u dominates
+            // the most-recently-added one at its own start column t[q].
+            while q >= 0 && f(t[q as usize], s[q as usize]) >= f(t[q as usize], u) {
+                q -= 1;
+            }
+            if q < 0 {
+                // Stack is empty: start fresh with u
+                q = 0;
+                s[0] = u;
+                t[0] = 0;
+            } else {
+                // Compute the leftmost column where u's parabola takes over
+                let w = sep(s[q as usize], u);
+                if w < ncols {
+                    q += 1;
+                    s[q as usize] = u;
+                    t[q as usize] = w;
+                }
+                // If w >= ncols, u's parabola never dominates → skip u
+            }
+        }
+
+        // -- Backward scan: fill result from right to left --
+        for x in (0..ncols).rev() {
+            // Walk the stack pointer left while the current segment starts after x
+            while q > 0 && t[q as usize] > x {
+                q -= 1;
+            }
+            let dist_sq = f(x, s[q as usize]) as f64;
+            result[[i, x]] = dist_sq.sqrt();
+        }
+    }
+
+    Ok(result)
 }
 
 /// Map coordinates with SciPy-compatible interface.
@@ -1640,5 +1844,149 @@ mod tests {
             "Interpolation of constant should be constant, got {}",
             result[0]
         );
+    }
+
+    // ─── grey_erosion tests ───────────────────────────────────────────────
+
+    #[test]
+    fn test_grey_erosion_all_ones_with_footprint() {
+        // Erosion of a 5×5 all-ones image with a 3×3 all-true footprint → still all ones.
+        let input = Array2::<f64>::ones((5, 5));
+        let footprint = Array2::<bool>::from_elem((3, 3), true);
+        let result = grey_erosion(&input, None, Some(&footprint), None, None::<f64>)
+            .expect("grey_erosion should succeed");
+        assert_eq!(result.dim(), (5, 5));
+        for &v in result.iter() {
+            assert!(
+                (v - 1.0).abs() < 1e-12,
+                "All-ones erosion should stay 1.0, got {v}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_grey_erosion_default_size_no_footprint() {
+        // Erosion using size=None (defaults to 3×3 all-true SE) on a 5×5 all-ones image.
+        let input = Array2::<f64>::ones((5, 5));
+        let result = grey_erosion(
+            &input,
+            None,                                        // size → defaults to 3×3
+            None::<&scirs2_core::ndarray::Array2<bool>>, // no footprint
+            None,
+            None::<f64>,
+        )
+        .expect("grey_erosion without footprint should succeed");
+        assert_eq!(result.dim(), (5, 5));
+        for &v in result.iter() {
+            assert!(
+                (v - 1.0).abs() < 1e-12,
+                "All-ones erosion (default SE) should stay 1.0, got {v}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_grey_erosion_shrinks_island() {
+        // A 5×5 image: zeros on border, ones inside the 3×3 centre.
+        // After 3×3 erosion the border zeros will invade the centre → fewer ones.
+        #[rustfmt::skip]
+        let data = vec![
+            0.0_f64, 0.0, 0.0, 0.0, 0.0,
+            0.0,     1.0, 1.0, 1.0, 0.0,
+            0.0,     1.0, 1.0, 1.0, 0.0,
+            0.0,     1.0, 1.0, 1.0, 0.0,
+            0.0,     0.0, 0.0, 0.0, 0.0,
+        ];
+        let input = Array2::from_shape_vec((5, 5), data).expect("shape");
+        let footprint = Array2::<bool>::from_elem((3, 3), true);
+        let result = grey_erosion(&input, None, Some(&footprint), None, None::<f64>)
+            .expect("grey_erosion should succeed");
+        // The centre should still be 1 (it survives), but border/near-border pixels → 0
+        assert_eq!(result[[2, 2]], 1.0, "Centre pixel should survive erosion");
+        assert_eq!(result[[0, 0]], 0.0, "Corner stays 0 after erosion");
+        assert_eq!(
+            result[[1, 1]],
+            0.0,
+            "Near-border pixel becomes 0 after erosion"
+        );
+    }
+
+    // ─── distance_transform_edt tests ────────────────────────────────────
+
+    #[test]
+    fn test_edt_single_foreground_pixel() {
+        // 5×5 image: only the centre (2,2) is foreground (non-zero).
+        // All other pixels have distance = Euclidean distance to (2,2).
+        let mut data = vec![0.0_f64; 25];
+        data[2 * 5 + 2] = 1.0; // centre pixel
+        let input = Array2::from_shape_vec((5, 5), data).expect("shape");
+        let (dist_opt, _) =
+            distance_transform_edt(&input, None, Some(true), None).expect("EDT should succeed");
+        let dist = dist_opt.expect("distances should be Some");
+
+        // Centre pixel itself is foreground → distance = distance to nearest background = 1
+        // (nearest background is immediately adjacent)
+        // All background pixels → distance 0
+        for i in 0..5_usize {
+            for j in 0..5_usize {
+                if i == 2 && j == 2 {
+                    // foreground: nearest bg is at distance 1 (up/down/left/right)
+                    assert!(
+                        (dist[[i, j]] - 1.0).abs() < 1e-10,
+                        "Centre pixel distance should be 1.0, got {}",
+                        dist[[i, j]]
+                    );
+                } else {
+                    // background: distance = 0
+                    assert!(
+                        dist[[i, j]].abs() < 1e-10,
+                        "Background pixel [{i},{j}] should have distance 0, got {}",
+                        dist[[i, j]]
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_edt_all_background() {
+        // All-zero image → all distances = 0 (no foreground pixels)
+        let input = Array2::<f64>::zeros((5, 5));
+        let (dist_opt, _) =
+            distance_transform_edt(&input, None, Some(true), None).expect("EDT should succeed");
+        let dist = dist_opt.expect("distances should be Some");
+        for &v in dist.iter() {
+            assert!(v.abs() < 1e-12, "All-background → all zeros, got {v}");
+        }
+    }
+
+    #[test]
+    fn test_edt_column_of_background() {
+        // 3×3 image with a vertical column of zeros (col 1) and ones elsewhere.
+        // The horizontal distance from col 0/2 to col 1 is 1, so EDT[[i,0]] = EDT[[i,2]] = 1.
+        // Col 1 is bg → dist = 0.
+        #[rustfmt::skip]
+        let data = vec![
+            1.0_f64, 0.0, 1.0,
+            1.0,     0.0, 1.0,
+            1.0,     0.0, 1.0,
+        ];
+        let input = Array2::from_shape_vec((3, 3), data).expect("shape");
+        let (dist_opt, _) =
+            distance_transform_edt(&input, None, Some(true), None).expect("EDT should succeed");
+        let dist = dist_opt.expect("distances");
+        for i in 0..3 {
+            assert!((dist[[i, 1]]).abs() < 1e-12, "bg col has dist 0");
+            assert!(
+                (dist[[i, 0]] - 1.0).abs() < 1e-10,
+                "col 0 should have dist 1, got {}",
+                dist[[i, 0]]
+            );
+            assert!(
+                (dist[[i, 2]] - 1.0).abs() < 1e-10,
+                "col 2 should have dist 1, got {}",
+                dist[[i, 2]]
+            );
+        }
     }
 }

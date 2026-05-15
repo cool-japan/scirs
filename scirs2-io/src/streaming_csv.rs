@@ -162,7 +162,7 @@ fn coerce_cell(cell: &str, col_type: &ColumnType) -> TypedValue {
 /// # Behaviour
 ///
 /// - If `has_header` is `true` the first non-blank line is consumed during
-///   construction and exposed via [`headers`].
+///   construction and exposed via `headers`.
 /// - Blank lines inside the data region are silently skipped.
 /// - Quoted fields (`"..."`) with internal commas or escaped `""` double-quotes
 ///   are handled correctly.

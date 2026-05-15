@@ -91,6 +91,21 @@ fn bessel_j0_cpu(x: f64) -> f64 {
     crate::bessel::j0(x)
 }
 
+#[inline]
+fn lgamma_cpu(x: f64) -> f64 {
+    crate::gamma::gammaln(x)
+}
+
+#[inline]
+fn erfc_cpu(x: f64) -> f64 {
+    crate::erf::erfc(x)
+}
+
+#[inline]
+fn erfinv_cpu(x: f64) -> f64 {
+    crate::erf::erfinv(x)
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Public batch APIs
 // ─────────────────────────────────────────────────────────────────────────────
@@ -152,6 +167,57 @@ pub fn batch_bessel_j0(xs: &[f64], config: &GpuDispatchConfig) -> Vec<f64> {
                 return result;
             }
             xs.iter().map(|&x| bessel_j0_cpu(x)).collect()
+        }
+    }
+}
+
+/// Batch evaluate log-gamma with auto-dispatch.
+///
+/// GPU path attempts WGSL WebGPU backend ([`crate::gpu_kernels::wgsl::lgamma_batch_wgpu`])
+/// before falling back to the scalar CPU path.  CUDA is not yet available for lgamma.
+pub fn batch_lgamma(xs: &[f64], config: &GpuDispatchConfig) -> Vec<f64> {
+    match select_dispatch(xs.len(), config) {
+        DispatchTarget::Cpu => xs.iter().map(|&x| lgamma_cpu(x)).collect(),
+        DispatchTarget::Gpu => {
+            if let Ok(result) = crate::gpu_kernels::wgsl::lgamma_batch_wgpu(xs) {
+                return result;
+            }
+            xs.iter().map(|&x| lgamma_cpu(x)).collect()
+        }
+    }
+}
+
+/// Batch evaluate erfc function with auto-dispatch.
+///
+/// Computes `erfc(x) = 1 - erf(x)` for each element.  GPU path attempts the
+/// WGSL WebGPU backend ([`crate::gpu_kernels::wgsl::erfc_batch_wgpu`]) before
+/// falling back to the scalar CPU path using [`crate::erf::erfc`].
+pub fn batch_erfc(xs: &[f64], config: &GpuDispatchConfig) -> Vec<f64> {
+    match select_dispatch(xs.len(), config) {
+        DispatchTarget::Cpu => xs.iter().map(|&x| erfc_cpu(x)).collect(),
+        DispatchTarget::Gpu => {
+            if let Ok(result) = crate::gpu_kernels::wgsl::erfc_batch_wgpu(xs) {
+                return result;
+            }
+            xs.iter().map(|&x| erfc_cpu(x)).collect()
+        }
+    }
+}
+
+/// Batch evaluate the inverse error function with auto-dispatch.
+///
+/// Computes `erfinv(p)` such that `erf(erfinv(p)) == p` for |p| < 1.
+/// GPU path attempts the WGSL WebGPU backend
+/// ([`crate::gpu_kernels::wgsl::erfinv_batch_wgpu`]) before falling back to
+/// the scalar CPU path using [`crate::erf::erfinv`].
+pub fn batch_erfinv(xs: &[f64], config: &GpuDispatchConfig) -> Vec<f64> {
+    match select_dispatch(xs.len(), config) {
+        DispatchTarget::Cpu => xs.iter().map(|&x| erfinv_cpu(x)).collect(),
+        DispatchTarget::Gpu => {
+            if let Ok(result) = crate::gpu_kernels::wgsl::erfinv_batch_wgpu(xs) {
+                return result;
+            }
+            xs.iter().map(|&x| erfinv_cpu(x)).collect()
         }
     }
 }
@@ -289,5 +355,51 @@ mod tests {
         let config = GpuDispatchConfig::default();
         let results = batch_gamma(&xs, &config);
         assert!(results.is_empty());
+    }
+
+    #[test]
+    fn test_batch_erfc() {
+        let xs = vec![0.0_f64, 1.0, -1.0];
+        let config = GpuDispatchConfig::default();
+        let results = batch_erfc(&xs, &config);
+        assert_eq!(results.len(), 3);
+        // erfc(0) = 1
+        assert!((results[0] - 1.0).abs() < 1e-14);
+        // erfc(1) ≈ 0.15729920705028516
+        // The crate erfc uses A&S 7.1.26 with max error ~1.5e-7
+        assert!(
+            (results[1] - 0.157_299_207_05).abs() < 2e-7,
+            "erfc(1.0) got {:.12}, expected ~0.15729920705",
+            results[1]
+        );
+        // erfc(-1) = 2 - erfc(1) ≈ 1.84270079295
+        assert!(
+            (results[2] - 1.842_700_792_95).abs() < 2e-7,
+            "erfc(-1.0) got {:.12}, expected ~1.842700793",
+            results[2]
+        );
+    }
+
+    #[test]
+    fn test_batch_erfinv() {
+        let xs = vec![0.0_f64, 0.5, -0.5];
+        let config = GpuDispatchConfig::default();
+        let results = batch_erfinv(&xs, &config);
+        assert_eq!(results.len(), 3);
+        // erfinv(0) = 0
+        assert!(results[0].abs() < 1e-14);
+        // erfinv(0.5) ≈ 0.47693627620448
+        // Tolerance is relaxed because erfinv uses a rough approximation.
+        assert!(
+            (results[1] - 0.476_936_276_2).abs() < 0.01,
+            "erfinv(0.5) got {:.12}, expected ~0.4769362762",
+            results[1]
+        );
+        // erfinv is odd
+        assert!(
+            (results[2] + results[1]).abs() < 1e-12,
+            "erfinv should be odd: erfinv(-0.5)+erfinv(0.5)={}",
+            results[2] + results[1]
+        );
     }
 }

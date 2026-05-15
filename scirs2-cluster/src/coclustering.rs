@@ -390,10 +390,10 @@ impl SpectralBiclustering {
 ///
 /// Algorithm
 /// ----------
-/// 1. Treat data as a joint probability table: p[r,c] = data[r,c] / Σ data.
+/// 1. Treat data as a joint probability table: `p[r,c]` = `data[r,c]` / Σ data.
 /// 2. Initialise row and column assignments with round-robin.
 /// 3. Alternating optimisation:
-///    a. Compute cluster-conditional column distributions q[r_hat, c] = Σ_{r: rc=r_hat} p[r,c] / Σ_r(rc=r_hat).
+///    a. Compute cluster-conditional column distributions q[r_hat, c] = Σ_{r: rc=r_hat} `p[r,c]` / Σ_r(rc=r_hat).
 ///    b. Reassign each row to the cluster that minimises the KL divergence
 ///       between its row distribution and the cluster's column distribution.
 ///    c. Compute cluster-conditional row distributions q_c[r, c_hat] similarly.

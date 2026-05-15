@@ -986,8 +986,80 @@ impl MemoryUsageReport {
 
     /// Export report to JSON format
     pub fn to_json(&self) -> String {
-        // In a real implementation, this would use serde_json
-        "{\"memory_report\": \"JSON export not implemented\"}".to_string()
+        use std::time::UNIX_EPOCH;
+
+        // Build component breakdown array
+        let mut components = Vec::new();
+        for (name, stats) in &self.component_breakdown {
+            let component = serde_json::json!({
+                "name": name,
+                "current_bytes": stats.current_usage,
+                "peak_bytes": stats.peak_usage,
+                "average_bytes": stats.average_usage,
+                "allocation_count": stats.allocation_count,
+                "deallocation_count": stats.deallocation_count,
+                "fragmentation_ratio": stats.fragmentation_ratio,
+                "efficiency_score": stats.efficiency_score
+            });
+            components.push(component);
+        }
+
+        // Build optimization opportunities array
+        let opportunities: Vec<serde_json::Value> = self
+            .optimization_opportunities
+            .iter()
+            .map(|op| {
+                serde_json::json!({
+                    "type": format!("{:?}", op.optimization_type),
+                    "estimated_savings_bytes": op.estimated_savings,
+                    "performance_impact": op.performance_impact,
+                    "implementation_complexity": op.implementation_complexity,
+                    "description": op.description,
+                    "priority": op.priority
+                })
+            })
+            .collect();
+
+        // Build timeline array (convert SystemTime to f64 seconds since UNIX_EPOCH)
+        let timeline: Vec<serde_json::Value> = self
+            .memory_timeline
+            .iter()
+            .map(|(t, usage)| {
+                let ts = t
+                    .duration_since(UNIX_EPOCH)
+                    .map(|d| d.as_secs_f64())
+                    .unwrap_or(0.0);
+                serde_json::json!({ "timestamp": ts, "usage_bytes": usage })
+            })
+            .collect();
+
+        let report = serde_json::json!({
+            "profile_duration_secs": self.profile_duration.as_secs_f64(),
+            "overall_stats": {
+                "current_bytes": self.overall_stats.current_usage,
+                "peak_bytes": self.overall_stats.peak_usage,
+                "average_bytes": self.overall_stats.average_usage,
+                "allocation_count": self.overall_stats.allocation_count,
+                "deallocation_count": self.overall_stats.deallocation_count,
+                "fragmentation_ratio": self.overall_stats.fragmentation_ratio,
+                "efficiency_score": self.overall_stats.efficiency_score
+            },
+            "components": components,
+            "optimization_opportunities": opportunities,
+            "efficiency_analysis": {
+                "overall_efficiency": self.efficiency_analysis.overall_efficiency,
+                "utilization_ratio": self.efficiency_analysis.utilization_ratio,
+                "cache_effectiveness": self.efficiency_analysis.cache_effectiveness,
+                "access_pattern_efficiency": self.efficiency_analysis.access_pattern_efficiency,
+                "temporal_locality": self.efficiency_analysis.temporal_locality,
+                "spatial_locality": self.efficiency_analysis.spatial_locality
+            },
+            "memory_timeline": timeline,
+            "recommendations": self.recommendations
+        });
+
+        serde_json::to_string_pretty(&report)
+            .unwrap_or_else(|e| format!("{{\"error\": \"JSON serialization failed: {e}\"}}"))
     }
 }
 

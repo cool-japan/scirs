@@ -516,7 +516,7 @@ impl StreamingParticleFilterBuilder {
         self
     }
 
-    /// Standard deviation used to scatter initial particles around [`initial_state`].
+    /// Standard deviation used to scatter initial particles around `initial_state`.
     /// Default `1.0`.
     pub fn initial_spread(mut self, spread: f64) -> Self {
         self.initial_spread = spread;

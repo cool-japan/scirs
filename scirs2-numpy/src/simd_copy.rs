@@ -12,7 +12,7 @@
 //! | x86_64        | no avx2 or fallback required     | scalar loop               |
 //! | all others    | always                           | scalar loop               |
 //!
-//! When `stride == 1` the memory is already contiguous; [`ptr::copy_nonoverlapping`]
+//! When `stride == 1` the memory is already contiguous; `ptr::copy_nonoverlapping`
 //! is used for the fastest possible copy.
 //!
 //! ## Safety contract

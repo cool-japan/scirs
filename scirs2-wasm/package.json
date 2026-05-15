@@ -1,6 +1,6 @@
 {
   "name": "scirs2-wasm",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "WebAssembly bindings for SciRS2 - High-performance scientific computing in JavaScript",
   "main": "pkg/scirs2_wasm.js",
   "types": "pkg/scirs2_wasm.d.ts",

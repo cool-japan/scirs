@@ -85,6 +85,8 @@ pub enum JitOp {
     ReduceSum,
     /// Reduce mean
     ReduceMean,
+    /// Batched matrix multiplication (batch × M × K) × (batch × K × N)
+    BatchedMatMul,
 }
 
 impl JitOp {
@@ -209,6 +211,10 @@ pub enum FusionKindJit {
     Affine,
     /// Reduce + scale: sum(x) / n (mean)
     ReduceMean,
+    /// MatMul followed by a chain of element-wise epilogue ops (bias, activation, …)
+    MatmulEpilogue,
+    /// Batched MatMul whose output is immediately reduced (sum/mean) over the batch dim
+    BatchedMatmulReduction,
 }
 
 impl fmt::Display for FusionKindJit {
@@ -222,6 +228,8 @@ impl fmt::Display for FusionKindJit {
             FusionKindJit::ResidualAdd => write!(f, "ResidualAdd"),
             FusionKindJit::Affine => write!(f, "Affine"),
             FusionKindJit::ReduceMean => write!(f, "ReduceMean"),
+            FusionKindJit::MatmulEpilogue => write!(f, "MatmulEpilogue"),
+            FusionKindJit::BatchedMatmulReduction => write!(f, "BatchedMatmulReduction"),
         }
     }
 }
@@ -298,6 +306,12 @@ pub struct FusionConfig {
     pub min_benefit_score: f64,
     /// Bytes per element (for bandwidth estimation)
     pub bytes_per_element: usize,
+    /// Enable matmul → elementwise epilogue fusion
+    pub enable_matmul_epilogue: bool,
+    /// Enable batched-matmul → reduction fusion
+    pub enable_batched_matmul_reduction: bool,
+    /// Maximum number of epilogue ops to fuse after a matmul (capped at 4)
+    pub max_matmul_epilogue_ops: usize,
 }
 
 impl Default for FusionConfig {
@@ -311,6 +325,9 @@ impl Default for FusionConfig {
             max_chain_length: 16,
             min_benefit_score: 1.0,
             bytes_per_element: 4, // FP32
+            enable_matmul_epilogue: true,
+            enable_batched_matmul_reduction: true,
+            max_matmul_epilogue_ops: 4,
         }
     }
 }
@@ -346,6 +363,12 @@ impl JitFusionEngine {
         }
         if self.config.enable_elementwise_chain {
             self.detect_elementwise_chains(graph, &consumer_map, &mut candidates);
+        }
+        if self.config.enable_matmul_epilogue {
+            self.detect_matmul_epilogue(graph, &consumer_map, &mut candidates);
+        }
+        if self.config.enable_batched_matmul_reduction {
+            self.detect_batched_matmul_reduction(graph, &consumer_map, &mut candidates);
         }
 
         // Filter by benefit
@@ -384,7 +407,7 @@ impl JitFusionEngine {
                         if mul_node.op == JitOp::Mul && mul_node.inputs.len() == 2 {
                             // Check that mul has only one consumer (this add)
                             let consumers = consumer_map.get(&mul_input_id);
-                            let single_consumer = consumers.map_or(false, |c| c.len() <= 1);
+                            let single_consumer = consumers.is_some_and(|c| c.len() <= 1);
                             if single_consumer {
                                 let shape_elements = node
                                     .shape
@@ -659,6 +682,149 @@ impl JitFusionEngine {
         }
     }
 
+    // --- MatMul → elementwise epilogue detection ---
+    //
+    // Detects patterns where a MatMul output feeds into a chain of up to
+    // `max_matmul_epilogue_ops` element-wise operations (bias add, scale,
+    // activation, etc.).  This subsumes `LinearBias` / `LinearBiasActivation`
+    // at the pattern level, but those are detected first and will claim the
+    // nodes via `remove_overlapping`; this detector therefore captures
+    // *longer* or *different* epilogue chains that the simpler detectors miss.
+    //
+    // The fused "kernel" executes matmul and all epilogue ops in a single pass
+    // over the output buffer, eliminating intermediate tensor allocations.
+    fn detect_matmul_epilogue(
+        &self,
+        graph: &[JitNode],
+        consumer_map: &HashMap<usize, Vec<usize>>,
+        candidates: &mut Vec<JitFusionCandidate>,
+    ) {
+        let node_map: HashMap<usize, &JitNode> = graph.iter().map(|n| (n.id, n)).collect();
+        let cap = self.config.max_matmul_epilogue_ops.min(4);
+
+        for node in graph {
+            if node.op != JitOp::MatMul {
+                continue;
+            }
+            let matmul_id = node.id;
+
+            // Walk forward through a single-consumer elementwise chain.
+            let mut chain = vec![matmul_id];
+            let mut current_id = matmul_id;
+
+            loop {
+                if chain.len() > cap {
+                    break;
+                }
+                let consumers = match consumer_map.get(&current_id) {
+                    Some(c) => c,
+                    None => break,
+                };
+                if consumers.len() != 1 {
+                    break;
+                }
+                let next_id = consumers[0];
+                let next_node = match node_map.get(&next_id) {
+                    Some(n) => n,
+                    None => break,
+                };
+                if !next_node.op.is_elementwise() {
+                    break;
+                }
+                chain.push(next_id);
+                current_id = next_id;
+            }
+
+            // Require at least one epilogue op (chain includes the matmul itself).
+            if chain.len() < 2 {
+                continue;
+            }
+
+            let shape_elements = node
+                .shape
+                .as_ref()
+                .map(|s| s.iter().product::<usize>())
+                .unwrap_or(4096);
+            let epilogue_count = chain.len() - 1;
+            // Use a slightly lower speedup than LinearBias (1.2) for single-epilogue
+            // chains so that the more specific LinearBias pattern is preferred by the
+            // greedy overlap-removal pass.  Each additional epilogue op adds 0.08,
+            // so a 3-op epilogue chain reaches 1.24 and beats LinearBias (1.2).
+            let speedup = 1.12 + (epilogue_count.saturating_sub(1)) as f64 * 0.08;
+            let benefit = FusionBenefit {
+                memory_saved_bytes: shape_elements * self.config.bytes_per_element * epilogue_count,
+                speedup_estimate: speedup,
+                intermediates_eliminated: epilogue_count,
+                kernel_launches_saved: epilogue_count,
+            };
+            let root_id = *chain.last().unwrap_or(&matmul_id);
+            candidates.push(JitFusionCandidate {
+                kind: FusionKindJit::MatmulEpilogue,
+                node_ids: chain,
+                benefit,
+                root_id,
+            });
+        }
+    }
+
+    // --- Batched MatMul → sum/mean reduction detection ---
+    //
+    // Detects patterns of the form `MatMul → ReduceSum` or `MatMul → ReduceMean`
+    // where the reduction immediately follows the matmul with a single consumer.
+    // Fusing these avoids materializing the full matmul output before reducing,
+    // saving `batch_size × M × N × bytes_per_element` of intermediate memory.
+    //
+    // The `BatchedMatMul` op variant (3-D tensors) is also covered: since the
+    // JIT analysis is shape-agnostic, keying on `JitOp::MatMul` (or the new
+    // `JitOp::BatchedMatMul`) covers both cases.
+    fn detect_batched_matmul_reduction(
+        &self,
+        graph: &[JitNode],
+        consumer_map: &HashMap<usize, Vec<usize>>,
+        candidates: &mut Vec<JitFusionCandidate>,
+    ) {
+        let node_map: HashMap<usize, &JitNode> = graph.iter().map(|n| (n.id, n)).collect();
+
+        for node in graph {
+            if node.op != JitOp::MatMul && node.op != JitOp::BatchedMatMul {
+                continue;
+            }
+            let matmul_id = node.id;
+
+            let consumers = match consumer_map.get(&matmul_id) {
+                Some(c) if c.len() == 1 => c,
+                _ => continue,
+            };
+            let reduce_id = consumers[0];
+            let reduce_node = match node_map.get(&reduce_id) {
+                Some(n) => n,
+                None => continue,
+            };
+
+            if reduce_node.op != JitOp::ReduceSum && reduce_node.op != JitOp::ReduceMean {
+                continue;
+            }
+
+            let shape_elements = node
+                .shape
+                .as_ref()
+                .map(|s| s.iter().product::<usize>())
+                .unwrap_or(4096);
+            let benefit = FusionBenefit {
+                memory_saved_bytes: shape_elements * self.config.bytes_per_element,
+                speedup_estimate: 1.25,
+                intermediates_eliminated: 1,
+                kernel_launches_saved: 1,
+            };
+            candidates.push(JitFusionCandidate {
+                kind: FusionKindJit::BatchedMatmulReduction,
+                node_ids: vec![matmul_id, reduce_id],
+                benefit,
+                root_id: reduce_id,
+            });
+        }
+    }
+
     /// Get the configuration.
     pub fn config(&self) -> &FusionConfig {
         &self.config
@@ -797,9 +963,9 @@ impl JitCompiledOp {
             for j in 0..n {
                 let mut acc = F::zero();
                 for p in 0..k {
-                    acc = acc + x_slice[i * k + p] * w_slice[p * n + j];
+                    acc += x_slice[i * k + p] * w_slice[p * n + j];
                 }
-                acc = acc + bias_flat[j];
+                acc += bias_flat[j];
 
                 // Apply activation inline
                 acc = match activation {

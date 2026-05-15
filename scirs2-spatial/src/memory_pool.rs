@@ -343,11 +343,12 @@ impl DistancePool {
     #[cfg(target_os = "windows")]
     fn allocate_on_numa_node_windows(
         size: usize,
-        node: u32,
+        _node: u32,
     ) -> Result<Box<[f64]>, Box<dyn std::error::Error>> {
-        // Windows NUMA allocation using VirtualAllocExNuma would go here
-        // For now, fallback to regular allocation
-        Err("Windows NUMA allocation not implemented".into())
+        // Windows path falls back to standard allocator without explicit NUMA node affinity.
+        // For production NUMA workloads on Windows, integrate VirtualAllocExNuma via a
+        // future feature gate.
+        Ok(vec![0.0_f64; size].into_boxed_slice())
     }
 
     /// Bind current thread to specific NUMA node for better locality
@@ -1552,5 +1553,14 @@ mod tests {
         let _vec = arena.alloc_temp_vec::<f64>(10);
 
         // Should not panic
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn test_windows_numa_fallback_returns_ok() {
+        let result = DistancePool::allocate_on_numa_node_windows(1024, 0);
+        assert!(result.is_ok());
+        let buf = result.expect("allocation should succeed");
+        assert_eq!(buf.len(), 1024);
     }
 }

@@ -223,9 +223,9 @@ pub struct AdaDeltaOptimizer {
     pub rho: f64,
     /// Numerical stability constant
     pub eps: f64,
-    /// Running average of squared gradients: E[g²]
+    /// Running average of squared gradients: E\[g²\]
     pub accum_grad: Vec<f64>,
-    /// Running average of squared updates: E[Δθ²]
+    /// Running average of squared updates: E\[Δθ²\]
     pub accum_update: Vec<f64>,
 }
 

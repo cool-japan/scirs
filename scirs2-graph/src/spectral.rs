@@ -1083,7 +1083,7 @@ where
     let laplacian_matrix = parallel_laplacian(graph, laplacian_type)?;
 
     // Compute the eigenvectors using parallel eigenvalue computation
-    let _eigenvalues_eigenvectors =
+    let (_eigenvalues, embedding) =
         parallel_compute_smallest_eigenvalues(&laplacian_matrix, n_clusters).map_err(|e| {
             GraphError::LinAlgError {
                 operation: "parallel_spectral_clustering_eigenvalues".to_string(),
@@ -1091,9 +1091,8 @@ where
             }
         })?;
 
-    // For now, return random assignments (placeholder for full k-means clustering implementation)
-    // In a full implementation, this would use parallel k-means on the eigenvectors
-    let labels = parallel_random_clustering(n, n_clusters);
+    // Run Lloyd's k-means on the spectral embedding (n × k_clusters matrix, rows are points)
+    let labels = spectral_kmeans_clustering(&embedding, n_clusters, n);
 
     Ok(labels)
 }
@@ -1348,6 +1347,157 @@ fn parallel_norm(vector: &ArrayView1<f64>) -> f64 {
 fn parallel_axpy(alpha: f64, x: &ArrayView1<f64>, y: &mut ArrayViewMut1<f64>) {
     // Use SIMD AXPY operation
     simd_spectral::simd_axpy(alpha, x, y);
+}
+
+/// Lloyd's k-means clustering on a spectral embedding matrix.
+///
+/// Uses k-means++ initialization (deterministic LCG, no external RNG crate) followed
+/// by iterative assignment/update until convergence or 100 iterations.
+///
+/// # Arguments
+/// * `embedding` - `n × k` matrix where each row is a point in k-dimensional space
+/// * `k_clusters` - number of clusters
+/// * `n` - number of points (must equal `embedding.nrows()`)
+///
+/// # Returns
+/// Cluster assignments of length `n`, values in `0..k_clusters`.
+#[cfg(feature = "parallel")]
+fn spectral_kmeans_clustering(embedding: &Array2<f64>, k_clusters: usize, n: usize) -> Vec<usize> {
+    // Trivial cases
+    if k_clusters == 0 || n == 0 {
+        return vec![0usize; n];
+    }
+    if k_clusters == 1 {
+        return vec![0usize; n];
+    }
+    if k_clusters >= n {
+        return (0..n).collect();
+    }
+
+    let k = k_clusters;
+    let dim = embedding.ncols();
+
+    // ---- k-means++ initialization (deterministic LCG, seed = n * k) -------------------
+    // LCG: x = x.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407)
+    let lcg_mul: u64 = 6364136223846793005;
+    let lcg_add: u64 = 1442695040888963407;
+    let mut lcg_state: u64 = (n as u64).wrapping_mul(k as u64);
+    // Advance once so seed 0 doesn't start at 0
+    lcg_state = lcg_state.wrapping_mul(lcg_mul).wrapping_add(lcg_add);
+
+    // Helper: pick an index in 0..remaining using current LCG state
+    let mut lcg_index = |state: &mut u64, remaining: usize| -> usize {
+        *state = state.wrapping_mul(lcg_mul).wrapping_add(lcg_add);
+        ((*state) >> 33) as usize % remaining
+    };
+
+    // Squared Euclidean distance between embedding row i and a centroid slice
+    let sq_dist = |row_i: usize, centroid: &[f64]| -> f64 {
+        let mut d = 0.0_f64;
+        for j in 0..dim {
+            let diff = embedding[[row_i, j]] - centroid[j];
+            d += diff * diff;
+        }
+        d
+    };
+
+    // First centroid: deterministic pick at index = n/2 (biased toward middle)
+    let first_idx = lcg_index(&mut lcg_state, n);
+    let mut centroids: Vec<Vec<f64>> = Vec::with_capacity(k);
+    centroids.push(embedding.row(first_idx).to_vec());
+
+    // Subsequent centroids: k-means++ probability ∝ dist² to nearest existing centroid
+    for _c in 1..k {
+        // Compute dist² for every point to its nearest existing centroid
+        let dist2: Vec<f64> = (0..n)
+            .map(|i| {
+                centroids
+                    .iter()
+                    .map(|c| sq_dist(i, c))
+                    .fold(f64::INFINITY, f64::min)
+            })
+            .collect();
+
+        let total: f64 = dist2.iter().sum();
+
+        // Select next centroid by weighted sampling via LCG
+        let chosen = if total <= 0.0 {
+            // All points coincide with existing centroids – pick deterministically
+            lcg_index(&mut lcg_state, n)
+        } else {
+            // Normalise and pick via cumulative sum
+            lcg_state = lcg_state.wrapping_mul(lcg_mul).wrapping_add(lcg_add);
+            // Map LCG value to [0, 1)
+            let threshold = ((lcg_state >> 11) as f64) / ((1u64 << 53) as f64) * total;
+            let mut cumsum = 0.0_f64;
+            let mut picked = n - 1;
+            for (idx, &d2) in dist2.iter().enumerate() {
+                cumsum += d2;
+                if cumsum >= threshold {
+                    picked = idx;
+                    break;
+                }
+            }
+            picked
+        };
+
+        centroids.push(embedding.row(chosen).to_vec());
+    }
+
+    // ---- Lloyd's iteration (max 100 rounds) -------------------------------------------
+    let mut assignments: Vec<usize> = vec![0usize; n];
+    let max_iter = 100usize;
+
+    for _iter in 0..max_iter {
+        // Assignment step: each point → nearest centroid (parallelised)
+        let new_assignments: Vec<usize> = (0..n)
+            .into_par_iter()
+            .map(|i| {
+                let mut best_c = 0usize;
+                let mut best_d = f64::INFINITY;
+                for (c_idx, centroid) in centroids.iter().enumerate() {
+                    let mut d = 0.0_f64;
+                    for j in 0..dim {
+                        let diff = embedding[[i, j]] - centroid[j];
+                        d += diff * diff;
+                    }
+                    if d < best_d {
+                        best_d = d;
+                        best_c = c_idx;
+                    }
+                }
+                best_c
+            })
+            .collect();
+
+        // Convergence check
+        if new_assignments == assignments {
+            assignments = new_assignments;
+            break;
+        }
+        assignments = new_assignments;
+
+        // Update step: recompute centroids as mean of assigned points
+        let mut sums = vec![vec![0.0_f64; dim]; k];
+        let mut counts = vec![0usize; k];
+        for (i, &c) in assignments.iter().enumerate() {
+            counts[c] += 1;
+            for j in 0..dim {
+                sums[c][j] += embedding[[i, j]];
+            }
+        }
+        for (c_idx, centroid) in centroids.iter_mut().enumerate() {
+            let cnt = counts[c_idx];
+            if cnt > 0 {
+                for j in 0..dim {
+                    centroid[j] = sums[c_idx][j] / cnt as f64;
+                }
+            }
+            // Empty cluster: keep old centroid (no divide-by-zero, stable convergence)
+        }
+    }
+
+    assignments
 }
 
 /// Parallel random clustering assignment (placeholder for full k-means implementation)

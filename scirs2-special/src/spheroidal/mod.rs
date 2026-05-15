@@ -81,6 +81,7 @@
 //! - Adaptive algorithms based on parameter ranges
 //! - Memory-efficient implementations for large-scale computations
 
+pub mod cf_helpers;
 pub mod helpers;
 pub mod oblate;
 pub mod prolate;

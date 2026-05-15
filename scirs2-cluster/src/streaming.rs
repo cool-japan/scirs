@@ -1115,8 +1115,8 @@ pub mod intelligent_loading {
                 self.update_statistics(&data)?;
             }
 
-            // Handle missing values (simplified - assumes NaN for missing)
-            self.handle_missing_values(&mut data)?;
+            // Handle missing values (Drop may reduce the number of rows).
+            data = self.handle_missing_values(data)?;
 
             // Apply normalization
             if self.normalize {
@@ -1155,8 +1155,17 @@ pub mod intelligent_loading {
             Ok(())
         }
 
-        /// Handle missing values
-        fn handle_missing_values(&self, data: &mut Array2<F>) -> Result<()> {
+        /// Handle missing values.
+        ///
+        /// - `FillZero`: replace every non-finite element with zero in place.
+        /// - `FillMean`: replace non-finite elements with the running mean.
+        /// - `Drop`: discard any row that contains at least one non-finite element.
+        /// - `Interpolate`: replace non-finite elements with the running mean for
+        ///   the first/last positions, and with the linear interpolation between the
+        ///   nearest finite neighbours for interior positions.  Falls back to the
+        ///   running-mean value when no finite neighbour exists on one side.
+        fn handle_missing_values(&self, mut data: Array2<F>) -> Result<Array2<F>> {
+            let (n_samples, n_features) = (data.shape()[0], data.shape()[1]);
             match self.missing_value_strategy {
                 MissingValueStrategy::FillZero => {
                     for elem in data.iter_mut() {
@@ -1176,9 +1185,66 @@ pub mod intelligent_loading {
                         }
                     }
                 }
-                _ => {} // Other strategies not implemented
+                MissingValueStrategy::Drop => {
+                    // Keep only rows that are entirely finite.
+                    let valid_rows: Vec<usize> = (0..n_samples)
+                        .filter(|&i| data.row(i).iter().all(|v| v.is_finite()))
+                        .collect();
+                    if valid_rows.len() == n_samples {
+                        // Nothing to drop — return unchanged.
+                        return Ok(data);
+                    }
+                    let mut kept = Array2::zeros((valid_rows.len(), n_features));
+                    for (new_idx, &old_idx) in valid_rows.iter().enumerate() {
+                        kept.row_mut(new_idx).assign(&data.row(old_idx));
+                    }
+                    return Ok(kept);
+                }
+                MissingValueStrategy::Interpolate => {
+                    // Per-column linear interpolation: for each non-finite element,
+                    // scan left and right for the nearest finite neighbours and
+                    // linearly interpolate between them.  Falls back to the running
+                    // mean when no finite neighbour exists on one or both sides.
+                    let fallback = |j: usize| -> F {
+                        self.running_mean
+                            .as_ref()
+                            .and_then(|m| if j < m.len() { Some(m[j]) } else { None })
+                            .unwrap_or(F::zero())
+                    };
+
+                    for col in 0..n_features {
+                        // Collect column values.
+                        let vals: Vec<F> = (0..n_samples).map(|r| data[[r, col]]).collect();
+
+                        for row in 0..n_samples {
+                            if !vals[row].is_finite() {
+                                // Find previous finite value.
+                                let prev = (0..row)
+                                    .rev()
+                                    .find(|&r| vals[r].is_finite())
+                                    .map(|r| (r, vals[r]));
+                                // Find next finite value.
+                                let next = ((row + 1)..n_samples)
+                                    .find(|&r| vals[r].is_finite())
+                                    .map(|r| (r, vals[r]));
+
+                                data[[row, col]] = match (prev, next) {
+                                    (Some((pr, pv)), Some((nr, nv))) => {
+                                        // Linear interpolation.
+                                        let span = F::from(nr - pr).unwrap_or(F::one());
+                                        let offset = F::from(row - pr).unwrap_or(F::zero());
+                                        pv + (nv - pv) * offset / span
+                                    }
+                                    (Some((_, pv)), None) => pv,
+                                    (None, Some((_, nv))) => nv,
+                                    (None, None) => fallback(col),
+                                };
+                            }
+                        }
+                    }
+                }
             }
-            Ok(())
+            Ok(data)
         }
 
         /// Apply normalization
@@ -1225,6 +1291,114 @@ pub mod intelligent_loading {
             } else {
                 None
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests_preprocessor {
+        use super::*;
+        use scirs2_core::ndarray::Array2;
+
+        /// Build a 3×2 array: rows 0 and 2 have finite values; row 1 has an NaN.
+        fn make_nan_data() -> Array2<f64> {
+            Array2::from_shape_vec((3, 2), vec![1.0, 2.0, f64::NAN, 4.0, 5.0, 6.0])
+                .expect("shape error")
+        }
+
+        #[test]
+        fn test_fill_zero_replaces_nan() {
+            // Use large outlier_threshold so test values are not clipped.
+            let mut pp = StreamingPreprocessor::<f64>::new(false, 1000.0);
+            pp.missing_value_strategy = MissingValueStrategy::FillZero;
+            let data = make_nan_data();
+            let out = pp.process_batch(data).expect("process_batch failed");
+            assert_eq!(out.shape(), &[3, 2]);
+            assert_eq!(out[[1, 0]], 0.0, "NaN should be replaced with 0");
+            assert!(out[[1, 0]].is_finite());
+        }
+
+        #[test]
+        fn test_fill_mean_uses_running_mean() {
+            let mut pp = StreamingPreprocessor::<f64>::new(false, 1000.0);
+            pp.missing_value_strategy = MissingValueStrategy::FillMean;
+            pp.running_mean = Some(scirs2_core::ndarray::array![2.0, 3.0]);
+            let data = make_nan_data();
+            let out = pp.process_batch(data).expect("process_batch failed");
+            // Row 1, col 0 was NaN → filled with running mean for col 0 (2.0).
+            assert!(
+                (out[[1, 0]] - 2.0).abs() < 1e-9,
+                "NaN should be replaced with running mean 2.0, got {}",
+                out[[1, 0]]
+            );
+        }
+
+        #[test]
+        fn test_drop_removes_nan_rows() {
+            let mut pp = StreamingPreprocessor::<f64>::new(false, 1000.0);
+            pp.missing_value_strategy = MissingValueStrategy::Drop;
+            let data = make_nan_data();
+            let out = pp.process_batch(data).expect("process_batch failed");
+            // Row 1 had NaN → dropped; expect 2 rows.
+            assert_eq!(out.shape(), &[2, 2], "NaN row should have been dropped");
+            // Remaining rows should be all-finite.
+            for row in out.rows() {
+                for &v in row.iter() {
+                    assert!(v.is_finite(), "all remaining values should be finite");
+                }
+            }
+        }
+
+        #[test]
+        fn test_drop_all_clean_data_unchanged() {
+            let mut pp = StreamingPreprocessor::<f64>::new(false, 1000.0);
+            pp.missing_value_strategy = MissingValueStrategy::Drop;
+            let data = Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+                .expect("shape error");
+            let out = pp.process_batch(data).expect("process_batch failed");
+            assert_eq!(
+                out.shape(),
+                &[3, 2],
+                "no rows should be dropped when data is clean"
+            );
+        }
+
+        #[test]
+        fn test_interpolate_fills_nan_between_finite() {
+            // Use outlier_threshold = 1000.0 so small test values are not clipped.
+            let mut pp = StreamingPreprocessor::<f64>::new(false, 1000.0);
+            pp.missing_value_strategy = MissingValueStrategy::Interpolate;
+            // col 0: 1.0, NaN, 3.0  → linearly interpolated → 2.0
+            // col 1: 4.0, NaN, 8.0  → linearly interpolated → 6.0
+            let data = Array2::from_shape_vec((3, 2), vec![1.0, 4.0, f64::NAN, f64::NAN, 3.0, 8.0])
+                .expect("shape error");
+            let out = pp.process_batch(data).expect("process_batch failed");
+            assert_eq!(out.shape(), &[3, 2]);
+            assert!(
+                (out[[1, 0]] - 2.0).abs() < 1e-9,
+                "interpolated col 0 should be 2.0, got {}",
+                out[[1, 0]]
+            );
+            assert!(
+                (out[[1, 1]] - 6.0).abs() < 1e-9,
+                "interpolated col 1 should be 6.0, got {}",
+                out[[1, 1]]
+            );
+        }
+
+        #[test]
+        fn test_interpolate_leading_nan_uses_next_finite() {
+            // Use outlier_threshold = 1000.0 so values are not clipped.
+            let mut pp = StreamingPreprocessor::<f64>::new(false, 1000.0);
+            pp.missing_value_strategy = MissingValueStrategy::Interpolate;
+            // col 0: NaN, 5.0, 7.0  → leading NaN filled with next finite (5.0).
+            let data = Array2::from_shape_vec((3, 2), vec![f64::NAN, 0.0, 5.0, 0.0, 7.0, 0.0])
+                .expect("shape error");
+            let out = pp.process_batch(data).expect("process_batch failed");
+            assert!(
+                (out[[0, 0]] - 5.0).abs() < 1e-9,
+                "leading NaN should be filled with 5.0, got {}",
+                out[[0, 0]]
+            );
         }
     }
 }

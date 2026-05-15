@@ -752,14 +752,30 @@ pub fn batch_det<F: Float + Debug + Send + Sync + 'static>(
                                 grad_a[[batch_idx, 1, 1]] = grad_scalar * a_data[[batch_idx, 0, 0]];
                             }
                             3 => {
-                                // adjugate of a 3x3 matrix - simplified implementation
-                                // First cofactor
-                                grad_a[[batch_idx, 0, 0]] = grad_scalar
-                                    * (a_data[[batch_idx, 1, 1]] * a_data[[batch_idx, 2, 2]]
-                                        - a_data[[batch_idx, 1, 2]] * a_data[[batch_idx, 2, 1]]);
-                                // and so on for other elements...
-                                // This is a simplified placeholder that only computes one element
-                                // A full implementation would compute all cofactors
+                                // adjugate of a 3x3 matrix: adj(A)^T = cofactor matrix
+                                // grad(det(A)) = adj(A)^T * grad_scalar = cofactors * grad_scalar
+                                let a = &a_data;
+                                let b = batch_idx;
+                                // cofactor C[i,j] = (-1)^(i+j) * M[i,j]
+                                // where M[i,j] is the minor (det of submatrix with row i, col j removed)
+                                grad_a[[b, 0, 0]] = grad_scalar
+                                    * (a[[b, 1, 1]] * a[[b, 2, 2]] - a[[b, 1, 2]] * a[[b, 2, 1]]);
+                                grad_a[[b, 0, 1]] = grad_scalar
+                                    * (a[[b, 1, 2]] * a[[b, 2, 0]] - a[[b, 1, 0]] * a[[b, 2, 2]]);
+                                grad_a[[b, 0, 2]] = grad_scalar
+                                    * (a[[b, 1, 0]] * a[[b, 2, 1]] - a[[b, 1, 1]] * a[[b, 2, 0]]);
+                                grad_a[[b, 1, 0]] = grad_scalar
+                                    * (a[[b, 0, 2]] * a[[b, 2, 1]] - a[[b, 0, 1]] * a[[b, 2, 2]]);
+                                grad_a[[b, 1, 1]] = grad_scalar
+                                    * (a[[b, 0, 0]] * a[[b, 2, 2]] - a[[b, 0, 2]] * a[[b, 2, 0]]);
+                                grad_a[[b, 1, 2]] = grad_scalar
+                                    * (a[[b, 0, 1]] * a[[b, 2, 0]] - a[[b, 0, 0]] * a[[b, 2, 1]]);
+                                grad_a[[b, 2, 0]] = grad_scalar
+                                    * (a[[b, 0, 1]] * a[[b, 1, 2]] - a[[b, 0, 2]] * a[[b, 1, 1]]);
+                                grad_a[[b, 2, 1]] = grad_scalar
+                                    * (a[[b, 0, 2]] * a[[b, 1, 0]] - a[[b, 0, 0]] * a[[b, 1, 2]]);
+                                grad_a[[b, 2, 2]] = grad_scalar
+                                    * (a[[b, 0, 0]] * a[[b, 1, 1]] - a[[b, 0, 1]] * a[[b, 1, 0]]);
                             }
                             _ => {}
                         }
@@ -834,5 +850,82 @@ pub mod variable {
         Ok(Variable {
             tensor: result_tensor,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array;
+
+    #[test]
+    fn test_batch_det_backward_3x3_all_cofactors() {
+        // One batch of a 3x3 matrix — verify all 9 cofactor gradients are populated
+        // Matrix: M = [[2,1,0],[1,3,1],[0,1,2]]
+        let vals: Vec<f64> = vec![2.0, 1.0, 0.0, 1.0, 3.0, 1.0, 0.0, 1.0, 2.0];
+        let a_data = Array::from_shape_vec(vec![1, 3, 3], vals).unwrap().into_dyn();
+        let a = Tensor::new(a_data.clone(), true);
+
+        let result = batch_det(&a).expect("batch_det failed");
+        // det of M = 2*(3*2-1*1) - 1*(1*2-1*0) + 0*(1*1-3*0) = 2*5 - 1*2 + 0 = 8
+
+        let det_val: f64 = result.data.iter().sum();
+        assert!((det_val - 8.0).abs() < 1e-10, "det mismatch: got {}", det_val);
+
+        // Backward: grad = ones(1,1)
+        let grad = Array::ones(vec![1, 1]).into_dyn();
+        let backward_fn = result.node.as_ref().expect("node").backward_fns[0]
+            .as_ref().expect("backward fn");
+        let grad_a = backward_fn(grad).expect("backward failed");
+        let grad_3d = grad_a.into_shape(vec![1, 3, 3]).unwrap();
+
+        // Numerical gradient check
+        let eps = 1e-6;
+        let a_vals: Vec<f64> = vec![2.0, 1.0, 0.0, 1.0, 3.0, 1.0, 0.0, 1.0, 2.0];
+        for i in 0..3 {
+            for j in 0..3 {
+                let mut vp = a_vals.clone();
+                let mut vm = a_vals.clone();
+                vp[i * 3 + j] += eps;
+                vm[i * 3 + j] -= eps;
+
+                let det3 = |v: &[f64]| -> f64 {
+                    v[0]*(v[4]*v[8]-v[5]*v[7]) - v[1]*(v[3]*v[8]-v[5]*v[6]) + v[2]*(v[3]*v[7]-v[4]*v[6])
+                };
+
+                let num = (det3(&vp) - det3(&vm)) / (2.0 * eps);
+                let diff = (grad_3d[[0, i, j]] - num).abs();
+                assert!(diff < 1e-5, "3x3 det backward mismatch at ({},{}) analytical={} numerical={}", i, j, grad_3d[[0,i,j]], num);
+            }
+        }
+    }
+
+    #[test]
+    fn test_batch_det_backward_2x2_correctness() {
+        // Batch of two 2x2 matrices
+        let a_data = Array::from_shape_vec(
+            vec![2, 2, 2],
+            vec![2.0f64, 1.0, 1.0, 3.0, 4.0, 2.0, 1.0, 5.0],
+        ).unwrap().into_dyn();
+        let a = Tensor::new(a_data, true);
+
+        let result = batch_det(&a).expect("batch_det failed");
+        let dets: Vec<f64> = result.data.iter().copied().collect();
+        // det([[2,1],[1,3]]) = 5, det([[4,2],[1,5]]) = 18
+        assert!((dets[0] - 5.0).abs() < 1e-10);
+        assert!((dets[1] - 18.0).abs() < 1e-10);
+
+        let grad = Array::ones(vec![2, 1]).into_dyn();
+        let backward_fn = result.node.as_ref().expect("node").backward_fns[0]
+            .as_ref().expect("backward fn");
+        let grad_a = backward_fn(grad).expect("backward failed");
+        assert_eq!(grad_a.shape(), &[2, 2, 2]);
+
+        // For batch 0: adj = [[3,-1],[-1,2]] (cofactors of [[2,1],[1,3]])
+        let grad_3d = grad_a.into_shape(vec![2, 2, 2]).unwrap();
+        assert!((grad_3d[[0, 0, 0]] - 3.0).abs() < 1e-10, "got {}", grad_3d[[0,0,0]]);
+        assert!((grad_3d[[0, 0, 1]] - (-1.0)).abs() < 1e-10);
+        assert!((grad_3d[[0, 1, 0]] - (-1.0)).abs() < 1e-10);
+        assert!((grad_3d[[0, 1, 1]] - 2.0).abs() < 1e-10);
     }
 }

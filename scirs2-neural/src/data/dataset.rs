@@ -2,9 +2,10 @@
 
 use crate::data::{Dataset, Transform};
 use crate::error::{NeuralError, Result};
-use scirs2_core::ndarray::{Array, IxDyn, ScalarOperand};
+use scirs2_core::ndarray::{Array, Array2, IxDyn, ScalarOperand};
 use scirs2_core::numeric::{Float, FromPrimitive, NumAssign};
 use std::fmt::Debug;
+use std::io::BufRead;
 use std::marker::PhantomData;
 use std::path::Path;
 
@@ -44,17 +45,109 @@ impl<F: Float + NumAssign + Debug + ScalarOperand + FromPrimitive + Send + Sync>
 impl<F: Float + NumAssign + Debug + ScalarOperand + FromPrimitive + Send + Sync> CSVDataset<F> {
     /// Create a new dataset from CSV file
     pub fn from_csv<P: AsRef<Path>>(
-        _path: P,
-        _has_header: bool,
-        _feature_cols: &[usize],
-        _label_cols: &[usize],
-        _delimiter: char,
+        path: P,
+        has_header: bool,
+        feature_cols: &[usize],
+        label_cols: &[usize],
+        delimiter: char,
     ) -> Result<Self> {
-        // In a real implementation, we'd use a CSV reader here
-        // For now, just return an error
-        Err(NeuralError::InferenceError(
-            "CSV loading not yet implemented".to_string(),
-        ))
+        let file = std::fs::File::open(path.as_ref())
+            .map_err(|e| NeuralError::IOError(format!("Failed to open CSV file: {e}")))?;
+        let reader = std::io::BufReader::new(file);
+        let mut lines = reader.lines();
+
+        // Optionally skip header row
+        if has_header {
+            lines.next();
+        }
+
+        let mut feature_rows: Vec<Vec<f64>> = Vec::new();
+        let mut label_rows: Vec<Vec<f64>> = Vec::new();
+
+        let delimiter_str = delimiter.to_string();
+
+        for (line_idx, line_result) in lines.enumerate() {
+            let line = line_result.map_err(|e| {
+                NeuralError::IOError(format!("Failed to read CSV line {line_idx}: {e}"))
+            })?;
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+
+            let fields: Vec<&str> = line.split(delimiter_str.as_str()).collect();
+
+            // Parse all required column indices first to validate bounds
+            let max_col = feature_cols
+                .iter()
+                .chain(label_cols.iter())
+                .copied()
+                .max()
+                .unwrap_or(0);
+            if fields.len() <= max_col {
+                return Err(NeuralError::InvalidArgument(format!(
+                    "Row {line_idx} has {} fields but column index {max_col} was requested",
+                    fields.len()
+                )));
+            }
+
+            let mut feat_row = Vec::with_capacity(feature_cols.len());
+            for &col in feature_cols {
+                let val: f64 = fields[col].trim().parse::<f64>().map_err(|e| {
+                    NeuralError::InvalidArgument(format!(
+                        "Failed to parse float at row {line_idx}, col {col}: {e}"
+                    ))
+                })?;
+                feat_row.push(val);
+            }
+
+            let mut label_row = Vec::with_capacity(label_cols.len());
+            for &col in label_cols {
+                let val: f64 = fields[col].trim().parse::<f64>().map_err(|e| {
+                    NeuralError::InvalidArgument(format!(
+                        "Failed to parse float at row {line_idx}, col {col}: {e}"
+                    ))
+                })?;
+                label_row.push(val);
+            }
+
+            feature_rows.push(feat_row);
+            label_rows.push(label_row);
+        }
+
+        if feature_rows.is_empty() {
+            return Err(NeuralError::InvalidArgument(
+                "CSV file contains no data rows".to_string(),
+            ));
+        }
+
+        let num_rows = feature_rows.len();
+        let num_feat_cols = feature_cols.len();
+        let num_label_cols = label_cols.len();
+
+        // Flatten rows into column-major buffers for Array2 construction
+        let feat_flat: Vec<f64> = feature_rows.into_iter().flatten().collect();
+        let label_flat: Vec<f64> = label_rows.into_iter().flatten().collect();
+
+        let features_f64 = Array2::<f64>::from_shape_vec((num_rows, num_feat_cols), feat_flat)
+            .map_err(|e| NeuralError::ShapeMismatch(format!("Feature array shape error: {e}")))?;
+        let labels_f64 = Array2::<f64>::from_shape_vec((num_rows, num_label_cols), label_flat)
+            .map_err(|e| NeuralError::ShapeMismatch(format!("Label array shape error: {e}")))?;
+
+        // Convert f64 arrays to the generic float type F
+        let features: Array<F, IxDyn> = features_f64
+            .mapv(|v| F::from_f64(v).unwrap_or(F::zero()))
+            .into_dyn();
+        let labels: Array<F, IxDyn> = labels_f64
+            .mapv(|v| F::from_f64(v).unwrap_or(F::zero()))
+            .into_dyn();
+
+        Ok(Self {
+            features,
+            labels,
+            feature_transform: None,
+            label_transform: None,
+        })
     }
 
     /// Set feature transform

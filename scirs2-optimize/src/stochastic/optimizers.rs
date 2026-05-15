@@ -373,11 +373,11 @@ impl AdaGrad {
 /// RMSprop optimizer (Hinton 2012).
 ///
 /// Maintains an exponential moving average of squared gradients:
-///   E[g²] ← α·E[g²] + (1-α)·g²
-///   params ← params - lr · g / (√E[g²] + ε)
+///   E\[g²\] ← α·E\[g²\] + (1-α)·g²
+///   params ← params - lr · g / (√E\[g²\] + ε)
 ///
 /// With momentum > 0:
-///   vel ← momentum·vel + lr · g / (√E[g²] + ε)
+///   vel ← momentum·vel + lr · g / (√E\[g²\] + ε)
 ///   params ← params - vel
 #[derive(Debug, Clone)]
 pub struct RmsProp {
@@ -592,7 +592,7 @@ impl Svrg {
     ///
     /// # Errors
     /// Returns [`OptimizeError::InvalidInput`] on length mismatches, or if
-    /// [`update_snapshot`] has not been called first.
+    /// `update_snapshot` has not been called first.
     pub fn step(
         &mut self,
         params: &mut Vec<f64>,

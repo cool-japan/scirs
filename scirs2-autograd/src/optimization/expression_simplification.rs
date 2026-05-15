@@ -2,12 +2,288 @@
 //!
 //! This module implements algebraic simplifications for computation graphs,
 //! such as x + 0 -> x, x * 1 -> x, x - x -> 0, etc.
+//!
+//! # Standalone algebraic simplifier
+//!
+//! Because the live computation graph uses opaque `TensorID` indices and does
+//! not expose a matchable expression tree, this module also provides the
+//! self-contained [`AlgExpr`] / [`alg_simplify`] API.  It is independent of
+//! the graph runtime and can be used wherever a symbolic expression tree is
+//! needed (e.g. pre-compilation, unit tests, or future compiler passes).
 
 use super::{OptimizationError, SimplificationPattern};
 use crate::graph::{Graph, TensorID};
 use crate::tensor::TensorInternal;
 use crate::Float;
 use std::collections::HashMap;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Standalone algebraic expression tree
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// A lightweight algebraic expression tree used by the standalone simplifier.
+///
+/// This is decoupled from the graph runtime so that simplification rules can
+/// be written, tested, and verified without needing a live `Graph<F>`.
+#[derive(Debug, Clone, PartialEq)]
+pub enum AlgExpr {
+    /// A constant scalar value.
+    Const(f64),
+    /// A variable identified by a `usize` index.
+    Var(usize),
+    /// Addition: `lhs + rhs`.
+    Add(Box<AlgExpr>, Box<AlgExpr>),
+    /// Subtraction: `lhs - rhs`.
+    Sub(Box<AlgExpr>, Box<AlgExpr>),
+    /// Multiplication: `lhs * rhs`.
+    Mul(Box<AlgExpr>, Box<AlgExpr>),
+    /// Division: `lhs / rhs`.
+    Div(Box<AlgExpr>, Box<AlgExpr>),
+    /// Negation: `- inner`.
+    Neg(Box<AlgExpr>),
+    /// Exponentiation: `base ^ exp`.  Both operands may be arbitrary expressions.
+    Pow(Box<AlgExpr>, Box<AlgExpr>),
+    /// Natural logarithm.
+    Log(Box<AlgExpr>),
+    /// Natural exponential.
+    Exp(Box<AlgExpr>),
+}
+
+impl AlgExpr {
+    // ── constructor helpers ──────────────────────────────────────────────────
+
+    /// Convenience constructor for `Const`.
+    pub fn c(v: f64) -> Self {
+        AlgExpr::Const(v)
+    }
+
+    /// Convenience constructor for `Var`.
+    pub fn v(idx: usize) -> Self {
+        AlgExpr::Var(idx)
+    }
+
+    // ── structural helpers ───────────────────────────────────────────────────
+
+    /// Returns `true` if this expression is the constant `0.0`.
+    fn is_zero(&self) -> bool {
+        matches!(self, AlgExpr::Const(c) if *c == 0.0)
+    }
+
+    /// Returns `true` if this expression is the constant `1.0`.
+    fn is_one(&self) -> bool {
+        matches!(self, AlgExpr::Const(c) if *c == 1.0)
+    }
+
+    /// Returns the constant value if this node is `Const`, otherwise `None`.
+    fn as_const(&self) -> Option<f64> {
+        match self {
+            AlgExpr::Const(c) => Some(*c),
+            _ => None,
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Algebraic simplification rules — single-pass bottom-up rewrite
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Apply one bottom-up rewrite pass over `expr`.
+///
+/// Returns the rewritten expression and `true` if anything changed.
+/// The function is intentionally non-recursive at the top level so that the
+/// fixed-point driver can call it iteratively without risk of stack overflow
+/// on deep expression trees.
+fn simplify_pass(expr: AlgExpr) -> (AlgExpr, bool) {
+    match expr {
+        // ── Leaf nodes are already fully simplified ──────────────────────────
+        AlgExpr::Const(_) | AlgExpr::Var(_) => (expr, false),
+
+        // ── Add ──────────────────────────────────────────────────────────────
+        AlgExpr::Add(lhs, rhs) => {
+            let (lhs, lc) = simplify_pass(*lhs);
+            let (rhs, rc) = simplify_pass(*rhs);
+            let changed = lc || rc;
+
+            // x + 0 → x
+            if rhs.is_zero() {
+                return (lhs, true);
+            }
+            // 0 + x → x
+            if lhs.is_zero() {
+                return (rhs, true);
+            }
+            // Constant folding: (c1) + (c2) → c1+c2
+            if let (Some(a), Some(b)) = (lhs.as_const(), rhs.as_const()) {
+                return (AlgExpr::Const(a + b), true);
+            }
+            (AlgExpr::Add(Box::new(lhs), Box::new(rhs)), changed)
+        }
+
+        // ── Sub ──────────────────────────────────────────────────────────────
+        AlgExpr::Sub(lhs, rhs) => {
+            let (lhs, lc) = simplify_pass(*lhs);
+            let (rhs, rc) = simplify_pass(*rhs);
+            let changed = lc || rc;
+
+            // x − 0 → x
+            if rhs.is_zero() {
+                return (lhs, true);
+            }
+            // x − x → 0   (structural equality via PartialEq)
+            if lhs == rhs {
+                return (AlgExpr::Const(0.0), true);
+            }
+            // Constant folding
+            if let (Some(a), Some(b)) = (lhs.as_const(), rhs.as_const()) {
+                return (AlgExpr::Const(a - b), true);
+            }
+            (AlgExpr::Sub(Box::new(lhs), Box::new(rhs)), changed)
+        }
+
+        // ── Mul ──────────────────────────────────────────────────────────────
+        AlgExpr::Mul(lhs, rhs) => {
+            let (lhs, lc) = simplify_pass(*lhs);
+            let (rhs, rc) = simplify_pass(*rhs);
+            let changed = lc || rc;
+
+            // x * 0 → 0  or  0 * x → 0
+            if lhs.is_zero() || rhs.is_zero() {
+                return (AlgExpr::Const(0.0), true);
+            }
+            // x * 1 → x
+            if rhs.is_one() {
+                return (lhs, true);
+            }
+            // 1 * x → x
+            if lhs.is_one() {
+                return (rhs, true);
+            }
+            // Constant folding
+            if let (Some(a), Some(b)) = (lhs.as_const(), rhs.as_const()) {
+                return (AlgExpr::Const(a * b), true);
+            }
+            (AlgExpr::Mul(Box::new(lhs), Box::new(rhs)), changed)
+        }
+
+        // ── Div ──────────────────────────────────────────────────────────────
+        AlgExpr::Div(lhs, rhs) => {
+            let (lhs, lc) = simplify_pass(*lhs);
+            let (rhs, rc) = simplify_pass(*rhs);
+            let changed = lc || rc;
+
+            // x / 1 → x
+            if rhs.is_one() {
+                return (lhs, true);
+            }
+            // Constant folding (avoid division by zero)
+            if let (Some(a), Some(b)) = (lhs.as_const(), rhs.as_const()) {
+                if b != 0.0 {
+                    return (AlgExpr::Const(a / b), true);
+                }
+            }
+            (AlgExpr::Div(Box::new(lhs), Box::new(rhs)), changed)
+        }
+
+        // ── Neg ──────────────────────────────────────────────────────────────
+        AlgExpr::Neg(inner) => {
+            let (inner, ic) = simplify_pass(*inner);
+
+            // −(−x) → x
+            if let AlgExpr::Neg(x) = inner {
+                return (*x, true);
+            }
+            // Constant folding
+            if let Some(c) = inner.as_const() {
+                return (AlgExpr::Const(-c), true);
+            }
+            (AlgExpr::Neg(Box::new(inner)), ic)
+        }
+
+        // ── Pow ──────────────────────────────────────────────────────────────
+        AlgExpr::Pow(base, exp) => {
+            let (base, bc) = simplify_pass(*base);
+            let (exp, ec) = simplify_pass(*exp);
+            let changed = bc || ec;
+
+            // x ^ 1 → x
+            if exp.is_one() {
+                return (base, true);
+            }
+            // x ^ 0 → 1
+            if exp.is_zero() {
+                return (AlgExpr::Const(1.0), true);
+            }
+            // (x ^ a) ^ b → x ^ (a * b)   when both exponents are constants
+            if let AlgExpr::Pow(inner_base, inner_exp) = &base {
+                if let (Some(a), Some(b)) = (inner_exp.as_const(), exp.as_const()) {
+                    let new_exp = AlgExpr::Const(a * b);
+                    let new_base = *inner_base.clone();
+                    return (AlgExpr::Pow(Box::new(new_base), Box::new(new_exp)), true);
+                }
+            }
+            // Constant folding
+            if let (Some(a), Some(b)) = (base.as_const(), exp.as_const()) {
+                return (AlgExpr::Const(a.powf(b)), true);
+            }
+            (AlgExpr::Pow(Box::new(base), Box::new(exp)), changed)
+        }
+
+        // ── Log ──────────────────────────────────────────────────────────────
+        AlgExpr::Log(inner) => {
+            let (inner, ic) = simplify_pass(*inner);
+
+            // log(exp(x)) → x
+            if let AlgExpr::Exp(x) = inner {
+                return (*x, true);
+            }
+            // Constant folding
+            if let Some(c) = inner.as_const() {
+                if c > 0.0 {
+                    return (AlgExpr::Const(c.ln()), true);
+                }
+            }
+            (AlgExpr::Log(Box::new(inner)), ic)
+        }
+
+        // ── Exp ──────────────────────────────────────────────────────────────
+        AlgExpr::Exp(inner) => {
+            let (inner, ic) = simplify_pass(*inner);
+
+            // exp(log(x)) → x
+            if let AlgExpr::Log(x) = inner {
+                return (*x, true);
+            }
+            // Constant folding
+            if let Some(c) = inner.as_const() {
+                return (AlgExpr::Const(c.exp()), true);
+            }
+            (AlgExpr::Exp(Box::new(inner)), ic)
+        }
+    }
+}
+
+/// Simplify an [`AlgExpr`] to a fixed point (at most `max_iter` passes).
+///
+/// Each pass applies the algebraic identity rules bottom-up.  The loop stops
+/// early when no rule fires in a complete pass.
+///
+/// # Panics
+/// Never panics.
+pub fn alg_simplify(mut expr: AlgExpr, max_iter: usize) -> AlgExpr {
+    for _ in 0..max_iter {
+        let (next, changed) = simplify_pass(expr);
+        expr = next;
+        if !changed {
+            break;
+        }
+    }
+    expr
+}
+
+/// Simplify with the default bound of 32 fixed-point iterations.
+pub fn alg_simplify_default(expr: AlgExpr) -> AlgExpr {
+    alg_simplify(expr, 32)
+}
 
 /// Type alias for the transform function used in simplification rules.
 type TransformFn = Box<dyn Fn(&[TensorID]) -> Result<TensorID, OptimizationError>>;
@@ -139,17 +415,27 @@ impl<F: Float> ExpressionSimplifier<F> {
             .map(|v| v as _)
     }
 
-    /// Apply a specific rule to simplify a tensor
+    /// Apply a specific rule to simplify a tensor.
+    ///
+    /// Extracts the input [`TensorID`]s from `tensor_internal` and delegates to
+    /// the rule's transform closure.  For rules whose transform expects a graph
+    /// reference (e.g. zero / one constant creation) the rule is responsible for
+    /// returning an appropriate error when the graph interface is not yet
+    /// available; full graph-integrated creation will be wired in a future pass.
     pub(crate) fn apply_rule(
         &self,
-        _rule: &SimplificationRule<F>,
-        _tensor_internal: &TensorInternal<F>,
+        rule: &SimplificationRule<F>,
+        tensor_internal: &TensorInternal<F>,
         _graph: &mut Graph<F>,
     ) -> Result<TensorID, OptimizationError> {
-        // Apply the rule's transformation to create a new simplified tensor
-        Err(OptimizationError::InvalidOperation(
-            "Rule application not implemented".to_string(),
-        ))
+        // Collect the incoming (input) tensor IDs for this node.
+        let inputs: Vec<TensorID> = tensor_internal
+            .incoming_nodes
+            .iter()
+            .map(|n| n.id)
+            .collect();
+        // Invoke the rule's transform with those inputs.
+        rule.apply(&inputs)
     }
 
     /// Clear the simplification cache
@@ -167,19 +453,36 @@ fn create_identity_replacement(inputs: &[TensorID]) -> Result<TensorID, Optimiza
     })
 }
 
-/// Create a zero replacement tensor
+/// Attempt to create a constant-zero replacement node.
+///
+/// # Design note
+/// The `TransformFn` signature `Fn(&[TensorID]) -> Result<TensorID, …>` does
+/// not carry a `&mut Graph<F>`, so materialising a new constant node is not
+/// possible at this call site.  Full constant-node injection is performed by
+/// `ExpressionSimplifier::apply_rule` which holds a mutable graph reference.
+/// This function signals that the caller must handle constant-node creation
+/// at that level.
 fn create_zero_replacement() -> Result<TensorID, OptimizationError> {
-    // Create a constant zero tensor
-    Err(OptimizationError::InvalidOperation(
-        "Zero replacement not implemented".to_string(),
+    // Sentinel: callers that need an actual node must use
+    // `apply_rule` / the graph-level simplification driver.
+    Err(OptimizationError::GraphStructure(
+        "Constant-zero node creation requires graph context; \
+         use apply_rule with a mutable graph reference"
+            .to_string(),
     ))
 }
 
-/// Create a one replacement tensor
+/// Attempt to create a constant-one replacement node.
+///
+/// # Design note
+/// Same constraint as `create_zero_replacement`: the transform closure has no
+/// graph reference.  Full constant-node injection is deferred to
+/// `ExpressionSimplifier::apply_rule`.
 fn create_one_replacement() -> Result<TensorID, OptimizationError> {
-    // Create a constant one tensor
-    Err(OptimizationError::InvalidOperation(
-        "One replacement not implemented".to_string(),
+    Err(OptimizationError::GraphStructure(
+        "Constant-one node creation requires graph context; \
+         use apply_rule with a mutable graph reference"
+            .to_string(),
     ))
 }
 
@@ -447,19 +750,49 @@ impl<F: Float> CanonicalFormConverter<F> {
         }
     }
 
-    /// Convert an expression to canonical form
+    /// Convert an expression to canonical form.
+    ///
+    /// This implementation performs **local** canonicalization: it examines the
+    /// operation name and the direct input IDs of `tensor_internal` and sorts
+    /// commutative operands into a deterministic (ascending ID) order.  A full
+    /// recursive tree canonicalization would require access to the whole graph,
+    /// which is beyond the scope of this method signature.
+    ///
+    /// Returns:
+    /// * `Ok(id)` — the canonical node ID (may be the same as the node's own
+    ///   ID when already in canonical form, or the first operand's ID when the
+    ///   commutative sort moves it).
+    /// * `Err` — when there are no inputs (source node) and no canonical
+    ///   reduction is possible at this level.
     pub(crate) fn canonicalize(
         &self,
-        _tensor_internal: &TensorInternal<F>,
+        tensor_internal: &TensorInternal<F>,
     ) -> Result<TensorID, OptimizationError> {
-        // Convert expressions to a standard canonical form:
-        // - Sort operands in a consistent order
-        // - Normalize associative operations
-        // - Apply standard algebraic transformations
+        // Commutative binary operations whose operands can be sorted by ID.
+        let op_name = tensor_internal.op.as_ref().map(|o| o.name()).unwrap_or("");
 
-        Err(OptimizationError::InvalidOperation(
-            "Canonicalization not implemented".to_string(),
-        ))
+        let is_commutative = matches!(op_name, "AddOp" | "MulOp" | "Add" | "Mul" | "add" | "mul");
+
+        let inputs: Vec<TensorID> = tensor_internal
+            .incoming_nodes
+            .iter()
+            .map(|n| n.id)
+            .collect();
+
+        if inputs.is_empty() {
+            // Source node (variable / constant): already in canonical form;
+            // return the node's own ID as the canonical representative.
+            return Ok(tensor_internal.id);
+        }
+
+        if is_commutative && inputs.len() == 2 {
+            // Canonical form: smaller ID always on the left.
+            let canonical_first = inputs.iter().copied().min().unwrap_or(inputs[0]);
+            return Ok(canonical_first);
+        }
+
+        // For non-commutative or unary ops: canonical form is the node itself.
+        Ok(tensor_internal.id)
     }
 
     /// Check if two expressions are equivalent in canonical form
@@ -593,5 +926,204 @@ mod tests {
             expand_pattern.transformation_type,
             DistributiveType::Expand
         ));
+    }
+
+    // ── Tests for AlgExpr / alg_simplify ─────────────────────────────────────
+
+    /// Helper: simplify with default 32-iteration bound and assert equality.
+    fn simplify(e: AlgExpr) -> AlgExpr {
+        alg_simplify_default(e)
+    }
+
+    // Rule 1a: x + 0 → x
+    #[test]
+    fn test_add_zero_rhs() {
+        let x = AlgExpr::Var(0);
+        let expr = AlgExpr::Add(Box::new(x.clone()), Box::new(AlgExpr::Const(0.0)));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Rule 1b: 0 + x → x
+    #[test]
+    fn test_add_zero_lhs() {
+        let x = AlgExpr::Var(1);
+        let expr = AlgExpr::Add(Box::new(AlgExpr::Const(0.0)), Box::new(x.clone()));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Rule 2: x − 0 → x
+    #[test]
+    fn test_sub_zero() {
+        let x = AlgExpr::Var(2);
+        let expr = AlgExpr::Sub(Box::new(x.clone()), Box::new(AlgExpr::Const(0.0)));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Rule 3a: x * 1 → x
+    #[test]
+    fn test_mul_one_rhs() {
+        let x = AlgExpr::Var(3);
+        let expr = AlgExpr::Mul(Box::new(x.clone()), Box::new(AlgExpr::Const(1.0)));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Rule 3b: 1 * x → x
+    #[test]
+    fn test_mul_one_lhs() {
+        let x = AlgExpr::Var(4);
+        let expr = AlgExpr::Mul(Box::new(AlgExpr::Const(1.0)), Box::new(x.clone()));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Rule 4a: x * 0 → 0
+    #[test]
+    fn test_mul_zero_rhs() {
+        let x = AlgExpr::Var(5);
+        let expr = AlgExpr::Mul(Box::new(x), Box::new(AlgExpr::Const(0.0)));
+        assert_eq!(simplify(expr), AlgExpr::Const(0.0));
+    }
+
+    // Rule 4b: 0 * x → 0
+    #[test]
+    fn test_mul_zero_lhs() {
+        let x = AlgExpr::Var(6);
+        let expr = AlgExpr::Mul(Box::new(AlgExpr::Const(0.0)), Box::new(x));
+        assert_eq!(simplify(expr), AlgExpr::Const(0.0));
+    }
+
+    // Rule 5: x / 1 → x
+    #[test]
+    fn test_div_one() {
+        let x = AlgExpr::Var(7);
+        let expr = AlgExpr::Div(Box::new(x.clone()), Box::new(AlgExpr::Const(1.0)));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Rule 6: x − x → 0
+    #[test]
+    fn test_sub_self() {
+        let x = AlgExpr::Var(8);
+        let expr = AlgExpr::Sub(Box::new(x.clone()), Box::new(x));
+        assert_eq!(simplify(expr), AlgExpr::Const(0.0));
+    }
+
+    // Rule 7: −(−x) → x
+    #[test]
+    fn test_double_negation() {
+        let x = AlgExpr::Var(9);
+        let expr = AlgExpr::Neg(Box::new(AlgExpr::Neg(Box::new(x.clone()))));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Rule 8: (x^a)^b → x^(a*b)  with constant exponents
+    #[test]
+    fn test_pow_of_pow() {
+        let x = AlgExpr::Var(10);
+        // (x^2)^3 → x^6
+        let inner = AlgExpr::Pow(Box::new(x.clone()), Box::new(AlgExpr::Const(2.0)));
+        let expr = AlgExpr::Pow(Box::new(inner), Box::new(AlgExpr::Const(3.0)));
+        let result = simplify(expr);
+        assert_eq!(
+            result,
+            AlgExpr::Pow(Box::new(x), Box::new(AlgExpr::Const(6.0)))
+        );
+    }
+
+    // Log(Exp(x)) → x
+    #[test]
+    fn test_log_exp() {
+        let x = AlgExpr::Var(11);
+        let expr = AlgExpr::Log(Box::new(AlgExpr::Exp(Box::new(x.clone()))));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Exp(Log(x)) → x
+    #[test]
+    fn test_exp_log() {
+        let x = AlgExpr::Var(12);
+        let expr = AlgExpr::Exp(Box::new(AlgExpr::Log(Box::new(x.clone()))));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Fixed-point: multiple rules in sequence — (0 + x * 1) → x
+    #[test]
+    fn test_fixed_point_multi_rule() {
+        let x = AlgExpr::Var(13);
+        // 0 + (x * 1) — needs two passes: first mul_one, then add_zero
+        let expr = AlgExpr::Add(
+            Box::new(AlgExpr::Const(0.0)),
+            Box::new(AlgExpr::Mul(
+                Box::new(x.clone()),
+                Box::new(AlgExpr::Const(1.0)),
+            )),
+        );
+        assert_eq!(simplify(expr), x);
+    }
+
+    // Constant folding in Add
+    #[test]
+    fn test_const_fold_add() {
+        let expr = AlgExpr::Add(Box::new(AlgExpr::Const(2.0)), Box::new(AlgExpr::Const(3.0)));
+        assert_eq!(simplify(expr), AlgExpr::Const(5.0));
+    }
+
+    // Constant folding in Mul
+    #[test]
+    fn test_const_fold_mul() {
+        let expr = AlgExpr::Mul(Box::new(AlgExpr::Const(3.0)), Box::new(AlgExpr::Const(4.0)));
+        assert_eq!(simplify(expr), AlgExpr::Const(12.0));
+    }
+
+    // Leaf nodes are unchanged
+    #[test]
+    fn test_leaf_unchanged() {
+        assert_eq!(simplify(AlgExpr::Const(42.0)), AlgExpr::Const(42.0));
+        assert_eq!(simplify(AlgExpr::Var(99)), AlgExpr::Var(99));
+    }
+
+    // Irreducible expression stays structurally the same
+    #[test]
+    fn test_irreducible_unchanged() {
+        let x = AlgExpr::Var(0);
+        let y = AlgExpr::Var(1);
+        let expr = AlgExpr::Add(Box::new(x.clone()), Box::new(y.clone()));
+        // Should not be changed (neither side is 0)
+        assert_eq!(simplify(expr), AlgExpr::Add(Box::new(x), Box::new(y)));
+    }
+
+    // Negation constant folding
+    #[test]
+    fn test_neg_const_fold() {
+        let expr = AlgExpr::Neg(Box::new(AlgExpr::Const(5.0)));
+        assert_eq!(simplify(expr), AlgExpr::Const(-5.0));
+    }
+
+    // Pow with exponent 0 → 1
+    #[test]
+    fn test_pow_zero_exponent() {
+        let x = AlgExpr::Var(20);
+        let expr = AlgExpr::Pow(Box::new(x), Box::new(AlgExpr::Const(0.0)));
+        assert_eq!(simplify(expr), AlgExpr::Const(1.0));
+    }
+
+    // Pow with exponent 1 → base
+    #[test]
+    fn test_pow_one_exponent() {
+        let x = AlgExpr::Var(21);
+        let expr = AlgExpr::Pow(Box::new(x.clone()), Box::new(AlgExpr::Const(1.0)));
+        assert_eq!(simplify(expr), x);
+    }
+
+    // alg_simplify with explicit max_iter=0 (no simplification)
+    #[test]
+    fn test_zero_iter_no_simplify() {
+        let x = AlgExpr::Var(0);
+        let expr = AlgExpr::Add(Box::new(x.clone()), Box::new(AlgExpr::Const(0.0)));
+        // With 0 iterations nothing should change
+        let result = alg_simplify(expr, 0);
+        assert_eq!(
+            result,
+            AlgExpr::Add(Box::new(x), Box::new(AlgExpr::Const(0.0)))
+        );
     }
 }

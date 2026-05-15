@@ -5,8 +5,8 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Symbolic mathematics for SciRS2 — expression trees, differentiation, simplification"
-keywords = ["symbolic", "differentiation", "computer-algebra", "calculus"]
+description = "Symbolic mathematics for SciRS2 — EML-native CAS, expression trees, differentiation, simplification"
+keywords = ["symbolic", "differentiation", "computer-algebra", "calculus", "eml"]
 categories = ["mathematics", "science"]
 
 [lints]
@@ -16,9 +16,95 @@ workspace = true
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
 
+[features]
+default = []
+serde = ["dep:serde", "dep:serde_json", "dep:oxicode"]
+smt = ["dep:oxiz", "dep:num-rational"]
+parallel = ["dep:rayon"]
+macros = ["dep:scirs2-symbolic-macros"]
+# NUMA-aware parallel scheduler for `regression::discover` (Phase 1
+# design-freedom unlock A). Routes feature-matrix evaluation through
+# `scirs2_core::parallel_ops::parallel_map` (rayon-backed via scirs2-core).
+# When scirs2-core eventually exposes a public NUMA `par_map_chunks`, the
+# implementation will swap to it transparently; the feature surface stays
+# stable. See `src/regression/discover.rs` file header for details.
+numa = ["dep:scirs2-core", "scirs2-core/parallel"]
+jit = [
+    "dep:cranelift-codegen",
+    "dep:cranelift-frontend",
+    "dep:cranelift-jit",
+    "dep:cranelift-module",
+]
+# GPU-WGSL JIT compilation of `LoweredOp` to WebGPU compute shaders for
+# batched evaluation at scale (Phase 1 design-freedom unlock B). Implies
+# `jit` because `to_jit_auto` dispatches between CPU (Cranelift) and GPU
+# (WGSL) backends based on batch size.
+gpu = [
+    "jit",
+    "dep:wgpu",
+    "dep:pollster",
+    "dep:bytemuck",
+]
+
 [dependencies]
-# Pure Rust, no external dependencies for the symbolic core
 thiserror = { workspace = true }
+num-complex = { workspace = true }
+ahash = { workspace = true }
+hashbrown = { workspace = true }
+once_cell = { workspace = true }
+tracing = { workspace = true }
+ndarray = { workspace = true }
+rayon = { workspace = true, optional = true }
+scirs2-core = { workspace = true, optional = true }
+serde = { workspace = true, optional = true, features = ["rc"] }
+serde_json = { workspace = true, optional = true }
+oxicode = { workspace = true, optional = true }
+oxiz = { workspace = true, optional = true }
+num-rational = { workspace = true, optional = true }
+cranelift-codegen = { workspace = true, optional = true }
+cranelift-frontend = { workspace = true, optional = true }
+cranelift-jit = { workspace = true, optional = true }
+cranelift-module = { workspace = true, optional = true }
+wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
+bytemuck = { workspace = true, optional = true }
+scirs2-symbolic-macros = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
+proptest = { workspace = true }
+oxieml = "0.1"
+criterion = { workspace = true }
+
+[[test]]
+name = "eml_pattern_macro_tests"
+required-features = ["macros"]
+
+[[test]]
+name = "regression_numa_tests"
+required-features = ["numa", "parallel"]
+
+[[bench]]
+name = "eval"
+harness = false
+
+[[bench]]
+name = "simplify_grad"
+harness = false
+
+[[bench]]
+name = "jit_vs_interp"
+harness = false
+required-features = ["jit"]
+
+[[bench]]
+name = "regression"
+harness = false
+
+[[bench]]
+name = "cas_bench"
+harness = false
+
+[[bench]]
+name = "fsred_bench"
+harness = false

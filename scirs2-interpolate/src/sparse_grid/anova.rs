@@ -35,7 +35,7 @@ impl Default for AnovaConfig {
 /// Result of an ANOVA functional decomposition.
 #[derive(Debug, Clone)]
 pub struct AnovaDecomposition {
-    /// f₀ = E[f], the constant (mean) term.
+    /// f₀ = E\[f\], the constant (mean) term.
     pub mean: f64,
     /// Variance of each main-effect term fᵢ: Var(fᵢ) for dim i.
     pub main_effects: Vec<f64>,

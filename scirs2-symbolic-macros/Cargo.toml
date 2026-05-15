@@ -1,0 +1,21 @@
+[package]
+name = "scirs2-symbolic-macros"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Proc-macro DSL for scirs2-symbolic pattern matching rules"
+keywords = ["symbolic", "proc-macro", "dsl", "pattern-matching", "eml"]
+categories = ["mathematics", "development-tools::procedural-macro-helpers"]
+
+[lints]
+workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }

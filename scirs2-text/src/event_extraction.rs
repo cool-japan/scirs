@@ -807,7 +807,7 @@ fn levenshtein(a: &[u8], b: &[u8]) -> usize {
 /// Group events into coreference chains using single-linkage clustering.
 ///
 /// Two events are placed in the same chain when their similarity score
-/// (see [`event_similarity`]) exceeds `threshold` (default 0.6).
+/// (see `event_similarity`) exceeds `threshold` (default 0.6).
 ///
 /// Returns a `Vec<Vec<usize>>` where each inner vector holds the indices of
 /// coreferent events (index into the input `events` slice).

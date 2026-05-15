@@ -409,7 +409,7 @@ impl DataSource for DatabaseSource {
 
 /// A streaming, channel-based message source that mimics a Kafka consumer.
 ///
-/// Messages are enqueued via [`StreamSource::sender`] from any thread and
+/// Messages are enqueued via `StreamSource::sender` from any thread and
 /// consumed in batches via [`DataSource::next_batch`].
 pub struct StreamSource {
     receiver: crossbeam_channel::Receiver<Value>,

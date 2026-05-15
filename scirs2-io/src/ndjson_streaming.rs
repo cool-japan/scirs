@@ -197,7 +197,7 @@ impl<R: BufRead> CsvStreamReader<R> {
     /// Create a new streaming CSV reader.
     ///
     /// If `has_header` is `true` the first non-blank line is consumed immediately
-    /// and stored; subsequent calls to [`next_row`] return data rows only.
+    /// and stored; subsequent calls to `next_row` return data rows only.
     pub fn new(mut reader: R, has_header: bool, delimiter: u8) -> Result<Self> {
         let headers = if has_header {
             let mut line = String::new();

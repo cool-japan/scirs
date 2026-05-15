@@ -10,7 +10,7 @@
 //! | Module | Description |
 //! |--------|-------------|
 //! | [`core`] | Dense N-way tensor with shape/strides, unfold/fold, n-mode product |
-//! | [`hosvd`] | HOSVD, HOOI, and auto-rank truncated HOSVD |
+//! | [`hosvd()`] | HOSVD, HOOI, and auto-rank truncated HOSVD |
 //! | [`cp_decomp`] | CP-ALS and CP-gradient decompositions |
 //! | [`tensor_train`] | TT-SVD, TT-Cross, TT-Rounding, and element-wise TT ops |
 //!

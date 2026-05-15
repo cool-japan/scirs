@@ -1,4 +1,4 @@
-//! Clean Vec<f64>-based multi-objective optimisation algorithms.
+//! Clean `Vec<f64>`-based multi-objective optimisation algorithms.
 //!
 //! This module provides self-contained, easy-to-use implementations of
 //! multi-objective evolutionary algorithms that work directly with Rust
@@ -8,9 +8,9 @@
 //!
 //! | Module | Algorithm |
 //! |--------|-----------|
-//! | [`nsga2`]      | NSGA-II — Non-dominated Sorting Genetic Algorithm II (Deb 2002) |
-//! | [`nsga3`]      | NSGA-III — Many-objective NSGA with reference-point niching (Deb 2014) |
-//! | [`moead`]      | MOEA/D — Decomposition-based MOEA (Zhang 2007) |
+//! | [`mod@nsga2`]  | NSGA-II — Non-dominated Sorting Genetic Algorithm II (Deb 2002) |
+//! | [`mod@nsga3`]  | NSGA-III — Many-objective NSGA with reference-point niching (Deb 2014) |
+//! | [`mod@moead`]  | MOEA/D — Decomposition-based MOEA (Zhang 2007) |
 //! | [`pareto`]     | Pareto dominance, ranking, hypervolume, and distance metrics |
 //! | [`indicators`] | Quality indicators: HV, IGD, IGD+, GD, ε-indicator, R2, spacing |
 //!

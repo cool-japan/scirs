@@ -458,6 +458,95 @@ fn compute_grad_for_input<'graph, F: Float>(
         || op_name.contains("ConvertToTensor")
     {
         Some(gy)
+    } else if op_name == "EmlOp" {
+        // -----------------------------------------------------------
+        // EmlOp (symbolic backend): build gradient tensor lazily using
+        // the exact symbolic partial derivative d(op)/d(Var(i)).
+        // Gated on the `symbolic` feature; falls back to zero if not
+        // compiled in.
+        // -----------------------------------------------------------
+        #[cfg(feature = "symbolic")]
+        {
+            use crate::symbolic_backend::EmlOp;
+            use scirs2_symbolic::eml::grad as sym_grad;
+            use std::sync::Arc;
+
+            // Hold the inner `Ref` in a binding so the borrow lives long
+            // enough for the downcast chain.
+            let inner = y_tensor.inner();
+            let eml_op_data: Option<(Arc<scirs2_symbolic::eml::LoweredOp>, usize)> = inner
+                .get_op()
+                .as_any()
+                .and_then(|any| any.downcast_ref::<EmlOp>())
+                .map(|eml| (Arc::clone(&eml.op), eml.num_vars));
+            // Release the borrow before building new tensors.
+            drop(inner);
+
+            if let Some((op_arc, num_vars)) = eml_op_data {
+                let g_lowered = sym_grad(&op_arc, i);
+                // Build a new EmlOp tensor for d(f)/d(Var(i)) using the same
+                // original inputs — evaluates correctly with placeholder feeds.
+                let mut builder = Tensor::builder(g);
+                for j in 0..num_vars {
+                    let input_j = y_tensor.get_backprop_input(j);
+                    builder = builder.append_input(input_j, false);
+                }
+                let gval_tensor = builder.build(EmlOp {
+                    op: Arc::new(g_lowered),
+                    num_vars,
+                });
+                // Chain rule: d(loss)/d(input_i) = gy * d(f)/d(Var(i))
+                Some(T::mul(gy, gval_tensor))
+            } else {
+                // Downcast failed — return zero gradient as safe fallback.
+                Some(T::scalar(F::zero(), g))
+            }
+        }
+        #[cfg(not(feature = "symbolic"))]
+        {
+            // Without the symbolic feature, EmlOp should not appear in the
+            // graph, but if it does (e.g. from a pre-compiled dep), return zero.
+            let _ = (x_tensor, y_tensor, gy, g, i);
+            None
+        }
+    } else if op_name == "EmlElementWiseOp" {
+        // -----------------------------------------------------------
+        // EmlElementWiseOp (symbolic tape): element-wise application of
+        // a LoweredOp to a 1-D input.  The gradient is:
+        //   gx[i] = gy[i] * d(op)/d(Var(0))|_{x[i]}
+        // We build a new EmlElementWiseOp for the derivative and
+        // multiply element-wise with gy.
+        // -----------------------------------------------------------
+        #[cfg(feature = "symbolic")]
+        {
+            use crate::tape::eml_tape::EmlElementWiseOp;
+            use scirs2_symbolic::eml::grad as sym_grad;
+            use std::sync::Arc;
+
+            let inner = y_tensor.inner();
+            let maybe_deriv: Option<Arc<scirs2_symbolic::eml::LoweredOp>> = inner
+                .get_op()
+                .as_any()
+                .and_then(|any| any.downcast_ref::<EmlElementWiseOp>())
+                .map(|ew| Arc::new(sym_grad(&ew.op, 0)));
+            drop(inner);
+
+            if let Some(deriv_op) = maybe_deriv {
+                let x_input = y_tensor.get_backprop_input(0);
+                let deriv_tensor = crate::tensor::Tensor::builder(g)
+                    .append_input(x_input, false)
+                    .build(EmlElementWiseOp { op: deriv_op });
+                Some(T::mul(gy, deriv_tensor))
+            } else {
+                // Downcast failed — pass gradient unchanged as safe fallback.
+                Some(gy)
+            }
+        }
+        #[cfg(not(feature = "symbolic"))]
+        {
+            let _ = (x_tensor, y_tensor, gy, g, i);
+            None
+        }
     } else if op_name == "Kronecker" {
         // Kronecker product gradient: C = A ⊗ B, C is (mp × nq)
         // ∂L/∂A[i,j] = Σ_{k,l} (∂L/∂C)[i*p+k, j*q+l] * B[k,l]
@@ -473,6 +562,31 @@ fn compute_grad_for_input<'graph, F: Float>(
             .append_input(b_input, false)
             .build(grad_op);
         Some(gx)
+    } else if op_name.contains("ScalarMulOp") {
+        // ScalarMulOp: d(scalar * x)/dx = scalar * gy
+        //
+        // We retrieve the scalar via as_any() downcast.  The op is stored in
+        // the inner node; y_tensor.inner().get_op() gives the boxed Op trait
+        // object.  We downcast to ScalarMulOp<F> to read the stored scalar.
+        //
+        // Keep the `Ref` binding alive until after the downcast completes,
+        // matching the pattern used for EmlOp above.
+        //
+        // If the downcast fails (e.g. type mismatch) we fall back to pass-through.
+        let inner = y_tensor.inner();
+        let maybe_scalar: Option<F> = inner
+            .get_op()
+            .as_any()
+            .and_then(|any| any.downcast_ref::<crate::tensor_ops::scalar_ops::ScalarMulOp<F>>())
+            .map(|op| op.scalar);
+        drop(inner);
+
+        if let Some(scalar) = maybe_scalar {
+            Some(crate::tensor_ops::scalar_mul(gy, scalar))
+        } else {
+            // Downcast failed — pass gradient through unchanged as safe fallback.
+            Some(gy)
+        }
     } else {
         // Default case: pass through gradient for unknown ops.
         // This is generally safer than returning None (zero gradient)

@@ -581,7 +581,7 @@ impl Default for AbelConfig {
 ///
 /// ## Algorithm
 ///
-/// 1. Compute the fractional integral I^(1-α)[f](x_i) = ∫₀^{x_i} f(t)/(x_i-t)^(1-α) dt
+/// 1. Compute the fractional integral I^(1-α)\[f\](x_i) = ∫₀^{x_i} f(t)/(x_i-t)^(1-α) dt
 ///    using the product trapezoidal rule for weakly singular integrals.
 /// 2. Differentiate numerically using central differences with regularization.
 /// 3. Scale by sin(απ)/π.

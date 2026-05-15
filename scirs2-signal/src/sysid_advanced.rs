@@ -1202,15 +1202,46 @@ fn simulate_state_space(
     Ok(y)
 }
 
-/// Simulate noise contribution for BJ model
+/// Simulate noise contribution for BJ model.
+///
+/// Treats `output` as a proxy for the innovations sequence and filters it
+/// through the C(q)/D(q) noise model polynomials.  This matches the BJ
+/// stochastic structure: the noise contribution y_e = C(q)/D(q) * e, where
+/// e is approximated here by the raw output signal.
+///
+/// The filtering follows the IIR difference equation:
+///   y[t] = c[0]*output[t] + c[1]*output[t-1] + ...
+///          - d[1]*y[t-1] - d[2]*y[t-2] - ...
+///
+/// By convention c[0] = d[0] = 1.
 #[allow(dead_code)]
 fn simulate_noise_contribution(
     output: &Array1<f64>,
-    _c: &Array1<f64>,
-    _d: &Array1<f64>,
+    c: &Array1<f64>,
+    d: &Array1<f64>,
 ) -> SignalResult<Array1<f64>> {
-    // This is a placeholder - in practice would estimate the noise sequence
-    Ok(Array1::zeros(output.len()))
+    let n = output.len();
+    let nc = c.len().saturating_sub(1);
+    let nd = d.len().saturating_sub(1);
+
+    let mut filtered = Array1::<f64>::zeros(n);
+
+    for t in 0..n {
+        // MA part: C(q) applied to `output`
+        let mut val = 0.0f64;
+        for i in 0..=nc.min(t) {
+            let c_coeff = if i < c.len() { c[i] } else { 0.0 };
+            val += c_coeff * output[t - i];
+        }
+        // AR part: D(q) feedback on `filtered`
+        for i in 1..=nd.min(t) {
+            let d_coeff = if i < d.len() { d[i] } else { 0.0 };
+            val -= d_coeff * filtered[t - i];
+        }
+        filtered[t] = val;
+    }
+
+    Ok(filtered)
 }
 
 mod tests {

@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-integrate)](https://docs.rs/scirs2-integrate)
 
-**Numerical integration, ODE/PDE/SDE solvers, and physics simulation for the SciRS2 scientific computing library (v0.4.3).**
+**Numerical integration, ODE/PDE/SDE solvers, and physics simulation for the SciRS2 scientific computing library (v0.4.4).**
 
 `scirs2-integrate` provides a comprehensive suite of numerical integration methods modeled after SciPy's `integrate` module, extended with advanced capabilities including Stochastic Differential Equation (SDE) solvers, Lattice Boltzmann Method (LBM) fluid simulation, Discontinuous Galerkin (DG) finite elements, phase field models, Boundary Element Methods, Isogeometric Analysis, Port-Hamiltonian discretization, and Monte Carlo / Quasi-Monte Carlo integration — all as pure Rust.
 
-## Features (v0.4.3)
+## Features (v0.4.4)
 
 ### Quadrature (Definite Integrals)
 - **Adaptive quadrature**: Automatic error control; `quad`, `dblquad`, `tplquad`, `nquad`
@@ -113,14 +113,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-integrate = "0.4.3"
+scirs2-integrate = "0.4.4"
 ```
 
 With optional performance features:
 
 ```toml
 [dependencies]
-scirs2-integrate = { version = "0.4.3", features = ["parallel", "simd"] }
+scirs2-integrate = { version = "0.4.4", features = ["parallel", "simd"] }
 ```
 
 ### Adaptive 1D quadrature

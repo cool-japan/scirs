@@ -8,8 +8,8 @@
 //!
 //! - [`stationary_distribution`] – Power-iteration to find the unique stationary
 //!   distribution π satisfying π = π P, ‖π‖₁ = 1.
-//! - [`is_stochastic`] / [`is_stochastic_f`] – Validate stochasticity.
-//! - [`mean_first_passage_time`] – Matrix M where M[i,j] is the expected steps to
+//! - [`is_stochastic`] / `is_stochastic_f` – Validate stochasticity.
+//! - [`mean_first_passage_time`] – Matrix M where M\[i,j\] is the expected steps to
 //!   reach state j starting from state i.
 //! - [`fundamental_matrix`] – Z = (I − P + Π)⁻¹ where Π = 1·π^T.
 //! - [`mixing_time`] – Estimate the ε-mixing time from the spectral gap.
@@ -282,10 +282,10 @@ where
 /// Compute the mean first passage time (MFPT) matrix from the fundamental
 /// matrix.
 ///
-/// M[i,j] = expected number of steps to reach state j for the first time
+/// M\[i,j\] = expected number of steps to reach state j for the first time
 /// starting from state i. For i = j this is the mean recurrence time 1/πⱼ.
 ///
-/// Formula: M[i,j] = (Z[j,j] − Z[i,j]) / π[j].
+/// Formula: M\[i,j\] = (Z\[j,j\] − Z\[i,j\]) / π\[j\].
 ///
 /// # Arguments
 ///
@@ -458,7 +458,7 @@ where
 /// Describes the canonical partition of an absorbing Markov chain.
 #[derive(Debug, Clone)]
 pub struct AbsorbingMarkovChain {
-    /// Indices of absorbing states (states where P[i,i] = 1).
+    /// Indices of absorbing states (states where P\[i,i\] = 1).
     pub absorbing_states: Vec<usize>,
     /// Indices of transient states (all non-absorbing states).
     pub transient_states: Vec<usize>,
@@ -466,7 +466,7 @@ pub struct AbsorbingMarkovChain {
 
 /// Identify absorbing and transient states in a Markov chain.
 ///
-/// A state i is *absorbing* if P[i,i] = 1 (equivalently P[i,j] = 0 for j ≠ i).
+/// A state i is *absorbing* if P\[i,i\] = 1 (equivalently P\[i,j\] = 0 for j ≠ i).
 /// All other states are *transient*.
 ///
 /// # Arguments
@@ -545,7 +545,7 @@ where
 
 /// Compute absorption probabilities for an absorbing Markov chain.
 ///
-/// Returns the matrix B where B[i,j] is the probability that a chain starting
+/// Returns the matrix B where B\[i,j\] is the probability that a chain starting
 /// in transient state `transient_states[i]` is eventually absorbed by
 /// absorbing state `absorbing_states[j]`.
 ///

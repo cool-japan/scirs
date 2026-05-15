@@ -571,7 +571,7 @@ mod tests {
         let meta = sa.write(&data).unwrap();
         assert_eq!(meta.total_elements, 100);
         assert_eq!(meta.shard_sizes.iter().sum::<usize>(), 100);
-        let loaded = sa.read().unwrap();
+        let loaded = sa.read().expect("range sharded read should succeed");
         assert_eq!(loaded, data);
         let _ = std::fs::remove_dir_all(&config.base_dir);
     }
@@ -582,7 +582,7 @@ mod tests {
         let config = temp_config(ShardingStrategy::RoundRobin);
         let mut sa = ShardedArray::new(config.clone());
         sa.write(&data).unwrap();
-        let loaded = sa.read().unwrap();
+        let loaded = sa.read().expect("round-robin sharded read should succeed");
         assert_eq!(loaded, data);
         let _ = std::fs::remove_dir_all(&config.base_dir);
     }
@@ -593,7 +593,7 @@ mod tests {
         let config = temp_config(ShardingStrategy::Hash);
         let mut sa = ShardedArray::new(config.clone());
         sa.write(&data).unwrap();
-        let loaded = sa.read().unwrap();
+        let loaded = sa.read().expect("hash sharded read should succeed");
         assert_eq!(loaded, data);
         let _ = std::fs::remove_dir_all(&config.base_dir);
     }

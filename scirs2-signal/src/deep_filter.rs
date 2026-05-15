@@ -20,6 +20,8 @@
 //! The MLP uses Tanh activations, Glorot initialisation, and SGD updates.
 
 use crate::error::{SignalError, SignalResult};
+use scirs2_core::numeric::Complex64;
+use scirs2_fft::{fft, ifft};
 
 // ---------------------------------------------------------------------------
 // Deterministic PRNG
@@ -768,18 +770,24 @@ impl DeepFilter {
         Ok(normalize_sum_to_one(&raw))
     }
 
-    /// Apply filtering in the frequency domain.
+    /// Apply filtering in the frequency domain using the overlap-add (OLA) algorithm.
     ///
-    /// For long signals this can be more efficient than direct-form convolution,
-    /// though correctness is identical (overlap-add is not implemented here;
-    /// this is a direct frequency-domain multiply then IFFT via naïve DFT).
-    /// For production use, prefer [`filter`](DeepFilter::filter) or call with
-    /// an FFT-backed convolver.
+    /// For long signals this is more efficient than direct-form convolution (O(N log N)
+    /// vs O(N·M)).  The output is identical in mode to [`filter`](DeepFilter::filter):
+    /// same length as the input, with symmetric zero-padding at the boundaries.
+    ///
+    /// Algorithm:
+    /// 1. Predict FIR coefficients from signal features.
+    /// 2. Choose block size `N = next_power_of_2(2 * filter_len)`.
+    /// 3. FFT the zero-padded filter once; reuse that spectrum for every block.
+    /// 4. Process input in blocks of length `block_size = N - filter_len + 1`:
+    ///    - FFT each block → multiply with filter spectrum → IFFT.
+    ///    - Accumulate the `filter_len - 1` overlap tail into the next block.
+    /// 5. Slice the full-length convolution output with the same centering as
+    ///    `fir_convolve` (`half = filter_len / 2`) to produce a SAME-mode result.
     pub fn filter_fft(&self, signal: &[f32]) -> SignalResult<Vec<f32>> {
-        // Fall back to time-domain for simplicity + correctness.
-        // A true FFT-based overlap-add would require an FFT crate; we keep this
-        // Pure-Rust and avoid an unnecessary dep within the signal crate itself.
-        self.filter(signal)
+        let coeffs = self.predict_coefficients(signal)?;
+        ola_convolve_same(signal, &coeffs)
     }
 
     /// Return the configuration.
@@ -791,6 +799,116 @@ impl DeepFilter {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/// Return the smallest power of two that is >= `n` (minimum 1).
+fn next_pow2_df(n: usize) -> usize {
+    if n <= 1 {
+        return 1;
+    }
+    let mut p = 1usize;
+    while p < n {
+        p = p.saturating_mul(2);
+    }
+    p
+}
+
+/// Overlap-add (OLA) linear convolution returning a SAME-length output that
+/// matches the centering convention of [`fir_convolve`].
+///
+/// Steps:
+///  1. Compute full linear convolution (`n + m - 1` samples) via OLA.
+///     - Block size `L = fft_size - m + 1` where `fft_size = next_pow2(2*m)`.
+///     - For each input block: FFT → pointwise multiply with filter spectrum → IFFT.
+///     - Overlap-add: the convolved block has length `L + m - 1 = fft_size`;
+///       add it into the full-length accumulation buffer at the correct offset.
+///  2. Slice `[half .. half + n]` where `half = m / 2` to match `fir_convolve`.
+///
+/// FFT arithmetic is performed in f64 for numerical accuracy; inputs / outputs
+/// remain f32.
+///
+/// Returns `Vec::new()` when `signal` or `coeffs` is empty (matches
+/// `fir_convolve` behaviour).
+fn ola_convolve_same(signal: &[f32], coeffs: &[f32]) -> SignalResult<Vec<f32>> {
+    let n = signal.len();
+    let m = coeffs.len();
+    if n == 0 || m == 0 {
+        return Ok(Vec::new());
+    }
+
+    // ---------- block parameters ----------------------------------------
+    // fft_size >= 2*m ensures no circular aliasing between signal block and filter.
+    let fft_size = next_pow2_df(2 * m);
+    // Samples per input block; at least 1.
+    let block_len = if fft_size > m { fft_size - m + 1 } else { 1 };
+
+    // ---------- precompute filter spectrum --------------------------------
+    // Zero-pad coefficients to `fft_size`, convert f32 → f64.
+    let filter_f64: Vec<f64> = {
+        let mut v = vec![0.0f64; fft_size];
+        for (i, &c) in coeffs.iter().enumerate() {
+            v[i] = c as f64;
+        }
+        v
+    };
+    let filter_spectrum = fft(&filter_f64, Some(fft_size))
+        .map_err(|e| SignalError::ComputationError(format!("OLA filter FFT failed: {e}")))?;
+
+    // ---------- full-length linear convolution accumulation buffer -------
+    // Each input block of `L` samples produces `fft_size` output samples
+    // that overlap with the next block's first `m - 1` samples.
+    let full_len = n + m - 1;
+    let mut acc = vec![0.0f64; full_len];
+
+    // ---------- process blocks -------------------------------------------
+    let mut block_start = 0usize;
+    while block_start < n {
+        let block_end = (block_start + block_len).min(n);
+        let actual_len = block_end - block_start;
+
+        // Build zero-padded block of length fft_size (f32 → f64).
+        let mut block_f64 = vec![0.0f64; fft_size];
+        for (i, &s) in signal[block_start..block_end].iter().enumerate() {
+            block_f64[i] = s as f64;
+        }
+
+        // FFT of block.
+        let block_spectrum = fft(&block_f64, Some(fft_size))
+            .map_err(|e| SignalError::ComputationError(format!("OLA block FFT failed: {e}")))?;
+
+        // Frequency-domain multiplication.
+        let product: Vec<Complex64> = block_spectrum
+            .iter()
+            .zip(filter_spectrum.iter())
+            .map(|(a, b)| a * b)
+            .collect();
+
+        // IFFT to time-domain; result length = fft_size.
+        let conv_block = ifft(&product, None)
+            .map_err(|e| SignalError::ComputationError(format!("OLA IFFT failed: {e}")))?;
+
+        // Overlap-add: add the convolved block into acc starting at block_start.
+        // The convolved block represents samples [block_start .. block_start + actual_len + m - 1]
+        // in the full-length output (linear convolution of a zero-padded block).
+        let out_start = block_start;
+        let conv_output_len = actual_len + m - 1; // meaningful samples in conv_block
+        for i in 0..conv_output_len.min(conv_block.len()) {
+            let out_idx = out_start + i;
+            if out_idx >= full_len {
+                break;
+            }
+            acc[out_idx] += conv_block[i].re;
+        }
+
+        block_start += actual_len;
+    }
+
+    // ---------- slice to SAME mode (match fir_convolve centering) --------
+    // fir_convolve uses `half = m / 2` as the center offset.
+    let half = m / 2;
+    let result: Vec<f32> = acc.iter().skip(half).take(n).map(|&v| v as f32).collect();
+
+    Ok(result)
+}
 
 /// Normalize a coefficient vector so its sum equals 1.
 ///
@@ -1003,6 +1121,117 @@ mod tests {
         assert!(
             mse_filtered < mse_noisy,
             "filtered MSE {mse_filtered:.6} should be less than noisy MSE {mse_noisy:.6}"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // OLA convolution tests
+    // ------------------------------------------------------------------
+
+    /// Verify that `ola_convolve_same` output matches `fir_convolve` within
+    /// 1e-4 tolerance.  The gap is due to f32 input → f64 FFT → f32 output
+    /// round-trip and f32 accumulation in the reference path.
+    #[test]
+    fn ola_convolve_same_matches_direct_convolution() {
+        let n = 1024usize;
+        let m = 32usize;
+
+        // Deterministic pseudo-random signal and filter via XorShift.
+        let mut rng = XorShift64::new(42);
+        let signal: Vec<f32> = (0..n)
+            .map(|_| (rng.next_f64() as f32) * 2.0 - 1.0)
+            .collect();
+        let raw_filter: Vec<f32> = (0..m)
+            .map(|_| (rng.next_f64() as f32) * 2.0 - 1.0)
+            .collect();
+        // Normalize to avoid magnitude blowup.
+        let sum: f32 = raw_filter.iter().map(|v| v.abs()).sum();
+        let filter: Vec<f32> = raw_filter
+            .iter()
+            .map(|&v| if sum > 1e-8 { v / sum } else { v })
+            .collect();
+
+        let direct = fir_convolve(&signal, &filter);
+        let ola = ola_convolve_same(&signal, &filter).expect("OLA should not fail");
+
+        assert_eq!(
+            direct.len(),
+            ola.len(),
+            "OLA output length must match direct convolution length"
+        );
+        let max_diff = direct
+            .iter()
+            .zip(ola.iter())
+            .map(|(a, b)| (a - b).abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            max_diff < 1e-4,
+            "max pointwise error {max_diff:.2e} exceeds 1e-4 tolerance"
+        );
+    }
+
+    /// Output length of `ola_convolve_same` must equal the input length (SAME mode).
+    #[test]
+    fn ola_convolve_same_output_length_is_same() {
+        for (n, m) in [(128, 16), (256, 32), (1, 1), (1, 8), (100, 1)] {
+            let signal: Vec<f32> = (0..n).map(|i| i as f32 * 0.01).collect();
+            let filter: Vec<f32> = vec![1.0 / m as f32; m];
+            let out = ola_convolve_same(&signal, &filter).expect("OLA should not fail");
+            assert_eq!(
+                out.len(),
+                n,
+                "for input_len={n} filter_len={m}: output length should be {n}, got {}",
+                out.len()
+            );
+        }
+    }
+
+    /// Convolving with an impulse `[1.0, 0.0, 0.0, ...]` should reproduce the
+    /// input (identity filter in SAME mode, same behavior as `fir_convolve`).
+    #[test]
+    fn ola_convolve_same_impulse_is_identity() {
+        let n = 64usize;
+        let m = 8usize;
+        let signal: Vec<f32> = (0..n).map(|i| (i as f32 * 0.1).sin()).collect();
+        let mut impulse = vec![0.0f32; m];
+        // Place the impulse at position `half = m / 2` to cancel the shift that
+        // `fir_convolve` / `ola_convolve_same` apply.
+        impulse[m / 2] = 1.0;
+
+        let out = ola_convolve_same(&signal, &impulse).expect("OLA impulse should not fail");
+        assert_eq!(out.len(), n);
+        for (i, (&y, &x)) in out.iter().zip(signal.iter()).enumerate() {
+            assert!(
+                (y - x).abs() < 1e-4,
+                "impulse response mismatch at index {i}: got {y}, expected {x}"
+            );
+        }
+    }
+
+    /// `filter_fft` should produce the same output as `filter` (within 1e-4).
+    #[test]
+    fn filter_fft_matches_filter_output() {
+        let config = DeepFilterConfig {
+            filter_len: 16,
+            feature_dim: 8,
+            hidden_sizes: vec![12],
+            seed: 7,
+            epochs: 0,
+            ..Default::default()
+        };
+        let df = DeepFilter::new(config).expect("construction: should succeed");
+        let signal: Vec<f32> = (0..128).map(|i| (i as f32 * 0.05).sin()).collect();
+        let direct = df.filter(&signal).expect("filter should succeed");
+        let fft_out = df.filter_fft(&signal).expect("filter_fft should succeed");
+        assert_eq!(direct.len(), fft_out.len());
+        let max_diff = direct
+            .iter()
+            .zip(fft_out.iter())
+            .map(|(a, b)| (a - b).abs())
+            .fold(0.0f32, f32::max);
+        assert!(
+            max_diff < 1e-4,
+            "filter_fft vs filter max diff {max_diff:.2e} exceeds 1e-4"
         );
     }
 }

@@ -6,12 +6,12 @@
 //!
 //! Because A is diagonal the recurrence becomes element-wise:
 //!
-//!   x_k[i] = a_bar[i] * x_{k-1}[i] + b_bar[i] * u_k
-//!   y_k    = sum_i c[i] * x_k[i]    + d * u_k
+//!   x_k\[i\] = a_bar\[i\] * x_{k-1}\[i\] + b_bar\[i\] * u_k
+//!   y_k    = sum_i c\[i\] * x_k\[i\]    + d * u_k
 //!
 //! And the kernel has the closed form:
 //!
-//!   K[k] = sum_i c[i] * a_bar[i]^k * b_bar[i]
+//!   K\[k\] = sum_i c\[i\] * a_bar\[i\]^k * b_bar\[i\]
 
 use crate::error::{Result, TimeSeriesError};
 use crate::state_space::hippo::{hippo_matrix, HiPPOVariant};
@@ -26,12 +26,12 @@ use crate::state_space::hippo::{hippo_matrix, HiPPOVariant};
 pub enum S4DInit {
     /// S4D-Lin: use the diagonal of HiPPO-LegS.
     ///
-    /// A_diag[n] = -(n+1)
+    /// A_diag\[n\] = -(n+1)
     Lin,
 
     /// S4D-Inv: inverse-spaced diagonal.
     ///
-    /// A_diag[n] = -1 / (n+1)
+    /// A_diag\[n\] = -1 / (n+1)
     Inv,
 
     /// Custom diagonal entries (must have length == state_dim).
@@ -65,9 +65,9 @@ pub struct S4DConfig {
 /// storage is O(N) instead of O(N^2).
 #[derive(Debug, Clone)]
 pub struct S4DLayer {
-    /// Discrete diagonal of A: a_bar[i] = 1 + a_diag[i] * dt  (Euler).
+    /// Discrete diagonal of A: a_bar\[i\] = 1 + a_diag\[i\] * dt  (Euler).
     pub a_diag_bar: Vec<f64>,
-    /// Discrete B vector: b_bar[i] = b[i] * dt.
+    /// Discrete B vector: b_bar\[i\] = b\[i\] * dt.
     pub b_bar: Vec<f64>,
     /// Output vector C (N).
     pub c: Vec<f64>,
@@ -159,8 +159,8 @@ impl S4DLayer {
     /// Forward pass (recurrent mode, element-wise).
     ///
     /// For each time step t:
-    ///   x[i] <- a_bar[i] * x[i] + b_bar[i] * u[t]
-    ///   y[t] = sum_i c[i] * x[i] + d * u[t]
+    ///   x\[i\] <- a_bar\[i\] * x\[i\] + b_bar\[i\] * u\[t\]
+    ///   y\[t\] = sum_i c\[i\] * x\[i\] + d * u\[t\]
     pub fn forward(&self, input: &[f64]) -> Result<Vec<f64>> {
         let n = self.state_dim;
         let len = input.len();
@@ -189,7 +189,7 @@ impl S4DLayer {
 
     /// Compute the convolution kernel of length `length`.
     ///
-    /// K[k] = sum_i c[i] * a_bar[i]^k * b_bar[i]
+    /// K\[k\] = sum_i c\[i\] * a_bar\[i\]^k * b_bar\[i\]
     pub fn compute_kernel(&self, length: usize) -> Vec<f64> {
         let n = self.state_dim;
         let mut kernel = Vec::with_capacity(length);

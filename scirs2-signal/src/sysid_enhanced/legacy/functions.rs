@@ -328,17 +328,17 @@ fn select_arx_orders(
     }
     Ok(best_orders)
 }
-/// Solve regularized least squares with enhanced numerical stability
+/// Solve regularized least squares with enhanced numerical stability.
+///
+/// Tries a direct LU-based solve first and only falls back to SVD when LU
+/// either fails (e.g. singular matrix) or produces a non-finite solution.
+/// This avoids paying for a full SVD on every well-conditioned call, which
+/// dominated the cost of order-selection + cross-validation in debug builds.
 #[allow(dead_code)]
 fn solve_regularized_ls(a: &Array2<f64>, b: &Array1<f64>) -> SignalResult<Array1<f64>> {
-    let cond = compute_matrix_condition_number(a)?;
-    if cond > 1e12 {
-        solve_using_svd(a, b)
-    } else {
-        match solve(&a.view(), &b.view(), None) {
-            Ok(solution) => Ok(solution),
-            Err(_) => solve_using_svd(a, b),
-        }
+    match solve(&a.view(), &b.view(), None) {
+        Ok(solution) if solution.iter().all(|x: &f64| x.is_finite()) => Ok(solution),
+        _ => solve_using_svd(a, b),
     }
 }
 /// Solve using SVD decomposition for numerical stability

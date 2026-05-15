@@ -20,7 +20,7 @@
 //!   * c(x₀) = 1/2 for smooth boundaries (collocation at boundary nodes).
 //!
 //! The BIE is discretised by constant or linear boundary elements, leading to
-//! the linear system   [H]{u} = [G]{q}.  After applying boundary conditions,
+//! the linear system   \[H\]{u} = \[G\]{q}.  After applying boundary conditions,
 //! the unknown Dirichlet or Neumann values are solved.  Interior values are
 //! then recovered by direct evaluation of the boundary integral.
 //!
@@ -93,7 +93,7 @@ impl BemMesh {
         Ok(BemMesh { nodes, closed })
     }
 
-    /// Create a rectangular boundary mesh for a 2-D rectangle [x0,x1]×[y0,y1].
+    /// Create a rectangular boundary mesh for a 2-D rectangle \[x0,x1\]×\[y0,y1\].
     ///
     /// The boundary is traversed counter-clockwise:
     ///   bottom → right → top (reversed) → left (reversed).
@@ -345,7 +345,7 @@ fn element_integrals(mesh: &BemMesh, j: usize, x0: f64, y0: f64, is_singular: bo
 /// Assemble the BEM influence matrices G and H for a constant-element
 /// discretisation of the 2-D Laplace BIE.
 ///
-/// The system is   [H]{u} = [G]{q},
+/// The system is   \[H\]{u} = \[G\]{q},
 /// where the *e*-th row corresponds to the collocation point (midpoint of
 /// element *e*), and the diagonal of H is augmented by 1/2.
 ///

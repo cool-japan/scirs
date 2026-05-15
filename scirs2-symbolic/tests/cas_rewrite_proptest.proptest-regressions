@@ -1,0 +1,7 @@
+# Seeds for failure cases proptest has generated in the past. It is
+# automatically read and these particular cases re-run before any
+# novel cases are generated.
+#
+# It is recommended to check this file in to source control so that
+# everyone who runs the test benefits from these saved cases.
+cc c167a7638321eec99b52832fbcb8f3c5c37b21ebb294e6dc4c5927c988e845ac # shrinks to op = Mul(Const(0.11), Sin(Sub(Const(0.31000000000000005), Const(0.41000000000000003))))

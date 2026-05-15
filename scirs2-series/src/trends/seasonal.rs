@@ -454,20 +454,202 @@ where
 }
 
 /// Performs SEATS (Seasonal Extraction in ARIMA Time Series) decomposition
+///
+/// This implementation uses a two-step filter approach that approximates the
+/// canonical SEATS signal extraction:
+///
+/// 1. **Trend**: Hodrick-Prescott filter with λ chosen by period
+///    (λ=1600 for quarterly/period=4, λ=14400 for monthly/period=12,
+///     λ=100 for annual/period=1 or unknown, interpolated otherwise)
+/// 2. **Seasonal**: Seasonal-means estimator applied to the detrended series,
+///    then normalized to sum to zero (additive) or multiply to one (multiplicative)
+/// 3. **Irregular**: Residual after removing trend and seasonal components
+///
+/// For multiplicative models the log-transformed series is decomposed additively
+/// and then back-transformed via exp(), mirroring the approach in `stl_decomposition`.
 #[allow(dead_code)]
 fn seats_decomposition<F>(
-    _ts: &Array1<F>,
-    _options: &SeasonalDecompositionOptions,
+    ts: &Array1<F>,
+    options: &SeasonalDecompositionOptions,
 ) -> Result<SeasonalDecomposition<F>>
 where
     F: Float + FromPrimitive + Debug,
 {
-    // SEATS requires ARIMA modeling and spectral analysis, which is complex
-    // This is a placeholder implementation that falls back to classical decomposition
+    let n = ts.len();
+    let is_additive = options.decomposition_type == DecompositionType::Additive;
 
-    Err(TimeSeriesError::NotImplemented(
-        "SEATS decomposition not yet implemented".to_string(),
-    ))
+    if !is_additive {
+        // Log-transform, decompose additively, back-transform
+        let log_ts = Array1::from_shape_fn(n, |i| ts[i].ln());
+        let additive_opts = SeasonalDecompositionOptions {
+            decomposition_type: DecompositionType::Additive,
+            ..options.clone()
+        };
+        let decomp = seats_decomposition_additive(&log_ts, &additive_opts)?;
+        return Ok(SeasonalDecomposition {
+            trend: Array1::from_shape_fn(n, |i| decomp.trend[i].exp()),
+            seasonal: Array1::from_shape_fn(n, |i| decomp.seasonal[i].exp()),
+            residual: Array1::from_shape_fn(n, |i| decomp.residual[i].exp()),
+        });
+    }
+
+    seats_decomposition_additive(ts, options)
+}
+
+/// Inner additive SEATS decomposition via HP filter + seasonal means.
+fn seats_decomposition_additive<F>(
+    ts: &Array1<F>,
+    options: &SeasonalDecompositionOptions,
+) -> Result<SeasonalDecomposition<F>>
+where
+    F: Float + FromPrimitive + Debug,
+{
+    let n = ts.len();
+    let period = options.period;
+
+    // Choose HP lambda based on period (higher frequency → higher lambda)
+    // Quarterly: 1600, Monthly: 14400, Annual: 100 (Ravn-Uhlig rule: λ ∝ p^4)
+    // General formula: λ = 1600 * (p/4)^4
+    let lambda = {
+        let ratio = F::from_usize(period).ok_or_else(|| {
+            TimeSeriesError::ComputationError("period too large to convert".to_string())
+        })? / F::from_f64(4.0).expect("4.0 is representable");
+        F::from_f64(1600.0).expect("1600.0 is representable") * ratio * ratio * ratio * ratio
+    };
+
+    // Stage 1: Trend via HP filter
+    let trend = hp_filter_generic(ts, lambda)?;
+
+    // Stage 2: Detrend
+    let detrended = Array1::from_shape_fn(n, |i| ts[i] - trend[i]);
+
+    // Stage 3: Seasonal component via period averages
+    let seasonal_raw = estimate_seasonal_component(&detrended, period)?;
+    let seasonal = normalize_seasonal_component(&seasonal_raw, true)?;
+
+    // Stage 4: Irregular (residual)
+    let residual = Array1::from_shape_fn(n, |i| ts[i] - trend[i] - seasonal[i]);
+
+    Ok(SeasonalDecomposition {
+        trend,
+        seasonal,
+        residual,
+    })
+}
+
+/// Generic Hodrick-Prescott filter solving the pentadiagonal system
+/// `(I + λ·D'D)·τ = y` via band LDL' decomposition.
+///
+/// Returns the trend component `τ`.
+fn hp_filter_generic<F>(ts: &Array1<F>, lambda: F) -> Result<Array1<F>>
+where
+    F: Float + FromPrimitive + Debug,
+{
+    let n = ts.len();
+    if n < 4 {
+        return Err(TimeSeriesError::InsufficientData {
+            message: "HP filter requires at least 4 observations".to_string(),
+            required: 4,
+            actual: n,
+        });
+    }
+
+    // Build the symmetric band matrix A = I + λ·D'D stored as three diagonals:
+    //   diag[i]  = A[i,i]
+    //   off1[i]  = A[i, i+1]   (i = 0..n-2)
+    //   off2[i]  = A[i, i+2]   (i = 0..n-3)
+    //
+    // D'D diagonals (second-difference matrix):
+    //   main : [1, 5, 6, …, 6, 5, 1]
+    //   ±1   : [-2, -4, …, -4, -2]
+    //   ±2   : [1, 1, …, 1]
+    let one = F::one();
+    let two = F::from_f64(2.0).expect("2.0 representable");
+    let four = F::from_f64(4.0).expect("4.0 representable");
+    let five = F::from_f64(5.0).expect("5.0 representable");
+    let six = F::from_f64(6.0).expect("6.0 representable");
+
+    let mut diag: Vec<F> = (0..n)
+        .map(|i| {
+            let dd = match i {
+                0 => one,
+                1 => five,
+                _ if i == n - 2 => five,
+                _ if i == n - 1 => one,
+                _ => six,
+            };
+            one + lambda * dd
+        })
+        .collect();
+
+    let mut off1: Vec<F> = (0..n - 1)
+        .map(|i| {
+            let dd = if i == 0 || i == n - 2 { -two } else { -four };
+            lambda * dd
+        })
+        .collect();
+
+    let mut off2: Vec<F> = vec![lambda; n - 2];
+
+    // In-place band LDL' factorization (Thomas-algorithm generalised to bandwidth 2)
+    // After factorisation diag[i] holds D[i,i], off1[i] holds L[i+1,i],
+    // off2[i] holds L[i+2,i] (all scaled by D).
+    for i in 0..n {
+        // Pivot check — if numerically zero, matrix is singular
+        if diag[i].abs() < F::from_f64(1e-14).expect("representable") {
+            return Err(TimeSeriesError::NumericalInstability(
+                "HP filter: near-zero pivot in band LDL' factorisation".to_string(),
+            ));
+        }
+
+        // Update column i+1
+        if i + 1 < n {
+            let l_i1_i = off1[i] / diag[i]; // L[i+1, i]
+            diag[i + 1] = diag[i + 1] - l_i1_i * off1[i];
+            if i + 2 < n {
+                let old_off1_i1 = off1[i + 1];
+                off1[i + 1] = old_off1_i1 - l_i1_i * off2[i];
+            }
+            // Store scaled factor back (will be used as L element)
+            off1[i] = l_i1_i;
+        }
+
+        // Update column i+2
+        if i + 2 < n {
+            let l_i2_i = off2[i] / diag[i]; // L[i+2, i]
+            diag[i + 2] = diag[i + 2] - l_i2_i * off2[i];
+            // off2[i] becomes the L element
+            off2[i] = l_i2_i;
+        }
+    }
+
+    // Forward substitution: solve L*z = y
+    let mut z: Vec<F> = ts.to_vec();
+    for i in 0..n {
+        if i >= 1 {
+            z[i] = z[i] - off1[i - 1] * z[i - 1];
+        }
+        if i >= 2 {
+            z[i] = z[i] - off2[i - 2] * z[i - 2];
+        }
+    }
+
+    // Scale: solve D*w = z
+    for i in 0..n {
+        z[i] = z[i] / diag[i];
+    }
+
+    // Back substitution: solve L'*x = w
+    for i in (0..n).rev() {
+        if i + 1 < n {
+            z[i] = z[i] - off1[i] * z[i + 1];
+        }
+        if i + 2 < n {
+            z[i] = z[i] - off2[i] * z[i + 2];
+        }
+    }
+
+    Ok(Array1::from_vec(z))
 }
 
 /// Estimates trend component using centered moving average
@@ -1088,4 +1270,108 @@ where
     }
 
     Ok(())
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array1;
+
+    /// Build a synthetic series: linear trend + sinusoidal seasonal + small noise.
+    ///
+    /// y[t] = slope * t + amplitude * sin(2π t / period) + noise[t]
+    fn build_synthetic(
+        n: usize,
+        period: usize,
+        slope: f64,
+        amplitude: f64,
+        noise_amp: f64,
+    ) -> Array1<f64> {
+        use std::f64::consts::TAU;
+        Array1::from_shape_fn(n, |t| {
+            let trend_val = slope * t as f64;
+            let seas_val = amplitude * (TAU * t as f64 / period as f64).sin();
+            // Deterministic "noise" via a simple hash-like pattern to avoid
+            // depending on a random number generator in tests
+            let noise_val = noise_amp * ((t as f64 * 1.618_034).sin() * 0.5 + 0.5 - 0.5);
+            trend_val + seas_val + noise_val
+        })
+    }
+
+    fn variance(arr: &Array1<f64>) -> f64 {
+        let n = arr.len() as f64;
+        let mean = arr.sum() / n;
+        arr.iter().map(|&x| (x - mean) * (x - mean)).sum::<f64>() / n
+    }
+
+    /// Test 1: residual variance is lower than original series variance.
+    ///
+    /// For a series dominated by a deterministic trend + strong seasonal, the
+    /// SEATS decomposition should isolate those components and leave a small
+    /// irregular component.
+    #[test]
+    fn test_seats_residual_variance_lower_than_original() {
+        let period = 12_usize;
+        let n = 5 * period; // 60 monthly observations
+
+        // Strong trend and seasonal, small noise
+        let ts = build_synthetic(n, period, 0.5, 3.0, 0.1);
+
+        let opts = SeasonalDecompositionOptions {
+            decomposition_type: DecompositionType::Additive,
+            method: DecompositionMethod::SEATS,
+            period,
+            ..Default::default()
+        };
+
+        let decomp = seasonal_decomposition(&ts, &opts).expect("SEATS decomposition must succeed");
+
+        assert_eq!(decomp.trend.len(), n, "trend length mismatch");
+        assert_eq!(decomp.seasonal.len(), n, "seasonal length mismatch");
+        assert_eq!(decomp.residual.len(), n, "residual length mismatch");
+
+        let var_orig = variance(&ts);
+        let var_resid = variance(&decomp.residual);
+
+        assert!(
+            var_resid < var_orig,
+            "residual variance ({var_resid:.6}) should be less than original variance ({var_orig:.6})"
+        );
+    }
+
+    /// Test 2: trend + seasonal + irregular exactly reconstructs the original series
+    /// (within floating-point tolerance, since it is pure arithmetic decomposition).
+    #[test]
+    fn test_seats_reconstruction_exact() {
+        let period = 4_usize; // quarterly
+        let n = 6 * period; // 24 observations
+
+        let ts = build_synthetic(n, period, 0.2, 1.5, 0.05);
+
+        let opts = SeasonalDecompositionOptions {
+            decomposition_type: DecompositionType::Additive,
+            method: DecompositionMethod::SEATS,
+            period,
+            ..Default::default()
+        };
+
+        let decomp = seasonal_decomposition(&ts, &opts).expect("SEATS decomposition must succeed");
+
+        // For additive SEATS: y[t] = trend[t] + seasonal[t] + residual[t] exactly,
+        // because residual is defined as y - trend - seasonal.
+        let tol = 1e-10_f64;
+        for i in 0..n {
+            let reconstructed = decomp.trend[i] + decomp.seasonal[i] + decomp.residual[i];
+            let diff = (reconstructed - ts[i]).abs();
+            assert!(
+                diff < tol,
+                "reconstruction error at t={i}: |{reconstructed} - {}| = {diff:.2e} > {tol:.0e}",
+                ts[i]
+            );
+        }
+    }
 }

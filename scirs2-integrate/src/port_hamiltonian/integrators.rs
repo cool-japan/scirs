@@ -43,7 +43,7 @@ pub struct StepResult {
 pub struct PortHamiltonianResult {
     /// Time points
     pub t: Vec<f64>,
-    /// State trajectory: t[i] -> x[i]
+    /// State trajectory: t\[i\] -> x\[i\]
     pub x: Vec<Vec<f64>>,
     /// Hamiltonian values along trajectory
     pub energy: Vec<f64>,

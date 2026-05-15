@@ -342,7 +342,7 @@ fn solve_linear(a: &Array2<f64>, b: &[f64]) -> Vec<f64> {
 /// `k`-bandlimited (only first `k` GFT components are non-zero), recover `x`
 /// by solving the least-squares system:
 ///
-///   U_k[S, :] α = y   =>   α = (U_k[S,:]ᵀ U_k[S,:])⁻¹ U_k[S,:]ᵀ y
+///   `U_k[S, :]` α = y   =>   α = (`U_k[S,:]`ᵀ `U_k[S,:]`)⁻¹ `U_k[S,:]`ᵀ y
 ///   x = U_k α
 ///
 /// where `U_k` is the matrix of the `k` smoothest eigenvectors.

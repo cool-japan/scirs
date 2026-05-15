@@ -551,6 +551,51 @@ impl<F: Float + Debug + ScalarOperand + Send + Sync + 'static + NumAssign>
         Ok(result)
     }
 
+    /// Apply the inverse RoPE rotation (transpose of forward RoPE).
+    ///
+    /// Forward RoPE rotates by +theta; the inverse rotates by -theta.
+    /// Since R(-theta) is the same as the conjugate rotation (negate sin),
+    /// we replicate the RoPE apply loop with negated sin.
+    fn apply_rope_inverse(
+        rope: &RotaryPositionEmbedding,
+        mut x: Array4<F>,
+        seq_len: usize,
+        num_heads: usize,
+        head_dim: usize,
+    ) -> Result<Array4<F>> {
+        let half_dim = head_dim / 2;
+        let batch = x.shape()[0];
+
+        for b in 0..batch {
+            for t in 0..seq_len {
+                let pos = t as f64;
+                for h in 0..num_heads {
+                    for i in 0..half_dim {
+                        let theta = pos / rope.base.powf(2.0 * i as f64 / head_dim as f64);
+                        let cos_theta = F::from(theta.cos()).ok_or_else(|| {
+                            NeuralError::ComputationError("inv rope cos cast".into())
+                        })?;
+                        // Negated sin for inverse rotation
+                        let neg_sin_theta = F::from(-theta.sin()).ok_or_else(|| {
+                            NeuralError::ComputationError("inv rope sin cast".into())
+                        })?;
+
+                        let x0 = x[[b, t, h, 2 * i]];
+                        let x1 = x[[b, t, h, 2 * i + 1]];
+
+                        // Inverse: x'_0 = x0*cos - x1*(-sin) = x0*cos + x1*sin
+                        //          x'_1 = x0*(-sin) + x1*cos = -x0*sin + x1*cos
+                        // Equivalently: apply_rope with negated sin
+                        x[[b, t, h, 2 * i]] = x0 * cos_theta - x1 * neg_sin_theta;
+                        x[[b, t, h, 2 * i + 1]] = x0 * neg_sin_theta + x1 * cos_theta;
+                    }
+                }
+            }
+        }
+
+        Ok(x)
+    }
+
     /// Get configuration
     pub fn config(&self) -> &GroupedQueryAttentionConfig {
         &self.config
@@ -581,12 +626,249 @@ where
 
     fn backward(
         &self,
-        _input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        Err(NeuralError::NotImplementedError(
-            "GQA backward not yet implemented".into(),
-        ))
+        if input.ndim() != 3 {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "GQA backward expects 3D input, got {}D",
+                input.ndim()
+            )));
+        }
+
+        let shape = input.shape();
+        let (batch, seq_len, d_model) = (shape[0], shape[1], shape[2]);
+
+        if d_model != self.d_model {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "GQA backward: input dim {d_model} != d_model {}",
+                self.d_model
+            )));
+        }
+
+        let num_heads = self.config.num_heads;
+        let num_kv_heads = self.config.num_kv_heads;
+        let head_dim = self.config.head_dim;
+        let group_size = num_heads / num_kv_heads;
+
+        // -----------------------------------------------------------------------
+        // Re-compute forward quantities (Q, K, V with optional RoPE)
+        // -----------------------------------------------------------------------
+        let mut q_4d =
+            self.project_reshape(input, &self.w_q, batch, seq_len, num_heads, head_dim)?;
+        let mut k_4d =
+            self.project_reshape(input, &self.w_k, batch, seq_len, num_kv_heads, head_dim)?;
+        let v_4d =
+            self.project_reshape(input, &self.w_v, batch, seq_len, num_kv_heads, head_dim)?;
+
+        // Apply RoPE (position_offset=0 since no cache in backward context)
+        if let Some(ref rope) = self.rope {
+            rope.apply(&mut q_4d, 0)?;
+            rope.apply(&mut k_4d, 0)?;
+        }
+
+        // -----------------------------------------------------------------------
+        // Compute attention weights (softmax output)
+        // -----------------------------------------------------------------------
+        let mut attn_weights = Array::zeros(IxDyn(&[batch, num_heads, seq_len, seq_len]));
+
+        for b in 0..batch {
+            for kv_h in 0..num_kv_heads {
+                let q_h_start = kv_h * group_size;
+                let q_h_end = q_h_start + group_size;
+
+                for q_h in q_h_start..q_h_end {
+                    for t in 0..seq_len {
+                        let mut scores = Vec::with_capacity(seq_len);
+                        for s_idx in 0..seq_len {
+                            if self.config.causal && s_idx > t {
+                                scores.push(F::neg_infinity());
+                            } else {
+                                let mut dot = F::zero();
+                                for d in 0..head_dim {
+                                    dot += q_4d[[b, t, q_h, d]] * k_4d[[b, s_idx, kv_h, d]];
+                                }
+                                scores.push(dot * self.scale);
+                            }
+                        }
+
+                        softmax_inplace(&mut scores);
+
+                        for s_idx in 0..seq_len {
+                            attn_weights[[b, q_h, t, s_idx]] = scores[s_idx];
+                        }
+                    }
+                }
+            }
+        }
+
+        // -----------------------------------------------------------------------
+        // Backward through output projection
+        // -----------------------------------------------------------------------
+        let grad_out_2d = grad_output
+            .view()
+            .into_shape_with_order(IxDyn(&[batch * seq_len, d_model]))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("GQA backward reshape grad_out: {e}"))
+            })?;
+
+        let w_o_2d = self
+            .w_o
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("GQA backward: W_o to Ix2".into()))?;
+
+        let grad_out_2d_typed = grad_out_2d
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("GQA backward: grad_out to Ix2".into()))?;
+
+        // d_concat: [batch*seq, q_dim]
+        let d_concat_2d = grad_out_2d_typed.dot(&w_o_2d.t());
+
+        let q_dim = num_heads * head_dim;
+        let d_concat_4d: Array4<F> = d_concat_2d
+            .into_shape_with_order((batch, seq_len, num_heads, head_dim))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("GQA backward d_concat reshape: {e}"))
+            })?;
+
+        // -----------------------------------------------------------------------
+        // Backward through grouped attention
+        // GQA: each KV head serves group_size query heads.
+        // Accumulate d_K, d_V gradients from all query heads in each group.
+        // -----------------------------------------------------------------------
+        let kv_dim = num_kv_heads * head_dim;
+
+        // These accumulate gradients in post-RoPE space (if RoPE is active)
+        let mut d_q_post_rope = Array4::<F>::zeros((batch, seq_len, num_heads, head_dim));
+        let mut d_k_post_rope = Array4::<F>::zeros((batch, seq_len, num_kv_heads, head_dim));
+        let mut d_v_4d = Array4::<F>::zeros((batch, seq_len, num_kv_heads, head_dim));
+
+        for b in 0..batch {
+            for kv_h in 0..num_kv_heads {
+                let q_h_start = kv_h * group_size;
+                let q_h_end = q_h_start + group_size;
+
+                for q_h in q_h_start..q_h_end {
+                    for t in 0..seq_len {
+                        // d_V[b,s,kv_h,:] += attn[b,q_h,t,s] * d_concat[b,t,q_h,:]
+                        for s_idx in 0..seq_len {
+                            let a = attn_weights[[b, q_h, t, s_idx]];
+                            for d in 0..head_dim {
+                                d_v_4d[[b, s_idx, kv_h, d]] += a * d_concat_4d[[b, t, q_h, d]];
+                            }
+                        }
+
+                        // d_scores_raw[s] = sum_d d_concat[b,t,q_h,d] * V[b,s,kv_h,d]
+                        let mut d_scores_raw = vec![F::zero(); seq_len];
+                        for s_idx in 0..seq_len {
+                            let mut sum = F::zero();
+                            for d in 0..head_dim {
+                                sum += d_concat_4d[[b, t, q_h, d]] * v_4d[[b, s_idx, kv_h, d]];
+                            }
+                            d_scores_raw[s_idx] = sum;
+                        }
+
+                        // Softmax backward
+                        let dot_attn_d: F = (0..seq_len).fold(F::zero(), |acc, s| {
+                            acc + attn_weights[[b, q_h, t, s]] * d_scores_raw[s]
+                        });
+
+                        let mut d_pre_scores = vec![F::zero(); seq_len];
+                        for s_idx in 0..seq_len {
+                            let a = attn_weights[[b, q_h, t, s_idx]];
+                            d_pre_scores[s_idx] = a * (d_scores_raw[s_idx] - dot_attn_d);
+                        }
+
+                        // Scale
+                        for d_pre in d_pre_scores.iter_mut() {
+                            *d_pre *= self.scale;
+                        }
+
+                        // d_Q_post_rope[b,t,q_h,:] += sum_s d_pre[s] * K_post_rope[b,s,kv_h,:]
+                        for s_idx in 0..seq_len {
+                            let dp = d_pre_scores[s_idx];
+                            for d in 0..head_dim {
+                                d_q_post_rope[[b, t, q_h, d]] += dp * k_4d[[b, s_idx, kv_h, d]];
+                            }
+                        }
+
+                        // d_K_post_rope[b,s,kv_h,:] += d_pre[s] * Q_post_rope[b,t,q_h,:]
+                        for s_idx in 0..seq_len {
+                            let dp = d_pre_scores[s_idx];
+                            for d in 0..head_dim {
+                                d_k_post_rope[[b, s_idx, kv_h, d]] += dp * q_4d[[b, t, q_h, d]];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // -----------------------------------------------------------------------
+        // Un-rotate through RoPE if active.
+        // RoPE is a rotation R(pos). Forward: x_rot = R(pos) @ x
+        // Backward: d_x = R(pos)^T @ d_x_rot = R(-pos) @ d_x_rot
+        // Since R(-pos) = R(pos)^{-1} (orthogonal), we apply with negated angles.
+        // Equivalently: apply RoPE again with negated sin (conjugate rotation).
+        // -----------------------------------------------------------------------
+        let (d_q_4d, d_k_4d) = if let Some(ref rope) = self.rope {
+            // Apply the inverse rotation: rotate with negative position angles.
+            // We implement this by applying RoPE with negated sin terms,
+            // which we achieve by building a temporary "negated rope" helper.
+            let d_q_pre =
+                Self::apply_rope_inverse(rope, d_q_post_rope, seq_len, num_heads, head_dim)?;
+            let d_k_pre =
+                Self::apply_rope_inverse(rope, d_k_post_rope, seq_len, num_kv_heads, head_dim)?;
+            (d_q_pre, d_k_pre)
+        } else {
+            (d_q_post_rope, d_k_post_rope)
+        };
+
+        // -----------------------------------------------------------------------
+        // Backward through Q/K/V projections
+        // -----------------------------------------------------------------------
+        let d_q_2d = d_q_4d
+            .into_shape_with_order((batch * seq_len, q_dim))
+            .map_err(|e| NeuralError::InferenceError(format!("GQA backward d_q reshape: {e}")))?;
+
+        let d_k_2d = d_k_4d
+            .into_shape_with_order((batch * seq_len, kv_dim))
+            .map_err(|e| NeuralError::InferenceError(format!("GQA backward d_k reshape: {e}")))?;
+
+        let d_v_2d = d_v_4d
+            .into_shape_with_order((batch * seq_len, kv_dim))
+            .map_err(|e| NeuralError::InferenceError(format!("GQA backward d_v reshape: {e}")))?;
+
+        let w_q_2d = self
+            .w_q
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("GQA backward: W_q to Ix2".into()))?;
+        let w_k_2d = self
+            .w_k
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("GQA backward: W_k to Ix2".into()))?;
+        let w_v_2d = self
+            .w_v
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("GQA backward: W_v to Ix2".into()))?;
+
+        let d_input_from_q = d_q_2d.dot(&w_q_2d.t());
+        let d_input_from_k = d_k_2d.dot(&w_k_2d.t());
+        let d_input_from_v = d_v_2d.dot(&w_v_2d.t());
+
+        let d_input_2d = d_input_from_q + d_input_from_k + d_input_from_v;
+
+        let d_input = d_input_2d
+            .into_shape_with_order(IxDyn(&[batch, seq_len, d_model]))
+            .map_err(|e| {
+                NeuralError::InferenceError(format!("GQA backward d_input reshape: {e}"))
+            })?;
+
+        Ok(d_input)
     }
 
     fn update(&mut self, _learning_rate: F) -> Result<()> {
@@ -834,5 +1116,112 @@ mod tests {
     fn test_rope_odd_dim_rejected() {
         let result = RotaryPositionEmbedding::new(7);
         assert!(result.is_err());
+    }
+
+    /// Test that GQA backward returns correct output shape.
+    #[test]
+    fn test_gqa_backward_shape() {
+        let mut rng = scirs2_core::random::rng();
+        // 4 Q heads, 2 KV heads, head_dim=8 => d_model=32
+        let config = GroupedQueryAttentionConfig::new(4, 2, 8);
+        let gqa = GroupedQueryAttention::<f64>::new(32, config, &mut rng).expect("creation failed");
+
+        let input = Array3::<f64>::from_elem((2, 6, 32), 0.1).into_dyn();
+        let grad_output = Array3::<f64>::from_elem((2, 6, 32), 0.02).into_dyn();
+
+        let d_input = gqa
+            .backward(&input, &grad_output)
+            .expect("GQA backward should succeed");
+
+        assert_eq!(
+            d_input.shape(),
+            input.shape(),
+            "GQA backward gradient shape must match input shape"
+        );
+
+        for val in d_input.iter() {
+            assert!(val.is_finite(), "GQA backward gradient must be finite");
+        }
+    }
+
+    /// Analytical test for GQA with seq_len=1 (no-RoPE mode).
+    ///
+    /// With seq_len=1, softmax gradient is zero so d_Q=d_K=0.
+    /// Only V path: output = (input @ W_v) @ W_o
+    ///              d_input = grad_output @ W_o^T @ W_v^T
+    #[test]
+    fn test_gqa_backward_analytical_seq1() {
+        let mut rng = scirs2_core::random::rng();
+        // 1 Q head, 1 KV head, head_dim=4 => d_model=4
+        let config = GroupedQueryAttentionConfig::new(1, 1, 4);
+        let gqa = GroupedQueryAttention::<f64>::new(4, config, &mut rng).expect("creation failed");
+
+        let input = Array3::<f64>::from_elem((1, 1, 4), 0.5).into_dyn();
+        let grad_out = Array3::<f64>::from_elem((1, 1, 4), 1.0).into_dyn();
+
+        let d_input = gqa
+            .backward(&input, &grad_out)
+            .expect("GQA backward failed");
+
+        assert_eq!(d_input.shape(), &[1, 1, 4]);
+
+        use scirs2_core::ndarray::{Array2, Ix2};
+
+        let w_v_2d = gqa.w_v.view().into_dimensionality::<Ix2>().unwrap();
+        let w_o_2d = gqa.w_o.view().into_dimensionality::<Ix2>().unwrap();
+
+        let go = Array2::<f64>::from_elem((1, 4), 1.0);
+        let expected = go.dot(&w_o_2d.t()).dot(&w_v_2d.t());
+
+        for d in 0..4 {
+            let computed = d_input[[0, 0, d]];
+            let analytic = expected[[0, d]];
+            assert!(
+                (computed - analytic).abs() < 1e-10,
+                "GQA seq1 dim {d}: computed={computed:.6} vs analytic={analytic:.6}"
+            );
+        }
+    }
+
+    /// Test GQA backward with RoPE enabled — should return finite gradients.
+    #[test]
+    fn test_gqa_backward_with_rope() {
+        let mut rng = scirs2_core::random::rng();
+        let config = GroupedQueryAttentionConfig::new(4, 2, 8).with_rope(true);
+        let gqa = GroupedQueryAttention::<f64>::new(32, config, &mut rng).expect("creation failed");
+
+        let input = Array3::<f64>::from_elem((1, 4, 32), 0.1).into_dyn();
+        let grad_output = Array3::<f64>::from_elem((1, 4, 32), 0.05).into_dyn();
+
+        let d_input = gqa
+            .backward(&input, &grad_output)
+            .expect("GQA+RoPE backward should succeed");
+
+        assert_eq!(d_input.shape(), &[1, 4, 32]);
+
+        for val in d_input.iter() {
+            assert!(val.is_finite(), "GQA+RoPE gradient must be finite");
+        }
+    }
+
+    /// Test GQA backward with causal masking.
+    #[test]
+    fn test_gqa_backward_causal() {
+        let mut rng = scirs2_core::random::rng();
+        let config = GroupedQueryAttentionConfig::new(2, 1, 8).with_causal(true);
+        let gqa = GroupedQueryAttention::<f64>::new(16, config, &mut rng).expect("creation failed");
+
+        let input = Array3::<f64>::from_elem((1, 4, 16), 0.1).into_dyn();
+        let grad_output = Array3::<f64>::from_elem((1, 4, 16), 0.1).into_dyn();
+
+        let d_input = gqa
+            .backward(&input, &grad_output)
+            .expect("GQA causal backward should succeed");
+
+        assert_eq!(d_input.shape(), &[1, 4, 16]);
+
+        for val in d_input.iter() {
+            assert!(val.is_finite(), "GQA causal gradient must be finite");
+        }
     }
 }

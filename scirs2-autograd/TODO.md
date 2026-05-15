@@ -108,8 +108,19 @@
 - [x] Sparse tensor representation in the gradient tape
 - [x] Efficient sparse-dense gradient accumulation
 
+## Wave 73 — Gradient correctness repair (2026-05-07)
+
+- [x] **extract_diag deduplication + ScalarMulOp higher-order + jit_fusion expansion** (completed 2026-05-07)
+  - Deleted orphaned `linalg_ops_fixed.rs` (was never imported; had compile errors including wrong variant `OpError::InvalidShape` vs `IncompatibleShape`, reference to `_matrix` instead of `matrix`, and wrong `fn grad` signature)
+  - Fixed `ScalarMulOp::grad` to propagate symbolically (no `.eval()` collapse); added `as_any()` impl so `gradient.rs` can downcast and retrieve the scalar
+  - Added `ScalarMulOp` case to `gradient.rs` name-dispatch (the actual gradient engine — `Op::grad` trait is not called by the engine)
+  - Extended `jit_fusion::can_fuse`-equivalent: added `detect_matmul_epilogue` (matmul→elementwise chain, up to 4 ops) and `detect_batched_matmul_reduction` (MatMul/BatchedMatMul→ReduceSum/ReduceMean); added `BatchedMatMul` to `JitOp`, `MatmulEpilogue`/`BatchedMatmulReduction` to `FusionKindJit`
+  - Published `jit_fusion` module in `lib.rs` (was orphaned file)
+  - Fixed 3 pre-existing clippy warnings in `jit_fusion.rs` (assign_op_pattern, map_or→is_some_and)
+  - Files: `src/jit_fusion.rs`, `src/gradient.rs`, `src/tensor_ops/scalar_ops.rs`, `src/tensor_ops/mod.rs`, `src/lib.rs`; deleted `src/tensor_ops/linalg_ops_fixed.rs`
+  - Tests: 8 in `tests/gradient_correctness_repair_tests.rs`; all 1320 tests pass
+
 ## Known Issues / Technical Debt
 
 - Some gradient implementations for exotic matrix functions use approximate gradients; exact gradients tracked in issue backlog
-- The `jit_fusion.rs` module currently handles only element-wise ops; extension to reduction ops planned
 - `graph_viz.rs` DOT output works best for small graphs; large graph layout needs truncation heuristics

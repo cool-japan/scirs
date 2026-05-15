@@ -4,11 +4,11 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](../LICENSE)
 [![Documentation](https://img.shields.io/docsrs/scirs2-io)](https://docs.rs/scirs2-io)
 
-**Scientific data input/output for the SciRS2 scientific computing library (v0.4.3).**
+**Scientific data input/output for the SciRS2 scientific computing library (v0.4.4).**
 
 `scirs2-io` provides comprehensive, high-performance file I/O for scientific and numerical workloads. It covers everything from classic scientific formats (MATLAB, NetCDF, HDF5, WAV) through modern columnar and streaming formats (Parquet, Arrow IPC, NDJSON, ORC) to cloud storage, ETL pipelines, data catalogs, and lineage tracking — all as pure Rust with no C/Fortran dependencies.
 
-## Features (v0.4.3)
+## Features (v0.4.4)
 
 ### Classic Scientific Formats
 - **MATLAB (.mat)**: Full `.mat` v4/v5 read/write with all data types, structures, and cell arrays
@@ -74,14 +74,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-scirs2-io = "0.4.3"
+scirs2-io = "0.4.4"
 ```
 
 To enable optional feature groups:
 
 ```toml
 [dependencies]
-scirs2-io = { version = "0.4.3", features = ["async", "compression"] }
+scirs2-io = { version = "0.4.4", features = ["async", "compression"] }
 ```
 
 ### Reading a CSV file

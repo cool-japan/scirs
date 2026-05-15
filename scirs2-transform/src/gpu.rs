@@ -67,10 +67,10 @@ impl GpuPCA {
         })
     }
 
-    /// Fit the PCA model on GPU
+    /// Fit the PCA model using a CPU SVD-based backend.
     ///
-    /// Currently this is a placeholder implementation that will return an error
-    /// indicating that full GPU PCA support is not yet implemented.
+    /// Currently delegates to the CPU SVD-based PCA implementation.
+    /// A wgpu-backed Jacobi SVD path is planned for v0.5.
     ///
     /// # Arguments
     ///
@@ -78,18 +78,25 @@ impl GpuPCA {
     ///
     /// # Errors
     ///
-    /// Returns an error indicating that GPU PCA is not fully implemented yet
+    /// Returns an error if the input is invalid or if `n_components` exceeds
+    /// `min(n_samples, n_features)`.
     ///
     /// # Examples
     ///
-    /// ```should_panic
+    /// ```
     /// # use scirs2_transform::gpu::GpuPCA;
     /// # use scirs2_core::ndarray::Array2;
     /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let mut pca = GpuPCA::new(2)?;
-    /// let data = Array2::zeros((100, 5));
-    /// // This will return an error indicating GPU PCA is not implemented
+    /// let data = Array2::from_shape_vec((5, 4), vec![
+    ///     1.0, 2.0, 3.0, 4.0,
+    ///     2.0, 3.0, 4.0, 5.0,
+    ///     3.0, 4.0, 5.0, 6.0,
+    ///     4.0, 5.0, 6.0, 7.0,
+    ///     5.0, 6.0, 7.0, 8.0,
+    /// ])?;
     /// pca.fit(&data.view())?;
+    /// assert!(pca.components.is_some());
     /// # Ok(())
     /// # }
     /// ```
@@ -97,7 +104,6 @@ impl GpuPCA {
         check_not_empty(x, "x")?;
         checkarray_finite(x, "x")?;
 
-        // Validate input
         let (n_samples, n_features) = x.dim();
         if self.n_components > n_features.min(n_samples) {
             return Err(TransformError::InvalidInput(
@@ -105,16 +111,24 @@ impl GpuPCA {
             ));
         }
 
-        // For now, return an error indicating GPU PCA is not fully implemented
-        Err(TransformError::NotImplemented(
-            "GPU-accelerated PCA is not yet fully implemented. Use CPU PCA instead.".to_string(),
-        ))
+        // Delegate to CPU SVD-based PCA; GPU Jacobi SVD path planned for v0.5.
+        let mut cpu_pca = crate::reduction::PCA::new(self.n_components, self.center, false);
+        cpu_pca.fit(x)?;
+
+        self.components = cpu_pca.components().cloned();
+        self.mean = cpu_pca.mean().cloned();
+        // Store the explained variance ratio directly; GpuPCA::explained_variance_ratio()
+        // returns this field as-is (it is already normalised to sum ≈ 1).
+        self.explained_variance = cpu_pca.explained_variance_ratio().cloned();
+
+        Ok(())
     }
 
-    /// Transform data using the fitted PCA model on GPU
+    /// Transform data using the fitted PCA model.
     ///
-    /// Currently this is a placeholder implementation that will return an error
-    /// indicating that full GPU PCA support is not yet implemented.
+    /// Projects the input data onto the principal components computed during
+    /// [`GpuPCA::fit`].  Currently runs on the CPU; a wgpu-backed path is
+    /// planned for v0.5.
     ///
     /// # Arguments
     ///
@@ -126,21 +140,55 @@ impl GpuPCA {
     ///
     /// # Errors
     ///
-    /// Returns an error indicating that GPU PCA is not fully implemented yet
+    /// Returns `NotFitted` if [`GpuPCA::fit`] has not been called yet, or
+    /// `InvalidInput` if the number of features does not match.
     pub fn transform(&self, x: &ArrayView2<f64>) -> Result<Array2<f64>> {
         check_not_empty(x, "x")?;
         checkarray_finite(x, "x")?;
 
-        Err(TransformError::NotImplemented(
-            "GPU-accelerated PCA transform is not yet fully implemented. Use CPU PCA instead."
-                .to_string(),
-        ))
+        let components = self.components.as_ref().ok_or_else(|| {
+            TransformError::NotFitted(
+                "GpuPCA model has not been fitted; call fit() first".to_string(),
+            )
+        })?;
+
+        let (n_samples, n_features) = x.dim();
+        let n_comp_features = components.shape()[1];
+
+        if n_features != n_comp_features {
+            return Err(TransformError::InvalidInput(format!(
+                "x has {} features, but GpuPCA was fitted with {} features",
+                n_features, n_comp_features,
+            )));
+        }
+
+        // Center the data if the model was trained with centering.
+        let x_centered: Array2<f64> = if self.center {
+            if let Some(mean) = &self.mean {
+                let mut centered = Array2::zeros((n_samples, n_features));
+                for i in 0..n_samples {
+                    for j in 0..n_features {
+                        centered[[i, j]] = x[[i, j]] - mean[j];
+                    }
+                }
+                centered
+            } else {
+                // mean not available — use raw data
+                x.to_owned()
+            }
+        } else {
+            x.to_owned()
+        };
+
+        // Project onto principal components: result shape (n_samples, n_components).
+        let transformed = x_centered.dot(&components.t());
+        Ok(transformed)
     }
 
-    /// Fit the PCA model and transform data in one step
+    /// Fit the PCA model and project data in one step.
     ///
-    /// Currently this is a placeholder implementation that will return an error
-    /// indicating that full GPU PCA support is not yet implemented.
+    /// Equivalent to calling [`GpuPCA::fit`] followed by [`GpuPCA::transform`]
+    /// on the same data.
     ///
     /// # Arguments
     ///
@@ -152,29 +200,28 @@ impl GpuPCA {
     ///
     /// # Errors
     ///
-    /// Returns an error indicating that GPU PCA is not fully implemented yet
+    /// Returns any error produced by [`GpuPCA::fit`] or [`GpuPCA::transform`].
     pub fn fit_transform(&mut self, x: &ArrayView2<f64>) -> Result<Array2<f64>> {
         self.fit(x)?;
         self.transform(x)
     }
 
-    /// Get the explained variance ratio for each principal component
+    /// Get the explained variance ratio for each principal component.
+    ///
+    /// The returned array sums to approximately 1.0 after fitting.
     ///
     /// # Returns
     ///
-    /// Array of explained variance ratios with length n_components
+    /// Array of explained variance ratios with length `n_components`
     ///
     /// # Errors
     ///
-    /// Returns an error if the model has not been fitted
+    /// Returns `NotFitted` if [`GpuPCA::fit`] has not been called yet.
     pub fn explained_variance_ratio(&self) -> Result<Array1<f64>> {
-        let explained_var = self
-            .explained_variance
+        self.explained_variance
             .as_ref()
-            .ok_or_else(|| TransformError::NotFitted("PCA model not fitted".to_string()))?;
-
-        let total_var = explained_var.sum();
-        Ok(explained_var / total_var)
+            .cloned()
+            .ok_or_else(|| TransformError::NotFitted("GpuPCA model not fitted".to_string()))
     }
 }
 
@@ -321,13 +368,36 @@ impl GpuTSNE {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    // ------------------------------------------------------------------
+    // Helper: construct a simple (5 × 4) test matrix with known structure.
+    // Each row is an arithmetic progression, so the data lies close to a
+    // 1-dimensional subspace; PCA with 2 components should capture ≥ 99 %
+    // of the variance.
+    // ------------------------------------------------------------------
+    #[cfg(feature = "gpu")]
+    fn sample_data_5x4() -> Array2<f64> {
+        Array2::from_shape_vec(
+            (5, 4),
+            vec![
+                1.0, 2.0, 3.0, 4.0, 2.0, 3.0, 4.0, 5.0, 3.0, 4.0, 5.0, 6.0, 4.0, 5.0, 6.0, 7.0,
+                5.0, 6.0, 7.0, 8.0,
+            ],
+        )
+        .expect("shape vec must be consistent")
+    }
+
+    // ------------------------------------------------------------------
+    // Construction tests
+    // ------------------------------------------------------------------
 
     #[test]
     #[cfg(feature = "gpu")]
     fn test_gpu_pca_creation() {
         let pca = GpuPCA::new(3);
         assert!(pca.is_ok());
-        let pca = pca.expect("Operation failed");
+        let pca = pca.expect("GpuPCA::new should succeed");
         assert_eq!(pca.n_components, 3);
         assert!(pca.center);
         assert!(pca.components.is_none());
@@ -342,6 +412,218 @@ mod tests {
         assert!(result.is_err());
     }
 
+    // ------------------------------------------------------------------
+    // fit() tests — verify that fit populates all model fields correctly.
+    // ------------------------------------------------------------------
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_fit_populates_fields() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+
+        pca.fit(&data.view()).expect("GpuPCA::fit should succeed");
+
+        // All model fields should now be populated.
+        assert!(pca.components.is_some(), "components must be set after fit");
+        assert!(
+            pca.explained_variance.is_some(),
+            "explained_variance must be set after fit"
+        );
+        assert!(pca.mean.is_some(), "mean must be set after fit");
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_fit_components_shape() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        pca.fit(&data.view()).expect("fit must succeed");
+
+        // components: (n_components, n_features) = (2, 4)
+        let comp = pca.components.as_ref().expect("components present");
+        assert_eq!(comp.shape(), &[2, 4]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_fit_mean_shape() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        pca.fit(&data.view()).expect("fit must succeed");
+
+        let mean = pca.mean.as_ref().expect("mean present");
+        assert_eq!(mean.len(), 4, "mean must have one entry per feature");
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_fit_explained_variance_length() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        pca.fit(&data.view()).expect("fit must succeed");
+
+        let ev = pca
+            .explained_variance
+            .as_ref()
+            .expect("explained_variance present");
+        assert_eq!(
+            ev.len(),
+            2,
+            "explained_variance must have n_components entries"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_fit_explained_variance_non_increasing() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        pca.fit(&data.view()).expect("fit must succeed");
+
+        let ev = pca
+            .explained_variance
+            .as_ref()
+            .expect("explained_variance present");
+        for i in 0..ev.len() - 1 {
+            assert!(
+                ev[i] >= ev[i + 1] - 1e-10,
+                "explained variance must be non-increasing: ev[{}]={} < ev[{}]={}",
+                i,
+                ev[i],
+                i + 1,
+                ev[i + 1]
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_fit_n_components_too_large() {
+        // n_components > min(n_samples, n_features) must fail
+        let mut pca = GpuPCA::new(10).expect("GpuPCA::new(10) should succeed");
+        let data = sample_data_5x4(); // 5 × 4 → max 4 components
+        let result = pca.fit(&data.view());
+        assert!(
+            result.is_err(),
+            "should fail when n_components > min(n_samples, n_features)"
+        );
+    }
+
+    // ------------------------------------------------------------------
+    // transform() tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_transform_shape() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        pca.fit(&data.view()).expect("fit must succeed");
+
+        let transformed = pca
+            .transform(&data.view())
+            .expect("transform must succeed after fit");
+
+        // Output shape: (n_samples, n_components) = (5, 2)
+        assert_eq!(transformed.shape(), &[5, 2]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_transform_all_finite() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        pca.fit(&data.view()).expect("fit must succeed");
+        let transformed = pca.transform(&data.view()).expect("transform must succeed");
+
+        assert!(
+            transformed.iter().all(|v| v.is_finite()),
+            "all transformed values must be finite"
+        );
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_transform_before_fit_returns_error() {
+        let pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        let result = pca.transform(&data.view());
+        assert!(result.is_err(), "transform before fit must return an error");
+    }
+
+    // ------------------------------------------------------------------
+    // fit_transform() tests
+    // ------------------------------------------------------------------
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_fit_transform_shape() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        let ft = pca
+            .fit_transform(&data.view())
+            .expect("fit_transform must succeed");
+        assert_eq!(ft.shape(), &[5, 2]);
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_fit_transform_matches_fit_then_transform() {
+        let data = sample_data_5x4();
+
+        let mut pca1 = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let ft = pca1
+            .fit_transform(&data.view())
+            .expect("fit_transform must succeed");
+
+        let mut pca2 = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        pca2.fit(&data.view()).expect("fit must succeed");
+        let t = pca2
+            .transform(&data.view())
+            .expect("transform must succeed");
+
+        assert_eq!(ft.shape(), t.shape());
+        for (a, b) in ft.iter().zip(t.iter()) {
+            assert!(
+                (a - b).abs() < 1e-10,
+                "fit_transform and fit+transform must agree: {} vs {}",
+                a,
+                b
+            );
+        }
+    }
+
+    // ------------------------------------------------------------------
+    // explained_variance_ratio() method
+    // ------------------------------------------------------------------
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_explained_variance_ratio_before_fit_returns_error() {
+        let pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        assert!(pca.explained_variance_ratio().is_err());
+    }
+
+    #[test]
+    #[cfg(feature = "gpu")]
+    fn test_gpu_pca_explained_variance_ratio_after_fit() {
+        let mut pca = GpuPCA::new(2).expect("GpuPCA::new should succeed");
+        let data = sample_data_5x4();
+        pca.fit(&data.view()).expect("fit must succeed");
+
+        let ratio = pca
+            .explained_variance_ratio()
+            .expect("explained_variance_ratio must succeed after fit");
+        assert_eq!(ratio.len(), 2);
+        // All ratios must be non-negative
+        assert!(ratio.iter().all(|&v| v >= 0.0));
+    }
+
+    // ------------------------------------------------------------------
+    // GpuMatrixOps and GpuTSNE smoke tests (unchanged behaviour)
+    // ------------------------------------------------------------------
+
     #[test]
     #[cfg(feature = "gpu")]
     fn test_gpu_matrix_ops_creation() {
@@ -354,7 +636,7 @@ mod tests {
     fn test_gpu_tsne_creation() {
         let tsne = GpuTSNE::new(2);
         assert!(tsne.is_ok());
-        let tsne = tsne.expect("Operation failed");
+        let tsne = tsne.expect("GpuTSNE::new should succeed");
         assert_eq!(tsne.n_components, 2);
         assert_eq!(tsne.perplexity, 30.0);
         assert_eq!(tsne.learning_rate, 200.0);
@@ -365,7 +647,7 @@ mod tests {
     #[cfg(feature = "gpu")]
     fn test_gpu_tsne_with_params() {
         let tsne = GpuTSNE::new(3)
-            .expect("Operation failed")
+            .expect("GpuTSNE::new should succeed")
             .with_perplexity(50.0)
             .with_learning_rate(100.0)
             .with_max_iter(500);

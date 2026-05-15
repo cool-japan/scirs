@@ -37,6 +37,7 @@ tokio = { workspace = true, features = ["rt", "rt-multi-thread"], optional = tru
 
 # Optional dependencies
 scirs2-autograd = { workspace = true, optional = true }
+scirs2-symbolic = { workspace = true, optional = true }
 
 [dev-dependencies]
 approx = { workspace = true }
@@ -65,3 +66,4 @@ symplectic = []  # Feature flag for symplectic integrators
 parallel_jacobian = ["scirs2-core/parallel"]  # Feature flag for parallel Jacobian computation
 new_ode = []  # Feature flag for new ODE module structure
 gpu_fem = []  # Feature flag for GPU-accelerated FEM assembly via wgpu
+symbolic = ["dep:scirs2-symbolic"]  # Feature flag for symbolic EML integration (ODE + quadrature)

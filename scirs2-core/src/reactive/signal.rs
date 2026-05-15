@@ -30,7 +30,7 @@
 //! });
 //! sig.emit(&42);
 //! sig.emit(&7);
-//! assert_eq!(*log.lock().unwrap(), vec![42, 7]);
+//! assert_eq!(*log.lock().unwrap_or_else(|e| e.into_inner()), vec![42, 7]);
 //! ```
 
 use std::sync::{Arc, Mutex};
@@ -169,7 +169,7 @@ struct ObservableInner<T: Clone> {
 /// });
 /// obs.set(1);
 /// obs.set(2);
-/// assert_eq!(*log.lock().unwrap(), vec![1, 2]);
+/// assert_eq!(*log.lock().unwrap_or_else(|e| e.into_inner()), vec![1, 2]);
 /// ```
 pub struct Observable<T: Clone + 'static> {
     inner: Arc<Mutex<ObservableInner<T>>>,
@@ -356,7 +356,10 @@ mod tests {
         });
         sig.emit(&10);
         sig.emit(&20);
-        assert_eq!(*received.lock().unwrap(), vec![10, 20]);
+        assert_eq!(
+            *received.lock().unwrap_or_else(|e| e.into_inner()),
+            vec![10, 20]
+        );
     }
 
     #[test]
@@ -370,7 +373,7 @@ mod tests {
         sig.emit(&1);
         sig.disconnect(id);
         sig.emit(&2);
-        assert_eq!(*count.lock().unwrap(), 1);
+        assert_eq!(*count.lock().unwrap_or_else(|e| e.into_inner()), 1);
     }
 
     #[test]
@@ -387,7 +390,7 @@ mod tests {
         });
         sig.emit(&3);
         // slot1: +3, slot2: +6 → 9
-        assert_eq!(*sum.lock().unwrap(), 9);
+        assert_eq!(*sum.lock().unwrap_or_else(|e| e.into_inner()), 9);
     }
 
     #[test]
@@ -408,7 +411,7 @@ mod tests {
         });
         obs.set(5);
         obs.set(10);
-        assert_eq!(*log.lock().unwrap(), vec![5, 10]);
+        assert_eq!(*log.lock().unwrap_or_else(|e| e.into_inner()), vec![5, 10]);
     }
 
     #[test]

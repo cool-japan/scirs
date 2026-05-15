@@ -32,6 +32,7 @@
 //! ```
 
 use crate::error::{IntegrateError, IntegrateResult};
+use crate::sde::levy_area::{iterated_integral, levy_area_wiktorsson};
 use crate::sde::{compute_n_steps, SdeOptions, SdeProblem, SdeSolution};
 use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::random::prelude::{Normal, Rng, StdRng};
@@ -323,6 +324,153 @@ where
         }
 
         x = x + drift_update + diff_update + platen_corr;
+        t += dt_actual;
+
+        if opts.save_all_steps {
+            sol.push(t, x.clone());
+        }
+    }
+
+    if !opts.save_all_steps {
+        sol.push(t, x);
+    }
+
+    Ok(sol)
+}
+
+/// Strong order 1.5 SRK for general (non-diagonal) multi-dimensional noise using Lévy areas.
+///
+/// Extends `srk_strong` to handle fully general diffusion matrices `g: R^n × R^m`
+/// (where `n != m` is allowed and off-diagonal entries are non-zero). The scheme uses
+/// the Wiktorsson (2001) approximation of the Lévy area `A_{ij}` to compute the
+/// iterated Itô integrals `I_{ij}` required for strong order 1.5.
+///
+/// ## Update formula (Burrage-Burrage-Tian 2002 style)
+///
+/// ```text
+/// H+_j = x_n + f dt + g_j √dt,   H-_j = x_n + f dt - g_j √dt
+///
+/// x_{n+1} = x_n + f dt + Σ_j g_j dW_j
+///           + Σ_j Σ_k [g_k(H+_k) - g_k(H-_k)]_i · I_{kj} / √dt
+/// ```
+///
+/// For diagonal/scalar noise this coincides with `srk_strong`. For general noise,
+/// the `I_{kj}` terms couple different Brownian motion channels.
+///
+/// ## Lévy-area truncation
+///
+/// Uses `k = 5` Fourier terms by default, giving ~1e-3 relative accuracy in the
+/// iterated integrals. Pass `levy_k` to control the trade-off.
+///
+/// # Arguments
+///
+/// * `prob` - SDE problem
+/// * `dt` - Step size
+/// * `rng` - RNG reference (must implement `rand::Rng`)
+/// * `levy_k` - Truncation order for the Wiktorsson series (5 is usually sufficient)
+///
+/// # Strong order
+///
+/// 1.5 for any noise structure (scalar, diagonal, or general), subject to the
+/// truncation error of the Wiktorsson approximation.
+pub fn srk_strong_general<F, G>(
+    prob: &SdeProblem<F, G>,
+    dt: f64,
+    rng: &mut StdRng,
+    levy_k: usize,
+) -> IntegrateResult<SdeSolution>
+where
+    F: Fn(f64, &Array1<f64>) -> Array1<f64>,
+    G: Fn(f64, &Array1<f64>) -> Array2<f64>,
+{
+    srk_strong_general_with_options(prob, dt, rng, levy_k, &SdeOptions::default())
+}
+
+/// General-noise strong SRK with solver options.
+pub fn srk_strong_general_with_options<F, G>(
+    prob: &SdeProblem<F, G>,
+    dt: f64,
+    rng: &mut StdRng,
+    levy_k: usize,
+    opts: &SdeOptions,
+) -> IntegrateResult<SdeSolution>
+where
+    F: Fn(f64, &Array1<f64>) -> Array1<f64>,
+    G: Fn(f64, &Array1<f64>) -> Array2<f64>,
+{
+    prob.validate()?;
+    let t0 = prob.t_span[0];
+    let t1 = prob.t_span[1];
+    let n_steps = compute_n_steps(t0, t1, dt, opts.max_steps)?;
+    let n_state = prob.dim();
+    let m = prob.n_brownian;
+
+    let capacity = if opts.save_all_steps { n_steps + 1 } else { 2 };
+    let mut sol = SdeSolution::with_capacity(capacity);
+    sol.push(t0, prob.x0.clone());
+
+    let normal = Normal::new(0.0_f64, 1.0_f64)
+        .map_err(|e| IntegrateError::ComputationError(format!("Normal dist error: {}", e)))?;
+
+    let mut x = prob.x0.clone();
+    let mut t = t0;
+
+    // Effective truncation order — minimum 1 to produce valid results
+    let k = levy_k.max(1);
+
+    for step in 0..n_steps {
+        let dt_actual = if step == n_steps - 1 {
+            t1 - t
+        } else {
+            dt.min(t1 - t)
+        };
+        if dt_actual <= 0.0 {
+            break;
+        }
+        let sqrt_dt = dt_actual.sqrt();
+
+        // Generate Brownian increments ΔW ~ N(0, dt * I_m)
+        let dw: Array1<f64> = Array1::from_shape_fn(m, |_| normal.sample(rng) * sqrt_dt);
+
+        let f0 = (prob.f_drift)(t, &x);
+        let g0 = (prob.g_diffusion)(t, &x);
+
+        if f0.len() != n_state || g0.nrows() != n_state || g0.ncols() != m {
+            return Err(IntegrateError::DimensionMismatch(
+                "Dimension mismatch in drift or diffusion".to_string(),
+            ));
+        }
+
+        // Base drift term
+        let f0_dt = f0.clone() * dt_actual;
+
+        // Compute Lévy area matrix A (dim m × m, antisymmetric)
+        let levy_a = levy_area_wiktorsson(m, dt_actual, &dw, k, rng);
+        // Full iterated integral matrix I_{ij}
+        let iij = iterated_integral(&dw, dt_actual, &levy_a);
+
+        // SRK correction using iterated integrals:
+        // For each column k of g (Brownian motion k), build H+_k and H-_k support points,
+        // then accumulate: correction_i += Σ_j [g_k(H+_k) - g_k(H-_k)]_{i,j} * I_{k,j} / sqrt_dt
+        let mut srk_correction = Array1::<f64>::zeros(n_state);
+        for bk in 0..m {
+            let g_col_k = g0.column(bk).to_owned();
+            let h_plus_k = &x + &f0_dt + &g_col_k * sqrt_dt;
+            let h_minus_k = &x + &f0_dt - &g_col_k * sqrt_dt;
+
+            let g_hp = (prob.g_diffusion)(t, &h_plus_k);
+            let g_hm = (prob.g_diffusion)(t, &h_minus_k);
+
+            for j in 0..m {
+                let factor = iij[[bk, j]] / sqrt_dt;
+                for i in 0..n_state {
+                    srk_correction[i] += (g_hp[[i, j]] - g_hm[[i, j]]) * 0.5 * factor;
+                }
+            }
+        }
+
+        // x_{n+1} = x_n + f*dt + g*ΔW + SRK_correction
+        x = x + f0 * dt_actual + g0.dot(&dw) + srk_correction;
         t += dt_actual;
 
         if opts.save_all_steps {

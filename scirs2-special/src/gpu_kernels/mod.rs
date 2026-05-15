@@ -28,6 +28,7 @@ pub use cuda::{
     ERF_PTX_STUB, GAMMA_PTX_STUB,
 };
 pub use wgsl::{
-    bessel_j0_batch_wgpu, erf_batch_wgpu, gamma_batch_wgpu, WgslDispatchError, BESSEL_J0_WGSL,
-    ERF_WGSL, GAMMA_WGSL,
+    bessel_j0_batch_wgpu, erf_batch_wgpu, erfc_batch_wgpu, erfinv_batch_wgpu, gamma_batch_wgpu,
+    lgamma_batch_wgpu, WgslDispatchError, BESSEL_J0_WGSL, ERFC_WGSL, ERFINV_WGSL, ERF_WGSL,
+    GAMMA_WGSL, LGAMMA_WGSL,
 };

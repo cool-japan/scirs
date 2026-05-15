@@ -710,18 +710,182 @@ impl CompressionEngine {
         }
     }
 
-    /// Serialize Huffman table (simplified)
-    fn serialize_huffman_table(&self, _table: &HuffmanTable) -> SparseResult<Vec<u8>> {
-        // Simplified serialization - in practice you'd implement proper serialization
-        Ok(vec![0])
+    /// Serialize Huffman table to bytes.
+    ///
+    /// Binary format:
+    ///   [num_symbols: u32 LE]
+    ///   for each entry: [symbol: u8, code_len: u8, code_bits: u32 LE]
+    ///
+    /// `code_bits` stores the code MSB-first in the low `code_len` bits of a u32
+    /// (bit 0 = leftmost/root step, bit (code_len-1) = deepest step).
+    fn serialize_huffman_table(&self, table: &HuffmanTable) -> SparseResult<Vec<u8>> {
+        let num_symbols = table.encode_table.len() as u32;
+        let mut out = Vec::with_capacity(4 + (table.encode_table.len() * 6));
+
+        // Write num_symbols (4 bytes LE)
+        out.extend_from_slice(&num_symbols.to_le_bytes());
+
+        // Write each symbol's code
+        let mut entries: Vec<(u8, &Vec<bool>)> = table
+            .encode_table
+            .iter()
+            .map(|(&sym, bits)| (sym, bits))
+            .collect();
+        // Sort for deterministic output
+        entries.sort_by_key(|(sym, _)| *sym);
+
+        for (symbol, bits) in entries {
+            let code_len = bits.len() as u8;
+            if bits.len() > 32 {
+                return Err(SparseError::ComputationError(format!(
+                    "Huffman code for symbol {} exceeds 32 bits (len={})",
+                    symbol,
+                    bits.len()
+                )));
+            }
+            // Pack bits into u32: first bit (index 0) goes to the MSB position (bit code_len-1)
+            let mut code_bits: u32 = 0;
+            for (i, &bit) in bits.iter().enumerate() {
+                if bit {
+                    let shift = (bits.len() - 1 - i) as u32;
+                    code_bits |= 1u32 << shift;
+                }
+            }
+            out.push(symbol);
+            out.push(code_len);
+            out.extend_from_slice(&code_bits.to_le_bytes());
+        }
+
+        Ok(out)
     }
 
-    /// Deserialize Huffman table (simplified)
-    fn deserialize_huffman_table(&self, _data: &[u8]) -> SparseResult<HuffmanTable> {
-        // Simplified deserialization - in practice you'd implement proper deserialization
-        Err(SparseError::ComputationError(
-            "Huffman table deserialization not implemented".to_string(),
-        ))
+    /// Deserialize Huffman table from bytes produced by `serialize_huffman_table`.
+    ///
+    /// Reconstructs the encode table and rebuilds the decode tree by
+    /// inserting each `(symbol, code_len, code_bits)` tuple into a trie.
+    fn deserialize_huffman_table(&self, data: &[u8]) -> SparseResult<HuffmanTable> {
+        if data.len() < 4 {
+            return Err(SparseError::ComputationError(
+                "Huffman table data too short for header".to_string(),
+            ));
+        }
+
+        let num_symbols = u32::from_le_bytes([data[0], data[1], data[2], data[3]]) as usize;
+        let expected_len = 4 + num_symbols * 6;
+        if data.len() < expected_len {
+            return Err(SparseError::ComputationError(format!(
+                "Huffman table data too short: expected {} bytes, got {}",
+                expected_len,
+                data.len()
+            )));
+        }
+
+        let mut encode_table: HashMap<u8, Vec<bool>> = HashMap::with_capacity(num_symbols);
+
+        // Parse each entry and build encode table
+        for i in 0..num_symbols {
+            let base = 4 + i * 6;
+            let symbol = data[base];
+            let code_len = data[base + 1] as usize;
+            let code_bits = u32::from_le_bytes([
+                data[base + 2],
+                data[base + 3],
+                data[base + 4],
+                data[base + 5],
+            ]);
+
+            if code_len > 32 {
+                return Err(SparseError::ComputationError(format!(
+                    "code_len {} for symbol {} exceeds 32",
+                    code_len, symbol
+                )));
+            }
+
+            // Unpack bits (MSB of the packed u32 = first step from root)
+            let mut bits = Vec::with_capacity(code_len);
+            for j in 0..code_len {
+                let shift = (code_len - 1 - j) as u32;
+                bits.push((code_bits >> shift) & 1 == 1);
+            }
+            encode_table.insert(symbol, bits);
+        }
+
+        // Rebuild decode tree from encode table
+        // Use a recursive trie represented as a mutable HuffmanNode
+        fn insert_leaf(node: &mut HuffmanNode, bits: &[bool], symbol: u8) -> Result<(), String> {
+            if bits.is_empty() {
+                *node = HuffmanNode::Leaf { value: symbol };
+                return Ok(());
+            }
+            match node {
+                HuffmanNode::Leaf { .. } => Err(format!("Conflict at leaf for symbol {}", symbol)),
+                HuffmanNode::Internal { left, right } => {
+                    if bits[0] {
+                        insert_leaf(right, &bits[1..], symbol)
+                    } else {
+                        insert_leaf(left, &bits[1..], symbol)
+                    }
+                }
+            }
+        }
+
+        // Start with a dummy internal node; expand as needed
+        fn ensure_internal(node: &mut HuffmanNode) {
+            if matches!(node, HuffmanNode::Leaf { .. }) {
+                *node = HuffmanNode::Internal {
+                    left: Box::new(HuffmanNode::Leaf { value: 0 }),
+                    right: Box::new(HuffmanNode::Leaf { value: 0 }),
+                };
+            }
+        }
+
+        fn insert(node: &mut HuffmanNode, bits: &[bool], symbol: u8) -> Result<(), String> {
+            if bits.is_empty() {
+                *node = HuffmanNode::Leaf { value: symbol };
+                return Ok(());
+            }
+            ensure_internal(node);
+            match node {
+                HuffmanNode::Internal { left, right } => {
+                    if bits[0] {
+                        insert(right, &bits[1..], symbol)
+                    } else {
+                        insert(left, &bits[1..], symbol)
+                    }
+                }
+                HuffmanNode::Leaf { .. } => unreachable!(),
+            }
+        }
+
+        let mut decode_tree = HuffmanNode::Internal {
+            left: Box::new(HuffmanNode::Leaf { value: 0 }),
+            right: Box::new(HuffmanNode::Leaf { value: 0 }),
+        };
+
+        // Handle single-symbol edge case
+        if num_symbols == 1 {
+            let (&symbol, _) = encode_table
+                .iter()
+                .next()
+                .ok_or_else(|| SparseError::ComputationError("empty encode table".to_string()))?;
+            decode_tree = HuffmanNode::Leaf { value: symbol };
+        } else {
+            // Sort by code_len then symbol for deterministic insertion order
+            let mut sorted_entries: Vec<(u8, &Vec<bool>)> =
+                encode_table.iter().map(|(&s, b)| (s, b)).collect();
+            sorted_entries.sort_by(|a, b| a.1.len().cmp(&b.1.len()).then(a.0.cmp(&b.0)));
+
+            for (symbol, bits) in &sorted_entries {
+                insert(&mut decode_tree, bits, *symbol).map_err(|e| {
+                    SparseError::ComputationError(format!("Huffman tree build error: {}", e))
+                })?;
+            }
+        }
+
+        Ok(HuffmanTable {
+            encode_table,
+            decode_tree,
+        })
     }
 
     /// Update algorithm performance metrics

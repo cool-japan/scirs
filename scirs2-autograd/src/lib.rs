@@ -24,7 +24,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.4.3", features = ["blas"] }
+//! scirs2-autograd = { version = "0.4.4", features = ["blas"] }
 //! ```
 //!
 //! ### BLAS Acceleration (Recommended)
@@ -33,7 +33,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-autograd = { version = "0.4.3", features = ["blas"] }
+//! scirs2-autograd = { version = "0.4.4", features = ["blas"] }
 //! ```
 //!
 //! ## 🚀 Quick Start
@@ -300,12 +300,12 @@
 //! |---------|---------|-----------------|
 //! | Autodiff | ✅ | ✅ |
 //! | Dynamic Graphs | ✅ | ✅ |
-//! | GPU Support | ✅ | ✅ (v0.4.3) |
+//! | GPU Support | ✅ | ✅ (v0.4.4) |
 //! | Type Safety | ❌ | ✅ |
 //! | Memory Safety | ⚠️ | ✅ |
 //! | Pure Rust | ❌ | ✅ |
 //!
-//! ## 🚀 v0.4.3 Features
+//! ## 🚀 v0.4.4 Features
 //!
 //! - **GPU Acceleration**: CUDA, Metal, OpenCL, WebGPU backends
 //! - **Higher-Order Derivatives**: Hessian-vector products, full Jacobians
@@ -316,7 +316,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.4.3**
+//! Current version: **0.4.4**
 
 #[allow(unused_imports)]
 // Re-export from scirs2-core for POLICY compliance
@@ -370,6 +370,19 @@ pub mod gpu;
 pub mod higher_order;
 pub mod sparse;
 pub mod symbolic;
+pub mod tape;
+
+// Symbolic backend: EML expression → autograd Tensor bridge
+#[cfg(feature = "symbolic")]
+pub mod symbolic_backend;
+#[cfg(feature = "symbolic")]
+pub use symbolic_backend::eml_scalar_op;
+
+// EML tape extensions: element-wise, Jacobian, Hessian ops + dispatch
+#[cfg(feature = "symbolic")]
+pub use tape::dispatch::{extract_lowered_op, is_eml_backed, try_build_symbolic_jacobian};
+#[cfg(feature = "symbolic")]
+pub use tape::eml_tape::{eml_elementwise, eml_hessian, eml_jacobian};
 
 // v0.3.0 modules
 pub mod forward_mode;
@@ -384,6 +397,7 @@ pub mod jacobian_ops;
 // v0.3.0 compiler-style optimisations and scheduling
 pub mod autodiff_enhanced;
 pub mod graph_transforms;
+pub mod jit_fusion;
 pub mod profiling;
 pub mod scheduling;
 

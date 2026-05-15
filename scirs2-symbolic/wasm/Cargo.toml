@@ -1,0 +1,28 @@
+[package]
+name = "scirs2-symbolic-wasm"
+version = "0.1.0"
+edition = "2021"
+authors = ["COOLJAPAN OU (Team Kitasan)"]
+description = "WebAssembly playground bindings for scirs2-symbolic CAS"
+license = "Apache-2.0"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# Declare this crate as its own workspace root so Cargo does not absorb
+# it into the parent workspace at /Users/kitasan/work/scirs/.
+[workspace]
+
+[dependencies]
+wasm-bindgen = "0.2.120"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+scirs2-symbolic = { path = ".." }
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3"
+
+[profile.release]
+opt-level = 'z'
+lto = true
+codegen-units = 1

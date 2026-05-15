@@ -120,9 +120,7 @@ impl GraphExecutor {
                     .ok_or_else(|| Error::InvalidArgument(format!("Input {} not found", inp_id)))?
                     .clone())
             }
-            OpType::Conv1d => Err(Error::NotImplemented(
-                "Conv1d execution not yet implemented".to_string(),
-            )),
+            OpType::Conv1d => self.exec_conv1d(node, cache),
             _ => Err(Error::NotImplemented(format!(
                 "OpType {:?} not implemented in executor",
                 node.op_type
@@ -315,6 +313,107 @@ impl GraphExecutor {
                 let scaled = gamma.and_then(|g| g.get(i).copied()).unwrap_or(1.0) * normalized;
                 let shifted = scaled + beta.and_then(|b| b.get(i).copied()).unwrap_or(0.0);
                 output[r * last_dim + i] = shifted;
+            }
+        }
+        Ok(output)
+    }
+
+    /// Execute a 1-D convolution node.
+    ///
+    /// ## Weight-store key convention
+    ///
+    /// Weights for a `Conv1d` node with id `N` must be stored as:
+    /// - `"conv1d_{N}_weight"` — flat row-major `[out_channels, kernel_size]`
+    /// - `"conv1d_{N}_bias"`   — flat `[out_channels]` (all zeros if absent)
+    ///
+    /// ## Formula
+    ///
+    /// For each output channel `oc` and output position `o`:
+    /// ```text
+    /// out[oc * out_len + o] =
+    ///     sum_{k=0}^{kernel_size-1} input[o * stride + k] * weight[oc * kernel_size + k]
+    ///     + bias[oc]
+    /// ```
+    /// where `input` is optionally zero-padded by `padding` elements on each side.
+    fn exec_conv1d(&self, node: &OpNode, cache: &HashMap<usize, Vec<f64>>) -> Result<Vec<f64>> {
+        let input = self.get_input(node, 0, cache)?;
+
+        let out_channels = get_attr_int(&node.attrs, "out_channels")? as usize;
+        let kernel_size = get_attr_int(&node.attrs, "kernel_size")? as usize;
+        let stride = {
+            let s = get_attr_int(&node.attrs, "stride").unwrap_or(1);
+            if s <= 0 {
+                return Err(Error::InvalidArgument("Conv1d stride must be >= 1".into()));
+            }
+            s as usize
+        };
+        let padding = get_attr_int(&node.attrs, "padding").unwrap_or(0) as usize;
+
+        let in_len = input.len();
+        let padded_len = in_len + 2 * padding;
+
+        if kernel_size == 0 {
+            return Err(Error::InvalidArgument(
+                "Conv1d kernel_size must be >= 1".into(),
+            ));
+        }
+        if padded_len < kernel_size {
+            return Err(Error::InvalidArgument(format!(
+                "Conv1d: padded input length {} is smaller than kernel_size {}",
+                padded_len, kernel_size
+            )));
+        }
+
+        let out_len = (padded_len - kernel_size) / stride + 1;
+
+        let weight_key = format!("conv1d_{}_weight", node.id);
+        let bias_key = format!("conv1d_{}_bias", node.id);
+
+        let weight = self
+            .weight_map
+            .get(&weight_key)
+            .ok_or_else(|| Error::InvalidArgument(format!("Missing weight '{}'", weight_key)))?;
+
+        if weight.len() != out_channels * kernel_size {
+            return Err(Error::InvalidArgument(format!(
+                "Conv1d weight shape mismatch: expected {}×{}, got {}",
+                out_channels,
+                kernel_size,
+                weight.len()
+            )));
+        }
+
+        let bias = self.weight_map.get(&bias_key);
+
+        // Build zero-padded input view.
+        let padded: Vec<f64> = if padding > 0 {
+            let mut p = vec![0.0_f64; padded_len];
+            p[padding..padding + in_len].copy_from_slice(input);
+            p
+        } else {
+            // No allocation — we'll index into `input` directly via the closure below.
+            // Use an empty Vec as a sentinel; the indexing branch uses `input` instead.
+            Vec::new()
+        };
+
+        let sample = |idx: usize| -> f64 {
+            if padding > 0 {
+                padded[idx]
+            } else {
+                input[idx]
+            }
+        };
+
+        // output layout: [out_channels, out_len] row-major
+        let mut output = vec![0.0_f64; out_channels * out_len];
+        for oc in 0..out_channels {
+            let bias_val = bias.and_then(|b| b.get(oc).copied()).unwrap_or(0.0);
+            for o in 0..out_len {
+                let mut acc = bias_val;
+                for k in 0..kernel_size {
+                    acc += sample(o * stride + k) * weight[oc * kernel_size + k];
+                }
+                output[oc * out_len + o] = acc;
             }
         }
         Ok(output)
@@ -677,5 +776,121 @@ mod tests {
         // First linear: [1, 8], second: [1, 4]
         assert_eq!(linear_out_shapes[0], vec![1, 8]);
         assert_eq!(linear_out_shapes[1], vec![1, 4]);
+    }
+
+    // -----------------------------------------------------------------------
+    // Conv1d tests
+    // -----------------------------------------------------------------------
+
+    /// Build a weight map for a single Conv1d node using the convention:
+    ///   "conv1d_{node_id}_weight"  shape [out_channels, kernel_size]
+    ///   "conv1d_{node_id}_bias"    shape [out_channels]
+    fn conv1d_weights(
+        node_id: usize,
+        out_channels: usize,
+        kernel: &[f64],
+        bias: Option<&[f64]>,
+    ) -> HashMap<String, Vec<f64>> {
+        let mut map = HashMap::new();
+        let kernel_size = kernel.len();
+        // Replicate the same kernel for every output channel.
+        let mut weight = Vec::with_capacity(out_channels * kernel_size);
+        for _ in 0..out_channels {
+            weight.extend_from_slice(kernel);
+        }
+        map.insert(format!("conv1d_{}_weight", node_id), weight);
+        map.insert(
+            format!("conv1d_{}_bias", node_id),
+            bias.map(|b| b.to_vec())
+                .unwrap_or_else(|| vec![0.0; out_channels]),
+        );
+        map
+    }
+
+    /// Convolve `[1,2,3,4,5]` with kernel `[1,-1]` (no padding, stride=1).
+    ///
+    /// Expected output per output position:
+    ///   o=0: 1*1 + 2*(-1) = -1
+    ///   o=1: 2*1 + 3*(-1) = -1
+    ///   o=2: 3*1 + 4*(-1) = -1
+    ///   o=3: 4*1 + 5*(-1) = -1
+    ///
+    /// → `[-1, -1, -1, -1]` for one output channel.
+    #[test]
+    fn test_conv1d_difference_kernel() {
+        let mut builder = GraphBuilder::new();
+        // Input shape: [1, 5] (1 channel × 5 samples)
+        let input = builder.input(TensorSpec::new(vec![1, 5], DType::F64));
+        let out = builder.conv1d(input, 1, 1, 2, 1, 0);
+        let graph = builder.build(vec![out]);
+
+        let conv_id = graph
+            .nodes
+            .iter()
+            .find(|n| n.op_type == OpType::Conv1d)
+            .map(|n| n.id)
+            .expect("test: conv1d node");
+
+        let weights = conv1d_weights(conv_id, 1, &[1.0, -1.0], None);
+        let executor = GraphExecutor::new(graph, weights);
+        let result = executor
+            .run(&[vec![1.0, 2.0, 3.0, 4.0, 5.0]])
+            .expect("test: conv1d run");
+
+        assert_eq!(result.len(), 1);
+        let out = &result[0];
+        // 1 out_channel × 4 output positions
+        assert_eq!(out.len(), 4, "output length should be 4");
+        for &v in out.iter() {
+            assert!((v - (-1.0)).abs() < 1e-10, "expected -1.0, got {v}");
+        }
+    }
+
+    /// Verify that zero-padding extends the output length correctly.
+    ///
+    /// Input `[1,2,3]`, kernel `[1,0,-1]`, padding=1, stride=1.
+    /// Padded input: `[0, 1, 2, 3, 0]`.
+    /// out_len = (3 + 2*1 - 3)/1 + 1 = 3.
+    ///   o=0: 0*1 + 1*0 + 2*(-1) = -2
+    ///   o=1: 1*1 + 2*0 + 3*(-1) = -2
+    ///   o=2: 2*1 + 3*0 + 0*(-1) = 2
+    #[test]
+    fn test_conv1d_with_padding() {
+        let mut builder = GraphBuilder::new();
+        let input = builder.input(TensorSpec::new(vec![1, 3], DType::F64));
+        let out = builder.conv1d(input, 1, 1, 3, 1, 1);
+        let graph = builder.build(vec![out]);
+
+        let conv_id = graph
+            .nodes
+            .iter()
+            .find(|n| n.op_type == OpType::Conv1d)
+            .map(|n| n.id)
+            .expect("test: conv1d node");
+
+        let weights = conv1d_weights(conv_id, 1, &[1.0, 0.0, -1.0], None);
+        let executor = GraphExecutor::new(graph, weights);
+        let result = executor
+            .run(&[vec![1.0, 2.0, 3.0]])
+            .expect("test: conv1d padded run");
+
+        assert_eq!(result.len(), 1);
+        let out = &result[0];
+        assert_eq!(out.len(), 3, "output length with padding=1 should be 3");
+        assert!(
+            (out[0] - (-2.0)).abs() < 1e-10,
+            "o=0 expected -2, got {}",
+            out[0]
+        );
+        assert!(
+            (out[1] - (-2.0)).abs() < 1e-10,
+            "o=1 expected -2, got {}",
+            out[1]
+        );
+        assert!(
+            (out[2] - 2.0).abs() < 1e-10,
+            "o=2 expected 2, got {}",
+            out[2]
+        );
     }
 }

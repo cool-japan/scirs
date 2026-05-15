@@ -46,7 +46,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-stats = "0.4.3"
+//! scirs2-stats = "0.4.4"
 //! ```
 //!
 //! ```rust
@@ -204,7 +204,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.3
+//! - **Version**: 0.4.4
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-stats](https://docs.rs/scirs2-stats)
@@ -414,6 +414,9 @@
 //! ```
 // Linear algebra operations provided by scirs2-linalg
 
+// GPU-accelerated batch distribution evaluation (wgpu backend)
+pub mod gpu;
+
 // Python API wrappers
 // Note: python_api module not yet implemented
 // #[cfg(feature = "python")]
@@ -618,6 +621,16 @@ pub mod gaussian_process; // Gaussian Process regression
 pub mod kde; // Kernel Density Estimation (1D, 2D, bandwidth selection)
 pub mod math_utils;
 pub mod mcmc; // Markov Chain Monte Carlo methods
+#[cfg(feature = "symbolic")]
+pub mod mle_symbolic; // Symbolic-gradient MLE via scirs2-symbolic
+#[cfg(feature = "symbolic")]
+pub use mle_symbolic::{fit_mle_symbolic, MleSymbolicError, MleSymbolicResult};
+#[cfg(feature = "symbolic")]
+pub mod mle; // Symbolic MLE estimator factory (mle::derive)
+#[cfg(feature = "symbolic")]
+pub use mle::{
+    derive as mle_derive, DeriveError, Estimator as MleEstimator, FitError as MleFitError,
+};
 pub mod mstats; // Masked array statistics
 pub mod multivariate; // Multivariate analysis (PCA, etc.)
 pub mod panel; // Longitudinal and panel data analysis (random/fixed effects, LMM, REML)
@@ -727,7 +740,8 @@ pub mod property_based_validation;
 // pub mod intelligent_error_recovery_v2;     // compilation errors
 // pub mod numerical_stability_comprehensive; // compilation errors
 // pub mod parallel_enhanced_v5;             // compilation errors
-// pub mod property_based_tests_v2;          // compilation errors
+pub mod property_based_tests_v2;
+pub mod property_based_tests_v2_impl;
 // pub mod simd_enhanced_v7;                 // compilation errors
 // Temporarily commented out for compilation fixes (deps missing: unified_processor, parallel_enhancements, etc.)
 // pub mod advanced_benchmark_validation;

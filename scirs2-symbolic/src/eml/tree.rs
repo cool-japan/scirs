@@ -1,0 +1,614 @@
+//! `EmlNode` and `EmlTree` — uniform binary tree IR.
+//!
+//! See [`crate::eml`] for the EML construction overview. Every elementary
+//! function reduces to a tree of three node kinds:
+//!
+//! - [`EmlNode::One`] — the constant `1`
+//! - [`EmlNode::Var`] — a placeholder variable indexed by `usize`
+//! - [`EmlNode::Eml`] — the binary operator `eml(left, right) = exp(left) - ln(right)`
+//!
+//! ## Invariants
+//!
+//! - All traversals (`depth`, `size`, `iter_postorder`, hash, equality) use
+//!   an iterative work-stack pattern over a heap-allocated `Vec`. No recursive
+//!   `fn` ships in production code; canonical lowerings can produce trees
+//!   hundreds of nodes deep where recursion would overflow the OS stack.
+//! - `EmlTree::cached_hash` is computed once per construction. `EmlTree::eml`
+//!   composes it from its children's cached hashes in O(1), so building a
+//!   left-chain of N nodes is O(N) total — not O(N²).
+//! - Identical subtrees are deduplicated via a thread-local hash-cons pool
+//!   keyed on the structural u128 hash. Disable with `SCIRS2_SYMBOLIC_NO_HASHCONS=1`.
+
+use crate::eml::hash::hash_u128;
+use hashbrown::HashMap;
+use std::cell::RefCell;
+use std::env;
+use std::sync::{Arc, OnceLock, Weak};
+
+// Tape tag bytes used inside structural hashing. Must remain stable across
+// releases — caches keyed on these hashes break otherwise.
+const TAG_ONE: u8 = 0;
+const TAG_VAR: u8 = 1;
+const TAG_EML: u8 = 2;
+
+/// One of the three node kinds in the EML uniform binary tree.
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum EmlNode {
+    /// The constant `1` (the only built-in scalar in EML).
+    One,
+    /// A variable placeholder indexed by `usize`. The interpretation of
+    /// the index is owned by the caller (typically via a `VarMap`).
+    Var(usize),
+    /// The binary operator `eml(left, right) = exp(left) - ln(right)`.
+    Eml {
+        /// Left subtree (the `exp` argument).
+        left: Arc<EmlNode>,
+        /// Right subtree (the `ln` argument).
+        right: Arc<EmlNode>,
+    },
+}
+
+impl PartialEq for EmlNode {
+    fn eq(&self, other: &Self) -> bool {
+        // Hash-equality fast path; falls back to structural compare on hash hit.
+        node_hash(self) == node_hash(other) && structurally_equal(self, other)
+    }
+}
+
+impl Eq for EmlNode {}
+
+impl std::hash::Hash for EmlNode {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        node_hash(self).hash(state);
+    }
+}
+
+/// A reference-counted EML tree with a cached structural hash.
+///
+/// `EmlTree` is cheap to clone — the underlying `Arc<EmlNode>` is shared.
+/// Identical subtrees are deduplicated via a thread-local hash-cons pool.
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct EmlTree {
+    /// Root node of this tree.
+    pub root: Arc<EmlNode>,
+    /// Number of distinct variable indices referenced (i.e. `max_idx + 1`).
+    num_vars: usize,
+    /// Cached u128 structural hash. O(1) `structural_hash()` after construction.
+    cached_hash: u128,
+}
+
+impl EmlTree {
+    /// Construct the constant-1 tree.
+    pub fn one() -> Self {
+        let h = leaf_one_hash();
+        let root = cons(EmlNode::One, h);
+        Self {
+            root,
+            num_vars: 0,
+            cached_hash: h,
+        }
+    }
+
+    /// Construct a single-variable tree at index `idx`.
+    pub fn var(idx: usize) -> Self {
+        let h = leaf_var_hash(idx);
+        let root = cons(EmlNode::Var(idx), h);
+        Self {
+            root,
+            num_vars: idx + 1,
+            cached_hash: h,
+        }
+    }
+
+    /// Construct `eml(left, right)` from two existing trees.
+    ///
+    /// The structural hash is composed from the two children's cached hashes
+    /// in O(1); no traversal of `left` or `right` is performed.
+    pub fn eml(left: &EmlTree, right: &EmlTree) -> Self {
+        let h = eml_hash_from_children(left.cached_hash, right.cached_hash);
+        let node = EmlNode::Eml {
+            left: Arc::clone(&left.root),
+            right: Arc::clone(&right.root),
+        };
+        let root = cons(node, h);
+        Self {
+            root,
+            num_vars: left.num_vars.max(right.num_vars),
+            cached_hash: h,
+        }
+    }
+
+    /// Construct from a pre-existing `Arc<EmlNode>` (useful for canonical constructors).
+    ///
+    /// Walks the entire subtree to compute the structural hash and `num_vars`.
+    /// Prefer [`EmlTree::eml`] / [`EmlTree::one`] / [`EmlTree::var`] when
+    /// already-wrapped `EmlTree` values are available — those keep traversal
+    /// cost amortised O(1) per construction.
+    pub fn from_node(root: Arc<EmlNode>) -> Self {
+        let h = node_hash(&root);
+        let nv = compute_num_vars(&root);
+        Self {
+            root,
+            num_vars: nv,
+            cached_hash: h,
+        }
+    }
+
+    /// Maximum variable index referenced + 1 (or 0 if no variables).
+    pub fn num_vars(&self) -> usize {
+        self.num_vars
+    }
+
+    /// Tree depth (length of longest root-to-leaf path; a leaf has depth 0).
+    pub fn depth(&self) -> usize {
+        // ITERATIVE — no recursion (canonical sin tree is 543 nodes deep).
+        let mut max_depth = 0;
+        let mut work: Vec<(&EmlNode, usize)> = vec![(&self.root, 0)];
+        while let Some((node, d)) = work.pop() {
+            if d > max_depth {
+                max_depth = d;
+            }
+            if let EmlNode::Eml { left, right } = node {
+                work.push((left, d + 1));
+                work.push((right, d + 1));
+            }
+        }
+        max_depth
+    }
+
+    /// Total node count (counts each appearance — shared subtrees count
+    /// multiple times, NOT once per `Arc` identity).
+    pub fn size(&self) -> usize {
+        let mut count = 0usize;
+        let mut work: Vec<&EmlNode> = vec![&self.root];
+        while let Some(node) = work.pop() {
+            count += 1;
+            if let EmlNode::Eml { left, right } = node {
+                work.push(left);
+                work.push(right);
+            }
+        }
+        count
+    }
+
+    /// O(1) structural hash (cached at construction).
+    pub fn structural_hash(&self) -> u128 {
+        self.cached_hash
+    }
+
+    /// Iterate the tree in post-order (children before parent).
+    pub fn iter_postorder(&self) -> PostOrderIter<'_> {
+        PostOrderIter::new(&self.root)
+    }
+}
+
+impl PartialEq for EmlTree {
+    fn eq(&self, other: &Self) -> bool {
+        self.cached_hash == other.cached_hash && structurally_equal(&self.root, &other.root)
+    }
+}
+
+impl Eq for EmlTree {}
+
+impl std::hash::Hash for EmlTree {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.cached_hash.hash(state);
+    }
+}
+
+/// Post-order iterator over `EmlNode`s in a tree.
+pub struct PostOrderIter<'a> {
+    work: Vec<(&'a EmlNode, bool)>,
+}
+
+impl<'a> PostOrderIter<'a> {
+    fn new(root: &'a EmlNode) -> Self {
+        Self {
+            work: vec![(root, false)],
+        }
+    }
+}
+
+impl<'a> Iterator for PostOrderIter<'a> {
+    type Item = &'a EmlNode;
+    fn next(&mut self) -> Option<&'a EmlNode> {
+        while let Some((node, visited)) = self.work.pop() {
+            if visited {
+                return Some(node);
+            }
+            self.work.push((node, true));
+            if let EmlNode::Eml { left, right } = node {
+                // Push right first so left is popped (and visited) first.
+                self.work.push((right, false));
+                self.work.push((left, false));
+            }
+        }
+        None
+    }
+}
+
+// ============================================================================
+// Internal: structural hash, equality, num-vars, hash-cons pool
+// ============================================================================
+
+/// Hash a leaf `One` tag.
+fn leaf_one_hash() -> u128 {
+    hash_u128(&[TAG_ONE][..])
+}
+
+/// Hash a leaf `Var(idx)` tag + index.
+fn leaf_var_hash(idx: usize) -> u128 {
+    let mut buf = [0u8; 9];
+    buf[0] = TAG_VAR;
+    buf[1..9].copy_from_slice(&(idx as u64).to_le_bytes());
+    hash_u128(&buf[..])
+}
+
+/// Hash an `Eml` node from the cached u128 hashes of its two children.
+///
+/// This is the load-bearing optimisation: every `EmlTree::eml` call costs
+/// O(1) instead of walking the full subtree. Without this a left-chain of
+/// N nodes would cost O(N²) to construct and the deep-chain stress test
+/// would be measurably slow.
+fn eml_hash_from_children(left_hash: u128, right_hash: u128) -> u128 {
+    let mut buf = [0u8; 33];
+    buf[0] = TAG_EML;
+    buf[1..17].copy_from_slice(&left_hash.to_le_bytes());
+    buf[17..33].copy_from_slice(&right_hash.to_le_bytes());
+    hash_u128(&buf[..])
+}
+
+/// Compute the structural hash of a bare `EmlNode` from scratch.
+///
+/// Used by [`EmlTree::from_node`] when no cached child hashes are available.
+/// Iterative via a value stack — no recursion. The post-order traversal
+/// emits each subtree's u128 hash on the value stack; the parent pops and
+/// composes via [`eml_hash_from_children`].
+fn node_hash(node: &EmlNode) -> u128 {
+    let mut work: Vec<(&EmlNode, bool)> = vec![(node, false)];
+    let mut values: Vec<u128> = Vec::with_capacity(16);
+    while let Some((n, visited)) = work.pop() {
+        if visited {
+            // Post-visit for an Eml: child hashes were pushed left-first then
+            // right-first onto `values`, so the top of the stack is `right_h`.
+            let right_h = match values.pop() {
+                Some(v) => v,
+                None => return 0,
+            };
+            let left_h = match values.pop() {
+                Some(v) => v,
+                None => return 0,
+            };
+            values.push(eml_hash_from_children(left_h, right_h));
+            continue;
+        }
+        match n {
+            EmlNode::One => values.push(leaf_one_hash()),
+            EmlNode::Var(i) => values.push(leaf_var_hash(*i)),
+            EmlNode::Eml { left, right } => {
+                work.push((n, true));
+                // Push right first; then left. Pop order is left, then right.
+                work.push((right, false));
+                work.push((left, false));
+            }
+        }
+    }
+    values.pop().unwrap_or(0)
+}
+
+/// Iterative deep structural equality.
+///
+/// Handles arbitrarily deep trees without OS stack overflow. Pointer-identical
+/// `Arc` children short-circuit — the hash-cons pool maximises this case.
+fn structurally_equal(a: &EmlNode, b: &EmlNode) -> bool {
+    let mut work: Vec<(&EmlNode, &EmlNode)> = vec![(a, b)];
+    while let Some((x, y)) = work.pop() {
+        match (x, y) {
+            (EmlNode::One, EmlNode::One) => {}
+            (EmlNode::Var(i), EmlNode::Var(j)) if i == j => {}
+            (
+                EmlNode::Eml {
+                    left: l1,
+                    right: r1,
+                },
+                EmlNode::Eml {
+                    left: l2,
+                    right: r2,
+                },
+            ) => {
+                if !Arc::ptr_eq(l1, l2) {
+                    work.push((l1, l2));
+                }
+                if !Arc::ptr_eq(r1, r2) {
+                    work.push((r1, r2));
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
+}
+
+/// Iterative `num_vars` computation (max variable index + 1, or 0 for none).
+fn compute_num_vars(root: &EmlNode) -> usize {
+    let mut max_idx: Option<usize> = None;
+    let mut work: Vec<&EmlNode> = vec![root];
+    while let Some(node) = work.pop() {
+        match node {
+            EmlNode::One => {}
+            EmlNode::Var(i) => {
+                max_idx = Some(max_idx.map_or(*i, |m| m.max(*i)));
+            }
+            EmlNode::Eml { left, right } => {
+                work.push(left);
+                work.push(right);
+            }
+        }
+    }
+    max_idx.map(|i| i + 1).unwrap_or(0)
+}
+
+// ----------------------------------------------------------------------------
+// Hash-cons pool
+// ----------------------------------------------------------------------------
+
+const SWEEP_INTERVAL: u32 = 1024;
+
+thread_local! {
+    static CONS_POOL: RefCell<HashMap<u128, Weak<EmlNode>>> = RefCell::new(HashMap::new());
+    static SWEEP_COUNTER: RefCell<u32> = const { RefCell::new(0) };
+}
+
+static HASHCONS_DISABLED: OnceLock<bool> = OnceLock::new();
+
+fn hashcons_disabled() -> bool {
+    *HASHCONS_DISABLED.get_or_init(|| env::var("SCIRS2_SYMBOLIC_NO_HASHCONS").is_ok())
+}
+
+/// Smart constructor — consults the thread-local hash-cons pool.
+///
+/// On hit (with hash match AND structural match), returns the existing `Arc`.
+/// On miss, inserts a fresh `Arc::new` keyed by the supplied structural hash.
+fn cons(node: EmlNode, h: u128) -> Arc<EmlNode> {
+    if hashcons_disabled() {
+        return Arc::new(node);
+    }
+    CONS_POOL.with(|pool| {
+        let mut pool = pool.borrow_mut();
+        if let Some(weak) = pool.get(&h) {
+            if let Some(strong) = weak.upgrade() {
+                // Soundness: hash collisions are 2^-128 unlikely, but verify.
+                if structurally_equal(&strong, &node) {
+                    return strong;
+                }
+            }
+        }
+        let arc = Arc::new(node);
+        pool.insert(h, Arc::downgrade(&arc));
+        sweep_if_needed(&mut pool);
+        arc
+    })
+}
+
+fn sweep_if_needed(pool: &mut HashMap<u128, Weak<EmlNode>>) {
+    SWEEP_COUNTER.with(|c| {
+        let mut c = c.borrow_mut();
+        *c = c.wrapping_add(1);
+        if *c >= SWEEP_INTERVAL {
+            *c = 0;
+            pool.retain(|_, weak| weak.strong_count() > 0);
+        }
+    });
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn one_constructs() {
+        let t = EmlTree::one();
+        assert!(matches!(*t.root, EmlNode::One));
+        assert_eq!(t.depth(), 0);
+        assert_eq!(t.size(), 1);
+        assert_eq!(t.num_vars(), 0);
+    }
+
+    #[test]
+    fn var_constructs() {
+        let v = EmlTree::var(3);
+        assert!(matches!(*v.root, EmlNode::Var(3)));
+        assert_eq!(v.num_vars(), 4);
+        assert_eq!(v.depth(), 0);
+        assert_eq!(v.size(), 1);
+    }
+
+    #[test]
+    fn eml_constructs_and_depth() {
+        let one = EmlTree::one();
+        let v = EmlTree::var(0);
+        let t = EmlTree::eml(&one, &v);
+        assert_eq!(t.depth(), 1);
+        assert_eq!(t.size(), 3);
+        assert_eq!(t.num_vars(), 1);
+    }
+
+    #[test]
+    fn deeper_depth() {
+        let one = EmlTree::one();
+        let t1 = EmlTree::eml(&one, &one);
+        let t2 = EmlTree::eml(&t1, &one);
+        let t3 = EmlTree::eml(&t2, &t2);
+        assert_eq!(t3.depth(), 3);
+    }
+
+    #[test]
+    fn structural_hash_deterministic() {
+        let a = EmlTree::eml(&EmlTree::one(), &EmlTree::var(0));
+        let b = EmlTree::eml(&EmlTree::one(), &EmlTree::var(0));
+        assert_eq!(a.structural_hash(), b.structural_hash());
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn structural_hash_distinguishes_shape() {
+        let one = EmlTree::one();
+        let v = EmlTree::var(0);
+        let a = EmlTree::eml(&one, &v);
+        let b = EmlTree::eml(&v, &one);
+        assert_ne!(a.structural_hash(), b.structural_hash());
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn structural_hash_distinguishes_var_indices() {
+        let v0 = EmlTree::var(0);
+        let v1 = EmlTree::var(1);
+        assert_ne!(v0.structural_hash(), v1.structural_hash());
+    }
+
+    #[test]
+    fn hash_cons_returns_pointer_identity() {
+        let one1 = EmlTree::one();
+        let one2 = EmlTree::one();
+        if std::env::var("SCIRS2_SYMBOLIC_NO_HASHCONS").is_err() {
+            assert!(Arc::ptr_eq(&one1.root, &one2.root));
+        }
+    }
+
+    #[test]
+    fn hash_cons_dedups_compound() {
+        let a = EmlTree::eml(&EmlTree::one(), &EmlTree::var(0));
+        let b = EmlTree::eml(&EmlTree::one(), &EmlTree::var(0));
+        if std::env::var("SCIRS2_SYMBOLIC_NO_HASHCONS").is_err() {
+            assert!(Arc::ptr_eq(&a.root, &b.root));
+        }
+    }
+
+    #[test]
+    fn iter_postorder_yields_all_nodes() {
+        let one = EmlTree::one();
+        let v = EmlTree::var(0);
+        let t = EmlTree::eml(&one, &v);
+        let nodes: Vec<_> = t.iter_postorder().collect();
+        assert_eq!(nodes.len(), 3);
+        // post-order: one (left leaf), v (right leaf), eml(one, v)
+        assert!(matches!(nodes[0], EmlNode::One));
+        assert!(matches!(nodes[1], EmlNode::Var(0)));
+        assert!(matches!(nodes[2], EmlNode::Eml { .. }));
+    }
+
+    #[test]
+    fn iter_postorder_balanced_shape() {
+        // eml(eml(1,v0), eml(1,v1)) — verifies left subtree fully drained
+        // before right subtree begins.
+        let one = EmlTree::one();
+        let v0 = EmlTree::var(0);
+        let v1 = EmlTree::var(1);
+        let l = EmlTree::eml(&one, &v0);
+        let r = EmlTree::eml(&one, &v1);
+        let t = EmlTree::eml(&l, &r);
+        let nodes: Vec<_> = t.iter_postorder().collect();
+        assert_eq!(nodes.len(), 7);
+        // Expected order: 1, v0, eml(1,v0), 1, v1, eml(1,v1), eml(l,r).
+        assert!(matches!(nodes[0], EmlNode::One));
+        assert!(matches!(nodes[1], EmlNode::Var(0)));
+        assert!(matches!(nodes[2], EmlNode::Eml { .. }));
+        assert!(matches!(nodes[3], EmlNode::One));
+        assert!(matches!(nodes[4], EmlNode::Var(1)));
+        assert!(matches!(nodes[5], EmlNode::Eml { .. }));
+        assert!(matches!(nodes[6], EmlNode::Eml { .. }));
+    }
+
+    #[test]
+    fn deep_left_chain_does_not_overflow() {
+        // Build a left-chain of 10,000 Eml(_, One) — would overflow OS stack
+        // on any recursive depth/size implementation. Cached-hash composition
+        // keeps construction O(N).
+        let one = EmlTree::one();
+        let mut t = one.clone();
+        for _ in 0..10_000 {
+            t = EmlTree::eml(&t, &one);
+        }
+        assert_eq!(t.depth(), 10_000);
+        assert_eq!(t.size(), 20_001);
+    }
+
+    #[test]
+    fn send_sync() {
+        // Compile-time check that EmlTree: Send + Sync (via Arc<EmlNode>).
+        fn assert_send_sync<T: Send + Sync>() {}
+        assert_send_sync::<EmlTree>();
+        assert_send_sync::<EmlNode>();
+    }
+
+    #[test]
+    fn from_node_computes_num_vars() {
+        let n = Arc::new(EmlNode::Eml {
+            left: Arc::new(EmlNode::Var(2)),
+            right: Arc::new(EmlNode::Var(5)),
+        });
+        let t = EmlTree::from_node(n);
+        assert_eq!(t.num_vars(), 6);
+    }
+
+    #[test]
+    fn from_node_hash_matches_eml_constructor() {
+        // Building the same shape via raw Arc + from_node must produce
+        // the same structural hash as building via EmlTree::eml.
+        let v0 = EmlTree::var(0);
+        let one = EmlTree::one();
+        let via_eml = EmlTree::eml(&v0, &one);
+        let via_from_node = EmlTree::from_node(Arc::new(EmlNode::Eml {
+            left: Arc::clone(&v0.root),
+            right: Arc::clone(&one.root),
+        }));
+        assert_eq!(via_eml.structural_hash(), via_from_node.structural_hash());
+        assert_eq!(via_eml, via_from_node);
+    }
+
+    #[test]
+    fn cross_thread_share() {
+        // Hash is structural — other-thread evaluation produces the same value.
+        let t = EmlTree::eml(&EmlTree::one(), &EmlTree::var(0));
+        let h = t.structural_hash();
+        let join = std::thread::spawn(move || t.structural_hash());
+        let other = match join.join() {
+            Ok(v) => v,
+            Err(_) => panic!("spawned thread panicked"),
+        };
+        assert_eq!(other, h);
+    }
+
+    #[test]
+    fn equality_via_hash_collision_resistant() {
+        // Two trees with different structures should not compare equal even
+        // if their u128 hashes were to collide (the Eq impl falls back to
+        // structural compare on hash hit). We can't force a collision, but
+        // we can verify the fall-back path runs by comparing identical
+        // structures and confirming reflexivity.
+        let t = EmlTree::eml(&EmlTree::var(0), &EmlTree::var(1));
+        assert_eq!(t, t.clone());
+    }
+
+    #[test]
+    fn num_vars_propagates_through_eml() {
+        let v3 = EmlTree::var(3);
+        let v7 = EmlTree::var(7);
+        let t = EmlTree::eml(&v3, &v7);
+        assert_eq!(t.num_vars(), 8);
+    }
+
+    #[test]
+    fn one_has_zero_num_vars() {
+        let one = EmlTree::one();
+        let nested = EmlTree::eml(&one, &one);
+        assert_eq!(nested.num_vars(), 0);
+    }
+}

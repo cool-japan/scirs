@@ -19,6 +19,7 @@ use scirs2_core::ndarray::{Array1, Array2};
 use scirs2_core::numeric::Float;
 use scirs2_core::parallel_ops::*;
 use scirs2_core::validation::check_finite;
+use scirs2_linalg::svd as linalg_svd;
 use std::collections::HashMap;
 
 #[allow(unused_imports)]
@@ -631,34 +632,13 @@ fn svd_controllability_analysis(
 ) -> SignalResult<SvdControllabilityAnalysis> {
     let (m, n) = controllability_matrix.dim();
 
-    // Simplified SVD computation (placeholder for full implementation)
-    let mut singular_values = Array1::zeros(m.min(n));
-    let left_singular_vectors = Array2::eye(m);
-    let right_singular_vectors = Array2::eye(n);
+    // Perform real SVD: controllability_matrix = U * diag(sigma) * Vt
+    let (left_singular_vectors, singular_values, right_singular_vectors_t) =
+        linalg_svd(&controllability_matrix.view(), false, None)
+            .map_err(|e| SignalError::ComputationError(format!("SVD failed: {e}")))?;
 
-    // Compute singular values (simplified implementation)
-    // In practice, would use sophisticated SVD algorithms
-    for i in 0..m.min(n) {
-        let mut sum = 0.0;
-        for j in 0..n {
-            sum += controllability_matrix[[i, j]].powi(2);
-        }
-        singular_values[i] = sum.sqrt();
-    }
-
-    // Sort singular values in descending order
-    let mut sv_with_indices: Vec<(f64, usize)> = singular_values
-        .iter()
-        .enumerate()
-        .map(|(i, &sv)| (sv, i))
-        .collect();
-    sv_with_indices.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap_or(std::cmp::Ordering::Equal));
-
-    for (i, &(sv_, idx)) in sv_with_indices.iter().enumerate() {
-        if i < singular_values.len() {
-            singular_values[i] = sv_;
-        }
-    }
+    // Vt has shape (k x n); transpose to get right singular vectors (n x k)
+    let right_singular_vectors = right_singular_vectors_t.t().to_owned();
 
     // Determine numerical rank
     let max_sv = singular_values[0];

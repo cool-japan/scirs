@@ -304,7 +304,7 @@ pub struct Tensor {
     pub data: Vec<f64>,
     /// Shape of each mode.
     pub shape: Vec<usize>,
-    /// Strides: stride[i] = product of shape[i+1..].
+    /// Strides: stride\[i\] = product of shape\[i+1..\].
     pub strides: Vec<usize>,
 }
 
@@ -967,7 +967,7 @@ fn multilinear_product_skip(
 /// Result of Tensor Train decomposition.
 ///
 /// A Tensor Train represents T[i_1, i_2, ..., i_d] =
-/// G_1[i_1] * G_2[i_2] * ... * G_d[i_d]
+/// G_1\[i_1\] * G_2\[i_2\] * ... * G_d\[i_d\]
 /// where each G_k is an r_{k-1} × n_k × r_k matrix (a 3D core).
 #[derive(Debug, Clone)]
 pub struct TensorTrainDecomposition {

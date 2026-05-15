@@ -43,7 +43,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-optimize = "0.4.3"
+//! scirs2-optimize = "0.4.4"
 //! ```
 //!
 //! ### Unconstrained Minimization (Rosenbrock Function)
@@ -435,6 +435,11 @@ pub mod simd_ops;
 pub mod sparse_numdiff; // Refactored into a module with submodules
 pub mod stochastic;
 pub mod streaming;
+// Symbolic-gradient Newton solver (uses scirs2-symbolic)
+#[cfg(feature = "symbolic")]
+pub mod symbolic;
+#[cfg(feature = "symbolic")]
+pub use symbolic::{build_kkt, solve_lagrangian_symbolic, KktSystem, LagrangianError};
 pub mod unconstrained;
 pub mod unified_pipeline;
 pub mod visualization;

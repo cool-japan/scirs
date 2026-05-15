@@ -1,12 +1,14 @@
 //! Trust Region Policy Optimization (TRPO)
 
-use crate::error::Result;
+use crate::error::{NeuralError, Result};
 use crate::reinforcement::policy::PolicyNetwork;
 use crate::reinforcement::value::ValueNetwork;
+use oxicode::{config as oxicode_config, serde as oxicode_serde};
 use scirs2_core::ndarray::prelude::*;
+use serde::{Deserialize, Serialize};
 
 /// TRPO configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TRPOConfig {
     /// Maximum KL divergence between old and new policy
     pub max_kl: f32,
@@ -144,15 +146,40 @@ impl TRPO {
         &self.config
     }
 
-    /// Save model (stub)
-    pub fn save(&self, _path: &str) -> Result<()> {
-        Ok(())
+    /// Save TRPO model parameters to `path` using oxicode binary serialization.
+    pub fn save(&self, path: &str) -> Result<()> {
+        let snapshot = TrpoSnapshot {
+            policy_params: self.policy.collect_params(),
+            value_params: self.value_fn.collect_params(),
+            config: self.config.clone(),
+        };
+        let cfg = oxicode_config::standard();
+        let bytes = oxicode_serde::encode_to_vec(&snapshot, cfg)
+            .map_err(|e| NeuralError::SerializationError(format!("TRPO save: {e}")))?;
+        std::fs::write(path, &bytes)
+            .map_err(|e| NeuralError::IOError(format!("TRPO save write: {e}")))
     }
 
-    /// Load model (stub)
-    pub fn load(&mut self, _path: &str) -> Result<()> {
+    /// Restore TRPO model parameters from `path` produced by [`TRPO::save`].
+    pub fn load(&mut self, path: &str) -> Result<()> {
+        let bytes = std::fs::read(path)
+            .map_err(|e| NeuralError::IOError(format!("TRPO load read: {e}")))?;
+        let cfg = oxicode_config::standard();
+        let (snapshot, _): (TrpoSnapshot, _) = oxicode_serde::decode_owned_from_slice(&bytes, cfg)
+            .map_err(|e| NeuralError::DeserializationError(format!("TRPO load: {e}")))?;
+        self.policy.restore_params(&snapshot.policy_params)?;
+        self.value_fn.restore_params(&snapshot.value_params)?;
+        self.config = snapshot.config;
         Ok(())
     }
+}
+
+/// Serializable snapshot of TRPO model parameters.
+#[derive(Serialize, Deserialize)]
+struct TrpoSnapshot {
+    policy_params: Vec<(Vec<f32>, Vec<usize>)>,
+    value_params: Vec<(Vec<f32>, Vec<usize>)>,
+    config: TRPOConfig,
 }
 
 #[cfg(test)]
@@ -197,5 +224,57 @@ mod tests {
             .update(&states.view(), &actions.view(), &advantages.view())
             .expect("update ok");
         assert!(loss.is_finite());
+    }
+
+    #[test]
+    fn test_trpo_save_load_round_trip() {
+        let tmp = std::env::temp_dir().join("trpo_test_save_load.oxicode");
+        let path = tmp.to_str().expect("valid temp path");
+
+        // Discrete TRPO
+        let trpo_orig =
+            TRPO::new(4, 2, vec![8, 8], false, TRPOConfig::default()).expect("create trpo");
+
+        let policy_before = trpo_orig.policy.collect_params();
+        let value_before = trpo_orig.value_fn.collect_params();
+
+        trpo_orig.save(path).expect("trpo save");
+
+        let mut trpo_loaded =
+            TRPO::new(4, 2, vec![8, 8], false, TRPOConfig::default()).expect("create trpo load");
+        trpo_loaded.load(path).expect("trpo load");
+
+        let policy_after = trpo_loaded.policy.collect_params();
+        let value_after = trpo_loaded.value_fn.collect_params();
+
+        assert_eq!(policy_before.len(), policy_after.len());
+        for (orig, loaded) in policy_before.iter().zip(policy_after.iter()) {
+            assert_eq!(orig.1, loaded.1, "policy param shape mismatch");
+            for (&a, &b) in orig.0.iter().zip(loaded.0.iter()) {
+                assert!(
+                    (a - b).abs() < 1e-10,
+                    "policy param diff {} vs {} exceeds tolerance",
+                    a,
+                    b
+                );
+            }
+        }
+        assert_eq!(value_before.len(), value_after.len());
+        for (orig, loaded) in value_before.iter().zip(value_after.iter()) {
+            assert_eq!(orig.1, loaded.1, "value param shape mismatch");
+            for (&a, &b) in orig.0.iter().zip(loaded.0.iter()) {
+                assert!(
+                    (a - b).abs() < 1e-10,
+                    "value param diff {} vs {} exceeds tolerance",
+                    a,
+                    b
+                );
+            }
+        }
+
+        // Config round-trips
+        assert!((trpo_orig.config.max_kl - trpo_loaded.config.max_kl).abs() < 1e-10);
+
+        let _ = std::fs::remove_file(path);
     }
 }

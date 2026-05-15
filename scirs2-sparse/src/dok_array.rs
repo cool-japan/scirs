@@ -12,6 +12,7 @@ use std::ops::{Add, Div, Mul, Sub};
 
 use crate::coo_array::CooArray;
 use crate::error::{SparseError, SparseResult};
+use crate::lil_array::LilArray;
 use crate::sparray::{SparseArray, SparseSum};
 
 /// DOK Array format
@@ -210,21 +211,26 @@ where
     }
 
     fn to_lil(&self) -> SparseResult<Box<dyn SparseArray<T>>> {
-        Err(SparseError::NotImplemented(
-            "Conversion to LIL array".to_string(),
-        ))
+        let (rows_arr, cols_arr, vals_arr) = self.to_triplets();
+        let rows_slice = rows_arr
+            .as_slice()
+            .ok_or_else(|| SparseError::ValueError("non-contiguous row indices".to_string()))?;
+        let cols_slice = cols_arr
+            .as_slice()
+            .ok_or_else(|| SparseError::ValueError("non-contiguous col indices".to_string()))?;
+        let vals_slice = vals_arr
+            .as_slice()
+            .ok_or_else(|| SparseError::ValueError("non-contiguous values".to_string()))?;
+        let lil = LilArray::from_triplets(rows_slice, cols_slice, vals_slice, self.shape)?;
+        Ok(Box::new(lil))
     }
 
     fn to_dia(&self) -> SparseResult<Box<dyn SparseArray<T>>> {
-        Err(SparseError::NotImplemented(
-            "Conversion to DIA array".to_string(),
-        ))
+        self.to_csr()?.to_dia()
     }
 
     fn to_bsr(&self) -> SparseResult<Box<dyn SparseArray<T>>> {
-        Err(SparseError::NotImplemented(
-            "Conversion to BSR array".to_string(),
-        ))
+        self.to_csr()?.to_bsr()
     }
 
     fn add(&self, other: &dyn SparseArray<T>) -> SparseResult<Box<dyn SparseArray<T>>> {

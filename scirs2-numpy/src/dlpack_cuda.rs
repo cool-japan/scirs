@@ -10,7 +10,7 @@
 //!   without triggering any data copy.
 //! - [`cuda_tensor_info_from_dltensor`] — pure-Rust function operating
 //!   directly on a [`DLTensor`]; no Python runtime needed.
-//! - [`dlpack_auto_dispatch_f32`] / [`dlpack_auto_dispatch_f64`] — device-
+//! - `dlpack_auto_dispatch_f32` / `dlpack_auto_dispatch_f64` — device-
 //!   aware dispatch that returns an `ndarray` view for CPU tensors, or
 //!   `CudaTensorInfo` for GPU tensors, with **no host-device copy**.
 //!
@@ -228,7 +228,7 @@ pub unsafe fn dlpack_auto_dispatch_f64<'a>(
 ///
 /// # Errors
 ///
-/// Returns [`PyValueError`] when:
+/// Returns `PyValueError` when:
 /// - the object is not a PyCapsule named `"dltensor"`,
 /// - the capsule has already been consumed (name `"used_dltensor"`),
 /// - the underlying tensor is CPU-resident (use the regular DLPack CPU path),

@@ -601,11 +601,7 @@ impl ForwardTape {
     /// # Errors
     ///
     /// Returns `AutogradError` for out-of-range operand indices or domain errors.
-    pub fn forward(
-        &self,
-        inputs: &[f64],
-        input_tangents: &[f64],
-    ) -> Result<(Vec<f64>, Vec<f64>)> {
+    pub fn forward(&self, inputs: &[f64], input_tangents: &[f64]) -> Result<(Vec<f64>, Vec<f64>)> {
         let n = self.ops.len();
         let mut pvals = vec![0.0f64; n];
         let mut tvals = vec![0.0f64; n];
@@ -944,11 +940,7 @@ impl TapeCheckpoint {
     /// # Errors
     ///
     /// Returns `AutogradError` on any forward or backward evaluation failure.
-    pub fn backward_checkpointed(
-        &mut self,
-        output_idx: usize,
-        inputs: &[f64],
-    ) -> Result<Vec<f64>> {
+    pub fn backward_checkpointed(&mut self, output_idx: usize, inputs: &[f64]) -> Result<Vec<f64>> {
         // Close the final open segment
         self.checkpoint();
 
@@ -1040,11 +1032,7 @@ impl TapeOptimizer {
 
         // ── Step 1: DCE — mark live nodes backward from outputs ──────────────
         let mut live = vec![false; n];
-        let mut stack: Vec<usize> = output_indices
-            .iter()
-            .filter(|&&i| i < n)
-            .copied()
-            .collect();
+        let mut stack: Vec<usize> = output_indices.iter().filter(|&&i| i < n).copied().collect();
         for &i in &stack {
             live[i] = true;
         }

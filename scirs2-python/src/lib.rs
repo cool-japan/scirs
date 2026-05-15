@@ -118,6 +118,9 @@ pub mod autograd;
 #[cfg(feature = "neural")]
 pub mod neural;
 
+// Symbolic mathematics — always available (additive, no feature gate).
+pub mod symbolic;
+
 /// SciRS2 Python module
 ///
 /// A comprehensive scientific computing library in Rust with Python bindings.
@@ -204,6 +207,9 @@ fn scirs2(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     #[cfg(feature = "neural")]
     neural::register_module(m)?;
+
+    // Symbolic mathematics sub-namespace (always registered).
+    symbolic::register_module(m)?;
 
     Ok(())
 }

@@ -38,12 +38,12 @@ pub struct TranslationResult {
 /// A 2-D affine transform represented as a 3x3 homogeneous matrix.
 ///
 /// The matrix maps source coordinates to target coordinates:
-///   [x']   [a00 a01 a02] [x]
-///   [y'] = [a10 a11 a12] [y]
-///   [ 1]   [ 0   0   1 ] [1]
+///   \[x'\]   \[a00 a01 a02\] \[x\]
+///   \[y'\] = \[a10 a11 a12\] \[y\]
+///   \[ 1\]   \[ 0   0   1 \] \[1\]
 #[derive(Debug, Clone)]
 pub struct AffineTransform2D {
-    /// 3x3 homogeneous matrix (last row is [0,0,1])
+    /// 3x3 homogeneous matrix (last row is \[0,0,1\])
     pub matrix: Array2<f64>,
     /// Residual (mean squared error) of the fit
     pub residual: f64,

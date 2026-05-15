@@ -691,7 +691,7 @@ impl CoreDecomposition {
 pub struct EffectiveResistance {
     /// Pseudo-inverse of the Laplacian, shape `(n, n)`.
     pub l_plus: Array2<f64>,
-    /// Pre-computed resistance matrix (R[i,j] = effective resistance), shape `(n, n)`.
+    /// Pre-computed resistance matrix (`R[i,j]` = effective resistance), shape `(n, n)`.
     pub resistance_matrix: Array2<f64>,
     /// Number of nodes.
     pub num_nodes: usize,

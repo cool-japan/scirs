@@ -1595,45 +1595,124 @@ pub fn sparse_denoise(
             fft_inverse(&sparse_spectrum)
         }
         SparseTransform::Wavelet => {
-            // For wavelet transform, we use the sparse_transform_recovery function
-            // with wavelet transforms
+            // Wavelet-domain sparse denoising using DWT (DB4, level 3).
+            // Mirrors the FFT branch: forward DWT → sparse recovery on
+            // flattened coefficients → inverse DWT.
 
-            // Define wavelet transform functions
-            let forward_wavelet = |signal: &Array1<f64>| -> SignalResult<Array1<f64>> {
-                // Here we would use a wavelet transform from the dwt module
-                // For simplicity, using a placeholder that just returns the signal
-                // In a real implementation, replace with actual wavelet transform
-                Ok(signal.clone())
-            };
+            const WAVELET: Wavelet = Wavelet::Haar; // Haar is stable for arbitrary signal lengths
+            const LEVEL: usize = 3;
 
-            let inverse_wavelet = |coeffs: &Array1<f64>| -> SignalResult<Array1<f64>> {
-                // Here we would use an inverse wavelet transform
-                // For simplicity, using a placeholder
-                // In a real implementation, replace with actual inverse wavelet transform
-                Ok(coeffs.clone())
-            };
+            let signal_slice: Vec<f64> = y.to_vec();
 
-            // All samples are observed, no mask needed
-            sparse_transform_recovery(y, forward_wavelet, inverse_wavelet, None, method, config)
-        }
-        SparseTransform::DCT => {
-            // Implement DCT-based sparse recovery
-            // Placeholder implementation - in a real implementation,
-            // replace with actual DCT transform
+            // Forward DWT: [approx_L, detail_L, ..., detail_1]
+            let coeffs = crate::dwt::wavedec(&signal_slice, WAVELET, Some(LEVEL), None)
+                .map_err(|e| SignalError::ComputationError(format!("wavedec failed: {}", e)))?;
 
-            // All samples are observed, no mask needed
-            let mut result = y.clone();
+            // Record per-level lengths so we can unflatten later
+            let lengths: Vec<usize> = coeffs.iter().map(|c| c.len()).collect();
+            let total_len: usize = lengths.iter().sum();
 
-            // Apply a simple thresholding as a placeholder
-            let threshold = y.fold(0.0, |acc, &val| acc + val.abs()) / (n as f64) * config.lambda;
-
-            for i in 0..n {
-                if result[i].abs() < threshold {
-                    result[i] = 0.0;
+            // Flatten all coefficient arrays into one Array1
+            let mut flat = Array1::<f64>::zeros(total_len);
+            let mut flat_offset = 0usize;
+            for band in &coeffs {
+                for (i, &v) in band.iter().enumerate() {
+                    flat[flat_offset + i] = v;
                 }
+                flat_offset += band.len();
             }
 
-            Ok(result)
+            // Identity sensing matrix in wavelet domain
+            let phi_wav = Array2::<f64>::eye(total_len);
+
+            // Sparse recovery in wavelet domain
+            let sparse_flat =
+                compressed_sensing_recover(&flat, &phi_wav, method, config)?;
+
+            // Unflatten back into per-band arrays
+            let mut recovered_coeffs: Vec<Vec<f64>> = Vec::with_capacity(coeffs.len());
+            let mut unflatten_offset = 0usize;
+            for &band_len in &lengths {
+                let band: Vec<f64> = (0..band_len).map(|i| sparse_flat[unflatten_offset + i]).collect();
+                recovered_coeffs.push(band);
+                unflatten_offset += band_len;
+            }
+
+            // Inverse DWT: waverec expects [approx_L, detail_L, ..., detail_1]
+            let reconstructed = crate::dwt::waverec(&recovered_coeffs, WAVELET)
+                .map_err(|e| SignalError::ComputationError(format!("waverec failed: {}", e)))?;
+
+            // Trim/pad to original length
+            let mut out: Vec<f64> = reconstructed;
+            out.resize(n, 0.0);
+            Ok(Array1::from_vec(out))
+        }
+        SparseTransform::DCT => {
+            // DCT-II based sparse denoising.
+            // DCT-II is computed via FFT of the 2n-point even-symmetric extension:
+            //   mirror = [x[0], ..., x[n-1], x[n-1], ..., x[0]]
+            //   dct[k] = real(fft(mirror)[k]) * phase(k)
+            // where phase(k) = exp(-j*pi*k/(2n)).
+            // The inverse applies the conjugate phase and an IFFT.
+
+            // Forward DCT-II via FFT of even-symmetric mirror signal
+            let dct_forward = |signal: &Array1<f64>| -> SignalResult<Array1<f64>> {
+                let sig_len = signal.len();
+                // Build 2*sig_len mirror: [x[0]..x[n-1], x[n-1]..x[0]]
+                let mut mirror: Vec<Complex64> = Vec::with_capacity(2 * sig_len);
+                for &v in signal.iter() {
+                    mirror.push(Complex64::new(v, 0.0));
+                }
+                for &v in signal.iter().rev() {
+                    mirror.push(Complex64::new(v, 0.0));
+                }
+                let fft_out = scirs2_fft::fft(&mirror, Some(2 * sig_len))
+                    .map_err(|e| SignalError::ComputationError(format!("DCT-FFT failed: {}", e)))?;
+                // Take first sig_len terms, multiply by phase
+                let two_sig = 2 * sig_len;
+                let phase: Vec<Complex64> = (0..sig_len)
+                    .map(|k| {
+                        let angle = -std::f64::consts::PI * k as f64 / (two_sig as f64);
+                        Complex64::new(angle.cos(), angle.sin())
+                    })
+                    .collect();
+                let dct_coeffs: Vec<f64> =
+                    fft_out[..sig_len].iter().zip(phase.iter()).map(|(&f, &p)| (f * p).re).collect();
+                Ok(Array1::from_vec(dct_coeffs))
+            };
+
+            // Inverse DCT-II (= DCT-III / n) via conjugate phase + IFFT
+            let dct_inverse = |coeffs: &Array1<f64>| -> SignalResult<Array1<f64>> {
+                let sig_len = coeffs.len();
+                let two_sig = 2 * sig_len;
+                let phase_inv: Vec<Complex64> = (0..sig_len)
+                    .map(|k| {
+                        let angle = std::f64::consts::PI * k as f64 / (two_sig as f64);
+                        Complex64::new(angle.cos(), angle.sin())
+                    })
+                    .collect();
+                // Apply conjugate phase to coefficients, pad to 2*sig_len with zeros
+                let mut spectrum: Vec<Complex64> = vec![Complex64::new(0.0, 0.0); two_sig];
+                for k in 0..sig_len {
+                    spectrum[k] = Complex64::new(coeffs[k], 0.0) * phase_inv[k];
+                }
+                let ifft_out = scirs2_fft::ifft(&spectrum, Some(two_sig))
+                    .map_err(|e| SignalError::ComputationError(format!("IDCT-IFFT failed: {}", e)))?;
+                // Normalise: scale by 2*sig_len to undo 1/N internal normalisation, then by 1/sig_len
+                let scale = two_sig as f64 / sig_len as f64;
+                let result: Vec<f64> = ifft_out[..sig_len].iter().map(|&v| v.re * scale).collect();
+                Ok(Array1::from_vec(result))
+            };
+
+            // Forward DCT
+            let dct_coeffs = dct_forward(y)?;
+
+            // Sparse recovery in DCT domain
+            let phi_dct = Array2::<f64>::eye(n);
+            let sparse_dct = compressed_sensing_recover(&dct_coeffs, &phi_dct, method, config)?;
+
+            // Inverse DCT back to time domain
+            dct_inverse(&sparse_dct)
         }
     }
 }

@@ -31,7 +31,7 @@ use crate::error::{IntegrateError, IntegrateResult};
 ///
 /// # Type Parameters
 ///
-/// * `K` — a type implementing [`BEMKernel`] (e.g. [`LaplaceKernel`]).
+/// * `K` — a type implementing [`BEMKernel`] (e.g. `LaplaceKernel`).
 pub struct BEMSolver<K: BEMKernel> {
     mesh: BoundaryMesh,
     kernel: K,

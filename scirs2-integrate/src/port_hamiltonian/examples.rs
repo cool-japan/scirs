@@ -53,9 +53,9 @@ fn canonical_j(n: usize) -> Array2<f64> {
 ///
 /// # Arguments
 ///
-/// * `mass` - Pendulum mass [kg]
-/// * `length` - Pendulum length [m]
-/// * `gravity` - Gravitational acceleration [m/s²] (default: 9.81)
+/// * `mass` - Pendulum mass \[kg\]
+/// * `length` - Pendulum length \[m\]
+/// * `gravity` - Gravitational acceleration \[m/s²\] (default: 9.81)
 /// * `damping` - Pivot friction damping coefficient (0 = conservative)
 pub fn pendulum_ph(
     mass: f64,
@@ -105,7 +105,7 @@ pub fn pendulum_ph(
 
 /// Create a mass-spring-damper pH system.
 ///
-/// State: x = [q, p] where q = displacement [m], p = momentum [kg⋅m/s]
+/// State: x = \[q, p\] where q = displacement \[m\], p = momentum \[kg⋅m/s\]
 ///
 /// Hamiltonian:
 /// ```text
@@ -123,9 +123,9 @@ pub fn pendulum_ph(
 ///
 /// # Arguments
 ///
-/// * `mass` - Mass [kg]
-/// * `spring_const` - Spring constant [N/m]
-/// * `damping` - Damping coefficient [N⋅s/m]
+/// * `mass` - Mass \[kg\]
+/// * `spring_const` - Spring constant \[N/m\]
+/// * `damping` - Damping coefficient \[N⋅s/m\]
 pub fn mass_spring_damper_ph(
     mass: f64,
     spring_const: f64,
@@ -177,9 +177,9 @@ pub fn mass_spring_damper_ph(
 ///
 /// # Arguments
 ///
-/// * `mass` - Mass of each link [kg]
-/// * `length` - Length of each link [m]
-/// * `gravity` - Gravitational acceleration [m/s²]
+/// * `mass` - Mass of each link \[kg\]
+/// * `length` - Length of each link \[m\]
+/// * `gravity` - Gravitational acceleration \[m/s²\]
 /// * `damping1` - Damping at joint 1
 /// * `damping2` - Damping at joint 2
 pub fn double_pendulum_ph(
@@ -260,7 +260,7 @@ pub fn double_pendulum_ph(
 /// The circuit has an inductor L, capacitor C, and resistor R in series.
 ///
 /// **State**: x = [q_c, φ_L] where:
-/// - q_c = charge on capacitor [C]
+/// - q_c = charge on capacitor \[C\]
 /// - φ_L = flux linkage of inductor [Wb = V⋅s]
 ///
 /// **Hamiltonian** (total electromagnetic energy):
@@ -284,9 +284,9 @@ pub fn double_pendulum_ph(
 ///
 /// # Arguments
 ///
-/// * `inductance` - Inductance L [H]
-/// * `capacitance` - Capacitance C [F]  
-/// * `resistance` - Resistance R [Ω]
+/// * `inductance` - Inductance L \[H\]
+/// * `capacitance` - Capacitance C \[F\]
+/// * `resistance` - Resistance R \[Ω\]
 pub fn rlc_circuit_ph(
     inductance: f64,
     capacitance: f64,
@@ -341,8 +341,8 @@ pub fn rlc_circuit_ph(
 ///
 /// # Arguments
 ///
-/// * `masses` - Mass of each oscillator [kg], length n
-/// * `spring_consts` - Spring constants: spring_consts[i] connects mass i to i+1, length n-1
+/// * `masses` - Mass of each oscillator \[kg\], length n
+/// * `spring_consts` - Spring constants: spring_consts\[i\] connects mass i to i+1, length n-1
 /// * `damping` - Damping coefficients for each mass, length n
 pub fn coupled_oscillators_ph(
     masses: &[f64],

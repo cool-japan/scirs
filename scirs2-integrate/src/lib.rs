@@ -50,7 +50,7 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-integrate = "0.4.3"
+//! scirs2-integrate = "0.4.4"
 //! ```
 
 //!
@@ -232,7 +232,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.3
+//! - **Version**: 0.4.4
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-integrate](https://docs.rs/scirs2-integrate)
@@ -291,6 +291,24 @@ pub mod pde;
 
 // Symbolic integration support
 pub mod symbolic;
+
+// EML symbolic ODE + quadrature (requires `symbolic` feature)
+#[cfg(feature = "symbolic")]
+pub mod eml;
+#[cfg(feature = "symbolic")]
+pub use eml::{
+    quad_gauss_legendre_symbolic, solve_ivp_symbolic, SymbolicOdeError, SymbolicOdeResult,
+    SymbolicQuadError,
+};
+
+// Symbolic-first ODE dispatcher (requires `symbolic` feature)
+#[cfg(feature = "symbolic")]
+pub mod symbolic_first;
+#[cfg(feature = "symbolic")]
+pub use symbolic_first::{
+    rhs_from_symbolic_only, solve_ode_symbolic_or_numerical, OdeOpts, SolvePreference,
+    SymbolicFirstError, SymbolicOrNumericalResult,
+};
 
 // Enhanced automatic differentiation
 pub mod autodiff;

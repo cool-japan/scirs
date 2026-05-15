@@ -169,7 +169,7 @@ All v0.4.3 features are complete and production-ready. Quality gate (cargo check
 - Zigzag persistence
 
 ### Production Monitoring
-- Drift detection: KS test, PSI, Wasserstein, MMD
+- [x] Drift detection: KS test, PSI, Wasserstein, MMD (implemented — see src/drift/mod.rs and src/monitoring/drift_detection.rs)
 - Data quality alerts and degradation tracking
 
 ## Known Issues / Technical Debt

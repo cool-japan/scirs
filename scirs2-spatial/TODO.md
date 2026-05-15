@@ -104,12 +104,12 @@
 
 ### Large-Scale Geospatial Processing
 - Efficient handling of billion-point datasets via chunked R*-Tree
-- Hilbert curve spatial sorting for cache-efficient access
+- [x] Hilbert curve spatial sorting for cache-efficient access — see `src/hilbert.rs`
 - GeoParquet and GeoArrow format support (via scirs2-io)
 
 ## Known Issues
 
 - Voronoi construction for >100K seed points may be slow; use grid-based approximation for large inputs
 - Ball Tree does not yet support user-defined distance functions with non-Euclidean metrics in all cases
-- R*-Tree deletion is not yet implemented (insert-only for now)
+- [x] R*-Tree deletion is implemented — see `src/rtree/deletion.rs` (lines 17-400) and `src/rect_rtree.rs:747`
 - Kriging variogram fitting may diverge without good initial parameter estimates for poorly sampled data

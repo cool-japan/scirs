@@ -3,10 +3,10 @@
 //! This module provides from-scratch implementations of classical statistical
 //! language models with smoothing:
 //!
-//! - [`UnigramLM`] – unsmoothed maximum-likelihood unigram model
-//! - [`BigramLM`] – bigram model with Laplace smoothing
-//! - [`NgramLM`] – arbitrary-order model with Kneser-Ney smoothing
-//! - [`PerplexityEval`] – perplexity computation for any `NgramLM`
+//! - `UnigramLM` – unsmoothed maximum-likelihood unigram model
+//! - `BigramLM` – bigram model with Laplace smoothing
+//! - `NgramLM` – arbitrary-order model with Kneser-Ney smoothing
+//! - `PerplexityEval` – perplexity computation for any `NgramLM`
 
 use std::collections::{HashMap, HashSet};
 

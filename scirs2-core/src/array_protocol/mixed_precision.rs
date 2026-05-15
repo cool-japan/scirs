@@ -190,7 +190,7 @@ where
 
     /// Convert the array to a different floating-point precision `U`.
     ///
-    /// Each element is cast from `T` to `U` using [`num_traits::cast`].  If any
+    /// Each element is cast from `T` to `U` using [`fn@num_traits::cast`].  If any
     /// element cannot be represented in `U` (e.g. an `f64` infinity cast to a
     /// hypothetical narrow type) the method returns a
     /// [`CoreError::ComputationError`].

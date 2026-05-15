@@ -64,9 +64,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let fixed_rank_kriging = make_fixed_rank_kriging(
             &points.view(),
             &values.view(),
+            10, // rank
             CovarianceFunction::Exponential,
             1.0, // length_scale
-            10,  // rank
         )?;
 
         let fixed_rank_result = fixed_rank_kriging.predict(&query_points.view())?;
@@ -77,9 +77,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let tapered_kriging = make_tapered_kriging(
             &points.view(),
             &values.view(),
+            2.0, // taper_range
             CovarianceFunction::SquaredExponential,
             1.0, // length_scale
-            2.0, // taper_range
         )?;
 
         let tapered_result = tapered_kriging.predict(&query_points.view())?;

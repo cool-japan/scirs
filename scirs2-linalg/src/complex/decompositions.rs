@@ -792,21 +792,217 @@ where
 /// Result type for Schur decomposition with Q and T matrices
 pub type SchurResult<F> = LinalgResult<(Array2<Complex<F>>, Array2<Complex<F>>)>;
 
-/// Performs Schur decomposition of a complex matrix
+/// Performs Schur decomposition of a complex matrix.
 ///
-/// Decomposes A into Q * T * Q^H where T is upper triangular
+/// Decomposes A = Q T Q^H where:
+/// - Q is unitary  (Q^H Q = I)
+/// - T is upper triangular (the Schur form)
+///
+/// The algorithm is:
+/// 1. Reduce A to upper-Hessenberg form H = U^H A U via Householder reflectors.
+/// 2. Apply Francis single-shift QR iterations on H until all sub-diagonal
+///    entries are negligible, giving the upper triangular Schur matrix T.
+/// 3. Accumulate all transformations to obtain the unitary factor Q.
+///
+/// # Errors
+/// Returns `LinalgError::NotConvergedError` if the QR iteration exhausts its
+/// iteration budget without converging.
 #[allow(dead_code)]
 pub fn complex_schur<F>(a: &ArrayView2<Complex<F>>) -> SchurResult<F>
 where
     F: Float + Sum + Debug,
 {
     check_square(a, "matrix")?;
+    let n = a.nrows();
 
-    // This is a placeholder for full Schur decomposition
-    // A complete implementation would use QR algorithm with shifts
-    Err(LinalgError::NotImplementedError(
-        "Complex Schur decomposition not yet implemented".to_string(),
-    ))
+    // Trivial cases
+    if n == 0 {
+        return Ok((Array2::eye(0), Array2::zeros((0, 0))));
+    }
+    if n == 1 {
+        let mut t = Array2::zeros((1, 1));
+        t[[0, 0]] = a[[0, 0]];
+        return Ok((Array2::eye(1), t));
+    }
+
+    let tolerance = F::from(1e-14).expect("tolerance cast failed");
+    let two = F::from(2.0).expect("2.0 cast failed");
+    let four = F::from(4.0).expect("4.0 cast failed");
+
+    // -----------------------------------------------------------------------
+    // Step 1 – Reduce A to upper Hessenberg form using Householder reflectors.
+    //
+    // Invariant maintained: A = Q_accum * H * Q_accum^H
+    // -----------------------------------------------------------------------
+    let mut h = a.to_owned();
+    let mut q_accum: Array2<Complex<F>> = Array2::eye(n);
+
+    for col in 0..(n.saturating_sub(2)) {
+        // Build Householder vector for h[col+1..n, col]
+        let sub_len = n - col - 1;
+        let mut v = Array1::<Complex<F>>::zeros(sub_len);
+        let mut norm_sq = F::zero();
+
+        for i in 0..sub_len {
+            v[i] = h[[i + col + 1, col]];
+            norm_sq = norm_sq + v[i].norm_sqr();
+        }
+
+        if norm_sq <= tolerance {
+            continue;
+        }
+
+        let norm = norm_sq.sqrt();
+        // Phase of first element (choose to introduce cancellation)
+        let first = h[[col + 1, col]];
+        let phase = if first.norm() > F::zero() {
+            first / Complex::<F>::new(first.norm(), F::zero())
+        } else {
+            Complex::<F>::one()
+        };
+        // v <- v + phase * ||v|| * e_0
+        v[0] = v[0] + phase * Complex::<F>::new(norm, F::zero());
+
+        let v_norm_sq: F = v.iter().map(|x| x.norm_sqr()).sum();
+        if v_norm_sq <= tolerance {
+            continue;
+        }
+
+        let factor_real = two / v_norm_sq;
+
+        // Apply from left: H[col+1..n, :] <- H[col+1..n, :] - factor * v * (v^H H[col+1..n, :])
+        for j in 0..n {
+            let mut dot = Complex::<F>::zero();
+            for i in 0..sub_len {
+                dot = dot + v[i].conj() * h[[i + col + 1, j]];
+            }
+            let f = Complex::<F>::new(factor_real, F::zero()) * dot;
+            for i in 0..sub_len {
+                h[[i + col + 1, j]] = h[[i + col + 1, j]] - f * v[i];
+            }
+        }
+
+        // Apply from right: H[:, col+1..n] <- H[:, col+1..n] - (H[:, col+1..n] v) v^H * factor
+        for i in 0..n {
+            let mut dot = Complex::<F>::zero();
+            for j in 0..sub_len {
+                dot = dot + h[[i, j + col + 1]] * v[j];
+            }
+            let f = Complex::<F>::new(factor_real, F::zero()) * dot;
+            for j in 0..sub_len {
+                h[[i, j + col + 1]] = h[[i, j + col + 1]] - f * v[j].conj();
+            }
+        }
+
+        // Accumulate Q: q_accum[:, col+1..n] <- q_accum[:, col+1..n] - (q_accum[:, col+1..n] v) v^H * factor
+        for i in 0..n {
+            let mut dot = Complex::<F>::zero();
+            for j in 0..sub_len {
+                dot = dot + q_accum[[i, j + col + 1]] * v[j];
+            }
+            let f = Complex::<F>::new(factor_real, F::zero()) * dot;
+            for j in 0..sub_len {
+                q_accum[[i, j + col + 1]] = q_accum[[i, j + col + 1]] - f * v[j].conj();
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Step 2 – Shifted QR iterations on the full n×n Hessenberg matrix.
+    //
+    // Each iteration: apply Wilkinson shift, factor H-σI = QR, update H = RQ+σI,
+    // accumulate Q. This mirrors complex_eig's approach and avoids the phase/
+    // similarity bugs in a hand-rolled Givens deflation loop.
+    // -----------------------------------------------------------------------
+    let max_iterations = 1000 * n;
+    let mut converged = false;
+    let mut iterations = 0;
+
+    while !converged && iterations < max_iterations {
+        iterations += 1;
+
+        // Check convergence: all sub-diagonal entries small
+        converged = true;
+        for i in 0..(n - 1) {
+            let tol_entry = tolerance * (h[[i, i]].norm() + h[[i + 1, i + 1]].norm());
+            if h[[i + 1, i]].norm() > tol_entry.max(tolerance) {
+                converged = false;
+                break;
+            }
+        }
+
+        if !converged {
+            // Wilkinson shift from the full-matrix bottom-right 2×2 block
+            let shift = if n >= 2 {
+                let a11 = h[[n - 2, n - 2]];
+                let a12 = h[[n - 2, n - 1]];
+                let a21 = h[[n - 1, n - 2]];
+                let a22 = h[[n - 1, n - 1]];
+
+                let trace = a11 + a22;
+                let det = a11 * a22 - a12 * a21;
+                let disc = trace * trace - Complex::<F>::new(four, F::zero()) * det;
+                let sqrt_disc = disc.sqrt();
+                let eig1 = (trace + sqrt_disc) / Complex::<F>::new(two, F::zero());
+                let eig2 = (trace - sqrt_disc) / Complex::<F>::new(two, F::zero());
+                if (eig1 - a22).norm() <= (eig2 - a22).norm() {
+                    eig1
+                } else {
+                    eig2
+                }
+            } else {
+                Complex::<F>::zero()
+            };
+
+            // Build shifted matrix, perform QR decomposition, then H = RQ + σI.
+            // If the shifted matrix is singular (shift == eigenvalue), fall back to
+            // an unshifted step to preserve numerical stability.
+            let mut h_shifted = h.clone();
+            for i in 0..n {
+                h_shifted[[i, i]] = h_shifted[[i, i]] - shift;
+            }
+
+            let qr_result = complex_qr(&h_shifted.view());
+            let (qr, actual_shift) = match qr_result {
+                Ok(qr) => (qr, shift),
+                Err(_) => {
+                    // Shift caused singularity; try unshifted step
+                    let qr_unshifted = complex_qr(&h.view())?;
+                    (qr_unshifted, Complex::<F>::zero())
+                }
+            };
+
+            h = crate::complex::complex_matmul(&qr.r.view(), &qr.q.view())
+                .map_err(|e| LinalgError::ComputationError(format!("RQ multiply failed: {e}")))?;
+
+            for i in 0..n {
+                h[[i, i]] = h[[i, i]] + actual_shift;
+            }
+
+            q_accum =
+                crate::complex::complex_matmul(&q_accum.view(), &qr.q.view()).map_err(|e| {
+                    LinalgError::ComputationError(format!("Q accumulation failed: {e}"))
+                })?;
+        }
+    }
+
+    if !converged {
+        return Err(LinalgError::ConvergenceError(
+            "Complex Schur decomposition: QR iteration did not converge".to_string(),
+        ));
+    }
+
+    // -----------------------------------------------------------------------
+    // Step 3 – Clean up: zero all sub-diagonal entries in T explicitly.
+    // -----------------------------------------------------------------------
+    for i in 1..n {
+        for j in 0..i {
+            h[[i, j]] = Complex::<F>::zero();
+        }
+    }
+
+    // q_accum is Q such that T = Q^H A Q  →  A = Q T Q^H
+    Ok((q_accum, h))
 }
 
 #[cfg(test)]
@@ -1076,5 +1272,131 @@ mod tests {
         assert_eq!(svd_wide.u.shape(), &[2, 2]);
         assert_eq!(svd_wide.s.shape(), &[2]);
         assert_eq!(svd_wide.vh.shape(), &[2, 3]);
+    }
+
+    /// Verify A ≈ Q T Q^H and Q^H Q ≈ I for a 3×3 complex matrix.
+    #[test]
+    fn test_complex_schur_3x3() {
+        // A non-trivial 3×3 complex matrix with distinct eigenvalues
+        let a = array![
+            [
+                Complex::<f64>::new(2.0, 1.0),
+                Complex::<f64>::new(1.0, 0.5),
+                Complex::<f64>::new(0.0, -1.0)
+            ],
+            [
+                Complex::<f64>::new(0.0, 0.5),
+                Complex::<f64>::new(3.0, -1.0),
+                Complex::<f64>::new(1.0, 0.0)
+            ],
+            [
+                Complex::<f64>::new(-1.0, 0.0),
+                Complex::<f64>::new(0.5, 1.0),
+                Complex::<f64>::new(1.0, 2.0)
+            ]
+        ];
+
+        let (q, t) = complex_schur(&a.view()).expect("complex_schur failed on 3×3 matrix");
+        let n = a.nrows();
+
+        // --- T is upper triangular ---
+        for i in 1..n {
+            for j in 0..i {
+                assert!(
+                    t[[i, j]].norm() < 1e-8,
+                    "T is not upper triangular at ({i},{j}): value = {}",
+                    t[[i, j]]
+                );
+            }
+        }
+
+        // --- Q is unitary: Q^H Q ≈ I ---
+        let qh = hermitian_transpose(&q.view());
+        let qtq =
+            crate::complex::complex_matmul(&qh.view(), &q.view()).expect("Q^H * Q matmul failed");
+
+        for i in 0..n {
+            for j in 0..n {
+                let expected = if i == j {
+                    Complex::<f64>::one()
+                } else {
+                    Complex::<f64>::zero()
+                };
+                let diff = (qtq[[i, j]] - expected).norm();
+                assert!(
+                    diff < 1e-8,
+                    "Q^H Q ≠ I at ({i},{j}): got {}, expected {expected}, diff = {diff:.2e}",
+                    qtq[[i, j]]
+                );
+            }
+        }
+
+        // --- A ≈ Q T Q^H ---
+        let qt = crate::complex::complex_matmul(&q.view(), &t.view()).expect("Q * T matmul failed");
+        let qtqh = crate::complex::complex_matmul(&qt.view(), &qh.view())
+            .expect("(Q*T) * Q^H matmul failed");
+
+        for i in 0..n {
+            for j in 0..n {
+                let diff = (qtqh[[i, j]] - a[[i, j]]).norm();
+                assert!(
+                    diff < 1e-8,
+                    "A ≠ Q T Q^H at ({i},{j}): reconstructed {}, original {}, diff = {diff:.2e}",
+                    qtqh[[i, j]],
+                    a[[i, j]]
+                );
+            }
+        }
+    }
+
+    /// Verify Schur decomposition on a 2×2 diagonal complex matrix (trivial case).
+    #[test]
+    fn test_complex_schur_2x2_diagonal() {
+        let a = array![
+            [Complex::<f64>::new(3.0, 1.0), Complex::<f64>::zero()],
+            [Complex::<f64>::zero(), Complex::<f64>::new(1.0, -2.0)]
+        ];
+
+        let (q, t) = complex_schur(&a.view()).expect("complex_schur failed on diagonal 2×2");
+        let n = 2_usize;
+
+        // T upper triangular
+        assert!(
+            t[[1, 0]].norm() < 1e-10,
+            "T[1,0] should be zero for diagonal input, got {}",
+            t[[1, 0]]
+        );
+
+        // Q unitary
+        let qh = hermitian_transpose(&q.view());
+        let qtq =
+            crate::complex::complex_matmul(&qh.view(), &q.view()).expect("Q^H * Q matmul failed");
+
+        for i in 0..n {
+            for j in 0..n {
+                let expected = if i == j {
+                    Complex::<f64>::one()
+                } else {
+                    Complex::<f64>::zero()
+                };
+                let diff = (qtq[[i, j]] - expected).norm();
+                assert!(
+                    diff < 1e-10,
+                    "Q not unitary at ({i},{j}), diff = {diff:.2e}"
+                );
+            }
+        }
+
+        // A ≈ Q T Q^H
+        let qt = crate::complex::complex_matmul(&q.view(), &t.view()).expect("Q*T matmul failed");
+        let qtqh = crate::complex::complex_matmul(&qt.view(), &qh.view())
+            .expect("(Q*T)*Q^H matmul failed");
+
+        for i in 0..n {
+            for j in 0..n {
+                let diff = (qtqh[[i, j]] - a[[i, j]]).norm();
+                assert!(diff < 1e-10, "A ≠ Q T Q^H at ({i},{j}), diff = {diff:.2e}");
+            }
+        }
     }
 }

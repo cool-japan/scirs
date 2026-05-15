@@ -37,7 +37,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-cluster = "0.4.3"
+//! scirs2-cluster = "0.4.4"
 //! ```
 //!
 //! ```rust
@@ -53,7 +53,7 @@
 //! let (centroids, labels) = kmeans(data.view(), 2, None, None, None, None).expect("operation should succeed");
 //! ```
 //!
-//! ## 🔒 Version: 0.4.3 (March 27, 2026)
+//! ## 🔒 Version: 0.4.4 (March 27, 2026)
 //!
 //! ## Features
 //!
@@ -426,9 +426,8 @@ pub mod density_ratio;
 pub mod fuzzy;
 pub mod fuzzy_cmeans;
 pub mod hierarchical_enhanced;
-// TODO: native_plotting has unimplemented stub methods - re-enable once complete
-// #[cfg(any(feature = "plotters", feature = "egui"))]
-// pub mod native_plotting;
+#[cfg(any(feature = "plotters", feature = "egui"))]
+pub mod native_plotting;
 pub mod optics;
 pub mod prototype_enhanced;
 pub mod soft_clustering;

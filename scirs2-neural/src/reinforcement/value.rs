@@ -62,6 +62,49 @@ impl ValueNetwork {
     pub fn output_dim(&self) -> usize {
         self.output_dim
     }
+
+    /// Extract all trainable parameters as flat `(data, shape)` pairs.
+    pub fn collect_params(&self) -> Vec<(Vec<f32>, Vec<usize>)> {
+        let mut out = Vec::new();
+        for layer in &self.layers {
+            for arr in layer.params() {
+                let shape = arr.shape().to_vec();
+                let data = arr.iter().copied().collect::<Vec<f32>>();
+                out.push((data, shape));
+            }
+        }
+        out
+    }
+
+    /// Restore parameters from the output of [`collect_params`].
+    pub fn restore_params(&mut self, params: &[(Vec<f32>, Vec<usize>)]) -> Result<()> {
+        let layer_param_count: usize = self.layers.iter().map(|l| l.params().len()).sum();
+        if params.len() != layer_param_count {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "ValueNetwork restore_params: expected {layer_param_count} tensors, got {}",
+                params.len()
+            )));
+        }
+        let mut idx = 0usize;
+        for layer in &mut self.layers {
+            let n = layer.params().len();
+            let slice = &params[idx..idx + n];
+            let arrays: Vec<scirs2_core::ndarray::ArrayD<f32>> = slice
+                .iter()
+                .map(|(data, shape)| {
+                    let dim = scirs2_core::ndarray::IxDyn(shape);
+                    scirs2_core::ndarray::ArrayD::from_shape_vec(dim, data.clone()).map_err(|e| {
+                        NeuralError::InvalidArchitecture(format!(
+                            "ValueNetwork: cannot rebuild param array: {e}"
+                        ))
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            layer.set_params(&arrays)?;
+            idx += n;
+        }
+        Ok(())
+    }
 }
 
 // ── Q-Network ─────────────────────────────────────────────────────────────────

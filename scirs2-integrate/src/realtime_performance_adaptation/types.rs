@@ -1251,14 +1251,22 @@ impl AnomalyAnalysis {
     }
 }
 
-// Constructor implementations for basic components
 impl MetricsCollector {
+    /// Create a new `MetricsCollector` with sensible defaults.
+    ///
+    /// Initialises the collector with a 100 ms sampling interval and three
+    /// built-in collector channels ("cpu", "memory", "gpu").
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        Ok(Self {
+            collection_interval: Duration::from_millis(100),
+            active_collectors: vec!["cpu".to_string(), "memory".to_string(), "gpu".to_string()],
+            metric_buffer: Vec::new(),
+        })
     }
 }
 
 impl PerformanceHistory {
+    /// Create a new `PerformanceHistory` with capacity pre-allocated.
     pub fn new() -> IntegrateResult<Self> {
         Ok(Self {
             metrics_history: VecDeque::with_capacity(1000),
@@ -1269,68 +1277,372 @@ impl PerformanceHistory {
 }
 
 impl SystemResourceMonitor {
+    /// Create a new `SystemResourceMonitor`.
+    ///
+    /// Detects the number of logical CPU cores available to the process (via
+    /// `std::thread::available_parallelism`) and registers one `CpuMonitor`
+    /// per core so subsequent samples are correctly dimensioned.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        let core_count = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
+        let cpu_monitors = (0..core_count)
+            .map(|id| CpuMonitor {
+                core_id: id,
+                ..Default::default()
+            })
+            .collect();
+        Ok(Self {
+            cpu_monitors,
+            memory_monitor: MemoryMonitor::default(),
+            disk_monitor: DiskMonitor::default(),
+        })
     }
 }
 
 impl NetworkPerformanceMonitor {
+    /// Create a new `NetworkPerformanceMonitor` with per-component defaults.
+    ///
+    /// The latency monitor is initialised with a 1 ms baseline average/p99
+    /// so that the zero-duration sentinel is distinguishable from a real sample.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        Ok(Self {
+            bandwidth_monitor: BandwidthMonitor::default(),
+            latency_monitor: LatencyMonitor {
+                avg_latency: Duration::from_millis(1),
+                p99_latency: Duration::from_millis(1),
+                jitter: Duration::ZERO,
+            },
+            packet_loss_monitor: PacketLossMonitor::default(),
+        })
     }
 }
 
 impl CpuResourceManager {
+    /// Create a new `CpuResourceManager`.
+    ///
+    /// Pre-allocates one entry in `cpu_allocation` for each logical core so
+    /// callers can update utilisation per-core without additional inserts.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        let core_count = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(1);
+        let cpu_allocation = (0..core_count).map(|id| (id, 0.0_f64)).collect();
+        Ok(Self {
+            cpu_allocation,
+            thermal_state: ThermalState::default(),
+            frequency_scaling: FrequencyScaling {
+                current_frequency: 1.0,
+                target_frequency: 1.0,
+                scaling_governor: "performance".to_string(),
+            },
+        })
     }
 }
 
 impl MemoryResourceManager {
+    /// Create a new `MemoryResourceManager`.
+    ///
+    /// Starts with a single general-purpose pool and the `BestFit` strategy
+    /// to minimise fragmentation under diverse workload patterns.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        Ok(Self {
+            memory_pools: vec![MemoryPool {
+                pool_id: 0,
+                size: 0,
+                allocation_type: "general".to_string(),
+            }],
+            allocation_strategy: AllocationStrategy {
+                strategy_type: "best_fit".to_string(),
+                parameters: HashMap::new(),
+            },
+            gc_policy: GarbageCollectionPolicy {
+                gc_type: "threshold".to_string(),
+                threshold: 0.8,
+            },
+        })
     }
 }
 
 impl GpuResourceManager {
+    /// Create a new `GpuResourceManager`.
+    ///
+    /// Registers a single placeholder GPU device (device 0).  When real GPU
+    /// discovery is available this constructor should be updated accordingly.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        let default_device = GpuDevice {
+            device_id: 0,
+            name: "default_gpu".to_string(),
+            memory_size: 0,
+            compute_units: 0,
+        };
+        let mut memory_allocation = HashMap::new();
+        memory_allocation.insert(0usize, 0usize);
+        let mut compute_allocation = HashMap::new();
+        compute_allocation.insert(0usize, 0.0_f64);
+        Ok(Self {
+            gpu_devices: vec![default_device],
+            memory_allocation,
+            compute_allocation,
+        })
     }
 }
 
 impl NetworkResourceManager {
+    /// Create a new `NetworkResourceManager` with a 1 Gbps default bandwidth
+    /// budget and a connection pool sized for 128 concurrent connections.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        Ok(Self {
+            bandwidth_allocation: BandwidthAllocation {
+                total_bandwidth: 1_000_000_000.0, // 1 Gbps
+                allocated_bandwidth: HashMap::new(),
+            },
+            connection_pool: ConnectionPool {
+                max_connections: 128,
+                active_connections: 0,
+                connection_timeout: Duration::from_secs(30),
+            },
+            load_balancing: NetworkLoadBalancing {
+                algorithm: "round_robin".to_string(),
+                weights: HashMap::new(),
+            },
+        })
     }
 }
 
 impl LoadBalancer {
+    /// Create a new `LoadBalancer` using round-robin as the default strategy.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        Ok(Self {
+            balancing_strategy: "round_robin".to_string(),
+            node_weights: HashMap::new(),
+            current_load: HashMap::new(),
+        })
     }
 }
 
 impl StatisticalAnomalyDetector {
+    /// Create a new `StatisticalAnomalyDetector` with standard algorithm
+    /// defaults.
+    ///
+    /// Registers z-score and IQR detectors and sets a 95 % confidence interval
+    /// with per-metric thresholds calibrated for typical performance workloads.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        let mut thresholds = HashMap::new();
+        thresholds.insert("cpu_utilization".to_string(), 0.95);
+        thresholds.insert("memory_usage".to_string(), 0.90);
+        thresholds.insert("throughput".to_string(), 0.85);
+        Ok(Self {
+            detection_algorithms: vec!["z_score".to_string(), "iqr".to_string()],
+            thresholds,
+            confidence_interval: 0.95,
+        })
     }
 }
 
 impl MLAnomalyDetector {
+    /// Create a new `MLAnomalyDetector` using an isolation-forest base model.
+    ///
+    /// Starts with an empty training set; call the training routine before
+    /// running inference.  Detection threshold is set conservatively at 0.8
+    /// to minimise false positives during warm-up.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        Ok(Self {
+            model_type: "isolation_forest".to_string(),
+            training_data: Vec::new(),
+            detection_threshold: 0.8,
+        })
     }
 }
 
 impl SystemHealthMonitor {
+    /// Create a new `SystemHealthMonitor` with a fully-healthy initial state.
+    ///
+    /// Sets `health_score` to `1.0` and registers default alert thresholds for
+    /// the four core resource dimensions so alerts fire correctly even before
+    /// the first monitoring cycle.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        let mut alert_thresholds = HashMap::new();
+        alert_thresholds.insert("cpu_utilization".to_string(), 0.90);
+        alert_thresholds.insert("memory_utilization".to_string(), 0.85);
+        alert_thresholds.insert("gpu_utilization".to_string(), 0.95);
+        alert_thresholds.insert("network_utilization".to_string(), 0.80);
+        Ok(Self {
+            health_score: 1.0,
+            critical_components: Vec::new(),
+            alert_thresholds,
+        })
     }
 }
 
 impl AutomaticRecoveryManager {
+    /// Create a new `AutomaticRecoveryManager` in the *enabled* state.
+    ///
+    /// Registers default recovery strategies for CPU, memory, and GPU
+    /// resource over-use so the system can self-heal without additional
+    /// configuration.
     pub fn new() -> IntegrateResult<Self> {
-        Ok(Default::default())
+        let mut recovery_strategies = HashMap::new();
+        recovery_strategies.insert(
+            "cpu_overload".to_string(),
+            RecoveryStrategy {
+                strategy_type: "throttle".to_string(),
+                steps: vec![
+                    "reduce_parallelism".to_string(),
+                    "defer_background_tasks".to_string(),
+                ],
+                timeout: Duration::from_secs(30),
+            },
+        );
+        recovery_strategies.insert(
+            "memory_pressure".to_string(),
+            RecoveryStrategy {
+                strategy_type: "evict".to_string(),
+                steps: vec!["trigger_gc".to_string(), "release_caches".to_string()],
+                timeout: Duration::from_secs(60),
+            },
+        );
+        recovery_strategies.insert(
+            "gpu_failure".to_string(),
+            RecoveryStrategy {
+                strategy_type: "fallback".to_string(),
+                steps: vec!["switch_to_cpu".to_string()],
+                timeout: Duration::from_secs(10),
+            },
+        );
+        Ok(Self {
+            recovery_strategies,
+            recovery_history: Vec::new(),
+            enabled: true,
+        })
+    }
+}
+
+// ================================================================================================
+// CONSTRUCTOR TESTS
+// ================================================================================================
+#[cfg(test)]
+mod constructor_tests {
+    use super::*;
+
+    // --- monitoring constructors ---
+
+    #[test]
+    fn test_metrics_collector_new_initialises_collectors() {
+        let mc = MetricsCollector::new().expect("constructor must succeed");
+        assert!(
+            !mc.active_collectors.is_empty(),
+            "active_collectors must be pre-populated"
+        );
+        assert_eq!(mc.collection_interval, Duration::from_millis(100));
+    }
+
+    #[test]
+    fn test_system_resource_monitor_new_detects_cores() {
+        let mon = SystemResourceMonitor::new().expect("constructor must succeed");
+        assert!(
+            !mon.cpu_monitors.is_empty(),
+            "must register at least one CPU monitor"
+        );
+        // Each CpuMonitor core_id must match its index
+        for (i, m) in mon.cpu_monitors.iter().enumerate() {
+            assert_eq!(m.core_id, i);
+        }
+    }
+
+    #[test]
+    fn test_network_monitor_new_latency_not_zero() {
+        let nm = NetworkPerformanceMonitor::new().expect("constructor must succeed");
+        assert_ne!(
+            nm.latency_monitor.avg_latency,
+            Duration::ZERO,
+            "baseline latency must be set to 1 ms sentinel"
+        );
+    }
+
+    // --- resource manager constructors ---
+
+    #[test]
+    fn test_cpu_resource_manager_new_allocates_per_core_entries() {
+        let mgr = CpuResourceManager::new().expect("constructor must succeed");
+        assert!(
+            !mgr.cpu_allocation.is_empty(),
+            "must pre-allocate cpu_allocation entries"
+        );
+        assert_eq!(mgr.frequency_scaling.scaling_governor, "performance");
+    }
+
+    #[test]
+    fn test_memory_resource_manager_new_has_pool_and_strategy() {
+        let mgr = MemoryResourceManager::new().expect("constructor must succeed");
+        assert!(!mgr.memory_pools.is_empty());
+        assert_eq!(mgr.allocation_strategy.strategy_type, "best_fit");
+        assert!((mgr.gc_policy.threshold - 0.8).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_gpu_resource_manager_new_registers_device_zero() {
+        let mgr = GpuResourceManager::new().expect("constructor must succeed");
+        assert!(!mgr.gpu_devices.is_empty());
+        assert_eq!(mgr.gpu_devices[0].device_id, 0);
+        assert!(mgr.memory_allocation.contains_key(&0usize));
+    }
+
+    #[test]
+    fn test_network_resource_manager_new_bandwidth_and_pool() {
+        let mgr = NetworkResourceManager::new().expect("constructor must succeed");
+        assert!(mgr.bandwidth_allocation.total_bandwidth > 0.0);
+        assert_eq!(mgr.connection_pool.max_connections, 128);
+        assert_eq!(mgr.load_balancing.algorithm, "round_robin");
+    }
+
+    #[test]
+    fn test_load_balancer_new_strategy_set() {
+        let lb = LoadBalancer::new().expect("constructor must succeed");
+        assert_eq!(lb.balancing_strategy, "round_robin");
+    }
+
+    // --- anomaly detection / health / recovery constructors ---
+
+    #[test]
+    fn test_statistical_anomaly_detector_new_has_algorithms_and_thresholds() {
+        let det = StatisticalAnomalyDetector::new().expect("constructor must succeed");
+        assert!(!det.detection_algorithms.is_empty());
+        assert!(!det.thresholds.is_empty());
+        assert!((det.confidence_interval - 0.95).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_ml_anomaly_detector_new_model_type_set() {
+        let det = MLAnomalyDetector::new().expect("constructor must succeed");
+        assert_eq!(det.model_type, "isolation_forest");
+        assert!((det.detection_threshold - 0.8).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_system_health_monitor_new_starts_healthy() {
+        let mon = SystemHealthMonitor::new().expect("constructor must succeed");
+        assert!(
+            (mon.health_score - 1.0).abs() < f64::EPSILON,
+            "initial health must be 1.0"
+        );
+        assert!(
+            !mon.alert_thresholds.is_empty(),
+            "default alert thresholds must be set"
+        );
+    }
+
+    #[test]
+    fn test_automatic_recovery_manager_new_enabled_with_strategies() {
+        let mgr = AutomaticRecoveryManager::new().expect("constructor must succeed");
+        assert!(mgr.enabled, "recovery manager must be enabled on creation");
+        assert!(
+            !mgr.recovery_strategies.is_empty(),
+            "default strategies must be registered"
+        );
+        assert!(mgr.recovery_strategies.contains_key("cpu_overload"));
+        assert!(mgr.recovery_strategies.contains_key("memory_pressure"));
+        assert!(mgr.recovery_strategies.contains_key("gpu_failure"));
     }
 }
 

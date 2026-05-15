@@ -94,7 +94,7 @@ impl QuantumSVMModel {
     /// * `regularization` - The SVM regularisation constant C > 0.
     ///
     /// # Panics
-    /// Does not panic — invalid parameters are caught in [`fit`].
+    /// Does not panic — invalid parameters are caught in `fit`.
     pub fn new(n_qubits: usize, regularization: f64) -> Self {
         Self {
             n_qubits,

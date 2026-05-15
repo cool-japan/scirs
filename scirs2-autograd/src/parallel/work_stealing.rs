@@ -539,7 +539,7 @@ impl<T> Default for LockFreeWorkStealingDeque<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
     use std::sync::Arc;
     #[allow(unused_imports)]
     use std::sync::Mutex;
@@ -675,13 +675,21 @@ mod tests {
 
         let deque = Arc::new(WorkStealingDeque::new());
         let processed = Arc::new(AtomicUsize::new(0));
+        // Signals that the producer has finished pushing all tasks.  Consumers
+        // must observe this flag before deciding the deque is permanently
+        // empty — otherwise, under heavy load, consumers can race ahead of the
+        // producer, see `Empty` immediately, and exit before any tasks are
+        // pushed (causing `total_processed == 0`).
+        let producer_done = Arc::new(AtomicBool::new(false));
 
         // Producer thread
         let deque_producer = Arc::clone(&deque);
+        let producer_done_signal = Arc::clone(&producer_done);
         let producer = thread::spawn(move || {
             for i in 0..100 {
                 deque_producer.push(i);
             }
+            producer_done_signal.store(true, Ordering::Release);
         });
 
         // Consumer threads
@@ -689,6 +697,7 @@ mod tests {
         for _ in 0..4 {
             let deque_consumer = Arc::clone(&deque);
             let processed_consumer = Arc::clone(&processed);
+            let producer_done_consumer = Arc::clone(&producer_done);
 
             let consumer = thread::spawn(move || {
                 let mut empty_count = 0;
@@ -699,10 +708,14 @@ mod tests {
                             empty_count = 0; // Reset empty count on success
                         }
                         StealResult::Empty => {
-                            empty_count += 1;
-                            // Only exit after multiple consecutive empty results
-                            if empty_count > 10 {
-                                break;
+                            // Only consider exiting once the producer has
+                            // signaled completion — otherwise, "Empty" just
+                            // means the producer hasn't pushed yet.
+                            if producer_done_consumer.load(Ordering::Acquire) {
+                                empty_count += 1;
+                                if empty_count > 10 {
+                                    break;
+                                }
                             }
                             // Brief pause before checking again
                             std::thread::sleep(std::time::Duration::from_micros(100));
@@ -716,9 +729,6 @@ mod tests {
         }
 
         producer.join().expect("Operation failed");
-
-        // Give consumers time to finish
-        std::thread::sleep(std::time::Duration::from_millis(100));
 
         for consumer in consumers {
             consumer.join().expect("Operation failed");

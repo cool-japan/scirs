@@ -10,7 +10,9 @@
 
 use super::systems::{LtiSystem, StateSpace, TransferFunction, ZerosPoleGain};
 use crate::error::{SignalError, SignalResult};
+use scirs2_core::ndarray::Array2;
 use scirs2_core::numeric::Complex64;
+use scirs2_linalg::expm;
 
 #[allow(unused_imports)]
 /// Create a transfer function system from numerator and denominator coefficients
@@ -159,12 +161,56 @@ pub fn c2d<T: LtiSystem>(system: &T, dt: f64) -> SignalResult<StateSpace> {
         ));
     }
 
-    // For now, return a placeholder for the discretized _system
-    // In practice, we would use the matrix exponential method: A_d = exp(A*_dt)
+    // Zero-order hold (ZOH) discretization using the augmented matrix exponential method.
+    // Build M = [[A*dt, B*dt], [0, 0]] of shape (n+m) x (n+m).
+    // Then exp(M) = [[A_d, B_d], [0, I]] so:
+    //   A_d = exp(M)[0..n, 0..n]
+    //   B_d = exp(M)[0..n, n..n+m]
+    // This approach handles singular A correctly.
+    let n = ss_sys.n_states;
+    let m = ss_sys.n_inputs;
+    let aug = n + m;
+
+    let mut m_mat = Array2::<f64>::zeros((aug, aug));
+
+    // Fill A*dt block (top-left)
+    for i in 0..n {
+        for j in 0..n {
+            m_mat[[i, j]] = ss_sys.a[i * n + j] * dt;
+        }
+    }
+
+    // Fill B*dt block (top-right)
+    for i in 0..n {
+        for j in 0..m {
+            m_mat[[i, n + j]] = ss_sys.b[i * m + j] * dt;
+        }
+    }
+
+    // Bottom block is all zeros (already initialised to zero)
+
+    let m_exp = expm(&m_mat.view(), None)
+        .map_err(|e| SignalError::ComputationError(format!("ZOH expm failed: {e}")))?;
+
+    // Extract A_d = m_exp[0..n, 0..n]
+    let mut a_d = vec![0.0f64; n * n];
+    for i in 0..n {
+        for j in 0..n {
+            a_d[i * n + j] = m_exp[[i, j]];
+        }
+    }
+
+    // Extract B_d = m_exp[0..n, n..n+m]
+    let mut b_d = vec![0.0f64; n * m];
+    for i in 0..n {
+        for j in 0..m {
+            b_d[i * m + j] = m_exp[[i, n + j]];
+        }
+    }
 
     Ok(StateSpace {
-        a: ss_sys.a.clone(),
-        b: ss_sys.b.clone(),
+        a: a_d,
+        b: b_d,
         c: ss_sys.c.clone(),
         d: ss_sys.d.clone(),
         n_states: ss_sys.n_states,

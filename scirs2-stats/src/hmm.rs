@@ -40,7 +40,7 @@ pub struct HmmModel {
     pub transition: Array2<f64>,
     /// Emission parameters (interpretation depends on model type).
     pub emission: Array2<f64>,
-    /// Initial state probabilities pi[i] = P(s_1 = i).
+    /// Initial state probabilities pi\[i\] = P(s_1 = i).
     pub initial: Array1<f64>,
     /// Number of hidden states.
     pub n_states: usize,

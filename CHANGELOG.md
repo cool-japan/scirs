@@ -5,6 +5,246 @@ All notable changes to the SciRS2 project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+---
+
+## [0.4.4] - 2026-05-15
+
+### Added
+
+#### Wave 53: scirs2-symbolic — EML Substrate (Phase 0)
+- `eml::tree` — `EmlNode` + `EmlTree` Arc-shared with thread-local hash-cons (u128 structural hash via two-seed ahash)
+- `eml::canonical` — 27 canonical EML constructors (exp, ln, sin, cos, sqrt, etc.) ported from oxieml v0.1.0 baseline
+- `eml::op` + `eml::lower` — `LoweredOp` flat IR + `OxiOp` stack-machine tape + `lower`/`raise` converters
+- `eml::parser` + `eml::display` — text round-trip + `to_latex()` export with π/e exact-match (within 1e-12), `\frac`, `\sqrt`, `\operatorname{arcsinh}`
+- `eml::eval` — iterative stack-machine evaluator (real `f64` + complex `Complex64`); stack-safe on 543-deep canonical sin
+- `eml::simplify` — fixed-point rewrite with constant folding, identity rules, inverse cancellation, hash-based commutative ordering
+- `eml::grad` — symbolic gradient with constant-exponent Pow fast path + native Sqrt rule; `grad`, `grad_all`, `jacobian`, `hessian` all public
+- `eml::interval` — outward-rounded interval arithmetic with sin/cos critical-point splitting
+- `eml::bridge` — `Expr <-> LoweredOp` adapter with deterministic `VarMap` via `BTreeSet`
+- 4 physics examples: `pendulum`, `harmonic_oscillator`, `lorenz`, `physics_pipeline`
+- `tests/oxieml_parity.rs` — oxieml v0.1.0 parity at 1e-9 tolerance + 5 documented divergence tests
+- ADR-0001: Clean-room native EML implementation
+- Cycle-prevention CI gate: `scripts/check-no-symbolic-in-core.sh`
+
+#### Wave 54: scirs2-symbolic — Phase 1 Batch 1 (SR engine, JIT, units, multi-output, ODE)
+- `regression::discover` — primary symbolic-regression entry point (ndarray-first SciRS2 API; `Config` builder with `max_depth`, `learning_rate`, `tolerance`, `cv_folds`, `loss`, `strategy`, `seed`, `parallel`)
+- `regression::discover_multi` — vector-valued targets (Lorenz / double-pendulum) via `MultiOutputStrategy::{Independent, SharedTopology}`
+- `regression::discover_ode` — SINDy-style ODE right-hand-side discovery from trajectory + time grid
+- `regression::Pareto` + `DiscoveredFormula` — non-dominated front with `best_by_mse`, `best_by_complexity`, `iter_pareto` accessors
+- `compile::to_jit` + `JitCache` — Cranelift CPU JIT for `LoweredOp` with hash-keyed `JitCache`; `to_jit_batch` for batched evaluation
+- `units::{Units, Dimension, UnitAware}` — SI 7-vector dimensional analysis; pendulum example rejects `T = L + g` and accepts `T = 2π√(L/g)`
+
+#### Wave 55: scirs2-symbolic — Phase 1 Batch 2 (SMT scaffold, benchmarks)
+- `cas::smt` scaffold — `EmlSmtSolver` structural-hash fast path + OxiZ 0.2.1 hook point + `EmlConstraint` AST (full OxiZ QF_NRA wire-up completed in Wave 57)
+- `regression::with_constraints` — SMT-pruned topology search: `monotone_increasing`, `range_bounded`, `odd_function`, `even_function`; depth-threshold gate (default depth ≥ 5)
+- `benches/{eval, jit_vs_interp, regression, simplify_grad}.rs` — Criterion microbenchmarks for substrate hot paths
+
+#### Wave 56: scirs2-symbolic — Phase 1 Batch 3 (regression constraints, Python, NUMA, autograd_bridge scaffold)
+- `regression::with_constraints` (production-quality) — constraint-aware fitness short-circuiting; `BoundedOutput`, `Monotonic` constraints wired into the search loop
+- `regression::ConstrainedConfig` builders: `with_strict()`, `with_penalty()`, `with_constraint()`
+- NUMA-aware parallel prediction inside `regression::discover` evaluation pass (rayon path with NUMA-friendly chunking; full `scirs2-core` NUMA worker pinning deferred to v0.4.5)
+- `autograd_bridge.rs` — symbolic-side scaffold: `SymbolicTape` flat post-order `Vec<TapeNode>` + `BinaryKind`/`UnaryKind` enums + `ToTape` trait + iterative `from_lowered` (5000-deep, no overflow); designed as entry-point for Phase-3 `scirs2-autograd` integration
+- `scirs2-python::symbolic` — native PyO3 sub-namespace `scirs2.symbolic`: `PyEmlTree`, `PyCanonical`, `PyLoweredOp`, `PyDiscoveredFormula`; `lower`, `simplify`, `grad`, `eval_real`, `discover` functions; GIL-releasing `discover` for compute-bound workloads
+
+#### Wave 57: scirs2-symbolic — Phase 2 Centerpiece + First Cross-Crate Integrations
+- `cas::canonicalize` — **world-first EML-IR-native CAS canonical form**: 7 algebraic rewrite rules (`exp(a)·exp(b)→exp(a+b)`, `a^m·a^n→a^(m+n)`, `(a^m)^n→a^(m·n)`, `exp(ln x)→x`, `ln(exp x)→x`, `ln(a·b)→ln(a)+ln(b)`, `ln(a/b)→ln(a)-ln(b)`); fixed-point idempotent (proved by fixed-point); 32 tests verify canonical equality of `x+y==y+x`, `exp(x)*exp(y)==exp(x+y)`, `ln(exp x)==x`, etc.
+- `cas::canonical_rules` — pluggable rewrite-rule registry; `apply_canonical_rules` post-order work-stack walker; rule appliers for `Add`, `Mul`, `Pow`, `Exp`, `Ln`
+- `cas::smt` (REAL OxiZ QF_NRA integration) — `EmlSmtSolver` wraps `oxiz::Solver` + `oxiz::TermManager` with `var_cache: HashMap<usize, oxiz::TermId>`; `encode_op` iterative work-stack for Const/Var/Add/Sub/Mul/Div/Neg/Pow(integer); structural-hash fast path then SMT fallback; `assert_zero`/`push`/`pop` real backtracking; 18 tests. **Note:** OxiZ 0.2.1 NLSAT is incomplete for surface commutativity (`mk_distinct(x+1, 1+x) → Sat`); always canonicalize before calling the solver.
+- `compile::to_gpu` — WGSL compute-shader JIT from `LoweredOp` tape; `@compute @workgroup_size(64)`, per-op WGSL templates; `to_jit_auto(op, batch_size)` dispatches CPU JIT below 100,000 / GPU above (behind `gpu` feature; actual wgpu submission deferred to v0.4.5)
+- `compile::cache` — structural-hash-keyed `JitCache` shared between CPU and GPU paths
+- `scirs2-optimize::symbolic::newton` — first Phase-3 integration: symbolic Newton optimizer consuming `LoweredOp` objective; uses `eml::grad` (gradient) + `eml::hessian` (Hessian) with partial-pivoting Gaussian elimination; 6 tests including x²+y² convergence and dimension-mismatch error handling
+- `scirs2-autograd::symbolic_backend::EmlOp` + `eml_scalar_op` — **seamless symbolic-tensor integration** (second Phase-3 integration): `eml_scalar_op(op, &[inputs], g)` constructs a differentiable scalar `Tensor` from any `LoweredOp`; forward routes through `eval_real`; backward routes through `sym_grad` (provenance-dispatched via `gradient.rs::compute_grad_for_input` matching op name `"EmlOp"`); composable with stock autograd ops; 8 integration tests
+
+#### Wave 58: Documentation
+- LaTeX export module docs (`eml::display::to_latex` rustdoc) — covers every emitted token: `\frac`, `\cdot`, `a^{b}`, `\sqrt{}`, `\left|\right|`, `\pi`/`e` detection, `\operatorname{arcsinh}` for inverse-trig/hyperbolic; stack-safe on 1000-deep canonical trees; 15+ tests
+- `scirs2-autograd::symbolic_backend` rustdoc — covers `EmlOp`, `eml_scalar_op`, gradient dispatch mechanism, integration patterns with stock autograd ops
+- `scirs2-symbolic::lib` — top-level LaTeX export doctest block
+- `scirs2-symbolic/README.md` — added `### LaTeX Export` section + `eml::display` row in Module Overview table
+- Root `README.md` — added `## 🎉 Release Status: v0.4.4` highlights section covering 10 EML features
+- `autograd_bridge.rs` docs updated: changed "v0.5.x cross-crate task" to "completed in v0.4.4"
+- ADR-0001 update: clean-room policy reaffirmed; attribution comments documented
+
+#### Wave 59: Phase 2 A-track — cas::pattern, identity_db, Ackermann SMT, certified_rewrite, e-graphs, DimensionMatch
+- `cas::pattern` — pattern matching engine (`src/cas/pattern.rs`, 712 LoC); `EmlPattern` AST with `Var`/`Const`/`Eml` variants; `match_pattern` iterative post-order matcher; prerequisite for the identity-db hook and e-graph rule application
+- `units::infer_dimension` + `Constraint::DimensionMatch { target, var_dims }` — iterative post-order dimensional inference over `LoweredOp`; `DimensionMatch` constraint in `regression::with_constraints` pruner; 22 tests verify dimension propagation across Add/Mul/Div/Pow/Exp/Ln/Sin/Cos
+- `cas::identity_db` — 11 standard trig/hyperbolic/log identities via `IdentityDb::standard()`; identities keyed by LHS canonical hash; `lookup(op)` returns matching `IdentityRecord`s in O(1); hooked into `cas::canonicalize` fixed-point loop so canonical form now applies identity rewrites automatically; 73 tests (identity round-trips, canonical equality, negative tests)
+- `cas::smt` Ackermann transcendental encoding (`smt` feature) — `trans_cache: HashMap<u128, oxiz::TermId>` in `EmlSmtSolver`; `encode_transcendental` maps Sin/Cos/Exp/Ln/Sqrt/Abs (and their hyperbolic/inverse variants, 16 ops total) to fresh OxiZ uninterpreted-function terms; Pythagorean axiom `sin²(x)+cos²(x)=1` asserted on first `sin`/`cos` pair; cache keyed on canonical structural hash to avoid duplicate axiom injection; 10 new tests on top of Wave 57's 18
+- `cas::certified_rewrite` — `CertifiedRule` trait (`lhs_pattern`, `rhs_template`, `proof_obligation`); `rewrite_certified(op, rule, solver)` applies one rule with RAII push/pop safety; `rewrite_certified_fixpoint(op, rules, solver)` iterates to fixed point bounded by `MAX_CERT_ITER = 8`; registration rejects counterexample-producing rules; 7 tests including deliberate-bad-rule rejection and Pythagorean identity certification (`smt` feature)
+- `cas/e_graph/` — full egg-style equality saturation engine (6 files, 1,983 LoC): `union_find.rs` (path-compressed `UnionFind`), `enode.rs` (`ENode`/`EClass`/`NodeKind`), `egraph.rs` (`EGraph::{add, union, rebuild}`), `pattern.rs` (pattern matching against e-classes reusing `cas::pattern`), `budget.rs` (`SaturationBudget` — max nodes + max iterations), `extract.rs` (DP cost extraction, `canonicalize_egraph` public entry point); `cas::pattern` prerequisite exercised throughout; 16 tests
+
+#### Wave 60: Phase 3 B-track — scirs2-integrate, scirs2-stats, scirs2-neural, scirs2-linalg symbolic integrations
+- `scirs2-integrate::eml` (`symbolic` feature) — `solve_ivp_symbolic`: BDF1 stiff ODE solver that computes the symbolic Jacobian via `scirs2_symbolic::eml::grad` once at entry, then reuses the JIT-compiled Jacobian across all Newton corrector steps; `quad_gauss_legendre_symbolic`: symbolic integrand lowered and JIT-compiled before quadrature, evaluated at Gauss-Legendre nodes; 15 tests verify convergence, stiff-system stability, and quadrature accuracy against analytic values
+- `scirs2-stats::mle_symbolic` (`symbolic` feature) — `fit_mle_symbolic`: forms the symbolic log-likelihood from a user-supplied `LoweredOp` PDF, differentiates via `eml::grad`, then runs gradient descent with backtracking Armijo line search to find MLE parameters; returns `MleResult { params, log_likelihood, grad_norm }`; 8 tests covering Gaussian MLE, Exponential MLE, convergence tolerance, and dimension-mismatch error handling
+- `scirs2-neural::{activations, losses}::symbolic` (`symbolic` feature) — `SymbolicActivation`: implements `Activation` + `Layer` traits by lowering a `LoweredOp` to an element-wise activation; forward pass calls `eval_real` per element; backward pass computes the symbolic gradient JIT-compiled; `SymbolicLoss`: implements `Loss` trait similarly for scalar loss functions; 10 tests covering forward eval, backward gradient parity vs finite-difference, composition with stock layers, and chain-rule correctness
+- `scirs2-linalg::symbolic` (`symbolic` feature) — `det_symbolic`: Leibniz-formula determinant for n ≤ 4 returning a `LoweredOp`; `eigenvalues_symbolic_2x2`: closed-form eigenvalues of a 2×2 matrix via the quadratic formula in EML; `condition_number_symbolic`: condition number expressed as `max_eigenvalue / min_eigenvalue` in symbolic form, evaluated via `eval_real`; 12 tests verify determinant correctness, eigenvalue agreement with numerical solver to 1e-10, and condition-number bounds on ill-conditioned matrices
+
+#### Wave 61: scirs2-symbolic Phase 2 additional items (CseDag, series, proptest)
+- `cas::cse_dag::CseDag` — structural-hash CSE DAG: `add(op) -> u128`; `eval_all(point)` O(unique-nodes) evaluation via Kahn topological sort; `node_count`, `clear`; 11 tests including Hessian-sharing verification
+- `cas::series` — symbolic series expansions: `taylor(f, var_idx, center, order)` via iterated `eml::grad`; `pade(f, var_idx, center, m, n)` via Gaussian-elimination Padé system; `MAX_TAYLOR_ORDER=20`; 8 tests including exp/sin accuracy and Padé singularity
+- `tests/cas_rewrite_proptest.rs` — 3 proptest properties (1024 cases each): idempotence of `canonicalize`; `apply_identity_db` preserves canonical hash; `simplify_op` preserves evaluated value
+- scirs2-symbolic total: 702 tests passing
+
+#### Wave 63: Phase 2 (cas::solve) + Phase 3 (Lagrangian KKT) + e_graph stability fix
+- `cas::solve` — EML-native single-variable algebraic solver: `solve(lhs, rhs, var_idx)`, `solve_zero(expr, var_idx)`; invertible-chain unwinding (Exp↔Ln, Sin↔Arcsin, Pow↔nth-root, Add/Mul/Div inverses) + polynomial detection (degree-1 closed form, degree-2 quadratic formula, degree≥3 returns `HighDegreePoly`); `SolveResult`, `SolveError`; 10 tests
+- `scirs2-optimize::symbolic` — Lagrangian + KKT: `build_kkt(objective, constraints, n_vars)` forms `L = f + Σλᵢgᵢ` with stationarity conditions via `sym_grad`; `solve_lagrangian_symbolic` runs Newton on the full N×N KKT system; `KktSystem`, `LagrangianError`; 6 new tests (min x²+y² s.t. x+y=1 → x=y=0.5 verified)
+- `cas/e_graph` stability: `ClassId` now `Ord`; `saturate.rs` sorts class IDs before visiting (deterministic under parallel nextest); test strengthened with numeric evaluation check + 50-iter budget
+- scirs2-symbolic total: **722 tests** passing
+
+#### Wave 64: `eml_pattern!` proc-macro DSL (scirs2-symbolic-macros)
+- New crate `scirs2-symbolic-macros` (334 LoC, `proc-macro = true`) — mini-DSL for writing Pattern-based rewrite rules without boilerplate
+- `eml_pattern!(add(?0, const(0.0)))` emits `Pattern::PatOp2(BinaryKind::Add, Box::new(PatVar(0)), Box::new(PatConst(0.0)))` with fully-qualified paths
+- `eml_template!(...)` — identical syntax, intended for rule RHS (semantic label only)
+- 18 unary DSL keywords (neg, sin, cos, tan, exp, ln, sqrt, abs, sinh, cosh, tanh, arcsin, arccos, arctan, arcsinh, arccosh, arctanh), 5 binary (add, sub, mul, div, pow), literals (const, int, var)
+- `macros` feature gate on scirs2-symbolic; 13 integration tests covering all operator kinds, wildcard binding, consistency checks, and round-trip instantiate
+- scirs2-symbolic with all features: **735 tests** passing
+
+#### Wave 65: Criterion benchmarks (CAS rewriter + EML vs float-tape)
+- `scirs2-symbolic/benches/cas_bench.rs` — 5 benchmark groups: `canonicalize` (x+0, exp(ln(x)), ln(x*y), (x²)³, 10-deep chain), `apply_standard_identity_db` (trig identities), `canonicalize_egraph` (equality saturation, capped budget), `CseDag` (eval_all vs 4× eval_real), `cas::series` (taylor + pade)
+- `scirs2-autograd/benches/eml_vs_tape.rs` — EML vs float-tape comparison for x², sin, exp, composition (eml(x²)*2), multi-input (x*y); each bench runs 100 evaluations; enables performance regression detection in CI
+
+#### Wave 66: Phase 2 symbolic identity discovery from data (cas::identity_proof)
+- `cas::identity_proof::discover_identity(x, y, max_candidates)` — end-to-end pipeline: SR discovery → canonicalize candidates → match against `builtin_identity_db()` hash table → emit `ProofCertificate`
+- `builtin_identity_db()` — 6 built-in identities with pre-computed canonical hashes: Pythagorean sin²+cos²=1, hyperbolic cosh²-sinh²=1, ln(exp(x))=x, exp(0)=1, exp(x)·exp(-x)=1, zero constant
+- `ProofCertificate` — holds discovered formula, matched `KnownIdentity`, numerical `CertifiedValue` witness, and candidate count
+- 8 tests; 478 LoC; Phase 2 item 13/15
+
+#### Wave 67: Phase 2 complete (cas::ad) + WASM playground + Phase 3 EML tape backend
+
+- **`scirs2_symbolic::cas::ad`** (736 LoC, Phase 2 item 15/15 — final Phase 2 item):
+  - `GradGraph { new(f, n_vars), eval(point), eval_grad(point), eval_with_grad(point) }` — precomputes canonical gradient expressions; single `CseDag` pass for CSE-shared evaluation
+  - `grad_canonical(f, wrt)`, `jacobian_canonical(f, n_vars)`, `hessian_canonical(f, n_vars)` — eml::grad + cas::canonicalize
+  - `vjp(f, cotangent, n_vars)`, `jvp(f, v)` — symbolic VJP and JVP for reverse/forward mode
+  - `batch_eval_grad(f, wrt, points)` — CseDag-backed multi-point gradient evaluation
+  - `numerical_grad(f, point, eps)` — central-difference finite-difference for validation
+  - `AdError` enum; 16 tests
+
+- **`scirs2-symbolic-wasm` playground** (622 LoC, Phase 2 Browser playground done):
+  - Iterative Pratt precedence-climbing parser (no recursion, two explicit `Vec` stacks) for EML expressions from strings
+  - Five `#[wasm_bindgen]` API functions: `wasm_canonicalize`, `wasm_grad`, `wasm_simplify`, `wasm_eval`, `wasm_is_identity`
+  - `playground/index.html` + `playground/main.js` — self-contained single-page interactive demo
+  - 15 native tests; standalone crate at `scirs2-symbolic/wasm/`
+
+- **`scirs2-autograd` EML tape backend** (Phase 3 item 3.1 complete):
+  - `tape/eml_tape.rs` (326 LoC): `EmlElementWiseOp` (element-wise 1-D application), `EmlJacobianOp` (full [n_outputs × n_inputs] Jacobian tensor), `EmlHessianOp` (symmetric [n_vars × n_vars] Hessian tensor); constructors `eml_elementwise`, `eml_jacobian`, `eml_hessian`
+  - `tape/dispatch.rs` (74 LoC): `is_eml_backed`, `extract_lowered_op`, `try_build_symbolic_jacobian` — detect EML-provenance tensors and build symbolic Jacobian
+  - 10 tests in `tests/eml_tape_tests.rs`
+
+#### Wave 62: Phase 2 (CertifiedValue) + Phase 3 (autograd parity, optimize L-BFGS/trust-region)
+- `cas::certified_value::CertifiedValue` — symbolic value paired with certified `[lo, hi]` interval; `certify(expr, bindings, target_width)`, `certify_const`, `tighten_to` (MAX_TIGHTEN_ITERS=64); `CertifiedInterval::{new,width,contains,midpoint}`; 9 tests
+- `scirs2-autograd` parity suite — `tests/eml_parity_test.rs`: 12 ops × 100 deterministic points, |float_tape_grad − sym_grad| < 1e-10; ops: x², sin, cos, exp, ln, sqrt, x³, 1/x, tan, sinh, cosh, arctan; 1165 autograd tests total
+- `scirs2-optimize` L-BFGS + trust-region — `lbfgs_symbolic` (two-loop recursion, strong Wolfe line search c1=1e-4 c2=0.9) + `trust_region_symbolic` (dogleg step, ρ-based radius update); `SymbolicOptResult`, `SymbolicOptError`; 8 new tests; 14 symbolic tests total
+
+#### Wave 68: Phase 1 closure + Phase 3 facades + Phase 4 CAS research primitives (2026-05-05)
+
+- **`docs/cas_tutorial.md`** — end-to-end walkthrough (259 lines): SR discovery via `SrConfig` + `discover`, canonical-form hash equality, symbolic differentiation via `cas::ad::GradGraph::eval_with_grad`, JIT compilation via `compile::to_jit`, serde round-trip deploy; README link added
+
+- **`cas::inverse_symbolic`** — Inverse-Symbolic Calculator (lite, `cas/inverse_symbolic.rs`, 579 LoC): `recover(x, &RecoverOpts) -> Vec<Candidate>` via Stern–Brocot continued-fraction expansion (max_denominator cap) + PSLQ-lite integer-relation detection over `[1, π, e, ln 2, √2, 1/√2, γ]`; scored by `−log10(residual) − 0.5·tree_size`; deduped by structural hash; 13 tests (π, 2π, e, ln 2, 1/3, NaN/Inf guards, etc.)
+
+- **`cas::matrix_ops`** — symbolic matrix operations for 2×2/3×3/4×4 (`cas/matrix_ops.rs`, 538 LoC): `det_*x*`, `trace_*x*`, `cofactor_3x3`, `adjugate_2x2/3x3`, `inverse_2x2/3x3` over `[[LoweredOp; N]; N]`; Leibniz cofactor expansion with per-entry `canonicalize`; `InverseResult::Singular` when det is symbolically zero; 14 tests
+
+- **`cas::matrix_exp`** — closed-form symbolic matrix exponential (`cas/matrix_exp.rs`, 704 LoC): `expm_diag_2x2/3x3` (element-wise Exp on diagonal), `expm_nilpotent_2x2` (iterative Taylor truncation `Σ Mᵏ/k!`), `expm_2x2` (Cayley–Hamilton mean-shift: `exp(t)·(cosh(δ)·I + sinh(δ)/δ·M')`, uniform real/imaginary coverage), `expm_3x3` (numeric Padé path); 10 tests including numeric round-trip `expm(M)·expm(−M) ≈ I`
+
+- **`cas::spectral_2x2`** — closed-form symmetric 2×2 eigendecomposition (`cas/spectral_2x2.rs`, 306 LoC): `eig_symmetric_2x2` returns `SymmetricEig2 { eigenvalues: [λ₁, λ₂], eigenvectors: [[v₁, v₂]] }`; uses `δ = √((a−d)²+4b²)`, `λ = (tr ± δ)/2`, `vᵢ = [b, λᵢ−a]` (orthogonality proved by algebra); 9 tests including symbolic `[[a,b],[b,a]] → (a+b, a−b)` and eigenvector orthogonality checks
+
+- **`cas::mle_catalog`** — symbolic MLE catalog (`cas/mle_catalog.rs`, ~250 LoC): `symbolic_mle_catalog(DistFamily, n_samples)` returns closed-form estimators as `LoweredOp` over sample `Var(i)`s; balanced binary Add-tree for `O(log n)` expression depth; Normal (μ̂, σ̂²), Exponential (λ̂), Bernoulli (p̂), Geometric (p̂), Uniform (→ Err); 5 tests
+
+- **`cas::observed_fisher`** — observed Fisher information (`cas/observed_fisher.rs`, ~120 LoC): `observed_fisher_matrix(log_lik, param_indices) -> Vec<Vec<LoweredOp>>`; computes `−Hessian(ℓ)` via `eml::hessian` + entry-wise negation + `canonicalize`; 4 tests + 1 doctest
+
+- **`cas::quadratic_line_search`** + **`scirs2-optimize::symbolic::line_search`** — closed-form quadratic line-search step (`cas/quadratic_line_search.rs`, 329 LoC + `scirs2-optimize/src/symbolic/line_search.rs`, 204 LoC): `closed_form_step(f, x_vars, direction) -> Result<LoweredOp>` computes α* = −(∇f·d)/(dᵀHd) symbolically; `SymbolicLineSearch::new + eval` in scirs2-optimize wraps it for per-iteration use; 7+2 tests; `LineSearchError::DegenerateDirection` when dᵀHd canonicalizes to zero
+
+- **Phase 3 facades** (`scirs2-integrate`, `scirs2-neural`):
+  - `scirs2-integrate::eml::discover_ode_from_trajectory` — `OdeDiscoveryConfig` builder (max_complexity, population_size, n_generations) wrapping `regression::discover_ode`; 4 integration tests
+  - `scirs2-neural::symbolic::init_weights_from_formula` — least-squares weight initialization from a `LoweredOp` formula onto a `Linear` layer via `scirs2-linalg::lstsq` on a sample grid; 4 tests
+  - `scirs2-neural::symbolic::extract_formula_from_mlp` — SR oracle wrapper: query model on grid, run `regression::discover` on outputs, return top-N `DiscoveredFormula`s; 3 tests
+
+- **Doctest fix**: `cas::cse_dag` example updated from `values[&key]` (wrong — returns `Result`) to `values.expect("eval_all should succeed")[&key]`
+
+#### Wave 69 — scirs2-linalg symbolic extensions + reversible CAS (2026-05-05)
+
+**scirs2-linalg — symbolic module expansion:**
+- `symbolic::recognize`: detects Scalar / Diagonal / LowRankUpdate / Circulant / General structure via canonical-hash comparison; `inverse_by_structure` dispatches Sherman-Morrison for rank-1 updates and element-wise inversion for diagonal; 8 tests; 615 LoC (`recognize.rs`)
+- `symbolic::expm`: `expm_symbolic_2x2` and `expm_symbolic_3x3` wrapping `cas::matrix_exp` Wave-68 CAS primitives; diagonal fast path via `expm_diag_*`; `ExpmSymbolicError::{WrongSize,NotSquare,CubicRootSymbolic}`; 26 tests; 538 LoC (`expm.rs`)
+- `symbolic::spectral`: `eigenvalues_circulant` builds λₖ = Σⱼ cⱼ·cos(2πjk/n) as `LoweredOp`; `eigenpairs_symmetric_2x2` wraps `cas::spectral_2x2`; `structured_eigenvalues` dispatches by detected `StructureKind`; LowRankUpdate eigenvalues via matrix-determinant lemma; 7 tests; 430 LoC (`spectral.rs`)
+- Flat `symbolic.rs` was converted to `symbolic/` directory module (done prior in commit `031ec1375`)
+
+**scirs2-symbolic — reversible CAS trace:**
+- `cas::reversible`: `RewriteStep` + `RewriteTrace` + `canonicalize_traced` — records each batch-pass through the canonicalize fixed-point loop; `is_fully_reversible()` + `reverse()` for step-back navigation; `reverse()` returns `Some(initial)` on empty traces and `None` on irreversible (constant-folding) passes; 8 tests; 413 LoC
+
+**Quality Gate (Wave 69):**
+- scirs2-symbolic: 846 tests (was 838, +8 reversible-CAS)
+- scirs2-linalg (symbolic feature): 1896 lib tests (was 1879+, +41 new Wave-69 tests across recognize/expm/spectral)
+- Phase 1: 12/13, Phase 2: 15/15, Phase 3: 14/12+ (linalg complete), Phase 4: 8/N
+- 0 clippy warnings on all touched crates
+
+#### Wave 70 — Phase 3 cross-crate integrations + Phase 4 Risch-LITE (2026-05-05)
+
+**scirs2-symbolic — Phase 4 Risch-LITE rational integration (Track 1):**
+- `cas::integrate_rational`: `try_integrate(op, var_idx)` + `integrate_polynomial(coeffs)` symbolically integrate `P(x)/Q(x)` where `P` and `Q` have literal (Const) coefficients; degree-2 denominators dispatch to partial fractions (real distinct roots / repeated root / complex conjugate pair); polynomial long division for improper rationals; iterative traversal; results canonicalized via `cas::canonicalize`; `IntegrateRationalError::{DenominatorDegreeTooHigh, SymbolicCoefficientsInDenominator, NumeratorDegreeTooHigh, ZeroDenominator, NotARationalFunction, InternalError}`; depends on `cas::solve::as_polynomial` (now `pub(crate)`); 16 tests covering `∫1/x = ln|x|`, `∫1/(x²+1) = atan(x)`, `∫x/(x²+1) = ½·ln(x²+1)`, `∫1/(x²-1)` real partial fractions, `∫1/(x-1)²` repeated roots, polynomial+rational mixed, symbolic-coefficient rejection; 860 LoC
+
+**scirs2-symbolic — Phase 3 distribution catalogs (Track 2):**
+- `cas::moments_catalog`: `symbolic_moments_catalog(family) -> Result<MomentsCatalog, MomentsError>` returns `MomentsCatalog { family, mean, variance, mgf: Option<LoweredOp> }` with all entries canonicalized; supports Normal `(μ, σ)`, Exponential `(λ)`, Bernoulli `(p)`, Geometric `(p)` under the `P(X=k) = p·(1-p)^k` convention (so `E[X] = (1-p)/p`), Uniform `(a, b)`; Uniform `mgf` returned as `None` because the closed form `(eᵗᵇ − eᵗᵃ)/(t·(b-a))` requires a `t=0` case split that real-EML IR cannot express; `MgfDoesNotExist`/`UnsupportedFamily` errors; 8 tests; 308 LoC
+- `cas::expected_fisher_catalog`: `expected_fisher_catalog(family, n_samples) -> Result<Vec<Vec<LoweredOp>>, ExpectedFisherError>` returns the per-sample Fisher information matrix scaled by `n_samples`, with each entry canonicalized; closed forms for Normal `diag(n/σ², 2n/σ²)`, Exponential `n/λ²`, Bernoulli `n/(p(1-p))`, Geometric; Uniform rejected with `UnsupportedFamily` because boundary-determined support violates the standard regularity conditions (interchange of differentiation and integration); 4 tests; 209 LoC
+
+**scirs2-symbolic — Phase 3 Hamiltonian conservation (Track 3):**
+- `cas::noether_conservation`: `poisson_bracket_1dof(h, f, q_idx, p_idx)` and `poisson_bracket_ndof(h, f, q_indices, p_indices)` build the canonical Poisson bracket `{H, f} = Σᵢ (∂H/∂qᵢ · ∂f/∂pᵢ − ∂H/∂pᵢ · ∂f/∂qᵢ)` symbolically (uses `eml::grad` + `cas::canonicalize`); `check_conservation_1dof` / `check_conservation_ndof` return a `ConservationCheck { poisson_bracket, is_conserved }` where `is_conserved == true` when the canonicalized bracket reduces to `Const(c)` with `|c| < 1e-15`; `first_integrals_1dof(h, candidates)` filters a candidate list to those that commute with H; iterative traversal; `NoetherError::DimensionMismatch`; 10 tests verifying harmonic oscillator H conservation (`{H, H} = 0`), free-particle momentum conservation, anharmonic oscillator H conservation but momentum non-conservation, 2-DOF angular momentum `L_z = q₁·p₂ − q₂·p₁` conservation, free-particle position non-conservation; 480 LoC
+
+**scirs2-neural — Phase 3 closed-form RoPE attention (Track 5):**
+- `scirs2-neural::symbolic::rope_attention`: `rope_attention_logit(d_head, theta_base) -> Result<RopeAttentionSymbolic, RopeAttentionError>` constructs a closed-form `LoweredOp` for the RoPE-rotated query-key dot product `Σᵢ [(q_{2i}·k_{2i} + q_{2i+1}·k_{2i+1})·cos((m-n)·θᵢ) + (q_{2i+1}·k_{2i} − q_{2i}·k_{2i+1})·sin((m-n)·θᵢ)]` with `θᵢ = theta_base^(−2i / d_head)`, demonstrating that the logit depends **only** on the relative position `(m − n)`; variable layout `Var(0)` = relative position, `Var(1+4i)..Var(4+4i)` = (q_{2i}, q_{2i+1}, k_{2i}, k_{2i+1}); result canonicalized; `OddDimension`/`DimensionTooLarge(>256)`/`InvalidBase(≤1.0)` errors; `RopeVarMap` + `build_vars` helper to populate `EvalCtx`; 9 tests verifying d=2 single-pair structural shape, d=4 two-pair shape, numerical equivalence to dense RoPE attention via `eml::eval_real`, canonicalize idempotency, relative-position-only dependence (logit invariant under (m,n) → (m+k, n+k)), pair-count scaling for various `d_head`; 419 LoC
+
+**scirs2-symbolic internal — `cas::solve` visibility:**
+- Five polynomial-arithmetic helper fns (`as_polynomial`, `poly_add`, `poly_sub`, `poly_mul`, `strip_trailing_zeros`) bumped from private to `pub(crate)` to support `cas::integrate_rational` (consumes `as_polynomial`) and reserved for future polynomial-rewrite consumers. No public-API surface change.
+
+**Quality Gate (Wave 70):**
+- scirs2-symbolic: **865 tests** passing (`cargo nextest run -p scirs2-symbolic --all-features`); 0 clippy warnings (`cargo clippy -p scirs2-symbolic --all-features -- -D warnings`)
+- scirs2-neural: **1795 tests** passing (`cargo nextest run -p scirs2-neural --all-features`); 0 clippy warnings (`cargo clippy -p scirs2-neural --all-features -- -D warnings`)
+- New test fns added in Wave 70: 38 in scirs2-symbolic (16 + 8 + 4 + 10) + 9 in scirs2-neural rope_attention = **47 total**
+- `cargo check --workspace --all-features`: 0 errors, 24 pre-existing FFI-safety warnings in `patches/pathfinder_simd-0.5.6/` (vendored upstream, unrelated)
+- Cycle-prevention CI gate (`scripts/check-no-symbolic-in-core.sh`): PASS
+- Phase 1: 12/13, Phase 2: 15/15, Phase 3: 18/12+ (Wave 70 adds moments + Fisher + Noether + RoPE), Phase 4: 9/N (Wave 70 adds Risch-LITE)
+- New LoC across 5 files: 2,276 (860 + 308 + 209 + 480 + 419)
+
+#### Wave 71: GPU Pure-Rust wgpu Wiring
+- **scirs2-special `wgpu_kernels` feature**: new optional feature `wgpu_kernels = ["dep:wgpu", "dep:pollster"]` wires real wgpu dispatch for `gamma_batch_wgpu`, `erf_batch_wgpu`, `bessel_j0_batch_wgpu` via `scirs2_core::gpu::backends::WebGPUContext`; adds `LGAMMA_WGSL` shader + `lgamma_batch_wgpu` for log-gamma batch evaluation; all functions fall back gracefully (`GpuNotAvailable`) when feature is off or no adapter is present; integration test file `tests/gpu_wgpu_dispatch.rs` (5 tests, feature-gated)
+- **scirs2-core elementwise wgpu parity**: filled in WGSL compute shaders for `ElementwiseSub`, `ElementwiseMul`, `ElementwiseDiv`, `ElementwisePow`, `ElementwiseSqrt`, `ElementwiseExp`, `ElementwiseLog` kernels; registry-path wgpu now covers all common elementwise ops; `webgpu_compute_smoke` smoke tests extended with WGSL-compilation verification
+- **scirs2-transform `GpuPCA`**: `GpuPCA::fit/transform/fit_transform` now delegtes to `reduction::PCA` (CPU SVD); no longer returns `NotImplementedError`; 18 functional tests verify component shape, monotone explained variance, pre-fit error guard, fit_transform/fit+transform agreement
+
+#### Wave 72: GPU wgpu — erfc/erfinv kernels, FFT multi-pass dispatch, stats batch GPU
+- **scirs2-special `erfc` / `erfinv` GPU kernels**: `ERFC_WGSL` (A&S-based complementary erf with hard clamp at |x|>6) and `ERFINV_WGSL` (Winitzki 2008 rational approximation with `max()` guards for the singularity at |x|→1) added to `gpu_kernels/wgsl.rs`; `erfc_batch_wgpu` and `erfinv_batch_wgpu` re-exported from `gpu_kernels/mod.rs` and wired through `batch_erfc`/`batch_erfinv` in `gpu_dispatch.rs`; 2 additional integration tests in `tests/gpu_wgpu_dispatch.rs`
+- **scirs2-fft `fft_wgpu()` real dispatch**: replaced `NotImplemented` stub with a full multi-pass Cooley-Tukey radix-2 DIT wgpu dispatch — CPU bit-reverse permutation, complex64→vec2<f32> upload, uniform `FFTParams` buffer updated per stage, `ceil(n/2/64)` workgroup dispatch, staging-buffer readback, 1/n inverse scale; graceful adapter-missing skip; roundtrip test + non-power-of-two rejection test
+- **scirs2-stats GPU module** (`src/gpu/mod.rs`): four WGSL compute shaders (`NORMAL_LOG_PDF_WGSL`, `NORMAL_CDF_WGSL`, `EXPONENTIAL_LOG_PDF_WGSL`, `EXPONENTIAL_CDF_WGSL`) with Abramowitz & Stegun erf approximation (max error ≈ 1.5×10⁻⁷) for CDF; `dispatch_with_params_f32` shared 3-binding dispatch helper; `MIN_GPU_SIZE = 1024` threshold — arrays shorter than 1024 always take the CPU (f64-precision) path; public API: `normal_log_pdf_batch`, `normal_cdf_batch`, `exponential_log_pdf_batch`, `exponential_cdf_batch`; `gpu` and `gpu_wgpu` feature flags; all 2493 tests pass with `--features gpu_wgpu`
+
+### Changed
+- `scirs2-symbolic` workspace crate version bumped to 0.4.4
+
+### Workspace
+- Added `oxiz = "0.2.1"` to `[workspace.dependencies]` (Pure Rust SMT solver, behind `smt` feature)
+- Added `num-rational = "0.4.2"` to `[workspace.dependencies]` (f64 → Rational64 for OxiZ encoding)
+- Added `hashbrown = "0.17"` to `[workspace.dependencies]` (hash-cons pool)
+- Added `wgpu`, `pollster`, `bytemuck` workspace deps (optional, behind `gpu` feature)
+
+### Fixed
+- N/A — v0.4.4 is purely additive; no regressions in existing crates
+
+### Quality Gate
+- `cargo check --workspace --all-features`: PASS (0 errors, 0 warnings)
+- `cargo clippy --workspace --all-features -- -D warnings`: PASS (0 warnings on touched crates; 4 pre-existing `needless_borrows_for_generic_args` in `scirs2-autograd/benches/simd_ops_bench.rs` are independent of our changes)
+- scirs2-symbolic: **838 tests passing** (`cargo test -p scirs2-symbolic --features "serde,smt,parallel,jit"`) — was 759 pre-Wave-68 baseline, was 743 pre-Wave-67 baseline, was 735 pre-Wave-66 baseline, was 722 pre-Wave-64 baseline, was 702 pre-Wave-61 baseline, was 564 pre-Wave-59 baseline, was 66 pre-Wave-53 baseline
+- scirs2-symbolic clippy: 0 warnings with `--features "serde,smt,parallel,jit"`
+- scirs2-symbolic-wasm standalone: 15 tests pass (native target); standalone crate at `scirs2-symbolic/wasm/`
+- scirs2-autograd (with symbolic feature): 1,190 tests passing
+- Phase 1: 12/13 complete (FSReD benchmark deferred — needs PySR/Julia toolchain)
+- Phase 2: 15/15 complete (closed by Wave 67)
+- Phase 3: 16/12+ complete (Wave 68 adds line-search, discover_ode facade, SR-as-prior, formula extraction)
+- Phase 4: 7 research items landed (inverse_symbolic, matrix_ops, matrix_exp, spectral_2x2, mle_catalog, observed_fisher, quadratic_line_search)
+- scirs2-optimize symbolic: 37 integration tests pass (`cargo test -p scirs2-optimize --features symbolic --test '*'`) — Newton (6) + KKT (6) + L-BFGS (4) + trust-region (4) + line_search (2) + others
+- scirs2-integrate symbolic: 88 integration tests pass (`cargo test -p scirs2-integrate --features symbolic --test '*'`)
+- scirs2-neural symbolic: 39 integration tests pass (`cargo test -p scirs2-neural --features symbolic --test '*'`)
+- All 4 physics examples (`pendulum`, `harmonic_oscillator`, `lorenz`, `physics_pipeline`) build and run cleanly
+- No-unwrap policy: PASS in all production code paths
+- Cycle-prevention CI gate (`scripts/check-no-symbolic-in-core.sh`): PASS
+
 ## [0.4.3] - 2026-05-03
 
 ### Added

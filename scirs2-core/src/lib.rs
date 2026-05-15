@@ -116,7 +116,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-core = { version = "0.4.3", features = ["simd", "parallel"] }
+//! scirs2-core = { version = "0.4.4", features = ["simd", "parallel"] }
 //! ```
 //!
 //! ### SIMD Operations
@@ -360,7 +360,7 @@
 //!
 //! ## 🔒 Version
 //!
-//! Current version: **0.4.3**
+//! Current version: **0.4.4**
 //!
 //! ## 📚 Examples
 //!
@@ -650,6 +650,10 @@ pub use crate::memory_efficient::{
 // Re-export the parallel memory-mapped array capabilities
 #[cfg(all(feature = "memory_efficient", feature = "parallel"))]
 pub use crate::memory_efficient::MemoryMappedChunksParallel;
+
+// Re-export NUMA-locality par_map_chunks at crate root
+#[cfg(feature = "parallel")]
+pub use crate::parallel::numa::par_map_chunks;
 
 #[cfg(feature = "array")]
 pub use crate::array::{

@@ -1,8 +1,9 @@
-//! Support for various data formats (Parquet, Arrow, HDF5)
+//! Support for various data formats (Parquet, Arrow, HDF5, CSV)
 //!
 //! This module provides integration with scirs2-io for reading and writing
 //! datasets in modern columnar formats like Parquet and Arrow, as well as
-//! scientific formats like HDF5, with memory-efficient streaming support.
+//! scientific formats like HDF5 and plain CSV, with memory-efficient
+//! streaming support.
 //!
 //! ## Parquet conventions
 //!
@@ -18,6 +19,16 @@
 //! the optional target (if present) is stored under `<dataset_name>_target`.
 //! On read, the `<dataset_name>` dataset provides the feature matrix; a
 //! companion `<dataset_name>_target` dataset (if present) becomes the target.
+//!
+//! ## CSV conventions
+//!
+//! The first row is treated as a header containing column names.  A column
+//! named `__target__` (the same sentinel used by Parquet) is loaded as the
+//! target vector; all other columns form the feature matrix (all values must
+//! be parseable as `f64`).  Fields that contain a comma, newline, or
+//! double-quote are wrapped in double-quotes on write; internal double-quotes
+//! are escaped as `""`.  Lines beginning with `#` (after optional leading
+//! whitespace) and completely blank lines are skipped on read.
 
 #[cfg(feature = "formats")]
 use crate::error::{DatasetsError, Result};
@@ -519,6 +530,435 @@ impl Default for Hdf5Writer {
 }
 
 // ============================================================================
+// CSV Support
+// ============================================================================
+
+/// Configuration for CSV reading/writing.
+#[derive(Debug, Clone)]
+pub struct CsvConfig {
+    /// Whether the first non-blank, non-comment row is a header.
+    /// Default: `true`.
+    pub has_header: bool,
+    /// Character delimiter between fields. Default: `','`.
+    pub delimiter: char,
+    /// Number of significant decimal digits to use when writing f64 values.
+    /// Default: `17` (enough for a lossless round-trip).
+    pub float_precision: usize,
+}
+
+impl Default for CsvConfig {
+    fn default() -> Self {
+        Self {
+            has_header: true,
+            delimiter: ',',
+            float_precision: 17,
+        }
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Low-level CSV text helpers (not feature-gated; used only inside
+// `#[cfg(feature = "formats")]` functions, but declared unconditionally so
+// tests in the `#[cfg(test)]` block can reach them without the feature).
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Commit a completed row into the output table.
+///
+/// Decides whether the row is the header or a data row, skips blank and
+/// comment rows, then appends the row to the appropriate collection.
+///
+/// Returns the updated `first_row` flag.
+fn commit_row(
+    current_field: &mut String,
+    current_row: &mut Vec<String>,
+    out_headers: &mut Vec<String>,
+    out_rows: &mut Vec<Vec<String>>,
+    has_header: bool,
+    first_row: bool,
+) -> bool {
+    // Finalise the pending field.
+    let last_field = current_field.clone();
+    current_field.clear();
+    current_row.push(last_field);
+
+    let is_comment = current_row
+        .first()
+        .map(|f| f.trim_start().starts_with('#'))
+        .unwrap_or(false);
+
+    let is_blank = current_row.iter().all(|f| f.is_empty());
+
+    let new_first_row = if !is_blank && !is_comment {
+        if first_row && has_header {
+            *out_headers = current_row.clone();
+            false
+        } else {
+            out_rows.push(current_row.clone());
+            false
+        }
+    } else {
+        first_row
+    };
+
+    current_row.clear();
+    new_first_row
+}
+
+/// Parse a CSV string into a table of `String` cells.
+///
+/// - Lines beginning with `#` (after optional leading whitespace) are skipped.
+/// - Completely blank lines are skipped.
+/// - Fields enclosed in `"..."` may contain the delimiter and literal `\n`;
+///   internal double-quotes are escaped as `""`.
+///
+/// Returns `(headers, rows)` where `headers` is populated only when
+/// `has_header` is `true` and at least one non-blank line exists.
+pub(crate) fn parse_csv_text(
+    text: &str,
+    has_header: bool,
+    delimiter: char,
+) -> (Vec<String>, Vec<Vec<String>>) {
+    // Single-pass character-level state machine so that multi-line quoted
+    // fields work correctly.
+    let mut out_headers: Vec<String> = Vec::new();
+    let mut out_rows: Vec<Vec<String>> = Vec::new();
+
+    let mut current_field = String::new();
+    let mut current_row: Vec<String> = Vec::new();
+    let mut in_quotes = false;
+    // `first_row` tracks whether the next content row is the first one
+    // (which becomes the header when `has_header` is true).
+    let mut first_row = true;
+
+    let chars: Vec<char> = text.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+
+    while i < len {
+        let ch = chars[i];
+
+        if in_quotes {
+            if ch == '"' {
+                if i + 1 < len && chars[i + 1] == '"' {
+                    // Escaped double-quote inside a quoted field.
+                    current_field.push('"');
+                    i += 2;
+                } else {
+                    // Closing quote.
+                    in_quotes = false;
+                    i += 1;
+                }
+            } else {
+                // All characters (including newlines) are literal inside quotes.
+                current_field.push(ch);
+                i += 1;
+            }
+        } else {
+            if ch == '"' {
+                in_quotes = true;
+                i += 1;
+            } else if ch == delimiter {
+                current_row.push(current_field.clone());
+                current_field.clear();
+                i += 1;
+            } else if ch == '\n' {
+                first_row = commit_row(
+                    &mut current_field,
+                    &mut current_row,
+                    &mut out_headers,
+                    &mut out_rows,
+                    has_header,
+                    first_row,
+                );
+                i += 1;
+            } else if ch == '\r' {
+                // Skip carriage returns (Windows CRLF).
+                i += 1;
+            } else {
+                current_field.push(ch);
+                i += 1;
+            }
+        }
+    }
+
+    // Handle text that does not end with a newline.
+    if !current_row.is_empty() || !current_field.is_empty() {
+        commit_row(
+            &mut current_field,
+            &mut current_row,
+            &mut out_headers,
+            &mut out_rows,
+            has_header,
+            first_row,
+        );
+    }
+
+    (out_headers, out_rows)
+}
+
+/// Encode a field for CSV output, wrapping in quotes when necessary.
+///
+/// A field must be quoted if it contains the delimiter, a double-quote, or a
+/// newline.  Internal double-quotes are doubled.
+pub(crate) fn csv_encode_field(field: &str, delimiter: char) -> String {
+    let needs_quoting = field.contains(delimiter)
+        || field.contains('"')
+        || field.contains('\n')
+        || field.contains('\r');
+
+    if needs_quoting {
+        let escaped = field.replace('"', "\"\"");
+        format!("\"{escaped}\"")
+    } else {
+        field.to_owned()
+    }
+}
+
+/// Render a table of string rows into a CSV string.
+///
+/// `headers` may be empty (no header row emitted in that case).
+/// Each row is terminated by `\n`.
+pub(crate) fn format_csv_rows(headers: &[String], rows: &[Vec<String>], delimiter: char) -> String {
+    let mut out = String::new();
+
+    if !headers.is_empty() {
+        let encoded: Vec<String> = headers
+            .iter()
+            .map(|h| csv_encode_field(h, delimiter))
+            .collect();
+        out.push_str(&encoded.join(&delimiter.to_string()));
+        out.push('\n');
+    }
+
+    for row in rows {
+        let encoded: Vec<String> = row.iter().map(|f| csv_encode_field(f, delimiter)).collect();
+        out.push_str(&encoded.join(&delimiter.to_string()));
+        out.push('\n');
+    }
+
+    out
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Dataset ↔ CSV adapters
+// ──────────────────────────────────────────────────────────────────────────
+
+/// Read a CSV file into a [`Dataset`].
+///
+/// See the [module-level docs](self) for the column-naming conventions.
+#[cfg(feature = "formats")]
+fn read_dataset_csv<P: AsRef<Path>>(path: P, config: &CsvConfig) -> Result<Dataset> {
+    use std::fs;
+
+    let text = fs::read_to_string(path)
+        .map_err(|e| DatasetsError::InvalidFormat(format!("CSV read error: {e}")))?;
+
+    let (headers, rows) = parse_csv_text(&text, config.has_header, config.delimiter);
+
+    // Determine column names: use headers when available, otherwise synthesise.
+    // We need to know the number of columns; take it from the first data row
+    // if headers is empty.
+    let n_cols = if !headers.is_empty() {
+        headers.len()
+    } else if let Some(first) = rows.first() {
+        first.len()
+    } else {
+        // Completely empty file or only comments/blanks.
+        return Err(DatasetsError::InvalidFormat(
+            "CSV file is empty or contains only comments".to_string(),
+        ));
+    };
+
+    // Determine which columns are feature columns and which is the target.
+    let col_names: Vec<String> = if !headers.is_empty() {
+        headers.clone()
+    } else {
+        (0..n_cols).map(|i| format!("feature_{i}")).collect()
+    };
+
+    let target_col_idx: Option<usize> = col_names.iter().position(|n| n == PARQUET_TARGET_COLUMN);
+
+    let feat_indices: Vec<usize> = (0..n_cols).filter(|&i| Some(i) != target_col_idx).collect();
+
+    let feat_names: Vec<String> = feat_indices.iter().map(|&i| col_names[i].clone()).collect();
+
+    let n_features = feat_indices.len();
+    let n_rows = rows.len();
+
+    // Parse data — we support an empty table (header only), returning a
+    // zero-row Dataset.
+    let mut flat: Vec<f64> = Vec::with_capacity(n_rows * n_features);
+    let mut target_vals: Vec<f64> = Vec::with_capacity(n_rows);
+
+    for (row_idx, row) in rows.iter().enumerate() {
+        // Validate column count.
+        if row.len() != n_cols {
+            return Err(DatasetsError::InvalidFormat(format!(
+                "CSV row {} has {} fields, expected {}",
+                row_idx + 1,
+                row.len(),
+                n_cols
+            )));
+        }
+
+        // Parse feature columns.
+        for &col_idx in &feat_indices {
+            let s = row[col_idx].trim();
+            let v = s.parse::<f64>().map_err(|e| {
+                DatasetsError::InvalidFormat(format!(
+                    "CSV cell at row {}, col {} is not numeric ('{s}'): {e}",
+                    row_idx + 1,
+                    col_idx
+                ))
+            })?;
+            flat.push(v);
+        }
+
+        // Parse target column when present.
+        if let Some(t_idx) = target_col_idx {
+            let s = row[t_idx].trim();
+            let v = s.parse::<f64>().map_err(|e| {
+                DatasetsError::InvalidFormat(format!(
+                    "CSV target cell at row {} is not numeric ('{s}'): {e}",
+                    row_idx + 1,
+                ))
+            })?;
+            target_vals.push(v);
+        }
+    }
+
+    let data = if n_rows == 0 {
+        Array2::zeros((0, n_features))
+    } else {
+        Array2::from_shape_vec((n_rows, n_features), flat).map_err(|e| {
+            DatasetsError::InvalidFormat(format!("Failed to shape CSV feature matrix: {e}"))
+        })?
+    };
+
+    let target: Option<Array1<f64>> = if target_col_idx.is_some() && !target_vals.is_empty() {
+        Some(Array1::from_vec(target_vals))
+    } else {
+        None
+    };
+
+    let mut ds = Dataset::new(data, target);
+    ds.featurenames = Some(feat_names);
+    Ok(ds)
+}
+
+/// Write a [`Dataset`] to a CSV file.
+///
+/// Feature columns are named from `featurenames` (or synthesised as
+/// `feature_N`). The optional target column is stored as `__target__`.
+#[cfg(feature = "formats")]
+fn write_dataset_csv<P: AsRef<Path>>(dataset: &Dataset, path: P, config: &CsvConfig) -> Result<()> {
+    use std::fs;
+    use std::io::Write;
+
+    let col_names = feature_column_names(dataset);
+    let n_rows = dataset.n_samples();
+    let n_feats = dataset.n_features();
+    let has_target = dataset.target.is_some();
+    let prec = config.float_precision;
+    let delim = config.delimiter;
+
+    // Build header row.
+    let mut headers: Vec<String> = col_names;
+    if has_target {
+        headers.push(PARQUET_TARGET_COLUMN.to_string());
+    }
+
+    // Build data rows.
+    let mut data_rows: Vec<Vec<String>> = Vec::with_capacity(n_rows);
+    for row_idx in 0..n_rows {
+        let mut fields: Vec<String> = (0..n_feats)
+            .map(|col_idx| format!("{:.prec$e}", dataset.data[[row_idx, col_idx]], prec = prec))
+            .collect();
+        if let Some(target) = &dataset.target {
+            fields.push(format!("{:.prec$e}", target[row_idx], prec = prec));
+        }
+        data_rows.push(fields);
+    }
+
+    let csv_text = format_csv_rows(&headers, &data_rows, delim);
+
+    let mut file = fs::File::create(path)
+        .map_err(|e| DatasetsError::InvalidFormat(format!("CSV create error: {e}")))?;
+    file.write_all(csv_text.as_bytes())
+        .map_err(|e| DatasetsError::InvalidFormat(format!("CSV write error: {e}")))?;
+    file.flush()
+        .map_err(|e| DatasetsError::InvalidFormat(format!("CSV flush error: {e}")))?;
+
+    Ok(())
+}
+
+/// CSV reader for datasets.
+#[cfg(feature = "formats")]
+pub struct CsvReader {
+    config: CsvConfig,
+}
+
+#[cfg(feature = "formats")]
+impl CsvReader {
+    /// Create a new CSV reader with default configuration.
+    pub fn new() -> Self {
+        Self {
+            config: CsvConfig::default(),
+        }
+    }
+
+    /// Create a CSV reader with custom configuration.
+    pub fn with_config(config: CsvConfig) -> Self {
+        Self { config }
+    }
+
+    /// Read a CSV file into a [`Dataset`].
+    pub fn read<P: AsRef<Path>>(&self, path: P) -> Result<Dataset> {
+        read_dataset_csv(path, &self.config)
+    }
+}
+
+#[cfg(feature = "formats")]
+impl Default for CsvReader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// CSV writer for datasets.
+#[cfg(feature = "formats")]
+pub struct CsvWriter {
+    config: CsvConfig,
+}
+
+#[cfg(feature = "formats")]
+impl CsvWriter {
+    /// Create a new CSV writer with default configuration.
+    pub fn new() -> Self {
+        Self {
+            config: CsvConfig::default(),
+        }
+    }
+
+    /// Create a CSV writer with custom configuration.
+    pub fn with_config(config: CsvConfig) -> Self {
+        Self { config }
+    }
+
+    /// Write a [`Dataset`] to a CSV file.
+    pub fn write<P: AsRef<Path>>(&self, dataset: &Dataset, path: P) -> Result<()> {
+        write_dataset_csv(dataset, path, &self.config)
+    }
+}
+
+#[cfg(feature = "formats")]
+impl Default for CsvWriter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
 // Format Conversion
 // ============================================================================
 
@@ -549,11 +989,7 @@ impl FormatConverter {
         let dataset = match input_format {
             FormatType::Parquet => ParquetReader::new().read(input_path)?,
             FormatType::Hdf5 => Hdf5Reader::new().read(input_path, "data")?,
-            FormatType::Csv => {
-                return Err(DatasetsError::InvalidFormat(
-                    "CSV reading via format converter not yet implemented".to_string(),
-                ))
-            }
+            FormatType::Csv => CsvReader::new().read(input_path)?,
             FormatType::Arrow => {
                 return Err(DatasetsError::InvalidFormat(
                     "Arrow format not yet supported".to_string(),
@@ -565,11 +1001,7 @@ impl FormatConverter {
         match output_format {
             FormatType::Parquet => ParquetWriter::new().write(&dataset, output_path)?,
             FormatType::Hdf5 => Hdf5Writer::new().write(&dataset, output_path, "data")?,
-            FormatType::Csv => {
-                return Err(DatasetsError::InvalidFormat(
-                    "CSV writing via format converter not yet implemented".to_string(),
-                ))
-            }
+            FormatType::Csv => CsvWriter::new().write(&dataset, output_path)?,
             FormatType::Arrow => {
                 return Err(DatasetsError::InvalidFormat(
                     "Arrow format not yet supported".to_string(),
@@ -593,7 +1025,8 @@ impl FormatConverter {
         match format {
             FormatType::Parquet => ParquetReader::new().read(path),
             FormatType::Hdf5 => Hdf5Reader::new().read(path, "data"),
-            _ => Err(DatasetsError::InvalidFormat(format!(
+            FormatType::Csv => CsvReader::new().read(path),
+            FormatType::Arrow => Err(DatasetsError::InvalidFormat(format!(
                 "Unsupported format: {:?}",
                 format
             ))),
@@ -640,6 +1073,18 @@ pub fn write_hdf5<P: AsRef<Path>>(dataset: &Dataset, path: P, dataset_name: &str
 #[cfg(feature = "formats")]
 pub fn read_auto<P: AsRef<Path>>(path: P) -> Result<Dataset> {
     FormatConverter::new().read_auto(path)
+}
+
+/// Read a CSV file into a [`Dataset`] using the default [`CsvConfig`].
+#[cfg(feature = "formats")]
+pub fn read_csv<P: AsRef<Path>>(path: P) -> Result<Dataset> {
+    CsvReader::new().read(path)
+}
+
+/// Write a [`Dataset`] to a CSV file using the default [`CsvConfig`].
+#[cfg(feature = "formats")]
+pub fn write_csv<P: AsRef<Path>>(dataset: &Dataset, path: P) -> Result<()> {
+    CsvWriter::new().write(dataset, path)
 }
 
 #[cfg(test)]
@@ -834,6 +1279,189 @@ mod tests {
         // The no-hdf5-feature path also creates a sidecar JSON.
         let sidecar = format!("{}.json", tmp.to_string_lossy());
         let _ = std::fs::remove_file(&sidecar);
+    }
+
+    // -----------------------------------------------------------------------
+    // CSV round-trip and correctness tests
+    // -----------------------------------------------------------------------
+
+    /// Low-level: parse_csv_text basic smoke test (no feature gate needed).
+    #[test]
+    fn test_csv_parse_roundtrip_strings() {
+        // Headers + 3 data rows.
+        let text = "a,b,c\n1,2,3\n4,5,6\n7,8,9\n";
+        let (headers, rows) = parse_csv_text(text, true, ',');
+        assert_eq!(headers, ["a", "b", "c"]);
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0], ["1", "2", "3"]);
+        assert_eq!(rows[2], ["7", "8", "9"]);
+    }
+
+    /// Low-level: quoted field containing a comma survives the round-trip.
+    #[test]
+    fn test_csv_quoted_field_with_comma() {
+        // Build a row where one field contains a comma.
+        let original_field = "hello, world";
+        let headers = vec!["phrase".to_string(), "num".to_string()];
+        let rows = vec![vec![original_field.to_string(), "42".to_string()]];
+        let csv_text = format_csv_rows(&headers, &rows, ',');
+
+        // The generated text must quote the comma-containing field.
+        assert!(csv_text.contains('"'), "expected quoting in: {csv_text:?}");
+
+        // Parse it back.
+        let (h2, r2) = parse_csv_text(&csv_text, true, ',');
+        assert_eq!(h2, ["phrase", "num"]);
+        assert_eq!(r2.len(), 1);
+        assert_eq!(r2[0][0], original_field, "quoted field not preserved");
+        assert_eq!(r2[0][1], "42");
+    }
+
+    /// Low-level: comment lines and blank lines are skipped.
+    #[test]
+    fn test_csv_skip_comments_and_blanks() {
+        let text = "# file-level comment\n\nx,y\n# row comment\n1,2\n\n3,4\n";
+        let (headers, rows) = parse_csv_text(text, true, ',');
+        assert_eq!(headers, ["x", "y"]);
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0], ["1", "2"]);
+        assert_eq!(rows[1], ["3", "4"]);
+    }
+
+    /// Dataset round-trip: write 3-column 5-row CSV, read back, verify values.
+    #[cfg(feature = "formats")]
+    #[test]
+    fn test_csv_dataset_roundtrip_3col_5row() {
+        use scirs2_core::ndarray::Array2;
+
+        let vals: Vec<f64> = (0..15).map(|x| x as f64 * 1.1).collect();
+        let data = Array2::from_shape_vec((5, 3), vals).expect("shape");
+        let ds = Dataset::new(data.clone(), None);
+
+        let mut tmp = std::env::temp_dir();
+        tmp.push("scirs2_test_csv_roundtrip_3col_5row.csv");
+
+        write_csv(&ds, &tmp).expect("csv write");
+        let recovered = read_csv(&tmp).expect("csv read");
+
+        assert_eq!(recovered.n_samples(), 5, "n_samples mismatch");
+        assert_eq!(recovered.n_features(), 3, "n_features mismatch");
+        assert!(recovered.target.is_none());
+
+        for row in 0..5 {
+            for col in 0..3 {
+                let expected = data[[row, col]];
+                let actual = recovered.data[[row, col]];
+                assert!(
+                    (expected - actual).abs() < 1e-10,
+                    "mismatch at [{row},{col}]: expected {expected}, got {actual}"
+                );
+            }
+        }
+
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    /// Dataset round-trip: quoted field (target name is the sentinel).
+    /// This test exercises write + read of the `__target__` column.
+    #[cfg(feature = "formats")]
+    #[test]
+    fn test_csv_dataset_roundtrip_with_target() {
+        use scirs2_core::ndarray::{Array1, Array2};
+
+        let data =
+            Array2::from_shape_vec((3, 2), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]).expect("shape");
+        let target = Some(Array1::from_vec(vec![0.0, 1.0, 0.0]));
+        let ds = Dataset::new(data.clone(), target.clone());
+
+        let mut tmp = std::env::temp_dir();
+        tmp.push("scirs2_test_csv_roundtrip_with_target.csv");
+
+        write_csv(&ds, &tmp).expect("csv write");
+        let recovered = read_csv(&tmp).expect("csv read");
+
+        assert_eq!(recovered.n_samples(), 3);
+        assert_eq!(recovered.n_features(), 2);
+        assert!(
+            recovered.target.is_some(),
+            "target missing after CSV round-trip"
+        );
+
+        let rtarget = recovered.target.as_ref().expect("target");
+        assert_eq!(rtarget.len(), 3);
+        for (i, (&e, &a)) in target
+            .as_ref()
+            .expect("target")
+            .iter()
+            .zip(rtarget.iter())
+            .enumerate()
+        {
+            assert!(
+                (e - a).abs() < 1e-10,
+                "target mismatch at [{i}]: expected {e}, got {a}"
+            );
+        }
+
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    /// Float precision: values round-trip within 1e-10.
+    #[cfg(feature = "formats")]
+    #[test]
+    fn test_csv_float_precision() {
+        use scirs2_core::ndarray::Array2;
+
+        // Use values that cannot be represented exactly in decimal with few
+        // digits, to exercise the full-precision write path.
+        let vals = vec![
+            std::f64::consts::PI,
+            std::f64::consts::E,
+            1.0 / 3.0,
+            1.0 / 7.0,
+            std::f64::consts::SQRT_2,
+            0.1 + 0.2, // classic floating-point non-representable sum
+        ];
+        let data = Array2::from_shape_vec((2, 3), vals.clone()).expect("shape");
+        let ds = Dataset::new(data, None);
+
+        let mut tmp = std::env::temp_dir();
+        tmp.push("scirs2_test_csv_float_precision.csv");
+
+        write_csv(&ds, &tmp).expect("csv write");
+        let recovered = read_csv(&tmp).expect("csv read");
+
+        assert_eq!(recovered.n_samples(), 2);
+        assert_eq!(recovered.n_features(), 3);
+
+        for (idx, &original) in vals.iter().enumerate() {
+            let row = idx / 3;
+            let col = idx % 3;
+            let got = recovered.data[[row, col]];
+            assert!(
+                (original - got).abs() < 1e-10,
+                "float precision failure at [{row},{col}]: original={original}, got={got}"
+            );
+        }
+
+        let _ = std::fs::remove_file(&tmp);
+    }
+
+    /// Empty / header-only CSV: must not panic; returns zero-row Dataset.
+    #[cfg(feature = "formats")]
+    #[test]
+    fn test_csv_header_only_no_panic() {
+        let mut tmp = std::env::temp_dir();
+        tmp.push("scirs2_test_csv_header_only.csv");
+
+        // Write a header-only CSV manually.
+        std::fs::write(&tmp, "feature_0,feature_1,feature_2\n").expect("write header-only csv");
+
+        let recovered = read_csv(&tmp).expect("csv read must not fail on header-only input");
+        assert_eq!(recovered.n_samples(), 0, "expected zero rows");
+        assert_eq!(recovered.n_features(), 3, "expected 3 feature columns");
+        assert!(recovered.target.is_none());
+
+        let _ = std::fs::remove_file(&tmp);
     }
 
     /// Write a Dataset with target to HDF5 and read it back.

@@ -20,6 +20,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 # Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
 scirs2-core = { workspace = true, features = ["parallel", "array", "random"] }
+scirs2-symbolic = { workspace = true, optional = true }
 approx = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true }
@@ -49,7 +50,7 @@ parallel = [] # Parallel processing support
 # v0.2.0 features
 gpu = ["scirs2-core/gpu"]  # GPU acceleration support
 higher_order = []  # Higher-order derivatives (Hessian, etc.)
-symbolic = []  # Symbolic differentiation
+symbolic = ["dep:scirs2-symbolic"]  # Symbolic differentiation via scirs2-symbolic EML
 distributed = []  # Distributed training support
 v0_2_0 = ["gpu", "higher_order", "symbolic", "distributed"]
 
@@ -97,6 +98,11 @@ harness = false
 [[bench]]
 name = "pytorch_comparison"
 harness = false
+
+[[bench]]
+name = "eml_vs_tape"
+harness = false
+required-features = ["symbolic"]
 
 [lib]
 doctest = true

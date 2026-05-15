@@ -105,3 +105,33 @@
 - GMRES recycled Krylov was substantially rewritten Feb 26, 2026; regression tests cover Poisson/convection-diffusion but not all corner cases
 - Quantization-aware operations in `quantization/` need benchmarks comparing to GGML/bitsandbytes reference
 - Control theory module (`control/`) lacks integration tests against MATLAB/Octave reference values
+
+---
+
+## Wave 72 — Einstein summation engine (2026-05-06)
+
+- [x] **General tensor contraction (Einstein summation engine)** (completed 2026-05-07)
+  - **Goal:** Fill the two stubs at `scirs2-linalg/src/autograd/tensor_algebra.rs:249` and `:509` with a real Einstein-summation implementation.
+  - **Design:** `pub fn einsum(eq: &str, ops: &[ArrayViewD<f64>]) -> Result<ArrayD<f64>, EinsumError>` and gradient pass `pub fn einsum_grad(eq: &str, grad_out: ArrayViewD<f64>, ops: &[ArrayViewD<f64>]) -> Vec<ArrayD<f64>>`. Equation parser: tokenise on `","` and `"->"`. Build index-correspondence table: output shape from output indices, summation indices = union − output. Iterate output cells with nested loops over summation indices. Shortcuts: 2-operand binary contraction → general_dot when eq matches "ij,jk->ik"; diagonal "ii->i" and trace "ii->" get dedicated paths. Multi-operand: sequence pairwise, smallest-intermediate-first. Gradient: standard einsum rule, swap op[k] indices into output position. v0.4.4 scope: arbitrary-rank, no-ellipsis-broadcasting-mismatch; ellipsis "...ij,...jk->...ik" for same-batch-size operands.
+  - **Files:** `scirs2-linalg/src/autograd/tensor_algebra.rs` (fill stubs, add private helpers); `scirs2-linalg/src/autograd/mod.rs` (re-export `einsum`, `einsum_grad`, `EinsumError`).
+  - **Prerequisites:** existing `general_dot` / `kron` / `swapaxes` in autograd.
+  - **Tests:** ≥8 in `tests/tensor_algebra_einsum_tests.rs`: einsum("ij,jk->ik",A,B)==A.dot(B); trace "ii->"; diagonal "ii->i"; Frobenius "ij,ij->"; 3-operand sequential matmul to 1e-12; rank-3 batched matmul shape; ellipsis batch; autograd gradient vs numerical to 1e-8.
+  - **Risk:** Edge case "ii" self-contraction. Mitigation: explicit detection + dedicated path.
+
+## Wave 74 — Autograd factorizations n×n (2026-05-08)
+
+- [~] **Autodiff backward passes for general n×n factorizations** (planned 2026-05-08)
+  - **Goal:** Replace the six "not yet implemented in autodiff for n > 2" error returns in `autograd/factorizations.rs:48,246,421`, `autograd/special.rs:44,281,562`, `autograd/transformations.rs:115`, `autograd/batch.rs:547` with full implementations. Foundation primitives for normalizing flows (matrix-square-root Jacobian), GP marginal-likelihood (log-det Cholesky), least-squares heads (pseudo-inverse).
+  - **Design:** Six derivations from Murray (2016) "Differentiation of the Cholesky decomposition" / Giles (2008):
+    1. **LU backward** (`factorizations.rs:48`): `dA = L⁻ᵀ · phi(L^T · dL · L^(-T) - U · dU · U⁻¹) · L⁻ᵀ + L · dU · U⁻¹` where `phi(M)` zeros above-diagonal entries; two triangular solves O(n³).
+    2. **QR backward** (`factorizations.rs:246`): `dA = (dQ + Q · phi(M^T - M)) · R⁻ᵀ` where `M = R · dR^T - dQ^T · Q`.
+    3. **Cholesky backward** (`factorizations.rs:421`): Murray 2016: `dA = ½ · L⁻ᵀ · phi(L^T · dL + L^T · dL^T) · L⁻¹` where `phi` symmetrises and zeros below-diagonal.
+    4. **Pseudo-inverse backward** (`special.rs:44`): SVD-regularized when `cond(A) > 1e10`.
+    5. **Matrix square-root backward** (`special.rs:281`): Sylvester-equation `S · dA + dA · S = ds` via existing Bartels-Stewart.
+    6. **Matrix log backward** (`special.rs:562`): Padé approximation chained with Schur-based forward `logm`.
+  - **Batch dimension** (`batch.rs:547`): rayon `for_each` parallelism on independent sample-wise backward passes.
+  - **Files:** `scirs2-linalg/src/autograd/factorizations.rs`, `scirs2-linalg/src/autograd/special.rs`, `scirs2-linalg/src/autograd/transformations.rs`, `scirs2-linalg/src/autograd/batch.rs`, `scirs2-linalg/src/autograd/mod.rs`, `scirs2-linalg/TODO.md`.
+  - **Prerequisites:** existing `solve_triangular`, `solve_sylvester`, `logm`, `sqrtm` forward; existing autograd tape.
+  - **Tests:** ≥ 12 in `scirs2-linalg/tests/autograd_factorizations_nxn_tests.rs` including `lu_backward_3x3_random` (fd-grad ≤ 1e-7), `qr_backward_thin_5x3`, `cholesky_backward_5x5_spd`, `pinv_backward_overdetermined_5x3`, `sqrtm_backward_4x4_general`, `logm_backward_3x3_via_pade`, `batch_lift_5_x_3x3_lu_consistent`.
+  - **Risk:** Numerical stability of pinv for ill-conditioned matrices; mitigated by SVD regularization. Sylvester sqrtm needs Bartels-Stewart 2×2 block fix (Feb 26, 2026 patch — verify conjugate-pair eigenvalues).
+  - **Status (2026-05-08, partial / deviated):** Math delivered as standalone reference functions in `tests/autograd_factorizations_nxn_tests.rs` (12 tests, FD-validated to ≤ 1e-4 on ill-conditioned cases, ≤ 1e-6 on well-conditioned). **Tape integration deferred:** `src/autograd/{factorizations,special,transformations,batch,tensor_algebra}.rs` are dead/orphan files — they reference an old `Tensor<F>` API with public `.data`/`.requires_grad`/`.node` fields that no longer exists in `scirs2-autograd::tensor::Tensor<'graph, F>`. `mod.rs` shadows them with empty `pub mod X {}` placeholders since at least Wave 53. Re-enabling them produces 562 build errors. The "stub error returns" the goal asks to replace are unreachable. Future wave: rewrite the autograd module against the current `Op`-trait API and call into the reference math. Item left `[~]`.

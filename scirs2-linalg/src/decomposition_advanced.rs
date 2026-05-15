@@ -51,32 +51,55 @@ where
 {
     let (m, n) = (a.nrows(), a.ncols());
 
-    // For now, handle only square matrices
-    if m != n {
-        return Err(LinalgError::NotImplementedError(
-            "Jacobi SVD currently only supports square matrices".to_string(),
-        ));
+    // For wide matrices (m < n): transpose, delegate to tall path, swap U<->V.
+    if m < n {
+        let at = a.t().to_owned();
+        // at is n×m (tall), SVD: at = U_t · diag(s) · Vt_t
+        // => a = Vt_t^T · diag(s) · U_t^T
+        let (u_t, s, vt_t) = jacobi_svd(&at.view(), max_iterations, tolerance)?;
+        // U of a = Vt_t^T (shape n→m for wide)... but we want thin:
+        // U (m×m), s (m), Vt (m×n)
+        // u_t is n×m, vt_t is m×m
+        // U of a = Vt_t^T → m×m;  Vt of a = U_t^T → m×n
+        let u_of_a = vt_t.t().to_owned();
+        let vt_of_a = u_t.t().to_owned();
+        return Ok((u_of_a, s, vt_of_a));
     }
 
-    // Initialize U and V as identity matrices
-    let mut u = Array2::eye(m);
-    let mut v = Array2::eye(n);
-    let mut b = a.to_owned();
+    // For m >= n (square or tall matrix).
+    // Strategy: use normal equations A^T·A (n×n symmetric PSD) for the tall case.
+    // The two-sided symmetric Jacobi diagonalizes symmetric matrices correctly.
+    // A^T·A = V · diag(s²) · V^T  →  A = U · diag(s) · V^T with U = A·V·diag(1/s).
+    let (b_sym, is_tall) = if m == n {
+        // Square: apply Jacobi directly to A.
+        (a.to_owned(), false)
+    } else {
+        // Tall (m > n): form n×n Gram matrix A^T·A.
+        let ata = a.t().dot(a);
+        (ata, true)
+    };
 
-    // Jacobi rotation _iterations
+    // ---- two-sided symmetric Jacobi on b_sym (always n×n) ----
+    let sq = b_sym.nrows(); // == n
+                            // Initialize U and V as identity matrices
+    let mut u = Array2::eye(sq);
+    let mut v = Array2::eye(sq);
+    let mut b = b_sym;
+
+    // Jacobi rotation iterations — b and u/v are all sq×sq.
     for _iter in 0..max_iterations {
         let mut max_off_diag = A::zero();
         let mut p = 0;
-        let mut q = 0;
+        let mut q_idx = 0;
 
         // Find the largest off-diagonal element
-        for i in 0..n {
-            for j in (i + 1)..n {
+        for i in 0..sq {
+            for j in (i + 1)..sq {
                 let val = b[[i, j]].abs() + b[[j, i]].abs();
                 if val > max_off_diag {
                     max_off_diag = val;
                     p = i;
-                    q = j;
+                    q_idx = j;
                 }
             }
         }
@@ -88,79 +111,117 @@ where
 
         // Compute the rotation angle
         let app = b[[p, p]];
-        let aqq = b[[q, q]];
-        let apq = b[[p, q]];
-        let aqp = b[[q, p]];
+        let aqq = b[[q_idx, q_idx]];
+        let apq = b[[p, q_idx]];
+        let aqp = b[[q_idx, p]];
 
         // For symmetric part
         let theta = if (app - aqq).abs() < A::epsilon() {
-            A::from(std::f64::consts::PI / 4.0).expect("Operation failed")
+            A::from(std::f64::consts::PI / 4.0).ok_or_else(|| {
+                LinalgError::ComputationError("Float conversion failed".to_string())
+            })?
         } else {
-            ((apq + aqp) / (app - aqq)).atan() * A::from(0.5).expect("Operation failed")
+            ((apq + aqp) / (app - aqq)).atan()
+                * A::from(0.5).ok_or_else(|| {
+                    LinalgError::ComputationError("Float conversion failed".to_string())
+                })?
         };
 
         let c = theta.cos();
-        let s = theta.sin();
+        let s_rot = theta.sin();
 
         // Apply Givens rotation from left: B' = G^T * B
-        for j in 0..n {
+        for j in 0..sq {
             let bpj = b[[p, j]];
-            let bqj = b[[q, j]];
-            b[[p, j]] = c * bpj + s * bqj;
-            b[[q, j]] = -s * bpj + c * bqj;
+            let bqj = b[[q_idx, j]];
+            b[[p, j]] = c * bpj + s_rot * bqj;
+            b[[q_idx, j]] = -s_rot * bpj + c * bqj;
         }
 
         // Apply Givens rotation from right: B'' = B' * G
-        for i in 0..m {
+        for i in 0..sq {
             let bip = b[[i, p]];
-            let biq = b[[i, q]];
-            b[[i, p]] = c * bip + s * biq;
-            b[[i, q]] = -s * bip + c * biq;
+            let biq = b[[i, q_idx]];
+            b[[i, p]] = c * bip + s_rot * biq;
+            b[[i, q_idx]] = -s_rot * bip + c * biq;
         }
 
-        // Update U: U' = U * G
-        for i in 0..m {
+        // Update U_sq: U' = U * G
+        for i in 0..sq {
             let uip = u[[i, p]];
-            let uiq = u[[i, q]];
-            u[[i, p]] = c * uip + s * uiq;
-            u[[i, q]] = -s * uip + c * uiq;
+            let uiq = u[[i, q_idx]];
+            u[[i, p]] = c * uip + s_rot * uiq;
+            u[[i, q_idx]] = -s_rot * uip + c * uiq;
         }
 
         // Update V: V' = V * G
-        for i in 0..n {
+        for i in 0..sq {
             let vip = v[[i, p]];
-            let viq = v[[i, q]];
-            v[[i, p]] = c * vip + s * viq;
-            v[[i, q]] = -s * vip + c * viq;
+            let viq = v[[i, q_idx]];
+            v[[i, p]] = c * vip + s_rot * viq;
+            v[[i, q_idx]] = -s_rot * vip + c * viq;
         }
     }
 
-    // Extract singular values and ensure they're positive
-    let mut s = Array1::zeros(n);
-    for i in 0..n {
-        s[i] = b[[i, i]].abs();
+    // Extract singular values from the diagonal of the (now near-diagonal) b matrix.
+    // For the square case, b_ii are the singular values directly.
+    // For the tall case (Gram matrix A^T·A), b_ii are eigenvalues (s²), so take sqrt.
+    let mut s_vec = Array1::zeros(sq);
+    for i in 0..sq {
+        let raw = b[[i, i]].abs();
+        s_vec[i] = if is_tall { raw.sqrt() } else { raw };
     }
 
-    // Sort singular values in descending order
-    let mut indices: Vec<usize> = (0..n).collect();
-    indices.sort_by(|&i, &j| s[j].partial_cmp(&s[i]).expect("Operation failed"));
+    // Sort singular values in descending order.
+    let mut indices: Vec<usize> = (0..sq).collect();
+    indices.sort_by(|&i, &j| {
+        s_vec[j]
+            .partial_cmp(&s_vec[i])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
-    // Reorder singular values, U, and V
-    let mut s_sorted = Array1::zeros(n);
-    let mut u_sorted = Array2::zeros((m, n));
-    let mut v_sorted = Array2::zeros((n, n));
+    // Reorder singular values, U_sq, and V.
+    let mut s_sorted = Array1::zeros(sq);
+    let mut u_sq_sorted = Array2::zeros((sq, sq));
+    let mut v_sorted = Array2::zeros((sq, sq));
 
     for (new_idx, &old_idx) in indices.iter().enumerate() {
-        s_sorted[new_idx] = s[old_idx];
-        for i in 0..m {
-            u_sorted[[i, new_idx]] = u[[i, old_idx]];
-        }
-        for i in 0..n {
+        s_sorted[new_idx] = s_vec[old_idx];
+        for i in 0..sq {
+            u_sq_sorted[[i, new_idx]] = u[[i, old_idx]];
             v_sorted[[i, new_idx]] = v[[i, old_idx]];
         }
     }
 
-    Ok((u_sorted, s_sorted, v_sorted.t().to_owned()))
+    // For the symmetric Gram-matrix (tall) path, the "U" from Jacobi is not U of A.
+    // We accumulated V (right singular vectors of A^T·A = right singular vectors of A).
+    // Singular values of A are sqrt of eigenvalues of A^T·A.
+    // Left singular vectors: u_i = A · v_i / s_i.
+    let u_final = if is_tall {
+        // v_sorted columns are the right singular vectors of A.
+        // Compute U = A · V · diag(1/s)
+        let mut u_lift = Array2::zeros((m, sq));
+        for j in 0..sq {
+            let sj = s_sorted[j];
+            if sj > A::epsilon() {
+                let vj = v_sorted.column(j);
+                let av_j = a.dot(&vj);
+                for i in 0..m {
+                    u_lift[[i, j]] = av_j[i] / sj;
+                }
+            }
+            // If s_j ≈ 0, leave the corresponding column as zero (orthogonalize later
+            // if needed, but for reconstruction accuracy it doesn't matter).
+        }
+        // Convert s_sorted from sqrt-eigenvalue to actual singular values.
+        // (They already are: we took sqrt below when extracting from A^T·A diagonal.)
+        u_lift
+    } else {
+        // Square case: U is directly u_sq_sorted.
+        u_sq_sorted
+    };
+
+    Ok((u_final, s_sorted, v_sorted.t().to_owned()))
 }
 
 /// Polar decomposition of a matrix
@@ -380,6 +441,79 @@ mod tests {
     use super::*;
     use approx::assert_abs_diff_eq;
     use scirs2_core::ndarray::array;
+
+    /// Helper: verify A == U * diag(s) * Vt within `eps`.
+    fn check_svd_reconstruction(
+        a: &scirs2_core::ndarray::ArrayView2<f64>,
+        u: &Array2<f64>,
+        s: &Array1<f64>,
+        vt: &Array2<f64>,
+        eps: f64,
+    ) {
+        let s_diag = Array2::from_diag(s);
+        let reconstructed = u.dot(&s_diag).dot(vt);
+        for i in 0..a.nrows() {
+            for j in 0..a.ncols() {
+                assert_abs_diff_eq!(reconstructed[[i, j]], a[[i, j]], epsilon = eps);
+            }
+        }
+    }
+
+    #[test]
+    fn test_jacobi_svd_3x2_tall() {
+        // Tall 3×2 matrix — exercises QR-then-Jacobi path.
+        let a = array![[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]];
+        let (u, s, vt) = jacobi_svd(&a.view(), 200, 1e-12).expect("jacobi_svd 3x2 failed");
+
+        // Dimensions: U is 3×2, s has 2 values, Vt is 2×2.
+        assert_eq!(u.shape(), &[3, 2]);
+        assert_eq!(s.len(), 2);
+        assert_eq!(vt.shape(), &[2, 2]);
+
+        // Singular values must be positive and sorted.
+        assert!(s[0] >= s[1] && s[1] >= 0.0);
+
+        // U must have orthonormal columns: U^T U = I_2.
+        let utu = u.t().dot(&u);
+        assert_abs_diff_eq!(utu[[0, 0]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(utu[[0, 1]], 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(utu[[1, 0]], 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(utu[[1, 1]], 1.0, epsilon = 1e-10);
+
+        // Vt must be orthogonal: Vt Vt^T = I_2.
+        let vvt = vt.dot(&vt.t());
+        assert_abs_diff_eq!(vvt[[0, 0]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(vvt[[0, 1]], 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(vvt[[1, 0]], 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(vvt[[1, 1]], 1.0, epsilon = 1e-10);
+
+        // Reconstruction: A == U diag(s) Vt.
+        check_svd_reconstruction(&a.view(), &u, &s, &vt, 1e-10);
+    }
+
+    #[test]
+    fn test_jacobi_svd_2x3_wide() {
+        // Wide 2×3 matrix — exercises transpose-delegate path.
+        let a = array![[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
+        let (u, s, vt) = jacobi_svd(&a.view(), 200, 1e-12).expect("jacobi_svd 2x3 failed");
+
+        // Dimensions: U is 2×2, s has 2 values, Vt is 2×3.
+        assert_eq!(u.shape(), &[2, 2]);
+        assert_eq!(s.len(), 2);
+        assert_eq!(vt.shape(), &[2, 3]);
+
+        // Singular values must be positive and sorted.
+        assert!(s[0] >= s[1] && s[1] >= 0.0);
+
+        // U orthogonality.
+        let utu = u.t().dot(&u);
+        assert_abs_diff_eq!(utu[[0, 0]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(utu[[1, 1]], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(utu[[0, 1]], 0.0, epsilon = 1e-10);
+
+        // Reconstruction.
+        check_svd_reconstruction(&a.view(), &u, &s, &vt, 1e-10);
+    }
 
     #[test]
     fn test_jacobi_svd_2x2() {

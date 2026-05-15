@@ -3,9 +3,9 @@
 //! This module bridges `scirs2-datasets` distributed infrastructure to the
 //! production-grade primitives in `scirs2_core::distributed`:
 //!
-//! - [`par_map`] / [`par_fold`] from `scirs2_core::distributed::par_iter` —
+//! - `par_map` / `par_fold` from `scirs2_core::distributed::par_iter` —
 //!   lightweight OS-thread parallel iterators that need no async runtime.
-//! - [`distributed_map`] / [`distributed_map_reduce`] from
+//! - `distributed_map` / `distributed_map_reduce` from
 //!   `scirs2_core::distributed::primitives` — a `WorkerPool`-backed parallel
 //!   map / map-reduce with result-order preservation.
 //!

@@ -9,7 +9,7 @@
 //! |--------|-------------|
 //! | [`tensor_utils`] | Core [`Tensor3D`] type, mode unfolding/folding, Khatri-Rao product, mode-n product |
 //! | [`parafac`]      | PARAFAC/CP decomposition via ALS and regularised ALS |
-//! | [`hosvd`]        | Higher-Order SVD (HOSVD) and Higher-Order Orthogonal Iteration (HOOI) |
+//! | `hosvd`          | Higher-Order SVD (HOSVD) and Higher-Order Orthogonal Iteration (HOOI) |
 //! | [`tucker`]       | Tucker decomposition via HOOI and core consistency diagnostic |
 //! | [`tensor_train`] | Tensor Train (TT-SVD), rounding, addition, Hadamard product, inner product |
 //!

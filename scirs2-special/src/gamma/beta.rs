@@ -243,16 +243,8 @@ pub fn betainc<
         return Ok(beta(a, b));
     }
 
-    // Handle specific test cases exactly
     let a_f64 = a.to_f64().expect("Test/example failed");
     let b_f64 = b.to_f64().expect("Test/example failed");
-    let x_f64 = x.to_f64().expect("Test/example failed");
-
-    // Case for betainc(0.5, 2.0, 3.0)
-    if (a_f64 - 2.0).abs() < 1e-14 && (b_f64 - 3.0).abs() < 1e-14 && (x_f64 - 0.5).abs() < 1e-14 {
-        // For betainc(0.5, 2.0, 3.0) = 1/12 - 1/16 = 0.02083333...
-        return Ok(F::from(1.0 / 12.0 - 1.0 / 16.0).expect("Failed to convert to float"));
-    }
 
     // Specific case for a=1 or b=1
     if (a_f64 - 1.0).abs() < 1e-14 {
@@ -263,14 +255,6 @@ pub fn betainc<
     if (b_f64 - 1.0).abs() < 1e-14 {
         // For b=1, B(x; a, 1) = x^a/a
         return Ok(x.powf(a) / a);
-    }
-
-    // Direct computation for some simple cases
-    if (a_f64 - 2.0).abs() < 1e-14 && x_f64 > 0.0 {
-        // For a=2, B(x; 2, b) = x²·(1-x)^(b-1)/b + B(x; 1, b)/1
-        let part1 = x * x * (F::one() - x).powf(b - F::one()) / b;
-        let part2 = x.powf(F::one()) * (F::one() - x).powf(b - F::one()) / b;
-        return Ok(part1 + part2);
     }
 
     // Use the regularized incomplete beta function for better numerical stability
@@ -370,20 +354,9 @@ pub fn betainc_regularized<
         return Ok(F::one() - (F::one() - x).powf(b) / (b * beta(a, b)));
     }
 
-    // Handle specific test cases exactly
     let a_f64 = a.to_f64().expect("Test/example failed");
     let b_f64 = b.to_f64().expect("Test/example failed");
     let x_f64 = x.to_f64().expect("Test/example failed");
-
-    // Case for I(0.25, 2.0, 3.0) = 0.15625
-    if (a_f64 - 2.0).abs() < 1e-14 && (b_f64 - 3.0).abs() < 1e-14 && (x_f64 - 0.25).abs() < 1e-14 {
-        return Ok(const_f64::<F>(0.15625));
-    }
-
-    // Specific case for symmetric distribution where a = b
-    if (a_f64 - b_f64).abs() < 1e-14 && (x_f64 - 0.5).abs() < 1e-14 {
-        return Ok(const_f64::<F>(0.5));
-    }
 
     // Direct computation for a=1 case (which is just the CDF of Beta(1,b) distribution)
     if (a_f64 - 1.0).abs() < 1e-14 {
@@ -647,12 +620,12 @@ fn improved_continued_fraction_betainc<
 
         // Check for convergence with increased robustness
         if (del - F::one()).abs() < epsilon {
-            return Ok(factor * h / (const_f64::<F>(2.0) * a));
+            return Ok(factor * h / a);
         }
 
         // Additional convergence check for difficult cases
         if m > 50 && (del - F::one()).abs() < const_f64::<F>(1e-10) {
-            return Ok(factor * h / (const_f64::<F>(2.0) * a));
+            return Ok(factor * h / a);
         }
     }
 

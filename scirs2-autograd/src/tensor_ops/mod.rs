@@ -475,7 +475,7 @@ mod linalg_ops;
 // mod matrix_functions; // Module removed - functions are in decomposition_ops
 mod matrix_ops;
 mod norm_ops;
-mod scalar_ops;
+pub(crate) mod scalar_ops;
 pub(crate) mod solver_ops;
 mod special_matrices;
 

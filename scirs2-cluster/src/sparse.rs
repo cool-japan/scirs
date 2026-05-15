@@ -408,10 +408,71 @@ where
                     }
                     sum
                 }
-                _ => {
-                    return Err(ClusteringError::InvalidInput(
-                        "Metric not yet supported for sparse KNN".into(),
-                    ));
+                Metric::Chebyshev => {
+                    let mut max_diff = F::zero();
+                    for k in 0..n_features {
+                        let diff = (data[[i, k]] - data[[j, k]]).abs();
+                        if diff > max_diff {
+                            max_diff = diff;
+                        }
+                    }
+                    max_diff
+                }
+                Metric::Cosine => {
+                    let mut dot = F::zero();
+                    let mut norm_i = F::zero();
+                    let mut norm_j = F::zero();
+                    for k in 0..n_features {
+                        let vi = data[[i, k]];
+                        let vj = data[[j, k]];
+                        dot = dot + vi * vj;
+                        norm_i = norm_i + vi * vi;
+                        norm_j = norm_j + vj * vj;
+                    }
+                    let norm_prod = (norm_i * norm_j).sqrt();
+                    if norm_prod
+                        < F::from_f64(1e-10).ok_or_else(|| {
+                            ClusteringError::InvalidInput("float conversion failed".into())
+                        })?
+                    {
+                        F::one()
+                    } else {
+                        F::one() - dot / norm_prod
+                    }
+                }
+                Metric::Correlation => {
+                    let n_f = F::from_usize(n_features).ok_or_else(|| {
+                        ClusteringError::InvalidInput("float conversion failed".into())
+                    })?;
+                    let mut mean_i = F::zero();
+                    let mut mean_j = F::zero();
+                    for k in 0..n_features {
+                        mean_i = mean_i + data[[i, k]];
+                        mean_j = mean_j + data[[j, k]];
+                    }
+                    mean_i = mean_i / n_f;
+                    mean_j = mean_j / n_f;
+
+                    let mut numerator = F::zero();
+                    let mut denom_i = F::zero();
+                    let mut denom_j = F::zero();
+                    for k in 0..n_features {
+                        let di = data[[i, k]] - mean_i;
+                        let dj = data[[j, k]] - mean_j;
+                        numerator = numerator + di * dj;
+                        denom_i = denom_i + di * di;
+                        denom_j = denom_j + dj * dj;
+                    }
+                    let denom = (denom_i * denom_j).sqrt();
+                    if denom
+                        < F::from_f64(1e-10).ok_or_else(|| {
+                            ClusteringError::InvalidInput("float conversion failed".into())
+                        })?
+                    {
+                        F::zero()
+                    } else {
+                        F::one() - numerator / denom
+                    }
                 }
             };
 
@@ -466,10 +527,71 @@ where
                     }
                     sum
                 }
-                _ => {
-                    return Err(ClusteringError::InvalidInput(
-                        "Metric not yet supported for sparse epsilon graph".into(),
-                    ));
+                Metric::Chebyshev => {
+                    let mut max_diff = F::zero();
+                    for k in 0..n_features {
+                        let diff = (data[[i, k]] - data[[j, k]]).abs();
+                        if diff > max_diff {
+                            max_diff = diff;
+                        }
+                    }
+                    max_diff
+                }
+                Metric::Cosine => {
+                    let mut dot = F::zero();
+                    let mut norm_i = F::zero();
+                    let mut norm_j = F::zero();
+                    for k in 0..n_features {
+                        let vi = data[[i, k]];
+                        let vj = data[[j, k]];
+                        dot = dot + vi * vj;
+                        norm_i = norm_i + vi * vi;
+                        norm_j = norm_j + vj * vj;
+                    }
+                    let norm_prod = (norm_i * norm_j).sqrt();
+                    if norm_prod
+                        < F::from_f64(1e-10).ok_or_else(|| {
+                            ClusteringError::InvalidInput("float conversion failed".into())
+                        })?
+                    {
+                        F::one()
+                    } else {
+                        F::one() - dot / norm_prod
+                    }
+                }
+                Metric::Correlation => {
+                    let n_f = F::from_usize(n_features).ok_or_else(|| {
+                        ClusteringError::InvalidInput("float conversion failed".into())
+                    })?;
+                    let mut mean_i = F::zero();
+                    let mut mean_j = F::zero();
+                    for k in 0..n_features {
+                        mean_i = mean_i + data[[i, k]];
+                        mean_j = mean_j + data[[j, k]];
+                    }
+                    mean_i = mean_i / n_f;
+                    mean_j = mean_j / n_f;
+
+                    let mut numerator = F::zero();
+                    let mut denom_i = F::zero();
+                    let mut denom_j = F::zero();
+                    for k in 0..n_features {
+                        let di = data[[i, k]] - mean_i;
+                        let dj = data[[j, k]] - mean_j;
+                        numerator = numerator + di * dj;
+                        denom_i = denom_i + di * di;
+                        denom_j = denom_j + dj * dj;
+                    }
+                    let denom = (denom_i * denom_j).sqrt();
+                    if denom
+                        < F::from_f64(1e-10).ok_or_else(|| {
+                            ClusteringError::InvalidInput("float conversion failed".into())
+                        })?
+                    {
+                        F::zero()
+                    } else {
+                        F::one() - numerator / denom
+                    }
                 }
             };
 
@@ -627,5 +749,124 @@ mod tests {
         assert_eq!(dense[[2, 1]], 3.0); // Symmetric
         assert_eq!(dense[[0, 0]], 0.0); // Diagonal
         assert_eq!(dense[[0, 2]], f64::INFINITY); // Unconnected
+    }
+
+    #[test]
+    fn test_sparse_knn_graph_chebyshev() {
+        // data: 4 points in 2D
+        let data = Array2::from_shape_vec((4, 2), vec![0.0_f64, 0.0, 1.0, 0.0, 0.0, 1.0, 5.0, 5.0])
+            .expect("Shape error");
+
+        let graph = sparse_knn_graph(data.view(), 2, Metric::Chebyshev)
+            .expect("sparse_knn_graph Chebyshev failed");
+        assert!(graph.nnz() > 0, "Chebyshev KNN graph should have edges");
+        // Chebyshev distance between (0,0) and (1,0) is 1.0; should be connected.
+        assert!(
+            graph.get_distance(0, 1) > 0.0,
+            "points 0 and 1 should be neighbours"
+        );
+    }
+
+    #[test]
+    fn test_sparse_knn_graph_cosine() {
+        // Identical direction vectors → cosine distance 0.
+        let data = Array2::from_shape_vec((4, 2), vec![1.0_f64, 0.0, 2.0, 0.0, 0.0, 1.0, 0.0, 3.0])
+            .expect("Shape error");
+
+        let graph = sparse_knn_graph(data.view(), 2, Metric::Cosine)
+            .expect("sparse_knn_graph Cosine failed");
+        assert!(graph.nnz() > 0, "Cosine KNN graph should have edges");
+        // (1,0) and (2,0) have cosine distance 0 → nearest neighbour.
+        assert_eq!(
+            graph.get_distance(0, 1),
+            0.0,
+            "parallel vectors have cosine distance 0"
+        );
+    }
+
+    #[test]
+    fn test_sparse_knn_graph_correlation() {
+        // Perfect positive correlation → correlation distance ≈ 0.
+        let data = Array2::from_shape_vec(
+            (3, 4),
+            vec![
+                1.0_f64, 2.0, 3.0, 4.0, // row 0
+                2.0, 4.0, 6.0, 8.0, // row 1 — perfect positive correlation with row 0
+                4.0, 3.0, 2.0, 1.0, // row 2 — perfect negative correlation with row 0
+            ],
+        )
+        .expect("Shape error");
+
+        let graph = sparse_knn_graph(data.view(), 2, Metric::Correlation)
+            .expect("sparse_knn_graph Correlation failed");
+        assert!(graph.nnz() > 0, "Correlation KNN graph should have edges");
+        // Rows 0 and 1 are perfectly correlated → distance ≈ 0.
+        let d01 = graph.get_distance(0, 1);
+        assert!(
+            d01 < 1e-9,
+            "perfectly correlated rows have correlation distance ≈ 0, got {d01}"
+        );
+    }
+
+    #[test]
+    fn test_sparse_epsilon_graph_chebyshev() {
+        let data = Array2::from_shape_vec((3, 2), vec![0.0_f64, 0.0, 0.8, 0.0, 5.0, 5.0])
+            .expect("Shape error");
+
+        // epsilon = 1.0 under Chebyshev: distance(0,1) = max(0.8, 0.0) = 0.8 < 1.0 → connected.
+        let graph = sparse_epsilon_graph(data.view(), 1.0, Metric::Chebyshev)
+            .expect("sparse_epsilon_graph Chebyshev failed");
+        assert!(
+            graph.get_distance(0, 1) > 0.0,
+            "points 0 and 1 should be connected under Chebyshev"
+        );
+        // Point 2 is far away → not connected to 0.
+        assert_eq!(
+            graph.get_distance(0, 2),
+            f64::INFINITY,
+            "distant point should be disconnected"
+        );
+    }
+
+    #[test]
+    fn test_sparse_epsilon_graph_cosine() {
+        // Parallel vectors have cosine distance 0 → within any epsilon > 0.
+        let data = Array2::from_shape_vec((3, 2), vec![1.0_f64, 0.0, 2.0, 0.0, 0.0, 1.0])
+            .expect("Shape error");
+
+        let graph = sparse_epsilon_graph(data.view(), 0.5, Metric::Cosine)
+            .expect("sparse_epsilon_graph Cosine failed");
+        // Rows 0 and 1 are parallel (distance 0) → connected.
+        assert!(
+            graph.get_distance(0, 1) < 0.5,
+            "parallel vectors connected under cosine epsilon graph"
+        );
+        // Row 2 is orthogonal to rows 0/1 (distance 1.0) → not connected for epsilon 0.5.
+        assert_eq!(
+            graph.get_distance(0, 2),
+            f64::INFINITY,
+            "orthogonal vector should be disconnected"
+        );
+    }
+
+    #[test]
+    fn test_sparse_epsilon_graph_correlation() {
+        // Perfectly correlated rows: distance ≈ 0 → within epsilon 0.01.
+        let data = Array2::from_shape_vec(
+            (3, 4),
+            vec![
+                1.0_f64, 2.0, 3.0, 4.0, 2.0, 4.0, 6.0, 8.0, 4.0, 3.0, 2.0, 1.0,
+            ],
+        )
+        .expect("Shape error");
+
+        let graph = sparse_epsilon_graph(data.view(), 0.01, Metric::Correlation)
+            .expect("sparse_epsilon_graph Correlation failed");
+        // Rows 0 and 1 are perfectly correlated → distance ≈ 0 < 0.01.
+        let d01 = graph.get_distance(0, 1);
+        assert!(
+            d01 < 0.01,
+            "perfectly correlated rows connected under correlation epsilon graph, got {d01}"
+        );
     }
 }

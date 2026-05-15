@@ -284,7 +284,7 @@ pub struct LanczosResult {
     pub v: Array2<f64>,
     /// Diagonal elements alpha[0..m] of the tridiagonal matrix
     pub alpha: Array1<f64>,
-    /// Off-diagonal elements beta[0..m-1] (beta[j] = T[j+1, j])
+    /// Off-diagonal elements beta\[0..m-1\] (beta\[j\] = T\[j+1, j\])
     pub beta: Array1<f64>,
     /// Actual number of Krylov vectors computed
     pub m: usize,

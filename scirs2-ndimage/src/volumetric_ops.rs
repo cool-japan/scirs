@@ -19,9 +19,9 @@
 //!
 //! * **Order 0** – nearest-neighbour (fast, introduces aliasing)
 //! * **Order 1** – trilinear interpolation (smooth, default)
+//! * **Order 3** – tricubic interpolation (Keys 1981 convolution kernel, a = −0.5)
 //!
-//! Higher-order methods (cubic, etc.) are not yet implemented and will return
-//! `NdimageError::NotImplementedError`.
+//! Orders other than 0, 1, or 3 return `NdimageError::NotImplementedError`.
 //!
 //! # Padding for Resampling
 //!
@@ -103,13 +103,112 @@ fn nearest_neighbor(volume: &Array3<f64>, z: f64, y: f64, x: f64) -> f64 {
     volume[[iz as usize, iy as usize, ix as usize]]
 }
 
+/// Keys cubic convolution kernel weight (a = -0.5, Keys 1981).
+///
+/// Returns the weight for a sample at fractional distance `|d|` from the
+/// target coordinate.  Standard bicubic/tricubic kernel:
+///
+/// ```text
+/// w(d) = (a+2)|d|³ - (a+3)|d|² + 1          for |d| ≤ 1
+/// w(d) = a|d|³ - 5a|d|² + 8a|d| - 4a        for 1 < |d| < 2
+/// w(d) = 0                                   otherwise
+/// ```
+///
+/// With a = −0.5 this matches the common "catmull-rom" approximation.
+#[inline]
+fn keys_weight(d: f64) -> f64 {
+    const A: f64 = -0.5;
+    let t = d.abs();
+    if t <= 1.0 {
+        (A + 2.0) * t * t * t - (A + 3.0) * t * t + 1.0
+    } else if t < 2.0 {
+        A * t * t * t - 5.0 * A * t * t + 8.0 * A * t - 4.0 * A
+    } else {
+        0.0
+    }
+}
+
+/// Fetch a voxel value with clamp-to-edge boundary conditions (integer coordinates).
+///
+/// Out-of-range indices are clamped to the nearest valid voxel, matching the
+/// same boundary convention used by the trilinear helper.
+#[inline]
+fn voxel_clamp(volume: &Array3<f64>, iz: isize, iy: isize, ix: isize) -> f64 {
+    let shape = volume.shape();
+    let (sz, sy, sx) = (shape[0] as isize, shape[1] as isize, shape[2] as isize);
+    let cz = iz.clamp(0, sz - 1) as usize;
+    let cy = iy.clamp(0, sy - 1) as usize;
+    let cx = ix.clamp(0, sx - 1) as usize;
+    volume[[cz, cy, cx]]
+}
+
+/// Tricubic interpolation using the Keys cubic-convolution kernel (4×4×4 support).
+///
+/// Out-of-range neighbors are fetched with clamp-to-edge boundary, matching
+/// the convention of the `trilinear` helper.
+#[inline]
+fn tricubic(volume: &Array3<f64>, z: f64, y: f64, x: f64) -> f64 {
+    let iz0 = z.floor() as isize;
+    let iy0 = y.floor() as isize;
+    let ix0 = x.floor() as isize;
+
+    let dz = z - iz0 as f64;
+    let dy = y - iy0 as f64;
+    let dx = x - ix0 as f64;
+
+    // Weights for 4 samples along each axis (offsets -1, 0, +1, +2 from iz0).
+    let wz = [
+        keys_weight(dz + 1.0),
+        keys_weight(dz),
+        keys_weight(1.0 - dz),
+        keys_weight(2.0 - dz),
+    ];
+    let wy = [
+        keys_weight(dy + 1.0),
+        keys_weight(dy),
+        keys_weight(1.0 - dy),
+        keys_weight(2.0 - dy),
+    ];
+    let wx = [
+        keys_weight(dx + 1.0),
+        keys_weight(dx),
+        keys_weight(1.0 - dx),
+        keys_weight(2.0 - dx),
+    ];
+
+    let mut value = 0.0f64;
+    for kz in 0..4_isize {
+        let gz = wz[kz as usize];
+        if gz == 0.0 {
+            continue;
+        }
+        for ky in 0..4_isize {
+            let gy = wy[ky as usize];
+            if gy == 0.0 {
+                continue;
+            }
+            for kx in 0..4_isize {
+                let gx = wx[kx as usize];
+                if gx == 0.0 {
+                    continue;
+                }
+                let v = voxel_clamp(volume, iz0 - 1 + kz, iy0 - 1 + ky, ix0 - 1 + kx);
+                value += gz * gy * gx * v;
+            }
+        }
+    }
+    value
+}
+
 /// Sample the volume at a continuous coordinate using the specified interpolation order.
 ///
 /// * order 0 → nearest-neighbour (zero-boundary)
 /// * order 1 → trilinear (clamp-to-edge)
+/// * order 3 → tricubic Keys convolution (zero-boundary)
 fn sample(volume: &Array3<f64>, z: f64, y: f64, x: f64, order: usize) -> f64 {
     match order {
         0 => nearest_neighbor(volume, z, y, x),
+        3 => tricubic(volume, z, y, x),
         _ => trilinear(volume, z, y, x),
     }
 }
@@ -128,13 +227,14 @@ fn sample(volume: &Array3<f64>, z: f64, y: f64, x: f64, order: usize) -> f64 {
 ///
 /// * `volume`  - Input volumetric array.
 /// * `factors` - Scale factors `[fz, fy, fx]` (each must be > 0).
-/// * `order`   - Interpolation order: 0 = nearest-neighbour, 1 = trilinear.
-///               Higher orders are not yet supported.
+/// * `order`   - Interpolation order: 0 = nearest-neighbour, 1 = trilinear,
+///               3 = tricubic (Keys 1981 convolution kernel).
+///               Orders other than 0, 1, or 3 are not supported.
 ///
 /// # Errors
 ///
 /// * `NdimageError::InvalidInput` if any factor is ≤ 0.
-/// * `NdimageError::NotImplementedError` if order > 1.
+/// * `NdimageError::NotImplementedError` if order is not 0, 1, or 3.
 ///
 /// # Example
 ///
@@ -155,9 +255,9 @@ pub fn zoom3d(volume: &Array3<f64>, factors: [f64; 3], order: usize) -> NdimageR
             )));
         }
     }
-    if order > 1 {
+    if !matches!(order, 0 | 1 | 3) {
         return Err(NdimageError::NotImplementedError(format!(
-            "zoom3d only supports order 0 or 1, got {}",
+            "zoom3d supports order 0, 1, or 3, got {}",
             order
         )));
     }
@@ -216,11 +316,12 @@ pub fn zoom3d(volume: &Array3<f64>, factors: [f64; 3], order: usize) -> NdimageR
 ///
 /// * `volume` - Input volumetric array.
 /// * `angles` - Euler angles `[rx, ry, rz]` in radians (X, Y, Z rotations).
-/// * `order`  - Interpolation order: 0 = nearest-neighbour, 1 = trilinear.
+/// * `order`  - Interpolation order: 0 = nearest-neighbour, 1 = trilinear,
+///              3 = tricubic (Keys 1981).
 ///
 /// # Errors
 ///
-/// * `NdimageError::NotImplementedError` if order > 1.
+/// * `NdimageError::NotImplementedError` if order is not 0, 1, or 3.
 ///
 /// # Example
 ///
@@ -238,9 +339,9 @@ pub fn rotate3d(
     angles: [f64; 3],
     order: usize,
 ) -> NdimageResult<Array3<f64>> {
-    if order > 1 {
+    if !matches!(order, 0 | 1 | 3) {
         return Err(NdimageError::NotImplementedError(format!(
-            "rotate3d only supports order 0 or 1, got {}",
+            "rotate3d supports order 0, 1, or 3, got {}",
             order
         )));
     }
@@ -323,12 +424,13 @@ pub fn rotate3d(
 ///
 /// * `volume` - Input volumetric array.
 /// * `matrix` - 3×3 or 4×4 affine matrix (output→input mapping).
-/// * `order`  - Interpolation order: 0 = nearest-neighbour, 1 = trilinear.
+/// * `order`  - Interpolation order: 0 = nearest-neighbour, 1 = trilinear,
+///              3 = tricubic (Keys 1981).
 ///
 /// # Errors
 ///
 /// * `NdimageError::InvalidInput` if the matrix is not 3×3 or 4×4.
-/// * `NdimageError::NotImplementedError` if order > 1.
+/// * `NdimageError::NotImplementedError` if order is not 0, 1, or 3.
 ///
 /// # Example
 ///
@@ -354,9 +456,9 @@ pub fn affine_transform3d(
             mshape[0], mshape[1]
         )));
     }
-    if order > 1 {
+    if !matches!(order, 0 | 1 | 3) {
         return Err(NdimageError::NotImplementedError(format!(
-            "affine_transform3d only supports order 0 or 1, got {}",
+            "affine_transform3d supports order 0, 1, or 3, got {}",
             order
         )));
     }
@@ -412,18 +514,20 @@ pub fn affine_transform3d(
 ///
 /// Each output voxel at `(z, y, x)` is sampled from the source at
 /// `(z + shifts[0], y + shifts[1], x + shifts[2])`.  Fractional shifts
-/// are handled by trilinear interpolation (order = 1) or nearest-neighbour
-/// (order = 0).  Voxels shifted outside the volume boundary are set to 0.
+/// are handled by trilinear interpolation (order = 1), nearest-neighbour
+/// (order = 0), or tricubic interpolation (order = 3).  Voxels shifted
+/// outside the volume boundary are set to 0.
 ///
 /// # Arguments
 ///
 /// * `volume` - Input volumetric array.
 /// * `shifts` - Sub-voxel shifts `[dz, dy, dx]` (positive = shift right/down/forward).
-/// * `order`  - Interpolation order: 0 = nearest-neighbour, 1 = trilinear.
+/// * `order`  - Interpolation order: 0 = nearest-neighbour, 1 = trilinear,
+///              3 = tricubic (Keys 1981).
 ///
 /// # Errors
 ///
-/// * `NdimageError::NotImplementedError` if order > 1.
+/// * `NdimageError::NotImplementedError` if order is not 0, 1, or 3.
 ///
 /// # Example
 ///
@@ -436,9 +540,9 @@ pub fn affine_transform3d(
 /// assert_eq!(out.shape(), [6, 6, 6]);
 /// ```
 pub fn shift3d(volume: &Array3<f64>, shifts: [f64; 3], order: usize) -> NdimageResult<Array3<f64>> {
-    if order > 1 {
+    if !matches!(order, 0 | 1 | 3) {
         return Err(NdimageError::NotImplementedError(format!(
-            "shift3d only supports order 0 or 1, got {}",
+            "shift3d supports order 0, 1, or 3, got {}",
             order
         )));
     }
@@ -525,7 +629,7 @@ pub enum PadMode3D {
     /// Mirror-reflect around the boundary.
     Reflect,
     /// Fill with a specified constant (use the `Zero` variant and a pre-filled
-    /// array, or use the helper [`pad3d_constant`] for an arbitrary constant).
+    /// array, or use the helper `pad3d_constant` for an arbitrary constant).
     Constant,
 }
 
@@ -699,7 +803,112 @@ mod tests {
     #[test]
     fn test_zoom3d_unsupported_order() {
         let vol = Array3::<f64>::ones((4, 4, 4));
-        assert!(zoom3d(&vol, [1.0, 1.0, 1.0], 3).is_err());
+        // order 2 is not supported (0, 1, 3 are)
+        assert!(zoom3d(&vol, [1.0, 1.0, 1.0], 2).is_err());
+        assert!(zoom3d(&vol, [1.0, 1.0, 1.0], 5).is_err());
+    }
+
+    // ── cubic interpolation (order = 3) ──────────────────────────────────────
+
+    #[test]
+    fn test_zoom3d_cubic_constant_volume() {
+        // A constant volume should be invariant under any interpolation order.
+        // Use a value that doesn't look like any well-known constant.
+        let fill_val = 1.234_56_f64;
+        let vol = Array3::<f64>::from_elem((6, 6, 6), fill_val);
+        let out = zoom3d(&vol, [1.5, 1.5, 1.5], 3).expect("zoom3d cubic constant");
+        for &v in out.iter() {
+            assert!(
+                (v - fill_val).abs() < 1e-10,
+                "cubic zoom of constant volume should stay constant, got {}",
+                v
+            );
+        }
+    }
+
+    #[test]
+    fn test_zoom3d_cubic_identity_factor() {
+        // zoom by 1.0 with cubic should reproduce the interior exactly.
+        let vol = Array3::<f64>::from_shape_fn((8, 8, 8), |(z, y, x)| (z + y + x) as f64);
+        let out = zoom3d(&vol, [1.0, 1.0, 1.0], 3).expect("zoom3d cubic identity");
+        assert_eq!(out.shape(), vol.shape());
+        // Interior voxels (away from zero-boundary) must match.
+        for iz in 1..7 {
+            for iy in 1..7 {
+                for ix in 1..7 {
+                    assert!(
+                        (out[[iz, iy, ix]] - vol[[iz, iy, ix]]).abs() < 1e-9,
+                        "cubic zoom identity mismatch at [{},{},{}]: {} vs {}",
+                        iz,
+                        iy,
+                        ix,
+                        out[[iz, iy, ix]],
+                        vol[[iz, iy, ix]]
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_shift3d_cubic_zero_shift() {
+        // Zero shift with cubic should be identity on the interior.
+        let vol = Array3::<f64>::from_shape_fn((8, 8, 8), |(z, y, x)| (z * 64 + y * 8 + x) as f64);
+        let out = shift3d(&vol, [0.0, 0.0, 0.0], 3).expect("shift3d cubic zero");
+        for iz in 1..7 {
+            for iy in 1..7 {
+                for ix in 1..7 {
+                    assert!(
+                        (out[[iz, iy, ix]] - vol[[iz, iy, ix]]).abs() < 1e-9,
+                        "cubic zero-shift mismatch at [{},{},{}]",
+                        iz,
+                        iy,
+                        ix
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_rotate3d_cubic_identity_angle() {
+        // Zero rotation with cubic should be identity on the interior.
+        let vol = Array3::<f64>::from_shape_fn((8, 8, 8), |(z, y, x)| (z + y + x) as f64);
+        let out = rotate3d(&vol, [0.0, 0.0, 0.0], 3).expect("rotate3d cubic identity");
+        for iz in 1..7 {
+            for iy in 1..7 {
+                for ix in 1..7 {
+                    assert!(
+                        (out[[iz, iy, ix]] - vol[[iz, iy, ix]]).abs() < 1e-9,
+                        "cubic rotate identity mismatch at [{},{},{}]",
+                        iz,
+                        iy,
+                        ix
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_affine_cubic_identity() {
+        // Identity affine transform with cubic should reproduce the interior.
+        let vol = Array3::<f64>::from_shape_fn((8, 8, 8), |(z, y, x)| (z * 64 + y * 8 + x) as f64);
+        let identity = Array2::eye(4);
+        let out = affine_transform3d(&vol, &identity, 3).expect("affine cubic identity");
+        for iz in 1..7 {
+            for iy in 1..7 {
+                for ix in 1..7 {
+                    assert!(
+                        (out[[iz, iy, ix]] - vol[[iz, iy, ix]]).abs() < 1e-9,
+                        "cubic affine identity mismatch at [{},{},{}]",
+                        iz,
+                        iy,
+                        ix
+                    );
+                }
+            }
+        }
     }
 
     // ── rotate3d ─────────────────────────────────────────────────────────────

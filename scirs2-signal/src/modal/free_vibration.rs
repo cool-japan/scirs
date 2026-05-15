@@ -412,7 +412,7 @@ impl IbrahimTimeDomain {
         }
 
         // Eigendecompose A_sys to get discrete poles
-        let eig_pairs = real_eig_pairs(&a_sys, l)?;
+        let (eig_pairs, eig_vecs) = real_eig_pairs(&a_sys, l)?;
         let ddt = dt as f64 / self.fs;
         let f_max = if self.f_max.is_infinite() {
             self.fs / 2.0
@@ -424,7 +424,7 @@ impl IbrahimTimeDomain {
         let mut damping_ratios = Vec::new();
         let mut mode_shapes = Vec::new();
 
-        for (mu_re, mu_im) in &eig_pairs {
+        for (idx, (mu_re, mu_im)) in eig_pairs.iter().enumerate() {
             if mu_im.abs() < 1e-10 || *mu_im < 0.0 {
                 continue;
             }
@@ -449,8 +449,14 @@ impl IbrahimTimeDomain {
             }
             natural_frequencies.push(fn_hz);
             damping_ratios.push(xi);
-            // Mode shape: use first column of X for this frequency's eigenvector contribution
-            mode_shapes.push(vec![1.0; l]); // placeholder
+            // Mode shape: column k of the eigenvector matrix of the symmetrised system matrix.
+            // Use absolute values so the shape is real-valued and sign-invariant.
+            let shape: Vec<f64> = if idx < eig_vecs.len() {
+                eig_vecs[idx].iter().map(|&v| v.abs()).collect()
+            } else {
+                vec![1.0; l]
+            };
+            mode_shapes.push(shape);
         }
 
         Ok(ITDResult {
@@ -648,8 +654,9 @@ pub fn era(impulse_responses: &Array2<f64>, config: &ERAConfig) -> SignalResult<
         }
     }
 
-    // Eigendecompose A to get poles
-    let eig_pairs = real_eig_pairs(&a_mat, n)?;
+    // Eigendecompose A to get poles (eigenvectors not used here — ERA derives
+    // mode shapes directly from the C matrix)
+    let (eig_pairs, _era_evecs) = real_eig_pairs(&a_mat, n)?;
     let dt = 1.0 / config.fs;
     let f_max = if config.f_max.is_infinite() {
         config.fs / 2.0
@@ -889,50 +896,58 @@ fn jacobi_sym_eig(mat: &[f64], n: usize) -> SignalResult<(Vec<f64>, Vec<Vec<f64>
     Ok((eigenvalues, eigenvectors))
 }
 
-/// Compute eigenvalue pairs (re, im) of a real matrix using QR iteration (via companion).
-fn real_eig_pairs(a: &[f64], n: usize) -> SignalResult<Vec<(f64, f64)>> {
-    // We delegate to the same helper used in ssi.rs
+/// Compute eigenvalue pairs (re, im) and eigenvectors of a real matrix.
+///
+/// Returns `(pairs, eigenvectors)` where `eigenvectors[k]` is the k-th column
+/// eigenvector of the symmetrized matrix `(A + A^T) / 2`.  The eigenvectors
+/// correspond positionally to the eigenvalue pairs.
+///
+/// For n <= 2 the eigenvectors fall back to identity columns (analytical
+/// eigenvalue solver does not produce them).
+fn real_eig_pairs(
+    a: &[f64],
+    n: usize,
+) -> SignalResult<(Vec<(f64, f64)>, Vec<Vec<f64>>)> {
     if a.len() != n * n {
         return Err(SignalError::DimensionMismatch(format!(
             "Matrix size {} != {}*{}", a.len(), n, n
         )));
     }
     if n == 0 {
-        return Ok(vec![]);
+        return Ok((vec![], vec![]));
     }
-    // Build companion matrix is impractical here. Use the real QR approach.
-    // For small n, we can use the power / Jacobi approach on A^T A for magnitudes.
-    // We delegate to a simple Jacobi eigendecomposition (for symmetric case)
-    // and fall back to characteristic polynomial for small matrices.
     if n <= 2 {
-        return small_eig(a, n);
+        let pairs = small_eig(a, n)?;
+        // Identity eigenvectors as fallback for small analytical case
+        let evecs: Vec<Vec<f64>> = (0..n)
+            .map(|k| (0..n).map(|i| if i == k { 1.0 } else { 0.0 }).collect())
+            .collect();
+        return Ok((pairs, evecs));
     }
-    // For larger matrices, use a simplified approach: symmetric eigendecomp of A+A^T / 2
-    // This gives us the real parts of eigenvalues (valid approximation for lightly damped systems)
+    // Symmetric part: (A + A^T) / 2 — gives real parts of eigenvalues
     let mut sym = vec![0.0f64; n * n];
     for i in 0..n {
         for j in 0..n {
             sym[i * n + j] = (a[i * n + j] + a[j * n + i]) / 2.0;
         }
     }
-    let (eigs, _) = jacobi_sym_eig(&sym, n)?;
-    // For the imaginary parts, use A-A^T (skew-symmetric part)
+    let (eigs, evecs) = jacobi_sym_eig(&sym, n)?;
+    // Skew-symmetric part: (A - A^T) / 2 — used to estimate imaginary parts
     let mut skew = vec![0.0f64; n * n];
     for i in 0..n {
         for j in 0..n {
             skew[i * n + j] = (a[i * n + j] - a[j * n + i]) / 2.0;
         }
     }
-    // The imaginary parts are the singular values of the skew part / i
-    // Use a simplified pairing: pair symmetric eigenvalues with skew singular values
-    // This is an approximation; for OMA the dominant effect is the oscillatory part
     let mut pairs: Vec<(f64, f64)> = Vec::with_capacity(n);
     for i in 0..n {
-        // Estimate imaginary part from skew-symmetric row norm
-        let im_est: f64 = (0..n).map(|j| skew[i * n + j] * skew[i * n + j]).sum::<f64>().sqrt();
+        let im_est: f64 = (0..n)
+            .map(|j| skew[i * n + j] * skew[i * n + j])
+            .sum::<f64>()
+            .sqrt();
         pairs.push((eigs[i], im_est));
     }
-    Ok(pairs)
+    Ok((pairs, evecs))
 }
 
 fn small_eig(a: &[f64], n: usize) -> SignalResult<Vec<(f64, f64)>> {

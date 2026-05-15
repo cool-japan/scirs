@@ -35,6 +35,10 @@
 // Public types module
 pub mod types;
 
+// Graph algorithm modules for DAE index reduction
+pub mod bipartite_matching;
+pub mod tarjan_scc;
+
 // Public modules
 pub mod index_reduction;
 pub mod methods;
@@ -65,6 +69,10 @@ pub use self::methods::block_precond::{
 pub use self::index_reduction::{
     DAEStructure, DummyDerivativeReducer, PantelidesReducer, ProjectionMethod,
 };
+
+// Re-export graph algorithm functions
+pub use self::bipartite_matching::{alternating_reachable, find_unmatched_left, hopcroft_karp};
+pub use self::tarjan_scc::{scc_condensation, tarjan_scc};
 
 // Re-export Radau IIA DAE solver
 pub use self::methods::radau::{

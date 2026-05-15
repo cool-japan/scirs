@@ -125,10 +125,10 @@ restoring all multi-channel fusion paths.
 - Transfer learning support for domain-specific segmentation
 
 ### Advanced Texture and Material Analysis
-- Run-length matrix (RLM) features
-- Gray-level size zone matrix (GLSZM)
-- Neighborhood gray-tone difference matrix (NGTDM)
-- Laws' texture energy measures
+- [x] Run-length matrix (RLM) features (implemented — see src/co_occurrence.rs:268)
+- [x] Gray-level size zone matrix (GLSZM) (implemented — see src/texture/glszm.rs)
+- [x] Neighborhood gray-tone difference matrix (NGTDM) (implemented — see src/texture/ngtdm.rs)
+- [x] Laws' texture energy measures (implemented — see src/texture/laws.rs; re-exported from src/lib.rs:168)
 
 ### Enhanced Segmentation
 - Geodesic active contours (level set with external image energy)

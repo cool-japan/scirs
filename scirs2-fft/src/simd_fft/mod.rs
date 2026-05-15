@@ -5,7 +5,7 @@
 //!
 //! ## Architecture-specific sub-modules
 //!
-//! - [`avx512`]: AVX-512F butterfly kernels for x86_64 (radix-4 / radix-8).
+//! - `avx512`: AVX-512F butterfly kernels for x86_64 (radix-4 / radix-8).
 //!   Gated on `#[cfg(target_arch = "x86_64")]` with a runtime
 //!   `is_x86_feature_detected!("avx512f")` guard.
 

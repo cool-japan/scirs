@@ -405,7 +405,150 @@ impl<T: Float> op::Op<T> for PReLUGrad<T> {
     }
 
     fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
-        // Second-order gradients not implemented
+        // PReLU''(x) = 0 everywhere (piecewise-constant first derivative).
+        // So grad w.r.t. x = output_grad * 0 = None.
+        // Grad w.r.t. gy = output_grad * PReLU'(x) — reuse PReLUGrad with new gy.
+        let gy_out = ctx.output_grad();
+        let x = ctx.input(0);
+        let g = ctx.graph();
+
+        let grad_gy = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(gy_out, false)
+            .setshape(&shape(gy_out))
+            .build(PReLUGrad { alpha: self.alpha });
+
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, Some(grad_gy));
+    }
+}
+
+/// Second-order gradient operation for LearnableELU.
+///
+/// Computes `output_grad * f''(x) * gy` where `f''(x) = alpha * exp(x)` if x < 0, else 0.
+/// This is built by `LearnableELUGrad::grad` and placed on the x-input path.
+pub struct LearnableELUGradGrad<T> {
+    pub alpha: T,
+}
+
+impl<T: Float> op::Op<T> for LearnableELUGradGrad<T> {
+    fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
+        // inputs: 0 = x, 1 = gy (original upstream), 2 = gy_out (second-order upstream)
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+        let gy_out = ctx.input(2);
+        // f''(x) = alpha * exp(x) if x < 0, else 0
+        let d2 = x.mapv(|val| {
+            if val > T::zero() {
+                T::zero()
+            } else {
+                self.alpha * val.exp()
+            }
+        });
+        let ret = d2 * gy * gy_out;
+        ctx.append_output(ret);
+        Ok(())
+    }
+
+    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+        // Third-order gradients not required; stop the chain.
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+        ctx.append_input_grad(2, None);
+    }
+}
+
+/// Second-order gradient (w.r.t. x) for LearnableSwish.
+///
+/// LearnableSwish(x) = x * σ(β·x), where σ is sigmoid.
+/// Let s = σ(β·x), s' = β·s·(1-s).
+/// First derivative:  f'(x) = s + x·s'
+/// Second derivative: f''(x) = 2·s' + x·β·s'·(1 - 2s)
+///                           = β·s·(1-s)·(2 + β·x·(1-2s))
+///
+/// This op computes `output_grad * f''(x) * gy`.
+pub struct LearnableSwishGradGrad<T> {
+    pub beta: T,
+}
+
+impl<T: Float> op::Op<T> for LearnableSwishGradGrad<T> {
+    fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
+        // inputs: 0 = x, 1 = gy (original upstream), 2 = gy_out (second-order upstream)
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+        let gy_out = ctx.input(2);
+        let half = T::from(0.5).expect("constant conversion");
+        let one = T::one();
+        let two = T::from(2.0).expect("constant conversion");
+
+        let d2 = x.mapv(|val| {
+            let bx = self.beta * val;
+            // s = sigmoid(beta * x) using tanh identity
+            let s = (bx * half).tanh() * half + half;
+            let s_deriv = self.beta * s * (one - s); // β·s·(1-s)
+                                                     // f''(x) = 2·s' + x·β·s'·(1 - 2s) = s'·(2 + β·x·(1 - 2s))
+            s_deriv * (two + self.beta * val * (one - two * s))
+        });
+        let ret = d2 * gy * gy_out;
+        ctx.append_output(ret);
+        Ok(())
+    }
+
+    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+        ctx.append_input_grad(2, None);
+    }
+}
+
+/// Second-order gradient (w.r.t. x) for AdaptiveActivation.
+///
+/// AdaptiveActivation(x) = a·x + b·tanh(c·x) + d·σ(e·x).
+/// f'(x) = a + b·c·sech²(c·x) + d·e·σ_e·(1-σ_e)
+/// f''(x) = -2·b·c²·tanh(c·x)·sech²(c·x)
+///         + d·e²·σ_e·(1-σ_e)·(1-2σ_e)
+///
+/// This op computes `output_grad * f''(x) * gy`.
+pub struct AdaptiveActivationGradGrad<T> {
+    pub b: T,
+    pub c: T,
+    pub d: T,
+    pub e: T,
+}
+
+impl<T: Float> op::Op<T> for AdaptiveActivationGradGrad<T> {
+    fn compute(&self, ctx: &mut crate::op::ComputeContext<T>) -> Result<(), crate::op::OpError> {
+        // inputs: 0 = x, 1 = gy (original upstream), 2 = gy_out (second-order upstream)
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+        let gy_out = ctx.input(2);
+        let half = T::from(0.5).expect("constant conversion");
+        let one = T::one();
+        let two = T::from(2.0).expect("constant conversion");
+
+        let d2 = x.mapv(|val| {
+            // tanh branch
+            let cx = self.c * val;
+            let t = cx.tanh();
+            let sech2 = one - t * t; // sech²(c·x)
+            let tanh_term = -two * self.b * self.c * self.c * t * sech2;
+
+            // sigmoid branch
+            let ex = self.e * val;
+            let s = (ex * half).tanh() * half + half; // σ(e·x)
+            let sig_term = self.d * self.e * self.e * s * (one - s) * (one - two * s);
+
+            tanh_term + sig_term
+        });
+        let ret = d2 * gy * gy_out;
+        ctx.append_output(ret);
+        Ok(())
+    }
+
+    fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
+        ctx.append_input_grad(0, None);
+        ctx.append_input_grad(1, None);
+        ctx.append_input_grad(2, None);
     }
 }
 
@@ -467,7 +610,31 @@ impl<T: Float> op::Op<T> for LearnableELUGrad<T> {
     }
 
     fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
-        // Second-order gradients not implemented
+        // LearnableELU''(x) = alpha * exp(x) if x < 0, else 0.
+        // Grad w.r.t. x   = output_grad * LearnableELU''(x) * gy  → LearnableELUGradGrad
+        // Grad w.r.t. gy  = output_grad * LearnableELU'(x)        → re-apply LearnableELUGrad
+        let gy_out = ctx.output_grad();
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+        let g = ctx.graph();
+
+        // grad w.r.t. x: uses LearnableELUGradGrad (second derivative times gy times gy_out)
+        let grad_x = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(gy, false)
+            .append_input(gy_out, false)
+            .setshape(&shape(gy_out))
+            .build(LearnableELUGradGrad { alpha: self.alpha });
+
+        // grad w.r.t. gy: re-apply LearnableELUGrad with gy_out as new upstream
+        let grad_gy = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(gy_out, false)
+            .setshape(&shape(gy_out))
+            .build(LearnableELUGrad { alpha: self.alpha });
+
+        ctx.append_input_grad(0, Some(grad_x));
+        ctx.append_input_grad(1, Some(grad_gy));
     }
 }
 
@@ -536,7 +703,29 @@ impl<T: Float> op::Op<T> for LearnableSwishGrad<T> {
     }
 
     fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
-        // Second-order gradients not implemented
+        // LearnableSwish''(x) = β·s·(1-s)·(2 + β·x·(1-2s)), where s = σ(β·x).
+        // Grad w.r.t. x  = output_grad * swish''(x) * gy  → LearnableSwishGradGrad
+        // Grad w.r.t. gy = output_grad * swish'(x)        → re-apply LearnableSwishGrad
+        let gy_out = ctx.output_grad();
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+        let g = ctx.graph();
+
+        let grad_x = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(gy, false)
+            .append_input(gy_out, false)
+            .setshape(&shape(gy_out))
+            .build(LearnableSwishGradGrad { beta: self.beta });
+
+        let grad_gy = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(gy_out, false)
+            .setshape(&shape(gy_out))
+            .build(LearnableSwishGrad { beta: self.beta });
+
+        ctx.append_input_grad(0, Some(grad_x));
+        ctx.append_input_grad(1, Some(grad_gy));
     }
 }
 
@@ -629,6 +818,209 @@ impl<T: Float> op::Op<T> for AdaptiveActivationGrad<T> {
     }
 
     fn grad<'a>(&self, ctx: &mut crate::op::GradientContext<'a, 'a, T>) {
-        // Second-order gradients not implemented
+        // AdaptiveActivation''(x) = -2b·c²·tanh(c·x)·sech²(c·x) + d·e²·σ_e·(1-σ_e)·(1-2σ_e)
+        // Grad w.r.t. x  = output_grad * f''(x) * gy  → AdaptiveActivationGradGrad
+        // Grad w.r.t. gy = output_grad * f'(x)        → re-apply AdaptiveActivationGrad
+        let gy_out = ctx.output_grad();
+        let x = ctx.input(0);
+        let gy = ctx.input(1);
+        let g = ctx.graph();
+
+        let grad_x = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(gy, false)
+            .append_input(gy_out, false)
+            .setshape(&shape(gy_out))
+            .build(AdaptiveActivationGradGrad {
+                b: self.b,
+                c: self.c,
+                d: self.d,
+                e: self.e,
+            });
+
+        let grad_gy = Tensor::builder(g)
+            .append_input(x, false)
+            .append_input(gy_out, false)
+            .setshape(&shape(gy_out))
+            .build(AdaptiveActivationGrad {
+                a: self.a,
+                b: self.b,
+                c: self.c,
+                d: self.d,
+                e: self.e,
+            });
+
+        ctx.append_input_grad(0, Some(grad_x));
+        ctx.append_input_grad(1, Some(grad_gy));
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Unit tests — second-derivative formulas validated against central differences
+// ─────────────────────────────────────────────────────────────────────────────
+#[cfg(test)]
+mod tests {
+    // Central-difference step size
+    const H: f64 = 1e-4;
+
+    // Tolerance for central-difference comparison (h=1e-4, smooth activations → error ~1e-8)
+    const TOL: f64 = 1e-5;
+
+    fn central_diff2(f: impl Fn(f64) -> f64, x: f64) -> f64 {
+        (f(x + H) - 2.0 * f(x) + f(x - H)) / (H * H)
+    }
+
+    // ── Helpers for the activation forward passes ────────────────────────────
+
+    fn sigmoid(x: f64) -> f64 {
+        1.0 / (1.0 + (-x).exp())
+    }
+
+    fn prelu_forward(x: f64, alpha: f64) -> f64 {
+        if x > 0.0 {
+            x
+        } else {
+            alpha * x
+        }
+    }
+
+    fn learnable_elu_forward(x: f64, alpha: f64) -> f64 {
+        if x > 0.0 {
+            x
+        } else {
+            alpha * (x.exp() - 1.0)
+        }
+    }
+
+    fn learnable_swish_forward(x: f64, beta: f64) -> f64 {
+        x * sigmoid(beta * x)
+    }
+
+    fn adaptive_activation_forward(x: f64, a: f64, b: f64, c: f64, d: f64, e: f64) -> f64 {
+        a * x + b * (c * x).tanh() + d * sigmoid(e * x)
+    }
+
+    // ── Analytical second derivatives (same formulas as the *GradGrad ops) ──
+
+    fn prelu_d2(_x: f64, _alpha: f64) -> f64 {
+        // PReLU' is piecewise constant → second derivative is 0 everywhere
+        0.0
+    }
+
+    fn learnable_elu_d2(x: f64, alpha: f64) -> f64 {
+        if x > 0.0 {
+            0.0
+        } else {
+            alpha * x.exp()
+        }
+    }
+
+    fn learnable_swish_d2(x: f64, beta: f64) -> f64 {
+        let s = sigmoid(beta * x);
+        let s_deriv = beta * s * (1.0 - s);
+        s_deriv * (2.0 + beta * x * (1.0 - 2.0 * s))
+    }
+
+    fn adaptive_activation_d2(x: f64, b: f64, c: f64, d: f64, e: f64) -> f64 {
+        let t = (c * x).tanh();
+        let sech2 = 1.0 - t * t;
+        let tanh_term = -2.0 * b * c * c * t * sech2;
+
+        let s = sigmoid(e * x);
+        let sig_term = d * e * e * s * (1.0 - s) * (1.0 - 2.0 * s);
+
+        tanh_term + sig_term
+    }
+
+    fn check_close(analytical: f64, numerical: f64, label: &str, x: f64) {
+        let err = (analytical - numerical).abs();
+        assert!(
+            err < TOL,
+            "{label} at x={x}: analytical={analytical:.8}, numerical={numerical:.8}, err={err:.2e}"
+        );
+    }
+
+    // ── PReLU second derivative ──────────────────────────────────────────────
+
+    #[test]
+    fn test_prelu_second_derivative() {
+        let alpha = 0.1f64;
+        // Skip x=0 (kink) — central difference is unreliable there
+        for &x in &[-2.0f64, -0.5, 0.5, 2.0] {
+            let analytical = prelu_d2(x, alpha);
+            let numerical = central_diff2(|v| prelu_forward(v, alpha), x);
+            check_close(analytical, numerical, "PReLU d2", x);
+        }
+    }
+
+    // ── LearnableELU second derivative ──────────────────────────────────────
+
+    #[test]
+    fn test_learnable_elu_second_derivative_alpha1() {
+        let alpha = 1.0f64;
+        for &x in &[-2.0f64, -0.5, 0.5, 2.0] {
+            let analytical = learnable_elu_d2(x, alpha);
+            let numerical = central_diff2(|v| learnable_elu_forward(v, alpha), x);
+            check_close(analytical, numerical, "LearnableELU(α=1) d2", x);
+        }
+    }
+
+    #[test]
+    fn test_learnable_elu_second_derivative_alpha05() {
+        let alpha = 0.5f64;
+        for &x in &[-2.0f64, -1.0, -0.5] {
+            let analytical = learnable_elu_d2(x, alpha);
+            let numerical = central_diff2(|v| learnable_elu_forward(v, alpha), x);
+            check_close(analytical, numerical, "LearnableELU(α=0.5) d2", x);
+        }
+    }
+
+    // ── LearnableSwish second derivative ─────────────────────────────────────
+
+    #[test]
+    fn test_learnable_swish_second_derivative_beta1() {
+        let beta = 1.0f64;
+        for &x in &[-2.0f64, -0.5, 0.0, 0.5, 2.0] {
+            let analytical = learnable_swish_d2(x, beta);
+            let numerical = central_diff2(|v| learnable_swish_forward(v, beta), x);
+            check_close(analytical, numerical, "LearnableSwish(β=1) d2", x);
+        }
+    }
+
+    #[test]
+    fn test_learnable_swish_second_derivative_beta2() {
+        let beta = 2.0f64;
+        for &x in &[-2.0f64, -0.5, 0.0, 0.5, 2.0] {
+            let analytical = learnable_swish_d2(x, beta);
+            let numerical = central_diff2(|v| learnable_swish_forward(v, beta), x);
+            check_close(analytical, numerical, "LearnableSwish(β=2) d2", x);
+        }
+    }
+
+    // ── AdaptiveActivation second derivative ─────────────────────────────────
+
+    #[test]
+    fn test_adaptive_activation_second_derivative() {
+        let (a, b, c, d, e) = (1.0f64, 0.5, 2.0, 0.3, 1.5);
+        for &x in &[-2.0f64, -0.5, 0.0, 0.5, 2.0] {
+            let analytical = adaptive_activation_d2(x, b, c, d, e);
+            let numerical = central_diff2(|v| adaptive_activation_forward(v, a, b, c, d, e), x);
+            check_close(analytical, numerical, "AdaptiveActivation d2", x);
+        }
+    }
+
+    #[test]
+    fn test_adaptive_activation_second_derivative_linear() {
+        // With b=0, d=0 the second derivative should be 0 everywhere (pure linear).
+        let (a, b, c, d, e) = (1.0f64, 0.0, 1.0, 0.0, 1.0);
+        for &x in &[-2.0f64, -0.5, 0.0, 0.5, 2.0] {
+            let analytical = adaptive_activation_d2(x, b, c, d, e);
+            assert!(
+                analytical.abs() < 1e-12,
+                "Linear AdaptiveActivation d2 should be 0, got {analytical} at x={x}"
+            );
+            let numerical = central_diff2(|v| adaptive_activation_forward(v, a, b, c, d, e), x);
+            check_close(analytical, numerical, "AdaptiveActivation(linear) d2", x);
+        }
     }
 }

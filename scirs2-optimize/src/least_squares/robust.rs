@@ -519,15 +519,20 @@ where
     Ok(result)
 }
 
-/// Gradient-based robust optimizer (fallback implementation)
+/// Gradient-based robust optimizer using steepest descent with backtracking line search.
+///
+/// Minimises f(x) = Σ_i ρ(r_i(x)) where ρ is the robust loss.
+/// The gradient is  ∇f = J^T · ψ(r)  where ψ(r_i) = weight(r_i) · r_i.
+///
+/// When `use_irls = false` the caller routes here as a fallback.
 #[allow(dead_code)]
 fn gradient_based_robust_optimizer<F, J, L, D, S1, S2>(
-    _residuals: F,
+    residuals: F,
     x0: &ArrayBase<S1, Ix1>,
-    _loss: L,
-    _jacobian: Option<J>,
-    _data: &ArrayBase<S2, Ix1>,
-    _options: &RobustOptions,
+    loss: L,
+    jacobian: Option<J>,
+    data: &ArrayBase<S2, Ix1>,
+    options: &RobustOptions,
 ) -> OptimizeResult<OptimizeResults<f64>>
 where
     F: Fn(&[f64], &[D]) -> Array1<f64>,
@@ -537,14 +542,152 @@ where
     S1: Data<Elem = f64>,
     S2: Data<Elem = D>,
 {
-    // For now, return a basic implementation
-    // In practice, this would implement a gradient-based optimization
-    // using the robust _loss function directly
+    let mut x = x0.to_owned();
+    let p = x.len(); // number of parameters
+
+    let max_nfev = options.max_nfev.unwrap_or(options.max_iter * p * 20);
+    let mut nfev = 0;
+    let mut njev = 0;
+    let mut iter = 0;
+
+    // Helper: compute total robust cost
+    let robust_cost = |r: &Array1<f64>| -> f64 { r.iter().map(|&ri| loss.loss(ri)).sum() };
+
+    // Numerical Jacobian helper (finite differences)
+    let numerical_jacobian =
+        |x_val: &Array1<f64>, res_val: &Array1<f64>, nfev_count: &mut usize| -> Array2<f64> {
+            let eps = 1e-7_f64;
+            let n_res = res_val.len();
+            let mut jac = Array2::zeros((n_res, p));
+            for j in 0..p {
+                let mut x_h = x_val.clone();
+                x_h[j] += eps;
+                let res_h = residuals(
+                    x_h.as_slice().expect("x_h slice failed"),
+                    data.as_slice().expect("data slice failed"),
+                );
+                *nfev_count += 1;
+                for i in 0..n_res {
+                    jac[[i, j]] = (res_h[i] - res_val[i]) / eps;
+                }
+            }
+            jac
+        };
+
+    // Compute initial residuals and cost
+    let mut res = residuals(
+        x.as_slice().expect("x slice failed"),
+        data.as_slice().expect("data slice failed"),
+    );
+    nfev += 1;
+    let mut cost = robust_cost(&res);
+
+    let mut converged = false;
+
+    while iter < options.max_iter && nfev < max_nfev {
+        // Compute Jacobian: J is (n_obs × p)
+        let jac = match &jacobian {
+            Some(jac_fn) => {
+                njev += 1;
+                jac_fn(
+                    x.as_slice().expect("x slice failed"),
+                    data.as_slice().expect("data slice failed"),
+                )
+            }
+            None => numerical_jacobian(&x, &res, &mut nfev),
+        };
+
+        // ψ(r_i) = weight(r_i) * r_i  (= ρ'(r_i))
+        let n_obs = res.len();
+        let mut psi = Array1::<f64>::zeros(n_obs);
+        for i in 0..n_obs {
+            psi[i] = loss.weight(res[i]) * res[i];
+        }
+
+        // Gradient: ∇f = J^T · ψ
+        let grad = jac.t().dot(&psi);
+
+        // Check gradient convergence
+        let grad_norm_sq = grad.iter().map(|&g| g * g).sum::<f64>();
+        let grad_norm = grad_norm_sq.sqrt();
+        if grad_norm < options.gtol {
+            converged = true;
+            break;
+        }
+
+        // Descent direction: -∇f (steepest descent)
+        let direction = -&grad;
+
+        // Armijo backtracking line search.
+        // Scale initial step by 1/grad_norm so alpha=1 is approximately a unit step
+        // in parameter space rather than depending on gradient magnitude.
+        let armijo_c = 1e-4_f64;
+        let alpha_init = 1.0_f64 / grad_norm.max(1.0);
+        let mut alpha = alpha_init;
+        let mut found_step = false;
+
+        for _ in 0..50 {
+            let x_try = &x + &direction * alpha;
+            let res_try = residuals(
+                x_try.as_slice().expect("x_try slice failed"),
+                data.as_slice().expect("data slice failed"),
+            );
+            nfev += 1;
+            let cost_try = robust_cost(&res_try);
+
+            // Armijo condition: sufficient descent
+            // directional derivative = -||grad||^2 (since direction = -grad)
+            if cost_try <= cost - armijo_c * alpha * grad_norm_sq {
+                x = x_try;
+                res = res_try;
+                cost = cost_try;
+                found_step = true;
+                break;
+            }
+            alpha *= 0.5;
+        }
+
+        // If line search failed entirely, take a very small step anyway
+        if !found_step {
+            let x_try = &x + &direction * alpha;
+            let res_try = residuals(
+                x_try.as_slice().expect("x_try slice failed"),
+                data.as_slice().expect("data slice failed"),
+            );
+            nfev += 1;
+            let cost_try = robust_cost(&res_try);
+            if cost_try < cost {
+                x = x_try;
+                res = res_try;
+                cost = cost_try;
+            }
+        }
+
+        // Check x-change convergence: ||alpha * direction|| relative to ||x||
+        let step_norm = alpha * grad_norm; // ||step|| = alpha * ||grad|| since direction = -grad
+        let x_norm = x.iter().map(|&xi| xi * xi).sum::<f64>().sqrt();
+        if step_norm < options.xtol * (1.0 + x_norm) {
+            converged = true;
+            iter += 1;
+            break;
+        }
+
+        iter += 1;
+    }
+
     let mut result = OptimizeResults::<f64>::default();
-    result.x = x0.to_owned();
-    result.fun = 0.0;
-    result.success = false;
-    result.message = "Gradient-based robust optimization not yet implemented".to_string();
+    result.x = x;
+    result.fun = cost;
+    result.nfev = nfev;
+    result.njev = njev;
+    result.nit = iter;
+    result.success = converged;
+
+    if converged {
+        result.message = "Gradient-based optimization terminated successfully.".to_string();
+    } else {
+        result.message = "Maximum iterations reached.".to_string();
+    }
 
     Ok(result)
 }
@@ -682,5 +825,190 @@ mod tests {
         assert!(result.success);
         assert!((result.x[0] - 1.0).abs() < 1e-3);
         assert!((result.x[1] - 2.0).abs() < 1e-3);
+    }
+
+    /// Test gradient-based path: fit y = 2t + 1 with a single outlier.
+    ///
+    /// We explicitly set `use_irls = false` so the call routes through
+    /// `gradient_based_robust_optimizer`.  Bisquare (biweight) loss completely
+    /// down-weights residuals beyond its tuning constant and reliably recovers
+    /// the true intercept ≈ 1 and slope ≈ 2 even with a large outlier,
+    /// whereas Huber loss is only linear in the tails and still gets pulled.
+    #[test]
+    fn test_gradient_based_robust_optimizer_linear() {
+        // Residual: r_i = y_i - (c0 + c1 * t_i)
+        // data layout: [t_0..t_n, y_0..y_n]
+        fn residual(x: &[f64], data: &[f64]) -> Array1<f64> {
+            let n = data.len() / 2;
+            let t_vals = &data[0..n];
+            let y_vals = &data[n..];
+            let mut r = Array1::zeros(n);
+            for i in 0..n {
+                r[i] = y_vals[i] - (x[0] + x[1] * t_vals[i]);
+            }
+            r
+        }
+
+        fn jacobian(x: &[f64], data: &[f64]) -> Array2<f64> {
+            let n = data.len() / 2;
+            let t_vals = &data[0..n];
+            let mut jac = Array2::zeros((n, 2));
+            for i in 0..n {
+                jac[[i, 0]] = -1.0;
+                jac[[i, 1]] = -t_vals[i];
+            }
+            let _ = x; // suppress unused warning
+            jac
+        }
+
+        // 10 clean points following y = 2t + 1, plus one large outlier at t=10.
+        // Bisquare loss with c=4.685 gives zero weight to residuals > 4.685,
+        // so the outlier (residual ≈ 79) is completely ignored and the
+        // minimiser recovers the true [1, 2] parameters.
+        // t: [0..10]   y: [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 100]
+        let t_vals: Vec<f64> = (0..11).map(|i| i as f64).collect();
+        let mut y_vals: Vec<f64> = t_vals.iter().map(|&ti| 2.0 * ti + 1.0).collect();
+        y_vals[10] = 100.0; // outlier: true y would be 21
+
+        let mut data_vec = t_vals.clone();
+        data_vec.extend_from_slice(&y_vals);
+        let data_array = Array1::from_vec(data_vec);
+
+        let x0 = array![0.0, 0.0];
+
+        let opts = RobustOptions {
+            use_irls: false, // force gradient path
+            max_iter: 1000,
+            xtol: 1e-8,
+            gtol: 1e-8,
+            ftol: 1e-10,
+            ..RobustOptions::default()
+        };
+
+        let result = robust_least_squares(
+            residual,
+            &x0,
+            BisquareLoss::new(4.685),
+            Some(jacobian),
+            &data_array,
+            Some(opts),
+        )
+        .expect("gradient_based_robust_optimizer should not error");
+
+        // Bisquare loss zeros out the outlier residual (79 >> 4.685), so the
+        // minimiser sees only the 10 clean points and must recover [1, 2].
+        println!(
+            "Gradient-based result: c0={:.4} c1={:.4} cost={:.6} success={}",
+            result.x[0], result.x[1], result.fun, result.success
+        );
+        assert!(
+            (result.x[0] - 1.0).abs() < 0.3,
+            "Intercept {:.4} should be near 1.0",
+            result.x[0]
+        );
+        assert!(
+            (result.x[1] - 2.0).abs() < 0.3,
+            "Slope {:.4} should be near 2.0",
+            result.x[1]
+        );
+    }
+
+    /// Cross-check: gradient path with Huber loss should converge to the same
+    /// optimum as IRLS on clean data (no outliers).
+    ///
+    /// On purely Gaussian residuals the two algorithms must agree at the same
+    /// minimum, so this verifies the gradient step is computing the correct
+    /// gradient without checking a particular loss's robustness behaviour.
+    #[test]
+    fn test_gradient_huber_matches_irls_on_clean_data() {
+        fn residual(x: &[f64], data: &[f64]) -> Array1<f64> {
+            let n = data.len() / 2;
+            let t_vals = &data[0..n];
+            let y_vals = &data[n..];
+            let mut r = Array1::zeros(n);
+            for i in 0..n {
+                r[i] = y_vals[i] - (x[0] + x[1] * t_vals[i]);
+            }
+            r
+        }
+
+        fn jacobian(x: &[f64], data: &[f64]) -> Array2<f64> {
+            let n = data.len() / 2;
+            let t_vals = &data[0..n];
+            let mut jac = Array2::zeros((n, 2));
+            for i in 0..n {
+                jac[[i, 0]] = -1.0;
+                jac[[i, 1]] = -t_vals[i];
+            }
+            let _ = x;
+            jac
+        }
+
+        // 6 clean points: y = 3t + 2, no outliers
+        let data_array = array![
+            0.0, 1.0, 2.0, 3.0, 4.0, 5.0, // t
+            2.0, 5.0, 8.0, 11.0, 14.0, 17.0 // y = 3t + 2
+        ];
+        let x0 = array![0.0, 0.0];
+
+        // IRLS path
+        let opts_irls = RobustOptions {
+            use_irls: true,
+            max_iter: 200,
+            xtol: 1e-10,
+            gtol: 1e-10,
+            ftol: 1e-12,
+            ..RobustOptions::default()
+        };
+        let res_irls = robust_least_squares(
+            residual,
+            &x0,
+            HuberLoss::new(1.345),
+            Some(jacobian),
+            &data_array,
+            Some(opts_irls),
+        )
+        .expect("IRLS should not error");
+
+        // Gradient path
+        let opts_grad = RobustOptions {
+            use_irls: false,
+            max_iter: 2000,
+            xtol: 1e-10,
+            gtol: 1e-10,
+            ftol: 1e-12,
+            ..RobustOptions::default()
+        };
+        let res_grad = robust_least_squares(
+            residual,
+            &x0,
+            HuberLoss::new(1.345),
+            Some(jacobian),
+            &data_array,
+            Some(opts_grad),
+        )
+        .expect("gradient path should not error");
+
+        // Both should converge close to [2, 3]
+        assert!(
+            (res_irls.x[0] - 2.0).abs() < 1e-4,
+            "IRLS intercept {:.6} should be 2.0",
+            res_irls.x[0]
+        );
+        assert!(
+            (res_irls.x[1] - 3.0).abs() < 1e-4,
+            "IRLS slope {:.6} should be 3.0",
+            res_irls.x[1]
+        );
+        assert!(
+            (res_grad.x[0] - 2.0).abs() < 1e-3,
+            "Gradient intercept {:.6} should be near 2.0",
+            res_grad.x[0]
+        );
+        assert!(
+            (res_grad.x[1] - 3.0).abs() < 1e-3,
+            "Gradient slope {:.6} should be near 3.0",
+            res_grad.x[1]
+        );
     }
 }

@@ -126,8 +126,8 @@ pub struct DensityPeaksResult {
 /// Density Peaks clustering.
 ///
 /// For every pair of points the Euclidean distance is computed.  Then:
-/// 1. ρ_i = Σ_{j≠i} χ(dist[i,j] - dc)   (Gaussian kernel: exp(-dist^2/dc^2))
-/// 2. δ_i = min_{j: ρ_j > ρ_i} dist[i,j]
+/// 1. ρ_i = Σ_{j≠i} χ(`dist[i,j]` - dc)   (Gaussian kernel: exp(-dist^2/dc^2))
+/// 2. δ_i = min_{j: ρ_j > ρ_i} `dist[i,j]`
 /// 3. Cluster centres are points with ρ_i > rho_threshold AND δ_i > delta_threshold.
 /// 4. Non-centres are assigned to the cluster of their nearest higher-density neighbour.
 ///

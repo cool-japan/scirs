@@ -984,7 +984,31 @@ pub struct Dwt2dCoeffs {
     pub hh: Array2<f64>,
 }
 
-/// N-D Discrete Wavelet Transform (placeholder for 3D and higher)
+/// 3D DWT coefficients — the 8 subbands produced by one level of separable 3D decomposition.
+///
+/// Naming convention: each letter indicates the filter applied along axis 0, 1, 2
+/// respectively.  `L` = low-pass (approximation), `H` = high-pass (detail).
+#[derive(Debug, Clone)]
+pub struct Dwt3dCoeffs {
+    /// LLL — approximation subband (low along all 3 axes)
+    pub lll: Array3<f64>,
+    /// LLH — detail along axis 2
+    pub llh: Array3<f64>,
+    /// LHL — detail along axis 1
+    pub lhl: Array3<f64>,
+    /// LHH — detail along axes 1 and 2
+    pub lhh: Array3<f64>,
+    /// HLL — detail along axis 0
+    pub hll: Array3<f64>,
+    /// HLH — detail along axes 0 and 2
+    pub hlh: Array3<f64>,
+    /// HHL — detail along axes 0 and 1
+    pub hhl: Array3<f64>,
+    /// HHH — detail along all 3 axes
+    pub hhh: Array3<f64>,
+}
+
+/// N-D Discrete Wavelet Transform (supports 3D decomposition)
 #[derive(Debug, Clone)]
 pub struct DWTN {
     wavelet: WaveletType,
@@ -1014,11 +1038,128 @@ impl DWTN {
         self
     }
 
-    /// Perform 3D decomposition (simplified placeholder)
-    pub fn decompose3(&self, _volume: &Array3<f64>) -> Result<Array3<f64>> {
-        Err(TransformError::NotImplemented(
-            "3D DWT not yet fully implemented".to_string(),
-        ))
+    /// Perform single-level 3D DWT decomposition using separable filtering.
+    ///
+    /// The separable 3D DWT applies 1-D DWT independently along each of the three
+    /// axes in sequence, producing 8 subbands (LLL through HHH).
+    ///
+    /// # Steps
+    /// 1. Apply 1-D DWT along axis 0 → `Lo_x` and `Hi_x` halves.
+    /// 2. For each of the 2 halves, apply 1-D DWT along axis 1 → 4 quarters.
+    /// 3. For each of the 4 quarters, apply 1-D DWT along axis 2 → 8 subbands.
+    pub fn decompose3(&self, volume: &Array3<f64>) -> Result<Dwt3dCoeffs> {
+        let (d0, d1, d2) = volume.dim();
+        if d0 < 2 || d1 < 2 || d2 < 2 {
+            return Err(TransformError::InvalidInput(
+                "Volume too small for 3D DWT: all dimensions must be >= 2".to_string(),
+            ));
+        }
+
+        let dwt1d = DWT::new(self.wavelet)?.with_boundary(self.boundary);
+
+        // --- Axis 0 pass -------------------------------------------------
+        // For each (j, k) slice along axis 0, apply 1-D DWT and collect
+        // the low-pass (approx) and high-pass (detail) results.
+        let half0 = (d0 + 1) / 2; // output length after DWT along axis 0
+        let mut lo_x = Array3::<f64>::zeros((half0, d1, d2));
+        let mut hi_x = Array3::<f64>::zeros((half0, d1, d2));
+
+        for j in 0..d1 {
+            for k in 0..d2 {
+                let col: Vec<f64> = (0..d0).map(|i| volume[[i, j, k]]).collect();
+                let col_arr = Array1::from(col);
+                let (approx, detail) = dwt1d.decompose(&col_arr.view())?;
+                for i in 0..approx.len().min(half0) {
+                    lo_x[[i, j, k]] = approx[i];
+                }
+                for i in 0..detail.len().min(half0) {
+                    hi_x[[i, j, k]] = detail[i];
+                }
+            }
+        }
+
+        // --- Axis 1 pass -------------------------------------------------
+        let half1 = (d1 + 1) / 2;
+        let (lo_x_lo_y, lo_x_hi_y) =
+            self.apply_dwt_axis1_3d(&lo_x, &dwt1d, half0, d1, d2, half1)?;
+        let (hi_x_lo_y, hi_x_hi_y) =
+            self.apply_dwt_axis1_3d(&hi_x, &dwt1d, half0, d1, d2, half1)?;
+
+        // --- Axis 2 pass -------------------------------------------------
+        let half2 = (d2 + 1) / 2;
+        let (lll, llh) = self.apply_dwt_axis2_3d(&lo_x_lo_y, &dwt1d, half0, half1, d2, half2)?;
+        let (lhl, lhh) = self.apply_dwt_axis2_3d(&lo_x_hi_y, &dwt1d, half0, half1, d2, half2)?;
+        let (hll, hlh) = self.apply_dwt_axis2_3d(&hi_x_lo_y, &dwt1d, half0, half1, d2, half2)?;
+        let (hhl, hhh) = self.apply_dwt_axis2_3d(&hi_x_hi_y, &dwt1d, half0, half1, d2, half2)?;
+
+        Ok(Dwt3dCoeffs {
+            lll,
+            llh,
+            lhl,
+            lhh,
+            hll,
+            hlh,
+            hhl,
+            hhh,
+        })
+    }
+
+    // Apply 1-D DWT along axis 1 of a 3-D array, returning the two output halves.
+    fn apply_dwt_axis1_3d(
+        &self,
+        arr: &Array3<f64>,
+        dwt1d: &DWT,
+        size0: usize,
+        size1: usize,
+        size2: usize,
+        out1: usize,
+    ) -> Result<(Array3<f64>, Array3<f64>)> {
+        let mut lo = Array3::<f64>::zeros((size0, out1, size2));
+        let mut hi = Array3::<f64>::zeros((size0, out1, size2));
+
+        for i in 0..size0 {
+            for k in 0..size2 {
+                let col: Vec<f64> = (0..size1).map(|j| arr[[i, j, k]]).collect();
+                let col_arr = Array1::from(col);
+                let (approx, detail) = dwt1d.decompose(&col_arr.view())?;
+                for j in 0..approx.len().min(out1) {
+                    lo[[i, j, k]] = approx[j];
+                }
+                for j in 0..detail.len().min(out1) {
+                    hi[[i, j, k]] = detail[j];
+                }
+            }
+        }
+        Ok((lo, hi))
+    }
+
+    // Apply 1-D DWT along axis 2 of a 3-D array, returning the two output halves.
+    fn apply_dwt_axis2_3d(
+        &self,
+        arr: &Array3<f64>,
+        dwt1d: &DWT,
+        size0: usize,
+        size1: usize,
+        size2: usize,
+        out2: usize,
+    ) -> Result<(Array3<f64>, Array3<f64>)> {
+        let mut lo = Array3::<f64>::zeros((size0, size1, out2));
+        let mut hi = Array3::<f64>::zeros((size0, size1, out2));
+
+        for i in 0..size0 {
+            for j in 0..size1 {
+                let row: Vec<f64> = (0..size2).map(|k| arr[[i, j, k]]).collect();
+                let row_arr = Array1::from(row);
+                let (approx, detail) = dwt1d.decompose(&row_arr.view())?;
+                for k in 0..approx.len().min(out2) {
+                    lo[[i, j, k]] = approx[k];
+                }
+                for k in 0..detail.len().min(out2) {
+                    hi[[i, j, k]] = detail[k];
+                }
+            }
+        }
+        Ok((lo, hi))
     }
 }
 
@@ -1238,5 +1379,211 @@ mod tests {
 
         assert!(reconstructed.len() >= signal.len() - 4);
         Ok(())
+    }
+
+    // -------------------------------------------------------------------------
+    // Invariant helpers: unit energy (sum of squares = 1) and QMF orthogonality
+    // -------------------------------------------------------------------------
+
+    /// Assert that sum of squares of dec_lo equals 1.0 (unit energy condition).
+    fn check_unit_energy(filters: &WaveletFilters) {
+        let energy: f64 = filters.dec_lo.iter().map(|x| x * x).sum();
+        let diff = (energy - 1.0).abs();
+        assert!(
+            diff < 1e-10,
+            "dec_lo unit-energy check failed: sum-of-squares = {energy}, diff from 1.0 = {diff}"
+        );
+    }
+
+    /// Assert that <dec_lo, dec_hi> = 0 (QMF orthogonality).
+    fn check_qmf_orthogonality(filters: &WaveletFilters) {
+        let inner: f64 = filters
+            .dec_lo
+            .iter()
+            .zip(filters.dec_hi.iter())
+            .map(|(a, b)| a * b)
+            .sum();
+        let diff = inner.abs();
+        assert!(
+            diff < 1e-10,
+            "QMF orthogonality check failed: <dec_lo, dec_hi> = {inner}, abs = {diff}"
+        );
+    }
+
+    // -------------------------------------------------------------------------
+    // Daubechies filter invariant tests (length, sum=√2, energy=1, QMF ortho)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_db2_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(2))?;
+        assert_eq!(f.dec_lo.len(), 4, "db2 length must be 4");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_db4_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(4))?;
+        assert_eq!(f.dec_lo.len(), 8, "db4 length must be 8");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_db6_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(6))?;
+        assert_eq!(f.dec_lo.len(), 12, "db6 length must be 12");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_db8_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(8))?;
+        assert_eq!(f.dec_lo.len(), 16, "db8 length must be 16");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_db10_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Daubechies(10))?;
+        assert_eq!(f.dec_lo.len(), 20, "db10 length must be 20");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    // -------------------------------------------------------------------------
+    // Coiflet filter invariant tests (length, sum=√2, energy=1, QMF ortho)
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_coif1_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(1))?;
+        assert_eq!(f.dec_lo.len(), 6, "coif1 length must be 6");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coif2_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(2))?;
+        assert_eq!(f.dec_lo.len(), 12, "coif2 length must be 12");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coif3_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(3))?;
+        assert_eq!(f.dec_lo.len(), 18, "coif3 length must be 18");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coif4_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(4))?;
+        assert_eq!(f.dec_lo.len(), 24, "coif4 length must be 24");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    #[test]
+    fn test_coif5_all_invariants() -> Result<()> {
+        let f = WaveletFilters::from_wavelet(WaveletType::Coiflet(5))?;
+        assert_eq!(f.dec_lo.len(), 30, "coif5 length must be 30");
+        check_filter_normalisation(&f);
+        check_unit_energy(&f);
+        check_qmf_orthogonality(&f);
+        Ok(())
+    }
+
+    // -------------------------------------------------------------------------
+    // 3D DWT tests
+    // -------------------------------------------------------------------------
+
+    /// Decompose a constant volume with Haar: the LLL (approximation) subband
+    /// should equal the input value scaled by (√2)^3 = 2√2, and all seven
+    /// detail subbands should be near-zero.
+    ///
+    /// With Haar, each axis pass scales the low-pass output by 1/√2 * √2 = 1
+    /// per coefficient and sums two values, so: a constant `c` signal of length N
+    /// yields approx coefficients ≈ `c * √2` (one per pair of inputs).  Three
+    /// axis passes → LLL ≈ `c * (√2)^3 = c * 2√2`.
+    #[test]
+    fn test_dwt3d_constant_volume_lll_scaling() -> Result<()> {
+        let c = 3.0_f64;
+        // 8×8×8 constant volume for clean Haar decomposition
+        let volume = Array3::from_elem((8, 8, 8), c);
+        let dwtn = DWTN::new(WaveletType::Haar);
+        let coeffs = dwtn.decompose3(&volume)?;
+
+        // LLL subband must be non-empty and all values ≈ c * 2√2
+        assert!(coeffs.lll.len() > 0, "LLL subband must not be empty");
+        let expected_lll = c * 2.0_f64.sqrt().powi(3); // c * 2√2 ≈ 4.243 for c=3
+        for val in coeffs.lll.iter() {
+            assert_abs_diff_eq!(*val, expected_lll, epsilon = 1e-10);
+        }
+
+        // All 7 detail subbands must be near-zero (constant signal has no detail)
+        let detail_bands: [&Array3<f64>; 7] = [
+            &coeffs.llh,
+            &coeffs.lhl,
+            &coeffs.lhh,
+            &coeffs.hll,
+            &coeffs.hlh,
+            &coeffs.hhl,
+            &coeffs.hhh,
+        ];
+        for band in detail_bands {
+            for val in band.iter() {
+                assert_abs_diff_eq!(*val, 0.0, epsilon = 1e-10);
+            }
+        }
+        Ok(())
+    }
+
+    /// Verify that `decompose3` produces subbands with the expected half-sizes.
+    #[test]
+    fn test_dwt3d_output_shape() -> Result<()> {
+        let volume = Array3::from_shape_fn((8, 6, 4), |(i, j, k)| (i + j + k) as f64);
+        let dwtn = DWTN::new(WaveletType::Haar);
+        let coeffs = dwtn.decompose3(&volume)?;
+
+        // Each axis is halved (ceiling division): 8→4, 6→3, 4→2
+        assert_eq!(coeffs.lll.dim(), (4, 3, 2));
+        assert_eq!(coeffs.hhh.dim(), (4, 3, 2));
+        Ok(())
+    }
+
+    /// Decomposing a volume with all dimensions < 2 must return an error.
+    #[test]
+    fn test_dwt3d_rejects_too_small_volume() {
+        let volume = Array3::from_elem((1, 8, 8), 1.0);
+        let dwtn = DWTN::new(WaveletType::Haar);
+        assert!(
+            dwtn.decompose3(&volume).is_err(),
+            "decompose3 must reject a volume with any dimension < 2"
+        );
     }
 }

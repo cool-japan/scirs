@@ -4,13 +4,14 @@
 //! including interactive dendrogram visualization, 3D cluster plots, real-time animation,
 //! and advanced quantum state visualizations without external dependencies.
 
-use crate::error::{ClusteringError, Result};
 use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
-use crate::advanced_visualization::{AdvancedVisualizationOutput, QuantumCoherencePlot, NeuromorphicAdaptationPlot};
+use crate::advanced_visualization::{
+    AdvancedVisualizationOutput, NeuromorphicAdaptationPlot, QuantumCoherencePlot,
+};
+use crate::error::{ClusteringError, Result};
 use scirs2_core::ndarray::{Array1, Array2, ArrayView1, ArrayView2, Axis};
 use std::collections::HashMap;
 use std::f64::consts::PI;
-
 
 use serde::{Deserialize, Serialize};
 
@@ -28,8 +29,7 @@ pub struct AdvancedNativePlotter {
 }
 
 /// Configuration for native plotting
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NativePlotConfig {
     /// Canvas width in pixels
     pub width: usize,
@@ -48,8 +48,7 @@ pub struct NativePlotConfig {
 }
 
 /// Color schemes for native plotting
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PlotColorScheme {
     /// Quantum theme (blue-cyan-purple)
     Quantum,
@@ -64,8 +63,7 @@ pub enum PlotColorScheme {
 }
 
 /// Export quality settings
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExportQuality {
     /// Draft quality (fast rendering)
     Draft,
@@ -190,8 +188,7 @@ pub struct InteractiveController {
 }
 
 /// Native dendrogram plot
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct NativeDendrogramPlot {
     /// Dendrogram tree structure
     pub tree: DendrogramTree,
@@ -206,8 +203,7 @@ pub struct NativeDendrogramPlot {
 }
 
 /// Dendrogram tree structure
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DendrogramTree {
     /// Root node
     pub root: DendrogramNode,
@@ -218,8 +214,7 @@ pub struct DendrogramTree {
 }
 
 /// Dendrogram node
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DendrogramNode {
     /// Node ID
     pub id: String,
@@ -236,8 +231,7 @@ pub struct DendrogramNode {
 }
 
 /// Interactive features for plots
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum InteractiveFeature {
     /// Zoom and pan
     ZoomPan,
@@ -254,8 +248,7 @@ pub enum InteractiveFeature {
 }
 
 /// 3D cluster plot for high-dimensional visualization
-#[derive(Debug)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Native3DClusterPlot {
     /// 3D data points
     pub points_3d: Array2<f64>,
@@ -272,8 +265,7 @@ pub struct Native3DClusterPlot {
 }
 
 /// 3D camera configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Camera3D {
     /// Camera position
     pub position: [f64; 3],
@@ -289,8 +281,7 @@ pub struct Camera3D {
 }
 
 /// 3D lighting configuration
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Lighting3D {
     /// Ambient light intensity
     pub ambient: f64,
@@ -301,8 +292,7 @@ pub struct Lighting3D {
 }
 
 /// Directional light
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DirectionalLight {
     /// Light direction
     pub direction: [f64; 3],
@@ -313,8 +303,7 @@ pub struct DirectionalLight {
 }
 
 /// Point light
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PointLight {
     /// Light position
     pub position: [f64; 3],
@@ -327,8 +316,7 @@ pub struct PointLight {
 }
 
 /// 3D quantum field visualization
-#[derive(Debug, Clone)]
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QuantumField3D {
     /// Field strength at grid points
     pub field_strength: Array2<f64>,
@@ -537,13 +525,13 @@ impl AdvancedNativePlotter {
     ) -> Result<NativeDendrogramPlot> {
         // Create hierarchical tree structure
         let tree = self.build_dendrogram_tree(data, result)?;
-        
+
         // Calculate node positions using optimal layout
         let node_positions = self.calculate_dendrogram_layout(&tree)?;
-        
+
         // Calculate branch lengths based on quantum distances
         let branch_lengths = self.calculate_quantum_branch_lengths(&tree, result)?;
-        
+
         // Add quantum enhancement data
         let quantum_enhancements = self.calculate_dendrogram_quantum_enhancements(&tree, result)?;
 
@@ -556,7 +544,12 @@ impl AdvancedNativePlotter {
         ];
 
         // Render dendrogram to SVG
-        self.render_dendrogram_to_svg(&tree, &node_positions, &branch_lengths, &quantum_enhancements)?;
+        self.render_dendrogram_to_svg(
+            &tree,
+            &node_positions,
+            &branch_lengths,
+            &quantum_enhancements,
+        )?;
 
         Ok(NativeDendrogramPlot {
             tree,
@@ -579,12 +572,15 @@ impl AdvancedNativePlotter {
         } else if data.ncols() == 2 {
             // Add a third dimension with quantum enhancement
             let mut points_3d = Array2::zeros((data.nrows(), 3));
-            points_3d.slice_mut(scirs2_core::ndarray::s![.., 0..2]).assign(data);
-            
+            points_3d
+                .slice_mut(scirs2_core::ndarray::s![.., 0..2])
+                .assign(data);
+
             // Calculate third dimension based on quantum properties
             for i in 0..data.nrows() {
                 let cluster_id = result.clusters[i];
-                let quantum_factor = self.calculate_point_quantum_enhancement(i, cluster_id, result);
+                let quantum_factor =
+                    self.calculate_point_quantum_enhancement(i, cluster_id, result);
                 points_3d[[i, 2]] = quantum_factor * 5.0; // Scale for visibility
             }
             points_3d
@@ -598,16 +594,22 @@ impl AdvancedNativePlotter {
             let cluster_id = result.clusters[i];
             let base_color = self.get_cluster_color_rgb(cluster_id);
             let quantum_factor = self.calculate_point_quantum_enhancement(i, cluster_id, result);
-            let enhanced_color = self.apply_quantum_color_enhancement_rgb(base_color, quantum_factor);
+            let enhanced_color =
+                self.apply_quantum_color_enhancement_rgb(base_color, quantum_factor);
             point_colors.push(enhanced_color);
         }
 
         // Calculate 3D centroids
         let centroids_3d = if result.centroids.ncols() >= 3 {
-            result.centroids.slice(scirs2_core::ndarray::s![.., 0..3]).to_owned()
+            result
+                .centroids
+                .slice(scirs2_core::ndarray::s![.., 0..3])
+                .to_owned()
         } else {
             let mut centroids_3d = Array2::zeros((result.centroids.nrows(), 3));
-            centroids_3d.slice_mut(scirs2_core::ndarray::s![.., 0..result.centroids.ncols()]).assign(&result.centroids);
+            centroids_3d
+                .slice_mut(scirs2_core::ndarray::s![.., 0..result.centroids.ncols()])
+                .assign(&result.centroids);
             centroids_3d
         };
 
@@ -624,21 +626,17 @@ impl AdvancedNativePlotter {
         // Setup lighting
         let lighting = Lighting3D {
             ambient: 0.3,
-            directional_lights: vec![
-                DirectionalLight {
-                    direction: [-1.0, -1.0, -1.0],
-                    intensity: 0.7,
-                    color: [1.0, 1.0, 1.0],
-                },
-            ],
-            point_lights: vec![
-                PointLight {
-                    position: [5.0, 5.0, 5.0],
-                    intensity: 0.5,
-                    color: [0.0, 1.0, 1.0], // Quantum cyan
-                    attenuation: 0.1,
-                },
-            ],
+            directional_lights: vec![DirectionalLight {
+                direction: [-1.0, -1.0, -1.0],
+                intensity: 0.7,
+                color: [1.0, 1.0, 1.0],
+            }],
+            point_lights: vec![PointLight {
+                position: [5.0, 5.0, 5.0],
+                intensity: 0.5,
+                color: [0.0, 1.0, 1.0], // Quantum cyan
+                attenuation: 0.1,
+            }],
         };
 
         // Create quantum field visualization
@@ -664,10 +662,10 @@ impl AdvancedNativePlotter {
 
         for frame_idx in 0..num_frames {
             let time = frame_idx as f64 / self.config.animation_fps;
-            
+
             // Create quantum coherence visualization for this frame
             let coherence_frame = self.create_quantum_coherence_frame(result, time)?;
-            
+
             frames.push(coherence_frame);
         }
 
@@ -692,16 +690,17 @@ impl AdvancedNativePlotter {
 
         for t in 0..time_steps {
             let time = t as f64 / time_steps as f64;
-            
+
             for neuron in 0..n_neurons {
                 // Base activity influenced by quantum coherence
                 let base_activity = result.performance.neural_adaptation_rate;
-                let quantum_modulation = result.performance.quantum_coherence * (2.0 * PI * time * 3.0).sin();
+                let quantum_modulation =
+                    result.performance.quantum_coherence * (2.0 * PI * time * 3.0).sin();
                 let noise = 0.1 * (time * 47.0 + neuron as f64 * 13.0).sin();
-                
+
                 let activity = base_activity + 0.2 * quantum_modulation + noise;
                 activity_matrix[[t, neuron]] = activity.max(0.0).min(1.0);
-                
+
                 // Generate spikes based on activity
                 let spike_threshold = 0.7;
                 let spike_prob = if activity > spike_threshold { 1.0 } else { 0.0 };
@@ -735,31 +734,40 @@ impl AdvancedNativePlotter {
         result: &AdvancedClusteringResult,
     ) -> Result<InteractivePerformanceDashboard> {
         let metrics = &result.performance;
-        
+
         // Create performance metrics visualization
         let mut performance_metrics = HashMap::new();
         performance_metrics.insert("Silhouette Score".to_string(), metrics.silhouette_score);
         performance_metrics.insert("Quantum Coherence".to_string(), metrics.quantum_coherence);
-        performance_metrics.insert("Neural Adaptation".to_string(), metrics.neural_adaptation_rate);
+        performance_metrics.insert(
+            "Neural Adaptation".to_string(),
+            metrics.neural_adaptation_rate,
+        );
         performance_metrics.insert("Energy Efficiency".to_string(), metrics.energy_efficiency);
 
         // Create improvement comparisons
         let mut improvements = HashMap::new();
         improvements.insert("AI Speedup".to_string(), result.ai_speedup);
         improvements.insert("Quantum Advantage".to_string(), result.quantum_advantage);
-        improvements.insert("Neuromorphic Benefit".to_string(), result.neuromorphic_benefit);
-        improvements.insert("Meta-learning Improvement".to_string(), result.meta_learning_improvement);
+        improvements.insert(
+            "Neuromorphic Benefit".to_string(),
+            result.neuromorphic_benefit,
+        );
+        improvements.insert(
+            "Meta-learning Improvement".to_string(),
+            result.meta_learning_improvement,
+        );
 
         // Create real-time metrics timeline
         let mut metrics_timeline = Vec::new();
         for i in 0..metrics.ai_iterations {
             let progress = i as f64 / metrics.ai_iterations as f64;
             let timestamp = progress * metrics.execution_time;
-            
+
             // Simulate metric evolution during optimization
             let coherence = metrics.quantum_coherence * (1.0 - 0.3 * (-progress * 5.0).exp());
             let adaptation = metrics.neural_adaptation_rate * (1.0 + 0.5 * progress);
-            
+
             metrics_timeline.push(MetricTimelinePoint {
                 timestamp,
                 quantum_coherence: coherence,
@@ -784,16 +792,21 @@ impl AdvancedNativePlotter {
 
     // Helper methods for calculations and rendering
 
-    fn calculate_point_quantum_enhancement(&self, point_idx: usize, cluster_id: usize, result: &AdvancedClusteringResult) -> f64 {
+    fn calculate_point_quantum_enhancement(
+        &self,
+        point_idx: usize,
+        cluster_id: usize,
+        result: &AdvancedClusteringResult,
+    ) -> f64 {
         // Calculate quantum enhancement based on clustering properties
         let base_quantum = result.quantum_advantage / 10.0;
         let coherence_factor = result.performance.quantum_coherence;
         let confidence_factor = result.confidence;
-        
+
         // Add point-specific quantum noise
         let quantum_phase = 2.0 * PI * (point_idx as f64 + cluster_id as f64) / 100.0;
         let phase_modulation = quantum_phase.cos() * 0.2;
-        
+
         (base_quantum + coherence_factor * 0.3 + confidence_factor * 0.2 + phase_modulation)
             .max(0.0)
             .min(1.0)
@@ -804,19 +817,19 @@ impl AdvancedNativePlotter {
             PlotColorScheme::Quantum => {
                 let hue = (cluster_id as f64 * 137.5) % 360.0; // Golden angle
                 format!("hsl({}, 70%, 60%)", hue)
-            },
+            }
             PlotColorScheme::Neuromorphic => {
                 let colors = ["#00FF00", "#FFD700", "#FF4500", "#FF1493", "#00CED1"];
                 colors[cluster_id % colors.len()].to_string()
-            },
+            }
             PlotColorScheme::AI => {
                 let colors = ["#FFD700", "#FF8C00", "#FF4500", "#DC143C", "#B22222"];
                 colors[cluster_id % colors.len()].to_string()
-            },
+            }
             PlotColorScheme::Scientific => {
                 let intensity = 128 + (cluster_id * 32) % 128;
                 format!("rgb({}, {}, {})", intensity, intensity, intensity)
-            },
+            }
             PlotColorScheme::Custom(ref colors) => {
                 if colors.is_empty() {
                     "#0088FF".to_string()
@@ -824,7 +837,7 @@ impl AdvancedNativePlotter {
                     let color = colors[cluster_id % colors.len()];
                     format!("rgb({}, {}, {})", color[0], color[1], color[2])
                 }
-            },
+            }
         }
     }
 
@@ -833,26 +846,38 @@ impl AdvancedNativePlotter {
             PlotColorScheme::Quantum => {
                 let hue = (cluster_id as f64 * 137.5) % 360.0;
                 self.hsl_to_rgb(hue, 0.7, 0.6)
-            },
+            }
             PlotColorScheme::Neuromorphic => {
-                let colors = [[0, 255, 0], [255, 215, 0], [255, 69, 0], [255, 20, 147], [0, 206, 209]];
+                let colors = [
+                    [0, 255, 0],
+                    [255, 215, 0],
+                    [255, 69, 0],
+                    [255, 20, 147],
+                    [0, 206, 209],
+                ];
                 colors[cluster_id % colors.len()]
-            },
+            }
             PlotColorScheme::AI => {
-                let colors = [[255, 215, 0], [255, 140, 0], [255, 69, 0], [220, 20, 60], [178, 34, 34]];
+                let colors = [
+                    [255, 215, 0],
+                    [255, 140, 0],
+                    [255, 69, 0],
+                    [220, 20, 60],
+                    [178, 34, 34],
+                ];
                 colors[cluster_id % colors.len()]
-            },
+            }
             PlotColorScheme::Scientific => {
                 let intensity = 128 + (cluster_id * 32) % 128;
                 [intensity as u8, intensity as u8, intensity as u8]
-            },
+            }
             PlotColorScheme::Custom(ref colors) => {
                 if colors.is_empty() {
                     [0, 136, 255]
                 } else {
                     colors[cluster_id % colors.len()]
                 }
-            },
+            }
         }
     }
 
@@ -860,13 +885,16 @@ impl AdvancedNativePlotter {
         // Apply quantum shimmer effect to _color
         if base_color.starts_with("hsl") {
             // Extract hue, saturation, lightness
-            if let Some(hsl_part) = base_color.strip_prefix("hsl(").and_then(|s| s.strip_suffix(")")) {
+            if let Some(hsl_part) = base_color
+                .strip_prefix("hsl(")
+                .and_then(|s| s.strip_suffix(")"))
+            {
                 let parts: Vec<&str> = hsl_part.split(", ").collect();
                 if parts.len() == 3 {
                     if let (Ok(h), Ok(s), Ok(l)) = (
                         parts[0].parse::<f64>(),
                         parts[1].strip_suffix("%").unwrap_or("0").parse::<f64>(),
-                        parts[2].strip_suffix("%").unwrap_or("0").parse::<f64>()
+                        parts[2].strip_suffix("%").unwrap_or("0").parse::<f64>(),
                     ) {
                         let enhanced_s = (s + quantum_factor * 20.0).min(100.0);
                         let enhanced_l = (l + quantum_factor * 10.0).min(90.0);
@@ -878,7 +906,11 @@ impl AdvancedNativePlotter {
         base_color // Return original if parsing fails
     }
 
-    fn apply_quantum_color_enhancement_rgb(&self, base_color: [u8; 3], quantum_factor: f64) -> [u8; 3] {
+    fn apply_quantum_color_enhancement_rgb(
+        &self,
+        base_color: [u8; 3],
+        quantum_factor: f64,
+    ) -> [u8; 3] {
         let enhancement = (quantum_factor * 50.0) as u8;
         [
             (base_color[0] as u16 + enhancement as u16).min(255) as u8,
@@ -911,24 +943,29 @@ impl AdvancedNativePlotter {
     fn calculate_plot_bounds(&self, data: &Array2<f64>) -> (f64, f64, f64, f64) {
         let x_values = data.column(0);
         let y_values = data.column(1);
-        
+
         let x_min = x_values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
         let x_max = x_values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
         let y_min = y_values.iter().fold(f64::INFINITY, |a, &b| a.min(b));
         let y_max = y_values.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-        
+
         // Add some padding
         let x_padding = (x_max - x_min) * 0.1;
         let y_padding = (y_max - y_min) * 0.1;
-        
-        (x_min - x_padding, x_max + x_padding, y_min - y_padding, y_max + y_padding)
+
+        (
+            x_min - x_padding,
+            x_max + x_padding,
+            y_min - y_padding,
+            y_max + y_padding,
+        )
     }
 
     fn apply_native_pca(&self, data: &ArrayView2<f64>, target_dims: usize) -> Result<Array2<f64>> {
         // Simplified PCA implementation for native plotting
         let n_samples = data.nrows();
         let n_features = data.ncols();
-        
+
         if target_dims >= n_features {
             return Ok(data.to_owned());
         }
@@ -936,25 +973,34 @@ impl AdvancedNativePlotter {
         // Center the data
         let mean = data.mean_axis(Axis(0)).expect("Operation failed");
         let centered = data - &mean.insert_axis(Axis(0));
-        
+
         // For simplicity, just take the first few dimensions with some processing
         let mut reduced = Array2::zeros((n_samples, target_dims));
-        
+
         for i in 0..n_samples {
             for j in 0..target_dims {
                 let mut component = 0.0;
                 for k in 0..n_features {
-                    let weight = (k as f64 * PI / n_features as f64 + j as f64 * PI / target_dims as f64).cos();
+                    let weight = (k as f64 * PI / n_features as f64
+                        + j as f64 * PI / target_dims as f64)
+                        .cos();
                     component += centered[[i, k]] * weight;
                 }
                 reduced[[i, j]] = component / (n_features as f64).sqrt();
             }
         }
-        
+
         Ok(reduced)
     }
 
-    fn add_plot_axes_and_labels(&mut self, x_min: f64, x_max: f64, y_min: f64, ymax: f64, margin: f64) -> Result<()> {
+    fn add_plot_axes_and_labels(
+        &mut self,
+        x_min: f64,
+        x_max: f64,
+        y_min: f64,
+        ymax: f64,
+        margin: f64,
+    ) -> Result<()> {
         let plot_width = self.config.width as f64 - 2.0 * margin;
         let plot_height = self.config.height as f64 - 2.0 * margin;
 
@@ -1074,11 +1120,458 @@ impl AdvancedNativePlotter {
                 initInteractivity();
             }
         })();
-        "#.to_string()
+        "#
+        .to_string()
     }
 
-    // Additional helper methods would be implemented here...
-    // Due to length constraints, showing key structure and main methods
+    /// Build a hierarchical dendrogram tree from cluster results.
+    ///
+    /// Constructs a binary tree by greedily merging the two nearest cluster
+    /// centroids at each step, mirroring single-linkage agglomeration.
+    fn build_dendrogram_tree(
+        &self,
+        data: &ArrayView2<f64>,
+        result: &AdvancedClusteringResult,
+    ) -> Result<DendrogramTree> {
+        let n_samples = data.nrows();
+        if n_samples == 0 {
+            return Err(ClusteringError::InvalidInput(
+                "Cannot build dendrogram from empty data".into(),
+            ));
+        }
+
+        // Create leaf nodes — one per data point.
+        let mut nodes: Vec<DendrogramNode> = (0..n_samples)
+            .map(|i| {
+                let cluster_id = if i < result.clusters.len() {
+                    result.clusters[i]
+                } else {
+                    0
+                };
+                let quantum_coherence = result.performance.quantum_coherence
+                    * ((i as f64 * PI / n_samples as f64).cos().abs());
+                DendrogramNode {
+                    id: format!("leaf_{i}"),
+                    height: 0.0,
+                    children: Vec::new(),
+                    data_indices: vec![i],
+                    quantum_coherence,
+                    neuromorphic_activity: result.performance.neural_adaptation_rate
+                        * (1.0 - (cluster_id as f64 / (result.centroids.nrows().max(1) as f64))),
+                }
+            })
+            .collect();
+
+        // Agglomerate: repeatedly merge the two nodes with the smallest
+        // centroid-distance until a single root remains.
+        let mut merge_height = 0.0_f64;
+        while nodes.len() > 1 {
+            let n = nodes.len();
+            // Find the pair (i, j) that minimises the L2 centroid distance.
+            // Centroid approximated as mean of represented data points.
+            let centroid = |node: &DendrogramNode| -> Array1<f64> {
+                let cols = data.ncols();
+                let mut sum: Array1<f64> = Array1::zeros(cols);
+                for &idx in &node.data_indices {
+                    if idx < data.nrows() {
+                        for c in 0..cols {
+                            sum[c] += data[[idx, c]];
+                        }
+                    }
+                }
+                let cnt = node.data_indices.len().max(1) as f64;
+                sum.mapv(|v: f64| v / cnt)
+            };
+
+            let mut best_dist = f64::INFINITY;
+            let mut best_i = 0;
+            let mut best_j = 1;
+            for i in 0..n {
+                let ci = centroid(&nodes[i]);
+                for j in (i + 1)..n {
+                    let cj = centroid(&nodes[j]);
+                    let dist: f64 = ci
+                        .iter()
+                        .zip(cj.iter())
+                        .map(|(a, b)| (a - b) * (a - b))
+                        .sum::<f64>()
+                        .sqrt();
+                    if dist < best_dist {
+                        best_dist = dist;
+                        best_i = i;
+                        best_j = j;
+                    }
+                }
+            }
+
+            merge_height += best_dist;
+            // Merge nodes[best_j] into nodes[best_i].
+            let node_j = nodes.remove(best_j);
+            let node_i = nodes.remove(best_i);
+            let mut merged_indices = node_i.data_indices.clone();
+            merged_indices.extend_from_slice(&node_j.data_indices);
+            let avg_coherence = (node_i.quantum_coherence + node_j.quantum_coherence) / 2.0;
+            let avg_neuro = (node_i.neuromorphic_activity + node_j.neuromorphic_activity) / 2.0;
+            let merged = DendrogramNode {
+                id: format!("merge_{}_{}", node_i.id, node_j.id),
+                height: merge_height,
+                children: vec![node_i, node_j],
+                data_indices: merged_indices,
+                quantum_coherence: avg_coherence,
+                neuromorphic_activity: avg_neuro,
+            };
+            nodes.push(merged);
+        }
+
+        let root = nodes.remove(0);
+        let leaf_count = root.data_indices.len();
+        let total_height = root.height;
+
+        Ok(DendrogramTree {
+            root,
+            height: total_height,
+            leaf_count,
+        })
+    }
+
+    /// Compute 2-D (x, y) canvas positions for each node in the dendrogram.
+    ///
+    /// Leaves are spread evenly along the x-axis; internal nodes are placed
+    /// at the mean x of their children and at their merge-height on the y-axis.
+    fn calculate_dendrogram_layout(
+        &self,
+        tree: &DendrogramTree,
+    ) -> Result<HashMap<String, (f64, f64)>> {
+        let mut positions: HashMap<String, (f64, f64)> = HashMap::new();
+        let plot_width = self.config.width as f64;
+        let plot_height = self.config.height as f64;
+        let max_height = tree.height.max(1.0);
+
+        // Assign a leaf-index to every leaf node via a DFS traversal.
+        let mut leaf_counter = 0usize;
+        fn assign_leaves(
+            node: &DendrogramNode,
+            positions: &mut HashMap<String, (f64, f64)>,
+            leaf_counter: &mut usize,
+            plot_width: f64,
+            plot_height: f64,
+            max_height: f64,
+            leaf_count: usize,
+        ) {
+            if node.children.is_empty() {
+                // Leaf node — place on x-axis.
+                let x = if leaf_count > 1 {
+                    (*leaf_counter as f64 / (leaf_count - 1) as f64) * plot_width
+                } else {
+                    plot_width / 2.0
+                };
+                let y = plot_height; // Leaves at the bottom.
+                positions.insert(node.id.clone(), (x, y));
+                *leaf_counter += 1;
+            } else {
+                for child in &node.children {
+                    assign_leaves(
+                        child,
+                        positions,
+                        leaf_counter,
+                        plot_width,
+                        plot_height,
+                        max_height,
+                        leaf_count,
+                    );
+                }
+                // Internal node — x is the mean of child x-positions.
+                let child_x: f64 = node
+                    .children
+                    .iter()
+                    .filter_map(|c| positions.get(&c.id).map(|(x, _)| *x))
+                    .sum::<f64>()
+                    / node.children.len().max(1) as f64;
+                let y = plot_height * (1.0 - node.height / max_height);
+                positions.insert(node.id.clone(), (child_x, y));
+            }
+        }
+
+        assign_leaves(
+            &tree.root,
+            &mut positions,
+            &mut leaf_counter,
+            plot_width,
+            plot_height,
+            max_height,
+            tree.leaf_count.max(1),
+        );
+
+        Ok(positions)
+    }
+
+    /// Compute branch lengths for each node, scaled by quantum coherence.
+    fn calculate_quantum_branch_lengths(
+        &self,
+        tree: &DendrogramTree,
+        result: &AdvancedClusteringResult,
+    ) -> Result<HashMap<String, f64>> {
+        let mut branch_lengths: HashMap<String, f64> = HashMap::new();
+        let quantum_scale = result.quantum_advantage.max(1.0);
+
+        fn traverse(
+            node: &DendrogramNode,
+            parent_height: f64,
+            branch_lengths: &mut HashMap<String, f64>,
+            quantum_scale: f64,
+        ) {
+            let raw_length = (node.height - parent_height).abs();
+            let quantum_enhanced = raw_length * (1.0 + node.quantum_coherence / quantum_scale);
+            branch_lengths.insert(node.id.clone(), quantum_enhanced);
+            for child in &node.children {
+                traverse(child, node.height, branch_lengths, quantum_scale);
+            }
+        }
+
+        traverse(&tree.root, 0.0, &mut branch_lengths, quantum_scale);
+        Ok(branch_lengths)
+    }
+
+    /// Compute per-node quantum enhancement values for dendrogram colouring.
+    fn calculate_dendrogram_quantum_enhancements(
+        &self,
+        tree: &DendrogramTree,
+        result: &AdvancedClusteringResult,
+    ) -> Result<HashMap<String, f64>> {
+        let mut enhancements: HashMap<String, f64> = HashMap::new();
+
+        fn traverse(
+            node: &DendrogramNode,
+            enhancements: &mut HashMap<String, f64>,
+            base_quantum: f64,
+        ) {
+            let enhancement = (base_quantum * node.quantum_coherence).clamp(0.0, 1.0);
+            enhancements.insert(node.id.clone(), enhancement);
+            for child in &node.children {
+                traverse(child, enhancements, base_quantum);
+            }
+        }
+
+        let base_quantum = result.quantum_advantage.clamp(0.01, 10.0);
+        traverse(&tree.root, &mut enhancements, base_quantum);
+        Ok(enhancements)
+    }
+
+    /// Render dendrogram tree as SVG line elements and add them to the canvas.
+    fn render_dendrogram_to_svg(
+        &mut self,
+        tree: &DendrogramTree,
+        positions: &HashMap<String, (f64, f64)>,
+        _branch_lengths: &HashMap<String, f64>,
+        enhancements: &HashMap<String, f64>,
+    ) -> Result<()> {
+        fn draw_node(
+            node: &DendrogramNode,
+            positions: &HashMap<String, (f64, f64)>,
+            enhancements: &HashMap<String, f64>,
+            elements: &mut Vec<SvgElement>,
+        ) {
+            if let Some(&(x, y)) = positions.get(&node.id) {
+                for child in &node.children {
+                    if let Some(&(cx, cy)) = positions.get(&child.id) {
+                        let enhancement = enhancements.get(&child.id).copied().unwrap_or(0.0);
+                        let blue = ((enhancement * 200.0) as u8).saturating_add(55);
+                        let color = format!("rgb(0, {}, {})", blue, blue);
+
+                        // Horizontal branch from parent to child x, then vertical.
+                        elements.push(SvgElement::Line {
+                            x1: x,
+                            y1: y,
+                            x2: cx,
+                            y2: y,
+                            stroke: color.clone(),
+                            stroke_width: 1.5,
+                            opacity: 0.85,
+                        });
+                        elements.push(SvgElement::Line {
+                            x1: cx,
+                            y1: y,
+                            x2: cx,
+                            y2: cy,
+                            stroke: color,
+                            stroke_width: 1.5,
+                            opacity: 0.85,
+                        });
+                        draw_node(child, positions, enhancements, elements);
+                    }
+                }
+                // Draw a small circle at each internal node.
+                if !node.children.is_empty() {
+                    elements.push(SvgElement::Circle {
+                        cx: x,
+                        cy: y,
+                        r: 3.0,
+                        fill: "#00CCFF".to_string(),
+                        stroke: "#0088BB".to_string(),
+                        stroke_width: 1.0,
+                        opacity: 0.9,
+                    });
+                }
+            }
+        }
+
+        let mut elements: Vec<SvgElement> = Vec::new();
+        draw_node(&tree.root, positions, enhancements, &mut elements);
+        for el in elements {
+            self.svg_canvas.add_element(el);
+        }
+        Ok(())
+    }
+
+    /// Build a quantum-field representation for 3D cluster plots.
+    ///
+    /// The field is sampled on a 10×10 grid overlaid on the data bounding box.
+    fn create_quantum_field_3d(
+        &self,
+        points_3d: &Array2<f64>,
+        result: &AdvancedClusteringResult,
+    ) -> Result<QuantumField3D> {
+        let grid = 10usize;
+        let n_points = points_3d.nrows();
+
+        // Compute bounding box.
+        let (mut x_min, mut x_max, mut y_min, mut y_max) = (
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+            f64::INFINITY,
+            f64::NEG_INFINITY,
+        );
+        for i in 0..n_points {
+            let x = points_3d[[i, 0]];
+            let y = points_3d[[i, 1]];
+            x_min = x_min.min(x);
+            x_max = x_max.max(x);
+            y_min = y_min.min(y);
+            y_max = y_max.max(y);
+        }
+        x_min -= 1.0;
+        x_max += 1.0;
+        y_min -= 1.0;
+        y_max += 1.0;
+
+        let mut field_strength = Array2::zeros((grid, grid));
+        let mut coherence = Array2::zeros((grid, grid));
+        let mut phase = Array2::zeros((grid, grid));
+
+        let base_coherence = result.performance.quantum_coherence;
+
+        for gi in 0..grid {
+            for gj in 0..grid {
+                let gx = x_min + (gi as f64 / (grid - 1) as f64) * (x_max - x_min);
+                let gy = y_min + (gj as f64 / (grid - 1) as f64) * (y_max - y_min);
+
+                // Field strength = inverse-distance-weighted sum over all points.
+                let mut strength = 0.0_f64;
+                for i in 0..n_points {
+                    let dx = gx - points_3d[[i, 0]];
+                    let dy = gy - points_3d[[i, 1]];
+                    let dz = if points_3d.ncols() > 2 {
+                        gx - points_3d[[i, 2]]
+                    } else {
+                        0.0
+                    };
+                    let dist2 = (dx * dx + dy * dy + dz * dz).max(1e-6);
+                    strength += 1.0 / dist2;
+                }
+                field_strength[[gi, gj]] = strength.min(100.0);
+                coherence[[gi, gj]] = base_coherence * (1.0 - strength / (strength + 10.0));
+                phase[[gi, gj]] = (gx * 0.5 + gy * 0.3).sin() * PI;
+            }
+        }
+
+        // Entanglement lines: connect centroids with high quantum coherence.
+        let n_centroids = result.centroids.nrows().min(5);
+        let mut entanglement_lines = Vec::new();
+        for i in 0..n_centroids {
+            for j in (i + 1)..n_centroids {
+                let coherence_ij = base_coherence * 0.8;
+                if coherence_ij > 0.3 {
+                    let pi_x = result.centroids[[i, 0]];
+                    let pi_y = result.centroids[[i, 1]];
+                    let pi_z = if result.centroids.ncols() > 2 {
+                        result.centroids[[i, 2]]
+                    } else {
+                        0.0
+                    };
+                    let pj_x = result.centroids[[j, 0]];
+                    let pj_y = result.centroids[[j, 1]];
+                    let pj_z = if result.centroids.ncols() > 2 {
+                        result.centroids[[j, 2]]
+                    } else {
+                        0.0
+                    };
+                    entanglement_lines.push(([pi_x, pi_y, pi_z], [pj_x, pj_y, pj_z], coherence_ij));
+                }
+            }
+        }
+
+        Ok(QuantumField3D {
+            field_strength,
+            coherence,
+            phase,
+            entanglement_lines,
+        })
+    }
+
+    /// Generate a single quantum coherence animation frame at time `t`.
+    fn create_quantum_coherence_frame(
+        &self,
+        result: &AdvancedClusteringResult,
+        t: f64,
+    ) -> Result<QuantumCoherenceFrame> {
+        let grid = 8usize;
+        let mut field_strength = Array2::zeros((grid, grid));
+
+        let base = result.performance.quantum_coherence;
+        for gi in 0..grid {
+            for gj in 0..grid {
+                let wave_x = (gi as f64 / grid as f64 * 2.0 * PI + t * 2.5).cos();
+                let wave_y = (gj as f64 / grid as f64 * 2.0 * PI + t * 1.7).sin();
+                field_strength[[gi, gj]] = (base + 0.3 * wave_x * wave_y).clamp(0.0, 1.0);
+            }
+        }
+
+        // Build SVG pulsing circles for each cluster centroid.
+        let n_centroids = result.centroids.nrows().min(8);
+        let mut elements: Vec<SvgElement> = Vec::new();
+        let w = self.config.width as f64;
+        let h = self.config.height as f64;
+
+        for k in 0..n_centroids {
+            let cx_val = result.centroids[[k, 0]];
+            let cy_val = result.centroids[[k, 1]];
+            // Normalise to canvas — assume data in [-5, 5].
+            let sx = (cx_val + 5.0) / 10.0 * w;
+            let sy = (cy_val + 5.0) / 10.0 * h;
+
+            let pulse = (t * 2.0 * PI + k as f64 * 0.5).sin() * 0.5 + 0.5;
+            let r = 5.0 + pulse * 10.0;
+            let opacity = 0.4 + pulse * 0.5;
+            let blue_val = ((base * 200.0) as u8).saturating_add(55);
+            let color = format!("rgba(0, {blue_val}, 255, {opacity:.2})");
+
+            elements.push(SvgElement::Circle {
+                cx: sx,
+                cy: sy,
+                r,
+                fill: color.clone(),
+                stroke: "#00FFFF".to_string(),
+                stroke_width: 1.0,
+                opacity,
+            });
+        }
+
+        Ok(QuantumCoherenceFrame {
+            timestamp: t,
+            elements,
+            field_strength,
+        })
+    }
 }
 
 // Supporting data structures
@@ -1248,38 +1741,71 @@ impl SvgCanvas {
 impl SvgElement {
     pub fn to_svg(&self) -> String {
         match self {
-            SvgElement::Circle { cx, cy, r, fill, stroke, stroke_width, opacity } => {
+            SvgElement::Circle {
+                cx,
+                cy,
+                r,
+                fill,
+                stroke,
+                stroke_width,
+                opacity,
+            } => {
                 format!(
                     r#"<circle cx="{}" cy="{}" r="{}" fill="{}" stroke="{}" stroke-width="{}" opacity="{}" />"#,
                     cx, cy, r, fill, stroke, stroke_width, opacity
                 )
-            },
-            SvgElement::Line { x1, y1, x2, y2, stroke, stroke_width, opacity } => {
+            }
+            SvgElement::Line {
+                x1,
+                y1,
+                x2,
+                y2,
+                stroke,
+                stroke_width,
+                opacity,
+            } => {
                 format!(
                     r#"<line x1="{}" y1="{}" x2="{}" y2="{}" stroke="{}" stroke-width="{}" opacity="{}" />"#,
                     x1, y1, x2, y2, stroke, stroke_width, opacity
                 )
-            },
-            SvgElement::Path { d, fill, stroke, stroke_width, opacity } => {
+            }
+            SvgElement::Path {
+                d,
+                fill,
+                stroke,
+                stroke_width,
+                opacity,
+            } => {
                 format!(
                     r#"<path d="{}" fill="{}" stroke="{}" stroke-width="{}" opacity="{}" />"#,
                     d, fill, stroke, stroke_width, opacity
                 )
-            },
-            SvgElement::Text { x, y, content, font_size, fill, text_anchor } => {
+            }
+            SvgElement::Text {
+                x,
+                y,
+                content,
+                font_size,
+                fill,
+                text_anchor,
+            } => {
                 format!(
                     r#"<text x="{}" y="{}" font-size="{}" fill="{}" text-anchor="{}">{}</text>"#,
                     x, y, font_size, fill, text_anchor, content
                 )
-            },
-            SvgElement::Group { id, elements, transform } => {
+            }
+            SvgElement::Group {
+                id,
+                elements,
+                transform,
+            } => {
                 let mut group = format!(r#"<g id="{}" transform="{}">"#, id, transform);
                 for element in elements {
                     group.push_str(&element.to_svg());
                 }
                 group.push_str("</g>");
                 group
-            },
+            }
         }
     }
 }
@@ -1321,6 +1847,275 @@ pub fn create_native_advanced_plot(
     plotter.create_comprehensive_plot(data, result)
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::advanced_clustering::{AdvancedClusteringResult, AdvancedPerformanceMetrics};
+    use scirs2_core::ndarray::{array, Array1, Array2};
+
+    /// Build a minimal AdvancedClusteringResult from small 4-point 2-D data.
+    /// Two clusters: points 0,1 in cluster 0; points 2,3 in cluster 1.
+    fn make_result() -> AdvancedClusteringResult {
+        let centroids = array![[0.5, 0.5], [5.5, 5.5]];
+        let clusters = Array1::from_vec(vec![0, 0, 1, 1]);
+        AdvancedClusteringResult {
+            clusters,
+            centroids,
+            ai_speedup: 1.0,
+            quantum_advantage: 1.0,
+            neuromorphic_benefit: 1.0,
+            meta_learning_improvement: 0.0,
+            selected_algorithm: "test".to_string(),
+            confidence: 0.9,
+            performance: AdvancedPerformanceMetrics {
+                silhouette_score: 0.8,
+                execution_time: 0.001,
+                memory_usage: 1.0,
+                quantum_coherence: 0.7,
+                neural_adaptation_rate: 0.5,
+                ai_iterations: 5,
+                energy_efficiency: 0.9,
+            },
+        }
+    }
+
+    /// Small 4-point 2-D data matching make_result().
+    fn make_data() -> Array2<f64> {
+        array![[0.0, 0.0], [1.0, 1.0], [5.0, 5.0], [6.0, 6.0]]
+    }
+
+    // -----------------------------------------------------------------------
+    // build_dendrogram_tree
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_build_dendrogram_tree_basic() {
+        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
+        let data = make_data();
+        let result = make_result();
+        let tree = plotter
+            .build_dendrogram_tree(&data.view(), &result)
+            .expect("build_dendrogram_tree failed");
+
+        assert_eq!(tree.leaf_count, 4, "leaf_count should equal n_samples");
+        assert!(
+            tree.root.height >= 0.0,
+            "root height must be non-negative, got {}",
+            tree.root.height
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // calculate_dendrogram_layout
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_calculate_dendrogram_layout_all_nodes_have_positions() {
+        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
+        let data = make_data();
+        let result = make_result();
+        let tree = plotter
+            .build_dendrogram_tree(&data.view(), &result)
+            .expect("build_dendrogram_tree failed");
+        let layout = plotter
+            .calculate_dendrogram_layout(&tree)
+            .expect("calculate_dendrogram_layout failed");
+
+        // We should have at least one entry (the root).
+        assert!(
+            !layout.is_empty(),
+            "layout must contain at least one position"
+        );
+        for (id, (x, y)) in &layout {
+            assert!(
+                x.is_finite() && y.is_finite(),
+                "position for node '{id}' is not finite: ({x}, {y})"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // calculate_quantum_branch_lengths
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_calculate_quantum_branch_lengths_all_nodes() {
+        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
+        let data = make_data();
+        let result = make_result();
+        let tree = plotter
+            .build_dendrogram_tree(&data.view(), &result)
+            .expect("build_dendrogram_tree failed");
+        let lengths = plotter
+            .calculate_quantum_branch_lengths(&tree, &result)
+            .expect("calculate_quantum_branch_lengths failed");
+
+        assert!(!lengths.is_empty(), "branch lengths map must not be empty");
+        for (id, length) in &lengths {
+            assert!(
+                length.is_finite(),
+                "branch length for '{id}' is not finite: {length}"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // calculate_dendrogram_quantum_enhancements
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_calculate_dendrogram_quantum_enhancements_in_range() {
+        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
+        let data = make_data();
+        let result = make_result();
+        let tree = plotter
+            .build_dendrogram_tree(&data.view(), &result)
+            .expect("build_dendrogram_tree failed");
+        let enhancements = plotter
+            .calculate_dendrogram_quantum_enhancements(&tree, &result)
+            .expect("calculate_dendrogram_quantum_enhancements failed");
+
+        assert!(
+            !enhancements.is_empty(),
+            "enhancements map must not be empty"
+        );
+        for (id, enh) in &enhancements {
+            assert!(
+                *enh >= 0.0 && *enh <= 1.0,
+                "enhancement for '{id}' is out of [0, 1]: {enh}"
+            );
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // render_dendrogram_to_svg
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_render_dendrogram_to_svg_adds_elements() {
+        let mut plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
+        let data = make_data();
+        let result = make_result();
+        let tree = plotter
+            .build_dendrogram_tree(&data.view(), &result)
+            .expect("build_dendrogram_tree failed");
+        let positions = plotter
+            .calculate_dendrogram_layout(&tree)
+            .expect("calculate_dendrogram_layout failed");
+        let branch_lengths = plotter
+            .calculate_quantum_branch_lengths(&tree, &result)
+            .expect("calculate_quantum_branch_lengths failed");
+        let enhancements = plotter
+            .calculate_dendrogram_quantum_enhancements(&tree, &result)
+            .expect("calculate_dendrogram_quantum_enhancements failed");
+
+        plotter
+            .render_dendrogram_to_svg(&tree, &positions, &branch_lengths, &enhancements)
+            .expect("render_dendrogram_to_svg failed");
+
+        // The SVG canvas should now contain content.
+        let svg = plotter.svg_canvas.to_svg();
+        assert!(
+            !svg.is_empty(),
+            "SVG canvas must be non-empty after rendering"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // create_quantum_field_3d
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_create_quantum_field_3d_grid_dimensions() {
+        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
+        let data = make_data();
+        let result = make_result();
+        // Need 3-D data for create_quantum_field_3d.
+        let data_3d: Array2<f64> = array![
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [5.0, 5.0, 5.0],
+            [6.0, 6.0, 6.0]
+        ];
+        let field = plotter
+            .create_quantum_field_3d(&data_3d, &result)
+            .expect("create_quantum_field_3d failed");
+
+        // Method uses a 10×10 grid.
+        let shape = field.field_strength.shape();
+        assert_eq!(shape[0], 10, "field grid rows should be 10");
+        assert_eq!(shape[1], 10, "field grid cols should be 10");
+        // All values should be finite and >= 0.
+        for v in field.field_strength.iter() {
+            assert!(
+                v.is_finite() && *v >= 0.0,
+                "field value should be finite and >= 0, got {v}"
+            );
+        }
+        // Unused variable suppression — we built result but only use data_3d.
+        let _ = data;
+    }
+
+    // -----------------------------------------------------------------------
+    // create_quantum_coherence_frame
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_create_quantum_coherence_frame_shape_and_timestamp() {
+        let plotter = AdvancedNativePlotter::new(NativePlotConfig::default());
+        let result = make_result();
+        let frame = plotter
+            .create_quantum_coherence_frame(&result, 0.0)
+            .expect("create_quantum_coherence_frame failed");
+
+        assert_eq!(
+            frame.timestamp, 0.0,
+            "timestamp should match argument t=0.0"
+        );
+        let shape = frame.field_strength.shape();
+        assert_eq!(shape[0], 8, "field_strength rows should be 8");
+        assert_eq!(shape[1], 8, "field_strength cols should be 8");
+        // The result has 2 centroids, so there should be 2 SVG elements.
+        assert_eq!(
+            frame.elements.len(),
+            2,
+            "should have one element per centroid"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // create_comprehensive_plot (exercises multiple paths via create_native_advanced_plot)
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_create_comprehensive_plot_runs_ok() {
+        let data = make_data();
+        let result = make_result();
+        let output = create_native_advanced_plot(&data.view(), &result, None)
+            .expect("create_native_advanced_plot failed");
+
+        assert!(
+            !output.svg_content.is_empty(),
+            "svg_content must be non-empty"
+        );
+        // For 2-D data, plot_3d should be None (ncols <= 2).
+        assert!(
+            output.plot_3d.is_none(),
+            "plot_3d should be None for 2-D data"
+        );
+    }
+
+    // -----------------------------------------------------------------------
+    // create_comprehensive_plot with hierarchical algorithm triggers dendrogram path
+    // -----------------------------------------------------------------------
+    #[test]
+    fn test_comprehensive_plot_hierarchical_triggers_dendrogram() {
+        let data = make_data();
+        let mut result = make_result();
+        result.selected_algorithm = "hierarchical".to_string();
+
+        let output = create_native_advanced_plot(&data.view(), &result, None)
+            .expect("create_native_advanced_plot (hierarchical) failed");
+
+        assert!(
+            output.dendrogram.is_some(),
+            "dendrogram should be Some when selected_algorithm contains 'hierarchical'"
+        );
+    }
+}
+
 /// Export native visualization to file
 #[allow(dead_code)]
 pub fn export_native_visualization(
@@ -1332,19 +2127,21 @@ pub fn export_native_visualization(
         "svg" => {
             use std::fs::File;
             use std::io::Write;
-            
-            let mut file = File::create(format!("{}.svg", filename))
-                .map_err(|e| ClusteringError::InvalidInput(format!("Failed to create SVG file: {}", e)))?;
-            
-            file.write_all(output.svg_content.as_bytes())
-                .map_err(|e| ClusteringError::InvalidInput(format!("Failed to write SVG file: {}", e)))?;
-            
+
+            let mut file = File::create(format!("{}.svg", filename)).map_err(|e| {
+                ClusteringError::InvalidInput(format!("Failed to create SVG file: {}", e))
+            })?;
+
+            file.write_all(output.svg_content.as_bytes()).map_err(|e| {
+                ClusteringError::InvalidInput(format!("Failed to write SVG file: {}", e))
+            })?;
+
             println!("✅ Exported native Advanced visualization to {filename}.svg");
-        },
+        }
         "html" => {
             use std::fs::File;
             use std::io::Write;
-            
+
             let html_content = format!(
                 r#"<!DOCTYPE html>
 <html>
@@ -1360,21 +2157,26 @@ pub fn export_native_visualization(
     <script>{}</script>
 </body>
 </html>"#,
-                output.svg_content,
-                output.interactive_script
+                output.svg_content, output.interactive_script
             );
-            
-            let mut file = File::create(format!("{}.html", filename))
-                .map_err(|e| ClusteringError::InvalidInput(format!("Failed to create HTML file: {}", e)))?;
-            
-            file.write_all(html_content.as_bytes())
-                .map_err(|e| ClusteringError::InvalidInput(format!("Failed to write HTML file: {}", e)))?;
-            
+
+            let mut file = File::create(format!("{}.html", filename)).map_err(|e| {
+                ClusteringError::InvalidInput(format!("Failed to create HTML file: {}", e))
+            })?;
+
+            file.write_all(html_content.as_bytes()).map_err(|e| {
+                ClusteringError::InvalidInput(format!("Failed to write HTML file: {}", e))
+            })?;
+
             println!("🌐 Exported interactive Advanced visualization to {filename}.html");
-        }_ => {
-            return Err(ClusteringError::InvalidInput(format!("Unsupported export format: {}", format)));
+        }
+        _ => {
+            return Err(ClusteringError::InvalidInput(format!(
+                "Unsupported export format: {}",
+                format
+            )));
         }
     }
-    
+
     Ok(())
 }

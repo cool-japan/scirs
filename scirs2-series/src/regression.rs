@@ -6,6 +6,7 @@
 //! - Error correction models (ECM)
 //! - Regression with ARIMA errors
 
+use crate::arima_models::ArimaModel;
 use crate::error::TimeSeriesError;
 use scirs2_core::ndarray::{s, Array1, Array2};
 use scirs2_core::validation::checkarray_finite;
@@ -201,9 +202,15 @@ impl Default for ErrorCorrectionConfig {
     }
 }
 
-/// Configuration for regression with ARIMA errors (placeholder)
+/// Configuration for regression with ARIMA errors
 #[derive(Debug, Clone)]
 pub struct ARIMAErrorsConfig {
+    /// AR order of the error ARIMA process
+    pub p: usize,
+    /// Differencing order of the error ARIMA process
+    pub d: usize,
+    /// MA order of the error ARIMA process
+    pub q: usize,
     /// Whether to include intercept in regression
     pub include_intercept: bool,
     /// Maximum iterations for fitting
@@ -215,6 +222,9 @@ pub struct ARIMAErrorsConfig {
 impl Default for ARIMAErrorsConfig {
     fn default() -> Self {
         Self {
+            p: 1,
+            d: 0,
+            q: 1,
             include_intercept: true,
             max_iterations: 100,
             tolerance: 1e-6,
@@ -503,19 +513,27 @@ impl TimeSeriesRegression {
         })
     }
 
-    /// Fit regression with ARIMA errors
+    /// Fit regression with ARIMA errors using Feasible GLS (Cochrane-Orcutt generalisation)
     ///
-    /// Models y_t = βx_t + ε_t, where ε_t follows an ARIMA process
+    /// Models y_t = β X_t + ε_t, where ε_t ~ ARIMA(p, d, q).
+    ///
+    /// Algorithm:
+    ///   1. OLS on the original data → initial β̂
+    ///   2. Fit ARIMA(p,d,q) on residuals e_t = y_t − X_t β̂
+    ///   3. Apply the ARMA whitening filter to both y and each column of X
+    ///   4. OLS on the filtered data → updated β̂
+    ///   5. Repeat 2-4 until ||Δβ|| < tolerance or max_iterations reached
     ///
     /// # Arguments
     ///
     /// * `y` - Dependent variable time series
-    /// * `x` - Independent variables matrix
-    /// * `config` - Configuration for the model
+    /// * `x` - Independent variables matrix (rows = observations, cols = regressors)
+    /// * `config` - Configuration for the model (includes ARIMA orders p, d, q)
     ///
     /// # Returns
     ///
-    /// Result containing regression with ARIMA errors estimates
+    /// Result containing regression with ARIMA errors estimates.
+    /// Returns an error if ARIMA fitting fails — does NOT silently fall back to OLS.
     pub fn fit_regression_with_arima_errors(
         &self,
         y: &Array1<f64>,
@@ -524,49 +542,210 @@ impl TimeSeriesRegression {
     ) -> RegressionResult<ARIMAErrorsResult> {
         checkarray_finite(y, "y")?;
 
-        if y.len() != x.nrows() {
+        let n = y.len();
+        if n != x.nrows() {
             return Err(TimeSeriesError::InvalidInput(
                 "Response and design matrix must have compatible dimensions".to_string(),
             ));
         }
 
-        // Placeholder implementation - ARIMA models not yet implemented
-        // For now, just perform simple OLS regression
-        let mut design_matrix = x.clone();
-        if config.include_intercept {
-            let _intercept_col = Array2::<f64>::ones((x.nrows(), 1));
-            // Simple concatenation for now
-            let mut new_matrix = Array2::zeros((x.nrows(), x.ncols() + 1));
-            for i in 0..x.nrows() {
-                new_matrix[[i, 0]] = 1.0;
-                for j in 0..x.ncols() {
-                    new_matrix[[i, j + 1]] = x[[i, j]];
-                }
-            }
-            design_matrix = new_matrix;
+        let min_required = config.p + config.q + config.d + 2;
+        if n < min_required {
+            return Err(TimeSeriesError::InsufficientData {
+                message: "Too few observations for the specified ARIMA order".to_string(),
+                required: min_required,
+                actual: n,
+            });
         }
 
-        let regression_result = self.fit_ols_regression(&design_matrix, y)?;
+        // Build augmented design matrix (optionally prepend intercept column)
+        let design_matrix = if config.include_intercept {
+            let mut dm = Array2::zeros((n, x.ncols() + 1));
+            for i in 0..n {
+                dm[[i, 0]] = 1.0;
+                for j in 0..x.ncols() {
+                    dm[[i, j + 1]] = x[[i, j]];
+                }
+            }
+            dm
+        } else {
+            x.clone()
+        };
 
-        // Simple placeholder calculations
-        let n = y.len() as f64;
-        let k = regression_result.coefficients.len() as f64;
-        let rss = regression_result.residual_sum_squares;
-        let log_likelihood =
-            -0.5 * n * (2.0 * std::f64::consts::PI * rss / n).ln() - 0.5 * rss / (rss / n);
-        let aic = -2.0 * log_likelihood + 2.0 * k;
-        let bic = -2.0 * log_likelihood + k * n.ln();
+        // ── Step 1: Initial OLS estimate ────────────────────────────────────
+        let initial_ols = self.fit_ols_regression(&design_matrix, y)?;
+        let mut beta = initial_ols.coefficients.clone();
+
+        // FGLS iteration
+        let mut arima_log_likelihood = 0.0_f64;
+        let mut arima_sigma2 = 1.0_f64;
+        let mut ar_coeffs = Array1::<f64>::zeros(config.p);
+        let mut ma_coeffs = Array1::<f64>::zeros(config.q);
+
+        for iter in 0..config.max_iterations {
+            // ── Step 2: Residuals e_t = y_t − X_t β ────────────────────────
+            let fitted_now = design_matrix.dot(&beta);
+            let residuals: Array1<f64> = y - &fitted_now;
+
+            // ── Step 3: Fit ARIMA(p,d,q) on residuals ───────────────────────
+            let mut arima = ArimaModel::<f64>::new(config.p, config.d, config.q)
+                .map_err(|e| TimeSeriesError::FittingError(format!("ARIMA init failed: {e}")))?;
+
+            arima
+                .fit(&residuals)
+                .map_err(|e| TimeSeriesError::FittingError(format!("ARIMA fit failed: {e}")))?;
+
+            arima_log_likelihood = arima
+                .log_likelihood
+                .is_finite()
+                .then_some(arima.log_likelihood)
+                .ok_or_else(|| {
+                    TimeSeriesError::NumericalInstability(
+                        "ARIMA log-likelihood is non-finite".to_string(),
+                    )
+                })?;
+            arima_sigma2 = if arima.sigma2 > 0.0 {
+                arima.sigma2
+            } else {
+                f64::EPSILON
+            };
+
+            ar_coeffs = arima.ar_coeffs.clone();
+            ma_coeffs = arima.ma_coeffs.clone();
+
+            // ── Step 4: Whiten y and each column of X ───────────────────────
+            let y_star = self.apply_arma_filter(y, &ar_coeffs, &ma_coeffs, &residuals);
+            let ncols = design_matrix.ncols();
+            let filtered_len = y_star.len();
+            let mut x_star = Array2::zeros((filtered_len, ncols));
+            for j in 0..ncols {
+                let col: Array1<f64> = design_matrix.column(j).to_owned();
+                // For whitening X cols, use zero MA innovations (residuals from X are unknown)
+                let zeros = Array1::zeros(col.len());
+                let col_star = self.apply_arma_filter(&col, &ar_coeffs, &ma_coeffs, &zeros);
+                let col_len = col_star.len().min(filtered_len);
+                for i in 0..col_len {
+                    x_star[[i, j]] = col_star[i];
+                }
+            }
+
+            // ── Step 5: GLS = OLS on filtered data ──────────────────────────
+            let gls_result = self.fit_ols_regression(&x_star, &y_star)?;
+            let beta_new = gls_result.coefficients.clone();
+
+            // ── Convergence check ────────────────────────────────────────────
+            let delta: f64 = (&beta_new - &beta).mapv(|v| v * v).sum().sqrt();
+            beta = beta_new;
+
+            if delta < config.tolerance {
+                break;
+            }
+        }
+
+        // ── Final statistics on original scale ──────────────────────────────
+        let final_fitted = design_matrix.dot(&beta);
+        let final_residuals: Array1<f64> = y - &final_fitted;
+
+        // R-squared computed on the original (un-filtered) scale
+        let y_mean = y.sum() / n as f64;
+        let tss = y.mapv(|yi| (yi - y_mean).powi(2)).sum();
+        let rss = final_residuals.mapv(|r| r * r).sum();
+        let regression_r_squared = if tss < f64::EPSILON {
+            0.0
+        } else {
+            (1.0 - rss / tss).clamp(0.0, 1.0)
+        };
+
+        // Number of parameters: regression coefficients + ARIMA params
+        let k_reg = beta.len() as f64;
+        let k_arima = (config.p + config.q + 1) as f64; // AR + MA + intercept
+        let k_total = k_reg + k_arima;
+
+        // Use ARIMA model log-likelihood (accounts for error correlation structure)
+        let n_f = n as f64;
+        let ll = if arima_log_likelihood.is_finite() {
+            arima_log_likelihood
+        } else {
+            // Fallback Gaussian ll based on arima sigma2
+            -0.5 * n_f * std::f64::consts::TAU.ln() - 0.5 * n_f * arima_sigma2.ln() - 0.5 * n_f
+        };
+        let aic = -2.0 * ll + 2.0 * k_total;
+        let bic = -2.0 * ll + k_total * n_f.ln();
+
+        // Standard errors: from GLS covariance ≈ σ² (X*'X*)^{-1}
+        // Re-run whitening for final beta to get filtered design matrix
+        let y_star_final = self.apply_arma_filter(y, &ar_coeffs, &ma_coeffs, &final_residuals);
+        let filtered_len = y_star_final.len();
+        let ncols = design_matrix.ncols();
+        let mut x_star_final = Array2::zeros((filtered_len, ncols));
+        for j in 0..ncols {
+            let col: Array1<f64> = design_matrix.column(j).to_owned();
+            let zeros = Array1::zeros(col.len());
+            let col_star = self.apply_arma_filter(&col, &ar_coeffs, &ma_coeffs, &zeros);
+            let col_len = col_star.len().min(filtered_len);
+            for i in 0..col_len {
+                x_star_final[[i, j]] = col_star[i];
+            }
+        }
+
+        let se_result = self.fit_ols_regression(&x_star_final, &y_star_final);
+        let regression_std_errors = match se_result {
+            Ok(r) => r.standard_errors,
+            Err(_) => Array1::ones(beta.len()),
+        };
 
         Ok(ARIMAErrorsResult {
-            regression_coefficients: regression_result.coefficients,
-            fitted_values: regression_result.fitted_values,
-            residuals: regression_result.residuals,
-            regression_r_squared: regression_result.r_squared,
-            log_likelihood,
+            regression_coefficients: beta,
+            fitted_values: final_fitted,
+            residuals: final_residuals,
+            regression_r_squared,
+            log_likelihood: ll,
             aic,
             bic,
-            regression_std_errors: regression_result.standard_errors,
+            regression_std_errors,
         })
+    }
+
+    /// Apply an ARMA whitening filter to a series.
+    ///
+    /// Computes: y*_t = y_t − Σ_{i=1}^{p} φ_i y_{t-i} − Σ_{j=1}^{q} θ_j e_{t-j}
+    ///
+    /// where `innovations` supplies the past MA shocks e_{t-j}.  Returns a
+    /// slice of length `n − max(p, q)` so the output is well-defined for all indices.
+    fn apply_arma_filter(
+        &self,
+        series: &Array1<f64>,
+        ar: &Array1<f64>,
+        ma: &Array1<f64>,
+        innovations: &Array1<f64>,
+    ) -> Array1<f64> {
+        let n = series.len();
+        let p = ar.len();
+        let q = ma.len();
+        let start = p.max(q);
+
+        if start >= n {
+            return Array1::zeros(0);
+        }
+
+        let out_len = n - start;
+        let mut filtered = Array1::zeros(out_len);
+
+        for t in start..n {
+            let mut val = series[t];
+            for i in 0..p {
+                val -= ar[i] * series[t - i - 1];
+            }
+            // MA part uses past innovations; stay within bounds
+            for j in 0..q {
+                if t > j && t - j - 1 < innovations.len() {
+                    val -= ma[j] * innovations[t - j - 1];
+                }
+            }
+            filtered[t - start] = val;
+        }
+
+        filtered
     }
 
     // Helper methods

@@ -43,7 +43,7 @@ use std::collections::{BTreeMap, BTreeSet};
 /// ```
 #[derive(Debug, Clone)]
 pub struct SimplicialComplex {
-    /// Map: dimension → sorted set of simplices (each simplex = sorted Vec<usize>)
+    /// Map: dimension → sorted set of simplices (each simplex = sorted `Vec<usize>`)
     simplices: BTreeMap<usize, BTreeSet<Vec<usize>>>,
 }
 

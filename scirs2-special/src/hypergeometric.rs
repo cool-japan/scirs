@@ -702,26 +702,6 @@ where
         return Ok(F::one());
     }
 
-    // For specific test values, return known results
-    let a_f64 = a.to_f64().expect("test/example should not fail");
-    let b_f64 = b.to_f64().expect("test/example should not fail");
-    let z_f64 = z.to_f64().expect("test/example should not fail");
-
-    // Handle known test cases
-    if (a_f64 - 1.0).abs() < 1e-14 && (b_f64 - 2.0).abs() < 1e-14 && (z_f64 - 0.5).abs() < 1e-14 {
-        return Ok(F::from(1.2974425414002564).expect("test/example should not fail"));
-    }
-
-    if (a_f64 - 2.0).abs() < 1e-14 && (b_f64 - 3.0).abs() < 1e-14 && (z_f64 + 1.0).abs() < 1e-14 {
-        return Ok(F::from(0.5).expect("test/example should not fail"));
-    }
-
-    // Special case for negative a values
-    if (a_f64 - (-2.0)).abs() < 1e-14 && (b_f64 - 3.0).abs() < 1e-14 && (z_f64 - 1.0).abs() < 1e-14
-    {
-        return Ok(F::from(2.0 / 3.0).expect("test/example should not fail"));
-    }
-
     // For small |z|, use the series expansion
     if z.abs() < F::from(20.0).expect("test/example should not fail") {
         // Series method: 1F1(a;b;z) = ∑(k=0 to ∞) [(a)_k / ((b)_k * k!)] * z^k
@@ -861,37 +841,6 @@ where
         return Err(SpecialError::DomainError(format!(
             "c must not be zero or negative integer, got {c:?}"
         )));
-    }
-
-    // Handle specific test cases
-    let a_f64 = a.to_f64().expect("test/example should not fail");
-    let b_f64 = b.to_f64().expect("test/example should not fail");
-    let c_f64 = c.to_f64().expect("test/example should not fail");
-    let z_f64 = z.to_f64().expect("test/example should not fail");
-
-    if (a_f64 - 1.0).abs() < 1e-14
-        && (b_f64 - 2.0).abs() < 1e-14
-        && (c_f64 - 3.0).abs() < 1e-14
-        && (z_f64 - 0.5).abs() < 1e-14
-    {
-        return Ok(F::from(1.4326648536822129).expect("test/example should not fail"));
-    }
-
-    // Special case for 2F1(1, 1, 2, 0.5)
-    if (a_f64 - 1.0).abs() < 1e-14
-        && (b_f64 - 1.0).abs() < 1e-14
-        && (c_f64 - 2.0).abs() < 1e-14
-        && (z_f64 - 0.5).abs() < 1e-14
-    {
-        return Ok(F::from(1.386294361119889).expect("test/example should not fail"));
-    }
-
-    if (a_f64 - 0.5).abs() < 1e-14
-        && (b_f64 - 1.0).abs() < 1e-14
-        && (c_f64 - 1.5).abs() < 1e-14
-        && (z_f64 - 0.25).abs() < 1e-14
-    {
-        return Ok(F::from(1.1861859247859235).expect("test/example should not fail"));
     }
 
     // Special cases
@@ -1112,7 +1061,7 @@ mod tests {
         );
         assert_relative_eq!(
             hyp1f1(2.0, 3.0, -1.0).expect("test/example should not fail"),
-            0.5,
+            0.5284822353142304,
             epsilon = 1e-14
         );
 
@@ -1130,10 +1079,10 @@ mod tests {
             0.5,
             epsilon = 1e-14
         );
-        // For a = -2, b = 3, z = 1, we get 1 - 2/3 + 2·1/6 = 1 - 2/3 + 1/3 = 1 - 1/3 = 2/3
+        // 1F1(-2,3,1) = 1 + (-2/3)·1 + (2/12)·(1/2) = 1 - 2/3 + 1/12 = 5/12
         assert_relative_eq!(
             hyp1f1(-2.0, 3.0, 1.0).expect("test/example should not fail"),
-            2.0 / 3.0,
+            0.4166666666666667,
             epsilon = 1e-14
         );
     }
@@ -1148,12 +1097,12 @@ mod tests {
         );
         assert_relative_eq!(
             hyp2f1(1.0, 2.0, 3.0, 0.5).expect("test/example should not fail"),
-            1.4326648536822129,
+            1.545177444479562,
             epsilon = 1e-14
         );
         assert_relative_eq!(
             hyp2f1(0.5, 1.0, 1.5, 0.25).expect("test/example should not fail"),
-            1.1861859247859235,
+            1.098612288668109,
             epsilon = 1e-14
         );
 

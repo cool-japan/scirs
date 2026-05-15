@@ -272,6 +272,14 @@ impl PCA {
         self.components.as_ref()
     }
 
+    /// Returns the mean of the training data (used for centering)
+    ///
+    /// # Returns
+    /// * `Option<&Array1<f64>>` - The per-feature mean, shape (n_features,)
+    pub fn mean(&self) -> Option<&Array1<f64>> {
+        self.mean.as_ref()
+    }
+
     /// Returns the explained variance ratio
     ///
     /// # Returns

@@ -291,10 +291,10 @@ fn xorshift_vec(state: &mut u64, len: usize, scale: f64) -> Vec<f64> {
 ///
 /// For each time step t and each channel j (0..dim):
 ///
-///   x_t[i, j] = exp(A[i, j] * delta_t[j]) * x_{t-1}[i, j]
-///             + delta_t[j] * B_t[i] * u_t[j]
+///   x_t\[i, j\] = exp(A\[i, j\] * delta_t\[j\]) * x_{t-1}\[i, j\]
+///             + delta_t\[j\] * B_t\[i\] * u_t\[j\]
 ///
-///   y_t[j] = sum_i C_t[i] * x_t[i, j]  +  D[j] * u_t[j]
+///   y_t\[j\] = sum_i C_t\[i\] * x_t\[i, j\]  +  D\[j\] * u_t\[j\]
 ///
 /// # Arguments
 ///

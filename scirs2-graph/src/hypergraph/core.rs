@@ -310,7 +310,7 @@ impl<N: Clone, E: Clone> Hypergraph<N, E> {
     ///
     /// Duplicate nodes within `nodes` are silently deduplicated; order is
     /// normalised to sorted.  Panics if any node index is out of range (use
-    /// [`try_add_hyperedge`] for the fallible version).
+    /// `try_add_hyperedge` for the fallible version).
     pub fn add_hyperedge(&mut self, data: E, mut nodes: Vec<usize>) -> usize {
         nodes.sort_unstable();
         nodes.dedup();
@@ -324,7 +324,7 @@ impl<N: Clone, E: Clone> Hypergraph<N, E> {
         id
     }
 
-    /// Fallible version of [`add_hyperedge`] that returns an error when a node
+    /// Fallible version of `add_hyperedge` that returns an error when a node
     /// index is out of range.
     pub fn try_add_hyperedge(&mut self, data: E, mut nodes: Vec<usize>) -> Result<usize> {
         nodes.sort_unstable();

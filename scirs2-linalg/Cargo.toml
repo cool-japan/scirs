@@ -25,6 +25,7 @@ thiserror = { workspace = true }
 approx = { workspace = true }
 half = { workspace = true }
 scirs2-autograd = { workspace = true, optional = true }
+scirs2-symbolic = { workspace = true, optional = true }
 # OxiBLAS - Pure Rust BLAS/LAPACK (accessed via scirs2-core/linalg feature)
 # NOTE: ndarray-linalg/OpenBLAS removed - using pure Rust OxiBLAS
 # Dependencies for distributed computing
@@ -58,6 +59,7 @@ linalg = ["scirs2-core/linalg"] # Linear algebra with BLAS/LAPACK bindings
 tensor_contraction = [] # Optional tensor contraction functionality
 simd = ["scirs2-core/simd"] # SIMD-accelerated operations
 autograd = ["dep:scirs2-autograd"] # Automatic differentiation support
+symbolic = ["dep:scirs2-symbolic"] # Symbolic computation support
 parallel = ["scirs2-core/parallel"] # Parallel processing support
 extended-test = [] # For extended precision tests
 python = ["scirs2-core/python"] # Python bindings support

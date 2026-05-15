@@ -44,7 +44,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-special = "0.4.3"
+//! scirs2-special = "0.4.4"
 //! ```
 //!
 //!
@@ -96,7 +96,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.3
+//! - **Version**: 0.4.4
 //! - **Release Date**: March 27, 2026
 //! - **Repository**: [github.com/cool-japan/scirs](https://github.com/cool-japan/scirs)
 
@@ -448,6 +448,14 @@ pub use spheroidal::{
 pub use spheroidal::{
     spheroidal_eigenvalue_mn, spheroidal_ps, spheroidal_wronskian, SpheroidalEigenvalue,
     SpheroidalKind,
+};
+// Spheroidal CF / Bouwkamp helpers (Wave 74) — exposed for integration tests
+// and downstream consumers that need direct access to the d-coefficient
+// pipeline.
+pub use spheroidal::cf_helpers::{
+    angular_function, cf_modified_lentz, d_coefficients, d_coefficients_with_len,
+    flammer_eigenvalue, radial_function, scaled_recurrence_step, tail_ratio_lentz, LentzResult,
+    SphericalBesselKind, SpheroidalParity, DEFAULT_D_LEN,
 };
 // Hill's equation
 pub use hill::{hill_floquet, mathieu_hill, CurveType, HillEquation, HillResult, StabilityCurve};

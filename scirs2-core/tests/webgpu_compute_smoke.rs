@@ -92,6 +92,106 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         }
     }
 
+    /// Verifies that the WGSL source for elementwise_sub, elementwise_pow,
+    /// elementwise_sqrt, elementwise_exp, and elementwise_log is non-empty and
+    /// syntactically parseable by the workgroup-size extractor.
+    ///
+    /// On hosts without a wgpu adapter the compile attempt is skipped gracefully.
+    #[test]
+    fn elementwise_kernel_wgsl_sources_are_non_empty() {
+        use scirs2_core::gpu::kernels::elementwise::{
+            ElementwiseExpKernel, ElementwiseLogKernel, ElementwisePowKernel,
+            ElementwiseSqrtKernel, ElementwiseSubKernel,
+        };
+        use scirs2_core::gpu::kernels::GpuKernel;
+        use scirs2_core::gpu::GpuBackend;
+
+        let kernels: Vec<(&str, Box<dyn GpuKernel>)> = vec![
+            ("elementwise_sub", Box::new(ElementwiseSubKernel::new())),
+            ("elementwise_pow", Box::new(ElementwisePowKernel::new())),
+            ("elementwise_sqrt", Box::new(ElementwiseSqrtKernel::new())),
+            ("elementwise_exp", Box::new(ElementwiseExpKernel::new())),
+            ("elementwise_log", Box::new(ElementwiseLogKernel::new())),
+        ];
+
+        for (label, kernel) in &kernels {
+            let source = kernel
+                .source_for_backend(GpuBackend::Wgpu)
+                .unwrap_or_else(|e| panic!("{label}: source_for_backend failed: {e}"));
+            assert!(
+                !source.is_empty(),
+                "{label}: WGSL source must not be empty after Phase 2 fix"
+            );
+            assert!(
+                source.contains("@compute"),
+                "{label}: WGSL source must contain a @compute entry point"
+            );
+            assert!(
+                source.contains("@workgroup_size(256)"),
+                "{label}: WGSL source must declare @workgroup_size(256)"
+            );
+            assert!(
+                source.contains("fn main("),
+                "{label}: WGSL entry point must be named 'main' for pipeline dispatch compatibility"
+            );
+        }
+    }
+
+    /// Attempts to compile the WGSL sources for each newly-filled elementwise kernel.
+    ///
+    /// On hosts without a wgpu adapter the compile attempt is skipped gracefully.
+    #[test]
+    fn elementwise_kernel_wgsl_compiles_or_skips_gracefully() {
+        use scirs2_core::gpu::kernels::elementwise::{
+            ElementwiseExpKernel, ElementwiseLogKernel, ElementwisePowKernel,
+            ElementwiseSqrtKernel, ElementwiseSubKernel,
+        };
+        use scirs2_core::gpu::kernels::GpuKernel;
+        use scirs2_core::gpu::GpuBackend;
+
+        let kernels: Vec<(&str, Box<dyn GpuKernel>)> = vec![
+            ("elementwise_sub", Box::new(ElementwiseSubKernel::new())),
+            ("elementwise_pow", Box::new(ElementwisePowKernel::new())),
+            ("elementwise_sqrt", Box::new(ElementwiseSqrtKernel::new())),
+            ("elementwise_exp", Box::new(ElementwiseExpKernel::new())),
+            ("elementwise_log", Box::new(ElementwiseLogKernel::new())),
+        ];
+
+        for (label, kernel) in &kernels {
+            let source = kernel
+                .source_for_backend(GpuBackend::Wgpu)
+                .unwrap_or_else(|e| panic!("{label}: source_for_backend failed: {e}"));
+
+            match try_compile_wgsl(&source) {
+                Ok(pipeline) => {
+                    assert_eq!(
+                        pipeline.workgroup_size,
+                        [256, 1, 1],
+                        "{label}: expected workgroup_size [256, 1, 1]"
+                    );
+                    println!(
+                        "{label}: compiled successfully (workgroup_size = {:?})",
+                        pipeline.workgroup_size
+                    );
+                }
+                Err(e) => {
+                    let msg = e.to_string();
+                    if msg.contains("adapter")
+                        || msg.contains("Adapter")
+                        || msg.contains("GPU")
+                        || msg.contains("no suitable")
+                    {
+                        println!(
+                            "{label}: no wgpu adapter available — skipping GPU compile ({msg})"
+                        );
+                    } else {
+                        panic!("{label}: unexpected error compiling WGSL: {e}");
+                    }
+                }
+            }
+        }
+    }
+
     /// Verifies workgroup_size extraction for multi-dimensional workgroups.
     #[test]
     fn workgroup_size_extraction_for_2d_workgroup() {

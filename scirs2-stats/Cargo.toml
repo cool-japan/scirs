@@ -21,7 +21,10 @@ rustdoc-args = ["--cfg", "docsrs"]
 # Core dependencies - ALL numeric/array/random functionality from scirs2-core (SciRS2 POLICY)
 scirs2-core = { workspace = true, features = ["validation", "parallel", "simd", "linalg", "random", "array"] }
 scirs2-linalg = { workspace = true }
+scirs2-symbolic = { workspace = true, optional = true }
 thiserror = { workspace = true }
+wgpu = { workspace = true, optional = true }
+pollster = { workspace = true, optional = true }
 
 # Statistics specific dependencies
 statrs = { workspace = true }
@@ -43,6 +46,7 @@ quickcheck_macros = { workspace = true }
 rand = { workspace = true }
 approx = { workspace = true }
 proptest = { workspace = true }
+scirs2-symbolic = { workspace = true }
 
 [features]
 default = []
@@ -53,6 +57,12 @@ memmap = []
 parallel = ["scirs2-core/parallel"]
 # Python bindings support
 python = ["scirs2-core/python"]
+# Symbolic MLE: gradient descent with exact symbolic gradients via scirs2-symbolic
+symbolic = ["dep:scirs2-symbolic"]
+# GPU abstraction layer (delegates to scirs2-core/gpu)
+gpu = ["scirs2-core/gpu"]
+# Pure-Rust wgpu compute kernels for batch distribution evaluation
+gpu_wgpu = ["gpu", "dep:wgpu", "dep:pollster", "scirs2-core/wgpu_backend"]
 
 [[bench]]
 name = "distributions"

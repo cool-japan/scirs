@@ -783,9 +783,25 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "Factory tests skipped due to lifetime complexity"]
     fn test_optimizer_factory() {
-        // TODO: Implement factory tests when lifetime issues are resolved
+        // SGD factory: verify name and learning rate are correctly wired
+        let sgd: Box<dyn AutogradOptimizer<f32>> = OptimizerFactory::sgd(0.01, 0.9);
+        assert_eq!(sgd.name(), "SGD");
+        assert!((sgd.learning_rate() - 0.01).abs() < 1e-10);
+        assert_eq!(sgd.state().param_state.len(), 0);
+
+        // Adam factory: verify name and learning rate
+        let adam: Box<dyn AutogradOptimizer<f64>> = OptimizerFactory::adam(0.001);
+        assert_eq!(adam.name(), "Adam");
+        assert!((adam.learning_rate() - 0.001).abs() < 1e-13);
+        assert_eq!(adam.state().param_state.len(), 0);
+
+        // Adam custom factory: verify custom hyperparameters are reflected
+        let adam_custom: Box<dyn AutogradOptimizer<f64>> =
+            OptimizerFactory::adam_custom(0.005, 0.9, 0.999, 1e-8);
+        assert_eq!(adam_custom.name(), "Adam");
+        assert!((adam_custom.learning_rate() - 0.005).abs() < 1e-13);
+        assert_eq!(adam_custom.state().param_state.len(), 0);
     }
 
     #[test]

@@ -3,7 +3,7 @@
 //! This module provides a generic, const-parameterised `SparseTensor<N>` for
 //! N-dimensional tensors stored in coordinate format, together with:
 //!
-//! - Conversion from / to dense [`ndarray::ArrayD`]
+//! - Conversion from / to dense `ndarray::ArrayD`
 //! - Sparse matrix-matrix product (SpMM) for 2-D sparse tensors
 //! - Tensor-vector mode product for 3-D sparse tensors
 //! - Non-zero ratio (sparsity statistics)

@@ -214,7 +214,7 @@ impl<F: TensorScalar> Tensor<F> {
 
     /// Reconstruct a tensor from a mode-n unfolded matrix and a target shape.
     ///
-    /// This is the inverse of [`unfold`].
+    /// This is the inverse of `unfold`.
     ///
     /// # Errors
     ///

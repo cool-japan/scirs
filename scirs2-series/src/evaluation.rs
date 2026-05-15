@@ -520,7 +520,7 @@ pub enum DMLossFunction {
 
 /// Perform the Diebold-Mariano test for equal predictive accuracy
 ///
-/// Tests H0: E[d_t] = 0, where d_t = L(e1_t) - L(e2_t) is the loss
+/// Tests H0: E\[d_t\] = 0, where d_t = L(e1_t) - L(e2_t) is the loss
 /// differential between two forecasts. Uses a HAC (Newey-West) variance
 /// estimator to account for serial correlation in multi-step-ahead forecasts.
 ///

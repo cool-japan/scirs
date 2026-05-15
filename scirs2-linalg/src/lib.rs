@@ -49,9 +49,9 @@
 //! Add to your `Cargo.toml`:
 //! ```toml
 //! [dependencies]
-//! scirs2-linalg = "0.4.3"
+//! scirs2-linalg = "0.4.4"
 //! # Optional features
-//! scirs2-linalg = { version = "0.4.3", features = ["simd", "parallel", "gpu"] }
+//! scirs2-linalg = { version = "0.4.4", features = ["simd", "parallel", "gpu"] }
 //! ```
 //!
 //! ### Basic Matrix Operations
@@ -210,7 +210,7 @@
 //!
 //! ## 🔒 Version Information
 //!
-//! - **Version**: 0.4.3
+//! - **Version**: 0.4.4
 //! - **Release Date**: March 27, 2026
 //! - **MSRV** (Minimum Supported Rust Version): 1.70.0
 //! - **Documentation**: [docs.rs/scirs2-linalg](https://docs.rs/scirs2-linalg)
@@ -383,6 +383,15 @@ pub mod gpu_linalg;
 // Automatic differentiation support
 #[cfg(feature = "autograd")]
 pub mod autograd;
+
+// Symbolic linear algebra (det, eigenvalues, condition number as expression trees)
+#[cfg(feature = "symbolic")]
+pub mod symbolic;
+#[cfg(feature = "symbolic")]
+pub use symbolic::{
+    condition_number_symbolic, det_symbolic, eigenvalues_symbolic_2x2, inverse_by_structure,
+    recognize as recognize_matrix_structure, StructureKind, SymbolicLinalgError,
+};
 
 // SciPy-compatible API wrappers
 pub mod compat_wrappers;

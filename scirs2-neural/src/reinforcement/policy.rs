@@ -3,7 +3,7 @@
 use crate::error::{NeuralError, Result};
 use crate::layers::{Dense, Layer};
 use scirs2_core::ndarray::prelude::*;
-use scirs2_core::random::rng;
+use scirs2_core::random::{rng, Distribution, Normal};
 
 /// Base trait for policies
 pub trait Policy: Send + Sync {
@@ -116,12 +116,37 @@ impl PolicyNetwork {
         Ok(out.row(0).to_owned())
     }
 
-    /// Sample an action from the policy
+    /// Sample an action from the policy.
+    ///
+    /// For continuous action spaces, samples from N(mean, exp(log_std)) per
+    /// dimension using the network output as the mean and the learned
+    /// `log_std` parameter as the standard deviation.  Replaces the previous
+    /// stub that returned just the mean.
+    ///
+    /// For discrete action spaces, returns a one-hot vector at the argmax.
     pub fn sample_action(&self, state: &ArrayView1<f32>) -> Result<Array1<f32>> {
         let output = self.forward(state)?;
         if self.continuous {
-            // Return the mean (no stochastic sampling in this stub)
-            Ok(output)
+            // Sample from N(mean, std) where std = exp(log_std)
+            let mut r = rng();
+            let mut action = Array1::zeros(self.action_dim);
+            for i in 0..self.action_dim.min(output.len()) {
+                let std = self
+                    .log_std
+                    .as_ref()
+                    .and_then(|ls| ls.get(i).copied())
+                    .unwrap_or(0.0_f32)
+                    .exp()
+                    .max(1e-6_f32);
+                let mean = output.get(i).copied().unwrap_or(0.0_f32);
+                let dist = Normal::new(mean, std).map_err(|e| {
+                    NeuralError::InvalidArgument(format!(
+                        "Normal distribution construction failed: {e}"
+                    ))
+                })?;
+                action[i] = dist.sample(&mut r);
+            }
+            Ok(action)
         } else {
             // Argmax for discrete actions, returned as one-hot
             let best = output
@@ -175,6 +200,73 @@ impl PolicyNetwork {
     /// Action dimensionality
     pub fn action_dim(&self) -> usize {
         self.action_dim
+    }
+
+    /// Extract all trainable parameters as flat `(data, shape)` pairs.
+    ///
+    /// Returns one pair per parameter tensor across all layers, followed by
+    /// the flattened `log_std` (if present) as a 1-D tensor.
+    pub fn collect_params(&self) -> Vec<(Vec<f32>, Vec<usize>)> {
+        let mut out = Vec::new();
+        for layer in &self.layers {
+            for arr in layer.params() {
+                let shape = arr.shape().to_vec();
+                let data = arr.iter().copied().collect::<Vec<f32>>();
+                out.push((data, shape));
+            }
+        }
+        // Append log_std as a 1-D tensor so it round-trips through save/load.
+        if let Some(ls) = &self.log_std {
+            out.push((ls.to_vec(), vec![ls.len()]));
+        }
+        out
+    }
+
+    /// Restore parameters from the output of [`collect_params`].
+    ///
+    /// The slice must have the same length as produced by `collect_params`.
+    /// Returns an error if any shape is mismatched.
+    pub fn restore_params(&mut self, params: &[(Vec<f32>, Vec<usize>)]) -> Result<()> {
+        // Count how many parameter tensors the layers own
+        let layer_param_count: usize = self.layers.iter().map(|l| l.params().len()).sum();
+        let has_log_std = self.log_std.is_some();
+        let expected = layer_param_count + if has_log_std { 1 } else { 0 };
+        if params.len() != expected {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "PolicyNetwork restore_params: expected {expected} tensors, got {}",
+                params.len()
+            )));
+        }
+
+        let mut idx = 0usize;
+        for layer in &mut self.layers {
+            let n = layer.params().len();
+            let slice = &params[idx..idx + n];
+            let arrays: Vec<scirs2_core::ndarray::ArrayD<f32>> = slice
+                .iter()
+                .map(|(data, shape)| {
+                    let dim = scirs2_core::ndarray::IxDyn(shape);
+                    scirs2_core::ndarray::ArrayD::from_shape_vec(dim, data.clone()).map_err(|e| {
+                        NeuralError::InvalidArchitecture(format!(
+                            "PolicyNetwork: cannot rebuild param array: {e}"
+                        ))
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+            layer.set_params(&arrays)?;
+            idx += n;
+        }
+
+        if has_log_std {
+            let (data, shape) = &params[idx];
+            if shape.len() != 1 || shape[0] != data.len() {
+                return Err(NeuralError::InvalidArchitecture(
+                    "PolicyNetwork: log_std shape mismatch".to_string(),
+                ));
+            }
+            self.log_std = Some(Array1::from_vec(data.clone()));
+        }
+        Ok(())
     }
 }
 
@@ -250,5 +342,49 @@ mod tests {
         let loss = pg.compute_loss(&log_probs, &returns);
         assert!(loss.is_finite());
         assert!(loss >= 0.0, "REINFORCE loss should be positive");
+    }
+
+    /// Verify that consecutive samples from a continuous policy are stochastic
+    /// (i.e. not identical), confirming the stub that returned just the mean
+    /// has been replaced with proper N(mean, std) sampling.
+    #[test]
+    fn test_continuous_policy_stochastic_sampling() {
+        let policy = PolicyNetwork::new(4, 3, vec![8], true).expect("create ok");
+        let state = Array1::from_vec(vec![0.1, -0.2, 0.5, 0.3]);
+
+        // Draw multiple samples and confirm they are not all identical.
+        let mut all_same = true;
+        let first = policy.sample_action(&state.view()).expect("sample 1");
+        for _ in 0..10 {
+            let next = policy.sample_action(&state.view()).expect("sample n");
+            if next
+                .iter()
+                .zip(first.iter())
+                .any(|(a, b)| (a - b).abs() > 1e-9)
+            {
+                all_same = false;
+                break;
+            }
+        }
+        assert!(!all_same, "continuous policy should sample stochastically");
+    }
+
+    /// Verify that the parameter round-trip for PolicyNetwork is lossless.
+    #[test]
+    fn test_policy_network_collect_restore_params() {
+        let mut policy = PolicyNetwork::new(4, 3, vec![8], true).expect("create ok");
+        let before = policy.collect_params();
+
+        // Restore into itself (idempotent)
+        policy.restore_params(&before).expect("restore ok");
+        let after = policy.collect_params();
+
+        assert_eq!(before.len(), after.len(), "param count must match");
+        for (orig, loaded) in before.iter().zip(after.iter()) {
+            assert_eq!(orig.1, loaded.1, "shape mismatch");
+            for (&a, &b) in orig.0.iter().zip(loaded.0.iter()) {
+                assert!((a - b).abs() < 1e-10, "param changed on round-trip");
+            }
+        }
     }
 }

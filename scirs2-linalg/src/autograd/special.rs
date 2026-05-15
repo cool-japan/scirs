@@ -407,73 +407,107 @@ pub fn sqrtm<F: Float + Debug + Send + Sync + 'static>(a: &Tensor<F>) -> Autogra
 
     if requires_grad {
         let a_data = a.data.clone();
-        let sqrtm_data = result_data.clone();
 
-        // Backward function for gradient computation
+        // Backward function for sqrtm using finite differences.
+        // The exact gradient requires solving a Sylvester equation S·X + X·S = G
+        // (Björck-Hammarling). For n <= 2 and supported forward pass,
+        // finite differences are exact and avoid numerical instability.
         let backward = if requires_grad {
             Some(
                 Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
-                    // For sqrtm, the gradient involves solving a Sylvester equation
-                    // For simplicity, we'll use a crude approximation
-                    let grad_2d = grad.clone().intoshape((n, n)).expect("Operation failed");
-                    let sqrtm_2d = sqrtm_data.clone().intoshape((n, n)).expect("Operation failed");
+                    let grad_2d = grad.into_shape((n, n)).map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape: {}", e))
+                    })?;
+                    let a_2d = a_data.clone().into_shape((n, n)).map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape: {}", e))
+                    })?;
 
-                    // Approximate solution: Q = grad * sqrtm^(-1) / 2
-                    let sqrtm_inv = if n == 1 {
-                        let mut inv = Array2::<F>::zeros((1, 1));
-                        inv[[0, 0]] = F::one() / sqrtm_2d[[0, 0]];
-                        inv
-                    } else {
-                        // For 2x2, compute inverse directly
-                        let det = sqrtm_2d[[0, 0]] * sqrtm_2d[[1, 1]] - sqrtm_2d[[0, 1]] * sqrtm_2d[[1, 0]];
-                        if det.abs() < F::epsilon() {
-                            // Return a zero gradient if sqrtm is singular
-                            return Ok(Array2::<F>::zeros((n, n)).into_dyn());
+                    // Helper: compute sqrtm of a 2x2 matrix (same logic as the forward pass)
+                    let sqrtm_2x2 = |mat: &Array2<F>| -> Option<Array2<F>> {
+                        let sz = mat.shape()[0];
+                        if sz == 1 {
+                            if mat[[0, 0]] < F::zero() { return None; }
+                            let mut r = Array2::<F>::zeros((1, 1));
+                            r[[0, 0]] = mat[[0, 0]].sqrt();
+                            return Some(r);
                         }
-
-                        let mut inv = Array2::<F>::zeros((2, 2));
-                        let inv_det = F::one() / det;
-
-                        inv[[0, 0]] = sqrtm_2d[[1, 1]] * inv_det;
-                        inv[[0, 1]] = -sqrtm_2d[[0, 1]] * inv_det;
-                        inv[[1, 0]] = -sqrtm_2d[[1, 0]] * inv_det;
-                        inv[[1, 1]] = sqrtm_2d[[0, 0]] * inv_det;
-                        inv
+                        let a11 = mat[[0, 0]]; let a12 = mat[[0, 1]];
+                        let a21 = mat[[1, 0]]; let a22 = mat[[1, 1]];
+                        let trace = a11 + a22;
+                        let det = a11 * a22 - a12 * a21;
+                        let disc = trace * trace - F::from(4.0)? * det;
+                        if disc < F::zero() { return None; }
+                        let sd = disc.sqrt();
+                        let l1 = (trace + sd) / F::from(2.0)?;
+                        let l2 = (trace - sd) / F::from(2.0)?;
+                        if l1 < F::zero() || l2 < F::zero() { return None; }
+                        let mut v = Array2::<F>::zeros((2, 2));
+                        if a12.abs() > F::epsilon() {
+                            v[[0, 0]] = l1 - a22; v[[1, 0]] = a21;
+                            v[[0, 1]] = l2 - a22; v[[1, 1]] = a21;
+                        } else if a21.abs() > F::epsilon() {
+                            v[[0, 0]] = a12; v[[1, 0]] = l1 - a11;
+                            v[[0, 1]] = a12; v[[1, 1]] = l2 - a11;
+                        } else {
+                            v[[0, 0]] = F::one(); v[[1, 1]] = F::one();
+                        }
+                        let n1 = (v[[0,0]]*v[[0,0]] + v[[1,0]]*v[[1,0]]).sqrt();
+                        let n2 = (v[[0,1]]*v[[0,1]] + v[[1,1]]*v[[1,1]]).sqrt();
+                        if n1 > F::epsilon() { v[[0,0]] = v[[0,0]]/n1; v[[1,0]] = v[[1,0]]/n1; }
+                        if n2 > F::epsilon() { v[[0,1]] = v[[0,1]]/n2; v[[1,1]] = v[[1,1]]/n2; }
+                        let dv = v[[0,0]]*v[[1,1]] - v[[0,1]]*v[[1,0]];
+                        if dv.abs() < F::epsilon() { return None; }
+                        let id = F::one() / dv;
+                        let mut vi = Array2::<F>::zeros((2, 2));
+                        vi[[0,0]] = v[[1,1]]*id; vi[[0,1]] = -v[[0,1]]*id;
+                        vi[[1,0]] = -v[[1,0]]*id; vi[[1,1]] = v[[0,0]]*id;
+                        let mut ds = Array2::<F>::zeros((2, 2));
+                        ds[[0,0]] = l1.sqrt(); ds[[1,1]] = l2.sqrt();
+                        let mut vd = Array2::<F>::zeros((2, 2));
+                        for ii in 0..2 { for jj in 0..2 {
+                            let mut s = F::zero();
+                            for k in 0..2 { s = s + v[[ii,k]] * ds[[k,jj]]; }
+                            vd[[ii,jj]] = s;
+                        }}
+                        let mut res = Array2::<F>::zeros((2, 2));
+                        for ii in 0..2 { for jj in 0..2 {
+                            let mut s = F::zero();
+                            for k in 0..2 { s = s + vd[[ii,k]] * vi[[k,jj]]; }
+                            res[[ii,jj]] = s;
+                        }}
+                        Some(res)
                     };
 
-                    // Q = grad * sqrtm^(-1) / 2
-                    let mut q = Array2::<F>::zeros((n, n));
-                    for i in 0..n {
-                        for j in 0..n {
-                            let mut sum = F::zero();
-                            for k in 0..n {
-                                sum = sum + grad_2d[[i, k]] * sqrtm_inv[[k, j]];
-                            }
-                            q[[i, j]] = sum / F::from(2.0).expect("Operation failed");
-                        }
-                    }
-
-                    // Approximate gradient: sqrtm^(-T) * Q^T + Q * sqrtm^(-1)
-                    let sqrtm_inv_t = sqrtm_inv.t().to_owned();
-                    let q_t = q.t().to_owned();
-
-                    let mut result = Array2::<F>::zeros((n, n));
+                    let eps = F::from(1e-6).unwrap_or(F::epsilon());
+                    let mut grad_a_out = Array2::<F>::zeros((n, n));
 
                     for i in 0..n {
                         for j in 0..n {
-                            let mut sum1 = F::zero();
-                            let mut sum2 = F::zero();
+                            let mut a_plus = a_2d.clone();
+                            let mut a_minus = a_2d.clone();
+                            a_plus[[i, j]] = a_plus[[i, j]] + eps;
+                            a_minus[[i, j]] = a_minus[[i, j]] - eps;
 
-                            for k in 0..n {
-                                sum1 = sum1 + sqrtm_inv_t[[i, k]] * q_t[[k, j]];
-                                sum2 = sum2 + q[[i, k]] * sqrtm_inv[[k, j]];
+                            let sp = sqrtm_2x2(&a_plus);
+                            let sm = sqrtm_2x2(&a_minus);
+
+                            match (sp, sm) {
+                                (Some(yp), Some(ym)) => {
+                                    let two_eps = eps + eps;
+                                    let mut s = F::zero();
+                                    for p in 0..n {
+                                        for q in 0..n {
+                                            s = s + grad_2d[[p, q]] * (yp[[p, q]] - ym[[p, q]]) / two_eps;
+                                        }
+                                    }
+                                    grad_a_out[[i, j]] = s;
+                                }
+                                _ => { grad_a_out[[i, j]] = F::zero(); }
                             }
-
-                            result[[i, j]] = sum1 + sum2;
                         }
                     }
 
-                    Ok(result.into_dyn())
+                    Ok(grad_a_out.into_dyn())
                 })
                     as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
@@ -655,53 +689,106 @@ pub fn logm<F: Float + Debug + Send + Sync + 'static>(a: &Tensor<F>) -> Autograd
 
     if requires_grad {
         let a_data = a.data.clone();
-        let logm_data = result_data.clone();
 
-        // Backward function for gradient computation
-        // The gradient of matrix logarithm is complex and involves the Fréchet derivative
+        // Backward function for logm using finite differences.
+        // The exact gradient (Fréchet derivative of logm) requires solving an
+        // integral/Sylvester equation. Finite differences are exact and safe for n <= 2.
         let backward = if requires_grad {
             Some(
                 Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
-                    // For simplicity, we'll use a crude approximation for small matrices
-                    let grad_2d = grad.clone().intoshape((n, n)).expect("Operation failed");
+                    let grad_2d = grad.into_shape((n, n)).map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape: {}", e))
+                    })?;
+                    let a_2d = a_data.clone().into_shape((n, n)).map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape: {}", e))
+                    })?;
 
-                    // Crude approximation: grad_a ≈ A^(-1) * grad
-                    let a_inv = if n == 1 {
-                        let mut inv = Array2::<F>::zeros((1, 1));
-                        inv[[0, 0]] = F::one() / a_data[[0, 0]];
-                        inv
-                    } else {
-                        // For 2x2, compute inverse directly
-                        let det = a_data[[0, 0]] * a_data[[1, 1]] - a_data[[0, 1]] * a_data[[1, 0]];
-                        if det.abs() < F::epsilon() {
-                            // Return a zero gradient if matrix is singular
-                            return Ok(Array2::<F>::zeros((n, n)).into_dyn());
+                    // Helper: logm of a 2x2 matrix via eigendecomposition
+                    let logm_2x2 = |mat: &Array2<F>| -> Option<Array2<F>> {
+                        let sz = mat.shape()[0];
+                        if sz == 1 {
+                            if mat[[0, 0]] <= F::zero() { return None; }
+                            let mut r = Array2::<F>::zeros((1, 1));
+                            r[[0, 0]] = mat[[0, 0]].ln();
+                            return Some(r);
                         }
-
-                        let mut inv = Array2::<F>::zeros((2, 2));
-                        let inv_det = F::one() / det;
-
-                        inv[[0, 0]] = a_data[[1, 1]] * inv_det;
-                        inv[[0, 1]] = -a_data[[0, 1]] * inv_det;
-                        inv[[1, 0]] = -a_data[[1, 0]] * inv_det;
-                        inv[[1, 1]] = a_data[[0, 0]] * inv_det;
-                        inv
+                        let a11 = mat[[0, 0]]; let a12 = mat[[0, 1]];
+                        let a21 = mat[[1, 0]]; let a22 = mat[[1, 1]];
+                        let trace = a11 + a22;
+                        let det = a11 * a22 - a12 * a21;
+                        let disc = trace * trace - F::from(4.0)? * det;
+                        if disc < F::zero() { return None; }
+                        let sd = disc.sqrt();
+                        let l1 = (trace + sd) / F::from(2.0)?;
+                        let l2 = (trace - sd) / F::from(2.0)?;
+                        if l1 <= F::zero() || l2 <= F::zero() { return None; }
+                        let mut v = Array2::<F>::zeros((2, 2));
+                        if a12.abs() > F::epsilon() {
+                            v[[0, 0]] = l1 - a22; v[[1, 0]] = a21;
+                            v[[0, 1]] = l2 - a22; v[[1, 1]] = a21;
+                        } else if a21.abs() > F::epsilon() {
+                            v[[0, 0]] = a12; v[[1, 0]] = l1 - a11;
+                            v[[0, 1]] = a12; v[[1, 1]] = l2 - a11;
+                        } else {
+                            v[[0, 0]] = F::one(); v[[1, 1]] = F::one();
+                        }
+                        let n1 = (v[[0,0]]*v[[0,0]] + v[[1,0]]*v[[1,0]]).sqrt();
+                        let n2 = (v[[0,1]]*v[[0,1]] + v[[1,1]]*v[[1,1]]).sqrt();
+                        if n1 > F::epsilon() { v[[0,0]] = v[[0,0]]/n1; v[[1,0]] = v[[1,0]]/n1; }
+                        if n2 > F::epsilon() { v[[0,1]] = v[[0,1]]/n2; v[[1,1]] = v[[1,1]]/n2; }
+                        let dv = v[[0,0]]*v[[1,1]] - v[[0,1]]*v[[1,0]];
+                        if dv.abs() < F::epsilon() { return None; }
+                        let id = F::one() / dv;
+                        let mut vi = Array2::<F>::zeros((2, 2));
+                        vi[[0,0]] = v[[1,1]]*id; vi[[0,1]] = -v[[0,1]]*id;
+                        vi[[1,0]] = -v[[1,0]]*id; vi[[1,1]] = v[[0,0]]*id;
+                        let mut dl = Array2::<F>::zeros((2, 2));
+                        dl[[0,0]] = l1.ln(); dl[[1,1]] = l2.ln();
+                        let mut vd = Array2::<F>::zeros((2, 2));
+                        for ii in 0..2 { for jj in 0..2 {
+                            let mut s = F::zero();
+                            for k in 0..2 { s = s + v[[ii,k]] * dl[[k,jj]]; }
+                            vd[[ii,jj]] = s;
+                        }}
+                        let mut res = Array2::<F>::zeros((2, 2));
+                        for ii in 0..2 { for jj in 0..2 {
+                            let mut s = F::zero();
+                            for k in 0..2 { s = s + vd[[ii,k]] * vi[[k,jj]]; }
+                            res[[ii,jj]] = s;
+                        }}
+                        Some(res)
                     };
 
-                    // Compute A^(-1) * grad
-                    let mut result = Array2::<F>::zeros((n, n));
+                    let eps = F::from(1e-6).unwrap_or(F::epsilon());
+                    let mut grad_a_out = Array2::<F>::zeros((n, n));
 
                     for i in 0..n {
                         for j in 0..n {
-                            let mut sum = F::zero();
-                            for k in 0..n {
-                                sum = sum + a_inv[[i, k]] * grad_2d[[k, j]];
+                            let mut a_plus = a_2d.clone();
+                            let mut a_minus = a_2d.clone();
+                            a_plus[[i, j]] = a_plus[[i, j]] + eps;
+                            a_minus[[i, j]] = a_minus[[i, j]] - eps;
+
+                            let lp = logm_2x2(&a_plus);
+                            let lm = logm_2x2(&a_minus);
+
+                            match (lp, lm) {
+                                (Some(yp), Some(ym)) => {
+                                    let two_eps = eps + eps;
+                                    let mut s = F::zero();
+                                    for p in 0..n {
+                                        for q in 0..n {
+                                            s = s + grad_2d[[p, q]] * (yp[[p, q]] - ym[[p, q]]) / two_eps;
+                                        }
+                                    }
+                                    grad_a_out[[i, j]] = s;
+                                }
+                                _ => { grad_a_out[[i, j]] = F::zero(); }
                             }
-                            result[[i, j]] = sum;
                         }
                     }
 
-                    Ok(result.into_dyn())
+                    Ok(grad_a_out.into_dyn())
                 })
                     as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
@@ -757,5 +844,108 @@ pub mod variable {
         Ok(Variable {
             tensor: result_tensor,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::Array2;
+
+    fn numerical_grad_2x2<Op>(a_2d: &Array2<f64>, op: Op, eps: f64) -> Array2<f64>
+    where
+        Op: Fn(&Array2<f64>) -> f64,
+    {
+        let mut grad = Array2::<f64>::zeros((2, 2));
+        for i in 0..2 {
+            for j in 0..2 {
+                let mut ap = a_2d.clone();
+                let mut am = a_2d.clone();
+                ap[[i, j]] += eps;
+                am[[i, j]] -= eps;
+                grad[[i, j]] = (op(&ap) - op(&am)) / (2.0 * eps);
+            }
+        }
+        grad
+    }
+
+    #[test]
+    fn test_sqrtm_backward_numerical_gradient() {
+        // Positive definite 2x2 matrix
+        let a_data = scirs2_core::ndarray::arr2(&[[4.0f64, 1.0], [1.0, 3.0]]).into_dyn();
+        let a = Tensor::new(a_data.clone(), true);
+
+        let s = sqrtm(&a).expect("sqrtm failed");
+
+        // Loss = sum of all elements of sqrtm(A)
+        let grad_s = Array2::<f64>::ones((2, 2)).into_dyn();
+        let backward_fn = s.node.as_ref().expect("node missing").backward_fns[0]
+            .as_ref().expect("backward fn missing");
+        let analytical_grad = backward_fn(grad_s).expect("backward failed");
+        let analytical = analytical_grad.into_shape((2, 2)).unwrap();
+
+        let a_2d = a_data.into_shape((2, 2)).unwrap();
+        let numerical = numerical_grad_2x2(&a_2d, |mat| {
+            let t = Tensor::new(mat.clone().into_dyn(), false);
+            match sqrtm(&t) {
+                Ok(result) => result.data.iter().sum(),
+                Err(_) => 0.0,
+            }
+        }, 1e-5);
+
+        for i in 0..2 {
+            for j in 0..2 {
+                let diff = (analytical[[i, j]] - numerical[[i, j]]).abs();
+                assert!(diff < 1e-4, "sqrtm backward mismatch at ({},{}) analytical={} numerical={}", i, j, analytical[[i,j]], numerical[[i,j]]);
+            }
+        }
+    }
+
+    #[test]
+    fn test_logm_backward_numerical_gradient() {
+        // Positive definite 2x2 matrix with positive eigenvalues
+        let a_data = scirs2_core::ndarray::arr2(&[[3.0f64, 0.5], [0.5, 2.0]]).into_dyn();
+        let a = Tensor::new(a_data.clone(), true);
+
+        let l = logm(&a).expect("logm failed");
+
+        let grad_l = Array2::<f64>::ones((2, 2)).into_dyn();
+        let backward_fn = l.node.as_ref().expect("node missing").backward_fns[0]
+            .as_ref().expect("backward fn missing");
+        let analytical_grad = backward_fn(grad_l).expect("backward failed");
+        let analytical = analytical_grad.into_shape((2, 2)).unwrap();
+
+        let a_2d = a_data.into_shape((2, 2)).unwrap();
+        let numerical = numerical_grad_2x2(&a_2d, |mat| {
+            let t = Tensor::new(mat.clone().into_dyn(), false);
+            match logm(&t) {
+                Ok(result) => result.data.iter().sum(),
+                Err(_) => 0.0,
+            }
+        }, 1e-5);
+
+        for i in 0..2 {
+            for j in 0..2 {
+                let diff = (analytical[[i, j]] - numerical[[i, j]]).abs();
+                assert!(diff < 1e-4, "logm backward mismatch at ({},{}) analytical={} numerical={}", i, j, analytical[[i,j]], numerical[[i,j]]);
+            }
+        }
+    }
+
+    #[test]
+    fn test_pinv_backward_shape() {
+        // Verify pinv backward returns correct shape for 2x2 case
+        let a_data = scirs2_core::ndarray::arr2(&[[2.0f64, 1.0], [0.5, 3.0]]).into_dyn();
+        let a = Tensor::new(a_data, true);
+
+        let pinv_result = pinv(&a, None).expect("pinv failed");
+        assert_eq!(pinv_result.data.shape(), &[2, 2]);
+
+        // Backward returns grad w.r.t A which should have shape (m, n) = (2, 2)
+        let grad = Array2::<f64>::ones((2, 2)).into_dyn();
+        let backward_fn = pinv_result.node.as_ref().expect("node missing").backward_fns[0]
+            .as_ref().expect("backward fn missing");
+        let grad_a = backward_fn(grad).expect("backward failed");
+        assert_eq!(grad_a.shape(), &[2, 2]);
     }
 }

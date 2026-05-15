@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// `Lz4`, `Zstd`, `Brotli`, `Lz4Raw`) require enabling the corresponding
 /// feature flags on the `parquet` dependency (`snap`, `flate2-zlib-rs`, `lz4`,
 /// `zstd`, `brotli`). Attempting to write with an unavailable codec will panic
-/// at runtime with "Disabled feature at compile time: <codec>".
+/// at runtime with "Disabled feature at compile time: `codec`".
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CompressionCodec {
     /// No compression (always available, no feature flags required)

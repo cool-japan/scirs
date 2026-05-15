@@ -2,7 +2,10 @@ use crate::op::{ComputeContext, GradientContext, Op, OpError};
 use crate::tensor::Tensor;
 use crate::Float;
 
-/// Scalar multiplication operation
+/// Scalar multiplication operation.
+///
+/// `as_any()` is implemented so that `gradient.rs` can downcast the op and
+/// retrieve the scalar for symbolic gradient propagation.
 pub struct ScalarMulOp<F: Float> {
     pub scalar: F,
 }
@@ -17,24 +20,19 @@ impl<F: Float> Op<F> for ScalarMulOp<F> {
     }
 
     fn grad(&self, ctx: &mut GradientContext<F>) {
+        // Propagate symbolically so higher-order gradients work correctly.
+        // Calling .eval() here would collapse the tape and break second/third
+        // derivative chains.
+        //
+        // NOTE: gradient.rs uses op-name-based dispatch and downcasts via
+        // as_any() to retrieve the scalar.  This method exists as a fallback.
         let grad_output = ctx.output_grad();
-        let g = ctx.graph();
+        let grad_input = crate::tensor_ops::scalar_mul(grad_output, self.scalar);
+        ctx.append_input_grad(0, Some(grad_input));
+    }
 
-        // Evaluate gradient tensor to array
-        let grad_output_array = match grad_output.eval(g) {
-            Ok(arr) => arr,
-            Err(_) => {
-                ctx.append_input_grad(0, None);
-                return;
-            }
-        };
-
-        // Compute gradient (scalar multiplication)
-        let grad_input = grad_output_array.mapv(|x| x * self.scalar);
-
-        // Convert to tensor and append
-        let grad_tensor = crate::tensor_ops::convert_to_tensor(grad_input, g);
-        ctx.append_input_grad(0, Some(grad_tensor));
+    fn as_any(&self) -> Option<&dyn std::any::Any> {
+        Some(self)
     }
 }
 

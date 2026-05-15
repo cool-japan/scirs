@@ -252,6 +252,65 @@ impl GraphBuilder {
         self.add_node(node)
     }
 
+    /// Add a 1-D convolution layer.
+    ///
+    /// The operation performs a sliding-window dot product with the kernel, plus
+    /// an optional per-output-channel bias.
+    ///
+    /// ## Weight-store key convention
+    ///
+    /// Weights for a `Conv1d` node with id `N` must be stored as:
+    /// - `"conv1d_{N}_weight"` — flat row-major slice of shape `[out_channels, kernel_size]`
+    /// - `"conv1d_{N}_bias"`   — flat slice of shape `[out_channels]`
+    ///
+    /// ## Output length
+    ///
+    /// With `padding = 0` and `stride = 1`:
+    /// ```text
+    /// out_len = in_len - kernel_size + 1
+    /// ```
+    /// With zero-padding of `padding` on each side:
+    /// ```text
+    /// out_len = in_len + 2*padding - kernel_size + 1
+    /// ```
+    ///
+    /// The output tensor spec is `[batch, out_channels, out_len]`.
+    pub fn conv1d(
+        &mut self,
+        input: Tensor,
+        in_channels: usize,
+        out_channels: usize,
+        kernel_size: usize,
+        stride: usize,
+        padding: usize,
+    ) -> Tensor {
+        let id = self.alloc_id();
+
+        // Infer output length from the input spec's last dimension.
+        let in_len = self
+            .spec_of(input)
+            .ok()
+            .and_then(|s| s.shape.last().copied())
+            .unwrap_or(0);
+        let out_len = if in_len + 2 * padding >= kernel_size {
+            (in_len + 2 * padding - kernel_size) / stride + 1
+        } else {
+            0
+        };
+
+        let mut attrs = HashMap::new();
+        attrs.insert("in_channels".into(), OpAttr::Int(in_channels as i64));
+        attrs.insert("out_channels".into(), OpAttr::Int(out_channels as i64));
+        attrs.insert("kernel_size".into(), OpAttr::Int(kernel_size as i64));
+        attrs.insert("stride".into(), OpAttr::Int(stride as i64));
+        attrs.insert("padding".into(), OpAttr::Int(padding as i64));
+
+        let spec = TensorSpec::new(vec![out_channels, out_len], DType::F64);
+        let node = OpNode::new(id, OpType::Conv1d, vec![input.id], attrs, spec)
+            .with_name(format!("conv1d_{id}"));
+        self.add_node(node)
+    }
+
     // -----------------------------------------------------------------------
     // Finalization
     // -----------------------------------------------------------------------

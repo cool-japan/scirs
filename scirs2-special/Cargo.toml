@@ -40,6 +40,7 @@ simd = ["scirs2-core/simd"]
 lazy = ["futures"]
 gpu = ["scirs2-core/gpu"]  # GPU accessed through core
 cuda_kernels = []          # CUDA/ROCm kernel dispatch (default off — requires C libs, feature-gated per Pure Rust Policy)
+wgpu_kernels = ["dep:wgpu", "dep:pollster"]  # Pure-Rust wgpu compute kernels for special functions
 # array-api = ["arrayfire", "candle"]  # Disabled - placeholder for future implementation
 high-precision = ["rug"]               # Arbitrary precision computations
 arbitrary_precision = ["high-precision"] # Alias: gamma_mpfr, erf_mpfr, bessel_j0_mpfr, bessel_k0_mpfr via MPFR
@@ -51,6 +52,14 @@ fast-compile = []                      # Enable fast compilation mode for develo
 
 # Optional dependencies for advanced features
 [dependencies.futures]
+workspace = true
+optional = true
+
+[dependencies.wgpu]
+workspace = true
+optional = true
+
+[dependencies.pollster]
 workspace = true
 optional = true
 

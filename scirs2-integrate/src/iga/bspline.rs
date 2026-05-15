@@ -105,7 +105,7 @@ impl BSplineBasis {
         })
     }
 
-    /// Find the knot span index i such that T[i] ≤ t < T[i+1].
+    /// Find the knot span index i such that T\[i\] ≤ t < T\[i+1\].
     ///
     /// Uses binary search. For t at the end of the domain (t = T[m-1]), returns
     /// the index of the last non-empty span.
@@ -539,7 +539,7 @@ impl BSplineCurve {
 
 /// B-spline surface (tensor product) in 3-D.
 ///
-/// Maps (u, v) ∈ [0,1]² to a 3-D point via:
+/// Maps (u, v) ∈ \[0,1\]² to a 3-D point via:
 /// S(u,v) = Σ_i Σ_j N_{i,p}(u) N_{j,q}(v) P_{ij}
 #[derive(Debug, Clone)]
 pub struct BSplineSurface {
@@ -547,7 +547,7 @@ pub struct BSplineSurface {
     pub basis_u: BSplineBasis,
     /// B-spline basis in the v direction.
     pub basis_v: BSplineBasis,
-    /// Control points P_{ij} ∈ ℝ³, indexed as [i][j].
+    /// Control points P_{ij} ∈ ℝ³, indexed as \[i\]\[j\].
     pub control_points: Vec<Vec<[f64; 3]>>,
 }
 

@@ -545,7 +545,7 @@ impl FokkerPlanckSolver {
             * self.dx
     }
 
-    /// Compute the variance Var[X] = ⟨X²⟩ − ⟨X⟩².
+    /// Compute the variance Var\[X\] = ⟨X²⟩ − ⟨X⟩².
     pub fn variance(&self) -> f64 {
         let mu = self.mean();
         let ex2: f64 = self

@@ -87,7 +87,7 @@ pub struct FvFace {
 pub struct FvMesh {
     /// Cell array (left to right)
     pub cells: Vec<FvCell>,
-    /// Face array (n+1 faces for n cells; face[i] is between cell[i-1] and cell[i])
+    /// Face array (n+1 faces for n cells; face\[i\] is between cell\[i-1\] and cell\[i\])
     pub faces: Vec<FvFace>,
 }
 

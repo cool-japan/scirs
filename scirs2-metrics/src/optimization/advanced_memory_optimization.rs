@@ -172,8 +172,8 @@ pub enum UsagePattern {
 /// Memory prefetcher for predictive allocation
 #[derive(Debug)]
 pub struct MemoryPrefetcher {
-    /// Allocation history for pattern analysis
-    allocation_history: VecDeque<AllocationRecord>,
+    /// Allocation history for pattern analysis (interior-mutable for &self access)
+    allocation_history: Arc<Mutex<VecDeque<AllocationRecord>>>,
     /// Predicted future allocations
     predictions: Vec<PredictedAllocation>,
     /// Pattern recognition engine
@@ -607,8 +607,14 @@ impl AdvancedMemoryPool {
     }
 
     fn update_prefetcher(&self, block: &MemoryBlock) {
-        // Update prefetcher with allocation information for pattern learning
-        // Implementation would analyze patterns and update predictions
+        // Record this allocation in the prefetcher's history so that pattern
+        // analysis has data to work with.
+        self.prefetcher.record_allocation(AllocationRecord {
+            size: block.size,
+            blocktype: block.blocktype.clone(),
+            timestamp: Instant::now(),
+            lifetime: None,
+        });
     }
 
     fn coalesce_and_return(&self, block: MemoryBlock) -> Result<()> {
@@ -662,16 +668,105 @@ impl AdvancedMemoryPool {
     }
 
     fn analyze_allocation_patterns(&self) -> Result<Vec<AllocationPattern>> {
-        // Analyze historical allocation patterns for optimization
-        Ok(vec![]) // Placeholder
+        let history = self.prefetcher.allocation_history.lock().map_err(|_| {
+            MetricsError::ComputationError("failed to acquire prefetcher history lock".to_string())
+        })?;
+
+        if history.is_empty() {
+            return Ok(vec![]);
+        }
+
+        // Group allocations by size bucket (nearest power-of-two kilobyte).
+        // Each bucket becomes one AllocationPattern whose `signature` is the
+        // sorted list of observed sizes within that bucket.
+        let mut buckets: HashMap<usize, Vec<AllocationRecord>> = HashMap::new();
+        for record in history.iter() {
+            // Bucket key = next power-of-two of (size / 1024) rounded up.
+            let bucket_kib = (record.size.max(1) + 1023) / 1024;
+            let bucket_key = bucket_kib.next_power_of_two().max(1);
+            buckets
+                .entry(bucket_key)
+                .or_insert_with(Vec::new)
+                .push(record.clone());
+        }
+
+        let total = history.len() as f64;
+        let mut patterns: Vec<AllocationPattern> = buckets
+            .into_iter()
+            .map(|(bucket_key, records)| {
+                let frequency = records.len() as u32;
+                // Collect distinct sizes in this bucket for the signature.
+                let mut sizes: Vec<usize> = records.iter().map(|r| r.size).collect();
+                sizes.sort_unstable();
+                sizes.dedup();
+
+                // Collect distinct block types.
+                let mut block_types: Vec<BlockType> =
+                    records.iter().map(|r| r.blocktype.clone()).collect();
+                block_types.sort_by_key(|bt| format!("{:?}", bt));
+                block_types.dedup_by_key(|bt| format!("{:?}", bt));
+
+                // Accuracy: fraction of all allocations that fall in this bucket
+                // (i.e. how well this single pattern describes the workload).
+                let accuracy = frequency as f64 / total;
+
+                AllocationPattern {
+                    // Signature = [bucket_key_kib] ++ sorted unique sizes
+                    signature: std::iter::once(bucket_key).chain(sizes).collect(),
+                    frequency,
+                    accuracy,
+                    block_types,
+                }
+            })
+            .collect();
+
+        // Most frequent patterns first.
+        patterns.sort_by(|a, b| b.frequency.cmp(&a.frequency));
+
+        Ok(patterns)
     }
 
     fn suggest_optimizations(
         &self,
         patterns: &[AllocationPattern],
     ) -> Result<Vec<OptimizationType>> {
-        // Suggest memory layout optimizations based on _patterns
-        Ok(vec![]) // Placeholder
+        if patterns.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let mut suggestions: Vec<OptimizationType> = Vec::new();
+
+        // Heuristic 1: many small allocations (bucket ≤ 4 KiB, high frequency)
+        // → pooling / coalescing will reduce per-allocation overhead.
+        let small_alloc_count: u32 = patterns
+            .iter()
+            .filter(|p| p.signature.first().copied().unwrap_or(0) <= 4)
+            .map(|p| p.frequency)
+            .sum();
+        let total_count: u32 = patterns.iter().map(|p| p.frequency).sum();
+        if total_count > 0 && small_alloc_count * 2 > total_count {
+            suggestions.push(OptimizationType::MemoryCoalescing);
+        }
+
+        // Heuristic 2: many distinct size classes (> 4 patterns) → fragmentation
+        // risk; reordering blocks by size can improve contiguity.
+        if patterns.len() > 4 {
+            suggestions.push(OptimizationType::BlockReordering);
+        }
+
+        // Heuristic 3: single dominant pattern with high accuracy (> 60 %) →
+        // prefetch is likely to be profitable.
+        if patterns.first().map(|p| p.accuracy > 0.6).unwrap_or(false) {
+            suggestions.push(OptimizationType::PrefetchOptimization);
+        }
+
+        // Heuristic 4: high diversity (accuracy of best pattern < 25 %) →
+        // current fixed strategy is not well-matched; switch to Adaptive.
+        if patterns.first().map(|p| p.accuracy < 0.25).unwrap_or(false) {
+            suggestions.push(OptimizationType::AllocationStrategyChange);
+        }
+
+        Ok(suggestions)
     }
 
     fn apply_optimization(&self, optimization: OptimizationType) -> Result<()> {
@@ -692,7 +787,7 @@ impl AdvancedMemoryPool {
 impl MemoryPrefetcher {
     fn new(config: PrefetchConfig) -> Self {
         Self {
-            allocation_history: VecDeque::new(),
+            allocation_history: Arc::new(Mutex::new(VecDeque::new())),
             predictions: Vec::new(),
             pattern_engine: PatternEngine {
                 patterns: Vec::new(),
@@ -703,6 +798,20 @@ impl MemoryPrefetcher {
         }
     }
 
+    /// Record an allocation event in the history ring-buffer.
+    ///
+    /// The history is capped at the configured `history_window` size so that
+    /// memory usage remains bounded even under long-running workloads.
+    fn record_allocation(&self, record: AllocationRecord) {
+        let window = self.config.buffer_size_limit.max(1);
+        if let Ok(mut hist) = self.allocation_history.lock() {
+            if hist.len() >= window {
+                hist.pop_front();
+            }
+            hist.push_back(record);
+        }
+    }
+
     fn get_predicted_block(
         &self,
         size: usize,
@@ -710,6 +819,7 @@ impl MemoryPrefetcher {
     ) -> Result<Option<MemoryBlock>> {
         // Check if we have a predicted block ready
         // Implementation would check predictions and return suitable block
+        let _ = (size, blocktype);
         Ok(None)
     }
 }
@@ -826,5 +936,93 @@ mod tests {
             .benchmark_strategies(&workload)
             .expect("Operation failed");
         assert!(!benchmark.results.is_empty());
+    }
+
+    // --- pattern analysis and optimization suggestion tests ---
+
+    /// Allocate several blocks then verify `analyze_allocation_patterns` returns
+    /// at least one pattern with a non-zero frequency.
+    #[test]
+    fn test_analyze_allocation_patterns_non_empty_after_allocations() {
+        let pool = AdvancedMemoryPool::new(MemoryPoolConfig::default());
+
+        // Make ten small allocations (all same size → single bucket)
+        for _ in 0..10 {
+            pool.allocate(512, BlockType::IntermediateBuffer)
+                .expect("allocation must succeed");
+        }
+
+        let patterns = pool
+            .analyze_allocation_patterns()
+            .expect("analyze_allocation_patterns must not fail");
+
+        assert!(
+            !patterns.is_empty(),
+            "must return at least one pattern after allocations"
+        );
+        assert!(
+            patterns[0].frequency > 0,
+            "dominant pattern must have non-zero frequency"
+        );
+    }
+
+    /// After uniform-size allocations the dominant pattern should have high
+    /// accuracy (close to 1.0) and `suggest_optimizations` should fire at
+    /// least one suggestion.
+    #[test]
+    fn test_suggest_optimizations_after_uniform_allocations() {
+        let pool = AdvancedMemoryPool::new(MemoryPoolConfig::default());
+
+        for _ in 0..20 {
+            pool.allocate(256, BlockType::InputData)
+                .expect("allocation must succeed");
+        }
+
+        let patterns = pool
+            .analyze_allocation_patterns()
+            .expect("analyze_allocation_patterns must not fail");
+        assert!(!patterns.is_empty(), "patterns must be non-empty");
+
+        let suggestions = pool
+            .suggest_optimizations(&patterns)
+            .expect("suggest_optimizations must not fail");
+        assert!(
+            !suggestions.is_empty(),
+            "at least one optimization should be suggested for a uniform workload"
+        );
+    }
+
+    /// With a mixed workload (many different sizes) the analysis should produce
+    /// multiple patterns and the `BlockReordering` suggestion should appear.
+    #[test]
+    fn test_suggest_optimizations_block_reordering_for_diverse_sizes() {
+        let pool = AdvancedMemoryPool::new(MemoryPoolConfig::default());
+
+        // Allocate across > 4 distinct size classes
+        for size in &[128usize, 512, 1024, 4096, 8192, 16384, 32768] {
+            for _ in 0..3 {
+                pool.allocate(*size, BlockType::IntermediateBuffer)
+                    .expect("allocation must succeed");
+            }
+        }
+
+        let patterns = pool
+            .analyze_allocation_patterns()
+            .expect("analyze_allocation_patterns must not fail");
+        assert!(
+            patterns.len() > 4,
+            "diverse workload must produce > 4 patterns"
+        );
+
+        let suggestions = pool
+            .suggest_optimizations(&patterns)
+            .expect("suggest_optimizations must not fail");
+        let has_reordering = suggestions
+            .iter()
+            .any(|s| matches!(s, OptimizationType::BlockReordering));
+        assert!(
+            has_reordering,
+            "BlockReordering should be suggested for a highly diverse workload"
+        );
     }
 }

@@ -16,20 +16,20 @@
 //!
 //! ## Algorithm (per variable j, per constraint row i)
 //!
-//! The BCC formula for a constraint row i with a[i][j] ≠ 0:
+//! The BCC formula for a constraint row i with a\[i\]\[j\] ≠ 0:
 //!
 //! Define:
 //!   - f_j = x̄_j ∈ (0, 1)   (fractional value)
 //!   - r_i = b_i - Σ_k a_{ik} · x̄_k   (constraint slack at x̄, ≥ 0 for LP feasible)
 //!
-//! When a[i][j] > 0, the BCC disjunctive cut from row i is:
+//! When a\[i\]\[j\] > 0, the BCC disjunctive cut from row i is:
 //!
-//!   π · x ≥ π₀   where   π = a[i],   π₀ = a_i · x̄ - r_i · f_j / (1 - f_j)
+//!   π · x ≥ π₀   where   π = a\[i\],   π₀ = a_i · x̄ - r_i · f_j / (1 - f_j)
 //!
 //! Violation at x̄: π · x̄ − π₀ = r_i · f_j / (1 − f_j) ≥ 0.
 //!
 //! When the structural constraints are all tight (r_i = 0 for every row i
-//! with a[i][j] ≠ 0), the structural rows give zero violation.  To handle
+//! with a\[i\]\[j\] ≠ 0), the structural rows give zero violation.  To handle
 //! this case the generator augments the constraint system with the variable
 //! bound rows 0 ≤ x_j ≤ 1 (written as -x_k ≤ 0 and x_k ≤ 1 for each
 //! integer variable k ≠ j).  The bound row x_k ≤ 1 for k ≠ j has:

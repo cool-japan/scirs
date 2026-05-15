@@ -266,6 +266,110 @@ pub fn get_registry() -> DatasetRegistry {
     DatasetRegistry::default()
 }
 
+// ── Static built-in registry ─────────────────────────────────────────────────
+
+/// Entry in the static built-in registry mapping a name to a zero-arg loader.
+struct BuiltinEntry {
+    name: &'static str,
+    description: &'static str,
+    loader: fn() -> Result<crate::utils::Dataset>,
+}
+
+/// Adapter: load wine from the fully-embedded `standard` module and convert
+/// `DatasetResult` → `Dataset`.
+fn wine_loader() -> Result<crate::utils::Dataset> {
+    let dr = crate::standard::load_wine()?;
+    let mut ds = crate::utils::Dataset::new(dr.data, Some(dr.target));
+    ds = ds
+        .with_featurenames(dr.feature_names)
+        .with_targetnames(dr.target_names)
+        .with_description(dr.description);
+    Ok(ds)
+}
+
+/// Static table of all built-in (always-available) datasets.
+static BUILTIN_TABLE: &[BuiltinEntry] = &[
+    BuiltinEntry {
+        name: "iris",
+        description: "Classic iris flower dataset for classification (150 samples, 4 features)",
+        loader: crate::toy::load_iris,
+    },
+    BuiltinEntry {
+        name: "wine",
+        description: "Wine recognition dataset for classification (178 samples, 13 features)",
+        loader: wine_loader,
+    },
+    BuiltinEntry {
+        name: "breast_cancer",
+        description: "Breast cancer Wisconsin dataset for classification (30 samples, 5 features)",
+        loader: crate::toy::load_breast_cancer,
+    },
+    BuiltinEntry {
+        name: "boston",
+        description: "Boston housing prices dataset for regression (506 samples, 13 features)",
+        loader: crate::toy::load_boston,
+    },
+    BuiltinEntry {
+        name: "diabetes",
+        description: "Diabetes dataset for regression (442 samples, 10 features)",
+        loader: crate::toy::load_diabetes,
+    },
+    BuiltinEntry {
+        name: "digits",
+        description: "Handwritten digits dataset for classification (50 samples, 16 features)",
+        loader: crate::toy::load_digits,
+    },
+];
+
+/// Return the names of all built-in datasets that can be loaded without any
+/// network access or optional feature flags.
+///
+/// # Examples
+///
+/// ```rust
+/// use scirs2_datasets::list_datasets;
+///
+/// let names = list_datasets();
+/// assert!(names.contains(&"iris"));
+/// assert!(names.contains(&"wine"));
+/// ```
+pub fn list_datasets() -> Vec<&'static str> {
+    BUILTIN_TABLE.iter().map(|e| e.name).collect()
+}
+
+/// Load a built-in dataset by name.
+///
+/// This function dispatches to the appropriate embedded loader without
+/// requiring network access or the `download` feature flag.
+///
+/// # Errors
+///
+/// Returns `Err(DatasetsError::NotFound)` when `name` is not recognised.
+///
+/// # Examples
+///
+/// ```rust
+/// use scirs2_datasets::load_dataset_by_name;
+///
+/// let iris = load_dataset_by_name("iris").expect("iris should load");
+/// assert!(iris.n_samples() > 0);
+///
+/// let unknown = load_dataset_by_name("unknown_xyz");
+/// assert!(unknown.is_err());
+/// ```
+pub fn load_dataset_by_name(name: &str) -> Result<crate::utils::Dataset> {
+    for entry in BUILTIN_TABLE {
+        if entry.name == name {
+            return (entry.loader)();
+        }
+    }
+    Err(DatasetsError::NotFound(format!(
+        "Unknown dataset '{}'. Available: {:?}",
+        name,
+        list_datasets()
+    )))
+}
+
 /// Load a dataset by name from the registry
 #[cfg(feature = "download")]
 #[allow(dead_code)]
@@ -472,6 +576,88 @@ mod tests {
             assert!(
                 datasets.contains(&expected.to_string()),
                 "Dataset '{expected}' not found in registry"
+            );
+        }
+    }
+
+    // ── Static registry tests ────────────────────────────────────────────────
+
+    #[test]
+    fn test_list_datasets_contains_iris_and_wine() {
+        let names = super::list_datasets();
+        assert!(
+            names.contains(&"iris"),
+            "list_datasets() should include 'iris'"
+        );
+        assert!(
+            names.contains(&"wine"),
+            "list_datasets() should include 'wine'"
+        );
+    }
+
+    #[test]
+    fn test_list_datasets_minimum_count() {
+        let names = super::list_datasets();
+        assert!(
+            names.len() >= 5,
+            "Expected at least 5 built-in datasets, got {}",
+            names.len()
+        );
+    }
+
+    #[test]
+    fn test_load_dataset_by_name_iris_succeeds() {
+        let result = super::load_dataset_by_name("iris");
+        assert!(
+            result.is_ok(),
+            "load_dataset_by_name('iris') should succeed"
+        );
+        let ds = result.expect("iris loaded");
+        assert!(ds.n_samples() > 0, "iris should have at least one sample");
+    }
+
+    #[test]
+    fn test_load_dataset_by_name_unknown_returns_err() {
+        let result = super::load_dataset_by_name("unknown_xyz");
+        assert!(
+            result.is_err(),
+            "load_dataset_by_name('unknown_xyz') should return Err"
+        );
+    }
+
+    #[test]
+    fn test_load_dataset_by_name_iris_feature_count() {
+        let ds = super::load_dataset_by_name("iris").expect("iris loaded");
+        // toy::load_iris returns 4 features
+        assert_eq!(
+            ds.n_features(),
+            4,
+            "iris should have 4 features, got {}",
+            ds.n_features()
+        );
+    }
+
+    #[test]
+    fn test_load_dataset_by_name_wine_roundtrip() {
+        let ds = super::load_dataset_by_name("wine").expect("wine loaded");
+        assert!(ds.n_samples() > 0, "wine should have samples");
+        // standard::load_wine embeds the full 178-sample dataset with 13 features
+        assert_eq!(
+            ds.n_features(),
+            13,
+            "wine should have 13 features, got {}",
+            ds.n_features()
+        );
+    }
+
+    #[test]
+    fn test_load_dataset_by_name_all_known_succeed() {
+        for name in super::list_datasets() {
+            let result = super::load_dataset_by_name(name);
+            assert!(
+                result.is_ok(),
+                "load_dataset_by_name('{name}') failed: {:?}",
+                result.err()
             );
         }
     }

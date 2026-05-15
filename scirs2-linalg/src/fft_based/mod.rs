@@ -6,8 +6,8 @@
 //!
 //! ## Structures covered
 //!
-//! - **Circulant**: C is fully defined by its first column c; C[i,j] = c[(i-j) mod n]
-//! - **Toeplitz**: T[i,j] = t[j-i] (1D defining sequence, embedded in a 2n circulant)
+//! - **Circulant**: C is fully defined by its first column c; C\[i,j\] = c\[(i-j) mod n\]
+//! - **Toeplitz**: T\[i,j\] = t\[j-i\] (1D defining sequence, embedded in a 2n circulant)
 //! - **Level-Toeplitz**: Block-Toeplitz with Toeplitz blocks (2D Toeplitz)
 //!
 //! ## Algorithms
@@ -249,8 +249,8 @@ pub fn circulant_matmul(c: &[f64], x: &[f64]) -> LinalgResult<Vec<f64>> {
 /// Compute the Toeplitz matrix-vector product y = T * x in O(n log n).
 ///
 /// The Toeplitz matrix T is characterized by a single vector t of length 2n-1,
-/// where t[0..n-1] are the first row (right to left) and t[0],t[-(1)],..,t[-(n-1)]
-/// are the first column. Equivalently, T[i, j] = t[n-1 + i - j].
+/// where t\[0..n-1\] are the first row (right to left) and t\[0\],t\[-(1)\],..,t\[-(n-1)\]
+/// are the first column. Equivalently, T\[i, j\] = t\[n-1 + i - j\].
 ///
 /// The product is computed by embedding T in a 2n×2n circulant matrix and
 /// using the circulant FFT trick.
@@ -258,7 +258,7 @@ pub fn circulant_matmul(c: &[f64], x: &[f64]) -> LinalgResult<Vec<f64>> {
 /// # Arguments
 ///
 /// * `t` - Toeplitz vector of length 2n-1, where `t[0]` is the top-left element.
-///   Interpretation: T[i,j] = t[i - j + (n - 1)].
+///   Interpretation: T\[i,j\] = t\[i - j + (n - 1)\].
 /// * `x` - Input vector of length n
 ///
 /// # Returns

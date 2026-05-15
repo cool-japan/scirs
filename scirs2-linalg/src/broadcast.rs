@@ -4,10 +4,153 @@
 //! more than 2 dimensions, following NumPy's broadcasting rules.
 
 use crate::error::{LinalgError, LinalgResult};
-use scirs2_core::ndarray::{Array, ArrayBase, Data, Dimension, Ix3, IxDyn};
+use scirs2_core::ndarray::{Array, ArrayBase, ArrayD, ArrayViewD, Data, Dimension, Ix3, IxDyn};
 use scirs2_core::numeric::{Float, NumAssign};
 use std::fmt::Debug;
 use std::iter::Sum;
+
+/// Compute the NumPy broadcast shape from two shapes.
+///
+/// Rules (right-aligned):
+/// - Pad the shorter shape with leading 1s.
+/// - For each pair (a, b): a==b → ok; a==1 → output b; b==1 → output a; else error.
+pub fn broadcast_shapes(shape_a: &[usize], shape_b: &[usize]) -> LinalgResult<Vec<usize>> {
+    let ndim = shape_a.len().max(shape_b.len());
+    let mut result = vec![0usize; ndim];
+
+    for k in 0..ndim {
+        // Map k in result to dimensions counting from the right
+        let i = ndim - 1 - k;
+        let a = if k < shape_a.len() {
+            shape_a[shape_a.len() - 1 - k]
+        } else {
+            1
+        };
+        let b = if k < shape_b.len() {
+            shape_b[shape_b.len() - 1 - k]
+        } else {
+            1
+        };
+        if a == b {
+            result[i] = a;
+        } else if a == 1 {
+            result[i] = b;
+        } else if b == 1 {
+            result[i] = a;
+        } else {
+            return Err(LinalgError::DimensionError(format!(
+                "Shape mismatch for broadcasting: dimension {i} has sizes {a} and {b}"
+            )));
+        }
+    }
+
+    Ok(result)
+}
+
+/// Broadcast a dynamic array to a given shape, returning an owned copy.
+///
+/// The target shape must be broadcast-compatible with the array's shape.
+/// Dimensions of size 1 in the source are "stretched" to match the target.
+pub fn broadcast_to<A>(array: ArrayViewD<A>, shape: &[usize]) -> LinalgResult<ArrayD<A>>
+where
+    A: Float + Copy + Debug + 'static,
+{
+    let src_shape = array.shape();
+
+    // Validate via broadcast_shapes (source can broadcast to target)
+    let computed = broadcast_shapes(src_shape, shape)?;
+    if computed != shape {
+        return Err(LinalgError::DimensionError(format!(
+            "Array with shape {:?} cannot be broadcast to shape {:?}",
+            src_shape, shape
+        )));
+    }
+
+    let ndim = shape.len();
+    let total: usize = shape.iter().product();
+    let mut output = ArrayD::zeros(IxDyn(shape));
+
+    // Iterate over all output elements and map each back to a source index
+    for flat_out in 0..total {
+        // Decode flat output index into multi-dim output coords
+        let mut out_coords = vec![0usize; ndim];
+        let mut remaining = flat_out;
+        for d in (0..ndim).rev() {
+            out_coords[d] = remaining % shape[d];
+            remaining /= shape[d];
+        }
+
+        // Map output coords to source coords (right-align, broadcast dim → 0)
+        let src_ndim = src_shape.len();
+        let offset = ndim - src_ndim; // leading dims not present in src
+        let mut src_idx = vec![0usize; src_ndim];
+        for d in 0..src_ndim {
+            let src_dim = src_shape[d];
+            src_idx[d] = if src_dim == 1 {
+                0
+            } else {
+                out_coords[offset + d]
+            };
+        }
+
+        output[out_coords.as_slice()] = array[src_idx.as_slice()];
+    }
+
+    Ok(output)
+}
+
+/// Broadcast a list of dynamic arrays to their common broadcast shape.
+///
+/// Each array is broadcast to the common shape, returning owned copies.
+pub fn broadcast_arrays<A>(arrays: &[ArrayViewD<A>]) -> LinalgResult<Vec<ArrayD<A>>>
+where
+    A: Float + Copy + Debug + 'static,
+{
+    if arrays.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Compute the common broadcast shape across all arrays
+    let mut common_shape = arrays[0].shape().to_vec();
+    for arr in &arrays[1..] {
+        common_shape = broadcast_shapes(&common_shape, arr.shape())?;
+    }
+
+    // Broadcast each array to the common shape
+    arrays
+        .iter()
+        .map(|arr| broadcast_to(arr.view(), &common_shape))
+        .collect()
+}
+
+/// Decode a flat index into multi-dim coords for a given shape.
+/// Returns coords in the standard row-major order.
+fn flat_to_coords(flat: usize, shape: &[usize]) -> Vec<usize> {
+    let ndim = shape.len();
+    let mut coords = vec![0usize; ndim];
+    let mut remaining = flat;
+    for d in (0..ndim).rev() {
+        coords[d] = remaining % shape[d];
+        remaining /= shape[d];
+    }
+    coords
+}
+
+/// Map output batch coords to input batch coords applying broadcasting rules.
+/// `out_batch` is right-aligned against `in_batch_shape`.
+/// Dims in `in_batch_shape` that are 1 are mapped to 0.
+fn map_batch_coords(out_coords: &[usize], in_batch_shape: &[usize]) -> Vec<usize> {
+    let out_len = out_coords.len();
+    let in_len = in_batch_shape.len();
+    let mut result = vec![0usize; in_len];
+    for k in 0..in_len {
+        // Right-align: out dimension corresponding to in dimension k
+        let out_idx_offset = out_len.saturating_sub(in_len);
+        let out_dim = out_coords[out_idx_offset + k];
+        result[k] = if in_batch_shape[k] == 1 { 0 } else { out_dim };
+    }
+    result
+}
 
 /// Trait for broadcasting support
 pub trait BroadcastExt<A> {
@@ -205,71 +348,50 @@ where
     let a_batchshape = &ashape[..ashape.len() - 2];
     let b_batchshape = &bshape[..bshape.len() - 2];
 
-    // Check if batch dimensions can be broadcast
-    let batchshape = if a_batchshape == b_batchshape {
-        a_batchshape.to_vec()
-    } else {
-        // For now, we don't support full broadcasting - require exact match
-        return Err(LinalgError::DimensionError(
-            "Batch dimensions must match exactly (full broadcasting not yet implemented)"
-                .to_string(),
-        ));
-    };
+    // Compute the broadcast shape for the batch dimensions
+    let batchshape = broadcast_shapes(a_batchshape, b_batchshape)?;
 
     // Compute output shape
     let a_rows = ashape[ashape.len() - 2];
     let b_cols = bshape[bshape.len() - 1];
-    let mut outputshape = batchshape;
+    let mut outputshape = batchshape.clone();
     outputshape.push(a_rows);
     outputshape.push(b_cols);
 
     // Create output array
     let mut output = Array::zeros(IxDyn(&outputshape));
 
-    // Extract the matrix dimensions
-    let n_batch = output.len() / (a_rows * b_cols);
+    // Number of batch elements in the output
+    let n_batch: usize = batchshape.iter().product::<usize>().max(1);
 
-    // Perform batched matrix multiplication
-    // Need to reshape in steps to avoid borrowing issues
+    // Perform batched matrix multiplication with broadcasting
     for i in 0..n_batch {
+        // Decode output batch flat index into multi-dim batch coords
+        let out_batch_coords = flat_to_coords(i, &batchshape);
+
+        // Map to input batch coords via broadcasting
+        let a_batch_coords = map_batch_coords(&out_batch_coords, a_batchshape);
+        let b_batch_coords = map_batch_coords(&out_batch_coords, b_batchshape);
+
         // Extract 2D slices for this batch
         let mut a_slice = Array2::zeros((a_rows, a_cols));
         let mut b_slice = Array2::zeros((b_rows, b_cols));
         let mut out_slice = Array2::zeros((a_rows, b_cols));
 
-        // Copy data into slices
-        let a_start = i * a_rows * a_cols;
-        let b_start = i * b_rows * b_cols;
-        let out_start = i * a_rows * b_cols;
-
         for r in 0..a_rows {
             for c in 0..a_cols {
-                let flat_idx = a_start + r * a_cols + c;
-                let nd_idx: Vec<usize> = {
-                    let mut idx = vec![0; a.ndim()];
-                    let mut remaining = flat_idx;
-                    for dim in (0..a.ndim()).rev() {
-                        idx[dim] = remaining % ashape[dim];
-                        remaining /= ashape[dim];
-                    }
-                    idx
-                };
+                let mut nd_idx = a_batch_coords.clone();
+                nd_idx.push(r);
+                nd_idx.push(c);
                 a_slice[[r, c]] = a[nd_idx.as_slice()];
             }
         }
 
         for r in 0..b_rows {
             for c in 0..b_cols {
-                let flat_idx = b_start + r * b_cols + c;
-                let nd_idx: Vec<usize> = {
-                    let mut idx = vec![0; b.ndim()];
-                    let mut remaining = flat_idx;
-                    for dim in (0..b.ndim()).rev() {
-                        idx[dim] = remaining % bshape[dim];
-                        remaining /= bshape[dim];
-                    }
-                    idx
-                };
+                let mut nd_idx = b_batch_coords.clone();
+                nd_idx.push(r);
+                nd_idx.push(c);
                 b_slice[[r, c]] = b[nd_idx.as_slice()];
             }
         }
@@ -283,19 +405,12 @@ where
             &mut out_slice,
         );
 
-        // Copy result back
+        // Copy result back using the output batch coords
         for r in 0..a_rows {
             for c in 0..b_cols {
-                let flat_idx = out_start + r * b_cols + c;
-                let nd_idx: Vec<usize> = {
-                    let mut idx = vec![0; output.ndim()];
-                    let mut remaining = flat_idx;
-                    for dim in (0..output.ndim()).rev() {
-                        idx[dim] = remaining % outputshape[dim];
-                        remaining /= outputshape[dim];
-                    }
-                    idx
-                };
+                let mut nd_idx = out_batch_coords.clone();
+                nd_idx.push(r);
+                nd_idx.push(c);
                 output[nd_idx.as_slice()] = out_slice[[r, c]];
             }
         }
@@ -337,67 +452,46 @@ where
     let a_batchshape = &ashape[..ashape.len() - 2];
     let x_batchshape = &xshape[..xshape.len() - 1];
 
-    // Check if batch dimensions can be broadcast
-    let batchshape = if a_batchshape == x_batchshape {
-        a_batchshape.to_vec()
-    } else {
-        // For now, we don't support full broadcasting
-        return Err(LinalgError::DimensionError(
-            "Batch dimensions must match exactly (full broadcasting not yet implemented)"
-                .to_string(),
-        ));
-    };
+    // Compute the broadcast shape for the batch dimensions
+    let batchshape = broadcast_shapes(a_batchshape, x_batchshape)?;
 
     // Compute output shape
     let a_rows = ashape[ashape.len() - 2];
-    let mut outputshape = batchshape;
+    let mut outputshape = batchshape.clone();
     outputshape.push(a_rows);
 
     // Create output array
     let mut output = Array::zeros(IxDyn(&outputshape));
 
-    // Extract dimensions
-    let n_batch = output.len() / a_rows;
+    // Number of batch elements in the output
+    let n_batch: usize = batchshape.iter().product::<usize>().max(1);
 
-    // Perform batched matrix-vector multiplication
+    // Perform batched matrix-vector multiplication with broadcasting
     for i in 0..n_batch {
+        // Decode output batch flat index into multi-dim batch coords
+        let out_batch_coords = flat_to_coords(i, &batchshape);
+
+        // Map to input batch coords via broadcasting
+        let a_batch_coords = map_batch_coords(&out_batch_coords, a_batchshape);
+        let x_batch_coords = map_batch_coords(&out_batch_coords, x_batchshape);
+
         // Extract slices for this batch
         let mut a_slice = Array2::zeros((a_rows, a_cols));
         let mut x_slice = Array1::zeros(x_len);
         let mut y_slice = Array1::zeros(a_rows);
 
-        // Copy data into slices
-        let a_start = i * a_rows * a_cols;
-        let x_start = i * x_len;
-        let y_start = i * a_rows;
-
         for r in 0..a_rows {
             for c in 0..a_cols {
-                let flat_idx = a_start + r * a_cols + c;
-                let nd_idx: Vec<usize> = {
-                    let mut idx = vec![0; a.ndim()];
-                    let mut remaining = flat_idx;
-                    for dim in (0..a.ndim()).rev() {
-                        idx[dim] = remaining % ashape[dim];
-                        remaining /= ashape[dim];
-                    }
-                    idx
-                };
+                let mut nd_idx = a_batch_coords.clone();
+                nd_idx.push(r);
+                nd_idx.push(c);
                 a_slice[[r, c]] = a[nd_idx.as_slice()];
             }
         }
 
         for j in 0..x_len {
-            let flat_idx = x_start + j;
-            let nd_idx: Vec<usize> = {
-                let mut idx = vec![0; x.ndim()];
-                let mut remaining = flat_idx;
-                for dim in (0..x.ndim()).rev() {
-                    idx[dim] = remaining % xshape[dim];
-                    remaining /= xshape[dim];
-                }
-                idx
-            };
+            let mut nd_idx = x_batch_coords.clone();
+            nd_idx.push(j);
             x_slice[j] = x[nd_idx.as_slice()];
         }
 
@@ -410,18 +504,10 @@ where
             &mut y_slice,
         );
 
-        // Copy result back
+        // Copy result back using the output batch coords
         for j in 0..a_rows {
-            let flat_idx = y_start + j;
-            let nd_idx: Vec<usize> = {
-                let mut idx = vec![0; output.ndim()];
-                let mut remaining = flat_idx;
-                for dim in (0..output.ndim()).rev() {
-                    idx[dim] = remaining % outputshape[dim];
-                    remaining /= outputshape[dim];
-                }
-                idx
-            };
+            let mut nd_idx = out_batch_coords.clone();
+            nd_idx.push(j);
             output[nd_idx.as_slice()] = y_slice[j];
         }
     }
@@ -538,5 +624,116 @@ mod tests {
         assert_eq!(c[[0, 0, 1]], 2.0);
         assert_eq!(c[[1, 0, 0]], 5.0);
         assert_eq!(c[[1, 0, 1]], 6.0);
+    }
+
+    // -------------------------------------------------------------------------
+    // New tests for broadcast_shapes, broadcast_to, broadcast_arrays
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_broadcast_shapes_basic() {
+        // [3, 1] + [1, 4] -> [3, 4]
+        let s = broadcast_shapes(&[3, 1], &[1, 4]).expect("should broadcast");
+        assert_eq!(s, vec![3, 4]);
+    }
+
+    #[test]
+    fn test_broadcast_shapes_leading_ones() {
+        // [5] + [1, 5] -> [1, 5]
+        let s = broadcast_shapes(&[5], &[1, 5]).expect("should broadcast");
+        assert_eq!(s, vec![1, 5]);
+    }
+
+    #[test]
+    fn test_broadcast_shapes_incompatible() {
+        // [3] + [4] -> Err
+        let result = broadcast_shapes(&[3], &[4]);
+        assert!(result.is_err(), "incompatible shapes must error");
+    }
+
+    #[test]
+    fn test_broadcast_to_row_to_matrix() {
+        use scirs2_core::ndarray::Array;
+        // Shape [1, 3] broadcast to [4, 3]: each row should be the same
+        let row = Array::from_shape_vec(IxDyn(&[1, 3]), vec![1.0_f64, 2.0, 3.0]).expect("shape ok");
+        let mat = broadcast_to(row.view(), &[4, 3]).expect("should broadcast");
+        assert_eq!(mat.shape(), &[4, 3]);
+        for i in 0..4 {
+            assert_eq!(mat[[i, 0]], 1.0);
+            assert_eq!(mat[[i, 1]], 2.0);
+            assert_eq!(mat[[i, 2]], 3.0);
+        }
+    }
+
+    #[test]
+    fn test_broadcast_arrays_two_compatible() {
+        use scirs2_core::ndarray::Array;
+        // [3, 1] and [1, 4] -> both become [3, 4]
+        let a = Array::from_shape_vec(IxDyn(&[3, 1]), vec![1.0_f64, 2.0, 3.0]).expect("shape ok");
+        let b = Array::from_shape_vec(IxDyn(&[1, 4]), vec![10.0_f64, 20.0, 30.0, 40.0])
+            .expect("shape ok");
+        let results = broadcast_arrays(&[a.view(), b.view()]).expect("should broadcast");
+        assert_eq!(results.len(), 2);
+        assert_eq!(results[0].shape(), &[3, 4]);
+        assert_eq!(results[1].shape(), &[3, 4]);
+        // a was [1,2,3] column; after broadcast row 2 col 0 == a[2,0] == 3.0
+        assert_eq!(results[0][[2, 0]], 3.0);
+        assert_eq!(results[0][[2, 3]], 3.0); // same value across columns
+                                             // b was [10,20,30,40] row; after broadcast col 2 any row == 30.0
+        assert_eq!(results[1][[0, 2]], 30.0);
+        assert_eq!(results[1][[2, 2]], 30.0);
+    }
+
+    #[test]
+    fn test_broadcast_matmul_dyn_broadcasting_batch() {
+        // Test batch broadcasting: a has batch [2], b has batch [1] -> output batch [2]
+        let a = array![[[1.0_f64, 0.0], [0.0, 1.0]], [[2.0, 0.0], [0.0, 2.0]]].into_dyn();
+        // b has batch=1, will be broadcast to match a's batch=2
+        let b = array![[[1.0, 2.0], [3.0, 4.0]]].into_dyn();
+
+        let c = broadcast_matmul(&a, &b).expect("batch broadcast matmul");
+        assert_eq!(c.shape(), &[2, 2, 2]);
+        // Batch 0: I * [[1,2],[3,4]] = [[1,2],[3,4]]
+        assert_eq!(c[[0, 0, 0]], 1.0);
+        assert_eq!(c[[0, 0, 1]], 2.0);
+        assert_eq!(c[[0, 1, 0]], 3.0);
+        assert_eq!(c[[0, 1, 1]], 4.0);
+        // Batch 1: 2*I * [[1,2],[3,4]] = [[2,4],[6,8]]
+        assert_eq!(c[[1, 0, 0]], 2.0);
+        assert_eq!(c[[1, 0, 1]], 4.0);
+        assert_eq!(c[[1, 1, 0]], 6.0);
+        assert_eq!(c[[1, 1, 1]], 8.0);
+    }
+
+    #[test]
+    fn test_broadcast_matvec_dyn_broadcasting_batch() {
+        // Test batch broadcasting: a has batch [2, 1], x has batch [1, 3]
+        // -> output batch [2, 3], each matrix applied to each vector
+        use scirs2_core::ndarray::Array;
+        // a: 2 matrices each 2×2, batch shape [2, 1]
+        let a_data: Vec<f64> = vec![
+            // batch [0,0]: I
+            1.0, 0.0, 0.0, 1.0, // batch [1,0]: 2*I
+            2.0, 0.0, 0.0, 2.0,
+        ];
+        let a = Array::from_shape_vec(IxDyn(&[2, 1, 2, 2]), a_data).expect("shape ok");
+        // x: 3 vectors of len 2, batch shape [1, 3]
+        let x_data: Vec<f64> = vec![1.0, 0.0, 0.0, 1.0, 1.0, 1.0];
+        let x = Array::from_shape_vec(IxDyn(&[1, 3, 2]), x_data).expect("shape ok");
+
+        let y = broadcast_matvec(&a, &x).expect("batch broadcast matvec");
+        assert_eq!(y.shape(), &[2, 3, 2]);
+        // batch [0,0]: I * [1,0] = [1,0]
+        assert_eq!(y[[0, 0, 0]], 1.0);
+        assert_eq!(y[[0, 0, 1]], 0.0);
+        // batch [0,2]: I * [1,1] = [1,1]
+        assert_eq!(y[[0, 2, 0]], 1.0);
+        assert_eq!(y[[0, 2, 1]], 1.0);
+        // batch [1,0]: 2*I * [1,0] = [2,0]
+        assert_eq!(y[[1, 0, 0]], 2.0);
+        assert_eq!(y[[1, 0, 1]], 0.0);
+        // batch [1,2]: 2*I * [1,1] = [2,2]
+        assert_eq!(y[[1, 2, 0]], 2.0);
+        assert_eq!(y[[1, 2, 1]], 2.0);
     }
 }

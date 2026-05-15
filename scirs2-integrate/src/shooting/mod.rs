@@ -10,7 +10,7 @@
 //!
 //! - **Single shooting**: Parameterize y(a) with free parameters, integrate to b,
 //!   and solve the boundary residual using Newton's method.
-//! - **Multiple shooting**: Divide [a,b] into subintervals, shoot over each, and
+//! - **Multiple shooting**: Divide \[a,b\] into subintervals, shoot over each, and
 //!   enforce continuity + boundary conditions simultaneously.
 //! - **Orthogonal collocation**: Collocate at Gaussian or Radau points within
 //!   subintervals for higher accuracy.
@@ -369,7 +369,7 @@ impl MultipleShooting {
     /// * `ode` - ODE function f(t, y)
     /// * `bc` - Boundary conditions: g(y(a), y(b)) → 0 (n_bc equations)
     /// * `t_nodes` - Subinterval nodes [t_0, t_1, ..., t_M] (M+1 nodes, M intervals)
-    /// * `s0` - Initial guesses for state at each node: (M, n) as Vec<Array1>
+    /// * `s0` - Initial guesses for state at each node: (M, n) as `Vec<Array1>`
     /// * `cfg` - Solver configuration
     pub fn solve<ODE, BC>(
         ode: &ODE,
@@ -914,7 +914,7 @@ pub struct PeriodicOrbitResult {
 /// giving n+1 equations in n+1 unknowns (y* ∈ R^n, T ∈ R).
 ///
 /// The phase condition fixes the phase along the orbit to remove translational
-/// invariance. Here we use: y*[phase_condition_idx] - y0_ref[phase_condition_idx] = 0.
+/// invariance. Here we use: y*\[phase_condition_idx\] - y0_ref\[phase_condition_idx\] = 0.
 pub struct PeriodicOrbitFinder;
 
 impl PeriodicOrbitFinder {

@@ -1133,21 +1133,39 @@ mod tests {
     fn test_double_buffer_concurrent() {
         let db = Arc::new(DoubleBuffer::new(0u64));
         let db_w = db.clone();
+        let writer_done = Arc::new(AtomicBool::new(false));
+        let writer_done_w = writer_done.clone();
 
         let writer = thread::spawn(move || {
             for i in 1..=100u64 {
                 db_w.publish(i).expect("publish");
             }
+            writer_done_w.store(true, Ordering::Release);
         });
 
-        // Reader should always see valid (non-torn) values.
+        // Reader keeps reading until the writer signals completion, then does a
+        // final sweep to capture the last published value. This avoids a flaky
+        // fixed iteration count: under heavy system load the writer thread can
+        // be slow to schedule, and a fixed-count reader may finish before any
+        // publish is observable.
         let db_r = db.clone();
+        let writer_done_r = writer_done.clone();
         let reader = thread::spawn(move || {
             let mut max_seen = 0u64;
-            for _ in 0..200 {
+            loop {
                 let v = db_r.read_front().expect("read");
                 if v > max_seen {
                     max_seen = v;
+                }
+                if writer_done_r.load(Ordering::Acquire) {
+                    // Final reads to catch the last published value.
+                    for _ in 0..16 {
+                        let v = db_r.read_front().expect("read");
+                        if v > max_seen {
+                            max_seen = v;
+                        }
+                    }
+                    break;
                 }
                 thread::yield_now();
             }
@@ -1157,6 +1175,9 @@ mod tests {
         writer.join().expect("writer");
         let max_seen = reader.join().expect("reader");
         assert!(max_seen > 0);
+        // Writer published values up to 100; reader must have caught the final
+        // one after the writer-done signal.
+        assert_eq!(max_seen, 100);
     }
 }
 

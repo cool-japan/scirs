@@ -52,6 +52,7 @@ scirs2-text = { workspace = true }
 scirs2-vision = { workspace = true }
 scirs2-autograd = { workspace = true }
 scirs2-neural = { workspace = true }
+scirs2-symbolic = { workspace = true }
 
 # Python bindings
 pyo3 = { workspace = true }

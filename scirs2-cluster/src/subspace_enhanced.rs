@@ -514,7 +514,11 @@ fn lrsc_admm_svt(
             m
         };
 
-        let (u_svd, s_svd, vt_svd) = compact_svd(cu.view(), n, 42)?;
+        // Singular values strictly below svt_thresh are zeroed by the SVT
+        // step below, so skip computing eigenpairs whose σ² is well under
+        // svt_thresh². The 0.9 slack guards against power-iteration drift.
+        let min_sigma_sq = svt_thresh * svt_thresh * 0.9;
+        let (u_svd, s_svd, vt_svd) = compact_svd(cu.view(), n, 42, min_sigma_sq)?;
 
         // Threshold singular values.
         let mut primal_res = 0.0f64;
@@ -688,6 +692,10 @@ fn spectral_on_affinity(affinity: &Array2<f64>, k: usize) -> Result<Array1<usize
 }
 
 /// Power iteration to find the dominant eigenvector of a symmetric matrix.
+///
+/// Breaks out of the loop once the squared change in the normalised iterate
+/// falls below `1e-10` (matching the eigenvector up to a global sign). The
+/// `max_iter` cap is retained as a safeguard.
 fn power_iteration_vec(mat: &Array2<f64>, max_iter: usize, rng: &mut u64) -> Vec<f64> {
     let n = mat.shape()[0];
     let mut v: Vec<f64> = (0..n).map(|_| lcg_f64(rng) - 0.5).collect();
@@ -701,7 +709,18 @@ fn power_iteration_vec(mat: &Array2<f64>, max_iter: usize, rng: &mut u64) -> Vec
             }
         }
         normalise_vec_f64(&mut av);
+        let mut delta_pos = 0.0f64;
+        let mut delta_neg = 0.0f64;
+        for i in 0..n {
+            let d_pos = av[i] - v[i];
+            let d_neg = av[i] + v[i];
+            delta_pos += d_pos * d_pos;
+            delta_neg += d_neg * d_neg;
+        }
         v = av;
+        if delta_pos.min(delta_neg) < 1e-10 {
+            break;
+        }
     }
     v
 }
@@ -857,11 +876,16 @@ fn lcg_usize(state: &mut u64, n: usize) -> usize {
     (lcg_f64(state) * n as f64) as usize % n
 }
 
-/// Compact randomised SVD: returns (U, s, Vt) with shapes (m,k), (k,), (k,n).
+/// Compact randomised SVD: returns (U, s, Vt) with shapes (m,kk), (kk,), (kk,n)
+/// where `kk <= k` may shrink if `min_sigma_sq > 0.0` truncates trailing modes
+/// whose squared singular value falls strictly below the threshold.
+///
+/// Pass `min_sigma_sq = 0.0` to keep all `k` modes (legacy behaviour).
 fn compact_svd(
     x: ArrayView2<f64>,
     k: usize,
     seed: u64,
+    min_sigma_sq: f64,
 ) -> Result<(Array2<f64>, Array1<f64>, Array2<f64>)> {
     let (m, n) = (x.shape()[0], x.shape()[1]);
     let k = k.min(m).min(n).max(1);
@@ -897,22 +921,25 @@ fn compact_svd(
         .view(),
     );
 
-    let (ub, sigma) = power_iter_eig_local(bbt.view(), k, seed.wrapping_add(1))?;
+    // Eigenvalues of BBᵀ are σ², so the min-eigval threshold equals min_sigma_sq.
+    let (ub, sigma) = power_iter_eig_local(bbt.view(), k, seed.wrapping_add(1), min_sigma_sq)?;
+    let actual = sigma.len();
     let s: Array1<f64> = sigma.mapv(|v| v.max(0.0).sqrt());
 
-    // U = Q U_B  (m × k).
+    // U = Q U_B  (m × actual). Note `ub` has shape (k_ub, actual).
     let u = mat_mul_arr(q.view(), ub.view());
 
-    // Vᵀ = U_Bᵀ B / σ  (k × n).
-    let mut vt = Array2::<f64>::zeros((k, n));
-    for i in 0..k {
+    // Vᵀ = U_Bᵀ B / σ  (actual × n).
+    let mut vt = Array2::<f64>::zeros((actual, n));
+    let ub_rows = ub.shape()[0];
+    for i in 0..actual {
         let si = s[i];
         if si < 1e-12 {
             continue;
         }
         for j in 0..n {
             let mut val = 0.0;
-            for l in 0..k {
+            for l in 0..ub_rows {
                 val += ub[[l, i]] * b[[l, j]];
             }
             vt[[i, j]] = val / si;
@@ -987,10 +1014,17 @@ fn gram_schmidt_arr(a: ArrayView2<f64>) -> Result<Array2<f64>> {
 }
 
 /// Power-iteration eigen-decomposition of a symmetric matrix (top-k).
+///
+/// `min_eigval` allows early truncation: once a computed eigenvalue is strictly
+/// below this threshold, the routine returns the prefix of eigenpairs gathered
+/// so far. Pass `f64::NEG_INFINITY` (or `0.0` for PSD inputs) to disable
+/// truncation. The inner power iteration breaks once the squared change in the
+/// candidate eigenvector drops below `1e-12`, capped at 200 iterations.
 fn power_iter_eig_local(
     a: ArrayView2<f64>,
     k: usize,
     seed: u64,
+    min_eigval: f64,
 ) -> Result<(Array2<f64>, Array1<f64>)> {
     let n = a.shape()[0];
     let k = k.min(n);
@@ -999,6 +1033,7 @@ fn power_iter_eig_local(
     let mut eigvecs = Array2::<f64>::zeros((n, k));
     let mut eigvals = Array1::<f64>::zeros(k);
     let mut deflated = a.to_owned();
+    let mut actual: usize = 0;
 
     for col in 0..k {
         let mut v: Vec<f64> = (0..n).map(|_| lcg_f64(&mut rng) - 0.5).collect();
@@ -1018,7 +1053,20 @@ fn power_iter_eig_local(
                 }
             }
             normalise_vec_f64(&mut av);
+            // Convergence test on the normalised vector. Sign of the
+            // eigenvector is arbitrary so we compare against both ±v.
+            let mut delta_pos = 0.0f64;
+            let mut delta_neg = 0.0f64;
+            for i in 0..n {
+                let d_pos = av[i] - v[i];
+                let d_neg = av[i] + v[i];
+                delta_pos += d_pos * d_pos;
+                delta_neg += d_neg * d_neg;
+            }
             v = av;
+            if delta_pos.min(delta_neg) < 1e-12 {
+                break;
+            }
         }
 
         let mut av = vec![0.0f64; n];
@@ -1028,6 +1076,13 @@ fn power_iter_eig_local(
             }
         }
         let eigenvalue: f64 = v.iter().zip(av.iter()).map(|(a, b)| a * b).sum();
+
+        if eigenvalue < min_eigval {
+            // Drop this and all later eigenpairs — they are below the caller's
+            // significance threshold (e.g. about to be killed by SVT anyway).
+            break;
+        }
+
         eigvals[col] = eigenvalue;
         for i in 0..n {
             eigvecs[[i, col]] = v[i];
@@ -1037,9 +1092,23 @@ fn power_iter_eig_local(
                 deflated[[i, j]] -= eigenvalue * v[i] * v[j];
             }
         }
+        actual = col + 1;
     }
 
-    Ok((eigvecs, eigvals))
+    if actual == k {
+        Ok((eigvecs, eigvals))
+    } else {
+        // Truncate to the actually-significant columns.
+        let mut vecs = Array2::<f64>::zeros((n, actual));
+        let mut vals = Array1::<f64>::zeros(actual);
+        for col in 0..actual {
+            vals[col] = eigvals[col];
+            for i in 0..n {
+                vecs[[i, col]] = eigvecs[[i, col]];
+            }
+        }
+        Ok((vecs, vals))
+    }
 }
 
 // ---------------------------------------------------------------------------

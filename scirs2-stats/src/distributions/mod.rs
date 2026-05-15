@@ -19,6 +19,7 @@ pub mod f;
 pub mod gamma;
 pub mod geometric;
 pub mod hypergeometric;
+pub mod inverse_gaussian;
 pub mod laplace;
 pub mod logistic;
 pub mod lognormal;
@@ -49,6 +50,7 @@ pub use f::F;
 pub use gamma::Gamma;
 pub use geometric::Geometric;
 pub use hypergeometric::Hypergeometric;
+pub use inverse_gaussian::InverseGaussian;
 pub use laplace::Laplace;
 pub use logistic::Logistic;
 pub use lognormal::Lognormal;
@@ -830,6 +832,63 @@ where
         + 'static,
 {
     circular::von_mises(mu, kappa)
+}
+
+/// Create an Inverse Gaussian (Wald) distribution with the given parameters.
+///
+/// The Inverse Gaussian distribution is a continuous distribution on `(0, ∞)`
+/// originally introduced to describe the first-passage time of a Brownian
+/// motion with positive drift. Its density is
+/// `f(x; μ, λ) = √(λ/(2π x³)) · exp(-λ(x − μ)² / (2 μ² x))`.
+///
+/// # Arguments
+///
+/// * `mu` - Mean μ > 0
+/// * `lambda` - Scale (precision) parameter λ > 0
+///
+/// # Returns
+///
+/// * An `InverseGaussian` distribution object
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_stats::distributions;
+/// use scirs2_stats::traits::ContinuousDistribution;
+///
+/// let ig = distributions::inverse_gaussian(1.0_f64, 1.0).expect("valid params");
+/// let p = ig.pdf(1.0);
+/// assert!(p > 0.0);
+/// ```
+pub fn inverse_gaussian<F>(mu: F, lambda: F) -> StatsResult<InverseGaussian<F>>
+where
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::NumCast + std::fmt::Display,
+{
+    InverseGaussian::new(mu, lambda)
+}
+
+/// Create an Inverse Gaussian (Wald) distribution with the given parameters.
+///
+/// SciPy-compatible alias for [`fn@inverse_gaussian`].
+///
+/// # Arguments
+///
+/// * `mu` - Mean μ > 0
+/// * `lambda` - Scale (precision) parameter λ > 0
+///
+/// # Examples
+///
+/// ```
+/// use scirs2_stats::distributions;
+///
+/// let ig = distributions::invgauss(1.0_f64, 1.0).expect("valid params");
+/// let _mean = ig.mean_value();
+/// ```
+pub fn invgauss<F>(mu: F, lambda: F) -> StatsResult<InverseGaussian<F>>
+where
+    F: scirs2_core::numeric::Float + scirs2_core::numeric::NumCast + std::fmt::Display,
+{
+    inverse_gaussian(mu, lambda)
 }
 
 /// Create a wrapped Cauchy distribution with the given parameters.

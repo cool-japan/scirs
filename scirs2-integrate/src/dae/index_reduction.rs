@@ -9,6 +9,7 @@
 //! - Dummy derivative method
 //! - Projection methods for constraint satisfaction
 
+use crate::dae::bipartite_matching::{alternating_reachable, hopcroft_karp};
 use crate::dae::types::DAEIndex;
 use crate::dae::utils::{compute_constraint_jacobian, is_singular_matrix};
 use crate::error::{IntegrateError, IntegrateResult};
@@ -464,43 +465,71 @@ impl<
         Ok(())
     }
 
-    /// Find structurally singular subsets of equations
+    /// Find structurally singular subsets of equations using the Pantelides algorithm.
+    ///
+    /// This replaces the previous combinatorial heuristic with the true Pantelides
+    /// structural analysis:
+    ///
+    /// 1. Build the bipartite (equation, variable) graph from the incidence matrix.
+    /// 2. Compute a maximum matching via Hopcroft-Karp (O(E√V)).
+    /// 3. Find the equations reachable from unmatched equations via alternating paths
+    ///    (Dulmage-Mendelsohn decomposition). These form the minimal singular subset.
+    ///
+    /// Returns a list containing at most one inner `Vec<usize>` (the singular subset),
+    /// or an empty list if the system is structurally non-singular.
     fn find_singular_subsets(&self) -> IntegrateResult<Vec<Vec<usize>>> {
-        let mut singular_subsets = Vec::new();
+        let Some(ref incidence) = self.structure.incidence_matrix else {
+            return Ok(Vec::new());
+        };
 
-        if let Some(ref incidence) = self.structure.incidence_matrix {
-            let n_eqs = incidence.nrows();
-            let n_vars = incidence.ncols();
+        let n_eqs = incidence.nrows();
+        let n_vars = incidence.ncols();
 
-            // Look for subsets of equations with fewer variables than equations
-            // This is a simplified heuristic - a full implementation would use
-            // more sophisticated graph algorithms
+        if n_eqs == 0 || n_vars == 0 {
+            return Ok(Vec::new());
+        }
 
-            for subset_size in 2..=std::cmp::min(n_eqs, 6) {
-                // Generate combinations of equations
-                let equation_combinations = generate_combinations(n_eqs, subset_size);
-
-                for eq_subset in equation_combinations {
-                    // Find variables that appear in these equations
-                    let mut involved_vars = std::collections::HashSet::new();
-
-                    for &eq_idx in &eq_subset {
-                        for var_idx in 0..n_vars {
-                            if incidence[[eq_idx, var_idx]] {
-                                involved_vars.insert(var_idx);
-                            }
-                        }
-                    }
-
-                    // Check if this is a singular subset (more equations than variables)
-                    if eq_subset.len() > involved_vars.len() {
-                        singular_subsets.push(eq_subset);
-                    }
+        // Build edge list for the bipartite graph (equation i, variable j)
+        let mut edges: Vec<(usize, usize)> = Vec::new();
+        let mut adj: Vec<Vec<usize>> = vec![Vec::new(); n_eqs];
+        for i in 0..n_eqs {
+            for j in 0..n_vars {
+                if incidence[[i, j]] {
+                    edges.push((i, j));
+                    adj[i].push(j);
                 }
             }
         }
 
-        Ok(singular_subsets)
+        // Run Hopcroft-Karp to find maximum matching
+        let matching = hopcroft_karp(n_eqs, n_vars, &edges);
+
+        // Check if there are unmatched equations
+        let unmatched_count = matching.iter().filter(|m| m.is_none()).count();
+        if unmatched_count == 0 {
+            // Structurally non-singular: full matching exists
+            return Ok(Vec::new());
+        }
+
+        // Find the singular subset: equations reachable from unmatched equations
+        // via alternating paths (unmatched edge → matched edge → ...).
+        // This is the Dulmage-Mendelsohn "row singular" set.
+        let singular_subset = alternating_reachable(n_eqs, n_vars, &adj, &matching);
+
+        if singular_subset.is_empty() {
+            // Fallback: return at least the unmatched equations
+            let unmatched: Vec<usize> = matching
+                .iter()
+                .enumerate()
+                .filter_map(|(i, m)| if m.is_none() { Some(i) } else { None })
+                .collect();
+            if !unmatched.is_empty() {
+                return Ok(vec![unmatched]);
+            }
+            return Ok(Vec::new());
+        }
+
+        Ok(vec![singular_subset])
     }
 
     /// Differentiate equations in singular subsets

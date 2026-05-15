@@ -184,7 +184,7 @@ Optimization problems appear across all of scientific computing: fitting models 
 
 ```toml
 [dependencies]
-scirs2-optimize = "0.4.3"
+scirs2-optimize = "0.4.4"
 ```
 
 ### Unconstrained Minimisation (BFGS)

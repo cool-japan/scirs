@@ -276,3 +276,121 @@ impl std::ops::Neg for Expr {
         Expr::Neg(Box::new(self))
     }
 }
+
+// --- EML bridge impls (Phase 0 item 9) ---
+//
+// `Expr` ↔ `LoweredOp` adapter implementations. Placed at the bottom of the
+// file so the existing public API of `Expr` (variants, methods, `From`/op
+// impls above) is untouched. Recursion is intentional here: `Expr` is
+// user-constructed and shallow in practice, unlike `EmlNode` where
+// `Canonical::sin(x)` produces a 543-node-deep tree (and therefore mandates
+// iterative traversals throughout `eml/`). See [`crate::eml::bridge`] for
+// the trait definitions and rationale.
+
+use crate::eml::bridge::{FromLowered, ToLowered, VarMap};
+use crate::eml::op::LoweredOp;
+use crate::error::EmlError;
+
+impl ToLowered for Expr {
+    fn var_map(&self) -> VarMap {
+        VarMap::from_expr(self)
+    }
+
+    fn to_lowered_with(&self, map: &VarMap) -> Result<LoweredOp, EmlError> {
+        match self {
+            Expr::Const(v) => Ok(LoweredOp::Const(*v)),
+            Expr::Var(name) => {
+                let idx = map
+                    .index_of(name)
+                    .ok_or_else(|| EmlError::UnknownVariable(name.clone()))?;
+                Ok(LoweredOp::Var(idx))
+            }
+            Expr::Add(a, b) => Ok(LoweredOp::Add(
+                Box::new(a.to_lowered_with(map)?),
+                Box::new(b.to_lowered_with(map)?),
+            )),
+            Expr::Sub(a, b) => Ok(LoweredOp::Sub(
+                Box::new(a.to_lowered_with(map)?),
+                Box::new(b.to_lowered_with(map)?),
+            )),
+            Expr::Mul(a, b) => Ok(LoweredOp::Mul(
+                Box::new(a.to_lowered_with(map)?),
+                Box::new(b.to_lowered_with(map)?),
+            )),
+            Expr::Div(a, b) => Ok(LoweredOp::Div(
+                Box::new(a.to_lowered_with(map)?),
+                Box::new(b.to_lowered_with(map)?),
+            )),
+            Expr::Pow(a, b) => Ok(LoweredOp::Pow(
+                Box::new(a.to_lowered_with(map)?),
+                Box::new(b.to_lowered_with(map)?),
+            )),
+            Expr::Neg(c) => Ok(LoweredOp::Neg(Box::new(c.to_lowered_with(map)?))),
+            Expr::Sin(c) => Ok(LoweredOp::Sin(Box::new(c.to_lowered_with(map)?))),
+            Expr::Cos(c) => Ok(LoweredOp::Cos(Box::new(c.to_lowered_with(map)?))),
+            Expr::Tan(c) => Ok(LoweredOp::Tan(Box::new(c.to_lowered_with(map)?))),
+            Expr::Exp(c) => Ok(LoweredOp::Exp(Box::new(c.to_lowered_with(map)?))),
+            Expr::Ln(c) => Ok(LoweredOp::Ln(Box::new(c.to_lowered_with(map)?))),
+            Expr::Sqrt(c) => Ok(LoweredOp::Sqrt(Box::new(c.to_lowered_with(map)?))),
+            Expr::Abs(c) => Ok(LoweredOp::Abs(Box::new(c.to_lowered_with(map)?))),
+        }
+    }
+}
+
+impl FromLowered for Expr {
+    fn from_lowered(op: &LoweredOp, map: &VarMap) -> Result<Self, EmlError> {
+        match op {
+            LoweredOp::Const(v) => Ok(Expr::Const(*v)),
+            LoweredOp::Var(idx) => {
+                let name = map.name_of(*idx).ok_or(EmlError::UnboundVariableIndex {
+                    idx: *idx,
+                    len: map.len(),
+                })?;
+                Ok(Expr::Var(name.to_string()))
+            }
+            LoweredOp::Add(a, b) => Ok(Expr::Add(
+                Box::new(Expr::from_lowered(a, map)?),
+                Box::new(Expr::from_lowered(b, map)?),
+            )),
+            LoweredOp::Sub(a, b) => Ok(Expr::Sub(
+                Box::new(Expr::from_lowered(a, map)?),
+                Box::new(Expr::from_lowered(b, map)?),
+            )),
+            LoweredOp::Mul(a, b) => Ok(Expr::Mul(
+                Box::new(Expr::from_lowered(a, map)?),
+                Box::new(Expr::from_lowered(b, map)?),
+            )),
+            LoweredOp::Div(a, b) => Ok(Expr::Div(
+                Box::new(Expr::from_lowered(a, map)?),
+                Box::new(Expr::from_lowered(b, map)?),
+            )),
+            LoweredOp::Pow(a, b) => Ok(Expr::Pow(
+                Box::new(Expr::from_lowered(a, map)?),
+                Box::new(Expr::from_lowered(b, map)?),
+            )),
+            LoweredOp::Neg(c) => Ok(Expr::Neg(Box::new(Expr::from_lowered(c, map)?))),
+            LoweredOp::Exp(c) => Ok(Expr::Exp(Box::new(Expr::from_lowered(c, map)?))),
+            LoweredOp::Ln(c) => Ok(Expr::Ln(Box::new(Expr::from_lowered(c, map)?))),
+            LoweredOp::Sin(c) => Ok(Expr::Sin(Box::new(Expr::from_lowered(c, map)?))),
+            LoweredOp::Cos(c) => Ok(Expr::Cos(Box::new(Expr::from_lowered(c, map)?))),
+            LoweredOp::Tan(c) => Ok(Expr::Tan(Box::new(Expr::from_lowered(c, map)?))),
+            LoweredOp::Sqrt(c) => Ok(Expr::Sqrt(Box::new(Expr::from_lowered(c, map)?))),
+            LoweredOp::Abs(c) => Ok(Expr::Abs(Box::new(Expr::from_lowered(c, map)?))),
+            // Hyperbolic / inverse variants have no direct `Expr` equivalent
+            // (the legacy `Expr` enum predates them). Surface a clear
+            // `LoweringFailed` so callers can route via `LoweredOp` directly.
+            LoweredOp::Sinh(_)
+            | LoweredOp::Cosh(_)
+            | LoweredOp::Tanh(_)
+            | LoweredOp::Arcsin(_)
+            | LoweredOp::Arccos(_)
+            | LoweredOp::Arctan(_)
+            | LoweredOp::Arcsinh(_)
+            | LoweredOp::Arccosh(_)
+            | LoweredOp::Arctanh(_) => Err(EmlError::LoweringFailed(format!(
+                "Expr does not support {:?} — use LoweredOp directly",
+                op
+            ))),
+        }
+    }
+}

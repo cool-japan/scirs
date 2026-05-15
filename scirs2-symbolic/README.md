@@ -14,7 +14,7 @@ system (CAS) component designed to complement the numeric capabilities of SciRS2
 
 ```toml
 [dependencies]
-scirs2-symbolic = "0.4.3"
+scirs2-symbolic = "0.4.4"
 ```
 
 ## Quick Start
@@ -123,6 +123,30 @@ let result = eval(&expr, &vars).expect("evaluation failed");
 assert!((result - std::f64::consts::SQRT_2).abs() < 1e-10);
 ```
 
+### LaTeX Export
+
+Render any `LoweredOp` expression as a LaTeX math string with `to_latex`:
+
+```rust
+use scirs2_symbolic::eml::{to_latex, LoweredOp};
+use std::f64::consts::PI;
+
+// π / (x₀² + 1)
+let op = LoweredOp::Div(
+    Box::new(LoweredOp::Const(PI)),
+    Box::new(LoweredOp::Add(
+        Box::new(LoweredOp::Pow(
+            Box::new(LoweredOp::Var(0)),
+            Box::new(LoweredOp::Const(2.0)),
+        )),
+        Box::new(LoweredOp::Const(1.0)),
+    )),
+);
+assert_eq!(to_latex(&op), "\\frac{\\pi}{\\left(x_{0}^{2} + 1\\right)}");
+```
+
+Recognised constants: `\pi`, `e`. Operators: `\frac`, `\cdot`, `a^{b}`, `\sqrt`, `\left|\right|`, `\operatorname{arcsinh}` etc. All traversals are iterative — no stack overflow on deeply-nested expressions.
+
 ## Module Overview
 
 | Module | Description |
@@ -132,6 +156,7 @@ assert!((result - std::f64::consts::SQRT_2).abs() < 1e-10);
 | [`simplify`] | Constant folding + identity rules: `simplify`, `simplify_full` |
 | [`eval`] | Numeric evaluation: `eval(expr, bindings)` |
 | [`display`] | `Display` impl for human-readable infix notation |
+| [`eml::display`] | `Display` for EML IR + [`eml::to_latex`] — render any expression as LaTeX |
 | [`error`] | `SymbolicError` error type variants |
 
 ## Design Notes
@@ -142,6 +167,19 @@ assert!((result - std::f64::consts::SQRT_2).abs() < 1e-10);
   making them thread-safe by construction.
 - Implements `Display` for human-readable infix notation.
 
+## Optional Features
+
+| Feature | Pulls in | Purpose |
+|---------|----------|---------|
+| `serde` | `serde`, `serde_json`, `oxicode` | Round-trip serialization of `EmlTree`, `LoweredOp`, `Interval` (JSON + binary) |
+| `smt`   | `oxiz` | SMT-pruned symbolic regression and certified rewrite engine (v0.4.5+) |
+
+Default features are empty — the crate is 100% Pure Rust with zero C/Fortran dependencies in the default build.
+
+## Dependency-Cycle Rule
+
+`scirs2-symbolic` MUST NOT appear in the dependency tree of `scirs2-core` (or any of its direct deps). This is enforced by `scripts/check-no-symbolic-in-core.sh` in CI. The reason: `scirs2-core` is the universal substrate; if it grew a dep on `scirs2-symbolic`, every CAS bug would become a workspace-wide compile failure. `scirs2-symbolic` may depend on `scirs2-core`, never the reverse.
+
 ## Part of SciRS2
 
 `scirs2-symbolic` is part of the [SciRS2](https://github.com/cool-japan/scirs) ecosystem — a Rust port of SciPy with AI/ML extensions.
@@ -149,6 +187,21 @@ assert!((result - std::f64::consts::SQRT_2).abs() < 1e-10);
 - [SciRS2 main documentation](https://docs.rs/scirs2)
 - [GitHub repository](https://github.com/cool-japan/scirs)
 - [Changelog](../CHANGELOG.md)
+- [CAS Tutorial](docs/cas_tutorial.md) — end-to-end: SR → canonicalize → differentiate → JIT → deploy
+
+## Cycle-Prevention CI Gate
+
+The script `scripts/check-no-symbolic-in-core.sh` enforces two ADR-0001 rules:
+1. `scirs2-core` MUST NOT depend on `scirs2-symbolic` (would create a workspace-wide cycle).
+2. `oxieml` MUST NOT appear as a production dep of any workspace crate (it is `[dev-dependencies]` only).
+
+Run locally before submitting PRs:
+
+```bash
+bash scripts/check-no-symbolic-in-core.sh
+```
+
+Exit codes: 0 = pass; 1 = rule 1 violated; 2 = rule 2 violated; 3 = tool missing.
 
 ## License
 

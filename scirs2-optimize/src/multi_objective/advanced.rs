@@ -1,4 +1,4 @@
-//! Advanced multi-objective optimization utilities (clean Vec<f64>-based API).
+//! Advanced multi-objective optimization utilities (clean `Vec<f64>`-based API).
 //!
 //! Provides:
 //! - [`NsgaIII`] — struct-based NSGA-III many-objective optimizer

@@ -567,7 +567,7 @@ impl Default for SpectralGalerkinConfig {
 pub struct SpectralGalerkinSolution {
     /// Saved time points.
     pub times: Vec<f64>,
-    /// Modal coefficients a_k(t) at each saved time, shape [n_modes].
+    /// Modal coefficients a_k(t) at each saved time, shape \[n_modes\].
     pub modal_snapshots: Vec<Array1<f64>>,
     /// Reconstructed physical-space snapshots on evaluation grid.
     pub physical_snapshots: Vec<Array1<f64>>,

@@ -726,23 +726,121 @@ where
         return Ok(x.to_owned());
     }
 
-    // For now, use a simple linear interpolation as a placeholder
-    // In practice, we'd use FFT-based resampling
-    let mut result = Array1::zeros(num);
-    let scale = F::from(n - 1).expect("Failed to convert to float")
-        / F::from(num - 1).expect("Failed to convert to float");
+    // FFT-based polyphase resampling (equivalent to scipy.signal.resample)
+    // 1. Convert to f64 and compute FFT
+    let x_f64: Vec<f64> = x
+        .iter()
+        .map(|v| v.to_f64().expect("Failed to convert to f64"))
+        .collect();
 
-    for i in 0..num {
-        let pos = F::from(i).expect("Failed to convert to float") * scale;
-        let idx = pos.floor().to_usize().expect("Operation failed");
-        let frac = pos - pos.floor();
+    let mut spectrum = scirs2_fft::fft(&x_f64, Some(n))
+        .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
 
-        if idx + 1 < n {
-            result[i] = x[idx] * (F::one() - frac) + x[idx + 1] * frac;
-        } else {
-            result[i] = x[idx];
+    // 2. Apply optional window in frequency domain before resampling
+    if let Some(win) = window {
+        if win.len() == n {
+            for (s_val, w_val) in spectrum.iter_mut().zip(win.iter()) {
+                let w_f64 = w_val.to_f64().expect("Failed to convert window to f64");
+                s_val.re *= w_f64;
+                s_val.im *= w_f64;
+            }
         }
     }
+
+    // 3. Zero-pad or truncate the spectrum to the new size
+    //    For the Nyquist component (when n is even), we split it between +N/2 and -N/2
+    //    to preserve energy — matches scipy.signal.resample behaviour
+    let mut new_spectrum: Vec<scirs2_core::numeric::Complex64> = Vec::with_capacity(num);
+
+    if num > n {
+        // Upsampling: insert zeros around the Nyquist
+        // Copy positive frequencies [0, n/2)
+        let pos_half = n / 2;
+        new_spectrum.extend_from_slice(&spectrum[..pos_half]);
+
+        // Handle even-length Nyquist bin: split energy between +N/2 and −N/2
+        if n % 2 == 0 {
+            let nyq = spectrum[pos_half];
+            let half_re = nyq.re * 0.5;
+            let half_im = nyq.im * 0.5;
+            new_spectrum.push(scirs2_core::numeric::Complex64::new(half_re, half_im));
+            // Zero-pad the middle: num-n-1 zeros because the Nyquist is already split
+            // across two bins (the push above and the push below), accounting for 1 extra bin.
+            let zeros = num - n - 1;
+            for _ in 0..zeros {
+                new_spectrum.push(scirs2_core::numeric::Complex64::new(0.0, 0.0));
+            }
+            new_spectrum.push(scirs2_core::numeric::Complex64::new(half_re, half_im));
+            // Copy remaining negative frequencies [pos_half+1 .. n)
+            new_spectrum.extend_from_slice(&spectrum[pos_half + 1..]);
+        } else {
+            // Odd-length: no Nyquist bin — just zero-pad the high-frequency region
+            let zeros = num - n;
+            for _ in 0..zeros {
+                new_spectrum.push(scirs2_core::numeric::Complex64::new(0.0, 0.0));
+            }
+            new_spectrum.extend_from_slice(&spectrum[pos_half..]);
+        }
+    } else {
+        // Downsampling: truncate high frequencies (brick-wall anti-alias)
+        let new_pos_half = num / 2;
+
+        // Anti-alias: apply a smooth roll-off near the new Nyquist (half-window taper)
+        // Use a simple raised-cosine taper over the top 10% of kept frequencies
+        let taper_start = (new_pos_half as f64 * 0.9) as usize;
+        for (i, s_val) in spectrum.iter_mut().enumerate().take(new_pos_half) {
+            if i >= taper_start && new_pos_half > taper_start {
+                let t = (i - taper_start) as f64 / (new_pos_half - taper_start) as f64;
+                let taper = 0.5 * (1.0 + (std::f64::consts::PI * t).cos());
+                s_val.re *= taper;
+                s_val.im *= taper;
+            }
+        }
+
+        // Copy positive frequencies [0, new_pos_half)
+        new_spectrum.extend_from_slice(&spectrum[..new_pos_half]);
+
+        if num % 2 == 0 {
+            // Even output: construct Nyquist bin by averaging the two bins being merged
+            let nyq_pos = spectrum[new_pos_half];
+            let nyq_neg = spectrum[n - new_pos_half];
+            new_spectrum.push(scirs2_core::numeric::Complex64::new(
+                nyq_pos.re + nyq_neg.re,
+                nyq_pos.im + nyq_neg.im,
+            ));
+            // Copy negative frequencies [n-new_pos_half+1 .. n)
+            new_spectrum.extend_from_slice(&spectrum[n - new_pos_half + 1..]);
+        } else {
+            // Odd output
+            new_spectrum.extend_from_slice(&spectrum[n - new_pos_half..]);
+        }
+    }
+
+    // Sanity: spectrum must be exactly `num` bins long before IFFT
+    debug_assert_eq!(
+        new_spectrum.len(),
+        num,
+        "BUG: new_spectrum has {} bins, expected {}",
+        new_spectrum.len(),
+        num
+    );
+
+    // 4. IFFT and scale: multiply by num/n to preserve amplitude
+    let scale_factor = num as f64 / n as f64;
+    let time_domain = scirs2_fft::ifft(&new_spectrum, Some(num))
+        .map_err(|e| TimeSeriesError::ComputationError(e.to_string()))?;
+
+    // 5. Take real part and convert back to F
+    let result = Array1::from_vec(
+        time_domain
+            .iter()
+            .take(num)
+            .map(|c| {
+                F::from(c.re * scale_factor)
+                    .expect("Failed to convert resampled value to output type")
+            })
+            .collect(),
+    );
 
     Ok(result)
 }
@@ -830,31 +928,187 @@ where
     Ok(result)
 }
 
-/// Apply Chebyshev Type I filter (simplified implementation)
+/// Apply Chebyshev Type I IIR filter via bilinear transform
+///
+/// Implements a Chebyshev Type I low-pass filter using:
+/// 1. Analog prototype poles
+/// 2. Pre-warped bilinear transform to digital domain
+/// 3. Biquad (second-order-section) cascade direct-form II
+///
+/// `cutoff` is normalised cycles-per-sample (0 < cutoff < 0.5, Nyquist = 0.5).
+/// The ripple in the passband is fixed at 1 dB, a common textbook default.
 #[allow(dead_code)]
 fn apply_chebyshev_filter<S, F>(x: &ArrayBase<S, Ix1>, order: usize, cutoff: F) -> Result<Array1<F>>
 where
     S: Data<Elem = F>,
     F: Float + NumCast + FromPrimitive + Debug + Display,
 {
-    // This is a simplified placeholder - in practice, we'd use a proper IIR filter implementation
-    // For now, we'll use a simple moving average as a low-pass filter
-    let window_size = order + 1;
-    let mut filtered = x.to_owned();
+    let n_samples = x.len();
+    if n_samples == 0 {
+        return Ok(Array1::zeros(0));
+    }
+    let order = order.max(1);
 
-    for i in 0..x.len() {
-        let start = i.saturating_sub(window_size / 2);
-        let end = if i + window_size / 2 < x.len() {
-            i + window_size / 2 + 1
-        } else {
-            x.len()
-        };
+    // --- 1. Work in f64 internally ---
+    let cutoff_f64 = cutoff
+        .to_f64()
+        .expect("Failed to convert cutoff to f64")
+        .clamp(1e-6, 0.4999); // keep away from poles
 
-        let sum: F = x.slice(s![start..end]).sum();
-        filtered[i] = sum / F::from(end - start).expect("Failed to convert to float");
+    // Passband ripple: 1 dB
+    let ripple_db = 1.0_f64;
+    // ε = sqrt(10^(rp/10) - 1)
+    let eps = (10_f64.powf(ripple_db / 10.0) - 1.0).sqrt();
+
+    // --- 2. Pre-warp digital cutoff to analog frequency ---
+    // Bilinear transform with T=1: ω_a = 2 * tan(π * fc)
+    let omega_a = 2.0 * (std::f64::consts::PI * cutoff_f64).tan();
+
+    // --- 3. Chebyshev Type I prototype poles (LP, unit cutoff) ---
+    // p_k = -sin(φ_k) + j·cos(φ_k) where φ_k = (2k-1)π/(2N), k=1..N
+    // Scaled by ε^{-1/N} so the ripple is exactly ε at ω=1
+    // Using: sinh/cosh formula: poles lie on an ellipse with parameters
+    //   sinh_part = sinh(asinh(1/eps)/N)
+    //   cosh_part = cosh(asinh(1/eps)/N)
+    let sinh_part = (1.0 / eps).asinh() / order as f64;
+    let sinh_v = sinh_part.sinh();
+    let cosh_v = sinh_part.cosh();
+
+    let mut analog_poles: Vec<(f64, f64)> = Vec::with_capacity(order);
+    for k in 1..=order {
+        let phi = std::f64::consts::PI * (2 * k - 1) as f64 / (2 * order) as f64;
+        let re = -phi.sin() * sinh_v;
+        let im = phi.cos() * cosh_v;
+        analog_poles.push((re, im));
     }
 
-    Ok(filtered)
+    // --- 4. Frequency-scale prototype poles to cutoff ω_a ---
+    let poles_scaled: Vec<(f64, f64)> = analog_poles
+        .iter()
+        .map(|(re, im)| (re * omega_a, im * omega_a))
+        .collect();
+
+    // --- 5. Bilinear transform: s → (z-1)/(z+1) * 2 (T=1)
+    // s = σ + jω  →  z = (2 + s) / (2 - s)
+    // For each analog pole s_k, compute digital pole z_k
+    let mut digital_poles: Vec<(f64, f64)> = Vec::with_capacity(order);
+    for (re, im) in &poles_scaled {
+        // z = (2 + s) / (2 - s)
+        // numerator: (2 + re, im)
+        // denominator: (2 - re, -im)
+        let n_re = 2.0 + re;
+        let n_im = *im;
+        let d_re = 2.0 - re;
+        let d_im = -im;
+        let denom = d_re * d_re + d_im * d_im;
+        let z_re = (n_re * d_re + n_im * d_im) / denom;
+        let z_im = (n_im * d_re - n_re * d_im) / denom;
+        digital_poles.push((z_re, z_im));
+    }
+
+    // --- 6. Pair complex-conjugate poles into second-order sections ---
+    // All digital poles: complex poles come in conjugate pairs; real poles are singletons.
+    // Build biquad coefficients: H(z) = b0 + b1*z^{-1} + b2*z^{-2}
+    //                                   ─────────────────────────────
+    //                                   a0 + a1*z^{-1} + a2*z^{-2}
+    // For a pole pair (re ± j*im): denominator = (1 - z_re*z^{-1})^2 + (z_im*z^{-1})^2
+    //   a0=1, a1 = -2*z_re, a2 = z_re^2 + z_im^2
+    // Numerator for LP Chebyshev (all digital zeros at z=-1, i.e. s→∞ maps to z=-1):
+    //   b0=1, b1=2, b2=1  (scaled for unity gain at DC)
+    struct Biquad {
+        b0: f64,
+        b1: f64,
+        b2: f64,
+        a1: f64,
+        a2: f64,
+    }
+
+    let mut sections: Vec<Biquad> = Vec::new();
+    let mut i = 0;
+    while i < digital_poles.len() {
+        let (z_re, z_im) = digital_poles[i];
+        if z_im.abs() < 1e-10 {
+            // Real pole: first-order section embedded in biquad with b2=a2=0
+            // Numerator: (1 + z^{-1}) scaled for DC gain = 1
+            // Gain at DC: b0/(1-a1) for first-order — normalise below
+            let a1 = -z_re;
+            let dc_gain = 1.0 / (1.0 + a1); // 1/(1 - z_re) after sign
+            sections.push(Biquad {
+                b0: dc_gain,
+                b1: dc_gain,
+                b2: 0.0,
+                a1,
+                a2: 0.0,
+            });
+            i += 1;
+        } else if i + 1 < digital_poles.len() {
+            // Complex conjugate pair
+            let a1 = -2.0 * z_re;
+            let a2 = z_re * z_re + z_im * z_im;
+            // All digital zeros at z=-1 → numerator (1 + z^{-1})^2 = 1 + 2z^{-1} + z^{-2}
+            // Gain at DC (z=1): (1+1+1)/(1+a1+a2) = 3/(1+a1+a2)
+            let dc_gain_denom = 1.0 + a1 + a2;
+            let scale = if dc_gain_denom.abs() < 1e-12 {
+                1.0
+            } else {
+                3.0 / dc_gain_denom
+            };
+            sections.push(Biquad {
+                b0: 1.0 * scale,
+                b1: 2.0 * scale,
+                b2: 1.0 * scale,
+                a1,
+                a2,
+            });
+            // Consume conjugate (next pole is the conjugate, same re, negative im)
+            i += 2;
+        } else {
+            // Orphaned complex pole (shouldn't happen for a proper filter)
+            let a1 = -2.0 * z_re;
+            let a2 = z_re * z_re + z_im * z_im;
+            let dc_gain_denom = 1.0 + a1 + a2;
+            let scale = if dc_gain_denom.abs() < 1e-12 {
+                1.0
+            } else {
+                3.0 / dc_gain_denom
+            };
+            sections.push(Biquad {
+                b0: scale,
+                b1: 2.0 * scale,
+                b2: scale,
+                a1,
+                a2,
+            });
+            i += 1;
+        }
+    }
+
+    // --- 7. Apply biquad cascade (direct-form II) to signal ---
+    let x_f64: Vec<f64> = x
+        .iter()
+        .map(|v| v.to_f64().expect("Failed to convert signal to f64"))
+        .collect();
+
+    let mut y = x_f64.clone();
+    for sec in &sections {
+        let mut w1 = 0.0_f64;
+        let mut w2 = 0.0_f64;
+        for sample in y.iter_mut() {
+            let w0 = *sample - sec.a1 * w1 - sec.a2 * w2;
+            *sample = sec.b0 * w0 + sec.b1 * w1 + sec.b2 * w2;
+            w2 = w1;
+            w1 = w0;
+        }
+    }
+
+    // --- 8. Convert back to F ---
+    let result = Array1::from_vec(
+        y.iter()
+            .map(|&v| F::from(v).expect("Failed to convert filtered value to output type"))
+            .collect(),
+    );
+
+    Ok(result)
 }
 
 /// Apply FIR filter using windowed sinc (simplified implementation)
@@ -1207,13 +1461,14 @@ mod tests {
         let resampled = resample(&x.view(), 8, 0, None).expect("Operation failed");
 
         assert_eq!(resampled.len(), 8);
-        // First and last values should be preserved
+        // FFT-based resampling treats the signal as periodic.
+        // The first sample (DC preserved) should equal x[0].
         assert_relative_eq!(resampled[0], x[0], epsilon = 0.1);
-        assert_relative_eq!(
-            resampled[resampled.len() - 1],
-            x[x.len() - 1],
-            epsilon = 0.1
-        );
+        // The last sample (at t = 7/8 of a period) is interpolated between x[3]=4.0 and
+        // x[0]=1.0 (periodic wrap), yielding ≈ 2.5 — consistent with scipy.signal.resample.
+        assert_relative_eq!(resampled[resampled.len() - 1], 2.5_f64, epsilon = 0.1);
+        // Intermediate sample at index 2 (t=0.25) should be close to x[1]=2.0
+        assert_relative_eq!(resampled[2], 2.0_f64, epsilon = 0.2);
     }
 
     #[test]

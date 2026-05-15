@@ -191,6 +191,158 @@ pub enum ColorScheme {
     Monochrome,
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Pure-Rust minimal PNG encoder (stored/uncompressed DEFLATE blocks, 24-bit RGB)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// CRC-32 table (ISO 3309 polynomial 0xEDB88320).
+fn crc32(data: &[u8]) -> u32 {
+    let mut crc: u32 = 0xFFFF_FFFF;
+    for &byte in data {
+        let idx = ((crc ^ u32::from(byte)) & 0xFF) as usize;
+        // Compute CRC table entry on the fly
+        let mut entry = idx as u32;
+        for _ in 0..8 {
+            if entry & 1 != 0 {
+                entry = (entry >> 1) ^ 0xEDB8_8320;
+            } else {
+                entry >>= 1;
+            }
+        }
+        crc = (crc >> 8) ^ entry;
+    }
+    !crc
+}
+
+/// Adler-32 checksum.
+fn adler32(data: &[u8]) -> u32 {
+    let (mut s1, mut s2) = (1u32, 0u32);
+    for &b in data {
+        s1 = (s1 + u32::from(b)) % 65521;
+        s2 = (s2 + s1) % 65521;
+    }
+    (s2 << 16) | s1
+}
+
+/// Write a 4-byte big-endian u32.
+#[inline]
+fn be32(v: u32) -> [u8; 4] {
+    v.to_be_bytes()
+}
+
+/// Build a PNG chunk: length(4) + type(4) + data + crc(4).
+fn png_chunk(chunk_type: &[u8; 4], data: &[u8]) -> Vec<u8> {
+    let mut chunk = Vec::with_capacity(12 + data.len());
+    chunk.extend_from_slice(&be32(data.len() as u32));
+    chunk.extend_from_slice(chunk_type);
+    chunk.extend_from_slice(data);
+    let crc = crc32(&chunk[4..]);
+    chunk.extend_from_slice(&be32(crc));
+    chunk
+}
+
+/// Encode raw scanlines (with filter byte 0x00 per row) using DEFLATE stored blocks.
+fn deflate_stored(scanlines: &[u8]) -> Vec<u8> {
+    const MAX_BLOCK: usize = 65535;
+    let mut out = Vec::new();
+    // zlib header: CMF=0x78, FLG=0x01 (no dict, check bits make it divisible by 31)
+    out.extend_from_slice(&[0x78, 0x01]);
+
+    let adler = adler32(scanlines);
+    let total = scanlines.len();
+    let mut offset = 0;
+    while offset < total {
+        let end = (offset + MAX_BLOCK).min(total);
+        let block = &scanlines[offset..end];
+        let last = if end == total { 1u8 } else { 0u8 };
+        let len = block.len() as u16;
+        let nlen = !len;
+        out.push(last);
+        out.extend_from_slice(&len.to_le_bytes());
+        out.extend_from_slice(&nlen.to_le_bytes());
+        out.extend_from_slice(block);
+        offset = end;
+    }
+    out.extend_from_slice(&adler.to_be_bytes());
+    out
+}
+
+/// Write a minimal 24-bit RGB PNG to a file path.
+fn write_png(path: &Path, pixels: &[u8], width: usize, height: usize) -> ScirsResult<()> {
+    use crate::error::ScirsError;
+
+    // Build scanlines: each row is 0x00 (filter=None) + RGB bytes
+    let mut scanlines = Vec::with_capacity(height * (1 + width * 3));
+    for row in 0..height {
+        scanlines.push(0x00); // filter byte
+        let start = row * width * 3;
+        scanlines.extend_from_slice(&pixels[start..start + width * 3]);
+    }
+
+    let idat_data = deflate_stored(&scanlines);
+
+    // IHDR: width(4), height(4), bit_depth(1), color_type(2=RGB), compression(0), filter(0), interlace(0)
+    let mut ihdr_data = Vec::with_capacity(13);
+    ihdr_data.extend_from_slice(&be32(width as u32));
+    ihdr_data.extend_from_slice(&be32(height as u32));
+    ihdr_data.extend_from_slice(&[8, 2, 0, 0, 0]);
+
+    let mut png_bytes = Vec::new();
+    // PNG signature
+    png_bytes.extend_from_slice(&[137, 80, 78, 71, 13, 10, 26, 10]);
+    png_bytes.extend(png_chunk(b"IHDR", &ihdr_data));
+    png_bytes.extend(png_chunk(b"IDAT", &idat_data));
+    png_bytes.extend(png_chunk(b"IEND", &[]));
+
+    let mut file = File::create(path)
+        .map_err(|e| ScirsError::IoError(error_context!(format!("PNG create: {e}"))))?;
+    file.write_all(&png_bytes)
+        .map_err(|e| ScirsError::IoError(error_context!(format!("PNG write: {e}"))))?;
+    Ok(())
+}
+
+/// Bresenham line drawing on an RGB pixel buffer.
+fn png_draw_line(
+    pixels: &mut [u8],
+    width: usize,
+    height: usize,
+    x0: usize,
+    y0: usize,
+    x1: usize,
+    y1: usize,
+    r: u8,
+    g: u8,
+    b: u8,
+) {
+    let (mut x0, mut y0) = (x0 as isize, y0 as isize);
+    let (x1, y1) = (x1 as isize, y1 as isize);
+    let dx = (x1 - x0).abs();
+    let sx: isize = if x0 < x1 { 1 } else { -1 };
+    let dy = -(y1 - y0).abs();
+    let sy: isize = if y0 < y1 { 1 } else { -1 };
+    let mut err = dx + dy;
+    loop {
+        if x0 >= 0 && x0 < width as isize && y0 >= 0 && y0 < height as isize {
+            let idx = (y0 as usize * width + x0 as usize) * 3;
+            pixels[idx] = r;
+            pixels[idx + 1] = g;
+            pixels[idx + 2] = b;
+        }
+        if x0 == x1 && y0 == y1 {
+            break;
+        }
+        let e2 = 2 * err;
+        if e2 >= dy {
+            err += dy;
+            x0 += sx;
+        }
+        if e2 <= dx {
+            err += dx;
+            y0 += sy;
+        }
+    }
+}
+
 /// Main visualization interface
 pub struct OptimizationVisualizer {
     config: VisualizationConfig,
@@ -223,9 +375,7 @@ impl OptimizationVisualizer {
             OutputFormat::Svg => self.plot_convergence_svg(trajectory, output_path),
             OutputFormat::Html => self.plot_convergence_html(trajectory, output_path),
             OutputFormat::Data => self.export_convergence_data(trajectory, output_path),
-            _ => Err(ScirsError::NotImplementedError(error_context!(
-                "PNG output not yet implemented"
-            ))),
+            OutputFormat::Png => self.plot_convergence_png(trajectory, output_path),
         }
     }
 
@@ -249,9 +399,7 @@ impl OptimizationVisualizer {
             OutputFormat::Svg => self.plot_trajectory_svg(trajectory, output_path),
             OutputFormat::Html => self.plot_trajectory_html(trajectory, output_path),
             OutputFormat::Data => self.export_trajectory_data(trajectory, output_path),
-            _ => Err(ScirsError::NotImplementedError(error_context!(
-                "PNG output not yet implemented"
-            ))),
+            OutputFormat::Png => self.plot_trajectory_png(trajectory, output_path),
         }
     }
 
@@ -897,6 +1045,119 @@ impl OptimizationVisualizer {
     ) -> ScirsResult<()> {
         self.export_convergence_data(trajectory, output_path)
     }
+
+    /// Render the convergence trajectory as a PNG file.
+    ///
+    /// Writes a minimal PNG (24-bit RGB, no compression / stored DEFLATE blocks)
+    /// containing a line plot of function values vs iteration count.
+    fn plot_convergence_png(
+        &self,
+        trajectory: &OptimizationTrajectory,
+        output_path: &Path,
+    ) -> ScirsResult<()> {
+        let width = self.config.width as usize;
+        let height = self.config.height as usize;
+        let margin = 60_usize;
+
+        // Build RGB pixel buffer (white background)
+        let mut pixels = vec![255u8; width * height * 3];
+
+        let min_y = trajectory
+            .function_values
+            .iter()
+            .cloned()
+            .fold(f64::INFINITY, f64::min);
+        let max_y = trajectory
+            .function_values
+            .iter()
+            .cloned()
+            .fold(f64::NEG_INFINITY, f64::max);
+        let y_range = (max_y - min_y).max(f64::EPSILON);
+        let n = trajectory.function_values.len();
+
+        // Draw axes (dark gray)
+        for px in margin..width.saturating_sub(margin) {
+            let row = height.saturating_sub(margin + 1);
+            let idx = (row * width + px) * 3;
+            pixels[idx] = 50;
+            pixels[idx + 1] = 50;
+            pixels[idx + 2] = 50;
+        }
+        for py in margin..height.saturating_sub(margin) {
+            let idx = (py * width + margin) * 3;
+            pixels[idx] = 50;
+            pixels[idx + 1] = 50;
+            pixels[idx + 2] = 50;
+        }
+
+        // Draw line (blue: #2E86AB = R46, G134, B171)
+        let plot_w = width.saturating_sub(2 * margin);
+        let plot_h = height.saturating_sub(2 * margin);
+        if n >= 2 {
+            for i in 0..n.saturating_sub(1) {
+                let x0 = margin + i * plot_w / (n - 1);
+                let x1 = margin + (i + 1) * plot_w / (n - 1);
+                let v0 = trajectory.function_values[i];
+                let v1 = trajectory.function_values[i + 1];
+                let y0 = height
+                    .saturating_sub(margin)
+                    .saturating_sub(((v0 - min_y) / y_range * plot_h as f64) as usize);
+                let y1 = height
+                    .saturating_sub(margin)
+                    .saturating_sub(((v1 - min_y) / y_range * plot_h as f64) as usize);
+                // Bresenham line segment
+                png_draw_line(&mut pixels, width, height, x0, y0, x1, y1, 46, 134, 171);
+            }
+        }
+
+        write_png(output_path, &pixels, width, height)
+    }
+
+    /// Render the parameter trajectory as a PNG file (2D only).
+    fn plot_trajectory_png(
+        &self,
+        trajectory: &OptimizationTrajectory,
+        output_path: &Path,
+    ) -> ScirsResult<()> {
+        let width = self.config.width as usize;
+        let height = self.config.height as usize;
+        let margin = 60_usize;
+
+        if trajectory.parameters.is_empty() || trajectory.parameters[0].len() != 2 {
+            return Err(ScirsError::InvalidInput(error_context!(
+                "Parameter trajectory PNG visualization only supports 2D problems"
+            )));
+        }
+
+        let xs: Vec<f64> = trajectory.parameters.iter().map(|p| p[0]).collect();
+        let ys: Vec<f64> = trajectory.parameters.iter().map(|p| p[1]).collect();
+
+        let min_x = xs.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_x = xs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let min_y = ys.iter().cloned().fold(f64::INFINITY, f64::min);
+        let max_y = ys.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let x_range = (max_x - min_x).max(f64::EPSILON);
+        let y_range = (max_y - min_y).max(f64::EPSILON);
+
+        let mut pixels = vec![255u8; width * height * 3];
+
+        let plot_w = width.saturating_sub(2 * margin);
+        let plot_h = height.saturating_sub(2 * margin);
+        let n = xs.len();
+        for i in 0..n.saturating_sub(1) {
+            let px0 = margin + ((xs[i] - min_x) / x_range * plot_w as f64) as usize;
+            let py0 = height
+                .saturating_sub(margin)
+                .saturating_sub(((ys[i] - min_y) / y_range * plot_h as f64) as usize);
+            let px1 = margin + ((xs[i + 1] - min_x) / x_range * plot_w as f64) as usize;
+            let py1 = height
+                .saturating_sub(margin)
+                .saturating_sub(((ys[i + 1] - min_y) / y_range * plot_h as f64) as usize);
+            png_draw_line(&mut pixels, width, height, px0, py0, px1, py1, 46, 134, 171);
+        }
+
+        write_png(output_path, &pixels, width, height)
+    }
 }
 
 impl Default for OptimizationVisualizer {
@@ -1039,5 +1300,85 @@ mod tests {
         assert_eq!(trajectory.gradient_norms.len(), 2);
         assert_eq!(trajectory.step_sizes.len(), 2);
         assert_eq!(trajectory.final_function_value(), Some(5.0));
+    }
+
+    #[test]
+    fn test_png_convergence_output_valid_file() {
+        // Build a simple convergence trajectory and render it as PNG.
+        // Verify the output is a valid PNG file (starts with PNG signature).
+        let mut trajectory = OptimizationTrajectory::new();
+        let params = array![0.0f64, 0.0];
+        for i in 0..10 {
+            let val = 100.0 / (i as f64 + 1.0);
+            trajectory.add_point(i, &params.view(), val, i as f64 * 0.01);
+        }
+
+        let tmp_dir = std::env::temp_dir();
+        let out_path = tmp_dir.join("test_convergence.png");
+
+        let config = VisualizationConfig {
+            format: OutputFormat::Png,
+            width: 100,
+            height: 80,
+            title: None,
+            show_grid: false,
+            log_scale_y: false,
+            color_scheme: ColorScheme::Default,
+            show_legend: false,
+            custom_style: None,
+        };
+        let vis = OptimizationVisualizer::with_config(config);
+        vis.plot_convergence(&trajectory, &out_path)
+            .expect("PNG write failed");
+
+        // Read and validate PNG signature
+        let data = std::fs::read(&out_path).expect("PNG read failed");
+        assert!(data.len() > 8, "PNG too small");
+        assert_eq!(
+            &data[0..8],
+            &[137, 80, 78, 71, 13, 10, 26, 10],
+            "Invalid PNG signature"
+        );
+
+        // Clean up
+        let _ = std::fs::remove_file(&out_path);
+    }
+
+    #[test]
+    fn test_png_trajectory_output_valid_file() {
+        // Build a 2D trajectory and render it as PNG.
+        let mut trajectory = OptimizationTrajectory::new();
+        for i in 0..5 {
+            let params = array![i as f64 * 0.1, i as f64 * 0.2];
+            trajectory.add_point(i, &params.view(), 10.0 - i as f64, i as f64 * 0.01);
+        }
+
+        let tmp_dir = std::env::temp_dir();
+        let out_path = tmp_dir.join("test_trajectory.png");
+
+        let config = VisualizationConfig {
+            format: OutputFormat::Png,
+            width: 80,
+            height: 60,
+            title: None,
+            show_grid: false,
+            log_scale_y: false,
+            color_scheme: ColorScheme::Default,
+            show_legend: false,
+            custom_style: None,
+        };
+        let vis = OptimizationVisualizer::with_config(config);
+        vis.plot_parameter_trajectory(&trajectory, &out_path)
+            .expect("PNG traj write failed");
+
+        let data = std::fs::read(&out_path).expect("PNG traj read failed");
+        assert!(data.len() > 8, "PNG trajectory too small");
+        assert_eq!(
+            &data[0..8],
+            &[137, 80, 78, 71, 13, 10, 26, 10],
+            "Invalid PNG signature"
+        );
+
+        let _ = std::fs::remove_file(&out_path);
     }
 }

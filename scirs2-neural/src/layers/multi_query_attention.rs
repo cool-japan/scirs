@@ -468,12 +468,232 @@ where
 
     fn backward(
         &self,
-        _input: &Array<F, IxDyn>,
-        _grad_output: &Array<F, IxDyn>,
+        input: &Array<F, IxDyn>,
+        grad_output: &Array<F, IxDyn>,
     ) -> Result<Array<F, IxDyn>> {
-        Err(NeuralError::NotImplementedError(
-            "MQA backward not yet implemented".into(),
-        ))
+        if input.ndim() != 3 {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "MQA backward expects 3D input, got {}D",
+                input.ndim()
+            )));
+        }
+
+        let shape = input.shape();
+        let (batch, seq_len, d_model) = (shape[0], shape[1], shape[2]);
+
+        if d_model != self.d_model {
+            return Err(NeuralError::InvalidArchitecture(format!(
+                "MQA backward: input dim {d_model} != d_model {}",
+                self.d_model
+            )));
+        }
+
+        let num_heads = self.config.num_heads;
+        let num_kv_heads = self.config.num_kv_heads;
+        let head_dim = self.config.head_dim;
+        let group_size = num_heads / num_kv_heads;
+
+        // -----------------------------------------------------------------------
+        // Re-compute forward quantities (Q, K, V, scores, attn_weights)
+        // -----------------------------------------------------------------------
+        let q_4d =
+            self.project_and_reshape(input, &self.w_q, batch, seq_len, num_heads, head_dim)?;
+        let k_4d =
+            self.project_and_reshape(input, &self.w_k, batch, seq_len, num_kv_heads, head_dim)?;
+        let v_4d =
+            self.project_and_reshape(input, &self.w_v, batch, seq_len, num_kv_heads, head_dim)?;
+
+        // Attention weights: [batch, num_heads, seq_q, seq_k]
+        let mut attn_weights = Array::zeros(IxDyn(&[batch, num_heads, seq_len, seq_len]));
+
+        for b in 0..batch {
+            for kv_h in 0..num_kv_heads {
+                let q_h_start = kv_h * group_size;
+                let q_h_end = q_h_start + group_size;
+
+                for q_h in q_h_start..q_h_end {
+                    for t in 0..seq_len {
+                        // Scores: dot(Q[b,t,q_h,:], K[b,:,kv_h,:]) * scale
+                        let mut scores = Vec::with_capacity(seq_len);
+                        for s_idx in 0..seq_len {
+                            if self.config.causal && s_idx > t {
+                                scores.push(F::neg_infinity());
+                            } else {
+                                let mut dot = F::zero();
+                                for d in 0..head_dim {
+                                    dot += q_4d[[b, t, q_h, d]] * k_4d[[b, s_idx, kv_h, d]];
+                                }
+                                scores.push(dot * self.scale);
+                            }
+                        }
+
+                        softmax_inplace(&mut scores);
+
+                        // Store softmax output
+                        for s_idx in 0..seq_len {
+                            attn_weights[[b, q_h, t, s_idx]] = scores[s_idx];
+                        }
+                    }
+                }
+            }
+        }
+
+        // -----------------------------------------------------------------------
+        // Backward through output projection: output = concat @ W_o
+        // d_concat = grad_output @ W_o^T  [batch*seq, d_model] @ [d_model, q_dim] => [batch*seq, q_dim]
+        // -----------------------------------------------------------------------
+        let grad_out_2d = grad_output
+            .view()
+            .into_shape_with_order(IxDyn(&[batch * seq_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("backward reshape grad_out: {e}")))?;
+
+        let w_o_2d = self
+            .w_o
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("backward: W_o to Ix2".into()))?;
+
+        let grad_out_2d_typed = grad_out_2d
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("backward: grad_out to Ix2".into()))?;
+
+        // d_concat: [batch*seq, q_dim]
+        let d_concat_2d = grad_out_2d_typed.dot(&w_o_2d.t());
+
+        let q_dim = num_heads * head_dim;
+        // d_concat reshaped: [batch, seq_len, num_heads, head_dim]
+        let d_concat_4d: Array4<F> = d_concat_2d
+            .into_shape_with_order((batch, seq_len, num_heads, head_dim))
+            .map_err(|e| NeuralError::InferenceError(format!("backward d_concat reshape: {e}")))?;
+
+        // -----------------------------------------------------------------------
+        // Backward through attention for each head
+        // For each (b, kv_h, q_h, t):
+        //   d_V += attn_weights[b,q_h,t,:]^T @ d_concat[b,t,q_h,:]   (outer)
+        //   d_scores = d_concat[b,t,q_h,:] @ V^T
+        //   d_softmax = softmax_backward(attn, d_scores)
+        //   d_Q[b,t,q_h,:] += d_softmax @ K[b,:,kv_h,:] * scale
+        //   d_K[b,:,kv_h,:] += d_softmax^T @ Q[b,t,q_h,:] * scale   (outer)
+        // -----------------------------------------------------------------------
+        let kv_dim = num_kv_heads * head_dim;
+
+        let mut d_q_4d = Array4::<F>::zeros((batch, seq_len, num_heads, head_dim));
+        let mut d_k_4d = Array4::<F>::zeros((batch, seq_len, num_kv_heads, head_dim));
+        let mut d_v_4d = Array4::<F>::zeros((batch, seq_len, num_kv_heads, head_dim));
+
+        for b in 0..batch {
+            for kv_h in 0..num_kv_heads {
+                let q_h_start = kv_h * group_size;
+                let q_h_end = q_h_start + group_size;
+
+                for q_h in q_h_start..q_h_end {
+                    for t in 0..seq_len {
+                        // Gradient of attn_out[b,t,q_h,d] = sum_s attn[b,q_h,t,s] * V[b,s,kv_h,d]
+                        // d_attn_out: [head_dim]  (from d_concat_4d[b,t,q_h,:])
+                        // d_V[b,s,kv_h,d] += attn[b,q_h,t,s] * d_attn_out[d]
+                        for s_idx in 0..seq_len {
+                            let a = attn_weights[[b, q_h, t, s_idx]];
+                            for d in 0..head_dim {
+                                d_v_4d[[b, s_idx, kv_h, d]] += a * d_concat_4d[[b, t, q_h, d]];
+                            }
+                        }
+
+                        // d_scores_raw[s] = sum_d d_attn_out[d] * V[b,s,kv_h,d]   (before softmax)
+                        let mut d_scores_raw = vec![F::zero(); seq_len];
+                        for s_idx in 0..seq_len {
+                            let mut sum = F::zero();
+                            for d in 0..head_dim {
+                                sum += d_concat_4d[[b, t, q_h, d]] * v_4d[[b, s_idx, kv_h, d]];
+                            }
+                            d_scores_raw[s_idx] = sum;
+                        }
+
+                        // Softmax backward: d_pre[s] = attn[s] * (d_raw[s] - dot(attn, d_raw))
+                        let dot_attn_d: F = (0..seq_len).fold(F::zero(), |acc, s| {
+                            acc + attn_weights[[b, q_h, t, s]] * d_scores_raw[s]
+                        });
+
+                        let mut d_pre_scores = vec![F::zero(); seq_len];
+                        for s_idx in 0..seq_len {
+                            let a = attn_weights[[b, q_h, t, s_idx]];
+                            // For causal masked positions, attn=0 so this contributes 0
+                            d_pre_scores[s_idx] = a * (d_scores_raw[s_idx] - dot_attn_d);
+                        }
+
+                        // d_pre_scores = d_pre_scores * scale  (since scores = dot * scale)
+                        for d_pre in d_pre_scores.iter_mut() {
+                            *d_pre *= self.scale;
+                        }
+
+                        // d_Q[b,t,q_h,:] += sum_s d_pre[s] * K[b,s,kv_h,:]
+                        for s_idx in 0..seq_len {
+                            let dp = d_pre_scores[s_idx];
+                            for d in 0..head_dim {
+                                d_q_4d[[b, t, q_h, d]] += dp * k_4d[[b, s_idx, kv_h, d]];
+                            }
+                        }
+
+                        // d_K[b,s,kv_h,:] += d_pre[s] * Q[b,t,q_h,:]
+                        for s_idx in 0..seq_len {
+                            let dp = d_pre_scores[s_idx];
+                            for d in 0..head_dim {
+                                d_k_4d[[b, s_idx, kv_h, d]] += dp * q_4d[[b, t, q_h, d]];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // -----------------------------------------------------------------------
+        // Backward through Q/K/V projections: d_input = d_Q @ W_q^T + d_K @ W_k^T + d_V @ W_v^T
+        // Each projection: x [batch*seq, d_model] @ W [d_model, proj_dim]
+        // backward: d_x [batch*seq, proj_dim] @ W^T [proj_dim, d_model] => [batch*seq, d_model]
+        // -----------------------------------------------------------------------
+
+        // Reshape d_q: [batch*seq, q_dim]
+        let d_q_2d = d_q_4d
+            .into_shape_with_order((batch * seq_len, q_dim))
+            .map_err(|e| NeuralError::InferenceError(format!("backward d_q reshape: {e}")))?;
+
+        // Reshape d_k: [batch*seq, kv_dim]
+        let d_k_2d = d_k_4d
+            .into_shape_with_order((batch * seq_len, kv_dim))
+            .map_err(|e| NeuralError::InferenceError(format!("backward d_k reshape: {e}")))?;
+
+        // Reshape d_v: [batch*seq, kv_dim]
+        let d_v_2d = d_v_4d
+            .into_shape_with_order((batch * seq_len, kv_dim))
+            .map_err(|e| NeuralError::InferenceError(format!("backward d_v reshape: {e}")))?;
+
+        let w_q_2d = self
+            .w_q
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("backward: W_q to Ix2".into()))?;
+        let w_k_2d = self
+            .w_k
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("backward: W_k to Ix2".into()))?;
+        let w_v_2d = self
+            .w_v
+            .view()
+            .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+            .map_err(|_| NeuralError::InferenceError("backward: W_v to Ix2".into()))?;
+
+        // d_input: [batch*seq, d_model]
+        let d_input_from_q = d_q_2d.dot(&w_q_2d.t());
+        let d_input_from_k = d_k_2d.dot(&w_k_2d.t());
+        let d_input_from_v = d_v_2d.dot(&w_v_2d.t());
+
+        let d_input_2d = d_input_from_q + d_input_from_k + d_input_from_v;
+
+        let d_input = d_input_2d
+            .into_shape_with_order(IxDyn(&[batch, seq_len, d_model]))
+            .map_err(|e| NeuralError::InferenceError(format!("backward d_input reshape: {e}")))?;
+
+        Ok(d_input)
     }
 
     fn update(&mut self, _learning_rate: F) -> Result<()> {
@@ -604,5 +824,100 @@ mod tests {
         // V: 64 * 16 = 1024
         // O: 64 * 64 = 4096
         assert_eq!(mqa.parameter_count(), 4096 + 1024 + 1024 + 4096);
+    }
+
+    /// Test that backward returns correct output shape matching the input shape.
+    #[test]
+    fn test_mqa_backward_shape() {
+        let mut rng = scirs2_core::random::rng();
+        // num_heads=2, head_dim=8 => d_model=16, num_kv_heads=1 (pure MQA)
+        let config = MultiQueryAttentionConfig::new(2, 8);
+        let mqa = MultiQueryAttention::<f64>::new(16, config, &mut rng).expect("creation failed");
+
+        let input = Array3::<f64>::from_elem((2, 5, 16), 0.1).into_dyn();
+        let grad_output = Array3::<f64>::from_elem((2, 5, 16), 0.01).into_dyn();
+
+        let d_input = mqa
+            .backward(&input, &grad_output)
+            .expect("backward should succeed");
+
+        // Gradient w.r.t. input must have the same shape as input
+        assert_eq!(
+            d_input.shape(),
+            input.shape(),
+            "backward gradient shape must match input shape"
+        );
+
+        // All gradients must be finite
+        for val in d_input.iter() {
+            assert!(val.is_finite(), "backward gradient must be finite");
+        }
+    }
+
+    /// Analytical test for the degenerate seq_len=1 case.
+    ///
+    /// When seq_len=1, softmax of a single element is exactly 1.0.
+    /// The softmax Jacobian is `diag(a) - a @ a^T` = 0 for a scalar,
+    /// so d_scores = 0, and d_Q = 0, d_K = 0.
+    ///
+    /// Only the V path survives:
+    ///   output = (input @ W_v) @ W_o   (with trivial attention weight=1)
+    ///   d_input_from_v = grad_output @ W_o^T @ W_v^T
+    #[test]
+    fn test_mqa_backward_analytical_seq1() {
+        let mut rng = scirs2_core::random::rng();
+        // 1 head, 1 kv head, head_dim=4 => d_model=4
+        let config = MultiQueryAttentionConfig::new(1, 4).with_num_kv_heads(1);
+        let mqa = MultiQueryAttention::<f64>::new(4, config, &mut rng).expect("creation failed");
+
+        // batch=1, seq=1, d_model=4
+        let input = Array3::<f64>::from_elem((1, 1, 4), 0.5).into_dyn();
+        let grad_out = Array3::<f64>::from_elem((1, 1, 4), 1.0).into_dyn();
+
+        let d_input = mqa.backward(&input, &grad_out).expect("backward failed");
+
+        assert_eq!(d_input.shape(), &[1, 1, 4]);
+
+        // Analytical: d_input_from_v = grad_out @ W_o^T @ W_v^T
+        // (d_input_from_q and d_input_from_k are 0 for seq_len=1)
+        use scirs2_core::ndarray::{Array2, Ix2};
+
+        let w_v_2d = mqa.w_v.view().into_dimensionality::<Ix2>().unwrap();
+        let w_o_2d = mqa.w_o.view().into_dimensionality::<Ix2>().unwrap();
+
+        // grad_out: [1, 4], W_o: [4,4], W_v: [4,4]
+        let go = Array2::<f64>::from_elem((1, 4), 1.0);
+        let expected = go.dot(&w_o_2d.t()).dot(&w_v_2d.t());
+
+        for d in 0..4 {
+            let computed = d_input[[0, 0, d]];
+            let analytic = expected[[0, d]];
+            assert!(
+                (computed - analytic).abs() < 1e-10,
+                "dim {d}: computed={computed:.6} vs analytic={analytic:.6}"
+            );
+        }
+    }
+
+    /// Test backward with num_kv_heads > 1 (GQA-mode within MQA layer).
+    #[test]
+    fn test_mqa_backward_multi_kv_heads() {
+        let mut rng = scirs2_core::random::rng();
+        // 4 Q heads, 2 KV heads, head_dim=8 => d_model=32
+        let config = MultiQueryAttentionConfig::new(4, 8).with_num_kv_heads(2);
+        let mqa = MultiQueryAttention::<f64>::new(32, config, &mut rng).expect("creation failed");
+
+        let input = Array3::<f64>::from_elem((1, 3, 32), 0.1).into_dyn();
+        let grad_output = Array3::<f64>::from_elem((1, 3, 32), 0.05).into_dyn();
+
+        let d_input = mqa
+            .backward(&input, &grad_output)
+            .expect("backward should succeed");
+
+        assert_eq!(d_input.shape(), &[1, 3, 32]);
+
+        for val in d_input.iter() {
+            assert!(val.is_finite(), "gradient must be finite");
+        }
     }
 }

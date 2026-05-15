@@ -361,7 +361,7 @@ fn test_concurrent_eval_stress_test() {
                     .run()[0]
                     .clone()
                 {
-                    let mut count = counter_clone.lock().unwrap();
+                    let mut count = counter_clone.lock().unwrap_or_else(|e| e.into_inner());
                     *count += 1;
                 }
             })
@@ -373,7 +373,7 @@ fn test_concurrent_eval_stress_test() {
         handle.join().expect("Thread panicked");
     }
 
-    let final_count = *counter.lock().unwrap();
+    let final_count = *counter.lock().unwrap_or_else(|e| e.into_inner());
     assert!(final_count >= 5);
 }
 
@@ -647,7 +647,7 @@ fn test_concurrent_gradient_different_points() {
                     let grad_val = result
                         .into_dimensionality::<scirs2_core::ndarray::Ix0>()
                         .unwrap()[()];
-                    let mut res = results_clone.lock().unwrap();
+                    let mut res = results_clone.lock().unwrap_or_else(|e| e.into_inner());
                     res.push((input_val, grad_val));
                 }
             })
@@ -659,7 +659,7 @@ fn test_concurrent_gradient_different_points() {
         handle.join().expect("Thread panicked");
     }
 
-    let final_results = results.lock().unwrap();
+    let final_results = results.lock().unwrap_or_else(|e| e.into_inner());
     assert!(final_results.len() >= 3);
 
     // Verify gradients are correct (d/dx x^3 = 3x^2)
@@ -693,7 +693,7 @@ fn test_concurrent_gradient_computation_stress() {
                     .run()[0]
                     .clone()
                 {
-                    let mut count = counter_clone.lock().unwrap();
+                    let mut count = counter_clone.lock().unwrap_or_else(|e| e.into_inner());
                     *count += 1;
                 }
             })
@@ -705,7 +705,7 @@ fn test_concurrent_gradient_computation_stress() {
         handle.join().expect("Thread panicked");
     }
 
-    let final_count = *counter.lock().unwrap();
+    let final_count = *counter.lock().unwrap_or_else(|e| e.into_inner());
     assert!(final_count >= 5);
 }
 
@@ -988,7 +988,7 @@ fn test_thread_safety_no_data_races() {
                     let val = result
                         .into_dimensionality::<scirs2_core::ndarray::Ix0>()
                         .unwrap()[()];
-                    let mut res = results_clone.lock().unwrap();
+                    let mut res = results_clone.lock().unwrap_or_else(|e| e.into_inner());
                     res.push(val);
                 }
             })
@@ -1000,7 +1000,7 @@ fn test_thread_safety_no_data_races() {
         handle.join().expect("Thread panicked");
     }
 
-    let final_results = results.lock().unwrap();
+    let final_results = results.lock().unwrap_or_else(|e| e.into_inner());
     assert!(final_results.len() >= 5);
 }
 
@@ -1230,7 +1230,7 @@ fn test_thread_safety_stress_many_threads() {
                     .run()[0]
                     .clone()
                 {
-                    let mut count = counter_clone.lock().unwrap();
+                    let mut count = counter_clone.lock().unwrap_or_else(|e| e.into_inner());
                     *count += 1;
                 }
             })
@@ -1242,6 +1242,6 @@ fn test_thread_safety_stress_many_threads() {
         handle.join().expect("Thread panicked");
     }
 
-    let final_count = *counter.lock().unwrap();
+    let final_count = *counter.lock().unwrap_or_else(|e| e.into_inner());
     assert!(final_count >= 10);
 }

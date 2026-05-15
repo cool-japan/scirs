@@ -3,7 +3,7 @@
 //! Implements:
 //! - [`BendersDecomposition`]: Master + subproblem decomposition
 //! - [`DantzigWolfe`]: Dantzig-Wolfe decomposition for structured LP
-//! - [`ADMM`]: Alternating Direction Method of Multipliers
+//! - `ADMM`: Alternating Direction Method of Multipliers
 //! - [`ProximalBundle`]: Proximal bundle method for nonsmooth optimization
 
 use crate::error::{OptimizeError, OptimizeResult};

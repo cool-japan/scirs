@@ -1182,7 +1182,7 @@ pub fn qep_solve<F: PencilFloat + std::fmt::Debug + std::fmt::Display>(
 /// ```
 #[derive(Debug, Clone)]
 pub struct PolyMatrix<F: PencilFloat> {
-    /// Coefficients in ascending power order: coeffs[i] is the matrix for λ^i.
+    /// Coefficients in ascending power order: coeffs\[i\] is the matrix for λ^i.
     pub coeffs: Vec<Array2<F>>,
 }
 

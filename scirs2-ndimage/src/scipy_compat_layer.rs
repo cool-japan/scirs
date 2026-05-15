@@ -598,10 +598,65 @@ pub mod scipy_ndimage {
                     com.into_iter().map(|v| v.to_f64().unwrap_or(0.0)).collect();
                 Ok(com_f64)
             } else {
-                // Labeled center of mass not yet implemented in compatibility layer
-                Err(NdimageError::InvalidInput(
-                    "Labeled center of mass not yet supported in compatibility layer".to_string(),
-                ))
+                // Labeled center of mass: compute COM for a single requested label.
+                //
+                // `index` must be provided and contain exactly one label value.
+                // For multi-label queries use `scipy_compat::center_of_mass` instead.
+                let labels_2d = match labels {
+                    Some(lbl) => lbl
+                        .into_dimensionality::<scirs2_core::ndarray::Ix2>()
+                        .map_err(|_| NdimageError::InvalidInput("labels must be 2D".to_string()))?
+                        .to_owned(),
+                    None => {
+                        return Err(NdimageError::InvalidInput(
+                            "labels must be provided for labeled center_of_mass".to_string(),
+                        ));
+                    }
+                };
+
+                let target_labels: Vec<i32> = match index {
+                    Some(ref idx) => idx.clone(),
+                    None => {
+                        // Collect unique labels from labels array (sorted)
+                        let mut unique: Vec<i32> = labels_2d.iter().copied().collect();
+                        unique.sort_unstable();
+                        unique.dedup();
+                        unique
+                    }
+                };
+
+                if target_labels.len() != 1 {
+                    return Err(NdimageError::InvalidInput(
+                        "center_of_mass in compatibility layer supports exactly one label; \
+                         use scipy_compat::center_of_mass for multi-label queries"
+                            .to_string(),
+                    ));
+                }
+
+                let label_val = target_labels[0];
+                let (nrows, ncols) = input_2d.dim();
+
+                let mut total_mass = 0.0_f64;
+                let mut row_cm = 0.0_f64;
+                let mut col_cm = 0.0_f64;
+
+                for i in 0..nrows {
+                    for j in 0..ncols {
+                        if labels_2d[[i, j]] == label_val {
+                            let mass = input_2d[[i, j]].to_f64().unwrap_or(0.0);
+                            total_mass += mass;
+                            row_cm += i as f64 * mass;
+                            col_cm += j as f64 * mass;
+                        }
+                    }
+                }
+
+                if total_mass != 0.0 {
+                    Ok(vec![row_cm / total_mass, col_cm / total_mass])
+                } else {
+                    // Zero mass: return geometric centre
+                    Ok(vec![nrows as f64 / 2.0, ncols as f64 / 2.0])
+                }
             }
         } else {
             Err(NdimageError::InvalidInput(
@@ -895,6 +950,79 @@ mod tests {
         let mode_mapping = mapping.expect("Operation failed");
         assert_eq!(mode_mapping.scipy_param, "mode");
         assert_eq!(mode_mapping.scirs2_param, "mode");
+    }
+
+    // ─── labeled center_of_mass tests ─────────────────────────────────────
+
+    #[test]
+    fn test_labeled_center_of_mass_single_label() {
+        // 3×3 image: uniform weight=1.0 in a 2×2 block at rows 0-1, cols 0-1, label=1.
+        // COM should be at (0.5, 0.5).
+        #[rustfmt::skip]
+        let data = vec![
+            1.0_f64, 1.0, 0.0,
+            1.0,     1.0, 0.0,
+            0.0,     0.0, 0.0,
+        ];
+        #[rustfmt::skip]
+        let label_data = vec![
+            1_i32, 1, 0,
+            1,     1, 0,
+            0,     0, 0,
+        ];
+        let input =
+            scirs2_core::ndarray::Array2::from_shape_vec((3, 3), data).expect("input shape");
+        let labels =
+            scirs2_core::ndarray::Array2::from_shape_vec((3, 3), label_data).expect("label shape");
+
+        let result =
+            scipy_ndimage::center_of_mass(input.view(), Some(labels.view()), Some(vec![1]))
+                .expect("labeled center_of_mass should succeed");
+
+        assert_eq!(result.len(), 2, "should return [row_cm, col_cm]");
+        assert!(
+            (result[0] - 0.5).abs() < 1e-12,
+            "row COM should be 0.5, got {}",
+            result[0]
+        );
+        assert!(
+            (result[1] - 0.5).abs() < 1e-12,
+            "col COM should be 0.5, got {}",
+            result[1]
+        );
+    }
+
+    #[test]
+    fn test_labeled_center_of_mass_zero_weight_returns_geometric_centre() {
+        // If all weights for the label are 0.0, fall back to geometric centre.
+        #[rustfmt::skip]
+        let data = vec![
+            0.0_f64, 0.0, 0.0,
+            0.0,     0.0, 0.0,
+            0.0,     0.0, 0.0,
+        ];
+        #[rustfmt::skip]
+        let label_data = vec![
+            1_i32, 1, 1,
+            1,     1, 1,
+            1,     1, 1,
+        ];
+        let input =
+            scirs2_core::ndarray::Array2::from_shape_vec((3, 3), data).expect("input shape");
+        let labels =
+            scirs2_core::ndarray::Array2::from_shape_vec((3, 3), label_data).expect("label shape");
+
+        let result =
+            scipy_ndimage::center_of_mass(input.view(), Some(labels.view()), Some(vec![1]))
+                .expect("labeled center_of_mass with zero weight should succeed");
+
+        // Should return geometric centre: (1.5, 1.5) for a 3×3 array
+        assert_eq!(result.len(), 2);
+        assert!(
+            (result[0] - 1.5).abs() < 1e-12,
+            "Geometric row centre should be 1.5, got {}",
+            result[0]
+        );
     }
 
     #[test]

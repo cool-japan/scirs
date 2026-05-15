@@ -960,7 +960,7 @@ pub fn create_enhanced_error_context(
                 cachesizes: vec![32_768, 262_144, 8_388_608], // L1, L2, L3
             },
             memory_info: MemoryInfo {
-                total_memory: 16_000_000_000u64 as usize,    // 16GB (saturates on 32-bit)
+                total_memory: 16_000_000_000u64 as usize, // 16GB (saturates on 32-bit)
                 available_memory: 8_000_000_000u64 as usize, // 8GB (saturates on 32-bit)
                 memory_pressure: 0.3,
             },

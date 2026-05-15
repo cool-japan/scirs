@@ -16,7 +16,7 @@
 //! | λ‖·‖∞   | `prox_linf` — Duchi L∞ projection |
 //! | λ‖·‖_*  | `prox_nuclear` — nuclear norm via SVD |
 //! | Δ simplex | `project_simplex` — Duchi-Shalev-Shwartz |
-//! | box [lb,ub] | `project_box` — coordinate clipping |
+//! | box \[lb,ub\] | `project_box` — coordinate clipping |
 //!
 //! # References
 //! - Parikh & Boyd (2014). "Proximal Algorithms". *Found. Trends Optim.*

@@ -74,6 +74,14 @@ pub mod factorizations {
 /// Includes: gradient, hessian, jacobian computations, VJP, JVP
 pub mod matrix_calculus;
 
+/// Einstein summation engine for arbitrary-rank tensor contractions.
+///
+/// Provides `einsum` (evaluation) and `einsum_grad` (gradients) supporting
+/// traces, diagonals, outer products, matrix multiplications, batched matmul,
+/// and arbitrary index contractions.
+pub mod einsum;
+pub use einsum::{einsum, einsum_grad, EinsumError};
+
 /// Helper functions for common patterns in linear algebra autodiff
 pub mod helpers {
     use super::*;

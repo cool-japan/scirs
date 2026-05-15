@@ -668,7 +668,7 @@ impl GlobalBestHarmonySearch {
 pub struct MultiObjectiveHsResult {
     /// Pareto front solutions
     pub pareto_front: Vec<Array1<f64>>,
-    /// Objective values for each Pareto solution (vec of vec: [solution_idx][obj_idx])
+    /// Objective values for each Pareto solution (vec of vec: \[solution_idx\]\[obj_idx\])
     pub pareto_objectives: Vec<Vec<f64>>,
     /// Number of function evaluations
     pub nfev: usize,

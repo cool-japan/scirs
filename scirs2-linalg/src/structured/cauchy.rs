@@ -13,7 +13,7 @@ use std::{fmt::Debug, iter::Sum};
 
 /// Build the full Cauchy matrix from vectors x and y.
 ///
-/// C[i,j] = 1 / (x[i] - y[j])
+/// C\[i,j\] = 1 / (x\[i\] - y\[j\])
 ///
 /// # Arguments
 ///

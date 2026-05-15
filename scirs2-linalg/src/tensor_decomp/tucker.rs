@@ -8,7 +8,7 @@
 //! `A ∈ R^{I×r1}`, `B ∈ R^{J×r2}`, `C ∈ R^{K×r3}` are the factor matrices.
 //!
 //! Tucker is more general than CP (PARAFAC): CP is a special case where the
-//! core is superdiagonal (r1 = r2 = r3 = R, G[r,r,r] = λ_r).
+//! core is superdiagonal (r1 = r2 = r3 = R, G\[r,r,r\] = λ_r).
 //!
 //! ## Algorithms
 //!

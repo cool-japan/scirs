@@ -5,8 +5,10 @@
 //! - Custom partitioning strategies for different data distributions
 //! - Nested parallelism with controlled resource usage
 //! - Load balancing and adaptive scheduling
+//! - NUMA-locality chunk map (`par_map_chunks`)
 
 mod nested;
+pub mod numa;
 mod partitioning;
 mod scheduler;
 
@@ -29,5 +31,8 @@ pub use nested::{
     nested_scope, nested_scope_with_limits, with_nested_policy, NestedConfig, NestedContext,
     NestedPolicy, NestedScope, ResourceLimits, ResourceManager, ResourceUsageStats,
 };
+
+// Re-export NUMA par_map_chunks at parallel module level
+pub use numa::par_map_chunks;
 
 // Note: parallel_map is now provided by parallel_ops module for simpler usage

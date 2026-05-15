@@ -445,7 +445,7 @@ pub struct D3Q19Lbm {
     f_buf: Vec<Vec<Vec<Vec<f64>>>>,
     /// Macroscopic density ρ(x,y,z)
     pub density: Vec<Vec<Vec<f64>>>,
-    /// Macroscopic velocity [ux, uy, uz](x,y,z)
+    /// Macroscopic velocity \[ux, uy, uz\](x,y,z)
     pub velocity: Vec<Vec<Vec<[f64; 3]>>>,
     /// Boundary condition at each node
     boundary: Vec<Vec<Vec<BoundaryType3D>>>,

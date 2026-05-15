@@ -307,6 +307,5 @@ mod no_simd_tests {
     #[test]
     fn test_simd_not_enabled() {
         // This test just ensures the test suite runs even without SIMD
-        assert!(true);
     }
 }

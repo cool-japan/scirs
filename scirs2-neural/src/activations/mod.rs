@@ -154,6 +154,8 @@ mod relu;
 mod sigmoid;
 mod softmax;
 mod swish;
+#[cfg(feature = "symbolic")]
+pub mod symbolic;
 mod tanh;
 pub use gelu::GELU;
 pub use mish::Mish;
@@ -161,4 +163,6 @@ pub use relu::{LeakyReLU, ReLU};
 pub use sigmoid::Sigmoid;
 pub use softmax::Softmax;
 pub use swish::Swish;
+#[cfg(feature = "symbolic")]
+pub use symbolic::SymbolicActivation;
 pub use tanh::Tanh;

@@ -29,7 +29,7 @@ pub struct Element2D {
 /// Sparse stiffness matrix in COO (coordinate) format.
 ///
 /// Use [`StiffnessMatrix::to_dense`] for small problems or convert to CSR via
-/// [`StiffnessMatrix::to_csr`].
+/// [`StiffnessMatrix::to_dense`] for dense conversion.
 #[derive(Debug, Clone)]
 pub struct StiffnessMatrix {
     /// Row indices (same length as `vals`)
@@ -263,7 +263,7 @@ fn assemble_chunk(
 pub struct MeshElement2D {
     /// Global node indices [n0, n1, n2]
     pub node_ids: [usize; 3],
-    /// Node coordinates [[x0,y0], [x1,y1], [x2,y2]]
+    /// Node coordinates \[\[x0,y0\], \[x1,y1\], \[x2,y2\]\]
     pub nodes: [[f64; 2]; 3],
     /// Material identifier
     pub material_id: usize,

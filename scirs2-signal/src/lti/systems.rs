@@ -427,10 +427,22 @@ impl LtiSystem for TransferFunction {
 
     fn is_stable(&self) -> SignalResult<bool> {
         // A system is stable if all its poles have negative real parts (continuous-time)
-        // or are inside the unit circle (discrete-time)
-
-        // For now, return a placeholder
-        // In practice, we would check the poles from to_zpk()
+        // or are inside the unit circle (discrete-time).
+        // Obtain poles via ZPK conversion.
+        let zpk = self.to_zpk()?;
+        for pole in &zpk.poles {
+            if self.dt {
+                // Discrete-time: stable iff |pole| < 1
+                if pole.norm() >= 1.0 {
+                    return Ok(false);
+                }
+            } else {
+                // Continuous-time: stable iff Re(pole) < 0
+                if pole.re >= 0.0 {
+                    return Ok(false);
+                }
+            }
+        }
         Ok(true)
     }
 }

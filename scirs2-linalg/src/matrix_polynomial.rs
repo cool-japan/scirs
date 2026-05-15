@@ -533,7 +533,7 @@ fn schur_eigenvalues<F: MatPolyFloat>(t: &Array2<F>) -> Vec<Complex<F>> {
 // MatrixPoly: polynomial with matrix coefficients
 // ---------------------------------------------------------------------------
 
-/// A polynomial with matrix coefficients: P(x) = Σ_{i=0}^{d} coeffs[i] * x^i.
+/// A polynomial with matrix coefficients: P(x) = Σ_{i=0}^{d} coeffs\[i\] * x^i.
 ///
 /// Here `x` is a **scalar** (not a matrix); use `eval(x)` for scalar evaluation
 /// and `matrix_eval_poly` for evaluation at a matrix argument.
@@ -586,7 +586,7 @@ impl<F: MatPolyFloat> MatrixPoly<F> {
         Ok(Self { coeffs, degree })
     }
 
-    /// Evaluate P(x) = Σ coeffs[i] * x^i using Horner's method.
+    /// Evaluate P(x) = Σ coeffs\[i\] * x^i using Horner's method.
     pub fn eval(&self, x: F) -> Array2<F> {
         let (m, n) = (self.coeffs[0].nrows(), self.coeffs[0].ncols());
         let mut result = Array2::<F>::zeros((m, n));

@@ -130,7 +130,7 @@ fn build_z_from_reflectors(n: usize, reflectors: &[(usize, Vec<f64>)]) -> Array2
 ///
 /// # Arguments
 /// * `a`   - Input matrix (m×n)
-/// * `tol` - Rank threshold (default: max(m,n) * eps * |R[0,0]|)
+/// * `tol` - Rank threshold (default: max(m,n) * eps * |R\[0,0\]|)
 ///
 /// # Returns
 /// [`RrqrResult`] containing Q, R, column permutation, and numerical rank

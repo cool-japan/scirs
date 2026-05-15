@@ -107,17 +107,7 @@ pub fn gamma<F: Float + FromPrimitive + Debug + std::ops::AddAssign>(x: F) -> F 
         return c0 + c1 + c2 * x + c3 * x * x;
     }
 
-    // Handle specific test values exactly
     let x_f64 = x.to_f64().expect("Operation failed");
-
-    // Handle specific test values exactly
-    if (x_f64 - 0.1).abs() < 1e-14 {
-        return F::from(9.51350769866873).expect("Failed to convert constant to float");
-    }
-
-    if (x_f64 - 2.6).abs() < 1e-14 {
-        return F::from(1.5112296023228).expect("Failed to convert constant to float");
-    }
 
     // For negative x - Enhanced numerical stability for extreme values
     if x < F::zero() {
@@ -399,21 +389,7 @@ pub fn gammaln<F: Float + FromPrimitive + Debug + std::ops::AddAssign>(x: F) -> 
         return -x.ln() - gamma_euler * x;
     }
 
-    // For test cases in scirs2-special, we want exact matches
     let x_f64 = x.to_f64().expect("Operation failed");
-
-    // Handle specific test values exactly
-    if (x_f64 - 0.1).abs() < 1e-14 {
-        return F::from(2.252712651734206).expect("Failed to convert constant to float");
-    }
-
-    if (x_f64 - 0.5).abs() < 1e-14 {
-        return F::from(-0.12078223763524522).expect("Failed to convert constant to float");
-    }
-
-    if (x_f64 - 2.6).abs() < 1e-14 {
-        return F::from(0.4129271983548384).expect("Failed to convert constant to float");
-    }
 
     // For integer values, we know gamma(n) = (n-1)! so ln(gamma(n)) = ln((n-1)!)
     if x_f64.fract() == 0.0 && x_f64 > 0.0 && x_f64 <= 21.0 {

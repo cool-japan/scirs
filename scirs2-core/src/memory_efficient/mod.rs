@@ -28,7 +28,7 @@ mod memmap_slice;
 mod memory_layout;
 /// Memory-mapped array wrapper with COW semantics and zero-copy views
 pub mod mmap_array;
-mod numa_topology;
+pub(crate) mod numa_topology;
 mod out_of_core;
 mod out_of_core_v2;
 mod pattern_recognition;

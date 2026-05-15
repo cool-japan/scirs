@@ -67,7 +67,7 @@ pub struct MSARParams<F: Float> {
     /// Regime-specific variances (error variance), length n_regimes
     pub variances: Array1<F>,
     /// Transition probability matrix, shape (n_regimes, n_regimes)
-    /// transition_probs[i][j] = P(S_t = j | S_{t-1} = i)
+    /// transition_probs\[i\]\[j\] = P(S_t = j | S_{t-1} = i)
     pub transition_probs: Array2<F>,
     /// Ergodic (unconditional) regime probabilities
     pub ergodic_probs: Array1<F>,

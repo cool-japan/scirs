@@ -668,7 +668,7 @@ fn trigamma(x: f64) -> f64 {
 /// A Dirichlet GLM fitted by Iteratively Reweighted Least Squares (IRLS).
 ///
 /// The model is:
-///   ln(E[yⱼ]) = Xβⱼ + offset,  with y ~ Dir(φ · μ)
+///   ln(E\[yⱼ\]) = Xβⱼ + offset,  with y ~ Dir(φ · μ)
 /// where φ (precision) is estimated jointly.
 ///
 /// For simplicity this implementation uses a reduced model:

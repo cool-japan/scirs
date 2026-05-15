@@ -588,7 +588,28 @@ extern \"C\" __global__ void elementwise_sub(
         .to_string();
 
         let rocm_source = cuda_source.clone();
-        let wgpu_source = String::new();
+
+        let wgpu_source = r#"
+struct Uniforms {
+    n: u32,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<storage, read> a: array<f32>;
+@group(0) @binding(2) var<storage, read> b: array<f32>;
+@group(0) @binding(3) var<storage, read_write> result: array<f32>;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let i = global_id.x;
+
+    if (i < uniforms.n) {
+        result[i] = a[i] - b[i];
+    }
+}
+"#
+        .to_string();
+
         let metal_source = String::new();
         let opencl_source = String::new();
 
@@ -670,7 +691,28 @@ extern "C" __global__ void elementwise_pow(
         .to_string();
 
         let rocm_source = cuda_source.clone();
-        let wgpu_source = String::new();
+
+        let wgpu_source = r#"
+struct Uniforms {
+    n: u32,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<storage, read> a: array<f32>;
+@group(0) @binding(2) var<storage, read> b: array<f32>;
+@group(0) @binding(3) var<storage, read_write> result: array<f32>;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let i = global_id.x;
+
+    if (i < uniforms.n) {
+        result[i] = pow(a[i], b[i]);
+    }
+}
+"#
+        .to_string();
+
         let metal_source = String::new();
         let opencl_source = String::new();
 
@@ -749,7 +791,27 @@ extern "C" __global__ void elementwise_sqrt(
         .to_string();
 
         let rocm_source = cuda_source.clone();
-        let wgpu_source = String::new();
+
+        let wgpu_source = r#"
+struct Uniforms {
+    n: u32,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<storage, read> input: array<f32>;
+@group(0) @binding(2) var<storage, read_write> result: array<f32>;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let i = global_id.x;
+
+    if (i < uniforms.n) {
+        result[i] = sqrt(input[i]);
+    }
+}
+"#
+        .to_string();
+
         let metal_source = String::new();
         let opencl_source = String::new();
 
@@ -828,7 +890,27 @@ extern "C" __global__ void elementwise_exp(
         .to_string();
 
         let rocm_source = cuda_source.clone();
-        let wgpu_source = String::new();
+
+        let wgpu_source = r#"
+struct Uniforms {
+    n: u32,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<storage, read> input: array<f32>;
+@group(0) @binding(2) var<storage, read_write> result: array<f32>;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let i = global_id.x;
+
+    if (i < uniforms.n) {
+        result[i] = exp(input[i]);
+    }
+}
+"#
+        .to_string();
+
         let metal_source = String::new();
         let opencl_source = String::new();
 
@@ -907,7 +989,27 @@ extern "C" __global__ void elementwise_log(
         .to_string();
 
         let rocm_source = cuda_source.clone();
-        let wgpu_source = String::new();
+
+        let wgpu_source = r#"
+struct Uniforms {
+    n: u32,
+};
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+@group(0) @binding(1) var<storage, read> input: array<f32>;
+@group(0) @binding(2) var<storage, read_write> result: array<f32>;
+
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+    let i = global_id.x;
+
+    if (i < uniforms.n) {
+        result[i] = log(input[i]);
+    }
+}
+"#
+        .to_string();
+
         let metal_source = String::new();
         let opencl_source = String::new();
 

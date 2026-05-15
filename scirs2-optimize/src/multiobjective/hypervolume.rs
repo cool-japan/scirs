@@ -10,7 +10,7 @@
 //! | [`hypervolume_2d`]      | Sweep-line on sorted front    | O(n log n) |
 //! | [`hypervolume_3d`]      | Slice-and-sweep               | O(n² log n) |
 //! | [`hypervolume_wfg`]     | WFG recursive algorithm       | O(n^(d-1)) |
-//! | [`hypervolume_contribution`] | Remove-and-recompute     | O(n^d) |
+//! | [`hypervolume_contribution_wfg`] | Remove-and-recompute | O(n^d) |
 //! | [`exclusive_hypervolume`] | Per-solution contributions  | O(n^d) |
 //!
 //! # References

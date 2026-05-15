@@ -163,3 +163,15 @@
 - Slice sampling performance degrades on very high-dimensional posteriors (>100 dimensions) — use HMC/NUTS instead
 - Deep GP fitting is memory-intensive for large datasets (>10k points); sparse approximation recommended
 - TVP-VAR with large lag orders (>4) and many series (>8) may be slow without parallel feature enabled
+
+---
+
+## Wave 72 — Symbolic MLE derive (2026-05-06)
+
+- [x] **Symbolic MLE / method-of-moments — pdf-driven** (completed 2026-05-07)
+  - **Goal:** `scirs2_stats::mle::derive` takes parametric pdf as `LoweredOp`, parameter Var indices, and data Var index; returns an `Estimator` callable on data. Closes the last open Phase 3 cross-crate item.
+  - **Design:** New `scirs2-stats/src/mle/derive.rs` behind `symbolic` feature. Builds symbolic log-likelihood ℓ(θ)=Σᵢln(pdf(xᵢ;θ)) via balanced-add-tree (depth O(log n)). Differentiates w.r.t. each θⱼ via `cas::ad::grad`; score_equations[j] = ∂ℓ/∂θⱼ. Calls `cas::solve_system(score_equations as (eq, Const(0.0)), params)`. On Ok → closed_form. On CannotEliminateTranscendental/PartialGroebner → falls_back_to_numeric=true. `Estimator::fit`: closed-form JIT-eval or Newton with finite-difference Hessian fallback. Structs: `Estimator { closed_form: Option<Vec<LoweredOp>>, score_equations: Vec<LoweredOp>, falls_back_to_numeric: bool }`. Reorganize: current `mle_symbolic.rs` → `mle/symbolic.rs`; new `mle/derive.rs`; `mle/mod.rs`.
+  - **Files:** `scirs2-stats/src/mle/derive.rs` (new); `scirs2-stats/src/mle/mod.rs` (new); `scirs2-stats/src/mle/symbolic.rs` (renamed from mle_symbolic.rs); `scirs2-stats/src/lib.rs` (export under symbolic feature).
+  - **Prerequisites:** `scirs2_symbolic::cas::solve_system` (scirs2-symbolic Wave 72); `cas::mle_catalog` (✓); `cas::ad::grad` (✓).
+  - **Tests:** ≥8 in `tests/mle_derive_tests.rs`: Normal→μ̂=x̄ σ̂²=sample_var, fit on synthetic Normal(2.0,1.5) to 1e-6; Exponential→λ̂=1/x̄; Bernoulli→p̂=x̄; Geometric; Cauchy→closed_form is None, numeric Newton within 0.05 of true location; dim mismatch error; n_samples=0 rejected; canonical invariance (twice same hash).
+  - **Risk:** Score equations for heavy-tailed transcendental. Mitigation: Newton with finite-difference Hessian always ships; document "closed-form" subset (exponential family with full sufficient statistic).

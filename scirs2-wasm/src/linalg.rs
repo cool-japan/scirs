@@ -3,6 +3,7 @@
 use crate::array::WasmArray;
 use crate::error::WasmError;
 use scirs2_core::ndarray::Array2;
+use serde::Serialize;
 use wasm_bindgen::prelude::*;
 
 /// Compute the determinant of a square matrix
@@ -393,4 +394,354 @@ fn solve_linear_system(
     }
 
     Ok(x)
+}
+
+// ---------------------------------------------------------------------------
+// Singular Value Decomposition (SVD) — one-sided Jacobi algorithm
+// ---------------------------------------------------------------------------
+
+/// Output structure for SVD decomposition exposed to JavaScript via serde.
+///
+/// Fields are serialised with snake_case names so JavaScript receives
+/// `singular_values`, `u`, `u_rows`, `u_cols`, `vt`, `vt_rows`, `vt_cols`.
+#[derive(Serialize)]
+struct SvdOutput {
+    /// Singular values in descending order, length = min(m, n).
+    singular_values: Vec<f64>,
+    /// U matrix (left singular vectors) in row-major order, m × k.
+    u: Vec<f64>,
+    /// Number of rows in U.
+    u_rows: usize,
+    /// Number of columns in U (= k = min(m,n)).
+    u_cols: usize,
+    /// V^T matrix (right singular vectors) in row-major order, k × n.
+    vt: Vec<f64>,
+    /// Number of rows in V^T (= k = min(m,n)).
+    vt_rows: usize,
+    /// Number of columns in V^T.
+    vt_cols: usize,
+}
+
+/// Compute the Singular Value Decomposition of a 2-D matrix.
+///
+/// Returns a JavaScript object `{ singular_values, u, u_rows, u_cols,
+/// vt, vt_rows, vt_cols }`.  The decomposition satisfies
+/// `A ≈ U · diag(singular_values) · Vt` with Frobenius error < 1e-9
+/// for well-conditioned matrices up to ~100×100.
+///
+/// The one-sided Jacobi algorithm used here is pure-Rust and compiles
+/// directly to `wasm32-unknown-unknown` without any BLAS/LAPACK dependency.
+#[wasm_bindgen]
+pub fn svd(arr: &WasmArray) -> Result<JsValue, JsValue> {
+    if arr.ndim() != 2 {
+        return Err(WasmError::InvalidDimensions("SVD requires a 2D matrix".to_string()).into());
+    }
+
+    let matrix = arr
+        .data()
+        .clone()
+        .into_dimensionality::<ndarray::Ix2>()
+        .map_err(|e: ndarray::ShapeError| {
+            Into::<JsValue>::into(WasmError::ComputationError(e.to_string()))
+        })?;
+
+    // Validate: no non-finite entries
+    for &v in matrix.iter() {
+        if !v.is_finite() {
+            return Err(WasmError::InvalidParameter(
+                "SVD: matrix contains non-finite values".to_string(),
+            )
+            .into());
+        }
+    }
+
+    let output =
+        jacobi_svd(&matrix).map_err(|e| Into::<JsValue>::into(WasmError::ComputationError(e)))?;
+
+    serde_wasm_bindgen::to_value(&output).map_err(|e| JsValue::from_str(&e.to_string()))
+}
+
+/// One-sided Jacobi SVD.
+///
+/// Works on `A` (m × n).  Applies Jacobi rotations directly to the columns
+/// of `A` until all column-pairs are orthogonal, accumulating the rotations
+/// into `V` (n × n).  After convergence:
+///   - σ_j = ‖A[:,j]‖₂   (singular values)
+///   - U[:,j] = A[:,j] / σ_j  (left singular vectors; zero for σ_j ≈ 0)
+///   - Vt = V^T            (right singular vectors transposed)
+///
+/// Complexity: O(n² · sweeps · m).  Typically 10–25 sweeps for small matrices.
+fn jacobi_svd(a: &Array2<f64>) -> Result<SvdOutput, String> {
+    let m = a.nrows();
+    let n = a.ncols();
+    let k = m.min(n); // number of singular values
+
+    if m == 0 || n == 0 {
+        return Err("SVD: matrix must have non-zero dimensions".to_string());
+    }
+
+    // Work on a flat column-major copy: columns[j] is column j, length m.
+    // We store columns as Vec<Vec<f64>> for clarity.
+    let mut cols: Vec<Vec<f64>> = (0..n)
+        .map(|j| (0..m).map(|i| a[[i, j]]).collect())
+        .collect();
+
+    // V: n × n identity — accumulate column Jacobi rotations here.
+    let mut v: Vec<Vec<f64>> = (0..n)
+        .map(|i| {
+            let mut row = vec![0.0_f64; n];
+            row[i] = 1.0;
+            row
+        })
+        .collect();
+
+    // Sweep until convergence (max 50 sweeps).
+    const MAX_SWEEPS: usize = 50;
+    const TOL: f64 = 1e-14;
+
+    for _sweep in 0..MAX_SWEEPS {
+        let mut converged = true;
+
+        for p in 0..(n - 1) {
+            for q in (p + 1)..n {
+                // Compute dot products: alpha = col_p · col_p, beta = col_q · col_q, gamma = col_p · col_q
+                let alpha: f64 = cols[p].iter().map(|&x| x * x).sum();
+                let beta: f64 = cols[q].iter().map(|&x| x * x).sum();
+                let gamma: f64 = cols[p]
+                    .iter()
+                    .zip(cols[q].iter())
+                    .map(|(&a, &b)| a * b)
+                    .sum();
+
+                // Skip if already orthogonal.
+                let norm_pq = (alpha * beta).sqrt();
+                if norm_pq < TOL || gamma.abs() <= TOL * norm_pq {
+                    continue;
+                }
+
+                converged = false;
+
+                // Compute Jacobi rotation angle.
+                let zeta = (beta - alpha) / (2.0 * gamma);
+                let t = if zeta >= 0.0 {
+                    1.0 / (zeta + (1.0 + zeta * zeta).sqrt())
+                } else {
+                    -1.0 / (-zeta + (1.0 + zeta * zeta).sqrt())
+                };
+                let c = 1.0 / (1.0 + t * t).sqrt();
+                let s = c * t;
+
+                // Apply rotation to columns p and q of A.
+                // Use split_at_mut so we can mutably borrow two disjoint slices.
+                let (lo, hi) = if p < q {
+                    let (left, right) = cols.split_at_mut(q);
+                    (&mut left[p], &mut right[0])
+                } else {
+                    let (left, right) = cols.split_at_mut(p);
+                    (&mut right[0], &mut left[q])
+                };
+                for (ap_ref, aq_ref) in lo.iter_mut().zip(hi.iter_mut()) {
+                    let ap = *ap_ref;
+                    let aq = *aq_ref;
+                    *ap_ref = c * ap - s * aq;
+                    *aq_ref = s * ap + c * aq;
+                }
+
+                // Apply rotation to rows p and q of V (i.e., columns of V^T).
+                let (vlo, vhi) = if p < q {
+                    let (left, right) = v.split_at_mut(q);
+                    (&mut left[p], &mut right[0])
+                } else {
+                    let (left, right) = v.split_at_mut(p);
+                    (&mut right[0], &mut left[q])
+                };
+                for (vp_ref, vq_ref) in vlo.iter_mut().zip(vhi.iter_mut()) {
+                    let vp = *vp_ref;
+                    let vq = *vq_ref;
+                    *vp_ref = c * vp - s * vq;
+                    *vq_ref = s * vp + c * vq;
+                }
+            }
+        }
+
+        if converged {
+            break;
+        }
+    }
+
+    // Extract singular values as column norms.
+    let mut sigma: Vec<f64> = (0..n)
+        .map(|j| cols[j].iter().map(|&x| x * x).sum::<f64>().sqrt())
+        .collect();
+
+    // Sort descending by σ; track permutation to reorder U columns and V rows.
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|&a, &b| {
+        sigma[b]
+            .partial_cmp(&sigma[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let sigma_sorted: Vec<f64> = order.iter().map(|&i| sigma[i]).collect();
+    let cols_sorted: Vec<Vec<f64>> = order.iter().map(|&i| cols[i].clone()).collect();
+    let v_sorted: Vec<Vec<f64>> = order.iter().map(|&i| v[i].clone()).collect();
+
+    // Re-assign for clarity.
+    sigma = sigma_sorted;
+    let cols = cols_sorted;
+    let v = v_sorted;
+
+    // Build U (m × k) in row-major order: U[i][j] = cols[j][i] / sigma[j].
+    // Only keep k = min(m, n) singular values.
+    let sv: Vec<f64> = sigma[..k].to_vec();
+    let mut u_flat: Vec<f64> = vec![0.0_f64; m * k];
+    for j in 0..k {
+        let s = sigma[j];
+        if s > TOL {
+            for i in 0..m {
+                // Row-major: U[i][j] = u_flat[i*k + j]
+                u_flat[i * k + j] = cols[j][i] / s;
+            }
+        }
+        // else: leave as 0.0 (rank-deficient column)
+    }
+
+    // Build Vt (k × n) in row-major order: Vt[j][i] = V[i][j] = v[j][i].
+    // v[j] is column j of V stored as a row vector of length n, so v[j][i] = V[i][j] = Vt[j][i].
+    let mut vt_flat: Vec<f64> = Vec::with_capacity(k * n);
+    for row in v.iter().take(k) {
+        // row has length n; this is one row of V^T.
+        vt_flat.extend_from_slice(row);
+    }
+
+    Ok(SvdOutput {
+        singular_values: sv,
+        u: u_flat,
+        u_rows: m,
+        u_cols: k,
+        vt: vt_flat,
+        vt_rows: k,
+        vt_cols: n,
+    })
+}
+
+// ---------------------------------------------------------------------------
+// SVD tests
+// ---------------------------------------------------------------------------
+#[cfg(test)]
+mod svd_tests {
+    use super::*;
+    use scirs2_core::ndarray::array;
+
+    fn frobenius_err(
+        a: &Array2<f64>,
+        u: &[f64],
+        s: &[f64],
+        vt: &[f64],
+        m: usize,
+        k: usize,
+        n: usize,
+    ) -> f64 {
+        // Reconstruct A from U · diag(s) · Vt and measure ‖A - Â‖_F.
+        let mut err_sq = 0.0_f64;
+        for i in 0..m {
+            for j in 0..n {
+                let mut val = 0.0;
+                for r in 0..k {
+                    val += u[i * k + r] * s[r] * vt[r * n + j];
+                }
+                let orig = a[[i, j]];
+                err_sq += (orig - val).powi(2);
+            }
+        }
+        err_sq.sqrt()
+    }
+
+    #[test]
+    fn test_svd_identity_3x3() {
+        let a = array![[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        let result = jacobi_svd(&a).expect("jacobi_svd identity 3x3");
+        assert_eq!(result.singular_values.len(), 3);
+        let mut sv = result.singular_values.clone();
+        sv.sort_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+        for &s in &sv {
+            assert!((s - 1.0).abs() < 1e-9, "singular value {s} should be 1.0");
+        }
+    }
+
+    #[test]
+    fn test_svd_diagonal_3x3() {
+        let a = array![[3.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 1.0]];
+        let result = jacobi_svd(&a).expect("jacobi_svd diagonal 3x3");
+        let sv = &result.singular_values;
+        assert_eq!(sv.len(), 3);
+        // Descending order
+        assert!((sv[0] - 3.0).abs() < 1e-9, "sv[0]={}", sv[0]);
+        assert!((sv[1] - 2.0).abs() < 1e-9, "sv[1]={}", sv[1]);
+        assert!((sv[2] - 1.0).abs() < 1e-9, "sv[2]={}", sv[2]);
+    }
+
+    #[test]
+    fn test_svd_reconstruction_4x3() {
+        // Non-square tall matrix
+        let a = array![
+            [1.0, 2.0, 3.0],
+            [4.0, 5.0, 6.0],
+            [7.0, 8.0, 9.0],
+            [10.0, 11.0, 12.0]
+        ];
+        let m = 4;
+        let k = 3;
+        let n = 3;
+        let result = jacobi_svd(&a).expect("jacobi_svd 4x3");
+        assert_eq!(result.u_rows, m);
+        assert_eq!(result.u_cols, k);
+        assert_eq!(result.vt_rows, k);
+        assert_eq!(result.vt_cols, n);
+        let err = frobenius_err(&a, &result.u, &result.singular_values, &result.vt, m, k, n);
+        assert!(err < 1e-9, "Frobenius reconstruction error = {err}");
+    }
+
+    #[test]
+    fn test_svd_reconstruction_2x4() {
+        // Non-square wide matrix
+        let a = array![[1.0, 2.0, 3.0, 4.0], [5.0, 6.0, 7.0, 8.0]];
+        let m = 2;
+        let k = 2;
+        let n = 4;
+        let result = jacobi_svd(&a).expect("jacobi_svd 2x4");
+        assert_eq!(result.u_rows, m);
+        assert_eq!(result.u_cols, k);
+        assert_eq!(result.vt_rows, k);
+        assert_eq!(result.vt_cols, n);
+        let err = frobenius_err(&a, &result.u, &result.singular_values, &result.vt, m, k, n);
+        assert!(err < 1e-9, "Frobenius reconstruction error = {err}");
+    }
+
+    #[test]
+    fn test_svd_rank_deficient_2x2() {
+        // Rank-1 matrix: [[1,2],[2,4]]
+        let a = array![[1.0, 2.0], [2.0, 4.0]];
+        let result = jacobi_svd(&a).expect("jacobi_svd rank-deficient 2x2");
+        let sv = &result.singular_values;
+        // One non-zero singular value, one near-zero.
+        let max_sv = sv.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+        let min_sv = sv.iter().cloned().fold(f64::INFINITY, f64::min);
+        assert!(
+            max_sv > 0.1,
+            "max singular value should be significant: {max_sv}"
+        );
+        assert!(
+            min_sv < 1e-10,
+            "min singular value should be near-zero: {min_sv}"
+        );
+    }
+
+    #[test]
+    fn test_svd_non_finite_rejected() {
+        let a = array![[1.0, f64::NAN], [2.0, 3.0]];
+        let wa = WasmArray::from_array(a.into_dyn());
+        let result = svd(&wa);
+        assert!(result.is_err(), "SVD with NaN should return Err");
+    }
 }

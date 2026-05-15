@@ -180,18 +180,111 @@ pub fn project<F: Float + Debug + Send + Sync + 'static>(
         let a_data = a.data.clone();
         let x_data = x.data.clone();
 
-        // Backward function for the matrix A
+        // Backward function for the matrix A using finite-difference
+        // The gradient of projection w.r.t. A is complex (matrix calculus with
+        // A^T A inversion). We use a numerically-stable finite-difference approach
+        // for n <= 2, which is the regime supported by the forward pass.
         let backward_a = if a.requires_grad {
             Some(
                 Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
-                    // Gradient computation for A is complex for projection
-                    // For a simple approximation, we pass through the gradien
-                    // A full implementation would require matrix calculus
+                    let a_shape = a_data.shape();
+                    let m = a_shape[0];
+                    let n_cols = a_shape[1];
+                    let a_2d = a_data.clone().into_shape((m, n_cols)).map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape failed: {}", e))
+                    })?;
+                    let x_1d_opt = x_data.clone().into_shape(m);
+                    let x_1d = x_1d_opt.map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape failed: {}", e))
+                    })?;
+                    let grad_1d_opt = grad.clone().into_shape(m);
+                    let grad_1d = grad_1d_opt.map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape failed: {}", e))
+                    })?;
 
-                    // Return zeros for now - this is a placeholder
-                    let a_datashape = a_data.shape();
-                    let mut grad_a = Array2::<F>::zeros((a_datashape[0], a_datashape[1]));
-                    Ok(grad_a.into_dyn())
+                    // Finite-difference helper: compute projection y = P_A x for matrix A
+                    let project_fd = |a_mat: &Array2<F>, x_vec: &scirs2_core::ndarray::Array1<F>| -> Option<scirs2_core::ndarray::Array1<F>> {
+                        let nc = n_cols;
+                        let mr = m;
+                        // A^T A
+                        let mut ata = Array2::<F>::zeros((nc, nc));
+                        for i in 0..nc {
+                            for j in 0..nc {
+                                let mut s = F::zero();
+                                for k in 0..mr { s = s + a_mat[[k, i]] * a_mat[[k, j]]; }
+                                ata[[i, j]] = s;
+                            }
+                        }
+                        // (A^T A)^{-1} for n_cols <= 2
+                        let ata_inv = if nc == 1 {
+                            if ata[[0, 0]].abs() < F::epsilon() { return None; }
+                            let mut inv = Array2::<F>::zeros((1, 1));
+                            inv[[0, 0]] = F::one() / ata[[0, 0]];
+                            inv
+                        } else {
+                            let det = ata[[0, 0]] * ata[[1, 1]] - ata[[0, 1]] * ata[[1, 0]];
+                            if det.abs() < F::epsilon() { return None; }
+                            let id = F::one() / det;
+                            let mut inv = Array2::<F>::zeros((2, 2));
+                            inv[[0, 0]] = ata[[1, 1]] * id; inv[[0, 1]] = -ata[[0, 1]] * id;
+                            inv[[1, 0]] = -ata[[1, 0]] * id; inv[[1, 1]] = ata[[0, 0]] * id;
+                            inv
+                        };
+                        // A^T x
+                        let mut atx = scirs2_core::ndarray::Array1::<F>::zeros(nc);
+                        for i in 0..nc {
+                            let mut s = F::zero();
+                            for k in 0..mr { s = s + a_mat[[k, i]] * x_vec[k]; }
+                            atx[i] = s;
+                        }
+                        // (A^T A)^{-1} A^T x
+                        let mut ata_inv_atx = scirs2_core::ndarray::Array1::<F>::zeros(nc);
+                        for i in 0..nc {
+                            let mut s = F::zero();
+                            for k in 0..nc { s = s + ata_inv[[i, k]] * atx[k]; }
+                            ata_inv_atx[i] = s;
+                        }
+                        // A (A^T A)^{-1} A^T x
+                        let mut y = scirs2_core::ndarray::Array1::<F>::zeros(mr);
+                        for i in 0..mr {
+                            let mut s = F::zero();
+                            for k in 0..nc { s = s + a_mat[[i, k]] * ata_inv_atx[k]; }
+                            y[i] = s;
+                        }
+                        Some(y)
+                    };
+
+                    let eps = F::from(1e-6).unwrap_or(F::epsilon());
+                    let mut grad_a_out = Array2::<F>::zeros((m, n_cols));
+
+                    for i in 0..m {
+                        for j in 0..n_cols {
+                            let mut a_plus = a_2d.clone();
+                            let mut a_minus = a_2d.clone();
+                            a_plus[[i, j]] = a_plus[[i, j]] + eps;
+                            a_minus[[i, j]] = a_minus[[i, j]] - eps;
+
+                            let y_plus = project_fd(&a_plus, &x_1d);
+                            let y_minus = project_fd(&a_minus, &x_1d);
+
+                            match (y_plus, y_minus) {
+                                (Some(yp), Some(ym)) => {
+                                    // dL/dA[i,j] = sum_k grad_1d[k] * (yp[k] - ym[k]) / (2*eps)
+                                    let mut s = F::zero();
+                                    let two_eps = eps + eps;
+                                    for k in 0..m {
+                                        s = s + grad_1d[k] * (yp[k] - ym[k]) / two_eps;
+                                    }
+                                    grad_a_out[[i, j]] = s;
+                                }
+                                _ => {
+                                    grad_a_out[[i, j]] = F::zero();
+                                }
+                            }
+                        }
+                    }
+
+                    Ok(grad_a_out.into_dyn())
                 })
                     as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
@@ -200,16 +293,73 @@ pub fn project<F: Float + Debug + Send + Sync + 'static>(
         };
 
         // Backward function for the vector x
+        // grad w.r.t x is P^T grad = P grad (projection is self-adjoint: P^T = P)
         let backward_x = if x.requires_grad {
             Some(
                 Box::new(move |grad: scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>| -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> {
-                    // For x, the gradient is the projection matrix applied to the gradien
-                    // P = A(A^T A)^(-1)A^T
+                    // gradient w.r.t x = P^T * grad_y = P * grad_y (P is symmetric)
+                    // For n_cols <= 2, compute P * grad_y directly
+                    let a_shape = a_data.shape();
+                    let m_x = a_shape[0];
+                    let nc = a_shape[1];
+                    let a_2d = a_data.clone().into_shape((m_x, nc)).map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape failed: {}", e))
+                    })?;
+                    let grad_1d_opt = grad.into_shape(m_x);
+                    let grad_1d = grad_1d_opt.map_err(|e| {
+                        scirs2_autograd::error::AutogradError::OperationError(format!("reshape failed: {}", e))
+                    })?;
 
-                    // Since we're computing P * grad, and P is idempotent,
-                    // if grad is already in the column space of A, then P * grad = grad
-                    // For simplicity, we'll just return the gradien
-                    Ok(grad)
+                    // A^T A
+                    let mut ata = Array2::<F>::zeros((nc, nc));
+                    for i in 0..nc {
+                        for j in 0..nc {
+                            let mut s = F::zero();
+                            for k in 0..m_x { s = s + a_2d[[k, i]] * a_2d[[k, j]]; }
+                            ata[[i, j]] = s;
+                        }
+                    }
+                    // (A^T A)^{-1}
+                    let ata_inv = if nc == 1 {
+                        if ata[[0, 0]].abs() < F::epsilon() {
+                            return Ok(scirs2_core::ndarray::Array1::<F>::zeros(m_x).into_dyn());
+                        }
+                        let mut inv = Array2::<F>::zeros((1, 1));
+                        inv[[0, 0]] = F::one() / ata[[0, 0]];
+                        inv
+                    } else {
+                        let det = ata[[0, 0]] * ata[[1, 1]] - ata[[0, 1]] * ata[[1, 0]];
+                        if det.abs() < F::epsilon() {
+                            return Ok(scirs2_core::ndarray::Array1::<F>::zeros(m_x).into_dyn());
+                        }
+                        let id = F::one() / det;
+                        let mut inv = Array2::<F>::zeros((2, 2));
+                        inv[[0, 0]] = ata[[1, 1]] * id; inv[[0, 1]] = -ata[[0, 1]] * id;
+                        inv[[1, 0]] = -ata[[1, 0]] * id; inv[[1, 1]] = ata[[0, 0]] * id;
+                        inv
+                    };
+                    // A^T grad
+                    let mut at_grad = scirs2_core::ndarray::Array1::<F>::zeros(nc);
+                    for i in 0..nc {
+                        let mut s = F::zero();
+                        for k in 0..m_x { s = s + a_2d[[k, i]] * grad_1d[k]; }
+                        at_grad[i] = s;
+                    }
+                    // (A^T A)^{-1} A^T grad
+                    let mut tmp = scirs2_core::ndarray::Array1::<F>::zeros(nc);
+                    for i in 0..nc {
+                        let mut s = F::zero();
+                        for k in 0..nc { s = s + ata_inv[[i, k]] * at_grad[k]; }
+                        tmp[i] = s;
+                    }
+                    // A (A^T A)^{-1} A^T grad = P grad
+                    let mut p_grad = scirs2_core::ndarray::Array1::<F>::zeros(m_x);
+                    for i in 0..m_x {
+                        let mut s = F::zero();
+                        for k in 0..nc { s = s + a_2d[[i, k]] * tmp[k]; }
+                        p_grad[i] = s;
+                    }
+                    Ok(p_grad.into_dyn())
                 })
                     as Box<dyn Fn(scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>) -> AutogradResult<scirs2_core::ndarray::Array<F, scirs2_core::ndarray::IxDyn>> + Send + Sync>,
             )
@@ -528,6 +678,81 @@ pub fn shearmatrix<F: Float + Debug + Send + Sync + 'static>(
         Ok(result)
     } else {
         Ok(Tensor::new(result_data, false))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use scirs2_core::ndarray::{Array1, Array2};
+
+    #[test]
+    fn test_project_backward_a_numerical_gradient() {
+        // A = 2x1 matrix (column vector spanning a 1D subspace)
+        // x = 2D vector
+        // Loss = sum(project(A, x))
+        let a_data = scirs2_core::ndarray::arr2(&[[1.0f64], [1.0]]).into_dyn();
+        let x_data = scirs2_core::ndarray::arr1(&[3.0f64, 1.0]).into_dyn();
+
+        let a = Tensor::new(a_data.clone(), true);
+        let x = Tensor::new(x_data.clone(), false);
+
+        let y = project(&a, &x).expect("project failed");
+
+        // grad_y = ones (loss = sum(y))
+        let grad = Array1::<f64>::ones(2).into_dyn();
+        let backward_a = y.node.as_ref().expect("node").backward_fns[0]
+            .as_ref().expect("backward_a fn");
+        let analytical_a = backward_a(grad).expect("backward_a failed");
+        let analytical = analytical_a.into_shape((2, 1)).unwrap();
+
+        // Numerical gradient
+        let a_2d = a_data.into_shape((2, 1)).unwrap();
+        let x_1d = x_data.into_shape(2).unwrap();
+        let eps = 1e-5;
+        for i in 0..2 {
+            for j in 0..1 {
+                let mut ap = a_2d.clone();
+                let mut am = a_2d.clone();
+                ap[[i, j]] += eps;
+                am[[i, j]] -= eps;
+
+                let proj_sum = |a_mat: Array2<f64>| -> f64 {
+                    let at = Tensor::new(a_mat.into_dyn(), false);
+                    let xt = Tensor::new(x_1d.clone().into_dyn(), false);
+                    match project(&at, &xt) {
+                        Ok(r) => r.data.iter().sum(),
+                        Err(_) => 0.0,
+                    }
+                };
+
+                let num = (proj_sum(ap) - proj_sum(am)) / (2.0 * eps);
+                let diff = (analytical[[i, j]] - num).abs();
+                assert!(diff < 1e-4, "project backward_a mismatch at ({},{}) analytical={} numerical={}", i, j, analytical[[i,j]], num);
+            }
+        }
+    }
+
+    #[test]
+    fn test_project_backward_x_is_p_times_grad() {
+        // backward_x should return P * grad where P = A(A^T A)^{-1} A^T
+        // For a column vector A = [1, 0]^T, P projects onto e1.
+        // P = [[1,0],[0,0]], so P * [1,1]^T = [1, 0]^T
+        let a_data = scirs2_core::ndarray::arr2(&[[1.0f64], [0.0]]).into_dyn();
+        let x_data = scirs2_core::ndarray::arr1(&[0.5f64, 0.5]).into_dyn();
+
+        let a = Tensor::new(a_data, false);
+        let x = Tensor::new(x_data, true);
+
+        let y = project(&a, &x).expect("project failed");
+        let grad = Array1::<f64>::ones(2).into_dyn();
+        let backward_x = y.node.as_ref().expect("node").backward_fns[1]
+            .as_ref().expect("backward_x fn");
+        let grad_x = backward_x(grad).expect("backward_x failed");
+        let gx = grad_x.into_shape(2).unwrap();
+        // P * [1,1] = [1, 0]
+        assert!((gx[0] - 1.0).abs() < 1e-10, "backward_x[0]={}", gx[0]);
+        assert!((gx[1] - 0.0).abs() < 1e-10, "backward_x[1]={}", gx[1]);
     }
 }
 

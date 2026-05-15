@@ -432,7 +432,7 @@ pub fn apply_schur<F: TrigFloat>(
 /// This is implemented via the doubled-up trick with the augmented real system:
 ///   exp([[0, -A], [A, 0]]) = [[cos(A), sin(A)], [-sin(A), cos(A)]]
 ///
-/// which is equivalent since [[0,-1],[1,0]] is a representation of i.
+/// which is equivalent since \[\[0,-1\],\[1,0\]\] is a representation of i.
 ///
 /// # Arguments
 /// * `a` - Input square n x n real matrix

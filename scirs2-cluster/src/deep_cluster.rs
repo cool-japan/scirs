@@ -509,7 +509,7 @@ pub struct DpMixture {
     pub n_components: usize,
     /// Component weights (mixing proportions)
     pub weights: Vec<f64>,
-    /// Component means (one Vec<f64> per component)
+    /// Component means (one `Vec<f64>` per component)
     pub means: Vec<Vec<f64>>,
     /// Precision parameters per component (scalar per component → isotropic)
     pub concentrations: Vec<f64>,

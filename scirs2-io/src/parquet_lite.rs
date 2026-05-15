@@ -140,7 +140,7 @@ impl ParquetSchema {
 
 // ──────────────────────────── Columnar data ──────────────────────────────────
 
-/// Strongly-typed column data that can be stored inside a [`ParquetLiteFile`].
+/// Strongly-typed column data that can be stored inside a `ParquetLiteFile`.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColumnData {
     /// 64-bit floats.

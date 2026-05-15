@@ -15,9 +15,9 @@
 //!
 //! ## Algorithm (1-D)
 //!
-//! 1. Construct B-spline basis {N_{i,p}} on [0,1].
-//! 2. Assemble the stiffness matrix K[i,j] = ∫ a(x) N'_i N'_j dx
-//!    and the load vector f[i] = ∫ f(x) N_i dx.
+//! 1. Construct B-spline basis {N_{i,p}} on \[0,1\].
+//! 2. Assemble the stiffness matrix K\[i,j\] = ∫ a(x) N'_i N'_j dx
+//!    and the load vector f\[i\] = ∫ f(x) N_i dx.
 //! 3. Apply Dirichlet BCs by row/column elimination.
 //! 4. Solve K u = f.
 //!
@@ -140,7 +140,7 @@ pub struct IGASolution1D {
 }
 
 impl IGASolution1D {
-    /// Evaluate the solution at a parameter t ∈ [0,1].
+    /// Evaluate the solution at a parameter t ∈ \[0,1\].
     pub fn eval(&self, t: f64) -> f64 {
         let (span, n_vals) = self.basis.eval_basis_functions(t);
         let p = self.basis.degree;
@@ -171,7 +171,7 @@ impl IGASolution1D {
     }
 }
 
-/// 1-D IGA solver for −(a u')' = f on [0,1] with Dirichlet BCs.
+/// 1-D IGA solver for −(a u')' = f on \[0,1\] with Dirichlet BCs.
 pub struct IGASolver1D {
     basis: BSplineBasis,
     cfg: IGASolver1DConfig,
@@ -396,7 +396,7 @@ impl IGASolution2D {
     }
 }
 
-/// 2-D IGA solver for −∇²u = f on [0,1]² with homogeneous Dirichlet BCs.
+/// 2-D IGA solver for −∇²u = f on \[0,1\]² with homogeneous Dirichlet BCs.
 pub struct IGASolver2D {
     basis_u: BSplineBasis,
     basis_v: BSplineBasis,

@@ -149,7 +149,7 @@ impl PanelMethod {
     /// Solve for the source strength distribution σ on the boundary.
     ///
     /// The no-penetration BC requires V_∞ · n = 0 on the body surface,
-    /// leading to the RHS: b[i] = -V_∞ · n_i.
+    /// leading to the RHS: b\[i\] = -V_∞ · n_i.
     pub fn solve(&mut self) -> IntegrateResult<()> {
         let n = self.mesh.n_elements;
         let mut a = self.assemble_influence_matrix();

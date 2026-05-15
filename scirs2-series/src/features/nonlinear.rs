@@ -533,7 +533,7 @@ fn euclidean_distance_embedded<F: Float>(a: &[F], b: &[F]) -> F {
 
 /// Recurrence plot statistics: Recurrence Rate, Determinism, Laminarity.
 ///
-/// Constructs a binary recurrence matrix R[i,j] = 1 if ‖x_i − x_j‖ ≤ ε and
+/// Constructs a binary recurrence matrix R\[i,j\] = 1 if ‖x_i − x_j‖ ≤ ε and
 /// computes summary statistics on diagonal and vertical lines.
 ///
 /// # Arguments

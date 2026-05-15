@@ -2,12 +2,12 @@
 //!
 //! Provides diffeomorphic deformable registration algorithms:
 //!
-//! - [`DemonsDiffeo`]: diffeomorphic demons registration using update + composition
-//! - [`FluidRegistration`]: viscous fluid model via iterative force smoothing
-//! - [`FreeFormDeformation`]: B-spline free-form deformation (FFD)
-//! - [`DisplacementField`]: dense vector displacement field representation
-//! - [`JacobianDeterminant`]: Jacobian determinant of the deformation field
-//! - [`CompositeTransform`]: compose rigid + deformable transforms
+//! - `DemonsDiffeo`: diffeomorphic demons registration using update + composition
+//! - `FluidRegistration`: viscous fluid model via iterative force smoothing
+//! - `FreeFormDeformation`: B-spline free-form deformation (FFD)
+//! - `DisplacementField`: dense vector displacement field representation
+//! - `JacobianDeterminant`: Jacobian determinant of the deformation field
+//! - `CompositeTransform`: compose rigid + deformable transforms
 //!
 //! # References
 //!

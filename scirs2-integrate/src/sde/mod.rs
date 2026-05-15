@@ -52,6 +52,7 @@ pub mod euler_maruyama;
 pub mod examples;
 pub mod fractional_brownian;
 pub mod jump_diffusion;
+pub mod levy_area;
 pub mod milstein;
 pub mod particle_filter;
 pub mod processes;
@@ -62,6 +63,7 @@ pub mod streaming_particle_filter;
 pub mod weak_order2;
 pub mod weak_schemes;
 
+pub use levy_area::{iterated_integral, levy_area_wiktorsson};
 pub use streaming_particle_filter::{
     FilterEstimate, SimpleRng, StreamingParticleFilter, StreamingParticleFilterBuilder,
 };

@@ -147,10 +147,13 @@ pub fn n4sid_estimate(
 
     // Normal equations: (X * X^T) * Theta^T_cols = X * Y_f^T_cols
     // X is (combined_rows x j), X * X^T is (combined_rows x combined_rows)
+    let t_dot = std::time::Instant::now();
     let xxt = xt.dot(&xt.t());
     let x_yft = xt.dot(&yf_t.t()); // (combined_rows x i)
+    eprintln!("[N4SID-PROFILE] xxt+x_yft dots: {:?}", t_dot.elapsed());
 
     // Solve column by column
+    let t0 = std::time::Instant::now();
     let mut theta_t = Array2::<f64>::zeros((combined_rows, i));
     for col in 0..i {
         let rhs = x_yft.column(col).to_owned();
@@ -174,13 +177,16 @@ pub fn n4sid_estimate(
             }
         }
     }
+    eprintln!("[N4SID-PROFILE] solve_loop: {:?}", t0.elapsed());
 
     // The oblique projection is Theta_wp * W_past where Theta_wp = theta_t[i..,:]
     let theta_wp = theta_t.slice(s![i.., ..]).to_owned(); // (2i x i)
     let obl_proj = theta_wp.t().dot(&w_past); // (i x j)
 
     // Step 4: SVD of the oblique projection to get observability matrix
+    let t_svd = std::time::Instant::now();
     let (u_svd, s_svd, vt_svd) = svd_thin(&obl_proj)?;
+    eprintln!("[N4SID-PROFILE] svd_thin: {:?}", t_svd.elapsed());
 
     let sv = Array1::from_vec(s_svd.clone());
 
@@ -224,6 +230,7 @@ pub fn n4sid_estimate(
     let c_mat = obs_matrix.slice(s![0..1, ..]).to_owned(); // (1 x state_order)
 
     // A = pinv(O_{i-1}) * O_{shifted} where O_{shifted} = O_i without last block row
+    let t_pinv = std::time::Instant::now();
     let a_mat = if state_order > 0 && obs_rows > 1 {
         let obs_up = obs_matrix.slice(s![0..obs_rows - 1, ..]).to_owned();
         let obs_down = obs_matrix.slice(s![1..obs_rows, ..]).to_owned();
@@ -231,6 +238,7 @@ pub fn n4sid_estimate(
     } else {
         Array2::<f64>::zeros((state_order, state_order))
     };
+    eprintln!("[N4SID-PROFILE] pinv_product: {:?}", t_pinv.elapsed());
 
     // Step 6: Estimate B and D from input-output equation
     // y(t) = C * x(t) + D * u(t)
@@ -308,8 +316,10 @@ pub fn n4sid_estimate(
     }
 
     // Use observability-based A (more reliable from SVD) for the final model
+    let t_sim = std::time::Instant::now();
     let fit_pct = compute_simulation_fit(y, u, &a_mat, &b_mat_est, &c_mat, &d_mat_est);
     let noise_var = compute_simulation_noise_var(y, u, &a_mat, &b_mat_est, &c_mat, &d_mat_est);
+    eprintln!("[N4SID-PROFILE] sim_fit+noise: {:?}", t_sim.elapsed());
 
     Ok(SubspaceIdResult {
         a: a_mat,

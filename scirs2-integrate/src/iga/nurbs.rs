@@ -223,7 +223,7 @@ pub struct NurbsSurface {
     pub basis_v: BSplineBasis,
     /// Homogeneous control points [x*w, y*w, z*w, w] indexed [i][j].
     control_points_hw: Vec<Vec<[f64; 4]>>,
-    /// Weights w_{ij} (stored separately for convenience), indexed [i][j].
+    /// Weights w_{ij} (stored separately for convenience), indexed \[i\]\[j\].
     pub weights: Vec<Vec<f64>>,
 }
 
@@ -234,8 +234,8 @@ impl NurbsSurface {
     ///
     /// * `degree_u`, `degree_v` — Polynomial degrees.
     /// * `knots_u`, `knots_v` — Knot vectors.
-    /// * `control_points` — 3-D Euclidean control points [n_u][n_v].
-    /// * `weights` — Positive weights [n_u][n_v].
+    /// * `control_points` — 3-D Euclidean control points \[n_u\]\[n_v\].
+    /// * `weights` — Positive weights \[n_u\]\[n_v\].
     pub fn new(
         degree_u: usize,
         degree_v: usize,

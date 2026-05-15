@@ -49,7 +49,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! scirs2-spatial = "0.4.3"
+//! scirs2-spatial = "0.4.4"
 //! ```
 //!
 //! ```rust
@@ -65,7 +65,7 @@
 //! let d = distance::euclidean(&[1.0, 2.0], &[4.0, 6.0]);
 //! ```
 //!
-//! ## 🔒 Version: 0.4.3 (March 27, 2026)
+//! ## 🔒 Version: 0.4.4 (March 27, 2026)
 //
 // ## Features
 //
@@ -676,6 +676,13 @@
 // Export error types
 pub mod error;
 pub use error::{SpatialError, SpatialResult};
+
+// Hilbert curve spatial sorting for cache-efficient access
+pub mod hilbert;
+pub use hilbert::{
+    hilbert_d2, hilbert_d2_f64, hilbert_d2_inverse, hilbert_d3, hilbert_d3_f64, hilbert_d3_inverse,
+    hilbert_sort_2d, hilbert_sort_3d,
+};
 
 // Safe conversion utilities
 pub(crate) mod safe_conversions;

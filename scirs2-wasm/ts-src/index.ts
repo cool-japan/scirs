@@ -9,7 +9,7 @@ export {
   add, subtract, multiply, divide, dot,
   sum, mean, median, std, std_with_ddof, variance, variance_with_ddof,
   min, max, corrcoef, percentile, cumsum, cumprod,
-  det, inv, solve, norm_frobenius, trace, rank,
+  det, inv, solve, norm_frobenius, trace, rank, svd,
   fft, ifft, rfft, irfft, fftfreq, rfftfreq, fftshift, ifftshift,
   fft_magnitude, fft_phase, power_spectrum,
   minimize_golden, minimize_nelder_mead,
@@ -103,12 +103,20 @@ export interface StatsResult {
 // SvdResult — U, S, Vt decomposition.
 // ---------------------------------------------------------------------------
 export interface SvdResult {
-  /** Singular values (descending order). */
+  /** Singular values (descending order), length = min(rows, cols). */
   singularValues: Float64Array;
-  /** Frobenius norm of the original matrix (proxy when full SVD unavailable). */
+  /** Frobenius norm derived from singular values: sqrt(sum(σ²)). */
   norm: number;
-  /** Matrix rank estimated at default tolerance. */
+  /** Matrix rank: count of singular values above 1e-10. */
   rank: number;
+  /** U matrix (left singular vectors) in row-major order, shape [rows, k]. */
+  u: Float64Array;
+  /** Shape of U: [rows, k]. */
+  uShape: [number, number];
+  /** V^T matrix (right singular vectors) in row-major order, shape [k, cols]. */
+  vt: Float64Array;
+  /** Shape of V^T: [k, cols]. */
+  vtShape: [number, number];
 }
 
 // ---------------------------------------------------------------------------
@@ -163,11 +171,31 @@ export class SciRS2 {
   svd(a: Matrix): SvdResult {
     const wasm = getWasm();
     const wa = a.toWasmArray();
-    const norm = wasm.norm_frobenius(wa);
-    const r = wasm.rank(wa);
-    // Full SVD is not directly exposed; surface norm and rank as proxies.
-    const n = Math.min(a.rows, a.cols);
-    return { singularValues: new Float64Array(n), norm, rank: r };
+    // Call the real Rust SVD (one-sided Jacobi implementation).
+    const result = wasm.svd(wa) as {
+      singular_values: number[];
+      u: number[];
+      u_rows: number;
+      u_cols: number;
+      vt: number[];
+      vt_rows: number;
+      vt_cols: number;
+    };
+    const singularValues = new Float64Array(result.singular_values);
+    // Frobenius norm = sqrt(sum of squared singular values).
+    const norm = Math.sqrt(
+      singularValues.reduce((acc, s) => acc + s * s, 0)
+    );
+    const rank = singularValues.filter((s) => s > 1e-10).length;
+    return {
+      singularValues,
+      norm,
+      rank,
+      u: new Float64Array(result.u),
+      uShape: [result.u_rows, result.u_cols],
+      vt: new Float64Array(result.vt),
+      vtShape: [result.vt_rows, result.vt_cols],
+    };
   }
 
   // -- Spectral --------------------------------------------------------------

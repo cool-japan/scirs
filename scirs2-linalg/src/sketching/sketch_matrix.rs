@@ -246,7 +246,7 @@ where
 /// Count sketch matrix.
 ///
 /// S ∈ ℝ^{m×n} is an extremely sparse sketch: each input coordinate i is mapped
-/// to a single output bucket h(i) ∈ [m] with a random sign σ(i) ∈ {−1, +1}.
+/// to a single output bucket h(i) ∈ \[m\] with a random sign σ(i) ∈ {−1, +1}.
 ///
 /// Applying S to a vector takes O(n) time, making it ideal for sparse inputs.
 /// The sketch satisfies:

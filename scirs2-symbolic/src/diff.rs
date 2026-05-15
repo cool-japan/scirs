@@ -2,7 +2,7 @@
 //!
 //! [`diff`] computes the symbolic derivative of an [`Expr`] with respect to a named
 //! variable, returning a new [`Expr`] that is often not yet in simplified form.
-//! Apply [`crate::simplify`] or [`crate::simplify::simplify_full`] to reduce it.
+//! Apply [`mod@crate::simplify`] or [`crate::simplify::simplify_full`] to reduce it.
 //!
 //! # Rules implemented
 //!
@@ -46,7 +46,7 @@ use crate::Expr;
 /// Compute the symbolic derivative of `expr` with respect to variable `var`.
 ///
 /// The returned expression may contain redundant operations (e.g. `0 + f`, `1 * g`).
-/// Apply [`crate::simplify`] to reduce it.
+/// Apply [`mod@crate::simplify`] to reduce it.
 pub fn diff(expr: &Expr, var: &str) -> Expr {
     match expr {
         // d/dx c = 0

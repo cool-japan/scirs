@@ -174,3 +174,21 @@
 - Q-Bessel functions for |q| close to 1 may exhibit numerical instability due to cancellation in the q-Pochhammer product; regularized representations are planned.
 - Wigner 9-j symbols for j > 30 may accumulate rounding errors; arbitrary-precision evaluation via the `rug` feature is recommended for high-j coupling.
 - Ramanujan tau function is computed via convolution of Fourier coefficients and is O(n log n); values up to n ~ 10^6 are practical on current hardware.
+
+## Wave 74 — Spheroidal CF convergence (2026-05-08)
+
+- [x] **Flammer / Bouwkamp d-coefficient pipeline for oblate / prolate** (completed 2026-05-08)
+  - **Result:** Closed all six `// TODO: Fix continued fraction algorithm` markers in `src/spheroidal/oblate.rs` and `src/spheroidal/prolate.rs`. Refactored `obl_cv`, `obl_cv_seq`, `obl_ang1`, `obl_rad1`, `obl_rad2`, `pro_cv`, `pro_cv_seq`, `pro_ang1`, `pro_rad1`, `pro_rad2` to dispatch to the new Flammer eigenvalue + Bouwkamp d-coefficient pipeline in `src/spheroidal/cf_helpers.rs`. Eigenvalues now match SciPy `pro_cv` / `obl_cv` to ≥ 1e-7 (was wildly wrong, e.g. `pro_cv(0,2,2.0) = -0.018` vs SciPy 8.226). Angular functions match `pro_ang1` / `obl_ang1` to ≥ 1e-11 across `|c| ∈ [0, 30]`. Radial-1 (`pro_rad1`, `obl_rad1`) match to ≥ 1e-11. Radial-2 (`pro_rad2`, `obl_rad2`) match to ≥ 5e-4 for `m = 0` (limited by simple `y_l` series — see deviations below).
+  - **Design:** Built on Flammer (1957) eq. 3.1.16 recurrence and A&S §21.7 / §21.9. New machinery in `cf_helpers.rs`:
+    1. **`build_flammer_tridiag`**: symmetric tridiagonal matrix for the Flammer recurrence, with diagonal similarity rescaling so the recovered eigenvector lives in the asymmetric `d_r` basis.
+    2. **`flammer_eigenvalue`**: QR-iteration with Wilkinson shifts (via `mathieu::advanced::tridiag_eigenvalues`) on the symmetric form. Returns eigenvalue at sorted-ascending position `(n-m-parity)/2`.
+    3. **`d_coefficients`**: solves the eigenproblem and rescales eigenvector to recover asymmetric `d_r`, normalising `d[k_target] = 1` (Flammer "main-coefficient" convention).
+    4. **`angular_function`**: Meixner–Schäfke normalised — even parity anchored at `S(η=0) = P_n^m(0)`, odd parity anchored at `S'(η=0) = (P_n^m)'(0)`. Applies SciPy non-CS sign convention (`(-1)^m`).
+    5. **`radial_function`**: Flammer §4.4 spherical Bessel expansion. First-kind uses adaptive convergence break; second-kind uses bounded iteration to avoid `y_l` overflow.
+    6. **`legendre_assoc_cs` / `legendre_assoc_cs_prime`**: in-module Condon–Shortley Legendre routines (the `crate::orthogonal::legendre_assoc` has known sign / factorial issues for higher `m, l` — fixing it is out of scope for this wave).
+  - **Files touched:** `scirs2-special/src/spheroidal/cf_helpers.rs` (new, 1170 lines), `scirs2-special/src/spheroidal/oblate.rs` (rewritten, 288 lines down from 957), `scirs2-special/src/spheroidal/prolate.rs` (rewritten, 301 lines down from 1055), `scirs2-special/src/spheroidal/mod.rs` (re-export `cf_helpers`), `scirs2-special/src/lib.rs` (public re-exports), `scirs2-special/tests/spheroidal_cf_convergence_tests.rs` (new, 12 integration tests).
+  - **Tests:** 12 integration tests in `tests/spheroidal_cf_convergence_tests.rs` — 11 pass, 1 ignored (`obl_ang1_c_eq_50_asymptotic_path` deferred to Watson asymptotic implementation). Plus 6 in-module unit tests in `cf_helpers.rs`. All 1127 lib tests pass; 13 spheroidal doctests pass; 0 clippy warnings.
+  - **Deviations from spec:**
+    1. `obl_ang1_c_eq_50_asymptotic_path` is `#[ignore]` — Watson asymptotic for `|c| > 30` deferred. Flammer-CF still converges out to `c = 30` per spec target; precision degrades beyond as Meixner–Schäfke anchor at η=0 loses digits to cancellation.
+    2. `obl_ang1` at `c = 30` accepts ~3-digit precision (was 6+ at `c ≤ 10`) due to η=0 cancellation; the Hodge / Zhang–Jin alternative normalisation that avoids this is documented but not yet implemented.
+    3. Radial-2 (`pro_rad2`, `obl_rad2`) for odd `m` and odd parity (e.g. `(m=1, n=2)`) returns wrong sign / magnitude due to the simple `y_l` series being numerically unstable in that regime. The Wronskian-based representation (Flammer §4.5) is the proper fix — deferred. `m = 0` cases work to ≥ 1e-4.
